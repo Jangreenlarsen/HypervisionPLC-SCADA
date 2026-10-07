@@ -2,6 +2,12 @@
 
 ---
 
+## v0.5.0 — 2026-10-07 — HTTPS
+
+- SCADA'en kan nu nås krypteret på `https://scada.laces.dk` / `https://10.1.1.31` via nginx. Almindelig `http://` sendes automatisk videre til HTTPS.
+- Certifikatet er indtil videre selvsigneret, så browseren viser en advarsel første gang. Godkend det én gang (eller installér certifikatet som betroet). Senere skiftes det til Let's Encrypt uden andre ændringer.
+- Login-cookien sendes kun over HTTPS.
+
 ## v0.4.0 — 2026-10-07 — Login og brugerroller
 
 - SCADA'en kræver nu login. Første gang oprettes brugeren `admin` med en engangsadgangskode i `/var/lib/hypervisionplc-scada/initial-admin-password.txt`, som skal skiftes ved første login.

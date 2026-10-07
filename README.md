@@ -41,7 +41,21 @@ Eksempeltegninger: [docs/examples/](docs/examples/).
 sudo sh deploy/install.sh                 # SCADA som systemd-service
 sudo sh deploy/install.sh --with-mock-plc # + mock-PLC til test
 ```
-Konfiguration: `/etc/hypervisionplc-scada.env`. Data: `/var/lib/hypervisionplc-scada`.
+```sh
+sudo sh deploy/install.sh --with-nginx scada.laces.dk 10.1.1.31   # + nginx med TLS (selvsigneret certifikat)
+```
+Konfiguration: `/etc/hypervisionplc-scada.env`. Data: `/var/lib/hypervisionplc-scada`. Certifikat: `/etc/hypervisionplc-scada/tls/`.
+
+### Opdatering af en server fra Windows
+
+Deploy altid det der er committet — `git archive` giver LF-linjeskift uanset Windows-arbejdsmappen:
+
+```sh
+cd frontend && npm run build && cd ..
+git archive --format=tar --prefix=scada/ HEAD > scada.tar
+tar --force-local -rf scada.tar --transform 's,^,scada/,' frontend/dist
+# kopiér scada.tar til serveren, pak ud og kør: sudo sh scada/deploy/install.sh [...]
+```
 
 ## Licens
 
