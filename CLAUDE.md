@@ -10,6 +10,8 @@ Web-baseret SCADA/HMI til en eller flere **HypervisionPLC**-enheder (`C:\Projekt
 
 **Fast ramme**: al kommunikation med PLC'en foregår **udelukkende via PLC'ens REST API** (plus PLC'ens SSE-strøm `/api/events` som push-supplement). Kun SCADA-serveren taler med PLC'en — browsere taler kun med SCADA-serveren. PLC-API-reference: `C:\Projekter\HypervisionPLC\docs\manual\B_REST_API_Reference.md`. Research og design: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md).
 
+**Licens**: AGPL-3.0-or-later (som HypervisionPLC). Nye afhængigheder skal have en AGPL-kompatibel licens (MIT, BSD, Apache-2.0, LGPL, MPL-2.0, GPL-3.0/AGPL-3.0) — tjek før de tilføjes. Web-UI'et skal vise et link til kildekoden (AGPL §13).
+
 **Reference-stack**:
 - **Backend**: Python 3.11, FastAPI + uvicorn, httpx (PLC-klient), SQLite (WAL), pytest
 - **Frontend**: Vite + TypeScript + Svelte, SVG-Edit 7 (`@svgedit/svgcanvas`) som tegne-editor, DOMPurify

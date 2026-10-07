@@ -12,3 +12,13 @@ Dokumentation:
 - [FEATURES.md](FEATURES.md) — backlog
 
 Status: v0.1.0 — projektinitialisering, endnu ingen kørende kode.
+
+## Licens
+
+Copyright (C) 2026 Jan Green Larsen
+
+HypervisionPLC SCADA er fri software: du kan videredistribuere og/eller ændre den under betingelserne i **GNU Affero General Public License v3.0 eller senere** (AGPL-3.0-or-later), som udgivet af Free Software Foundation. Se [LICENSE](LICENSE) for den fulde tekst.
+
+Kører du en ændret version, som brugere tilgår over netværket (web-UI, REST API), kræver AGPL §13, at du tilbyder dem den tilsvarende kildekode. SCADA'ens web-UI viser derfor et link til kildekoden.
+
+Tredjepartskomponenter beholder deres egne licenser, fx SVG-Edit (MIT), FastAPI (MIT), Svelte (MIT) og DOMPurify (Apache-2.0/MPL-2.0).

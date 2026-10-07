@@ -42,3 +42,6 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [ ] planned — Trends (RAM-ringbuffer + PLC'ens trend recorder)
 - [ ] planned — Raspberry Pi 4 deployment: install-script, systemd-service, Chromium-kiosk
 - [ ] planned — Backup/restore af hele SCADA-projektet (tegninger, tags, bindinger)
+
+### Tværgående
+- [ ] planned — Kildekode-link i web-UI'et (AGPL-3.0 §13), konfigurerbar URL til forks
