@@ -98,6 +98,6 @@ Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.m
 │   └── tests/
 ├── frontend/                   # Vite + TS + Svelte (fase 2+)
 │   └── src/
-├── deploy/                     # systemd-unit, kiosk-opsætning, install-script (fase 6)
+├── deploy/                     # install.sh + systemd-units (SCADA, mock-PLC)
 └── data/                       # runtime-data på Pi'en (git-ignoreret)
 ```
