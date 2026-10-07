@@ -20,7 +20,7 @@ Kilder: [FUXA](https://github.com/frangoteam/FUXA) · [JSON-SCADA SVG editor](ht
 
 ## 2. Faste rammer fra HypervisionPLC (fra PLC'ens egen manual, kap. 7 + appendiks B)
 
-- **Al kommunikation er REST/JSON over HTTP(S)**. Brug `/api/v1/...` (undtagen `/api/alarms`, som kun findes uversioneret).
+- **Al kommunikation er REST/JSON over HTTP(S)**. Brug det **uversionerede** `/api/...` — `/api/v1` mangler bl.a. login, alarmer, analog og trend og giver 404 (PLC BUG-485).
 - **Auth**: `POST /api/login` med Basic → Bearer-token, 30 min glidende timeout. Ved 401: log ind igen.
 - **Rate-limit**: token bucket pr. klient-IP, **30 burst / 10 req/s**, max 8 IP'er trackes → `429`. *Derfor må kun Pi'en tale med PLC'en* — ellers tæller hver browser med.
 - **Bulk-læsning**: `GET /api/registers/{hr|ir}?start=&count=` (max 200), `coils`/`di` (max 256). HR/coils/DI 0–255, IR 0–319 (firmware, manualen siger 0–255).

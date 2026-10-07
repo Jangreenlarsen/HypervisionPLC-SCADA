@@ -28,7 +28,7 @@ Kilder: PLC'ens manual (`docs/manual/`, især kap. 1, 2, 6, 7, 10 og appendiks B
 | Analog | `GET /api/analog` | Værdier ×100 fixed-point. HR 0–17 er reserveret til analog I/O |
 | Tællere/timere | `GET /api/counters`, `GET /api/timers` | Tællere ligger desuden fast i HR 100–174 |
 | Eksterne enheder | `GET /api/modbus/external[?watch=...]` | Cache for RTU-slaver og expansion boards med `status`/`age_ms` |
-| Alarmer | `GET /api/alarms` (**kun uversioneret**, ikke `/api/v1`), `POST /api/alarms/ack` | Systemalarmer (heap, CRC, timeouts, auth), ikke procesalarmer |
+| Alarmer | `GET /api/alarms`, `POST /api/alarms/ack` | Systemalarmer (heap, CRC, timeouts, auth), ikke procesalarmer |
 | Register-ejerskab | `GET /api/bindings` → `usage` | Hvem skriver hvilke HR/coils (0–159). Bruges til tag-import og til at advare om skrivning til register, som ST overskriver |
 
 **32-bit værdier**: dint/dword/real ligger i 2 registre, **high word først** (`api_handlers.cpp:1579-1615`). Bulk-GET returnerer rå 16-bit ord, så SCADA'en skal selv samle dem og skal læse begge ord i samme kald, så de to halvdele ikke kommer fra hver sin cyklus.
@@ -68,13 +68,16 @@ Kilder: PLC'ens manual (`docs/manual/`, især kap. 1, 2, 6, 7, 10 og appendiks B
 5. **Tidsstempler**: SCADA'en sætter sit eget tidsstempel ved modtagelse. PLC'ens `epoch` er 0, hvis NTP ikke er synkroniseret.
 6. **Historik**: PLC'ens trend-recorder (8 punkter, 720 samples, kun i RAM) er for lille til SCADA-trends. SCADA'en gemmer selv historik.
 7. **Tag-import**: `/api/logic/{id}` (navngivne ST-variabler), `/api/logic/globals`, `/api/bindings` (`usage`) og `/api/gpio` giver nok til et "importér tags fra PLC"-flow.
-8. **Ingen ændringer i PLC-firmwaren er nødvendige** til fase 1–6. Skal der senere bruges ét ekstra PLC-endpoint, er den bedste kandidat et samlet `GET /api/scada/snapshot` (flere områder i ét kald). Flash er dog på ~93 %, så det skal holdes lille.
+8. **Brug uversioneret `/api/...` overalt** — `/api/v1` mangler ~20 endpoint-grupper inkl. `/api/login` og giver 404 uden fallback (PLC BUG-485).
+9. **Ingen ændringer i PLC-firmwaren er nødvendige** til fase 1–6. Skal der senere bruges ét ekstra PLC-endpoint, er den bedste kandidat et samlet `GET /api/scada/snapshot` (flere områder i ét kald). Flash er dog på ~93 %, så det skal holdes lille.
 
-## 6. Fund i PLC-projektet (til PLC'ens egen backlog, ikke rettet her)
+## 6. Fund i PLC-projektet
 
-| # | Fund | Alvor |
+Registreret i PLC'ens `BUGS_INDEX.md` 2026-10-07 (commit `16c98ca`). Ikke rettet.
+
+| PLC-ID | Fund | Alvor |
 |---|---|---|
-| 1 | `sse_max_clients` kan sættes til 4–5, men `SSE_MAX_CLIENTS` er kompileret til 3. En 4. klient passerer grænsetjekket (`sse_events.cpp:980`) og får sendt `200 OK` + SSE-headers, før `sse_registry_add()` fejler og skriver en rå `503`-statuslinje ind i strømmen (`:1029-1035`). Klienten får altså et ødelagt svar i stedet for en ren 503 | Lav |
-| 2 | Manualen (§6.3 og §B.7) siger IR 0–255, men firmwaren har IR 0–319 (BUG-482) | Lav (dokumentation) |
-| 3 | `/api/alarms` mangler i `/api/v1`-routingtabellen (dokumenteret i §B.1) | Lav |
-| 4 | BUG-369d (HTTPS-heap ved bursts) står stadig som *under undersøgelse*. Det er relevant, hvis PLC'erne skal køre HTTPS med SCADA tilsluttet | Middel for drift |
+| BUG-483 | `sse_max_clients` kan sættes til 4–5, men `SSE_MAX_CLIENTS` er kompileret til 3. En 4. klient passerer grænsetjekket (`sse_events.cpp:980`) og får sendt `200 OK` + SSE-headers, før `sse_registry_add()` fejler og skriver en rå `503`-statuslinje ind i strømmen (`:1029-1035`). Klienten får altså et ødelagt svar i stedet for en ren 503 | Lav |
+| BUG-484 | Manualen (§6.3 og §B.7) siger IR 0–255, men firmwaren har IR 0–319 (BUG-482) | Lav (dokumentation) |
+| BUG-485 | `/api/v1` mangler ~20 endpoint-grupper (login, logout, session/renew, alarms, analog, trend, syslog, ntp, rbac, acl, expansion, ota, schema …) og `v1_dispatch()` svarer 404 uden fallback. Manualen anbefaler ellers v1 og nævner kun alarmer som undtagelse | Middel |
+| BUG-369d (eksisterende) | HTTPS-heap ved bursts står stadig som *under undersøgelse*. Det er relevant, hvis PLC'erne skal køre HTTPS med SCADA tilsluttet | Middel for drift |
