@@ -10,12 +10,12 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 ## Planlagte features
 
 ### Fase 1 — Backend og PLC-kommunikation
-- [ ] planned — Backend-skelet (FastAPI, SQLite, config, logging, serverer frontend statisk)
-- [ ] planned — Mock-PLC der efterligner HypervisionPLC REST API (login/Bearer, bulk-registre, skriv, 401/429, SSE)
-- [ ] planned — PLC-klient pr. PLC: login/token-fornyelse, bulk-poll-planlægger, rate-budget ≤ 5 req/s, backoff
-- [ ] planned — SSE-lytter mod PLC'ens `/api/events` med adaptiv poll-rate som fallback
-- [ ] planned — Flere PLC'er pr. installation (PLC-forbindelser i DB, adgangskoder i secrets-fil)
-- [ ] planned — Tag-model (kilde `plcN:type:addr[:datatype]`, skalering, enhed, skrivbar, min/max) + import fra PLC
+- [x] done v0.2.0 — Backend-skelet (FastAPI, SQLite, config, logging, serverer frontend statisk)
+- [x] done v0.2.0 — Mock-PLC der efterligner HypervisionPLC REST API (login/Bearer, bulk-registre, skriv, 401/429, SSE)
+- [x] done v0.2.0 — PLC-klient pr. PLC: login/token-fornyelse, bulk-poll-planlægger, rate-budget ≤ 5 req/s, backoff
+- [x] done v0.2.0 — SSE-lytter mod PLC'ens `/api/events` med adaptiv poll-rate som fallback
+- [x] done v0.2.0 — Flere PLC'er pr. installation (PLC-forbindelser i DB, adgangskoder i secrets-fil)
+- [x] done v0.2.0 — Tag-model (kilde `plcN:type:addr[:datatype]`, skalering, enhed, skrivbar, min/max) + import fra PLC
 
 ### Fase 2 — Overview med live-værdier
 - [ ] planned — Upload af SVG med server-side sanering og versionering

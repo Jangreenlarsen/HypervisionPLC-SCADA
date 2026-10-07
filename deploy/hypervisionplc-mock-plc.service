@@ -1,0 +1,21 @@
+# KUN til test-/demo-servere: mock af HypervisionPLC's REST API med simuleret proces.
+# Login: scada / scada123. Lytter kun på localhost.
+[Unit]
+Description=Mock HypervisionPLC (test)
+After=network.target
+
+[Service]
+Type=simple
+User=scada
+Group=scada
+WorkingDirectory=/opt/hypervisionplc-scada/backend
+ExecStart=/opt/hypervisionplc-scada/venv/bin/python -m mock_plc --host 127.0.0.1 --port 8081
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

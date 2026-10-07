@@ -11,7 +11,25 @@ Dokumentation:
 - [ARCHITECTURE.md](ARCHITECTURE.md) — lag og projektstruktur
 - [FEATURES.md](FEATURES.md) — backlog
 
-Status: v0.1.0 — projektinitialisering, endnu ingen kørende kode.
+Status: v0.2.0 — backend med PLC-kommunikation, tag-model og mock-PLC (endnu ingen brugerflade).
+
+## Udvikling
+
+```sh
+cd backend
+py -3.12 -m venv .venv && .venv/Scripts/python.exe -m pip install -r requirements-dev.txt
+.venv/Scripts/python.exe -m pytest              # alle tests
+.venv/Scripts/python.exe -m mock_plc --port 8081 # mock-PLC (login scada/scada123)
+.venv/Scripts/python.exe -m app                  # SCADA-server på http://127.0.0.1:8000 (API-doc: /docs)
+```
+
+## Installation (Debian / Raspberry Pi OS)
+
+```sh
+sudo sh deploy/install.sh                 # SCADA som systemd-service
+sudo sh deploy/install.sh --with-mock-plc # + mock-PLC til test
+```
+Konfiguration: `/etc/hypervisionplc-scada.env`. Data: `/var/lib/hypervisionplc-scada`.
 
 ## Licens
 

@@ -1,0 +1,29 @@
+[Unit]
+Description=HypervisionPLC SCADA
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=scada
+Group=scada
+WorkingDirectory=/opt/hypervisionplc-scada/backend
+EnvironmentFile=/etc/hypervisionplc-scada.env
+ExecStart=/opt/hypervisionplc-scada/venv/bin/python -m app
+Restart=always
+RestartSec=3
+
+# Hærdning: kun data-mappen er skrivbar
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/hypervisionplc-scada
+
+[Install]
+WantedBy=multi-user.target
