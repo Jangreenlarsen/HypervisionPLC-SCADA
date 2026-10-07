@@ -34,7 +34,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 
 ### Fase 5 — Betjening og adgang
 - [ ] planned — Skrivning til PLC (setpunkt-dialog, toggle, puls) med bekræftelse og PLC-fejlbesked til operatør
-- [ ] planned — Brugere og roller (viewer/operator/engineer/admin) med sidste-admin-beskyttelse i backend
+- [x] done v0.4.0 — Brugere og roller (viewer/operator/engineer/admin) med sidste-admin-beskyttelse i backend: login med session-cookie (HttpOnly, SameSite=Strict), scrypt-hashede adgangskoder, låsning efter gentagne fejl-logins, tvunget skift af genereret admin-adgangskode, rollekrav på alle endpoints inkl. WebSocket (flyttet frem før TLS)
 - [ ] planned — Audit-log over alle skrivninger og konfigurationsændringer
 
 ### Fase 6 — Drift
@@ -44,5 +44,6 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [ ] planned — Backup/restore af hele SCADA-projektet (tegninger, tags, bindinger)
 
 ### Tværgående
-- [ ] planned — TLS på SCADA-serveren: nginx som reverse proxy (TLS + WebSocket) foran uvicorn på 127.0.0.1, Let's Encrypt-certifikat via certbot med automatisk fornyelse (DNS-01 for LAN-server; afventer domæne + DNS-udbyder)
+- [x] done v0.5.0 — TLS trin 1: nginx (TLS + WebSocket) foran uvicorn på 127.0.0.1 med selvsigneret certifikat (CN/SAN scada.laces.dk + IP), Secure-cookie, sikkerheds-headere; certifikat-stier klar til Let's Encrypt
+- [ ] planned — TLS trin 2: Let's Encrypt-certifikat for scada.laces.dk med automatisk fornyelse — DNS hos one.com (intet API) → `_acme-challenge` CNAME til deSEC; værktøj (certbot-dns-desec / acme.sh / lego) afklares ift. CNAME-delegering
 - [x] done v0.3.0 — Kildekode-link i web-UI'et (AGPL-3.0 §13), konfigurerbar URL til forks (`SCADA_SOURCE_URL`)

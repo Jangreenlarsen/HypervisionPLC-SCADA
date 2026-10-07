@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -71,12 +71,30 @@ CREATE TABLE IF NOT EXISTS bindings (
     params      TEXT NOT NULL DEFAULT '{}',
     PRIMARY KEY (drawing_id, element, position)
 );
+CREATE TABLE IF NOT EXISTS users (
+    username             TEXT PRIMARY KEY,
+    password_hash        TEXT NOT NULL,
+    role                 TEXT NOT NULL,
+    disabled             INTEGER NOT NULL DEFAULT 0,
+    must_change_password INTEGER NOT NULL DEFAULT 0,
+    created_at           REAL NOT NULL,
+    updated_at           REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    token_hash  TEXT PRIMARY KEY,
+    username    TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+    created_at  REAL NOT NULL,
+    expires_at  REAL NOT NULL,
+    ip          TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS sessions_user ON sessions(username);
 """
 
 PLC_FIELDS = ("name", "base_url", "username", "enabled", "sse_enabled", "verify_tls")
 TAG_FIELDS = ("source", "plc", "description", "unit", "scale", "offset", "decimals",
               "writable", "min", "max", "confirm_write")
-_BOOL_FIELDS = {"enabled", "sse_enabled", "verify_tls", "writable", "confirm_write"}
+_BOOL_FIELDS = {"enabled", "sse_enabled", "verify_tls", "writable", "confirm_write", "disabled", "must_change_password"}
+USER_FIELDS = ("password_hash", "role", "disabled", "must_change_password")
 
 
 class Database:
@@ -248,6 +266,93 @@ class Database:
         with self._lock:
             return int(self._conn.execute("SELECT COUNT(*) FROM bindings WHERE tag = ?", (tag,)).fetchone()[0])
 
+    # ------------------------------------------------------------- brugere
+
+    def list_users(self) -> list[dict[str, Any]]:
+        return self._query("SELECT * FROM users ORDER BY username")
+
+    def get_user(self, username: str) -> dict[str, Any] | None:
+        rows = self._query("SELECT * FROM users WHERE username = ?", (username,))
+        return rows[0] if rows else None
+
+    def count_users(self) -> int:
+        with self._lock:
+            return int(self._conn.execute("SELECT COUNT(*) FROM users").fetchone()[0])
+
+    def insert_user(self, username: str, values: dict[str, Any]) -> None:
+        now = time.time()
+        self._execute(
+            "INSERT INTO users(username, password_hash, role, disabled, must_change_password, created_at, updated_at) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (username, values["password_hash"], values["role"], _db("disabled", values.get("disabled", False)),
+             _db("must_change_password", values.get("must_change_password", False)), now, now),
+        )
+
+    def update_user_guarded(self, username: str, changes: dict[str, Any], keep_admin: bool) -> str:
+        """Opdatér en bruger atomisk. Med keep_admin afvises ændringen hvis den ville efterlade
+        nul aktive administratorer (tjek og skriv i samme transaktion — ingen race mellem to admins).
+        Returnerer 'ok', 'missing' eller 'last_admin'."""
+        fields = [f for f in changes if f in USER_FIELDS]
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                if cur.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone() is None:
+                    cur.execute("ROLLBACK")
+                    return "missing"
+                if fields:
+                    sets = ", ".join(f"{f} = ?" for f in fields)
+                    cur.execute(f"UPDATE users SET {sets}, updated_at = ? WHERE username = ?",
+                                (*(_db(f, changes[f]) for f in fields), time.time(), username))
+                if keep_admin and _active_admins(cur) == 0:
+                    cur.execute("ROLLBACK")
+                    return "last_admin"
+                cur.execute("COMMIT")
+                return "ok"
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
+    def delete_user_guarded(self, username: str) -> str:
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                if cur.execute("DELETE FROM users WHERE username = ?", (username,)).rowcount == 0:
+                    cur.execute("ROLLBACK")
+                    return "missing"
+                if _active_admins(cur) == 0:
+                    cur.execute("ROLLBACK")
+                    return "last_admin"
+                cur.execute("DELETE FROM sessions WHERE username = ?", (username,))
+                cur.execute("COMMIT")
+                return "ok"
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
+    # ------------------------------------------------------------ sessioner
+
+    def insert_session(self, token_hash: str, username: str, expires_at: float, ip: str) -> None:
+        self._execute("INSERT INTO sessions(token_hash, username, created_at, expires_at, ip) VALUES (?,?,?,?,?)",
+                      (token_hash, username, time.time(), expires_at, ip))
+
+    def get_session(self, token_hash: str) -> dict[str, Any] | None:
+        rows = self._query("SELECT * FROM sessions WHERE token_hash = ?", (token_hash,))
+        return rows[0] if rows else None
+
+    def touch_session(self, token_hash: str, expires_at: float) -> None:
+        self._execute("UPDATE sessions SET expires_at = ? WHERE token_hash = ?", (expires_at, token_hash))
+
+    def delete_session(self, token_hash: str) -> None:
+        self._execute("DELETE FROM sessions WHERE token_hash = ?", (token_hash,))
+
+    def delete_user_sessions(self, username: str, except_hash: str | None = None) -> None:
+        self._execute("DELETE FROM sessions WHERE username = ? AND token_hash != ?", (username, except_hash or ""))
+
+    def purge_expired_sessions(self, now: float) -> None:
+        self._execute("DELETE FROM sessions WHERE expires_at < ?", (now,))
+
     def _update(self, table: str, pk: str, key: str, changes: dict[str, Any], allowed: tuple[str, ...]) -> bool:
         fields = [f for f in changes if f in allowed]
         if not fields:
@@ -255,6 +360,10 @@ class Database:
         sets = ", ".join(f'"{f}" = ?' for f in fields)
         args = (*(_db(f, changes[f]) for f in fields), time.time(), key)
         return self._execute(f'UPDATE {table} SET {sets}, updated_at = ? WHERE {pk} = ?', args) > 0
+
+
+def _active_admins(cur: sqlite3.Cursor) -> int:
+    return int(cur.execute("SELECT COUNT(*) FROM users WHERE role = 'admin' AND disabled = 0").fetchone()[0])
 
 
 def _db(field: str, value: Any) -> Any:

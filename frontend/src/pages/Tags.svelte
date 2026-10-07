@@ -4,6 +4,8 @@
   import { formatValue } from '../lib/animate';
   import { LiveClient } from '../lib/live';
 
+  let { canEdit = false }: { canEdit?: boolean } = $props();
+
   interface Tag {
     name: string; source: string; plc: string; description: string; unit: string;
     scale: number; offset: number; decimals: number | null; writable: boolean;
@@ -24,8 +26,10 @@
   async function refresh(): Promise<void> {
     try {
       tags = await get<Tag[]>('/api/tags');
-      plcKeys = (await get<{ key: string }[]>('/api/plcs')).map((p) => p.key);
-      discoverPlc ||= plcKeys[0] ?? '';
+      if (canEdit) {
+        plcKeys = (await get<{ key: string }[]>('/api/plcs')).map((p) => p.key);
+        discoverPlc ||= plcKeys[0] ?? '';
+      }
       live.subscribe(tags.map((t) => t.name));
     } catch (e) {
       error = (e as Error).message;
@@ -99,6 +103,7 @@
 
 {#if error}<div class="error">{error}</div>{/if}
 
+{#if canEdit}
 <section class="panel">
   <h2>Nyt tag</h2>
   <p class="muted small">
@@ -145,6 +150,7 @@
     </div>
   {/if}
 </section>
+{/if}
 
 <section class="panel">
   <h2>Tags ({tags.length})</h2>
@@ -160,7 +166,7 @@
             <td>{formatValue(v?.value, { unit: t.unit, decimals: t.decimals, description: '', plc: t.plc })}</td>
             <td><span class="badge {v?.quality ?? 'unknown'}" title={v?.error ?? ''}>{v?.quality ?? 'unknown'}</span></td>
             <td class="small">{t.description}{v?.error ? ` — ${v.error}` : ''}</td>
-            <td><button class="danger" onclick={() => remove(t)}>Slet</button></td>
+            <td>{#if canEdit}<button class="danger" onclick={() => remove(t)}>Slet</button>{/if}</td>
           </tr>
         {/each}
       </tbody>

@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_app
 
+ADMIN_PW = "test-admin-pw-1"
+
 SVG = ('<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" '
        'viewBox="0 0 200 100">'
        '<rect id="Pumpe" width="20" height="20"/>'
@@ -21,13 +23,18 @@ SVG = ('<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inksc
 @pytest.fixture
 def api(tmp_path, mock_plc):
     settings = Settings(data_dir=tmp_path, poll_fast_s=0.05, poll_slow_s=0.2, plc_rate=9,
-                        frontend_dir=tmp_path / "nope")
+                        frontend_dir=tmp_path / "nope", admin_password=ADMIN_PW)
     with TestClient(create_app(settings)) as client:
+        assert client.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW}).status_code == 200
         client.post("/api/plcs", json={"key": "plc1", "base_url": mock_plc.url, "username": "scada",
                                        "password": "scada123", "sse_enabled": False})
         client.post("/api/tags", json={"name": "Pumpe", "source": "plc1:coil:0"})
         client.post("/api/tags", json={"name": "Niveau", "source": "plc1:hr:10", "scale": 0.1, "unit": "%"})
         yield client
+
+
+def _ws_cookie(client):
+    return {"cookie": f"scada_session={client.cookies.get('scada_session')}"}
 
 
 def _create(api, name="Tank anlæg Ø1", svg=SVG):
@@ -119,7 +126,7 @@ def test_delete_drawing(api):
 
 def test_websocket_snapshot_delta_and_plc_status(api, mock_plc):
     mock_plc.state.hr[10] = 500
-    with api.websocket_connect("/ws/live") as ws:
+    with api.websocket_connect("/ws/live", headers=_ws_cookie(api)) as ws:
         ws.send_json({"type": "subscribe", "tags": ["Niveau"]})
         seen_snapshot = seen_plcs = False
         deadline = time.monotonic() + 10
@@ -138,14 +145,27 @@ def test_websocket_snapshot_delta_and_plc_status(api, mock_plc):
         mock_plc.state.hr[10] = 700
         while True:
             msg = ws.receive_json()
+            seen_plcs = seen_plcs or msg["type"] == "plcs"
             if msg["type"] == "delta" and "Niveau" in msg["values"]:
                 assert msg["values"]["Niveau"]["value"] == pytest.approx(70.0)
                 break
-        assert seen_plcs or ws.receive_json()["type"] in ("plcs", "delta")
+        while not seen_plcs:  # PLC-status sendes senest efter ~2 s
+            seen_plcs = ws.receive_json()["type"] == "plcs"
+
+
+def test_websocket_requires_login(api):
+    from starlette.websockets import WebSocketDisconnect
+
+    with api.websocket_connect("/ws/live", headers={"cookie": "scada_session=forkert"}) as ws:
+        msg = ws.receive_json()
+        assert msg == {"type": "error", "error": "Du er ikke logget ind"}
+        with pytest.raises(WebSocketDisconnect) as info:
+            ws.receive_json()
+        assert info.value.code == 4401
 
 
 def test_websocket_rejects_bad_message(api):
-    with api.websocket_connect("/ws/live") as ws:
+    with api.websocket_connect("/ws/live", headers=_ws_cookie(api)) as ws:
         ws.send_json({"type": "subscribe", "tags": "ikke-en-liste"})
         while True:
             msg = ws.receive_json()
@@ -163,11 +183,16 @@ def test_websocket_works_under_real_uvicorn(tmp_path):
 
     from tests.conftest import _Server, free_port
 
+    import httpx
+
     port = free_port()
-    settings = Settings(data_dir=tmp_path, frontend_dir=tmp_path / "nope")
+    settings = Settings(data_dir=tmp_path, frontend_dir=tmp_path / "nope", admin_password=ADMIN_PW)
 
     async def go() -> set[str]:
-        async with websockets.connect(f"ws://127.0.0.1:{port}/ws/live") as ws:
+        async with httpx.AsyncClient() as http:
+            r = await http.post(f"http://127.0.0.1:{port}/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
+            cookie = f"scada_session={r.cookies['scada_session']}"
+        async with websockets.connect(f"ws://127.0.0.1:{port}/ws/live", additional_headers={"Cookie": cookie}) as ws:
             await ws.send(json.dumps({"type": "subscribe", "tags": []}))
             msgs = [json.loads(await asyncio.wait_for(ws.recv(), 5)) for _ in range(2)]
         return {m["type"] for m in msgs}

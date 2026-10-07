@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..services.drawings import DrawingService
+from .auth import ENGINEER, VIEWER
 
 router = APIRouter(prefix="/api/drawings")
 
@@ -42,22 +43,22 @@ def _svc(request: Request) -> DrawingService:
     return request.app.state.drawing_service
 
 
-@router.get("")
+@router.get("", dependencies=[VIEWER])
 async def list_drawings(request: Request) -> list[dict[str, Any]]:
     return _svc(request).list()
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[ENGINEER])
 async def create_drawing(body: DrawingCreate, request: Request) -> dict[str, Any]:
     return _svc(request).create(body.name, body.svg, body.comment)
 
 
-@router.get("/{drawing_id}")
+@router.get("/{drawing_id}", dependencies=[VIEWER])
 async def get_drawing(drawing_id: str, request: Request) -> dict[str, Any]:
     return _svc(request).get(drawing_id)
 
 
-@router.patch("/{drawing_id}")
+@router.patch("/{drawing_id}", dependencies=[ENGINEER])
 async def update_drawing(drawing_id: str, body: DrawingUpdate, request: Request) -> dict[str, Any]:
     svc = _svc(request)
     if body.name is not None:
@@ -67,17 +68,17 @@ async def update_drawing(drawing_id: str, body: DrawingUpdate, request: Request)
     return svc.get(drawing_id)
 
 
-@router.delete("/{drawing_id}", status_code=204)
+@router.delete("/{drawing_id}", status_code=204, dependencies=[ENGINEER])
 async def delete_drawing(drawing_id: str, request: Request) -> None:
     _svc(request).delete(drawing_id)
 
 
-@router.post("/{drawing_id}/versions", status_code=201)
+@router.post("/{drawing_id}/versions", status_code=201, dependencies=[ENGINEER])
 async def add_version(drawing_id: str, body: VersionCreate, request: Request) -> dict[str, Any]:
     return _svc(request).add_version(drawing_id, body.svg, body.comment, body.activate)
 
 
-@router.get("/{drawing_id}/svg")
+@router.get("/{drawing_id}/svg", dependencies=[VIEWER])
 async def get_svg(drawing_id: str, request: Request, version: int | None = None) -> Response:
     svg = _svc(request).svg(drawing_id, version)
     # Saneret SVG serveres med CSP, så den heller ikke kan køre script hvis den åbnes direkte.
@@ -86,16 +87,16 @@ async def get_svg(drawing_id: str, request: Request, version: int | None = None)
                              "X-Content-Type-Options": "nosniff"})
 
 
-@router.get("/{drawing_id}/view")
+@router.get("/{drawing_id}/view", dependencies=[VIEWER])
 async def view(drawing_id: str, request: Request) -> dict[str, Any]:
     return _svc(request).view(drawing_id)
 
 
-@router.get("/{drawing_id}/bindings")
+@router.get("/{drawing_id}/bindings", dependencies=[VIEWER])
 async def list_bindings(drawing_id: str, request: Request) -> list[dict[str, Any]]:
     return _svc(request).bindings(drawing_id)
 
 
-@router.put("/{drawing_id}/bindings/{element}")
+@router.put("/{drawing_id}/bindings/{element}", dependencies=[ENGINEER])
 async def set_bindings(drawing_id: str, element: str, body: ElementBindings, request: Request) -> list[dict[str, Any]]:
     return _svc(request).set_element_bindings(drawing_id, element, body.bindings)

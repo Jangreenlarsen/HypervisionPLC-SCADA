@@ -8,6 +8,7 @@ from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..config import read_version
+from .auth import ADMIN, ENGINEER, VIEWER
 from ..services.plcs import PlcService
 from ..services.tags import TagService
 
@@ -83,67 +84,67 @@ async def health(request: Request) -> dict[str, Any]:
     return {"status": "ok", **read_version(), "source_url": request.app.state.settings.source_url}
 
 
-@router.get("/plcs")
+@router.get("/plcs", dependencies=[ENGINEER])
 async def list_plcs(request: Request) -> list[dict[str, Any]]:
     return _plcs(request).list()
 
 
-@router.post("/plcs", status_code=201)
+@router.post("/plcs", status_code=201, dependencies=[ADMIN])
 async def create_plc(body: PlcCreate, request: Request) -> dict[str, Any]:
     return await _plcs(request).create(body.model_dump())
 
 
-@router.get("/plcs/{key}")
+@router.get("/plcs/{key}", dependencies=[ENGINEER])
 async def get_plc(key: str, request: Request) -> dict[str, Any]:
     return _plcs(request).get(key)
 
 
-@router.patch("/plcs/{key}")
+@router.patch("/plcs/{key}", dependencies=[ADMIN])
 async def update_plc(key: str, body: PlcUpdate, request: Request) -> dict[str, Any]:
     return await _plcs(request).update(key, body.model_dump(exclude_unset=True))
 
 
-@router.delete("/plcs/{key}", status_code=204)
+@router.delete("/plcs/{key}", status_code=204, dependencies=[ADMIN])
 async def delete_plc(key: str, request: Request) -> None:
     await _plcs(request).delete(key)
 
 
-@router.get("/plcs/{key}/discover")
+@router.get("/plcs/{key}/discover", dependencies=[ENGINEER])
 async def discover_plc(key: str, request: Request) -> dict[str, Any]:
     return await _plcs(request).discover(key)
 
 
-@router.get("/tags")
+@router.get("/tags", dependencies=[VIEWER])
 async def list_tags(request: Request, plc: str | None = None) -> list[dict[str, Any]]:
     return _tags(request).list(plc=plc)
 
 
-@router.post("/tags", status_code=201)
+@router.post("/tags", status_code=201, dependencies=[ENGINEER])
 async def create_tag(body: TagCreate, request: Request) -> dict[str, Any]:
     return _tags(request).create(body.model_dump(exclude_unset=True))
 
 
-@router.post("/tags/import")
+@router.post("/tags/import", dependencies=[ENGINEER])
 async def import_tags(body: TagImport, request: Request) -> dict[str, Any]:
     return _tags(request).import_many(body.tags)
 
 
-@router.get("/tags/{name}")
+@router.get("/tags/{name}", dependencies=[VIEWER])
 async def get_tag(name: str, request: Request) -> dict[str, Any]:
     return _tags(request).get(name)
 
 
-@router.patch("/tags/{name}")
+@router.patch("/tags/{name}", dependencies=[ENGINEER])
 async def update_tag(name: str, body: TagUpdate, request: Request) -> dict[str, Any]:
     return _tags(request).update(name, body.model_dump(exclude_unset=True))
 
 
-@router.delete("/tags/{name}", status_code=204)
+@router.delete("/tags/{name}", status_code=204, dependencies=[ENGINEER])
 async def delete_tag(name: str, request: Request) -> None:
     _tags(request).delete(name)
 
 
-@router.get("/live")
+@router.get("/live", dependencies=[VIEWER])
 async def live_values(request: Request, tags: str | None = Query(default=None, description="Kommasepareret liste")) -> dict[str, Any]:
     names = [t.strip() for t in tags.split(",") if t.strip()] if tags else [t["name"] for t in _tags(request).list()]
     return {"values": request.app.state.cache.snapshot(names)}
