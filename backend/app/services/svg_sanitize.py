@@ -1,0 +1,218 @@
+"""Server-side sanering af uploadede SVG-tegninger (ARCHITECTURE.md princip 5).
+
+Hvidliste af SVG-elementer; alt andet fjernes. Derudover fjernes:
+- alle `on*`-event-attributter
+- `href`/`xlink:href` der ikke er en intern reference (`#id`) — undtaget `<image>` med
+  rasterbillede som data-URI (png/jpeg/gif/webp, aldrig svg)
+- `javascript:`/`data:` i enhver attribut, og `url(...)` til eksterne ressourcer i style
+- `<style>` med `@import` eller eksterne `url(...)` renses
+- SMIL-animation (`animate`, `set` ...) — kan sætte `href` til javascript:
+- elementer/attributter fra fremmede navnerum, undtagen `inkscape:label` (bruges til
+  auto-binding) og `sodipodi`/`inkscape`-metadata der blot droppes
+
+XML parses med defusedxml (ingen DTD/entiteter → ingen XXE eller "billion laughs").
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from xml.etree import ElementTree as ET
+
+from defusedxml import DefusedXmlException
+from defusedxml.ElementTree import fromstring
+
+SVG_NS = "http://www.w3.org/2000/svg"
+XLINK_NS = "http://www.w3.org/1999/xlink"
+INKSCAPE_NS = "http://www.inkscape.org/namespaces/inkscape"
+MAX_SVG_BYTES = 5 * 1024 * 1024
+
+ALLOWED_ELEMENTS = {
+    "svg", "g", "defs", "symbol", "use", "title", "desc", "style",
+    "path", "rect", "circle", "ellipse", "line", "polyline", "polygon",
+    "text", "tspan", "textPath",
+    "linearGradient", "radialGradient", "stop", "pattern", "clipPath", "mask", "marker", "image",
+    "filter", "feGaussianBlur", "feOffset", "feBlend", "feColorMatrix", "feComposite", "feFlood",
+    "feMerge", "feMergeNode", "feMorphology", "feDropShadow",
+}
+_RASTER_DATA_URI = re.compile(r"^data:image/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/=\s]+$", re.I)
+_DANGEROUS_VALUE = re.compile(r"(javascript|vbscript|data)\s*:", re.I)
+_EXTERNAL_URL = re.compile(r"url\(\s*(['\"]?)(?!#)[^)]*\)", re.I)
+_CSS_IMPORT = re.compile(r"@import[^;]*;?", re.I)
+_CSS_EXPRESSION = re.compile(r"expression\s*\(", re.I)
+
+
+class SvgError(ValueError):
+    pass
+
+
+@dataclass
+class SanitizeResult:
+    svg: str
+    removed_elements: dict[str, int] = field(default_factory=dict)
+    removed_attributes: dict[str, int] = field(default_factory=dict)
+    element_ids: list[str] = field(default_factory=list)
+    labels: dict[str, str] = field(default_factory=dict)  # id → inkscape:label
+    width: float | None = None
+    height: float | None = None
+
+    @property
+    def changed(self) -> bool:
+        return bool(self.removed_elements or self.removed_attributes)
+
+
+def _local(tag: str) -> tuple[str | None, str]:
+    if tag.startswith("{"):
+        ns, _, name = tag[1:].partition("}")
+        return ns, name
+    return None, tag
+
+
+def _count(d: dict[str, int], key: str) -> None:
+    d[key] = d.get(key, 0) + 1
+
+
+def _clean_css(text: str) -> str:
+    text = _CSS_IMPORT.sub("", text)
+    text = _EXTERNAL_URL.sub("none", text)
+    return _CSS_EXPRESSION.sub("(", text)
+
+
+def sanitize_svg(data: bytes | str) -> SanitizeResult:
+    raw = data.encode("utf-8") if isinstance(data, str) else data
+    if not raw or not raw.strip():
+        raise SvgError("Filen er tom")
+    if len(raw) > MAX_SVG_BYTES:
+        raise SvgError(f"Tegningen er for stor ({len(raw) // 1024} KB) — max {MAX_SVG_BYTES // 1024 // 1024} MB")
+    try:
+        root = fromstring(raw, forbid_dtd=True)
+    except DefusedXmlException:
+        raise SvgError("SVG'en indeholder DTD/entiteter, som ikke er tilladt") from None
+    except ET.ParseError as exc:
+        raise SvgError(f"Ikke gyldig SVG/XML: {exc}") from None
+
+    ns, name = _local(root.tag)
+    if name != "svg" or ns not in (SVG_NS, None):
+        raise SvgError("Filen er ikke en SVG-tegning (rodelementet skal være <svg>)")
+
+    result = SanitizeResult(svg="")
+    _clean_element(root, result)
+    _ensure_viewbox(root, result)
+
+    ET.register_namespace("", SVG_NS)
+    ET.register_namespace("xlink", XLINK_NS)
+    ET.register_namespace("inkscape", INKSCAPE_NS)
+    result.svg = ET.tostring(root, encoding="unicode")
+    return result
+
+
+def _clean_element(el: ET.Element, result: SanitizeResult) -> None:
+    for child in list(el):
+        ns, name = _local(child.tag) if isinstance(child.tag, str) else (None, "")
+        if not isinstance(child.tag, str) or ns not in (SVG_NS, None) or name not in ALLOWED_ELEMENTS:
+            _count(result.removed_elements, name or "kommentar/processing-instruction")
+            _remove_keep_tail(el, child)
+            continue
+        _clean_element(child, result)
+
+    ns, name = _local(el.tag)
+    for attr in list(el.attrib):
+        a_ns, a_name = _local(attr)
+        value = el.attrib[attr]
+        reason = _attribute_problem(name, a_ns, a_name, value)
+        if reason:
+            _count(result.removed_attributes, reason)
+            del el.attrib[attr]
+        elif a_name == "style":
+            cleaned = _clean_css(value)
+            if cleaned != value:
+                _count(result.removed_attributes, "style:url/import")
+                el.attrib[attr] = cleaned
+    if name == "style" and el.text:
+        cleaned = _clean_css(el.text)
+        if cleaned != el.text:
+            _count(result.removed_attributes, "<style>:url/import")
+            el.text = cleaned
+
+    el_id = el.attrib.get("id")
+    if el_id:
+        result.element_ids.append(el_id)
+        label = el.attrib.get(f"{{{INKSCAPE_NS}}}label")
+        if label:
+            result.labels[el_id] = label
+
+
+def _attribute_problem(element: str, ns: str | None, name: str, value: str) -> str | None:
+    if ns == INKSCAPE_NS:
+        return None if name == "label" else f"inkscape:{name}"
+    if ns not in (None, XLINK_NS, "http://www.w3.org/XML/1998/namespace"):
+        return "fremmed navnerum"
+    if name.lower().startswith("on"):
+        return name.lower()
+    if name == "href":
+        v = value.strip()
+        if v.startswith("#"):
+            return None
+        if element == "image" and _RASTER_DATA_URI.match(v):
+            return None
+        return "ekstern href"
+    if _DANGEROUS_VALUE.search(value) and name not in ("d", "points"):
+        return f"{name}=javascript/data"
+    if name != "style" and _EXTERNAL_URL.search(value):
+        return "ekstern url()"
+    return None
+
+
+def _remove_keep_tail(parent: ET.Element, child: ET.Element) -> None:
+    """Fjern et element men bevar evt. tekst der stod efter det."""
+    if child.tail and child.tail.strip():
+        idx = list(parent).index(child)
+        if idx > 0:
+            prev = parent[idx - 1]
+            prev.tail = (prev.tail or "") + child.tail
+        else:
+            parent.text = (parent.text or "") + child.tail
+    parent.remove(child)
+
+
+def _ensure_viewbox(root: ET.Element, result: SanitizeResult) -> None:
+    """Viseren skalerer tegningen til skærmen og kræver derfor en viewBox."""
+    vb = root.attrib.get("viewBox")
+    if vb:
+        parts = re.split(r"[\s,]+", vb.strip())
+        if len(parts) == 4:
+            try:
+                result.width, result.height = float(parts[2]), float(parts[3])
+                return
+            except ValueError:
+                pass
+    w = _length(root.attrib.get("width"))
+    h = _length(root.attrib.get("height"))
+    if w is None or h is None:
+        raise SvgError("Tegningen mangler viewBox og har ingen brugbar width/height — kan ikke skaleres")
+    root.attrib["viewBox"] = f"0 0 {w:g} {h:g}"
+    result.width, result.height = w, h
+
+
+def _length(text: str | None) -> float | None:
+    if not text:
+        return None
+    m = re.match(r"^\s*([0-9.]+)\s*(px|pt|mm|cm|in)?\s*$", text)
+    if not m:
+        return None
+    factor = {"px": 1, None: 1, "pt": 4 / 3, "mm": 96 / 25.4, "cm": 96 / 2.54, "in": 96}[m.group(2)]
+    value = float(m.group(1)) * factor
+    return value if value > 0 else None
+
+
+def index_svg(svg: str) -> dict[str, tuple[str, str | None]]:
+    """{element-id: (elementnavn, inkscape:label)} for en allerede saneret SVG."""
+    root = fromstring(svg.encode("utf-8"), forbid_dtd=True)
+    out: dict[str, tuple[str, str | None]] = {}
+    for el in root.iter():
+        if not isinstance(el.tag, str):
+            continue
+        el_id = el.attrib.get("id")
+        if el_id:
+            out[el_id] = (_local(el.tag)[1], el.attrib.get(f"{{{INKSCAPE_NS}}}label"))
+    return out

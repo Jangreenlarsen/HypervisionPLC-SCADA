@@ -98,6 +98,9 @@ class TagService:
         return self.get(name)
 
     def delete(self, name: str) -> None:
+        used = self.db.count_bindings_for_tag(name)
+        if used:
+            raise ServiceError(409, f"Tagget '{name}' bruges i {used} binding(er) i tegninger — fjern dem først")
         if not self.db.delete_tag(name):
             raise ServiceError(404, f"Tag '{name}' findes ikke")
         self.manager.reload_tags(removed=[name])

@@ -35,6 +35,9 @@ class Settings:
     poll_slow_s: float = field(default_factory=lambda: _env_float("SCADA_POLL_SLOW_S", 2.0))
     plc_timeout_s: float = field(default_factory=lambda: _env_float("SCADA_PLC_TIMEOUT_S", 5.0))
     frontend_dir: Path = field(default_factory=lambda: Path(os.environ.get("SCADA_FRONTEND_DIR", REPO_ROOT / "frontend" / "dist")))
+    # AGPL §13: brugere over netværket skal tilbydes kildekoden — peg på jeres egen fork ved ændringer.
+    source_url: str = field(default_factory=lambda: os.environ.get(
+        "SCADA_SOURCE_URL", "https://github.com/Jangreenlarsen/HypervisionPLC-SCADA"))
     start_runtimes: bool = True
 
     def __post_init__(self) -> None:

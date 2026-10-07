@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 400" font-family="Segoe UI, Arial, sans-serif">
+  <title>HypervisionPLC 10.1.1.30 — I/O-oversigt</title>
+  <rect x="0" y="0" width="820" height="400" fill="#d9d9d9"/>
+  <text x="24" y="38" font-size="22" font-weight="600" fill="#333">HypervisionPLC — I/O (10.1.1.30)</text>
+
+  <!-- Elementernes id = tag-navn, så de bindes automatisk (grøn = aktiv, grå = inaktiv) -->
+  <rect x="24" y="64" width="380" height="150" rx="4" fill="#eeeeee" stroke="#888"/>
+  <text x="40" y="90" font-size="15" font-weight="600" fill="#333">Digitale indgange</text>
+  <circle id="PLC1_DI1" cx="70" cy="140" r="18" fill="#9e9e9e" stroke="#555" stroke-width="2"/>
+  <circle id="PLC1_DI2" cx="150" cy="140" r="18" fill="#9e9e9e" stroke="#555" stroke-width="2"/>
+  <circle id="PLC1_DI3" cx="230" cy="140" r="18" fill="#9e9e9e" stroke="#555" stroke-width="2"/>
+  <circle id="PLC1_DI4" cx="310" cy="140" r="18" fill="#9e9e9e" stroke="#555" stroke-width="2"/>
+  <circle id="PLC1_DI8" cx="370" cy="140" r="12" fill="#9e9e9e" stroke="#555" stroke-width="2"/>
+  <text x="70" y="185" font-size="14" text-anchor="middle" fill="#333">DI1</text>
+  <text x="150" y="185" font-size="14" text-anchor="middle" fill="#333">DI2</text>
+  <text x="230" y="185" font-size="14" text-anchor="middle" fill="#333">DI3</text>
+  <text x="310" y="185" font-size="14" text-anchor="middle" fill="#333">DI4</text>
+  <text x="370" y="185" font-size="14" text-anchor="middle" fill="#333">DI8</text>
+
+  <rect x="420" y="64" width="380" height="150" rx="4" fill="#eeeeee" stroke="#888"/>
+  <text x="436" y="90" font-size="15" font-weight="600" fill="#333">Relæudgange</text>
+  <rect id="PLC1_DO1" x="448" y="118" width="44" height="44" rx="4" fill="#9e9e9e" stroke="#555" stroke-width="2"/>
+  <rect id="PLC1_DO2" x="528" y="118" width="44" height="44" rx="4" fill="#9e9e9e" stroke="#555" stroke-width="2"/>
+  <rect id="PLC1_DO3" x="608" y="118" width="44" height="44" rx="4" fill="#9e9e9e" stroke="#555" stroke-width="2"/>
+  <rect id="PLC1_DO4" x="688" y="118" width="44" height="44" rx="4" fill="#9e9e9e" stroke="#555" stroke-width="2"/>
+  <rect id="PLC1_DO8" x="752" y="126" width="28" height="28" rx="4" fill="#9e9e9e" stroke="#555" stroke-width="2"/>
+  <text x="470" y="185" font-size="14" text-anchor="middle" fill="#333">DO1</text>
+  <text x="550" y="185" font-size="14" text-anchor="middle" fill="#333">DO2</text>
+  <text x="630" y="185" font-size="14" text-anchor="middle" fill="#333">DO3</text>
+  <text x="710" y="185" font-size="14" text-anchor="middle" fill="#333">DO4</text>
+  <text x="766" y="185" font-size="14" text-anchor="middle" fill="#333">DO8</text>
+
+  <rect x="24" y="234" width="776" height="130" rx="4" fill="#eeeeee" stroke="#888"/>
+  <text x="40" y="260" font-size="15" font-weight="600" fill="#333">Logic</text>
+  <text x="40" y="300" font-size="14" fill="#5c5c5c">Logic1 phase</text>
+  <text id="PLC1_Phase" x="180" y="300" font-size="20" font-weight="600" fill="#1f1f1f">--</text>
+  <text x="300" y="300" font-size="14" fill="#5c5c5c">Logic1 val</text>
+  <text id="PLC1_Val" x="420" y="300" font-size="20" font-weight="600" fill="#1f1f1f">--</text>
+  <text x="560" y="300" font-size="14" fill="#5c5c5c">HR60 (Logic2)</text>
+  <text id="PLC1_HR60" x="680" y="300" font-size="20" font-weight="600" fill="#1f1f1f">--</text>
+  <text x="40" y="345" font-size="12" fill="#5c5c5c">Grå/udtonet = ingen gyldig værdi (kommunikationsfejl)</text>
+</svg>

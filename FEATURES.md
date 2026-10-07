@@ -18,9 +18,9 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.2.0 — Tag-model (kilde `plcN:type:addr[:datatype]`, skalering, enhed, skrivbar, min/max) + import fra PLC
 
 ### Fase 2 — Overview med live-værdier
-- [ ] planned — Upload af SVG med server-side sanering og versionering
-- [ ] planned — Overview-board: vis tegning og opdatér bindinger live via WebSocket (delta-frames)
-- [ ] planned — Kvalitetsvisning (stale/kommunikationsfejl) på bundne elementer
+- [x] done v0.3.0 — Upload af SVG med server-side sanering og versionering
+- [x] done v0.3.0 — Overview-board: vis tegning og opdatér bindinger live via WebSocket (delta-frames)
+- [x] done v0.3.0 — Kvalitetsvisning (stale/kommunikationsfejl) på bundne elementer
 
 ### Fase 3 — Bindinger
 - [ ] planned — Binding-editor: klik element → vælg tag + animation (text, fill, stroke, visible, blink, level, rotate, move, opacity, click:write/toggle/pulse/goto)
@@ -44,4 +44,5 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [ ] planned — Backup/restore af hele SCADA-projektet (tegninger, tags, bindinger)
 
 ### Tværgående
-- [ ] planned — Kildekode-link i web-UI'et (AGPL-3.0 §13), konfigurerbar URL til forks
+- [ ] planned — TLS på SCADA-serveren: nginx som reverse proxy (TLS + WebSocket) foran uvicorn på 127.0.0.1, Let's Encrypt-certifikat via certbot med automatisk fornyelse (DNS-01 for LAN-server; afventer domæne + DNS-udbyder)
+- [x] done v0.3.0 — Kildekode-link i web-UI'et (AGPL-3.0 §13), konfigurerbar URL til forks (`SCADA_SOURCE_URL`)

@@ -2,6 +2,17 @@
 
 ---
 
+## v0.3.0 — 2026-10-07 — Overview med live SVG-tegninger
+
+- Ny brugerflade i browseren: **Overview**, **Tegninger**, **Tags** og **PLC'er**.
+- Upload SVG-tegninger (fx fra Inkscape). Farlige elementer som scripts fjernes automatisk, og du får en rapport over hvad der blev fjernet. Nye versioner kan uploades, og en ældre version kan gøres aktiv igen.
+- Elementer hvis id (eller Inkscape-label) er lig et tag-navn bindes automatisk: tekst viser værdien med enhed, figurer bliver grønne når signalet er aktivt.
+- Værdierne opdateres live. Mister SCADA'en forbindelsen til en PLC, bliver værdierne tydeligt nedtonet og PLC'ens fejlbesked vises øverst.
+- Tags kan oprettes og foreslås fra PLC'ens ST-variabler direkte i brugerfladen; PLC-forbindelser kan tilføjes og overvåges (status, SSE, kald pr. cyklus).
+- Endnu intet login — serveren lytter derfor stadig kun på localhost.
+
+**Næste skridt**: Fase 3 — binding-editor (klik på et element og vælg tag + animation).
+
 ## v0.2.0 — 2026-10-07 — SCADA-serveren taler med PLC'en
 
 - SCADA-serveren kan forbinde til en eller flere HypervisionPLC'er via REST og holde live-værdier opdateret: bulk-polling, og PLC'ens SSE-strøm som hurtig supplement når den er ledig.

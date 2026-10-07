@@ -1,5 +1,7 @@
-# Runtime (alle MIT/BSD — AGPL-kompatible)
+# Runtime (MIT/BSD/PSF — alle AGPL-kompatible)
 fastapi>=0.115,<1
 uvicorn>=0.30,<1
 httpx>=0.27,<1
 pydantic>=2.7,<3
+defusedxml>=0.7,<1
+websockets>=13,<17  # uvicorn kræver et WS-bibliotek — uden det giver /ws/live 404

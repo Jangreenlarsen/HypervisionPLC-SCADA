@@ -79,8 +79,8 @@ def _tags(request: Request) -> TagService:
 
 
 @router.get("/health")
-async def health() -> dict[str, Any]:
-    return {"status": "ok", **read_version()}
+async def health(request: Request) -> dict[str, Any]:
+    return {"status": "ok", **read_version(), "source_url": request.app.state.settings.source_url}
 
 
 @router.get("/plcs")
