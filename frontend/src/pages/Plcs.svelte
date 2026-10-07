@@ -2,6 +2,8 @@
   import { onDestroy, onMount } from 'svelte';
   import { del, get, patch, post } from '../lib/api';
 
+  let { isAdmin = false }: { isAdmin?: boolean } = $props();
+
   interface Status {
     state: string; message: string; last_ok: number | null; cycles?: number; errors?: number;
     requests_per_cycle?: number; plan?: { kind: string; start: number; count: number }[];
@@ -92,6 +94,7 @@
         </tbody>
       </table>
     </div>
+    {#if isAdmin}
     <div class="row" style="margin-top: .6rem">
       <button onclick={() => update(p, { enabled: !p.enabled })}>{p.enabled ? 'Deaktivér' : 'Aktivér'}</button>
       <button onclick={() => update(p, { sse_enabled: !p.sse_enabled })}>{p.sse_enabled ? 'Slå SSE fra' : 'Slå SSE til'}</button>
@@ -99,9 +102,11 @@
       <button disabled={!pw[p.key]} onclick={() => update(p, { password: pw[p.key] })}>Gem adgangskode</button>
       <button class="danger" onclick={() => remove(p)}>Fjern</button>
     </div>
+    {/if}
   </section>
 {/each}
 
+{#if isAdmin}
 <section class="panel">
   <h2>Tilføj PLC</h2>
   <p class="muted small">Brug en dedikeret bruger på PLC'en med rollen <code>api</code>. Adgangskoden gemmes kun på SCADA-serveren og vises aldrig igen.</p>
@@ -115,3 +120,4 @@
     <div><button class="primary" onclick={create} disabled={!form.key || !form.username}>Tilføj</button></div>
   </div>
 </section>
+{/if}

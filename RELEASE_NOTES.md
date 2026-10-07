@@ -2,6 +2,16 @@
 
 ---
 
+## v0.4.0 — 2026-10-07 — Login og brugerroller
+
+- SCADA'en kræver nu login. Første gang oprettes brugeren `admin` med en engangsadgangskode i `/var/lib/hypervisionplc-scada/initial-admin-password.txt`, som skal skiftes ved første login.
+- Fire roller: **viewer** (ser Overview, tegninger og tags), **operatør** (forberedt til betjening), **tekniker/engineer** (tegninger, tags, bindinger) og **admin** (PLC-forbindelser og brugere).
+- Admin kan oprette, deaktivere og slette brugere og give nye midlertidige adgangskoder. Den sidste administrator kan ikke fjernes.
+- Efter 5 forkerte login-forsøg spærres i 1 minut.
+- Serveren lytter fortsat kun på localhost, indtil TLS (nginx + Let's Encrypt) er sat op.
+
+**Næste skridt**: TLS for scada.laces.dk (nginx + certbot med deSEC), derefter fase 3 — binding-editor.
+
 ## v0.3.0 — 2026-10-07 — Overview med live SVG-tegninger
 
 - Ny brugerflade i browseren: **Overview**, **Tegninger**, **Tags** og **PLC'er**.

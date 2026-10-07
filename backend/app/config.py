@@ -38,6 +38,11 @@ class Settings:
     # AGPL §13: brugere over netværket skal tilbydes kildekoden — peg på jeres egen fork ved ændringer.
     source_url: str = field(default_factory=lambda: os.environ.get(
         "SCADA_SOURCE_URL", "https://github.com/Jangreenlarsen/HypervisionPLC-SCADA"))
+    # Sæt til true når serveren kører bag TLS (nginx) — så sendes session-cookien kun over HTTPS.
+    cookie_secure: bool = field(default_factory=lambda: os.environ.get("SCADA_COOKIE_SECURE", "").lower() in ("1", "true", "yes"))
+    session_hours: float = field(default_factory=lambda: _env_float("SCADA_SESSION_HOURS", 8.0))
+    # Kun ved første opstart (ingen brugere): adgangskode til 'admin'. Ellers genereres en engangsadgangskode.
+    admin_password: str | None = field(default_factory=lambda: os.environ.get("SCADA_ADMIN_PASSWORD") or None)
     start_runtimes: bool = True
 
     def __post_init__(self) -> None:
@@ -61,10 +66,10 @@ class Settings:
             loopback = ipaddress.ip_address(self.host).is_loopback
         except ValueError:
             loopback = self.host == "localhost"
-        if not loopback:
+        if not loopback and not self.cookie_secure:
             warnings.append(
-                f"SCADA_HOST={self.host}: serveren lytter på netværket, men bruger-login er endnu "
-                "ikke implementeret (fase 5) — alle på netværket kan ændre PLC- og tag-konfiguration."
+                f"SCADA_HOST={self.host}: serveren lytter på netværket uden TLS — login og session-cookies "
+                "sendes ukrypteret. Kør bag nginx med TLS og sæt SCADA_COOKIE_SECURE=true."
             )
         return warnings
 

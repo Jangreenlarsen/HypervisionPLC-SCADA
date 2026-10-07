@@ -9,15 +9,19 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_app
 
+ADMIN_PW = "test-admin-pw-1"
+
 
 @pytest.fixture
 def settings(tmp_path):
-    return Settings(data_dir=tmp_path, poll_fast_s=0.05, poll_slow_s=0.2, plc_rate=9, frontend_dir=tmp_path / "nope")
+    return Settings(data_dir=tmp_path, poll_fast_s=0.05, poll_slow_s=0.2, plc_rate=9, frontend_dir=tmp_path / "nope",
+                    admin_password=ADMIN_PW)
 
 
 @pytest.fixture
 def api(settings):
     with TestClient(create_app(settings)) as client:
+        assert client.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW}).status_code == 200
         yield client
 
 

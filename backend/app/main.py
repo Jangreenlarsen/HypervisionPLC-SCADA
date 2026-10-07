@@ -9,14 +9,19 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from fastapi import FastAPI
+from urllib.parse import urlsplit
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api.errors import install_error_handlers
+from .api.auth import router as auth_router
 from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
 from .api.routes import router
 from .config import Settings, read_version
+from .services.auth import AuthService
 from .services.drawings import DrawingService
 from .services.live_cache import LiveCache
 from .services.manager import PlcManager, TransportFactory
@@ -37,6 +42,9 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         for warning in settings.warn_insecure():
             log.warning("SIKKERHED: %s", warning)
         db = Database(settings.db_path)
+        auth = AuthService(db, settings.data_dir, session_ttl_s=settings.session_hours * 3600)
+        auth.bootstrap(settings.admin_password)
+        app.state.auth_service = auth
         manager = PlcManager(db, SecretStore(settings.secrets_path), LiveCache(), settings, transport_factory)
         app.state.cache = manager.cache
         app.state.settings = settings
@@ -54,6 +62,17 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
 
     app = FastAPI(title="HypervisionPLC SCADA", version=read_version()["version"], lifespan=lifespan)
     install_error_handlers(app)
+
+    @app.middleware("http")
+    async def same_origin_writes(request: Request, call_next):  # type: ignore[no-untyped-def]
+        # Forsvar mod CSRF ud over SameSite=Strict: ændrende kald fra en browser skal komme fra samme origin.
+        if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.url.path.startswith("/api/"):
+            origin = request.headers.get("origin")
+            if origin and urlsplit(origin).netloc != request.headers.get("host", ""):
+                return JSONResponse({"error": "Afvist: forespørgslen kommer fra en anden side (origin)"}, status_code=403)
+        return await call_next(request)
+
+    app.include_router(auth_router)
     app.include_router(router)
     app.include_router(drawings_router)
     app.include_router(live_router)

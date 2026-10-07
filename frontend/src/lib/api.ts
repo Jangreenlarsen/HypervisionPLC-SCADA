@@ -19,6 +19,17 @@ export function errorText(status: number, body: unknown, fallback: string): stri
   return fallback || `HTTP ${status}`;
 }
 
+let unauthorizedHandler: (() => void) | null = null;
+
+/** App'en registrerer her hvad der skal ske når sessionen er udløbet (vis login). */
+export function onUnauthorized(handler: () => void): void {
+  unauthorizedHandler = handler;
+}
+
+export function notifyUnauthorized(): void {
+  unauthorizedHandler?.();
+}
+
 export async function api<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
   let resp: Response;
   try {
@@ -38,6 +49,7 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
   } catch {
     // Ikke-JSON (fx en proxy-fejlside) — teksten bruges som fejlbesked nedenfor.
   }
+  if (resp.status === 401 && !path.startsWith('/api/auth/')) notifyUnauthorized();
   if (!resp.ok) throw new ApiError(resp.status, errorText(resp.status, data, resp.statusText));
   return data as T;
 }
@@ -80,6 +92,19 @@ export interface DrawingView {
   bindings: Binding[];
   orphaned_bindings: string[];
   tags: Record<string, TagMeta>;
+}
+
+export type Role = 'viewer' | 'operator' | 'engineer' | 'admin';
+export const ROLES: Role[] = ['viewer', 'operator', 'engineer', 'admin'];
+
+export function roleAtLeast(role: Role | undefined, required: Role): boolean {
+  return !!role && ROLES.indexOf(role) >= ROLES.indexOf(required);
+}
+
+export interface Me {
+  username: string;
+  role: Role;
+  must_change_password: boolean;
 }
 
 export interface PlcSummary {

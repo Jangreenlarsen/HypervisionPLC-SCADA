@@ -1,5 +1,5 @@
 // WebSocket-klient til /ws/live med automatisk genforbindelse.
-import type { LiveValue, PlcSummary } from './api';
+import { notifyUnauthorized, type LiveValue, type PlcSummary } from './api';
 
 type Listener = (values: Record<string, LiveValue>) => void;
 type StatusListener = (plcs: Record<string, PlcSummary>, connected: boolean) => void;
@@ -58,8 +58,14 @@ export class LiveClient {
         this.onStatus(this.plcs, true);
       } else if (msg.type === 'error') console.error('Live-fejl fra server:', msg.error);
     };
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
       this.connected = false;
+      if (ev.code === 4401) {
+        // Sessionen er udløbet — app'en viser login; genforbind først når siden genindlæses.
+        this.onStatus(this.plcs, false);
+        notifyUnauthorized();
+        return;
+      }
       this.onStatus(this.plcs, false);
       if (this.closed) return;
       this.timer = setTimeout(() => this.connect(), this.retry);

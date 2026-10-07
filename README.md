@@ -11,7 +11,7 @@ Dokumentation:
 - [ARCHITECTURE.md](ARCHITECTURE.md) — lag og projektstruktur
 - [FEATURES.md](FEATURES.md) — backlog
 
-Status: v0.3.0 — Overview med live SVG-tegninger, tags og PLC-forbindelser i browseren (endnu intet login).
+Status: v0.4.0 — Overview med live SVG-tegninger, tags, PLC-forbindelser, login og brugerroller.
 
 ## Udvikling
 
