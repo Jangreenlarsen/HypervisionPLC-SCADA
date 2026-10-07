@@ -1,0 +1,4 @@
+# Filer der køres på Linux (Pi/Debian) skal have LF-linjeskift
+*.sh       text eol=lf
+*.service  text eol=lf
+*.py       text eol=lf
