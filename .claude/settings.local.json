@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "PowerShell(git push --force*)",
+      "Bash(git reset --hard origin*)"
+    ],
+    "allow": [
+      "Bash",
+      "PowerShell",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Bash(*/.venv/Scripts/python.exe -m pytest*)",
+      "Bash(*/.venv/bin/python -m pytest*)",
+      "Bash(cd frontend && npm test*)",
+      "Bash(cd frontend && npm run build*)",
+      "Bash(cd frontend && npm run dev*)",
+      "Bash(npm test*)",
+      "Bash(npm run lint*)",
+      "Bash(npm run build*)",
+      "Bash(npm run dev*)",
+      "Bash(*uvicorn*)"
+    ]
+  }
+}
