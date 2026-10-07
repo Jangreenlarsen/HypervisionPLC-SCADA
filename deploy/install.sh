@@ -1,6 +1,8 @@
 #!/bin/sh
 # Installér/opdatér HypervisionPLC SCADA på Debian / Raspberry Pi OS. Køres som root
-# fra roden af en udpakket kopi af repoet:  sh deploy/install.sh [--with-mock-plc]
+# fra roden af en udpakket kopi af repoet:
+#   sh deploy/install.sh [--with-mock-plc] [--with-nginx <hostnavn> [ip]]
+# --with-nginx: nginx med TLS foran SCADA (selvsigneret certifikat hvis intet findes) og Secure-cookie.
 #
 # - kode:  /opt/hypervisionplc-scada (erstattes ved hver installation)
 # - data:  /var/lib/hypervisionplc-scada (bevares: database + secrets.json)
@@ -13,7 +15,17 @@ DATA=/var/lib/hypervisionplc-scada
 ENVFILE=/etc/hypervisionplc-scada.env
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 WITH_MOCK=0
-[ "${1:-}" = "--with-mock-plc" ] && WITH_MOCK=1
+NGINX_HOST=""
+NGINX_IP=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --with-mock-plc) WITH_MOCK=1 ;;
+        --with-nginx) NGINX_HOST=${2:?--with-nginx kræver et hostnavn}; shift
+                      case "${2:-}" in --*|"") ;; *) NGINX_IP=$2; shift ;; esac ;;
+        *) echo "Ukendt parameter: $1" >&2; exit 2 ;;
+    esac
+    shift
+done
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "Skal køres som root" >&2
@@ -56,6 +68,24 @@ LOG_LEVEL=INFO
 EOF
     chmod 0640 "$ENVFILE"
     chown root:scada "$ENVFILE"
+fi
+
+if [ -n "$NGINX_HOST" ]; then
+    echo "== nginx + TLS ($NGINX_HOST${NGINX_IP:+, $NGINX_IP})"
+    apt-get install -y -qq nginx openssl >/dev/null
+    sh "$SRC/deploy/tls-selfsigned.sh" "$NGINX_HOST" "$NGINX_IP"
+    install -m 0644 "$SRC/deploy/nginx-hypervisionplc-scada.conf" /etc/nginx/sites-available/hypervisionplc-scada
+    ln -sf /etc/nginx/sites-available/hypervisionplc-scada /etc/nginx/sites-enabled/hypervisionplc-scada
+    rm -f /etc/nginx/sites-enabled/default
+    nginx -t
+    systemctl enable -q nginx
+    systemctl reload nginx 2>/dev/null || systemctl restart nginx
+    # Bag TLS må session-cookien kun sendes over HTTPS
+    if grep -q '^SCADA_COOKIE_SECURE=' "$ENVFILE"; then
+        sed -i 's/^SCADA_COOKIE_SECURE=.*/SCADA_COOKIE_SECURE=true/' "$ENVFILE"
+    else
+        echo "SCADA_COOKIE_SECURE=true" >> "$ENVFILE"
+    fi
 fi
 
 echo "== systemd"

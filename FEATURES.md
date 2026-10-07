@@ -44,5 +44,6 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [ ] planned — Backup/restore af hele SCADA-projektet (tegninger, tags, bindinger)
 
 ### Tværgående
-- [ ] planned — TLS på SCADA-serveren: nginx som reverse proxy (TLS + WebSocket) foran uvicorn på 127.0.0.1, Let's Encrypt-certifikat via certbot med automatisk fornyelse — domæne `scada.laces.dk`; DNS hos one.com (intet API) → `_acme-challenge` CNAME til deSEC + certbot-dns-desec
+- [x] done v0.5.0 — TLS trin 1: nginx (TLS + WebSocket) foran uvicorn på 127.0.0.1 med selvsigneret certifikat (CN/SAN scada.laces.dk + IP), Secure-cookie, sikkerheds-headere; certifikat-stier klar til Let's Encrypt
+- [ ] planned — TLS trin 2: Let's Encrypt-certifikat for scada.laces.dk med automatisk fornyelse — DNS hos one.com (intet API) → `_acme-challenge` CNAME til deSEC; værktøj (certbot-dns-desec / acme.sh / lego) afklares ift. CNAME-delegering
 - [x] done v0.3.0 — Kildekode-link i web-UI'et (AGPL-3.0 §13), konfigurerbar URL til forks (`SCADA_SOURCE_URL`)
