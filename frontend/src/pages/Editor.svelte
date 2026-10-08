@@ -4,6 +4,7 @@
   import { ANIMS, emptyForm, fromForm, isClick, pickElement, toForm, toHex, type BindingForm } from '../lib/bindingForm';
   import { findElement, mountSvg, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
+  import TagSelect from '../lib/TagSelect.svelte';
 
   let { route = 'editor' }: { route?: string } = $props();
 
@@ -203,13 +204,6 @@
   );
   const tagNames = $derived(new Set(tags.map((t) => t.name)));
   const writableTags = $derived(new Set(tags.filter((t) => t.writable).map((t) => t.name)));
-  const tagGroups = $derived(groupByPlc(tags));
-
-  function groupByPlc(rows: TagRow[]): [string, TagRow[]][] {
-    const groups = new Map<string, TagRow[]>();
-    for (const t of rows) groups.set(t.plc, [...(groups.get(t.plc) ?? []), t]);
-    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }
 
   function onAnimChange(d: BindingForm): void {
     // Nye standardværdier når typen skiftes (fx bekræftelse er standard for til/fra).
@@ -299,19 +293,7 @@
             <div class="grid-form">
               {#if d.anim !== 'click:goto'}
                 <label>Tag
-                  <select bind:value={d.tag} onchange={changed}>
-                    <option value="">— vælg tag —</option>
-                    {#if d.tag && !tagNames.has(d.tag)}<option value={d.tag}>{d.tag} (findes ikke)</option>{/if}
-                    {#each tagGroups as [plc, rows]}
-                      <optgroup label={plc}>
-                        {#each rows as t}
-                          <option value={t.name} disabled={isClick(d.anim) && !t.writable && t.name !== d.tag}>
-                            {t.name} · {t.source}{t.unit ? ` [${t.unit}]` : ''}{isClick(d.anim) && !t.writable ? ' (ikke skrivbar)' : ''}
-                          </option>
-                        {/each}
-                      </optgroup>
-                    {/each}
-                  </select>
+                  <TagSelect bind:value={d.tag} {tags} writableOnly={isClick(d.anim)} onchange={changed} />
                 </label>
               {/if}
               <label>Animation
