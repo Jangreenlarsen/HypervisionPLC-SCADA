@@ -2,6 +2,22 @@
 
 ---
 
+## v0.16.0 — 2026-10-08 — Symboler til solcelleanlæg
+
+- Ny sektion **Solcelleanlæg** i Tegn med solcellepanel og -streng, sol, inverter, hybridinverter, MPPT-regulator, batteri og batteribank, DC- og AC-afbryder, overspændingsbeskyttelse, elmåler, elnet, forbrug/hus, elbillader og energiflow-pil.
+- Batteriets indre felt kan bindes til **Niveau**, så det viser ladetilstanden. Solen kan bindes til **Gennemsigtighed** efter indstrålingen, og elmålerens tal kan bindes til **Tekst**.
+
+## v0.15.0 — 2026-10-08 — Flere symboler: VVS og el
+
+- **Tegn** har nu 59 symboler i tre sektioner med søgefelt. Hver sektion kan klappes sammen.
+- **Rør og VVS:**
+  - Rør og fittings: bøjninger på 90° og 45°, T-stykke, kryds, reduktion, prop, flange og strømningspil.
+  - Ventiler: kugle-, kontra-, 3-vejs-, motor-, magnet-, regulerings- og sikkerhedsventil.
+  - Komponenter: varmeveksler, filter, ekspansionsbeholder, radiator, ventilator og kedel.
+  - Måleinstrumenter: TT/PT/FT/LT, manometer og termometer.
+- **Elektrisk (ny sektion):** ledninger, kontakter, trykknap, nødstop, kontaktor, relæspole, sikring, automatsikring, motorværn, motor 3~, frekvensomformer, transformer, strømforsyning, jord, signallampe, modstand, føler, hovedafbryder og PLC.
+- Brug SVG-Edits rotation eller spejling til at vende en bøjning eller et T-stykke. Manometerets viser kan animeres med **Rotation**, og termometerets søjle med **Niveau**.
+
 ## v0.14.2 — 2026-10-08 — Alle sider fylder skærmen
 
 - Siderne er ikke længere låst til en smal kolonne på store skærme. Alle sider bruger nu hele bredden.
