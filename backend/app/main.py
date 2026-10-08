@@ -5,6 +5,7 @@ Kør (udvikling):  .venv/Scripts/python.exe -m app
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
@@ -17,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .api.errors import install_error_handlers
 from .api.auth import router as auth_router
+from .api.backup import router as backup_router
 from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
 from .api.operate import router as operate_router
@@ -24,6 +26,7 @@ from .api.routes import router
 from .config import Settings, read_version
 from .services.audit import AuditService
 from .services.auth import AuthService
+from .services.backup import BackupService
 from .services.operate import OperateService
 from .services.drawings import DrawingService
 from .services.live_cache import LiveCache
@@ -56,12 +59,20 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.tag_service = TagService(manager)
         app.state.audit_service = AuditService(db)
         app.state.operate_service = OperateService(manager, app.state.audit_service)
-        app.state.drawing_service = DrawingService(db, DrawingFiles(settings.data_dir / "drawings"), manager.cache)
+        drawing_files = DrawingFiles(settings.data_dir / "drawings")
+        app.state.drawing_service = DrawingService(db, drawing_files, manager.cache)
+        app.state.backup_service = BackupService(manager, drawing_files, settings.data_dir / "backups",
+                                                 keep=max(1, settings.backup_keep))
         await manager.start_all()
+        backup_task = None
+        if settings.backup_hours > 0 and settings.start_runtimes:
+            backup_task = asyncio.create_task(app.state.backup_service.auto_backup_loop(settings.backup_hours))
         log.info("HypervisionPLC SCADA %s klar (data: %s)", read_version()["version"], settings.data_dir)
         try:
             yield
         finally:
+            if backup_task is not None:
+                backup_task.cancel()
             await manager.stop_all()
             db.close()
 
@@ -78,6 +89,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         return await call_next(request)
 
     app.include_router(auth_router)
+    app.include_router(backup_router)
     app.include_router(router)
     app.include_router(drawings_router)
     app.include_router(live_router)

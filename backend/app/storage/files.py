@@ -33,3 +33,33 @@ class DrawingFiles:
 
     def delete(self, drawing_id: str) -> None:
         shutil.rmtree(self._dir(drawing_id), ignore_errors=True)
+
+    # ---------------------------------------------------- backup/restore
+
+    def stage(self, files: dict[tuple[str, int], str]) -> Path:
+        """Skriv et komplet nyt sæt filer i en staging-mappe ved siden af den aktive."""
+        staging = self.root.with_name(self.root.name + ".staging")
+        shutil.rmtree(staging, ignore_errors=True)
+        staging.mkdir(parents=True)
+        for (drawing_id, version), svg in files.items():
+            if not _SAFE_ID.match(drawing_id):
+                raise ValueError(f"ugyldigt tegnings-id: {drawing_id!r}")
+            d = staging / drawing_id
+            d.mkdir(exist_ok=True)
+            (d / f"v{version}.svg").write_text(svg, encoding="utf-8")
+        return staging
+
+    def swap_in(self, staging: Path) -> Path:
+        """Byt staging ind som aktiv; returnerer den gamle mappe (til tilbagerulning/sletning)."""
+        old = self.root.with_name(self.root.name + ".old")
+        shutil.rmtree(old, ignore_errors=True)
+        os.replace(self.root, old)
+        os.replace(staging, self.root)
+        return old
+
+    def swap_back(self, old: Path) -> None:
+        failed = self.root.with_name(self.root.name + ".failed")
+        shutil.rmtree(failed, ignore_errors=True)
+        os.replace(self.root, failed)
+        os.replace(old, self.root)
+        shutil.rmtree(failed, ignore_errors=True)

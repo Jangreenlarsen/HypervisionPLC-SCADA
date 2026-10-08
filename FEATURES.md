@@ -43,7 +43,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [ ] planned — Alarmer (grænser pr. tag + PLC'ens `/api/alarms`) og alarmliste
 - [ ] planned — Trends (RAM-ringbuffer + PLC'ens trend recorder)
 - [ ] planned — Raspberry Pi 4 deployment: install-script, systemd-service, Chromium-kiosk
-- [ ] planned — Backup/restore af hele SCADA-projektet (tegninger, tags, bindinger)
+- [x] done v0.8.0 — Backup/restore af hele SCADA-projektet (PLC-forbindelser uden adgangskoder, tags, tegninger med alle versioner, bindinger; ikke brugere): download/restore som JSON (admin), fuld validering før noget ændres, automatisk backup før restore, atomisk udskiftning med tilbagerulning, automatiske døgn-backups på serveren (7 gemmes)
 
 ### Tværgående
 - [x] done v0.7.0 — Tag-valg som dropdown (grupperet pr. PLC, med kilde og enhed) i binding-editoren; ikke-skrivbare tags nedtonet ved klik-handlinger — genbruges i tegne-editoren (fase 4)

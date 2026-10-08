@@ -1,0 +1,305 @@
+"""Backup og restore af SCADA-projektet.
+
+Indhold: PLC-forbindelser (UDEN adgangskoder), tags, tegninger med alle versioner og bindinger.
+Ikke med: brugere (en restore må aldrig kunne låse administratorer ude), sessioner, audit-log
+og hemmeligheder (CLAUDE.md regel 6).
+
+Restore er "alt eller intet":
+1. Hele filen valideres først — SVG'er saneres igen, kilder/bindinger tjekkes. Fejl → intet ændres.
+2. Den nuværende tilstand gemmes automatisk som backup på serveren.
+3. SVG-filer skrives i en staging-mappe og byttes ind; databasen udskiftes i én transaktion.
+   Fejler databasen, byttes de gamle filer tilbage.
+4. PLC-runtimes genstartes. Adgangskoder for PLC-nøgler der allerede fandtes, bevares.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import math
+import re
+import shutil
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from ..config import read_version
+from ..storage.files import DrawingFiles
+from .bindings import BindingError, validate_binding
+from .errors import ServiceError
+from .manager import PlcManager
+from .plcs import normalize_base_url
+from .svg_sanitize import SvgError, sanitize_svg
+from .tags import TAG_NAME_RE, WRITABLE_KINDS
+from .tagsource import PLC_KEY_RE, TagSourceError, parse_source
+
+log = logging.getLogger(__name__)
+
+FORMAT = "hypervisionplc-scada-backup"
+FORMAT_VERSION = 1
+MAX_RESTORE_BYTES = 64 * 1024 * 1024
+_DRAWING_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+_BACKUP_NAME = re.compile(r"^scada-(auto|foer-restore)-\d{8}-\d{6}\.json$")
+MAX_ERRORS = 25
+
+
+class BackupService:
+    def __init__(self, manager: PlcManager, files: DrawingFiles, backup_dir: Path, keep: int = 7):
+        self.manager = manager
+        self.db = manager.db
+        self.files = files
+        self.backup_dir = backup_dir
+        self.keep = keep
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        self._lock = asyncio.Lock()
+
+    # ----------------------------------------------------------------- eksport
+
+    def export(self, created_by: str) -> dict[str, Any]:
+        data = self.db.export_project()
+        versions = []
+        for v in data["versions"]:
+            svg = self.files.read(v["drawing_id"], v["version"])
+            if svg is None:
+                log.warning("Backup: SVG mangler for %s v%s — springes over", v["drawing_id"], v["version"])
+                continue
+            versions.append({**v, "svg": svg})
+        drawings = []
+        for d in data["drawings"]:
+            drawings.append({**d, "versions": [{k: v[k] for k in ("version", "comment", "created_at", "svg")}
+                                               for v in versions if v["drawing_id"] == d["id"]]})
+        return {
+            "format": FORMAT,
+            "format_version": FORMAT_VERSION,
+            "app_version": read_version()["version"],
+            "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "created_by": created_by,
+            "contents": "PLC-forbindelser (uden adgangskoder), tags, tegninger, bindinger",
+            "plcs": data["plcs"],
+            "tags": [{k: v for k, v in t.items()} for t in data["tags"]],
+            "drawings": drawings,
+            "bindings": data["bindings"],
+        }
+
+    def save_to_server(self, kind: str, created_by: str) -> str:
+        name = f"scada-{kind}-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+        path = self.backup_dir / name
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self.export(created_by), ensure_ascii=False), encoding="utf-8")
+        tmp.replace(path)
+        self._prune(kind)
+        return name
+
+    def _prune(self, kind: str) -> None:
+        files = sorted(self.backup_dir.glob(f"scada-{kind}-*.json"))
+        for old in files[: max(0, len(files) - self.keep)]:
+            old.unlink(missing_ok=True)
+
+    def list_server_backups(self) -> list[dict[str, Any]]:
+        out = []
+        for p in sorted(self.backup_dir.glob("scada-*.json"), reverse=True):
+            st = p.stat()
+            out.append({"name": p.name, "size": st.st_size, "created": st.st_mtime,
+                        "kind": "auto" if "-auto-" in p.name else "før restore"})
+        return out
+
+    def server_backup_path(self, name: str) -> Path:
+        if not _BACKUP_NAME.match(name):  # forsvar mod sti-traversering
+            raise ServiceError(400, "Ugyldigt filnavn")
+        path = self.backup_dir / name
+        if not path.is_file():
+            raise ServiceError(404, f"Backup '{name}' findes ikke")
+        return path
+
+    # ----------------------------------------------------------- validering
+
+    def validate(self, backup: Any) -> dict[str, Any]:
+        """Returnér normaliserede data klar til replace_project. Kaster ServiceError(400) med alle fundne fejl."""
+        errors: list[str] = []
+
+        def err(msg: str) -> None:
+            if len(errors) < MAX_ERRORS:
+                errors.append(msg)
+
+        if not isinstance(backup, dict) or backup.get("format") != FORMAT:
+            raise ServiceError(400, "Filen er ikke en HypervisionPLC SCADA-backup")
+        if backup.get("format_version") != FORMAT_VERSION:
+            raise ServiceError(400, f"Ukendt backup-formatversion {backup.get('format_version')!r} — forventet {FORMAT_VERSION}")
+        for key in ("plcs", "tags", "drawings", "bindings"):
+            if not isinstance(backup.get(key), list):
+                raise ServiceError(400, f"Backup mangler listen '{key}'")
+
+        plcs, plc_keys = [], set()
+        for i, p in enumerate(backup["plcs"]):
+            where = f"PLC #{i + 1}"
+            if not isinstance(p, dict):
+                err(f"{where}: ikke et objekt")
+                continue
+            key = p.get("key")
+            if not isinstance(key, str) or not PLC_KEY_RE.match(key) or key in plc_keys:
+                err(f"{where}: ugyldig eller dublet nøgle {key!r}")
+                continue
+            try:
+                url = normalize_base_url(p.get("base_url", ""))
+            except ServiceError as exc:
+                err(f"PLC {key}: {exc.message}")
+                continue
+            username = p.get("username")
+            if not isinstance(username, str) or not username.strip():
+                err(f"PLC {key}: brugernavn mangler")
+                continue
+            plc_keys.add(key)
+            plcs.append({"key": key, "name": str(p.get("name") or key)[:64], "base_url": url,
+                         "username": username.strip(), "enabled": bool(p.get("enabled", True)),
+                         "sse_enabled": bool(p.get("sse_enabled", True)), "verify_tls": bool(p.get("verify_tls", True))})
+
+        tags, tag_names = [], set()
+        for i, t in enumerate(backup["tags"]):
+            name = t.get("name") if isinstance(t, dict) else None
+            if not isinstance(name, str) or not TAG_NAME_RE.match(name) or name in tag_names:
+                err(f"Tag #{i + 1}: ugyldigt eller dublet navn {name!r}")
+                continue
+            try:
+                source = parse_source(t.get("source"))
+            except TagSourceError as exc:
+                err(f"Tag {name}: {exc}")
+                continue
+            if source.plc not in plc_keys:
+                err(f"Tag {name}: PLC '{source.plc}' findes ikke i backuppen")
+                continue
+            scale, offset = t.get("scale", 1), t.get("offset", 0)
+            nums_ok = all(isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+                          for x in (scale, offset)) and scale != 0
+            lo, hi = t.get("min"), t.get("max")
+            if not nums_ok or any(x is not None and (isinstance(x, bool) or not isinstance(x, (int, float)))
+                                  for x in (lo, hi)) or (lo is not None and hi is not None and lo > hi):
+                err(f"Tag {name}: ugyldig skala/offset/min/max")
+                continue
+            writable = bool(t.get("writable", False))
+            if writable and source.kind not in WRITABLE_KINDS:
+                err(f"Tag {name}: kun hr/coil kan være skrivbare")
+                continue
+            dec = t.get("decimals")
+            if dec is not None and (isinstance(dec, bool) or not isinstance(dec, int) or not 0 <= dec <= 6):
+                err(f"Tag {name}: decimals skal være 0-6")
+                continue
+            tag_names.add(name)
+            tags.append({"name": name, "source": str(source), "plc": source.plc,
+                         "description": str(t.get("description") or "")[:200], "unit": str(t.get("unit") or "")[:16],
+                         "scale": float(scale), "offset": float(offset), "decimals": dec, "writable": writable,
+                         "min": lo, "max": hi, "confirm_write": bool(t.get("confirm_write", True))})
+
+        drawings, versions, files, drawing_ids = [], [], {}, set()
+        for i, d in enumerate(backup["drawings"]):
+            did = d.get("id") if isinstance(d, dict) else None
+            if not isinstance(did, str) or not _DRAWING_ID.match(did) or did in drawing_ids:
+                err(f"Tegning #{i + 1}: ugyldigt eller dublet id {did!r}")
+                continue
+            vlist = d.get("versions")
+            if not isinstance(vlist, list) or not vlist:
+                err(f"Tegning {did}: ingen versioner")
+                continue
+            numbers: set[int] = set()
+            ok = True
+            for v in vlist:
+                num = v.get("version") if isinstance(v, dict) else None
+                if not isinstance(num, int) or num < 1 or num in numbers:
+                    err(f"Tegning {did}: ugyldigt versionsnummer {num!r}")
+                    ok = False
+                    continue
+                try:
+                    result = sanitize_svg(v.get("svg") or "")
+                except SvgError as exc:
+                    err(f"Tegning {did} v{num}: {exc}")
+                    ok = False
+                    continue
+                numbers.add(num)
+                files[(did, num)] = result.svg
+                versions.append({"drawing_id": did, "version": num, "comment": str(v.get("comment") or "")[:200],
+                                 "size": len(result.svg.encode()), "width": result.width, "height": result.height,
+                                 "created_at": v.get("created_at") if isinstance(v.get("created_at"), (int, float)) else None})
+            active = d.get("active_version")
+            if ok and active not in numbers:
+                err(f"Tegning {did}: aktiv version {active!r} findes ikke")
+                ok = False
+            if ok:
+                drawing_ids.add(did)
+                drawings.append({"id": did, "name": str(d.get("name") or did)[:80], "active_version": active})
+
+        bindings, seen = [], set()
+        for i, b in enumerate(backup["bindings"]):
+            if not isinstance(b, dict):
+                err(f"Binding #{i + 1}: ikke et objekt")
+                continue
+            did, element = b.get("drawing_id"), b.get("element")
+            if did not in drawing_ids or not isinstance(element, str) or not element:
+                err(f"Binding #{i + 1}: ukendt tegning {did!r} eller element mangler")
+                continue
+            try:
+                nb = validate_binding(b)
+            except BindingError as exc:
+                err(f"Binding {did}#{element}: {exc}")
+                continue
+            if nb["anim"] == "click:goto":
+                if nb["params"]["drawing"] not in drawing_ids:
+                    err(f"Binding {did}#{element}: goto-tegning '{nb['params']['drawing']}' findes ikke i backuppen")
+                    continue
+            elif nb["tag"] not in tag_names:
+                err(f"Binding {did}#{element}: tagget '{nb['tag']}' findes ikke i backuppen")
+                continue
+            pos = b.get("position", 0)
+            if not isinstance(pos, int) or (did, element, pos) in seen:
+                err(f"Binding {did}#{element}: ugyldig/dublet position")
+                continue
+            seen.add((did, element, pos))
+            bindings.append({"drawing_id": did, "element": element, "position": pos, **nb})
+
+        if errors:
+            more = " (flere fejl udeladt)" if len(errors) >= MAX_ERRORS else ""
+            raise ServiceError(400, "Backuppen kan ikke gendannes — intet er ændret:\n- " + "\n- ".join(errors) + more)
+        return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
+                "files": files}
+
+    # ---------------------------------------------------------------- restore
+
+    async def restore(self, backup: Any, actor: str) -> dict[str, Any]:
+        async with self._lock:
+            data = self.validate(backup)
+            before = self.save_to_server("foer-restore", actor)
+            old_keys = {p["key"] for p in self.db.list_plcs()}
+            staging = self.files.stage(data["files"])
+            old_dir = self.files.swap_in(staging)
+            try:
+                self.db.replace_project(data)
+            except Exception:
+                log.exception("Restore fejlede i databasen — gamle tegningsfiler gendannes")
+                self.files.swap_back(old_dir)
+                raise ServiceError(500, "Restore fejlede — den tidligere tilstand er bevaret") from None
+            shutil.rmtree(old_dir, ignore_errors=True)
+
+            new_keys = {p["key"] for p in data["plcs"]}
+            for key in old_keys - new_keys:
+                self.manager.secrets.delete_plc_password(key)
+            self.manager.cache.remove(list(self.manager.cache.snapshot().keys()))
+            for key in old_keys | new_keys:
+                await self.manager.reload_plc(key)
+            missing = sorted(k for k in new_keys if not self.manager.secrets.has_plc_password(k))
+            log.info("Restore gennemført af %s: %d PLC'er, %d tags, %d tegninger, %d bindinger",
+                     actor, len(data["plcs"]), len(data["tags"]), len(data["drawings"]), len(data["bindings"]))
+            return {"plcs": len(data["plcs"]), "tags": len(data["tags"]), "drawings": len(data["drawings"]),
+                    "versions": len(data["versions"]), "bindings": len(data["bindings"]),
+                    "missing_passwords": missing, "pre_restore_backup": before}
+
+    # ------------------------------------------------------- automatisk backup
+
+    async def auto_backup_loop(self, interval_hours: float) -> None:
+        first_delay = 300.0  # første automatiske backup 5 min efter opstart
+        await asyncio.sleep(first_delay)
+        while True:
+            try:
+                name = self.save_to_server("auto", "system")
+                log.info("Automatisk backup gemt: %s", name)
+            except Exception:
+                log.exception("Automatisk backup fejlede")
+            await asyncio.sleep(interval_hours * 3600)

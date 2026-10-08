@@ -8,6 +8,7 @@
   import Users from './pages/Users.svelte';
   import Editor from './pages/Editor.svelte';
   import Audit from './pages/Audit.svelte';
+  import Backup from './pages/Backup.svelte';
   import Login from './pages/Login.svelte';
   import ChangePassword from './pages/ChangePassword.svelte';
 
@@ -19,6 +20,7 @@
     { id: 'plcs', label: "PLC'er", role: 'engineer' },
     { id: 'audit', label: 'Log', role: 'engineer' },
     { id: 'users', label: 'Brugere', role: 'admin' },
+    { id: 'backup', label: 'Backup', role: 'admin' },
   ];
 
   let route = $state(location.hash.slice(1) || 'overview');
@@ -103,6 +105,8 @@
     <Plcs isAdmin={me.role === 'admin'} />
   {:else if page === 'audit'}
     <Audit />
+  {:else if page === 'backup'}
+    <Backup />
   {:else if page === 'users'}
     <Users {me} />
   {:else}

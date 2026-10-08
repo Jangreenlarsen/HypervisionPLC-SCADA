@@ -4,6 +4,20 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.8.0 build 0009] — 2026-10-08 — Backup og restore
+
+**Backend:**
+- `app/services/backup.py` — eksport af PLC-forbindelser (uden adgangskoder), tags, tegninger med alle versioner og bindinger som JSON (format `hypervisionplc-scada-backup` v1); brugere, sessioner, audit og hemmeligheder er ikke med
+- Restore: hele filen valideres først (kilder, skrivbar-regel, min/max, SVG'er saneres igen, bindinger mod tags/tegninger i backuppen) — ved fejl ændres intet og alle fejl listes; derefter automatisk backup af nuværende tilstand, SVG-filer i staging-mappe der byttes ind, databasen udskiftes i én transaktion (`replace_project`) og filerne byttes tilbage hvis den fejler; adgangskoder bevares for eksisterende PLC-nøgler, manglende listes; PLC-runtimes genstartes
+- Automatisk backup på serveren (`SCADA_BACKUP_HOURS`, standard 24; `SCADA_BACKUP_KEEP`, standard 7) i `<data>/backups/`
+- `app/api/backup.py` — `GET /api/backup`, `POST /api/backup/restore` (max 64 MB), `GET /api/backup/files[/{navn}]` (kun admin, filnavne valideres); audit-log
+- nginx: `client_max_body_size 64m`
+- 157 backend-tests (10 nye)
+
+**Frontend:** ny side **Backup** (admin): hent, gendan med opsummering og bekræftelse, liste over backups på serveren.
+
+**Verificeret** i browser (lokal stak).
+
 ## [0.7.0.1 build 0008] — 2026-10-08 — debug: langsom opdatering mod rigtig PLC
 
 **Årsag:** SSE-watch-listen blev sendt URL-kodet (`coils=0%2C1%2C2`). PLC'en afkoder ikke query-strengen og overvågede kun første adresse pr. type, mens SCADA'en antog at alle var dækket og kun pollede dem hvert 2. s. ST-variabler blev også kun pollet hvert 2. s når SSE var sund.
