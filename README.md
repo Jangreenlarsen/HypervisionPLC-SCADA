@@ -11,7 +11,7 @@ Dokumentation:
 - [ARCHITECTURE.md](ARCHITECTURE.md) — lag og projektstruktur
 - [FEATURES.md](FEATURES.md) — backlog
 
-Status: v0.14.2 — Overview med live SVG-tegninger, betjening, alarmer og trends, tegne-editor, binding-editor, tags, audit-log, backup/restore, login, roller med adgang pr. tegning og HTTPS.
+Status: v0.15.0 — Overview med live SVG-tegninger, betjening, alarmer og trends, tegne-editor, binding-editor, tags, audit-log, backup/restore, login, roller med adgang pr. tegning og HTTPS.
 
 ## Udvikling
 

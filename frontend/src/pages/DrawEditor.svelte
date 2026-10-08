@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { get, patch, post } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
-  import { SYMBOLS } from '../lib/symbols';
+  import { CATEGORIES, SYMBOLS, type SymbolDef } from '../lib/symbols';
   import TagSelect, { type TagOption } from '../lib/TagSelect.svelte';
 
   let { route = 'draw' }: { route?: string } = $props();
@@ -151,6 +151,23 @@
     }
   }
 
+  let symbolFilter = $state('');
+  const symbolsIn = (cat: string): SymbolDef[] => {
+    const q = symbolFilter.trim().toLowerCase();
+    return SYMBOLS.filter((s) => s.category === cat && (!q || s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q)));
+  };
+
+  /** Forhåndsvisning: viewBox efter symbolets egen størrelse, så små og store symboler fylder knappen ens. */
+  function fitPreview(svg: SVGSVGElement): void {
+    try {
+      const b = (svg.firstElementChild as SVGGraphicsElement).getBBox();
+      const pad = 4 + Math.max(b.width, b.height) * 0.04;
+      svg.setAttribute('viewBox', `${b.x - pad} ${b.y - pad} ${b.width + 2 * pad} ${b.height + 2 * pad}`);
+    } catch {
+      // getBBox kan fejle hvis knappen er skjult — standard-viewBox bruges så
+    }
+  }
+
   function insert(symbolId: string): void {
     const s = SYMBOLS.find((x) => x.id === symbolId);
     if (!ed || !s) return;
@@ -250,14 +267,24 @@
 
     <section class="panel">
       <h3>Symboler</h3>
-      <div class="symbols">
-        {#each SYMBOLS as s}
-          <button onclick={() => insert(s.id)} disabled={!ready} title={s.hint}>
-            <svg viewBox="-4 -4 168 152" aria-hidden="true">{@html s.svg}</svg>
-            <span>{s.label}</span>
-          </button>
-        {/each}
-      </div>
+      <input bind:value={symbolFilter} placeholder="Søg symbol (fx bøjning, kontaktor)" style="width:100%" />
+      {#each CATEGORIES as cat (cat.id)}
+        {@const list = symbolsIn(cat.id)}
+        {#if list.length}
+          <details open>
+            <summary>{cat.label} <span class="muted small">({list.length})</span></summary>
+            <div class="symbols">
+              {#each list as s (s.id)}
+                <button onclick={() => insert(s.id)} disabled={!ready} title={s.hint}>
+                  <svg viewBox="-4 -4 168 152" aria-hidden="true" {@attach fitPreview}>{@html s.svg}</svg>
+                  <span>{s.label}</span>
+                </button>
+              {/each}
+            </div>
+          </details>
+        {/if}
+      {/each}
+      {#if CATEGORIES.every((c) => !symbolsIn(c.id).length)}<p class="small muted">Ingen symboler matcher "{symbolFilter}".</p>{/if}
       <p class="small muted">Symbolerne er grå i normaltilstand (ISA-101). Farve og animation kommer fra bindingerne.</p>
     </section>
   </aside>
@@ -284,7 +311,12 @@
   aside { min-width: 0; }
   .field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
   .field :global(select), .field input { width: 100%; }
-  .symbols { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
-  .symbols button { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; font-size: .75rem; }
+  /* minmax(0, 1fr): lange navne må ikke gøre en kolonne bredere end panelet */
+  .symbols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+  .symbols button { min-width: 0; }
+  .symbols span { max-width: 100%; overflow-wrap: anywhere; hyphens: auto; text-align: center; }
+  .symbols button { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; font-size: .72rem; line-height: 1.15; }
+  details { margin-top: .6rem; }
+  summary { cursor: pointer; font-weight: 600; font-size: .9rem; margin-bottom: .4rem; }
   .symbols svg { width: 44px; height: 40px; }
 </style>

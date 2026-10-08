@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.15.0 build 0021] — 2026-10-08 — Udvidet symbolbibliotek (VVS og el)
+
+- `frontend/src/lib/symbols.ts` — 59 symboler i tre kategorier (før 9):
+  - **Proces og visning** (6): pumpe, motor, tank, værdifelt, lampe, knap
+  - **Rør og VVS** (30): lige rør, bøjning 90°/45°, T-stykke, kryds, reduktion, prop, flangesamling, strømningsretning; ventiler (manuel, kugle-, kontra-, 3-vejs, motor-, magnet-, regulerings-, sikkerhedsventil); varmeveksler, filter, ekspansionsbeholder, radiator, ventilator, kedel; TT/PT/FT/LT-bobler, manometer (viser kan bindes til "Rotation"), termometer ("Niveau" på søjlen)
+  - **Elektrisk** (23): ledninger, forbindelsespunkt, klemme, slutte-/brydekontakt, trykknap, nødstop, kontaktor 3-polet, relæspole, sikring, automatsikring, motorværn, motor 3~, frekvensomformer, transformer, strømforsyning, jord, signallampe, modstand, nærhedsføler, hovedafbryder, PLC
+  - Fittings har rørtykkelse 10 som de lige rør; roterende dele (manometerviser, ventilatorrotor) er symmetriske om omdrejningspunktet
+- `frontend/src/pages/DrawEditor.svelte` — symbolpanel med søgning og sammenklappelige sektioner pr. kategori; forhåndsvisning skaleret efter hvert symbols egen størrelse; faste kolonner så lange navne ikke skubber panelet ud
+- Tests: `symbols.test.ts` (4 nye: gyldig SVG med ét `<g>`, unikke id-er, kendte kategorier, de ønskede symboler findes) — 74 frontend
+- Verificeret i browser: alle 59 symboler indsat og gemt — serverens sanering fjernede ingen elementer eller attributter; panelet ved 1600, 1280 og 390 px uden overløb
+
 ## [0.14.2 build 0020] — 2026-10-08 — Fix: alle sider skalerer med browservinduet
 
 - `frontend/src/App.svelte` — breddegrænsen på 1600 px er fjernet for alle sider (main og sidefod)
