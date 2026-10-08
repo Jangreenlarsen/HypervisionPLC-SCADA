@@ -18,3 +18,4 @@ frontend/dist/
 .vscode/
 Thumbs.db
 desktop.ini
+frontend/public/svgedit/

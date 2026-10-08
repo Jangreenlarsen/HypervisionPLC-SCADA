@@ -2,6 +2,13 @@
 
 ---
 
+## v0.10.0 — 2026-10-08 — Tegne-editor
+
+- Ny side **Tegn** (tekniker og admin): tegn og ret tegninger direkte i SCADA'en med en fuld tegne-editor (SVG-Edit) — figurer, tekst, linjer, lag, farver, fortryd.
+- Symbolbibliotek i ISA-101-stil: pumpe, motor, ventil, tank, værdifelt, lampe, knap og rør.
+- Vælg et element og et tag i samme dropdown som under Bindinger — så bindes elementet automatisk.
+- **Gem kladde** gemmer en ny version uden at ændre det operatørerne ser; **Gem og udgiv** gør den aktiv. Ældre versioner kan åbnes og udgives igen.
+
 ## v0.9.0 — 2026-10-08 — Adgang pr. tegning
 
 - Under **Brugere** kan en viewer eller operatør begrænses til udvalgte tegninger. Brugeren ser så kun de tegninger på Overview, kun de tags der vises i dem, og kan kun betjene det der kan klikkes på i dem.

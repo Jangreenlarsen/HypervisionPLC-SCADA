@@ -11,7 +11,7 @@ Dokumentation:
 - [ARCHITECTURE.md](ARCHITECTURE.md) — lag og projektstruktur
 - [FEATURES.md](FEATURES.md) — backlog
 
-Status: v0.9.0 — Overview med live SVG-tegninger og betjening, binding-editor, tags, audit-log, backup/restore, login, roller med adgang pr. tegning og HTTPS.
+Status: v0.10.0 — Overview med live SVG-tegninger og betjening, tegne-editor, binding-editor, tags, audit-log, backup/restore, login, roller med adgang pr. tegning og HTTPS.
 
 ## Udvikling
 
@@ -30,7 +30,7 @@ cd frontend
 npm install
 npm test            # vitest
 npm run dev         # http://localhost:5173 (videresender /api og /ws til :8000)
-npm run build       # → frontend/dist, som SCADA-serveren serverer
+npm run build       # → frontend/dist, som SCADA-serveren serverer (kopierer også SVG-Edit til public/svgedit/)
 ```
 
 Eksempeltegninger: [docs/examples/](docs/examples/).

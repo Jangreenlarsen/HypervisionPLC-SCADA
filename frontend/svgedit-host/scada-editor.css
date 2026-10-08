@@ -1,0 +1,2 @@
+/* Små tilpasninger af SVG-Edit inde i SCADA'en */
+#main_button, #tool_wireframe, #tool_source_save { display: none !important; }

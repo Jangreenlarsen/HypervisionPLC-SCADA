@@ -81,3 +81,17 @@ def test_viewbox_added_from_width_height():
 def test_too_large():
     with pytest.raises(SvgError, match="for stor"):
         sanitize_svg(HEAD + "<!--" + "x" * (5 * 1024 * 1024) + "--></svg>")
+
+
+def test_svgedit_output_is_accepted_and_ids_kept():
+    """Tegne-editoren (SVG-Edit) gemmer med eget navnerum og lag — ids skal bevares (bindinger)."""
+    svg = ('<svg width="1200" height="700" xmlns="http://www.w3.org/2000/svg" '
+           'xmlns:se="http://svg-edit.googlecode.com" xmlns:xlink="http://www.w3.org/1999/xlink">'
+           '<g class="layer"><title>Lag 1</title>'
+           '<g id="Pumpe_Drift" transform="translate(560 310)"><circle cx="40" cy="40" r="32" fill="#9e9e9e"/></g>'
+           '<line id="ror1" x1="0" y1="0" x2="10" y2="0" se:connector="a b" stroke="#555"/>'
+           '</g></svg>')
+    result = sanitize_svg(svg)
+    assert 'id="Pumpe_Drift"' in result.svg and 'id="ror1"' in result.svg
+    assert "se:" not in result.svg and 'viewBox="0 0 1200 700"' in result.svg
+    assert "Pumpe_Drift" in result.element_ids

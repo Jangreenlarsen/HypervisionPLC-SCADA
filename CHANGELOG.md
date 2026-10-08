@@ -4,6 +4,22 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.10.0 build 0012] — 2026-10-08 — Fase 4: tegne-editor (SVG-Edit)
+
+**Frontend:**
+- Ny side **Tegn** (engineer+): SVG-Edit 7.4 (npm `svgedit`, MIT m.fl. — AGPL-kompatible) i en iframe fra samme origin (`/svgedit/scada-editor.html` + eksternt modul `scada-editor.js`, ingen inline-script pga. CSP); udvidelser begrænset til lokale (connector, eyedropper, grid, markers, panning, polystar, shapes) — ingen browser-lagring/filåbning; dansk sprog
+- Værktøjslinje: ny tegning med navn, åbn en vilkårlig version, **Gem kladde** (ny version, Overview uændret), **Gem og udgiv**, **Udgiv denne version** (rollback), kommentar pr. version, advarsel om ikke-gemte ændringer
+- Panel "Valgt element": samme tag-dropdown som binding-editoren sætter elementets id = tag-navn (auto-binding); manuelt id med kontrol af dubletter; fortryd via SVG-Edit
+- Symbolbibliotek (ISA-101): pumpe, motor, ventil, tank, værdifelt, lampe, knap, rør — indsættes med unikke id'er, forskudt, valgt og med fortryd
+- `src/lib/TagSelect.svelte` — fælles tag-dropdown (binding-editor og tegne-editor)
+- `scripts/copy-svgedit.mjs` kopierer SVG-Edit til `public/svgedit/` før dev/build (git-ignoreret)
+
+**Deploy:** nginx `X-Frame-Options: SAMEORIGIN` og CSP `frame-ancestors 'self'` (iframe fra samme origin).
+
+**Backend:** test af at SVG-Edit-output (`se:`-navnerum, lag) renses og bevarer id'er. 164 backend-tests.
+
+**Verificeret:** flowet set i browser lokalt (ny tegning med symboler → tag via dropdown → auto-binding live i Overview; kladde → udgiv; eksisterende id'er bevares), og SVG-Edit kørt på testserveren under nginx' CSP uden fejl.
+
 ## [0.9.0 build 0011] — 2026-10-08 — Adgang pr. tegning
 
 **Backend:**

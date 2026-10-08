@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tegne-editor</title>
+  <link rel="icon" href="images/logo.svg">
+  <style id="styleoverrides" media="screen"></style>
+  <link href="./svgedit.css" rel="stylesheet" media="all">
+  <link href="./scada-editor.css" rel="stylesheet" media="all">
+</head>
+<body style="margin:0">
+  <div id="container" style="width:100%;height:100vh"></div>
+  <!-- Ekstern modul (ingen inline-script — siden kører under en streng CSP) -->
+  <script type="module" src="./scada-editor.js"></script>
+</body>
+</html>

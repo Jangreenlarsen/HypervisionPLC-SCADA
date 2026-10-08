@@ -32,9 +32,9 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.6.0 — Advarsel om forældreløse bindinger efter gen-upload
 
 ### Fase 4 — Tegne-editor
-- [ ] planned — SVG-Edit 7 indlejret som fuld tegne-editor med live-preview
-- [ ] planned — Symbolbibliotek (pumpe, ventil, tank, motor, rør, værdifelt) i ISA-101-stil
-- [ ] planned — Versioner, udgiv og rollback af tegninger
+- [x] done v0.10.0 — SVG-Edit 7.4 indlejret som fuld tegne-editor (side "Tegn"): ny tegning, åbn version, gem kladde, gem og udgiv; element ↔ tag med samme tag-dropdown som binding-editoren
+- [x] done v0.10.0 — Symbolbibliotek (pumpe, motor, ventil, tank, værdifelt, lampe, knap, rør) i ISA-101-stil
+- [x] done v0.10.0 — Versioner, udgiv og rollback af tegninger (kladder ændrer ikke Overview; enhver version kan udgives igen)
 
 ### Fase 5 — Betjening og adgang
 - [x] done v0.7.0 — Skrivning til PLC via klik-handlinger `click:write` (setpunkt-dialog med min/max, invers skalering, bekræftelse), `click:toggle`, `click:pulse` (server-styret nulstilling); kun hr/coil-tags markeret skrivbare; læs-tilbage efter skrivning med advarsel hvis PLC'en (fx ST) har overskrevet værdien; PLC'ens fejltekst (fx safe mode) vises til operatøren; rolle operator+ med bekræftelse og PLC-fejlbesked til operatør

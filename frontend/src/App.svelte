@@ -7,6 +7,7 @@
   import Plcs from './pages/Plcs.svelte';
   import Users from './pages/Users.svelte';
   import Editor from './pages/Editor.svelte';
+  import DrawEditor from './pages/DrawEditor.svelte';
   import Audit from './pages/Audit.svelte';
   import Backup from './pages/Backup.svelte';
   import Login from './pages/Login.svelte';
@@ -15,6 +16,7 @@
   const pages: { id: string; label: string; role: Role }[] = [
     { id: 'overview', label: 'Overview', role: 'viewer' },
     { id: 'drawings', label: 'Tegninger', role: 'viewer' },
+    { id: 'draw', label: 'Tegn', role: 'engineer' },
     { id: 'editor', label: 'Bindinger', role: 'engineer' },
     { id: 'tags', label: 'Tags', role: 'viewer' },
     { id: 'plcs', label: "PLC'er", role: 'engineer' },
@@ -95,6 +97,8 @@
       ondone={() => { changingPassword = false; loadMe(); }}
       oncancel={() => (changingPassword = false)}
     />
+  {:else if page === 'draw'}
+    <DrawEditor {route} />
   {:else if page === 'editor'}
     <Editor {route} />
   {:else if page === 'drawings'}
