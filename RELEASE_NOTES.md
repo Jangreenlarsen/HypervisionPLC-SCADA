@@ -2,6 +2,10 @@
 
 ---
 
+## v0.23.1 — 2026-10-08
+
+- Fejlbeskeder viser tal pænt, fx "over maksimum 100" i stedet for "100.0".
+
 ## v0.23.0 — 2026-10-08 — Fast redigeringspanel under Tags
 
 - Når du redigerer et tag, står redigeringspanelet nu fast øverst, mens du scroller i listen. Gem og Annullér er altid synlige, og det tag du redigerer, er markeret i listen.

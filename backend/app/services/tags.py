@@ -80,7 +80,7 @@ class TagService:
         lo = out["min"] if "min" in out else (current or {}).get("min")
         hi = out["max"] if "max" in out else (current or {}).get("max")
         if lo is not None and hi is not None and lo > hi:
-            raise ServiceError(400, f"min ({lo}) må ikke være større end max ({hi})")
+            raise ServiceError(400, f"min ({lo:g}) må ikke være større end max ({hi:g})")
         self._validate_alarms(data, current, out)
         if data.get("trend") is not None:
             out["trend"] = bool(data["trend"])
@@ -156,7 +156,7 @@ class TagService:
         for (f1, v1), (f2, v2) in zip(limits, limits[1:]):
             if v1 > v2:
                 names = {"alarm_ll": "LL", "alarm_l": "L", "alarm_h": "H", "alarm_hh": "HH"}
-                raise ServiceError(400, f"Alarmgrænserne skal stige: {names[f1]} ({v1}) er større end {names[f2]} ({v2})")
+                raise ServiceError(400, f"Alarmgrænserne skal stige: {names[f1]} ({v1:g}) er større end {names[f2]} ({v2:g})")
         source = parse_source(out.get("source") or (current or {}).get("source"))  # type: ignore[arg-type]
         if limits and source.datatype == "bool":
             raise ServiceError(400, "HH/H/L/LL-grænser kræver et tal-tag — brug 'alarm ved til/fra' for til/fra-tags")
