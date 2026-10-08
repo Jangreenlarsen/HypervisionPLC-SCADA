@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.20.1 build 0028] — 2026-10-08 — Fix: rigtige fejlbeskeder ved indlæsning af historik gennem nginx
+
+- `deploy/nginx-hypervisionplc-scada.conf` — indlæsnings-adressen mellemlagrer igen uploadet (fjernet `proxy_request_buffering off`), så tjenestens fejlbeskeder når frem i stedet for 502
+- Verificeret på testserveren: 70 MB gennem nginx → 401 fra tjenesten (andre adresser stadig max 64 MB → 413); øjebliksbillede som tjenestens bruger `scada` af den rigtige historik (12 tags, 11.141 værdier)
+
 ## [0.20.0 build 0027] — 2026-10-08 — Backup af trend-historik
 
 - `backend/app/storage/trends_db.py` — `snapshot()` (SQLites backup-API på en separat forbindelse — blokerer ikke opsamlingen), `check_file()` (er det en trend-historik? quick_check), `merge_from()` (flet tag for tag; tags matches på navn; eksisterende (tag, tidspunkt) bevares — intet overskrives)

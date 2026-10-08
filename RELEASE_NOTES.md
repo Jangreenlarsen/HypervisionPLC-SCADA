@@ -2,6 +2,10 @@
 
 ---
 
+## v0.20.1 — 2026-10-08
+
+- Indlæsning af historik viser nu den rigtige fejlbesked (fx "Du er ikke logget ind") i stedet for "Bad Gateway".
+
 ## v0.20.0 — 2026-10-08 — Backup af trend-historik
 
 - Under **Backup** kan trend-historikken hentes som en komprimeret fil. Det sker uden at opsamlingen stopper.
