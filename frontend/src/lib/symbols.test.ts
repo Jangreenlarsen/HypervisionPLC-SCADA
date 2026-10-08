@@ -31,3 +31,22 @@ describe('symbolbibliotek', () => {
       expect(ids.has(id), id).toBe(true);
   });
 });
+
+describe('betjeningssymboler', () => {
+  const ANIMS = new Set(['text', 'fill', 'stroke', 'visible', 'blink', 'level', 'rotate', 'opacity', 'move',
+    'click:write', 'click:toggle', 'click:pulse']);
+  const interactive = SYMBOLS.filter((s) => s.category === 'betjening');
+  it('har en klik-handling på roden og gyldige beskrivelser på delene', () => {
+    expect(interactive.length).toBeGreaterThanOrEqual(5);
+    for (const s of interactive) {
+      const g = parse(s.svg).documentElement.firstElementChild!;
+      const autos = JSON.parse(g.getAttribute('data-hv-auto')!);
+      expect(autos.some((a: { anim: string }) => a.anim.startsWith('click:')), s.id).toBe(true);
+      for (const a of autos) expect(ANIMS.has(a.anim), `${s.id}: ${a.anim}`).toBe(true);
+      for (const p of g.querySelectorAll('[data-hv-part]')) {
+        expect(p.id, `${s.id}: del uden id`).not.toBe('');
+        expect(ANIMS.has(JSON.parse(p.getAttribute('data-hv-part')!).anim), s.id).toBe(true);
+      }
+    }
+  });
+});

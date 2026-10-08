@@ -33,12 +33,13 @@ def _number(value: Any) -> float | None:
 
 class TrendRecorder:
     def __init__(self, manager: PlcManager, tdb: TrendDatabase, *, flush_s: float = 5.0,
-                 keepalive_s: float = 300.0, retention_days: float = 30.0):
+                 keepalive_s: float = 300.0, retention_days: float = 30.0, energy_days: float = 400.0):
         self.manager = manager
         self.tdb = tdb
         self.flush_s = flush_s
         self.keepalive_s = keepalive_s
         self.retention_days = retention_days
+        self.energy_days = energy_days
         self._last: dict[str, tuple[float, float | None]] = {}
         self._pending: dict[str, tuple[float, float | None]] = {}
         self._buffer: list[tuple[str, float, float | None]] = []
@@ -76,6 +77,16 @@ class TrendRecorder:
             else:
                 self._pending[name] = (ts, value)
 
+    def forget(self, name: str) -> int:
+        """Slet al historik for tagget — også værdier der endnu ikke er skrevet (ellers dukker de op igen).
+        Returnerer antal slettede samples."""
+        self._buffer = [r for r in self._buffer if r[0] != name]
+        self._last.pop(name, None)
+        self._pending.pop(name, None)
+        before = self.tdb.stats().get(name, {}).get("samples", 0)
+        self.tdb.forget(name)
+        return before
+
     def _store(self, name: str, ts: float, value: float | None) -> None:
         self._buffer.append((name, ts, value))
         self._last[name] = (ts, value)
@@ -99,7 +110,9 @@ class TrendRecorder:
         self.tdb.insert_many(rows)
         if now - self._last_purge >= 3600:
             self._last_purge = now
-            removed = self.tdb.purge_before(now - self.retention_days * 86400)
+            energy_cut = now - max(self.energy_days, self.retention_days) * 86400
+            keep = {t["name"]: energy_cut for t in self.manager.db.list_energy_tags()}
+            removed = self.tdb.purge_before(now - self.retention_days * 86400, keep)
             if removed:
                 log.info("Trend: slettede %d samples ældre end %g dage", removed, self.retention_days)
         return len(rows)

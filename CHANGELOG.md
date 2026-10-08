@@ -4,6 +4,88 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.22.0 build 0030] — 2026-10-08 — Ugeprogrammer
+
+- `backend/app/services/schedule_engine.py` — ren beregning: perioder pr. ugedag (også over midnat, 24:00 som slut), senere periode vinder, undtagelser pr. dato (tom værdi = standard), standardværdi; skift og ugeoversigt; lokal tid (`SCADA_TZ`, standard Europe/Copenhagen) så 06:00 er 06:00 året rundt
+- `backend/app/services/schedules.py` — validering (skrivbart tag, min/max, til/fra-tags kun Til/Fra, klokkeslæt, datoer, højst 50 perioder/100 undtagelser) brugt af både API og backup-restore; afvikling hvert 15. s: skriver ved skift og kun hvis PLC'en ikke allerede har værdien (manuel overstyring holder til næste skift), gennem `OperateService` (min/max, tilbagelæsning, audit som "ugeprogram:<navn>"); fejl vises og prøves igen efter 60 s
+- `backend/app/api/schedules.py` — `GET/POST /api/schedules`, `PUT/DELETE /api/schedules/{id}`, `POST /api/schedules/preview` (tekniker+, audit)
+- Skema 9: tabellen `schedules`; med i backup (valideret med samme regler) og restore
+- Tags: et tag der bruges i et ugeprogram kan ikke slettes eller gøres ikke-skrivbart
+- Trend-CSV skriver nu dansk tid (`SCADA_TZ`) uanset serverens tidszone (en Pi står ofte på UTC); energi bruger samme tidszone
+- Frontend: side **Ugeprogrammer** (tekniker/admin): liste med nu/næste skift/status/fejl og ugeoversigt; formular med ugedage + genveje (Hverdage/Weekend/Alle), tider, værdier (til/fra som Til/Fra), undtagelser og live forhåndsvisning beregnet af serveren
+- Tests: `test_schedule_engine.py` (8: perioder, over midnat, prioritet, undtagelser, sommertid, ugeoversigt), `test_schedules.py` (16: validering, beskyttede tags, skrivning ved skift, manuel overstyring, ingen skrivning når værdien findes, fejl + gentagelse, slået fra, kun tekniker, backup) — fandt før release at backup-validering af ugeprogrammer lå efter fejl-kontrollen; `scheduleUi.test.ts` (6) — 245 backend, 96 frontend
+- Verificeret i browser og i realtid mod mock-PLC: formular, valideringsfejl i forhåndsvisning, undtagelse, afvikling skrev 21,5 °C og pumpe Til, audit viser "ugeprogram:<navn>"
+
+## [0.21.0 build 0029] — 2026-10-08 — Energirapporter
+
+- `backend/app/services/energy.py` — perioder (dag/uge/måned) i dansk tid inkl. sommertid; tæller: summen af stigninger (fald = nulstilling → tæller fra 0, huller springes over); effekt: integration med værdien holdt til næste måling, højst 10 min og aldrig efter "nu"; huller tæller som 0; omregning til kWh pr. tag
+- `backend/app/api/energy.py` — `GET /api/energy/tags`, `/report` (standard: seneste 14 dage / 12 uger / 12 måneder), `/export` (CSV til dansk Excel med I alt-række); adgang pr. tegning respekteres
+- Tags: felterne `energy` (tæller/effekt) og `energy_factor` — skema 8; valideret i alle grene (opret, opdatér — også når historikken slås fra —, import, backup): kræver historik og et tal-tag
+- `backend/app/storage/trends_db.py` + `services/trends.py` — energi-tags slettes først efter `SCADA_ENERGY_DAYS` (standard 400), anden historik efter `SCADA_TREND_DAYS`; `samples_with_prev()` giver tællerens udgangspunkt før perioden
+- `requirements.txt` — `tzdata` (Apache-2.0) så dansk tid virker overalt
+- Frontend: ny side **Energi** (periodeknapper, valg af tags, grupperede søjler med faste farver, tabel med I alt, igangværende periode markeret, CSV); energi-felter i Tags-redigering med forklaring af omregning
+- Tests: `test_energy.py` (7: sommertid, uge/måned, tæller med nulstilling og huller, effekt med hold/huller/periodegrænser, faktor), `test_trends.py` (3 nye), `energyData.test.ts` (5) — 220 backend, 90 frontend
+- Verificeret i browser med 14 dages genereret historik (indlæst via flet): dag/uge/måned, tabel, CSV, mobil uden vandret scroll; energi sat via Tags-siden
+
+## [0.20.1 build 0028] — 2026-10-08 — Fix: rigtige fejlbeskeder ved indlæsning af historik gennem nginx
+
+- `deploy/nginx-hypervisionplc-scada.conf` — indlæsnings-adressen mellemlagrer igen uploadet (fjernet `proxy_request_buffering off`), så tjenestens fejlbeskeder når frem i stedet for 502
+- Verificeret på testserveren: 70 MB gennem nginx → 401 fra tjenesten (andre adresser stadig max 64 MB → 413); øjebliksbillede som tjenestens bruger `scada` af den rigtige historik (12 tags, 11.141 værdier)
+
+## [0.20.0 build 0027] — 2026-10-08 — Backup af trend-historik
+
+- `backend/app/storage/trends_db.py` — `snapshot()` (SQLites backup-API på en separat forbindelse — blokerer ikke opsamlingen), `check_file()` (er det en trend-historik? quick_check), `merge_from()` (flet tag for tag; tags matches på navn; eksisterende (tag, tidspunkt) bevares — intet overskrives)
+- `backend/app/services/backup.py` — komprimeret øjebliksbillede (`trends-auto-*.db.gz`) ved hver automatisk backup, de seneste `SCADA_TREND_BACKUP_KEEP` (standard 2) gemmes og vises i fillisten som "historik"; indlæsning af .db eller .db.gz (højst 2 GB udpakket)
+- `backend/app/api/backup.py` — `GET /api/backup/trends` (download) og `POST /api/backup/trends/merge` (upload streames til disk, højst 1 GB); admin; audit
+- `deploy/nginx-hypervisionplc-scada.conf` — egen location til indlæsning: 1 GB, ingen mellemlagring, 15 min timeout
+- `frontend/src/pages/Backup.svelte` — sektion "Trend-historik" (hent, indlæs og flet, resultat); `lib/api.ts` sender filer (Blob) uændret
+- Tests: `test_trends.py` (2 nye: download → ændret fil → flet bevarer eksisterende værdier, ukomprimeret/ugyldig fil; øjebliksbilleder på serveren og oprydning), `api.test.ts` (1 ny) — 211 backend, 85 frontend
+- Verificeret i browser lokalt og på testserveren gennem nginx og den sandkassede systemd-tjeneste
+
+## [0.19.0 build 0026] — 2026-10-08 — Betjeningssymboler
+
+- `frontend/src/lib/symbols.ts` — ny sektion "Betjening (skriver til PLC)": trykknap (puls 500 ms), start/stop (til/fra med bekræftelse, lampe + status), vippekontakt (til/fra, vippen flytter sig), drejeomskifter 0/1 (grebet drejer ±45°), auto/manuel, setpunkt-felt (klik → indtast værdi). Symbolerne beskriver selv deres bindinger: `data-hv-auto` (klik-handling på roden) og `data-hv-part` (visning på delene)
+- `backend/app/services/svg_sanitize.py` — `symbol_specs()` finder betjeningssymboler og deres dele
+- `backend/app/services/bindings.py` — `symbol_bindings()`: bindinger ud fra symbolets beskrivelse, valideret som alle andre bindinger; ugyldige/ukendte udelades, "gå til" aldrig; klik-handlinger der skriver dannes kun for skrivbare tags
+- `backend/app/services/drawings.py` — automatisk binding bruger symbolets beskrivelse når elementets id/label er et tag
+- `backend/app/services/scope.py` — operatørers betjeningsret ud fra de *effektive* bindinger (også betjeningssymbolernes) — fundet af testen før release: uden rettelsen fik operatører "ingen adgang"
+- `frontend/src/pages/DrawEditor.svelte` + `svgedit-host/scada-editor.js` — ved et betjeningssymbol vises kun skrivbare tags og en forklaring; advarsel hvis tagget ikke er skrivbart
+- Tests: `test_drawings_api.py` (2 nye: bindinger for skrivbart/ikke-skrivbart tag, ugyldige beskrivelser, operatør kan betjene), `symbols.test.ts` (1 ny) — 209 backend, 84 frontend
+- Verificeret i browser hele vejen: symboler indsat i Tegn, tag valgt, gemt (`data-hv-*` overlever SVG-Edit og serverens sanering) → Overview: vippekontakt skifter coil og vippen flytter sig, drejeomskifter spørger og drejer, setpunkt-felt skriver værdien
+
+## [0.18.1 build 0025] — 2026-10-08 — Fix: historik kan slås fra og slettes fra Trends
+
+- `frontend/src/pages/Trends.svelte` — "Administrér" (tekniker/admin): pr. tag "Gem"/"Stop" (tagets historik-felt; det gemte bevares) og "Slet" (med bekræftelse og antal værdier); besked efter handlingen
+- `backend/app/api/trends.py` — `DELETE /api/trends/history/{navn}` (tekniker+, audit `trend.delete`) — slår ikke opsamlingen fra
+- `backend/app/services/trends.py` — `TrendRecorder.forget()` sletter også værdier i bufferen, så de ikke dukker op igen
+- `backend/app/services/tags.py` + `main.py` — `on_change`: opsamleren læser historik-indstillingerne straks ved oprettelse/ændring/import (før: ved næste skrivning, op til 5 s); sletning af et tag går nu også gennem `forget`
+- Tests: `test_trends.py` (2 nye; CSV-testen venter nu på den forventede værdi, fordi opsamlingen starter straks) — 207 backend
+- Verificeret i browser med driftens skriveinterval (5 s): Stop → gemmes ikke mere, kan stadig vises; Slet → 0 værdier, også efter en hel skrivecyklus
+
+## [0.18.0 build 0024] — 2026-10-08 — Overview: zoom/panorering og start-tegning
+
+**Start-tegning:**
+- `backend/app/storage/db.py` — indstillinger i den eksisterende `meta`-tabel (`get_setting`/`set_setting`, én række pr. nøgle — ingen skemaændring); start-tegningen med i projekt-eksport og i restore-transaktionen
+- `backend/app/services/drawings.py` + `api/drawings.py` — `PUT /api/drawings/start` (tekniker+, audit `drawing.start`), `start`-flag i tegningslisten; ukendt tegning afvises (404), slettes start-tegningen nulstilles valget
+- `backend/app/services/backup.py` — start-tegningen med i backup (valgfri ved restore; peger den på en tegning der ikke er i backuppen, ignoreres den)
+- `frontend/src/pages/Drawings.svelte` — "Start"-mærke og "Gør til start"/"Fjern som start"
+- Overview åbner: tegningen i adressen → den sidst viste i denne fane → start-tegningen → den første (`pickDrawing`); brugere med adgang til udvalgte tegninger får kun tegninger de må se
+
+**Zoom og panorering** (`frontend/src/lib/viewport.ts` + `pages/Overview.svelte`):
+- Musehjul zoomer om musens position, knapperne − / + / Tilpas og zoom-procent i værktøjslinjen, træk for at panorere, knib med to fingre på touch; højst 20×, aldrig ud forbi hele tegningen og aldrig ud over kanten
+- Et træk/knib udløser ikke klik-handlinger i tegningen; et almindeligt klik gør stadig
+
+- Tests: `viewport.test.ts` (6 nye), `test_drawings_api.py` (2 nye), backup-roundtrip omfatter start-tegningen — 83 frontend, 205 backend
+- Verificeret i browser: ny fane åbner start-tegningen, sidst viste huskes efter besøg på Tags; hjul-zoom om musen, træk over en klikbar knap panorerer uden dialog, klik åbner dialogen, Tilpas nulstiller; ingen side-scroll. Knib er kun testet via logikken (ingen touch-enhed i testen)
+
+## [0.17.0 build 0023] — 2026-10-08 — Animation "Flyt"
+
+- `backend/app/services/bindings.py` — ny animation `move` (`MoveParams`: min/max for værdien, `dx`/`dy` = forskydning ved max, ±100000)
+- `frontend/src/lib/animate.ts` — Flyt forskyder elementet `translate(f·dx f·dy)`; Flyt og Rotation gemmer hver sin del af transform og sammensættes som original + flyt + rotation, så de kan kombineres på samme element; afrundede værdier i transform
+- `frontend/src/lib/bindingForm.ts` + `src/pages/Editor.svelte` — "Flyt" i animationslisten med felterne "Flyt X/Y ved max"; begge 0 afvises
+- Tests: `animate.test.ts` (2 nye), `bindingForm.test.ts` (1 ny), `test_drawings_api.py` (2 nye valideringstilfælde)
+- Verificeret i browser: glider følger værdien; spjæld med Flyt + Rotation samtidig
+
 ## [0.16.0 build 0022] — 2026-10-08 — Symbolsektion: Solcelleanlæg
 
 - `frontend/src/lib/symbols.ts` — ny kategori `sol` med 16 symboler: solcellepanel, solcellestreng, sol/indstråling ("Gennemsigtighed"), inverter, hybridinverter, MPPT-regulator, batteri (indre felt til "Niveau" = ladetilstand), batteribank, DC-/AC-afbryder, overspændingsbeskyttelse, elmåler (tekst-felt til kWh), elnet, forbrug/hus, elbillader, energiflow-pil — i alt 75 symboler

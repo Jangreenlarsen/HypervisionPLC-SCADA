@@ -13,8 +13,9 @@ from fastapi.responses import Response
 
 from ..services.auth import CurrentUser
 from ..services.errors import ServiceError
+from ..services.schedule_engine import TZ
 from ..services.tagsource import TagSourceError, parse_source
-from .auth import require
+from .auth import audit, require
 
 router = APIRouter(prefix="/api/trends")
 MAX_SPAN_S = 400 * 86400
@@ -76,9 +77,10 @@ async def export(request: Request, tags: str, start: float | None = None, end: f
     writer = csv.writer(buf, delimiter=";")
     writer.writerow(["tidspunkt", "tag", "vaerdi"])
     for name, ts, value in request.app.state.trend_db.raw(names, start, end, MAX_EXPORT_ROWS):
-        writer.writerow([datetime.fromtimestamp(ts).isoformat(timespec="milliseconds"), name,
+        # Dansk tid (SCADA_TZ) uanset serverens tidszone — en Pi står ofte på UTC
+        writer.writerow([datetime.fromtimestamp(ts, TZ).replace(tzinfo=None).isoformat(timespec="milliseconds"), name,
                          "" if value is None else f"{value:.10g}".replace(".", ",")])
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    stamp = datetime.now(TZ).strftime("%Y%m%d-%H%M%S")
     return Response("﻿" + buf.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="trend-{stamp}.csv"'})
 
@@ -99,3 +101,11 @@ async def info(request: Request, user: CurrentUser = Depends(require("viewer")))
     recorder = request.app.state.trend_recorder
     return {"retention_days": recorder.retention_days, "db_size": request.app.state.trend_db.size_bytes(),
             "tags": tags}
+
+
+@router.delete("/history/{name}")
+async def delete_history(name: str, request: Request, user: CurrentUser = Depends(require("engineer"))) -> dict[str, Any]:
+    """Slet al gemt historik for ét tag. Opsamlingen slås IKKE fra her (det er tagets "trend"-felt)."""
+    deleted = request.app.state.trend_recorder.forget(name)
+    audit(request, "trend.delete", name, {"samples": deleted})
+    return {"deleted": deleted}

@@ -15,6 +15,7 @@ Restore er "alt eller intet":
 from __future__ import annotations
 
 import asyncio
+import gzip
 import json
 import logging
 import math
@@ -27,6 +28,7 @@ from typing import Any
 from ..config import read_version
 from ..storage.files import DrawingFiles
 from .bindings import BindingError, validate_binding
+from .schedules import validate_schedule
 from .errors import ServiceError
 from .manager import PlcManager
 from .plcs import normalize_base_url
@@ -37,10 +39,11 @@ from .tagsource import PLC_KEY_RE, TagSourceError, parse_source
 log = logging.getLogger(__name__)
 
 FORMAT = "hypervisionplc-scada-backup"
+MAX_TREND_DB_BYTES = 2 * 1024 * 1024 * 1024  # udpakket historik ved indlæsning
 FORMAT_VERSION = 1
 MAX_RESTORE_BYTES = 64 * 1024 * 1024
 _DRAWING_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
-_BACKUP_NAME = re.compile(r"^scada-(auto|foer-restore)-\d{8}-\d{6}\.json$")
+_BACKUP_NAME = re.compile(r"^(scada-(auto|foer-restore)-\d{8}-\d{6}\.json|trends-auto-\d{8}-\d{6}\.db\.gz)$")
 MAX_ERRORS = 25
 
 
@@ -72,6 +75,18 @@ def _alarm_fields(t: dict[str, Any], datatype: str) -> tuple[dict[str, Any], str
     if iv is None or not 1 <= iv <= 3600:
         return {}, "trend_interval_s skal være 1-3600"
     out["trend_interval_s"] = iv
+    energy = t.get("energy")
+    if energy not in (None, "counter", "power"):
+        return {}, "energy skal være null, 'counter' eller 'power'"
+    try:
+        factor = num("energy_factor", 1.0)
+    except ValueError as exc:
+        return {}, str(exc)
+    if factor is None or not 0 < factor <= 1_000_000:
+        return {}, "energy_factor skal være et positivt tal"
+    if energy is not None and (not out["trend"] or datatype == "bool"):
+        return {}, "energi kræver historik og et tal-tag"
+    out["energy"], out["energy_factor"] = energy, factor
     limits = [out[k] for k in ("alarm_ll", "alarm_l", "alarm_h", "alarm_hh") if out[k] is not None]
     if limits != sorted(limits):
         return {}, "alarmgrænserne skal stige (LL ≤ L ≤ H ≤ HH)"
@@ -85,12 +100,14 @@ def _alarm_fields(t: dict[str, Any], datatype: str) -> tuple[dict[str, Any], str
 
 
 class BackupService:
-    def __init__(self, manager: PlcManager, files: DrawingFiles, backup_dir: Path, keep: int = 7):
+    def __init__(self, manager: PlcManager, files: DrawingFiles, backup_dir: Path, keep: int = 7, trend_keep: int = 2):
         self.manager = manager
         self.db = manager.db
         self.files = files
         self.backup_dir = backup_dir
         self.keep = keep
+        self.trend_keep = trend_keep
+        self.trend_db: Any = None  # sættes når trend-historikken er startet (main.py)
         backup_dir.mkdir(parents=True, exist_ok=True)
         self._lock = asyncio.Lock()
 
@@ -120,6 +137,8 @@ class BackupService:
             "tags": [{k: v for k, v in t.items()} for t in data["tags"]],
             "drawings": drawings,
             "bindings": data["bindings"],
+            "settings": data["settings"],
+            "schedules": data["schedules"],
         }
 
     def save_to_server(self, kind: str, created_by: str) -> str:
@@ -142,7 +161,66 @@ class BackupService:
             st = p.stat()
             out.append({"name": p.name, "size": st.st_size, "created": st.st_mtime,
                         "kind": "auto" if "-auto-" in p.name else "før restore"})
-        return out
+        for p in sorted(self.backup_dir.glob("trends-auto-*.db.gz"), reverse=True):
+            st = p.stat()
+            out.append({"name": p.name, "size": st.st_size, "created": st.st_mtime, "kind": "historik"})
+        return sorted(out, key=lambda f: f["created"], reverse=True)
+
+    # ------------------------------------------------------- trend-historik
+
+    def write_trend_snapshot(self, dest_gz: Path) -> int:
+        """Komprimeret øjebliksbillede af trend-historikken → filstørrelse. Blokerende (kør i en tråd)."""
+        if self.trend_db is None:
+            raise ServiceError(503, "Trend-historikken er ikke startet")
+        raw = dest_gz.with_name(dest_gz.name + ".tmp-db")
+        tmp = dest_gz.with_name(dest_gz.name + ".tmp")
+        try:
+            self.trend_db.snapshot(raw)
+            with raw.open("rb") as src, gzip.open(tmp, "wb", compresslevel=6) as dst:
+                shutil.copyfileobj(src, dst, 1024 * 1024)
+            tmp.replace(dest_gz)
+        finally:
+            raw.unlink(missing_ok=True)
+            tmp.unlink(missing_ok=True)
+        return dest_gz.stat().st_size
+
+    def save_trend_snapshot(self) -> str:
+        name = f"trends-auto-{datetime.now().strftime('%Y%m%d-%H%M%S')}.db.gz"
+        self.write_trend_snapshot(self.backup_dir / name)
+        files = sorted(self.backup_dir.glob("trends-auto-*.db.gz"))
+        for old in files[: max(0, len(files) - self.trend_keep)]:
+            old.unlink(missing_ok=True)
+        return name
+
+    def merge_trends(self, upload: Path) -> dict[str, Any]:
+        """Flet en uploadet historik (.db eller .db.gz) ind i den eksisterende. Blokerende (kør i en tråd)."""
+        if self.trend_db is None:
+            raise ServiceError(503, "Trend-historikken er ikke startet")
+        db_file = upload
+        unpacked = upload.with_name(upload.name + ".db")
+        try:
+            with upload.open("rb") as f:
+                magic = f.read(16)
+            if magic[:2] == b"\x1f\x8b":
+                try:
+                    with gzip.open(upload, "rb") as src, unpacked.open("wb") as dst:
+                        copied = 0
+                        while chunk := src.read(1024 * 1024):
+                            copied += len(chunk)
+                            if copied > MAX_TREND_DB_BYTES:
+                                raise ServiceError(413, f"Historikken er for stor udpakket (max {MAX_TREND_DB_BYTES // 1024 // 1024} MB)")
+                            dst.write(chunk)
+                except (OSError, EOFError):
+                    raise ServiceError(400, "Filen er ikke en gyldig .gz-fil") from None
+                db_file = unpacked
+            elif not magic.startswith(b"SQLite format 3"):
+                raise ServiceError(400, "Filen er hverken en trend-historik (.db) eller en komprimeret (.db.gz)")
+            try:
+                return self.trend_db.merge_from(db_file)
+            except ValueError as exc:
+                raise ServiceError(400, str(exc)) from None
+        finally:
+            unpacked.unlink(missing_ok=True)
 
     def server_backup_path(self, name: str) -> Path:
         if not _BACKUP_NAME.match(name):  # forsvar mod sti-traversering
@@ -299,11 +377,34 @@ class BackupService:
             seen.add((did, element, pos))
             bindings.append({"drawing_id": did, "element": element, "position": pos, **nb})
 
+        schedules = []
+        raw_schedules = backup.get("schedules", [])  # ældre backups har ingen ugeprogrammer
+        if not isinstance(raw_schedules, list):
+            err("schedules skal være en liste")
+            raw_schedules = []
+        tag_rows = {t["name"]: {**t, "writable": bool(t["writable"])} for t in tags}
+        seen_names: set[str] = set()
+        for i, s in enumerate(raw_schedules):
+            try:
+                clean = validate_schedule(s, tag_rows)
+            except ServiceError as exc:
+                err(f"Ugeprogram #{i + 1}: {exc.message}")
+                continue
+            if clean["name"] in seen_names:
+                err(f"Ugeprogram '{clean['name']}': navnet findes to gange")
+                continue
+            seen_names.add(clean["name"])
+            schedules.append(clean)
+
         if errors:
             more = " (flere fejl udeladt)" if len(errors) >= MAX_ERRORS else ""
             raise ServiceError(400, "Backuppen kan ikke gendannes — intet er ændret:\n- " + "\n- ".join(errors) + more)
+        settings = backup.get("settings") if isinstance(backup.get("settings"), dict) else {}
+        start = settings.get("start_drawing")
+        # En start-tegning der ikke findes i backuppen ignoreres (ikke en fejl — Overview viser så den første)
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
-                "files": files}
+                "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
+                "schedules": schedules}
 
     # ---------------------------------------------------------------- restore
 
@@ -332,6 +433,7 @@ class BackupService:
             log.info("Restore gennemført af %s: %d PLC'er, %d tags, %d tegninger, %d bindinger",
                      actor, len(data["plcs"]), len(data["tags"]), len(data["drawings"]), len(data["bindings"]))
             return {"plcs": len(data["plcs"]), "tags": len(data["tags"]), "drawings": len(data["drawings"]),
+                    "schedules": len(data["schedules"]),
                     "versions": len(data["versions"]), "bindings": len(data["bindings"]),
                     "missing_passwords": missing, "pre_restore_backup": before}
 
@@ -346,4 +448,10 @@ class BackupService:
                 log.info("Automatisk backup gemt: %s", name)
             except Exception:
                 log.exception("Automatisk backup fejlede")
+            if self.trend_db is not None and self.trend_keep > 0:
+                try:
+                    name = await asyncio.to_thread(self.save_trend_snapshot)
+                    log.info("Automatisk backup af trend-historik gemt: %s", name)
+                except Exception:
+                    log.exception("Automatisk backup af trend-historik fejlede")
             await asyncio.sleep(interval_hours * 3600)

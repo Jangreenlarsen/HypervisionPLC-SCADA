@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { get, post } from '../lib/api';
+  import { api, get, post } from '../lib/api';
 
   interface ServerFile { name: string; size: number; created: number; kind: string }
   interface Summary { created: string; created_by: string; app_version: string; plcs: number; tags: number; drawings: number; versions: number; bindings: number }
@@ -12,6 +12,26 @@
   let confirmed = $state(false);
   let busy = $state(false);
   let result = $state<Result | null>(null);
+  // Trend-historik
+  let trendFile = $state<File | null>(null);
+  let trendBusy = $state(false);
+  let trendResult = $state<{ tags: number; samples_in_file: number; samples_added: number } | null>(null);
+  let trendError = $state('');
+
+  async function mergeTrends(): Promise<void> {
+    if (!trendFile) return;
+    trendBusy = true;
+    trendError = '';
+    trendResult = null;
+    try {
+      trendResult = await api('POST', '/api/backup/trends/merge', trendFile);
+      trendFile = null;
+    } catch (e) {
+      trendError = (e as Error).message;
+    } finally {
+      trendBusy = false;
+    }
+  }
 
   async function refresh(): Promise<void> {
     try {
@@ -125,8 +145,36 @@
 </section>
 
 <section class="panel">
+  <h2>Trend-historik</h2>
+  <p class="muted small">
+    Historikken (graferne under Trends) ligger i sin egen fil, fordi den kan blive stor. Hent den som en komprimeret
+    fil — det sker uden at opsamlingen stopper.
+  </p>
+  <a class="btn" href="/api/backup/trends" download>Hent historik (.db.gz)</a>
+  <h3 style="margin-top:1rem">Indlæs historik</h3>
+  <p class="muted small">
+    Indlæsning <strong>fletter</strong> filens værdier ind i den nuværende historik: nye værdier tilføjes, eksisterende
+    bevares (intet overskrives eller slettes). Tags matches på navn. Både .db og .db.gz kan bruges.
+  </p>
+  <div class="row">
+    <input type="file" accept=".gz,.db,application/gzip" onchange={(e) => { trendFile = (e.currentTarget as HTMLInputElement).files?.[0] ?? null; trendResult = null; trendError = ''; }} />
+    <button class="primary" onclick={mergeTrends} disabled={!trendFile || trendBusy}>{trendBusy ? 'Indlæser …' : 'Indlæs og flet'}</button>
+  </div>
+  {#if trendError}<div class="error">{trendError}</div>{/if}
+  {#if trendResult}
+    <div class="notice ok-box">
+      Indlæst: {trendResult.samples_added.toLocaleString('da-DK')} nye værdier for {trendResult.tags} tags.
+      {#if trendResult.samples_in_file > trendResult.samples_added}
+        {(trendResult.samples_in_file - trendResult.samples_added).toLocaleString('da-DK')} af filens værdier fandtes allerede og blev bevaret.
+      {/if}
+    </div>
+  {/if}
+</section>
+
+<section class="panel">
   <h2>Backups på serveren</h2>
-  <p class="muted small">Automatiske backups (de seneste gemmes) og backups taget lige før en gendannelse.</p>
+  <p class="muted small">Automatiske backups (de seneste gemmes), backups taget lige før en gendannelse og automatiske
+    øjebliksbilleder af trend-historikken ("historik").</p>
   <div class="table-wrap">
     <table>
       <thead><tr><th>Fil</th><th>Type</th><th>Tidspunkt</th><th>Størrelse</th><th></th></tr></thead>
@@ -136,7 +184,7 @@
             <td class="mono small">{f.name}</td>
             <td>{f.kind}</td>
             <td class="small">{fmtDate(f.created)}</td>
-            <td class="small">{Math.max(1, Math.round(f.size / 1024))} KB</td>
+            <td class="small">{f.size >= 10 * 1024 * 1024 ? `${Math.round(f.size / 1024 / 1024)} MB` : `${Math.max(1, Math.round(f.size / 1024))} KB`}</td>
             <td><a class="btn" href={`/api/backup/files/${encodeURIComponent(f.name)}`} download>Hent</a></td>
           </tr>
         {:else}

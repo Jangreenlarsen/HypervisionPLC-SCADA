@@ -12,13 +12,14 @@
     min: number | null; max: number | null; confirm_write: boolean;
     alarm_hh: number | null; alarm_h: number | null; alarm_l: number | null; alarm_ll: number | null;
     alarm_deadband: number; alarm_delay_s: number; alarm_on: 'true' | 'false' | null;
-    trend: boolean; trend_interval_s: number;
+    trend: boolean; trend_interval_s: number; energy: 'counter' | 'power' | null; energy_factor: number;
   }
   interface EditForm {
     name: string; source: string; description: string; unit: string; scale: string; offset: string;
     decimals: string; writable: boolean; min: string; max: string; confirm_write: boolean;
     alarm_hh: string; alarm_h: string; alarm_l: string; alarm_ll: string; alarm_deadband: string;
     alarm_delay_s: string; alarm_on: '' | 'true' | 'false'; trend: boolean; trend_interval_s: string;
+    energy: '' | 'counter' | 'power'; energy_factor: string;
   }
   interface Suggestion { name: string; source: string; datatype: string; description: string; exists: boolean; pick?: boolean }
 
@@ -44,6 +45,7 @@
       alarm_hh: s(t.alarm_hh), alarm_h: s(t.alarm_h), alarm_l: s(t.alarm_l), alarm_ll: s(t.alarm_ll),
       alarm_deadband: String(t.alarm_deadband ?? 0), alarm_delay_s: String(t.alarm_delay_s ?? 0), alarm_on: t.alarm_on ?? '',
       trend: t.trend, trend_interval_s: String(t.trend_interval_s ?? 10),
+      energy: t.energy ?? '', energy_factor: String(t.energy_factor ?? 1),
     };
   }
 
@@ -62,6 +64,7 @@
         alarm_ll: opt(edit.alarm_ll, 'LL'), alarm_deadband: num(edit.alarm_deadband || '0', 'Dødbånd'),
         alarm_delay_s: num(edit.alarm_delay_s || '0', 'Forsinkelse'), alarm_on: edit.alarm_on || null,
         trend: edit.trend, trend_interval_s: num(edit.trend_interval_s || '10', 'Interval'),
+        energy: edit.energy || null, energy_factor: num(edit.energy_factor || '1', 'Omregning til kWh'),
       });
       edit = null;
       await refresh();
@@ -226,6 +229,27 @@
       <label>Højst én værdi pr. (s)<input bind:value={edit.trend_interval_s} inputmode="decimal" /></label>
     </div>
     <p class="muted small">Værdien gemmes når den ændrer sig (til/fra-skift altid med det samme), plus hvert 5. minut. Kortere interval = mere præcis graf, men mere data.</p>
+    <div class="grid-form">
+      <label>Energi (til energirapporten)
+        <select bind:value={edit.energy}>
+          <option value="">Nej</option>
+          <option value="counter">Tæller (fx kWh-måler)</option>
+          <option value="power">Effekt (fx W eller kW)</option>
+        </select>
+      </label>
+      {#if edit.energy}
+        <label>Omregning til kWh
+          <input bind:value={edit.energy_factor} inputmode="decimal" title="Gang tagets værdi med dette for at få kWh (tæller) eller kW (effekt)" />
+        </label>
+      {/if}
+    </div>
+    {#if edit.energy}
+      <p class="muted small">
+        {edit.energy === 'counter' ? 'Tæller i kWh → 1; i Wh → 0,001. Falder tælleren (nulstilling), regnes den nye værdi som stigning fra 0.'
+          : 'Effekt i kW → 1; i W → 0,001. Effekten integreres over tiden; huller (ingen forbindelse) tæller som 0.'}
+        Kræver at historik er slået til. Energi-tags gemmes længere end anden historik.
+      </p>
+    {/if}
     <h3 style="margin-top: .8rem">Alarmer</h3>
     <p class="muted small">Tal-tags: grænser i teknisk enhed (tomt = ingen). Til/fra-tags: alarm når værdien er sand eller falsk.</p>
     <div class="grid-form">

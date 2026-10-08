@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { del, get, patch, post } from '../lib/api';
+  import { del, get, patch, post, put } from '../lib/api';
 
   let { canEdit = false }: { canEdit?: boolean } = $props();
 
-  interface DrawingRow { id: string; name: string; active_version: number; version_count: number; updated_at: number }
+  interface DrawingRow { id: string; name: string; active_version: number; version_count: number; updated_at: number; start?: boolean }
   interface Version { version: number; comment: string; size: number; width: number | null; height: number | null; created_at: number }
   interface Detail { id: string; name: string; active_version: number; versions: Version[] }
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[] }
@@ -92,6 +92,17 @@
     }
   }
 
+  /** Tegningen Overview åbner med (for alle brugere der har adgang til den). */
+  async function setStart(row: DrawingRow | null): Promise<void> {
+    error = '';
+    try {
+      await put('/api/drawings/start', { drawing: row?.id ?? null });
+      await refresh();
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
+
   async function remove(row: DrawingRow): Promise<void> {
     if (!confirm(`Slet tegningen "${row.name}" med alle ${row.version_count} versioner og bindinger?`)) return;
     try {
@@ -147,7 +158,10 @@
         <tbody>
           {#each rows as r}
             <tr>
-              <td><a href={'#overview/' + r.id}>{r.name}</a></td>
+              <td>
+                <a href={'#overview/' + r.id}>{r.name}</a>
+                {#if r.start}<span class="badge connected" title="Overview åbner med denne tegning">Start</span>{/if}
+              </td>
               <td>v{r.active_version}</td>
               <td>{r.version_count}</td>
               <td class="small">{fmtDate(r.updated_at)}</td>
@@ -155,6 +169,10 @@
                 <div class="row">
                   <button onclick={() => show(r.id)}>Versioner</button>
                   {#if canEdit}<a class="btn" href={'#editor/' + r.id}>Bindinger</a>{/if}
+                  {#if canEdit}
+                    {#if r.start}<button onclick={() => setStart(null)} title="Overview åbner så med den første tegning">Fjern som start</button>
+                    {:else}<button onclick={() => setStart(r)} title="Overview åbner med denne tegning">Gør til start</button>{/if}
+                  {/if}
                   {#if canEdit}<button class="danger" onclick={() => remove(r)}>Slet</button>{/if}
                 </div>
               </td>

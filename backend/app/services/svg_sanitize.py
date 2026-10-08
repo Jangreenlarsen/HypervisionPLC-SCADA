@@ -16,6 +16,7 @@ XML parses med defusedxml (ingen DTD/entiteter → ingen XXE eller "billion laug
 from __future__ import annotations
 
 import re
+from typing import Any
 from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
 
@@ -203,6 +204,20 @@ def _length(text: str | None) -> float | None:
     factor = {"px": 1, None: 1, "pt": 4 / 3, "mm": 96 / 25.4, "cm": 96 / 2.54, "in": 96}[m.group(2)]
     value = float(m.group(1)) * factor
     return value if value > 0 else None
+
+
+def symbol_specs(svg: str) -> dict[str, dict[str, Any]]:
+    """Betjeningssymboler: {rod-id: {"auto": data-hv-auto, "parts": [(barn-id, data-hv-part), ...]}}.
+    Værdierne er rå tekst (JSON) — de valideres først når bindingerne dannes."""
+    root = fromstring(svg.encode("utf-8"), forbid_dtd=True)
+    out: dict[str, dict[str, Any]] = {}
+    for el in root.iter():
+        if not isinstance(el.tag, str) or not el.attrib.get("id") or "data-hv-auto" not in el.attrib:
+            continue
+        parts = [(c.attrib["id"], c.attrib["data-hv-part"]) for c in el.iter()
+                 if c is not el and isinstance(c.tag, str) and c.attrib.get("id") and c.attrib.get("data-hv-part")]
+        out[el.attrib["id"]] = {"auto": el.attrib["data-hv-auto"], "parts": parts}
+    return out
 
 
 def index_svg(svg: str) -> dict[str, tuple[str, str | None]]:

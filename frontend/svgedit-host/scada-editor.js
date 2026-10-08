@@ -51,7 +51,7 @@ function hookEvents() {
 
 function currentSelection() {
   const elems = (canvas().getSelectedElements() || []).filter(Boolean);
-  return elems.map((el) => ({ id: el.id || '', tag: el.tagName.toLowerCase() }));
+  return elems.map((el) => ({ id: el.id || '', tag: el.tagName.toLowerCase(), interactive: el.hasAttribute('data-hv-auto') }));
 }
 
 function idExists(id) {

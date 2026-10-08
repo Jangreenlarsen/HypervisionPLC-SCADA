@@ -88,8 +88,23 @@ function level(el: Element, f: number, direction: string): void {
   }
 }
 
-function rotate(el: Element, angle: number): void {
+/**
+ * Flyt og Rotation ændrer begge transform. Hver gemmer sin del, og transform sammensættes som
+ * original + flyt + rotation — så de kan kombineres på samme element uden at overskrive hinanden.
+ */
+function setTransformPart(el: Element, part: 'move' | 'rotate', value: string): void {
   const base = remember(el, 'transform');
+  el.setAttribute(`data-hv-t-${part}`, value);
+  const parts = [base, el.getAttribute('data-hv-t-move'), el.getAttribute('data-hv-t-rotate')].filter(Boolean);
+  el.setAttribute('transform', parts.join(' '));
+}
+
+function move(el: Element, f: number, dx: number, dy: number): void {
+  const r = (n: number) => Math.round(n * 100) / 100;
+  setTransformPart(el, 'move', `translate(${r(f * dx)} ${r(f * dy)})`);
+}
+
+function rotate(el: Element, angle: number): void {
   const g = el as SVGGraphicsElement;
   let cx = 0;
   let cy = 0;
@@ -100,7 +115,8 @@ function rotate(el: Element, angle: number): void {
   } catch {
     // getBBox findes ikke i alle miljøer (fx jsdom) — roter om (0,0).
   }
-  el.setAttribute('transform', `${base ? base + ' ' : ''}rotate(${angle} ${cx} ${cy})`);
+  const r = (n: number) => Math.round(n * 100) / 100;
+  setTransformPart(el, 'rotate', `rotate(${r(angle)} ${r(cx)} ${r(cy)})`);
 }
 
 export function applyBinding(el: Element, b: Binding, live: LiveValue | undefined, meta?: TagMeta): void {
@@ -140,6 +156,9 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
     }
     case 'opacity':
       (el as SVGElement).style.opacity = String(fraction(v, p.min, p.max));
+      break;
+    case 'move':
+      move(el, fraction(v, p.min, p.max), p.dx ?? 100, p.dy ?? 0);
       break;
   }
 }

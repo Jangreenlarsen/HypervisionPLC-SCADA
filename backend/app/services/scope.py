@@ -4,7 +4,7 @@
 - Viewer/operatør med begrænset adgang ser kun deres tegninger og kun de tags der vises i dem
   (eksplicitte og automatiske bindinger).
 - Operatører (begrænsede eller ej) kan kun betjene tags der har en klik-handling
-  (click:write/toggle/pulse) i en tegning de har adgang til. Tekniker og admin kan betjene
+  (click:write/toggle/pulse) i en tegning de har adgang til — eksplicit eller fra et betjeningssymbol. Tekniker og admin kan betjene
   alle skrivbare tags.
 """
 
@@ -44,5 +44,6 @@ class ScopeService:
             return None
         tags: set[str] = set()
         for did in self._ids(user):
-            tags.update(b["tag"] for b in self.db.list_bindings(did) if b["anim"] in WRITE_CLICKS)
+            # Effektive bindinger: også de automatiske fra betjeningssymboler (dannes kun for skrivbare tags)
+            tags.update(b["tag"] for b in self.drawings.effective_bindings(did) if b["anim"] in WRITE_CLICKS)
         return tags

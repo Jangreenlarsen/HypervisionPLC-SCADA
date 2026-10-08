@@ -418,6 +418,9 @@
                           <option value="right">Mod højre</option><option value="left">Mod venstre</option>
                         </select>
                       </label>
+                    {:else if d.anim === 'move'}
+                      <label>Flyt X ved max<input bind:value={d.dx} oninput={changed} inputmode="decimal" title="Vandret forskydning i tegningens enheder (negativ = til venstre)" /></label>
+                      <label>Flyt Y ved max<input bind:value={d.dy} oninput={changed} inputmode="decimal" title="Lodret forskydning i tegningens enheder (negativ = op)" /></label>
                     {:else if d.anim === 'rotate'}
                       <label>Vinkel ved min (°)<input bind:value={d.angle_min} oninput={changed} inputmode="decimal" /></label>
                       <label>Vinkel ved max (°)<input bind:value={d.angle_max} oninput={changed} inputmode="decimal" /></label>

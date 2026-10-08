@@ -37,6 +37,10 @@ class DrawingUpdate(_Model):
     active_version: int | None = None
 
 
+class StartDrawing(_Model):
+    drawing: str | None = Field(default=None, max_length=64)  # None/"" = ingen (den første vises)
+
+
 class ElementBindings(_Model):
     bindings: list[dict[str, Any]] = Field(max_length=10)
 
@@ -59,6 +63,14 @@ def _check(request: Request, drawing_id: str) -> None:
 async def list_drawings(request: Request) -> list[dict[str, Any]]:
     allowed = _scope(request).drawing_ids(request.state.user)
     return [d for d in _svc(request).list() if allowed is None or d["id"] in allowed]
+
+
+@router.put("/start", dependencies=[ENGINEER])
+async def set_start_drawing(body: StartDrawing, request: Request) -> dict[str, Any]:
+    """Vælg tegningen Overview åbner med. Brugere uden adgang til den får deres første tilladte."""
+    _svc(request).set_start_drawing(body.drawing)
+    audit(request, "drawing.start", body.drawing or "", {"drawing": body.drawing})
+    return {"drawing": _svc(request).start_drawing()}
 
 
 @router.post("", status_code=201, dependencies=[ENGINEER])

@@ -10,7 +10,7 @@
   interface Version { version: number; comment: string; created_at: number }
   interface Detail { id: string; name: string; active_version: number; versions: Version[] }
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[] }
-  interface Sel { id: string; tag: string }
+  interface Sel { id: string; tag: string; interactive?: boolean }
   interface ScadaApi {
     ready: Promise<void>;
     load(svg: string): boolean;
@@ -256,9 +256,16 @@
       {:else}
         <p class="small muted">&lt;{single.tag}&gt;</p>
         <label class="field">Tag
-          <TagSelect bind:value={tagChoice} {tags} placeholder="— vælg tag —" onchange={(v) => v && applyId(v)} />
+          <TagSelect bind:value={tagChoice} {tags} writableOnly={!!single.interactive} placeholder="— vælg tag —" onchange={(v) => v && applyId(v)} />
         </label>
-        <p class="small muted">Elementets id sættes til tag-navnet, så det bindes automatisk: tekst viser værdien, figurer farves efter til/fra. Andre animationer og klik-handlinger sættes under <strong>Bindinger</strong> efter gem.</p>
+        {#if single.interactive}
+          <p class="small muted"><strong>Betjeningssymbol:</strong> vælg et skrivbart tag — så bindes klik-handlingen (skriver til PLC'en) og visningen (lampe, vippe, greb, tekst) automatisk, når tegningen er gemt. Ret detaljer under <strong>Bindinger</strong>.</p>
+          {#if tagChoice && !tags.find((t) => t.name === tagChoice)?.writable}
+            <p class="small error">Tagget er ikke skrivbart — symbolet viser kun værdien. Markér tagget skrivbart under <a href="#tags">Tags</a>.</p>
+          {/if}
+        {:else}
+          <p class="small muted">Elementets id sættes til tag-navnet, så det bindes automatisk: tekst viser værdien, figurer farves efter til/fra. Andre animationer og klik-handlinger sættes under <strong>Bindinger</strong> efter gem.</p>
+        {/if}
         <label class="field">Id
           <span class="row"><input bind:value={idInput} /><button onclick={() => applyId(idInput.trim())} disabled={!idInput.trim() || idInput === single.id}>Sæt</button></span>
         </label>

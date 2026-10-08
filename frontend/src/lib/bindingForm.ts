@@ -13,6 +13,7 @@ export const ANIMS: { id: Anim; label: string; help: string }[] = [
   { id: 'level', label: 'Niveau', help: 'Fylder et <rect> fra min til max (tank/bar)' },
   { id: 'rotate', label: 'Rotation', help: 'Roterer elementet efter værdien' },
   { id: 'opacity', label: 'Gennemsigtighed', help: 'Fra usynlig (min) til fuldt synlig (max)' },
+  { id: 'move', label: 'Flyt', help: 'Flytter elementet fra sin plads (ved min) til forskydningen dx/dy (ved max) — fx spjæld, glider, cylinder' },
   { id: 'click:write', label: 'Klik: setpunkt', help: 'Operatøren indtaster en ny værdi (tagget skal være skrivbart)' },
   { id: 'click:toggle', label: 'Klik: til/fra', help: 'Skifter et til/fra-tag (coil eller heltals-register)' },
   { id: 'click:pulse', label: 'Klik: puls', help: 'Sætter tagget i et kort øjeblik — serveren nulstiller det' },
@@ -44,6 +45,8 @@ export interface BindingForm {
   direction: 'up' | 'down' | 'left' | 'right';
   angle_min: string;
   angle_max: string;
+  dx: string;
+  dy: string;
   title: string;
   confirm: boolean;
   ms: string;
@@ -54,7 +57,7 @@ export function emptyForm(tag = '', anim: Anim = 'text'): BindingForm {
   return {
     tag, anim, decimals: '', true_text: 'Til', false_text: 'Fra', show_unit: true, prefix: '', suffix: '',
     on: '#2e7d32', off: '#9e9e9e', thresholds: [], invert: false,
-    min: '0', max: '100', direction: 'up', angle_min: '0', angle_max: '360',
+    min: '0', max: '100', direction: 'up', angle_min: '0', angle_max: '360', dx: '100', dy: '0',
     title: '', confirm: anim === 'click:toggle', ms: '500', drawing: '',
   };
 }
@@ -121,6 +124,8 @@ export function toForm(b: Pick<Binding, 'tag' | 'anim' | 'params'>): BindingForm
     direction: p.direction ?? 'up',
     angle_min: str(p.angle_min, f.angle_min),
     angle_max: str(p.angle_max, f.angle_max),
+    dx: str(p.dx, f.dx),
+    dy: str(p.dy, f.dy),
     title: str(p.title, ''),
     confirm: p.confirm ?? f.confirm,
     ms: str(p.ms, f.ms),
@@ -188,6 +193,14 @@ export function fromForm(f: BindingForm): { tag: string; anim: Anim; params: Rec
     case 'opacity':
       params = range(f);
       break;
+    case 'move': {
+      const dx = parseNumber(f.dx, 'Flyt X');
+      const dy = parseNumber(f.dy, 'Flyt Y');
+      if (dx === 0 && dy === 0) throw new Error('Flyt X og Y kan ikke begge være 0 — så flytter elementet sig ikke');
+      if (Math.abs(dx) > 100000 || Math.abs(dy) > 100000) throw new Error('Flyt X/Y må højst være ±100000');
+      params = { ...range(f), dx, dy };
+      break;
+    }
     case 'click:write':
       params = { title: f.title.trim() };
       break;

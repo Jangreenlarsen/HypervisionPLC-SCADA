@@ -2,6 +2,64 @@
 
 ---
 
+## v0.22.0 — 2026-10-08 — Ugeprogrammer
+
+- Ny side **Ugeprogrammer** (tekniker og admin). Et program styrer ét skrivbart tag efter et ugeskema, fx "Hverdage 06:00–22:00 = 21 °C, ellers 17 °C" eller "Pumpe Til om natten".
+- **Undtagelser** som ferie og helligdage gælder hele dage og erstatter ugeplanen.
+- **Skrivning:** sker ved hvert skift og kun hvis værdien ikke allerede er sat. En manuel ændring holder derfor til næste skift.
+  - Alle skrivninger står i loggen som "ugeprogram:<navn>".
+  - Svarer PLC'en ikke, vises fejlen, og der prøves igen.
+- **Forhåndsvisning:** viser ugen og næste skift, mens du redigerer.
+- Tider følger dansk tid året rundt.
+- **Beskyttelse:** et tag, der bruges i et ugeprogram, kan ikke slettes eller gøres ikke-skrivbart.
+- **Backup:** ugeprogrammer kommer med.
+- **Trend-CSV:** tidspunkterne er nu altid dansk tid.
+
+## v0.21.0 — 2026-10-08 — Energirapporter
+
+- Ny side **Energi**: forbrug og produktion i kWh pr. dag, uge eller måned, som søjlediagram og tabel med I alt. Kan hentes som CSV til Excel.
+- Under **Tags → Redigér** markeres et tag som energi:
+  - **Tæller** passer til fx en kWh-måler. Nulstilles måleren, regnes det med.
+  - **Effekt** passer til fx W eller kW og regnes om til kWh over tid.
+  - Historik skal være slået til for tagget.
+- Energi-tags gemmes i 400 dage (anden historik i 30), så der kan laves måneds- og årsoversigter.
+- Perioderne følger dansk tid, også ved skift til og fra sommertid.
+
+## v0.20.1 — 2026-10-08
+
+- Indlæsning af historik viser nu den rigtige fejlbesked (fx "Du er ikke logget ind") i stedet for "Bad Gateway".
+
+## v0.20.0 — 2026-10-08 — Backup af trend-historik
+
+- Under **Backup** kan trend-historikken hentes som en komprimeret fil. Det sker uden at opsamlingen stopper.
+- **Indlæs historik** fletter en fil ind i den nuværende historik. Nye værdier tilføjes, og intet overskrives eller slettes. Det kan fx bruges, når der flyttes til en ny server.
+- Den automatiske backup tager nu også et øjebliksbillede af historikken. De seneste 2 gemmes og kan hentes fra listen over backups på serveren.
+
+## v0.19.0 — 2026-10-08 — Betjeningssymboler
+
+- Ny sektion **Betjening** i Tegn: trykknap (puls), start/stop, vippekontakt, drejeomskifter 0/1, auto/manuel og setpunkt-felt.
+- Indsæt symbolet og vælg et skrivbart tag. Når tegningen er gemt, virker symbolet med det samme på Overview, uden opsætning under Bindinger:
+  - Klik skriver til PLC'en.
+  - Lampe, vippe, greb og tekst viser tilstanden.
+- Tags der ikke er skrivbare, kan ikke vælges til betjeningssymboler. Operatører kan betjene symbolerne i de tegninger, de har adgang til.
+
+## v0.18.1 — 2026-10-08 — Stop og slet historik
+
+- På **Trends** har tekniker og admin fået fluebenet **Administrér**. Det viser knapper ud for hvert tag:
+  - **Gem** og **Stop** slår historikken til og fra. Ved Stop bevares det gemte, så det stadig kan vises.
+  - **Slet** fjerner tagets gemte værdier, efter du har bekræftet det.
+- Ændringer gælder med det samme: "Stop" stopper opsamlingen straks, og "Gem" begynder straks.
+
+## v0.18.0 — 2026-10-08 — Zoom på Overview og start-tegning
+
+- **Zoom og panorering på Overview:** brug musehjulet eller knapperne − / + og træk for at flytte rundt. På mobil og tablet zoomer man med to fingre, og **Tilpas** viser hele tegningen igen. Når man trækker hen over en knap i tegningen, betjenes den ikke. Det gør den kun ved et almindeligt klik.
+- **Start-tegning:** under **Tegninger** kan en tekniker eller admin trykke **Gør til start**. Overview åbner så med den tegning for alle, der har adgang til den. Skifter man selv tegning, huskes den, så længe fanen er åben.
+
+## v0.17.0 — 2026-10-08 — Animation "Flyt"
+
+- Ny animation **Flyt** under Bindinger. Ved min står elementet, hvor det er tegnet, og ved max er det flyttet "Flyt X/Y" i tegningens enheder. Det passer fx til spjæld, glidere, cylindre og niveauflydere.
+- Flyt kan kombineres med Rotation på samme element.
+
 ## v0.16.0 — 2026-10-08 — Symboler til solcelleanlæg
 
 - Ny sektion **Solcelleanlæg** i Tegn med solcellepanel og -streng, sol, inverter, hybridinverter, MPPT-regulator, batteri og batteribank, DC- og AC-afbryder, overspændingsbeskyttelse, elmåler, elnet, forbrug/hus, elbillader og energiflow-pil.
