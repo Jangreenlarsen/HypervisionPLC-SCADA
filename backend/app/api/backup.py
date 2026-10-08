@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, Response
+from starlette.background import BackgroundTask
 
 from ..services.auth import CurrentUser
 from ..services.backup import MAX_RESTORE_BYTES, BackupService
@@ -61,4 +65,57 @@ async def list_files(request: Request) -> list[dict[str, Any]]:
 @router.get("/files/{name}", dependencies=[ADMIN])
 async def download_file(name: str, request: Request) -> FileResponse:
     path = _svc(request).server_backup_path(name)
-    return FileResponse(path, media_type="application/json", filename=name)
+    media = "application/gzip" if name.endswith(".gz") else "application/json"
+    return FileResponse(path, media_type=media, filename=name)
+
+
+# ------------------------------------------------------------------ trend-historik
+
+MAX_TREND_UPLOAD_BYTES = 1024 * 1024 * 1024
+
+
+def _tmp_path(request: Request, suffix: str) -> Path:
+    tmp_dir = request.app.state.settings.data_dir / "tmp"
+    tmp_dir.mkdir(exist_ok=True)
+    return tmp_dir / f"{uuid.uuid4().hex}{suffix}"
+
+
+@router.get("/trends")
+async def download_trends(request: Request, user: CurrentUser = Depends(require("admin"))) -> FileResponse:
+    """Øjebliksbillede af hele trend-historikken (.db.gz) — tages uden at stoppe opsamlingen."""
+    path = _tmp_path(request, ".db.gz")
+    try:
+        await asyncio.to_thread(_svc(request).write_trend_snapshot, path)
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
+    audit(request, "backup.trends.download", "", {"size": path.stat().st_size})
+    name = f"scada-historik-{datetime.now().strftime('%Y%m%d-%H%M%S')}.db.gz"
+    return FileResponse(path, media_type="application/gzip", filename=name,
+                        background=BackgroundTask(path.unlink, missing_ok=True))
+
+
+@router.post("/trends/merge")
+async def merge_trends(request: Request, user: CurrentUser = Depends(require("admin"))) -> dict[str, Any]:
+    """Indlæs en historik-fil og flet den ind (eksisterende værdier bevares). Streames til disk."""
+    path = _tmp_path(request, ".upload")
+    size = 0
+    try:
+        with path.open("wb") as f:
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > MAX_TREND_UPLOAD_BYTES:
+                    raise ServiceError(413, f"Filen er for stor (max {MAX_TREND_UPLOAD_BYTES // 1024 // 1024} MB)")
+                f.write(chunk)
+        if size == 0:
+            raise ServiceError(400, "Ingen fil modtaget")
+        try:
+            result = await asyncio.to_thread(_svc(request).merge_trends, path)
+        except ServiceError as exc:
+            request.app.state.audit_service.record(user.username, request.client.host if request.client else "",
+                                                   "backup.trends.merge", "", {"size": size}, "error", exc.message[:500])
+            raise
+        audit(request, "backup.trends.merge", "", {"size": size, **result})
+        return result
+    finally:
+        path.unlink(missing_ok=True)

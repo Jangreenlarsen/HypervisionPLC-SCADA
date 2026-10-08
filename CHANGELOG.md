@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.20.0 build 0027] — 2026-10-08 — Backup af trend-historik
+
+- `backend/app/storage/trends_db.py` — `snapshot()` (SQLites backup-API på en separat forbindelse — blokerer ikke opsamlingen), `check_file()` (er det en trend-historik? quick_check), `merge_from()` (flet tag for tag; tags matches på navn; eksisterende (tag, tidspunkt) bevares — intet overskrives)
+- `backend/app/services/backup.py` — komprimeret øjebliksbillede (`trends-auto-*.db.gz`) ved hver automatisk backup, de seneste `SCADA_TREND_BACKUP_KEEP` (standard 2) gemmes og vises i fillisten som "historik"; indlæsning af .db eller .db.gz (højst 2 GB udpakket)
+- `backend/app/api/backup.py` — `GET /api/backup/trends` (download) og `POST /api/backup/trends/merge` (upload streames til disk, højst 1 GB); admin; audit
+- `deploy/nginx-hypervisionplc-scada.conf` — egen location til indlæsning: 1 GB, ingen mellemlagring, 15 min timeout
+- `frontend/src/pages/Backup.svelte` — sektion "Trend-historik" (hent, indlæs og flet, resultat); `lib/api.ts` sender filer (Blob) uændret
+- Tests: `test_trends.py` (2 nye: download → ændret fil → flet bevarer eksisterende værdier, ukomprimeret/ugyldig fil; øjebliksbilleder på serveren og oprydning), `api.test.ts` (1 ny) — 211 backend, 85 frontend
+- Verificeret i browser lokalt og på testserveren gennem nginx og den sandkassede systemd-tjeneste
+
 ## [0.19.0 build 0026] — 2026-10-08 — Betjeningssymboler
 
 - `frontend/src/lib/symbols.ts` — ny sektion "Betjening (skriver til PLC)": trykknap (puls 500 ms), start/stop (til/fra med bekræftelse, lampe + status), vippekontakt (til/fra, vippen flytter sig), drejeomskifter 0/1 (grebet drejer ±45°), auto/manuel, setpunkt-felt (klik → indtast værdi). Symbolerne beskriver selv deres bindinger: `data-hv-auto` (klik-handling på roden) og `data-hv-part` (visning på delene)

@@ -52,7 +52,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.18.0 — Navigation på Overview: zoom (hjul/knapper/knib) og panorering i store tegninger, "tilpas"-knap (ønske fra Jan)
 - [x] done v0.18.0 — Start-tegning på Overview: tekniker/admin vælger under Tegninger hvilken tegning der vises først; i samme fane huskes den sidst viste (ønske fra Jan)
 - [x] done v0.19.0 — Betjeningssymboler i Tegn (ønske fra Jan): trykknap (puls), start/stop (til/fra), vippekontakt, drejeomskifter, auto/manuel-vælger, setpunkt-felt — vælg et tag i Tegn, så oprettes klik-handling + visning (lampe/vippe/greb/tekst) automatisk; klik-handlinger kun på skrivbare tags
-- [ ] planned — Backup af trend-historik (ønske fra Jan)
+- [x] done v0.20.0 — Backup af trend-historik (ønske fra Jan): download af et konsistent øjebliksbillede (.db.gz), indlæsning der fletter ind i den eksisterende historik, automatisk øjebliksbillede sammen med den daglige backup (de seneste gemmes)
 - [ ] planned — Energirapporter: forbrug/produktion pr. dag/uge/måned fra tællere eller effekt, søjlediagram og CSV (ønske fra Jan)
 - [ ] planned — Ugeprogrammer/tidsstyring: SCADA'en skriver værdier til PLC-tags efter et ugeskema (fx natsænkning), med undtagelser/ferie og audit (ønske fra Jan)
 - [ ] planned — Raspberry Pi 4 deployment: Chromium-kiosk på lokal skærm (udskudt efter ønske — testserver 10.1.1.31 bruges indtil videre; install-script og systemd findes allerede)

@@ -35,6 +35,72 @@ class TrendDatabase:
             for row in self._conn.execute("SELECT id, name FROM trend_tags"):
                 self._ids[row[1]] = row[0]
 
+    def snapshot(self, dest: Path) -> None:
+        """Konsistent kopi via SQLites backup-API på en SEPARAT forbindelse (WAL: læsning blokerer ikke
+        opsamlingen). Kan køres i en baggrundstråd."""
+        dest.unlink(missing_ok=True)
+        src = sqlite3.connect(str(self.path), timeout=30)
+        target = sqlite3.connect(str(dest))
+        try:
+            src.backup(target, pages=4096)
+        finally:
+            target.close()
+            src.close()
+
+    @staticmethod
+    def check_file(path: Path) -> dict[str, int]:
+        """Er filen en trend-historik? → {tags, samples}. ValueError med dansk tekst ellers."""
+        try:
+            con = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+        except sqlite3.Error:
+            raise ValueError("Filen kan ikke åbnes som database") from None
+        try:
+            tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+            if not {"trend_tags", "samples"} <= tables:
+                raise ValueError("Filen er ikke en trend-historik fra HypervisionPLC SCADA")
+            cols = {r[1] for r in con.execute("PRAGMA table_info(samples)")}
+            if not {"tag_id", "ts", "value"} <= cols:
+                raise ValueError("Filen er ikke en trend-historik fra HypervisionPLC SCADA")
+            if con.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise ValueError("Databasen i filen er beskadiget")
+            return {"tags": con.execute("SELECT COUNT(*) FROM trend_tags").fetchone()[0],
+                    "samples": con.execute("SELECT COUNT(*) FROM samples").fetchone()[0]}
+        except sqlite3.DatabaseError:
+            raise ValueError("Filen er ikke en gyldig SQLite-database") from None
+        finally:
+            con.close()
+
+    def merge_from(self, src: Path) -> dict[str, int]:
+        """Flet en anden trend-historik ind: tags matches på navn, og eksisterende (tag, tidspunkt) bevares —
+        intet overskrives. Flettes tag for tag, så opsamlingen kun venter kort ad gangen."""
+        info = self.check_file(src)
+        added = 0
+        with self._lock:
+            self._conn.execute("ATTACH DATABASE ? AS src", (str(src),))
+        try:
+            with self._lock:
+                names = [r[0] for r in self._conn.execute("SELECT name FROM src.trend_tags")]
+            for name in names:
+                with self._lock:
+                    self._conn.execute("BEGIN")
+                    try:
+                        self._conn.execute("INSERT OR IGNORE INTO trend_tags(name) VALUES (?)", (name,))
+                        cur = self._conn.execute(
+                            "INSERT OR IGNORE INTO samples(tag_id, ts, value) "
+                            "SELECT (SELECT id FROM trend_tags WHERE name = ?), s.ts, s.value "
+                            "FROM src.samples s JOIN src.trend_tags st ON st.id = s.tag_id WHERE st.name = ?",
+                            (name, name))
+                        added += max(0, cur.rowcount)
+                        self._conn.execute("COMMIT")
+                    except Exception:
+                        self._conn.execute("ROLLBACK")
+                        raise
+        finally:
+            with self._lock:
+                self._conn.execute("DETACH DATABASE src")
+                self._ids = {row[1]: row[0] for row in self._conn.execute("SELECT id, name FROM trend_tags")}
+        return {"tags": len(names), "samples_in_file": info["samples"], "samples_added": added}
+
     def close(self) -> None:
         with self._lock:
             self._conn.close()

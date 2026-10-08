@@ -229,3 +229,54 @@ def test_trend_settings_in_backup(api):
     assert niveau["trend"] is True and niveau["trend_interval_s"] == 1
     assert api.post("/api/backup/restore", json=backup).status_code == 200
     assert api.get("/api/tags/Niveau").json()["trend"] is True
+
+
+def test_trend_history_backup_download_and_merge(api, mock_plc, tmp_path):
+    import gzip
+    import sqlite3
+    _wait(lambda: api.app.state.trend_db.stats().get("Niveau"))
+    r = api.get("/api/backup/trends")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/gzip"
+    assert "scada-historik-" in r.headers["content-disposition"]
+    raw = gzip.decompress(r.content)
+    assert raw.startswith(b"SQLite format 3")
+    snap = tmp_path / "snap.db"
+    snap.write_bytes(raw)
+    con = sqlite3.connect(snap)
+    names = {n for (n,) in con.execute("SELECT name FROM trend_tags")}
+    # Tilføj et tag + to værdier der ikke findes på serveren; en eksisterende værdi må ikke overskrives
+    con.execute("INSERT INTO trend_tags(name) VALUES ('Gammelt_tag')")
+    tid = con.execute("SELECT id FROM trend_tags WHERE name = 'Gammelt_tag'").fetchone()[0]
+    con.executemany("INSERT INTO samples VALUES (?, ?, ?)", [(tid, 1000.0, 1.5), (tid, 1060.0, None)])
+    nid, ts = con.execute("SELECT s.tag_id, s.ts FROM samples s JOIN trend_tags t ON t.id = s.tag_id "
+                          "WHERE t.name = 'Niveau' LIMIT 1").fetchone()
+    con.execute("UPDATE samples SET value = -999 WHERE tag_id = ? AND ts = ?", (nid, ts))
+    con.commit()
+    con.close()
+    assert "Niveau" in names
+    r = api.post("/api/backup/trends/merge", content=gzip.compress(snap.read_bytes()))
+    assert r.status_code == 200, r.text
+    assert r.json()["samples_added"] == 2  # kun de nye — de eksisterende bevares
+    assert api.app.state.trend_db.stats()["Gammelt_tag"]["samples"] == 2
+    vals = [v for _, t, v in api.app.state.trend_db.raw(["Niveau"], ts - 0.001, ts + 0.001, 10)]
+    assert -999 not in vals
+    assert any(e["action"] == "backup.trends.merge" for e in api.get("/api/audit").json())
+    # Ukompimeret .db virker også; skrald afvises med specifik fejl
+    assert api.post("/api/backup/trends/merge", content=snap.read_bytes()).json()["samples_added"] == 0
+    bad = api.post("/api/backup/trends/merge", content=b"ikke en database")
+    assert bad.status_code == 400 and "hverken" in bad.json()["error"]
+    other = tmp_path / "anden.db"
+    sqlite3.connect(other).execute("CREATE TABLE x (a)").connection.commit()
+    bad = api.post("/api/backup/trends/merge", content=other.read_bytes())
+    assert bad.status_code == 400 and "ikke en trend-historik" in bad.json()["error"]
+
+
+def test_trend_snapshot_on_server_and_pruning(api, mock_plc):
+    svc = api.app.state.backup_service
+    svc.trend_keep = 2
+    names = [svc.save_trend_snapshot() for _ in range(3)]
+    files = [f for f in api.get("/api/backup/files").json() if f["kind"] == "historik"]
+    assert len(files) <= 2 and names[-1] in [f["name"] for f in files]
+    r = api.get(f"/api/backup/files/{names[-1]}")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/gzip"
+    assert api.get("/api/backup/files/..%2Ftrends.db").status_code in (400, 404)

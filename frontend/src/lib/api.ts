@@ -32,11 +32,12 @@ export function notifyUnauthorized(): void {
 
 export async function api<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
   let resp: Response;
+  const file = body instanceof Blob; // filer sendes uændret (fx trend-historik), alt andet som JSON
   try {
     resp = await fetch(path, {
       method,
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      headers: body === undefined ? undefined : { 'Content-Type': file ? 'application/octet-stream' : 'application/json' },
+      body: body === undefined ? undefined : file ? (body as Blob) : JSON.stringify(body),
     });
   } catch (e) {
     throw new ApiError(0, `Ingen forbindelse til SCADA-serveren (${(e as Error).message})`);

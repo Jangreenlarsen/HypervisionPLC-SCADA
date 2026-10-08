@@ -69,13 +69,15 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.drawing_service = DrawingService(db, drawing_files, manager.cache)
         app.state.scope_service = ScopeService(app.state.drawing_service)
         app.state.backup_service = BackupService(manager, drawing_files, settings.data_dir / "backups",
-                                                 keep=max(1, settings.backup_keep))
+                                                 keep=max(1, settings.backup_keep),
+                                                 trend_keep=max(0, settings.trend_backup_keep))
         await manager.start_all()
         app.state.alarm_service = AlarmService(manager, db, tick_s=settings.alarm_tick_s,
                                                comm_delay_s=settings.alarm_comm_delay_s)
         alarm_task = asyncio.create_task(app.state.alarm_service.run(), name="alarms")
         trend_db = TrendDatabase(settings.data_dir / "trends.db")
         app.state.trend_db = trend_db
+        app.state.backup_service.trend_db = trend_db
         app.state.trend_recorder = TrendRecorder(manager, trend_db, flush_s=settings.trend_flush_s,
                                                  retention_days=settings.trend_days)
         # Slettet tag → historikken slettes, også værdier der endnu ligger i opsamlerens buffer
