@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-AnimType = Literal["text", "fill", "stroke", "visible", "blink", "level", "rotate", "opacity",
+AnimType = Literal["text", "fill", "stroke", "visible", "blink", "level", "rotate", "opacity", "move",
                    "click:write", "click:toggle", "click:pulse", "click:goto"]
 CLICK_TYPES = ("click:write", "click:toggle", "click:pulse", "click:goto")
 WRITE_CLICKS = ("click:write", "click:toggle", "click:pulse")
@@ -90,6 +90,12 @@ class RotateParams(RangeParams):
     angle_max: float = 360
 
 
+class MoveParams(RangeParams):
+    """Flyt: ved min står elementet hvor det er tegnet; ved max er det forskudt dx/dy (tegningens enheder)."""
+    dx: float = Field(default=100, ge=-100_000, le=100_000)
+    dy: float = Field(default=0, ge=-100_000, le=100_000)
+
+
 class WriteParams(_P):
     title: str = Field(default="", max_length=60)
 
@@ -109,7 +115,7 @@ class GotoParams(_P):
 
 PARAM_MODELS: dict[str, type[_P]] = {
     "text": TextParams, "fill": ColorParams, "stroke": ColorParams, "visible": ToggleParams,
-    "blink": ToggleParams, "level": LevelParams, "rotate": RotateParams, "opacity": RangeParams,
+    "blink": ToggleParams, "level": LevelParams, "rotate": RotateParams, "opacity": RangeParams, "move": MoveParams,
     "click:write": WriteParams, "click:toggle": ToggleClickParams, "click:pulse": PulseParams,
     "click:goto": GotoParams,
 }

@@ -15,6 +15,13 @@ describe('parseNumber', () => {
 describe('fromForm', () => {
   it('kræver tag', () => expect(() => fromForm(emptyForm('', 'text'))).toThrow('Vælg et tag'));
 
+  it('move: dx/dy med decimalkomma; begge 0 afvises; læses tilbage', () => {
+    const p = fromForm({ ...emptyForm('T', 'move'), dx: '-12,5', dy: '30' }).params;
+    expect(p).toEqual({ min: 0, max: 100, dx: -12.5, dy: 30 });
+    expect(() => fromForm({ ...emptyForm('T', 'move'), dx: '0', dy: '0' })).toThrow('begge være 0');
+    expect(toForm({ tag: 'T', anim: 'move', params: p })).toMatchObject({ dx: '-12.5', dy: '30' });
+  });
+
   it('text: tomme decimaler udelades, 0 bevares', () => {
     expect(fromForm(emptyForm('T', 'text')).params).not.toHaveProperty('decimals');
     expect(fromForm({ ...emptyForm('T', 'text'), decimals: '0' }).params.decimals).toBe(0);

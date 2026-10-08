@@ -143,4 +143,24 @@ describe('applyBinding', () => {
     applyBinding(r, b('rotate', { min: 0, max: 100, angle_min: 0, angle_max: 180 }), good(50));
     expect(r.getAttribute('transform')).toMatch(/^translate\(5 5\) rotate\(90 /);
   });
+
+  it('move forskyder efter værdien — 0 ved min, dx/dy ved max, begrænset til området', () => {
+    const r = el('rect');
+    const p = { min: 0, max: 100, dx: 200, dy: -40 };
+    applyBinding(r, b('move', p), good(25));
+    expect(r.getAttribute('transform')).toBe('translate(50 -10)');
+    applyBinding(r, b('move', p), good(150));
+    expect(r.getAttribute('transform')).toBe('translate(200 -40)');
+    applyBinding(r, b('move', p), good(0));
+    expect(r.getAttribute('transform')).toBe('translate(0 0)');
+  });
+
+  it('move og rotate på samme element overskriver ikke hinanden; original transform bevares', () => {
+    const r = el('rect', { transform: 'scale(2)' });
+    applyBinding(r, b('move', { min: 0, max: 10, dx: 10, dy: 0 }), good(10));
+    applyBinding(r, b('rotate', { min: 0, max: 10, angle_min: 0, angle_max: 90 }), good(10));
+    expect(r.getAttribute('transform')).toMatch(/^scale\(2\) translate\(10 0\) rotate\(90 /);
+    applyBinding(r, b('move', { min: 0, max: 10, dx: 10, dy: 0 }), good(5));
+    expect(r.getAttribute('transform')).toMatch(/^scale\(2\) translate\(5 0\) rotate\(90 /);
+  });
 });

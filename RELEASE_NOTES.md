@@ -2,6 +2,11 @@
 
 ---
 
+## v0.17.0 — 2026-10-08 — Animation "Flyt"
+
+- Ny animation **Flyt** under Bindinger. Ved min står elementet, hvor det er tegnet, og ved max er det flyttet "Flyt X/Y" i tegningens enheder. Det passer fx til spjæld, glidere, cylindre og niveauflydere.
+- Flyt kan kombineres med Rotation på samme element.
+
 ## v0.16.0 — 2026-10-08 — Symboler til solcelleanlæg
 
 - Ny sektion **Solcelleanlæg** i Tegn med solcellepanel og -streng, sol, inverter, hybridinverter, MPPT-regulator, batteri og batteribank, DC- og AC-afbryder, overspændingsbeskyttelse, elmåler, elnet, forbrug/hus, elbillader og energiflow-pil.

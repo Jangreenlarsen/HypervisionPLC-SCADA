@@ -26,7 +26,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 
 ### Fase 3 — Bindinger
 - [x] done v0.6.0 — Binding-editor: klik element (eller vælg i elementliste) → vælg tag + animation (text, fill, stroke, visible, blink, level, rotate, opacity) med parametre og live-forhåndsvisning
-- [ ] planned — Animation `move`
+- [x] done v0.17.0 — Animation "Flyt" (`move`): elementet flyttes fra sin plads (ved min) til en forskydning dx/dy (ved max) efter værdien; kan kombineres med Rotation på samme element
 - [x] done v0.7.0 — Klik-handling `click:goto` (navigér til anden tegning)
 - [x] done v0.6.0 — Auto-forslag af bindinger ud fra element-id / inkscape:label
 - [x] done v0.6.0 — Advarsel om forældreløse bindinger efter gen-upload
@@ -49,6 +49,11 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.14.0 — Flere animationer i én binding (ønske fra Jan, fx tekst + blink på "test01", hver med sine egne parametre): binding-editoren viser én binding pr. tag med tag-valg øverst og en eller flere animationer under; "+ Animation" tilføjer en animation der ikke allerede er brugt (tekst → blink → …); den automatiske binding bevares når man tilpasser/tilføjer. Lagres som én række pr. animation (ingen skemaændring)
 - [x] done v0.15.0 — Udvidet symbolbibliotek i Tegn (ønske fra Jan): sektioner "Proces", "Rør og VVS" (90°/45°-bøjninger, T-stykke, kryds, reduktion, prop, flange, strømningspil, kontra-/kugle-/3-vejs-/motor-/magnet-/regulerings-/sikkerhedsventil, varmeveksler, filter, ekspansionsbeholder, radiator, ventilator, kedel, måleinstrumenter TT/PT/FT/LT, manometer, termometer) og "Elektrisk" (ledninger, kontakter NO/NC, trykknap, nødstop, kontaktor, relæspole, sikring, automatsikring, motorværn, motor 3~, frekvensomformer, transformer, strømforsyning, jord, signallampe, modstand, føler, hovedafbryder, PLC); søgning og sammenklappelige sektioner; forhåndsvisning skaleret efter hvert symbols egen størrelse
 - [x] done v0.16.0 — Symbolsektion "Solcelleanlæg" (ønske fra Jan): solcellepanel, solcellestreng, sol, inverter, hybridinverter, MPPT-regulator, batteri (ladetilstand via Niveau), batteribank, DC-/AC-afbryder, overspændingsbeskyttelse, elmåler, elnet, forbrug/hus, elbillader, energiflow-pil
+- [ ] planned — Navigation på Overview: zoom (hjul/knapper/knib) og panorering i store tegninger, "tilpas"-knap (ønske fra Jan)
+- [ ] planned — Start-tegning på Overview: admin vælger hvilken tegning der vises først; ellers huskes brugerens sidst viste (ønske fra Jan)
+- [ ] planned — Backup af trend-historik (ønske fra Jan)
+- [ ] planned — Energirapporter: forbrug/produktion pr. dag/uge/måned fra tællere eller effekt, søjlediagram og CSV (ønske fra Jan)
+- [ ] planned — Ugeprogrammer/tidsstyring: SCADA'en skriver værdier til PLC-tags efter et ugeskema (fx natsænkning), med undtagelser/ferie og audit (ønske fra Jan)
 - [ ] planned — Raspberry Pi 4 deployment: Chromium-kiosk på lokal skærm (udskudt efter ønske — testserver 10.1.1.31 bruges indtil videre; install-script og systemd findes allerede)
 - [x] done v0.8.0 — Backup/restore af hele SCADA-projektet (PLC-forbindelser uden adgangskoder, tags, tegninger med alle versioner, bindinger; ikke brugere): download/restore som JSON (admin), fuld validering før noget ændres, automatisk backup før restore, atomisk udskiftning med tilbagerulning, automatiske døgn-backups på serveren (7 gemmes)
 

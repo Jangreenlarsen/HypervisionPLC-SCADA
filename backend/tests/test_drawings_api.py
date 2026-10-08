@@ -92,6 +92,8 @@ def test_binding_validation(api):
                                                                               {"value": 1, "color": "blue"}]}}], "sorteret"),
         ("Tank", [{"tag": "Niveau", "anim": "text", "params": {"ukendt": 1}}], "Ugyldige parametre"),
         ("Tank", [{"tag": "Niveau", "anim": "text", "params": {"prefix": "x" * 41}}], "prefix"),
+        ("Tank", [{"tag": "Niveau", "anim": "move", "params": {"min": 5, "max": 5}}], "min skal være mindre"),
+        ("Tank", [{"tag": "Niveau", "anim": "move", "params": {"dx": 1e9}}], "dx"),
     ]
     for element, bindings, message in cases:
         r = api.put(f"/api/drawings/{did}/bindings/{element}", json={"bindings": bindings})
