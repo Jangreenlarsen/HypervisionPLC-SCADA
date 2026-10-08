@@ -117,9 +117,9 @@ class OperateService:
             if source.kind != "coil" and not isinstance(value, bool) and isinstance(value, (int, float)):
                 # min/max: 0 er en gyldig grænse — derfor `is not None`, ikke truthiness.
                 if tag["min"] is not None and value < tag["min"]:
-                    raise ServiceError(400, f"Værdien {value} er under minimum {tag['min']}")
+                    raise ServiceError(400, f"Værdien {value:g} er under minimum {tag['min']:g}")
                 if tag["max"] is not None and value > tag["max"]:
-                    raise ServiceError(400, f"Værdien {value} er over maksimum {tag['max']}")
+                    raise ServiceError(400, f"Værdien {value:g} er over maksimum {tag['max']:g}")
             raw, actual = to_raw(value, source, tag["scale"], tag["offset"])
             detail.update(raw=raw, written=actual)
             async with self._locks.setdefault(tag_name, asyncio.Lock()):

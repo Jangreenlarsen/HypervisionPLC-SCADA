@@ -211,3 +211,11 @@ def test_click_binding_validation(api):
     view = api.get(f"/api/drawings/{did}/view").json()
     assert view["tags"]["Motor"]["writable"] is True and view["tags"]["Motor"]["kind"] == "coil"
     assert "" not in view["tags"]  # goto-bindingen har intet tag
+
+
+def test_limit_messages_without_trailing_zero(api):
+    # 80.0 → "80": tal i fejlbeskeder skrives som brugeren tastede dem
+    r = api.post("/api/tags/Setpunkt/write", json={"value": 95})
+    assert r.status_code == 400 and r.json()["error"] == "Værdien 95 er over maksimum 80"
+    r = api.patch("/api/tags/Setpunkt", json={"min": 90})
+    assert r.json()["error"] == "min (90) må ikke være større end max (80)"
