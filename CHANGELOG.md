@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.23.0 build 0031] — 2026-10-08 — Tags: fast redigeringspanel
+
+- `frontend/src/pages/Tags.svelte` — redigeringspanelet er `position: sticky` øverst (højst 60 % af skærmhøjden, egen scroll), Gem/Annullér og fejlbeskeden står fast i bunden af panelet, og den redigerede række markeres i listen
+- Verificeret i browser ved 1400×900 og 390×844 med 40 tags: Redigér på tag 35 → panelet står øverst, bliver stående ved videre scroll, knapperne er synlige, Gem virker
+
 ## [0.22.0 build 0030] — 2026-10-08 — Ugeprogrammer
 
 - `backend/app/services/schedule_engine.py` — ren beregning: perioder pr. ugedag (også over midnat, 24:00 som slut), senere periode vinder, undtagelser pr. dato (tom værdi = standard), standardværdi; skift og ugeoversigt; lokal tid (`SCADA_TZ`, standard Europe/Copenhagen) så 06:00 er 06:00 året rundt

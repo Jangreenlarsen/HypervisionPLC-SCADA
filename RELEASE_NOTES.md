@@ -2,6 +2,10 @@
 
 ---
 
+## v0.23.0 — 2026-10-08 — Fast redigeringspanel under Tags
+
+- Når du redigerer et tag, står redigeringspanelet nu fast øverst, mens du scroller i listen. Gem og Annullér er altid synlige, og det tag du redigerer, er markeret i listen.
+
 ## v0.22.0 — 2026-10-08 — Ugeprogrammer
 
 - Ny side **Ugeprogrammer** (tekniker og admin). Et program styrer ét skrivbart tag efter et ugeskema, fx "Hverdage 06:00–22:00 = 21 °C, ellers 17 °C" eller "Pumpe Til om natten".

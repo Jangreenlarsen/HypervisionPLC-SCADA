@@ -205,9 +205,9 @@
 {/if}
 
 {#if edit}
-  <section class="panel">
+  <!-- Står fast øverst mens man scroller i listen; egen scroll så listen stadig kan ses nedenunder -->
+  <section class="panel edit-panel" aria-label="Redigér tag">
     <h2>Redigér {edit.name}</h2>
-    {#if editError}<div class="error">{editError}</div>{/if}
     <div class="grid-form">
       <label>Kilde<input bind:value={edit.source} /></label>
       <label>Beskrivelse<input bind:value={edit.description} maxlength="200" /></label>
@@ -265,9 +265,10 @@
         </select>
       </label>
     </div>
-    <div class="row" style="margin-top: .6rem">
+    <div class="row edit-actions">
       <button class="primary" onclick={saveEdit}>Gem</button>
       <button onclick={() => (edit = null)}>Annullér</button>
+      {#if editError}<span class="error edit-error">{editError}</span>{/if}
     </div>
   </section>
 {/if}
@@ -280,7 +281,7 @@
       <tbody>
         {#each tags as t}
           {@const v = values[t.name]}
-          <tr>
+          <tr class:editing={edit?.name === t.name}>
             <td class="mono">{t.name}{#if t.writable} <span class="badge" title="Kan skrives fra Overview">skrivbar</span>{/if}</td>
             <td class="mono">{t.source}</td>
             <td>{formatValue(v?.value, { unit: t.unit, decimals: t.decimals, description: '', plc: t.plc })}</td>
@@ -293,3 +294,27 @@
     </table>
   </div>
 </section>
+
+<style>
+  .edit-panel {
+    position: sticky;
+    top: .5rem;
+    z-index: 5;
+    max-height: 60vh;
+    overflow-y: auto;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+    padding-bottom: 0;
+  }
+  /* Gem/Annullér altid synlige i bunden af panelet, også når formularen scrolles */
+  .edit-actions {
+    position: sticky;
+    bottom: 0;
+    background-color: var(--panel, #eee);
+    padding: .6rem 0;
+    margin-top: .6rem;
+    border-top: 1px solid var(--line);
+    align-items: center;
+  }
+  .edit-error { margin: 0; flex: 1; min-width: 12rem; }
+  tr.editing td { background: #e3edf8; }
+</style>
