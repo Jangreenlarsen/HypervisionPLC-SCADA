@@ -68,6 +68,12 @@ def test_versions_activate_and_orphans(api):
     assert r.json()["version"] == 2 and r.json()["report"]["orphaned_bindings"] == ["Tank"]
     view = api.get(f"/api/drawings/{did}/view").json()
     assert view["version"] == 2 and view["orphaned_bindings"] == ["Tank"]
+    # forældreløse bindinger kan ikke ændres, men kan fjernes
+    r = api.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": [{"tag": "Niveau", "anim": "text"}]})
+    assert r.status_code == 400
+    assert api.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": []}).status_code == 200
+    assert api.get(f"/api/drawings/{did}/view").json()["orphaned_bindings"] == []
+    api.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": []})
     assert api.patch(f"/api/drawings/{did}", json={"active_version": 1}).json()["active_version"] == 1
     assert api.get(f"/api/drawings/{did}/view").json()["orphaned_bindings"] == []
     r = api.patch(f"/api/drawings/{did}", json={"active_version": 9})

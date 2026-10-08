@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest';
+import { emptyForm, fromForm, parseNumber, pickElement, toForm, toHex } from './bindingForm';
+
+describe('parseNumber', () => {
+  it('accepterer decimalkomma og 0', () => {
+    expect(parseNumber('2,5', 'X')).toBe(2.5);
+    expect(parseNumber('0', 'X')).toBe(0);
+  });
+  it('tom og ugyldig giver dansk fejl', () => {
+    expect(() => parseNumber('  ', 'Min')).toThrow('Min skal udfyldes');
+    expect(() => parseNumber('abc', 'Max')).toThrow('Max skal være et tal');
+  });
+});
+
+describe('fromForm', () => {
+  it('kræver tag', () => expect(() => fromForm(emptyForm('', 'text'))).toThrow('Vælg et tag'));
+
+  it('text: tomme decimaler udelades, 0 bevares', () => {
+    expect(fromForm(emptyForm('T', 'text')).params).not.toHaveProperty('decimals');
+    expect(fromForm({ ...emptyForm('T', 'text'), decimals: '0' }).params.decimals).toBe(0);
+    expect(() => fromForm({ ...emptyForm('T', 'text'), decimals: '1.5' })).toThrow('heltal');
+  });
+
+  it('level: min skal være mindre end max', () => {
+    expect(fromForm({ ...emptyForm('T', 'level'), min: '0', max: '50' }).params).toEqual({ min: 0, max: 50, direction: 'up' });
+    expect(() => fromForm({ ...emptyForm('T', 'level'), min: '5', max: '5' })).toThrow('mindre end max');
+  });
+
+  it('fill: tærskler parses og skal være stigende', () => {
+    const f = { ...emptyForm('T', 'fill'), thresholds: [{ value: '0', color: 'blue' }, { value: '10,5', color: 'red' }] };
+    expect(fromForm(f).params.thresholds).toEqual([{ value: 0, color: 'blue' }, { value: 10.5, color: 'red' }]);
+    expect(() => fromForm({ ...f, thresholds: [...f.thresholds].reverse() })).toThrow('stigende');
+  });
+
+  it('toForm → fromForm er tabsfri for rotate', () => {
+    const b = { tag: 'Fan', anim: 'rotate' as const, params: { min: 0, max: 1500, angle_min: -90, angle_max: 90 } };
+    expect(fromForm(toForm(b))).toEqual({ tag: 'Fan', anim: 'rotate', params: b.params });
+  });
+});
+
+describe('pickElement', () => {
+  it('finder nærmeste forfader med id, men ikke selve svg-roden', () => {
+    document.body.innerHTML = '<div id="c"><svg id="rod"><g id="Pumpe"><circle></circle></g><rect></rect></svg></div>';
+    const svg = document.querySelector('svg')!;
+    expect(pickElement(document.querySelector('circle'), svg)?.id).toBe('Pumpe');
+    expect(pickElement(document.querySelector('rect'), svg)).toBeNull();
+  });
+});
+
+describe('toHex', () => {
+  it('normaliserer korte hex og navne', () => {
+    expect(toHex('#abc')).toBe('#aabbcc');
+    expect(toHex('#2e7d32')).toBe('#2e7d32');
+    expect(toHex('red')).toBe('#000000');
+  });
+});

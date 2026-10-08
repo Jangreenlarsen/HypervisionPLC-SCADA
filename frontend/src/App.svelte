@@ -6,12 +6,14 @@
   import Tags from './pages/Tags.svelte';
   import Plcs from './pages/Plcs.svelte';
   import Users from './pages/Users.svelte';
+  import Editor from './pages/Editor.svelte';
   import Login from './pages/Login.svelte';
   import ChangePassword from './pages/ChangePassword.svelte';
 
   const pages: { id: string; label: string; role: Role }[] = [
     { id: 'overview', label: 'Overview', role: 'viewer' },
     { id: 'drawings', label: 'Tegninger', role: 'viewer' },
+    { id: 'editor', label: 'Bindinger', role: 'engineer' },
     { id: 'tags', label: 'Tags', role: 'viewer' },
     { id: 'plcs', label: "PLC'er", role: 'engineer' },
     { id: 'users', label: 'Brugere', role: 'admin' },
@@ -89,6 +91,8 @@
       ondone={() => { changingPassword = false; loadMe(); }}
       oncancel={() => (changingPassword = false)}
     />
+  {:else if page === 'editor'}
+    <Editor {route} />
   {:else if page === 'drawings'}
     <Drawings {canEdit} />
   {:else if page === 'tags'}
@@ -98,7 +102,7 @@
   {:else if page === 'users'}
     <Users {me} />
   {:else}
-    <Overview {route} />
+    <Overview {route} {canEdit} />
   {/if}
 </main>
 

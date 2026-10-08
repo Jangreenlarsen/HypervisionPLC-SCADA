@@ -2,6 +2,13 @@
 
 ---
 
+## v0.6.0 — 2026-10-08 — Binding-editor
+
+- Ny side **Bindinger** (tekniker og admin): klik på et element i tegningen og vælg hvilket tag det skal vise, og hvordan — tekst, farve (også med grænseværdier), synlighed, blink, niveau i en tank, rotation eller gennemsigtighed.
+- Ændringer vises live på tegningen med rigtige værdier, før du gemmer.
+- Automatiske bindinger (id = tag-navn) kan tilpasses med ét klik.
+- Bindinger til elementer, der er forsvundet i en ny version af tegningen, vises samlet og kan fjernes.
+
 ## v0.5.0 — 2026-10-07 — HTTPS
 
 - SCADA'en kan nu nås krypteret på `https://scada.laces.dk` / `https://10.1.1.31` via nginx. Almindelig `http://` sendes automatisk videre til HTTPS.

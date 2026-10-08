@@ -23,9 +23,10 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.3.0 — Kvalitetsvisning (stale/kommunikationsfejl) på bundne elementer
 
 ### Fase 3 — Bindinger
-- [ ] planned — Binding-editor: klik element → vælg tag + animation (text, fill, stroke, visible, blink, level, rotate, move, opacity, click:write/toggle/pulse/goto)
-- [ ] planned — Auto-forslag af bindinger ud fra element-id / inkscape:label
-- [ ] planned — Advarsel om forældreløse bindinger efter gen-upload
+- [x] done v0.6.0 — Binding-editor: klik element (eller vælg i elementliste) → vælg tag + animation (text, fill, stroke, visible, blink, level, rotate, opacity) med parametre og live-forhåndsvisning
+- [ ] planned — Animation `move` og klik-handling `click:goto` (navigér til anden tegning)
+- [x] done v0.6.0 — Auto-forslag af bindinger ud fra element-id / inkscape:label
+- [x] done v0.6.0 — Advarsel om forældreløse bindinger efter gen-upload
 
 ### Fase 4 — Tegne-editor
 - [ ] planned — SVG-Edit 7 indlejret som fuld tegne-editor med live-preview
@@ -33,7 +34,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [ ] planned — Versioner, udgiv og rollback af tegninger
 
 ### Fase 5 — Betjening og adgang
-- [ ] planned — Skrivning til PLC (setpunkt-dialog, toggle, puls) med bekræftelse og PLC-fejlbesked til operatør
+- [ ] planned — Skrivning til PLC via klik-handlinger `click:write` (setpunkt-dialog), `click:toggle`, `click:pulse` med bekræftelse og PLC-fejlbesked til operatør
 - [x] done v0.4.0 — Brugere og roller (viewer/operator/engineer/admin) med sidste-admin-beskyttelse i backend: login med session-cookie (HttpOnly, SameSite=Strict), scrypt-hashede adgangskoder, låsning efter gentagne fejl-logins, tvunget skift af genereret admin-adgangskode, rollekrav på alle endpoints inkl. WebSocket (flyttet frem før TLS)
 - [ ] planned — Audit-log over alle skrivninger og konfigurationsændringer
 
