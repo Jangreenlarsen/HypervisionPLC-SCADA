@@ -64,7 +64,19 @@ class MockPlcState:
     sse_active: int = 0
     buckets: dict[str, _Bucket] = field(default_factory=dict)
     request_log: list[str] = field(default_factory=list)
+    # Test: afvis alle skrivninger med denne tekst (409), fx "Safe mode aktiv".
+    reject_writes: str = ""
+    # Test: registre/coils som "ST-programmet" holder fast efter enhver skrivning: {("hr", 5): 0}
+    locks: dict[tuple[str, int], int] = field(default_factory=dict)
+    writes: list[tuple[str, int, object]] = field(default_factory=list)
     logins: int = 0
+
+    def apply_locks(self) -> None:
+        for (kind, addr), value in self.locks.items():
+            if kind == "hr":
+                self.hr[addr] = value
+            elif kind == "coil":
+                self.coils[addr] = bool(value)
 
     # ---- testhjælpere
     def revoke_all_sessions(self) -> None:
@@ -231,6 +243,8 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
             return denied
         if addr < 0 or addr >= HR_SIZE:
             return _err(400, "Invalid register address")
+        if st.reject_writes:
+            return _err(409, st.reject_writes)
         try:
             body = await request.json()
         except ValueError:
@@ -247,6 +261,8 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
             st.hr[addr] = int(value) & 0xFFFF
         else:
             return _err(400, "Invalid type (use: uint, int, dint, dword, real)")
+        st.writes.append(("hr", addr, value))
+        st.apply_locks()
         return JSONResponse({"status": 200, "address": addr, "value": value, "type": dtype})
 
     @app.post("/api/registers/coils/{addr}")
@@ -255,8 +271,12 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
             return denied
         if addr < 0 or addr >= BIT_SIZE:
             return _err(400, "Invalid coil address")
+        if st.reject_writes:
+            return _err(409, st.reject_writes)
         body = await request.json()
         st.coils[addr] = bool(body.get("value"))
+        st.writes.append(("coil", addr, st.coils[addr]))
+        st.apply_locks()
         return JSONResponse({"status": 200, "address": addr, "value": st.coils[addr]})
 
     # ------------------------------------------------------------- ST Logic

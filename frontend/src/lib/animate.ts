@@ -99,6 +99,10 @@ function rotate(el: Element, angle: number): void {
 }
 
 export function applyBinding(el: Element, b: Binding, live: LiveValue | undefined, meta?: TagMeta): void {
+  if (b.anim.startsWith('click:')) {
+    el.classList.add('hv-clickable');
+    return;
+  }
   const quality = live?.quality ?? 'unknown';
   el.setAttribute('data-hv-quality', quality);
   if (!live || live.value === null || live.value === undefined) {

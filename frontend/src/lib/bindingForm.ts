@@ -13,7 +13,13 @@ export const ANIMS: { id: Anim; label: string; help: string }[] = [
   { id: 'level', label: 'Niveau', help: 'Fylder et <rect> fra min til max (tank/bar)' },
   { id: 'rotate', label: 'Rotation', help: 'Roterer elementet efter værdien' },
   { id: 'opacity', label: 'Gennemsigtighed', help: 'Fra usynlig (min) til fuldt synlig (max)' },
+  { id: 'click:write', label: 'Klik: setpunkt', help: 'Operatøren indtaster en ny værdi (tagget skal være skrivbart)' },
+  { id: 'click:toggle', label: 'Klik: til/fra', help: 'Skifter et til/fra-tag (coil eller heltals-register)' },
+  { id: 'click:pulse', label: 'Klik: puls', help: 'Sætter tagget i et kort øjeblik — serveren nulstiller det' },
+  { id: 'click:goto', label: 'Klik: gå til tegning', help: 'Åbner en anden tegning (drill-down)' },
 ];
+
+export const isClick = (anim: Anim) => anim.startsWith('click:');
 
 export interface Threshold {
   value: string;
@@ -36,6 +42,10 @@ export interface BindingForm {
   direction: 'up' | 'down' | 'left' | 'right';
   angle_min: string;
   angle_max: string;
+  title: string;
+  confirm: boolean;
+  ms: string;
+  drawing: string;
 }
 
 export function emptyForm(tag = '', anim: Anim = 'text'): BindingForm {
@@ -43,6 +53,7 @@ export function emptyForm(tag = '', anim: Anim = 'text'): BindingForm {
     tag, anim, decimals: '', true_text: 'Til', false_text: 'Fra', show_unit: true,
     on: '#2e7d32', off: '#9e9e9e', thresholds: [], invert: false,
     min: '0', max: '100', direction: 'up', angle_min: '0', angle_max: '360',
+    title: '', confirm: anim === 'click:toggle', ms: '500', drawing: '',
   };
 }
 
@@ -66,6 +77,10 @@ export function toForm(b: Pick<Binding, 'tag' | 'anim' | 'params'>): BindingForm
     direction: p.direction ?? 'up',
     angle_min: str(p.angle_min, f.angle_min),
     angle_max: str(p.angle_max, f.angle_max),
+    title: str(p.title, ''),
+    confirm: p.confirm ?? f.confirm,
+    ms: str(p.ms, f.ms),
+    drawing: str(p.drawing, ''),
   };
 }
 
@@ -87,6 +102,10 @@ function range(f: BindingForm): { min: number; max: number } {
 
 /** Formular → {tag, anim, params}. Kaster Error med dansk tekst ved ugyldigt input. */
 export function fromForm(f: BindingForm): { tag: string; anim: Anim; params: Record<string, unknown> } {
+  if (f.anim === 'click:goto') {
+    if (!f.drawing) throw new Error('Vælg den tegning der skal åbnes');
+    return { tag: '', anim: f.anim, params: { drawing: f.drawing } };
+  }
   if (!f.tag.trim()) throw new Error('Vælg et tag');
   let params: Record<string, unknown> = {};
   switch (f.anim) {
@@ -121,6 +140,18 @@ export function fromForm(f: BindingForm): { tag: string; anim: Anim; params: Rec
     case 'opacity':
       params = range(f);
       break;
+    case 'click:write':
+      params = { title: f.title.trim() };
+      break;
+    case 'click:toggle':
+      params = { confirm: f.confirm };
+      break;
+    case 'click:pulse': {
+      const ms = parseNumber(f.ms, 'Pulslængde');
+      if (!Number.isInteger(ms) || ms < 100 || ms > 10000) throw new Error('Pulslængde skal være 100-10000 ms');
+      params = { ms, confirm: f.confirm };
+      break;
+    }
   }
   return { tag: f.tag.trim(), anim: f.anim, params };
 }

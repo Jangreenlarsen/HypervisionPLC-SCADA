@@ -43,6 +43,13 @@ def require(role: str, *, allow_password_change: bool = False) -> Callable[[Requ
     return dependency
 
 
+def audit(request: Request, action: str, target: str = "", detail: dict[str, Any] | None = None) -> None:
+    """Registrér en gennemført konfigurationsændring (kaldes efter succes)."""
+    user = getattr(request.state, "user", None)
+    request.app.state.audit_service.record(user.username if user else "-", client_ip(request), action, target,
+                                           detail or {})
+
+
 VIEWER = Depends(require("viewer"))
 ENGINEER = Depends(require("engineer"))
 ADMIN = Depends(require("admin"))
@@ -83,7 +90,13 @@ class UserUpdate(_Model):
 
 @router.post("/auth/login")
 async def login(body: LoginBody, request: Request, response: Response) -> dict[str, Any]:
-    token, user = _auth(request).login(body.username, body.password, client_ip(request))
+    try:
+        token, user = _auth(request).login(body.username, body.password, client_ip(request))
+    except ServiceError as exc:
+        request.app.state.audit_service.record(body.username[:64], client_ip(request), "login", body.username[:64],
+                                               {}, "error", exc.message)
+        raise
+    request.app.state.audit_service.record(user.username, client_ip(request), "login", user.username)
     response.set_cookie(COOKIE, token, httponly=True, samesite="strict", path="/",
                         secure=request.app.state.settings.cookie_secure,
                         max_age=int(_auth(request).session_ttl_s))
@@ -105,6 +118,7 @@ async def me(user: CurrentUser = Depends(require("viewer", allow_password_change
 async def change_password(body: PasswordBody, request: Request,
                           user: CurrentUser = Depends(require("viewer", allow_password_change=True))) -> None:
     _auth(request).change_own_password(user, body.old_password, body.new_password)
+    audit(request, "user.password", user.username)
 
 
 @router.get("/users", dependencies=[ADMIN])
@@ -114,15 +128,21 @@ async def list_users(request: Request) -> list[dict[str, Any]]:
 
 @router.post("/users", status_code=201, dependencies=[ADMIN])
 async def create_user(body: UserCreate, request: Request) -> dict[str, Any]:
-    return _auth(request).create_user(body.model_dump())
+    result = _auth(request).create_user(body.model_dump())
+    audit(request, "user.create", body.username, {"role": body.role})
+    return result
 
 
 @router.patch("/users/{username}")
 async def update_user(username: str, body: UserUpdate, request: Request,
                       user: CurrentUser = Depends(require("admin"))) -> dict[str, Any]:
-    return _auth(request).update_user(user, username, body.model_dump(exclude_unset=True))
+    data = body.model_dump(exclude_unset=True)
+    result = _auth(request).update_user(user, username, data)
+    audit(request, "user.update", username, data)
+    return result
 
 
 @router.delete("/users/{username}", status_code=204)
 async def delete_user(username: str, request: Request, user: CurrentUser = Depends(require("admin"))) -> None:
     _auth(request).delete_user(user, username)
+    audit(request, "user.delete", username)

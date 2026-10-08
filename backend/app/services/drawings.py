@@ -8,7 +8,7 @@ from typing import Any
 
 from ..storage.db import Database
 from ..storage.files import DrawingFiles
-from .bindings import BindingError, auto_binding, validate_binding
+from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, auto_binding, validate_binding
 from .errors import ServiceError
 from .live_cache import LiveCache
 from .svg_sanitize import SvgError, index_svg, sanitize_svg
@@ -136,9 +136,21 @@ class DrawingService:
                 b = validate_binding(item)
             except BindingError as exc:
                 raise ServiceError(400, str(exc)) from None
-            if self.db.get_tag(b["tag"]) is None:
+            if b["anim"] == "click:goto":
+                if self.db.get_drawing(b["params"]["drawing"]) is None:
+                    raise ServiceError(400, f"Tegningen '{b['params']['drawing']}' findes ikke")
+                normalized.append(b)
+                continue
+            tag = self.db.get_tag(b["tag"])
+            if tag is None:
                 raise ServiceError(400, f"Tagget '{b['tag']}' findes ikke")
+            if b["anim"] in WRITE_CLICKS and not tag["writable"]:
+                raise ServiceError(400, f"Tagget '{b['tag']}' er ikke markeret skrivbart — ret det under Tags først")
+            if b["anim"] in ("click:toggle", "click:pulse") and parse_source(tag["source"]).datatype == "real":
+                raise ServiceError(400, f"{b['anim']} kræver et til/fra-tag (coil eller heltals-register), ikke real")
             normalized.append(b)
+        if sum(1 for b in normalized if b["anim"] in CLICK_TYPES) > 1:
+            raise ServiceError(400, "Et element kan kun have én klik-handling")
         self.db.set_element_bindings(drawing_id, element, normalized)
         return [b for b in self.db.list_bindings(drawing_id) if b["element"] == element]
 
@@ -171,11 +183,22 @@ class DrawingService:
             if auto is not None:
                 effective.append({"element": element, "position": 0, **auto, "source": "auto"})
 
-        used = sorted({b["tag"] for b in effective})
-        meta = {n: {"unit": tags[n]["unit"], "decimals": tags[n]["decimals"], "description": tags[n]["description"],
-                    "plc": tags[n]["plc"]} for n in used if n in tags}
+        used = sorted({b["tag"] for b in effective if b["tag"]})
+        meta = {n: self._meta(tags[n]) for n in used if n in tags}
         return {"id": drawing["id"], "name": drawing["name"], "version": drawing["active_version"],
                 "svg": svg, "bindings": effective, "orphaned_bindings": sorted(set(orphans)), "tags": meta}
+
+    def _meta(self, tag: dict[str, Any]) -> dict[str, Any]:
+        """Det Overview behøver om et tag — også til setpunkt-dialogen."""
+        try:
+            source = parse_source(tag["source"])
+            kind, datatype = source.kind, source.datatype
+        except TagSourceError:
+            kind, datatype = "?", "?"
+        return {"unit": tag["unit"], "decimals": tag["decimals"], "description": tag["description"],
+                "plc": tag["plc"], "writable": tag["writable"], "min": tag["min"], "max": tag["max"],
+                "confirm_write": tag["confirm_write"], "kind": kind, "datatype": datatype,
+                "is_bool": self._is_bool(tag)}
 
     def _is_bool(self, tag: dict[str, Any]) -> bool:
         try:

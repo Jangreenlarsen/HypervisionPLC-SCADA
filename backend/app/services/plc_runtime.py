@@ -127,6 +127,10 @@ class PlcRuntime:
             self.sse.set_addresses(sse_addrs)
         self._wake.set()
 
+    def poke(self) -> None:
+        """Poll straks (fx efter en skrivning), så Overview viser den nye værdi hurtigt."""
+        self._wake.set()
+
     @property
     def requests_per_cycle(self) -> int:
         return len(self._plan) + len(self._programs) + (1 if self._need_globals else 0)

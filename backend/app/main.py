@@ -19,9 +19,12 @@ from .api.errors import install_error_handlers
 from .api.auth import router as auth_router
 from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
+from .api.operate import router as operate_router
 from .api.routes import router
 from .config import Settings, read_version
+from .services.audit import AuditService
 from .services.auth import AuthService
+from .services.operate import OperateService
 from .services.drawings import DrawingService
 from .services.live_cache import LiveCache
 from .services.manager import PlcManager, TransportFactory
@@ -51,6 +54,8 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.manager = manager
         app.state.plc_service = PlcService(manager)
         app.state.tag_service = TagService(manager)
+        app.state.audit_service = AuditService(db)
+        app.state.operate_service = OperateService(manager, app.state.audit_service)
         app.state.drawing_service = DrawingService(db, DrawingFiles(settings.data_dir / "drawings"), manager.cache)
         await manager.start_all()
         log.info("HypervisionPLC SCADA %s klar (data: %s)", read_version()["version"], settings.data_dir)
@@ -76,6 +81,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(router)
     app.include_router(drawings_router)
     app.include_router(live_router)
+    app.include_router(operate_router)
     if settings.frontend_dir.is_dir():
         app.mount("/", StaticFiles(directory=settings.frontend_dir, html=True), name="frontend")
     return app

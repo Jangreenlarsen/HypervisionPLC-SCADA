@@ -9,7 +9,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..services.drawings import DrawingService
-from .auth import ENGINEER, VIEWER
+from .auth import ENGINEER, VIEWER, audit
 
 router = APIRouter(prefix="/api/drawings")
 
@@ -50,7 +50,9 @@ async def list_drawings(request: Request) -> list[dict[str, Any]]:
 
 @router.post("", status_code=201, dependencies=[ENGINEER])
 async def create_drawing(body: DrawingCreate, request: Request) -> dict[str, Any]:
-    return _svc(request).create(body.name, body.svg, body.comment)
+    result = _svc(request).create(body.name, body.svg, body.comment)
+    audit(request, "drawing.create", result["drawing"]["id"], {"name": body.name, "report": result["report"]})
+    return result
 
 
 @router.get("/{drawing_id}", dependencies=[VIEWER])
@@ -65,17 +67,21 @@ async def update_drawing(drawing_id: str, body: DrawingUpdate, request: Request)
         svc.rename(drawing_id, body.name)
     if body.active_version is not None:
         svc.activate(drawing_id, body.active_version)
+    audit(request, "drawing.update", drawing_id, body.model_dump(exclude_unset=True))
     return svc.get(drawing_id)
 
 
 @router.delete("/{drawing_id}", status_code=204, dependencies=[ENGINEER])
 async def delete_drawing(drawing_id: str, request: Request) -> None:
     _svc(request).delete(drawing_id)
+    audit(request, "drawing.delete", drawing_id)
 
 
 @router.post("/{drawing_id}/versions", status_code=201, dependencies=[ENGINEER])
 async def add_version(drawing_id: str, body: VersionCreate, request: Request) -> dict[str, Any]:
-    return _svc(request).add_version(drawing_id, body.svg, body.comment, body.activate)
+    result = _svc(request).add_version(drawing_id, body.svg, body.comment, body.activate)
+    audit(request, "drawing.version", drawing_id, {"version": result["version"], "report": result["report"]})
+    return result
 
 
 @router.get("/{drawing_id}/svg", dependencies=[VIEWER])
@@ -99,4 +105,6 @@ async def list_bindings(drawing_id: str, request: Request) -> list[dict[str, Any
 
 @router.put("/{drawing_id}/bindings/{element}", dependencies=[ENGINEER])
 async def set_bindings(drawing_id: str, element: str, body: ElementBindings, request: Request) -> list[dict[str, Any]]:
-    return _svc(request).set_element_bindings(drawing_id, element, body.bindings)
+    result = _svc(request).set_element_bindings(drawing_id, element, body.bindings)
+    audit(request, "binding.set", f"{drawing_id}#{element}", {"bindings": result})
+    return result

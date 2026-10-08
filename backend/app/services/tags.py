@@ -12,6 +12,7 @@ from .tagsource import TagSourceError, parse_source
 
 TAG_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 _TEXT_FIELDS = {"description": 200, "unit": 16}
+WRITABLE_KINDS = ("hr", "coil")
 
 
 def _number(value: Any, field: str) -> float:
@@ -73,6 +74,13 @@ class TagService:
         hi = out["max"] if "max" in out else (current or {}).get("max")
         if lo is not None and hi is not None and lo > hi:
             raise ServiceError(400, f"min ({lo}) må ikke være større end max ({hi})")
+        # Skrivbarhed vurderes på den ENDELIGE tilstand (ny kilde og/eller nyt flag), så reglen
+        # holder ved oprettelse, opdatering og import.
+        final_source = parse_source(out.get("source") or (current or {}).get("source"))  # type: ignore[arg-type]
+        final_writable = out["writable"] if "writable" in out else bool((current or {}).get("writable"))
+        if final_writable and final_source.kind not in WRITABLE_KINDS:
+            raise ServiceError(400, f"Kun hr- og coil-tags kan være skrivbare — '{final_source}' er kun-læs "
+                                    "(ir/di er input, og PLC'ens REST API kan ikke skrive ST-variabler)")
         return out
 
     def create(self, data: dict[str, Any]) -> dict[str, Any]:

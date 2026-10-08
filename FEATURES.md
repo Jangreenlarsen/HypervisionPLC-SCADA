@@ -24,7 +24,8 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 
 ### Fase 3 — Bindinger
 - [x] done v0.6.0 — Binding-editor: klik element (eller vælg i elementliste) → vælg tag + animation (text, fill, stroke, visible, blink, level, rotate, opacity) med parametre og live-forhåndsvisning
-- [ ] planned — Animation `move` og klik-handling `click:goto` (navigér til anden tegning)
+- [ ] planned — Animation `move`
+- [x] done v0.7.0 — Klik-handling `click:goto` (navigér til anden tegning)
 - [x] done v0.6.0 — Auto-forslag af bindinger ud fra element-id / inkscape:label
 - [x] done v0.6.0 — Advarsel om forældreløse bindinger efter gen-upload
 
@@ -34,9 +35,9 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [ ] planned — Versioner, udgiv og rollback af tegninger
 
 ### Fase 5 — Betjening og adgang
-- [ ] planned — Skrivning til PLC via klik-handlinger `click:write` (setpunkt-dialog), `click:toggle`, `click:pulse` med bekræftelse og PLC-fejlbesked til operatør
+- [x] done v0.7.0 — Skrivning til PLC via klik-handlinger `click:write` (setpunkt-dialog med min/max, invers skalering, bekræftelse), `click:toggle`, `click:pulse` (server-styret nulstilling); kun hr/coil-tags markeret skrivbare; læs-tilbage efter skrivning med advarsel hvis PLC'en (fx ST) har overskrevet værdien; PLC'ens fejltekst (fx safe mode) vises til operatøren; rolle operator+ med bekræftelse og PLC-fejlbesked til operatør
 - [x] done v0.4.0 — Brugere og roller (viewer/operator/engineer/admin) med sidste-admin-beskyttelse i backend: login med session-cookie (HttpOnly, SameSite=Strict), scrypt-hashede adgangskoder, låsning efter gentagne fejl-logins, tvunget skift af genereret admin-adgangskode, rollekrav på alle endpoints inkl. WebSocket (flyttet frem før TLS)
-- [ ] planned — Audit-log over alle skrivninger og konfigurationsændringer
+- [x] done v0.7.0 — Audit-log over alle skrivninger og konfigurationsændringer (hvem, hvornår, hvad, gammel → ny, resultat) + side "Log"
 
 ### Fase 6 — Drift
 - [ ] planned — Alarmer (grænser pr. tag + PLC'ens `/api/alarms`) og alarmliste
@@ -45,6 +46,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [ ] planned — Backup/restore af hele SCADA-projektet (tegninger, tags, bindinger)
 
 ### Tværgående
+- [x] done v0.7.0 — Tag-valg som dropdown (grupperet pr. PLC, med kilde og enhed) i binding-editoren; ikke-skrivbare tags nedtonet ved klik-handlinger — genbruges i tegne-editoren (fase 4)
 - [x] done v0.5.0 — TLS trin 1: nginx (TLS + WebSocket) foran uvicorn på 127.0.0.1 med selvsigneret certifikat (CN/SAN scada.laces.dk + IP), Secure-cookie, sikkerheds-headere; certifikat-stier klar til Let's Encrypt
 - [ ] planned — TLS trin 2: Let's Encrypt-certifikat for scada.laces.dk med automatisk fornyelse — DNS hos one.com (intet API) → `_acme-challenge` CNAME til deSEC; værktøj (certbot-dns-desec / acme.sh / lego) afklares ift. CNAME-delegering
 - [x] done v0.3.0 — Kildekode-link i web-UI'et (AGPL-3.0 §13), konfigurerbar URL til forks (`SCADA_SOURCE_URL`)
