@@ -154,6 +154,7 @@
               <td>
                 <div class="row">
                   <button onclick={() => show(r.id)}>Versioner</button>
+                  {#if canEdit}<a class="btn" href={'#editor/' + r.id}>Bindinger</a>{/if}
                   {#if canEdit}<button class="danger" onclick={() => remove(r)}>Slet</button>{/if}
                 </div>
               </td>

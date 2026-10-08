@@ -1,11 +1,10 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
   import { get, type Binding, type DrawingView, type LiveValue, type PlcSummary } from '../lib/api';
-  import { applyBinding } from '../lib/animate';
+  import { byTag as indexByTag, mountSvg, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
-  import { sanitizeSvg } from '../lib/svg';
 
-  let { route = 'overview' }: { route?: string } = $props();
+  let { route = 'overview', canEdit = false }: { route?: string; canEdit?: boolean } = $props();
 
   let drawings = $state<{ id: string; name: string }[]>([]);
   let selected = $state('');
@@ -30,8 +29,7 @@
   );
 
   function render(b: Binding): void {
-    const el = container?.querySelector(`#${CSS.escape(b.element)}`);
-    if (el) applyBinding(el, b, values[b.tag], view?.tags[b.tag]);
+    if (container && view) renderBinding(container, b, values, view.tags);
   }
 
   async function load(id: string): Promise<void> {
@@ -41,13 +39,9 @@
       view = await get<DrawingView>(`/api/drawings/${encodeURIComponent(id)}/view`);
       location.hash = `overview/${id}`;
       await tick();
-      container.innerHTML = sanitizeSvg(view.svg);
-      const svg = container.querySelector('svg');
-      svg?.removeAttribute('width');
-      svg?.removeAttribute('height');
-      byTag = new Map();
-      for (const b of view.bindings) byTag.set(b.tag, [...(byTag.get(b.tag) ?? []), b]);
-      for (const b of view.bindings) render(b);
+      mountSvg(container, view.svg);
+      byTag = indexByTag(view.bindings);
+      renderAll(container, view.bindings, values, view.tags);
       live.subscribe([...byTag.keys()]);
     } catch (e) {
       view = null;
@@ -76,6 +70,7 @@
   <select bind:value={selected} onchange={() => load(selected)} aria-label="Vælg tegning">
     {#each drawings as d}<option value={d.id}>{d.name}</option>{/each}
   </select>
+  {#if canEdit && selected}<a href={'#editor/' + selected}>Redigér bindinger</a>{/if}
   <span class="badge {connected ? 'connected' : 'error'}">{connected ? 'Live' : 'Ingen forbindelse'}</span>
   {#each Object.entries(plcs) as [key, p]}
     <span class="badge {p.state}" title={p.message || p.state}>{p.name || key}: {p.state}{p.sse === 'connected' ? ' · SSE' : ''}</span>

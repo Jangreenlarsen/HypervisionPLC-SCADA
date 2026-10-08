@@ -126,7 +126,9 @@ class DrawingService:
 
     def set_element_bindings(self, drawing_id: str, element: str, items: list[Any]) -> list[dict[str, Any]]:
         index = index_svg(self.svg(drawing_id))
-        if element not in index:
+        # En tom liste fjerner bindingerne — det skal også virke for forældreløse bindinger,
+        # hvis element er forsvundet i en ny version af tegningen.
+        if element not in index and items:
             raise ServiceError(400, f"Elementet '{element}' findes ikke i den aktive version af tegningen")
         normalized = []
         for item in items:

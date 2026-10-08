@@ -4,6 +4,18 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.6.0 build 0006] — 2026-10-08 — Fase 3: binding-editor
+
+**Frontend:**
+- `src/pages/Editor.svelte` — ny side "Bindinger" (engineer+): klik på et element i tegningen (nærmeste forfader med id vælges, fx gruppen bag en pumpe) eller vælg i en søgbar elementliste med status (bundet/auto); valg- og hover-ramme; formularer pr. animation (tekst, fyld-/stregfarve med tærskler, synlighed, blink, niveau, rotation, gennemsigtighed); live-forhåndsvisning med rigtige værdier før gem; "Tilpas" gør en auto-binding eksplicit; fortryd; advarsel om ukendt tag og om niveau på andet end `<rect>`; liste over forsvundne elementer med "Fjern bindinger"
+- `src/lib/bindingForm.ts` — formular ↔ params med danske fejlbeskeder (decimalkomma, 0 er gyldig, tom er fejl, min < max, stigende tærskler), elementvalg, farvekonvertering; 9 tests
+- `src/lib/canvas.ts` — fælles SVG-rendering for Overview og editor
+- Genveje: "Redigér bindinger" fra Overview og "Bindinger" fra Tegninger
+
+**Backend:** `PUT /bindings/{element}` med tom liste fjerner bindinger også for forsvundne elementer.
+
+**Verificeret** i browser (desktop + mobil): valg via klik og liste, auto → eksplicit, gem, forhåndsvisning af niveau, fejlbesked ved ugyldig min/max, Overview bruger de nye bindinger.
+
 ## [0.5.0 build 0005] — 2026-10-07 — TLS med nginx (selvsigneret certifikat)
 
 **Tilføjet:**
