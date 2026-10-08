@@ -111,5 +111,7 @@ code, .mono { font-family: ui-monospace, Consolas, monospace; font-size: .9em; }
   filter: grayscale(1);
 }
 .hv-blink { animation: hv-blink 1s steps(2, start) infinite; }
+.hv-clickable { cursor: pointer; }
+.hv-clickable:hover { filter: brightness(1.12) drop-shadow(0 0 3px rgba(31, 95, 153, .7)); }
 @keyframes hv-blink { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .hv-blink { animation: none; outline: 2px solid var(--alarm); } }

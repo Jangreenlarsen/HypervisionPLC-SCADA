@@ -74,12 +74,20 @@ export interface TagMeta {
   decimals: number | null;
   description: string;
   plc: string;
+  writable?: boolean;
+  min?: number | null;
+  max?: number | null;
+  confirm_write?: boolean;
+  kind?: string;
+  datatype?: string;
+  is_bool?: boolean;
 }
 
 export interface Binding {
   element: string;
   tag: string;
-  anim: 'text' | 'fill' | 'stroke' | 'visible' | 'blink' | 'level' | 'rotate' | 'opacity';
+  anim: 'text' | 'fill' | 'stroke' | 'visible' | 'blink' | 'level' | 'rotate' | 'opacity'
+    | 'click:write' | 'click:toggle' | 'click:pulse' | 'click:goto';
   params: Record<string, any>;
   source?: 'explicit' | 'auto';
 }

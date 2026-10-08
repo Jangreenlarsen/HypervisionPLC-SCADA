@@ -1,13 +1,13 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
   import { get, put, type Binding, type DrawingView, type LiveValue } from '../lib/api';
-  import { ANIMS, emptyForm, fromForm, pickElement, toForm, toHex, type BindingForm } from '../lib/bindingForm';
+  import { ANIMS, emptyForm, fromForm, isClick, pickElement, toForm, toHex, type BindingForm } from '../lib/bindingForm';
   import { findElement, mountSvg, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
 
   let { route = 'editor' }: { route?: string } = $props();
 
-  interface TagRow { name: string; source: string; unit: string }
+  interface TagRow { name: string; source: string; unit: string; writable: boolean; plc: string; description: string }
   interface ElementInfo { id: string; type: string; label: string | null }
   interface Box { left: number; top: number; width: number; height: number }
 
@@ -202,6 +202,21 @@
       (e.label ?? '').toLowerCase().includes(filter.toLowerCase())),
   );
   const tagNames = $derived(new Set(tags.map((t) => t.name)));
+  const writableTags = $derived(new Set(tags.filter((t) => t.writable).map((t) => t.name)));
+  const tagGroups = $derived(groupByPlc(tags));
+
+  function groupByPlc(rows: TagRow[]): [string, TagRow[]][] {
+    const groups = new Map<string, TagRow[]>();
+    for (const t of rows) groups.set(t.plc, [...(groups.get(t.plc) ?? []), t]);
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }
+
+  function onAnimChange(d: BindingForm): void {
+    // Nye standardværdier når typen skiftes (fx bekræftelse er standard for til/fra).
+    if (d.anim === 'click:toggle') d.confirm = true;
+    if (d.anim === 'click:pulse') d.confirm = false;
+    changed();
+  }
   const current = $derived(elements.find((e) => e.id === selected) ?? null);
 
   const onResize = () => (selBox = boxOf(selected));
@@ -282,18 +297,51 @@
               <button class="danger small" onclick={() => removeDraft(i)}>Fjern</button>
             </div>
             <div class="grid-form">
-              <label>Tag
-                <input list="taglist" bind:value={d.tag} oninput={changed} placeholder="Tag-navn" />
-              </label>
+              {#if d.anim !== 'click:goto'}
+                <label>Tag
+                  <select bind:value={d.tag} onchange={changed}>
+                    <option value="">— vælg tag —</option>
+                    {#if d.tag && !tagNames.has(d.tag)}<option value={d.tag}>{d.tag} (findes ikke)</option>{/if}
+                    {#each tagGroups as [plc, rows]}
+                      <optgroup label={plc}>
+                        {#each rows as t}
+                          <option value={t.name} disabled={isClick(d.anim) && !t.writable && t.name !== d.tag}>
+                            {t.name} · {t.source}{t.unit ? ` [${t.unit}]` : ''}{isClick(d.anim) && !t.writable ? ' (ikke skrivbar)' : ''}
+                          </option>
+                        {/each}
+                      </optgroup>
+                    {/each}
+                  </select>
+                </label>
+              {/if}
               <label>Animation
-                <select bind:value={d.anim} onchange={changed}>
+                <select bind:value={d.anim} onchange={() => onAnimChange(d)}>
                   {#each ANIMS as a}<option value={a.id}>{a.label}</option>{/each}
                 </select>
               </label>
             </div>
-            <p class="small muted">{ANIMS.find((a) => a.id === d.anim)?.help}{d.tag && !tagNames.has(d.tag) ? ' — ukendt tag!' : ''}</p>
+            <p class="small muted">{ANIMS.find((a) => a.id === d.anim)?.help}{d.anim !== 'click:goto' && d.tag && !tagNames.has(d.tag) ? ' — ukendt tag!' : ''}</p>
+            {#if isClick(d.anim) && d.anim !== 'click:goto' && d.tag && tagNames.has(d.tag) && !writableTags.has(d.tag)}
+              <p class="small error">Tagget er ikke markeret skrivbart — ret det under <a href="#tags">Tags</a>.</p>
+            {/if}
 
-            {#if d.anim === 'text'}
+            {#if d.anim === 'click:goto'}
+              <label class="field-row">Tegning
+                <select bind:value={d.drawing} onchange={changed}>
+                  <option value="">— vælg —</option>
+                  {#each drawings.filter((x) => x.id !== view?.id) as x}<option value={x.id}>{x.name}</option>{/each}
+                </select>
+              </label>
+            {:else if d.anim === 'click:write'}
+              <label class="field-row">Titel i dialogen (valgfri)<input bind:value={d.title} oninput={changed} maxlength="60" placeholder="tag-beskrivelsen" /></label>
+            {:else if d.anim === 'click:toggle'}
+              <label class="check"><input type="checkbox" bind:checked={d.confirm} onchange={changed} /> Bed om bekræftelse</label>
+            {:else if d.anim === 'click:pulse'}
+              <div class="grid-form">
+                <label>Pulslængde (ms)<input bind:value={d.ms} oninput={changed} inputmode="numeric" /></label>
+                <label class="check"><input type="checkbox" bind:checked={d.confirm} onchange={changed} /> Bed om bekræftelse</label>
+              </div>
+            {:else if d.anim === 'text'}
               <div class="grid-form">
                 <label>Decimaler<input bind:value={d.decimals} oninput={changed} placeholder="tag-standard" inputmode="numeric" /></label>
                 <label>Tekst ved sand<input bind:value={d.true_text} oninput={changed} maxlength="40" /></label>
@@ -376,9 +424,6 @@
   </aside>
 </div>
 
-<datalist id="taglist">
-  {#each tags as t}<option value={t.name}>{t.source}{t.unit ? ` [${t.unit}]` : ''}</option>{/each}
-</datalist>
 
 <style>
   .toolbar { margin-bottom: .75rem; }
@@ -406,6 +451,7 @@
   .binding { border-top: 1px solid var(--line); padding-top: .6rem; margin-top: .6rem; }
   .check { flex-direction: row !important; align-items: center; gap: .4rem !important; }
   .num { width: 6rem; }
+  .field-row { display: flex; flex-direction: column; gap: .2rem; font-size: .85rem; color: var(--muted); margin-bottom: .4rem; }
   input[type='color'] { width: 2.4rem; padding: 0 .1rem; height: 1.9rem; }
   .elements { list-style: none; margin: .5rem 0 0; padding: 0; max-height: 40vh; overflow-y: auto; }
   .elements button {

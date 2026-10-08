@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { del, get, post, type LiveValue } from '../lib/api';
+  import { del, get, patch, post, type LiveValue } from '../lib/api';
   import { formatValue } from '../lib/animate';
   import { LiveClient } from '../lib/live';
 
@@ -9,6 +9,11 @@
   interface Tag {
     name: string; source: string; plc: string; description: string; unit: string;
     scale: number; offset: number; decimals: number | null; writable: boolean;
+    min: number | null; max: number | null; confirm_write: boolean;
+  }
+  interface EditForm {
+    name: string; source: string; description: string; unit: string; scale: string; offset: string;
+    decimals: string; writable: boolean; min: string; max: string; confirm_write: boolean;
   }
   interface Suggestion { name: string; source: string; datatype: string; description: string; exists: boolean; pick?: boolean }
 
@@ -20,6 +25,38 @@
   let discoverPlc = $state('');
   let suggestions = $state<Suggestion[]>([]);
   let importResult = $state('');
+  let edit = $state<EditForm | null>(null);
+  let editError = $state('');
+
+  const s = (v: number | null) => (v === null || v === undefined ? '' : String(v));
+
+  function startEdit(t: Tag): void {
+    editError = '';
+    edit = {
+      name: t.name, source: t.source, description: t.description, unit: t.unit, scale: String(t.scale),
+      offset: String(t.offset), decimals: s(t.decimals), writable: t.writable, min: s(t.min), max: s(t.max),
+      confirm_write: t.confirm_write,
+    };
+  }
+
+  async function saveEdit(): Promise<void> {
+    if (!edit) return;
+    editError = '';
+    try {
+      // Tomme felter for min/max/decimaler betyder "ingen" — 0 er en gyldig værdi.
+      const opt = (text: string, field: string) => (text.trim() === '' ? null : num(text, field));
+      await patch(`/api/tags/${encodeURIComponent(edit.name)}`, {
+        source: edit.source.trim(), description: edit.description.trim(), unit: edit.unit.trim(),
+        scale: num(edit.scale, 'Skala'), offset: num(edit.offset, 'Offset'),
+        ...(edit.decimals.trim() === '' ? {} : { decimals: num(edit.decimals, 'Decimaler') }),
+        writable: edit.writable, min: opt(edit.min, 'Min'), max: opt(edit.max, 'Max'), confirm_write: edit.confirm_write,
+      });
+      edit = null;
+      await refresh();
+    } catch (e) {
+      editError = (e as Error).message;
+    }
+  }
 
   const live = new LiveClient((changes) => (values = { ...values, ...changes }));
 
@@ -152,6 +189,32 @@
 </section>
 {/if}
 
+{#if edit}
+  <section class="panel">
+    <h2>Redigér {edit.name}</h2>
+    {#if editError}<div class="error">{editError}</div>{/if}
+    <div class="grid-form">
+      <label>Kilde<input bind:value={edit.source} /></label>
+      <label>Beskrivelse<input bind:value={edit.description} maxlength="200" /></label>
+      <label>Enhed<input bind:value={edit.unit} maxlength="16" /></label>
+      <label>Skala<input bind:value={edit.scale} inputmode="decimal" /></label>
+      <label>Offset<input bind:value={edit.offset} inputmode="decimal" /></label>
+      <label>Decimaler<input bind:value={edit.decimals} inputmode="numeric" placeholder="auto" /></label>
+    </div>
+    <h3 style="margin-top: .8rem">Betjening</h3>
+    <div class="grid-form">
+      <label class="row" style="flex-direction: row"><input type="checkbox" bind:checked={edit.writable} /> Skrivbar fra Overview (kun hr/coil)</label>
+      <label>Min (teknisk enhed)<input bind:value={edit.min} inputmode="decimal" placeholder="ingen" /></label>
+      <label>Max (teknisk enhed)<input bind:value={edit.max} inputmode="decimal" placeholder="ingen" /></label>
+      <label class="row" style="flex-direction: row"><input type="checkbox" bind:checked={edit.confirm_write} /> Kræv bekræftelse ved skrivning</label>
+    </div>
+    <div class="row" style="margin-top: .6rem">
+      <button class="primary" onclick={saveEdit}>Gem</button>
+      <button onclick={() => (edit = null)}>Annullér</button>
+    </div>
+  </section>
+{/if}
+
 <section class="panel">
   <h2>Tags ({tags.length})</h2>
   <div class="table-wrap">
@@ -161,12 +224,12 @@
         {#each tags as t}
           {@const v = values[t.name]}
           <tr>
-            <td class="mono">{t.name}</td>
+            <td class="mono">{t.name}{#if t.writable} <span class="badge" title="Kan skrives fra Overview">skrivbar</span>{/if}</td>
             <td class="mono">{t.source}</td>
             <td>{formatValue(v?.value, { unit: t.unit, decimals: t.decimals, description: '', plc: t.plc })}</td>
             <td><span class="badge {v?.quality ?? 'unknown'}" title={v?.error ?? ''}>{v?.quality ?? 'unknown'}</span></td>
             <td class="small">{t.description}{v?.error ? ` — ${v.error}` : ''}</td>
-            <td>{#if canEdit}<button class="danger" onclick={() => remove(t)}>Slet</button>{/if}</td>
+            <td>{#if canEdit}<div class="row"><button onclick={() => startEdit(t)}>Redigér</button><button class="danger" onclick={() => remove(t)}>Slet</button></div>{/if}</td>
           </tr>
         {/each}
       </tbody>

@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -88,6 +88,18 @@ CREATE TABLE IF NOT EXISTS sessions (
     ip          TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions(username);
+CREATE TABLE IF NOT EXISTS audit (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts        REAL NOT NULL,
+    username  TEXT NOT NULL,
+    ip        TEXT NOT NULL DEFAULT '',
+    action    TEXT NOT NULL,
+    target    TEXT NOT NULL DEFAULT '',
+    detail    TEXT NOT NULL DEFAULT '{}',
+    result    TEXT NOT NULL,
+    message   TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS audit_ts ON audit(ts);
 """
 
 PLC_FIELDS = ("name", "base_url", "username", "enabled", "sse_enabled", "verify_tls")
@@ -352,6 +364,29 @@ class Database:
 
     def purge_expired_sessions(self, now: float) -> None:
         self._execute("DELETE FROM sessions WHERE expires_at < ?", (now,))
+
+    # ------------------------------------------------------------------ audit
+
+    def insert_audit(self, entry: dict[str, Any], keep: int) -> None:
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO audit(ts, username, ip, action, target, detail, result, message) VALUES (?,?,?,?,?,?,?,?)",
+                (entry["ts"], entry["username"], entry.get("ip", ""), entry["action"], entry.get("target", ""),
+                 json.dumps(entry.get("detail", {}), ensure_ascii=False, default=str), entry["result"],
+                 entry.get("message", "")),
+            )
+            if cur.lastrowid and cur.lastrowid % 500 == 0:  # oprydning engang imellem, ikke ved hver skrivning
+                self._conn.execute("DELETE FROM audit WHERE id <= ?", (cur.lastrowid - keep,))
+
+    def list_audit(self, limit: int, action_prefix: str | None = None) -> list[dict[str, Any]]:
+        if action_prefix:
+            rows = self._query("SELECT * FROM audit WHERE action LIKE ? ORDER BY id DESC LIMIT ?",
+                               (action_prefix.replace("%", "") + "%", limit))
+        else:
+            rows = self._query("SELECT * FROM audit ORDER BY id DESC LIMIT ?", (limit,))
+        for r in rows:
+            r["detail"] = json.loads(r["detail"])
+        return rows
 
     def _update(self, table: str, pk: str, key: str, changes: dict[str, Any], allowed: tuple[str, ...]) -> bool:
         fields = [f for f in changes if f in allowed]

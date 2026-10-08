@@ -1,6 +1,6 @@
-"""Bindinger mellem SVG-elementer og tags, og validering af animationsparametre.
+"""Bindinger mellem SVG-elementer og tags, og validering af animations- og klikparametre.
 
-Animationstyper (docs/RESEARCH_OG_DESIGN.md §3.3). Klik-handlinger (click:*) kommer i fase 5.
+Animationstyper og klik-handlinger: docs/RESEARCH_OG_DESIGN.md §3.3.
 """
 
 from __future__ import annotations
@@ -10,7 +10,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-AnimType = Literal["text", "fill", "stroke", "visible", "blink", "level", "rotate", "opacity"]
+AnimType = Literal["text", "fill", "stroke", "visible", "blink", "level", "rotate", "opacity",
+                   "click:write", "click:toggle", "click:pulse", "click:goto"]
+CLICK_TYPES = ("click:write", "click:toggle", "click:pulse", "click:goto")
+WRITE_CLICKS = ("click:write", "click:toggle", "click:pulse")
 ANIM_TYPES: tuple[str, ...] = AnimType.__args__  # type: ignore[attr-defined]
 
 # Farver sættes som SVG-attributter i browseren — kun simple, ufarlige former tillades.
@@ -84,9 +87,28 @@ class RotateParams(RangeParams):
     angle_max: float = 360
 
 
+class WriteParams(_P):
+    title: str = Field(default="", max_length=60)
+
+
+class ToggleClickParams(_P):
+    confirm: bool = True
+
+
+class PulseParams(_P):
+    ms: int = Field(default=500, ge=100, le=10_000)
+    confirm: bool = False
+
+
+class GotoParams(_P):
+    drawing: str = Field(min_length=1, max_length=64)
+
+
 PARAM_MODELS: dict[str, type[_P]] = {
     "text": TextParams, "fill": ColorParams, "stroke": ColorParams, "visible": ToggleParams,
     "blink": ToggleParams, "level": LevelParams, "rotate": RotateParams, "opacity": RangeParams,
+    "click:write": WriteParams, "click:toggle": ToggleClickParams, "click:pulse": PulseParams,
+    "click:goto": GotoParams,
 }
 
 
@@ -99,7 +121,9 @@ def validate_binding(item: Any) -> dict[str, Any]:
     if not isinstance(item, dict):
         raise BindingError("En binding skal være et objekt med tag, anim og params")
     tag, anim, params = item.get("tag"), item.get("anim"), item.get("params") or {}
-    if not isinstance(tag, str) or not tag.strip():
+    if anim == "click:goto":
+        tag = ""  # navigation bruger intet tag
+    elif not isinstance(tag, str) or not tag.strip():
         raise BindingError("Binding mangler tag")
     if anim not in PARAM_MODELS:
         raise BindingError(f"Ukendt animation '{anim}' (brug {', '.join(ANIM_TYPES)})")
