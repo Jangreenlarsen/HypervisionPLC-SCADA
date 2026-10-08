@@ -11,6 +11,7 @@
   import Audit from './pages/Audit.svelte';
   import Backup from './pages/Backup.svelte';
   import Alarms from './pages/Alarms.svelte';
+  import Trends from './pages/Trends.svelte';
   import { LiveClient } from './lib/live';
   import Login from './pages/Login.svelte';
   import ChangePassword from './pages/ChangePassword.svelte';
@@ -18,6 +19,7 @@
   const pages: { id: string; label: string; role: Role }[] = [
     { id: 'overview', label: 'Overview', role: 'viewer' },
     { id: 'alarms', label: 'Alarmer', role: 'viewer' },
+    { id: 'trends', label: 'Trends', role: 'viewer' },
     { id: 'drawings', label: 'Tegninger', role: 'viewer' },
     { id: 'draw', label: 'Tegn', role: 'engineer' },
     { id: 'editor', label: 'Bindinger', role: 'engineer' },
@@ -119,6 +121,8 @@
       ondone={() => { changingPassword = false; loadMe(); }}
       oncancel={() => (changingPassword = false)}
     />
+  {:else if page === 'trends'}
+    <Trends />
   {:else if page === 'alarms'}
     <Alarms canAck={roleAtLeast(me.role, 'operator')} />
   {:else if page === 'draw'}

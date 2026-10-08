@@ -64,6 +64,14 @@ def _alarm_fields(t: dict[str, Any], datatype: str) -> tuple[dict[str, Any], str
     if on not in (None, "true", "false"):
         return {}, "alarm_on skal være null, 'true' eller 'false'"
     out["alarm_on"] = on
+    out["trend"] = bool(t.get("trend", False))
+    try:
+        iv = num("trend_interval_s", 10.0)
+    except ValueError as exc:
+        return {}, str(exc)
+    if iv is None or not 1 <= iv <= 3600:
+        return {}, "trend_interval_s skal være 1-3600"
+    out["trend_interval_s"] = iv
     limits = [out[k] for k in ("alarm_ll", "alarm_l", "alarm_h", "alarm_hh") if out[k] is not None]
     if limits != sorted(limits):
         return {}, "alarmgrænserne skal stige (LL ≤ L ≤ H ≤ HH)"

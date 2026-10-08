@@ -42,6 +42,8 @@ class PlcUpdate(_Model):
 
 
 class TagCreate(_Model):
+    trend: bool | None = None
+    trend_interval_s: float | None = None
     alarm_hh: float | None = None
     alarm_h: float | None = None
     alarm_l: float | None = None
@@ -63,6 +65,8 @@ class TagCreate(_Model):
 
 
 class TagUpdate(_Model):
+    trend: bool | None = None
+    trend_interval_s: float | None = None
     alarm_hh: float | None = None
     alarm_h: float | None = None
     alarm_l: float | None = None

@@ -4,6 +4,23 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.12.0 build 0014] — 2026-10-08 — Trends
+
+**Backend:**
+- `app/storage/trends_db.py` — separat `trends.db` (WAL, `synchronous=NORMAL`): `trend_tags` + `samples(tag_id, ts, value)` WITHOUT ROWID; server-side nedsampling i tidsspand (gennemsnit/min/max), sidste værdi før perioden som startpunkt, rå udtræk, statistik, oprydning
+- `app/services/trends.py` — `TrendRecorder`: gemmer ved første værdi, ved ændring efter minimumsintervallet, straks ved til/fra-skift og ved hul/genetablering (NULL = ingen gyldig værdi), keepalive hvert 5. min; batch-skrivning (`SCADA_TREND_FLUSH_S`, standard 5 s) med værdiens egen tid; sletning efter `SCADA_TREND_DAYS` (standard 30); sidste værdier skrives ved nedlukning; sletning af tag fjerner dets historik
+- Tags: `trend` og `trend_interval_s` (1-3600 s, standard 10) — migrering til skema 7, validering ved opret/opdatér/import og i backup/restore
+- `app/api/trends.py` — `GET /api/trends/data` (højst 20 tags, 10-2000 punkter, højst 400 dage), `GET /api/trends/export` (CSV med `;`, decimalkomma, BOM — åbner direkte i dansk Excel), `GET /api/trends/info`; alt filtreret efter brugerens adgang pr. tegning
+- 200 backend-tests (15 nye i `test_trends.py`)
+
+**Frontend:**
+- Ny side **Trends**: tag-liste med søgning (tags uden historik er deaktiveret), perioder 15 min-30 dage eller valgfri, live-opdatering hvert 5. s for perioder op til 24 timer, CSV-eksport, valg huskes i browseren
+- `src/lib/TrendChart.svelte` — uPlot 1.6 (MIT): én graf pr. enhed (aldrig to y-akser), synkroniseret markør, dansk 24-timers tidsakse, til/fra som trin med Til/Fra-akse; x-aksen viser altid hele den valgte periode; træk-zoom bevares under live-opdatering, dobbeltklik zoomer ud til perioden
+- `src/lib/trendData.ts` — fletning af serier (hul vs. manglende punkt), til/fra bruger max pr. tidsspand så korte pulser ses, faste farver der følger tagget (palet valideret for farveblindhed; rød er reserveret til alarmer)
+- Tags-siden: afsnit "Historik" (gem historik, minimumsinterval)
+
+**Verificeret** i browser mod mock-PLC (desktop 1400 px og mobil 390 px): grafer pr. enhed, legend ved hover, zoom/live/udzoom, CSV, ingen konsolfejl og ingen vandret scroll.
+
 ## [0.11.0 build 0013] — 2026-10-08 — Alarmer
 
 **Backend:**

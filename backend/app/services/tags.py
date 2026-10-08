@@ -14,7 +14,8 @@ TAG_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 _TEXT_FIELDS = {"description": 200, "unit": 16}
 LIMIT_FIELDS = ("alarm_ll", "alarm_l", "alarm_h", "alarm_hh")  # stigende rækkefølge
 ALARM_DEFAULTS = {"alarm_hh": None, "alarm_h": None, "alarm_l": None, "alarm_ll": None,
-                  "alarm_deadband": 0.0, "alarm_delay_s": 0.0, "alarm_on": None}
+                  "alarm_deadband": 0.0, "alarm_delay_s": 0.0, "alarm_on": None,
+                  "trend": False, "trend_interval_s": 10.0}
 WRITABLE_KINDS = ("hr", "coil")
 
 
@@ -28,6 +29,7 @@ class TagService:
     def __init__(self, manager: PlcManager):
         self.manager = manager
         self.db = manager.db
+        self.on_delete: Any = None  # fx trend-historikken der skal glemme tagget
 
     def list(self, plc: str | None = None) -> list[dict[str, Any]]:
         return [_public(t) for t in self.db.list_tags(plc=plc)]
@@ -78,6 +80,13 @@ class TagService:
         if lo is not None and hi is not None and lo > hi:
             raise ServiceError(400, f"min ({lo}) må ikke være større end max ({hi})")
         self._validate_alarms(data, current, out)
+        if data.get("trend") is not None:
+            out["trend"] = bool(data["trend"])
+        if data.get("trend_interval_s") is not None:
+            iv = _number(data["trend_interval_s"], "trend_interval_s")
+            if not 1 <= iv <= 3600:
+                raise ServiceError(400, "Trend-interval skal være 1-3600 sekunder")
+            out["trend_interval_s"] = iv
         # Skrivbarhed vurderes på den ENDELIGE tilstand (ny kilde og/eller nyt flag), så reglen
         # holder ved oprettelse, opdatering og import.
         final_source = parse_source(out.get("source") or (current or {}).get("source"))  # type: ignore[arg-type]
@@ -151,6 +160,8 @@ class TagService:
         if not self.db.delete_tag(name):
             raise ServiceError(404, f"Tag '{name}' findes ikke")
         self.manager.reload_tags(removed=[name])
+        if self.on_delete is not None:
+            self.on_delete(name)
 
     def import_many(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         """Opret flere tags; ét ugyldigt tag stopper ikke resten."""
