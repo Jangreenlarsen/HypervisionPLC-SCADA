@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.19.0 build 0026] — 2026-10-08 — Betjeningssymboler
+
+- `frontend/src/lib/symbols.ts` — ny sektion "Betjening (skriver til PLC)": trykknap (puls 500 ms), start/stop (til/fra med bekræftelse, lampe + status), vippekontakt (til/fra, vippen flytter sig), drejeomskifter 0/1 (grebet drejer ±45°), auto/manuel, setpunkt-felt (klik → indtast værdi). Symbolerne beskriver selv deres bindinger: `data-hv-auto` (klik-handling på roden) og `data-hv-part` (visning på delene)
+- `backend/app/services/svg_sanitize.py` — `symbol_specs()` finder betjeningssymboler og deres dele
+- `backend/app/services/bindings.py` — `symbol_bindings()`: bindinger ud fra symbolets beskrivelse, valideret som alle andre bindinger; ugyldige/ukendte udelades, "gå til" aldrig; klik-handlinger der skriver dannes kun for skrivbare tags
+- `backend/app/services/drawings.py` — automatisk binding bruger symbolets beskrivelse når elementets id/label er et tag
+- `backend/app/services/scope.py` — operatørers betjeningsret ud fra de *effektive* bindinger (også betjeningssymbolernes) — fundet af testen før release: uden rettelsen fik operatører "ingen adgang"
+- `frontend/src/pages/DrawEditor.svelte` + `svgedit-host/scada-editor.js` — ved et betjeningssymbol vises kun skrivbare tags og en forklaring; advarsel hvis tagget ikke er skrivbart
+- Tests: `test_drawings_api.py` (2 nye: bindinger for skrivbart/ikke-skrivbart tag, ugyldige beskrivelser, operatør kan betjene), `symbols.test.ts` (1 ny) — 209 backend, 84 frontend
+- Verificeret i browser hele vejen: symboler indsat i Tegn, tag valgt, gemt (`data-hv-*` overlever SVG-Edit og serverens sanering) → Overview: vippekontakt skifter coil og vippen flytter sig, drejeomskifter spørger og drejer, setpunkt-felt skriver værdien
+
 ## [0.18.1 build 0025] — 2026-10-08 — Fix: historik kan slås fra og slettes fra Trends
 
 - `frontend/src/pages/Trends.svelte` — "Administrér" (tekniker/admin): pr. tag "Gem"/"Stop" (tagets historik-felt; det gemte bevares) og "Slet" (med bekræftelse og antal værdier); besked efter handlingen

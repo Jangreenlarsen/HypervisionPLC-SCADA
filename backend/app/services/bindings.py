@@ -6,6 +6,7 @@ Animationstyper og klik-handlinger: docs/RESEARCH_OG_DESIGN.md §3.3.
 from __future__ import annotations
 
 import re
+import json
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
@@ -142,6 +143,36 @@ def validate_binding(item: Any) -> dict[str, Any]:
         details = "; ".join(f"{'.'.join(str(p) for p in e['loc']) or anim}: {e['msg']}" for e in exc.errors())
         raise BindingError(f"Ugyldige parametre for {anim}: {details}") from None
     return {"tag": tag.strip(), "anim": anim, "params": normalized}
+
+
+def _spec_list(raw: str) -> list[dict[str, Any]]:
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    items = data if isinstance(data, list) else [data]
+    return [i for i in items if isinstance(i, dict)]
+
+
+def symbol_bindings(spec: dict[str, Any], root_id: str, tag_meta: dict[str, Any]) -> list[dict[str, Any]]:
+    """Automatiske bindinger for et betjeningssymbol (data-hv-auto på roden, data-hv-part på dele).
+    Alt valideres som almindelige bindinger; ugyldige udelades. Klik-handlinger der skriver, kræver et
+    skrivbart tag — ellers udelades de (visningen virker stadig), så en tegning aldrig kan give mere adgang
+    end tag-opsætningen."""
+    out: list[dict[str, Any]] = []
+    entries = [(root_id, item) for item in _spec_list(spec.get("auto", ""))]
+    for child_id, raw in spec.get("parts", []):
+        entries += [(child_id, item) for item in _spec_list(raw)]
+    for element, item in entries:
+        anim = item.get("anim")
+        if anim == "click:goto" or (anim in WRITE_CLICKS and not tag_meta.get("writable")):
+            continue
+        try:
+            b = validate_binding({"tag": tag_meta["name"], "anim": anim, "params": item.get("params") or {}})
+        except BindingError:
+            continue
+        out.append({"element": element, **b})
+    return out
 
 
 def auto_binding(element_tag: str, tag_meta: dict[str, Any]) -> dict[str, Any] | None:

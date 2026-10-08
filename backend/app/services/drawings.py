@@ -8,10 +8,10 @@ from typing import Any
 
 from ..storage.db import Database
 from ..storage.files import DrawingFiles
-from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, auto_binding, validate_binding
+from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, auto_binding, symbol_bindings, validate_binding
 from .errors import ServiceError
 from .live_cache import LiveCache
-from .svg_sanitize import SvgError, index_svg, sanitize_svg
+from .svg_sanitize import SvgError, index_svg, sanitize_svg, symbol_specs
 from .tagsource import TagSourceError, parse_source
 
 
@@ -191,6 +191,7 @@ class DrawingService:
         drawing = self._require(drawing_id)
         svg = self.svg(drawing_id)
         index = index_svg(svg)
+        specs = symbol_specs(svg)
         tags = {t["name"]: t for t in self.db.list_tags()}
 
         effective: list[dict[str, Any]] = []
@@ -208,6 +209,13 @@ class DrawingService:
                 continue
             name = element if element in tags else label if label in tags else None
             if name is None:
+                continue
+            if element in specs:
+                # Betjeningssymbol: klik-handling + visning ifølge symbolet (dele uden egne bindinger)
+                for pos, b in enumerate(symbol_bindings(specs[element], element,
+                                                        {"name": name, "writable": bool(tags[name]["writable"])})):
+                    if b["element"] == element or b["element"] not in explicit_elements:
+                        effective.append({**b, "position": pos, "source": "auto"})
                 continue
             auto = auto_binding(el_tag, {"name": name, "is_bool": self._is_bool(tags[name])})
             if auto is not None:

@@ -246,3 +246,45 @@ def test_start_drawing_requires_engineer(api):
     api.post("/api/auth/login", json={"username": "kigger", "password": "Hemmelig-123"})
     api.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})
     assert api.put("/api/drawings/start", json={"drawing": None}).status_code == 403
+
+
+SYMBOL_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">'
+    '<g id="Pumpe" data-hv-auto=\'[{"anim":"click:toggle","params":{"confirm":false}}]\'>'
+    '<rect id="pumpe_bund" width="60" height="30" data-hv-part=\'{"anim":"fill"}\'/>'
+    '<text id="pumpe_tekst" x="5" y="20" data-hv-part=\'{"anim":"text","params":{"true_text":"TIL","false_text":"FRA"}}\'>-</text>'
+    '</g>'
+    '<g id="Niveau" data-hv-auto=\'[{"anim":"click:write"},{"anim":"click:goto","params":{"drawing":"x"}},{"anim":"eksploder"}]\'>'
+    '<text id="niv_tal" x="5" y="80" data-hv-part=\'ikke json\'>-</text></g>'
+    '</svg>')
+
+
+def _bindings(api, did):
+    return sorted((b["element"], b["anim"], b["tag"]) for b in api.get(f"/api/drawings/{did}/view").json()["bindings"])
+
+
+def test_interactive_symbol_auto_bindings(api):
+    did = _create(api, svg=SYMBOL_SVG)["drawing"]["id"]
+    # Ikke-skrivbare tags: kun visningen bindes — en tegning kan ikke give skriveadgang
+    assert _bindings(api, did) == [("pumpe_bund", "fill", "Pumpe"), ("pumpe_tekst", "text", "Pumpe")]
+    api.patch("/api/tags/Pumpe", json={"writable": True})
+    api.patch("/api/tags/Niveau", json={"writable": True})
+    view = api.get(f"/api/drawings/{did}/view").json()
+    got = sorted((b["element"], b["anim"], b["tag"]) for b in view["bindings"])
+    # Skrivbart: klik-handlingen kommer med; goto, ukendte animationer og ugyldig JSON udelades
+    assert got == [("Niveau", "click:write", "Niveau"), ("Pumpe", "click:toggle", "Pumpe"),
+                   ("pumpe_bund", "fill", "Pumpe"), ("pumpe_tekst", "text", "Pumpe")]
+    toggle = next(b for b in view["bindings"] if b["anim"] == "click:toggle")
+    assert toggle["params"]["confirm"] is False and toggle["source"] == "auto"
+    text = next(b for b in view["bindings"] if b["anim"] == "text")
+    assert (text["params"]["true_text"], text["params"]["false_text"]) == ("TIL", "FRA")
+
+
+def test_operator_can_use_interactive_symbol(api, mock_plc):
+    did = _create(api, svg=SYMBOL_SVG)["drawing"]["id"]
+    api.patch("/api/tags/Pumpe", json={"writable": True})
+    api.post("/api/users", json={"username": "op", "role": "operator", "password": "Hemmelig-123", "drawings": [did]})
+    api.post("/api/auth/login", json={"username": "op", "password": "Hemmelig-123"})
+    api.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})
+    r = api.post("/api/tags/Pumpe/toggle", json={})
+    assert r.status_code == 200, r.text

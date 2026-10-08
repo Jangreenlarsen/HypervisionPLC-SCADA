@@ -3,7 +3,7 @@
 // Rør har tykkelse 10 og centerlinje i y=45 / x=45, så fittings og rør passer sammen. Brug
 // SVG-Edits rotation (eller spejling) for at vende en bøjning/T-stykke den rigtige vej.
 
-export type SymbolCategory = 'proces' | 'vvs' | 'el' | 'sol';
+export type SymbolCategory = 'betjening' | 'proces' | 'vvs' | 'el' | 'sol';
 
 export interface SymbolDef {
   id: string;
@@ -14,6 +14,7 @@ export interface SymbolDef {
 }
 
 export const CATEGORIES: { id: SymbolCategory; label: string }[] = [
+  { id: 'betjening', label: 'Betjening (skriver til PLC)' },
   { id: 'proces', label: 'Proces og visning' },
   { id: 'vvs', label: 'Rør og VVS' },
   { id: 'el', label: 'Elektrisk' },
@@ -42,7 +43,68 @@ const bubble = (letters: string) =>
   `<circle cx="30" cy="30" r="24" fill="${PANEL}" stroke="${LINE}" stroke-width="2.5"/>` +
   text(30, 36, letters, 16, 'font-weight="600" id="tekst"') + '</g>';
 
+/**
+ * Betjeningssymboler beskriver selv deres bindinger: `data-hv-auto` på roden (klik-handlingen) og
+ * `data-hv-part` på de dele der viser tilstanden. Vælges et tag i Tegn (id = tag-navn), danner serveren
+ * bindingerne — klik-handlinger kun hvis tagget er skrivbart.
+ */
+const auto = (items: object[]) => `data-hv-auto='${JSON.stringify(items)}'`;
+const part = (item: object) => `data-hv-part='${JSON.stringify(item)}'`;
+const ON = '#7cc47f';   // tændt/aktiv i betjeningssymboler (lys, så sort tekst kan læses)
+const OFF = '#d6d6d6';
+
 export const SYMBOLS: SymbolDef[] = [
+  // ---------------------------------------------------------------- Betjening
+  {
+    id: 'trykknap_puls', label: 'Trykknap (puls)', category: 'betjening',
+    hint: 'Sender en kort puls (500 ms) — fx start, stop, kvittér. Vælg et skrivbart tag',
+    svg: `<g ${auto([{ anim: 'click:pulse', params: { ms: 500, confirm: false } }])}>` +
+      `<rect id="flade" x="0" y="0" width="110" height="44" rx="6" fill="${OFF}" stroke="${LINE}" stroke-width="2" ${part({ anim: 'fill', params: { on: ON, off: OFF } })}/>` +
+      text(55, 28, 'Start', 16, 'font-weight="600"') + '</g>',
+  },
+  {
+    id: 'startstop', label: 'Start/stop (til/fra)', category: 'betjening',
+    hint: 'Skifter tagget til/fra med bekræftelse; lampen og teksten viser tilstanden',
+    svg: `<g ${auto([{ anim: 'click:toggle', params: { confirm: true } }])}>` +
+      `<rect x="0" y="0" width="130" height="50" rx="6" fill="#e3e3e3" stroke="${LINE}" stroke-width="2"/>` +
+      `<circle id="lampe" cx="24" cy="25" r="11" fill="${FILL}" stroke="${DARK}" stroke-width="1.5" ${part({ anim: 'fill', params: { on: ON, off: FILL } })}/>` +
+      `<text id="status" x="44" y="31" font-size="15" fill="${DARK}" ${FONT} ${part({ anim: 'text', params: { true_text: 'Kører', false_text: 'Stoppet' } })}>Stoppet</text></g>`,
+  },
+  {
+    id: 'vippekontakt', label: 'Vippekontakt', category: 'betjening',
+    hint: 'Til/fra uden bekræftelse — vippen flytter sig og skifter farve',
+    svg: `<g ${auto([{ anim: 'click:toggle', params: { confirm: false } }])}>` +
+      `<rect id="spor" x="0" y="0" width="64" height="32" rx="16" fill="${OFF}" stroke="${LINE}" stroke-width="2" ${part({ anim: 'fill', params: { on: ON, off: OFF } })}/>` +
+      `<circle id="vippe" cx="16" cy="16" r="12" fill="#fff" stroke="${LINE}" stroke-width="2" ${part({ anim: 'move', params: { min: 0, max: 1, dx: 32, dy: 0 } })}/>` +
+      `<text id="tekst" x="32" y="50" font-size="13" text-anchor="middle" fill="${DARK}" ${FONT} ${part({ anim: 'text', params: { true_text: 'TIL', false_text: 'FRA' } })}>FRA</text></g>`,
+  },
+  {
+    id: 'drejeomskifter', label: 'Drejeomskifter 0/1', category: 'betjening',
+    hint: 'Til/fra med bekræftelse — grebet drejer mellem 0 og 1',
+    svg: `<g ${auto([{ anim: 'click:toggle', params: { confirm: true } }])}>` +
+      `<circle cx="40" cy="46" r="30" fill="#e3e3e3" stroke="${LINE}" stroke-width="2.5"/>` +
+      text(14, 12, '0', 14, 'font-weight="600"') + text(66, 12, '1', 14, 'font-weight="600"') +
+      // Grebet er symmetrisk om drejepunktet (40,46), så "Rotation" drejer det om centrum
+      `<g id="greb" ${part({ anim: 'rotate', params: { min: 0, max: 1, angle_min: -45, angle_max: 45 } })}>` +
+      `<rect x="34" y="18" width="12" height="56" rx="4" fill="${FILL}" stroke="${DARK}" stroke-width="1.5"/>` +
+      `<rect x="37" y="20" width="6" height="14" rx="2" fill="${DARK}"/></g></g>`,
+  },
+  {
+    id: 'automanuel', label: 'Auto/Manuel', category: 'betjening',
+    hint: 'Skifter driftsform (til = AUTO) med bekræftelse',
+    svg: `<g ${auto([{ anim: 'click:toggle', params: { confirm: true } }])}>` +
+      `<rect id="flade" x="0" y="0" width="120" height="40" rx="6" fill="${PANEL}" stroke="${LINE}" stroke-width="2" ${part({ anim: 'fill', params: { on: '#bcd6ee', off: PANEL } })}/>` +
+      `<text id="tekst" x="60" y="26" font-size="15" font-weight="600" text-anchor="middle" fill="${DARK}" ${FONT} ${part({ anim: 'text', params: { true_text: 'AUTO', false_text: 'MANUEL' } })}>MANUEL</text></g>`,
+  },
+  {
+    id: 'setpunkt', label: 'Setpunkt-felt', category: 'betjening',
+    hint: 'Klik for at indtaste en ny værdi (min/max fra tagget) — viser den aktuelle værdi',
+    svg: `<g ${auto([{ anim: 'click:write' }])}>` +
+      `<rect x="0" y="0" width="150" height="40" rx="4" fill="#fff" stroke="${LINE}" stroke-width="2"/>` +
+      `<text id="vaerdi" x="12" y="26" font-size="17" font-weight="600" fill="#1f1f1f" ${FONT} ${part({ anim: 'text' })}>--</text>` +
+      `<path d="M126 28 L130 16 L140 12 L136 22 Z M126 28 L132 26" fill="${FILL}" stroke="${DARK}" stroke-width="1.5" stroke-linejoin="round"/></g>`,
+  },
+
   // ---------------------------------------------------------------- Proces og visning
   {
     id: 'pumpe', label: 'Pumpe', category: 'proces', hint: 'Bind "Fyldfarve" til drift-signalet',

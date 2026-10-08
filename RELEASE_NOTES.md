@@ -2,6 +2,14 @@
 
 ---
 
+## v0.19.0 — 2026-10-08 — Betjeningssymboler
+
+- Ny sektion **Betjening** i Tegn: trykknap (puls), start/stop, vippekontakt, drejeomskifter 0/1, auto/manuel og setpunkt-felt.
+- Indsæt symbolet og vælg et skrivbart tag. Når tegningen er gemt, virker symbolet med det samme på Overview, uden opsætning under Bindinger:
+  - Klik skriver til PLC'en.
+  - Lampe, vippe, greb og tekst viser tilstanden.
+- Tags der ikke er skrivbare, kan ikke vælges til betjeningssymboler. Operatører kan betjene symbolerne i de tegninger, de har adgang til.
+
 ## v0.18.1 — 2026-10-08 — Stop og slet historik
 
 - På **Trends** har tekniker og admin fået fluebenet **Administrér**. Det viser knapper ud for hvert tag:
