@@ -25,6 +25,22 @@ export function align(series: Point[][], useMax: boolean[] = []): [number[], ...
 }
 
 /**
+ * Indeks for værdier uden en gyldig nabo (fx kun ét punkt endnu, eller én måling mellem to huller).
+ * En linje kræver to punkter, så de ville ellers være usynlige — de vises i stedet som en prik.
+ * `undefined` (serien har ikke et punkt dér) springes over; `null` (hul) bryder linjen.
+ */
+export function isolatedPoints(ys: (number | null | undefined)[]): number[] {
+  const defined: number[] = [];
+  ys.forEach((y, i) => { if (y !== undefined) defined.push(i); });
+  return defined.filter((i, k) => {
+    if (ys[i] === null) return false;
+    const prev = k > 0 ? ys[defined[k - 1]] : null;
+    const next = k < defined.length - 1 ? ys[defined[k + 1]] : null;
+    return prev === null && next === null;
+  });
+}
+
+/**
  * Tildel farver så et tag BEHOLDER sin farve, mens det er valgt (farve følger tagget, ikke
  * rækkefølgen). Nye tags får første ledige plads. Returnerer null-pladser hvis der er fyldt op.
  */

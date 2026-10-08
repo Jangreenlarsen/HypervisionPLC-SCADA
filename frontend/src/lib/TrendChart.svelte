@@ -3,7 +3,7 @@
   import { onDestroy, onMount } from 'svelte';
   import uPlot from 'uplot';
   import 'uplot/dist/uPlot.min.css';
-  import { SERIES_COLORS } from './trendData';
+  import { isolatedPoints, SERIES_COLORS } from './trendData';
 
   export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null }
 
@@ -89,7 +89,9 @@
           stroke: SERIES_COLORS[s.colorIndex],
           width: 2,
           spanGaps: false, // null = rigtigt hul → brud i linjen
-          points: { show: false },
+          // Kun prikker hvor en linje ikke kan tegnes (enkeltstående værdier)
+          points: { show: true, size: 8, fill: SERIES_COLORS[s.colorIndex],
+            filter: (u: uPlot, si: number) => isolatedPoints(u.data[si] as (number | null | undefined)[]) },
           paths: s.isBool ? uPlot.paths.stepped!({ align: 1 }) : undefined,
           value: (_u: uPlot, v: number | null) => format(v, s),
         })),

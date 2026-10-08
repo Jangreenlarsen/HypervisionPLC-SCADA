@@ -2,6 +2,12 @@
 
 ---
 
+## v0.13.2 — 2026-10-08 — Trends: slå historik til direkte
+
+- Gemmer intet tag historik endnu, forklarer Trends-siden nu, hvorfor alle tags er grå.
+- Tekniker og admin kan trykke **Gem historik** ud for et tag direkte på Trends-siden. Tagget bliver valgt med det samme, og kurven fyldes op derfra.
+- Den første måling vises som en prik i stedet for en tom graf. Det samme gælder en enkelt måling mellem to perioder uden forbindelse.
+
 ## v0.13.1 — 2026-10-08 — Renere serverlog
 
 - Serveren skriver ikke længere fejlmeldingen "Task was destroyed but it is pending!" i loggen, hver gang en browser skifter side eller lukker. Meldingen var harmløs, men gjorde det svært at se de rigtige fejl.
