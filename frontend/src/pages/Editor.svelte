@@ -2,6 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { get, put, type Binding, type DrawingView, type LiveValue } from '../lib/api';
   import { ANIMS, emptyForm, fromForm, isClick, pickElement, toForm, toHex, type BindingForm } from '../lib/bindingForm';
+  import { textFor } from '../lib/animate';
   import { findElement, mountSvg, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
   import TagSelect from '../lib/TagSelect.svelte';
@@ -205,6 +206,16 @@
   const tagNames = $derived(new Set(tags.map((t) => t.name)));
   const writableTags = $derived(new Set(tags.filter((t) => t.writable).map((t) => t.name)));
 
+  /** Tekst-binding som den vil se ud — med tagets aktuelle værdi, ellers et eksempel. */
+  function textPreview(d: BindingForm): string {
+    try {
+      const { params } = fromForm(d);
+      return textFor(values[d.tag]?.value ?? 1002, view?.tags[d.tag], params);
+    } catch {
+      return ''; // ugyldig kladde — fejlen vises allerede ved feltet/Gem
+    }
+  }
+
   function onAnimChange(d: BindingForm): void {
     // Nye standardværdier når typen skiftes (fx bekræftelse er standard for til/fra).
     if (d.anim === 'click:toggle') d.confirm = true;
@@ -325,11 +336,14 @@
               </div>
             {:else if d.anim === 'text'}
               <div class="grid-form">
+                <label>Tekst før<input bind:value={d.prefix} oninput={changed} maxlength="40" placeholder="fx Tank : " /></label>
+                <label>Tekst efter<input bind:value={d.suffix} oninput={changed} maxlength="40" placeholder="fx  liter" /></label>
                 <label>Decimaler<input bind:value={d.decimals} oninput={changed} placeholder="tag-standard" inputmode="numeric" /></label>
                 <label>Tekst ved sand<input bind:value={d.true_text} oninput={changed} maxlength="40" /></label>
                 <label>Tekst ved falsk<input bind:value={d.false_text} oninput={changed} maxlength="40" /></label>
                 <label class="check"><input type="checkbox" bind:checked={d.show_unit} onchange={changed} /> Vis enhed</label>
               </div>
+              <p class="muted small">Vises som: <code class="preview">{textPreview(d)}</code></p>
             {:else if d.anim === 'fill' || d.anim === 'stroke'}
               <div class="grid-form">
                 <label>Farve ved sand
@@ -408,6 +422,7 @@
 
 
 <style>
+  .preview { white-space: pre; }
   .toolbar { margin-bottom: .75rem; }
   .editor {
     display: grid;

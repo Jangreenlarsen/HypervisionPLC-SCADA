@@ -2,6 +2,12 @@
 
 ---
 
+## v0.13.0 — 2026-10-08 — Tekst før og efter værdien
+
+- Tekst-bindinger under **Bindinger** har fået felterne **Tekst før** og **Tekst efter**. Fx giver "Tank : " + værdien + " liter" teksten "Tank : 1002 liter" i tegningen. Fjern fluebenet i "Vis enhed", hvis tagets egen enhed ikke skal med.
+- Linjen "Vises som:" viser resultatet med tagets aktuelle værdi, og tegningen opdateres med det samme, inden du gemmer.
+- Mangler værdien, vises fx "Tank : — liter", så teksten ikke springer.
+
 ## v0.12.0 — 2026-10-08 — Trends
 
 - Under **Tags** kan historik slås til pr. tag, med et minimumsinterval mellem gemte værdier. Til/fra-signaler gemmes ved hvert skift.

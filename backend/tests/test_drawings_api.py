@@ -91,11 +91,25 @@ def test_binding_validation(api):
         ("Tank", [{"tag": "Niveau", "anim": "fill", "params": {"thresholds": [{"value": 5, "color": "red"},
                                                                               {"value": 1, "color": "blue"}]}}], "sorteret"),
         ("Tank", [{"tag": "Niveau", "anim": "text", "params": {"ukendt": 1}}], "Ugyldige parametre"),
+        ("Tank", [{"tag": "Niveau", "anim": "text", "params": {"prefix": "x" * 41}}], "prefix"),
     ]
     for element, bindings, message in cases:
         r = api.put(f"/api/drawings/{did}/bindings/{element}", json={"bindings": bindings})
         assert r.status_code == 400, (element, r.text)
         assert message in r.json()["error"], r.json()["error"]
+
+
+def test_text_prefix_suffix_kept_verbatim(api):
+    did = _create(api)["drawing"]["id"]
+    r = api.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": [
+        {"tag": "Niveau", "anim": "text", "params": {"prefix": "Tank : ", "suffix": " liter", "show_unit": False}}]})
+    assert r.status_code == 200, r.text
+    text = next(b for b in api.get(f"/api/drawings/{did}/view").json()["bindings"] if b["element"] == "Tank")
+    assert (text["params"]["prefix"], text["params"]["suffix"]) == ("Tank : ", " liter")  # mellemrum bevaret
+    # Uden for/efter-tekst: tomme standardværdier
+    api.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": [{"tag": "Niveau", "anim": "text"}]})
+    text = next(b for b in api.get(f"/api/drawings/{did}/view").json()["bindings"] if b["element"] == "Tank")
+    assert (text["params"]["prefix"], text["params"]["suffix"]) == ("", "")
 
 
 def test_view_merges_explicit_and_auto_bindings(api):
