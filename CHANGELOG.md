@@ -4,6 +4,22 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.18.0 build 0024] — 2026-10-08 — Overview: zoom/panorering og start-tegning
+
+**Start-tegning:**
+- `backend/app/storage/db.py` — indstillinger i den eksisterende `meta`-tabel (`get_setting`/`set_setting`, én række pr. nøgle — ingen skemaændring); start-tegningen med i projekt-eksport og i restore-transaktionen
+- `backend/app/services/drawings.py` + `api/drawings.py` — `PUT /api/drawings/start` (tekniker+, audit `drawing.start`), `start`-flag i tegningslisten; ukendt tegning afvises (404), slettes start-tegningen nulstilles valget
+- `backend/app/services/backup.py` — start-tegningen med i backup (valgfri ved restore; peger den på en tegning der ikke er i backuppen, ignoreres den)
+- `frontend/src/pages/Drawings.svelte` — "Start"-mærke og "Gør til start"/"Fjern som start"
+- Overview åbner: tegningen i adressen → den sidst viste i denne fane → start-tegningen → den første (`pickDrawing`); brugere med adgang til udvalgte tegninger får kun tegninger de må se
+
+**Zoom og panorering** (`frontend/src/lib/viewport.ts` + `pages/Overview.svelte`):
+- Musehjul zoomer om musens position, knapperne − / + / Tilpas og zoom-procent i værktøjslinjen, træk for at panorere, knib med to fingre på touch; højst 20×, aldrig ud forbi hele tegningen og aldrig ud over kanten
+- Et træk/knib udløser ikke klik-handlinger i tegningen; et almindeligt klik gør stadig
+
+- Tests: `viewport.test.ts` (6 nye), `test_drawings_api.py` (2 nye), backup-roundtrip omfatter start-tegningen — 83 frontend, 205 backend
+- Verificeret i browser: ny fane åbner start-tegningen, sidst viste huskes efter besøg på Tags; hjul-zoom om musen, træk over en klikbar knap panorerer uden dialog, klik åbner dialogen, Tilpas nulstiller; ingen side-scroll. Knib er kun testet via logikken (ingen touch-enhed i testen)
+
 ## [0.17.0 build 0023] — 2026-10-08 — Animation "Flyt"
 
 - `backend/app/services/bindings.py` — ny animation `move` (`MoveParams`: min/max for værdien, `dx`/`dy` = forskydning ved max, ±100000)

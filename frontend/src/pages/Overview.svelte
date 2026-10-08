@@ -5,13 +5,14 @@
   import { formatValue } from '../lib/animate';
   import { byTag as indexByTag, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
+  import { panBy, pickDrawing, zoomAt, zoomLevel, type View } from '../lib/viewport';
 
   let { route = 'overview', canEdit = false, canOperate = false }: { route?: string; canEdit?: boolean; canOperate?: boolean } = $props();
 
   interface Dialog { binding: Binding; step: 'input' | 'confirm'; input: string; value: number | null; error: string; busy: boolean }
   interface Toast { kind: 'ok' | 'warn' | 'error'; text: string }
 
-  let drawings = $state<{ id: string; name: string }[]>([]);
+  let drawings = $state<{ id: string; name: string; start?: boolean }[]>([]);
   let selected = $state('');
   let view = $state<DrawingView | null>(null);
   let error = $state('');
@@ -25,6 +26,82 @@
 
   /** Tegningen fylder den ledige plads i vinduet med sine proportioner (genberegnes ved resize/zoom). */
   const fit = () => fitSvg(svgRoot, container);
+
+  // ---- zoom og panorering (ændrer kun viewBox — tegningen fylder stadig den samme plads)
+  let full: View | null = null;
+  let cur: View | null = null;
+  let zoom = $state(1);
+  const pointers = new Map<number, { x: number; y: number }>();
+  let dragStart: { x: number; y: number } | null = null;
+  let dragged = false; // et træk må ikke udløse klik-handlinger i tegningen
+  let pinchDist = 0;
+
+  function applyView(v: View): void {
+    if (!svgRoot || !full) return;
+    cur = v;
+    svgRoot.setAttribute('viewBox', `${v.x} ${v.y} ${v.w} ${v.h}`);
+    zoom = zoomLevel(v, full);
+  }
+
+  /** Skærmpunkt → tegningens koordinater i det aktuelle udsnit. */
+  function toDrawing(clientX: number, clientY: number): { x: number; y: number } | null {
+    if (!svgRoot || !cur) return null;
+    const r = svgRoot.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    return { x: cur.x + ((clientX - r.left) / r.width) * cur.w, y: cur.y + ((clientY - r.top) / r.height) * cur.h };
+  }
+
+  function zoomBy(k: number, clientX?: number, clientY?: number): void {
+    if (!full || !cur || !svgRoot) return;
+    const r = svgRoot.getBoundingClientRect();
+    const p = toDrawing(clientX ?? r.left + r.width / 2, clientY ?? r.top + r.height / 2);
+    if (p) applyView(zoomAt(cur, full, k, p.x, p.y));
+  }
+
+  const resetView = () => full && applyView(full);
+
+  function onWheel(e: WheelEvent): void {
+    if (!full) return;
+    e.preventDefault(); // siden scroller ikke — hjulet zoomer i tegningen
+    zoomBy(e.deltaY < 0 ? 1.25 : 1 / 1.25, e.clientX, e.clientY);
+  }
+
+  function onPointerDown(e: PointerEvent): void {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 1) {
+      dragStart = { x: e.clientX, y: e.clientY };
+      dragged = false;
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+    }
+  }
+
+  function onPointerMove(e: PointerEvent): void {
+    const prev = pointers.get(e.pointerId);
+    if (!prev || !full || !cur || !svgRoot) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      // Knib: zoom om midtpunktet mellem fingrene
+      const [a, b] = [...pointers.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinchDist > 0 && dist > 0) zoomBy(dist / pinchDist, (a.x + b.x) / 2, (a.y + b.y) / 2);
+      pinchDist = dist;
+      dragged = true;
+      return;
+    }
+    if (dragStart && !dragged && Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) < 5) return;
+    if (zoom <= 1.0001) return; // hele tegningen vises — intet at panorere
+    dragged = true;
+    const r = svgRoot.getBoundingClientRect();
+    applyView(panBy(cur, full, -((e.clientX - prev.x) / r.width) * cur.w, -((e.clientY - prev.y) / r.height) * cur.h));
+  }
+
+  function onPointerUp(e: PointerEvent): void {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchDist = 0;
+    if (!pointers.size) dragStart = null;
+  }
   let toastTimer: ReturnType<typeof setTimeout>;
 
   const values: Record<string, LiveValue> = {};
@@ -79,7 +156,16 @@
       if (location.hash !== `#overview/${id}`) history.replaceState(null, '', `#overview/${id}`);
       await tick();
       svgRoot = mountSvg(container, view.svg);
+      const vb = svgRoot?.viewBox.baseVal;
+      full = vb && vb.width > 0 && vb.height > 0 ? { x: vb.x, y: vb.y, w: vb.width, h: vb.height } : null;
+      cur = full;
+      zoom = 1;
       fit();
+      try {
+        sessionStorage.setItem('overview.last', id); // husk tegningen i denne fane (fx efter et besøg på Tags)
+      } catch {
+        // Huskes bare ikke — ingen funktion afhænger af det
+      }
       byTag = indexByTag(view.bindings.filter((b) => b.tag));
       renderAll(container, view.bindings, values, view.tags);
       markAlarms();
@@ -110,6 +196,10 @@
   }
 
   async function onCanvasClick(e: MouseEvent): Promise<void> {
+    if (dragged) {
+      dragged = false; // afslutningen på et træk/knib er ikke et klik
+      return;
+    }
     const b = clickTarget(e.target as Element);
     if (!b || !view) return;
     if (b.anim === 'click:goto') {
@@ -187,19 +277,26 @@
 
   onMount(async () => {
     stopLayout = onLayoutChange(fit, container);
+    container.addEventListener('wheel', onWheel, { passive: false }); // passive:false — ellers kan siden ikke forhindres i at scrolle
     try {
       drawings = await get<{ id: string; name: string }[]>('/api/drawings');
     } catch (e) {
       error = (e as Error).message;
       return;
     }
-    const fromRoute = route.split('/')[1];
-    selected = fromRoute && drawings.some((d) => d.id === fromRoute) ? fromRoute : drawings[0]?.id ?? '';
+    let last: string | null = null;
+    try {
+      last = sessionStorage.getItem('overview.last');
+    } catch {
+      // Ingen adgang til sessionStorage — start-tegningen bruges
+    }
+    selected = pickDrawing(drawings, route.split('/')[1], last);
     await load(selected);
   });
 
   onDestroy(() => {
     stopLayout?.();
+    container?.removeEventListener('wheel', onWheel);
     live.close();
     clearTimeout(toastTimer);
   });
@@ -217,6 +314,14 @@
     {#each drawings as d}<option value={d.id}>{d.name}</option>{/each}
   </select>
   {#if canEdit && selected}<a href={'#editor/' + selected}>Redigér bindinger</a>{/if}
+  {#if view}
+    <span class="zoom row" role="group" aria-label="Zoom">
+      <button class="small" onclick={() => zoomBy(1 / 1.5)} disabled={zoom <= 1.0001} title="Zoom ud">−</button>
+      <span class="small muted" title="Zoom: musehjul, knib eller knapperne; træk for at flytte rundt">{Math.round(zoom * 100)} %</span>
+      <button class="small" onclick={() => zoomBy(1.5)} disabled={zoom >= 19.99} title="Zoom ind">+</button>
+      <button class="small" onclick={resetView} disabled={zoom <= 1.0001} title="Vis hele tegningen">Tilpas</button>
+    </span>
+  {/if}
   <span class="badge {connected ? 'connected' : 'error'}">{connected ? 'Live' : 'Ingen forbindelse'}</span>
   {#each Object.entries(plcs) as [key, p]}
     <span class="badge {p.state}" title={p.message || p.state}>{p.name || key}: {p.state}{p.sse === 'connected' ? ' · SSE' : ''}</span>
@@ -245,7 +350,9 @@
 {/if}
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="canvas" bind:this={container} onclick={onCanvasClick}></div>
+<div class="canvas" class:zoomed={zoom > 1.0001} bind:this={container} onclick={onCanvasClick}
+  onpointerdown={onPointerDown} onpointermove={onPointerMove} onpointerup={onPointerUp} onpointercancel={onPointerUp}
+  onpointerleave={onPointerUp}></div>
 
 {#if dialog}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -293,6 +400,11 @@
     padding: .5rem;
     min-height: 200px;
   }
+  .canvas { touch-action: none; } /* knib/træk styres af os, ikke browserens side-zoom */
+  .canvas.zoomed { cursor: grab; }
+  .canvas.zoomed:active { cursor: grabbing; }
+  .zoom { gap: .25rem; align-items: center; }
+  .zoom button { min-width: 2rem; }
   .canvas :global(svg) {
     display: block;
     width: 100%; /* overskrives af fit() med tegningens præcise størrelse */

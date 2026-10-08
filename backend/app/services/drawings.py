@@ -39,8 +39,20 @@ class DrawingService:
     # ------------------------------------------------------------- tegninger
 
     def list(self) -> list[dict[str, Any]]:
-        return [{k: d[k] for k in ("id", "name", "active_version", "version_count", "updated_at")}
+        start = self.start_drawing()
+        return [{**{k: d[k] for k in ("id", "name", "active_version", "version_count", "updated_at")}, "start": d["id"] == start}
                 for d in self.db.list_drawings()]
+
+    def start_drawing(self) -> str | None:
+        """Tegningen Overview åbner med. En slettet tegning ignoreres (Overview falder tilbage til den første)."""
+        start = self.db.get_setting("start_drawing")
+        return start if start and self.db.get_drawing(start) is not None else None
+
+    def set_start_drawing(self, drawing_id: str | None) -> None:
+        drawing_id = (drawing_id or "").strip() or None
+        if drawing_id is not None:
+            self._require(drawing_id)
+        self.db.set_setting("start_drawing", drawing_id)
 
     def _require(self, drawing_id: str) -> dict[str, Any]:
         drawing = self.db.get_drawing(drawing_id)
@@ -109,6 +121,8 @@ class DrawingService:
         self._require(drawing_id)
         self.db.delete_drawing(drawing_id)
         self.db.delete_drawing_scope(drawing_id)
+        if self.db.get_setting("start_drawing") == drawing_id:
+            self.db.set_setting("start_drawing", None)
         self.files.delete(drawing_id)
 
     def svg(self, drawing_id: str, version: int | None = None) -> str:

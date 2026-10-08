@@ -246,6 +246,22 @@ class Database:
 
     # -------------------------------------------------------------- tegninger
 
+    # ------------------------------------------------------------- indstillinger
+
+    def get_setting(self, key: str) -> str | None:
+        rows = self._query("SELECT value FROM meta WHERE key = ?", (f"setting.{key}",))
+        return rows[0]["value"] if rows else None
+
+    def set_setting(self, key: str, value: str | None) -> None:
+        """Sæt (eller fjern med None) én indstilling — én række, så samtidige ændringer af andre nøgler ikke røres."""
+        with self._lock:
+            if value is None:
+                self._conn.execute("DELETE FROM meta WHERE key = ?", (f"setting.{key}",))
+            else:
+                self._conn.execute("INSERT INTO meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                                   (f"setting.{key}", value))
+            self._conn.commit()
+
     def list_drawings(self) -> list[dict[str, Any]]:
         return self._query(
             "SELECT d.*, (SELECT COUNT(*) FROM drawing_versions v WHERE v.drawing_id = d.id) AS version_count "
@@ -521,6 +537,7 @@ class Database:
             "versions": self._query("SELECT drawing_id, version, comment, size, width, height, created_at "
                                     "FROM drawing_versions ORDER BY drawing_id, version"),
             "bindings": self.list_all_bindings(),
+            "settings": {"start_drawing": self.get_setting("start_drawing")},
         }
 
     def list_trend_tags(self) -> list[dict[str, Any]]:
@@ -563,6 +580,11 @@ class Database:
                 for d in data["drawings"]:
                     cur.execute("INSERT INTO drawings(id, name, active_version, created_at, updated_at) VALUES (?,?,?,?,?)",
                                 (d["id"], d["name"], d["active_version"], now, now))
+                # Start-tegningen følger projektet (samme transaktion — kan ikke pege på en tegning der ikke findes)
+                cur.execute("DELETE FROM meta WHERE key = 'setting.start_drawing'")
+                start = (data.get("settings") or {}).get("start_drawing")
+                if start:
+                    cur.execute("INSERT INTO meta(key, value) VALUES ('setting.start_drawing', ?)", (start,))
                 for v in data["versions"]:
                     cur.execute(
                         "INSERT INTO drawing_versions(drawing_id, version, comment, size, width, height, created_at) "

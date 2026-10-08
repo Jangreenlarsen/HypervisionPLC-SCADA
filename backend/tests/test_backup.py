@@ -47,6 +47,7 @@ def api(tmp_path, mock_plc):
         c.put(f"/api/drawings/{main}/bindings/Tank", json={"bindings": [
             {"tag": "Niveau", "anim": "level"}, {"anim": "click:goto", "params": {"drawing": detail}}]})
         c.put(f"/api/drawings/{main}/bindings/Niveau", json={"bindings": [{"tag": "Motor", "anim": "click:toggle"}]})
+        c.put("/api/drawings/start", json={"drawing": detail})
         yield c
 
 
@@ -58,6 +59,7 @@ def _state(c):
         "drawings": {i: (d["name"], d["active_version"], [v["version"] for v in d["versions"]]) for i, d in drawings.items()},
         "bindings": {i: c.get(f"/api/drawings/{i}/bindings").json() for i in drawings},
         "svg": {i: c.get(f"/api/drawings/{i}/svg?version=1").text for i in drawings},
+        "start": [d["id"] for d in c.get("/api/drawings").json() if d["start"]],
     }
 
 

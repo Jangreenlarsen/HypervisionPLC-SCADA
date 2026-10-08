@@ -120,6 +120,7 @@ class BackupService:
             "tags": [{k: v for k, v in t.items()} for t in data["tags"]],
             "drawings": drawings,
             "bindings": data["bindings"],
+            "settings": data["settings"],
         }
 
     def save_to_server(self, kind: str, created_by: str) -> str:
@@ -302,8 +303,11 @@ class BackupService:
         if errors:
             more = " (flere fejl udeladt)" if len(errors) >= MAX_ERRORS else ""
             raise ServiceError(400, "Backuppen kan ikke gendannes — intet er ændret:\n- " + "\n- ".join(errors) + more)
+        settings = backup.get("settings") if isinstance(backup.get("settings"), dict) else {}
+        start = settings.get("start_drawing")
+        # En start-tegning der ikke findes i backuppen ignoreres (ikke en fejl — Overview viser så den første)
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
-                "files": files}
+                "files": files, "settings": {"start_drawing": start if start in drawing_ids else None}}
 
     # ---------------------------------------------------------------- restore
 

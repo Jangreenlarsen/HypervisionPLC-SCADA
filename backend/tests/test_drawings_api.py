@@ -221,3 +221,28 @@ def test_websocket_works_under_real_uvicorn(tmp_path):
 
     with _Server(create_app(settings), port):
         assert "snapshot" in asyncio.run(go())
+
+
+def test_start_drawing(api):
+    a = _create(api, name="Anlæg A")["drawing"]["id"]
+    b = _create(api, name="Anlæg B")["drawing"]["id"]
+    assert not any(d["start"] for d in api.get("/api/drawings").json())  # ingen valgt → Overview viser den første
+    r = api.put("/api/drawings/start", json={"drawing": b})
+    assert r.status_code == 200 and r.json() == {"drawing": b}
+    assert [d["id"] for d in api.get("/api/drawings").json() if d["start"]] == [b]
+    assert any(e["action"] == "drawing.start" for e in api.get("/api/audit").json())
+    # Ukendt tegning afvises med specifik fejl; tom streng = ingen start-tegning
+    r = api.put("/api/drawings/start", json={"drawing": "findes-ikke"})
+    assert r.status_code == 404 and "findes ikke" in r.json()["error"]
+    assert api.put("/api/drawings/start", json={"drawing": "  "}).json() == {"drawing": None}
+    # Slettes start-tegningen, nulstilles valget
+    api.put("/api/drawings/start", json={"drawing": a})
+    api.delete(f"/api/drawings/{a}")
+    assert not any(d["start"] for d in api.get("/api/drawings").json())
+
+
+def test_start_drawing_requires_engineer(api):
+    api.post("/api/users", json={"username": "kigger", "role": "viewer", "password": "Hemmelig-123"})
+    api.post("/api/auth/login", json={"username": "kigger", "password": "Hemmelig-123"})
+    api.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})
+    assert api.put("/api/drawings/start", json={"drawing": None}).status_code == 403
