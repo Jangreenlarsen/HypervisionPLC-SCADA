@@ -4,6 +4,7 @@
 - Sessioner: tilfældigt token i en HttpOnly-cookie; kun SHA-256 af tokenet gemmes i DB.
   Glidende udløb (fornyes ved brug).
 - Roller (stigende): viewer < operator < engineer < admin. Håndhæves i backend.
+- Viewer/operatør kan begrænses til udvalgte tegninger (`scoped`); se services/scope.py.
 - Sidste aktive admin kan hverken slettes, nedgraderes eller deaktiveres
   (tjekket atomisk i databasen, CLAUDE.md regel 12).
 - Første opstart uden brugere: `admin` oprettes med adgangskoden fra
@@ -31,6 +32,7 @@ from .errors import ServiceError
 log = logging.getLogger(__name__)
 
 ROLES = ("viewer", "operator", "engineer", "admin")
+SCOPABLE_ROLES = ("viewer", "operator")  # tekniker og admin ser altid alle tegninger
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{2,32}$")
 MIN_PASSWORD = 10
 _SCRYPT = {"n": 2**14, "r": 8, "p": 1}
@@ -73,9 +75,11 @@ class CurrentUser:
     role: str
     must_change_password: bool
     token_hash: str
+    drawings: frozenset[str] | None = None  # None = alle tegninger
 
     def public(self) -> dict[str, Any]:
-        return {"username": self.username, "role": self.role, "must_change_password": self.must_change_password}
+        return {"username": self.username, "role": self.role, "must_change_password": self.must_change_password,
+                "drawings": sorted(self.drawings) if self.drawings is not None else None}
 
 
 def check_password_rules(password: Any, username: str = "") -> str:
@@ -145,7 +149,8 @@ class AuthService:
         self.db.purge_expired_sessions(now)
         self.db.insert_session(_token_hash(token), user["username"], now + self.session_ttl_s, ip)
         log.info("Login: '%s' (%s) fra %s", user["username"], user["role"], ip)
-        return token, CurrentUser(user["username"], user["role"], user["must_change_password"], _token_hash(token))
+        return token, CurrentUser(user["username"], user["role"], user["must_change_password"], _token_hash(token),
+                                  self._scope(user))
 
     def logout(self, token: str | None) -> None:
         if token:
@@ -164,7 +169,25 @@ class AuthService:
             return None
         if session["expires_at"] - now < self.session_ttl_s - 60:  # forny højst én gang i minuttet
             self.db.touch_session(th, now + self.session_ttl_s)
-        return CurrentUser(user["username"], user["role"], user["must_change_password"], th)
+        return CurrentUser(user["username"], user["role"], user["must_change_password"], th, self._scope(user))
+
+    def _scope(self, user: dict[str, Any]) -> frozenset[str] | None:
+        if user["role"] not in SCOPABLE_ROLES or not user.get("scoped"):
+            return None
+        existing = {d["id"] for d in self.db.list_drawings()}
+        return frozenset(d for d in self.db.get_user_drawings(user["username"]) if d in existing)
+
+    def _validate_drawings(self, value: Any) -> list[str] | None:
+        """None = alle tegninger; ellers en liste af eksisterende tegnings-id'er (tom liste = ingen)."""
+        if value is None:
+            return None
+        if not isinstance(value, list) or not all(isinstance(d, str) for d in value):
+            raise ServiceError(400, "drawings skal være null (alle) eller en liste af tegnings-id'er")
+        existing = {d["id"] for d in self.db.list_drawings()}
+        unknown = sorted(set(value) - existing)
+        if unknown:
+            raise ServiceError(400, f"Ukendte tegninger: {', '.join(unknown)}")
+        return sorted(set(value))
 
     def change_own_password(self, current: CurrentUser, old: Any, new: Any) -> None:
         user = self.db.get_user(current.username)
@@ -184,8 +207,12 @@ class AuthService:
     # ------------------------------------------------------------- brugere
 
     def list_users(self) -> list[dict[str, Any]]:
-        return [{k: u[k] for k in ("username", "role", "disabled", "must_change_password", "created_at")}
-                for u in self.db.list_users()]
+        out = []
+        for u in self.db.list_users():
+            row = {k: u[k] for k in ("username", "role", "disabled", "must_change_password", "created_at")}
+            row["drawings"] = self.db.get_user_drawings(u["username"]) if u.get("scoped") else None
+            out.append(row)
+        return out
 
     def create_user(self, data: dict[str, Any]) -> dict[str, Any]:
         username = data.get("username")
@@ -198,8 +225,12 @@ class AuthService:
         if role not in ROLES:
             raise ServiceError(400, f"Ukendt rolle '{role}' (brug {', '.join(ROLES)})")
         password = check_password_rules(data.get("password"), username)
+        drawings = self._validate_drawings(data.get("drawings"))
         self.db.insert_user(username, {"password_hash": hash_password(password), "role": role,
                                        "must_change_password": True})
+        if drawings is not None:
+            self.db.update_user_guarded(username, {"scoped": True}, keep_admin=False)
+            self.db.set_user_drawings(username, drawings)
         log.info("Bruger '%s' oprettet med rollen %s", username, role)
         return next(u for u in self.list_users() if u["username"] == username)
 
@@ -214,11 +245,19 @@ class AuthService:
         if data.get("password") is not None:
             changes["password_hash"] = hash_password(check_password_rules(data["password"], username))
             changes["must_change_password"] = True
+        drawings: list[str] | None = None
+        scope_given = "drawings" in data
+        if scope_given:
+            drawings = self._validate_drawings(data["drawings"])
+            changes["scoped"] = drawings is not None
         result = self.db.update_user_guarded(username, changes, keep_admin=True)
         if result == "missing":
             raise ServiceError(404, f"Brugeren '{username}' findes ikke")
         if result == "last_admin":
             raise ServiceError(409, "Ændringen ville efterlade systemet uden en aktiv administrator")
+        if scope_given:
+            self.db.set_user_drawings(username, drawings or [])
+            changes.pop("scoped", None)  # tegningsadgang slår igennem ved næste kald — ingen grund til at logge ud
         if changes:
             # Rolle/adgangskode/deaktivering skal slå igennem straks — også for igangværende sessioner.
             keep = actor.token_hash if actor.username == username and "password_hash" not in changes else None
@@ -232,4 +271,5 @@ class AuthService:
             raise ServiceError(404, f"Brugeren '{username}' findes ikke")
         if result == "last_admin":
             raise ServiceError(409, "Den sidste aktive administrator kan ikke slettes")
+        self.db.delete_user_scope(username)
         log.info("Bruger '%s' slettet af '%s'", username, actor.username)

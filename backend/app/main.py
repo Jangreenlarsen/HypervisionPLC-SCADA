@@ -29,6 +29,7 @@ from .services.auth import AuthService
 from .services.backup import BackupService
 from .services.operate import OperateService
 from .services.drawings import DrawingService
+from .services.scope import ScopeService
 from .services.live_cache import LiveCache
 from .services.manager import PlcManager, TransportFactory
 from .services.plcs import PlcService
@@ -61,6 +62,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.operate_service = OperateService(manager, app.state.audit_service)
         drawing_files = DrawingFiles(settings.data_dir / "drawings")
         app.state.drawing_service = DrawingService(db, drawing_files, manager.cache)
+        app.state.scope_service = ScopeService(app.state.drawing_service)
         app.state.backup_service = BackupService(manager, drawing_files, settings.data_dir / "backups",
                                                  keep=max(1, settings.backup_keep))
         await manager.start_all()

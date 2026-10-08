@@ -31,19 +31,23 @@ def _svc(request: Request) -> OperateService:
     return request.app.state.operate_service
 
 
+def _operable(request: Request, user: CurrentUser) -> set[str] | None:
+    return request.app.state.scope_service.operable_tags(user)
+
+
 @router.post("/tags/{name}/write")
 async def write_tag(name: str, body: WriteBody, request: Request, user: CurrentUser = Depends(OPERATOR)) -> dict[str, Any]:
-    return await _svc(request).write(user, client_ip(request), name, body.value)
+    return await _svc(request).write(user, client_ip(request), name, body.value, allowed=_operable(request, user))
 
 
 @router.post("/tags/{name}/toggle")
 async def toggle_tag(name: str, request: Request, user: CurrentUser = Depends(OPERATOR)) -> dict[str, Any]:
-    return await _svc(request).toggle(user, client_ip(request), name)
+    return await _svc(request).toggle(user, client_ip(request), name, allowed=_operable(request, user))
 
 
 @router.post("/tags/{name}/pulse")
 async def pulse_tag(name: str, body: PulseBody, request: Request, user: CurrentUser = Depends(OPERATOR)) -> dict[str, Any]:
-    return await _svc(request).pulse(user, client_ip(request), name, body.ms)
+    return await _svc(request).pulse(user, client_ip(request), name, body.ms, allowed=_operable(request, user))
 
 
 @router.get("/audit", dependencies=[ENGINEER])

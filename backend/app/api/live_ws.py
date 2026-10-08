@@ -36,7 +36,8 @@ def _plc_summary(manager: Any) -> dict[str, Any]:
 @router.websocket("/ws/live")
 async def live_ws(ws: WebSocket) -> None:
     await ws.accept()
-    if websocket_user(ws) is None:
+    user = websocket_user(ws)
+    if user is None:
         await ws.send_json({"type": "error", "error": "Du er ikke logget ind"})
         await ws.close(code=4401)
         return
@@ -70,7 +71,8 @@ async def live_ws(ws: WebSocket) -> None:
                 await ws.send_json({"type": "error",
                                     "error": f"Forventet {{'type':'subscribe','tags':[...]}} med max {MAX_TAGS} navne"})
                 continue
-            wanted = set(tags)
+            visible = ws.app.state.scope_service.visible_tags(user)
+            wanted = set(tags) if visible is None else set(tags) & visible
             await ws.send_json({"type": "snapshot", "values": cache.snapshot(sorted(wanted))})
     except WebSocketDisconnect:
         pass

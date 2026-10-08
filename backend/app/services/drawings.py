@@ -108,6 +108,7 @@ class DrawingService:
     def delete(self, drawing_id: str) -> None:
         self._require(drawing_id)
         self.db.delete_drawing(drawing_id)
+        self.db.delete_drawing_scope(drawing_id)
         self.files.delete(drawing_id)
 
     def svg(self, drawing_id: str, version: int | None = None) -> str:
@@ -156,8 +157,23 @@ class DrawingService:
 
     # ----------------------------------------------------------------- visning
 
-    def view(self, drawing_id: str) -> dict[str, Any]:
-        """Alt Overview behøver: SVG, effektive bindinger (eksplicitte + auto) og tag-metadata."""
+    def effective_bindings(self, drawing_id: str) -> list[dict[str, Any]]:
+        """Eksplicitte + automatiske bindinger for den aktive version (uden forældreløse)."""
+        return self._compute(drawing_id)[2]
+
+    def view(self, drawing_id: str, visible_drawings: set[str] | None = None) -> dict[str, Any]:
+        """Alt Overview behøver: SVG, effektive bindinger (eksplicitte + auto) og tag-metadata.
+        `visible_drawings`: "gå til"-bindinger til tegninger brugeren ikke må se, fjernes."""
+        drawing, svg, effective, orphans, tags = self._compute(drawing_id)
+        if visible_drawings is not None:
+            effective = [b for b in effective
+                         if b["anim"] != "click:goto" or b["params"].get("drawing") in visible_drawings]
+        used = sorted({b["tag"] for b in effective if b["tag"]})
+        meta = {n: self._meta(tags[n]) for n in used if n in tags}
+        return {"id": drawing["id"], "name": drawing["name"], "version": drawing["active_version"],
+                "svg": svg, "bindings": effective, "orphaned_bindings": sorted(set(orphans)), "tags": meta}
+
+    def _compute(self, drawing_id: str) -> tuple[dict[str, Any], str, list[dict[str, Any]], list[str], dict[str, Any]]:
         drawing = self._require(drawing_id)
         svg = self.svg(drawing_id)
         index = index_svg(svg)
@@ -182,11 +198,7 @@ class DrawingService:
             auto = auto_binding(el_tag, {"name": name, "is_bool": self._is_bool(tags[name])})
             if auto is not None:
                 effective.append({"element": element, "position": 0, **auto, "source": "auto"})
-
-        used = sorted({b["tag"] for b in effective if b["tag"]})
-        meta = {n: self._meta(tags[n]) for n in used if n in tags}
-        return {"id": drawing["id"], "name": drawing["name"], "version": drawing["active_version"],
-                "svg": svg, "bindings": effective, "orphaned_bindings": sorted(set(orphans)), "tags": meta}
+        return drawing, svg, effective, orphans, tags
 
     def _meta(self, tag: dict[str, Any]) -> dict[str, Any]:
         """Det Overview behøver om et tag — også til setpunkt-dialogen."""

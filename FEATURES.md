@@ -5,6 +5,8 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+**Aftalt rækkefølge (Jan, 2026-10-08):** 1) Fase 4 tegne-editor (SVG-Edit, samme tag-dropdown som binding-editoren) → 2) Alarmer → 3) Trends. Raspberry Pi venter; testserver 10.1.1.31 bruges.
+
 ---
 
 ## Planlagte features
@@ -37,12 +39,13 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 ### Fase 5 — Betjening og adgang
 - [x] done v0.7.0 — Skrivning til PLC via klik-handlinger `click:write` (setpunkt-dialog med min/max, invers skalering, bekræftelse), `click:toggle`, `click:pulse` (server-styret nulstilling); kun hr/coil-tags markeret skrivbare; læs-tilbage efter skrivning med advarsel hvis PLC'en (fx ST) har overskrevet værdien; PLC'ens fejltekst (fx safe mode) vises til operatøren; rolle operator+ med bekræftelse og PLC-fejlbesked til operatør
 - [x] done v0.4.0 — Brugere og roller (viewer/operator/engineer/admin) med sidste-admin-beskyttelse i backend: login med session-cookie (HttpOnly, SameSite=Strict), scrypt-hashede adgangskoder, låsning efter gentagne fejl-logins, tvunget skift af genereret admin-adgangskode, rollekrav på alle endpoints inkl. WebSocket (flyttet frem før TLS)
+- [x] done v0.9.0 — Adgang pr. tegning (ønske fra Jan): viewer/operatør kan begrænses til udvalgte tegninger — håndhævet i backend for tegninger, tags, live-data (WebSocket) og betjening; operatører kan generelt kun betjene tags med en klik-handling i en tegning de har adgang til
 - [x] done v0.7.0 — Audit-log over alle skrivninger og konfigurationsændringer (hvem, hvornår, hvad, gammel → ny, resultat) + side "Log"
 
 ### Fase 6 — Drift
 - [ ] planned — Alarmer (grænser pr. tag + PLC'ens `/api/alarms`) og alarmliste
 - [ ] planned — Trends (RAM-ringbuffer + PLC'ens trend recorder)
-- [ ] planned — Raspberry Pi 4 deployment: install-script, systemd-service, Chromium-kiosk
+- [ ] planned — Raspberry Pi 4 deployment: Chromium-kiosk på lokal skærm (udskudt efter ønske — testserver 10.1.1.31 bruges indtil videre; install-script og systemd findes allerede)
 - [x] done v0.8.0 — Backup/restore af hele SCADA-projektet (PLC-forbindelser uden adgangskoder, tags, tegninger med alle versioner, bindinger; ikke brugere): download/restore som JSON (admin), fuld validering før noget ændres, automatisk backup før restore, atomisk udskiftning med tilbagerulning, automatiske døgn-backups på serveren (7 gemmes)
 
 ### Tværgående

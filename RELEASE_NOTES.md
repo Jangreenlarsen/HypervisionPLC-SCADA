@@ -2,6 +2,12 @@
 
 ---
 
+## v0.9.0 — 2026-10-08 — Adgang pr. tegning
+
+- Under **Brugere** kan en viewer eller operatør begrænses til udvalgte tegninger. Brugeren ser så kun de tegninger på Overview, kun de tags der vises i dem, og kan kun betjene det der kan klikkes på i dem.
+- Operatører kan generelt kun betjene tags der er sat op med en klik-handling i en tegning de har adgang til.
+- Eksisterende brugere har som før adgang til alle tegninger.
+
 ## v0.8.1 — 2026-10-08 — Hurtig live-opdatering bekræftet
 
 - Rettelsen fra v0.7.0.1 er bekræftet i drift: alle PLC-udgange og -indgange (fx DO2) opdateres nu lige så hurtigt som DO1.

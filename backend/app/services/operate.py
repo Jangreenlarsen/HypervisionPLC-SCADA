@@ -67,7 +67,10 @@ class OperateService:
         self.audit = audit
         self._locks: dict[str, asyncio.Lock] = {}
 
-    def _prepare(self, tag_name: str) -> tuple[dict[str, Any], TagSource, Any]:
+    def _prepare(self, tag_name: str, allowed: set[str] | None = None) -> tuple[dict[str, Any], TagSource, Any]:
+        if allowed is not None and tag_name not in allowed:
+            raise ServiceError(403, f"Du har ikke adgang til at betjene '{tag_name}' — det kræver en klik-handling "
+                                    "i en tegning du har adgang til")
         tag = self.db.get_tag(tag_name)
         if tag is None:
             raise ServiceError(404, f"Tagget '{tag_name}' findes ikke")
@@ -104,10 +107,11 @@ class OperateService:
                           "error" if error else ("warning" if warning else "ok"),
                           error.message if error else warning)
 
-    async def write(self, actor: CurrentUser, ip: str, tag_name: str, value: Any, action: str = "write") -> dict[str, Any]:
+    async def write(self, actor: CurrentUser, ip: str, tag_name: str, value: Any, action: str = "write",
+                    allowed: set[str] | None = None) -> dict[str, Any]:
         detail: dict[str, Any] = {"requested": value}
         try:
-            tag, source, runtime = self._prepare(tag_name)
+            tag, source, runtime = self._prepare(tag_name, allowed)
             detail["source"] = str(source)
             detail["old"] = self.manager.cache.get(tag_name).value
             if source.kind != "coil" and not isinstance(value, bool) and isinstance(value, (int, float)):
@@ -136,7 +140,11 @@ class OperateService:
         self._log(actor, ip, action, tag_name, detail, warning=warning)
         return {"tag": tag_name, "written": actual, "readback": readback, "matches": not warning, "warning": warning}
 
-    async def toggle(self, actor: CurrentUser, ip: str, tag_name: str) -> dict[str, Any]:
+    async def toggle(self, actor: CurrentUser, ip: str, tag_name: str, allowed: set[str] | None = None) -> dict[str, Any]:
+        if allowed is not None and tag_name not in allowed:
+            exc = ServiceError(403, f"Du har ikke adgang til at betjene '{tag_name}'")
+            self._log(actor, ip, "toggle", tag_name, {}, error=exc)
+            raise exc
         current = self.manager.cache.get(tag_name)
         if current.quality != "good" or current.value is None:
             exc = ServiceError(409, f"Kan ikke skifte '{tag_name}': den aktuelle værdi er ukendt ({current.quality})")
@@ -144,15 +152,16 @@ class OperateService:
             raise exc
         on = bool(current.value)
         result = await self.write(actor, ip, tag_name, (not on) if isinstance(current.value, bool) else (0 if on else 1),
-                                  action="toggle")
+                                  action="toggle", allowed=allowed)
         return {**result, "from": current.value}
 
-    async def pulse(self, actor: CurrentUser, ip: str, tag_name: str, ms: int) -> dict[str, Any]:
+    async def pulse(self, actor: CurrentUser, ip: str, tag_name: str, ms: int,
+                    allowed: set[str] | None = None) -> dict[str, Any]:
         if not 100 <= ms <= 10_000:
             raise ServiceError(400, "Pulslængde skal være 100-10000 ms")
         detail: dict[str, Any] = {"ms": ms}
         try:
-            tag, source, runtime = self._prepare(tag_name)
+            tag, source, runtime = self._prepare(tag_name, allowed)
             if source.datatype == "real":
                 raise ServiceError(400, "Puls kræver et til/fra-tag (coil eller heltals-register)")
             on_raw: Any = True if source.kind == "coil" else 1

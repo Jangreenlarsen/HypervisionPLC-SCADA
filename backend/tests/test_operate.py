@@ -165,6 +165,13 @@ def test_roles(api, mock_plc):
     r = api.post("/api/tags/Setpunkt/write", json={"value": 20})
     assert r.status_code == 403 and "operator" in r.json()["error"]
     _login_as(api, "operatoer", "operator")
+    # Operatører kan kun betjene tags med en klik-handling i en tegning de har adgang til
+    r = api.post("/api/tags/Setpunkt/write", json={"value": 20})
+    assert r.status_code == 403 and "klik-handling" in r.json()["error"]
+    api.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
+    did = api.post("/api/drawings", json={"name": "Betjening", "svg": SVG}).json()["drawing"]["id"]
+    api.put(f"/api/drawings/{did}/bindings/Setpunkt", json={"bindings": [{"tag": "Setpunkt", "anim": "click:write"}]})
+    api.post("/api/auth/login", json={"username": "operatoer", "password": "Hemmelig-123-ny"})
     assert api.post("/api/tags/Setpunkt/write", json={"value": 20}).status_code == 200
     assert api.get("/api/audit").status_code == 403
     r = api.post("/api/tags", json={"name": "Y", "source": "plc1:hr:9"})

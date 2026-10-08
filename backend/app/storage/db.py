@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -100,13 +100,19 @@ CREATE TABLE IF NOT EXISTS audit (
     message   TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS audit_ts ON audit(ts);
+CREATE TABLE IF NOT EXISTS user_drawings (
+    username    TEXT NOT NULL,
+    drawing_id  TEXT NOT NULL,
+    PRIMARY KEY (username, drawing_id)
+);
 """
 
 PLC_FIELDS = ("name", "base_url", "username", "enabled", "sse_enabled", "verify_tls")
 TAG_FIELDS = ("source", "plc", "description", "unit", "scale", "offset", "decimals",
               "writable", "min", "max", "confirm_write")
-_BOOL_FIELDS = {"enabled", "sse_enabled", "verify_tls", "writable", "confirm_write", "disabled", "must_change_password"}
-USER_FIELDS = ("password_hash", "role", "disabled", "must_change_password")
+_BOOL_FIELDS = {"enabled", "sse_enabled", "verify_tls", "writable", "confirm_write", "disabled", "must_change_password",
+                "scoped"}
+USER_FIELDS = ("password_hash", "role", "disabled", "must_change_password", "scoped")
 
 
 class Database:
@@ -119,9 +125,18 @@ class Database:
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA foreign_keys=ON")
             self._conn.executescript(_SCHEMA)
+            self._migrate()
             self._conn.execute(
                 "INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', ?)", (str(SCHEMA_VERSION),)
             )
+
+    def _migrate(self) -> None:
+        """Tilføj kolonner til eksisterende databaser (CREATE TABLE IF NOT EXISTS ændrer ikke gamle tabeller)."""
+        cols = {r[1] for r in self._conn.execute("PRAGMA table_info(users)").fetchall()}
+        if "scoped" not in cols:
+            # 0 = adgang til alle tegninger (som før) — eksisterende brugere bevarer deres adgang
+            self._conn.execute("ALTER TABLE users ADD COLUMN scoped INTEGER NOT NULL DEFAULT 0")
+        self._conn.execute("UPDATE meta SET value = ? WHERE key = 'schema_version'", (str(SCHEMA_VERSION),))
 
     def close(self) -> None:
         with self._lock:
@@ -342,6 +357,31 @@ class Database:
             except Exception:
                 cur.execute("ROLLBACK")
                 raise
+
+    # ------------------------------------------------- adgang pr. tegning
+
+    def get_user_drawings(self, username: str) -> list[str]:
+        rows = self._query("SELECT drawing_id FROM user_drawings WHERE username = ? ORDER BY drawing_id", (username,))
+        return [r["drawing_id"] for r in rows]
+
+    def set_user_drawings(self, username: str, drawing_ids: list[str]) -> None:
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                cur.execute("DELETE FROM user_drawings WHERE username = ?", (username,))
+                for did in drawing_ids:
+                    cur.execute("INSERT INTO user_drawings(username, drawing_id) VALUES (?, ?)", (username, did))
+                cur.execute("COMMIT")
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
+    def delete_drawing_scope(self, drawing_id: str) -> None:
+        self._execute("DELETE FROM user_drawings WHERE drawing_id = ?", (drawing_id,))
+
+    def delete_user_scope(self, username: str) -> None:
+        self._execute("DELETE FROM user_drawings WHERE username = ?", (username,))
 
     # ------------------------------------------------------------ sessioner
 
