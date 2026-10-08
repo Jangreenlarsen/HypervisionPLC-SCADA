@@ -3,7 +3,7 @@
   import { get, put, type Binding, type DrawingView, type LiveValue } from '../lib/api';
   import { ANIMS, flatten, fromForm, groupIds, isClick, nextBinding, pickElement, toDrafts, toForm, toHex, type BindingForm, type Draft } from '../lib/bindingForm';
   import { textFor } from '../lib/animate';
-  import { findElement, mountSvg, renderAll, renderBinding } from '../lib/canvas';
+  import { findElement, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
   import TagSelect from '../lib/TagSelect.svelte';
 
@@ -68,6 +68,7 @@
   function redraw(): void {
     if (!container || !view) return;
     svgRoot = mountSvg(container, view.svg);
+    fitSvg(svgRoot, container);
     const bindings = effective();
     renderAll(container, bindings, values, view.tags);
     live.subscribe([...new Set([...bindings.map((b) => b.tag), ...drafts.map((d) => d.tag).filter(Boolean)])]);
@@ -250,10 +251,16 @@
   }
   const current = $derived(elements.find((e) => e.id === selected) ?? null);
 
-  const onResize = () => (selBox = boxOf(selected));
+  // Tegningen fylder den ledige højde; markeringsboksene følger med når størrelsen ændres
+  const onResize = () => {
+    fitSvg(svgRoot, container);
+    selBox = boxOf(selected);
+    hoverBox = null;
+  };
+  let stopLayout: (() => void) | null = null;
 
   onMount(async () => {
-    window.addEventListener('resize', onResize);
+    stopLayout = onLayoutChange(onResize, container);
     try {
       drawings = await get<{ id: string; name: string }[]>('/api/drawings');
     } catch (e) {
@@ -267,7 +274,7 @@
 
   onDestroy(() => {
     live.close();
-    window.removeEventListener('resize', onResize);
+    stopLayout?.();
   });
 </script>
 
@@ -466,7 +473,7 @@
   .toolbar { margin-bottom: .75rem; }
   .editor {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); /* tegningen får resten af bredden */
     gap: 1rem;
     align-items: start;
   }
@@ -480,7 +487,7 @@
     min-height: 200px;
     cursor: crosshair;
   }
-  .canvas :global(svg) { display: block; width: 100%; height: auto; }
+  .canvas :global(svg) { display: block; width: 100%; height: auto; margin: 0 auto; } /* størrelse sættes af fitSvg */
   .box { position: absolute; pointer-events: none; border-radius: 2px; }
   .box.sel { outline: 2px solid var(--accent); outline-offset: 2px; background: rgba(31, 95, 153, .08); }
   .box.hover { outline: 1px dashed var(--accent); outline-offset: 2px; }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { get, patch, post } from '../lib/api';
+  import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { SYMBOLS } from '../lib/symbols';
   import TagSelect, { type TagOption } from '../lib/TagSelect.svelte';
 
@@ -161,8 +162,16 @@
     if (dirty) e.preventDefault();
   };
 
+  // Tegne-editoren fylder højden ned til sidefoden (mindst 600 px, så hele SVG-Edits værktøjslinje ses — ellers scrolles siden)
+  const fitFrame = () => {
+    if (iframe) iframe.style.height = `${Math.max(600, availableHeight(iframe) - 2)}px`;
+  };
+  let stopLayout: (() => void) | null = null;
+
   onMount(async () => {
     window.addEventListener('beforeunload', onBeforeUnload);
+    fitFrame();
+    stopLayout = onLayoutChange(fitFrame);
     try {
       [drawings, tags] = await Promise.all([
         get<{ id: string; name: string }[]>('/api/drawings'),
@@ -172,7 +181,10 @@
       error = (e as Error).message;
     }
   });
-  onDestroy(() => window.removeEventListener('beforeunload', onBeforeUnload));
+  onDestroy(() => {
+    window.removeEventListener('beforeunload', onBeforeUnload);
+    stopLayout?.();
+  });
 
   const single = $derived(selection.length === 1 ? selection[0] : null);
   const isActive = $derived(current !== null && loadedVersion === current.active_version);
@@ -263,8 +275,8 @@
   @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
   iframe {
     width: 100%;
-    height: calc(100vh - 170px);
-    min-height: 480px;
+    height: 600px; /* sættes af fitFrame */
+    display: block;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: #fff;

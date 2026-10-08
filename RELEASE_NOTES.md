@@ -2,6 +2,14 @@
 
 ---
 
+## v0.14.2 — 2026-10-08 — Alle sider fylder skærmen
+
+- Siderne er ikke længere låst til en smal kolonne på store skærme. Alle sider bruger nu hele bredden.
+- **Bindinger:** Tegningen fylder den ledige højde, og sidepanelet er smallere, så tegningen bliver større.
+- **Tegn:** Tegne-editoren fylder højden ned til bunden af vinduet og viser altid hele værktøjslinjen.
+- **Trends:** Graferne deler den ledige højde mellem sig, og tag-listen går ned til bunden af vinduet, så siden ikke skal scrolles.
+- Alt følger med, når vinduet ændres, eller du zoomer i browseren.
+
 ## v0.14.1 — 2026-10-08 — Overview fylder skærmen
 
 - Tegningen på Overview tilpasser sig nu browservinduet. Den bruger hele bredden på store skærme og passer i højden på lave skærme, så siden ikke skal scrolles.

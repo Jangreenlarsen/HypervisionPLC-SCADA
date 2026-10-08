@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.14.2 build 0020] — 2026-10-08 — Fix: alle sider skalerer med browservinduet
+
+- `frontend/src/App.svelte` — breddegrænsen på 1600 px er fjernet for alle sider (main og sidefod)
+- `frontend/src/lib/canvas.ts` — fælles `availableHeight()` (ledig højde ned til sidefoden), `fitSvg()` (tegning i containerens bredde og vinduets højde) og `onLayoutChange()` (resize/zoom, menu-ombrydning, elementstørrelse)
+- `frontend/src/pages/Overview.svelte` — bruger de fælles hjælpere
+- `frontend/src/pages/Editor.svelte` (Bindinger) — tegningen fylder den ledige højde, markeringsboksene følger med ved resize; sidepanelet er 300-360 px, så tegningen får resten af bredden
+- `frontend/src/pages/DrawEditor.svelte` (Tegn) — editorens højde beregnes ud fra den ledige plads (mindst 600 px, så hele SVG-Edits værktøjslinje ses) i stedet for `100vh - 170px`
+- `frontend/src/pages/Trends.svelte` + `lib/TrendChart.svelte` — tal-graferne deler den ledige højde (150-700 px; titel/legend-forbrug måles på de tegnede grafer), til/fra-grafer er faste; tag-listen går ned til sidefoden
+- Verificeret i browser: alle 11 sider ved 2560×1440, 1920×1080, 1280×720, 900×900 og 390×844 — ingen vandret scroll; Overview, Bindinger, Trends og de korte sider passer præcis i vinduet på skrivebordsstørrelser (Tegn scroller bevidst 60 px ved 720 px højde); markeringsbokse i Bindinger rammer elementet før og efter resize. 70 frontend- og 203 backend-tests
+
 ## [0.14.1 build 0019] — 2026-10-08 — Fix: Overview skalerer med browservinduet
 
 - `frontend/src/lib/canvas.ts` — `fitSize()`: største størrelse med tegningens proportioner der passer i den ledige plads (minimumshøjde 200 px)
