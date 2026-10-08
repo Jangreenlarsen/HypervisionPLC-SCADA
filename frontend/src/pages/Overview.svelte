@@ -3,7 +3,7 @@
   import { get, post, type Binding, type DrawingView, type LiveValue, type PlcSummary } from '../lib/api';
   import { clickFor, parseSetpoint, rangeText, toggleQuestion } from '../lib/actions';
   import { formatValue } from '../lib/animate';
-  import { byTag as indexByTag, fitSize, mountSvg, renderAll, renderBinding } from '../lib/canvas';
+  import { byTag as indexByTag, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
 
   let { route = 'overview', canEdit = false, canOperate = false }: { route?: string; canEdit?: boolean; canOperate?: boolean } = $props();
@@ -21,28 +21,10 @@
   let toast = $state<Toast | null>(null);
   let container: HTMLDivElement;
   let svgRoot: SVGSVGElement | null = null;
-  let resizeObserver: ResizeObserver | null = null;
+  let stopLayout: (() => void) | null = null;
 
-  /**
-   * Tegningen fylder den ledige plads i vinduet: fuld bredde og højden ned til sidefoden, med
-   * tegningens proportioner. Genberegnes når vinduet/zoom ændres eller menuen ombrydes.
-   */
-  function fit(): void {
-    if (!svgRoot || !container) return;
-    const vb = svgRoot.viewBox.baseVal;
-    const style = getComputedStyle(container);
-    const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + 2; // + kant
-    const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2;
-    const top = container.getBoundingClientRect().top + window.scrollY;
-    const footer = (document.querySelector('footer') as HTMLElement | null)?.offsetHeight ?? 0;
-    const main = container.closest('main');
-    const below = footer + (main ? parseFloat(getComputedStyle(main).paddingBottom) : 0) + 1;
-    const { width, height } = fitSize(vb?.width ?? 0, vb?.height ?? 0, container.clientWidth - padX + 2,
-      window.innerHeight - top - below - padY);
-    if (!height) return; // ingen brugbar viewBox — CSS-standarden (fuld bredde) gælder
-    svgRoot.style.width = `${width}px`;
-    svgRoot.style.height = `${height}px`;
-  }
+  /** Tegningen fylder den ledige plads i vinduet med sine proportioner (genberegnes ved resize/zoom). */
+  const fit = () => fitSvg(svgRoot, container);
   let toastTimer: ReturnType<typeof setTimeout>;
 
   const values: Record<string, LiveValue> = {};
@@ -204,11 +186,7 @@
   }
 
   onMount(async () => {
-    window.addEventListener('resize', fit);
-    // Bredden kan ændre sig uden vinduesresize (fx menuen ombrydes, scrollbar kommer/går)
-    resizeObserver = new ResizeObserver(() => fit());
-    resizeObserver.observe(document.querySelector('header') ?? document.body);
-    resizeObserver.observe(container);
+    stopLayout = onLayoutChange(fit, container);
     try {
       drawings = await get<{ id: string; name: string }[]>('/api/drawings');
     } catch (e) {
@@ -221,8 +199,7 @@
   });
 
   onDestroy(() => {
-    window.removeEventListener('resize', fit);
-    resizeObserver?.disconnect();
+    stopLayout?.();
     live.close();
     clearTimeout(toastTimer);
   });

@@ -7,13 +7,15 @@
 
   export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null }
 
-  let { title, unit, series, data, xRange }: {
+  let { title, unit, series, data, xRange, height = 260 }: {
     title: string;
     unit: string;
     series: ChartSeries[];
     data: [number[], ...(number | null | undefined)[][]];
     /** Den valgte periode [start, slut] — x-aksen viser altid hele perioden, også hvor der ingen data er. */
     xRange: [number, number];
+    /** Plot-højde i px for tal-grafer (til/fra-grafer er altid lave) — sættes af siden ud fra skærmen. */
+    height?: number;
   } = $props();
 
   let el: HTMLDivElement;
@@ -58,7 +60,7 @@
     const isBool = series.every((s) => s.isBool);
     return {
       width,
-      height: isBool ? 160 : 260,
+      height: isBool ? 160 : height,
       cursor: {
         sync: { key: 'trend' },
         drag: { x: true, y: false },
@@ -127,6 +129,8 @@
     const sig = series.map((s) => `${s.name}:${s.colorIndex}`).join('|') + unit;
     void xRange; // ny periode → effekten skal også køre
     if (!chart) return;
+    const wanted = series.every((s) => s.isBool) ? 160 : height;
+    if (chart.height !== wanted) chart.setSize({ width: el.clientWidth, height: wanted });
     if (sig !== signature) {
       signature = sig;
       build();

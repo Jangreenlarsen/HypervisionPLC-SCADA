@@ -109,7 +109,7 @@
   {/if}
 </header>
 
-<main class:wide={page === 'overview' && !!me && !me.must_change_password && !changingPassword}>
+<main>
   {#if error}<div class="error">{error}</div>{/if}
   {#if !checked}
     <p class="muted">Indlæser …</p>
@@ -146,7 +146,7 @@
   {/if}
 </main>
 
-<footer class:wide={page === 'overview'}>
+<footer>
   {#if info}
     <span>v{info.version} build {info.build}</span>
   {/if}
@@ -193,9 +193,8 @@
   .role { color: #bbb; font-size: .8rem; }
   .link { background: none; border: none; color: #ddd; padding: 0; text-decoration: underline; }
   .link:hover { color: #fff; }
-  main { padding: 1rem; max-width: 1600px; margin: 0 auto; }
-  /* Overview: tegningen må bruge hele skærmen (store kontrolrumsskærme) */
-  main.wide, footer.wide { max-width: none; }
+  /* Ingen breddegrænse: SCADA bruges også på store kontrolrumsskærme */
+  main { padding: 1rem; }
   footer {
     display: flex;
     flex-wrap: wrap;
@@ -204,8 +203,6 @@
     padding: .5rem 1rem 1rem;
     font-size: .8rem;
     color: var(--muted);
-    max-width: 1600px;
-    margin: 0 auto;
   }
   @media (max-width: 600px) {
     main { padding: .75rem 16px; }

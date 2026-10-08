@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
   import { get, patch } from '../lib/api';
+  import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
   import { align, assignColors, groupByUnit, MAX_SERIES, RANGES, SERIES_COLORS, type Point } from '../lib/trendData';
 
@@ -25,6 +26,47 @@
   let resp = $state<DataResp | null>(null);
   let timer: ReturnType<typeof setInterval> | null = null;
   let enabling = $state('');
+  let chartsEl = $state<HTMLElement>();
+  let room = $state(0); // ledig højde til graferne
+  let listEl = $state<HTMLElement>();
+  let listMax = $state(0); // tag-listens højde: ned til sidefoden, så siden ikke scroller pga. listen
+
+  /** Tal-grafernes højde: del den ledige plads mellem graferne (til/fra-grafer er faste og lave). */
+  // Titel, legend, kant og mellemrum pr. graf + hjælpeteksten — måles på de tegnede grafer (afhænger af skrift/zoom)
+  let overhead = $state(90);
+  let noteH = $state(30);
+  const plotHeight = $derived.by(() => {
+    const bools = groups.filter(([, t]) => t.every((x) => x.isBool)).length;
+    const numbers = groups.length - bools;
+    if (!numbers || !room) return 260;
+    const free = room - noteH - groups.length * overhead - bools * 160;
+    return Math.max(150, Math.min(700, Math.floor(free / numbers)));
+  });
+  const measure = () => {
+    if (chartsEl) room = availableHeight(chartsEl);
+    const aside = listEl?.closest('aside');
+    if (listEl && aside) {
+      // Det der står under listen i panelet (hjælpetekst, polstring, panelets margen) skal også være der
+      const below = aside.getBoundingClientRect().bottom - listEl.getBoundingClientRect().bottom
+        + (parseFloat(getComputedStyle(aside).marginBottom) || 0);
+      listMax = Math.max(160, Math.floor(availableHeight(listEl) - below));
+    }
+    const fig = chartsEl?.querySelector('figure');
+    const plot = fig?.querySelector('.u-wrap');
+    if (fig && plot) {
+      const margin = parseFloat(getComputedStyle(fig).marginBottom) || 0;
+      overhead = Math.ceil(fig.getBoundingClientRect().height + margin - plot.getBoundingClientRect().height);
+    }
+    const note = chartsEl?.querySelector(':scope > p') as HTMLElement | null;
+    if (note) noteH = Math.ceil(note.getBoundingClientRect().height + parseFloat(getComputedStyle(note).marginTop) + parseFloat(getComputedStyle(note).marginBottom));
+  };
+  // Mål igen når graferne er tegnet (første gang og når antallet af grafer ændres)
+  $effect(() => {
+    void groups.length;
+    void resp;
+    tick().then(measure);
+  });
+  let stopLayout: (() => void) | null = null;
 
   function loadSelection(): string[] {
     try {
@@ -158,8 +200,13 @@
     }
     restartTimer();
     load();
+    measure();
+    stopLayout = onLayoutChange(measure);
   });
-  onDestroy(() => timer && clearInterval(timer));
+  onDestroy(() => {
+    if (timer) clearInterval(timer);
+    stopLayout?.();
+  });
 </script>
 
 <div class="row toolbar">
@@ -183,7 +230,7 @@
   <aside class="panel">
     <h3>Tags</h3>
     <input bind:value={filter} placeholder="Søg" style="width:100%" />
-    <ul>
+    <ul bind:this={listEl} style={listMax ? `max-height:${listMax}px` : ''}>
       {#each shown as t (t.name)}
         <li>
           <label class:off={!t.trend && !t.samples} title={!t.trend ? 'Historik er ikke slået til for dette tag' : ''}>
@@ -207,7 +254,7 @@
     {/if}
   </aside>
 
-  <section class="charts">
+  <section class="charts" bind:this={chartsEl}>
     {#if noHistory}
       <div class="panel notice">
         <strong>Ingen tags gemmer historik endnu</strong> — derfor er de grå.
@@ -223,7 +270,7 @@
     {:else if resp}
       {#each groups as [unit, tags] (unit + tags.map((t) => t.name).join(','))}
         {@const c = chartFor(tags)}
-        <TrendChart title={unit} unit={unit === 'Til/fra' || unit === 'Uden enhed' ? '' : unit} series={c.series} data={c.data} xRange={[resp.start, resp.end]} />
+        <TrendChart title={unit} unit={unit === 'Til/fra' || unit === 'Uden enhed' ? '' : unit} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} />
       {/each}
       <p class="muted small">Træk vandret i en graf for at zoome; dobbeltklik for at zoome ud. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
     {/if}

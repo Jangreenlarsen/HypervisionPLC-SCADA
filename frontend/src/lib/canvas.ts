@@ -24,6 +24,42 @@ export function fitSize(vbW: number, vbH: number, availW: number, availH: number
   return { width: px(vbW * scale), height: px(vbH * scale) };
 }
 
+/** Ledig højde fra elementets top ned til sidefoden (vinduets bund minus sidefod og sidens polstring). */
+export function availableHeight(el: HTMLElement): number {
+  const top = el.getBoundingClientRect().top + window.scrollY;
+  const footer = (document.querySelector('footer') as HTMLElement | null)?.offsetHeight ?? 0;
+  const main = el.closest('main');
+  const pad = main ? parseFloat(getComputedStyle(main).paddingBottom) : 0;
+  return Math.floor(window.innerHeight - top - footer - pad - 1);
+}
+
+/** Giv en monteret SVG den største størrelse med dens proportioner, der passer i containeren og vinduet. */
+export function fitSvg(svg: SVGSVGElement | null, container: HTMLElement | null): void {
+  if (!svg || !container) return;
+  const vb = svg.viewBox.baseVal;
+  const style = getComputedStyle(container);
+  const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+  const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+  const { width, height } = fitSize(vb?.width ?? 0, vb?.height ?? 0, container.clientWidth - padX, availableHeight(container) - padY);
+  if (!height) return; // ingen brugbar viewBox — CSS-standarden (fuld bredde) gælder
+  svg.style.width = `${width}px`;
+  svg.style.height = `${height}px`;
+}
+
+/**
+ * Kald `fn` når layoutet kan have ændret sig: vinduesstørrelse/browser-zoom, menuen ombrydes
+ * (header ændrer højde) eller de givne elementer ændrer størrelse. Returnerer en oprydningsfunktion.
+ */
+export function onLayoutChange(fn: () => void, ...elements: (Element | null | undefined)[]): () => void {
+  window.addEventListener('resize', fn);
+  const ro = new ResizeObserver(() => fn());
+  for (const el of [document.querySelector('header'), ...elements]) if (el) ro.observe(el);
+  return () => {
+    window.removeEventListener('resize', fn);
+    ro.disconnect();
+  };
+}
+
 export function byTag(bindings: Binding[]): Map<string, Binding[]> {
   const map = new Map<string, Binding[]>();
   for (const b of bindings) map.set(b.tag, [...(map.get(b.tag) ?? []), b]);
