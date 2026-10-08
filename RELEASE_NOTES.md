@@ -2,6 +2,11 @@
 
 ---
 
+## v0.14.1 — 2026-10-08 — Overview fylder skærmen
+
+- Tegningen på Overview tilpasser sig nu browservinduet. Den bruger hele bredden på store skærme og passer i højden på lave skærme, så siden ikke skal scrolles.
+- Størrelsen følger med, når vinduet ændres, når du zoomer i browseren (Ctrl + / −), og når menuen fylder to linjer.
+
 ## v0.14.0 — 2026-10-08 — Flere animationer i én binding
 
 - Under **Bindinger** samler en binding nu ét tag med en eller flere animationer, fx tekst + blink på `test01`. Hver animation har sine egne indstillinger.
