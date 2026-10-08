@@ -4,6 +4,20 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.11.0 build 0013] — 2026-10-08 — Alarmer
+
+**Backend:**
+- `app/services/alarms.py` — alarmmotor (ISA-18.2 forenklet): høj-/lavalarm pr. tag (H/HH, L/LL) med dødbånd og eskalering/nedgradering, til/fra-alarm (`alarm_on`), forsinkelse, PLC-kommunikationsalarm (`SCADA_ALARM_COMM_DELAY_S`, standard 10 s); tilstande active_unack/active_ack/rtn_unack; tags uden gyldig værdi bevarer deres alarmtilstand; evaluering hvert sekund og ved hver ændring i live-værdier
+- Tabeller `alarm_state` (aktive alarmer — overlever genstart) og `alarm_events` (historik, seneste 50.000); migrering tilføjer alarmkolonner til `tags`
+- Tags: `alarm_hh/h/l/ll`, `alarm_deadband`, `alarm_delay_s`, `alarm_on` — valideret på den endelige tilstand ved opret/opdatér/import (stigende grænser, grænser kun på tal-tags, til/fra-alarm kun på til/fra-tags, dødbånd ≥ 0, forsinkelse 0-3600 s) og i backup/restore
+- `app/api/alarms.py` — `GET /api/alarms` (aktive + opsummering), `POST /api/alarms/ack` (operator+, enkelte eller alle synlige), `GET /api/alarms/history`; alt filtreret efter brugerens adgang pr. tegning; kvittering i audit-loggen
+- WebSocket sender `{"type":"alarms"}` ved forbindelse og ved hver ændring
+- 185 backend-tests (21 nye i `test_alarms.py`)
+
+**Frontend:** alarmklokke i toppen (antal aktive/ukvitterede, rød ved høj prioritet, blinker ved ukvitterede); ny side **Alarmer** (aktive med kvittering, historik); elementer bundet til et tag i alarm blinker rødt (ukvitteret) eller er rødt markeret (kvitteret) i Overview; alarmfelter i tag-redigering.
+
+**Verificeret** i browser mod mock-PLC: grænser sat i UI, alarmer udløses, klokke + markering i tegningen, kvittering registrerer bruger, historik.
+
 ## [0.10.0 build 0012] — 2026-10-08 — Fase 4: tegne-editor (SVG-Edit)
 
 **Frontend:**

@@ -112,6 +112,16 @@ code, .mono { font-family: ui-monospace, Consolas, monospace; font-size: .9em; }
 }
 .hv-blink { animation: hv-blink 1s steps(2, start) infinite; }
 .hv-clickable { cursor: pointer; }
+/* Alarm på et element: rød markering; ukvitteret blinker (farve er reserveret til alarmer — ISA-101) */
+.hv-alarm-ack { filter: drop-shadow(0 0 3px #c62828) drop-shadow(0 0 3px #c62828); }
+.hv-alarm-unack { animation: hv-alarm 1s steps(2, start) infinite; }
+@keyframes hv-alarm {
+  0% { filter: drop-shadow(0 0 4px #c62828) drop-shadow(0 0 4px #c62828); }
+  100% { filter: none; }
+}
+@media (prefers-reduced-motion: reduce) { .hv-alarm-unack { animation: none; filter: drop-shadow(0 0 4px #c62828); } }
+.prio-high { color: var(--alarm); font-weight: 600; }
+.prio-medium { color: var(--warn); font-weight: 600; }
 .hv-clickable:hover { filter: brightness(1.12) drop-shadow(0 0 3px rgba(31, 95, 153, .7)); }
 @keyframes hv-blink { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .hv-blink { animation: none; outline: 2px solid var(--alarm); } }

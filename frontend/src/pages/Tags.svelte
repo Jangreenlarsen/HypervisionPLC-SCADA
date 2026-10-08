@@ -10,10 +10,14 @@
     name: string; source: string; plc: string; description: string; unit: string;
     scale: number; offset: number; decimals: number | null; writable: boolean;
     min: number | null; max: number | null; confirm_write: boolean;
+    alarm_hh: number | null; alarm_h: number | null; alarm_l: number | null; alarm_ll: number | null;
+    alarm_deadband: number; alarm_delay_s: number; alarm_on: 'true' | 'false' | null;
   }
   interface EditForm {
     name: string; source: string; description: string; unit: string; scale: string; offset: string;
     decimals: string; writable: boolean; min: string; max: string; confirm_write: boolean;
+    alarm_hh: string; alarm_h: string; alarm_l: string; alarm_ll: string; alarm_deadband: string;
+    alarm_delay_s: string; alarm_on: '' | 'true' | 'false';
   }
   interface Suggestion { name: string; source: string; datatype: string; description: string; exists: boolean; pick?: boolean }
 
@@ -36,6 +40,8 @@
       name: t.name, source: t.source, description: t.description, unit: t.unit, scale: String(t.scale),
       offset: String(t.offset), decimals: s(t.decimals), writable: t.writable, min: s(t.min), max: s(t.max),
       confirm_write: t.confirm_write,
+      alarm_hh: s(t.alarm_hh), alarm_h: s(t.alarm_h), alarm_l: s(t.alarm_l), alarm_ll: s(t.alarm_ll),
+      alarm_deadband: String(t.alarm_deadband ?? 0), alarm_delay_s: String(t.alarm_delay_s ?? 0), alarm_on: t.alarm_on ?? '',
     };
   }
 
@@ -50,6 +56,9 @@
         scale: num(edit.scale, 'Skala'), offset: num(edit.offset, 'Offset'),
         ...(edit.decimals.trim() === '' ? {} : { decimals: num(edit.decimals, 'Decimaler') }),
         writable: edit.writable, min: opt(edit.min, 'Min'), max: opt(edit.max, 'Max'), confirm_write: edit.confirm_write,
+        alarm_hh: opt(edit.alarm_hh, 'HH'), alarm_h: opt(edit.alarm_h, 'H'), alarm_l: opt(edit.alarm_l, 'L'),
+        alarm_ll: opt(edit.alarm_ll, 'LL'), alarm_deadband: num(edit.alarm_deadband || '0', 'Dødbånd'),
+        alarm_delay_s: num(edit.alarm_delay_s || '0', 'Forsinkelse'), alarm_on: edit.alarm_on || null,
       });
       edit = null;
       await refresh();
@@ -207,6 +216,21 @@
       <label>Min (teknisk enhed)<input bind:value={edit.min} inputmode="decimal" placeholder="ingen" /></label>
       <label>Max (teknisk enhed)<input bind:value={edit.max} inputmode="decimal" placeholder="ingen" /></label>
       <label class="row" style="flex-direction: row"><input type="checkbox" bind:checked={edit.confirm_write} /> Kræv bekræftelse ved skrivning</label>
+    </div>
+    <h3 style="margin-top: .8rem">Alarmer</h3>
+    <p class="muted small">Tal-tags: grænser i teknisk enhed (tomt = ingen). Til/fra-tags: alarm når værdien er sand eller falsk.</p>
+    <div class="grid-form">
+      <label>HH (høj-høj)<input bind:value={edit.alarm_hh} inputmode="decimal" placeholder="ingen" /></label>
+      <label>H (høj)<input bind:value={edit.alarm_h} inputmode="decimal" placeholder="ingen" /></label>
+      <label>L (lav)<input bind:value={edit.alarm_l} inputmode="decimal" placeholder="ingen" /></label>
+      <label>LL (lav-lav)<input bind:value={edit.alarm_ll} inputmode="decimal" placeholder="ingen" /></label>
+      <label>Dødbånd<input bind:value={edit.alarm_deadband} inputmode="decimal" /></label>
+      <label>Forsinkelse (s)<input bind:value={edit.alarm_delay_s} inputmode="decimal" /></label>
+      <label>Til/fra-alarm
+        <select bind:value={edit.alarm_on}>
+          <option value="">Ingen</option><option value="true">Når sand</option><option value="false">Når falsk</option>
+        </select>
+      </label>
     </div>
     <div class="row" style="margin-top: .6rem">
       <button class="primary" onclick={saveEdit}>Gem</button>

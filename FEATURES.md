@@ -43,7 +43,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.7.0 — Audit-log over alle skrivninger og konfigurationsændringer (hvem, hvornår, hvad, gammel → ny, resultat) + side "Log"
 
 ### Fase 6 — Drift
-- [ ] planned — Alarmer (grænser pr. tag + PLC'ens `/api/alarms`) og alarmliste
+- [x] done v0.11.0 — Alarmer: grænser HH/H/L/LL pr. tag med dødbånd og forsinkelse, til/fra-alarmer, PLC-kommunikationsalarm; tilstande aktiv/kvitteret/ophørt (ISA-18.2 forenklet) gemt i DB; historik; kvittering (operator+); alarmtæller i toppen, side "Alarmer", blink i tegningen; adgang pr. tegning respekteres; grænser i Tags og backup
 - [ ] planned — Trends (RAM-ringbuffer + PLC'ens trend recorder)
 - [ ] planned — Raspberry Pi 4 deployment: Chromium-kiosk på lokal skærm (udskudt efter ønske — testserver 10.1.1.31 bruges indtil videre; install-script og systemd findes allerede)
 - [x] done v0.8.0 — Backup/restore af hele SCADA-projektet (PLC-forbindelser uden adgangskoder, tags, tegninger med alle versioner, bindinger; ikke brugere): download/restore som JSON (admin), fuld validering før noget ændres, automatisk backup før restore, atomisk udskiftning med tilbagerulning, automatiske døgn-backups på serveren (7 gemmes)
