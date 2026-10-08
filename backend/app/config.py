@@ -49,6 +49,8 @@ class Settings:
     alarm_tick_s: float = field(default_factory=lambda: _env_float("SCADA_ALARM_TICK_S", 1.0))
     # En PLC skal have været utilgængelig så længe før kommunikationsalarmen udløses
     alarm_comm_delay_s: float = field(default_factory=lambda: _env_float("SCADA_ALARM_COMM_DELAY_S", 10.0))
+    trend_days: float = field(default_factory=lambda: _env_float("SCADA_TREND_DAYS", 30.0))
+    trend_flush_s: float = field(default_factory=lambda: _env_float("SCADA_TREND_FLUSH_S", 5.0))
     start_runtimes: bool = True
 
     def __post_init__(self) -> None:

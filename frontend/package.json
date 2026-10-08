@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "dompurify": "^3.4.16",
-    "svgedit": "^7.4.2"
+    "svgedit": "^7.4.2",
+    "uplot": "^1.6.32"
   }
 }

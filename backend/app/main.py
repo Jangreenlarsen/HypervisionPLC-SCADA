@@ -20,6 +20,7 @@ from .api.errors import install_error_handlers
 from .api.alarms import router as alarms_router
 from .api.auth import router as auth_router
 from .api.backup import router as backup_router
+from .api.trends import router as trends_router
 from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
 from .api.operate import router as operate_router
@@ -32,12 +33,14 @@ from .services.backup import BackupService
 from .services.operate import OperateService
 from .services.drawings import DrawingService
 from .services.scope import ScopeService
+from .services.trends import TrendRecorder
 from .services.live_cache import LiveCache
 from .services.manager import PlcManager, TransportFactory
 from .services.plcs import PlcService
 from .services.tags import TagService
 from .storage.db import Database
 from .storage.files import DrawingFiles
+from .storage.trends_db import TrendDatabase
 from .storage.secrets import SecretStore
 
 log = logging.getLogger("scada")
@@ -71,6 +74,12 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.alarm_service = AlarmService(manager, db, tick_s=settings.alarm_tick_s,
                                                comm_delay_s=settings.alarm_comm_delay_s)
         alarm_task = asyncio.create_task(app.state.alarm_service.run(), name="alarms")
+        trend_db = TrendDatabase(settings.data_dir / "trends.db")
+        app.state.trend_db = trend_db
+        app.state.trend_recorder = TrendRecorder(manager, trend_db, flush_s=settings.trend_flush_s,
+                                                 retention_days=settings.trend_days)
+        app.state.tag_service.on_delete = trend_db.forget
+        trend_task = asyncio.create_task(app.state.trend_recorder.run(), name="trends")
         backup_task = None
         if settings.backup_hours > 0 and settings.start_runtimes:
             backup_task = asyncio.create_task(app.state.backup_service.auto_backup_loop(settings.backup_hours))
@@ -79,6 +88,12 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
             yield
         finally:
             alarm_task.cancel()
+            trend_task.cancel()
+            try:
+                await trend_task  # så de sidste samples bliver gemt
+            except (asyncio.CancelledError, Exception):
+                pass
+            trend_db.close()
             if backup_task is not None:
                 backup_task.cancel()
             await manager.stop_all()
@@ -99,6 +114,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(auth_router)
     app.include_router(backup_router)
     app.include_router(alarms_router)
+    app.include_router(trends_router)
     app.include_router(router)
     app.include_router(drawings_router)
     app.include_router(live_router)

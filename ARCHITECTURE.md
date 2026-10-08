@@ -28,6 +28,7 @@ Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.m
 │ Lag 3 — Service-lag                              │
 │   tegninger · bindinger · tags · live-cache ·    │
 │   abonnementer · skriv+audit · brugere · alarmer │
+│   · trend-opsamling                              │
 └───────┬───────────────────────────┬──────────────┘
         │                           │
 ┌───────▼──────────────┐   ┌────────▼─────────────┐
@@ -57,7 +58,7 @@ Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.m
 - **Regler**: Ingen forretningslogik og ingen direkte DB- eller PLC-kald — alt går gennem service-laget.
 
 ### Lag 3 — Service-lag
-- **Ansvar**: SVG-sanering og versioner, bindinger, tag-model og -skalering, live-cache (værdi + kvalitet + tid), abonnements-sæt, skrive-service (validering min/max, audit), brugere/roller (inkl. sidste-admin-beskyttelse), alarmer.
+- **Ansvar**: SVG-sanering og versioner, bindinger, tag-model og -skalering, live-cache (værdi + kvalitet + tid), abonnements-sæt, skrive-service (validering min/max, audit), brugere/roller (inkl. sidste-admin-beskyttelse), alarmer, trend-opsamling (ved ændring + keepalive, batch-skrivning, oprydning).
 - **Filer**: `backend/app/services/`
 - **Regler**: Kalder PLC-klient-laget og lager-laget; aldrig HTTP direkte.
 
@@ -67,7 +68,7 @@ Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.m
 - **Regler**: Eneste sted i koden der laver netværkskald til en PLC. Returnerer typede resultater/fejl — aldrig rå httpx-exceptions op til service-laget.
 
 ### Lag 4b — Lager
-- **Ansvar**: SQLite-tabeller (plcs, tags, drawings, drawing_versions, bindings, users, audit), SVG-filer pr. version, secrets.
+- **Ansvar**: SQLite-tabeller (plcs, tags, drawings, drawing_versions, bindings, users, audit, alarmer), SVG-filer pr. version, secrets. Trend-historik ligger i en separat `trends.db` (samples uden rowid, PK tag+tid), så store datamængder ikke belaster konfigurationsdatabasen.
 - **Filer**: `backend/app/storage/`, data i `data/` (git-ignoreret)
 - **Regler**: Opdateringer skriver kun ændrede felter (ingen read-modify-write af hele rækker/dokumenter).
 
