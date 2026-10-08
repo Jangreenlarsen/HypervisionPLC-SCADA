@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.7.0.1 build 0008] — 2026-10-08 — debug: langsom opdatering mod rigtig PLC
+
+**Årsag:** SSE-watch-listen blev sendt URL-kodet (`coils=0%2C1%2C2`). PLC'en afkoder ikke query-strengen og overvågede kun første adresse pr. type, mens SCADA'en antog at alle var dækket og kun pollede dem hvert 2. s. ST-variabler blev også kun pollet hvert 2. s når SSE var sund.
+
+**Ændret:**
+- `app/plc/sse.py` — query bygges med ukodede kommaer (`build_query`); HR/IR-loft 159 som PLC'en; "dækning" afledes af PLC'ens `connected.watching` — kun bekræftede adresser regnes som leveret af SSE, ellers advarsel i status
+- `app/services/plc_runtime.py` — alt SSE ikke leverer (ST-variabler, GLOBAL_VAR, 32-bit, ubekræftede adresser) polles hvert 0,5 s; SSE-dækkede adresser får kontrol-poll hvert 2 s
+- `mock_plc/app.py` — URL-afkoder ikke query-strengen og har PLC'ens adresselofter (som den rigtige PLC), så fejlen fanges i test
+- PLC-siden viser hvor mange adresser SSE dækker
+- 147 backend-tests (4 nye regressionstests)
+
 ## [0.7.0 build 0007] — 2026-10-08 — Fase 5: betjening og audit-log
 
 **Backend:**

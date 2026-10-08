@@ -2,6 +2,12 @@
 
 ---
 
+## v0.7.0.1 — 2026-10-08 — Fejlsøgning: hurtigere live-opdatering
+
+- Live-værdier fra PLC'en opdateres nu hurtigt igen: SSE-strømmen overvågede kun én adresse pr. type, og ST-variabler blev kun hentet hvert 2. sekund. Nu leverer SSE alle ønskede adresser, og alt andet hentes hvert ½ sekund.
+- PLC-siden viser hvor mange adresser SSE dækker.
+- Afventer bekræftelse fra drift.
+
 ## v0.7.0 — 2026-10-08 — Betjening fra Overview
 
 - Operatører kan nu betjene anlægget direkte i tegningen: klik på et element for at indtaste et setpunkt, slå noget til/fra eller sende en puls. Klik kan også åbne en anden tegning.

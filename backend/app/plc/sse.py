@@ -3,7 +3,13 @@
 SSE er et supplement til polling, ikke en forudsætning (docs/HYPERVISIONPLC_ANALYSE.md):
 - højst 3 SSE-klienter pr. PLC (delt med PLC'ens eget dashboard) → 503 er normalt,
 - strømmen er altid ukrypteret,
-- watch-list max 32 adresser pr. type (ellers `subscribe=all`), og kun IR 0-255.
+- watch-list max 32 adresser pr. type (ellers `subscribe=all`); HR/IR kun 0-159, coils/DI 0-255
+  (sse_events.cpp: sse_parse_addr_list(..., 159/255)),
+- PLC'en URL-afkoder IKKE query-strengen: kommaer skal sendes ukodede, ellers læses kun den
+  første adresse (SCADA BUGS v0.7.0).
+
+"Dækning": en adresse regnes kun som leveret af SSE, når PLC'ens `connected`-hændelse bekræfter
+at den overvåger præcis det antal adresser vi bad om. Alt andet polles hurtigt.
 """
 
 from __future__ import annotations
@@ -11,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from urllib.parse import quote
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 from urllib.parse import urlsplit
@@ -23,7 +30,7 @@ from .errors import PlcError
 log = logging.getLogger(__name__)
 
 SSE_MAX_WATCH = 32
-SSE_ADDR_MAX = {"hr": 255, "ir": 255, "coil": 255, "di": 255}
+SSE_ADDR_MAX = {"hr": 159, "ir": 159, "coil": 255, "di": 255}
 _WATCH_PARAM = {"hr": "hr", "ir": "ir", "coil": "coils", "di": "di"}
 
 
@@ -77,6 +84,15 @@ def build_watch(addresses: dict[str, set[int]]) -> tuple[dict[str, str], bool]:
     return params, False
 
 
+def build_query(params: dict[str, str]) -> str:
+    """Query-streng med ukodede kommaer — PLC'en afkoder ikke %2C (se modulets docstring)."""
+    return "&".join(f"{k}={quote(str(v), safe=',')}" for k, v in params.items())
+
+
+# PLC'ens navne i `connected.watching` (den rigtige PLC skriver "coils"; vi accepterer begge)
+_WATCHING_KEYS = {"hr": ("hr",), "ir": ("ir",), "coil": ("coils", "coil"), "di": ("di",)}
+
+
 @dataclass
 class SseState:
     state: str = "off"  # off | connecting | connected | full | disabled_on_plc | error
@@ -111,6 +127,9 @@ class SseListener:
         self._addresses: dict[str, set[int]] = {}
         self._addresses_changed = asyncio.Event()
         self.status = SseState()
+        self._requested: dict[str, set[int]] = {}
+        self._watch_all = False
+        self.covered: dict[str, set[int]] = {}
 
     def set_addresses(self, addresses: dict[str, set[int]]) -> None:
         if addresses != self._addresses:
@@ -119,6 +138,36 @@ class SseListener:
 
     def healthy(self, now: float) -> bool:
         return self.status.state == "connected" and now - self.status.last_event_monotonic < self._heartbeat_timeout
+
+    def covers(self, kind: str, addr: int) -> bool:
+        """Leverer SSE ændringer for denne adresse (bekræftet af PLC'en)?"""
+        return self.status.state == "connected" and addr in self.covered.get(kind, ())
+
+    def _on_connected(self, data: Any) -> None:
+        watching = data.get("watching") if isinstance(data, dict) else None
+        covered: dict[str, set[int]] = {}
+        short: list[str] = []
+        for kind, wanted in self._requested.items():
+            if not wanted:
+                continue
+            if self._watch_all:
+                covered[kind] = set(wanted)
+                continue
+            got = None
+            if isinstance(watching, dict):
+                for key in _WATCHING_KEYS[kind]:
+                    if isinstance(watching.get(key), int):
+                        got = watching[key]
+                        break
+            if got == len(wanted):
+                covered[kind] = set(wanted)
+            else:
+                short.append(f"{kind}: {got if got is not None else '?'} af {len(wanted)}")
+        self.covered = covered
+        if short:
+            msg = "PLC'en overvåger færre adresser end ønsket (" + ", ".join(short) + ") — de polles i stedet"
+            log.warning("SSE %s: %s", self._client.name, msg)
+            self.status.message = msg
 
     async def run(self) -> None:
         loop = asyncio.get_running_loop()
@@ -161,12 +210,16 @@ class SseListener:
 
         host = urlsplit(self._client.base_url).hostname
         params, watch_all = build_watch(self._addresses)
+        self._watch_all = watch_all
+        self._requested = {k: {a for a in v if 0 <= a <= SSE_ADDR_MAX[k]} for k, v in self._addresses.items()}
+        self.covered = {}
         params["token"] = token
-        url = f"http://{host}:{port}/api/events"  # PLC'ens SSE er altid plain HTTP (SECURITY_INDEX #13)
+        # PLC'ens SSE er altid plain HTTP (SECURITY_INDEX #13); query bygges selv (ukodede kommaer).
+        url = f"http://{host}:{port}/api/events?{build_query(params)}"
         timeout = httpx.Timeout(10.0, read=self._heartbeat_timeout)
         parser = SseParser()
         async with httpx.AsyncClient(timeout=timeout) as http:
-            async with http.stream("GET", url, params=params) as resp:
+            async with http.stream("GET", url) as resp:
                 if resp.status_code == 503:
                     self.status = SseState(state="full", message="PLC'ens SSE-pladser er optaget — kører på polling")
                     return self._full_retry_s
@@ -189,8 +242,11 @@ class SseListener:
                         self.status = SseState(state="full", message="PLC'ens SSE-pladser er optaget")
                         return self._full_retry_s
                     self.status.events += 1
-                    if event.event == "register" and isinstance(event.data, dict):
+                    if event.event == "connected":
+                        self._on_connected(event.data)
+                    elif event.event == "register" and isinstance(event.data, dict):
                         await self._dispatch(event.data)
+        self.covered = {}
         self.status = SseState(state="error", message="SSE-strømmen blev lukket af PLC'en")
         return self._retry_s
 
