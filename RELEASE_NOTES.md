@@ -2,6 +2,10 @@
 
 ---
 
+## v0.13.1 — 2026-10-08 — Renere serverlog
+
+- Serveren skriver ikke længere fejlmeldingen "Task was destroyed but it is pending!" i loggen, hver gang en browser skifter side eller lukker. Meldingen var harmløs, men gjorde det svært at se de rigtige fejl.
+
 ## v0.13.0 — 2026-10-08 — Tekst før og efter værdien
 
 - Tekst-bindinger under **Bindinger** har fået felterne **Tekst før** og **Tekst efter**. Fx giver "Tank : " + værdien + " liter" teksten "Tank : 1002 liter" i tegningen. Fjern fluebenet i "Vis enhed", hvis tagets egen enhed ikke skal med.
