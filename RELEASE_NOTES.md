@@ -2,6 +2,10 @@
 
 ---
 
+## v0.8.1 — 2026-10-08 — Hurtig live-opdatering bekræftet
+
+- Rettelsen fra v0.7.0.1 er bekræftet i drift: alle PLC-udgange og -indgange (fx DO2) opdateres nu lige så hurtigt som DO1.
+
 ## v0.8.0 — 2026-10-08 — Backup og gendannelse
 
 - Ny side **Backup** (kun admin): hent en backup af hele opsætningen — PLC-forbindelser, tags, alle tegninger og bindinger — som én fil.
