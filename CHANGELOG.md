@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.14.0 build 0018] — 2026-10-08 — Flere animationer i én binding
+
+- `frontend/src/lib/bindingForm.ts` — `Draft` (formular + gruppe-id), `toDrafts()` (gruppér pr. tag; gå-til-tegning og tomt tag står for sig), `groupIds()`, `flatten()` (samlet rækkefølge til backenden), `nextBinding()` (arver tag, vælger ubrugt animation)
+- `frontend/src/pages/Editor.svelte` — én binding = ét tag-valg + en eller flere animationer med hver sine parametre; "+ Animation", "×" pr. animation, "Fjern binding"; tag-skift gælder alle bindingens animationer; fejlbeskeder nævner binding og animation
+- Fix: "+ Tilføj binding" på et auto-bundet element smed den automatiske binding væk ved gem — den tages nu med
+- Backend uændret: én række pr. animation som før
+- Tests: `bindingForm.test.ts` (5 nye) — 65 frontend, 203 backend
+- Verificeret i browser: test01 = tekst ("Status: Til/Fra") + blink i samme binding, gemt og genindlæst som én binding, blinker på Overview når sand
+
 ## [0.13.2 build 0017] — 2026-10-08 — Fix: Trends — historik kan slås til direkte, enkeltstående værdier ses
 
 - `frontend/src/pages/Trends.svelte` — besked når intet tag gemmer historik (forklarer de grå tags); knappen "Gem historik" ud for tags uden historik (tekniker/admin, `PATCH /api/tags/{navn}` `{trend: true}`), der også vælger tagget; viewer/operatør ser ingen knap, og hjælpeteksten om Tags vises kun for tekniker/admin

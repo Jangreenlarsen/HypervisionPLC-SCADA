@@ -59,6 +59,46 @@ export function emptyForm(tag = '', anim: Anim = 'text'): BindingForm {
   };
 }
 
+/**
+ * Én binding i editoren = ét tag med en eller flere animationer (fx tekst + blink), hver med egne
+ * parametre. Backenden gemmer stadig én række pr. animation; `gid` samler dem i editoren.
+ */
+export type Draft = BindingForm & { gid: number };
+
+/** Gruppér formularer pr. tag (gå-til-tegning har intet tag og står altid for sig selv). */
+export function toDrafts(forms: BindingForm[], firstGid = 0): Draft[] {
+  const byTag = new Map<string, number>();
+  let next = firstGid;
+  return forms.map((f) => {
+    if (f.anim === 'click:goto' || !f.tag) return { ...f, gid: next++ };
+    if (!byTag.has(f.tag)) byTag.set(f.tag, next++);
+    return { ...f, gid: byTag.get(f.tag)! };
+  });
+}
+
+/** Gruppernes rækkefølge (første forekomst). */
+export function groupIds(drafts: Draft[]): number[] {
+  return [...new Set(drafts.map((d) => d.gid))];
+}
+
+/** Flad liste til backenden, samlet pr. binding så de gemmes (og genindlæses) i samme rækkefølge. */
+export function flatten(drafts: Draft[]): Draft[] {
+  return groupIds(drafts).flatMap((g) => drafts.filter((d) => d.gid === g));
+}
+
+/**
+ * Ny animation i en binding: samme tag som bindingens øvrige animationer og den første passende
+ * animation der ikke allerede er brugt (tekst → blink → …). Tekst-elementer starter med tekst,
+ * figurer med fyldfarve.
+ */
+export function nextBinding(existing: BindingForm[], isText: boolean): BindingForm {
+  const used = new Set(existing.map((d) => d.anim));
+  const order: Anim[] = isText ? ['text', 'blink', 'fill', 'visible', 'opacity'] : ['fill', 'blink', 'visible', 'stroke', 'opacity'];
+  const anim = order.find((a) => !used.has(a)) ?? order[0];
+  const tag = [...existing].reverse().find((d) => d.tag && d.anim !== 'click:goto')?.tag ?? '';
+  return emptyForm(tag, anim);
+}
+
 const str = (v: unknown, fallback: string) => (v === null || v === undefined ? fallback : String(v));
 
 export function toForm(b: Pick<Binding, 'tag' | 'anim' | 'params'>): BindingForm {

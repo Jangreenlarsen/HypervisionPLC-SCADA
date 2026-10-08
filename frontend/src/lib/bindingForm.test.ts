@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyForm, fromForm, parseNumber, pickElement, toForm, toHex } from './bindingForm';
+import { emptyForm, flatten, fromForm, groupIds, nextBinding, toDrafts, parseNumber, pickElement, toForm, toHex } from './bindingForm';
 
 describe('parseNumber', () => {
   it('accepterer decimalkomma og 0', () => {
@@ -61,4 +61,30 @@ describe('toHex', () => {
     expect(toHex('#2e7d32')).toBe('#2e7d32');
     expect(toHex('red')).toBe('#000000');
   });
+});
+
+describe('nextBinding', () => {
+  it('første binding: tekst på tekst-element, fyldfarve på figur, intet tag', () => {
+    expect(nextBinding([], true)).toMatchObject({ tag: '', anim: 'text' });
+    expect(nextBinding([], false)).toMatchObject({ tag: '', anim: 'fill' });
+  });
+  it('kombinér: samme tag, og en animation der ikke allerede er brugt (tekst → blink)', () => {
+    const b = nextBinding([emptyForm('test01', 'text')], true);
+    expect(b).toMatchObject({ tag: 'test01', anim: 'blink' });
+    expect(nextBinding([emptyForm('test01', 'text'), b], true).anim).toBe('fill');
+  });
+  it('arver seneste tag med et tag (ikke gå-til-tegning)', () => {
+    expect(nextBinding([emptyForm('A', 'fill'), emptyForm('B', 'blink'), emptyForm('', 'click:goto')], false).tag).toBe('B');
+  });
+});
+
+describe('toDrafts / flatten', () => {
+  it('samme tag = én binding med flere animationer; gå-til-tegning og tomt tag står for sig', () => {
+    const d = toDrafts([emptyForm('A', 'text'), emptyForm('B', 'fill'), emptyForm('A', 'blink'),
+      emptyForm('', 'click:goto'), emptyForm('', 'text')]);
+    expect(d.map((x) => x.gid)).toEqual([0, 1, 0, 2, 3]);
+    expect(groupIds(d)).toEqual([0, 1, 2, 3]);
+    expect(flatten(d).map((x) => `${x.tag}:${x.anim}`)).toEqual(['A:text', 'A:blink', 'B:fill', ':click:goto', ':text']);
+  });
+  it('nye gid kan starte efter de eksisterende', () => expect(toDrafts([emptyForm('A', 'text')], 7)[0].gid).toBe(7));
 });
