@@ -2,6 +2,13 @@
 
 ---
 
+## v0.18.1 — 2026-10-08 — Stop og slet historik
+
+- På **Trends** har tekniker og admin fået fluebenet **Administrér**. Det viser knapper ud for hvert tag:
+  - **Gem** og **Stop** slår historikken til og fra. Ved Stop bevares det gemte, så det stadig kan vises.
+  - **Slet** fjerner tagets gemte værdier, efter du har bekræftet det.
+- Ændringer gælder med det samme: "Stop" stopper opsamlingen straks, og "Gem" begynder straks.
+
 ## v0.18.0 — 2026-10-08 — Zoom på Overview og start-tegning
 
 - **Zoom og panorering på Overview:** brug musehjulet eller knapperne − / + og træk for at flytte rundt. På mobil og tablet zoomer man med to fingre, og **Tilpas** viser hele tegningen igen. Når man trækker hen over en knap i tegningen, betjenes den ikke. Det gør den kun ved et almindeligt klik.

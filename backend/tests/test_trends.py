@@ -147,7 +147,8 @@ def test_api_records_and_serves_series(api, mock_plc):
 
 def test_csv_export(api, mock_plc):
     mock_plc.state.hr[5] = 123
-    _wait(lambda: api.get("/api/trends/info").json()["tags"][1]["samples"] > 0)
+    # Opsamlingen starter straks ved oprettelse, så første værdi kan være 0 — vent på 12,3
+    _wait(lambda: ";Niveau;12,3" in api.get("/api/trends/export?tags=Niveau").text)
     r = api.get("/api/trends/export?tags=Niveau")
     assert r.status_code == 200 and "attachment" in r.headers["content-disposition"]
     lines = r.text.lstrip("﻿").splitlines()
@@ -174,6 +175,42 @@ def test_deleting_tag_forgets_history(api, mock_plc):
     _wait(lambda: api.app.state.trend_db.stats().get("Motor"))
     assert api.delete("/api/tags/Motor").status_code == 204
     assert "Motor" not in api.app.state.trend_db.stats()
+
+
+def test_recorder_forget_drops_buffered_values(rec):
+    r, tdb, _ = rec
+    r.offer("A", _good(5, 1000))
+    r.flush(now=1001)
+    r.offer("A", _good(9, 1020))  # ligger i bufferen, ikke skrevet endnu
+    assert r.forget("A") == 1
+    r.flush(now=1021)
+    assert _rows(tdb, "A") == []  # den bufferede værdi dukker ikke op igen
+    r.offer("A", _good(3, 1030))  # opsamlingen fortsætter: første værdi efter sletning gemmes straks
+    r.flush(now=1031)
+    assert _rows(tdb, "A") == [(1030, 3.0)]
+
+
+def test_delete_history_api(api, mock_plc):
+    _wait(lambda: api.app.state.trend_db.stats().get("Motor"))
+    r = api.delete("/api/trends/history/Motor")
+    assert r.status_code == 200 and r.json()["deleted"] >= 1
+    assert api.get("/api/tags/Motor").json()["trend"] is True  # sletning slår ikke opsamlingen fra
+    assert any(e["action"] == "trend.delete" and e["target"] == "Motor" for e in api.get("/api/audit").json())
+    # "Stop" = tagets trend-felt; det gemte bevares
+    _wait(lambda: api.app.state.trend_db.stats().get("Niveau"))
+    assert api.patch("/api/tags/Niveau", json={"trend": False}).status_code == 200
+    info = {t["name"]: t for t in api.get("/api/trends/info").json()["tags"]}
+    assert info["Niveau"]["trend"] is False and info["Niveau"]["samples"] >= 1
+    # Efter "Stop" + "Slet" kommer der ingen nye værdier (opsamleren stopper straks, ikke ved næste skrivning)
+    api.delete("/api/trends/history/Niveau")
+    mock_plc.state.hr[5] = 777
+    time.sleep(1.0)
+    assert "Niveau" not in api.app.state.trend_db.stats()
+    # Kun tekniker/admin
+    api.post("/api/users", json={"username": "kigger", "role": "viewer", "password": "Hemmelig-123"})
+    api.post("/api/auth/login", json={"username": "kigger", "password": "Hemmelig-123"})
+    api.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})
+    assert api.delete("/api/trends/history/Niveau").status_code == 403
 
 
 def test_scoped_user_only_gets_own_tags(api):

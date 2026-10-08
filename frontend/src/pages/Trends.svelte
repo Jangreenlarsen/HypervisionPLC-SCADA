@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
-  import { get, patch } from '../lib/api';
+  import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
   import { align, assignColors, groupByUnit, MAX_SERIES, RANGES, SERIES_COLORS, type Point } from '../lib/trendData';
@@ -26,6 +26,8 @@
   let resp = $state<DataResp | null>(null);
   let timer: ReturnType<typeof setInterval> | null = null;
   let enabling = $state('');
+  let manage = $state(false); // "Administrér historik": slå til/fra og slet pr. tag (tekniker/admin)
+  let info2 = $state('');
   let chartsEl = $state<HTMLElement>();
   let room = $state(0); // ledig højde til graferne
   let listEl = $state<HTMLElement>();
@@ -162,6 +164,43 @@
     }
   }
 
+  /** Slå opsamlingen fra — det gemte bevares (indtil det udløber) og kan stadig vises. */
+  async function stopTrend(t: InfoTag): Promise<void> {
+    error = '';
+    info2 = '';
+    enabling = t.name;
+    try {
+      await patch(`/api/tags/${encodeURIComponent(t.name)}`, { trend: false });
+      t.trend = false;
+      info2 = `Historik for ${t.description || t.name} gemmes ikke længere. Det gemte kan stadig vises og slettes.`;
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      enabling = '';
+    }
+  }
+
+  async function deleteHistory(t: InfoTag): Promise<void> {
+    const what = t.description || t.name;
+    if (!confirm(`Slet al gemt historik for "${what}" (${t.samples} værdier)? Det kan ikke fortrydes.` +
+      (t.trend ? '\n\nOpsamlingen fortsætter — brug "Stop" hvis der heller ikke skal gemmes mere.' : ''))) return;
+    error = '';
+    info2 = '';
+    enabling = t.name;
+    try {
+      const r = await api<{ deleted: number }>('DELETE', `/api/trends/history/${encodeURIComponent(t.name)}`);
+      t.samples = 0;
+      t.oldest = null;
+      if (!t.trend && selected.includes(t.name)) toggle(t.name); // intet tilbage at vise
+      else load();
+      info2 = `Slettede ${r?.deleted ?? 0} værdier for ${what}.`;
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      enabling = '';
+    }
+  }
+
   const noHistory = $derived(!!info && info.tags.length > 0 && !info.tags.some((t) => t.trend || t.samples));
 
   const exportUrl = $derived.by(() => {
@@ -225,10 +264,18 @@
 </div>
 
 {#if error}<div class="error">{error}</div>{/if}
+{#if info2}<div class="notice">{info2}</div>{/if}
 
 <div class="layout">
   <aside class="panel">
-    <h3>Tags</h3>
+    <div class="row" style="justify-content: space-between">
+      <h3>Tags</h3>
+      {#if canEdit}
+        <label class="small row" title="Slå historik til/fra og slet gemt historik pr. tag">
+          <input type="checkbox" bind:checked={manage} /> Administrér
+        </label>
+      {/if}
+    </div>
     <input bind:value={filter} placeholder="Søg" style="width:100%" />
     <ul bind:this={listEl} style={listMax ? `max-height:${listMax}px` : ''}>
       {#each shown as t (t.name)}
@@ -239,7 +286,17 @@
             <span class="name">{t.description || t.name}</span>
             <span class="muted small">{t.unit}</span>
           </label>
-          {#if !t.trend && !t.samples && canEdit}
+          {#if canEdit && manage}
+            {#if t.trend}
+              <button class="small enable" disabled={enabling === t.name} onclick={() => stopTrend(t)}
+                title="Stop med at gemme historik — det gemte bevares">Stop</button>
+            {:else}
+              <button class="small enable" disabled={enabling === t.name} onclick={() => enableTrend(t)}
+                title="Begynd at gemme historik for {t.name}">Gem</button>
+            {/if}
+            <button class="small enable danger" disabled={enabling === t.name || !t.samples} onclick={() => deleteHistory(t)}
+              title={t.samples ? `Slet de ${t.samples} gemte værdier` : 'Ingen gemte værdier'}>Slet</button>
+          {:else if !t.trend && !t.samples && canEdit}
             <button class="small enable" disabled={enabling === t.name} onclick={() => enableTrend(t)}
               title="Begynd at gemme historik for {t.name}">Gem historik</button>
           {/if}

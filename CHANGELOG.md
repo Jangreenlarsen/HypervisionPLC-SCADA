@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.18.1 build 0025] — 2026-10-08 — Fix: historik kan slås fra og slettes fra Trends
+
+- `frontend/src/pages/Trends.svelte` — "Administrér" (tekniker/admin): pr. tag "Gem"/"Stop" (tagets historik-felt; det gemte bevares) og "Slet" (med bekræftelse og antal værdier); besked efter handlingen
+- `backend/app/api/trends.py` — `DELETE /api/trends/history/{navn}` (tekniker+, audit `trend.delete`) — slår ikke opsamlingen fra
+- `backend/app/services/trends.py` — `TrendRecorder.forget()` sletter også værdier i bufferen, så de ikke dukker op igen
+- `backend/app/services/tags.py` + `main.py` — `on_change`: opsamleren læser historik-indstillingerne straks ved oprettelse/ændring/import (før: ved næste skrivning, op til 5 s); sletning af et tag går nu også gennem `forget`
+- Tests: `test_trends.py` (2 nye; CSV-testen venter nu på den forventede værdi, fordi opsamlingen starter straks) — 207 backend
+- Verificeret i browser med driftens skriveinterval (5 s): Stop → gemmes ikke mere, kan stadig vises; Slet → 0 værdier, også efter en hel skrivecyklus
+
 ## [0.18.0 build 0024] — 2026-10-08 — Overview: zoom/panorering og start-tegning
 
 **Start-tegning:**

@@ -14,7 +14,7 @@ from fastapi.responses import Response
 from ..services.auth import CurrentUser
 from ..services.errors import ServiceError
 from ..services.tagsource import TagSourceError, parse_source
-from .auth import require
+from .auth import audit, require
 
 router = APIRouter(prefix="/api/trends")
 MAX_SPAN_S = 400 * 86400
@@ -99,3 +99,11 @@ async def info(request: Request, user: CurrentUser = Depends(require("viewer")))
     recorder = request.app.state.trend_recorder
     return {"retention_days": recorder.retention_days, "db_size": request.app.state.trend_db.size_bytes(),
             "tags": tags}
+
+
+@router.delete("/history/{name}")
+async def delete_history(name: str, request: Request, user: CurrentUser = Depends(require("engineer"))) -> dict[str, Any]:
+    """Slet al gemt historik for ét tag. Opsamlingen slås IKKE fra her (det er tagets "trend"-felt)."""
+    deleted = request.app.state.trend_recorder.forget(name)
+    audit(request, "trend.delete", name, {"samples": deleted})
+    return {"deleted": deleted}

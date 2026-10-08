@@ -30,6 +30,7 @@ class TagService:
         self.manager = manager
         self.db = manager.db
         self.on_delete: Any = None  # fx trend-historikken der skal glemme tagget
+        self.on_change: Any = None  # fx trend-opsamleren der skal læse historik-indstillingerne straks
 
     def list(self, plc: str | None = None) -> list[dict[str, Any]]:
         return [_public(t) for t in self.db.list_tags(plc=plc)]
@@ -131,6 +132,10 @@ class TagService:
         if final("alarm_on") is not None and source.datatype not in ("bool", "auto"):
             raise ServiceError(400, "'Alarm ved til/fra' kræver et til/fra-tag (coil, di eller BOOL-variabel)")
 
+    def _changed(self) -> None:
+        if self.on_change is not None:
+            self.on_change()
+
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
         name = data.get("name")
         if not isinstance(name, str) or not TAG_NAME_RE.match(name):
@@ -142,6 +147,7 @@ class TagService:
         values.update(self._validate(data, None))
         self.db.insert_tag(name, values)
         self.manager.reload_tags()
+        self._changed()
         return self.get(name)
 
     def update(self, name: str, data: dict[str, Any]) -> dict[str, Any]:
@@ -151,6 +157,7 @@ class TagService:
         changes = self._validate(data, current)
         self.db.update_tag(name, changes)
         self.manager.reload_tags()
+        self._changed()
         return self.get(name)
 
     def delete(self, name: str) -> None:
@@ -185,6 +192,7 @@ class TagService:
                 skipped.append({"name": str(name), "reason": exc.message})
         if created:
             self.manager.reload_tags()
+            self._changed()
         return {"created": created, "skipped": skipped}
 
 

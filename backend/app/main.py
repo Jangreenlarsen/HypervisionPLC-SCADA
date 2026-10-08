@@ -78,7 +78,10 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.trend_db = trend_db
         app.state.trend_recorder = TrendRecorder(manager, trend_db, flush_s=settings.trend_flush_s,
                                                  retention_days=settings.trend_days)
-        app.state.tag_service.on_delete = trend_db.forget
+        # Slettet tag → historikken slettes, også værdier der endnu ligger i opsamlerens buffer
+        app.state.tag_service.on_delete = app.state.trend_recorder.forget
+        # Historik slået til/fra → opsamleren følger med straks (ikke først ved næste skrivning)
+        app.state.tag_service.on_change = app.state.trend_recorder._refresh_config
         trend_task = asyncio.create_task(app.state.trend_recorder.run(), name="trends")
         backup_task = None
         if settings.backup_hours > 0 and settings.start_runtimes:

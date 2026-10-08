@@ -76,6 +76,16 @@ class TrendRecorder:
             else:
                 self._pending[name] = (ts, value)
 
+    def forget(self, name: str) -> int:
+        """Slet al historik for tagget — også værdier der endnu ikke er skrevet (ellers dukker de op igen).
+        Returnerer antal slettede samples."""
+        self._buffer = [r for r in self._buffer if r[0] != name]
+        self._last.pop(name, None)
+        self._pending.pop(name, None)
+        before = self.tdb.stats().get(name, {}).get("samples", 0)
+        self.tdb.forget(name)
+        return before
+
     def _store(self, name: str, ts: float, value: float | None) -> None:
         self._buffer.append((name, ts, value))
         self._last[name] = (ts, value)
