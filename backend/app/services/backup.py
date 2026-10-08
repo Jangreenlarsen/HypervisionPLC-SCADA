@@ -28,6 +28,7 @@ from typing import Any
 from ..config import read_version
 from ..storage.files import DrawingFiles
 from .bindings import BindingError, validate_binding
+from .schedules import validate_schedule
 from .errors import ServiceError
 from .manager import PlcManager
 from .plcs import normalize_base_url
@@ -137,6 +138,7 @@ class BackupService:
             "drawings": drawings,
             "bindings": data["bindings"],
             "settings": data["settings"],
+            "schedules": data["schedules"],
         }
 
     def save_to_server(self, kind: str, created_by: str) -> str:
@@ -375,6 +377,25 @@ class BackupService:
             seen.add((did, element, pos))
             bindings.append({"drawing_id": did, "element": element, "position": pos, **nb})
 
+        schedules = []
+        raw_schedules = backup.get("schedules", [])  # ældre backups har ingen ugeprogrammer
+        if not isinstance(raw_schedules, list):
+            err("schedules skal være en liste")
+            raw_schedules = []
+        tag_rows = {t["name"]: {**t, "writable": bool(t["writable"])} for t in tags}
+        seen_names: set[str] = set()
+        for i, s in enumerate(raw_schedules):
+            try:
+                clean = validate_schedule(s, tag_rows)
+            except ServiceError as exc:
+                err(f"Ugeprogram #{i + 1}: {exc.message}")
+                continue
+            if clean["name"] in seen_names:
+                err(f"Ugeprogram '{clean['name']}': navnet findes to gange")
+                continue
+            seen_names.add(clean["name"])
+            schedules.append(clean)
+
         if errors:
             more = " (flere fejl udeladt)" if len(errors) >= MAX_ERRORS else ""
             raise ServiceError(400, "Backuppen kan ikke gendannes — intet er ændret:\n- " + "\n- ".join(errors) + more)
@@ -382,7 +403,8 @@ class BackupService:
         start = settings.get("start_drawing")
         # En start-tegning der ikke findes i backuppen ignoreres (ikke en fejl — Overview viser så den første)
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
-                "files": files, "settings": {"start_drawing": start if start in drawing_ids else None}}
+                "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
+                "schedules": schedules}
 
     # ---------------------------------------------------------------- restore
 
@@ -411,6 +433,7 @@ class BackupService:
             log.info("Restore gennemført af %s: %d PLC'er, %d tags, %d tegninger, %d bindinger",
                      actor, len(data["plcs"]), len(data["tags"]), len(data["drawings"]), len(data["bindings"]))
             return {"plcs": len(data["plcs"]), "tags": len(data["tags"]), "drawings": len(data["drawings"]),
+                    "schedules": len(data["schedules"]),
                     "versions": len(data["versions"]), "bindings": len(data["bindings"]),
                     "missing_passwords": missing, "pre_restore_backup": before}
 

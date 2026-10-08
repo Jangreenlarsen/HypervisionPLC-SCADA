@@ -2,6 +2,19 @@
 
 ---
 
+## v0.22.0 — 2026-10-08 — Ugeprogrammer
+
+- Ny side **Ugeprogrammer** (tekniker og admin). Et program styrer ét skrivbart tag efter et ugeskema, fx "Hverdage 06:00–22:00 = 21 °C, ellers 17 °C" eller "Pumpe Til om natten".
+- **Undtagelser** som ferie og helligdage gælder hele dage og erstatter ugeplanen.
+- **Skrivning:** sker ved hvert skift og kun hvis værdien ikke allerede er sat. En manuel ændring holder derfor til næste skift.
+  - Alle skrivninger står i loggen som "ugeprogram:<navn>".
+  - Svarer PLC'en ikke, vises fejlen, og der prøves igen.
+- **Forhåndsvisning:** viser ugen og næste skift, mens du redigerer.
+- Tider følger dansk tid året rundt.
+- **Beskyttelse:** et tag, der bruges i et ugeprogram, kan ikke slettes eller gøres ikke-skrivbart.
+- **Backup:** ugeprogrammer kommer med.
+- **Trend-CSV:** tidspunkterne er nu altid dansk tid.
+
 ## v0.21.0 — 2026-10-08 — Energirapporter
 
 - Ny side **Energi**: forbrug og produktion i kWh pr. dag, uge eller måned, som søjlediagram og tabel med I alt. Kan hentes som CSV til Excel.

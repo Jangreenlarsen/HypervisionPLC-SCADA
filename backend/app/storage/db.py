@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -128,6 +128,17 @@ CREATE TABLE IF NOT EXISTS alarm_events (
     message   TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS alarm_events_ts ON alarm_events(ts);
+CREATE TABLE IF NOT EXISTS schedules (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT NOT NULL UNIQUE,
+    tag           TEXT NOT NULL,
+    enabled       INTEGER NOT NULL DEFAULT 1,
+    default_value REAL,
+    entries       TEXT NOT NULL DEFAULT '[]',
+    exceptions    TEXT NOT NULL DEFAULT '[]',
+    created_at    REAL NOT NULL,
+    updated_at    REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS user_drawings (
     username    TEXT NOT NULL,
     drawing_id  TEXT NOT NULL,
@@ -542,7 +553,46 @@ class Database:
                                     "FROM drawing_versions ORDER BY drawing_id, version"),
             "bindings": self.list_all_bindings(),
             "settings": {"start_drawing": self.get_setting("start_drawing")},
+            "schedules": [{k: s[k] for k in ("name", "tag", "enabled", "default_value", "entries", "exceptions")}
+                          for s in self.list_schedules()],
         }
+
+    # -------------------------------------------------------------- ugeprogrammer
+
+    def _schedule_row(self, r: dict[str, Any]) -> dict[str, Any]:
+        return {**r, "enabled": bool(r["enabled"]), "entries": json.loads(r["entries"]),
+                "exceptions": json.loads(r["exceptions"])}
+
+    def list_schedules(self) -> list[dict[str, Any]]:
+        return [self._schedule_row(r) for r in self._query("SELECT * FROM schedules ORDER BY name")]
+
+    def get_schedule(self, sid: int) -> dict[str, Any] | None:
+        rows = self._query("SELECT * FROM schedules WHERE id = ?", (sid,))
+        return self._schedule_row(rows[0]) if rows else None
+
+    def get_schedule_by_name(self, name: str) -> dict[str, Any] | None:
+        rows = self._query("SELECT * FROM schedules WHERE name = ?", (name,))
+        return self._schedule_row(rows[0]) if rows else None
+
+    def insert_schedule(self, s: dict[str, Any]) -> int:
+        now = time.time()
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO schedules(name, tag, enabled, default_value, entries, exceptions, created_at, updated_at) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (s["name"], s["tag"], int(s["enabled"]), s["default_value"], json.dumps(s["entries"]),
+                 json.dumps(s["exceptions"]), now, now))
+            self._conn.commit()
+            return int(cur.lastrowid)
+
+    def update_schedule(self, sid: int, s: dict[str, Any]) -> None:
+        self._execute("UPDATE schedules SET name = ?, tag = ?, enabled = ?, default_value = ?, entries = ?, "
+                      "exceptions = ?, updated_at = ? WHERE id = ?",
+                      (s["name"], s["tag"], int(s["enabled"]), s["default_value"], json.dumps(s["entries"]),
+                       json.dumps(s["exceptions"]), time.time(), sid))
+
+    def delete_schedule(self, sid: int) -> bool:
+        return self._execute("DELETE FROM schedules WHERE id = ?", (sid,)) > 0
 
     def list_energy_tags(self) -> list[dict[str, Any]]:
         return self._query("SELECT * FROM tags WHERE energy IS NOT NULL ORDER BY name")
@@ -565,7 +615,7 @@ class Database:
             cur = self._conn.cursor()
             cur.execute("BEGIN IMMEDIATE")
             try:
-                for table in ("bindings", "drawing_versions", "drawings", "tags", "plcs"):
+                for table in ("schedules", "bindings", "drawing_versions", "drawings", "tags", "plcs"):
                     cur.execute(f"DELETE FROM {table}")
                 for p in data["plcs"]:
                     cur.execute(
@@ -588,6 +638,12 @@ class Database:
                 for d in data["drawings"]:
                     cur.execute("INSERT INTO drawings(id, name, active_version, created_at, updated_at) VALUES (?,?,?,?,?)",
                                 (d["id"], d["name"], d["active_version"], now, now))
+                for s in data.get("schedules", []):
+                    cur.execute(
+                        "INSERT INTO schedules(name, tag, enabled, default_value, entries, exceptions, created_at, updated_at) "
+                        "VALUES (?,?,?,?,?,?,?,?)",
+                        (s["name"], s["tag"], int(s["enabled"]), s["default_value"], json.dumps(s["entries"]),
+                         json.dumps(s["exceptions"]), now, now))
                 # Start-tegningen følger projektet (samme transaktion — kan ikke pege på en tegning der ikke findes)
                 cur.execute("DELETE FROM meta WHERE key = 'setting.start_drawing'")
                 start = (data.get("settings") or {}).get("start_drawing")

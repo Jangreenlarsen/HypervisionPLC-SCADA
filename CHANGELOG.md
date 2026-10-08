@@ -4,6 +4,18 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.22.0 build 0030] — 2026-10-08 — Ugeprogrammer
+
+- `backend/app/services/schedule_engine.py` — ren beregning: perioder pr. ugedag (også over midnat, 24:00 som slut), senere periode vinder, undtagelser pr. dato (tom værdi = standard), standardværdi; skift og ugeoversigt; lokal tid (`SCADA_TZ`, standard Europe/Copenhagen) så 06:00 er 06:00 året rundt
+- `backend/app/services/schedules.py` — validering (skrivbart tag, min/max, til/fra-tags kun Til/Fra, klokkeslæt, datoer, højst 50 perioder/100 undtagelser) brugt af både API og backup-restore; afvikling hvert 15. s: skriver ved skift og kun hvis PLC'en ikke allerede har værdien (manuel overstyring holder til næste skift), gennem `OperateService` (min/max, tilbagelæsning, audit som "ugeprogram:<navn>"); fejl vises og prøves igen efter 60 s
+- `backend/app/api/schedules.py` — `GET/POST /api/schedules`, `PUT/DELETE /api/schedules/{id}`, `POST /api/schedules/preview` (tekniker+, audit)
+- Skema 9: tabellen `schedules`; med i backup (valideret med samme regler) og restore
+- Tags: et tag der bruges i et ugeprogram kan ikke slettes eller gøres ikke-skrivbart
+- Trend-CSV skriver nu dansk tid (`SCADA_TZ`) uanset serverens tidszone (en Pi står ofte på UTC); energi bruger samme tidszone
+- Frontend: side **Ugeprogrammer** (tekniker/admin): liste med nu/næste skift/status/fejl og ugeoversigt; formular med ugedage + genveje (Hverdage/Weekend/Alle), tider, værdier (til/fra som Til/Fra), undtagelser og live forhåndsvisning beregnet af serveren
+- Tests: `test_schedule_engine.py` (8: perioder, over midnat, prioritet, undtagelser, sommertid, ugeoversigt), `test_schedules.py` (16: validering, beskyttede tags, skrivning ved skift, manuel overstyring, ingen skrivning når værdien findes, fejl + gentagelse, slået fra, kun tekniker, backup) — fandt før release at backup-validering af ugeprogrammer lå efter fejl-kontrollen; `scheduleUi.test.ts` (6) — 245 backend, 96 frontend
+- Verificeret i browser og i realtid mod mock-PLC: formular, valideringsfejl i forhåndsvisning, undtagelse, afvikling skrev 21,5 °C og pumpe Til, audit viser "ugeprogram:<navn>"
+
 ## [0.21.0 build 0029] — 2026-10-08 — Energirapporter
 
 - `backend/app/services/energy.py` — perioder (dag/uge/måned) i dansk tid inkl. sommertid; tæller: summen af stigninger (fald = nulstilling → tæller fra 0, huller springes over); effekt: integration med værdien holdt til næste måling, højst 10 min og aldrig efter "nu"; huller tæller som 0; omregning til kWh pr. tag

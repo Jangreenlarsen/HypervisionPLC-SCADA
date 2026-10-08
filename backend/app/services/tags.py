@@ -30,6 +30,7 @@ class TagService:
         self.manager = manager
         self.db = manager.db
         self.on_delete: Any = None  # fx trend-historikken der skal glemme tagget
+        self.schedule_usage: Any = None  # navn → ugeprogrammer der skriver til tagget
         self.on_change: Any = None  # fx trend-opsamleren der skal læse historik-indstillingerne straks
 
     def list(self, plc: str | None = None) -> list[dict[str, Any]]:
@@ -93,6 +94,8 @@ class TagService:
         # holder ved oprettelse, opdatering og import.
         final_source = parse_source(out.get("source") or (current or {}).get("source"))  # type: ignore[arg-type]
         final_writable = out["writable"] if "writable" in out else bool((current or {}).get("writable"))
+        if current is not None and not final_writable and (names := self._schedules_using(current["name"])):
+            raise ServiceError(400, f"Tagget bruges i ugeprogram: {', '.join(names)} — det skal være skrivbart")
         if final_writable and final_source.kind not in WRITABLE_KINDS:
             raise ServiceError(400, f"Kun hr- og coil-tags kan være skrivbare — '{final_source}' er kun-læs "
                                     "(ir/di er input, og PLC'ens REST API kan ikke skrive ST-variabler)")
@@ -188,7 +191,12 @@ class TagService:
         self._changed()
         return self.get(name)
 
+    def _schedules_using(self, name: str) -> list[str]:
+        return self.schedule_usage(name) if self.schedule_usage is not None else []
+
     def delete(self, name: str) -> None:
+        if names := self._schedules_using(name):
+            raise ServiceError(409, f"Tagget '{name}' bruges i ugeprogram: {', '.join(names)} — slet eller ret dem først")
         used = self.db.count_bindings_for_tag(name)
         if used:
             raise ServiceError(409, f"Tagget '{name}' bruges i {used} binding(er) i tegninger — fjern dem først")

@@ -21,6 +21,7 @@ from .api.alarms import router as alarms_router
 from .api.auth import router as auth_router
 from .api.backup import router as backup_router
 from .api.energy import router as energy_router
+from .api.schedules import router as schedules_router
 from .api.trends import router as trends_router
 from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
@@ -34,6 +35,7 @@ from .services.backup import BackupService
 from .services.operate import OperateService
 from .services.drawings import DrawingService
 from .services.scope import ScopeService
+from .services.schedules import ScheduleService
 from .services.trends import TrendRecorder
 from .services.live_cache import LiveCache
 from .services.manager import PlcManager, TransportFactory
@@ -87,6 +89,10 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         # Historik slået til/fra → opsamleren følger med straks (ikke først ved næste skrivning)
         app.state.tag_service.on_change = app.state.trend_recorder._refresh_config
         trend_task = asyncio.create_task(app.state.trend_recorder.run(), name="trends")
+        app.state.schedule_service = ScheduleService(db, app.state.operate_service, manager)
+        app.state.tag_service.schedule_usage = app.state.schedule_service.usage
+        schedule_task = (asyncio.create_task(app.state.schedule_service.run(), name="schedules")
+                         if settings.start_runtimes else None)
         backup_task = None
         if settings.backup_hours > 0 and settings.start_runtimes:
             backup_task = asyncio.create_task(app.state.backup_service.auto_backup_loop(settings.backup_hours))
@@ -95,6 +101,8 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
             yield
         finally:
             alarm_task.cancel()
+            if schedule_task is not None:
+                schedule_task.cancel()
             trend_task.cancel()
             try:
                 await trend_task  # så de sidste samples bliver gemt
@@ -123,6 +131,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(alarms_router)
     app.include_router(trends_router)
     app.include_router(energy_router)
+    app.include_router(schedules_router)
     app.include_router(router)
     app.include_router(drawings_router)
     app.include_router(live_router)

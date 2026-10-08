@@ -13,6 +13,7 @@ from fastapi.responses import Response
 
 from ..services.auth import CurrentUser
 from ..services.errors import ServiceError
+from ..services.schedule_engine import TZ
 from ..services.tagsource import TagSourceError, parse_source
 from .auth import audit, require
 
@@ -76,9 +77,10 @@ async def export(request: Request, tags: str, start: float | None = None, end: f
     writer = csv.writer(buf, delimiter=";")
     writer.writerow(["tidspunkt", "tag", "vaerdi"])
     for name, ts, value in request.app.state.trend_db.raw(names, start, end, MAX_EXPORT_ROWS):
-        writer.writerow([datetime.fromtimestamp(ts).isoformat(timespec="milliseconds"), name,
+        # Dansk tid (SCADA_TZ) uanset serverens tidszone — en Pi står ofte på UTC
+        writer.writerow([datetime.fromtimestamp(ts, TZ).replace(tzinfo=None).isoformat(timespec="milliseconds"), name,
                          "" if value is None else f"{value:.10g}".replace(".", ",")])
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    stamp = datetime.now(TZ).strftime("%Y%m%d-%H%M%S")
     return Response("﻿" + buf.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="trend-{stamp}.csv"'})
 

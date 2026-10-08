@@ -14,9 +14,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any, Iterable
-from zoneinfo import ZoneInfo
 
-TZ = ZoneInfo("Europe/Copenhagen")
+from .schedule_engine import TZ  # SCADA_TZ (standard Europe/Copenhagen)
 PERIODS = ("day", "week", "month")
 DEFAULT_COUNT = {"day": 14, "week": 12, "month": 12}
 MAX_BUCKETS = 400
