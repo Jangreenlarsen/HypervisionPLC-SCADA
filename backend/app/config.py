@@ -53,6 +53,8 @@ class Settings:
     alarm_comm_delay_s: float = field(default_factory=lambda: _env_float("SCADA_ALARM_COMM_DELAY_S", 10.0))
     trend_days: float = field(default_factory=lambda: _env_float("SCADA_TREND_DAYS", 30.0))
     trend_flush_s: float = field(default_factory=lambda: _env_float("SCADA_TREND_FLUSH_S", 5.0))
+    # Energi-tags gemmes længere end anden historik, så måneds-/årsrapporter er mulige.
+    energy_days: float = field(default_factory=lambda: _env_float("SCADA_ENERGY_DAYS", 400.0))
     start_runtimes: bool = True
 
     def __post_init__(self) -> None:

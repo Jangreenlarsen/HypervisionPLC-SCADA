@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.21.0 build 0029] — 2026-10-08 — Energirapporter
+
+- `backend/app/services/energy.py` — perioder (dag/uge/måned) i dansk tid inkl. sommertid; tæller: summen af stigninger (fald = nulstilling → tæller fra 0, huller springes over); effekt: integration med værdien holdt til næste måling, højst 10 min og aldrig efter "nu"; huller tæller som 0; omregning til kWh pr. tag
+- `backend/app/api/energy.py` — `GET /api/energy/tags`, `/report` (standard: seneste 14 dage / 12 uger / 12 måneder), `/export` (CSV til dansk Excel med I alt-række); adgang pr. tegning respekteres
+- Tags: felterne `energy` (tæller/effekt) og `energy_factor` — skema 8; valideret i alle grene (opret, opdatér — også når historikken slås fra —, import, backup): kræver historik og et tal-tag
+- `backend/app/storage/trends_db.py` + `services/trends.py` — energi-tags slettes først efter `SCADA_ENERGY_DAYS` (standard 400), anden historik efter `SCADA_TREND_DAYS`; `samples_with_prev()` giver tællerens udgangspunkt før perioden
+- `requirements.txt` — `tzdata` (Apache-2.0) så dansk tid virker overalt
+- Frontend: ny side **Energi** (periodeknapper, valg af tags, grupperede søjler med faste farver, tabel med I alt, igangværende periode markeret, CSV); energi-felter i Tags-redigering med forklaring af omregning
+- Tests: `test_energy.py` (7: sommertid, uge/måned, tæller med nulstilling og huller, effekt med hold/huller/periodegrænser, faktor), `test_trends.py` (3 nye), `energyData.test.ts` (5) — 220 backend, 90 frontend
+- Verificeret i browser med 14 dages genereret historik (indlæst via flet): dag/uge/måned, tabel, CSV, mobil uden vandret scroll; energi sat via Tags-siden
+
 ## [0.20.1 build 0028] — 2026-10-08 — Fix: rigtige fejlbeskeder ved indlæsning af historik gennem nginx
 
 - `deploy/nginx-hypervisionplc-scada.conf` — indlæsnings-adressen mellemlagrer igen uploadet (fjernet `proxy_request_buffering off`), så tjenestens fejlbeskeder når frem i stedet for 502

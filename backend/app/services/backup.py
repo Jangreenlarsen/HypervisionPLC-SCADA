@@ -74,6 +74,18 @@ def _alarm_fields(t: dict[str, Any], datatype: str) -> tuple[dict[str, Any], str
     if iv is None or not 1 <= iv <= 3600:
         return {}, "trend_interval_s skal være 1-3600"
     out["trend_interval_s"] = iv
+    energy = t.get("energy")
+    if energy not in (None, "counter", "power"):
+        return {}, "energy skal være null, 'counter' eller 'power'"
+    try:
+        factor = num("energy_factor", 1.0)
+    except ValueError as exc:
+        return {}, str(exc)
+    if factor is None or not 0 < factor <= 1_000_000:
+        return {}, "energy_factor skal være et positivt tal"
+    if energy is not None and (not out["trend"] or datatype == "bool"):
+        return {}, "energi kræver historik og et tal-tag"
+    out["energy"], out["energy_factor"] = energy, factor
     limits = [out[k] for k in ("alarm_ll", "alarm_l", "alarm_h", "alarm_hh") if out[k] is not None]
     if limits != sorted(limits):
         return {}, "alarmgrænserne skal stige (LL ≤ L ≤ H ≤ HH)"

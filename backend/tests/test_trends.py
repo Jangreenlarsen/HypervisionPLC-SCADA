@@ -21,6 +21,9 @@ class _StubDb:
     def list_trend_tags(self):
         return self.tags
 
+    def list_energy_tags(self):
+        return [t for t in self.tags if t.get("energy")]
+
 
 class _StubManager:
     def __init__(self, tags):
@@ -280,3 +283,43 @@ def test_trend_snapshot_on_server_and_pruning(api, mock_plc):
     r = api.get(f"/api/backup/files/{names[-1]}")
     assert r.status_code == 200 and r.headers["content-type"] == "application/gzip"
     assert api.get("/api/backup/files/..%2Ftrends.db").status_code in (400, 404)
+
+
+def test_energy_tags_kept_longer_than_other_history(tmp_path):
+    tdb = TrendDatabase(tmp_path / "t.db")
+    tdb.insert_many([("Maaler", 100.0, 1.0), ("Maaler", 5000.0, 2.0), ("Andet", 100.0, 1.0), ("Andet", 5000.0, 2.0)])
+    assert tdb.purge_before(1000.0, {"Maaler": 50.0}) == 1  # kun "Andet" ved ts 100
+    assert [ts for _, ts, _ in tdb.raw(["Maaler"], 0, 1e9, 10)] == [100.0, 5000.0]
+    assert tdb.samples_with_prev("Maaler", 1000.0, 6000.0) == [(100.0, 1.0), (5000.0, 2.0)]
+    tdb.close()
+
+
+def test_energy_validation_all_branches(api):
+    # Kræver historik — ved oprettelse, opdatering (også når historikken slås fra) og import
+    r = api.post("/api/tags", json={"name": "E1", "source": "plc1:hr:7", "energy": "counter"})
+    assert r.status_code == 400 and "historik" in r.json()["error"]
+    assert api.patch("/api/tags/Niveau", json={"energy": "power", "energy_factor": 0.001}).status_code == 200
+    r = api.patch("/api/tags/Niveau", json={"trend": False})
+    assert r.status_code == 400 and "historik" in r.json()["error"]
+    r = api.patch("/api/tags/Motor", json={"energy": "counter"})  # coil = til/fra
+    assert r.status_code == 400 and "tal-tag" in r.json()["error"]
+    assert api.patch("/api/tags/Niveau", json={"energy_factor": 0}).status_code == 400
+    assert api.patch("/api/tags/Niveau", json={"energy": "kwh"}).status_code == 400
+    imp = api.post("/api/tags/import", json={"tags": [{"name": "E2", "source": "plc1:hr:8", "energy": "power"}]}).json()
+    assert imp["created"] == [] and "historik" in imp["skipped"][0]["reason"]
+    # Backup bærer felterne
+    t = next(t for t in api.get("/api/backup").json()["tags"] if t["name"] == "Niveau")
+    assert (t["energy"], t["energy_factor"]) == ("power", 0.001)
+
+
+def test_energy_report_api(api, mock_plc):
+    api.patch("/api/tags/Niveau", json={"energy": "power", "energy_factor": 1})
+    _wait(lambda: api.app.state.trend_db.stats().get("Niveau"))
+    tags = api.get("/api/energy/tags").json()
+    assert [t["name"] for t in tags["tags"]] == ["Niveau"] and tags["energy_days"] >= 30
+    r = api.get("/api/energy/report?period=day").json()
+    assert len(r["buckets"]) == 14 and r["buckets"][-1]["current"] is True and r["unit"] == "kWh"
+    assert r["series"]["Niveau"][-1] is not None and r["series"]["Niveau"][0] is None  # ingen data for 13 dage siden
+    assert api.get("/api/energy/report?period=aar").status_code == 400
+    csv_text = api.get("/api/energy/export?period=month").text.lstrip("﻿")
+    assert csv_text.splitlines()[0].startswith("periode;fra;") and csv_text.splitlines()[-1].startswith("I alt;")

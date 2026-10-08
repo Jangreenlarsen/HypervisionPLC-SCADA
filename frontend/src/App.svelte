@@ -11,6 +11,7 @@
   import Audit from './pages/Audit.svelte';
   import Backup from './pages/Backup.svelte';
   import Alarms from './pages/Alarms.svelte';
+  import Energy from './pages/Energy.svelte';
   import Trends from './pages/Trends.svelte';
   import { LiveClient } from './lib/live';
   import Login from './pages/Login.svelte';
@@ -20,6 +21,7 @@
     { id: 'overview', label: 'Overview', role: 'viewer' },
     { id: 'alarms', label: 'Alarmer', role: 'viewer' },
     { id: 'trends', label: 'Trends', role: 'viewer' },
+    { id: 'energy', label: 'Energi', role: 'viewer' },
     { id: 'drawings', label: 'Tegninger', role: 'viewer' },
     { id: 'draw', label: 'Tegn', role: 'engineer' },
     { id: 'editor', label: 'Bindinger', role: 'engineer' },
@@ -121,6 +123,8 @@
       ondone={() => { changingPassword = false; loadMe(); }}
       oncancel={() => (changingPassword = false)}
     />
+  {:else if page === 'energy'}
+    <Energy {canEdit} />
   {:else if page === 'trends'}
     <Trends {canEdit} />
   {:else if page === 'alarms'}

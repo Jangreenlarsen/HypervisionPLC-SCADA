@@ -170,9 +170,31 @@ class TrendDatabase:
                 "GROUP BY s.tag_id").fetchall()
         return {r[0]: {"samples": r[1], "oldest": r[2], "newest": r[3]} for r in rows}
 
-    def purge_before(self, cutoff: float) -> int:
+    def purge_before(self, cutoff: float, keep: dict[str, float] | None = None) -> int:
+        """Slet værdier ældre end `cutoff` — undtagen tags i `keep` ({navn: egen cutoff}, fx energi-tags)."""
+        keep = keep or {}
         with self._lock:
-            return self._conn.execute("DELETE FROM samples WHERE ts < ?", (cutoff,)).rowcount
+            ids = {self._ids[n]: c for n, c in keep.items() if n in self._ids}
+            if not ids:
+                return self._conn.execute("DELETE FROM samples WHERE ts < ?", (cutoff,)).rowcount
+            marks = ",".join("?" * len(ids))
+            n = self._conn.execute(f"DELETE FROM samples WHERE ts < ? AND tag_id NOT IN ({marks})",
+                                   (cutoff, *ids)).rowcount
+            for tid, c in ids.items():
+                n += self._conn.execute("DELETE FROM samples WHERE tag_id = ? AND ts < ?", (tid, c)).rowcount
+            return n
+
+    def samples_with_prev(self, name: str, start: float, end: float) -> list[tuple[float, float | None]]:
+        """Alle værdier i [start, end] plus den sidste gyldige værdi før `start` (udgangspunkt for tællere)."""
+        with self._lock:
+            tid = self._ids.get(name)
+            if tid is None:
+                return []
+            prev = self._conn.execute("SELECT ts, value FROM samples WHERE tag_id = ? AND ts < ? AND value IS NOT NULL "
+                                      "ORDER BY ts DESC LIMIT 1", (tid, start)).fetchall()
+            rows = self._conn.execute("SELECT ts, value FROM samples WHERE tag_id = ? AND ts >= ? AND ts <= ? ORDER BY ts",
+                                      (tid, start, end)).fetchall()
+        return [(r[0], r[1]) for r in prev + rows]
 
     def forget(self, name: str) -> None:
         with self._lock:

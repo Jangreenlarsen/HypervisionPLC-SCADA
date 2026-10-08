@@ -2,6 +2,16 @@
 
 ---
 
+## v0.21.0 — 2026-10-08 — Energirapporter
+
+- Ny side **Energi**: forbrug og produktion i kWh pr. dag, uge eller måned, som søjlediagram og tabel med I alt. Kan hentes som CSV til Excel.
+- Under **Tags → Redigér** markeres et tag som energi:
+  - **Tæller** passer til fx en kWh-måler. Nulstilles måleren, regnes det med.
+  - **Effekt** passer til fx W eller kW og regnes om til kWh over tid.
+  - Historik skal være slået til for tagget.
+- Energi-tags gemmes i 400 dage (anden historik i 30), så der kan laves måneds- og årsoversigter.
+- Perioderne følger dansk tid, også ved skift til og fra sommertid.
+
 ## v0.20.1 — 2026-10-08
 
 - Indlæsning af historik viser nu den rigtige fejlbesked (fx "Du er ikke logget ind") i stedet for "Bad Gateway".

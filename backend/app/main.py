@@ -20,6 +20,7 @@ from .api.errors import install_error_handlers
 from .api.alarms import router as alarms_router
 from .api.auth import router as auth_router
 from .api.backup import router as backup_router
+from .api.energy import router as energy_router
 from .api.trends import router as trends_router
 from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
@@ -79,7 +80,8 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.trend_db = trend_db
         app.state.backup_service.trend_db = trend_db
         app.state.trend_recorder = TrendRecorder(manager, trend_db, flush_s=settings.trend_flush_s,
-                                                 retention_days=settings.trend_days)
+                                                 retention_days=settings.trend_days,
+                                                 energy_days=settings.energy_days)
         # Slettet tag → historikken slettes, også værdier der endnu ligger i opsamlerens buffer
         app.state.tag_service.on_delete = app.state.trend_recorder.forget
         # Historik slået til/fra → opsamleren følger med straks (ikke først ved næste skrivning)
@@ -120,6 +122,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(backup_router)
     app.include_router(alarms_router)
     app.include_router(trends_router)
+    app.include_router(energy_router)
     app.include_router(router)
     app.include_router(drawings_router)
     app.include_router(live_router)

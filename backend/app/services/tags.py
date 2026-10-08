@@ -15,7 +15,7 @@ _TEXT_FIELDS = {"description": 200, "unit": 16}
 LIMIT_FIELDS = ("alarm_ll", "alarm_l", "alarm_h", "alarm_hh")  # stigende rækkefølge
 ALARM_DEFAULTS = {"alarm_hh": None, "alarm_h": None, "alarm_l": None, "alarm_ll": None,
                   "alarm_deadband": 0.0, "alarm_delay_s": 0.0, "alarm_on": None,
-                  "trend": False, "trend_interval_s": 10.0}
+                  "trend": False, "trend_interval_s": 10.0, "energy": None, "energy_factor": 1.0}
 WRITABLE_KINDS = ("hr", "coil")
 
 
@@ -88,6 +88,7 @@ class TagService:
             if not 1 <= iv <= 3600:
                 raise ServiceError(400, "Trend-interval skal være 1-3600 sekunder")
             out["trend_interval_s"] = iv
+        self._validate_energy(data, current, out)
         # Skrivbarhed vurderes på den ENDELIGE tilstand (ny kilde og/eller nyt flag), så reglen
         # holder ved oprettelse, opdatering og import.
         final_source = parse_source(out.get("source") or (current or {}).get("source"))  # type: ignore[arg-type]
@@ -96,6 +97,33 @@ class TagService:
             raise ServiceError(400, f"Kun hr- og coil-tags kan være skrivbare — '{final_source}' er kun-læs "
                                     "(ir/di er input, og PLC'ens REST API kan ikke skrive ST-variabler)")
         return out
+
+    def _validate_energy(self, data: dict[str, Any], current: dict[str, Any] | None, out: dict[str, Any]) -> None:
+        """Energi kræver historik og et tal-tag — vurderet på den endelige tilstand (også når historikken
+        slås fra på et energi-tag, eller kilden ændres til til/fra)."""
+        if "energy" in data:
+            kind = data["energy"]
+            if isinstance(kind, str):
+                kind = kind.strip() or None
+            if kind not in (None, "counter", "power"):
+                raise ServiceError(400, "energy skal være null, 'counter' (tæller) eller 'power' (effekt)")
+            out["energy"] = kind
+        if data.get("energy_factor") is not None:
+            f = _number(data["energy_factor"], "energy_factor")
+            if not 0 < f <= 1_000_000:
+                raise ServiceError(400, "Omregning til kWh skal være et positivt tal (fx 1 for kWh/kW, 0,001 for Wh/W)")
+            out["energy_factor"] = f
+
+        def final(field: str) -> Any:
+            return out[field] if field in out else (current or {}).get(field)
+
+        if final("energy") is None:
+            return
+        if not final("trend"):
+            raise ServiceError(400, "Energi kræver at historik er slået til for tagget (rapporten beregnes ud fra historikken)")
+        source = parse_source(out.get("source") or (current or {}).get("source"))  # type: ignore[arg-type]
+        if source.datatype == "bool":
+            raise ServiceError(400, "Energi kræver et tal-tag (tæller eller effekt) — ikke et til/fra-tag")
 
     def _validate_alarms(self, data: dict[str, Any], current: dict[str, Any] | None, out: dict[str, Any]) -> None:
         """Alarmgrænser — vurderet på den endelige tilstand (opret, opdatér og import bruger samme vej)."""
