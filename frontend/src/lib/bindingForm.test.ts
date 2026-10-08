@@ -95,3 +95,18 @@ describe('toDrafts / flatten', () => {
   });
   it('nye gid kan starte efter de eksisterende', () => expect(toDrafts([emptyForm('A', 'text')], 7)[0].gid).toBe(7));
 });
+
+describe('click:select', () => {
+  it('positioner med decimalkomma; rundtur', () => {
+    const f = { ...emptyForm('T', 'click:select'), positions: [{ value: '0', label: ' Hånd ' }, { value: '2,5', label: 'Auto' }] };
+    const b = fromForm(f);
+    expect(b.params).toEqual({ positions: [{ value: 0, label: 'Hånd' }, { value: 2.5, label: 'Auto' }], confirm: false, title: '' });
+    expect(toForm({ tag: 'T', anim: 'click:select', params: b.params }).positions).toEqual([{ value: '0', label: 'Hånd' }, { value: '2.5', label: 'Auto' }]);
+  });
+  it('fejl: dubletter, tomt navn, for få', () => {
+    const base = emptyForm('T', 'click:select');
+    expect(() => fromForm({ ...base, positions: [{ value: '1', label: 'a' }, { value: '1', label: 'b' }] })).toThrow('forskellige');
+    expect(() => fromForm({ ...base, positions: [{ value: '1', label: ' ' }, { value: '2', label: 'b' }] })).toThrow('Position 1');
+    expect(() => fromForm({ ...base, positions: [{ value: '1', label: 'a' }] })).toThrow('2-8');
+  });
+});

@@ -88,7 +88,7 @@ export interface Binding {
   element: string;
   tag: string;
   anim: 'text' | 'fill' | 'stroke' | 'visible' | 'blink' | 'level' | 'rotate' | 'opacity' | 'move'
-    | 'click:write' | 'click:toggle' | 'click:pulse' | 'click:goto';
+    | 'click:write' | 'click:toggle' | 'click:pulse' | 'click:select' | 'click:goto';
   params: Record<string, any>;
   source?: 'explicit' | 'auto';
 }

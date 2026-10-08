@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { get, patch, post } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
-  import { CATEGORIES, SYMBOLS, type SymbolDef } from '../lib/symbols';
+  import { CATEGORIES, SYMBOLS, selectorSymbol, type SymbolDef } from '../lib/symbols';
   import TagSelect, { type TagOption } from '../lib/TagSelect.svelte';
 
   let { route = 'draw' }: { route?: string } = $props();
@@ -168,6 +168,22 @@
     }
   }
 
+  let selectorLabels = $state('Hånd, 0, Auto');
+  let selectorError = $state('');
+
+  /** Omskifter med de positioner brugeren har skrevet (2-8, adskilt med komma). */
+  function insertSelector(): void {
+    selectorError = '';
+    try {
+      const svg = selectorSymbol(selectorLabels.split(','));
+      if (!ed) return;
+      ed.insertSymbol(svg, 'omskifter');
+      dirty = true;
+    } catch (e) {
+      selectorError = (e as Error).message;
+    }
+  }
+
   function insert(symbolId: string): void {
     const s = SYMBOLS.find((x) => x.id === symbolId);
     if (!ed || !s) return;
@@ -288,6 +304,16 @@
                 </button>
               {/each}
             </div>
+            {#if cat.id === 'betjening'}
+              <div class="selector-cfg">
+                <label class="small">Omskifter med egne positioner (2-8, komma imellem)
+                  <span class="row"><input bind:value={selectorLabels} placeholder="fx 1, 2, 3, 4" />
+                    <button onclick={insertSelector} disabled={!ready}>Indsæt</button></span>
+                </label>
+                {#if selectorError}<p class="small error">{selectorError}</p>{/if}
+                <p class="small muted">Værdierne bliver 0, 1, 2 … i rækkefølge — kan rettes under Bindinger.</p>
+              </div>
+            {/if}
           </details>
         {/if}
       {/each}
@@ -324,6 +350,8 @@
   .symbols span { max-width: 100%; overflow-wrap: anywhere; hyphens: auto; text-align: center; }
   .symbols button { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; font-size: .72rem; line-height: 1.15; }
   details { margin-top: .6rem; }
+  .selector-cfg { margin-top: .5rem; }
+  .selector-cfg input { flex: 1; min-width: 0; }
   summary { cursor: pointer; font-weight: 600; font-size: .9rem; margin-bottom: .4rem; }
   .symbols svg { width: 44px; height: 40px; }
 </style>

@@ -17,6 +17,7 @@ export const ANIMS: { id: Anim; label: string; help: string }[] = [
   { id: 'click:write', label: 'Klik: setpunkt', help: 'Operatøren indtaster en ny værdi (tagget skal være skrivbart)' },
   { id: 'click:toggle', label: 'Klik: til/fra', help: 'Skifter et til/fra-tag (coil eller heltals-register)' },
   { id: 'click:pulse', label: 'Klik: puls', help: 'Sætter tagget i et kort øjeblik — serveren nulstiller det' },
+  { id: 'click:select', label: 'Klik: vælg position', help: 'Omskifter: operatøren vælger én af 2-8 positioner, og positionens værdi skrives' },
   { id: 'click:goto', label: 'Klik: gå til tegning', help: 'Åbner en anden tegning (drill-down)' },
 ];
 
@@ -50,6 +51,7 @@ export interface BindingForm {
   title: string;
   confirm: boolean;
   ms: string;
+  positions: { value: string; label: string }[];
   drawing: string;
 }
 
@@ -59,6 +61,7 @@ export function emptyForm(tag = '', anim: Anim = 'text'): BindingForm {
     on: '#2e7d32', off: '#9e9e9e', thresholds: [], invert: false,
     min: '0', max: '100', direction: 'up', angle_min: '0', angle_max: '360', dx: '100', dy: '0',
     title: '', confirm: anim === 'click:toggle', ms: '500', drawing: '',
+    positions: [{ value: '0', label: 'Hånd' }, { value: '1', label: '0' }, { value: '2', label: 'Auto' }],
   };
 }
 
@@ -129,6 +132,9 @@ export function toForm(b: Pick<Binding, 'tag' | 'anim' | 'params'>): BindingForm
     title: str(p.title, ''),
     confirm: p.confirm ?? f.confirm,
     ms: str(p.ms, f.ms),
+    positions: Array.isArray(p.positions)
+      ? p.positions.map((x: { value: number; label: string }) => ({ value: String(x.value), label: x.label }))
+      : f.positions,
     drawing: str(p.drawing, ''),
   };
 }
@@ -207,6 +213,18 @@ export function fromForm(f: BindingForm): { tag: string; anim: Anim; params: Rec
     case 'click:toggle':
       params = { confirm: f.confirm };
       break;
+    case 'click:select': {
+      if (f.positions.length < 2 || f.positions.length > 8) throw new Error('En omskifter skal have 2-8 positioner');
+      const positions = f.positions.map((x, i) => {
+        const label = x.label.trim();
+        if (!label) throw new Error(`Position ${i + 1}: angiv et navn`);
+        if (label.length > 20) throw new Error(`Position ${i + 1}: navnet må højst være 20 tegn`);
+        return { value: parseNumber(x.value, `Position ${i + 1}`), label };
+      });
+      if (new Set(positions.map((x) => x.value)).size !== positions.length) throw new Error('Positionerne skal have forskellige værdier');
+      params = { positions, confirm: f.confirm, title: f.title.trim() };
+      break;
+    }
     case 'click:pulse': {
       const ms = parseNumber(f.ms, 'Pulslængde');
       if (!Number.isInteger(ms) || ms < 100 || ms > 10000) throw new Error('Pulslængde skal være 100-10000 ms');

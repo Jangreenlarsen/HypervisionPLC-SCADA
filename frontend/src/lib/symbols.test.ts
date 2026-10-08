@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CATEGORIES, SYMBOLS } from './symbols';
+import { CATEGORIES, selectorAngles, selectorSymbol, SYMBOLS } from './symbols';
 
 const parse = (fragment: string) =>
   new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${fragment}</svg>`, 'image/svg+xml');
@@ -34,7 +34,7 @@ describe('symbolbibliotek', () => {
 
 describe('betjeningssymboler', () => {
   const ANIMS = new Set(['text', 'fill', 'stroke', 'visible', 'blink', 'level', 'rotate', 'opacity', 'move',
-    'click:write', 'click:toggle', 'click:pulse']);
+    'click:write', 'click:toggle', 'click:pulse', 'click:select']);
   const interactive = SYMBOLS.filter((s) => s.category === 'betjening');
   it('har en klik-handling på roden og gyldige beskrivelser på delene', () => {
     expect(interactive.length).toBeGreaterThanOrEqual(5);
@@ -48,5 +48,29 @@ describe('betjeningssymboler', () => {
         expect(ANIMS.has(JSON.parse(p.getAttribute('data-hv-part')!).anim), s.id).toBe(true);
       }
     }
+  });
+});
+
+describe('omskifter med egne positioner', () => {
+  it('vinkler fordelt symmetrisk om lodret', () => {
+    expect(selectorAngles(3)).toEqual([-45, 0, 45]);
+    expect(selectorAngles(2)).toEqual([-30, 30]);
+    expect(selectorAngles(8)[0]).toBe(-135);
+  });
+  it('symbolet beskriver klik + greb og har navnene', () => {
+    const doc = parse(selectorSymbol(['1', '2', '3', '4']));
+    const g = doc.documentElement.firstElementChild!;
+    expect(doc.getElementsByTagName('parsererror').length).toBe(0);
+    const [click] = JSON.parse(g.getAttribute('data-hv-auto')!);
+    expect(click.anim).toBe('click:select');
+    expect(click.params.positions).toEqual([{ value: 0, label: '1' }, { value: 1, label: '2' }, { value: 2, label: '3' }, { value: 3, label: '4' }]);
+    const greb = JSON.parse(g.querySelector('#greb')!.getAttribute('data-hv-part')!);
+    expect(greb).toMatchObject({ anim: 'rotate', params: { min: 0, max: 3 } });
+    expect([...g.querySelectorAll('text')].map((t) => t.textContent)).toEqual(['1', '2', '3', '4']);
+  });
+  it('navne escapes; for få/for lange navne afvises', () => {
+    expect(selectorSymbol(['A&B', '<x>'])).toContain('A&amp;B');
+    expect(() => selectorSymbol(['kun én'])).toThrow('mindst 2');
+    expect(() => selectorSymbol(['a', 'x'.repeat(21)])).toThrow('20 tegn');
   });
 });

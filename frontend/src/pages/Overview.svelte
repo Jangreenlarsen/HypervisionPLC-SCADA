@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
   import { get, post, type Binding, type DrawingView, type LiveValue, type PlcSummary } from '../lib/api';
-  import { clickFor, parseSetpoint, rangeText, toggleQuestion } from '../lib/actions';
+  import { clickFor, parseSetpoint, positionLabel, positions, rangeText, toggleQuestion } from '../lib/actions';
   import { formatValue } from '../lib/animate';
   import { byTag as indexByTag, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
@@ -214,6 +214,8 @@
     if (b.anim === 'click:write') {
       const v = values[b.tag]?.value;
       dialog = { binding: b, step: 'input', input: typeof v === 'number' ? String(v) : '', value: null, error: '', busy: false };
+    } else if (b.anim === 'click:select') {
+      dialog = { binding: b, step: 'input', input: '', value: null, error: '', busy: false };
     } else if (b.params.confirm) {
       dialog = { binding: b, step: 'confirm', input: '', value: null, error: '', busy: false };
     } else {
@@ -221,9 +223,22 @@
     }
   }
 
+  /** Omskifter: en position er valgt — bekræft eller skriv straks. */
+  async function choosePosition(value: number): Promise<void> {
+    if (!dialog) return;
+    dialog.value = value;
+    dialog.error = '';
+    if (dialog.binding.params.confirm) {
+      dialog.step = 'confirm';
+      return;
+    }
+    await submitDialog();
+  }
+
   async function submitDialog(): Promise<void> {
     if (!dialog || !view) return;
     const b = dialog.binding;
+    if (b.anim === 'click:select' && dialog.value === null) return; // vælg en position først
     if (b.anim === 'click:write' && dialog.step === 'input') {
       try {
         dialog.value = parseSetpoint(dialog.input, view.tags[b.tag]);
@@ -249,9 +264,10 @@
     const meta = view?.tags[b.tag];
     const name = b.params.title || meta?.description || b.tag;
     try {
-      if (b.anim === 'click:write') {
+      if (b.anim === 'click:write' || b.anim === 'click:select') {
         const r = await post<{ written: number; matches: boolean; warning: string }>(`/api/tags/${tag}/write`, { value });
-        if (r.matches) showToast('ok', `${name} sat til ${formatValue(r.written, meta)}`);
+        const shown = b.anim === 'click:select' ? `"${positionLabel(b.params, r.written) ?? formatValue(r.written, meta)}"` : formatValue(r.written, meta);
+        if (r.matches) showToast('ok', `${name} sat til ${shown}`);
         else showToast('warn', r.warning);
       } else if (b.anim === 'click:toggle') {
         const r = await post<{ written: unknown; matches: boolean; warning: string }>(`/api/tags/${tag}/toggle`, {});
@@ -361,7 +377,7 @@
     <div class="panel dialog" role="dialog" aria-modal="true" aria-label={dName} tabindex="-1" onclick={(e) => e.stopPropagation()}>
       <h2>{dName}</h2>
       <p class="muted small">
-        Nu: <strong>{formatValue(dLive?.value, dMeta)}</strong>
+        Nu: <strong>{dialog.binding.anim === 'click:select' ? (positionLabel(dialog.binding.params, dLive?.value) ?? formatValue(dLive?.value, dMeta)) : formatValue(dLive?.value, dMeta)}</strong>
         {#if dLive && dLive.quality !== 'good'}<span class="badge comm_error">{dLive.quality}</span>{/if}
       </p>
       {#if dialog.binding.anim === 'click:write' && dialog.step === 'input'}
@@ -372,6 +388,15 @@
         <p class="muted small">Tilladt: {rangeText(dMeta)}</p>
       {:else if dialog.binding.anim === 'click:write'}
         <p>Sæt <strong>{dName}</strong> til <strong>{formatValue(dialog.value, dMeta)}</strong>?</p>
+      {:else if dialog.binding.anim === 'click:select' && dialog.step === 'input'}
+        <div class="positions" role="group" aria-label="Vælg position">
+          {#each positions(dialog.binding.params) as p}
+            {@const active = positionLabel(dialog.binding.params, dLive?.value) === p.label}
+            <button class:primary={active} aria-pressed={active} onclick={() => choosePosition(p.value)} disabled={dialog.busy}>{p.label}</button>
+          {/each}
+        </div>
+      {:else if dialog.binding.anim === 'click:select'}
+        <p>Sæt <strong>{dName}</strong> til <strong>"{positionLabel(dialog.binding.params, dialog.value)}"</strong>?</p>
       {:else if dialog.binding.anim === 'click:toggle'}
         <p>{toggleQuestion(dialog.binding.tag, dLive, dMeta)}</p>
       {:else}
@@ -379,10 +404,12 @@
       {/if}
       {#if dialog.error}<div class="error">{dialog.error}</div>{/if}
       <div class="row">
-        <button class="primary" onclick={submitDialog} disabled={dialog.busy}>
-          {dialog.binding.anim === 'click:write' && dialog.step === 'input' ? 'OK' : 'Bekræft'}
-        </button>
-        {#if dialog.binding.anim === 'click:write' && dialog.step === 'confirm'}
+        {#if !(dialog.binding.anim === 'click:select' && dialog.step === 'input')}
+          <button class="primary" onclick={submitDialog} disabled={dialog.busy}>
+            {dialog.binding.anim === 'click:write' && dialog.step === 'input' ? 'OK' : 'Bekræft'}
+          </button>
+        {/if}
+        {#if (dialog.binding.anim === 'click:write' || dialog.binding.anim === 'click:select') && dialog.step === 'confirm'}
           <button onclick={() => dialog && (dialog.step = 'input')} disabled={dialog.busy}>Tilbage</button>
         {/if}
         <button onclick={() => (dialog = null)} disabled={dialog.busy}>Annullér</button>
@@ -393,6 +420,8 @@
 
 <style>
   .toolbar { margin-bottom: .75rem; }
+  .positions { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 .8rem; }
+  .positions button { min-width: 4.5rem; padding: .6rem .9rem; font-size: 1rem; }
   .canvas {
     background: var(--panel-2);
     border: 1px solid var(--line);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clickFor, parseSetpoint, rangeText, toggleQuestion } from './actions';
+import { positionLabel } from './actions';
 import type { Binding } from './api';
 import { emptyForm, fromForm, toForm } from './bindingForm';
 
@@ -61,5 +62,16 @@ describe('klik-bindinger i formularen', () => {
     expect(emptyForm('M', 'click:toggle').confirm).toBe(true);
     const b = { tag: 'M', anim: 'click:toggle' as const, params: { confirm: false } };
     expect(fromForm(toForm(b))).toEqual(b);
+  });
+});
+
+describe('positionLabel', () => {
+  const params = { positions: [{ value: 0, label: 'Hånd' }, { value: 1, label: '0' }, { value: 2, label: 'Auto' }] };
+  it('navnet på den aktive position; ukendt værdi = null', () => {
+    expect(positionLabel(params, 2)).toBe('Auto');
+    expect(positionLabel(params, 0)).toBe('Hånd');
+    expect(positionLabel(params, true)).toBe('0');
+    expect(positionLabel(params, 7)).toBeNull();
+    expect(positionLabel({}, 1)).toBeNull();
   });
 });

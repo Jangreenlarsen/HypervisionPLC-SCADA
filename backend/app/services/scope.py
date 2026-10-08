@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from .auth import CurrentUser, role_at_least
 from .bindings import WRITE_CLICKS
 from .drawings import DrawingService
@@ -39,11 +41,27 @@ class ScopeService:
             tags.update(b["tag"] for b in self.drawings.effective_bindings(did) if b["tag"])
         return tags
 
-    def operable_tags(self, user: CurrentUser) -> set[str] | None:
+    # Hvilke klik-handlinger der giver ret til hvilken betjening (operatører)
+    ACTION_ANIMS = {"write": ("click:write", "click:select"), "toggle": ("click:toggle",), "pulse": ("click:pulse",)}
+
+    def _operator_bindings(self, user: CurrentUser) -> list[dict[str, Any]]:
+        # Effektive bindinger: også de automatiske fra betjeningssymboler (dannes kun for skrivbare tags)
+        return [b for did in self._ids(user) for b in self.drawings.effective_bindings(did) if b["anim"] in WRITE_CLICKS]
+
+    def operable_tags(self, user: CurrentUser, action: str | None = None) -> set[str] | None:
+        """Tags operatøren må betjene — med `action` kun dem hvor netop den handling findes i en tegning
+        (en til/fra-knap giver ikke ret til at skrive vilkårlige værdier)."""
         if role_at_least(user.role, "engineer"):
             return None
-        tags: set[str] = set()
-        for did in self._ids(user):
-            # Effektive bindinger: også de automatiske fra betjeningssymboler (dannes kun for skrivbare tags)
-            tags.update(b["tag"] for b in self.drawings.effective_bindings(did) if b["anim"] in WRITE_CLICKS)
-        return tags
+        anims = self.ACTION_ANIMS.get(action, WRITE_CLICKS) if action else WRITE_CLICKS
+        return {b["tag"] for b in self._operator_bindings(user) if b["anim"] in anims}
+
+    def write_values(self, user: CurrentUser, tag: str) -> set[float] | None:
+        """Tilladte værdier ved skrivning: None = alle (inden for min/max) hvis tagget har et setpunkt-felt;
+        ellers kun omskifternes positioner."""
+        if role_at_least(user.role, "engineer"):
+            return None
+        bindings = [b for b in self._operator_bindings(user) if b["tag"] == tag]
+        if any(b["anim"] == "click:write" for b in bindings):
+            return None
+        return {float(p["value"]) for b in bindings if b["anim"] == "click:select" for p in b["params"]["positions"]}

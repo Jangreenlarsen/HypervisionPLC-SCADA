@@ -108,10 +108,15 @@ class OperateService:
                           error.message if error else warning)
 
     async def write(self, actor: CurrentUser, ip: str, tag_name: str, value: Any, action: str = "write",
-                    allowed: set[str] | None = None) -> dict[str, Any]:
+                    allowed: set[str] | None = None, allowed_values: set[float] | None = None) -> dict[str, Any]:
         detail: dict[str, Any] = {"requested": value}
         try:
             tag, source, runtime = self._prepare(tag_name, allowed)
+            # Operatør med kun en omskifter: kun dens positioner (ikke vilkårlige værdier via API'et)
+            if allowed_values is not None and not (
+                    isinstance(value, (int, float)) and float(value) in allowed_values):
+                shown = ", ".join(f"{v:g}" for v in sorted(allowed_values)) or "ingen"
+                raise ServiceError(403, f"Værdien {value} er ikke en af omskifterens positioner ({shown})")
             detail["source"] = str(source)
             detail["old"] = self.manager.cache.get(tag_name).value
             if source.kind != "coil" and not isinstance(value, bool) and isinstance(value, (int, float)):
