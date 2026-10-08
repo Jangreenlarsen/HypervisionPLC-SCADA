@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { align, assignColors, groupByUnit, MAX_SERIES, type Point } from './trendData';
+import { align, assignColors, groupByUnit, isolatedPoints, MAX_SERIES, type Point } from './trendData';
 
 describe('align', () => {
   it('fletter tidspunkter, og skelner hul (null) fra manglende punkt (undefined)', () => {
@@ -14,6 +14,16 @@ describe('align', () => {
   it('til/fra bruger max pr. spand', () => {
     const [, y] = align([[[1, 0.2, 0, 1]]], [true]);
     expect(y).toEqual([1]);
+  });
+});
+
+describe('isolatedPoints', () => {
+  it('ét enkelt punkt (nyligt slået til) vises som prik', () => expect(isolatedPoints([undefined, 5, undefined])).toEqual([1]));
+  it('måling mellem to huller', () => expect(isolatedPoints([1, 2, null, 7, null, 3, 4])).toEqual([3]));
+  it('sammenhængende linje og huller giver ingen prikker', () => {
+    expect(isolatedPoints([1, undefined, 2, 3])).toEqual([]);
+    expect(isolatedPoints([null, null])).toEqual([]);
+    expect(isolatedPoints([])).toEqual([]);
   });
 });
 

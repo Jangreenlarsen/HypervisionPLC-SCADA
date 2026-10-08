@@ -39,6 +39,9 @@ class TextParams(_P):
     true_text: str = Field(default="Til", max_length=40)
     false_text: str = Field(default="Fra", max_length=40)
     show_unit: bool = True
+    # Fast tekst før/efter værdien, fx "Tank : " … " liter". Mellemrum bevares som skrevet.
+    prefix: str = Field(default="", max_length=40)
+    suffix: str = Field(default="", max_length=40)
 
 
 class Threshold(_P):

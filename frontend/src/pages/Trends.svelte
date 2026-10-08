@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { get } from '../lib/api';
+  import { get, patch } from '../lib/api';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
   import { align, assignColors, groupByUnit, MAX_SERIES, RANGES, SERIES_COLORS, type Point } from '../lib/trendData';
+
+  let { canEdit = false }: { canEdit?: boolean } = $props();
 
   interface InfoTag { name: string; unit: string; description: string; plc: string; trend: boolean;
     trend_interval_s: number; samples: number; oldest: number | null; is_bool: boolean }
@@ -22,6 +24,7 @@
   let loading = $state(false);
   let resp = $state<DataResp | null>(null);
   let timer: ReturnType<typeof setInterval> | null = null;
+  let enabling = $state('');
 
   function loadSelection(): string[] {
     try {
@@ -102,6 +105,23 @@
     if (live && r && r.seconds <= 86400) timer = setInterval(load, 5000);
   }
 
+  /** Tekniker/admin: slå historik til direkte herfra og vælg tagget — kurven fyldes op fra nu af. */
+  async function enableTrend(t: InfoTag): Promise<void> {
+    error = '';
+    enabling = t.name;
+    try {
+      await patch(`/api/tags/${encodeURIComponent(t.name)}`, { trend: true });
+      t.trend = true;
+      if (!selected.includes(t.name)) toggle(t.name);
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      enabling = '';
+    }
+  }
+
+  const noHistory = $derived(!!info && info.tags.length > 0 && !info.tags.some((t) => t.trend || t.samples));
+
   const exportUrl = $derived.by(() => {
     try {
       const { start, end } = period();
@@ -166,25 +186,39 @@
     <ul>
       {#each shown as t (t.name)}
         <li>
-          <label class:off={!t.trend && !t.samples} title={!t.trend ? 'Historik er ikke slået til for dette tag (Tags → Redigér)' : ''}>
+          <label class:off={!t.trend && !t.samples} title={!t.trend ? 'Historik er ikke slået til for dette tag' : ''}>
             <input type="checkbox" checked={selected.includes(t.name)} disabled={!t.trend && !t.samples} onchange={() => toggle(t.name)} />
             {#if selected.includes(t.name)}<span class="swatch" style="background:{SERIES_COLORS[colors[t.name] ?? 0]}"></span>{/if}
             <span class="name">{t.description || t.name}</span>
             <span class="muted small">{t.unit}</span>
           </label>
+          {#if !t.trend && !t.samples && canEdit}
+            <button class="small enable" disabled={enabling === t.name} onclick={() => enableTrend(t)}
+              title="Begynd at gemme historik for {t.name}">Gem historik</button>
+          {/if}
         </li>
       {/each}
     </ul>
     {#if info}
       <p class="muted small">
         Historik gemmes i {info.retention_days} dage · {Math.round(info.db_size / 1024 / 1024 * 10) / 10} MB.
-        Slå historik til pr. tag under <a href="#tags">Tags</a>.
+        {#if canEdit}Slå historik til pr. tag under <a href="#tags">Tags</a>.{/if}
       </p>
     {/if}
   </aside>
 
   <section class="charts">
-    {#if !selected.length}
+    {#if noHistory}
+      <div class="panel notice">
+        <strong>Ingen tags gemmer historik endnu</strong> — derfor er de grå.
+        {#if canEdit}
+          Tryk <em>Gem historik</em> ud for et tag til venstre; så gemmer serveren dets værdier fra nu af, og kurven fyldes op.
+          Interval og andre indstillinger findes under <a href="#tags">Tags</a>.
+        {:else}
+          Bed en tekniker eller administrator om at slå historik til for de tags, du vil se.
+        {/if}
+      </div>
+    {:else if !selected.length}
       <div class="panel muted">Vælg et eller flere tags til venstre.</div>
     {:else if resp}
       {#each groups as [unit, tags] (unit + tags.map((t) => t.name).join(','))}
@@ -201,8 +235,11 @@
   .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 1rem; align-items: start; }
   @media (max-width: 800px) { .layout { grid-template-columns: minmax(0, 1fr); } }
   ul { list-style: none; padding: 0; margin: .5rem 0; max-height: 60vh; overflow-y: auto; }
-  li label { display: flex; align-items: center; gap: .4rem; padding: .2rem 0; cursor: pointer; }
+  li { display: flex; align-items: center; gap: .4rem; }
+  li label { flex: 1; min-width: 0; display: flex; align-items: center; gap: .4rem; padding: .2rem 0; cursor: pointer; }
   li label.off { opacity: .5; cursor: default; }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .enable { flex: none; padding: .1rem .45rem; font-size: .75rem; }
+  .notice { border-left: 4px solid #2a78d6; }
   .swatch { width: 12px; height: 4px; border-radius: 2px; flex: none; }
 </style>

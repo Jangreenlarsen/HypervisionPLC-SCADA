@@ -34,6 +34,24 @@ def _plc_summary(manager: Any) -> dict[str, Any]:
     return out
 
 
+async def _next_event(queue: asyncio.Queue, alarm_queue: asyncio.Queue,
+                      timeout: float) -> tuple[dict[str, Any] | None, bool]:
+    """Vent på næste live-delta og/eller alarmændring (højst `timeout` s) → (delta, alarm_changed).
+
+    Begge get-tasks annulleres altid — også når vi selv annulleres midt i ventningen (WebSocket lukket);
+    ellers hænger de og logges som "Task was destroyed but it is pending".
+    """
+    get_delta = asyncio.ensure_future(queue.get())
+    get_alarm = asyncio.ensure_future(alarm_queue.get())
+    try:
+        done, _ = await asyncio.wait({get_delta, get_alarm}, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        for task in (get_delta, get_alarm):
+            if not task.done():
+                task.cancel()
+    return (get_delta.result() if get_delta in done else None), get_alarm in done
+
+
 @router.websocket("/ws/live")
 async def live_ws(ws: WebSocket) -> None:
     await ws.accept()
@@ -57,16 +75,8 @@ async def live_ws(ws: WebSocket) -> None:
         last_status: dict[str, Any] | None = None
         await send_alarms()
         while True:
-            delta = None
-            get_delta = asyncio.ensure_future(queue.get())
-            get_alarm = asyncio.ensure_future(alarm_queue.get())
-            done, pending = await asyncio.wait({get_delta, get_alarm}, timeout=2.0,
-                                               return_when=asyncio.FIRST_COMPLETED)
-            for task in pending:
-                task.cancel()
-            if get_delta in done:
-                delta = get_delta.result()
-            if get_alarm in done:
+            delta, alarm_changed = await _next_event(queue, alarm_queue, 2.0)
+            if alarm_changed:
                 await send_alarms()
             if delta and wanted:
                 filtered = {k: v for k, v in delta.items() if k in wanted}

@@ -33,6 +33,8 @@ export interface BindingForm {
   true_text: string;
   false_text: string;
   show_unit: boolean;
+  prefix: string;
+  suffix: string;
   on: string;
   off: string;
   thresholds: Threshold[];
@@ -50,7 +52,7 @@ export interface BindingForm {
 
 export function emptyForm(tag = '', anim: Anim = 'text'): BindingForm {
   return {
-    tag, anim, decimals: '', true_text: 'Til', false_text: 'Fra', show_unit: true,
+    tag, anim, decimals: '', true_text: 'Til', false_text: 'Fra', show_unit: true, prefix: '', suffix: '',
     on: '#2e7d32', off: '#9e9e9e', thresholds: [], invert: false,
     min: '0', max: '100', direction: 'up', angle_min: '0', angle_max: '360',
     title: '', confirm: anim === 'click:toggle', ms: '500', drawing: '',
@@ -68,6 +70,8 @@ export function toForm(b: Pick<Binding, 'tag' | 'anim' | 'params'>): BindingForm
     true_text: str(p.true_text, f.true_text),
     false_text: str(p.false_text, f.false_text),
     show_unit: p.show_unit ?? true,
+    prefix: str(p.prefix, ''),
+    suffix: str(p.suffix, ''),
     on: str(p.on, f.on),
     off: str(p.off, f.off),
     thresholds: (p.thresholds ?? []).map((t: { value: number; color: string }) => ({ value: String(t.value), color: t.color })),
@@ -111,6 +115,10 @@ export function fromForm(f: BindingForm): { tag: string; anim: Anim; params: Rec
   switch (f.anim) {
     case 'text': {
       params = { true_text: f.true_text, false_text: f.false_text, show_unit: f.show_unit };
+      // Mellemrum er bevidste ("Tank : ") og bevares; kun tekst der er helt tom udelades
+      if (f.prefix !== '') params.prefix = f.prefix;
+      if (f.suffix !== '') params.suffix = f.suffix;
+      if (f.prefix.length > 40 || f.suffix.length > 40) throw new Error('Tekst før/efter må højst være 40 tegn');
       if (f.decimals.trim() !== '') {
         const d = parseNumber(f.decimals, 'Decimaler');
         if (!Number.isInteger(d) || d < 0 || d > 6) throw new Error('Decimaler skal være et heltal 0-6');

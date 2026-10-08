@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBinding, colorFor, formatValue, fraction } from './animate';
+import { applyBinding, colorFor, formatValue, fraction, textFor } from './animate';
 import type { Binding, LiveValue } from './api';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -25,6 +25,15 @@ describe('formatValue', () => {
   });
   it('heltal uden decimaler', () => expect(formatValue(7, { ...meta, decimals: null, unit: '' })).toBe('7'));
   it('skjul enhed', () => expect(formatValue(3, meta, { show_unit: false })).toBe('3.0'));
+});
+
+describe('textFor', () => {
+  const liter = { ...meta, unit: '', decimals: 0 };
+  it('tekst før/efter værdien, mellemrum bevares', () =>
+    expect(textFor(1002, liter, { prefix: 'Tank : ', suffix: ' liter' })).toBe('Tank : 1002 liter'));
+  it('også rundt om — når værdien mangler', () =>
+    expect(textFor(null, liter, { prefix: 'Tank : ', suffix: ' liter' })).toBe('Tank : — liter'));
+  it('uden for/efter-tekst = som før', () => expect(textFor(21.456, meta)).toBe('21.5 °C'));
 });
 
 describe('colorFor', () => {
@@ -67,6 +76,15 @@ describe('applyBinding', () => {
     applyBinding(t, b('text'), undefined, meta);
     expect(t.textContent).toBe('—');
     expect(t.getAttribute('data-hv-quality')).toBe('unknown');
+  });
+
+  it('text med tekst før/efter, også uden værdi', () => {
+    const t = el('text');
+    const p = { prefix: 'Tank : ', suffix: ' liter', show_unit: false, decimals: 0 };
+    applyBinding(t, b('text', p), good(1002), meta);
+    expect(t.textContent).toBe('Tank : 1002 liter');
+    applyBinding(t, b('text', p), undefined, meta);
+    expect(t.textContent).toBe('Tank : — liter');
   });
 
   it('comm_error beholder sidste værdi men markeres', () => {

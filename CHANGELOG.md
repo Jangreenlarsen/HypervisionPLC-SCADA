@@ -4,6 +4,27 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.13.2 build 0017] — 2026-10-08 — Fix: Trends — historik kan slås til direkte, enkeltstående værdier ses
+
+- `frontend/src/pages/Trends.svelte` — besked når intet tag gemmer historik (forklarer de grå tags); knappen "Gem historik" ud for tags uden historik (tekniker/admin, `PATCH /api/tags/{navn}` `{trend: true}`), der også vælger tagget; viewer/operatør ser ingen knap, og hjælpeteksten om Tags vises kun for tekniker/admin
+- `frontend/src/App.svelte` — `canEdit` sendes til Trends
+- `frontend/src/lib/trendData.ts` — `isolatedPoints()`: værdier uden gyldig nabo; `TrendChart.svelte` viser dem som prikker (8 px), ellers kun linjer
+- Tests: `trendData.test.ts` (3 nye) — 60 frontend, 203 backend
+- Verificeret i browser: admin slår historik til fra Trends, og første måling ses som prik; viewer ser ingen knap
+
+## [0.13.1 build 0016] — 2026-10-08 — Fix: hængende tasks når en live-forbindelse lukkes
+
+- `backend/app/api/live_ws.py` — ventningen på live-delta/alarmændring er flyttet til `_next_event()`, som altid annullerer begge `queue.get()`-tasks i en `finally`. Før blev de efterladt, når WebSocketen lukkede midt i ventningen, og loggen fik "Task was destroyed but it is pending!" ved hvert sideskift.
+- `backend/tests/test_live_ws.py` — 2 nye tests; begge fejler uden rettelsen. 203 backend-tests.
+
+## [0.13.0 build 0015] — 2026-10-08 — Tekst før/efter værdien i tekst-bindinger
+
+- `backend/app/services/bindings.py` — `TextParams` har nu `prefix` og `suffix` (højst 40 tegn, mellemrum bevares som skrevet; standard tom)
+- `frontend/src/lib/animate.ts` — `textFor()`: tekst før + værdi (+ enhed) + tekst efter, også rundt om "—" når værdien mangler
+- `frontend/src/lib/bindingForm.ts` + `src/pages/Editor.svelte` — felterne "Tekst før"/"Tekst efter" og linjen "Vises som:" med tagets aktuelle værdi; tegningen opdateres live inden der gemmes
+- Tests: `test_drawings_api.py` (2 nye tilfælde), `animate.test.ts` og `bindingForm.test.ts` (5 nye) — 201 backend og 57 frontend
+- Verificeret i browser: "Tank : 88.7 liter" i editoren før gem og på Overview efter gem
+
 ## [0.12.0 build 0014] — 2026-10-08 — Trends
 
 **Backend:**

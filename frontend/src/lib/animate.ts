@@ -31,6 +31,11 @@ export function formatValue(value: unknown, meta: TagMeta | undefined, params: R
   return String(value) + unit;
 }
 
+/** Tekst-binding: fast tekst før/efter værdien ("Tank : " … " liter"); også rundt om "—" når værdien mangler. */
+export function textFor(value: unknown, meta: TagMeta | undefined, params: Record<string, any> = {}): string {
+  return `${params.prefix ?? ''}${formatValue(value, meta, params)}${params.suffix ?? ''}`;
+}
+
 export function colorFor(value: unknown, params: Record<string, any>): string {
   const thresholds: { value: number; color: string }[] = params.thresholds ?? [];
   const n = toNumber(value);
@@ -106,14 +111,14 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
   const quality = live?.quality ?? 'unknown';
   el.setAttribute('data-hv-quality', quality);
   if (!live || live.value === null || live.value === undefined) {
-    if (b.anim === 'text') setText(el, '—');
+    if (b.anim === 'text') setText(el, textFor(null, meta, b.params ?? {}));
     return;
   }
   const v = live.value;
   const p = b.params ?? {};
   switch (b.anim) {
     case 'text':
-      setText(el, formatValue(v, meta, p));
+      setText(el, textFor(v, meta, p));
       break;
     case 'fill':
     case 'stroke':

@@ -122,7 +122,7 @@
       oncancel={() => (changingPassword = false)}
     />
   {:else if page === 'trends'}
-    <Trends />
+    <Trends {canEdit} />
   {:else if page === 'alarms'}
     <Alarms canAck={roleAtLeast(me.role, 'operator')} />
   {:else if page === 'draw'}

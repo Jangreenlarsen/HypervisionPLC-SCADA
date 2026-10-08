@@ -21,6 +21,14 @@ describe('fromForm', () => {
     expect(() => fromForm({ ...emptyForm('T', 'text'), decimals: '1.5' })).toThrow('heltal');
   });
 
+  it('text: tekst før/efter gemmes som skrevet og læses tilbage', () => {
+    const b = fromForm({ ...emptyForm('T', 'text'), prefix: 'Tank : ', suffix: ' liter' });
+    expect(b.params).toMatchObject({ prefix: 'Tank : ', suffix: ' liter' });
+    expect(fromForm(emptyForm('T', 'text')).params).not.toHaveProperty('prefix');
+    const f = toForm({ tag: 'T', anim: 'text', params: b.params });
+    expect([f.prefix, f.suffix]).toEqual(['Tank : ', ' liter']);
+  });
+
   it('level: min skal være mindre end max', () => {
     expect(fromForm({ ...emptyForm('T', 'level'), min: '0', max: '50' }).params).toEqual({ min: 0, max: 50, direction: 'up' });
     expect(() => fromForm({ ...emptyForm('T', 'level'), min: '5', max: '5' })).toThrow('mindre end max');
