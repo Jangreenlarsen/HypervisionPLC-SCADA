@@ -7,7 +7,7 @@
   interface Status {
     state: string; message: string; last_ok: number | null; cycles?: number; errors?: number;
     requests_per_cycle?: number; plan?: { kind: string; start: number; count: number }[];
-    sse?: { state: string; message?: string; events?: number };
+    sse?: { state: string; message?: string; events?: number; covered?: number };
   }
   interface Plc {
     key: string; name: string; base_url: string; username: string; enabled: boolean;
@@ -89,7 +89,7 @@
             {#if p.status.plan?.length}<span class="muted small">({p.status.plan.map((r) => `${r.kind} ${r.start}+${r.count}`).join(', ')})</span>{/if}</td></tr>
           <tr><th>SSE</th><td>
             <span class="badge {p.status.sse?.state}">{p.status.sse?.state ?? '-'}</span>
-            <span class="small muted">{p.status.sse?.message ?? ''}{p.status.sse?.events ? ` · ${p.status.sse.events} hændelser` : ''}</span>
+            <span class="small muted">{p.status.sse?.message ?? ''}{p.status.sse?.covered !== undefined ? ` · dækker ${p.status.sse.covered} adresser` : ''}{p.status.sse?.events ? ` · ${p.status.sse.events} hændelser` : ''}</span>
           </td></tr>
         </tbody>
       </table>

@@ -388,6 +388,68 @@ class Database:
             r["detail"] = json.loads(r["detail"])
         return rows
 
+    # ------------------------------------------------------- backup/restore
+
+    def export_project(self) -> dict[str, Any]:
+        """Hele projektet (uden brugere, sessioner og audit) — til backup."""
+        return {
+            "plcs": self._query("SELECT key, name, base_url, username, enabled, sse_enabled, verify_tls FROM plcs ORDER BY key"),
+            "tags": self._query('SELECT name, source, description, unit, scale, "offset", decimals, writable, min, max, '
+                                "confirm_write FROM tags ORDER BY name"),
+            "drawings": self._query("SELECT id, name, active_version FROM drawings ORDER BY id"),
+            "versions": self._query("SELECT drawing_id, version, comment, size, width, height, created_at "
+                                    "FROM drawing_versions ORDER BY drawing_id, version"),
+            "bindings": self.list_all_bindings(),
+        }
+
+    def list_all_bindings(self) -> list[dict[str, Any]]:
+        rows = self._query("SELECT drawing_id, element, position, tag, anim, params FROM bindings "
+                           "ORDER BY drawing_id, element, position")
+        for r in rows:
+            r["params"] = json.loads(r["params"])
+        return rows
+
+    def replace_project(self, data: dict[str, Any]) -> None:
+        """Erstat PLC'er, tags, tegninger og bindinger i ÉN transaktion (alt eller intet).
+        Brugere, sessioner og audit røres ikke."""
+        now = time.time()
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                for table in ("bindings", "drawing_versions", "drawings", "tags", "plcs"):
+                    cur.execute(f"DELETE FROM {table}")
+                for p in data["plcs"]:
+                    cur.execute(
+                        "INSERT INTO plcs(key, name, base_url, username, enabled, sse_enabled, verify_tls, created_at, "
+                        "updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                        (p["key"], p["name"], p["base_url"], p["username"], _db("enabled", p["enabled"]),
+                         _db("sse_enabled", p["sse_enabled"]), _db("verify_tls", p["verify_tls"]), now, now))
+                for t in data["tags"]:
+                    cur.execute(
+                        'INSERT INTO tags(name, source, plc, description, unit, scale, "offset", decimals, writable, '
+                        "min, max, confirm_write, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (t["name"], t["source"], t["plc"], t["description"], t["unit"], t["scale"], t["offset"],
+                         t["decimals"], _db("writable", t["writable"]), t["min"], t["max"],
+                         _db("confirm_write", t["confirm_write"]), now, now))
+                for d in data["drawings"]:
+                    cur.execute("INSERT INTO drawings(id, name, active_version, created_at, updated_at) VALUES (?,?,?,?,?)",
+                                (d["id"], d["name"], d["active_version"], now, now))
+                for v in data["versions"]:
+                    cur.execute(
+                        "INSERT INTO drawing_versions(drawing_id, version, comment, size, width, height, created_at) "
+                        "VALUES (?,?,?,?,?,?,?)",
+                        (v["drawing_id"], v["version"], v["comment"], v["size"], v["width"], v["height"],
+                         v.get("created_at") or now))
+                for b in data["bindings"]:
+                    cur.execute("INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
+                                (b["drawing_id"], b["element"], b["position"], b["tag"], b["anim"],
+                                 json.dumps(b["params"])))
+                cur.execute("COMMIT")
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
     def _update(self, table: str, pk: str, key: str, changes: dict[str, Any], allowed: tuple[str, ...]) -> bool:
         fields = [f for f in changes if f in allowed]
         if not fields:

@@ -43,6 +43,9 @@ class Settings:
     session_hours: float = field(default_factory=lambda: _env_float("SCADA_SESSION_HOURS", 8.0))
     # Kun ved første opstart (ingen brugere): adgangskode til 'admin'. Ellers genereres en engangsadgangskode.
     admin_password: str | None = field(default_factory=lambda: os.environ.get("SCADA_ADMIN_PASSWORD") or None)
+    # Automatisk backup på serveren hvert N. time (0 = fra); de seneste `backup_keep` gemmes.
+    backup_hours: float = field(default_factory=lambda: _env_float("SCADA_BACKUP_HOURS", 24.0))
+    backup_keep: int = field(default_factory=lambda: int(os.environ.get("SCADA_BACKUP_KEEP", "7")))
     start_runtimes: bool = True
 
     def __post_init__(self) -> None:

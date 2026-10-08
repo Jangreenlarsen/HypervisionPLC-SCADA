@@ -330,13 +330,14 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
             return _err(503, "SSE disabled")
         if st.sse_active >= st.sse_max_clients:
             return _err(503, "Max SSE clients reached")
-        watch = _parse_watch(request.query_params)
+        # Som den rigtige PLC: query-strengen URL-afkodes IKKE (sse_get_query_param i sse_events.cpp)
+        watch = _parse_watch_raw(request.url.query)
         st.sse_active += 1
 
         async def stream() -> AsyncIterator[bytes]:
             try:
                 connected = {"status": "connected", "max_clients": st.sse_max_clients, "active_clients": st.sse_active,
-                             "watching": {k: len(v) for k, v in watch.items()}}
+                             "watching": {("coils" if k == "coil" else k): len(v) for k, v in watch.items()}}
                 yield f"event: connected\ndata: {json.dumps(connected)}\n\n".encode()
                 prev = _snapshot(st, watch)
                 last_hb = time.monotonic()
@@ -359,6 +360,57 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
         return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
     return app
+
+
+def _raw_param(query: str, key: str) -> str | None:
+    for part in query.split("&"):
+        k, _, v = part.partition("=")
+        if k == key:
+            return v  # bevidst uden URL-afkodning — som PLC'en
+    return None
+
+
+def _parse_addrs_plc(text: str, max_addr: int) -> list[int]:
+    """Efterligner sse_parse_addr_list: stopper ved første tegn der ikke er tal, komma, mellemrum eller '-'."""
+    out: list[int] = []
+    i, n = 0, len(text)
+    while i < n and len(out) < 32:
+        while i < n and text[i] in ", ":
+            i += 1
+        j = i
+        while j < n and text[j].isdigit():
+            j += 1
+        if j == i:
+            break
+        start = int(text[i:j])
+        i = j
+        if i < n and text[i] == "-":
+            k = i + 1
+            while k < n and text[k].isdigit():
+                k += 1
+            if k == i + 1:
+                break
+            end = min(int(text[i + 1:k]), max_addr)
+            i = k
+            out.extend(a for a in range(start, end + 1) if len(out) < 32)
+        elif start <= max_addr:
+            out.append(start)
+    return out[:32]
+
+
+def _parse_watch_raw(query: str) -> dict[str, list[int]]:
+    subscribe = _raw_param(query, "subscribe") or "all"
+    limits = {"hr": ("hr", 159), "ir": ("ir", 159), "coils": ("coil", 255), "di": ("di", 255)}
+    explicit = {}
+    for param, (kind, max_addr) in limits.items():
+        raw = _raw_param(query, param)
+        if raw:
+            explicit[kind] = _parse_addrs_plc(raw, max_addr)
+    if explicit:
+        return explicit
+    if "all" in subscribe:
+        return {"hr": list(range(256)), "ir": list(range(256)), "coil": list(range(256)), "di": list(range(256))}
+    return {"hr": list(range(16))}
 
 
 def _parse_watch(params: Any) -> dict[str, list[int]]:

@@ -1,7 +1,10 @@
 """Runtime for én PLC: poll-løkke + valgfri SSE-lytter → live-cache.
 
 - Poll-plan bygges ud fra de tags der hører til PLC'en.
-- SSE sund → resync-poll hvert `slow_interval` (default 2 s); ellers `fast_interval` (0,5 s).
+- Hver `fast_interval` (0,5 s) polles alt, som SSE IKKE leverer: ST-variabler, GLOBAL_VAR,
+  32-bit-registre og adresser PLC'en ikke har bekræftet i sin watch-list.
+- Adresser SSE leverer, får kun en kontrol-poll hvert `slow_interval` (2 s). Er SSE nede,
+  polles alt hurtigt.
 - Klientens rate-budget (≤ 5 req/s) er et hårdt loft: er planen større, bliver cyklussen
   bare længere.
 - 32-bit-tags opdateres kun via polling (begge ord i samme kald). SSE-hændelser for
@@ -67,6 +70,8 @@ class PlcRuntime:
         self.status = RuntimeStatus()
         self._tags: list[RuntimeTag] = []
         self._plan: list[ReadRange] = []
+        self._units: dict[str, set[tuple[int, int]]] = {}
+        self._last_full = 0.0
         self._programs: set[int] = set()
         self._need_globals = False
         self._raw: dict[str, dict[int, int]] = {"hr": {}, "ir": {}, "coil": {}, "di": {}}
@@ -119,7 +124,9 @@ class PlcRuntime:
                 programs.add(src.program)  # type: ignore[arg-type]
             elif src.kind == "global":
                 need_globals = True
+        self._units = units
         self._plan = plan_reads(units)
+        self._last_full = 0.0
         self._programs = programs
         self._need_globals = need_globals
         self.status.plan = [{"kind": r.kind, "start": r.start, "count": r.count} for r in self._plan]
@@ -148,11 +155,13 @@ class PlcRuntime:
                 await self._wake.wait()
                 continue
             try:
-                await self.poll_once()
+                now = asyncio.get_running_loop().time()
+                sse_ok = self.sse is not None and self.sse.healthy(now)
+                full = not sse_ok or now - self._last_full >= self.slow_interval
+                await self.poll_once(full=full)
+                if full:
+                    self._last_full = now
                 retry = 1.0
-                loop_time = asyncio.get_running_loop().time()
-                if self.sse is not None and self.sse.healthy(loop_time):
-                    interval = self.slow_interval
             except asyncio.CancelledError:
                 raise
             except PlcError as exc:
@@ -180,9 +189,17 @@ class PlcRuntime:
         self.status.errors += 1
         self.cache.mark_comm_error([t.name for t in self._tags], message)
 
-    async def poll_once(self) -> None:
-        """Én fuld cyklus. Kaster PlcError ved kommunikationsfejl."""
-        for rng in self._plan:
+    def _plan_for(self, full: bool) -> list[ReadRange]:
+        if full or self.sse is None:
+            return self._plan
+        sse = self.sse
+        uncovered = {kind: {u for u in units if not (u[0] == u[1] and sse.covers(kind, u[0]))}
+                     for kind, units in self._units.items()}
+        return plan_reads(uncovered)
+
+    async def poll_once(self, full: bool = True) -> None:
+        """Én cyklus (`full=False`: kun det SSE ikke leverer). Kaster PlcError ved kommunikationsfejl."""
+        for rng in self._plan_for(full):
             values = await self.client.read_bulk(rng.kind, rng.start, rng.count)
             self._raw[rng.kind].update(values)
         logic: dict[int, dict[str, Any]] = {}
