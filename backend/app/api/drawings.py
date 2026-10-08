@@ -9,6 +9,8 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..services.drawings import DrawingService
+from ..services.errors import ServiceError
+from ..services.scope import ScopeService
 from .auth import ENGINEER, VIEWER, audit
 
 router = APIRouter(prefix="/api/drawings")
@@ -43,9 +45,20 @@ def _svc(request: Request) -> DrawingService:
     return request.app.state.drawing_service
 
 
+def _scope(request: Request) -> ScopeService:
+    return request.app.state.scope_service
+
+
+def _check(request: Request, drawing_id: str) -> None:
+    """Tegninger uden for brugerens adgang 'findes ikke' (afslør ikke at de eksisterer)."""
+    if not _scope(request).can_see_drawing(request.state.user, drawing_id):
+        raise ServiceError(404, f"Tegningen '{drawing_id}' findes ikke")
+
+
 @router.get("", dependencies=[VIEWER])
 async def list_drawings(request: Request) -> list[dict[str, Any]]:
-    return _svc(request).list()
+    allowed = _scope(request).drawing_ids(request.state.user)
+    return [d for d in _svc(request).list() if allowed is None or d["id"] in allowed]
 
 
 @router.post("", status_code=201, dependencies=[ENGINEER])
@@ -57,6 +70,7 @@ async def create_drawing(body: DrawingCreate, request: Request) -> dict[str, Any
 
 @router.get("/{drawing_id}", dependencies=[VIEWER])
 async def get_drawing(drawing_id: str, request: Request) -> dict[str, Any]:
+    _check(request, drawing_id)
     return _svc(request).get(drawing_id)
 
 
@@ -86,6 +100,7 @@ async def add_version(drawing_id: str, body: VersionCreate, request: Request) ->
 
 @router.get("/{drawing_id}/svg", dependencies=[VIEWER])
 async def get_svg(drawing_id: str, request: Request, version: int | None = None) -> Response:
+    _check(request, drawing_id)
     svg = _svc(request).svg(drawing_id, version)
     # Saneret SVG serveres med CSP, så den heller ikke kan køre script hvis den åbnes direkte.
     return Response(svg, media_type="image/svg+xml",
@@ -95,11 +110,13 @@ async def get_svg(drawing_id: str, request: Request, version: int | None = None)
 
 @router.get("/{drawing_id}/view", dependencies=[VIEWER])
 async def view(drawing_id: str, request: Request) -> dict[str, Any]:
-    return _svc(request).view(drawing_id)
+    _check(request, drawing_id)
+    return _svc(request).view(drawing_id, _scope(request).drawing_ids(request.state.user))
 
 
 @router.get("/{drawing_id}/bindings", dependencies=[VIEWER])
 async def list_bindings(drawing_id: str, request: Request) -> list[dict[str, Any]]:
+    _check(request, drawing_id)
     return _svc(request).bindings(drawing_id)
 
 

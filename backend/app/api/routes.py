@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..config import read_version
 from .auth import ADMIN, ENGINEER, VIEWER, audit
+from ..services.errors import ServiceError
 from ..services.plcs import PlcService
 from ..services.tags import TagService
 
@@ -123,7 +124,8 @@ async def discover_plc(key: str, request: Request) -> dict[str, Any]:
 
 @router.get("/tags", dependencies=[VIEWER])
 async def list_tags(request: Request, plc: str | None = None) -> list[dict[str, Any]]:
-    return _tags(request).list(plc=plc)
+    visible = request.app.state.scope_service.visible_tags(request.state.user)
+    return [t for t in _tags(request).list(plc=plc) if visible is None or t["name"] in visible]
 
 
 @router.post("/tags", status_code=201, dependencies=[ENGINEER])
@@ -144,6 +146,9 @@ async def import_tags(body: TagImport, request: Request) -> dict[str, Any]:
 
 @router.get("/tags/{name}", dependencies=[VIEWER])
 async def get_tag(name: str, request: Request) -> dict[str, Any]:
+    visible = request.app.state.scope_service.visible_tags(request.state.user)
+    if visible is not None and name not in visible:
+        raise ServiceError(404, f"Tag '{name}' findes ikke")
     return _tags(request).get(name)
 
 
@@ -164,4 +169,7 @@ async def delete_tag(name: str, request: Request) -> None:
 @router.get("/live", dependencies=[VIEWER])
 async def live_values(request: Request, tags: str | None = Query(default=None, description="Kommasepareret liste")) -> dict[str, Any]:
     names = [t.strip() for t in tags.split(",") if t.strip()] if tags else [t["name"] for t in _tags(request).list()]
+    visible = request.app.state.scope_service.visible_tags(request.state.user)
+    if visible is not None:
+        names = [n for n in names if n in visible]
     return {"values": request.app.state.cache.snapshot(names)}

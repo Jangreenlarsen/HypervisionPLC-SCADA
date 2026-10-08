@@ -113,6 +113,7 @@ export interface Me {
   username: string;
   role: Role;
   must_change_password: boolean;
+  drawings: string[] | null; // null = alle tegninger
 }
 
 export interface PlcSummary {

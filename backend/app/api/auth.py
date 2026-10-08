@@ -80,12 +80,14 @@ class UserCreate(_Model):
     username: str
     role: str
     password: str
+    drawings: list[str] | None = None  # None = alle tegninger
 
 
 class UserUpdate(_Model):
     role: str | None = None
     disabled: bool | None = None
     password: str | None = None
+    drawings: list[str] | None = None  # sendes null eksplicit = alle tegninger
 
 
 @router.post("/auth/login")
@@ -129,7 +131,7 @@ async def list_users(request: Request) -> list[dict[str, Any]]:
 @router.post("/users", status_code=201, dependencies=[ADMIN])
 async def create_user(body: UserCreate, request: Request) -> dict[str, Any]:
     result = _auth(request).create_user(body.model_dump())
-    audit(request, "user.create", body.username, {"role": body.role})
+    audit(request, "user.create", body.username, {"role": body.role, "drawings": body.drawings})
     return result
 
 

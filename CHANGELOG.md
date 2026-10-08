@@ -4,6 +4,21 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.9.0 build 0011] — 2026-10-08 — Adgang pr. tegning
+
+**Backend:**
+- `users.scoped` + tabel `user_drawings` (migrering af eksisterende database: alle eksisterende brugere beholder adgang til alle tegninger)
+- `app/services/scope.py` — synlige tegninger, synlige tags (eksplicitte + automatiske bindinger i brugerens tegninger) og betjenbare tags pr. bruger
+- Håndhævet i backend: tegningsliste filtreres, andre tegninger svarer 404 (view/svg/bindings), "gå til"-bindinger til skjulte tegninger fjernes, `/api/tags`, `/api/tags/{navn}`, `/api/live` og WebSocket filtreres
+- **Skærpet:** operatører kan kun betjene tags der har en klik-handling (write/toggle/pulse) i en tegning de har adgang til — afviste forsøg logges; tekniker/admin uændret
+- Brugere-API: `drawings` (null = alle, liste = kun de valgte) ved oprettelse og ændring; ukendte tegninger afvises; sletning af en tegning fjerner den fra brugeres adgang
+- `effective_bindings()` udskilt fra `view()` i DrawingService
+- 163 backend-tests (6 nye i `test_scope.py`)
+
+**Frontend:** Brugere-siden har kolonnen "Tegninger" og valg af "Alle tegninger" / "Kun valgte" ved oprettelse og redigering; rollebeskrivelser opdateret.
+
+**Verificeret** i browser: operatør oprettet med adgang til én tegning ser kun den og dens tags.
+
 ## [0.8.1 build 0010] — 2026-10-08 — fix: SSE-dækning (afslutter debug-serien 0.7.0.x)
 
 Jan bekræftede at DO2 nu opdaterer lige så hurtigt som DO1. Rettelsen er den fra 0.7.0.1 (se nedenfor); denne version lukker fejlen i BUGS.md.
