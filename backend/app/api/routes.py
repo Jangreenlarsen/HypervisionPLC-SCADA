@@ -42,6 +42,13 @@ class PlcUpdate(_Model):
 
 
 class TagCreate(_Model):
+    alarm_hh: float | None = None
+    alarm_h: float | None = None
+    alarm_l: float | None = None
+    alarm_ll: float | None = None
+    alarm_deadband: float | None = None
+    alarm_delay_s: float | None = None
+    alarm_on: str | None = None
     name: str
     source: str
     description: str | None = None
@@ -56,6 +63,13 @@ class TagCreate(_Model):
 
 
 class TagUpdate(_Model):
+    alarm_hh: float | None = None
+    alarm_h: float | None = None
+    alarm_l: float | None = None
+    alarm_ll: float | None = None
+    alarm_deadband: float | None = None
+    alarm_delay_s: float | None = None
+    alarm_on: str | None = None
     source: str | None = None
     description: str | None = None
     unit: str | None = None

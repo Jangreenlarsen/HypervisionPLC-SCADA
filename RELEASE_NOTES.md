@@ -2,6 +2,15 @@
 
 ---
 
+## v0.11.0 — 2026-10-08 — Alarmer
+
+- Under **Tags** kan hvert tag få alarmgrænser: HH, H, L og LL med dødbånd (så alarmen ikke blafrer) og forsinkelse — eller en alarm når et til/fra-signal er aktivt.
+- SCADA'en giver også alarm, hvis en PLC holder op med at svare.
+- Alarmklokken i toppen viser antal aktive og nye alarmer og blinker, indtil de er kvitteret.
+- Ny side **Alarmer** med aktive alarmer og historik. Operatører kvitterer enkeltvis eller alle på én gang; det registreres hvem der kvitterede.
+- I tegningerne blinker elementer rødt, når deres tag er i alarm.
+- Aktive alarmer overlever en genstart af serveren, og brugere med adgang til udvalgte tegninger ser kun de alarmer der hører til.
+
 ## v0.10.0 — 2026-10-08 — Tegne-editor
 
 - Ny side **Tegn** (tekniker og admin): tegn og ret tegninger direkte i SCADA'en med en fuld tegne-editor (SVG-Edit) — figurer, tekst, linjer, lag, farver, fortryd.

@@ -12,6 +12,9 @@ from .tagsource import TagSourceError, parse_source
 
 TAG_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 _TEXT_FIELDS = {"description": 200, "unit": 16}
+LIMIT_FIELDS = ("alarm_ll", "alarm_l", "alarm_h", "alarm_hh")  # stigende rækkefølge
+ALARM_DEFAULTS = {"alarm_hh": None, "alarm_h": None, "alarm_l": None, "alarm_ll": None,
+                  "alarm_deadband": 0.0, "alarm_delay_s": 0.0, "alarm_on": None}
 WRITABLE_KINDS = ("hr", "coil")
 
 
@@ -74,6 +77,7 @@ class TagService:
         hi = out["max"] if "max" in out else (current or {}).get("max")
         if lo is not None and hi is not None and lo > hi:
             raise ServiceError(400, f"min ({lo}) må ikke være større end max ({hi})")
+        self._validate_alarms(data, current, out)
         # Skrivbarhed vurderes på den ENDELIGE tilstand (ny kilde og/eller nyt flag), så reglen
         # holder ved oprettelse, opdatering og import.
         final_source = parse_source(out.get("source") or (current or {}).get("source"))  # type: ignore[arg-type]
@@ -83,6 +87,41 @@ class TagService:
                                     "(ir/di er input, og PLC'ens REST API kan ikke skrive ST-variabler)")
         return out
 
+    def _validate_alarms(self, data: dict[str, Any], current: dict[str, Any] | None, out: dict[str, Any]) -> None:
+        """Alarmgrænser — vurderet på den endelige tilstand (opret, opdatér og import bruger samme vej)."""
+        for field in LIMIT_FIELDS:
+            if field in data:
+                out[field] = None if data[field] is None else _number(data[field], field)
+        if data.get("alarm_deadband") is not None:
+            db = _number(data["alarm_deadband"], "alarm_deadband")
+            if db < 0:
+                raise ServiceError(400, "Dødbånd kan ikke være negativt")
+            out["alarm_deadband"] = db
+        if data.get("alarm_delay_s") is not None:
+            delay = _number(data["alarm_delay_s"], "alarm_delay_s")
+            if not 0 <= delay <= 3600:
+                raise ServiceError(400, "Alarmforsinkelse skal være 0-3600 sekunder")
+            out["alarm_delay_s"] = delay
+        if "alarm_on" in data:
+            on = data["alarm_on"]
+            if on not in (None, "true", "false"):
+                raise ServiceError(400, "alarm_on skal være null, 'true' eller 'false'")
+            out["alarm_on"] = on
+
+        def final(field: str) -> Any:
+            return out[field] if field in out else (current or {}).get(field)
+
+        limits = [(f, final(f)) for f in LIMIT_FIELDS if final(f) is not None]
+        for (f1, v1), (f2, v2) in zip(limits, limits[1:]):
+            if v1 > v2:
+                names = {"alarm_ll": "LL", "alarm_l": "L", "alarm_h": "H", "alarm_hh": "HH"}
+                raise ServiceError(400, f"Alarmgrænserne skal stige: {names[f1]} ({v1}) er større end {names[f2]} ({v2})")
+        source = parse_source(out.get("source") or (current or {}).get("source"))  # type: ignore[arg-type]
+        if limits and source.datatype == "bool":
+            raise ServiceError(400, "HH/H/L/LL-grænser kræver et tal-tag — brug 'alarm ved til/fra' for til/fra-tags")
+        if final("alarm_on") is not None and source.datatype not in ("bool", "auto"):
+            raise ServiceError(400, "'Alarm ved til/fra' kræver et til/fra-tag (coil, di eller BOOL-variabel)")
+
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
         name = data.get("name")
         if not isinstance(name, str) or not TAG_NAME_RE.match(name):
@@ -90,7 +129,7 @@ class TagService:
         if self.db.get_tag(name) is not None:
             raise ServiceError(409, f"Tag '{name}' findes allerede")
         values = {"description": "", "unit": "", "scale": 1.0, "offset": 0.0, "decimals": None,
-                  "writable": False, "min": None, "max": None, "confirm_write": True}
+                  "writable": False, "min": None, "max": None, "confirm_write": True, **ALARM_DEFAULTS}
         values.update(self._validate(data, None))
         self.db.insert_tag(name, values)
         self.manager.reload_tags()
@@ -123,7 +162,7 @@ class TagService:
                 if not isinstance(item, dict):
                     raise ServiceError(400, "Hvert element skal være et objekt")
                 values = {"description": "", "unit": "", "scale": 1.0, "offset": 0.0, "decimals": None,
-                          "writable": False, "min": None, "max": None, "confirm_write": True}
+                          "writable": False, "min": None, "max": None, "confirm_write": True, **ALARM_DEFAULTS}
                 if not isinstance(name, str) or not TAG_NAME_RE.match(name):
                     raise ServiceError(400, "Ugyldigt tag-navn")
                 if self.db.get_tag(name) is not None:
@@ -140,4 +179,4 @@ class TagService:
 
 def _public(tag: dict[str, Any]) -> dict[str, Any]:
     return {k: tag[k] for k in ("name", "source", "plc", "description", "unit", "scale", "offset",
-                                "decimals", "writable", "min", "max", "confirm_write")}
+                                "decimals", "writable", "min", "max", "confirm_write", *ALARM_DEFAULTS)}

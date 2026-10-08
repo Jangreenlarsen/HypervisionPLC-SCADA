@@ -5,6 +5,7 @@ Protokol:
   server → {"type": "snapshot", "values": {...}}          (straks efter subscribe)
   server → {"type": "delta", "values": {...}}             (kun ændrede, kun abonnerede tags)
   server → {"type": "plcs", "plcs": {key: {state, message, sse}}}   (ved ændring, tjekkes hvert 2. s)
+  server → {"type": "alarms", "summary": {...}, "active": [...]}   (ved abonnement og ved ændring)
   server → {"type": "error", "error": "..."}              (ugyldig besked)
 """
 
@@ -44,15 +45,29 @@ async def live_ws(ws: WebSocket) -> None:
     cache = ws.app.state.cache
     manager = ws.app.state.manager
     queue = cache.subscribe()
+    alarms = ws.app.state.alarm_service
+    alarm_queue = alarms.subscribe()
     wanted: set[str] = set()
+    visible = ws.app.state.scope_service.visible_tags(user)
+
+    async def send_alarms() -> None:
+        await ws.send_json({"type": "alarms", "summary": alarms.summary(visible), "active": alarms.active(visible)})
 
     async def sender() -> None:
         last_status: dict[str, Any] | None = None
+        await send_alarms()
         while True:
-            try:
-                delta = await asyncio.wait_for(queue.get(), timeout=2.0)
-            except asyncio.TimeoutError:
-                delta = None
+            delta = None
+            get_delta = asyncio.ensure_future(queue.get())
+            get_alarm = asyncio.ensure_future(alarm_queue.get())
+            done, pending = await asyncio.wait({get_delta, get_alarm}, timeout=2.0,
+                                               return_when=asyncio.FIRST_COMPLETED)
+            for task in pending:
+                task.cancel()
+            if get_delta in done:
+                delta = get_delta.result()
+            if get_alarm in done:
+                await send_alarms()
             if delta and wanted:
                 filtered = {k: v for k, v in delta.items() if k in wanted}
                 if filtered:
@@ -71,7 +86,6 @@ async def live_ws(ws: WebSocket) -> None:
                 await ws.send_json({"type": "error",
                                     "error": f"Forventet {{'type':'subscribe','tags':[...]}} med max {MAX_TAGS} navne"})
                 continue
-            visible = ws.app.state.scope_service.visible_tags(user)
             wanted = set(tags) if visible is None else set(tags) & visible
             await ws.send_json({"type": "snapshot", "values": cache.snapshot(sorted(wanted))})
     except WebSocketDisconnect:
@@ -84,3 +98,4 @@ async def live_ws(ws: WebSocket) -> None:
         with contextlib.suppress(asyncio.CancelledError, Exception):
             await send_task
         cache.unsubscribe(queue)
+        alarms.unsubscribe(alarm_queue)

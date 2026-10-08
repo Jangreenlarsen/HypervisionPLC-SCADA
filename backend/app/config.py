@@ -46,6 +46,9 @@ class Settings:
     # Automatisk backup på serveren hvert N. time (0 = fra); de seneste `backup_keep` gemmes.
     backup_hours: float = field(default_factory=lambda: _env_float("SCADA_BACKUP_HOURS", 24.0))
     backup_keep: int = field(default_factory=lambda: int(os.environ.get("SCADA_BACKUP_KEEP", "7")))
+    alarm_tick_s: float = field(default_factory=lambda: _env_float("SCADA_ALARM_TICK_S", 1.0))
+    # En PLC skal have været utilgængelig så længe før kommunikationsalarmen udløses
+    alarm_comm_delay_s: float = field(default_factory=lambda: _env_float("SCADA_ALARM_COMM_DELAY_S", 10.0))
     start_runtimes: bool = True
 
     def __post_init__(self) -> None:

@@ -1,5 +1,5 @@
 // WebSocket-klient til /ws/live med automatisk genforbindelse.
-import { notifyUnauthorized, type LiveValue, type PlcSummary } from './api';
+import { notifyUnauthorized, type Alarm, type AlarmSummary, type LiveValue, type PlcSummary } from './api';
 
 type Listener = (values: Record<string, LiveValue>) => void;
 type StatusListener = (plcs: Record<string, PlcSummary>, connected: boolean) => void;
@@ -12,6 +12,8 @@ export class LiveClient {
   private timer: ReturnType<typeof setTimeout> | null = null;
   connected = false;
   plcs: Record<string, PlcSummary> = {};
+  /** Kaldes når serveren sender en ny alarmliste (ved forbindelse og ved hver ændring). */
+  onAlarms: ((summary: AlarmSummary, active: Alarm[]) => void) | null = null;
 
   constructor(private onValues: Listener, private onStatus: StatusListener = () => {}) {
     this.connect();
@@ -56,7 +58,8 @@ export class LiveClient {
       else if (msg.type === 'plcs') {
         this.plcs = msg.plcs;
         this.onStatus(this.plcs, true);
-      } else if (msg.type === 'error') console.error('Live-fejl fra server:', msg.error);
+      } else if (msg.type === 'alarms') this.onAlarms?.(msg.summary, msg.active);
+      else if (msg.type === 'error') console.error('Live-fejl fra server:', msg.error);
     };
     ws.onclose = (ev) => {
       this.connected = false;

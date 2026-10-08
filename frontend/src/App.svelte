@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { ApiError, get, onUnauthorized, post, roleAtLeast, type Me, type Role } from './lib/api';
+  import { ApiError, get, onUnauthorized, post, roleAtLeast, type AlarmSummary, type Me, type Role } from './lib/api';
   import Overview from './pages/Overview.svelte';
   import Drawings from './pages/Drawings.svelte';
   import Tags from './pages/Tags.svelte';
@@ -10,11 +10,14 @@
   import DrawEditor from './pages/DrawEditor.svelte';
   import Audit from './pages/Audit.svelte';
   import Backup from './pages/Backup.svelte';
+  import Alarms from './pages/Alarms.svelte';
+  import { LiveClient } from './lib/live';
   import Login from './pages/Login.svelte';
   import ChangePassword from './pages/ChangePassword.svelte';
 
   const pages: { id: string; label: string; role: Role }[] = [
     { id: 'overview', label: 'Overview', role: 'viewer' },
+    { id: 'alarms', label: 'Alarmer', role: 'viewer' },
     { id: 'drawings', label: 'Tegninger', role: 'viewer' },
     { id: 'draw', label: 'Tegn', role: 'engineer' },
     { id: 'editor', label: 'Bindinger', role: 'engineer' },
@@ -30,6 +33,21 @@
   let me = $state<Me | null>(null);
   let checked = $state(false);
   let changingPassword = $state(false);
+  let alarmSummary = $state<AlarmSummary>({ active: 0, unacked: 0, high: 0 });
+  let alarmLive: LiveClient | null = null;
+
+  // Én let WebSocket til alarmklokken i toppen (abonnerer ikke på tags).
+  $effect(() => {
+    if (me && !me.must_change_password && !alarmLive) {
+      alarmLive = new LiveClient(() => {});
+      alarmLive.onAlarms = (s) => (alarmSummary = s);
+      alarmLive.subscribe([]);
+    } else if (!me && alarmLive) {
+      alarmLive.close();
+      alarmLive = null;
+      alarmSummary = { active: 0, unacked: 0, high: 0 };
+    }
+  });
   let error = $state('');
 
   async function loadMe(): Promise<void> {
@@ -77,6 +95,10 @@
         <a href={'#' + p.id} class:active={page === p.id}>{p.label}</a>
       {/each}
     </nav>
+    <a href="#alarms" class="bell {alarmSummary.unacked ? 'unacked' : ''} {alarmSummary.high ? 'high' : alarmSummary.active ? 'medium' : ''}"
+       title="{alarmSummary.active} aktive alarmer, {alarmSummary.unacked} ukvitterede">
+      Alarmer <span class="count">{alarmSummary.active}</span>{#if alarmSummary.unacked}<span class="unack">&nbsp;· {alarmSummary.unacked} ny</span>{/if}
+    </a>
     <div class="user">
       <span title="Rolle: {me.role}">{me.username} <span class="role">{me.role}</span></span>
       <button class="link" onclick={() => (changingPassword = true)}>Adgangskode</button>
@@ -97,6 +119,8 @@
       ondone={() => { changingPassword = false; loadMe(); }}
       oncancel={() => (changingPassword = false)}
     />
+  {:else if page === 'alarms'}
+    <Alarms canAck={roleAtLeast(me.role, 'operator')} />
   {:else if page === 'draw'}
     <DrawEditor {route} />
   {:else if page === 'editor'}
@@ -147,7 +171,21 @@
     border-radius: 4px;
   }
   nav a.active, nav a:hover { background: #575757; color: #fff; }
-  .user { margin-left: auto; display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; font-size: .9rem; }
+  .bell {
+    margin-left: auto;
+    color: #ddd;
+    text-decoration: none;
+    padding: .2rem .6rem;
+    border-radius: 4px;
+    border: 1px solid #666;
+    font-size: .9rem;
+  }
+  .bell.medium { background: #b26a00; color: #fff; border-color: #b26a00; }
+  .bell.high { background: #c62828; color: #fff; border-color: #c62828; }
+  .bell.unacked { animation: bell 1s steps(2, start) infinite; }
+  @keyframes bell { to { opacity: .55; } }
+  @media (prefers-reduced-motion: reduce) { .bell.unacked { animation: none; } }
+  .user { margin-left: .5rem; display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; font-size: .9rem; }
   .role { color: #bbb; font-size: .8rem; }
   .link { background: none; border: none; color: #ddd; padding: 0; text-decoration: underline; }
   .link:hover { color: #fff; }

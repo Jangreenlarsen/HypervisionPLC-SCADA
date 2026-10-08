@@ -44,6 +44,38 @@ _BACKUP_NAME = re.compile(r"^scada-(auto|foer-restore)-\d{8}-\d{6}\.json$")
 MAX_ERRORS = 25
 
 
+def _alarm_fields(t: dict[str, Any], datatype: str) -> tuple[dict[str, Any], str]:
+    """Alarmfelter fra en backup (ældre backups uden alarmer giver blot ingen alarmer)."""
+    def num(key: str, default: Any) -> Any:
+        v = t.get(key, default)
+        if v is None:
+            return None
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+            raise ValueError(f"{key} skal være et tal")
+        return float(v)
+
+    try:
+        out = {k: num(k, None) for k in ("alarm_hh", "alarm_h", "alarm_l", "alarm_ll")}
+        out["alarm_deadband"] = num("alarm_deadband", 0.0) or 0.0
+        out["alarm_delay_s"] = num("alarm_delay_s", 0.0) or 0.0
+    except ValueError as exc:
+        return {}, str(exc)
+    on = t.get("alarm_on")
+    if on not in (None, "true", "false"):
+        return {}, "alarm_on skal være null, 'true' eller 'false'"
+    out["alarm_on"] = on
+    limits = [out[k] for k in ("alarm_ll", "alarm_l", "alarm_h", "alarm_hh") if out[k] is not None]
+    if limits != sorted(limits):
+        return {}, "alarmgrænserne skal stige (LL ≤ L ≤ H ≤ HH)"
+    if out["alarm_deadband"] < 0 or not 0 <= out["alarm_delay_s"] <= 3600:
+        return {}, "ugyldigt dødbånd/forsinkelse"
+    if limits and datatype == "bool":
+        return {}, "HH/H/L/LL-grænser kræver et tal-tag"
+    if on is not None and datatype not in ("bool", "auto"):
+        return {}, "til/fra-alarm kræver et til/fra-tag"
+    return out, ""
+
+
 class BackupService:
     def __init__(self, manager: PlcManager, files: DrawingFiles, backup_dir: Path, keep: int = 7):
         self.manager = manager
@@ -184,11 +216,15 @@ class BackupService:
             if dec is not None and (isinstance(dec, bool) or not isinstance(dec, int) or not 0 <= dec <= 6):
                 err(f"Tag {name}: decimals skal være 0-6")
                 continue
+            alarm, alarm_err = _alarm_fields(t, source.datatype)
+            if alarm_err:
+                err(f"Tag {name}: {alarm_err}")
+                continue
             tag_names.add(name)
             tags.append({"name": name, "source": str(source), "plc": source.plc,
                          "description": str(t.get("description") or "")[:200], "unit": str(t.get("unit") or "")[:16],
                          "scale": float(scale), "offset": float(offset), "decimals": dec, "writable": writable,
-                         "min": lo, "max": hi, "confirm_write": bool(t.get("confirm_write", True))})
+                         "min": lo, "max": hi, "confirm_write": bool(t.get("confirm_write", True)), **alarm})
 
         drawings, versions, files, drawing_ids = [], [], {}, set()
         for i, d in enumerate(backup["drawings"]):

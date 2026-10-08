@@ -116,6 +116,27 @@ export interface Me {
   drawings: string[] | null; // null = alle tegninger
 }
 
+export interface Alarm {
+  key: string;
+  tag: string;
+  plc: string;
+  kind: 'high' | 'low' | 'state' | 'comm';
+  level: 'HH' | 'H' | 'L' | 'LL' | 'ON' | 'COMM';
+  priority: 'high' | 'medium';
+  state: 'active_unack' | 'active_ack' | 'rtn_unack';
+  raised_at: number;
+  value: unknown;
+  message: string;
+  acked_by: string | null;
+  acked_at: number | null;
+}
+
+export interface AlarmSummary {
+  active: number;
+  unacked: number;
+  high: number;
+}
+
 export interface PlcSummary {
   name: string;
   state: string;

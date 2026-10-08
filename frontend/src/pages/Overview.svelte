@@ -26,6 +26,20 @@
   const values: Record<string, LiveValue> = {};
   let byTag = new Map<string, Binding[]>();
 
+  let alarmTags = new Map<string, 'unack' | 'ack'>();
+
+  function markAlarms(): void {
+    if (!container || !view) return;
+    for (const b of view.bindings) {
+      if (!b.tag) continue;
+      const el = container.querySelector(`#${CSS.escape(b.element)}`);
+      if (!el) continue;
+      const st = alarmTags.get(b.tag);
+      el.classList.toggle('hv-alarm-unack', st === 'unack');
+      el.classList.toggle('hv-alarm-ack', st === 'ack');
+    }
+  }
+
   const live = new LiveClient(
     (changes) => {
       Object.assign(values, changes);
@@ -36,6 +50,17 @@
       connected = c;
     },
   );
+
+  live.onAlarms = (_s, active) => {
+    const next = new Map<string, 'unack' | 'ack'>();
+    for (const a of active) {
+      if (!a.tag) continue; // PLC-kommunikationsalarmer vises i banneret, ikke på elementer
+      const st = a.state === 'active_ack' ? 'ack' : 'unack';
+      if (next.get(a.tag) !== 'unack') next.set(a.tag, st);
+    }
+    alarmTags = next;
+    markAlarms();
+  };
 
   function render(b: Binding): void {
     if (container && view) renderBinding(container, b, values, view.tags);
@@ -52,6 +77,7 @@
       svgRoot = mountSvg(container, view.svg);
       byTag = indexByTag(view.bindings.filter((b) => b.tag));
       renderAll(container, view.bindings, values, view.tags);
+      markAlarms();
       live.subscribe([...byTag.keys()]);
     } catch (e) {
       view = null;

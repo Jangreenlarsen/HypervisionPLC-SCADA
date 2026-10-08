@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -100,6 +100,34 @@ CREATE TABLE IF NOT EXISTS audit (
     message   TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS audit_ts ON audit(ts);
+CREATE TABLE IF NOT EXISTS alarm_state (
+    key         TEXT PRIMARY KEY,
+    tag         TEXT NOT NULL DEFAULT '',
+    plc         TEXT NOT NULL DEFAULT '',
+    kind        TEXT NOT NULL,
+    level       TEXT NOT NULL,
+    priority    TEXT NOT NULL,
+    state       TEXT NOT NULL,
+    raised_at   REAL NOT NULL,
+    value       TEXT NOT NULL DEFAULT 'null',
+    message     TEXT NOT NULL DEFAULT '',
+    acked_by    TEXT,
+    acked_at    REAL
+);
+CREATE TABLE IF NOT EXISTS alarm_events (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts        REAL NOT NULL,
+    key       TEXT NOT NULL,
+    tag       TEXT NOT NULL DEFAULT '',
+    plc       TEXT NOT NULL DEFAULT '',
+    level     TEXT NOT NULL,
+    priority  TEXT NOT NULL,
+    event     TEXT NOT NULL,
+    value     TEXT NOT NULL DEFAULT 'null',
+    username  TEXT NOT NULL DEFAULT '',
+    message   TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS alarm_events_ts ON alarm_events(ts);
 CREATE TABLE IF NOT EXISTS user_drawings (
     username    TEXT NOT NULL,
     drawing_id  TEXT NOT NULL,
@@ -108,8 +136,14 @@ CREATE TABLE IF NOT EXISTS user_drawings (
 """
 
 PLC_FIELDS = ("name", "base_url", "username", "enabled", "sse_enabled", "verify_tls")
+# Alarmgrænser pr. tag (NULL = ingen). alarm_on: NULL | 'true' | 'false' for til/fra-tags.
+ALARM_COLUMNS = {
+    "alarm_hh": "REAL", "alarm_h": "REAL", "alarm_l": "REAL", "alarm_ll": "REAL",
+    "alarm_deadband": "REAL NOT NULL DEFAULT 0", "alarm_delay_s": "REAL NOT NULL DEFAULT 0", "alarm_on": "TEXT",
+}
+ALARM_FIELDS = tuple(ALARM_COLUMNS)
 TAG_FIELDS = ("source", "plc", "description", "unit", "scale", "offset", "decimals",
-              "writable", "min", "max", "confirm_write")
+              "writable", "min", "max", "confirm_write") + ALARM_FIELDS
 _BOOL_FIELDS = {"enabled", "sse_enabled", "verify_tls", "writable", "confirm_write", "disabled", "must_change_password",
                 "scoped"}
 USER_FIELDS = ("password_hash", "role", "disabled", "must_change_password", "scoped")
@@ -136,6 +170,10 @@ class Database:
         if "scoped" not in cols:
             # 0 = adgang til alle tegninger (som før) — eksisterende brugere bevarer deres adgang
             self._conn.execute("ALTER TABLE users ADD COLUMN scoped INTEGER NOT NULL DEFAULT 0")
+        tag_cols = {r[1] for r in self._conn.execute("PRAGMA table_info(tags)").fetchall()}
+        for col, ddl in ALARM_COLUMNS.items():
+            if col not in tag_cols:
+                self._conn.execute(f"ALTER TABLE tags ADD COLUMN {col} {ddl}")
         self._conn.execute("UPDATE meta SET value = ? WHERE key = 'schema_version'", (str(SCHEMA_VERSION),))
 
     def close(self) -> None:
@@ -192,7 +230,8 @@ class Database:
     def insert_tag(self, name: str, values: dict[str, Any]) -> None:
         now = time.time()
         cols = ["name", *TAG_FIELDS, "created_at", "updated_at"]
-        args = (name, *(_db(f, values.get(f)) for f in TAG_FIELDS), now, now)
+        defaults = {"alarm_deadband": 0.0, "alarm_delay_s": 0.0}
+        args = (name, *(_db(f, values.get(f, defaults.get(f))) for f in TAG_FIELDS), now, now)
         quoted = ",".join(f'"{c}"' for c in cols)
         self._execute(f"INSERT INTO tags({quoted}) VALUES ({','.join('?' * len(cols))})", args)
 
@@ -358,6 +397,45 @@ class Database:
                 cur.execute("ROLLBACK")
                 raise
 
+    # ------------------------------------------------------------- alarmer
+
+    def list_alarm_states(self) -> list[dict[str, Any]]:
+        rows = self._query("SELECT * FROM alarm_state ORDER BY raised_at DESC")
+        for r in rows:
+            r["value"] = json.loads(r["value"])
+        return rows
+
+    def upsert_alarm_state(self, row: dict[str, Any]) -> None:
+        self._execute(
+            "INSERT INTO alarm_state(key, tag, plc, kind, level, priority, state, raised_at, value, message, acked_by, "
+            "acked_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(key) DO UPDATE SET tag=excluded.tag, "
+            "plc=excluded.plc, kind=excluded.kind, level=excluded.level, priority=excluded.priority, "
+            "state=excluded.state, raised_at=excluded.raised_at, value=excluded.value, message=excluded.message, "
+            "acked_by=excluded.acked_by, acked_at=excluded.acked_at",
+            (row["key"], row["tag"], row["plc"], row["kind"], row["level"], row["priority"], row["state"],
+             row["raised_at"], json.dumps(row["value"], default=str), row["message"], row.get("acked_by"),
+             row.get("acked_at")))
+
+    def delete_alarm_state(self, key: str) -> None:
+        self._execute("DELETE FROM alarm_state WHERE key = ?", (key,))
+
+    def insert_alarm_event(self, entry: dict[str, Any], keep: int) -> None:
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO alarm_events(ts, key, tag, plc, level, priority, event, value, username, message) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (entry["ts"], entry["key"], entry["tag"], entry["plc"], entry["level"], entry["priority"],
+                 entry["event"], json.dumps(entry.get("value"), default=str), entry.get("username", ""),
+                 entry.get("message", "")))
+            if cur.lastrowid and cur.lastrowid % 500 == 0:
+                self._conn.execute("DELETE FROM alarm_events WHERE id <= ?", (cur.lastrowid - keep,))
+
+    def list_alarm_events(self, limit: int) -> list[dict[str, Any]]:
+        rows = self._query("SELECT * FROM alarm_events ORDER BY id DESC LIMIT ?", (limit,))
+        for r in rows:
+            r["value"] = json.loads(r["value"])
+        return rows
+
     # ------------------------------------------------- adgang pr. tegning
 
     def get_user_drawings(self, username: str) -> list[str]:
@@ -435,7 +513,7 @@ class Database:
         return {
             "plcs": self._query("SELECT key, name, base_url, username, enabled, sse_enabled, verify_tls FROM plcs ORDER BY key"),
             "tags": self._query('SELECT name, source, description, unit, scale, "offset", decimals, writable, min, max, '
-                                "confirm_write FROM tags ORDER BY name"),
+                                "confirm_write, " + ", ".join(ALARM_FIELDS) + " FROM tags ORDER BY name"),
             "drawings": self._query("SELECT id, name, active_version FROM drawings ORDER BY id"),
             "versions": self._query("SELECT drawing_id, version, comment, size, width, height, created_at "
                                     "FROM drawing_versions ORDER BY drawing_id, version"),
@@ -468,10 +546,13 @@ class Database:
                 for t in data["tags"]:
                     cur.execute(
                         'INSERT INTO tags(name, source, plc, description, unit, scale, "offset", decimals, writable, '
-                        "min, max, confirm_write, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        "min, max, confirm_write, " + ", ".join(ALARM_FIELDS) + ", created_at, updated_at) "
+                        "VALUES (" + ",".join("?" * (14 + len(ALARM_FIELDS))) + ")",
                         (t["name"], t["source"], t["plc"], t["description"], t["unit"], t["scale"], t["offset"],
                          t["decimals"], _db("writable", t["writable"]), t["min"], t["max"],
-                         _db("confirm_write", t["confirm_write"]), now, now))
+                         _db("confirm_write", t["confirm_write"]),
+                         *(t.get(f, 0.0 if f in ("alarm_deadband", "alarm_delay_s") else None) for f in ALARM_FIELDS),
+                         now, now))
                 for d in data["drawings"]:
                     cur.execute("INSERT INTO drawings(id, name, active_version, created_at, updated_at) VALUES (?,?,?,?,?)",
                                 (d["id"], d["name"], d["active_version"], now, now))
