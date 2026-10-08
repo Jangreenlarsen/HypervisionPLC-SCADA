@@ -27,7 +27,7 @@ describe('symbolbibliotek', () => {
   });
   it('de ønskede fittings og el-symboler findes', () => {
     const ids = new Set(SYMBOLS.map((s) => s.id));
-    for (const id of ['boejning90', 'boejning45', 't_stykke', 'kryds', 'kontraventil', 'kontaktor', 'sikring', 'motor3', 'jord'])
+    for (const id of ['boejning90', 'boejning45', 't_stykke', 'kryds', 'kontraventil', 'kontaktor', 'sikring', 'motor3', 'jord', 'solpanel', 'inverter', 'batteri', 'elnet'])
       expect(ids.has(id), id).toBe(true);
   });
 });

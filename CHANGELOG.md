@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.16.0 build 0022] — 2026-10-08 — Symbolsektion: Solcelleanlæg
+
+- `frontend/src/lib/symbols.ts` — ny kategori `sol` med 16 symboler: solcellepanel, solcellestreng, sol/indstråling ("Gennemsigtighed"), inverter, hybridinverter, MPPT-regulator, batteri (indre felt til "Niveau" = ladetilstand), batteribank, DC-/AC-afbryder, overspændingsbeskyttelse, elmåler (tekst-felt til kWh), elnet, forbrug/hus, elbillader, energiflow-pil — i alt 75 symboler
+- `symbols.test.ts` — fangede en dobbelt `stroke-width` (ugyldig XML) i batteribanken før release; solcelle-symboler med i kontrollen af ønskede symboler
+- Verificeret i browser: alle 75 symboler indsat og gemt uden at saneringen fjernede noget; panelet ved 1600, 1280 og 390 px uden overløb. 74 frontend-tests
+
 ## [0.15.0 build 0021] — 2026-10-08 — Udvidet symbolbibliotek (VVS og el)
 
 - `frontend/src/lib/symbols.ts` — 59 symboler i tre kategorier (før 9):

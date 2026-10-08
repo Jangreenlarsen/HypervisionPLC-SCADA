@@ -3,7 +3,7 @@
 // Rør har tykkelse 10 og centerlinje i y=45 / x=45, så fittings og rør passer sammen. Brug
 // SVG-Edits rotation (eller spejling) for at vende en bøjning/T-stykke den rigtige vej.
 
-export type SymbolCategory = 'proces' | 'vvs' | 'el';
+export type SymbolCategory = 'proces' | 'vvs' | 'el' | 'sol';
 
 export interface SymbolDef {
   id: string;
@@ -17,6 +17,7 @@ export const CATEGORIES: { id: SymbolCategory; label: string }[] = [
   { id: 'proces', label: 'Proces og visning' },
   { id: 'vvs', label: 'Rør og VVS' },
   { id: 'el', label: 'Elektrisk' },
+  { id: 'sol', label: 'Solcelleanlæg' },
 ];
 
 const LINE = '#555';
@@ -319,5 +320,91 @@ export const SYMBOLS: SymbolDef[] = [
     svg: `<g><rect x="0" y="0" width="110" height="70" rx="4" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
       `${text(55, 42, 'PLC', 18, 'font-weight="600"')}` +
       `${wire('M15 70 V82 M35 70 V82 M55 70 V82 M75 70 V82 M95 70 V82')}</g>`,
+  },
+
+  // ---------------------------------------------------------------- Solcelleanlæg
+  {
+    id: 'solpanel', label: 'Solcellepanel', category: 'sol', hint: 'Bind "Fyldfarve" til produktion, eller vis effekten i et værdifelt',
+    svg: `<g><rect x="0" y="0" width="80" height="110" rx="3" fill="#5f7d95" stroke="${LINE}" stroke-width="3"/>` +
+      `<path d="M27 3 V107 M53 3 V107 M3 28 H77 M3 55 H77 M3 82 H77" stroke="#c9d6e0" stroke-width="2"/></g>`,
+  },
+  {
+    id: 'solstreng', label: 'Solcellestreng', category: 'sol', hint: 'Flere paneler i serie — kopiér for flere strenge',
+    svg: `<g>${[0, 1, 2].map((i) => `<rect x="${i * 54}" y="0" width="48" height="66" rx="2" fill="#5f7d95" stroke="${LINE}" stroke-width="2.5"/>` +
+      `<path d="M${i * 54 + 16} 2 V64 M${i * 54 + 32} 2 V64 M${i * 54 + 2} 22 H${i * 54 + 46} M${i * 54 + 2} 44 H${i * 54 + 46}" stroke="#c9d6e0" stroke-width="1.5"/>`).join('')}` +
+      `${wire('M24 66 V80 H132 V66')}</g>`,
+  },
+  {
+    id: 'sol', label: 'Sol/indstråling', category: 'sol', hint: 'Bind "Gennemsigtighed" til indstråling (W/m²)',
+    svg: `<g><circle cx="40" cy="40" r="16" fill="${FILL}" stroke="${LINE}" stroke-width="2.5"/>` +
+      `${wire('M40 4 V16 M40 64 V76 M4 40 H16 M64 40 H76 M14 14 L23 23 M57 57 L66 66 M66 14 L57 23 M23 57 L14 66')}</g>`,
+  },
+  {
+    id: 'inverter', label: 'Inverter', category: 'sol', hint: 'DC → AC; bind "Fyldfarve" til drift/fejl',
+    svg: `<g>${wire('M0 25 H14 M94 55 H108')}<rect x="14" y="0" width="80" height="80" rx="3" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
+      `${wire('M14 80 L94 0')}${text(36, 30, '=', 22)}${text(72, 68, '~', 22)}</g>`,
+  },
+  {
+    id: 'hybridinverter', label: 'Hybridinverter', category: 'sol', hint: 'PV + batteri + net i én enhed',
+    svg: `<g>${text(20, 10, 'PV', 10)}${text(50, 10, 'BAT', 10)}${wire('M20 14 V26 M50 14 V26 M100 86 H114')}` +
+      `<rect x="0" y="26" width="100" height="90" rx="3" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
+      `${text(50, 52, 'HYBRID', 13, 'font-weight="600"')}${text(24, 86, '=', 20)}${text(76, 86, '~', 22)}${wire('M50 64 V104')}</g>`,
+  },
+  {
+    id: 'mppt', label: 'MPPT-regulator', category: 'sol', hint: 'Laderegulator mellem paneler og batteri',
+    svg: `<g><rect x="0" y="0" width="80" height="60" rx="3" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
+      `${text(40, 26, 'MPPT', 14, 'font-weight="600"')}${text(40, 48, '= / =', 14)}</g>`,
+  },
+  {
+    id: 'batteri', label: 'Batteri', category: 'sol', hint: 'Bind "Niveau" på det indre felt til ladetilstand (SOC %)',
+    svg: `<g><rect x="0" y="10" width="70" height="110" rx="5" fill="${PANEL}" stroke="${LINE}" stroke-width="3"/>` +
+      `<rect x="22" y="0" width="26" height="10" rx="2" fill="${LINE}"/>` +
+      `<rect id="fyld" x="5" y="15" width="60" height="100" rx="3" fill="#8fbf8f"/></g>`,
+  },
+  {
+    id: 'batteribank', label: 'Batteribank', category: 'sol', hint: 'Flere battericeller i serie (elektrisk symbol)',
+    svg: `<g>${wire('M0 30 H14 M66 30 H80')}${[0, 1, 2].map((i) => `<path d="M${14 + i * 22} 12 V48" stroke="${DARK}" stroke-width="3"/><path d="M${22 + i * 22} 20 V40" stroke="${DARK}" stroke-width="5"/>`).join('')}` +
+      `${wire('M22 30 H36 M44 30 H58')}${text(8, 20, '+', 14)}${text(74, 20, '−', 14)}</g>`,
+  },
+  {
+    id: 'dc_afbryder', label: 'DC-afbryder', category: 'sol', hint: 'Bind "Stregfarve" til slået til/fra',
+    svg: `<g>${wire('M20 0 V24 L38 52 M20 58 V80')}${text(44, 24, '=', 18, '', 'start')}</g>`,
+  },
+  {
+    id: 'ac_afbryder', label: 'AC-afbryder', category: 'sol', hint: 'Bind "Stregfarve" til slået til/fra',
+    svg: `<g>${wire('M20 0 V24 L38 52 M20 58 V80')}${text(44, 26, '~', 20, '', 'start')}</g>`,
+  },
+  {
+    id: 'spd', label: 'Overspændingsbeskyttelse', category: 'sol', hint: 'SPD/afleder mod jord',
+    svg: `<g>${wire('M25 0 V16 M25 64 V76 M8 76 H42 M14 83 H36 M20 90 H30')}` +
+      `<rect x="13" y="16" width="24" height="48" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>${wire('M28 22 L20 40 H30 L22 58', ' stroke-linejoin="round"')}</g>`,
+  },
+  {
+    id: 'elmaaler', label: 'Elmåler (kWh)', category: 'sol', hint: 'Bind "Tekst" på tallet til energi/effekt',
+    svg: `<g><rect x="0" y="0" width="90" height="70" rx="4" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
+      `<rect x="10" y="12" width="70" height="26" fill="#fff" stroke="${LINE}" stroke-width="1.5"/>` +
+      `<text id="vaerdi" x="74" y="31" font-size="15" text-anchor="end" fill="${DARK}" ${FONT}>0</text>${text(45, 58, 'kWh', 13)}</g>`,
+  },
+  {
+    id: 'elnet', label: 'Elnet', category: 'sol', hint: 'Forsyningsnettet; bind "Stregfarve" til import/eksport',
+    svg: `<g><path d="M40 0 L22 100 M40 0 L58 100 M10 18 H70 M14 34 H66 M31 50 L49 76 M49 50 L31 76 M28 52 H52 M25 76 H55" fill="none" stroke="${DARK}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<circle cx="10" cy="18" r="3" fill="${DARK}"/><circle cx="70" cy="18" r="3" fill="${DARK}"/><circle cx="14" cy="34" r="3" fill="${DARK}"/><circle cx="66" cy="34" r="3" fill="${DARK}"/></g>`,
+  },
+  {
+    id: 'forbrug', label: 'Forbrug/hus', category: 'sol', hint: 'Husstandens forbrug — vis effekten i et værdifelt',
+    svg: `<g><path d="M5 45 L45 8 L85 45" fill="none" stroke="${LINE}" stroke-width="4" stroke-linejoin="round"/>` +
+      `<rect x="15" y="42" width="60" height="50" fill="${FILL}" stroke="${LINE}" stroke-width="3"/>` +
+      `<rect x="38" y="62" width="16" height="30" fill="${PANEL}" stroke="${LINE}" stroke-width="2"/></g>`,
+  },
+  {
+    id: 'elbillader', label: 'Elbillader', category: 'sol', hint: 'Bind "Fyldfarve" til ladning i gang',
+    svg: `<g><rect x="0" y="0" width="50" height="90" rx="6" fill="${FILL}" stroke="${LINE}" stroke-width="3"/>` +
+      `<rect x="9" y="10" width="32" height="22" rx="2" fill="${PANEL}" stroke="${LINE}" stroke-width="1.5"/>` +
+      `<path d="M28 40 L18 58 H27 L22 76 L34 54 H25 Z" fill="${PANEL}" stroke="${DARK}" stroke-width="1.5" stroke-linejoin="round"/>` +
+      `${wire('M50 60 C70 60 70 90 86 90')}</g>`,
+  },
+  {
+    id: 'energipil', label: 'Energiflow-pil', category: 'sol', hint: 'Bind "Synlighed" (fx kun ved eksport) eller "Fyldfarve"',
+    svg: `<g><path d="M0 18 H70 V4 L100 30 L70 56 V42 H0 Z" fill="${FILL}" stroke="${LINE}" stroke-width="2.5" stroke-linejoin="round"/></g>`,
   },
 ];

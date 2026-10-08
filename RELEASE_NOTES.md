@@ -2,6 +2,11 @@
 
 ---
 
+## v0.16.0 — 2026-10-08 — Symboler til solcelleanlæg
+
+- Ny sektion **Solcelleanlæg** i Tegn med solcellepanel og -streng, sol, inverter, hybridinverter, MPPT-regulator, batteri og batteribank, DC- og AC-afbryder, overspændingsbeskyttelse, elmåler, elnet, forbrug/hus, elbillader og energiflow-pil.
+- Batteriets indre felt kan bindes til **Niveau**, så det viser ladetilstanden. Solen kan bindes til **Gennemsigtighed** efter indstrålingen, og elmålerens tal kan bindes til **Tekst**.
+
 ## v0.15.0 — 2026-10-08 — Flere symboler: VVS og el
 
 - **Tegn** har nu 59 symboler i tre sektioner med søgefelt. Hver sektion kan klappes sammen.
