@@ -12,6 +12,18 @@ export function mountSvg(container: HTMLElement, svg: string): SVGSVGElement | n
   return root;
 }
 
+/**
+ * Største størrelse med tegningens proportioner (viewBox) der passer i den ledige plads — som
+ * "contain". Højden har et minimum, så et meget lavt vindue ikke gør tegningen ulæselig (så scrolles).
+ */
+export function fitSize(vbW: number, vbH: number, availW: number, availH: number, minH = 200): { width: number; height: number } {
+  if (!(vbW > 0 && vbH > 0 && availW > 0)) return { width: Math.max(0, availW), height: 0 };
+  const h = Math.max(minH, availH);
+  const scale = Math.min(availW / vbW, h / vbH);
+  const px = (v: number) => Math.floor(v + 1e-6); // 1879.9999… er 1880
+  return { width: px(vbW * scale), height: px(vbH * scale) };
+}
+
 export function byTag(bindings: Binding[]): Map<string, Binding[]> {
   const map = new Map<string, Binding[]>();
   for (const b of bindings) map.set(b.tag, [...(map.get(b.tag) ?? []), b]);

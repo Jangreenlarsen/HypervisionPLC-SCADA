@@ -109,7 +109,7 @@
   {/if}
 </header>
 
-<main>
+<main class:wide={page === 'overview' && !!me && !me.must_change_password && !changingPassword}>
   {#if error}<div class="error">{error}</div>{/if}
   {#if !checked}
     <p class="muted">Indlæser …</p>
@@ -146,7 +146,7 @@
   {/if}
 </main>
 
-<footer>
+<footer class:wide={page === 'overview'}>
   {#if info}
     <span>v{info.version} build {info.build}</span>
   {/if}
@@ -194,6 +194,8 @@
   .link { background: none; border: none; color: #ddd; padding: 0; text-decoration: underline; }
   .link:hover { color: #fff; }
   main { padding: 1rem; max-width: 1600px; margin: 0 auto; }
+  /* Overview: tegningen må bruge hele skærmen (store kontrolrumsskærme) */
+  main.wide, footer.wide { max-width: none; }
   footer {
     display: flex;
     flex-wrap: wrap;

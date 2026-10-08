@@ -4,6 +4,23 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.14.1 build 0019] — 2026-10-08 — Fix: Overview skalerer med browservinduet
+
+- `frontend/src/lib/canvas.ts` — `fitSize()`: største størrelse med tegningens proportioner der passer i den ledige plads (minimumshøjde 200 px)
+- `frontend/src/pages/Overview.svelte` — `fit()` sætter tegningens størrelse ud fra den faktisk ledige plads (under menu/værktøjslinje, over sidefod); genberegnes ved vinduesresize/zoom og via ResizeObserver når menuen ombrydes; den faste `max-height: calc(100vh - 170px)` er fjernet
+- `frontend/src/App.svelte` — Overview er ikke længere begrænset til 1600 px bredde (de øvrige sider er uændrede)
+- Tests: `canvas.test.ts` (5 nye) — 70 frontend
+- Verificeret i browser med Jans tre tegninger fra testserveren ved 2560×1440, 1920×1080, 1280×720, 900×900 og 390×844: siden er præcis vinduets højde (ingen scroll), ingen vandret scroll, tegningen fylder bredden eller højden; også ved resize uden genindlæsning
+
+## [0.14.0 build 0018] — 2026-10-08 — Flere animationer i én binding
+
+- `frontend/src/lib/bindingForm.ts` — `Draft` (formular + gruppe-id), `toDrafts()` (gruppér pr. tag; gå-til-tegning og tomt tag står for sig), `groupIds()`, `flatten()` (samlet rækkefølge til backenden), `nextBinding()` (arver tag, vælger ubrugt animation)
+- `frontend/src/pages/Editor.svelte` — én binding = ét tag-valg + en eller flere animationer med hver sine parametre; "+ Animation", "×" pr. animation, "Fjern binding"; tag-skift gælder alle bindingens animationer; fejlbeskeder nævner binding og animation
+- Fix: "+ Tilføj binding" på et auto-bundet element smed den automatiske binding væk ved gem — den tages nu med
+- Backend uændret: én række pr. animation som før
+- Tests: `bindingForm.test.ts` (5 nye) — 65 frontend, 203 backend
+- Verificeret i browser: test01 = tekst ("Status: Til/Fra") + blink i samme binding, gemt og genindlæst som én binding, blinker på Overview når sand
+
 ## [0.13.2 build 0017] — 2026-10-08 — Fix: Trends — historik kan slås til direkte, enkeltstående værdier ses
 
 - `frontend/src/pages/Trends.svelte` — besked når intet tag gemmer historik (forklarer de grå tags); knappen "Gem historik" ud for tags uden historik (tekniker/admin, `PATCH /api/tags/{navn}` `{trend: true}`), der også vælger tagget; viewer/operatør ser ingen knap, og hjælpeteksten om Tags vises kun for tekniker/admin

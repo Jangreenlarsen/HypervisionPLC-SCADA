@@ -2,6 +2,17 @@
 
 ---
 
+## v0.14.1 — 2026-10-08 — Overview fylder skærmen
+
+- Tegningen på Overview tilpasser sig nu browservinduet. Den bruger hele bredden på store skærme og passer i højden på lave skærme, så siden ikke skal scrolles.
+- Størrelsen følger med, når vinduet ændres, når du zoomer i browseren (Ctrl + / −), og når menuen fylder to linjer.
+
+## v0.14.0 — 2026-10-08 — Flere animationer i én binding
+
+- Under **Bindinger** samler en binding nu ét tag med en eller flere animationer, fx tekst + blink på `test01`. Hver animation har sine egne indstillinger.
+- **+ Animation** tilføjer endnu en animation på samme tag og foreslår en, der ikke allerede er brugt. **×** fjerner én animation, og **Fjern binding** fjerner det hele.
+- Et automatisk bundet element beholder sin binding, når du tilføjer mere. Tidligere kunne den forsvinde, når man gemte.
+
 ## v0.13.2 — 2026-10-08 — Trends: slå historik til direkte
 
 - Gemmer intet tag historik endnu, forklarer Trends-siden nu, hvorfor alle tags er grå.
