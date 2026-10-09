@@ -1,7 +1,7 @@
 # Analyse af HypervisionPLC — set fra SCADA-projektet
 
 Dato: 2026-10-07 · Analyseret version: **firmware v7.9.68.122** (build 2868, `C:\Projekter\HypervisionPLC`, 572 commits)
-**Opdateret 2026-10-09 til v7.9.68.125** — se [§7](#7-nyt-i-plc-v7968123125-2026-10-09) for de nye muligheder (eksterne registre via REST) og de rettede fund.
+**Opdateret 2026-10-09 til v7.9.68.126** — se [§7](#7-nyt-i-plc-v7968123125-2026-10-09) for de nye muligheder (eksterne registre via REST) og de rettede fund.
 Kilder: PLC'ens manual (`docs/manual/`, især kap. 1, 2, 6, 7, 10 og appendiks B), `SECURITY_INDEX.md`, `BUGS_INDEX.md` og kildekoden (`src/api_handlers.cpp`, `src/http_server.cpp`, `src/https_wrapper.c`, `src/rbac.cpp`, `src/sse_events.cpp`, `include/constants.h`). Alle tal i afsnit 3 er læst direkte i kildekoden.
 
 ---
@@ -87,7 +87,7 @@ Registreret i PLC'ens `BUGS_INDEX.md` 2026-10-07 (commit `16c98ca`). **BUG-483�
 
 ## 7. Nyt i PLC v7.9.68.123–125 (2026-10-09)
 
-PLC-firmwaren kører v7.9.68.125 på test-PLC'en 10.1.1.30 (PLC-commits `d2b4deb`, `9e60c0b`, `af0c39d`). Alt nedenfor er HW-testet mod den.
+PLC-firmwaren kører v7.9.68.126 på test-PLC'en 10.1.1.30 (PLC-commits `d2b4deb`, `9e60c0b`, `af0c39d`, `82b88b4`). Alt nedenfor er HW-testet mod den.
 
 ### 7.1 Eksterne registre via REST (PLC FEAT-486)
 
@@ -152,13 +152,12 @@ plc1:mbx:1:D:1:coils:0          expansion board 1, kanal D, slave 1, coil 0
 | BUG-484 | v7.9.68.124 | Manualen angiver IR 0–319 |
 | BUG-485 | v7.9.68.124 | `/api/v1/*` spejler hele API'et inkl. `login`, `alarms`, `expansion`, `ntp`, `ext` og PUT. Uversioneret `/api/` virker fortsat |
 | BUG-486 | v7.9.68.124 | SSE afkoder `%2C` — httpx' standard-kodning virker nu; watch-liste HR 0–255, IR 0–319 (SCADA v0.7.0.1/v0.8.1-workaround med ukodede kommaer er stadig gyldig) |
+| BUG-488 | v7.9.68.126 | Fundet af SCADA: en `POST /api/ext/mbx/...?wait=` til FRA gav `timeout`, selv om relæet slog fra. Årsag: et ST-program (Logic4) genskriver samme coil hvert 2. s, så PLC'ens cache havde allerede FRA, og skrivningen blev droppet som dublet — ingen bustransaktion, intet svar at vente på. REST-skrivninger går nu altid ud på bussen. HW-testet: 10 skiftevise TIL/FRA med `wait` → alle `ok` (115–150 ms). **SCADA v0.25.0's tilbagelæsning ved `timeout` kan blive, men koster ikke længere 1,5 s pr. FRA** |
+| BUG-489 | v7.9.68.126 | Fundet af SCADA: en død slave kunne vises som `"status":"ok","value":0`. Årsag: kun cache-postens status blev vurderet, ikke resultatet af sidste forsøg. Nu: sidste forsøg fejlede → `error` + `value: null`, indtil slaven svarer. HW-testet: 12 polls af slave 247 → alle `error`/`null` |
 | BUG-487 | v7.9.68.125 | Fundet ved test: efter længere drift kunne kun **2** SSE-klienter forbinde — nr. 3 fik `200 OK` og blev lukket uden events. Nu får alle 3 events. **Relevant hvis SCADA'en har set SSE-forbindelser, der lukker straks efter `200 OK`** |
 
 ### 7.3 Kendte begrænsninger, der stadig gælder
 
 - Flash er på 95,8 % — nye PLC-endpoints til SCADA'en skal være små.
 - Cache-størrelserne i 7.1 punkt 3 er faste i firmwaren.
-- **Fund ved SCADA's test mod PLC1 (v7.9.68.125, 2026-10-09)** — registreret som PLC BUG-488 og BUG-489 (PLC-commit `c50f201`), skal rettes i firmwaren:
-  1. **BUG-488:** `POST /api/ext/mbx/1/D/1/coils/0?wait=1500` med `{"value":false}` svarer **altid** HTTP 504 `"result":"timeout"` (4 af 4), selv om relæet slår fra; `true` bekræftes (`ok`). SCADA'en (v0.25.0) behandler `timeout` som "ikke bekræftet" og afgør med tilbagelæsning — så betjeningen virker, men hver Fra-skrivning tager ~1,5 s ekstra.
-  2. **BUG-489:** `GET /api/ext/rtu/247/hr/0` (slave findes ikke) svarer normalt `"status":"error"`, men ind imellem `"status":"ok","value":0` (1 af 6, `age_ms` ≈ 2100). En SCADA kan ikke skelne det fra en rigtig 0 — et tag på en død slave viser kortvarigt "0, god kvalitet". Forventet: `error` (eller `pending`) indtil slaven faktisk har svaret.
 - Skriverettighed til `/api/ext` er ikke begrænset pr. slave/adresse (PLC SECURITY_INDEX #29): en bruger med `read/write` kan skrive til alt, PLC'en kan nå. Brug en dedikeret `scada`-bruger (§4) og SCADA'ens egne `skrivbar`/min/max-regler pr. tag.
