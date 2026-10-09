@@ -201,3 +201,15 @@ async def test_write_ext_unconfirmed_is_returned_not_raised():
 def test_error_message_for_ext_body_is_readable():
     from app.plc.errors import extract_error_message
     assert extract_error_message(504, {**WRITE_OK, "result": "timeout"}, "") == "slaven svarede 'timeout'"
+
+
+async def test_sse_event_for_internal_coil_does_not_touch_external_tag():
+    """Fundet af Jan (v0.25.0): plc1:mbx:1:D:1:coil:0 skiftede også, når PLC'ens EGEN coil 0 ændrede sig —
+    SSE-hændelsen blev fordelt efter type+adresse uden at tjekke, om tagget er internt."""
+    answers = {("/api/ext/mbx/1/D/1", "coil", 0): [(False, "ok")]}
+    rt, cache, _ = _rt(answers, ("Relae", "plc1:mbx:1:D:1:coil:0", 1), ("DO1", "plc1:coil:0", 1))
+    await rt.poll_once()
+    assert cache.get("Relae").value is False
+    await rt._on_sse_register("coil", 0, 1)  # intern coil 0 går høj
+    assert cache.get("DO1").value is True
+    assert cache.get("Relae").value is False  # det eksterne relæ er uændret

@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.25.1 build 0035] — 2026-10-09 — fix: eksterne tags blev overskrevet af PLC'ens egne SSE-hændelser
+
+- `backend/app/services/plc_runtime.py` — `_on_sse_register()` opdaterer kun tags på PLC'ens egne registre (`source.is_register`); et eksternt tag med samme type/adresse (fx `plc1:mbx:1:D:1:coil:0` vs. `plc1:coil:0`) blev før overskrevet ved hver SSE-hændelse
+- `backend/tests/test_ext.py` — regressionstest
+
 ## [0.25.0 build 0034] — 2026-10-09 — Tags fra eksterne Modbus-enheder (PLC /api/ext)
 
 - `backend/app/services/tagsource.py` — nye kilder `plcN:rtu:<slave>:<type>:<adresse>[:datatype]` (RS485-slave 1-247) og `plcN:mbx:<board>:<kanal A-H|1-8>:<slave>:<type>:<adresse>[:datatype]` (expansion board); adresse 0-65535; samme datatyper og 32-bit-regler som interne

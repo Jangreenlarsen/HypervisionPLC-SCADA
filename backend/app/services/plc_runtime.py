@@ -256,7 +256,10 @@ class PlcRuntime:
 
     async def _on_sse_register(self, kind: str, addr: int, value: int) -> None:
         self._raw[kind][addr] = value
-        affected = [t for t in self._tags if t.source.kind == kind and t.source.addr == addr and t.source.words == 1]
+        # Kun PLC'ens egne registre — SSE leverer aldrig eksterne værdier, og et eksternt tag med samme
+        # type/adresse (fx plc1:mbx:1:D:1:coil:0 vs. plc1:coil:0) må ikke overskrives (v0.25.1)
+        affected = [t for t in self._tags if t.source.is_register and t.source.kind == kind
+                    and t.source.addr == addr and t.source.words == 1]
         if affected:
             now = time.time()
             self.cache.update({t.name: self._register_value(t, now) for t in affected})

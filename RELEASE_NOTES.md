@@ -2,6 +2,12 @@
 
 ---
 
+## v0.25.1 — 2026-10-09 — Eksterne tags følger ikke længere PLC'ens egne registre
+
+- Et tag på en ekstern enhed, fx `plc1:mbx:1:D:1:coil:0`, skiftede også, når PLC'ens egen coil med samme nummer ændrede sig. Nu viser det kun værdien fra den eksterne enhed.
+
+---
+
 ## v0.25.0 — 2026-10-09 — Tags fra eksterne Modbus-enheder
 
 - Tags kan nu også hente værdier fra enheder, PLC'en taler med. Det kræver PLC-firmware 7.9.68.123 eller nyere.
