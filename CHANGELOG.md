@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.26.0 build 0036] — 2026-10-09 — Symboler med flere elementer: træ, navn og forklaring
+
+- `frontend/src/lib/elementTree.ts` — elementlisten som træ: forælder/dybde via nærmeste forfader med id, sammenfoldning, søgning (id, label, navn, forklaring) der viser forfædre som kontekst, antal elementer under et sammenfoldet symbol, korte navne på et symbols dele (`tekst` i stedet for `vippekontakt_tekst`), standard: rene grupper foldet ud og symboler foldet sammen
+- `frontend/src/pages/Editor.svelte` (Bindinger) — elementlisten er et træ med indrykning og fold-ud-knapper ("Fold alle ud" / "Fold alle sammen" / "Standard"); symboler vises med deres navn i fed og id som sekundær; det valgte element viser navn, forklaring og "Del af <symbol>"; det valgte elements forældre foldes ud automatisk
+- `frontend/src/pages/DrawEditor.svelte` + `svgedit-host/scada-editor.js` — felterne **Navn** (højst 60 tegn) og **Forklaring** (højst 500 tegn) på det valgte element, gemt i tegningen som `data-hv-name`/`data-hv-desc` med fortryd; tomme felter gemmes ikke; indsatte symboler får deres navn automatisk (`withName`)
+- `frontend/src/lib/canvas.ts` — navn og forklaring vises som tooltip (`<title>`) på Overview og i Bindinger (ikke på tekst-elementer, hvis tekst en tekst-binding overskriver)
+- `backend/app/services/svg_sanitize.py` — `data-hv-name`/`data-hv-desc` er ren tekst og bevares (også med fx "Måledata:" i teksten, som ellers ramte "data:"-filteret), længdegrænser 60/500 med rapport; øvrige data-attributter kontrolleres som før
+- Tests: `elementTree.test.ts` (8), `symbols.test.ts` (+2), `canvas.test.ts` (+2), `test_svg_sanitize.py` (+3) — 272 backend, 115 frontend
+- Verificeret i browser: symbol indsat med navn, navn og forklaring sat i Tegn og gemt (overlever SVG-Edit og serverens sanering), Bindinger-træet sammenfoldet/udfoldet med indrykning, søgning på forklaring, "Del af"-link, tooltips på Overview; Jans store Varme-tegning (311 elementer) vises som træ
+
 ## [0.25.1 build 0035] — 2026-10-09 — fix: eksterne tags blev overskrevet af PLC'ens egne SSE-hændelser
 
 - `backend/app/services/plc_runtime.py` — `_on_sse_register()` opdaterer kun tags på PLC'ens egne registre (`source.is_register`); et eksternt tag med samme type/adresse (fx `plc1:mbx:1:D:1:coil:0` vs. `plc1:coil:0`) blev før overskrevet ved hver SSE-hændelse

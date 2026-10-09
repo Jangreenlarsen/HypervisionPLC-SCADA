@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { get, patch, post } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
-  import { CATEGORIES, SYMBOLS, selectorSymbol, type SymbolDef } from '../lib/symbols';
+  import { CATEGORIES, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
   import TagSelect, { type TagOption } from '../lib/TagSelect.svelte';
 
   let { route = 'draw' }: { route?: string } = $props();
@@ -10,7 +10,7 @@
   interface Version { version: number; comment: string; created_at: number }
   interface Detail { id: string; name: string; active_version: number; versions: Version[] }
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[] }
-  interface Sel { id: string; tag: string; interactive?: boolean }
+  interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string }
   interface ScadaApi {
     ready: Promise<void>;
     load(svg: string): boolean;
@@ -19,6 +19,7 @@
     onSelection(fn: (sel: Sel[]) => void): void;
     onChange(fn: () => void): void;
     setSelectedId(id: string): string;
+    setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
     insertSymbol(fragment: string, baseId: string): string;
   }
 
@@ -30,6 +31,8 @@
   let comment = $state('');
   let selection = $state<Sel[]>([]);
   let idInput = $state('');
+  let nameInput = $state('');
+  let descInput = $state('');
   let tagChoice = $state('');
   let dirty = $state(false);
   let busy = $state(false);
@@ -53,6 +56,8 @@
     ed.onSelection((sel) => {
       selection = sel;
       idInput = sel.length === 1 ? sel[0].id : '';
+      nameInput = sel.length === 1 ? sel[0].name ?? '' : '';
+      descInput = sel.length === 1 ? sel[0].desc ?? '' : '';
       tagChoice = sel.length === 1 && tags.some((t) => t.name === sel[0].id) ? sel[0].id : '';
     });
     ed.onChange(() => (dirty = true));
@@ -151,6 +156,17 @@
     }
   }
 
+  /** Navn og forklaring på det valgte element — gemmes i tegningen og vises i Bindinger og som tooltip på Overview. */
+  function applyText(attr: 'data-hv-name' | 'data-hv-desc', value: string): void {
+    if (!ed) return;
+    const err = ed.setSelectedText(attr, value);
+    if (err) error = err;
+    else {
+      error = '';
+      dirty = true;
+    }
+  }
+
   let symbolFilter = $state('');
   const symbolsIn = (cat: string): SymbolDef[] => {
     const q = symbolFilter.trim().toLowerCase();
@@ -177,7 +193,7 @@
     try {
       const svg = selectorSymbol(selectorLabels.split(','));
       if (!ed) return;
-      ed.insertSymbol(svg, 'omskifter');
+      ed.insertSymbol(withName(svg, 'Omskifter'), 'omskifter');
       dirty = true;
     } catch (e) {
       selectorError = (e as Error).message;
@@ -187,7 +203,7 @@
   function insert(symbolId: string): void {
     const s = SYMBOLS.find((x) => x.id === symbolId);
     if (!ed || !s) return;
-    ed.insertSymbol(s.svg, s.id);
+    ed.insertSymbol(withName(s.svg, s.label), s.id);
     dirty = true;
   }
 
@@ -282,6 +298,14 @@
         {:else}
           <p class="small muted">Elementets id sættes til tag-navnet, så det bindes automatisk: tekst viser værdien, figurer farves efter til/fra. Andre animationer og klik-handlinger sættes under <strong>Bindinger</strong> efter gem.</p>
         {/if}
+        <label class="field">Navn
+          <input bind:value={nameInput} maxlength="60" placeholder="fx Ventilator stue — vises i Bindinger"
+            onchange={() => applyText('data-hv-name', nameInput)} />
+        </label>
+        <label class="field">Forklaring
+          <textarea bind:value={descInput} rows="3" maxlength="500" placeholder="Hvad gør symbolet, og hvem må betjene det? Vises som tooltip på Overview"
+            onchange={() => applyText('data-hv-desc', descInput)}></textarea>
+        </label>
         <label class="field">Id
           <span class="row"><input bind:value={idInput} /><button onclick={() => applyId(idInput.trim())} disabled={!idInput.trim() || idInput === single.id}>Sæt</button></span>
         </label>

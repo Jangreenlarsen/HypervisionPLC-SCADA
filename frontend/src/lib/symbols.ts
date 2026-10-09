@@ -512,3 +512,9 @@ export function selectorSymbol(labels: string[]): string {
     `<rect x="${cx - 6}" y="${cy - 26}" width="12" height="52" rx="4" fill="${FILL}" stroke="${DARK}" stroke-width="1.5"/>` +
     `<rect x="${cx - 3}" y="${cy - 24}" width="6" height="14" rx="2" fill="${DARK}"/></g></g>`;
 }
+
+/** Giv symbolets rod-<g> et navn (data-hv-name), så det kan kendes i Bindinger og Overview. */
+export function withName(svg: string, name: string): string {
+  const esc = name.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 60);
+  return svg.replace(/^<g(?=[\s>])/, `<g data-hv-name="${esc}"`);
+}

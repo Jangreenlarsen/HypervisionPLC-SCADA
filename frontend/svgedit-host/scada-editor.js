@@ -51,7 +51,10 @@ function hookEvents() {
 
 function currentSelection() {
   const elems = (canvas().getSelectedElements() || []).filter(Boolean);
-  return elems.map((el) => ({ id: el.id || '', tag: el.tagName.toLowerCase(), interactive: el.hasAttribute('data-hv-auto') }));
+  return elems.map((el) => ({
+    id: el.id || '', tag: el.tagName.toLowerCase(), interactive: el.hasAttribute('data-hv-auto'),
+    name: el.getAttribute('data-hv-name') || '', desc: el.getAttribute('data-hv-desc') || '',
+  }));
 }
 
 function idExists(id) {
@@ -84,6 +87,11 @@ window.scada = {
 
   getSvg() {
     canvas().clearSelection();
+    // Tomme navne/forklaringer (felterne tømt i Tegn) gemmes ikke
+    canvas().getSvgContent().querySelectorAll('[data-hv-name=""],[data-hv-desc=""]').forEach((el) => {
+      if (el.getAttribute('data-hv-name') === '') el.removeAttribute('data-hv-name');
+      if (el.getAttribute('data-hv-desc') === '') el.removeAttribute('data-hv-desc');
+    });
     return canvas().getSvgString();
   },
 
@@ -106,6 +114,20 @@ window.scada = {
     if (!/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(id)) return 'Ugyldigt id';
     if (elems[0].id !== id && idExists(id)) return `Id'et "${id}" bruges allerede af et andet element`;
     canvas().changeSelectedAttribute('id', id);
+    if (selectionListener) selectionListener(currentSelection());
+    return '';
+  },
+
+  /** Sæt symbolets navn eller forklaring på det valgte element (med fortryd). Returnerer fejltekst eller ''. */
+  setSelectedText(attr, value) {
+    const limit = { 'data-hv-name': 60, 'data-hv-desc': 500 }[attr];
+    if (!limit) return 'Ukendt felt';
+    const elems = canvas().getSelectedElements().filter(Boolean);
+    if (elems.length !== 1) return 'Vælg præcis ét element';
+    const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+    if (text.length > limit) return `Højst ${limit} tegn`;
+    if ((elems[0].getAttribute(attr) || '') === text) return '';
+    canvas().changeSelectedAttribute(attr, text);
     if (selectionListener) selectionListener(currentSelection());
     return '';
   },

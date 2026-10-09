@@ -2,6 +2,14 @@
 
 ---
 
+## v0.26.0 — 2026-10-09 — Ryddeligere symboler: træ, navn og forklaring
+
+- **Bindinger:** elementlisten er nu et træ. Et symbols dele (fx lampe, vippe og tekst i en vippekontakt) står indrykket under symbolet, som kan foldes sammen. Symbolerne vises med deres navn i fed. Søgefeltet finder også navne og forklaringer.
+- **Navn og forklaring på symboler:** i **Tegn** kan du give det valgte element et navn (fx "Ventilator stue") og en forklaring (fx hvad den gør, og hvem der må betjene den).
+  - Indsatte symboler får deres navn automatisk (Vippekontakt, Omskifter …).
+  - Forklaringen vises i Bindinger og som tooltip, når man holder musen over symbolet på Overview.
+- Det valgte element i Bindinger viser, hvilket symbol det er en del af, med et link til symbolet.
+
 ## v0.25.1 — 2026-10-09 — Eksterne tags følger ikke længere PLC'ens egne registre
 
 - Et tag på en ekstern enhed, fx `plc1:mbx:1:D:1:coil:0`, skiftede også, når PLC'ens egen coil med samme nummer ændrede sig. Nu viser det kun værdien fra den eksterne enhed.

@@ -9,7 +9,27 @@ export function mountSvg(container: HTMLElement, svg: string): SVGSVGElement | n
   const root = container.querySelector('svg');
   root?.removeAttribute('width');
   root?.removeAttribute('height');
+  addTooltips(root);
   return root;
+}
+
+/**
+ * Symbolets navn og forklaring (sat i Tegn) som tooltip: et <title> på elementet. Ikke på tekst-elementer —
+ * en tekst-binding skriver værdien med textContent og ville slette titlen.
+ */
+export function addTooltips(root: Element | null): void {
+  if (!root) return;
+  for (const el of Array.from(root.querySelectorAll('[data-hv-name],[data-hv-desc]'))) {
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'text' || tag === 'tspan') continue;
+    const name = el.getAttribute('data-hv-name')?.trim();
+    const desc = el.getAttribute('data-hv-desc')?.trim();
+    const textContent = [name, desc].filter(Boolean).join('\n');
+    if (!textContent) continue;
+    const title = el.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = textContent;
+    el.insertBefore(title, el.firstChild);
+  }
 }
 
 /**
