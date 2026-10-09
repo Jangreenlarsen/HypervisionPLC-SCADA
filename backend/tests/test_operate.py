@@ -219,3 +219,38 @@ def test_limit_messages_without_trailing_zero(api):
     assert r.status_code == 400 and r.json()["error"] == "Værdien 95 er over maksimum 80"
     r = api.patch("/api/tags/Setpunkt", json={"min": 90})
     assert r.json()["error"] == "min (90) må ikke være større end max (80)"
+
+
+def _drawing_with(api, bindings):
+    """Tegning hvor hvert element har ét klik (som admin)."""
+    api.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
+    did = api.post("/api/drawings", json={"name": "Rettigheder", "svg": SVG}).json()["drawing"]["id"]
+    for element, b in bindings.items():
+        assert api.put(f"/api/drawings/{did}/bindings/{element}", json={"bindings": [b]}).status_code == 200
+    return did
+
+
+def test_operator_rights_follow_the_click_action(api, mock_plc):
+    # Setpunkt har kun en til/fra-knap; Motor kun puls → ingen vilkårlig skrivning via API'et
+    _drawing_with(api, {"Knap": {"tag": "Setpunkt", "anim": "click:toggle", "params": {"confirm": False}},
+                        "Gaa": {"tag": "Motor", "anim": "click:pulse", "params": {"ms": 200}}})
+    _login_as(api, "op2", "operator")
+    r = api.post("/api/tags/Setpunkt/write", json={"value": 55})
+    assert r.status_code == 403 and "adgang" in r.json()["error"]
+    assert api.post("/api/tags/Motor/toggle").status_code == 403
+    assert api.post("/api/tags/Setpunkt/toggle").status_code == 200
+    assert api.post("/api/tags/Motor/pulse", json={"ms": 200}).status_code == 200
+
+
+def test_selector_operator_may_only_write_its_positions(api, mock_plc):
+    pos = [{"value": 0, "label": "Hånd"}, {"value": 10, "label": "0"}, {"value": 20, "label": "Auto"}]
+    _drawing_with(api, {"Setpunkt": {"tag": "Setpunkt", "anim": "click:select", "params": {"positions": pos}}})
+    _login_as(api, "op3", "operator")
+    assert api.post("/api/tags/Setpunkt/write", json={"value": 20}).status_code == 200
+    _wait(lambda: mock_plc.state.hr[5] == 200)  # skala 0,1
+    r = api.post("/api/tags/Setpunkt/write", json={"value": 15})
+    assert r.status_code == 403 and r.json()["error"] == "Værdien 15 er ikke en af omskifterens positioner (0, 10, 20)"
+    api.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
+    denied = [e for e in api.get("/api/audit").json() if e["username"] == "op3" and e["result"] == "error"]
+    assert denied and "positioner" in denied[0]["message"]
+    assert api.post("/api/tags/Setpunkt/write", json={"value": 15}).status_code == 200  # tekniker/admin: frit inden for min/max

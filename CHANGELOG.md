@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.24.0 build 0033] — 2026-10-09 — Omskifter med valgfrit antal positioner
+
+- `backend/app/services/bindings.py` — ny klik-handling `click:select` (`SelectParams`: 2-8 positioner med værdi og navn, forskellige værdier, valgfri bekræftelse og titel); tæller som skrivende klik (kræver skrivbart tag)
+- `backend/app/services/scope.py` + `api/operate.py` + `services/operate.py` — operatørrettigheder pr. handling: skriv kræver setpunkt-felt eller omskifter (med kun omskifter: kun dens positioner), til/fra kræver til/fra, puls kræver puls; afvisninger logges i audit
+- Frontend: "Klik: vælg position" i binding-editoren (positioner med værdi/navn, + Position, bekræftelse, titel); Overview-dialog med én knap pr. position, aktiv position markeret, bekræftelse "Sæt X til 'Auto'?", besked med positionens navn
+- `frontend/src/lib/symbols.ts` — `selectorSymbol()` bygger en omskifter med de angivne navne rundt om grebet (2-8 positioner, symmetrisk fordelt, værdier 0, 1, 2 …); greb med "Rotation" til den aktive position; fast symbol "Omskifter Hånd/0/Auto" og felt i Tegn til "Omskifter med egne positioner"
+- Tests: `test_operate.py` (2 nye: rettigheder pr. handling, omskifter kun egne positioner), `symbols.test.ts` (3), `bindingForm.test.ts` (2), `actions.test.ts` (1) — 248 backend, 102 frontend
+- Verificeret i browser: omskifter "1, 2, 3, 4" indsat i Tegn og bundet til et tag, Overview-dialog med 4 knapper, valg af "3" → register = 2 og grebet drejet til 22,5°; Hånd/0/Auto → Auto = 2; for få positioner afvises med besked
+
 ## [0.23.1 build 0032] — 2026-10-08 — Fix: tal i fejlbeskeder uden ".0"
 
 - `backend/app/services/operate.py`, `services/tags.py` — min/max- og alarmgrænse-beskeder formaterer tal som tastet ("maksimum 100", ikke "100.0"); ugeprogrammer gjorde det allerede

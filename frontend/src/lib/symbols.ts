@@ -79,6 +79,11 @@ export const SYMBOLS: SymbolDef[] = [
       `<text id="tekst" x="32" y="50" font-size="13" text-anchor="middle" fill="${DARK}" ${FONT} ${part({ anim: 'text', params: { true_text: 'TIL', false_text: 'FRA' } })}>FRA</text></g>`,
   },
   {
+    id: 'omskifter3', label: 'Omskifter Hånd/0/Auto', category: 'betjening',
+    hint: 'Vælg position i en dialog (værdi 0/1/2). Andre positioner: brug "Omskifter med egne positioner" nedenfor',
+    get svg() { return selectorSymbol(['Hånd', '0', 'Auto']); },
+  },
+  {
     id: 'drejeomskifter', label: 'Drejeomskifter 0/1', category: 'betjening',
     hint: 'Til/fra med bekræftelse — grebet drejer mellem 0 og 1',
     svg: `<g ${auto([{ anim: 'click:toggle', params: { confirm: true } }])}>` +
@@ -470,3 +475,40 @@ export const SYMBOLS: SymbolDef[] = [
     svg: `<g><path d="M0 18 H70 V4 L100 30 L70 56 V42 H0 Z" fill="${FILL}" stroke="${LINE}" stroke-width="2.5" stroke-linejoin="round"/></g>`,
   },
 ];
+
+/** Vinkler (grader, 0 = op, med uret) for n positioner — fordelt symmetrisk om lodret. */
+export function selectorAngles(n: number): number[] {
+  const span = Math.max(60, Math.min(270, 45 * (n - 1)));
+  return Array.from({ length: n }, (_, i) => (n === 1 ? 0 : -span / 2 + (i * span) / (n - 1)));
+}
+
+/**
+ * Omskifter med 2-8 positioner (navnene i rækkefølge, fx ["Hånd", "0", "Auto"]). Positionernes værdier er
+ * 0, 1, 2 … (kan rettes under Bindinger). Klik → dialog med én knap pr. position; grebet drejer til den
+ * aktive position. Navnene står rundt om grebet.
+ */
+export function selectorSymbol(labels: string[]): string {
+  const names = labels.map((l) => l.trim()).filter(Boolean).slice(0, 8);
+  if (names.length < 2) throw new Error('Angiv mindst 2 positioner, adskilt med komma (fx Hånd, 0, Auto)');
+  if (names.some((l) => l.length > 20)) throw new Error('Et positionsnavn må højst være 20 tegn');
+  const n = names.length;
+  const angles = selectorAngles(n);
+  const cx = 70, cy = 70, R = 52;
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const labelSvg = names.map((l, i) => {
+    const a = (angles[i] * Math.PI) / 180;
+    const x = Math.round(cx + R * Math.sin(a)), y = Math.round(cy - R * Math.cos(a) + 5);
+    return `<text x="${x}" y="${y}" font-size="13" font-weight="600" text-anchor="middle" fill="${DARK}" ${FONT}>${esc(l)}</text>`;
+  }).join('');
+  const ticks = angles.map((deg) => {
+    const a = (deg * Math.PI) / 180;
+    return `<line x1="${Math.round(cx + 33 * Math.sin(a))}" y1="${Math.round(cy - 33 * Math.cos(a))}" x2="${Math.round(cx + 38 * Math.sin(a))}" y2="${Math.round(cy - 38 * Math.cos(a))}" stroke="${DARK}" stroke-width="2"/>`;
+  }).join('');
+  const params = { positions: names.map((label, value) => ({ value, label })), confirm: true };
+  return `<g ${auto([{ anim: 'click:select', params }])}>` +
+    `<circle cx="${cx}" cy="${cy}" r="30" fill="#e3e3e3" stroke="${LINE}" stroke-width="2.5"/>${ticks}${labelSvg}` +
+    // Grebet er symmetrisk om drejepunktet, så "Rotation" drejer det om centrum
+    `<g id="greb" ${part({ anim: 'rotate', params: { min: 0, max: n - 1, angle_min: angles[0], angle_max: angles[n - 1] } })}>` +
+    `<rect x="${cx - 6}" y="${cy - 26}" width="12" height="52" rx="4" fill="${FILL}" stroke="${DARK}" stroke-width="1.5"/>` +
+    `<rect x="${cx - 3}" y="${cy - 24}" width="6" height="14" rx="2" fill="${DARK}"/></g></g>`;
+}

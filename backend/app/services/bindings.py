@@ -12,9 +12,9 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 AnimType = Literal["text", "fill", "stroke", "visible", "blink", "level", "rotate", "opacity", "move",
-                   "click:write", "click:toggle", "click:pulse", "click:goto"]
-CLICK_TYPES = ("click:write", "click:toggle", "click:pulse", "click:goto")
-WRITE_CLICKS = ("click:write", "click:toggle", "click:pulse")
+                   "click:write", "click:toggle", "click:pulse", "click:select", "click:goto"]
+CLICK_TYPES = ("click:write", "click:toggle", "click:pulse", "click:select", "click:goto")
+WRITE_CLICKS = ("click:write", "click:toggle", "click:pulse", "click:select")
 ANIM_TYPES: tuple[str, ...] = AnimType.__args__  # type: ignore[attr-defined]
 
 # Farver sættes som SVG-attributter i browseren — kun simple, ufarlige former tillades.
@@ -29,6 +29,13 @@ def _color(value: str) -> str:
     if not _COLOR.match(value.strip()):
         raise ValueError(f"ugyldig farve '{value}'")
     return value.strip()
+
+
+def _label(value: str) -> str:
+    v = (value or "").strip()
+    if not v:
+        raise ValueError("navnet må ikke være tomt")
+    return v
 
 
 class _P(BaseModel):
@@ -110,6 +117,27 @@ class PulseParams(_P):
     confirm: bool = False
 
 
+class Position(_P):
+    value: float
+    label: str = Field(min_length=1, max_length=20)
+
+    _l = field_validator("label")(lambda cls, v: _label(v))
+
+
+class SelectParams(_P):
+    """Omskifter: operatøren vælger én af 2-8 positioner; positionens værdi skrives (samme vej som setpunkt)."""
+    positions: list[Position] = Field(min_length=2, max_length=8)
+    confirm: bool = True
+    title: str = Field(default="", max_length=60)
+
+    @model_validator(mode="after")
+    def _unique(self) -> "SelectParams":
+        values = [p.value for p in self.positions]
+        if len(set(values)) != len(values):
+            raise ValueError("positionerne skal have forskellige værdier")
+        return self
+
+
 class GotoParams(_P):
     drawing: str = Field(min_length=1, max_length=64)
 
@@ -118,6 +146,7 @@ PARAM_MODELS: dict[str, type[_P]] = {
     "text": TextParams, "fill": ColorParams, "stroke": ColorParams, "visible": ToggleParams,
     "blink": ToggleParams, "level": LevelParams, "rotate": RotateParams, "opacity": RangeParams, "move": MoveParams,
     "click:write": WriteParams, "click:toggle": ToggleClickParams, "click:pulse": PulseParams,
+    "click:select": SelectParams,
     "click:goto": GotoParams,
 }
 

@@ -2,6 +2,18 @@
 
 ---
 
+## v0.24.0 — 2026-10-09 — Omskifter med valgfrie positioner
+
+- I **Tegn → Betjening** kan du indsætte en omskifter med 2–8 positioner. Skriv navnene adskilt med komma, fx "Hånd, 0, Auto" eller "1, 2, 3, 4". Der findes også en færdig omskifter med Hånd/0/Auto.
+- Når du vælger et skrivbart tag, virker omskifteren med det samme på Overview:
+  - Et klik viser én knap pr. position, og den aktive er markeret.
+  - Den valgte positions værdi (0, 1, 2 …) skrives til PLC'en.
+  - Grebet drejer til positionen.
+- Positionernes værdier og navne kan rettes under **Bindinger** ("Klik: vælg position").
+- **Sikkerhed:** operatører kan nu kun det, tegningen giver lov til.
+  - En til/fra-knap giver ikke ret til at skrive vilkårlige værdier.
+  - En omskifter kan kun skrive sine egne positioner.
+
 ## v0.23.1 — 2026-10-08
 
 - Fejlbeskeder viser tal pænt, fx "over maksimum 100" i stedet for "100.0".

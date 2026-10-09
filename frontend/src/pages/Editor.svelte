@@ -247,6 +247,7 @@
     // Nye standardværdier når typen skiftes (fx bekræftelse er standard for til/fra).
     if (d.anim === 'click:toggle') d.confirm = true;
     if (d.anim === 'click:pulse') d.confirm = false;
+    if (d.anim === 'click:select') d.confirm = true;
     changed();
   }
   const current = $derived(elements.find((e) => e.id === selected) ?? null);
@@ -371,6 +372,20 @@
                   <label class="field-row">Titel i dialogen (valgfri)<input bind:value={d.title} oninput={changed} maxlength="60" placeholder="tag-beskrivelsen" /></label>
                 {:else if d.anim === 'click:toggle'}
                   <label class="check"><input type="checkbox" bind:checked={d.confirm} onchange={changed} /> Bed om bekræftelse</label>
+                {:else if d.anim === 'click:select'}
+                  <p class="small muted">Positioner (værdien skrives til tagget). Operatører kan kun vælge disse værdier.</p>
+                  {#each d.positions as pos, k}
+                    <div class="row">
+                      <input class="num" bind:value={pos.value} oninput={changed} inputmode="decimal" placeholder="værdi" aria-label="Værdi {k + 1}" />
+                      <input bind:value={pos.label} oninput={changed} maxlength="20" placeholder="navn" aria-label="Navn {k + 1}" />
+                      <button onclick={() => { d.positions = d.positions.filter((_, j) => j !== k); changed(); }} disabled={d.positions.length <= 2} title="Fjern position">×</button>
+                    </div>
+                  {/each}
+                  <div class="row">
+                    <button onclick={() => { d.positions = [...d.positions, { value: String(d.positions.length), label: `Pos ${d.positions.length + 1}` }]; changed(); }} disabled={d.positions.length >= 8}>+ Position</button>
+                    <label class="check"><input type="checkbox" bind:checked={d.confirm} onchange={changed} /> Bed om bekræftelse</label>
+                  </div>
+                  <label class="field-row">Titel i dialogen (valgfri)<input bind:value={d.title} oninput={changed} maxlength="60" placeholder="tag-beskrivelsen" /></label>
                 {:else if d.anim === 'click:pulse'}
                   <div class="grid-form">
                     <label>Pulslængde (ms)<input bind:value={d.ms} oninput={changed} inputmode="numeric" /></label>

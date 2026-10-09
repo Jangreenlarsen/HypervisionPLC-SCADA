@@ -37,3 +37,14 @@ export function toggleQuestion(tag: string, live: LiveValue | undefined, meta: T
   const next = formatValue(typeof live?.value === 'boolean' ? !live.value : live?.value ? 0 : 1, meta);
   return `Skift "${name}" fra ${now} til ${next}?`;
 }
+
+/** Omskifterens positioner og navnet på den aktive (null hvis værdien ikke er en position). */
+export function positions(params: Record<string, any>): { value: number; label: string }[] {
+  return Array.isArray(params.positions) ? params.positions : [];
+}
+
+export function positionLabel(params: Record<string, any>, value: unknown): string | null {
+  if (typeof value === 'boolean') value = value ? 1 : 0;
+  if (typeof value !== 'number') return null;
+  return positions(params).find((p) => Math.abs(p.value - value) < 1e-6)?.label ?? null;
+}
