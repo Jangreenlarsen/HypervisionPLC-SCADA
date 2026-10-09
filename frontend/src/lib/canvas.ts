@@ -4,26 +4,27 @@ import type { Binding, LiveValue, TagMeta } from './api';
 import { sanitizeSvg } from './svg';
 
 /** Indsæt (saneret) SVG i containeren og gør den skalerbar. */
-export function mountSvg(container: HTMLElement, svg: string): SVGSVGElement | null {
+export function mountSvg(container: HTMLElement, svg: string, descriptions: Record<string, string> = {}): SVGSVGElement | null {
   container.innerHTML = sanitizeSvg(svg);
   const root = container.querySelector('svg');
   root?.removeAttribute('width');
   root?.removeAttribute('height');
-  addTooltips(root);
+  addTooltips(root, descriptions);
   return root;
 }
 
 /**
- * Symbolets navn og forklaring (sat i Tegn) som tooltip: et <title> på elementet. Ikke på tekst-elementer —
+ * Symbolets navn (sat i Tegn) og forklaring (sat under Bindinger) som tooltip: et <title> på elementet. Ikke på tekst-elementer —
  * en tekst-binding skriver værdien med textContent og ville slette titlen.
  */
-export function addTooltips(root: Element | null): void {
+export function addTooltips(root: Element | null, descriptions: Record<string, string> = {}): void {
   if (!root) return;
-  for (const el of Array.from(root.querySelectorAll('[data-hv-name],[data-hv-desc]'))) {
+  for (const el of Array.from(root.querySelectorAll('[id]'))) {
     const tag = el.tagName.toLowerCase();
     if (tag === 'text' || tag === 'tspan') continue;
     const name = el.getAttribute('data-hv-name')?.trim();
-    const desc = el.getAttribute('data-hv-desc')?.trim();
+    // Forklaringen sættes under Bindinger (gemmes ved bindingerne); ældre tegninger kan have den i selve SVG'en
+    const desc = (descriptions[el.id] ?? el.getAttribute('data-hv-desc'))?.trim();
     const textContent = [name, desc].filter(Boolean).join('\n');
     if (!textContent) continue;
     const title = el.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'title');

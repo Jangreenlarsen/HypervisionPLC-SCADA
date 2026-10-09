@@ -2,6 +2,15 @@
 
 ---
 
+## v0.27.0 — 2026-10-09 — Al symbol-opsætning samlet under Bindinger
+
+- **Tegn** bruges nu kun til at tegne og give symbolet et **navn** (navnet skal være unikt; nye symboler får selv et navn). Tag og forklaring sættes ikke længere dér.
+- **Bindinger** er det ene sted, hvor symboler sættes op:
+  - Listen viser kun dine navngivne symboler og det, der allerede er bundet. **Vis alle elementer** viser resten.
+  - Vælg et symbol, og vælg et **tag**. Så sættes symbolets klik og visning op automatisk. **Fjern tag** nulstiller det.
+  - Skriv en **forklaring**, som vises som tooltip på Overview. Den kan ændres uden at gemme en ny tegningsversion.
+- Fra Tegn åbner **Konfigurér under Bindinger** symbolet direkte.
+
 ## v0.26.0 — 2026-10-09 — Ryddeligere symboler: træ, navn og forklaring
 
 - **Bindinger:** elementlisten er nu et træ. Et symbols dele (fx lampe, vippe og tekst i en vippekontakt) står indrykket under symbolet, som kan foldes sammen. Symbolerne vises med deres navn i fed. Søgefeltet finder også navne og forklaringer.

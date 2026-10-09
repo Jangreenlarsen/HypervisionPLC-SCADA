@@ -139,6 +139,7 @@ class BackupService:
             "bindings": data["bindings"],
             "settings": data["settings"],
             "schedules": data["schedules"],
+            "symbol_meta": data["symbol_meta"],
         }
 
     def save_to_server(self, kind: str, created_by: str) -> str:
@@ -377,6 +378,18 @@ class BackupService:
             seen.add((did, element, pos))
             bindings.append({"drawing_id": did, "element": element, "position": pos, **nb})
 
+        symbol_meta = []
+        raw_meta = backup.get("symbol_meta", [])  # ældre backups har ingen symbol-forklaringer
+        if not isinstance(raw_meta, list):
+            err("symbol_meta skal være en liste")
+            raw_meta = []
+        for i, m in enumerate(raw_meta):
+            if (not isinstance(m, dict) or m.get("drawing_id") not in drawing_ids or not isinstance(m.get("element"), str)
+                    or not isinstance(m.get("description"), str) or len(m["description"]) > 500):
+                err(f"Symbol-forklaring #{i + 1}: ugyldig (kendt tegning, element og tekst på højst 500 tegn kræves)")
+                continue
+            symbol_meta.append({"drawing_id": m["drawing_id"], "element": m["element"], "description": m["description"]})
+
         schedules = []
         raw_schedules = backup.get("schedules", [])  # ældre backups har ingen ugeprogrammer
         if not isinstance(raw_schedules, list):
@@ -404,7 +417,7 @@ class BackupService:
         # En start-tegning der ikke findes i backuppen ignoreres (ikke en fejl — Overview viser så den første)
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
                 "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
-                "schedules": schedules}
+                "schedules": schedules, "symbol_meta": symbol_meta}
 
     # ---------------------------------------------------------------- restore
 

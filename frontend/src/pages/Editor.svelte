@@ -3,7 +3,7 @@
   import { get, put, type Binding, type DrawingView, type LiveValue } from '../lib/api';
   import { ANIMS, flatten, fromForm, groupIds, isClick, nextBinding, pickElement, toDrafts, toForm, toHex, type BindingForm, type Draft } from '../lib/bindingForm';
   import { textFor } from '../lib/animate';
-  import { ancestorsOf, buildElements, defaultExpanded, descendantCount, displayName, showsId, visibleRows, type ElementInfo } from '../lib/elementTree';
+  import { ancestorsOf, buildElements, defaultExpanded, descendantCount, displayName, relevantElements, showsId, visibleRows, type ElementInfo } from '../lib/elementTree';
   import { findElement, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
   import TagSelect from '../lib/TagSelect.svelte';
@@ -22,6 +22,10 @@
   let info = $state('');
   let filter = $state('');
   let expanded = $state<Set<string>>(new Set()); // standard: rene grupper udfoldet, symboler sammenfoldet
+  let showAll = $state(false);                   // standard: kun symboler (navngivne) og bundne elementer
+  let descDraft = $state('');
+  const current = $derived(elements.find((e) => e.id === selected) ?? null);
+  let symWarning = $state('');
   let selected = $state<string | null>(null);
   let drafts = $state<Draft[]>([]); // én binding = ét tag (gid) med en eller flere animationer
   let explicitMode = $state(false); // true = elementet har (eller får) eksplicitte bindinger
@@ -68,7 +72,7 @@
 
   function redraw(): void {
     if (!container || !view) return;
-    svgRoot = mountSvg(container, view.svg);
+    svgRoot = mountSvg(container, view.svg, view.symbols);
     fitSvg(svgRoot, container);
     const bindings = effective();
     renderAll(container, bindings, values, view.tags);
@@ -90,7 +94,7 @@
       await tick();
       redraw();
       elements = svgRoot ? buildElements(svgRoot) : [];
-      expanded = defaultExpanded(elements);
+      expanded = defaultExpanded(scope.elements);
       if (keepSelection && selected) select(selected, true);
       else clearSelection();
     } catch (e) {
@@ -110,6 +114,8 @@
   function select(id: string, force = false): void {
     if (!force && dirty && !confirm('Du har ændringer der ikke er gemt. Kassér dem?')) return;
     selected = id;
+    symWarning = '';
+    descDraft = descFor(elements.find((e) => e.id === id) ?? null);
     if (!filter) expanded = new Set([...expanded, ...ancestorsOf(elements, id)]); // vis hvor det valgte element ligger
     const explicit = explicitFor(id);
     explicitMode = explicit.length > 0;
@@ -222,7 +228,44 @@
     return '';
   }
 
-  const rows = $derived(visibleRows(elements, expanded, filter));
+  const boundElements = $derived(new Set((view?.bindings ?? []).map((b) => b.element)));
+  const scope = $derived(showAll ? { elements, direct: new Set(elements.map((e) => e.id)) } : relevantElements(elements, boundElements));
+  const rows = $derived(visibleRows(scope.elements, expanded, filter).map((r) => ({ ...r, context: r.context || !scope.direct.has(r.id) })));
+  /** Symbolets forklaring: den der er sat her (gemt ved bindingerne), ellers en evt. ældre i selve tegningen. */
+  const descFor = (e: ElementInfo | null) => (e ? view?.symbols?.[e.id] ?? e.desc ?? '' : '');
+  const symTag = $derived(current ? view?.bindings.find((b) => b.element === current.id && b.tag)?.tag ?? '' : '');
+  const enc = encodeURIComponent;
+
+  async function saveDesc(): Promise<void> {
+    if (!view || !current) return;
+    const text = descDraft.trim();
+    if (text === descFor(current)) return;
+    try {
+      await put(`/api/drawings/${enc(view.id)}/symbols/${enc(current.id)}`, { description: text });
+      const symbols = { ...(view.symbols ?? {}) };
+      if (text) symbols[current.id] = text;
+      else delete symbols[current.id];
+      view = { ...view, symbols };
+      info = 'Forklaring gemt.';
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
+
+  /** Tilknyt (eller fjern med '') et tag til hele symbolet — serveren danner bindingerne for symbolets dele. */
+  async function bindSymbolTag(tag: string): Promise<void> {
+    if (!view || !current) return;
+    if (dirty && !confirm('Du har ændringer der ikke er gemt på dette element. Kassér dem?')) return;
+    const element = current.id;
+    try {
+      const r = await put<{ warning?: string; elements?: number }>(`/api/drawings/${enc(view.id)}/symbols/${enc(element)}`, { tag: tag || null });
+      await load(view.id, true);
+      symWarning = r.warning ?? '';
+      info = tag ? `Tag "${tag}" er tilknyttet — bindinger oprettet for ${r.elements ?? 0} element${r.elements === 1 ? '' : 'er'}.` : 'Tagget er fjernet fra symbolet.';
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
 
   function toggleNode(id: string): void {
     const next = new Set(expanded);
@@ -253,7 +296,6 @@
     if (d.anim === 'click:select') d.confirm = true;
     changed();
   }
-  const current = $derived(elements.find((e) => e.id === selected) ?? null);
 
   // Tegningen fylder den ledige højde; markeringsboksene følger med når størrelsen ændres
   const onResize = () => {
@@ -274,6 +316,8 @@
     const fromRoute = route.split('/')[1];
     drawingId = fromRoute && drawings.some((d) => d.id === fromRoute) ? fromRoute : drawings[0]?.id ?? '';
     await load(drawingId);
+    const wanted = route.split('/')[2]; // #editor/<tegning>/<element> — fx fra "Konfigurér under Bindinger" i Tegn
+    if (wanted && elements.some((e) => e.id === decodeURIComponent(wanted))) select(decodeURIComponent(wanted), true);
   });
 
   onDestroy(() => {
@@ -318,9 +362,28 @@
         <p class="muted small">Vælg et element i tegningen eller i listen nedenfor.</p>
       {:else}
         <h3>{displayName(current)} <span class="muted small">{current.name ? `${current.id} · ` : ''}&lt;{current.type}&gt;{current.label && current.name ? ` · label "${current.label}"` : ''}{current.label && !current.name ? ` · label "${current.label}"` : ''}</span></h3>
-        {#if current.desc}<p class="small desc">{current.desc}</p>{/if}
+        {#if descFor(current)}<p class="small desc">{descFor(current)}</p>{/if}
         {#if current.parent}<p class="small muted">Del af <button class="link-btn" onclick={() => select(current.parent!)}>{displayName(elements.find((x) => x.id === current.parent)!)}</button></p>{/if}
         {#if info}<div class="notice">{info}</div>{/if}
+
+        {#if current.name || current.spec}
+          <section class="symbol-cfg">
+            <h4>Symbol</h4>
+            <p class="small muted">Navnet sættes i <a href={'#draw/' + (view?.id ?? '')}>Tegn</a>. Tag, forklaring og animationer sættes her.</p>
+            {#if current.spec}
+              <label class="field-row">Tag{current.writes ? ' (skrivbart — symbolet kan betjene PLC\'en)' : ''}
+                <TagSelect value={symTag} {tags} writableOnly={current.writes} placeholder="— vælg tag —" onchange={bindSymbolTag} />
+              </label>
+              {#if symTag}<div class="row"><button class="small" onclick={() => bindSymbolTag('')}>Fjern tag</button></div>{/if}
+              {#if symWarning}<p class="small error">{symWarning}</p>{/if}
+              <p class="small muted">Når et tag vælges, oprettes bindingerne for hele symbolet (klik og visning). Vælg en del i listen for at finjustere den; vælges et tag igen, erstattes bindingerne.</p>
+            {/if}
+            <label class="field-row">Forklaring
+              <textarea bind:value={descDraft} rows="3" maxlength="500" onchange={saveDesc}
+                placeholder="Hvad gør symbolet, og hvem må betjene det? Vises som tooltip på Overview"></textarea>
+            </label>
+          </section>
+        {/if}
 
         {#if !explicitMode}
           {#if autoFor(current.id).length}
@@ -472,16 +535,20 @@
 
     <section class="panel">
       <div class="row" style="justify-content: space-between">
-        <h3>Elementer ({elements.length})</h3>
-        {#if !filter && elements.some((e) => e.children)}
+        <h3>Symboler og bundne ({scope.direct.size})</h3>
+        {#if !filter && scope.elements.some((e) => e.children)}
           <span class="row small">
-            <button class="link-btn" onclick={() => (expanded = new Set(elements.filter((e) => e.children).map((e) => e.id)))}>Fold alle ud</button>
+            <button class="link-btn" onclick={() => (expanded = new Set(scope.elements.filter((e) => e.children).map((e) => e.id)))}>Fold alle ud</button>
             <button class="link-btn" onclick={() => (expanded = new Set())}>Fold alle sammen</button>
-            <button class="link-btn" onclick={() => (expanded = defaultExpanded(elements))}>Standard</button>
+            <button class="link-btn" onclick={() => (expanded = defaultExpanded(scope.elements))}>Standard</button>
           </span>
         {/if}
       </div>
       <input bind:value={filter} placeholder="Søg navn, id, label eller forklaring" style="width:100%" />
+      <label class="check small show-all" title="Standard: kun navngivne symboler og elementer med bindinger — navne sættes i Tegn">
+        <input type="checkbox" bind:checked={showAll} onchange={() => (expanded = defaultExpanded(scope.elements))} />
+        Vis alle elementer ({elements.length})
+      </label>
       <ul class="elements tree" role="tree">
         {#each rows as e (e.id)}
           {@const open = filter ? true : expanded.has(e.id)}
@@ -493,7 +560,7 @@
             <button class="item" class:active={e.id === selected} onclick={() => select(e.id)} title={e.desc ?? ''}>
               <span class="nm">{displayName(e)}</span>
               {#if showsId(e)}<span class="mono muted small id">{e.id}</span>{/if}
-              {#if e.children && !open}<span class="muted small">+{descendantCount(elements, e.id)}</span>{/if}
+              {#if e.children && !open}<span class="muted small">+{descendantCount(scope.elements, e.id)}</span>{/if}
               <span class="muted small">&lt;{e.type}&gt;</span>
               {#if status(e.id)}<span class="badge {status(e.id) === 'explicit' ? 'ok' : ''}">{status(e.id) === 'explicit' ? 'bundet' : 'auto'}</span>{/if}
             </button>
@@ -559,5 +626,8 @@
   .tree .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .tree .id { flex: 0 1 8rem; }
   .desc { margin: .1rem 0 .4rem; color: var(--text); white-space: pre-wrap; }
+  .symbol-cfg { border: 1px solid var(--line); border-radius: var(--radius); padding: .5rem .7rem; margin: .5rem 0; background: var(--panel-2); }
+  .symbol-cfg h4 { margin: 0 0 .3rem; }
+  .show-all { margin: .4rem 0 0; }
   .link-btn { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }
 </style>

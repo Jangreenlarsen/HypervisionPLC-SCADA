@@ -12,6 +12,8 @@ export interface ElementInfo {
   depth: number;
   children: number;            // antal direkte børn med id
   symbol: boolean;             // betjeningssymbol eller element med eget navn
+  spec: boolean;               // betjeningssymbol med færdige bindinger (data-hv-auto)
+  writes: boolean;             // symbolets klik-handling skriver til PLC'en (tagget skal være skrivbart)
 }
 
 export interface Row extends ElementInfo {
@@ -19,6 +21,15 @@ export interface Row extends ElementInfo {
 }
 
 const text = (v: string | null | undefined) => (v && v.trim() ? v.trim() : null);
+
+function specWrites(raw: string | null): boolean {
+  try {
+    const items = JSON.parse(raw ?? 'null');
+    return (Array.isArray(items) ? items : [items]).some((i) => ['click:write', 'click:toggle', 'click:pulse', 'click:select'].includes(i?.anim));
+  } catch {
+    return false; // ugyldig beskrivelse — serveren afviser/ignorerer den
+  }
+}
 
 /** Alle elementer med id, i dokumentets rækkefølge, med forælder og dybde. */
 export function buildElements(root: Element): ElementInfo[] {
@@ -36,6 +47,8 @@ export function buildElements(root: Element): ElementInfo[] {
       name, short, desc: text(el.getAttribute('data-hv-desc')),
       parent: parent?.id ?? null, depth: parent ? parent.depth + 1 : 0, children: 0,
       symbol: name !== null || el.hasAttribute('data-hv-auto'),
+      spec: el.hasAttribute('data-hv-auto'),
+      writes: specWrites(el.getAttribute('data-hv-auto')),
     };
     if (parent) parent.children++;
     index.set(el, info);
@@ -92,4 +105,25 @@ export function descendantCount(elements: ElementInfo[], id: string): number {
   for (const e of elements) if (e.parent) kids.set(e.parent, [...(kids.get(e.parent) ?? []), e.id]);
   const walk = (i: string): number => (kids.get(i) ?? []).reduce((n, k) => n + 1 + walk(k), 0);
   return walk(id);
+}
+
+/**
+ * Det relevante under Bindinger: navngivne elementer (symboler), elementer med bindinger og alt under et symbol
+ * (dets dele), plus forfædre så strukturen kan ses. `direct` er dem der er relevante i sig selv — resten er kun
+ * med for at vise hvor de hører til. Børnetal tælles om, så et sammenfoldet træ ikke viser tomme pile.
+ */
+export function relevantElements(elements: ElementInfo[], bound: Set<string>): { elements: ElementInfo[]; direct: Set<string> } {
+  const byId = new Map(elements.map((e) => [e.id, e]));
+  const direct = new Set<string>();
+  for (const e of elements) {
+    let inSymbol = false;
+    for (let p = e.parent; p; p = byId.get(p)?.parent ?? null) if (byId.get(p)?.symbol) inSymbol = true;
+    if (e.symbol || bound.has(e.id) || inSymbol) direct.add(e.id);
+  }
+  const keep = new Set(direct);
+  for (const id of direct) for (const a of ancestorsOf(elements, id)) keep.add(a);
+  const kept = elements.filter((e) => keep.has(e.id));
+  const kids = new Map<string, number>();
+  for (const e of kept) if (e.parent) kids.set(e.parent, (kids.get(e.parent) ?? 0) + 1);
+  return { elements: kept.map((e) => ({ ...e, children: kids.get(e.id) ?? 0 })), direct };
 }

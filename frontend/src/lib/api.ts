@@ -101,6 +101,8 @@ export interface DrawingView {
   bindings: Binding[];
   orphaned_bindings: string[];
   tags: Record<string, TagMeta>;
+  /** Symbolers forklaring (element → tekst), sat under Bindinger. */
+  symbols: Record<string, string>;
 }
 
 export type Role = 'viewer' | 'operator' | 'engineer' | 'admin';

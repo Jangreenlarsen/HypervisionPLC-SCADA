@@ -126,10 +126,22 @@ window.scada = {
     if (elems.length !== 1) return 'Vælg præcis ét element';
     const text = String(value ?? '').replace(/\s+/g, ' ').trim();
     if (text.length > limit) return `Højst ${limit} tegn`;
+    // Navnet er symbolets identitet i konfigurationen under Bindinger — det skal være unikt
+    if (attr === 'data-hv-name' && text && Array.from(canvas().getSvgContent().querySelectorAll('[data-hv-name]'))
+      .some((el) => el !== elems[0] && el.getAttribute('data-hv-name') === text)) {
+      return `Navnet "${text}" bruges allerede af et andet symbol — vælg et andet`;
+    }
     if ((elems[0].getAttribute(attr) || '') === text) return '';
     canvas().changeSelectedAttribute(attr, text);
     if (selectionListener) selectionListener(currentSelection());
     return '';
+  },
+
+  /** Et navn der ikke er i brug: "Vippekontakt", "Vippekontakt 2", … */
+  uniqueName(base) {
+    const used = new Set(Array.from(canvas().getSvgContent().querySelectorAll('[data-hv-name]')).map((el) => el.getAttribute('data-hv-name')));
+    if (!used.has(base)) return base;
+    for (let i = 2; ; i++) if (!used.has(`${base} ${i}`)) return `${base} ${i}`;
   },
 
   /** Indsæt et symbol (SVG-fragment med ét rodelement) midt i den synlige del, valgt og med fortryd. */
