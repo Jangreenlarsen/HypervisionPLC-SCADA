@@ -112,15 +112,15 @@ async def test_uncovered_tags_poll_fast_while_sse_is_healthy(mock_plc):
     """Regression: ST-variabler og registre SSE ikke leverer, må ikke vente på den langsomme poll."""
     rt, cache = await _runtime(mock_plc, sse=True)
     rt.slow_interval = 30  # kontrol-poll af SSE-dækkede adresser sker praktisk talt aldrig i testen
-    rt.set_tags(_tags(("A", "plc1:hr:3", 1.0, 0.0), ("Hoej", "plc1:hr:200", 1.0, 0.0),
+    # 32-bit-registre leveres aldrig via SSE (begge ord skal komme fra samme læsning)
+    rt.set_tags(_tags(("A", "plc1:hr:3", 1.0, 0.0), ("Hoej", "plc1:hr:200:dint", 1.0, 0.0),
                       ("Var", "plc1:logic:1:Starter", 1.0, 0.0)))
     rt.start()
     try:
         await wait_for(lambda: rt.sse.covers("hr", 3) and cache.get("Var").quality == "good")
         await asyncio.sleep(0.3)
         mock_plc.state.programs[1]["variables"][2]["value"] = 99
-        mock_plc.state.hr[200] = 1234
+        mock_plc.state.set_hr_dint(200, 1234)
         await wait_for(lambda: cache.get("Var").value == 99 and cache.get("Hoej").value == 1234, timeout=3)
-        assert not rt.sse.covers("hr", 200)  # over PLC'ens SSE-loft på 159
     finally:
         await rt.stop()

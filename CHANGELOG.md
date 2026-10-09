@@ -4,6 +4,23 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.25.1 build 0035] — 2026-10-09 — fix: eksterne tags blev overskrevet af PLC'ens egne SSE-hændelser
+
+- `backend/app/services/plc_runtime.py` — `_on_sse_register()` opdaterer kun tags på PLC'ens egne registre (`source.is_register`); et eksternt tag med samme type/adresse (fx `plc1:mbx:1:D:1:coil:0` vs. `plc1:coil:0`) blev før overskrevet ved hver SSE-hændelse
+- `backend/tests/test_ext.py` — regressionstest
+
+## [0.25.0 build 0034] — 2026-10-09 — Tags fra eksterne Modbus-enheder (PLC /api/ext)
+
+- `backend/app/services/tagsource.py` — nye kilder `plcN:rtu:<slave>:<type>:<adresse>[:datatype]` (RS485-slave 1-247) og `plcN:mbx:<board>:<kanal A-H|1-8>:<slave>:<type>:<adresse>[:datatype]` (expansion board); adresse 0-65535; samme datatyper og 32-bit-regler som interne
+- `backend/app/plc/client.py` — `read_ext()` (count ≤ 16, `max_age`, valgfri `wait`; værdi + status pr. adresse) og `write_ext()` (med `wait`; `ok`/`timeout`/`queued` returneres, slavens `error` kastes; 502/504-svar med resultat læses i stedet for at kaste); fejltekster fra /api/ext-svar uden "error"-felt er læsbare
+- `backend/app/plc/planner.py` — `plan_ext_reads()`: kun ægte sammenhængende adresser samles (højst 16), pr. (bus, board, kanal, slave, type)
+- `backend/app/services/plc_runtime.py` — eksterne tags polles hvert `SCADA_POLL_EXT_S` (standard 2 s) uden `wait` med `max_age` = intervallet; `pending` = "venter på første svar" (sidste kendte værdi bevares), slavens `error` og PLC-fejl for ét område (404 board ikke konfigureret, 409 Modbus Master fra, 502) markerer KUN de berørte tags — resten af PLC'en kører videre
+- `backend/app/services/operate.py` — skrivning til eksterne slaver med bekræftelse; ikke bekræftet (`timeout`/`queued`) afgøres ved tilbagelæsning (`max_age=0`, `wait`), ellers fejl med klar besked; `slave_result` i audit
+- `backend/app/plc/sse.py` — SSE-overvågning af HR 0-255 og IR 0-319 (PLC v7.9.68.124+, BUG-486); ældre firmware ses i `connected.watching` og polles som før
+- Frontend: Tags-hjælpeteksten forklarer de tre kilder; mærkerne "Extern (RS485)"/"Expansion board" i tag-listen og tag-dropdowns
+- Tests: `test_ext.py` (22: kilder, planlægger, klient mod ÆGTE PLC1-svar via transport, poll-logik med pending/fejl-isolering/interval, ikke-bekræftet skrivning) — ingen ændringer i mock-PLC'en (efter Jans ønske); SSE/runtime-tests tilpasset de nye grænser — 268 backend, 103 frontend
+- **Verificeret mod den rigtige PLC1 (10.1.1.30, v7.9.68.125) via testserveren:** RS485-slave 90 HR 0-1 læses (235/236) i ét kald; slave 247 (findes ikke) → fejl kun på sit tag, resten af PLC'en "ok"; expansion board 1 kanal D slave 1 coil 0 læst og skiftet 6 gange Til/Fra med korrekt tilbagelæsning, slutter på udgangsværdien. To PLC-firmwarefund beskrevet i HYPERVISIONPLC_ANALYSE.md §7.3
+
 ## [0.24.0 build 0033] — 2026-10-09 — Omskifter med valgfrit antal positioner
 
 - `backend/app/services/bindings.py` — ny klik-handling `click:select` (`SelectParams`: 2-8 positioner med værdi og navn, forskellige værdier, valgfri bekræftelse og titel); tæller som skrivende klik (kræver skrivbart tag)

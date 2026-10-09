@@ -26,10 +26,10 @@ def test_parser_bug483_status_line_in_stream():
 
 
 def test_build_watch_lists_and_all():
-    params, watch_all = build_watch({"hr": {1, 2, 200}, "coil": {0}, "ir": {300}})
+    params, watch_all = build_watch({"hr": {1, 2, 200, 300}, "coil": {0}, "ir": {319, 400}})
     assert not watch_all
-    # PLC'ens SSE tager kun HR/IR 0-159 — 200 og 300 polles i stedet
-    assert params == {"subscribe": "registers,system", "hr": "1,2", "coils": "0"}
+    # PLC v7.9.68.124+: SSE tager HR 0-255 og IR 0-319 — 300 og 400 polles i stedet
+    assert params == {"subscribe": "registers,system", "hr": "1,2,200", "coils": "0", "ir": "319"}
     params, watch_all = build_watch({"hr": set(range(40))})
     assert watch_all and params == {"subscribe": "all"}
 

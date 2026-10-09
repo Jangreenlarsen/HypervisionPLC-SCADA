@@ -48,6 +48,8 @@ def extract_error_message(status: int, body: Any, text: str) -> str:
             value = body.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()
+    if isinstance(body, dict) and isinstance(body.get("result"), str):  # /api/ext-svar uden "error"
+        return f"slaven svarede '{body['result']}'"
     if isinstance(body, list) and body:
         parts = [str(item.get("msg", item)) if isinstance(item, dict) else str(item) for item in body]
         return "; ".join(parts)[:300]

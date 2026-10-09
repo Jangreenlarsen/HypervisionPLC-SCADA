@@ -2,6 +2,22 @@
 
 ---
 
+## v0.25.1 — 2026-10-09 — Eksterne tags følger ikke længere PLC'ens egne registre
+
+- Et tag på en ekstern enhed, fx `plc1:mbx:1:D:1:coil:0`, skiftede også, når PLC'ens egen coil med samme nummer ændrede sig. Nu viser det kun værdien fra den eksterne enhed.
+
+---
+
+## v0.25.0 — 2026-10-09 — Tags fra eksterne Modbus-enheder
+
+- Tags kan nu også hente værdier fra enheder, PLC'en taler med. Det kræver PLC-firmware 7.9.68.123 eller nyere.
+  - **Extern (RS485):** fx `plc1:rtu:90:hr:0` = slave 90, HR 0.
+  - **Expansion board:** fx `plc1:mbx:1:D:1:coil:0` = board 1, kanal D, slave 1, coil 0.
+- De vises med et mærke i tag-listen, og alarmer, trends, energi, betjening og ugeprogrammer virker på dem som på alle andre tags.
+- Eksterne værdier hentes hvert 2. sekund. En enhed, der ikke svarer, markeres som fejl på sine egne tags. Resten af PLC'en kører videre.
+- Skrivning til eksterne enheder bekræftes, og værdien læses tilbage.
+- SCADA'en får nu flere af PLC'ens egne registre direkte via SSE (HR op til 255, IR op til 319), så der skal polles mindre.
+
 ## v0.24.0 — 2026-10-09 — Omskifter med valgfrie positioner
 
 - I **Tegn → Betjening** kan du indsætte en omskifter med 2–8 positioner. Skriv navnene adskilt med komma, fx "Hånd, 0, Auto" eller "1, 2, 3, 4". Der findes også en færdig omskifter med Hånd/0/Auto.

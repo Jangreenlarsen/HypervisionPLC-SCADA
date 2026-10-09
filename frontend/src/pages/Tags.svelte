@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { del, get, patch, post, type LiveValue } from '../lib/api';
   import { formatValue } from '../lib/animate';
+  import { SOURCE_LABEL, sourceKind } from '../lib/tagSource';
   import { LiveClient } from '../lib/live';
 
   let { canEdit = false }: { canEdit?: boolean } = $props();
@@ -159,8 +160,11 @@
 <section class="panel">
   <h2>Nyt tag</h2>
   <p class="muted small">
-    Kilde: <code>plc1:hr:100</code>, <code>plc1:hr:20:real</code> (uint/int/dint/dword/real), <code>plc1:ir:7</code>,
-    <code>plc1:coil:5</code>, <code>plc1:di:3</code>, <code>plc1:logic:1:Variabel</code>, <code>plc1:global:Variabel</code>.
+    <strong>Intern</strong> (PLC'ens egne registre): <code>plc1:hr:100</code>, <code>plc1:hr:20:real</code> (uint/int/dint/dword/real),
+    <code>plc1:ir:7</code>, <code>plc1:coil:5</code>, <code>plc1:di:3</code>, <code>plc1:logic:1:Variabel</code>, <code>plc1:global:Variabel</code>.<br />
+    <strong>Extern</strong> (slave på PLC'ens RS485-bus): <code>plc1:rtu:&lt;slave&gt;:&lt;hr|ir|coil|di&gt;:&lt;adresse&gt;[:datatype]</code>, fx <code>plc1:rtu:90:hr:0</code>.<br />
+    <strong>Expansion board</strong>: <code>plc1:mbx:&lt;board&gt;:&lt;kanal A-H&gt;:&lt;slave&gt;:&lt;type&gt;:&lt;adresse&gt;</code>, fx <code>plc1:mbx:1:D:1:coil:0</code>.
+    Eksterne værdier hentes hvert 2. sekund (kræver PLC-firmware 7.9.68.123+); hold antallet nede, PLC'ens cache er lille.<br />
     Teknisk værdi = rå × skala + offset.
   </p>
   <div class="grid-form">
@@ -283,7 +287,7 @@
           {@const v = values[t.name]}
           <tr class:editing={edit?.name === t.name}>
             <td class="mono">{t.name}{#if t.writable} <span class="badge" title="Kan skrives fra Overview">skrivbar</span>{/if}</td>
-            <td class="mono">{t.source}</td>
+            <td class="mono">{t.source}{#if sourceKind(t.source) !== 'intern'} <span class="badge" title="Hentes via PLC'ens /api/ext">{SOURCE_LABEL[sourceKind(t.source)]}</span>{/if}</td>
             <td>{formatValue(v?.value, { unit: t.unit, decimals: t.decimals, description: '', plc: t.plc })}</td>
             <td><span class="badge {v?.quality ?? 'unknown'}" title={v?.error ?? ''}>{v?.quality ?? 'unknown'}</span></td>
             <td class="small">{t.description}{v?.error ? ` — ${v.error}` : ''}</td>

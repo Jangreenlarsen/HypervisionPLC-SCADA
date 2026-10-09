@@ -33,6 +33,8 @@ class Settings:
     plc_rate: float = field(default_factory=lambda: _env_float("SCADA_PLC_RATE", 5.0))
     poll_fast_s: float = field(default_factory=lambda: _env_float("SCADA_POLL_FAST_S", 0.5))
     poll_slow_s: float = field(default_factory=lambda: _env_float("SCADA_POLL_SLOW_S", 2.0))
+    # Eksterne slaver (RS485/expansion boards via /api/ext): bussen er langsom og PLC'ens cache lille
+    poll_ext_s: float = field(default_factory=lambda: _env_float("SCADA_POLL_EXT_S", 2.0))
     plc_timeout_s: float = field(default_factory=lambda: _env_float("SCADA_PLC_TIMEOUT_S", 5.0))
     frontend_dir: Path = field(default_factory=lambda: Path(os.environ.get("SCADA_FRONTEND_DIR", REPO_ROOT / "frontend" / "dist")))
     # AGPL §13: brugere over netværket skal tilbydes kildekoden — peg på jeres egen fork ved ændringer.

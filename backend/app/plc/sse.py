@@ -30,7 +30,9 @@ from .errors import PlcError
 log = logging.getLogger(__name__)
 
 SSE_MAX_WATCH = 32
-SSE_ADDR_MAX = {"hr": 159, "ir": 159, "coil": 255, "di": 255}
+# Firmware ≥ v7.9.68.124 (PLC BUG-486): HR 0-255, IR 0-319. Ældre firmware ignorerer adresser over 159 —
+# det ses i `connected.watching`, så de polles i stedet (dækning afledes altid af PLC'ens svar).
+SSE_ADDR_MAX = {"hr": 255, "ir": 319, "coil": 255, "di": 255}
 _WATCH_PARAM = {"hr": "hr", "ir": "ir", "coil": "coils", "di": "di"}
 
 
