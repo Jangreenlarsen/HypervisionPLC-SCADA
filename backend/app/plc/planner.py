@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .client import BULK_MAX
+from .client import BULK_MAX, EXT_MAX
 
 # Huller op til denne størrelse flettes ind i samme kald: et ekstra register i
 # svaret koster ~25 bytes, et ekstra kald koster en hel request af rate-budgettet.
@@ -51,4 +51,34 @@ def plan_reads(
                 plan.append(ReadRange(kind, start, end - start + 1))
                 start, end = first, last
         plan.append(ReadRange(kind, start, end - start + 1))
+    return plan
+
+
+@dataclass(frozen=True)
+class ExtRange:
+    group: tuple  # (bus, board, kanal, slave, type)
+    start: int
+    count: int
+
+    @property
+    def kind(self) -> str:
+        return self.group[4]
+
+
+def plan_ext_reads(units: dict[tuple, set[tuple[int, int]]]) -> list[ExtRange]:
+    """Eksterne slaver: kun ÆGTE sammenhængende adresser samles (højst 16) — ingen huller, for en slave kan
+    afvise hele læsningen hvis den rammer et register den ikke har. 32-bit-par deles aldrig."""
+    plan: list[ExtRange] = []
+    for group in sorted(units, key=lambda g: tuple("" if x is None else str(x) for x in g)):
+        items = sorted(units[group])
+        start, end = items[0]
+        for first, last in items[1:]:
+            if last <= end:
+                continue
+            if first <= end + 1 and last - start + 1 <= EXT_MAX:
+                end = max(end, last)
+            else:
+                plan.append(ExtRange(group, start, end - start + 1))
+                start, end = first, last
+        plan.append(ExtRange(group, start, end - start + 1))
     return plan

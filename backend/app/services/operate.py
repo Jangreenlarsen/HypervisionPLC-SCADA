@@ -17,6 +17,7 @@ import asyncio
 import math
 from typing import Any
 
+from ..plc.client import ext_base
 from ..plc.errors import PlcApiError, PlcAuthError, PlcError, PlcForbidden, PlcRateLimited, PlcUnreachable
 from .audit import AuditService
 from .auth import CurrentUser
@@ -84,13 +85,26 @@ class OperateService:
             raise ServiceError(409, f"PLC '{source.plc}' er ikke aktiv: {self.manager.status(source.plc)['message']}")
         return tag, source, runtime
 
-    async def _write_raw(self, runtime: Any, source: TagSource, raw: Any) -> None:
+    async def _write_raw(self, runtime: Any, source: TagSource, raw: Any) -> str:
+        """→ "ok" når skrivningen er bekræftet; for eksterne slaver evt. "timeout"/"queued" (ikke bekræftet)."""
+        if source.is_external:
+            # Med `wait`: PLC'en svarer når slaven har bekræftet, fejlet eller ikke nået at svare
+            return await runtime.client.write_ext(ext_base(source), source.kind, source.addr, raw, source.datatype)
         if source.kind == "coil":
             await runtime.client.write_coil(source.addr, bool(raw))
+            return "ok"
         else:
             await runtime.client.write_hr(source.addr, raw, source.datatype)
+            return "ok"
 
     async def _readback(self, runtime: Any, source: TagSource, tag: dict[str, Any]) -> Any:
+        if source.is_external:
+            items = await runtime.client.read_ext(ext_base(source), source.kind, source.addr, source.words,
+                                                  max_age_ms=0, wait_ms=1000)
+            if any(state != "ok" or v is None for v, state in items):
+                return None  # skrevet og bekræftet af slaven, men kunne ikke læses tilbage
+            ext_words = [int(bool(v)) if isinstance(v, bool) else int(v) for v, _ in items]
+            return apply_scaling(decode_words(ext_words, source.datatype), tag["scale"], tag["offset"])
         words = await runtime.client.read_bulk(source.kind, source.addr, source.words)
         value = decode_words([words[a] for a in range(source.addr, source.addr + source.words)], source.datatype)
         return apply_scaling(value, tag["scale"], tag["offset"])
@@ -129,7 +143,7 @@ class OperateService:
             detail.update(raw=raw, written=actual)
             async with self._locks.setdefault(tag_name, asyncio.Lock()):
                 try:
-                    await self._write_raw(runtime, source, raw)
+                    confirmed = await self._write_raw(runtime, source, raw)
                     readback = await self._readback(runtime, source, tag)
                 except PlcError as exc:
                     raise _plc_error(exc, "Skrivning fejlede") from exc
@@ -138,8 +152,17 @@ class OperateService:
             self._log(actor, ip, action, tag_name, detail, error=exc)
             raise
         detail["readback"] = readback
+        if confirmed != "ok":
+            detail["slave_result"] = confirmed  # ikke bekræftet af slaven — tilbagelæsningen afgør
         warning = ""
-        if not self._same(readback, actual):
+        if readback is None and confirmed != "ok":
+            exc = ServiceError(502, f"Skrivningen til {source.device} blev ikke bekræftet og værdien kunne ikke læses "
+                                    "tilbage — kontrollér værdien")
+            self._log(actor, ip, action, tag_name, detail, error=exc)
+            raise exc
+        if readback is None:
+            warning = f"Skrevet og bekræftet af {source.device}, men værdien kunne ikke læses tilbage endnu"
+        elif not self._same(readback, actual):
             warning = (f"PLC'en viser {readback} efter skrivning af {actual} — værdien er sandsynligvis "
                        "overskrevet af PLC'ens eget program (fx en ST-binding)")
         self._log(actor, ip, action, tag_name, detail, warning=warning)

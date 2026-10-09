@@ -76,6 +76,7 @@ class PlcManager:
             key, client, self.cache,
             sse_enabled=plc["sse_enabled"], verify_tls=plc["verify_tls"],
             fast_interval=self.settings.poll_fast_s, slow_interval=self.settings.poll_slow_s,
+            ext_interval=self.settings.poll_ext_s,
         )
         runtime.set_tags(self._runtime_tags(key))
         self._not_started.pop(key, None)

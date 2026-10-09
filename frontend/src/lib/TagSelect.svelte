@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SOURCE_LABEL, sourceKind } from './tagSource';
   // Fælles tag-dropdown (binding-editor og tegne-editor): grupperet pr. PLC med kilde og enhed.
   export interface TagOption { name: string; source: string; unit: string; writable: boolean; plc: string }
 
@@ -31,7 +32,7 @@
     <optgroup label={plc}>
       {#each rows as t}
         <option value={t.name} disabled={writableOnly && !t.writable && t.name !== value}>
-          {t.name} · {t.source}{t.unit ? ` [${t.unit}]` : ''}{writableOnly && !t.writable ? ' (ikke skrivbar)' : ''}
+          {t.name} · {t.source}{sourceKind(t.source) !== 'intern' ? ` (${SOURCE_LABEL[sourceKind(t.source)]})` : ''}{t.unit ? ` [${t.unit}]` : ''}{writableOnly && !t.writable ? ' (ikke skrivbar)' : ''}
         </option>
       {/each}
     </optgroup>

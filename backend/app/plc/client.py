@@ -102,8 +102,10 @@ class PlcClient:
         *,
         json: Any = None,
         params: dict[str, Any] | None = None,
+        accept: tuple[int, ...] = (),
     ) -> Any:
-        """Udfør et autentificeret kald og returnér den parsede JSON-body."""
+        """Udfør et autentificeret kald og returnér den parsede JSON-body. Statuskoder i `accept`
+        returnerer også body'en (fx /api/ext-skrivning, hvor 502/504 bærer slavens resultat)."""
         async with self._lock:
             if self._token is None:
                 await self._login_locked()
@@ -114,6 +116,10 @@ class PlcClient:
                 self._token = None
                 await self._login_locked()
                 resp = await self._send(method, path, json=json, params=params)
+            if resp.status_code in accept:
+                body, _ = _parse(resp)
+                if isinstance(body, dict):
+                    return body
             return self._handle(resp)
 
     async def _login_locked(self) -> None:
@@ -198,6 +204,44 @@ class PlcClient:
             result[int(item["addr"])] = int(bool(value)) if isinstance(value, bool) else int(value)
         return result
 
+    async def read_ext(self, base: str, kind: str, start: int, count: int, *, max_age_ms: int | None = None,
+                       wait_ms: int | None = None) -> list[tuple[Any, str]]:
+        """Læs `count` (1-16) værdier fra en ekstern slave via /api/ext → [(værdi, status), ...].
+        status: ok | pending (ingen værdi endnu) | error. Værdien er None når der ikke er en gyldig værdi."""
+        if not 1 <= count <= EXT_MAX:
+            raise ValueError(f"count skal være 1-{EXT_MAX}")
+        params: dict[str, Any] = {"count": count}
+        if max_age_ms is not None:
+            params["max_age"] = max(0, int(max_age_ms))
+        if wait_ms is not None:
+            params["wait"] = max(0, min(2000, int(wait_ms)))
+        body = await self.request("GET", f"{base}/{_EXT_TYPE[kind]}/{start}", params=params)
+        if not isinstance(body, dict):
+            raise PlcApiError("Uventet svar fra PLC på /api/ext")
+        if count > 1 and isinstance(body.get("values"), list):
+            values = body["values"]
+            states = body.get("states") if isinstance(body.get("states"), list) else ["ok"] * len(values)
+        else:
+            values, states = [body.get("value")], [body.get("status", "ok")]
+        if len(values) < count or len(states) < len(values):
+            raise PlcApiError(f"Uventet svar fra PLC på /api/ext: {len(values)} værdier, forventede {count}")
+        return [(values[i], str(states[i])) for i in range(count)]
+
+    async def write_ext(self, base: str, kind: str, addr: int, value: Any, datatype: str = "uint",
+                        wait_ms: int = 1500) -> str:
+        """Skriv én værdi (hr) eller coil til en ekstern slave og vent på slavens svar.
+        → "ok" (bekræftet), "timeout" (ikke bekræftet i tide — skrivningen KAN være udført, læs tilbage)
+        eller "queued" (kan ikke bekræftes). Slavens "error" kastes som PlcApiError."""
+        payload: dict[str, Any] = {"value": bool(value)} if kind == "coil" else {"value": value, "type": datatype}
+        body = await self.request("POST", f"{base}/{_EXT_TYPE[kind]}/{addr}", params={"wait": wait_ms}, json=payload,
+                                  accept=(502, 504))
+        result = body.get("result") if isinstance(body, dict) else None
+        if result in ("ok", "queued", "timeout"):
+            return str(result)
+        if result == "error":
+            raise PlcApiError("Slaven svarede med en fejl på skrivningen (fx ugyldig adresse eller skrivebeskyttet)", status=502)
+        raise PlcApiError(f"Uventet svar fra PLC på skrivning til ekstern slave: {body}", status=502)
+
     async def logic_program(self, program_id: int) -> dict[str, Any]:
         body = await self.request("GET", f"/api/logic/{program_id}")
         if not isinstance(body, dict):
@@ -225,6 +269,19 @@ class PlcClient:
         if not isinstance(body, dict):
             raise PlcApiError("Uventet svar fra PLC på /api/events/status")
         return body
+
+
+EXT_MAX = 16  # højst 16 registre pr. /api/ext-kald
+_EXT_TYPE = {"hr": "hr", "ir": "ir", "coil": "coils", "di": "di"}
+
+
+def ext_base(source: Any) -> str:
+    """URL-præfiks for en ekstern kilde (uden type og adresse)."""
+    if source.bus == "rtu":
+        return f"/api/ext/rtu/{source.slave}"
+    if source.bus == "mbx":
+        return f"/api/ext/mbx/{source.board}/{source.channel}/{source.slave}"
+    raise ValueError("ikke en ekstern kilde")
 
 
 def _parse(resp: httpx.Response) -> tuple[Any, str]:

@@ -158,4 +158,7 @@ plc1:mbx:1:D:1:coils:0          expansion board 1, kanal D, slave 1, coil 0
 
 - Flash er på 95,8 % — nye PLC-endpoints til SCADA'en skal være små.
 - Cache-størrelserne i 7.1 punkt 3 er faste i firmwaren.
+- **Fund ved SCADA's test mod PLC1 (v7.9.68.125, 2026-10-09)** — skal rettes i PLC-firmwaren:
+  1. `POST /api/ext/mbx/1/D/1/coils/0?wait=1500` med `{"value":false}` svarer **altid** HTTP 504 `"result":"timeout"` (4 af 4), selv om relæet slår fra; `true` bekræftes (`ok`). SCADA'en (v0.25.0) behandler `timeout` som "ikke bekræftet" og afgør med tilbagelæsning — så betjeningen virker, men hver Fra-skrivning tager ~1,5 s ekstra.
+  2. `GET /api/ext/rtu/247/hr/0` (slave findes ikke) svarer normalt `"status":"error"`, men ind imellem `"status":"ok","value":0` (1 af 6, `age_ms` ≈ 2100). En SCADA kan ikke skelne det fra en rigtig 0 — et tag på en død slave viser kortvarigt "0, god kvalitet". Forventet: `error` (eller `pending`) indtil slaven faktisk har svaret.
 - Skriverettighed til `/api/ext` er ikke begrænset pr. slave/adresse (PLC SECURITY_INDEX #29): en bruger med `read/write` kan skrive til alt, PLC'en kan nå. Brug en dedikeret `scada`-bruger (§4) og SCADA'ens egne `skrivbar`/min/max-regler pr. tag.
