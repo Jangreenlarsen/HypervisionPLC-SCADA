@@ -1,6 +1,6 @@
 # Symbolstandard — konfiguration, visning og betjening
 
-Besluttet af Jan 2026-10-12. Gælder for **alle** symboler i symbolbiblioteket. Interaktiv prototype:
+**Status: vedtaget design** — besluttet af Jan 2026-10-12. Gælder for **alle** symboler i symbolbiblioteket, og al ny kode for symboler, bindinger og betjening skal følge det. Interaktiv prototype:
 [docs/prototyper/symbolguide.html](prototyper/symbolguide.html) (åbn i en browser — PLC'en er simuleret).
 
 Erstatter den nuværende model (v0.27.0), hvor ét tag pr. symbol danner bindinger for alle dele.
