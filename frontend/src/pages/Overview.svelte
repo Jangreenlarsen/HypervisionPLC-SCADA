@@ -155,7 +155,7 @@
       selected = id;
       if (location.hash !== `#overview/${id}`) history.replaceState(null, '', `#overview/${id}`);
       await tick();
-      svgRoot = mountSvg(container, view.svg);
+      svgRoot = mountSvg(container, view.svg, view.symbols);
       const vb = svgRoot?.viewBox.baseVal;
       full = vb && vb.width > 0 && vb.height > 0 ? { x: vb.x, y: vb.y, w: vb.width, h: vb.height } : null;
       cur = full;

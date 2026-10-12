@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CATEGORIES, selectorAngles, selectorSymbol, SYMBOLS } from './symbols';
+import { CATEGORIES, selectorAngles, selectorSymbol, SYMBOLS, withName } from './symbols';
 
 const parse = (fragment: string) =>
   new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${fragment}</svg>`, 'image/svg+xml');
@@ -72,5 +72,20 @@ describe('omskifter med egne positioner', () => {
     expect(selectorSymbol(['A&B', '<x>'])).toContain('A&amp;B');
     expect(() => selectorSymbol(['kun én'])).toThrow('mindst 2');
     expect(() => selectorSymbol(['a', 'x'.repeat(21)])).toThrow('20 tegn');
+  });
+});
+
+describe('withName', () => {
+  it('giver rod-g et navn; alle symboler kan navngives og forbliver gyldig SVG', () => {
+    for (const s of SYMBOLS) {
+      const doc = parse(withName(s.svg, s.label));
+      expect(doc.getElementsByTagName('parsererror').length, s.id).toBe(0);
+      expect(doc.documentElement.firstElementChild!.getAttribute('data-hv-name'), s.id).toBe(s.label);
+    }
+  });
+  it('escaper tegn og begrænser længden', () => {
+    const g = parse(withName('<g id="a"><rect/></g>', 'A & "B" <c>')).documentElement.firstElementChild!;
+    expect(g.getAttribute('data-hv-name')).toBe('A & "B" <c>');
+    expect(withName('<g><rect/></g>', 'x'.repeat(80)).match(/data-hv-name="(x+)"/)![1]).toHaveLength(60);
   });
 });

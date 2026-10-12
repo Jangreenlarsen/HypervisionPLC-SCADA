@@ -2,15 +2,14 @@
   import { onDestroy, onMount } from 'svelte';
   import { get, patch, post } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
-  import { CATEGORIES, SYMBOLS, selectorSymbol, type SymbolDef } from '../lib/symbols';
-  import TagSelect, { type TagOption } from '../lib/TagSelect.svelte';
+  import { CATEGORIES, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
 
   let { route = 'draw' }: { route?: string } = $props();
 
   interface Version { version: number; comment: string; created_at: number }
   interface Detail { id: string; name: string; active_version: number; versions: Version[] }
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[] }
-  interface Sel { id: string; tag: string; interactive?: boolean }
+  interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string }
   interface ScadaApi {
     ready: Promise<void>;
     load(svg: string): boolean;
@@ -19,18 +18,19 @@
     onSelection(fn: (sel: Sel[]) => void): void;
     onChange(fn: () => void): void;
     setSelectedId(id: string): string;
+    setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
+    uniqueName(base: string): string;
     insertSymbol(fragment: string, baseId: string): string;
   }
 
   let drawings = $state<{ id: string; name: string }[]>([]);
-  let tags = $state<TagOption[]>([]);
   let current = $state<Detail | null>(null); // null = ny, ikke gemt tegning
   let loadedVersion = $state<number | null>(null);
   let newName = $state('');
   let comment = $state('');
   let selection = $state<Sel[]>([]);
   let idInput = $state('');
-  let tagChoice = $state('');
+  let nameInput = $state('');
   let dirty = $state(false);
   let busy = $state(false);
   let error = $state('');
@@ -53,7 +53,7 @@
     ed.onSelection((sel) => {
       selection = sel;
       idInput = sel.length === 1 ? sel[0].id : '';
-      tagChoice = sel.length === 1 && tags.some((t) => t.name === sel[0].id) ? sel[0].id : '';
+      nameInput = sel.length === 1 ? sel[0].name ?? '' : '';
     });
     ed.onChange(() => (dirty = true));
     ready = true;
@@ -151,6 +151,17 @@
     }
   }
 
+  /** Navn på det valgte element — gemmes i tegningen og er symbolets identitet under Bindinger (resten konfigureres dér). */
+  function applyText(attr: 'data-hv-name' | 'data-hv-desc', value: string): void {
+    if (!ed) return;
+    const err = ed.setSelectedText(attr, value);
+    if (err) error = err;
+    else {
+      error = '';
+      dirty = true;
+    }
+  }
+
   let symbolFilter = $state('');
   const symbolsIn = (cat: string): SymbolDef[] => {
     const q = symbolFilter.trim().toLowerCase();
@@ -177,7 +188,7 @@
     try {
       const svg = selectorSymbol(selectorLabels.split(','));
       if (!ed) return;
-      ed.insertSymbol(svg, 'omskifter');
+      ed.insertSymbol(withName(svg, ed.uniqueName('Omskifter')), 'omskifter');
       dirty = true;
     } catch (e) {
       selectorError = (e as Error).message;
@@ -187,7 +198,7 @@
   function insert(symbolId: string): void {
     const s = SYMBOLS.find((x) => x.id === symbolId);
     if (!ed || !s) return;
-    ed.insertSymbol(s.svg, s.id);
+    ed.insertSymbol(withName(s.svg, ed.uniqueName(s.label)), s.id);
     dirty = true;
   }
 
@@ -206,10 +217,7 @@
     fitFrame();
     stopLayout = onLayoutChange(fitFrame);
     try {
-      [drawings, tags] = await Promise.all([
-        get<{ id: string; name: string }[]>('/api/drawings'),
-        get<TagOption[]>('/api/tags'),
-      ]);
+      drawings = await get<{ id: string; name: string }[]>('/api/drawings');
     } catch (e) {
       error = (e as Error).message;
     }
@@ -271,20 +279,26 @@
         <p class="muted small">{selection.length > 1 ? `${selection.length} elementer valgt` : 'Vælg et element i tegningen.'}</p>
       {:else}
         <p class="small muted">&lt;{single.tag}&gt;</p>
-        <label class="field">Tag
-          <TagSelect bind:value={tagChoice} {tags} writableOnly={!!single.interactive} placeholder="— vælg tag —" onchange={(v) => v && applyId(v)} />
+        <label class="field">Navn
+          <input bind:value={nameInput} maxlength="60" placeholder="fx Ventilator stue"
+            onchange={() => applyText('data-hv-name', nameInput)} />
         </label>
-        {#if single.interactive}
-          <p class="small muted"><strong>Betjeningssymbol:</strong> vælg et skrivbart tag — så bindes klik-handlingen (skriver til PLC'en) og visningen (lampe, vippe, greb, tekst) automatisk, når tegningen er gemt. Ret detaljer under <strong>Bindinger</strong>.</p>
-          {#if tagChoice && !tags.find((t) => t.name === tagChoice)?.writable}
-            <p class="small error">Tagget er ikke skrivbart — symbolet viser kun værdien. Markér tagget skrivbart under <a href="#tags">Tags</a>.</p>
+        {#if single.name}
+          <p class="small muted">Symbolet findes under <strong>Bindinger</strong> med dette navn — dér sættes tag, forklaring og animationer.</p>
+          {#if current && !dirty}
+            <a class="btn" href={'#editor/' + encodeURIComponent(current.id) + '/' + encodeURIComponent(single.id)}>Konfigurér under Bindinger</a>
+          {:else}
+            <p class="small muted">Gem tegningen for at konfigurere symbolet.</p>
           {/if}
         {:else}
-          <p class="small muted">Elementets id sættes til tag-navnet, så det bindes automatisk: tekst viser værdien, figurer farves efter til/fra. Andre animationer og klik-handlinger sættes under <strong>Bindinger</strong> efter gem.</p>
+          <p class="small muted">Giv elementet et <strong>navn</strong> for at gøre det til et symbol, der kan konfigureres under <strong>Bindinger</strong>. Uden navn er det kun tegning.</p>
         {/if}
-        <label class="field">Id
-          <span class="row"><input bind:value={idInput} /><button onclick={() => applyId(idInput.trim())} disabled={!idInput.trim() || idInput === single.id}>Sæt</button></span>
-        </label>
+        <details class="adv">
+          <summary class="small">Avanceret</summary>
+          <label class="field">Id (teknisk)
+            <span class="row"><input bind:value={idInput} /><button onclick={() => applyId(idInput.trim())} disabled={!idInput.trim() || idInput === single.id}>Sæt</button></span>
+          </label>
+        </details>
       {/if}
     </section>
 
@@ -350,6 +364,7 @@
   .symbols span { max-width: 100%; overflow-wrap: anywhere; hyphens: auto; text-align: center; }
   .symbols button { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; font-size: .72rem; line-height: 1.15; }
   details { margin-top: .6rem; }
+  .adv { margin-top: .8rem; }
   .selector-cfg { margin-top: .5rem; }
   .selector-cfg input { flex: 1; min-width: 0; }
   summary { cursor: pointer; font-weight: 600; font-size: .9rem; margin-bottom: .4rem; }

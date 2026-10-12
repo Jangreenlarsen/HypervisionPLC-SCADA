@@ -95,3 +95,20 @@ def test_svgedit_output_is_accepted_and_ids_kept():
     assert 'id="Pumpe_Drift"' in result.svg and 'id="ror1"' in result.svg
     assert "se:" not in result.svg and 'viewBox="0 0 1200 700"' in result.svg
     assert "Pumpe_Drift" in result.element_ids
+
+
+def test_symbol_name_and_description_survive_even_with_data_colon_text():
+    # "data:" i en forklaring er ren tekst — det må ikke tolkes som en data-URI og fjernes
+    out = clean('<g id="V" data-hv-name="Ventilator stue" data-hv-desc="Måledata: hastighed 0-3. Kun vagthavende."></g>')
+    assert 'data-hv-name="Ventilator stue"' in out and "Måledata: hastighed" in out
+
+
+def test_overlong_symbol_text_is_removed_and_reported():
+    result = sanitize_svg(HEAD + f'<g id="V" data-hv-name="{"x" * 61}" data-hv-desc="{"y" * 501}"/></svg>')
+    assert "data-hv-name" not in result.svg and "data-hv-desc" not in result.svg
+    assert result.removed_attributes == {"data-hv-name for lang": 1, "data-hv-desc for lang": 1}
+
+
+def test_other_data_attributes_still_checked():
+    out = clean('<rect id="r" width="1" height="1" data-x="javascript:alert(1)"/>')
+    assert "javascript" not in out

@@ -8,7 +8,7 @@ from typing import Any
 
 from ..storage.db import Database
 from ..storage.files import DrawingFiles
-from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, auto_binding, symbol_bindings, validate_binding
+from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, _spec_list, auto_binding, symbol_bindings, validate_binding
 from .errors import ServiceError
 from .live_cache import LiveCache
 from .svg_sanitize import SvgError, index_svg, sanitize_svg, symbol_specs
@@ -145,6 +145,12 @@ class DrawingService:
         # hvis element er forsvundet i en ny version af tegningen.
         if element not in index and items:
             raise ServiceError(400, f"Elementet '{element}' findes ikke i den aktive version af tegningen")
+        normalized = self._normalize_bindings(items)
+        self.db.set_element_bindings(drawing_id, element, normalized)
+        return [b for b in self.db.list_bindings(drawing_id) if b["element"] == element]
+
+    def _normalize_bindings(self, items: list[Any]) -> list[dict[str, Any]]:
+        """Valider bindinger mod tags og regler (samme regler for manuelle og symbol-bindinger)."""
         normalized = []
         for item in items:
             try:
@@ -166,8 +172,49 @@ class DrawingService:
             normalized.append(b)
         if sum(1 for b in normalized if b["anim"] in CLICK_TYPES) > 1:
             raise ServiceError(400, "Et element kan kun have én klik-handling")
-        self.db.set_element_bindings(drawing_id, element, normalized)
-        return [b for b in self.db.list_bindings(drawing_id) if b["element"] == element]
+        return normalized
+
+    # ----------------------------------------------------------------- symboler
+
+    def _symbol_element(self, drawing_id: str, element: str) -> tuple[str, dict[str, Any] | None]:
+        svg = self.svg(drawing_id)
+        if element not in index_svg(svg):
+            raise ServiceError(404, f"Elementet '{element}' findes ikke i den aktive version af tegningen")
+        return svg, symbol_specs(svg).get(element)
+
+    def set_symbol_description(self, drawing_id: str, element: str, text: Any) -> None:
+        """Symbolets forklaring (gemmes ved bindingerne, ikke i tegningen — kan ændres uden ny version)."""
+        if not isinstance(text, str):
+            raise ServiceError(400, "Forklaringen skal være tekst")
+        text = " ".join(text.split()) if "\n" not in text else "\n".join(" ".join(l.split()) for l in text.strip().splitlines())
+        if len(text) > 500:
+            raise ServiceError(400, "Forklaringen må højst være 500 tegn")
+        self._symbol_element(drawing_id, element)
+        self.db.set_symbol_description(drawing_id, element, text)
+
+    def bind_symbol(self, drawing_id: str, element: str, tag: str | None) -> dict[str, Any]:
+        """Tilknyt et tag til et betjeningssymbol (eller fjern det med None): bindinger for hele symbolet — klik-handling på
+        roden og visning på delene — dannes ud fra symbolets egen beskrivelse og erstatter de eksisterende for symbolet."""
+        svg, spec = self._symbol_element(drawing_id, element)
+        if spec is None:
+            raise ServiceError(400, f"'{element}' er ikke et symbol med færdige bindinger — brug 'Tilføj binding' på elementet")
+        elements = [element] + [child for child, _ in spec["parts"]]
+        warning = ""
+        per_element: dict[str, list[dict[str, Any]]] = {e: [] for e in elements}
+        if tag is not None:
+            row = self.db.get_tag(tag)
+            if row is None:
+                raise ServiceError(400, f"Tagget '{tag}' findes ikke")
+            built = symbol_bindings(spec, element, {"name": tag, "writable": bool(row["writable"])})
+            for b in built:
+                per_element.setdefault(b["element"], []).append({"tag": b["tag"], "anim": b["anim"], "params": b["params"]})
+            wants_write = any(isinstance(x, dict) and x.get("anim") in WRITE_CLICKS for x in _spec_items(spec))
+            if wants_write and not any(b["anim"] in WRITE_CLICKS for b in built):
+                warning = (f"Tagget '{tag}' er ikke markeret skrivbart — klik-handlingen er ikke tilføjet, symbolet viser kun "
+                           "værdien. Markér tagget skrivbart under Tags og tilknyt det igen.")
+            per_element = {e: self._normalize_bindings(items) for e, items in per_element.items()}
+        self.db.set_symbol_bindings(drawing_id, per_element)
+        return {"tag": tag, "elements": len([e for e, i in per_element.items() if i]), "warning": warning}
 
     # ----------------------------------------------------------------- visning
 
@@ -185,7 +232,8 @@ class DrawingService:
         used = sorted({b["tag"] for b in effective if b["tag"]})
         meta = {n: self._meta(tags[n]) for n in used if n in tags}
         return {"id": drawing["id"], "name": drawing["name"], "version": drawing["active_version"],
-                "svg": svg, "bindings": effective, "orphaned_bindings": sorted(set(orphans)), "tags": meta}
+                "svg": svg, "bindings": effective, "orphaned_bindings": sorted(set(orphans)), "tags": meta,
+                "symbols": self.db.list_symbol_meta(drawing_id)}
 
     def _compute(self, drawing_id: str) -> tuple[dict[str, Any], str, list[dict[str, Any]], list[str], dict[str, Any]]:
         drawing = self._require(drawing_id)
@@ -242,3 +290,11 @@ class DrawingService:
         if source.datatype == "bool":
             return True
         return isinstance(self.cache.get(tag["name"]).value, bool)  # ST-variabler: kendes først fra live-værdien
+
+
+def _spec_items(spec: dict[str, Any]) -> list[Any]:
+    """Alle binding-beskrivelser i et symbols spec (rod + dele)."""
+    items = list(_spec_list(spec.get("auto", "")))
+    for _, raw in spec.get("parts", []):
+        items += _spec_list(raw)
+    return items

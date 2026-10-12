@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitSize } from './canvas';
+import { addTooltips, fitSize } from './canvas';
 
 describe('fitSize', () => {
   it('bred tegning begrænses af bredden', () => expect(fitSize(2000, 1000, 1000, 900)).toEqual({ width: 1000, height: 500 }));
@@ -10,4 +10,23 @@ describe('fitSize', () => {
     expect(fitSize(0, 100, 500, 500)).toEqual({ width: 500, height: 0 });
     expect(fitSize(100, 100, 0, 500)).toEqual({ width: 0, height: 0 });
   });
+});
+
+describe('addTooltips', () => {
+  const doc = () => new DOMParser().parseFromString(
+    '<svg xmlns="http://www.w3.org/2000/svg">' +
+    '<g id="a" data-hv-name="Ventilator" data-hv-desc="Starter ventilatoren"><rect id="r"/></g>' +
+    '<g id="b" data-hv-desc="Kun forklaring"/><g id="c"/><text id="t" data-hv-name="Tekst">1</text></svg>', 'image/svg+xml');
+
+  it('navn og forklaring bliver til <title> — ikke på tekst-elementer og ikke uden tekst', () => {
+    const d = doc();
+    addTooltips(d.documentElement);
+    const title = (id: string) => d.getElementById(id)!.querySelector(':scope > title')?.textContent ?? null;
+    expect(title('a')).toBe('Ventilator\nStarter ventilatoren');
+    expect(title('b')).toBe('Kun forklaring');
+    expect(title('c')).toBeNull();
+    expect(title('t')).toBeNull();
+    expect(d.getElementById('t')!.textContent).toBe('1');
+  });
+  it('null er ok', () => expect(() => addTooltips(null)).not.toThrow());
 });

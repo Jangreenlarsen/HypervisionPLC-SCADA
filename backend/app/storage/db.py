@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -138,6 +138,12 @@ CREATE TABLE IF NOT EXISTS schedules (
     exceptions    TEXT NOT NULL DEFAULT '[]',
     created_at    REAL NOT NULL,
     updated_at    REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS symbol_meta (
+    drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+    element     TEXT NOT NULL,
+    description TEXT NOT NULL,
+    PRIMARY KEY (drawing_id, element)
 );
 CREATE TABLE IF NOT EXISTS user_drawings (
     username    TEXT NOT NULL,
@@ -362,6 +368,41 @@ class Database:
                 cur.execute("ROLLBACK")
                 raise
 
+    def set_symbol_bindings(self, drawing_id: str, per_element: dict[str, list[dict[str, Any]]]) -> None:
+        """Erstat bindingerne for flere elementer (et symbols dele) i ÉN transaktion — alt eller intet."""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                for element, items in per_element.items():
+                    cur.execute("DELETE FROM bindings WHERE drawing_id = ? AND element = ?", (drawing_id, element))
+                    for pos, item in enumerate(items):
+                        cur.execute(
+                            "INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
+                            (drawing_id, element, pos, item["tag"], item["anim"], json.dumps(item.get("params", {}))))
+                cur.execute("COMMIT")
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
+    # ------------------------------------------------- symbolers forklaring (pr. tegning + element)
+
+    def list_symbol_meta(self, drawing_id: str) -> dict[str, str]:
+        return {r["element"]: r["description"]
+                for r in self._query("SELECT element, description FROM symbol_meta WHERE drawing_id = ?", (drawing_id,))}
+
+    def list_all_symbol_meta(self) -> list[dict[str, Any]]:
+        return self._query("SELECT drawing_id, element, description FROM symbol_meta ORDER BY drawing_id, element")
+
+    def set_symbol_description(self, drawing_id: str, element: str, description: str) -> None:
+        """Tom tekst fjerner forklaringen. Én række pr. element — andre elementer røres ikke."""
+        if not description:
+            self._execute("DELETE FROM symbol_meta WHERE drawing_id = ? AND element = ?", (drawing_id, element))
+        else:
+            self._execute("INSERT INTO symbol_meta(drawing_id, element, description) VALUES (?,?,?) "
+                          "ON CONFLICT(drawing_id, element) DO UPDATE SET description = excluded.description",
+                          (drawing_id, element, description))
+
     def count_bindings_for_tag(self, tag: str) -> int:
         with self._lock:
             return int(self._conn.execute("SELECT COUNT(*) FROM bindings WHERE tag = ?", (tag,)).fetchone()[0])
@@ -552,6 +593,7 @@ class Database:
             "versions": self._query("SELECT drawing_id, version, comment, size, width, height, created_at "
                                     "FROM drawing_versions ORDER BY drawing_id, version"),
             "bindings": self.list_all_bindings(),
+            "symbol_meta": self.list_all_symbol_meta(),
             "settings": {"start_drawing": self.get_setting("start_drawing")},
             "schedules": [{k: s[k] for k in ("name", "tag", "enabled", "default_value", "entries", "exceptions")}
                           for s in self.list_schedules()],
@@ -615,7 +657,7 @@ class Database:
             cur = self._conn.cursor()
             cur.execute("BEGIN IMMEDIATE")
             try:
-                for table in ("schedules", "bindings", "drawing_versions", "drawings", "tags", "plcs"):
+                for table in ("schedules", "symbol_meta", "bindings", "drawing_versions", "drawings", "tags", "plcs"):
                     cur.execute(f"DELETE FROM {table}")
                 for p in data["plcs"]:
                     cur.execute(
@@ -655,6 +697,9 @@ class Database:
                         "VALUES (?,?,?,?,?,?,?)",
                         (v["drawing_id"], v["version"], v["comment"], v["size"], v["width"], v["height"],
                          v.get("created_at") or now))
+                for m in data.get("symbol_meta", []):
+                    cur.execute("INSERT INTO symbol_meta(drawing_id, element, description) VALUES (?,?,?)",
+                                (m["drawing_id"], m["element"], m["description"]))
                 for b in data["bindings"]:
                     cur.execute("INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
                                 (b["drawing_id"], b["element"], b["position"], b["tag"], b["anim"],

@@ -36,6 +36,8 @@ ALLOWED_ELEMENTS = {
     "filter", "feGaussianBlur", "feOffset", "feBlend", "feColorMatrix", "feComposite", "feFlood",
     "feMerge", "feMergeNode", "feMorphology", "feDropShadow",
 }
+# Navn og forklaring på symboler/elementer: attribut → højeste længde
+TEXT_ATTRS = {"data-hv-name": 60, "data-hv-desc": 500}
 _RASTER_DATA_URI = re.compile(r"^data:image/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/=\s]+$", re.I)
 _DANGEROUS_VALUE = re.compile(r"(javascript|vbscript|data)\s*:", re.I)
 _EXTERNAL_URL = re.compile(r"url\(\s*(['\"]?)(?!#)[^)]*\)", re.I)
@@ -150,6 +152,9 @@ def _attribute_problem(element: str, ns: str | None, name: str, value: str) -> s
         return "fremmed navnerum"
     if name.lower().startswith("on"):
         return name.lower()
+    if name in TEXT_ATTRS:
+        # Symbolets navn/forklaring (sat i Tegn): vises kun som tekst, så "data:" i en forklaring er harmløst
+        return None if len(value) <= TEXT_ATTRS[name] else f"{name} for lang"
     if name == "href":
         v = value.strip()
         if v.startswith("#"):
