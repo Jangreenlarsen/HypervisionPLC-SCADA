@@ -29,7 +29,7 @@ for symboler uden positioner.
 | 2 Signaler | Puljen af signaler symbolet bruger: kommando-tag (skrivbart) og valgfrit tilbagemeldings-tag. Viser hvilken plan der bruger hvert signal. Fejl/låst-tag (valgfrit) blokerer betjening |
 | 3 Kontakter | Kontaktdiagram: kontaktplaner (rækker, 1–8) × positioner (kolonner). Hver plan styrer ét signal; cellen er Til/Fra/røres ikke (til/fra-signal) eller en værdi (register). Række "Aktive signaler" viser hvad hver position sætter. Skabeloner: A ét register, B ét signal pr. position, C bitmaske, D dec → bin |
 | 4 Visning | Positionen følger Remote (PLC'ens tilbagemelding) eller Lokal (sidst valgte, valideret af PLC'en efter N s; afvigelse kan give alarm). Vinkel pr. position (omskifter). **Animationer** (afsnit 4) |
-| 5 Betjening | Bekræftelse; skrivemåde pr. signal: til/fra-signaler altid "sæt", registre "sæt værdi" eller "puls" (pulslængde + påkrævet hvileværdi, der ikke må være en positions værdi) |
+| 5 Betjening | Bekræftelse til/fra pr. symbol og nøglelås (se afsnit 5); skrivemåde pr. signal: til/fra-signaler altid "sæt", registre "sæt værdi" eller "puls" (pulslængde + påkrævet hvileværdi, der ikke må være en positions værdi) |
 | 6 Test og gem | Live-værdier pr. signal, fundet position, advarsler, oversigt over det der gemmes |
 
 ## 3. Validering (backend håndhæver; guiden viser det live)
@@ -59,10 +59,27 @@ PLC'ens position), ? Ukendt (kommunikationsfejl eller ingen entydig position). B
 dialog der viser præcis hvilke tags der skrives; signaler der går mod 0/fra skrives først
 (break-before-make). Afvigelser kan kvitteres ved at acceptere PLC'ens position (der skrives intet).
 
+**Bekræftelse kan fravælges pr. symbol** (trin 5). Et klik på symbolet på Overview betjener det:
+
+| Bekræftelse | 2 positioner (start/stop, pumpe, ventil) | Flere positioner (omskifter) |
+| --- | --- | --- |
+| Til (standard) | Dialog → vælg → "Skift til …" | Dialog → vælg → "Skift til …" |
+| Fra | Ét klik skifter straks til den anden position | Dialog med positionerne; et klik på en position skifter straks |
+
+Alle skift logges i audit-loggen, og rettigheder, Fejl/låst og validering gælder uanset valget.
+
+**Nøglelås** (trin 5) — som en nøgleomskifter:
+
+- Teknikeren vælger hvilke positioner der er låst og sætter en 4-cifret kode for symbolet. Valgfrit: koden kræves også for at forlade en låst position.
+- Vælger operatøren en låst position, beder dialogen om koden ("Lås op og skift til …") — også når bekræftelse er fravalgt; koden erstatter så bekræftelsen.
+- Låste positioner har en hængelås i dialogen, og symbolet viser en hængelås når det står i en låst position.
+- Koden gemmes som scrypt-hash i backend, kontrolleres kun i backend og sendes aldrig til browseren (CLAUDE.md regel 6). Kun teknikere/admin kan sætte den (skriv-kun, som PLC-adgangskoder).
+- 3 forkerte koder spærrer betjening af symbolet i 60 s (pr. symbol og bruger). Audit-loggen registrerer oplåsning og forkerte forsøg — aldrig selve koden.
+
 ## 6. Datamodel (forslag)
 
 `symbol_config` pr. (tegning, element): `type`, `positions[]` (label, angle), `signals[]` (id, tag, fb,
 write, ms, rest), `planes[]` (signal, values[] med `null` = røres ikke), `fault`, `display`, `validate_s`,
-`alarm`, `confirm`, `anims[]` (part, type, src, params, only[]). Den lokale tilstand (sidst valgt, af hvem,
+`alarm`, `confirm`, `lock` (positions[], pin_hash, leave), `anims[]` (part, type, src, params, only[]). Den lokale tilstand (sidst valgt, af hvem,
 hvornår) gemmes i `symbol_state`. Afledte værdier (position, tilstand) lægges i live-cachen, så
 WebSocket-protokollen er uændret.
