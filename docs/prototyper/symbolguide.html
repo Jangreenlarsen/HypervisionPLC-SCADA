@@ -296,7 +296,7 @@ function seed() {
 
   const k = newSymbol('startstop', 'Kompressor K1');
   k.signals = [{ id: 'S1', tag: 'K1_koer', fb: '', write: 'set', ms: 500, rest: '' }];
-  k.planes = [{ signal: 'S1', values: [0, 1] }];
+  k.planes = [{ signal: 'S1', values: [0, 1] }]; k.confirm = false;
   k.anims = [{ part: 'face', type: 'color', src: '@pos', p: { colors: ['#d6d6d6', '#7cc47f'] } },
     { part: 'text', type: 'value', src: '@pos', p: { unit: '', dec: 0 } }];
   return [a, p, v, t, l, k];
@@ -380,6 +380,13 @@ function operate(c, k) {
     if (mode === 'wrong') apply(targets(c, (k + 1) % n));
   }, sim.delayS * 1000);
   dialog = { sym: c.id, open: false, pick: null, msg: '' };
+}
+// Den position der vises nu (til 2-positions-symboler uden bekræftelse: et klik skifter til den anden).
+function shownPos(c) { return c.display === 'local' ? c.local.chosen : status(c).r; }
+function clickSymbol(c) {
+  if (!hasPos(c)) { dialog = { sym: null, open: false, pick: null, msg: '' }; return; }
+  if (!c.confirm && c.positions.length === 2) { const now = shownPos(c); operate(c, now === 1 ? 0 : 1); return; }
+  dialog = { sym: c.id, open: true, pick: null, msg: '' };
 }
 function fieldSwitch(c, j) {
   Object.entries(targets(c, j)).forEach(([id, v]) => { const s = sig(c, id); sim.read[rk(s)] = v; if (s.write !== 'pulse') sim.cmd[s.tag] = v; });
@@ -663,6 +670,7 @@ function stepBody(c, v) {
     </div>`;
   if (step === 4) return `
     <label class="check" for="f-confirm"><input id="f-confirm" type="checkbox" data-bind="confirm" ${c.confirm ? 'checked' : ''}>Operatøren skal bekræfte valget</label>
+    <p class="small muted" style="margin: 0">${c.confirm ? 'Til: et klik på symbolet åbner en dialog, og skiftet sker først når operatøren trykker "Skift til …".' : (c.positions.length === 2 ? 'Fra: et klik på symbolet skifter straks til den anden position.' : 'Fra: et klik på symbolet viser positionerne, og et klik på en position skifter straks.')} Alle skift logges i audit-loggen uanset valget.</p>
     <div class="tablebox"><table style="min-width: 560px">
       <thead><tr><th scope="col">Signal</th><th scope="col">Skrivemåde</th><th scope="col">Puls (ms)</th><th scope="col">Hvileværdi</th></tr></thead>
       <tbody>${c.signals.map((s, i) => { const coil = sigKind(s) === 'coil';
@@ -819,7 +827,7 @@ function renderOvLive() {
       <div class="row"><span class="state-chip ${st.s}">${GLYPH[st.s]} ${STATE_TXT[st.s]}</span>${st.s === 'pending' ? `<span class="small muted">${left.toFixed(1)} s tilbage</span>` : ''}</div>
       <div class="small"><span class="muted">Valgt:</span> <b>${esc(posName(c, c.local.chosen))}</b> <span class="muted">af ${esc(c.local.by)} ${fmtT(c.local.at)}</span> · <span class="muted">PLC viser:</span> <b>${sim.comm ? 'ukendt (komm.fejl)' : esc(posName(c, st.r))}</b></div>
       ${c.fault && Number(tagValue(c.fault)) ? `<div class="small ck-err">${esc(c.fault)} er aktiv — betjening er blokeret.</div>` : ''}
-      <div><button class="primary" data-action="open-dialog">Betjen ${esc(c.name)}…</button></div></div>`;
+      <div class="row"><button class="primary" data-action="open-dialog">Betjen ${esc(c.name)}…</button><span class="small muted">${c.confirm ? 'med bekræftelse' : 'uden bekræftelse'} · klik også direkte på symbolet</span></div></div>`;
   } else {
     const names = [...new Set(c.anims.map((a) => a.src).filter((n) => n && n !== '@pos'))];
     det.innerHTML = `<div class="box small"><b>${esc(c.name)}</b> · kun visning · ${names.map((n) => `${esc(n)} = ${sim.comm ? '?' : esc(Math.round(Number(tagValue(n)) * 10) / 10)}`).join(' · ')}</div>`;
@@ -840,11 +848,11 @@ function renderDialog() {
   const st = status(c), k = dialog.pick, writes = k == null ? [] : plannedWrites(c, k);
   el.dataset.rendered = key;
   el.innerHTML = `<div class="box" role="dialog" aria-labelledby="dlg-t" style="display: flex; flex-direction: column; gap: .7rem; max-width: 36rem">
-    <div class="row" style="justify-content: space-between"><b id="dlg-t">${esc(c.name)} · vælg position</b><button data-action="close-dialog" aria-label="Luk">✕</button></div>
+    <div class="row" style="justify-content: space-between"><b id="dlg-t">${esc(c.name)} · vælg position${c.confirm ? '' : ' <span class="small muted">(uden bekræftelse — et klik skifter straks)</span>'}</b><button data-action="close-dialog" aria-label="Luk">✕</button></div>
     <div class="small">Nu: <b>${esc(posName(c, c.display === 'local' ? c.local.chosen : st.r))}</b> <span class="state-chip ${st.s}">${STATE_TXT[st.s]}</span></div>
     <div class="posbtns" role="radiogroup" aria-label="Position">${c.positions.map((p, j) => `<button role="radio" aria-checked="${j === k}" data-action="pick" data-j="${j}" class="${j === k ? 'sel' : ''} ${j === c.local.chosen ? 'now' : ''}">${esc(p.label)}${j === c.local.chosen ? ' · nu' : ''}</button>`).join('')}</div>
     ${k != null ? `<div class="small muted">Skriver: ${writes.length ? writes.map((w) => `${esc(w.s.tag)} ← ${w.v}${w.s.write === 'pulse' ? ` (puls ${esc(w.s.ms)} ms)` : ''}`).join(', derefter ') : 'intet — PLC\'en har allerede værdierne'}</div>` : ''}
-    <div class="row" style="justify-content: flex-end"><button data-action="close-dialog">Annullér</button><button class="primary" data-action="do-operate" ${k == null ? 'disabled' : ''}>${k == null ? 'Vælg en position' : `Skift til ${esc(posName(c, k))}`}</button></div>
+    ${c.confirm ? '' : '<!--'}<div class="row" style="justify-content: flex-end"><button data-action="close-dialog">Annullér</button><button class="primary" data-action="do-operate" ${k == null ? 'disabled' : ''}>${k == null ? 'Vælg en position' : `Skift til ${esc(posName(c, k))}`}</button></div>${c.confirm ? '' : '-->'}
   </div>`;
 }
 
@@ -905,7 +913,7 @@ document.addEventListener('click', (e) => {
   const a = b.dataset.action, i = Number(b.dataset.i), j = Number(b.dataset.j), kk = Number(b.dataset.k), c = cur;
   if (a === 'tab') return setTab(b.dataset.tab);
   // Overview
-  if (a === 'ov-sym') { ovSel = b.dataset.id; dialog = { sym: null, open: false, pick: null, msg: '' }; renderFieldSw(); return renderOvLive(); }
+  if (a === 'ov-sym') { ovSel = b.dataset.id; clickSymbol(symbols.find((x) => x.id === ovSel)); renderFieldSw(); return renderOvLive(); }
   if (a === 'open-dialog') { dialog = { sym: ovSel, open: true, pick: null, msg: '' }; return renderDialog(); }
   if (a === 'close-dialog') { dialog = { sym: null, open: false, pick: null, msg: '' }; return renderDialog(); }
   if (a === 'pick') { const s = symbols.find((x) => x.id === dialog.sym); dialog.pick = j; if (!s.confirm) operate(s, j); return renderOvLive(); }
