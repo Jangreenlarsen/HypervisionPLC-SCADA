@@ -118,6 +118,7 @@ dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; }
 .sym .faultframe { fill: none; stroke: var(--alarm); stroke-width: 3; animation: blink 1s steps(2, start) infinite; }
 @keyframes blink { to { visibility: hidden; } }
 .sym .blinking { animation: blink 1s steps(2, start) infinite; }
+.sym .blink-slow { animation-duration: 2s; } .sym .blink-fast { animation-duration: .5s; }
 @media (prefers-reduced-motion: reduce) { .sym .blinking { animation: none; opacity: .5; } }
 .anims { display: flex; flex-direction: column; gap: .6rem; }
 .anim { background: var(--field); border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem .7rem; display: flex; flex-direction: column; gap: .5rem; }
@@ -278,14 +279,14 @@ function seed() {
   a.lock = { positions: [true, false, false], pin: '1234', leave: false }; // nøglelås: Hand kræver kode (prototype: 1234)
   a.anims = [{ part: 'bg', type: 'color', src: '@pos', p: { colors: ['#fde2b8', '#e4e4e4', '#cfe8d1'] } },
     { part: 'face', type: 'color', src: 'P1_temp', p: { th: [{ v: 60, c: '#f0b44a' }, { v: 80, c: '#e06060' }], def: '#e3e3e3' } },
-    { part: 'frame', type: 'blink', src: 'P1_fejl', p: { when: 'on' } }];
+    { part: 'frame', type: 'blink', src: 'P1_fejl', p: { when: 'on', speed: 'fast' } }];
 
   const p = newSymbol('pump', 'Pumpe P1');
   p.signals = [{ id: 'S1', tag: 'P1_start', fb: 'P1_drift', write: 'set', ms: 500, rest: '' }];
   p.planes = [{ signal: 'S1', values: [0, 1] }]; p.fault = 'P1_fejl'; p.local.chosen = 1;
   p.anims = [{ part: 'face', type: 'color', src: 'P1_drift', p: { on: '#7cc47f', off: '#d6d6d6' } },
     { part: 'grip', type: 'spin', src: 'P1_drift', p: { when: 'on' } },
-    { part: 'frame', type: 'blink', src: 'P1_fejl', p: { when: 'on' } }];
+    { part: 'frame', type: 'blink', src: 'P1_fejl', p: { when: 'on', speed: 'fast' } }];
 
   const v = newSymbol('valve', 'Ventil V1');
   v.signals = [{ id: 'S1', tag: 'V1_aaben', fb: 'V1_aaben_di', write: 'set', ms: 500, rest: '' }];
@@ -296,11 +297,11 @@ function seed() {
   t.anims = [{ part: 'level', type: 'level', src: 'T1_niveau', p: { min: 0, max: 100 } },
     { part: 'level', type: 'color', src: 'T1_niveau', p: { th: [{ v: 90, c: '#e06060' }], def: '#6ea8dc' } },
     { part: 'text', type: 'value', src: 'T1_niveau', p: { unit: '%', dec: 0 } },
-    { part: 'frame', type: 'blink', src: 'T1_hoej', p: { when: 'on' } }];
+    { part: 'frame', type: 'blink', src: 'T1_hoej', p: { when: 'on', speed: 'slow' } }];
 
   const l = newSymbol('lamp', 'Alarm L1');
   l.anims = [{ part: 'face', type: 'color', src: 'L1_alarm', p: { on: '#e06060', off: '#d6d6d6' } },
-    { part: 'face', type: 'blink', src: 'L1_alarm', p: { when: 'on' } }];
+    { part: 'face', type: 'blink', src: 'L1_alarm', p: { when: 'on', speed: 'fast' } }];
 
   const k = newSymbol('startstop', 'Kompressor K1');
   k.signals = [{ id: 'S1', tag: 'K1_koer', fb: '', write: 'set', ms: 500, rest: '' }];
@@ -463,7 +464,7 @@ function evalAnims(c, posIdx) {
       else col = a.p.colors?.[v];
       o.color = col;
     }
-    if (a.type === 'blink') o.blink = cond();
+    if (a.type === 'blink') o.blink = cond() ? (a.p.speed || 'normal') : false;
     if (a.type === 'visible') o.hidden = !cond();
     if (a.type === 'spin') o.spin = cond();
     if (a.type === 'level') { const lo = Number(a.p.min), hi = Number(a.p.max); o.frac = hi > lo ? Math.max(0, Math.min(1, (Number(v) - lo) / (hi - lo))) : 0; }
@@ -473,11 +474,14 @@ function evalAnims(c, posIdx) {
 }
 
 // ===================================================================== tegning af symboler
+// Blinkfrekvens: periode i ms (tændt halvdelen af tiden). Delay faser alle blink ens, så de blinker i takt.
+const BLINK_MS = { slow: 2000, normal: 1000, fast: 500 };
+const BLINK_TXT = { slow: 'Langsom (0,5 Hz)', normal: 'Normal (1 Hz)', fast: 'Hurtig (2 Hz)' };
 const colOk = (x) => (/^#[0-9a-fA-F]{3,8}$/.test(x || '') ? x : null);
 function drawSymbol(c, { grip, gripClass = '', ghost = null, badge = null, size = 150, styles = {} }) {
   const S = (k) => styles[k] || {};
   const fill = (k) => (colOk(S(k).color) ? ` style="fill:${colOk(S(k).color)}"` : '');
-  const wrap = (k, inner) => `<g class="${S(k).blink ? 'blinking' : ''}"${S(k).blink ? ` style="animation-delay:-${Date.now() % 1000}ms"` : ''}${S(k).hidden ? ' visibility="hidden"' : ''}>${inner}</g>`;
+  const wrap = (k, inner) => `<g class="${S(k).blink ? `blinking blink-${S(k).blink}` : ''}"${S(k).blink ? ` style="animation-delay:-${Date.now() % BLINK_MS[S(k).blink]}ms"` : ''}${S(k).hidden ? ' visibility="hidden"' : ''}>${inner}</g>`;
   const posLbl = grip != null && c.positions[grip] ? c.positions[grip].label : '?';
   const ghostTxt = ghost != null ? `<text class="ghosttext" x="8" y="156">PLC: ${esc(posName(c, ghost))}</text>` : '';
   const faceCls = gripClass === 'pending' ? 'pending' : gripClass === 'unknown' ? 'unknown' : '';
@@ -741,7 +745,7 @@ function stepBody(c, v) {
           <dt>Betjening</dt><dd>${c.confirm ? 'Bekræftes' : 'Uden bekræftelse'}${c.signals.filter((s) => s.write === 'pulse').map((s) => ` · ${esc(s.id)} puls ${esc(s.ms)} ms, hvile ${esc(s.rest || '?')}`).join('')}</dd>
           <dt>Nøglelås</dt><dd>${c.lock.positions.some(Boolean) ? `${c.positions.filter((_, j) => c.lock.positions[j]).map((p) => esc(p.label)).join(', ')} kræver kode${c.lock.leave ? ' (også for at forlade)' : ''}` : 'Ingen'}</dd>
           <dt>Fejl/låst</dt><dd>${c.fault ? esc(c.fault) + ' blokerer betjening' : 'Ingen'}</dd>` : ''}
-          <dt>Animationer</dt><dd>${c.anims.length ? c.anims.map((a) => `${L.parts[a.part]}: ${ATYPES[a.type].toLowerCase()} ← ${a.src === '@pos' ? 'position' : esc(a.src)}${a.only && !a.only.every(Boolean) ? ` (kun ${c.positions.filter((_, j) => a.only[j]).map((p) => esc(p.label)).join(', ')})` : ''}`).join('<br>') : 'Ingen'}</dd>
+          <dt>Animationer</dt><dd>${c.anims.length ? c.anims.map((a) => `${L.parts[a.part]}: ${ATYPES[a.type].toLowerCase()}${a.type === 'blink' ? ` ${BLINK_TXT[a.p.speed || 'normal'].split(' ')[0].toLowerCase()}` : ''} ← ${a.src === '@pos' ? 'position' : esc(a.src)}${a.only && !a.only.every(Boolean) ? ` (kun ${c.positions.filter((_, j) => a.only[j]).map((p) => esc(p.label)).join(', ')})` : ''}`).join('<br>') : 'Ingen'}</dd>
         </dl>
       </div>
     </div>`;
@@ -777,7 +781,7 @@ function animUI(c) {
       <span class="small muted">styres af</span>
       <label for="asrc-${i}" style="${hide}">Styres af</label><select id="asrc-${i}" data-bind="anim-src" data-i="${i}" style="max-width: 18rem">${animSrcOptions(c, a.src, a.type)}</select>
       <span style="margin-left: auto; display: inline-flex; gap: .3rem"><button class="small" data-action="anim-up" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Flyt op">▲</button><button class="small" data-action="anim-down" data-i="${i}" ${i === c.anims.length - 1 ? 'disabled' : ''} aria-label="Flyt ned">▼</button><button class="small" data-action="anim-del" data-i="${i}" aria-label="Fjern animation ${i + 1}">✕</button></span></div>
-    <div class="params">${animParams(c, a, i)}</div>
+    <div class="params">${animParams(c, a, i)}${a.type === 'blink' && a.src ? `<label>frekvens<select id="abs-${i}" data-bind="anim-speed" data-i="${i}">${Object.entries(BLINK_TXT).map(([k, t]) => `<option value="${k}" ${(a.p.speed || 'normal') === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>` : ''}</div>
     ${P ? `<div class="params"><span class="muted">Gælder i positionerne:</span>${c.positions.map((p, j) => `<label class="check"><input type="checkbox" id="ao-${i}-${j}" data-bind="anim-only" data-i="${i}" data-k="${j}" ${!a.only || a.only[j] ? 'checked' : ''}>${esc(p.label)}</label>`).join('')}${a.only && !a.only.some(Boolean) ? '<span class="ck-warn">! ingen positioner valgt</span>' : ''}</div>` : ''}</div>`).join('')}
     <div><button class="ghost" data-action="anim-add" ${c.anims.length >= 12 ? 'disabled' : ''}>+ Tilføj animation</button> <span class="small muted">Står to animationer på samme del, vinder den nederste.</span></div></div>`;
 }
@@ -1037,6 +1041,7 @@ document.addEventListener('change', (e) => {
   if (k === 'anim-thc') an.p.th[kk].c = el.value;
   if (k === 'anim-pc') an.p.colors[kk] = el.value;
   if (k === 'anim-when') an.p.when = el.value;
+  if (k === 'anim-speed') an.p.speed = el.value;
   if (k === 'anim-numv') an.p.v = el.value;
   if (k === 'anim-pset') an.p.set[kk] = el.checked;
   if (k === 'anim-min') an.p.min = el.value;

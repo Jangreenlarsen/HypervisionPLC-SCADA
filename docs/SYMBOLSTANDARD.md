@@ -50,6 +50,8 @@ Et symbol kan have vilkårligt mange animationer (prototypen: 12). Hver animatio
 - **Parametre** efter kilden: til/fra-tag → farve for Til/Fra eller "når Til/Fra"; tal-tag → farve efter stigende grænser + "ellers", eller "når ≥ X"; Niveau → min/max; Værdi → enhed og decimaler; position → farve pr. position eller udvalgte positioner.
 - **Gælder i positionerne** (kun symboler med positioner) — animationen virker kun i de afkrydsede positioner.
 
+**Blinkfrekvens** vælges pr. blink-animation: Langsom (0,5 Hz), Normal (1 Hz, standard) eller Hurtig (2 Hz). Alle blink med samme frekvens kører i takt på tværs af symboler. Anbefaling (ISA-101): hurtigt blink til fejl og ukvitterede alarmer, langsomt til advarsler og tilstande der kræver opmærksomhed. Ved "reduceret bevægelse" i browseren vises blink som halv gennemsigtighed i stedet.
+
 Står flere animationer på samme del, vinder den nederste (rækkefølgen ændres med ▲▼).
 
 ## 5. Tilstandsmærke og betjening på Overview
