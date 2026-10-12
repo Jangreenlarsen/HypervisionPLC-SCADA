@@ -172,6 +172,12 @@ dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; }
 .plant { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: .6rem; }
 .plant .symbtn.sel { border: 2px solid var(--accent); }
 .steps button.skip { opacity: .55; font-style: italic; }
+.sym .padlock rect { fill: var(--warn); } .sym .padlock path { fill: none; stroke: var(--warn); stroke-width: 2.5; }
+.lockico { display: inline-block; width: .8em; height: .9em; vertical-align: -.1em; margin-left: .3rem; }
+.lockico rect { fill: var(--warn); } .lockico path { fill: none; stroke: var(--warn); stroke-width: 2.5; }
+.posbtns button.locked { border-color: var(--warn); }
+.pinrow { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; }
+.pinrow input { width: 7rem; font-family: var(--mono); letter-spacing: .4em; text-align: center; }
 </style>
 
 <div class="topbar" role="tablist" aria-label="Prototype">
@@ -259,6 +265,7 @@ function newSymbol(type, name) {
   return { id: `sym${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, type, name,
     positions: (L.positions || []).map(([label, angle]) => ({ label, angle: angle ?? 0 })),
     signals: [], planes: [], fault: '', display: 'remote', validateS: 5, alarm: true, confirm: true, anims: [],
+    lock: { positions: (L.positions || []).map(() => false), pin: '', leave: false }, pinFails: 0, pinLockUntil: 0,
     local: { chosen: 0, at: Date.now() - 60000, by: 'olsen' }, saved: false };
 }
 function seed() {
@@ -268,6 +275,7 @@ function seed() {
     { id: 'S3', tag: 'P1_driftsform', fb: 'P1_driftsform_fb', write: 'set', ms: 500, rest: '' }];
   a.planes = [{ signal: 'S1', values: [1, 0, 0] }, { signal: 'S2', values: [0, 0, 1] }, { signal: 'S3', values: [1, 0, 2] }];
   a.fault = 'P1_fejl'; a.display = 'local'; a.local.chosen = 1;
+  a.lock = { positions: [true, false, false], pin: '1234', leave: false }; // nøglelås: Hand kræver kode (prototype: 1234)
   a.anims = [{ part: 'bg', type: 'color', src: '@pos', p: { colors: ['#fde2b8', '#e4e4e4', '#cfe8d1'] } },
     { part: 'face', type: 'color', src: 'P1_temp', p: { th: [{ v: 60, c: '#f0b44a' }, { v: 80, c: '#e06060' }], def: '#e3e3e3' } },
     { part: 'frame', type: 'blink', src: 'P1_fejl', p: { when: 'on' } }];
@@ -361,7 +369,20 @@ function plannedWrites(c, k) {
     .filter((w) => w.s.tag && (w.s.write === 'pulse' || Number(sim.cmd[w.s.tag]) !== w.v))
     .sort((a, b) => (a.v === 0 ? 0 : 1) - (b.v === 0 ? 0 : 1));
 }
-function operate(c, k) {
+function operate(c, k, pin) {
+  if (needsPin(c, k)) {
+    const now = Date.now();
+    if (now < c.pinLockUntil) { dialog.pinErr = `For mange forkerte koder — prøv igen om ${Math.ceil((c.pinLockUntil - now) / 1000)} s.`; return; }
+    if (pin !== c.lock.pin) {
+      c.pinFails++;
+      logWrite(`— ${c.name}: forkert kode til ${posName(c, k)} (forsøg ${c.pinFails})`);
+      if (c.pinFails >= 3) { c.pinFails = 0; c.pinLockUntil = now + 60000; dialog.pinErr = 'Forkert kode 3 gange — betjening af symbolet er spærret i 60 s.'; }
+      else dialog.pinErr = `Forkert kode (${c.pinFails} af 3 forsøg).`;
+      return;
+    }
+    c.pinFails = 0;
+    logWrite(`— ${c.name}: låst position ${posName(c, k)} låst op med kode af olsen`);
+  }
   if (c.fault && Number(tagValue(c.fault))) { dialog = { sym: c.id, open: false, pick: null, msg: `${c.name}: betjening er blokeret — ${c.fault} er aktiv.` }; return; }
   if (sim.comm) { dialog = { sym: c.id, open: false, pick: null, msg: 'Ingen forbindelse til PLC\'en — intet er skrevet.' }; return; }
   const writes = plannedWrites(c, k);
@@ -381,11 +402,21 @@ function operate(c, k) {
   }, sim.delayS * 1000);
   dialog = { sym: c.id, open: false, pick: null, msg: '' };
 }
+// Nøglelås: låste positioner kræver operatørens 4-cifrede kode (som en nøgleomskifter).
+const LOCK_SVG = '<svg class="lockico" viewBox="0 0 24 26" aria-hidden="true"><path d="M7 12 V8 a5 5 0 0 1 10 0 V12"/><rect x="3" y="12" width="18" height="13" rx="2"/></svg>';
+const isLocked = (c, j) => !!(c.lock && j != null && c.lock.positions[j]);
+function needsPin(c, to) {
+  if (!c.lock) return false;
+  const from = shownPos(c);
+  return isLocked(c, to) || (c.lock.leave && isLocked(c, from) && from !== to);
+}
 // Den position der vises nu (til 2-positions-symboler uden bekræftelse: et klik skifter til den anden).
 function shownPos(c) { return c.display === 'local' ? c.local.chosen : status(c).r; }
 function clickSymbol(c) {
   if (!hasPos(c)) { dialog = { sym: null, open: false, pick: null, msg: '' }; return; }
-  if (!c.confirm && c.positions.length === 2) { const now = shownPos(c); operate(c, now === 1 ? 0 : 1); return; }
+  if (!c.confirm && c.positions.length === 2) { const now = shownPos(c), to = now === 1 ? 0 : 1;
+    if (needsPin(c, to)) { dialog = { sym: c.id, open: true, pick: to, msg: '' }; return; }
+    operate(c, to); return; }
   dialog = { sym: c.id, open: true, pick: null, msg: '' };
 }
 function fieldSwitch(c, j) {
@@ -485,8 +516,9 @@ function drawSymbol(c, { grip, gripClass = '', ghost = null, badge = null, size 
   }
   const bg = wrap('bg', `<rect x="2" y="2" width="136" height="156" rx="8" style="fill:${colOk(S('bg').color) || 'transparent'}"/>`);
   const frame = wrap('frame', `<rect x="2.5" y="2.5" width="135" height="155" rx="8" style="fill:none;stroke:${colOk(S('frame').color) || (S('frame').blink ? 'var(--alarm)' : 'transparent')};stroke-width:3"/>`);
+  const pl = isLocked(c, grip) ? '<g class="padlock"><path d="M12 16 V12 a5 5 0 0 1 10 0 V16"/><rect x="8" y="16" width="18" height="13" rx="2"/></g>' : '';
   const b = badge && GLYPH[badge] ? `<circle class="badge ${badge}" cx="124" cy="140" r="11"/><text class="glyph ${badge}" x="124" y="145" text-anchor="middle">${GLYPH[badge]}</text>` : '';
-  return `<svg class="sym" viewBox="0 0 140 160" width="${size}" height="${Math.round(size * 160 / 140)}" role="img" aria-label="${esc(c.name)}${hasPos(c) ? ': ' + esc(posName(c, grip)) : ''}${badge && STATE_TXT[badge] ? ', ' + STATE_TXT[badge] : ''}">${bg}${inner}${frame}${b}</svg>`;
+  return `<svg class="sym" viewBox="0 0 140 160" width="${size}" height="${Math.round(size * 160 / 140)}" role="img" aria-label="${esc(c.name)}${hasPos(c) ? ': ' + esc(posName(c, grip)) : ''}${badge && STATE_TXT[badge] ? ', ' + STATE_TXT[badge] : ''}">${bg}${inner}${frame}${pl}${b}</svg>`;
 }
 function liveSymbol(c, size) {
   const st = status(c);
@@ -540,6 +572,8 @@ function validate(c) {
         else if (vals.includes(r)) step5.push(`${s.id}: hvileværdien ${r} er også en positions værdi.`);
         else if (t?.kind === 'reg' && (r < range(t)[0] || r > range(t)[1])) step5.push(`${s.id}: hvileværdien ${r} er uden for ${rangeText(t)}.`); }
     });
+    if (c.lock.positions.some(Boolean) && !/^\d{4}$/.test(c.lock.pin || '')) step5.push('Koden til nøglelåsen skal være præcis 4 cifre.');
+    if (c.lock.positions.length && c.lock.positions.every(Boolean)) W.push('Alle positioner er låst — operatøren skal bruge koden til ethvert skift.');
     if (c.planes.length && !readable.length) step5.push('Mindst ét plan skal styre et signal der sættes (ikke puls), ellers kan positionen ikke aflæses.');
     if (!(c.validateS >= 1 && c.validateS <= 120)) step4.push('Valideringstid skal være 1–120 s.');
   }
@@ -671,6 +705,14 @@ function stepBody(c, v) {
   if (step === 4) return `
     <label class="check" for="f-confirm"><input id="f-confirm" type="checkbox" data-bind="confirm" ${c.confirm ? 'checked' : ''}>Operatøren skal bekræfte valget</label>
     <p class="small muted" style="margin: 0">${c.confirm ? 'Til: et klik på symbolet åbner en dialog, og skiftet sker først når operatøren trykker "Skift til …".' : (c.positions.length === 2 ? 'Fra: et klik på symbolet skifter straks til den anden position.' : 'Fra: et klik på symbolet viser positionerne, og et klik på en position skifter straks.')} Alle skift logges i audit-loggen uanset valget.</p>
+    <fieldset><legend>Nøglelås</legend>
+      <span class="small muted">Som en nøgleomskifter: låste positioner kan kun vælges med en 4-cifret kode. Koden gælder for dette symbol; den gemmes krypteret og sendes aldrig til browseren i den rigtige app.</span>
+      <div class="row" style="gap: .4rem 1.2rem">${c.positions.map((p, j) => `<label class="check" for="lk-${j}"><input id="lk-${j}" type="checkbox" data-bind="lock-pos" data-k="${j}" ${c.lock.positions[j] ? 'checked' : ''}>${esc(p.label)} låst</label>`).join('')}</div>
+      ${c.lock.positions.some(Boolean) ? `<div class="row" style="gap: 1rem; align-items: end">
+        <label class="field" for="f-pin">Kode (4 cifre)<input id="f-pin" class="${v.step5.some((m) => m.startsWith('Koden')) ? 'bad' : ''}" data-bind="lock-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" value="${esc(c.lock.pin)}" style="width: 7rem; letter-spacing: .3em"></label>
+        <label class="check" for="f-leave"><input id="f-leave" type="checkbox" data-bind="lock-leave" ${c.lock.leave ? 'checked' : ''}>Kode kræves også for at forlade en låst position</label></div>
+        <span class="small muted">3 forkerte koder spærrer betjening af symbolet i 60 s. Prototypens omskifter har koden 1234.</span>` : ''}
+    </fieldset>
     <div class="tablebox"><table style="min-width: 560px">
       <thead><tr><th scope="col">Signal</th><th scope="col">Skrivemåde</th><th scope="col">Puls (ms)</th><th scope="col">Hvileværdi</th></tr></thead>
       <tbody>${c.signals.map((s, i) => { const coil = sigKind(s) === 'coil';
@@ -697,6 +739,7 @@ function stepBody(c, v) {
           <dt>Signaler</dt><dd>${c.signals.length} · ${c.planes.length} kontaktplan${c.planes.length === 1 ? '' : 'er'}</dd>
           <dt>Positionen følger</dt><dd>${c.display === 'local' ? `Lokal, valideres efter ${c.validateS} s` : 'Remote (PLC)'}</dd>
           <dt>Betjening</dt><dd>${c.confirm ? 'Bekræftes' : 'Uden bekræftelse'}${c.signals.filter((s) => s.write === 'pulse').map((s) => ` · ${esc(s.id)} puls ${esc(s.ms)} ms, hvile ${esc(s.rest || '?')}`).join('')}</dd>
+          <dt>Nøglelås</dt><dd>${c.lock.positions.some(Boolean) ? `${c.positions.filter((_, j) => c.lock.positions[j]).map((p) => esc(p.label)).join(', ')} kræver kode${c.lock.leave ? ' (også for at forlade)' : ''}` : 'Ingen'}</dd>
           <dt>Fejl/låst</dt><dd>${c.fault ? esc(c.fault) + ' blokerer betjening' : 'Ingen'}</dd>` : ''}
           <dt>Animationer</dt><dd>${c.anims.length ? c.anims.map((a) => `${L.parts[a.part]}: ${ATYPES[a.type].toLowerCase()} ← ${a.src === '@pos' ? 'position' : esc(a.src)}${a.only && !a.only.every(Boolean) ? ` (kun ${c.positions.filter((_, j) => a.only[j]).map((p) => esc(p.label)).join(', ')})` : ''}`).join('<br>') : 'Ingen'}</dd>
         </dl>
@@ -843,16 +886,17 @@ function renderDialog() {
   const el = document.getElementById('dialog'); if (!el) return;
   const c = symbols.find((x) => x.id === dialog.sym);
   if (!dialog.open || !c) { el.dataset.rendered = ''; el.innerHTML = dialog.msg ? `<div class="box err small">${esc(dialog.msg)}</div>` : ''; return; }
-  const key = `${c.id}:${dialog.pick}`;
+  const key = `${c.id}:${dialog.pick}:${dialog.pinErr || ''}`;
   if (el.dataset.rendered === key) return;
   const st = status(c), k = dialog.pick, writes = k == null ? [] : plannedWrites(c, k);
   el.dataset.rendered = key;
   el.innerHTML = `<div class="box" role="dialog" aria-labelledby="dlg-t" style="display: flex; flex-direction: column; gap: .7rem; max-width: 36rem">
     <div class="row" style="justify-content: space-between"><b id="dlg-t">${esc(c.name)} · vælg position${c.confirm ? '' : ' <span class="small muted">(uden bekræftelse — et klik skifter straks)</span>'}</b><button data-action="close-dialog" aria-label="Luk">✕</button></div>
     <div class="small">Nu: <b>${esc(posName(c, c.display === 'local' ? c.local.chosen : st.r))}</b> <span class="state-chip ${st.s}">${STATE_TXT[st.s]}</span></div>
-    <div class="posbtns" role="radiogroup" aria-label="Position">${c.positions.map((p, j) => `<button role="radio" aria-checked="${j === k}" data-action="pick" data-j="${j}" class="${j === k ? 'sel' : ''} ${j === c.local.chosen ? 'now' : ''}">${esc(p.label)}${j === c.local.chosen ? ' · nu' : ''}</button>`).join('')}</div>
+    <div class="posbtns" role="radiogroup" aria-label="Position">${c.positions.map((p, j) => `<button role="radio" aria-checked="${j === k}" data-action="pick" data-j="${j}" class="${j === k ? 'sel' : ''} ${j === c.local.chosen ? 'now' : ''} ${isLocked(c, j) ? 'locked' : ''}" ${isLocked(c, j) ? 'title="Låst — kræver kode"' : ''}>${esc(p.label)}${isLocked(c, j) ? LOCK_SVG : ''}${j === c.local.chosen ? ' · nu' : ''}</button>`).join('')}</div>
     ${k != null ? `<div class="small muted">Skriver: ${writes.length ? writes.map((w) => `${esc(w.s.tag)} ← ${w.v}${w.s.write === 'pulse' ? ` (puls ${esc(w.s.ms)} ms)` : ''}`).join(', derefter ') : 'intet — PLC\'en har allerede værdierne'}</div>` : ''}
-    ${c.confirm ? '' : '<!--'}<div class="row" style="justify-content: flex-end"><button data-action="close-dialog">Annullér</button><button class="primary" data-action="do-operate" ${k == null ? 'disabled' : ''}>${k == null ? 'Vælg en position' : `Skift til ${esc(posName(c, k))}`}</button></div>${c.confirm ? '' : '-->'}
+    ${k != null && needsPin(c, k) ? `<div class="pinrow"><label class="field" for="pin">${isLocked(c, k) ? `${esc(posName(c, k))} er låst` : `${esc(posName(c, shownPos(c)))} er låst`} — indtast koden<input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="····"></label>${dialog.pinErr ? `<span class="ck-err small">${esc(dialog.pinErr)}</span>` : ''}</div>` : ''}
+    ${c.confirm || (k != null && needsPin(c, k)) ? '' : '<!--'}<div class="row" style="justify-content: flex-end"><button data-action="close-dialog">Annullér</button><button class="primary" data-action="do-operate" ${k == null ? 'disabled' : ''}>${k == null ? 'Vælg en position' : needsPin(c, k) ? `Lås op og skift til ${esc(posName(c, k))}` : `Skift til ${esc(posName(c, k))}`}</button></div>${c.confirm || (k != null && needsPin(c, k)) ? '' : '-->'}
   </div>`;
 }
 
@@ -886,6 +930,7 @@ function structural(c) {
   const n = c.positions.length;
   c.planes.forEach((p) => { const kind = sigKind(sig(c, p.signal)); p.values.length = n; for (let j = 0; j < n; j++) if (p.values[j] === undefined) p.values[j] = kind === 'coil' ? 0 : null; });
   c.signals.forEach((s) => { if (sigKind(s) === 'coil') s.write = 'set'; });
+  c.lock ||= { positions: [], pin: '', leave: false }; c.lock.positions.length = n; for (let j = 0; j < n; j++) c.lock.positions[j] = !!c.lock.positions[j];
   c.anims.forEach((a) => {
     if (a.p.colors) { a.p.colors.length = n; for (let j = 0; j < n; j++) a.p.colors[j] ||= '#e4e4e4'; }
     if (a.p.set) { a.p.set.length = n; for (let j = 0; j < n; j++) a.p.set[j] = !!a.p.set[j]; }
@@ -916,8 +961,8 @@ document.addEventListener('click', (e) => {
   if (a === 'ov-sym') { ovSel = b.dataset.id; clickSymbol(symbols.find((x) => x.id === ovSel)); renderFieldSw(); return renderOvLive(); }
   if (a === 'open-dialog') { dialog = { sym: ovSel, open: true, pick: null, msg: '' }; return renderDialog(); }
   if (a === 'close-dialog') { dialog = { sym: null, open: false, pick: null, msg: '' }; return renderDialog(); }
-  if (a === 'pick') { const s = symbols.find((x) => x.id === dialog.sym); dialog.pick = j; if (!s.confirm) operate(s, j); return renderOvLive(); }
-  if (a === 'do-operate') { operate(symbols.find((x) => x.id === dialog.sym), dialog.pick); return renderOvLive(); }
+  if (a === 'pick') { const s = symbols.find((x) => x.id === dialog.sym); dialog.pick = j; dialog.pinErr = ''; if (!s.confirm && !needsPin(s, j)) operate(s, j); return renderOvLive(); }
+  if (a === 'do-operate') { operate(symbols.find((x) => x.id === dialog.sym), dialog.pick, document.getElementById('pin')?.value || ''); return renderOvLive(); }
   if (a === 'field') { fieldSwitch(symbols.find((x) => x.id === ovSel), j); return renderOvLive(); }
   if (a === 'accept') { const s = symbols.find((x) => x.id === b.dataset.id), r = remotePos(s); if (r != null) s.local = { chosen: r, at: Date.now() - s.validateS * 1000, by: 'olsen (accepteret)' }; return renderOvLive(); }
   // symbolliste og bibliotek
@@ -942,7 +987,7 @@ document.addEventListener('click', (e) => {
   if (a === 'add-plane') { const free = c.signals.find((s) => !usedBy(c, s).length); c.planes.push({ signal: free?.id || '', values: c.positions.map(() => (sigKind(free) === 'coil' ? 0 : null)) }); structural(c); }
   if (a === 'del-plane') { c.planes.splice(i, 1); structural(c); }
   if (a === 'add-pos') { c.positions.push({ label: String(c.positions.length + 1), angle: Math.min(150, (Number(c.positions.at(-1)?.angle) || 0) + 30) }); structural(c); }
-  if (a === 'del-pos') { c.positions.splice(j, 1); c.planes.forEach((p) => p.values.splice(j, 1)); c.anims.forEach((x) => { x.p.colors?.splice(j, 1); x.p.set?.splice(j, 1); x.only?.splice(j, 1); }); if (c.local.chosen >= c.positions.length) c.local.chosen = 0; structural(c); }
+  if (a === 'del-pos') { c.positions.splice(j, 1); c.planes.forEach((p) => p.values.splice(j, 1)); c.anims.forEach((x) => { x.p.colors?.splice(j, 1); x.p.set?.splice(j, 1); x.only?.splice(j, 1); }); c.lock.positions.splice(j, 1); if (c.local.chosen >= c.positions.length) c.local.chosen = 0; structural(c); }
   if (a === 'cycle') { const v = c.planes[i].values[j]; c.planes[i].values[j] = v === 1 ? 0 : v === 0 ? null : 1; }
   if (a === 'tpl') template(c, b.dataset.t);
   if (a === 'anim-add') { const part = Object.keys(LIB[c.type].parts)[1], src = hasPos(c) ? '@pos' : ''; c.anims.push({ part, type: 'color', src, p: animDefaults(c, 'color', src ? srcKind(src) : 'bool') }); }
@@ -976,6 +1021,9 @@ document.addEventListener('change', (e) => {
   if (k === 'validateS') c.validateS = Number(el.value);
   if (k === 'alarm') c.alarm = el.checked;
   if (k === 'confirm') c.confirm = el.checked;
+  if (k === 'lock-pos') c.lock.positions[kk] = el.checked;
+  if (k === 'lock-pin') c.lock.pin = el.value.trim();
+  if (k === 'lock-leave') c.lock.leave = el.checked;
   if (k === 'sig-write') { c.signals[i].write = el.value; resetSim(c); }
   if (k === 'sig-ms') c.signals[i].ms = el.value;
   if (k === 'sig-rest') { c.signals[i].rest = el.value.trim(); resetSim(c); }
