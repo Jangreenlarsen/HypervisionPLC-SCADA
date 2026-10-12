@@ -1,0 +1,1004 @@
+<title>Symbolguide-prototype</title>
+<style>
+/* Layout: SCADA-app-skal — topbar med to faner; guiden er et panel med trinlinje, Overview er tegning + dialog + PLC-simulator side om side. Farver følger projektets ISA-101-tokens (grå flade, farve kun for tilstand). */
+:root {
+  --bg: #d9d9d9; --panel: #eeeeee; --panel-2: #e3e3e3; --field: #ffffff; --line: #b8b8b8;
+  --text: #1f1f1f; --muted: #5c5c5c; --bar: #2b2b2b; --bar-text: #ffffff; --bar-muted: #bdbdbd;
+  --accent: #1f5f99; --accent-bg: #e6eef6; --on-accent: #ffffff;
+  --ok: #2e7d32; --ok-bg: #e7f2e8; --warn: #9a5c00; --warn-bg: #fff4e0; --alarm: #c62828; --alarm-bg: #fdecea;
+  --sym-face: #e3e3e3; --sym-line: #555555; --sym-grip: #9e9e9e; --sym-ink: #333333;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Consolas, monospace;
+  --radius: 4px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1b1d1f; --panel: #26292c; --panel-2: #2f3236; --field: #1f2225; --line: #474b50;
+  --text: #e6e6e6; --muted: #a3a7ab; --bar: #111213; --bar-text: #f2f2f2; --bar-muted: #8f9397;
+  --accent: #6ea8dc; --accent-bg: #1f3347; --on-accent: #0d1a26;
+  --ok: #6cc070; --ok-bg: #1d3320; --warn: #e2a64a; --warn-bg: #3a2c12; --alarm: #ef6a6a; --alarm-bg: #3d1d1d;
+  --sym-face: #3a3e43; --sym-line: #9aa0a6; --sym-grip: #6b7075; --sym-ink: #e6e6e6; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #1b1d1f; --panel: #26292c; --panel-2: #2f3236; --field: #1f2225; --line: #474b50;
+  --text: #e6e6e6; --muted: #a3a7ab; --bar: #111213; --bar-text: #f2f2f2; --bar-muted: #8f9397;
+  --accent: #6ea8dc; --accent-bg: #1f3347; --on-accent: #0d1a26;
+  --ok: #6cc070; --ok-bg: #1d3320; --warn: #e2a64a; --warn-bg: #3a2c12; --alarm: #ef6a6a; --alarm-bg: #3d1d1d;
+  --sym-face: #3a3e43; --sym-line: #9aa0a6; --sym-grip: #6b7075; --sym-ink: #e6e6e6; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.4; }
+h1, h2, h3 { font-weight: 650; margin: 0; text-wrap: balance; }
+h2 { font-size: 1.1rem; } h3 { font-size: 1rem; }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+.muted { color: var(--muted); } .small { font-size: .85rem; }
+button, input, select { font: inherit; color: inherit; }
+button { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem .85rem; cursor: pointer; min-height: 36px; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+button.ghost { border-style: dashed; color: var(--accent); background: transparent; }
+button:disabled { opacity: .5; cursor: default; }
+input, select { background: var(--field); border: 1px solid var(--line); border-radius: var(--radius); padding: .35rem .5rem; min-width: 0; min-height: 34px; }
+input.bad { border: 2px solid var(--alarm); background: var(--alarm-bg); }
+
+.topbar { background: var(--bar); color: var(--bar-text); padding: .6rem 16px; display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; align-items: center; }
+.topbar .brand { font-weight: 650; margin-right: .6rem; }
+.topbar button { background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: var(--bar-muted); padding: .3rem .1rem; min-height: 32px; }
+.topbar button[aria-selected="true"] { color: var(--bar-text); border-bottom-color: var(--bar-text); }
+.topbar .note { margin-left: auto; color: var(--bar-muted); font-size: .8rem; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 18px 40px; padding-inline: 16px; display: flex; flex-direction: column; gap: 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.panel-head { padding: .8rem 1rem; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: .6rem; }
+.panel-body { padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+.panel-foot { padding: .75rem 1rem; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.split { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.split > * { min-width: 0; }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+.steps button { width: 100%; text-align: left; font-size: .82rem; background: var(--panel-2); border: 1px solid transparent; color: var(--muted); padding: .35rem .5rem; }
+.steps button.done { color: var(--text); }
+.steps button.current { background: var(--accent); color: var(--on-accent); font-weight: 650; }
+.steps button .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--alarm); margin-left: 4px; vertical-align: middle; }
+@media (max-width: 640px) { .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); }
+.field > input, .field > select { color: var(--text); font-size: .95rem; }
+.sigs { display: grid; grid-template-columns: 3rem minmax(0, 1fr) minmax(0, 1fr) 7rem 2.6rem; gap: .5rem .6rem; align-items: end; }
+.sigs .lbl { font-weight: 650; padding-bottom: .45rem; }
+@media (max-width: 720px) { .sigs { grid-template-columns: minmax(0, 1fr); } .sigs .lbl { grid-column: 1 / -1; padding: .4rem 0 0; } .sigs .hdr { display: none; } }
+
+.tablebox { overflow-x: auto; background: var(--field); border: 1px solid var(--line); border-radius: var(--radius); }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { padding: .5rem .6rem; border-bottom: 1px solid var(--panel-2); text-align: left; vertical-align: middle; }
+thead th { background: var(--panel-2); font-weight: 600; border-bottom: 1px solid var(--line); }
+td.c, th.c { text-align: center; }
+.matrix { min-width: 640px; font-variant-numeric: tabular-nums; }
+.matrix thead input { width: 6.5rem; text-align: center; font-weight: 650; }
+.cell-coil { width: 4.6rem; font-weight: 600; }
+.cell-coil.on { border-color: var(--ok); background: var(--ok-bg); }
+.cell-coil.off { color: var(--muted); }
+.cell-coil.skip { border-style: dashed; background: transparent; color: var(--muted); }
+.cell-num { width: 4.6rem; text-align: center; }
+.cell-num.skip { border-style: dashed; }
+.sub { font-size: .75rem; color: var(--muted); font-weight: 400; }
+
+.checks { display: flex; flex-direction: column; gap: .25rem; font-size: .9rem; }
+.ck-ok { color: var(--ok); } .ck-warn { color: var(--warn); } .ck-err { color: var(--alarm); font-weight: 600; }
+.box { border: 1px solid var(--line); border-radius: var(--radius); padding: .75rem .9rem; background: var(--field); }
+.box.ok { background: var(--ok-bg); border-color: var(--ok); }
+.box.warn { background: var(--warn-bg); border-color: var(--warn); }
+.box.err { background: var(--alarm-bg); border-color: var(--alarm); }
+fieldset { margin: 0; border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem .9rem .8rem; background: var(--field); display: flex; flex-direction: column; gap: .5rem; }
+legend { font-weight: 600; padding: 0 .3rem; }
+.choice { display: flex; gap: .6rem; align-items: flex-start; }
+.choice input { margin-top: .25rem; min-height: 0; }
+.check { display: flex; gap: .5rem; align-items: center; }
+.check input { min-height: 0; }
+dl.sum { margin: 0; display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: .35rem .8rem; font-size: .92rem; }
+dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; }
+
+/* Symbol */
+.sym { display: block; }
+.sym .face { fill: var(--sym-face); stroke: var(--sym-line); stroke-width: 2.5; }
+.sym .lab { fill: var(--sym-ink); font: 600 12px var(--font); }
+.sym .tick { stroke: var(--sym-ink); stroke-width: 2; }
+.sym .grip { fill: var(--sym-grip); stroke: var(--sym-ink); stroke-width: 1.5; }
+.sym .grip-mark { fill: var(--sym-ink); }
+.sym .grip.pending { fill: var(--field); stroke-dasharray: 3 2; }
+.sym .grip.unknown { fill: var(--panel-2); stroke: var(--muted); }
+.sym .grip-mark.unknown { fill: var(--muted); }
+.sym .ghost { fill: var(--alarm-bg); stroke: var(--alarm); stroke-width: 1.5; stroke-dasharray: 3 2; opacity: .75; }
+.sym .badge { stroke-width: 2; }
+.sym .badge.confirmed { fill: var(--ok-bg); stroke: var(--ok); } .sym .glyph.confirmed { fill: var(--ok); }
+.sym .badge.pending { fill: var(--warn-bg); stroke: var(--warn); } .sym .glyph.pending { fill: var(--warn); }
+.sym .badge.mismatch { fill: var(--alarm-bg); stroke: var(--alarm); } .sym .glyph.mismatch { fill: var(--alarm); }
+.sym .badge.unknown { fill: var(--panel-2); stroke: var(--muted); } .sym .glyph.unknown { fill: var(--text); }
+.sym .glyph { font: 700 14px var(--font); }
+.sym .faultframe { fill: none; stroke: var(--alarm); stroke-width: 3; animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+.sym .blinking { animation: blink 1s steps(2, start) infinite; }
+@media (prefers-reduced-motion: reduce) { .sym .blinking { animation: none; opacity: .5; } }
+.anims { display: flex; flex-direction: column; gap: .6rem; }
+.anim { background: var(--field); border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem .7rem; display: flex; flex-direction: column; gap: .5rem; }
+.anim .head { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.anim .head .no { font-weight: 650; min-width: 1.6rem; }
+.anim .params { display: flex; flex-wrap: wrap; gap: .4rem .8rem; align-items: center; font-size: .88rem; }
+.anim input[type="color"] { width: 2.6rem; height: 32px; padding: 2px; }
+.anim input[type="number"] { width: 5.5rem; }
+.anim .params label { display: inline-flex; gap: .3rem; align-items: center; }
+@media (prefers-reduced-motion: reduce) { .sym .faultframe { animation: none; } }
+
+.symbtn { background: var(--field); border: 1px solid var(--line); padding: .6rem; border-radius: var(--radius); display: flex; flex-direction: column; align-items: center; gap: .3rem; }
+.state-chip { font-size: .8rem; font-weight: 650; padding: .1rem .55rem; border-radius: 99px; border: 1px solid; }
+.state-chip.confirmed { color: var(--ok); border-color: var(--ok); background: var(--ok-bg); }
+.state-chip.pending { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+.state-chip.mismatch { color: var(--alarm); border-color: var(--alarm); background: var(--alarm-bg); }
+.state-chip.unknown { color: var(--muted); border-color: var(--line); background: var(--panel-2); }
+.posbtns { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); gap: .5rem; }
+.posbtns button { min-height: 48px; font-weight: 650; background: var(--field); }
+.posbtns button.sel { border: 2px solid var(--accent); background: var(--accent-bg); }
+.posbtns button.now { color: var(--muted); }
+.log { font-family: var(--mono); font-size: .8rem; display: flex; flex-direction: column; gap: .15rem; max-height: 12rem; overflow: auto; }
+.log .t { color: var(--muted); }
+.alarmrow { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.prio { background: var(--warn); color: var(--panel); font-size: .72rem; font-weight: 700; padding: .1rem .5rem; border-radius: 3px; letter-spacing: .04em; }
+.toast { background: var(--ok-bg); border: 1px solid var(--ok); border-radius: var(--radius); padding: .5rem .8rem; }
+.sym .face.pending { stroke-dasharray: 4 3; fill: var(--field); }
+.sym .face.unknown { fill: var(--panel-2); stroke: var(--muted); }
+.sym .body { fill: var(--sym-face); stroke: var(--sym-line); stroke-width: 2.5; }
+.sym .part-line { stroke: var(--sym-line); stroke-width: 2.5; fill: none; }
+.sym .imp { fill: var(--sym-grip); stroke: var(--sym-ink); stroke-width: 1.5; }
+.sym .act { fill: var(--sym-grip); stroke: var(--sym-ink); stroke-width: 1.5; }
+.sym .level { fill: var(--accent); opacity: .55; }
+.sym .postext { fill: var(--sym-ink); font: 650 13px var(--font); }
+.sym .bigtext { fill: var(--sym-ink); font: 700 16px var(--font); }
+.sym .valtext { fill: var(--sym-ink); font: 700 15px var(--font); }
+.sym .ghosttext { fill: var(--alarm); font: 650 11px var(--font); }
+.sym .spinning { animation: spin 1.6s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sym .spinning { animation: none; } }
+.layout { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.layout > .side { flex: 0 1 270px; min-width: 0; }
+.layout > .main { flex: 999 1 560px; min-width: 0; }
+.symlist { display: flex; flex-direction: column; gap: .4rem; }
+.symlist button { display: flex; gap: .6rem; align-items: center; text-align: left; background: var(--field); padding: .35rem .5rem; }
+.symlist button.sel { border: 2px solid var(--accent); background: var(--accent-bg); }
+.symlist .nm { font-weight: 650; display: block; }
+.symlist .tp { font-size: .78rem; color: var(--muted); }
+.libgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: .5rem; }
+.libgrid button { display: flex; flex-direction: column; align-items: center; gap: .2rem; background: var(--field); padding: .5rem; }
+.libgrid button.sel { border: 2px solid var(--accent); background: var(--accent-bg); }
+.plant { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: .6rem; }
+.plant .symbtn.sel { border: 2px solid var(--accent); }
+.steps button.skip { opacity: .55; font-style: italic; }
+</style>
+
+<div class="topbar" role="tablist" aria-label="Prototype">
+  <span class="brand">HypervisionPLC SCADA</span>
+  <button role="tab" id="tab-guide" data-action="tab" data-tab="guide" aria-selected="true">Bindinger · guide (tekniker)</button>
+  <button role="tab" id="tab-ov" data-action="tab" data-tab="ov" aria-selected="false">Overview (operatør)</button>
+  <span class="note">Prototype · PLC'en er simuleret</span>
+</div>
+
+<main class="wrap">
+  <div id="toast" hidden></div>
+  <div id="guide" class="layout">
+    <aside class="side panel" aria-labelledby="sl-title"><div class="panel-head"><h2 id="sl-title">Symboler i Anlæg A</h2></div><div class="panel-body" id="symlist"></div></aside>
+    <section class="main panel" id="guidepanel" aria-labelledby="g-title"></section>
+  </div>
+  <section id="ov" hidden></section>
+</main>
+
+<script>
+// ===================================================================== tags
+const TAGS = [
+  { name: 'P1_hand_koer', src: 'plc1:coil:10', kind: 'coil', writable: true },
+  { name: 'P1_auto_frigiv', src: 'plc1:coil:11', kind: 'coil', writable: true },
+  { name: 'P1_stop', src: 'plc1:coil:12', kind: 'coil', writable: true },
+  { name: 'P1_start', src: 'plc1:coil:13', kind: 'coil', writable: true },
+  { name: 'V1_aaben', src: 'plc1:coil:30', kind: 'coil', writable: true },
+  { name: 'K1_koer', src: 'plc1:coil:40', kind: 'coil', writable: true },
+  { name: 'Vaelger_bit0', src: 'plc1:coil:20', kind: 'coil', writable: true },
+  { name: 'Vaelger_bit1', src: 'plc1:coil:21', kind: 'coil', writable: true },
+  { name: 'Vaelger_bit2', src: 'plc1:coil:22', kind: 'coil', writable: true },
+  { name: 'Vaelger_bit3', src: 'plc1:coil:23', kind: 'coil', writable: true },
+  { name: 'P1_driftsform', src: 'plc1:hr:40', kind: 'reg', dt: 'uint', writable: true },
+  { name: 'Kedel_mode', src: 'plc1:hr:41', kind: 'reg', dt: 'uint', writable: true },
+  { name: 'P1_offset', src: 'plc1:hr:42', kind: 'reg', dt: 'int', writable: true },
+  { name: 'Kedel_trin', src: 'plc1:hr:43', kind: 'reg', dt: 'uint', writable: true, min: 0, max: 10 },
+  { name: 'P1_hand_di', src: 'plc1:di:10', kind: 'coil', writable: false },
+  { name: 'Vaelger_bit0_di', src: 'plc1:di:20', kind: 'coil', writable: false },
+  { name: 'Vaelger_bit1_di', src: 'plc1:di:21', kind: 'coil', writable: false },
+  { name: 'Vaelger_bit2_di', src: 'plc1:di:22', kind: 'coil', writable: false },
+  { name: 'P1_drift', src: 'plc1:di:15', kind: 'coil', writable: false },
+  { name: 'P1_fejl', src: 'plc1:di:14', kind: 'coil', writable: false },
+  { name: 'V1_aaben_di', src: 'plc1:di:30', kind: 'coil', writable: false },
+  { name: 'T1_hoej', src: 'plc1:di:50', kind: 'coil', writable: false },
+  { name: 'L1_alarm', src: 'plc1:di:51', kind: 'coil', writable: false },
+  { name: 'P1_driftsform_fb', src: 'plc1:ir:12', kind: 'reg', dt: 'uint', writable: false },
+  { name: 'P1_temp', src: 'plc1:ir:30', kind: 'reg', dt: 'int', writable: false },
+  { name: 'T1_niveau', src: 'plc1:ir:50', kind: 'reg', dt: 'uint', writable: false, min: 0, max: 100 },
+];
+const tag = (n) => TAGS.find((t) => t.name === n);
+const DT_RANGE = { uint: [0, 65535], int: [-32768, 32767] };
+const range = (t) => { const [lo, hi] = DT_RANGE[t.dt || 'uint']; return [t.min ?? lo, t.max ?? hi]; };
+const rangeText = (t) => { const [lo, hi] = range(t); return (t.min != null || t.max != null) ? `tal ${lo}–${hi} (tagets min/max)` : `${t.dt || 'uint'} ${lo}–${hi}`; };
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fmtT = (t) => new Date(t).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const isSet = (v) => v != null && v !== '';
+const hide = 'position:absolute;left:-9999px';
+const STEPS = ['Symbol', 'Signaler', 'Kontakter', 'Visning', 'Betjening', 'Test og gem'];
+const STATE_TXT = { confirmed: 'Bekræftet', pending: 'Venter', mismatch: 'Afvigelse', unknown: 'Ukendt', view: 'Visning' };
+const GLYPH = { confirmed: '✓', pending: '…', mismatch: '!', unknown: '?' };
+const ATYPES = { color: 'Farve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', level: 'Niveau', value: 'Værdi' };
+
+// ===================================================================== symbolbibliotek
+// Alle symboler følger samme standard: dele (til animationer), evt. positioner (betjening via kontaktplaner),
+// samme guide i 6 trin og samme tilstandsmærke. Kun tegningen og standardopsætningen er forskellig.
+const LIB = {
+  selector: { label: 'Omskifter', positions: [['Hand', -45], ['0', 0], ['Auto', 45]], angles: true,
+    parts: { bg: 'Baggrund', face: 'Skive', grip: 'Greb', frame: 'Ramme' }, spin: [], level: [], text: [] },
+  startstop: { label: 'Start/stop', positions: [['Stop'], ['Start']],
+    parts: { bg: 'Baggrund', face: 'Knap', text: 'Tekst', frame: 'Ramme' }, spin: [], level: [], text: ['text'] },
+  pump: { label: 'Pumpe', positions: [['Stop'], ['Start']],
+    parts: { bg: 'Baggrund', face: 'Pumpehus', grip: 'Løbehjul', frame: 'Ramme' }, spin: ['grip'], level: [], text: [] },
+  valve: { label: 'Motorventil', positions: [['Lukket'], ['Åben']],
+    parts: { bg: 'Baggrund', face: 'Ventilhus', grip: 'Aktuator', frame: 'Ramme' }, spin: [], level: [], text: [] },
+  tank: { label: 'Tank', positions: null,
+    parts: { bg: 'Baggrund', face: 'Beholder', level: 'Niveau', text: 'Værdi', frame: 'Ramme' }, spin: [], level: ['level'], text: ['text'] },
+  lamp: { label: 'Lampe', positions: null,
+    parts: { bg: 'Baggrund', face: 'Lampe', frame: 'Ramme' }, spin: [], level: [], text: [] },
+};
+const hasPos = (c) => !!LIB[c.type].positions;
+
+let sigSeq = 100;
+const newSignal = (t = '', fb = '') => ({ id: `S${++sigSeq}`, tag: t, fb, write: 'set', ms: 500, rest: '' });
+function newSymbol(type, name) {
+  const L = LIB[type];
+  return { id: `sym${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, type, name,
+    positions: (L.positions || []).map(([label, angle]) => ({ label, angle: angle ?? 0 })),
+    signals: [], planes: [], fault: '', display: 'remote', validateS: 5, alarm: true, confirm: true, anims: [],
+    local: { chosen: 0, at: Date.now() - 60000, by: 'olsen' }, saved: false };
+}
+function seed() {
+  const a = newSymbol('selector', 'P1 driftsform');
+  a.signals = [{ id: 'S1', tag: 'P1_hand_koer', fb: 'P1_hand_di', write: 'set', ms: 500, rest: '' },
+    { id: 'S2', tag: 'P1_auto_frigiv', fb: '', write: 'set', ms: 500, rest: '' },
+    { id: 'S3', tag: 'P1_driftsform', fb: 'P1_driftsform_fb', write: 'set', ms: 500, rest: '' }];
+  a.planes = [{ signal: 'S1', values: [1, 0, 0] }, { signal: 'S2', values: [0, 0, 1] }, { signal: 'S3', values: [1, 0, 2] }];
+  a.fault = 'P1_fejl'; a.display = 'local'; a.local.chosen = 1;
+  a.anims = [{ part: 'bg', type: 'color', src: '@pos', p: { colors: ['#fde2b8', '#e4e4e4', '#cfe8d1'] } },
+    { part: 'face', type: 'color', src: 'P1_temp', p: { th: [{ v: 60, c: '#f0b44a' }, { v: 80, c: '#e06060' }], def: '#e3e3e3' } },
+    { part: 'frame', type: 'blink', src: 'P1_fejl', p: { when: 'on' } }];
+
+  const p = newSymbol('pump', 'Pumpe P1');
+  p.signals = [{ id: 'S1', tag: 'P1_start', fb: 'P1_drift', write: 'set', ms: 500, rest: '' }];
+  p.planes = [{ signal: 'S1', values: [0, 1] }]; p.fault = 'P1_fejl'; p.local.chosen = 1;
+  p.anims = [{ part: 'face', type: 'color', src: 'P1_drift', p: { on: '#7cc47f', off: '#d6d6d6' } },
+    { part: 'grip', type: 'spin', src: 'P1_drift', p: { when: 'on' } },
+    { part: 'frame', type: 'blink', src: 'P1_fejl', p: { when: 'on' } }];
+
+  const v = newSymbol('valve', 'Ventil V1');
+  v.signals = [{ id: 'S1', tag: 'V1_aaben', fb: 'V1_aaben_di', write: 'set', ms: 500, rest: '' }];
+  v.planes = [{ signal: 'S1', values: [0, 1] }]; v.local.chosen = 1;
+  v.anims = [{ part: 'face', type: 'color', src: '@pos', p: { colors: ['#d6d6d6', '#7cc47f'] } }];
+
+  const t = newSymbol('tank', 'Tank T1');
+  t.anims = [{ part: 'level', type: 'level', src: 'T1_niveau', p: { min: 0, max: 100 } },
+    { part: 'level', type: 'color', src: 'T1_niveau', p: { th: [{ v: 90, c: '#e06060' }], def: '#6ea8dc' } },
+    { part: 'text', type: 'value', src: 'T1_niveau', p: { unit: '%', dec: 0 } },
+    { part: 'frame', type: 'blink', src: 'T1_hoej', p: { when: 'on' } }];
+
+  const l = newSymbol('lamp', 'Alarm L1');
+  l.anims = [{ part: 'face', type: 'color', src: 'L1_alarm', p: { on: '#e06060', off: '#d6d6d6' } },
+    { part: 'face', type: 'blink', src: 'L1_alarm', p: { when: 'on' } }];
+
+  const k = newSymbol('startstop', 'Kompressor K1');
+  k.signals = [{ id: 'S1', tag: 'K1_koer', fb: '', write: 'set', ms: 500, rest: '' }];
+  k.planes = [{ signal: 'S1', values: [0, 1] }];
+  k.anims = [{ part: 'face', type: 'color', src: '@pos', p: { colors: ['#d6d6d6', '#7cc47f'] } },
+    { part: 'text', type: 'value', src: '@pos', p: { unit: '', dec: 0 } }];
+  return [a, p, v, t, l, k];
+}
+const symbols = seed();
+let cur = symbols[0];
+let step = 0, tab = 'guide', newType = null;
+
+// ===================================================================== simuleret PLC
+// cmd[tag] = hvad SCADA har skrevet; read[nøgle] = hvad PLC'en melder tilbage (nøgle = tilbagemeldings-tag, ellers kommando-tag).
+const sim = { mode: 'ok', delayS: 1.5, comm: false, cmd: {}, read: {}, log: [],
+  tags: { P1_temp: 42, P1_fejl: 0, T1_niveau: 63, T1_hoej: 0, L1_alarm: 0 } };
+let dialog = { sym: null, open: false, pick: null, msg: '' };
+let ovSel = symbols[0].id;
+const sig = (c, id) => c.signals.find((s) => s.id === id);
+const sigKind = (s) => tag(s?.tag)?.kind;
+const sigName = (s) => (s ? `${s.id} · ${s.tag || 'intet tag'}` : 'intet signal');
+const usedBy = (c, s) => c.planes.map((p, i) => (p.signal === s.id ? i : -1)).filter((i) => i >= 0);
+const rk = (s) => s.fb || s.tag;
+function targets(c, k) {
+  const out = {};
+  c.planes.forEach((p) => { if (sig(c, p.signal) && isSet(p.values[k]) && !(p.signal in out)) out[p.signal] = Number(p.values[k]); });
+  return out;
+}
+function resetSim(c) {
+  if (!hasPos(c)) return;
+  if (c.local.chosen >= c.positions.length) c.local.chosen = 0;
+  const t = targets(c, c.local.chosen);
+  c.signals.forEach((s) => { if (!s.tag) return; const v = t[s.id] ?? 0; sim.read[rk(s)] = v; sim.cmd[s.tag] = s.write === 'pulse' && isSet(s.rest) ? Number(s.rest) : v; });
+}
+symbols.forEach(resetSim);
+function tagValue(name) { return name in sim.read ? sim.read[name] : (sim.tags[name] ?? 0); }
+function remotePos(c) {
+  if (sim.comm || !hasPos(c)) return null;
+  const hits = [];
+  c.positions.forEach((_, j) => {
+    let ok = true, used = 0;
+    c.planes.forEach((p) => { const s = sig(c, p.signal);
+      if (!s || !s.tag || s.write === 'pulse' || !isSet(p.values[j])) return;
+      used++; if (Number(sim.read[rk(s)]) !== Number(p.values[j])) ok = false; });
+    if (ok && used) hits.push(j);
+  });
+  return hits.length === 1 ? hits[0] : null;
+}
+function status(c) {
+  if (!hasPos(c)) return { s: sim.comm ? 'unknown' : 'view', grip: null, r: null };
+  const now = Date.now(), r = remotePos(c), L = c.local;
+  const waiting = now - L.at < c.validateS * 1000;
+  if (sim.comm) return { s: 'unknown', grip: c.display === 'local' ? L.chosen : null, r };
+  if (c.display === 'remote') {
+    if (waiting && r !== L.chosen) return { s: 'pending', grip: r, r };
+    return { s: r == null ? 'unknown' : 'confirmed', grip: r, r };
+  }
+  if (r === L.chosen) return { s: 'confirmed', grip: L.chosen, r };
+  if (waiting) return { s: 'pending', grip: L.chosen, r };
+  return { s: 'mismatch', grip: L.chosen, r };
+}
+const posName = (c, j) => (j == null ? 'ingen position' : (c.positions[j]?.label || `Position ${j + 1}`));
+function logWrite(text) { sim.log.unshift({ t: Date.now(), text }); sim.log = sim.log.slice(0, 50); }
+function plannedWrites(c, k) {
+  return Object.entries(targets(c, k)).map(([id, v]) => ({ s: sig(c, id), v }))
+    .filter((w) => w.s.tag && (w.s.write === 'pulse' || Number(sim.cmd[w.s.tag]) !== w.v))
+    .sort((a, b) => (a.v === 0 ? 0 : 1) - (b.v === 0 ? 0 : 1));
+}
+function operate(c, k) {
+  if (c.fault && Number(tagValue(c.fault))) { dialog = { sym: c.id, open: false, pick: null, msg: `${c.name}: betjening er blokeret — ${c.fault} er aktiv.` }; return; }
+  if (sim.comm) { dialog = { sym: c.id, open: false, pick: null, msg: 'Ingen forbindelse til PLC\'en — intet er skrevet.' }; return; }
+  const writes = plannedWrites(c, k);
+  logWrite(`— ${c.name}: ${posName(c, k)} valgt af olsen (${writes.length} skrivning${writes.length === 1 ? '' : 'er'})`);
+  writes.forEach((w, n) => {
+    sim.cmd[w.s.tag] = w.v;
+    logWrite(`${n + 1}. ${w.s.tag} ← ${w.v}${w.s.write === 'pulse' ? ` (puls ${w.s.ms} ms)` : ''}`);
+    if (w.s.write === 'pulse') setTimeout(() => { sim.cmd[w.s.tag] = Number(w.s.rest); logWrite(`   ${w.s.tag} ← ${w.s.rest} (hvile)`); }, Number(w.s.ms) || 500);
+  });
+  c.local = { chosen: k, at: Date.now(), by: 'olsen' };
+  const mode = sim.mode, n = c.positions.length;
+  setTimeout(() => {
+    if (sim.comm) return;
+    const apply = (t) => Object.entries(t).forEach(([id, v]) => { const s = sig(c, id); if (s && s.write !== 'pulse') sim.read[rk(s)] = v; });
+    if (mode === 'ok') apply(targets(c, k));
+    if (mode === 'wrong') apply(targets(c, (k + 1) % n));
+  }, sim.delayS * 1000);
+  dialog = { sym: c.id, open: false, pick: null, msg: '' };
+}
+function fieldSwitch(c, j) {
+  Object.entries(targets(c, j)).forEach(([id, v]) => { const s = sig(c, id); sim.read[rk(s)] = v; if (s.write !== 'pulse') sim.cmd[s.tag] = v; });
+  logWrite(`— ${c.name}: skiftet ved maskinen til ${posName(c, j)} (ikke fra SCADA)`);
+}
+
+// ===================================================================== animationer
+const srcKind = (src) => (src === '@pos' ? 'pos' : tag(src)?.kind === 'coil' ? 'bool' : 'num');
+function typesFor(c, part) {
+  const L = LIB[c.type], t = ['color', 'blink', 'visible'];
+  if (L.spin.includes(part)) t.push('spin');
+  if (L.level.includes(part)) t.push('level');
+  if (L.text.includes(part)) t.push('value');
+  return t;
+}
+function animDefaults(c, type, kind) {
+  const n = c.positions.length;
+  if (type === 'color') {
+    if (kind === 'bool') return { on: '#7cc47f', off: '#d6d6d6' };
+    if (kind === 'num') return { th: [{ v: 50, c: '#f0b44a' }, { v: 80, c: '#e06060' }], def: '#e3e3e3' };
+    return { colors: Array.from({ length: n }, () => '#e4e4e4') };
+  }
+  if (type === 'level') return { min: 0, max: 100 };
+  if (type === 'value') return { unit: '', dec: 0 };
+  if (kind === 'bool') return { when: 'on' };
+  if (kind === 'num') return { v: 50 };
+  return { set: Array.from({ length: n }, (_, j) => j === 0) };
+}
+function evalAnims(c, posIdx) {
+  const out = {};
+  if (sim.comm) return out;
+  c.anims.forEach((a) => {
+    if (!a.src) return;
+    const kind = srcKind(a.src), v = a.src === '@pos' ? posIdx : tagValue(a.src);
+    if (kind === 'pos' && v == null) return;
+    if (a.only && posIdx != null && !a.only[posIdx]) return;
+    const o = (out[a.part] ||= {});
+    const cond = () => (kind === 'bool' ? (a.p.when === 'on' ? !!Number(v) : !Number(v)) : kind === 'num' ? Number(v) >= Number(a.p.v) : !!a.p.set?.[v]);
+    if (a.type === 'color') {
+      let col;
+      if (kind === 'bool') col = Number(v) ? a.p.on : a.p.off;
+      else if (kind === 'num') { col = a.p.def; (a.p.th || []).forEach((t) => { if (Number(v) >= Number(t.v)) col = t.c; }); }
+      else col = a.p.colors?.[v];
+      o.color = col;
+    }
+    if (a.type === 'blink') o.blink = cond();
+    if (a.type === 'visible') o.hidden = !cond();
+    if (a.type === 'spin') o.spin = cond();
+    if (a.type === 'level') { const lo = Number(a.p.min), hi = Number(a.p.max); o.frac = hi > lo ? Math.max(0, Math.min(1, (Number(v) - lo) / (hi - lo))) : 0; }
+    if (a.type === 'value') o.text = kind === 'bool' ? (Number(v) ? 'Til' : 'Fra') : kind === 'pos' ? posName(c, v) : `${Number(v).toFixed(Number(a.p.dec) || 0)}${a.p.unit ? ' ' + a.p.unit : ''}`;
+  });
+  return out;
+}
+
+// ===================================================================== tegning af symboler
+const colOk = (x) => (/^#[0-9a-fA-F]{3,8}$/.test(x || '') ? x : null);
+function drawSymbol(c, { grip, gripClass = '', ghost = null, badge = null, size = 150, styles = {} }) {
+  const S = (k) => styles[k] || {};
+  const fill = (k) => (colOk(S(k).color) ? ` style="fill:${colOk(S(k).color)}"` : '');
+  const wrap = (k, inner) => `<g class="${S(k).blink ? 'blinking' : ''}"${S(k).blink ? ` style="animation-delay:-${Date.now() % 1000}ms"` : ''}${S(k).hidden ? ' visibility="hidden"' : ''}>${inner}</g>`;
+  const posLbl = grip != null && c.positions[grip] ? c.positions[grip].label : '?';
+  const ghostTxt = ghost != null ? `<text class="ghosttext" x="8" y="156">PLC: ${esc(posName(c, ghost))}</text>` : '';
+  const faceCls = gripClass === 'pending' ? 'pending' : gripClass === 'unknown' ? 'unknown' : '';
+  const faceFill = faceCls ? '' : fill('face');
+  let inner = '';
+  if (c.type === 'selector') {
+    const cx = 70, cy = 80, R = 56;
+    const pt = (deg, r) => { const a = (Number(deg) || 0) * Math.PI / 180; return [cx + r * Math.sin(a), cy - r * Math.cos(a)]; };
+    const lab = c.positions.map((p) => { const [x, y] = pt(p.angle, R); return `<text class="lab" x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle">${esc(p.label)}</text>`; }).join('');
+    const ticks = c.positions.map((p) => { const [x1, y1] = pt(p.angle, 34), [x2, y2] = pt(p.angle, 40); return `<line class="tick" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`; }).join('');
+    const gf = colOk(S('grip').color);
+    const g = (angle, cls, mark = true) => `<g transform="rotate(${angle} ${cx} ${cy})"><rect class="grip ${cls}" x="${cx - 6}" y="${cy - 26}" width="12" height="52" rx="4"${!cls && gf ? ` style="fill:${gf}"` : ''}/>${mark ? `<rect class="grip-mark ${cls === 'unknown' ? 'unknown' : ''}" x="${cx - 3}" y="${cy - 24}" width="6" height="14" rx="2"/>` : ''}</g>`;
+    const gh = ghost != null && c.positions[ghost] ? `<g transform="rotate(${Number(c.positions[ghost].angle) || 0} ${cx} ${cy})"><rect class="ghost" x="${cx - 6}" y="${cy - 26}" width="12" height="52" rx="4"/></g>` : '';
+    const gs = grip != null && c.positions[grip] ? g(Number(c.positions[grip].angle) || 0, gripClass) : g(0, 'unknown', false);
+    inner = wrap('face', `<circle class="face" cx="${cx}" cy="${cy}" r="30"${fill('face')}/>`) + ticks + lab + gh + wrap('grip', gs);
+  } else if (c.type === 'startstop') {
+    const txt = S('text').text ?? posLbl;
+    inner = wrap('face', `<rect class="face ${faceCls}" x="18" y="48" width="104" height="58" rx="10"${faceFill}/>`) + wrap('text', `<text class="bigtext" x="70" y="83" text-anchor="middle">${esc(txt)}</text>`) + (ghost != null ? ghostTxt : '');
+  } else if (c.type === 'pump') {
+    inner = `<rect class="body" x="98" y="40" width="34" height="14" rx="2"/>` + wrap('face', `<circle class="face ${faceCls}" cx="66" cy="74" r="38"${faceFill}/>`)
+      + wrap('grip', `<g class="${S('grip').spin ? 'spinning' : ''}"${S('grip').spin ? ` style="animation-delay:-${Date.now() % 1600}ms"` : ''}><path class="imp" d="M66 46 L90 88 L42 88 Z"${colOk(S('grip').color) ? ` style="fill:${colOk(S('grip').color)}"` : ''}/></g>`)
+      + `<text class="postext" x="66" y="134" text-anchor="middle">${esc(posLbl)}</text>` + ghostTxt;
+  } else if (c.type === 'valve') {
+    inner = `<line class="part-line" x1="4" y1="96" x2="20" y2="96"/><line class="part-line" x1="120" y1="96" x2="136" y2="96"/>`
+      + wrap('face', `<path class="face ${faceCls}" d="M20 70 L70 96 L20 122 Z M120 70 L70 96 L120 122 Z"${faceFill}/>`)
+      + wrap('grip', `<line class="part-line" x1="70" y1="96" x2="70" y2="54"/><rect class="act" x="48" y="28" width="44" height="26" rx="3"${colOk(S('grip').color) ? ` style="fill:${colOk(S('grip').color)}"` : ''}/><text class="postext" x="70" y="46" text-anchor="middle">M</text>`)
+      + `<text class="postext" x="70" y="140" text-anchor="middle">${esc(posLbl)}</text>` + ghostTxt;
+  } else if (c.type === 'tank') {
+    const frac = S('level').frac ?? 0, h = 112 * frac;
+    inner = wrap('face', `<rect class="face" x="34" y="18" width="72" height="120" rx="8"${fill('face')}/>`)
+      + wrap('level', `<rect class="level" x="38" y="${(134 - h).toFixed(1)}" width="64" height="${h.toFixed(1)}" rx="4"${colOk(S('level').color) ? ` style="fill:${colOk(S('level').color)}"` : ''}/>`)
+      + wrap('text', `<text class="valtext" x="70" y="84" text-anchor="middle">${esc(S('text').text ?? '')}</text>`);
+  } else if (c.type === 'lamp') {
+    const rays = [0, 45, 90, 135, 180, 225, 270, 315].map((d) => { const a = d * Math.PI / 180; return `<line class="part-line" x1="${(70 + 38 * Math.cos(a)).toFixed(1)}" y1="${(68 + 38 * Math.sin(a)).toFixed(1)}" x2="${(70 + 48 * Math.cos(a)).toFixed(1)}" y2="${(68 + 48 * Math.sin(a)).toFixed(1)}"/>`; }).join('');
+    inner = rays + wrap('face', `<circle class="face" cx="70" cy="68" r="30"${fill('face')}/>`) + `<rect class="body" x="56" y="104" width="28" height="16" rx="2"/>`;
+  }
+  const bg = wrap('bg', `<rect x="2" y="2" width="136" height="156" rx="8" style="fill:${colOk(S('bg').color) || 'transparent'}"/>`);
+  const frame = wrap('frame', `<rect x="2.5" y="2.5" width="135" height="155" rx="8" style="fill:none;stroke:${colOk(S('frame').color) || (S('frame').blink ? 'var(--alarm)' : 'transparent')};stroke-width:3"/>`);
+  const b = badge && GLYPH[badge] ? `<circle class="badge ${badge}" cx="124" cy="140" r="11"/><text class="glyph ${badge}" x="124" y="145" text-anchor="middle">${GLYPH[badge]}</text>` : '';
+  return `<svg class="sym" viewBox="0 0 140 160" width="${size}" height="${Math.round(size * 160 / 140)}" role="img" aria-label="${esc(c.name)}${hasPos(c) ? ': ' + esc(posName(c, grip)) : ''}${badge && STATE_TXT[badge] ? ', ' + STATE_TXT[badge] : ''}">${bg}${inner}${frame}${b}</svg>`;
+}
+function liveSymbol(c, size) {
+  const st = status(c);
+  const gripClass = st.s === 'pending' ? 'pending' : st.s === 'unknown' ? 'unknown' : '';
+  return { st, html: drawSymbol(c, { grip: st.grip, gripClass, ghost: st.s === 'mismatch' ? st.r : null, badge: st.s, size, styles: evalAnims(c, st.grip) }) };
+}
+
+// ===================================================================== validering
+function validate(c) {
+  const step2 = [], step3 = [], step4 = [], step5 = [], W = [];
+  const P = hasPos(c);
+  if (P) {
+    const labels = c.positions.map((p) => p.label.trim());
+    if (!c.signals.length) step2.push('Tilføj mindst ét signal.');
+    const seen = {};
+    c.signals.forEach((s) => {
+      const t = tag(s.tag);
+      if (!t) { step2.push(`${s.id}: vælg et kommando-tag.`); return; }
+      if (!t.writable) step2.push(`${s.id}: ${t.name} er ikke skrivbart.`);
+      if (seen[s.tag]) step2.push(`${s.id} og ${seen[s.tag]} bruger samme tag ${s.tag}.`); else seen[s.tag] = s.id;
+      if (s.fb && tag(s.fb)?.kind !== t.kind) step2.push(`${s.id}: tilbagemeldingen har en anden type end kommandoen.`);
+      if (!usedBy(c, s).length) W.push(`${s.id} (${s.tag}) bruges ikke af nogen kontaktplan.`);
+    });
+    if (labels.some((l) => !l)) step3.push('Alle positioner skal have et navn.');
+    if (new Set(labels).size !== labels.length) step3.push('To positioner har samme navn.');
+    if (!c.planes.length) step3.push('Opret mindst én kontaktplan.');
+    c.planes.forEach((p, i) => {
+      const nm = `Plan ${i + 1}`, s = sig(c, p.signal), t = tag(s?.tag);
+      if (!s) { step3.push(`${nm}: vælg hvilket signal planet styrer.`); return; }
+      const first = c.planes.findIndex((q) => q.signal === p.signal);
+      if (first !== i) step3.push(`${nm}: ${s.id} styres allerede af plan ${first + 1} — ét signal pr. plan.`);
+      p.values.forEach((v, j) => {
+        if (!isSet(v) || t?.kind !== 'reg') return;
+        const x = Number(v);
+        if (!Number.isInteger(x)) step3.push(`${nm}, ${labels[j] || j + 1}: "${v}" er ikke et heltal.`);
+        else if (x < range(t)[0] || x > range(t)[1]) step3.push(`${nm}, ${labels[j] || j + 1}: ${x} er uden for ${rangeText(t)} for ${s.tag}.`);
+      });
+      const skip = p.values.map((v, j) => (isSet(v) ? null : `"${labels[j]}"`)).filter(Boolean);
+      if (skip.length) W.push(`${nm} røres ikke i ${skip.join(', ')} — ${s.id} beholder værdien fra forrige position.`);
+    });
+    const readable = c.planes.filter((p) => sig(c, p.signal) && sig(c, p.signal).write !== 'pulse');
+    const cols = c.positions.map((_, j) => JSON.stringify(readable.map((p) => (isSet(p.values[j]) ? Number(p.values[j]) : null))));
+    cols.forEach((col, j) => { const k = cols.indexOf(col); if (k !== j) step3.push(`"${labels[k]}" og "${labels[j]}" har ens kontaktmønster og kan ikke skelnes.`); });
+    c.signals.forEach((s) => {
+      if (s.write !== 'pulse') return;
+      const ms = Number(s.ms), vals = c.planes.filter((p) => p.signal === s.id).flatMap((p) => p.values.filter(isSet).map(Number));
+      if (!(ms >= 100 && ms <= 10000)) step5.push(`${s.id}: pulslængde skal være 100–10000 ms.`);
+      if (!isSet(s.rest)) step5.push(`${s.id}: hvileværdien skal sættes.`);
+      else { const r = Number(s.rest), t = tag(s.tag);
+        if (!Number.isInteger(r)) step5.push(`${s.id}: hvileværdien skal være et heltal.`);
+        else if (vals.includes(r)) step5.push(`${s.id}: hvileværdien ${r} er også en positions værdi.`);
+        else if (t?.kind === 'reg' && (r < range(t)[0] || r > range(t)[1])) step5.push(`${s.id}: hvileværdien ${r} er uden for ${rangeText(t)}.`); }
+    });
+    if (c.planes.length && !readable.length) step5.push('Mindst ét plan skal styre et signal der sættes (ikke puls), ellers kan positionen ikke aflæses.');
+    if (!(c.validateS >= 1 && c.validateS <= 120)) step4.push('Valideringstid skal være 1–120 s.');
+  }
+  if (!c.anims.length && !P) step4.push('Et visningssymbol skal have mindst én animation.');
+  c.anims.forEach((a, i) => {
+    const nm = `Animation ${i + 1}`, kind = srcKind(a.src);
+    if (!a.src) { step4.push(`${nm}: vælg hvad der styrer den.`); return; }
+    if (a.src === '@pos' && !P) step4.push(`${nm}: symbolet har ingen positioner.`);
+    if (a.type === 'color' && kind === 'num') {
+      const vs = a.p.th.map((t) => Number(t.v));
+      if (vs.some((x) => !Number.isFinite(x))) step4.push(`${nm}: alle grænser skal være tal.`);
+      else if (vs.some((x, k) => k && x <= vs[k - 1])) step4.push(`${nm}: grænserne skal stige.`);
+    }
+    if (['blink', 'visible', 'spin'].includes(a.type) && kind === 'num' && !Number.isFinite(Number(a.p.v))) step4.push(`${nm}: grænsen skal være et tal.`);
+    if (a.type === 'level' && !(Number(a.p.max) > Number(a.p.min))) step4.push(`${nm}: max skal være større end min.`);
+    if (a.type === 'level' && kind !== 'num') step4.push(`${nm}: niveau kræver et tal-tag.`);
+    if (!typesFor(c, a.part).includes(a.type)) step4.push(`${nm}: ${ATYPES[a.type].toLowerCase()} kan ikke bruges på ${LIB[c.type].parts[a.part]?.toLowerCase()}.`);
+    if (a.only && !a.only.some(Boolean)) W.push(`${nm} gælder ikke i nogen position.`);
+  });
+  return { step2, step3, step4, step5, warnings: W, count: step2.length + step3.length + step4.length + step5.length };
+}
+
+// ===================================================================== guide
+function stepSkipped(c, i) { return !hasPos(c) && (i === 1 || i === 2 || i === 4); }
+function stepsBar(c, v) {
+  const err = [0, v.step2.length, v.step3.length, v.step4.length, v.step5.length, 0];
+  return `<ol class="steps">${STEPS.map((s, i) => `<li><button data-action="step" data-i="${i}" class="${i === step ? 'current' : i < step ? 'done' : ''} ${stepSkipped(c, i) ? 'skip' : ''}" aria-current="${i === step ? 'step' : 'false'}">${i < step && !stepSkipped(c, i) ? '✓ ' : ''}${i + 1} ${s}${err[i] ? '<span class="dot" aria-label="har fejl"></span>' : ''}</button></li>`).join('')}</ol>`;
+}
+function tagOptions(sel, filter, blank) {
+  return (blank ? `<option value="">${blank}</option>` : '') + TAGS.filter(filter).map((t) => `<option value="${t.name}" ${t.name === sel ? 'selected' : ''}>${t.name} · ${t.src} · ${t.kind === 'coil' ? 'til/fra' : 'tal'}</option>`).join('');
+}
+const listMsgs = (arr, cls) => arr.map((m) => `<div class="${cls}">${cls === 'ck-err' ? '✕' : '!'} ${esc(m)}</div>`).join('');
+function activeAt(c, j) {
+  return c.planes.map((p) => { const s = sig(c, p.signal); if (!s || !isSet(p.values[j])) return null;
+    return sigKind(s) === 'coil' ? (Number(p.values[j]) === 1 ? s.id : null) : `${s.id}=${p.values[j]}`; }).filter(Boolean);
+}
+function renderSymList() {
+  document.getElementById('symlist').innerHTML = `<div class="symlist">${symbols.map((c) => `<button data-action="pick-sym" data-id="${c.id}" class="${c === cur && !newType ? 'sel' : ''}">${drawSymbol(c, { grip: hasPos(c) ? c.local.chosen : null, size: 40, styles: evalAnims(c, hasPos(c) ? c.local.chosen : null) })}<span><span class="nm">${esc(c.name)}</span><span class="tp">${LIB[c.type].label}${c.saved ? ' · gemt' : ''}</span></span></button>`).join('')}
+    <button class="ghost" data-action="new-sym" style="justify-content: center">+ Nyt symbol fra biblioteket</button></div>`;
+}
+function renderNewSym() {
+  document.getElementById('guidepanel').innerHTML = `
+    <div class="panel-head"><h2 id="g-title">Nyt symbol · vælg fra biblioteket</h2><span class="small muted">Alle symboler konfigureres med den samme guide. Symboler med positioner kan betjenes; de andre viser kun.</span></div>
+    <div class="panel-body"><div class="libgrid">${Object.entries(LIB).map(([k, L]) => { const demo = newSymbol(k, L.label); return `<button data-action="lib" data-t="${k}" class="${newType === k ? 'sel' : ''}">${drawSymbol(demo, { grip: L.positions ? 0 : null, size: 70 })}<b>${L.label}</b><span class="small muted">${L.positions ? `${L.positions.length} positioner` : 'kun visning'}</span></button>`; }).join('')}</div>
+      <label class="field" for="nsname" style="max-width: 24rem">Navn<input id="nsname" placeholder="fx Pumpe P2"></label></div>
+    <div class="panel-foot"><button data-action="cancel-new">Annullér</button><button class="primary" data-action="create-sym" ${newType ? '' : 'disabled'}>Opret og konfigurér ›</button></div>`;
+}
+function stepBody(c, v) {
+  const P = hasPos(c), L = LIB[c.type];
+  if (step === 0) return `
+    <div class="split">
+      <div class="symbtn" style="flex: 0 0 auto">${drawSymbol(c, { grip: P ? c.local.chosen : null, size: 150, styles: evalAnims(c, P ? c.local.chosen : null) })}</div>
+      <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: .8rem">
+        <label class="field" for="f-name">Symbolets navn (vises på Overview og i audit-loggen)<input id="f-name" data-bind="name" value="${esc(c.name)}"></label>
+        <div class="box"><b>${L.label}</b> · ${P ? `${c.positions.length} positioner — kan betjenes` : 'kun visning'}
+          <div class="small muted">Dele til animationer: ${Object.values(L.parts).join(', ')}.${P ? ' Trin 2: signaler. Trin 3: kontaktplaner der tildeler signalerne til positionerne.' : ' Trin 2, 3 og 5 springes over — animationerne bindes direkte til tags i trin 4.'}</div></div>
+        ${c.type === 'selector' ? '<div class="row"><button data-action="preset">Indlæs eksempel: 7-trins vælger, dec → bin</button><span class="small muted">3 planer, 3 signaler</span></div>' : ''}
+        <div class="row"><button data-action="del-sym" ${symbols.length < 2 ? 'disabled' : ''}>Slet symbol</button></div>
+      </div>
+    </div>`;
+  if (stepSkipped(c, step)) return `<div class="box">${L.label} har ingen positioner, så "${STEPS[step]}" bruges ikke. Gå til <button data-action="step" data-i="3">4 Visning</button></div>`;
+  if (step === 1) return `
+    <p class="muted small" style="margin: 0">De signaler symbolet skal bruge for at sætte og aflæse sine positioner. Hvilke signaler der er aktive i hvilken position, bestemmes i trin 3. Tilbagemelding er valgfri — tom betyder at signalets eget tag læses tilbage.</p>
+    <div class="sigs">
+      <span class="small muted hdr">Signal</span><span class="small muted hdr">Kommando (skrivbart tag)</span><span class="small muted hdr">Tilbagemelding</span><span class="small muted hdr">Bruges af</span><span class="hdr"></span>
+      ${c.signals.map((s, i) => { const kind = sigKind(s), used = usedBy(c, s);
+        return `<span class="lbl">${s.id}</span>
+        <label class="field" for="st-${s.id}"><span style="${hide}">${s.id} kommando</span><select id="st-${s.id}" data-bind="sig-tag" data-i="${i}">${tagOptions(s.tag, (t) => t.writable, s.tag ? '' : '— vælg tag —')}</select></label>
+        <label class="field" for="sf-${s.id}"><span style="${hide}">${s.id} tilbagemelding</span><select id="sf-${s.id}" data-bind="sig-fb" data-i="${i}">${tagOptions(s.fb, (t) => !kind || t.kind === kind, '— samme som kommando —')}</select></label>
+        <span class="small ${used.length ? '' : 'ck-warn'}" style="padding-bottom: .45rem">${used.length ? used.map((x) => `Plan ${x + 1}`).join(', ') : 'ikke brugt endnu'}</span>
+        <button data-action="del-sig" data-i="${i}" aria-label="Fjern ${s.id}">✕</button>`; }).join('')}
+    </div>
+    <div><button class="ghost" data-action="add-sig" ${c.signals.length >= 16 ? 'disabled' : ''}>+ Tilføj signal (${c.signals.length} af 16)</button></div>
+    <label class="field" for="f-fault" style="max-width: 32rem">Fejl/låst (valgfri) — blokerer betjening<select id="f-fault" data-bind="fault">${tagOptions(c.fault, (t) => t.kind === 'coil', '— ingen —')}</select></label>
+    <div class="checks">${v.step2.length ? listMsgs(v.step2, 'ck-err') : '<div class="ck-ok">✓ Alle signaler har et skrivbart kommando-tag</div>'}</div>`;
+  if (step === 2) return `
+    <div class="row"><span class="small muted">Udfyld fra skabelon:</span>
+      <button data-action="tpl" data-t="A">A · Ét register, værdi pr. position</button>
+      <button data-action="tpl" data-t="B">B · Ét signal pr. position</button>
+      <button data-action="tpl" data-t="C">C · Bitmaske</button>
+      <button data-action="tpl" data-t="D">D · Dec → bin</button></div>
+    <div class="tablebox"><table class="matrix">
+      <caption style="${hide}">Kontaktdiagram</caption>
+      <thead><tr><th scope="col">Kontaktplan → signal</th>${c.positions.map((p, j) => `<th scope="col" class="c"><label for="pl-${j}" class="sub">Position ${j + 1}</label><br><input id="pl-${j}" data-bind="pos-label" data-j="${j}" value="${esc(p.label)}" maxlength="20"></th>`).join('')}
+        <th class="c"><button class="ghost" data-action="add-pos" ${c.positions.length >= 8 ? 'disabled' : ''}>+ Position</button></th></tr></thead>
+      <tbody>${c.planes.map((p, i) => { const s = sig(c, p.signal), t = tag(s?.tag);
+        return `<tr><th scope="row"><div class="row" style="flex-wrap: nowrap; gap: .4rem"><b>Plan ${i + 1}</b>
+          <label for="pp-${i}" style="${hide}">Plan ${i + 1} styrer signal</label><select id="pp-${i}" data-bind="plane-sig" data-i="${i}" style="max-width: 13rem"><option value="">— vælg signal —</option>${c.signals.map((x) => `<option value="${x.id}" ${x.id === p.signal ? 'selected' : ''}>${esc(sigName(x))}</option>`).join('')}</select>
+          <button data-action="del-plane" data-i="${i}" aria-label="Fjern plan ${i + 1}" class="small">✕</button></div>
+          <div class="sub">${t ? `${t.src} · ${t.kind === 'coil' ? 'til/fra' : rangeText(t)}` : 'vælg et signal'}</div></th>
+        ${c.positions.map((_, j) => { const val = p.values[j];
+          if (t?.kind === 'coil') { const cls = val === 1 ? 'on' : val === 0 ? 'off' : 'skip'; return `<td class="c"><button class="cell-coil ${cls}" data-action="cycle" data-i="${i}" data-j="${j}" aria-label="Plan ${i + 1}, ${esc(c.positions[j].label)}: ${cls === 'on' ? 'sluttet' : cls === 'off' ? 'brudt' : 'røres ikke'}">${cls === 'on' ? '● Til' : cls === 'off' ? '○ Fra' : '—'}</button></td>`; }
+          if (!t) return `<td class="c muted">·</td>`;
+          return `<td class="c"><input class="cell-num ${isSet(val) ? '' : 'skip'}" id="cv-${i}-${j}" data-bind="cell" data-i="${i}" data-j="${j}" value="${isSet(val) ? esc(val) : ''}" placeholder="—" inputmode="numeric" aria-label="Plan ${i + 1}, ${esc(c.positions[j].label)}"></td>`; }).join('')}
+        <td></td></tr>`; }).join('')}
+        <tr><td><button class="ghost" data-action="add-plane" ${c.planes.length >= 8 ? 'disabled' : ''}>+ Tilføj kontaktplan (${c.planes.length} af 8)</button></td>${c.positions.map((_, j) => `<td class="c"><button data-action="del-pos" data-j="${j}" ${c.positions.length <= 2 ? 'disabled' : ''} aria-label="Fjern ${esc(c.positions[j].label)}" class="small">Fjern</button></td>`).join('')}<td></td></tr>
+        <tr><th scope="row" class="sub">Aktive signaler</th>${c.positions.map((_, j) => `<td class="c sub">${esc(activeAt(c, j).join(' + ') || 'ingen')}</td>`).join('')}<td></td></tr>
+      </tbody></table></div>
+    <div class="split">
+      <div class="checks" style="flex: 1 1 320px">${v.step3.length ? listMsgs(v.step3, 'ck-err') : '<div class="ck-ok">✓ Alle positioner har hvert sit kontaktmønster</div>'}${listMsgs(v.warnings, 'ck-warn')}</div>
+      <div class="small muted" style="flex: 1 1 320px; display: flex; flex-direction: column; gap: .2rem">
+        <div><b>Kontaktplan:</b> styrer ét signal fra trin 2; cellerne siger om kontakten er sluttet i hver position.</div>
+        <div><b>Til/fra-celle:</b> klik for Til → Fra → røres ikke (—). <b>Tal-celle:</b> tom = røres ikke.</div></div>
+    </div>`;
+  if (step === 3) return `
+    ${P ? `<div class="split">
+      <div style="flex: 1 1 460px; display: flex; flex-direction: column; gap: 1rem">
+        <fieldset><legend>Positionen på tegningen følger</legend>
+          <label class="choice"><input type="radio" name="disp" id="d-remote" data-bind="display" value="remote" ${c.display === 'remote' ? 'checked' : ''}><span><b>Remote</b> — PLC'ens tilbagemelding<br><span class="small muted">PLC'en ejer tilstanden, eller symbolet kan også skiftes ved maskinen</span></span></label>
+          <label class="choice"><input type="radio" name="disp" id="d-local" data-bind="display" value="local" ${c.display === 'local' ? 'checked' : ''}><span><b>Lokal</b> — sidst valgte position, straks ved klik<br><span class="small muted">Remote bruges til at validere; afvigelser markeres</span></span></label>
+        </fieldset>
+        <div class="row" style="gap: 1rem">
+          <label class="field" for="f-val">Valideringstid (s)<input id="f-val" data-bind="validateS" type="number" min="1" max="120" value="${c.validateS}" style="width: 6rem"></label>
+          <label class="check" for="f-alarm"><input id="f-alarm" type="checkbox" data-bind="alarm" ${c.alarm ? 'checked' : ''}>Afvigelse giver alarm (medium)</label>
+        </div>
+        ${L.angles ? `<div class="field">Grebets vinkel pr. position (grader)<div class="row">${c.positions.map((p, j) => `<label class="field" for="pa-${j}">${esc(p.label)}<input id="pa-${j}" type="number" min="-150" max="150" data-bind="pos-angle" data-j="${j}" value="${p.angle}" style="width: 5.5rem"></label>`).join('')}</div></div>` : ''}
+      </div>
+      <div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: .5rem">
+        <b>Forhåndsvisning · alle positioner</b>
+        <div class="row">${c.positions.map((_, j) => `<div class="symbtn">${drawSymbol(c, { grip: j, size: 96, styles: evalAnims(c, j) })}<span class="small">${esc(posName(c, j))}</span></div>`).join('')}</div>
+      </div>
+    </div>` : `<div class="split"><div class="symbtn" style="flex: 0 0 auto">${drawSymbol(c, { size: 130, styles: evalAnims(c, null) })}</div><p class="small muted" style="flex: 1 1 260px">Forhåndsvisning med de nuværende værdier. Skift værdierne under Simuleret PLC på Overview.</p></div>`}
+    <div class="checks">${listMsgs(v.step4, 'ck-err')}</div>
+    <div style="border-top: 1px solid var(--line); padding-top: 1rem; display: flex; flex-direction: column; gap: .6rem">
+      <h3>Animationer</h3>
+      <p class="small muted" style="margin: 0">Flere animationer på samme symbol. Hver virker på én del og kan styres af ${P ? 'symbolets position eller ' : ''}et hvilket som helst tag${P ? ', og kan begrænses til bestemte positioner' : ''}.</p>
+      ${animUI(c)}
+    </div>`;
+  if (step === 4) return `
+    <label class="check" for="f-confirm"><input id="f-confirm" type="checkbox" data-bind="confirm" ${c.confirm ? 'checked' : ''}>Operatøren skal bekræfte valget</label>
+    <div class="tablebox"><table style="min-width: 560px">
+      <thead><tr><th scope="col">Signal</th><th scope="col">Skrivemåde</th><th scope="col">Puls (ms)</th><th scope="col">Hvileværdi</th></tr></thead>
+      <tbody>${c.signals.map((s, i) => { const coil = sigKind(s) === 'coil';
+        const restBad = s.write === 'pulse' && v.step5.some((m) => m.startsWith(`${s.id}: hvile`));
+        return `<tr><th scope="row" style="font-weight: 400">${esc(sigName(s))}</th>
+        <td>${coil || !s.tag ? 'Sæt <span class="sub">(altid for til/fra)</span>' : `<label for="sw-${s.id}" style="${hide}">${s.id} skrivemåde</label><select id="sw-${s.id}" data-bind="sig-write" data-i="${i}"><option value="set" ${s.write === 'set' ? 'selected' : ''}>Sæt værdi</option><option value="pulse" ${s.write === 'pulse' ? 'selected' : ''}>Puls</option></select>`}</td>
+        <td>${s.write === 'pulse' ? `<input id="sm-${s.id}" data-bind="sig-ms" data-i="${i}" type="number" value="${esc(s.ms)}" style="width: 6rem" aria-label="${s.id} pulslængde">` : '<span class="muted">—</span>'}</td>
+        <td>${s.write === 'pulse' ? `<input id="sr-${s.id}" class="${restBad ? 'bad' : ''}" data-bind="sig-rest" data-i="${i}" value="${esc(s.rest)}" placeholder="påkrævet" style="width: 7rem" aria-label="${s.id} hvileværdi">` : '<span class="muted">—</span>'}</td></tr>`; }).join('')}</tbody></table></div>
+    <div class="checks">${v.step5.length ? listMsgs(v.step5, 'ck-err') : '<div class="ck-ok">✓ Skrivemåder er gyldige</div>'}</div>
+    <p class="small muted" style="margin: 0">Ved et skift skrives signaler der går mod 0/fra først, derefter resten. Puls-signaler sættes tilbage til hvileværdien og tæller ikke med, når positionen aflæses.</p>`;
+  return `
+    <div class="split">
+      <div style="flex: 1 1 520px; display: flex; flex-direction: column; gap: .8rem">
+        <div class="row" style="justify-content: space-between"><h3>Live-værdier</h3><span class="small muted">fra den simulerede PLC · intet skrives</span></div>
+        <div id="live6"></div>
+        <h3>Advarsler</h3>
+        <div class="checks">${v.count ? `<div class="ck-err">✕ ${v.count} fejl skal rettes før der kan gemmes (se de røde prikker i trinlinjen).</div>` : '<div class="ck-ok">✓ Ingen blokerende fejl</div>'}${listMsgs(v.warnings, 'ck-warn')}</div>
+      </div>
+      <div class="box" style="flex: 1 1 300px">
+        <h3 style="margin-bottom: .6rem">Gemmes som</h3>
+        <dl class="sum">
+          <dt>Symbol</dt><dd>${esc(c.name)} · ${L.label}</dd>
+          ${P ? `<dt>Positioner</dt><dd>${c.positions.map((p) => esc(p.label)).join(' · ')}</dd>
+          <dt>Signaler</dt><dd>${c.signals.length} · ${c.planes.length} kontaktplan${c.planes.length === 1 ? '' : 'er'}</dd>
+          <dt>Positionen følger</dt><dd>${c.display === 'local' ? `Lokal, valideres efter ${c.validateS} s` : 'Remote (PLC)'}</dd>
+          <dt>Betjening</dt><dd>${c.confirm ? 'Bekræftes' : 'Uden bekræftelse'}${c.signals.filter((s) => s.write === 'pulse').map((s) => ` · ${esc(s.id)} puls ${esc(s.ms)} ms, hvile ${esc(s.rest || '?')}`).join('')}</dd>
+          <dt>Fejl/låst</dt><dd>${c.fault ? esc(c.fault) + ' blokerer betjening' : 'Ingen'}</dd>` : ''}
+          <dt>Animationer</dt><dd>${c.anims.length ? c.anims.map((a) => `${L.parts[a.part]}: ${ATYPES[a.type].toLowerCase()} ← ${a.src === '@pos' ? 'position' : esc(a.src)}${a.only && !a.only.every(Boolean) ? ` (kun ${c.positions.filter((_, j) => a.only[j]).map((p) => esc(p.label)).join(', ')})` : ''}`).join('<br>') : 'Ingen'}</dd>
+        </dl>
+      </div>
+    </div>`;
+}
+function animParams(c, a, i) {
+  const kind = srcKind(a.src), Lb = (j) => esc(c.positions[j]?.label);
+  if (!a.src) return '<span class="muted">Vælg først hvad der styrer animationen.</span>';
+  const color = (bind, val, label, k = '') => `<label>${label}<input type="color" id="ac-${bind}-${i}-${k}" data-bind="${bind}" data-i="${i}" data-k="${k}" value="${esc(val)}" aria-label="${label || 'farve'}"></label>`;
+  if (a.type === 'level') return `<label>min<input type="number" id="alo-${i}" data-bind="anim-min" data-i="${i}" value="${esc(a.p.min)}"></label><label>max<input type="number" id="ahi-${i}" data-bind="anim-max" data-i="${i}" value="${esc(a.p.max)}"></label><span class="muted">tom ved min, fuld ved max</span>`;
+  if (a.type === 'value') return kind === 'num' ? `<label>enhed<input id="au-${i}" data-bind="anim-unit" data-i="${i}" value="${esc(a.p.unit)}" style="width: 5rem"></label><label>decimaler<input type="number" id="ad-${i}" data-bind="anim-dec" data-i="${i}" value="${esc(a.p.dec)}" min="0" max="3"></label>` : `<span class="muted">${kind === 'pos' ? 'viser positionens navn' : 'viser Til/Fra'}</span>`;
+  if (a.type === 'color') {
+    if (kind === 'bool') return color('anim-on', a.p.on, 'Til') + color('anim-off', a.p.off, 'Fra');
+    if (kind === 'num') return (a.p.th ||= []).map((t, k) => `<label>≥<input type="number" id="atv-${i}-${k}" data-bind="anim-thv" data-i="${i}" data-k="${k}" value="${esc(t.v)}" aria-label="Grænse ${k + 1}"></label>${color('anim-thc', t.c, '', k)}<button class="small" data-action="anim-th-del" data-i="${i}" data-k="${k}" aria-label="Fjern grænse ${k + 1}" ${a.p.th.length < 2 ? 'disabled' : ''}>✕</button>`).join('<span class="muted">·</span>')
+      + `<button class="ghost small" data-action="anim-th-add" data-i="${i}" ${a.p.th.length >= 5 ? 'disabled' : ''}>+ grænse</button>` + color('anim-def', a.p.def, 'ellers');
+    return c.positions.map((_, j) => color('anim-pc', a.p.colors?.[j] || '#e4e4e4', Lb(j), j)).join('');
+  }
+  const verb = { blink: 'Blinker', visible: 'Synlig', spin: 'Roterer' }[a.type];
+  if (kind === 'bool') return `<label>${verb}<select id="aw-${i}" data-bind="anim-when" data-i="${i}"><option value="on" ${a.p.when === 'on' ? 'selected' : ''}>når Til</option><option value="off" ${a.p.when === 'off' ? 'selected' : ''}>når Fra</option></select></label>`;
+  if (kind === 'num') return `<label>${verb} når ≥<input type="number" id="an-${i}" data-bind="anim-numv" data-i="${i}" value="${esc(a.p.v)}"></label>`;
+  return `<span>${verb} i:</span>` + c.positions.map((_, j) => `<label class="check"><input type="checkbox" id="as-${i}-${j}" data-bind="anim-pset" data-i="${i}" data-k="${j}" ${a.p.set?.[j] ? 'checked' : ''}>${Lb(j)}</label>`).join('');
+}
+function animSrcOptions(c, sel, type) {
+  const numOnly = type === 'level';
+  return (hasPos(c) && !numOnly ? `<option value="@pos" ${sel === '@pos' ? 'selected' : ''}>Symbolets position</option>` : '') + (sel ? '' : '<option value="">— vælg —</option>')
+    + TAGS.filter((t) => !numOnly || t.kind === 'reg').map((t) => `<option value="${t.name}" ${t.name === sel ? 'selected' : ''}>${t.name} · ${t.src} · ${t.kind === 'coil' ? 'til/fra' : 'tal'}</option>`).join('');
+}
+function animUI(c) {
+  const L = LIB[c.type], P = hasPos(c);
+  return `<div class="anims">${c.anims.map((a, i) => `<div class="anim">
+    <div class="head"><span class="no">${i + 1}</span>
+      <label for="apart-${i}" style="${hide}">Del</label><select id="apart-${i}" data-bind="anim-part" data-i="${i}">${Object.entries(L.parts).map(([k, v]) => `<option value="${k}" ${k === a.part ? 'selected' : ''}>${v}</option>`).join('')}</select>
+      <label for="atype-${i}" style="${hide}">Animation</label><select id="atype-${i}" data-bind="anim-type" data-i="${i}">${typesFor(c, a.part).map((k) => `<option value="${k}" ${k === a.type ? 'selected' : ''}>${ATYPES[k]}</option>`).join('')}</select>
+      <span class="small muted">styres af</span>
+      <label for="asrc-${i}" style="${hide}">Styres af</label><select id="asrc-${i}" data-bind="anim-src" data-i="${i}" style="max-width: 18rem">${animSrcOptions(c, a.src, a.type)}</select>
+      <span style="margin-left: auto; display: inline-flex; gap: .3rem"><button class="small" data-action="anim-up" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Flyt op">▲</button><button class="small" data-action="anim-down" data-i="${i}" ${i === c.anims.length - 1 ? 'disabled' : ''} aria-label="Flyt ned">▼</button><button class="small" data-action="anim-del" data-i="${i}" aria-label="Fjern animation ${i + 1}">✕</button></span></div>
+    <div class="params">${animParams(c, a, i)}</div>
+    ${P ? `<div class="params"><span class="muted">Gælder i positionerne:</span>${c.positions.map((p, j) => `<label class="check"><input type="checkbox" id="ao-${i}-${j}" data-bind="anim-only" data-i="${i}" data-k="${j}" ${!a.only || a.only[j] ? 'checked' : ''}>${esc(p.label)}</label>`).join('')}${a.only && !a.only.some(Boolean) ? '<span class="ck-warn">! ingen positioner valgt</span>' : ''}</div>` : ''}</div>`).join('')}
+    <div><button class="ghost" data-action="anim-add" ${c.anims.length >= 12 ? 'disabled' : ''}>+ Tilføj animation</button> <span class="small muted">Står to animationer på samme del, vinder den nederste.</span></div></div>`;
+}
+function renderLive6() {
+  const el = document.getElementById('live6'); if (!el) return;
+  const c = cur;
+  if (!hasPos(c)) {
+    const names = [...new Set(c.anims.map((a) => a.src).filter((n) => n && n !== '@pos'))];
+    el.innerHTML = `<div class="tablebox"><table><thead><tr><th scope="col">Tag</th><th scope="col">Værdi</th></tr></thead><tbody>${names.map((n) => `<tr><th scope="row" style="font-weight: 400">${esc(n)} <span class="sub">${esc(tag(n)?.src)}</span></th><td class="mono">${sim.comm ? '<span class="ck-err">komm.fejl</span>' : esc(Math.round(Number(tagValue(n)) * 10) / 10)}</td></tr>`).join('')}</tbody></table></div>`;
+    return;
+  }
+  const r = remotePos(c);
+  el.innerHTML = `<div class="tablebox"><table style="min-width: 520px"><thead><tr><th scope="col">Signal</th><th scope="col">Kommando</th><th scope="col">Tilbagemelding</th><th scope="col">Passer til</th></tr></thead><tbody>
+    ${c.signals.map((s) => { const planes = c.planes.filter((p) => p.signal === s.id);
+      const fits = c.positions.map((_, j) => (planes.every((p) => !isSet(p.values[j]) || Number(p.values[j]) === Number(sim.read[rk(s)])) ? c.positions[j].label : null)).filter(Boolean);
+      return `<tr><th scope="row" style="font-weight: 400">${esc(sigName(s))}</th><td class="mono">${sim.comm ? '—' : esc(sim.cmd[s.tag] ?? '—')}</td><td class="mono">${sim.comm ? '<span class="ck-err">komm.fejl</span>' : esc(sim.read[rk(s)] ?? '—') + (s.fb ? ` <span class="sub">${esc(s.fb)}</span>` : ' <span class="sub">= kommando</span>')}</td><td>${s.write === 'pulse' ? '<span class="muted">puls — tæller ikke</span>' : !planes.length ? '<span class="muted">ikke brugt</span>' : esc(fits.join(', ') || '—')}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    <div class="box ${r == null ? 'warn' : 'ok'}" style="margin-top: .6rem">${r == null ? '<b>Ingen entydig position</b> — signalerne passer ikke til præcis én kolonne.' : `<b>Fundet position: ${esc(posName(c, r))}</b> — signalerne passer kun til den kolonne.`}</div>`;
+}
+function renderGuide() {
+  renderSymList();
+  if (newType !== null) return renderNewSym();
+  const c = cur, v = validate(c);
+  document.getElementById('guidepanel').innerHTML = `
+    <div class="panel-head">
+      <div class="row" style="justify-content: space-between"><h2 id="g-title">Konfigurér ${esc(c.name)}</h2><span class="small muted">${LIB[c.type].label} · ${c.saved ? 'gemt' : 'intet gemmes før trin 6'}</span></div>
+      ${stepsBar(c, v)}
+    </div>
+    <div class="panel-body">${stepBody(c, v)}</div>
+    <div class="panel-foot">
+      <button data-action="prev" ${step === 0 ? 'disabled' : ''}>‹ Tilbage</button>
+      ${step < 5 ? `<button class="primary" data-action="next">Næste: ${STEPS[nextStep(c, 1)]} ›</button>` : `<button class="primary" data-action="save" ${v.count ? 'disabled' : ''}>Gem konfiguration</button>`}
+    </div>`;
+  renderLive6();
+}
+function nextStep(c, dir) { let s = step + dir; while (s > 0 && s < 5 && stepSkipped(c, s)) s += dir; return Math.max(0, Math.min(5, s)); }
+
+// ===================================================================== Overview
+function renderOv() {
+  document.getElementById('ov').innerHTML = `
+  <div class="split">
+    <section class="panel" style="flex: 999 1 560px" aria-labelledby="ov-title">
+      <div class="panel-head"><div class="row" style="justify-content: space-between"><h2 id="ov-title">Anlæg A · Overview</h2><span class="small muted">Klik et symbol for at se det; symboler med positioner kan betjenes</span></div></div>
+      <div class="panel-body"><div class="plant" id="plant"></div><div id="ov-detail"></div><div id="dialog"></div></div>
+    </section>
+    <section class="panel" style="flex: 1 1 340px" aria-labelledby="sim-title">
+      <div class="panel-head"><h2 id="sim-title">Simuleret PLC</h2><span class="small muted">Tanken fyldes mens pumpen kører.</span></div>
+      <div class="panel-body">
+        <fieldset><legend>Når SCADA skriver</legend>
+          ${[['ok', 'PLC\'en udfører valget'], ['none', 'PLC\'en reagerer ikke'], ['wrong', 'PLC\'en ender i en anden position']].map(([k, t]) => `<label class="choice"><input type="radio" name="simmode" id="smode-${k}" data-bind="sim-mode" value="${k}" ${sim.mode === k ? 'checked' : ''}><span>${t}</span></label>`).join('')}
+          <label class="field" for="sim-delay">Svartid (s)<input id="sim-delay" type="number" min="0" max="20" step="0.5" data-bind="sim-delay" value="${sim.delayS}" style="width: 6rem"></label>
+        </fieldset>
+        <div class="field" id="fieldsw"></div>
+        <label class="check" for="sim-comm"><input id="sim-comm" type="checkbox" data-bind="sim-comm" ${sim.comm ? 'checked' : ''}>Kommunikationsfejl</label>
+        <div class="field">Andre tags<div class="row" style="gap: .8rem 1.2rem" id="simtags"></div></div>
+        <div><b class="small">Skrivelog</b><div class="log" id="log" aria-live="polite"></div></div>
+      </div>
+    </section>
+  </div>
+  <section class="panel" aria-labelledby="al-title"><div class="panel-head"><h2 id="al-title">Alarmer</h2></div><div class="panel-body" id="alarms"></div></section>`;
+  const names = [...new Set(symbols.flatMap((c) => [...c.anims.map((a) => a.src), c.fault]))].filter((n) => n && n !== '@pos' && !(n in sim.read));
+  document.getElementById('simtags').innerHTML = names.map((n) => tag(n)?.kind === 'coil'
+    ? `<label class="check" for="stg-${n}"><input id="stg-${n}" type="checkbox" data-bind="simtag" data-tag="${n}" ${Number(sim.tags[n]) ? 'checked' : ''}>${esc(n)}</label>`
+    : `<label class="field" for="stg-${n}">${esc(n)}<input id="stg-${n}" type="number" data-bind="simtag" data-tag="${n}" value="${esc(Math.round((sim.tags[n] ?? 0) * 10) / 10)}" style="width: 6rem"></label>`).join('');
+  renderFieldSw();
+  renderOvLive();
+}
+function renderFieldSw() {
+  const c = symbols.find((x) => x.id === ovSel), el = document.getElementById('fieldsw'); if (!el) return;
+  el.innerHTML = hasPos(c) ? `Skift ${esc(c.name)} ved maskinen (uden om SCADA)<div class="row">${c.positions.map((p, j) => `<button data-action="field" data-j="${j}">${esc(p.label)}</button>`).join('')}</div>` : `<span class="small muted">${esc(c.name)} har ingen positioner at skifte.</span>`;
+}
+function renderOvLive() {
+  if (tab === 'guide') { renderLive6(); return; }
+  const plant = document.getElementById('plant'); if (!plant) return;
+  if (plant.children.length !== symbols.length) plant.innerHTML = symbols.map((c) => `<button class="symbtn" data-action="ov-sym" data-id="${c.id}" id="ovs-${c.id}"><span class="svg"></span><b class="small">${esc(c.name)}</b><span class="chip"></span></button>`).join('');
+  symbols.forEach((c) => {
+    const b = document.getElementById(`ovs-${c.id}`), { st, html } = liveSymbol(c, 120);
+    b.classList.toggle('sel', c.id === ovSel);
+    const holder = b.querySelector('.svg');
+    if (holder.dataset.html !== html) { holder.innerHTML = html; holder.dataset.html = html; }
+    const chip = `<span class="state-chip ${st.s === 'view' ? 'unknown' : st.s}">${st.s === 'view' ? 'visning' : GLYPH[st.s] + ' ' + STATE_TXT[st.s]}</span>`;
+    const ch = b.querySelector('.chip'); if (ch.innerHTML !== chip) ch.innerHTML = chip;
+  });
+  const c = symbols.find((x) => x.id === ovSel), st = status(c);
+  const det = document.getElementById('ov-detail');
+  if (hasPos(c)) {
+    const left = Math.max(0, c.validateS - (Date.now() - c.local.at) / 1000);
+    det.innerHTML = `<div class="box" style="display: flex; flex-direction: column; gap: .35rem">
+      <div class="row" style="justify-content: space-between"><b>${esc(c.name)}</b><span class="small muted">${c.display === 'local' ? `Lokal visning · valideres efter ${c.validateS} s` : 'Remote visning'}</span></div>
+      <div class="row"><span class="state-chip ${st.s}">${GLYPH[st.s]} ${STATE_TXT[st.s]}</span>${st.s === 'pending' ? `<span class="small muted">${left.toFixed(1)} s tilbage</span>` : ''}</div>
+      <div class="small"><span class="muted">Valgt:</span> <b>${esc(posName(c, c.local.chosen))}</b> <span class="muted">af ${esc(c.local.by)} ${fmtT(c.local.at)}</span> · <span class="muted">PLC viser:</span> <b>${sim.comm ? 'ukendt (komm.fejl)' : esc(posName(c, st.r))}</b></div>
+      ${c.fault && Number(tagValue(c.fault)) ? `<div class="small ck-err">${esc(c.fault)} er aktiv — betjening er blokeret.</div>` : ''}
+      <div><button class="primary" data-action="open-dialog">Betjen ${esc(c.name)}…</button></div></div>`;
+  } else {
+    const names = [...new Set(c.anims.map((a) => a.src).filter((n) => n && n !== '@pos'))];
+    det.innerHTML = `<div class="box small"><b>${esc(c.name)}</b> · kun visning · ${names.map((n) => `${esc(n)} = ${sim.comm ? '?' : esc(Math.round(Number(tagValue(n)) * 10) / 10)}`).join(' · ')}</div>`;
+  }
+  document.getElementById('log').innerHTML = sim.log.length ? sim.log.map((l) => `<div><span class="t">${fmtT(l.t)}</span> ${esc(l.text)}</div>`).join('') : '<span class="muted">Ingen skrivninger endnu</span>';
+  const rows = symbols.filter((x) => x.display === 'local' && x.alarm && status(x).s === 'mismatch');
+  const al = document.getElementById('alarms');
+  const alHtml = rows.length ? rows.map((x) => { const r = status(x).r; return `<div class="alarmrow"><span class="prio">MEDIUM</span><span style="flex: 1 1 240px">${esc(x.name)}: valgt ${esc(posName(x, x.local.chosen))}, PLC viser ${esc(posName(x, r))}</span><button data-action="accept" data-id="${x.id}" ${r == null ? 'disabled' : ''}>${r == null ? 'PLC viser ingen position' : `Acceptér ${esc(posName(x, r))}`}</button></div>`; }).join('') : '<span class="muted small">Ingen aktive alarmer</span>';
+  if (al.dataset.html !== alHtml) { al.innerHTML = alHtml; al.dataset.html = alHtml; }
+  renderDialog();
+}
+function renderDialog() {
+  const el = document.getElementById('dialog'); if (!el) return;
+  const c = symbols.find((x) => x.id === dialog.sym);
+  if (!dialog.open || !c) { el.dataset.rendered = ''; el.innerHTML = dialog.msg ? `<div class="box err small">${esc(dialog.msg)}</div>` : ''; return; }
+  const key = `${c.id}:${dialog.pick}`;
+  if (el.dataset.rendered === key) return;
+  const st = status(c), k = dialog.pick, writes = k == null ? [] : plannedWrites(c, k);
+  el.dataset.rendered = key;
+  el.innerHTML = `<div class="box" role="dialog" aria-labelledby="dlg-t" style="display: flex; flex-direction: column; gap: .7rem; max-width: 36rem">
+    <div class="row" style="justify-content: space-between"><b id="dlg-t">${esc(c.name)} · vælg position</b><button data-action="close-dialog" aria-label="Luk">✕</button></div>
+    <div class="small">Nu: <b>${esc(posName(c, c.display === 'local' ? c.local.chosen : st.r))}</b> <span class="state-chip ${st.s}">${STATE_TXT[st.s]}</span></div>
+    <div class="posbtns" role="radiogroup" aria-label="Position">${c.positions.map((p, j) => `<button role="radio" aria-checked="${j === k}" data-action="pick" data-j="${j}" class="${j === k ? 'sel' : ''} ${j === c.local.chosen ? 'now' : ''}">${esc(p.label)}${j === c.local.chosen ? ' · nu' : ''}</button>`).join('')}</div>
+    ${k != null ? `<div class="small muted">Skriver: ${writes.length ? writes.map((w) => `${esc(w.s.tag)} ← ${w.v}${w.s.write === 'pulse' ? ` (puls ${esc(w.s.ms)} ms)` : ''}`).join(', derefter ') : 'intet — PLC\'en har allerede værdierne'}</div>` : ''}
+    <div class="row" style="justify-content: flex-end"><button data-action="close-dialog">Annullér</button><button class="primary" data-action="do-operate" ${k == null ? 'disabled' : ''}>${k == null ? 'Vælg en position' : `Skift til ${esc(posName(c, k))}`}</button></div>
+  </div>`;
+}
+
+// ===================================================================== skabeloner m.m.
+function signalFor(c, tagName, fb = '') {
+  let s = c.signals.find((x) => x.tag === tagName);
+  if (!s) { s = newSignal(tagName, fb); c.signals.push(s); }
+  return s.id;
+}
+function template(c, t) {
+  const n = c.positions.length;
+  if (t === 'A') c.planes = [{ signal: signalFor(c, 'P1_driftsform', 'P1_driftsform_fb'), values: c.positions.map((_, j) => j) }];
+  if (t === 'B') { const coils = TAGS.filter((x) => x.kind === 'coil' && x.writable).map((x) => x.name);
+    c.planes = c.positions.map((_, i) => ({ signal: i < coils.length ? signalFor(c, coils[i]) : (c.signals.push(newSignal()), c.signals.at(-1).id), values: c.positions.map((__, j) => (i === j ? 1 : 0)) })); }
+  if (t === 'C') c.planes = [{ signal: signalFor(c, 'Kedel_mode'), values: c.positions.map((_, j) => 1 << j) }];
+  if (t === 'D') { const off = c.positions[0]?.label.trim() === '0' ? 0 : 1;
+    const bits = Math.max(1, Math.ceil(Math.log2(n - 1 + off + 1)));
+    c.planes = Array.from({ length: bits }, (_, b) => ({ signal: signalFor(c, `Vaelger_bit${b}`, b < 3 ? `Vaelger_bit${b}_di` : ''), values: c.positions.map((__, j) => ((j + off) >> b) & 1) })); }
+  structural(c);
+}
+function preset(c) {
+  c.name = 'Vælger V1';
+  c.positions = Array.from({ length: 7 }, (_, j) => ({ label: String(j + 1), angle: -90 + j * 30 }));
+  c.signals = [0, 1, 2].map((b) => newSignal(`Vaelger_bit${b}`, `Vaelger_bit${b}_di`));
+  c.planes = c.signals.map((s, b) => ({ signal: s.id, values: c.positions.map((_, j) => ((j + 1) >> b) & 1) }));
+  c.anims = c.anims.filter((a) => a.src !== '@pos');
+  c.local = { chosen: 0, at: Date.now() - 60000, by: 'olsen' };
+  structural(c); step = 2;
+}
+function structural(c) {
+  const n = c.positions.length;
+  c.planes.forEach((p) => { const kind = sigKind(sig(c, p.signal)); p.values.length = n; for (let j = 0; j < n; j++) if (p.values[j] === undefined) p.values[j] = kind === 'coil' ? 0 : null; });
+  c.signals.forEach((s) => { if (sigKind(s) === 'coil') s.write = 'set'; });
+  c.anims.forEach((a) => {
+    if (a.p.colors) { a.p.colors.length = n; for (let j = 0; j < n; j++) a.p.colors[j] ||= '#e4e4e4'; }
+    if (a.p.set) { a.p.set.length = n; for (let j = 0; j < n; j++) a.p.set[j] = !!a.p.set[j]; }
+    if (a.only) { const len = a.only.length; a.only.length = n; for (let j = len; j < n; j++) a.only[j] = true; }
+  });
+  resetSim(c);
+}
+
+// ===================================================================== hændelser
+function setTab(t) {
+  tab = t;
+  document.getElementById('tab-guide').setAttribute('aria-selected', t === 'guide');
+  document.getElementById('tab-ov').setAttribute('aria-selected', t === 'ov');
+  document.getElementById('guide').hidden = t !== 'guide';
+  document.getElementById('ov').hidden = t !== 'ov';
+  if (t === 'ov') renderOv(); else renderGuide();
+}
+function showToast(text) {
+  const el = document.getElementById('toast');
+  el.className = 'toast'; el.textContent = text; el.hidden = false;
+  clearTimeout(showToast.t); showToast.t = setTimeout(() => { el.hidden = true; }, 4000);
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-action]'); if (!b || b.disabled) return;
+  const a = b.dataset.action, i = Number(b.dataset.i), j = Number(b.dataset.j), kk = Number(b.dataset.k), c = cur;
+  if (a === 'tab') return setTab(b.dataset.tab);
+  // Overview
+  if (a === 'ov-sym') { ovSel = b.dataset.id; dialog = { sym: null, open: false, pick: null, msg: '' }; renderFieldSw(); return renderOvLive(); }
+  if (a === 'open-dialog') { dialog = { sym: ovSel, open: true, pick: null, msg: '' }; return renderDialog(); }
+  if (a === 'close-dialog') { dialog = { sym: null, open: false, pick: null, msg: '' }; return renderDialog(); }
+  if (a === 'pick') { const s = symbols.find((x) => x.id === dialog.sym); dialog.pick = j; if (!s.confirm) operate(s, j); return renderOvLive(); }
+  if (a === 'do-operate') { operate(symbols.find((x) => x.id === dialog.sym), dialog.pick); return renderOvLive(); }
+  if (a === 'field') { fieldSwitch(symbols.find((x) => x.id === ovSel), j); return renderOvLive(); }
+  if (a === 'accept') { const s = symbols.find((x) => x.id === b.dataset.id), r = remotePos(s); if (r != null) s.local = { chosen: r, at: Date.now() - s.validateS * 1000, by: 'olsen (accepteret)' }; return renderOvLive(); }
+  // symbolliste og bibliotek
+  if (a === 'pick-sym') { cur = symbols.find((x) => x.id === b.dataset.id); newType = null; step = 0; }
+  if (a === 'new-sym') newType = '';
+  if (a === 'lib') { const nm = document.getElementById('nsname')?.value; newType = b.dataset.t; renderGuide(); document.getElementById('nsname').value = nm || ''; return; }
+  if (a === 'cancel-new') newType = null;
+  if (a === 'create-sym') {
+    const nm = document.getElementById('nsname').value.trim() || `${LIB[newType].label} ${symbols.filter((x) => x.type === newType).length + 1}`;
+    const s = newSymbol(newType, nm);
+    if (hasPos(s)) { s.signals = [newSignal()]; s.planes = [{ signal: s.signals[0].id, values: s.positions.map((_, jj) => (jj === 0 ? 0 : 1)) }]; }
+    symbols.push(s); cur = s; newType = null; step = 0; structural(s);
+  }
+  if (a === 'del-sym') { const k = symbols.indexOf(c); symbols.splice(k, 1); cur = symbols[0]; if (ovSel === c.id) ovSel = cur.id; step = 0; }
+  // guide
+  if (a === 'step') step = i;
+  if (a === 'next') step = nextStep(c, 1);
+  if (a === 'prev') step = nextStep(c, -1);
+  if (a === 'preset') preset(c);
+  if (a === 'add-sig') { c.signals.push(newSignal()); structural(c); }
+  if (a === 'del-sig') { const id = c.signals[i].id; c.signals.splice(i, 1); c.planes.forEach((p) => { if (p.signal === id) p.signal = ''; }); structural(c); }
+  if (a === 'add-plane') { const free = c.signals.find((s) => !usedBy(c, s).length); c.planes.push({ signal: free?.id || '', values: c.positions.map(() => (sigKind(free) === 'coil' ? 0 : null)) }); structural(c); }
+  if (a === 'del-plane') { c.planes.splice(i, 1); structural(c); }
+  if (a === 'add-pos') { c.positions.push({ label: String(c.positions.length + 1), angle: Math.min(150, (Number(c.positions.at(-1)?.angle) || 0) + 30) }); structural(c); }
+  if (a === 'del-pos') { c.positions.splice(j, 1); c.planes.forEach((p) => p.values.splice(j, 1)); c.anims.forEach((x) => { x.p.colors?.splice(j, 1); x.p.set?.splice(j, 1); x.only?.splice(j, 1); }); if (c.local.chosen >= c.positions.length) c.local.chosen = 0; structural(c); }
+  if (a === 'cycle') { const v = c.planes[i].values[j]; c.planes[i].values[j] = v === 1 ? 0 : v === 0 ? null : 1; }
+  if (a === 'tpl') template(c, b.dataset.t);
+  if (a === 'anim-add') { const part = Object.keys(LIB[c.type].parts)[1], src = hasPos(c) ? '@pos' : ''; c.anims.push({ part, type: 'color', src, p: animDefaults(c, 'color', src ? srcKind(src) : 'bool') }); }
+  if (a === 'anim-del') c.anims.splice(i, 1);
+  if (a === 'anim-up' && i > 0) [c.anims[i - 1], c.anims[i]] = [c.anims[i], c.anims[i - 1]];
+  if (a === 'anim-down' && i < c.anims.length - 1) [c.anims[i + 1], c.anims[i]] = [c.anims[i], c.anims[i + 1]];
+  if (a === 'anim-th-add') { const th = c.anims[i].p.th; th.push({ v: (Number(th.at(-1)?.v) || 0) + 10, c: '#e06060' }); }
+  if (a === 'anim-th-del') c.anims[i].p.th.splice(kk, 1);
+  if (a === 'save') { c.saved = true; resetSim(c); showToast(`${c.name} er gemt. Prøv det på Overview.`); ovSel = c.id; return setTab('ov'); }
+  if (tab === 'guide') renderGuide();
+});
+document.addEventListener('change', (e) => {
+  const el = e.target, k = el.dataset.bind; if (!k) return;
+  const i = Number(el.dataset.i), j = Number(el.dataset.j), kk = Number(el.dataset.k), c = cur, an = c.anims[i];
+  if (k === 'simtag') { sim.tags[el.dataset.tag] = tag(el.dataset.tag)?.kind === 'coil' ? (el.checked ? 1 : 0) : Number(el.value) || 0; return renderOvLive(); }
+  if (k === 'sim-mode') { sim.mode = el.value; return; }
+  if (k === 'sim-delay') { sim.delayS = Math.max(0, Number(el.value) || 0); return; }
+  if (k === 'sim-comm') { sim.comm = el.checked; logWrite(sim.comm ? '— kommunikation tabt' : '— kommunikation genoprettet'); return renderOvLive(); }
+  if (k === 'name') c.name = el.value.trim() || LIB[c.type].label;
+  if (k === 'sig-tag') { const s = c.signals[i], was = sigKind(s); s.tag = el.value; const kind = sigKind(s);
+    if (kind !== was) { s.fb = ''; c.planes.forEach((p) => { if (p.signal === s.id) p.values = p.values.map((v, jj) => (kind === 'coil' ? (Number(v) ? 1 : 0) : jj)); }); }
+    structural(c); }
+  if (k === 'sig-fb') { c.signals[i].fb = el.value; resetSim(c); }
+  if (k === 'plane-sig') { const p = c.planes[i], was = sigKind(sig(c, p.signal)); p.signal = el.value; const kind = sigKind(sig(c, p.signal));
+    if (kind !== was) p.values = c.positions.map((_, jj) => (kind === 'coil' ? 0 : jj)); structural(c); }
+  if (k === 'fault') c.fault = el.value;
+  if (k === 'pos-label') c.positions[j].label = el.value;
+  if (k === 'pos-angle') c.positions[j].angle = Number(el.value) || 0;
+  if (k === 'cell') c.planes[i].values[j] = el.value.trim() === '' ? null : el.value.trim();
+  if (k === 'display') c.display = el.value;
+  if (k === 'validateS') c.validateS = Number(el.value);
+  if (k === 'alarm') c.alarm = el.checked;
+  if (k === 'confirm') c.confirm = el.checked;
+  if (k === 'sig-write') { c.signals[i].write = el.value; resetSim(c); }
+  if (k === 'sig-ms') c.signals[i].ms = el.value;
+  if (k === 'sig-rest') { c.signals[i].rest = el.value.trim(); resetSim(c); }
+  if (k === 'anim-part') { an.part = el.value; if (!typesFor(c, an.part).includes(an.type)) { an.type = 'color'; an.p = animDefaults(c, 'color', srcKind(an.src)); } }
+  if (k === 'anim-type') { an.type = el.value; if (an.type === 'level' && srcKind(an.src) !== 'num') an.src = 'T1_niveau'; an.p = animDefaults(c, an.type, srcKind(an.src)); }
+  if (k === 'anim-src') { an.src = el.value; an.p = animDefaults(c, an.type, srcKind(an.src)); }
+  if (k === 'anim-on') an.p.on = el.value;
+  if (k === 'anim-off') an.p.off = el.value;
+  if (k === 'anim-def') an.p.def = el.value;
+  if (k === 'anim-thv') an.p.th[kk].v = el.value;
+  if (k === 'anim-thc') an.p.th[kk].c = el.value;
+  if (k === 'anim-pc') an.p.colors[kk] = el.value;
+  if (k === 'anim-when') an.p.when = el.value;
+  if (k === 'anim-numv') an.p.v = el.value;
+  if (k === 'anim-pset') an.p.set[kk] = el.checked;
+  if (k === 'anim-min') an.p.min = el.value;
+  if (k === 'anim-max') an.p.max = el.value;
+  if (k === 'anim-unit') an.p.unit = el.value;
+  if (k === 'anim-dec') an.p.dec = el.value;
+  if (k === 'anim-only') { an.only ||= c.positions.map(() => true); an.only[kk] = el.checked; }
+  if (tab === 'guide') renderGuide();
+});
+// Simuleret proces: tanken fyldes når pumpen kører, ellers tømmes den langsomt.
+setInterval(() => {
+  if (!sim.comm) {
+    const running = Number(tagValue('P1_drift'));
+    sim.tags.T1_niveau = Math.max(0, Math.min(100, (sim.tags.T1_niveau ?? 0) + (running ? 0.6 : -0.25)));
+    const inp = document.getElementById('stg-T1_niveau');
+    if (inp && document.activeElement !== inp) inp.value = Math.round(sim.tags.T1_niveau);
+  }
+  if (tab === 'ov') renderOvLive(); else if (step === 5) renderLive6();
+}, 250);
+renderGuide();
+</script>
