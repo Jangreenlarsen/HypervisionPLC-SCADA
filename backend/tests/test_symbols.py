@@ -284,3 +284,27 @@ def test_deleting_drawing_removes_symbol_configs(api):
     assert put(api, dec_bin()).status_code == 200
     assert api.delete(f"/api/drawings/{api.did}").status_code == 204
     assert api.delete("/api/tags/Bit0").status_code == 204    # ingen symbol bruger det længere
+
+
+def test_view_contains_symbol_bindings_and_summary(api):
+    cfg = dec_bin(lock={"positions": [False] * 6 + [True], "leave": False},
+                  anims=[{"part": "V1_greb", "type": "rotate", "src": "@pos", "params": {"angles": [0, 10, 20, 30, 40, 50, 60]}},
+                         {"part": "all", "type": "blink", "src": "Lys", "params": {"speed": "slow"}, "only": [True] * 6 + [False]},
+                         {"part": "V1_tekst", "type": "text", "src": "@pos"},
+                         {"part": "V1_findes_ikke_mere", "type": "fill", "src": "Lys"}])
+    # sidste animation peger på en del der ikke findes → afvises ved gem; gem uden den
+    assert put(api, cfg, pin="1234").status_code == 400
+    cfg["anims"].pop()
+    assert put(api, cfg, pin="1234").status_code == 200
+    view = api.get(f"/api/drawings/{api.did}/view").json()
+    sym = [b for b in view["bindings"] if b["source"] == "symbol"]
+    pos = f"sym:{api.did}:V1:pos"
+    assert [(b["element"], b["anim"], b["tag"]) for b in sym] == [
+        ("V1_greb", "rotate", pos), ("V1", "blink", "Lys"), ("V1_tekst", "text", pos)]
+    assert sym[0]["params"]["pos"] is True and sym[0]["params"]["angles"][6] == 60
+    assert sym[1]["params"]["only"][6] is False and sym[1]["params"]["pos_tag"] == pos
+    assert sym[2]["params"]["labels"] == [str(j + 1) for j in range(7)]
+    summary = view["symbol_config"]["V1"]
+    assert summary["op"] == "positions" and summary["labels"][0] == "1" and summary["has_pin"] is True
+    assert summary["lock_positions"][6] is True and summary["pseudo"]["state"] == f"sym:{api.did}:V1:state"
+    assert "1234" not in str(view) and "scrypt" not in str(view)

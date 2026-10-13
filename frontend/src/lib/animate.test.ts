@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBinding, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, segmentsOf, textFor, withDirection } from './animate';
+import { activeFor, applyBinding, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, segmentsOf, textFor, withDirection } from './animate';
 import type { Binding, LiveValue } from './api';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -315,6 +315,78 @@ describe('løbelys med eget retnings-tag', () => {
     applyBinding(rect, b, live(true), undefined, live(false));
     expect(svg.querySelector('.hv-flow line')!.getAttribute('data-hv-dir')).toBe('out');
     applyBinding(rect, b, live(true), undefined, undefined);
+    expect(svg.querySelector('.hv-flow')).toBeNull();
+  });
+});
+
+describe('symbol-animationer (kilde = position, gælder i positionerne, blinkfrekvens, roterer, glidning)', () => {
+  const live = (value: unknown): LiveValue => ({ value, quality: 'good', ts: 0, error: null });
+  const sym = (anim: Binding['anim'], params: Record<string, unknown>): Binding =>
+    ({ element: 'p', tag: 'sym:d:V1:pos', anim, params: { pos: true, ...params }, source: 'symbol' });
+
+  it('farve pr. position; ukendt position = delens egen farve', () => {
+    const r = el('rect');
+    const b = sym('fill', { colors: ['#111111', '#222222', '#333333'] });
+    applyBinding(r, b, live(2));
+    expect((r as SVGElement).style.fill).toBe('rgb(51, 51, 51)');
+    applyBinding(r, b, live(null));
+    expect((r as SVGElement).style.fill).toBe('');
+  });
+  it('værdi viser positionens navn', () => {
+    const t = el('text');
+    t.textContent = '0';
+    applyBinding(t, sym('text', { labels: ['Hand', '0', 'Auto'] }), live(2));
+    expect(t.textContent).toBe('Auto');
+  });
+  it('gælder i positionerne: udenfor vises delen som tegnet; ukendt position slår ikke fra', () => {
+    const r = el('rect');
+    const b: Binding = { element: 'p', tag: 'Lys', anim: 'fill', params: { on: '#00ff00', off: '#cccccc', only: [false, true], pos_tag: 'sym:d:V1:pos' } };
+    applyBinding(r, b, live(true), undefined, undefined, live(1));
+    expect((r as SVGElement).style.fill).toBe('rgb(0, 255, 0)');
+    applyBinding(r, b, live(true), undefined, undefined, live(0));
+    expect((r as SVGElement).style.fill).toBe('');
+    applyBinding(r, b, live(true), undefined, undefined, live(null));
+    expect((r as SVGElement).style.fill).toBe('rgb(0, 255, 0)');
+  });
+  it('blinkfrekvens som klasse; fasen sættes kun når blinket starter', () => {
+    const r = el('rect');
+    const b: Binding = { element: 'p', tag: 'Alarm', anim: 'blink', params: { speed: 'fast' } };
+    applyBinding(r, b, live(true));
+    expect([...r.classList]).toEqual(['hv-blink', 'hv-blink-fast']);
+    const delay = (r as SVGElement).style.animationDelay;
+    expect(delay).toMatch(/^-\d+ms$/);
+    (r as SVGElement).style.animationDelay = '-1ms';
+    applyBinding(r, b, live(true));
+    expect((r as SVGElement).style.animationDelay).toBe('-1ms');   // ikke flyttet ved en ny opdatering
+    applyBinding(r, b, live(false));
+    expect(r.classList.contains('hv-blink')).toBe(false);
+  });
+  it('roterer, "når ≥ X" og pr. position', () => {
+    expect(activeFor(55, { at_least: 50 })).toBe(true);
+    expect(activeFor(49.9, { at_least: 50 })).toBe(false);
+    expect(activeFor(2, { pos: true, set: [false, false, true] })).toBe(true);
+    const r = el('g');
+    applyBinding(r, { element: 'p', tag: 'Drift', anim: 'spin', params: {} }, live(true));
+    expect(r.classList.contains('hv-spin')).toBe(true);
+  });
+  it('Drej/Flyt pr. position glider som CSS-transform; del med egen transform beholder attributten', () => {
+    const r = el('rect');
+    applyBinding(r, sym('rotate', { angles: [-45, 0, 45] }), live(2));
+    expect((r as SVGElement).style.transform).toBe('rotate(45deg)');
+    expect(r.classList.contains('hv-glide')).toBe(true);
+    applyBinding(r, sym('move', { dxs: [0, 32], dys: [0, 0] }), live(1));
+    expect((r as SVGElement).style.transform).toBe('translate(32px, 0px) rotate(45deg)');
+    const t = el('rect', { transform: 'translate(5 5)' });
+    applyBinding(t, sym('move', { dxs: [0, 32], dys: [0, 0] }), live(1));
+    expect(t.getAttribute('transform')).toBe('translate(5 5) translate(32 0)');
+    expect((t as SVGElement).style.transform).toBe('');
+  });
+  it('løbelys pr. position', () => {
+    const rect = el('rect', { width: '90', height: '10' });
+    const svg = el('svg'); svg.appendChild(rect);
+    applyBinding(rect, sym('flow', { dirs: [0, 1, -1] }), live(2));
+    expect(svg.querySelector('.hv-flow line')!.getAttribute('data-hv-dir')).toBe('in');
+    applyBinding(rect, sym('flow', { dirs: [0, 1, -1] }), live(0));
     expect(svg.querySelector('.hv-flow')).toBeNull();
   });
 });

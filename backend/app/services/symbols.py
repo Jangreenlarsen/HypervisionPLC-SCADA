@@ -226,6 +226,45 @@ def needs_pin(cfg: dict[str, Any], shown: int | None, to: int) -> bool:
     return is_locked(to) or (bool(lock.get("leave")) and is_locked(shown) and shown != to)
 
 
+def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: set[str]) -> list[dict[str, Any]]:
+    """Symbolets animationer som almindelige bindinger, så Overview tegner dem med den eksisterende motor
+    (afsnit 7.1). Kilden "position" bliver pseudo-tagget `…:pos` med `params.pos = True`; "gælder i positionerne"
+    bliver `params.only` + `params.pos_tag`. Dele der ikke findes i tegningen, springes over. Rækkefølgen bevares
+    (står flere animationer på samme del, vinder den sidste)."""
+    pos_tag = pseudo_tag(drawing_id, element, "pos")
+    labels = [p["label"] for p in cfg.get("positions", [])]
+    out: list[dict[str, Any]] = []
+    for i, a in enumerate(cfg.get("anims", [])):
+        target = element if a["part"] == "all" else a["part"]
+        if target != element and target not in parts:
+            continue
+        params = {k: v for k, v in (a.get("params") or {}).items() if v is not None}
+        if a["src"] == POS:
+            params["pos"] = True
+            if a["type"] == "text":
+                params["labels"] = labels
+        if a.get("only"):
+            params["only"] = a["only"]
+            params["pos_tag"] = pos_tag
+        out.append({"element": target, "position": 1000 + i, "tag": pos_tag if a["src"] == POS else a["src"],
+                    "anim": a["type"], "params": params, "source": "symbol", "symbol": element})
+    return out
+
+
+def symbol_view(drawing_id: str, element: str, cfg: dict[str, Any], has_pin: bool) -> dict[str, Any]:
+    """Det Overview behøver om et konfigureret symbol (afsnit 6) — aldrig koden, kun om den er sat."""
+    view = {"op": cfg.get("op"), "labels": [p["label"] for p in cfg.get("positions", [])],
+            "display": cfg.get("display"), "confirm": bool(cfg.get("confirm", True)),
+            "lock_positions": (cfg.get("lock") or {}).get("positions") or [],
+            "lock_leave": bool((cfg.get("lock") or {}).get("leave")), "has_pin": has_pin,
+            "fault": cfg.get("fault") or "", "pulse_ms": cfg.get("pulse_ms")}
+    if cfg.get("op") == "positions":
+        view["pseudo"] = {k: pseudo_tag(drawing_id, element, k) for k in PSEUDO_KINDS}
+    if cfg.get("op") in ("pulse", "entry") and cfg.get("signals"):
+        view["tag"] = cfg["signals"][0].get("tag")
+    return view
+
+
 class _TagInfo:
     """Det valideringen behøver om et tag."""
 

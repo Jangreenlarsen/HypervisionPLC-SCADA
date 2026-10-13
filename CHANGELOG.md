@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.35.0 build 0052] — 2026-10-13 — Symbolstandard fase 4–5: Overview og animationer
+
+- `backend/app/services/symbols.py` — `config_bindings()`: symbolets animationer som almindelige bindinger (kilde "position" → pseudo-tag `…:pos` + `params.pos`; "gælder i positionerne" → `params.only` + `pos_tag`; positionsnavne til Værdi); `symbol_view()`: det Overview behøver (betjeningsform, navne, visning, bekræftelse, låste positioner, om kode er sat — aldrig koden).
+- `backend/app/services/drawings.py` — `view()` medtager symbolernes bindinger og `symbol_config`.
+- `frontend/src/lib/animate.ts` — værdier pr. position (farve, synlig/blink/roterer, Drej-vinkel, Flyt dx/dy, løbelysretning, positionsnavn), "gælder i positionerne" (delen vises som tegnet udenfor), "når ≥ X", blinkfrekvens 0,5/1/2 Hz i takt (fase fra uret, sat kun når blinket starter), ny animation Roterer (`spin`), glidende Flyt/Drej som CSS-transform (kun symbol-animationer på dele uden egen transform).
+- `frontend/src/lib/symbolUi.ts` (ny) — klik-regler (`clickAction`, `pickAction`), nøglelås (`needsPin`), knaptekst; `symbolOverlay.ts` (ny) — tilstandsmærke ✓ … ! ?, skygge "PLC: …" ved afvigelse og hængelås i et lag øverst i tegningen.
+- `frontend/src/pages/Overview.svelte` — klik på et konfigureret symbol: 2 positioner uden bekræftelse skifter straks; ellers dialog med positioner (nuværende markeret, låste med hængelås), skriveplan fra serveren, kodefelt ved låst position ("Lås op og skift til …"), "Acceptér <PLC'ens position>" ved afvigelse; trykknap og setpunkt. Serverens fejltekst vises uændret.
+- `frontend/src/pages/Alarms.svelte`, `app.css`, `api.ts` — prioritet Lav; symbolalarmer viser niveauet (Høj/Medium/Lav) og symbolet.
+- `frontend/src/lib/canvas.ts` — `pos_tag` i `bindingTags`; positionens live-værdi sendes til animationerne.
+- Tests: `symbolUi.test.ts` (ny), `animate.test.ts`, `canvas.test.ts`, backend `test_symbols.py` (view). Set i den kørende app i Chromium med mock-PLC: vippekontakt glider 0 → 32 på 0,4 s, omskifter med skriveplan, Afvigelse med skygge og alarm "Høj", accept, låst position med forkert/rigtig kode, trykknap, setpunkt med fejl og ok.
+
 ## [0.34.0 build 0051] — 2026-10-13 — Symbolstandard fase 3: betjening
 
 - `backend/app/services/symbol_operate.py` (ny) — positionsskift efter skriveplanen (kun signaler der ændres; break-before-make: mod 0/Fra først), stop ved første fejl uden tilbagerulning med præcis besked (skrevet / usikkert pga. timeout / ikke skrevet), pulssignaler med hvileværdi som selvstændige opgaver (hvile skrives også ved afbrudt request og ved timeout på værdien), fejl/låst-tag (aktivt eller ukendt blokerer), komm.fejl blokerer, én betjening ad gangen pr. symbol (409), nøglelås med kode (låst mål eller "kode for at forlade"; 3 forkerte → 60 s spærring pr. symbol og bruger; konstant-tids kontrol), accept af PLC'ens position (skriver intet), trykknap og setpunkt. Audit `symbol.operate/.pulse/.entry/.accept/.unlock/.pin_failed` — aldrig koden.

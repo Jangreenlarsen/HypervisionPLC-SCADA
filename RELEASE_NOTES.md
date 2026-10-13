@@ -2,6 +2,18 @@
 
 ---
 
+## v0.35.0 — 2026-10-13 — Symbolstandard, del 4–5: symbolerne på Overview
+
+- Symboler sat op efter den nye standard vises og betjenes nu på Overview:
+  - et mærke viser om positionen er **Bekræftet**, **Venter**, i **Afvigelse** eller **Ukendt** — ved afvigelse står PLC'ens position under symbolet;
+  - en vippekontakt eller start/stop uden bekræftelse skifter med ét klik; andre symboler åbner en dialog med positionerne og viser hvilke signaler der skrives;
+  - låste positioner har en hængelås og kræver koden;
+  - en afvigelse kan accepteres direkte i dialogen;
+  - trykknapper og setpunkt-felter virker som før.
+- Animationerne kan styres af symbolets position (farve, tekst, vinkel, flyt, løbelys pr. position), kan begrænses til udvalgte positioner, kan blinke langsomt/normalt/hurtigt i takt, og kan rotere. Greb og vipper glider til den nye position.
+- Alarmlisten viser niveauet Lav/Medium/Høj for symbolernes afvigelser.
+- Selve opsætningen (guiden under Bindinger) kommer i næste del.
+
 ## v0.34.0 — 2026-10-13 — Symbolstandard, del 3: betjening af symboler
 
 - Serveren kan nu betjene symboler efter den nye standard: et skift skriver kun de signaler der skal ændres, og det der skal slukkes, slukkes før noget tændes.

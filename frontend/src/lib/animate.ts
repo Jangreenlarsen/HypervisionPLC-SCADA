@@ -96,15 +96,41 @@ function setTransformPart(el: Element, part: 'move' | 'rotate', value: string): 
   const base = remember(el, 'transform');
   el.setAttribute(`data-hv-t-${part}`, value);
   const parts = [base, el.getAttribute('data-hv-t-move'), el.getAttribute('data-hv-t-rotate')].filter(Boolean);
-  el.setAttribute('transform', parts.join(' '));
+  if (parts.length) el.setAttribute('transform', parts.join(' '));
+  else el.removeAttribute('transform');
+}
+
+/**
+ * Glidende Flyt/Drej (symbolstandarden): som CSS-transform om delens centrum, så skiftet glider (CSS-transition
+ * .hv-glide) i stedet for at hoppe. Kun på dele uden egen transform-attribut — en CSS-transform ville ellers
+ * erstatte den.
+ */
+function setGlide(el: Element, part: 'move' | 'rotate', value: string): void {
+  el.setAttribute(`data-hv-c-${part}`, value);
+  const st = (el as SVGElement).style;
+  st.transform = [el.getAttribute('data-hv-c-move'), el.getAttribute('data-hv-c-rotate')].filter(Boolean).join(' ');
+  st.transformBox = 'fill-box';
+  st.transformOrigin = 'center';
+  el.classList.add('hv-glide');
+}
+
+const canGlide = (el: Element, p: Record<string, any>) => Boolean(p.pos) && remember(el, 'transform') === null;
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+function moveBy(el: Element, dx: number, dy: number, p: Record<string, any>): void {
+  if (canGlide(el, p)) setGlide(el, 'move', `translate(${r2(dx)}px, ${r2(dy)}px)`);
+  else setTransformPart(el, 'move', `translate(${r2(dx)} ${r2(dy)})`);
 }
 
 function move(el: Element, f: number, dx: number, dy: number): void {
-  const r = (n: number) => Math.round(n * 100) / 100;
-  setTransformPart(el, 'move', `translate(${r(f * dx)} ${r(f * dy)})`);
+  setTransformPart(el, 'move', `translate(${r2(f * dx)} ${r2(f * dy)})`);
 }
 
-function rotate(el: Element, angle: number): void {
+function rotate(el: Element, angle: number, p: Record<string, any> = {}): void {
+  if (canGlide(el, p)) {
+    setGlide(el, 'rotate', `rotate(${r2(angle)}deg)`);
+    return;
+  }
   const g = el as SVGGraphicsElement;
   let cx = 0;
   let cy = 0;
@@ -361,51 +387,165 @@ export function withDirection(state: -1 | 0 | 1, p: Record<string, any>, dirLive
 }
 
 /** `dirLive`: live-værdien af løbelysets retnings-tag, hvis bindingen har et. */
-export function applyBinding(el: Element, b: Binding, live: LiveValue | undefined, meta?: TagMeta, dirLive?: LiveValue): void {
+// Blinkfrekvens (symbolstandarden): periode i ms. Fasen sættes ud fra uret, så alle blink med samme frekvens er i takt.
+export const BLINK_MS: Record<string, number> = { slow: 2000, normal: 1000, fast: 500 };
+
+function setBlink(el: Element, on: boolean, speed = 'normal'): void {
+  const was = el.classList.contains('hv-blink') ? el.getAttribute('data-hv-blink') : null;
+  el.classList.remove('hv-blink-slow', 'hv-blink-fast');
+  if (!on) {
+    el.classList.remove('hv-blink');
+    el.removeAttribute('data-hv-blink');
+    return;
+  }
+  el.classList.add('hv-blink');
+  if (speed !== 'normal') el.classList.add(`hv-blink-${speed}`);
+  if (was !== speed) {
+    // Kun når blinket starter (eller skifter frekvens) — ellers ville hver opdatering flytte fasen
+    (el as SVGElement).style.animationDelay = `-${Date.now() % (BLINK_MS[speed] ?? 1000)}ms`;
+    el.setAttribute('data-hv-blink', speed);
+  }
+}
+
+/** Om en til/fra-agtig animation (synlig, blink, roterer) er aktiv: pr. position, "når ≥ X" eller til/fra. */
+export function activeFor(v: unknown, p: Record<string, any>): boolean {
+  if (p.pos) {
+    const n = toNumber(v);
+    return n !== null && Array.isArray(p.set) && Boolean(p.set[n]);
+  }
+  if (p.at_least !== undefined && p.at_least !== null && typeof v !== 'boolean') {
+    const n = toNumber(v);
+    return n !== null && n >= Number(p.at_least);
+  }
+  return isOn(v) !== Boolean(p.invert);
+}
+
+/** Animationen virker ikke (uden for "gælder i positionerne" eller ukendt position): delen vises som tegnet. */
+function resetAnim(el: Element, anim: string, p: Record<string, any>): void {
+  const st = (el as SVGElement).style;
+  switch (anim) {
+    case 'fill':
+    case 'stroke':
+      paint(el, anim, '');
+      break;
+    case 'visible':
+      st.display = '';
+      break;
+    case 'blink':
+      setBlink(el, false);
+      break;
+    case 'spin':
+      el.classList.remove('hv-spin');
+      break;
+    case 'opacity':
+      st.opacity = '';
+      break;
+    case 'rotate':
+    case 'move':
+      if (el.hasAttribute(`data-hv-c-${anim}`)) setGlide(el, anim, '');
+      else if (el.hasAttribute(`data-hv-t-${anim}`)) setTransformPart(el, anim, '');
+      break;
+    case 'text':
+      if (el.hasAttribute('data-hv-orig-text')) setText(el, el.getAttribute('data-hv-orig-text') ?? '');
+      break;
+    case 'level':
+      for (const a of ['x', 'y', 'width', 'height']) {
+        const orig = el.getAttribute(`data-hv-orig-${a}`);
+        if (orig !== null && orig !== '') el.setAttribute(a, orig);
+      }
+      break;
+    case 'flow':
+      flow(el, 0, p);
+      break;
+  }
+}
+
+/**
+ * `dirLive`: live-værdien af løbelysets retnings-tag; `posLive`: symbolets position (til "gælder i positionerne").
+ * Bindinger fra en symbol-konfiguration med kilden "position" har `params.pos` og værdier pr. position.
+ */
+export function applyBinding(el: Element, b: Binding, live: LiveValue | undefined, meta?: TagMeta, dirLive?: LiveValue,
+  posLive?: LiveValue): void {
   if (b.anim.startsWith('click:')) {
     el.classList.add('hv-clickable');
     return;
   }
   const quality = live?.quality ?? 'unknown';
   el.setAttribute('data-hv-quality', quality);
+  const p = b.params ?? {};
+  if (b.anim === 'text' && !el.hasAttribute('data-hv-orig-text')) {
+    el.setAttribute('data-hv-orig-text', (el.querySelector('tspan') ?? el).textContent ?? '');
+  }
+  // "Gælder i positionerne": kun når positionen er kendt og ikke valgt, er animationen slået fra (som prototypen)
+  const pos = posLive ? toNumber(posLive.value) : null;
+  if (Array.isArray(p.only) && pos !== null && !p.only[pos]) {
+    resetAnim(el, b.anim, p);
+    return;
+  }
   if (!live || live.value === null || live.value === undefined) {
-    if (b.anim === 'text') setText(el, textFor(null, meta, b.params ?? {}));
+    if (p.pos) {
+      resetAnim(el, b.anim, p);   // ukendt position: delen som tegnet
+      return;
+    }
+    if (b.anim === 'text') setText(el, textFor(null, meta, p));
     // Ukendt værdi (fx kommunikationsfejl): løbelyset står stille, så det aldrig viser flow der ikke er der
-    if (b.anim === 'flow') flow(el, 0, b.params ?? {});
+    if (b.anim === 'flow') flow(el, 0, p);
     return;
   }
   const v = live.value;
-  const p = b.params ?? {};
+  const k = p.pos ? toNumber(v) : null;   // positionens indeks når kilden er symbolets position
+  const at = (list: unknown): any => (Array.isArray(list) && k !== null ? list[k] : undefined);
   switch (b.anim) {
     case 'text':
-      setText(el, textFor(v, meta, p));
+      setText(el, p.pos ? String(at(p.labels) ?? '') : textFor(v, meta, p));
       break;
     case 'fill':
-    case 'stroke':
-      paint(el, b.anim, colorFor(v, p));
+    case 'stroke': {
+      const color = p.pos ? at(p.colors) : colorFor(v, p);
+      if (color) paint(el, b.anim, color);
+      else resetAnim(el, b.anim, p);
       break;
+    }
     case 'visible':
-      (el as SVGElement).style.display = isOn(v) !== Boolean(p.invert) ? '' : 'none';
+      (el as SVGElement).style.display = activeFor(v, p) ? '' : 'none';
       break;
     case 'blink':
-      el.classList.toggle('hv-blink', isOn(v) !== Boolean(p.invert));
+      setBlink(el, activeFor(v, p), p.speed ?? 'normal');
+      break;
+    case 'spin':
+      el.classList.toggle('hv-spin', activeFor(v, p));
       break;
     case 'level':
       level(el, fraction(v, p.min, p.max), p.direction ?? 'up');
       break;
     case 'rotate': {
+      if (p.pos) {
+        const a = at(p.angles);
+        if (a === undefined) resetAnim(el, 'rotate', p);
+        else rotate(el, Number(a), p);
+        break;
+      }
       const f = fraction(v, p.min, p.max);
-      rotate(el, (p.angle_min ?? 0) + f * ((p.angle_max ?? 360) - (p.angle_min ?? 0)));
+      rotate(el, (p.angle_min ?? 0) + f * ((p.angle_max ?? 360) - (p.angle_min ?? 0)), p);
       break;
     }
     case 'opacity':
       (el as SVGElement).style.opacity = String(fraction(v, p.min, p.max));
       break;
     case 'move':
+      if (p.pos) {
+        const dx = at(p.dxs), dy = at(p.dys);
+        if (dx === undefined || dy === undefined) resetAnim(el, 'move', p);
+        else moveBy(el, Number(dx), Number(dy), p);
+        break;
+      }
       move(el, fraction(v, p.min, p.max), p.dx ?? 100, p.dy ?? 0);
       break;
-    case 'flow':
-      flow(el, withDirection(flowState(v, p), p, dirLive), p);
+    case 'flow': {
+      let state: -1 | 0 | 1 = p.pos ? (Number(at(p.dirs) ?? 0) as -1 | 0 | 1) : flowState(v, p);
+      if (p.pos && p.reverse && state) state = -state as -1 | 1;
+      flow(el, withDirection(state, p, dirLive), p);
       break;
+    }
   }
 }

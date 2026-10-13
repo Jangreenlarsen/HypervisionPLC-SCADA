@@ -40,6 +40,7 @@ describe('bindingTags / byTag (løbelys med retnings-tag)', () => {
     expect(bindingTags(text)).toEqual(['Pumpe']);
     expect(bindingTags({ ...flow, params: { dir_tag: '' } })).toEqual(['Pumpe']);
     expect(bindingTags({ tag: '', anim: 'click:goto', params: {} })).toEqual([]);
+    expect(bindingTags({ tag: 'Lys', anim: 'fill', params: { pos_tag: 'sym:d:V1:pos' } })).toEqual(['Lys', 'sym:d:V1:pos']);
   });
   it('en ændring på retnings-tagget gentegner løbelyset', () => {
     const map = byTag([flow, text]);
