@@ -94,12 +94,14 @@ Alle skift logges i audit-loggen, og rettigheder, Fejl/låst og validering gæld
 - Koden gemmes som scrypt-hash i backend, kontrolleres kun i backend og sendes aldrig til browseren (CLAUDE.md regel 6). Kun teknikere/admin kan sætte den (skriv-kun, som PLC-adgangskoder).
 - 3 forkerte koder spærrer betjening af symbolet i 60 s (pr. symbol og bruger). Audit-loggen registrerer oplåsning og forkerte forsøg — aldrig selve koden.
 
-## 6. Datamodel (forslag)
+## 6. Datamodel
 
-`symbol_config` pr. (tegning, element): `type`, `positions[]` (label, angle), `signals[]` (id, tag, fb,
+Fastlagt i [SYMBOLSTANDARD_IMPLEMENTERING.md](SYMBOLSTANDARD_IMPLEMENTERING.md) afsnit 3 (tabeller, JSON-skema, grænser) — sammen med API, serverlogik, adgang, backup og faseplan. Kort:
+
+`symbol_config` pr. (tegning, element): `type`, `positions[]` (label; vinkel pr. position ligger i grebets Drej-animation), `signals[]` (id, tag, fb,
 write, ms, rest), `planes[]` (signal, values[] med `null` = røres ikke), `fault`, `display`, `validate_s`,
-`alarm` ('' | low | medium | high), `op` (positions | pulse | entry | view), `pulse_ms`, `entry_tag`, `confirm`, `lock` (positions[], pin_hash, leave), `anims[]` (part, type, src, params, only[]). Den lokale tilstand (sidst valgt, af hvem,
-hvornår) gemmes i `symbol_state`. Afledte værdier (position, tilstand) lægges i live-cachen, så
+`alarm` ('' | low | medium | high), `op` (positions | pulse | entry | view), `pulse_ms`, `confirm`, `lock` (positions[], leave; PIN-hash i egen tabel `symbol_pins`), `anims[]` (part, type, src, params, only[]). Den lokale tilstand (sidst valgt, af hvem,
+hvornår) gemmes i `symbol_state`. Afledte værdier (position, tilstand) lægges i live-cachen som pseudo-tags (`sym:<tegning>:<element>:pos|remote|state|locked`), så
 WebSocket-protokollen er uændret.
 
 ## 7. Test mod symbolbiblioteket i dag (2026-10-13)
