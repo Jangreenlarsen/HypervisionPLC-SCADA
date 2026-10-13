@@ -1381,12 +1381,12 @@ function renderLib() {
   <section class="panel" aria-labelledby="lib-title">
     <div class="panel-head">
       <div class="row" style="justify-content: space-between"><h2 id="lib-title">Symbolbiblioteket i dag · ${all.length} symboler</h2><span class="small muted">Importeret fra frontend/src/lib/symbols.ts</span></div>
-      <div class="row"><span class="state-chip confirmed">✓ ${ok} passer direkte</span><span class="state-chip pending">! ${all.length - ok} kræver en tilføjelse til standarden</span><span class="small muted">${noParts} har ingen navngivne dele</span></div>
+      <div class="row"><span class="state-chip confirmed">✓ alle ${all.length} passer standarden</span><span class="small muted">${ok} direkte, ${all.length - ok} via tilføjelserne fra 2026-10-13</span><span class="small muted">${noParts} har ingen navngivne dele</span></div>
     </div>
     <div class="panel-body">
-      <div class="box warn"><b>Det mangler standarden for at dække alle symboler i dag</b>
+      <div class="box"><b>Tilføjet til standarden 2026-10-13 for at dække alle symboler i dag</b>
         <ul style="margin: .4rem 0 0; padding-left: 1.2rem">${Object.entries(byNeed).map(([n, l]) => `<li><b>${NEED_TXT[n]}</b> — ${l.map(esc).join(', ')}</li>`).join('')}</ul>
-        <div class="small muted" style="margin-top: .4rem">Prototypen har de fire tilføjelser med, så alle symboler kan prøves nu.</div></div>
+        <div class="small muted" style="margin-top: .4rem">Drej og Flyt er animationstyper; Trykknap og Setpunkt er betjeningsformer.</div></div>
       <div class="row"><span class="small muted">Vis:</span>
         <button data-action="lib-filter" data-cat="all" class="${libFilter === 'all' ? 'primary' : ''}">Alle</button>
         ${IMPORT_SRC.categories.map((k) => `<button data-action="lib-filter" data-cat="${k.id}" class="${libFilter === k.id ? 'primary' : ''}">${esc(k.label)}</button>`).join('')}
@@ -1395,7 +1395,7 @@ function renderLib() {
         const t = d.tpl, P = t.op === 'positions', p = P ? 1 % t.positions.length : null;
         return `<div class="impcard">${drawSymbol(t, { grip: p, size: 96, styles: evalAnims(t, p) })}
           <b>${esc(d.def.label)}</b><span class="small muted">${KIND_TXT[t.op]}${P ? ` · ${t.positions.map((x) => esc(x.label)).join('/')}` : ''}</span>
-          ${d.needs.length ? `<span class="state-chip pending">! ${d.needs.map((n) => ATYPES[n] || (n === 'pulse' ? 'Trykknap' : 'Setpunkt')).join(', ')}</span>` : '<span class="state-chip confirmed">✓ passer</span>'}
+          <span class="state-chip confirmed">✓ passer${d.needs.length ? ` · ${d.needs.map((n) => ATYPES[n] || (n === 'pulse' ? 'Trykknap' : 'Setpunkt')).join(', ')}` : ''}</span>
           <span class="small muted">${t.anims.length} animation${t.anims.length === 1 ? '' : 'er'} foreslået</span>
           <details class="small" style="text-align: left; width: 100%"><summary>Detaljer</summary><ul style="margin: .3rem 0 0; padding-left: 1.1rem">${d.notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></details>
           <button data-action="imp-try" data-id="${d.def.id}">Prøv i guiden</button></div>`; }).join('')}</div>`).join('')}
