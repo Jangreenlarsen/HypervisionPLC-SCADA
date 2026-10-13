@@ -2,6 +2,10 @@
 
 ---
 
+## v0.31.1 — 2026-10-13 — Puls efterlader aldrig udgangen tændt
+
+- Hvis PLC'en ikke når at svare på en puls (fx ustabilt net), sætter serveren nu alligevel udgangen til fra, så den ikke kan blive stående tændt. Operatøren får besked om, at pulsen ikke kunne bekræftes.
+
 ## v0.31.0 — 2026-10-13 — Løbelys kan køre begge veje fra to signaler
 
 - Løbelys har fået **"Retning styres af"**: vælg et ekstra til/fra-tag der bestemmer retningen (Fra = som valgt, Til = modsat). Så kan én animation køre begge veje, når PLC'en har start/stop og retning som to separate signaler.

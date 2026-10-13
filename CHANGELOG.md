@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.31.1 build 0045] — 2026-10-13 — fix: puls efterlader aldrig udgangen tændt
+
+- `backend/app/services/operate.py` — `pulse`: ved `PlcUnreachable` på TÆND (udfald ukendt) sendes SLUK alligevel; fejlbesked "Puls kunne ikke bekræftes (udgangen er sat til fra for en sikkerheds skyld)" eller ADVARSEL hvis SLUK også fejler; audit-detalje `on_result`. Eksplicit afvisning fra PLC'en (fx 409) sender ingen SLUK.
+- `backend/mock_plc/app.py` — testkrog `slow_writes`/`slow_write_s`: skrivningen udføres, svaret forsinkes (tabt svar).
+- `backend/tests/test_operate.py` — puls ved timeout på TÆND nulstilles; puls afvist af PLC'en sender intet ekstra.
+
 ## [0.31.0 build 0044] — 2026-10-13 — Løbelys: retning fra et andet tag
 
 - `backend/app/services/bindings.py` — `FlowParams.dir_tag` og `binding_tags()` (bindingens tag + evt. retnings-tag), brugt alle steder der samler en bindings tags:

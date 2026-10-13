@@ -197,7 +197,19 @@ class OperateService:
             async with self._locks.setdefault(tag_name, asyncio.Lock()):
                 try:
                     await self._write_raw(runtime, source, on_raw)
+                except PlcUnreachable as exc:
+                    # Timeout/forbindelsesfejl: PLC'en kan have udført TÆND — kun svaret gik tabt. Send derfor
+                    # SLUK alligevel, så en udgang aldrig efterlades tændt (BUGS v0.27.0 #1).
+                    detail["on_result"] = "ukendt (timeout)"
+                    try:
+                        await self._write_raw(runtime, source, off_raw)
+                    except PlcError as off_exc:
+                        raise _plc_error(off_exc, "ADVARSEL: pulsen kunne ikke bekræftes, og udgangen kunne ikke "
+                                                  "sættes til fra — kontrollér udgangen") from off_exc
+                    raise _plc_error(exc, "Puls kunne ikke bekræftes (udgangen er sat til fra for en sikkerheds "
+                                          "skyld)") from exc
                 except PlcError as exc:
+                    # PLC'en svarede og afviste: TÆND er ikke udført, så der er intet at nulstille
                     raise _plc_error(exc, "Puls kunne ikke startes") from exc
                 try:
                     await asyncio.sleep(ms / 1000)
