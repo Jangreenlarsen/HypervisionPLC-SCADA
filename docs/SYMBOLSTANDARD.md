@@ -12,20 +12,27 @@ Hvert symbol i biblioteket beskriver:
 | Egenskab | Indhold | Eksempel (pumpe) |
 | --- | --- | --- |
 | Dele | Navngivne dele animationer kan virke på | Baggrund, Pumpehus, Løbehjul, Ramme |
-| Positioner | 0 eller 2–8 navngivne positioner. 0 = kun visning | Stop, Start |
+| Betjeningsform | Positioner (2–8 navngivne), Trykknap, Setpunkt eller kun visning | Positioner: Stop, Start |
 | Særlige dele | Hvilke dele der kan rotere, vise niveau eller vise en værdi | Løbehjul kan rotere |
 
-Symboler med positioner kan betjenes; symboler uden positioner (tank, lampe, værdifelt) viser kun.
+Symboler med positioner, trykknapper og setpunkter kan betjenes; øvrige symboler (tank, lampe, værdifelt) viser kun.
+
+**Betjeningsformer** (vedtaget 2026-10-13):
+
+- **Positioner** — 2–8 positioner, signaler og kontaktplaner (trin 2–3). Omskifter, start/stop, ventil.
+- **Trykknap** — ét til/fra-tag sættes til 1 i N ms (100–10000, standard 500) og derefter 0; serveren nulstiller, også hvis browseren lukkes. Ingen position at vise, så intet tilstandsmærke; knappen kan lyse via en animation fra tagget.
+- **Setpunkt** — operatøren indtaster en værdi til ét skrivbart tal-tag; backend afviser værdier uden for tagets min/max (ellers datatypens område) og viser den specifikke fejl. Feltet viser tagets aktuelle værdi.
+- **Kun visning** — ingen betjening.
 Biblioteket i prototypen: omskifter, start/stop, pumpe, motorventil, tank, lampe.
 
 ## 2. Guiden — samme 6 trin for alle symboler
 
-Åbnes ved at klikke symbolet under Bindinger. Intet gemmes før trin 6. Trin 2, 3 og 5 springes over
-for symboler uden positioner.
+Åbnes ved at klikke symbolet under Bindinger. Intet gemmes før trin 6. Trin 2 og 3 springes over
+for andet end Positioner, trin 5 for Kun visning. Trykknap og Setpunkt vælger deres ene tag i trin 1.
 
 | Trin | Indhold |
 | --- | --- |
-| 1 Symbol | Navn, type, dele. Omskifteren kan indlæse eksemplet "7-trins vælger, dec → bin" |
+| 1 Symbol | Navn, type, dele, betjeningsform (og tag for Trykknap/Setpunkt). Omskifteren kan indlæse eksemplet "7-trins vælger, dec → bin" |
 | 2 Signaler | Puljen af signaler symbolet bruger: kommando-tag (skrivbart) og valgfrit tilbagemeldings-tag. Viser hvilken plan der bruger hvert signal. Fejl/låst-tag (valgfrit) blokerer betjening |
 | 3 Kontakter | Kontaktdiagram: kontaktplaner (rækker, 1–8) × positioner (kolonner). Hver plan styrer ét signal; cellen er Til/Fra/røres ikke (til/fra-signal) eller en værdi (register). Række "Aktive signaler" viser hvad hver position sætter. Skabeloner: A ét register, B ét signal pr. position, C bitmaske, D dec → bin |
 | 4 Visning | Positionen følger Remote (PLC'ens tilbagemelding) eller Lokal (sidst valgte, valideret af PLC'en efter N s; afvigelse kan give alarm med valgt niveau: Nej / Lav / Medium (standard) / Høj). Vinkel pr. position (omskifter). **Animationer** (afsnit 4) |
@@ -45,7 +52,9 @@ for symboler uden positioner.
 Et symbol kan have vilkårligt mange animationer (prototypen: 12). Hver animation har:
 
 - **Del** — en af symbolets dele.
-- **Type** — Farve, Blink, Synlig, og hvor delen tillader det Roterer, Niveau og Værdi.
+- **Type** — Farve, Blink, Synlig, Drej, Flyt, og hvor delen tillader det Roterer, Niveau og Værdi.
+  - **Drej**: delen drejes om sit centrum til en vinkel pr. position, eller lineært efter et tal-tag (min/max → vinkel fra/til). Fx omskiftergreb og manometerviser.
+  - **Flyt**: delen forskydes dx/dy pr. position, eller lineært efter et tal-tag. Fx vippekontaktens greb.
 - **Styres af** — symbolets position eller et hvilket som helst tag.
 - **Parametre** efter kilden: til/fra-tag → farve for Til/Fra eller "når Til/Fra"; tal-tag → farve efter stigende grænser + "ellers", eller "når ≥ X"; Niveau → min/max; Værdi → enhed og decimaler; position → farve pr. position eller udvalgte positioner.
 - **Gælder i positionerne** (kun symboler med positioner) — animationen virker kun i de afkrydsede positioner.
@@ -86,7 +95,7 @@ Alle skift logges i audit-loggen, og rettigheder, Fejl/låst og validering gæld
 
 `symbol_config` pr. (tegning, element): `type`, `positions[]` (label, angle), `signals[]` (id, tag, fb,
 write, ms, rest), `planes[]` (signal, values[] med `null` = røres ikke), `fault`, `display`, `validate_s`,
-`alarm` ('' | low | medium | high), `confirm`, `lock` (positions[], pin_hash, leave), `anims[]` (part, type, src, params, only[]). Den lokale tilstand (sidst valgt, af hvem,
+`alarm` ('' | low | medium | high), `op` (positions | pulse | entry | view), `pulse_ms`, `entry_tag`, `confirm`, `lock` (positions[], pin_hash, leave), `anims[]` (part, type, src, params, only[]). Den lokale tilstand (sidst valgt, af hvem,
 hvornår) gemmes i `symbol_state`. Afledte værdier (position, tilstand) lægges i live-cachen, så
 WebSocket-protokollen er uændret.
 
@@ -99,25 +108,25 @@ i dag"). Deres eksisterende `data-hv-auto`/`data-hv-part` oversættes automatisk
 | --- | --- |
 | `click:toggle` | 2 positioner (navne fra `true_text`/`false_text`), ét til/fra-signal, én kontaktplan |
 | `click:select` | Positioner og værdier fra symbolet, ét register, én kontaktplan |
-| `click:pulse` | Trykknap (se forslag) |
-| `click:write` | Setpunkt (se forslag) |
+| `click:pulse` | Betjeningsform Trykknap |
+| `click:write` | Betjeningsform Setpunkt |
 | `fill` på en del | Farve pr. position (eller efter tagget) |
 | `text` på en del | Værdi: positionens navn (eller tagværdien) |
-| `move` / `rotate` på en del | Flyt / Drej pr. position (se forslag) |
+| `move` / `rotate` på en del | Flyt / Drej pr. position eller efter tagget |
 | Ingen bindinger (75 visningssymboler) | Kun visning; animationer foreslås ud fra navngivne dele (`fyld`/`soejle` → Niveau, `rotor` → Roterer, `flamme` → Synlig, `viser` → Drej, `vaerdi` → Værdi), ellers Farve på hele symbolet |
 
-**Resultat:** 76 af 82 passer direkte. 6 kræver en af fire tilføjelser. 63 symboler har ingen navngivne
+**Resultat:** 76 af 82 passede direkte; de sidste 6 dækkes af de fire tilføjelser nedenfor, som nu er en del af standarden (beskrevet i afsnit 1 og 4), så alle 82 passer. 63 symboler har ingen navngivne
 dele, så kun hele symbolet kan animeres; det er nok til farve/blink/synlig, men giver fx ikke mulighed
 for at farve en pumpes løbehjul for sig.
 
-### Foreslåede tilføjelser — afventer beslutning
+### Tilføjelser — vedtaget af Jan 2026-10-13
 
 1. **Drej** (animation): delen drejes om sit centrum til en vinkel pr. position eller lineært efter et tal-tag (min/max → vinkel). Bruges af Omskifter Hånd/0/Auto, Drejeomskifter 0/1 og Manometer.
 2. **Flyt** (animation): delen forskydes dx/dy pr. position eller efter et tag. Bruges af Vippekontakt.
 3. **Trykknap** (betjeningsform): ét til/fra-tag sættes til 1 i N ms og derefter 0 (serveren nulstiller). Standarden siger i dag at til/fra-signaler altid "sættes", så en puls-trykknap kan ikke laves. Bruges af Trykknap (puls).
 4. **Setpunkt** (betjeningsform): fri indtastning af en værdi til ét tal-tag inden for tagets min/max — passer ikke i positionsmodellen. Bruges af Setpunkt-felt.
 
-Prototypen har alle fire med, så de kan prøves. Trin 1 har for importerede symboler et valg
+Prototypen har alle fire med. Trin 1 har for importerede symboler et valg
 "Betjening" (kun visning / positioner / trykknap / setpunkt), så også et visningssymbol som "Knap" kan
 gøres betjenbart.
 

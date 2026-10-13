@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { get, patch, post } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
-  import { CATEGORIES, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
+  import { CATEGORIES, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
 
   let { route = 'draw' }: { route?: string } = $props();
 
@@ -169,15 +169,15 @@
   };
 
   /** Forhåndsvisning: viewBox efter symbolets egen størrelse, så små og store symboler fylder knappen ens. */
-  function fitPreview(svg: SVGSVGElement): void {
+  /** Rør og fittings vises i samme målestok, så rørtykkelsen ser ens ud på tværs af knapperne. */
+  const fitPreview = (id: string) => (svg: SVGSVGElement): void => {
     try {
       const b = (svg.firstElementChild as SVGGraphicsElement).getBBox();
-      const pad = 4 + Math.max(b.width, b.height) * 0.04;
-      svg.setAttribute('viewBox', `${b.x - pad} ${b.y - pad} ${b.width + 2 * pad} ${b.height + 2 * pad}`);
+      svg.setAttribute('viewBox', previewViewBox(b, PIPE_IDS.has(id)));
     } catch {
       // getBBox kan fejle hvis knappen er skjult — standard-viewBox bruges så
     }
-  }
+  };
 
   let selectorLabels = $state('Hånd, 0, Auto');
   let selectorError = $state('');
@@ -313,7 +313,7 @@
             <div class="symbols">
               {#each list as s (s.id)}
                 <button onclick={() => insert(s.id)} disabled={!ready} title={s.hint}>
-                  <svg viewBox="-4 -4 168 152" aria-hidden="true" {@attach fitPreview}>{@html s.svg}</svg>
+                  <svg viewBox="-4 -4 168 152" aria-hidden="true" {@attach fitPreview(s.id)}>{@html s.svg}</svg>
                   <span>{s.label}</span>
                 </button>
               {/each}

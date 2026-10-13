@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CATEGORIES, selectorAngles, selectorSymbol, SYMBOLS, withName } from './symbols';
+import { CATEGORIES, PIPE_IDS, PIPE_PREVIEW, previewViewBox, selectorAngles, selectorSymbol, SYMBOLS, withName } from './symbols';
 
 const parse = (fragment: string) =>
   new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${fragment}</svg>`, 'image/svg+xml');
@@ -87,5 +87,61 @@ describe('withName', () => {
     const g = parse(withName('<g id="a"><rect/></g>', 'A & "B" <c>')).documentElement.firstElementChild!;
     expect(g.getAttribute('data-hv-name')).toBe('A & "B" <c>');
     expect(withName('<g><rect/></g>', 'x'.repeat(80)).match(/data-hv-name="(x+)"/)![1]).toHaveLength(60);
+  });
+});
+
+describe('rør og fittings (v0.28.1)', () => {
+  const size = (vb: string) => Number(vb.split(' ')[2]);
+  it('alle rør-id-er findes i biblioteket', () => {
+    const ids = new Set(SYMBOLS.map((s) => s.id));
+    for (const id of PIPE_IDS) expect(ids.has(id), id).toBe(true);
+  });
+  it('rør og fittings får samme målestok i paletten, uanset deres egen størrelse', () => {
+    const roer = previewViewBox({ x: 0, y: 0, width: 90, height: 10 }, true);
+    const boej = previewViewBox({ x: 0, y: 25, width: 45, height: 20 }, true);
+    const kryds = previewViewBox({ x: 0, y: 0, width: 90, height: 90 }, true);
+    expect(size(roer)).toBe(PIPE_PREVIEW);
+    expect(size(boej)).toBe(PIPE_PREVIEW);
+    expect(size(kryds)).toBe(PIPE_PREVIEW);
+    expect(roer.split(' ')[3]).toBe(String(PIPE_PREVIEW)); // kvadratisk vindue
+  });
+  it('vinduet centreres om symbolet og vokser hvis et rør er længere end standarden', () => {
+    expect(previewViewBox({ x: 0, y: 40, width: 90, height: 10 }, true)).toBe(`-7 -7 ${PIPE_PREVIEW} ${PIPE_PREVIEW}`);
+    expect(size(previewViewBox({ x: 0, y: 0, width: 160, height: 10 }, true))).toBe(174);
+  });
+  it('andre symboler tilpasses stadig deres egen størrelse', () => {
+    expect(previewViewBox({ x: 0, y: 0, width: 100, height: 50 }, false)).toBe('-8 -8 116 66');
+  });
+  it('alle ben på bøjninger, T-stykke og kryds er 45 lange målt fra knæk-/midtpunktet (45,45)', () => {
+    const ends = (id: string): number[][] => {
+      const d = SYMBOLS.find((s) => s.id === id)!.svg.match(/ d="([^"]+)"/)![1];
+      // hver delsti: startpunktet og slutpunktet (H/V/L/A-kommandoernes sidste koordinat)
+      return d.split('M').filter(Boolean).flatMap((sub) => {
+        let x = 0, y = 0; const pts: number[][] = [];
+        const toks = sub.trim().match(/[HVLA]|-?[\d.]+/g)!;
+        x = Number(toks[0]); y = Number(toks[1]); pts.push([x, y]);
+        for (let i = 2; i < toks.length;) {
+          const c = toks[i++];
+          if (c === 'H') x = Number(toks[i++]);
+          else if (c === 'V') y = Number(toks[i++]);
+          else if (c === 'L') { x = Number(toks[i++]); y = Number(toks[i++]); }
+          else if (c === 'A') { i += 5; x = Number(toks[i++]); y = Number(toks[i++]); }
+        }
+        pts.push([x, y]); return pts;
+      });
+    };
+    for (const id of ['boejning90', 'boejning45', 't_stykke', 'kryds']) {
+      const legs = ends(id).map(([x, y]) => Math.hypot(x - 45, y - 45)).filter((l) => l > 1); // midtpunkter (l = 0) tæller ikke
+      for (const l of legs) expect(l, id).toBeCloseTo(45, 1);
+    }
+  });
+  it('bøjningerne er runde og har samme rørtykkelse som de lige rør', () => {
+    for (const id of ['boejning90', 'boejning45']) {
+      const svg = SYMBOLS.find((s) => s.id === id)!.svg;
+      expect(svg, id).toMatch(/ A20 20 /);
+      expect(svg, id).toMatch(/stroke-width="10"/);
+    }
+    for (const id of ['t_stykke', 'kryds']) expect(SYMBOLS.find((s) => s.id === id)!.svg, id).toMatch(/stroke-width="10"/);
+    for (const id of ['roer_v', 'roer_l']) expect(SYMBOLS.find((s) => s.id === id)!.svg, id).toMatch(/(height|width)="10"/);
   });
 });

@@ -53,6 +53,25 @@ const part = (item: object) => `data-hv-part='${JSON.stringify(item)}'`;
 const ON = '#7cc47f';   // tændt/aktiv i betjeningssymboler (lys, så sort tekst kan læses)
 const OFF = '#d6d6d6';
 
+/** Rør og fittings vises i samme målestok i symbolpaletten, så rørtykkelsen (10) ser ens ud (v0.28.1). */
+export const PIPE_IDS = new Set(['roer_v', 'roer_l', 'boejning90', 'boejning45', 't_stykke', 'kryds', 'reduktion', 'prop', 'flange', 'flowpil']);
+/** Rør-symbolernes fælles vindue i paletten: plads til 90 + rørets halve tykkelse på hver side + lidt luft. */
+export const PIPE_PREVIEW = 104;
+
+/**
+ * viewBox til et symbols forhåndsvisning ud fra dets getBBox (som ikke medregner stregbredden).
+ * Rør og fittings: fast målestok centreret om symbolet. Andre: tilpasset symbolets egen størrelse.
+ */
+export function previewViewBox(b: { x: number; y: number; width: number; height: number }, pipe: boolean): string {
+  if (pipe) {
+    const size = Math.max(PIPE_PREVIEW, b.width + 14, b.height + 14);
+    const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+    return `${cx - size / 2} ${cy - size / 2} ${size} ${size}`;
+  }
+  const pad = 4 + Math.max(b.width, b.height) * 0.04;
+  return `${b.x - pad} ${b.y - pad} ${b.width + 2 * pad} ${b.height + 2 * pad}`;
+}
+
 export const SYMBOLS: SymbolDef[] = [
   // ---------------------------------------------------------------- Betjening
   {
@@ -151,11 +170,11 @@ export const SYMBOLS: SymbolDef[] = [
   // ---------------------------------------------------------------- Rør og fittings
   {
     id: 'roer_v', label: 'Rør (vandret)', category: 'vvs', hint: 'Træk i enderne for at forlænge',
-    svg: `<g><rect x="0" y="0" width="160" height="10" fill="${LINE}"/></g>`,
+    svg: `<g><rect x="0" y="0" width="90" height="10" fill="${LINE}"/></g>`,
   },
   {
     id: 'roer_l', label: 'Rør (lodret)', category: 'vvs', hint: 'Træk i enderne for at forlænge',
-    svg: `<g><rect x="0" y="0" width="10" height="160" fill="${LINE}"/></g>`,
+    svg: `<g><rect x="0" y="0" width="10" height="90" fill="${LINE}"/></g>`,
   },
   {
     id: 'boejning90', label: 'Bøjning 90°', category: 'vvs', hint: 'Rotér/spejl i Tegn for at vende den',
@@ -163,7 +182,9 @@ export const SYMBOLS: SymbolDef[] = [
   },
   {
     id: 'boejning45', label: 'Bøjning 45°', category: 'vvs', hint: 'Rotér/spejl i Tegn for at vende den',
-    svg: `<g>${pipe('M0 45 H30 L60 15', 'round')}</g>`,
+    // Rund bøjning med samme radius (20 i centerlinjen) som Bøjning 90°. Knækpunktet er (45,45), og begge ben er 45
+    // lange som på de andre fittings (v0.28.2)
+    svg: `<g>${pipe('M0 45 H36.72 A20 20 0 0 0 50.86 39.14 L76.82 13.18')}</g>`,
   },
   {
     id: 't_stykke', label: 'T-stykke', category: 'vvs', hint: 'Rotér i Tegn for at vende afgreningen',
