@@ -490,6 +490,29 @@
                   <button onclick={() => { d.thresholds = [...d.thresholds, { value: '', color: '#b26a00' }]; changed(); }}>+ Tærskel</button>
                 {:else if d.anim === 'visible' || d.anim === 'blink'}
                   <label class="check"><input type="checkbox" bind:checked={d.invert} onchange={changed} /> Omvendt (aktiv når værdien er falsk)</label>
+                {:else if d.anim === 'flow'}
+                  <div class="grid-form">
+                    <label>Styres af tagget
+                      <select bind:value={d.mode} onchange={changed}>
+                        <option value="onoff">Til/fra — kører når til, fast retning</option>
+                        <option value="signed">Fortegn — over 0 frem, under 0 tilbage, 0 stop</option>
+                        <option value="code">Kode — 0 stop, 1 frem, 2 tilbage</option>
+                      </select>
+                    </label>
+                    <label>Farve 1 (røret)
+                      <span class="row"><input type="color" value={toHex(d.base)} oninput={(e) => { d.base = e.currentTarget.value; changed(); }} /><input bind:value={d.base} oninput={changed} /></span>
+                    </label>
+                    <label>Farve 2 (lyset)
+                      <span class="row"><input type="color" value={toHex(d.light)} oninput={(e) => { d.light = e.currentTarget.value; changed(); }} /><input bind:value={d.light} oninput={changed} /></span>
+                    </label>
+                    <label>Hastighed (enheder/s)<input bind:value={d.speed} oninput={changed} inputmode="decimal" title="5-500 tegningsenheder pr. sekund" /></label>
+                    <label>Streglængde<input bind:value={d.dash} oninput={changed} inputmode="decimal" title="Længden af hver lys og mørk streg (2-200)" /></label>
+                  </div>
+                  <label class="check"><input type="checkbox" bind:checked={d.reverse} onchange={changed} /> Vend retningen (frem = modsat tegneretningen)</label>
+                  {#if d.mode === 'onoff'}
+                    <label class="check"><input type="checkbox" bind:checked={d.invert} onchange={changed} /> Omvendt (kører når værdien er falsk)</label>
+                  {/if}
+                  <p class="small muted">Lyset løber langs elementets tegneretning (for et lige rør: mod højre/nedad). Står stille ved stop og når værdien er ukendt.</p>
                 {:else}
                   <div class="grid-form">
                     <label>Min<input bind:value={d.min} oninput={changed} inputmode="decimal" /></label>

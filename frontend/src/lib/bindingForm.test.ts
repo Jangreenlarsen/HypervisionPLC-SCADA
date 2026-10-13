@@ -110,3 +110,24 @@ describe('click:select', () => {
     expect(() => fromForm({ ...base, positions: [{ value: '1', label: 'a' }] })).toThrow('2-8');
   });
 });
+
+describe('løbelys-formular', () => {
+  const f = () => ({ ...emptyForm('Pumpe', 'flow') });
+  it('standardværdier giver gyldige parametre', () => {
+    expect(fromForm(f()).params).toEqual({ mode: 'onoff', reverse: false, invert: false, base: '#555555', light: '#8fc8ea', speed: 40, dash: 12 });
+  });
+  it('omvendt gælder kun for til/fra', () => {
+    expect(fromForm({ ...f(), mode: 'signed', invert: true }).params.invert).toBe(false);
+    expect(fromForm({ ...f(), mode: 'onoff', invert: true }).params.invert).toBe(true);
+  });
+  it('fejl med danske beskeder', () => {
+    expect(() => fromForm({ ...f(), speed: '1' })).toThrow('Hastighed skal være 5-500');
+    expect(() => fromForm({ ...f(), dash: '' })).toThrow('Streglængde skal udfyldes');
+    expect(() => fromForm({ ...f(), light: '#555555' })).toThrow('forskellige');
+    expect(() => fromForm({ ...f(), light: '  ' })).toThrow('begge farver');
+  });
+  it('round-trip via toForm', () => {
+    const p = { mode: 'code', reverse: true, invert: false, base: '#111111', light: '#eeeeee', speed: 80, dash: 6 };
+    expect(fromForm(toForm({ tag: 'Pumpe', anim: 'flow', params: p })).params).toEqual(p);
+  });
+});

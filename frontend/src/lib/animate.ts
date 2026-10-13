@@ -119,6 +119,103 @@ function rotate(el: Element, angle: number): void {
   setTransformPart(el, 'rotate', `rotate(${r(angle)} ${r(cx)} ${r(cy)})`);
 }
 
+/**
+ * Løbelysets tilstand ud fra tagværdien: 1 = frem (langs tegneretningen), -1 = tilbage, 0 = stop.
+ * `mode`: onoff (til = kør, fast retning), signed (> 0 frem, < 0 tilbage, 0 stop) eller code (0 stop,
+ * 1 frem, 2 tilbage; alt andet = stop). `reverse` vender retningen i alle tilstande.
+ */
+export function flowState(value: unknown, p: Record<string, any> = {}): -1 | 0 | 1 {
+  let dir: -1 | 0 | 1 = 0;
+  const n = toNumber(value);
+  if (p.mode === 'signed') dir = n === null || n === 0 ? 0 : n > 0 ? 1 : -1;
+  else if (p.mode === 'code') dir = n === 1 ? 1 : n === 2 ? -1 : 0;
+  else dir = value !== null && value !== undefined && isOn(value) !== Boolean(p.invert) ? 1 : 0;
+  return dir !== 0 && p.reverse ? (-dir as -1 | 1) : dir;
+}
+
+/** Stiplet kopi (lyset) til hvert element der løber — nøgle: det bundne element. */
+const flowLayers = new WeakMap<Element, SVGGElement>();
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** De figurer lyset tegnes på: streger kopieres; et udfyldt <rect> (lige rør) får en streg ad sin midterlinje. */
+function flowDash(shape: Element): SVGElement | null {
+  const tag = shape.tagName;
+  if (tag === 'rect') {
+    const n = (a: string) => parseFloat(shape.getAttribute(a) ?? '0') || 0;
+    const [x, y, w, h] = [n('x'), n('y'), n('width'), n('height')];
+    if (w <= 0 || h <= 0) return null;
+    const line = document.createElementNS(SVG_NS, 'line');
+    const horizontal = w >= h;
+    line.setAttribute('x1', String(horizontal ? x : x + w / 2));
+    line.setAttribute('y1', String(horizontal ? y + h / 2 : y));
+    line.setAttribute('x2', String(horizontal ? x + w : x + w / 2));
+    line.setAttribute('y2', String(horizontal ? y + h / 2 : y + h));
+    line.setAttribute('stroke-width', String(horizontal ? h : w));
+    const t = shape.getAttribute('transform');
+    if (t) line.setAttribute('transform', t);
+    return line;
+  }
+  if (!['path', 'line', 'polyline', 'polygon', 'circle', 'ellipse'].includes(tag)) return null;
+  const sw = parseFloat(shape.getAttribute('stroke-width') ?? '1');
+  const stroke = shape.getAttribute('stroke');
+  if (!stroke || stroke === 'none' || !(sw > 0)) return null;
+  const copy = shape.cloneNode(false) as SVGElement;
+  for (const a of [...copy.attributes]) if (a.name === 'id' || a.name.startsWith('data-hv') || a.name === 'class') copy.removeAttribute(a.name);
+  copy.setAttribute('fill', 'none');
+  copy.removeAttribute('style');
+  return copy;
+}
+
+function shapesOf(el: Element): Element[] {
+  if (el.tagName !== 'g') return [el];
+  return Array.from(el.querySelectorAll(SHAPES)).filter((s) => !s.closest('.hv-flow'));
+}
+
+function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
+  const base = p.base ?? '#555555', light = p.light ?? '#8fc8ea';
+  const dash = Number(p.dash ?? 12), speed = Number(p.speed ?? 40);
+  const key = `${state}|${base}|${light}|${dash}|${speed}`;
+  const old = flowLayers.get(el);
+  if (old?.getAttribute('data-hv-flow') === key) return; // uændret: lad animationen køre videre uden hop
+  old?.remove();
+  flowLayers.delete(el);
+  const shapes = shapesOf(el);
+  for (const s of shapes) {
+    const st = (s as SVGElement).style;
+    const filled = s.tagName === 'rect';
+    // Stop: røret får sin egen farve igen. Kører: farve 1 under lyset.
+    if (filled) st.fill = state ? base : '';
+    else st.stroke = state ? base : '';
+  }
+  if (!state) return;
+  const layer = document.createElementNS(SVG_NS, 'g') as SVGGElement;
+  layer.setAttribute('class', 'hv-flow');
+  layer.setAttribute('data-hv-flow', key);
+  layer.setAttribute('pointer-events', 'none');
+  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  for (const s of shapes) {
+    const d = flowDash(s);
+    if (!d) continue;
+    d.setAttribute('stroke', light);
+    d.setAttribute('stroke-dasharray', `${dash} ${dash}`);
+    d.setAttribute('stroke-linecap', 'butt');
+    layer.appendChild(d);
+    if (!reduce && typeof (d as any).animate === 'function') {
+      // Lyset flytter én periode (lys + mørk) pr. omgang; startTime 0 holder alle løbelys i takt
+      const a = d.animate([{ strokeDashoffset: 0 }, { strokeDashoffset: -2 * dash }],
+        { duration: (2 * dash / speed) * 1000, iterations: Infinity, direction: state > 0 ? 'normal' : 'reverse' });
+      a.startTime = 0;
+    }
+  }
+  if (!layer.childNodes.length) {
+    el.setAttribute('data-hv-warning', 'løbelys kræver en streg (path/line/polyline) eller et rør (rect)');
+    return;
+  }
+  if (el.tagName === 'g') el.appendChild(layer);
+  else el.parentNode?.insertBefore(layer, el.nextSibling);
+  flowLayers.set(el, layer);
+}
+
 export function applyBinding(el: Element, b: Binding, live: LiveValue | undefined, meta?: TagMeta): void {
   if (b.anim.startsWith('click:')) {
     el.classList.add('hv-clickable');
@@ -128,6 +225,8 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
   el.setAttribute('data-hv-quality', quality);
   if (!live || live.value === null || live.value === undefined) {
     if (b.anim === 'text') setText(el, textFor(null, meta, b.params ?? {}));
+    // Ukendt værdi (fx kommunikationsfejl): løbelyset står stille, så det aldrig viser flow der ikke er der
+    if (b.anim === 'flow') flow(el, 0, b.params ?? {});
     return;
   }
   const v = live.value;
@@ -159,6 +258,9 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
       break;
     case 'move':
       move(el, fraction(v, p.min, p.max), p.dx ?? 100, p.dy ?? 0);
+      break;
+    case 'flow':
+      flow(el, flowState(v, p), p);
       break;
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBinding, colorFor, formatValue, fraction, textFor } from './animate';
+import { applyBinding, colorFor, flowState, formatValue, fraction, textFor } from './animate';
 import type { Binding, LiveValue } from './api';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -162,5 +162,83 @@ describe('applyBinding', () => {
     expect(r.getAttribute('transform')).toMatch(/^scale\(2\) translate\(10 0\) rotate\(90 /);
     applyBinding(r, b('move', { min: 0, max: 10, dx: 10, dy: 0 }), good(5));
     expect(r.getAttribute('transform')).toMatch(/^scale\(2\) translate\(5 0\) rotate\(90 /);
+  });
+});
+
+describe('løbelys (flow)', () => {
+  it('til/fra: kører ved til, står ved fra; omvendt og vendt retning', () => {
+    expect(flowState(true)).toBe(1);
+    expect(flowState(0)).toBe(0);
+    expect(flowState(false, { invert: true })).toBe(1);
+    expect(flowState(1, { reverse: true })).toBe(-1);
+    expect(flowState(null)).toBe(0);
+  });
+  it('fortegn: over 0 frem, under 0 tilbage, 0 stop — reverse vender', () => {
+    expect(flowState(12.5, { mode: 'signed' })).toBe(1);
+    expect(flowState(-3, { mode: 'signed' })).toBe(-1);
+    expect(flowState(0, { mode: 'signed' })).toBe(0);
+    expect(flowState(-3, { mode: 'signed', reverse: true })).toBe(1);
+    expect(flowState(0, { mode: 'signed', reverse: true })).toBe(0); // ikke -0
+  });
+  it('kode: 0 stop, 1 frem, 2 tilbage, alt andet stop', () => {
+    expect(flowState(1, { mode: 'code' })).toBe(1);
+    expect(flowState(2, { mode: 'code' })).toBe(-1);
+    for (const v of [0, 3, -1, 1.5, null]) expect(flowState(v, { mode: 'code' }), String(v)).toBe(0);
+  });
+
+  const flowB = (params: Record<string, unknown> = {}): Binding => ({ element: 'r', tag: 'Pumpe', anim: 'flow', params });
+  const svgWith = (child: Element) => { const svg = el('svg'); svg.appendChild(child); return svg; };
+
+  it('et lige rør (rect) får en stiplet streg ad midterlinjen i farve 2 og selv farve 1', () => {
+    const rect = el('rect', { x: '0', y: '0', width: '90', height: '10', fill: '#555' });
+    const svg = svgWith(rect);
+    applyBinding(rect, flowB({ base: '#123456', light: '#abcdef', dash: 8 }), good(true));
+    const layer = svg.querySelector('.hv-flow')!;
+    expect(layer).not.toBeNull();
+    const line = layer.querySelector('line')!;
+    expect([line.getAttribute('y1'), line.getAttribute('y2'), line.getAttribute('x2')]).toEqual(['5', '5', '90']);
+    expect(line.getAttribute('stroke-width')).toBe('10');
+    expect(line.getAttribute('stroke')).toBe('#abcdef');
+    expect(line.getAttribute('stroke-dasharray')).toBe('8 8');
+    expect((rect as SVGElement).style.fill).toBe('rgb(18, 52, 86)');
+  });
+  it('en gruppe med en stiplet kopi af hver streg; stop fjerner lyset og giver røret sin farve igen', () => {
+    const g = el('g', { id: 'boejning' });
+    const path = el('path', { id: 'p', d: 'M0 45 H25 A20 20 0 0 0 45 25 V0', fill: 'none', stroke: '#555', 'stroke-width': '10' });
+    g.appendChild(path);
+    svgWith(g);
+    applyBinding(g, flowB(), good(1));
+    const copy = g.querySelector('.hv-flow path')!;
+    expect(copy.getAttribute('d')).toBe(path.getAttribute('d'));
+    expect(copy.hasAttribute('id')).toBe(false); // ingen dublet-id'er i tegningen
+    expect(copy.getAttribute('fill')).toBe('none');
+    applyBinding(g, flowB(), good(0));
+    expect(g.querySelector('.hv-flow')).toBeNull();
+    expect((path as SVGElement).style.stroke).toBe('');
+  });
+  it('samme tilstand igen genskaber ikke lyset (animationen hopper ikke ved hver opdatering)', () => {
+    const rect = el('rect', { width: '90', height: '10' });
+    const svg = svgWith(rect);
+    applyBinding(rect, flowB(), good(true));
+    const first = svg.querySelector('.hv-flow');
+    applyBinding(rect, flowB(), good(true));
+    expect(svg.querySelector('.hv-flow')).toBe(first);
+    applyBinding(rect, flowB({ mode: 'onoff', reverse: true }), good(true)); // ny retning → nyt lag
+    expect(svg.querySelectorAll('.hv-flow').length).toBe(1);
+    expect(svg.querySelector('.hv-flow')).not.toBe(first);
+  });
+  it('ukendt værdi (kommunikationsfejl) stopper lyset', () => {
+    const rect = el('rect', { width: '90', height: '10' });
+    const svg = svgWith(rect);
+    applyBinding(rect, flowB(), good(true));
+    applyBinding(rect, flowB(), { value: null, quality: 'bad', ts: 0, error: 'timeout' });
+    expect(svg.querySelector('.hv-flow')).toBeNull();
+  });
+  it('element uden streg giver en advarsel i stedet for et tomt lag', () => {
+    const c = el('circle', { r: '5', fill: '#555' });
+    const svg = svgWith(c);
+    applyBinding(c, flowB(), good(true));
+    expect(svg.querySelector('.hv-flow')).toBeNull();
+    expect(c.getAttribute('data-hv-warning')).toContain('løbelys');
   });
 });

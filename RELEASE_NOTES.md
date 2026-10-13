@@ -2,6 +2,13 @@
 
 ---
 
+## v0.29.0 — 2026-10-13 — Løbelys i rør
+
+- Ny animation **Løbelys** under Bindinger: to farver løber langs et rør eller en streg, så man kan se flowet. Virker på lige rør, bøjninger, T-stykker, kryds og tegnede streger.
+- Tagget styrer **start/stop og retning** på en af tre måder: *Til/fra* (kører når til, fast retning), *Fortegn* (over 0 frem, under 0 tilbage, 0 stop — fx en frekvensomformers hastighed) eller *Kode* (0 stop, 1 frem, 2 tilbage).
+- Farver, hastighed og streglængde kan vælges, og retningen kan vendes, hvis røret er tegnet "baglæns".
+- Lyset står stille ved stop og ved kommunikationsfejl, så der aldrig vises flow der ikke er der.
+
 ## v0.28.2 — 2026-10-13 — Lige lange ben på rørdelene
 
 - **Bøjning 45°** har nu to lige lange ben (45), ligesom Bøjning 90°, T-stykke og kryds. Bøjninger der allerede ligger i en tegning, ændres ikke.

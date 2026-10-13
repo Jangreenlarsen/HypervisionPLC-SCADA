@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.29.0 build 0042] — 2026-10-13 — Ny animation: Løbelys
+
+- `backend/app/services/bindings.py` — ny animationstype `flow` med `FlowParams` (mode onoff/signed/code, reverse, invert, base, light, speed 5–500, dash 2–200; farver valideres som de øvrige).
+- `frontend/src/lib/animate.ts` — `flowState()` (tagværdi → frem/tilbage/stop) og løbelyset: røret får farve 1, og et lag med en stiplet kopi af hver streg (et lige rør/rect får en streg ad midterlinjen) løber via Web Animations (startTime 0, så alle løbelys er i takt). Laget genskabes kun når tilstanden ændres, så animationen ikke hopper ved hver live-opdatering. Ukendt værdi/kommunikationsfejl = stop. Ingen id'er i kopien; `pointer-events: none`. Advarsel på elementer uden streg.
+- `frontend/src/lib/bindingForm.ts`, `frontend/src/pages/Editor.svelte`, `frontend/src/lib/api.ts` — Løbelys i binding-editoren: styring (til/fra, fortegn, kode), to farver, hastighed, streglængde, vend retning, omvendt; danske fejlbeskeder (fx ens farver).
+- Tests: `animate.test.ts` (tilstande, lag på rect/gruppe, stop, ingen genskabelse, ukendt værdi, advarsel), `bindingForm.test.ts` (standard, validering, round-trip), `backend/tests/test_drawings_api.py` (validering og standardparametre).
+- `docs/RESEARCH_OG_DESIGN.md` — `flow` i animationstabellen.
+- Set i den kørende app i Chromium med mock-PLC: lige rør, bøjning 90°/45° og T-stykke løber, kode 2 vender retningen, fra/0 stopper.
+
 ## [0.28.2 build 0041] — 2026-10-13 — fix: Bøjning 45° har lige lange ben
 
 - `frontend/src/lib/symbols.ts` — Bøjning 45°: knækpunkt (45,45), begge ben 45 lange som på Bøjning 90°, T-stykke og kryds (før 30 og ca. 42); stadig radius 20.
