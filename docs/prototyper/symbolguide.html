@@ -884,6 +884,8 @@ function renderGuide() {
 }
 function nextStep(c, dir) { let s = step + dir; while (s > 0 && s < 5 && stepSkipped(c, s)) s += dir; return Math.max(0, Math.min(5, s)); }
 
+// Rør og fittings — samme liste som PIPE_IDS i frontend/src/lib/symbols.ts
+const PIPE_IDS = new Set(['roer_v', 'roer_l', 'boejning90', 'boejning45', 't_stykke', 'kryds', 'reduktion', 'prop', 'flange', 'flowpil']);
 // ===================================================================== Overview
 // Opdatér en tegnet SVG på stedet når kun attributter/tekst har ændret sig — så CSS-transitions (Flyt/Drej)
 // glider og blink ikke genstartes. Ændrer strukturen sig, tegnes den forfra.
@@ -1358,7 +1360,9 @@ function drawImported(c, styles) {
       if (css.length) el.setAttribute('style', css.join(';'));
       if (st.hidden) el.setAttribute('visibility', 'hidden');
     }
-    const bw = def.bbox.w || 1, bh = def.bbox.h || 1, s = Math.min(116 / bw, 118 / bh, 2.2);
+    // Rør og fittings tegnes i én fælles målestok (som paletten i Tegn, v0.28.1), så rørtykkelsen er ens
+    const bw = def.bbox.w || 1, bh = def.bbox.h || 1;
+    const s = PIPE_IDS.has(def.id) ? 116 / Math.max(104, bw + 14, bh + 14) : Math.min(116 / bw, 118 / bh, 2.2);
     const tx = 12 + (116 - bw * s) / 2 - def.bbox.x * s, ty = 10 + (118 - bh * s) / 2 - def.bbox.y * s;
     out = `<g transform="translate(${tx.toFixed(1)} ${ty.toFixed(1)}) scale(${s.toFixed(3)})">${new XMLSerializer().serializeToString(g)}</g>`;
     if (impCache.size > 2000) impCache.clear();
