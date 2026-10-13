@@ -2,6 +2,10 @@
 
 ---
 
+## v0.31.3 — 2026-10-13 — Overview viser altid den rigtige værdi
+
+- På en langsom forbindelse (fx en skærm på et svagt net) kunne en ændring gå tabt, så fx en pumpe stod som stoppet selvom den kørte. Nu samles ventende ændringer, så skærmen kan blive lidt forsinket, men aldrig viser en forkert værdi.
+
 ## v0.31.2 — 2026-10-13 — Til/fra-knapper skifter altid korrekt
 
 - Trykker to operatører på samme til/fra-knap samtidig, skifter den nu til og derefter fra igen — før kunne begge tryk give "til".

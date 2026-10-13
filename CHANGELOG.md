@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.31.3 build 0047] — 2026-10-13 — fix: live-ændringer går ikke tabt hos langsomme klienter
+
+- `backend/app/services/live_cache.py` — `update`: fuld klient-kø → alle ventende deltaer flettes til én (seneste værdi pr. tag), i stedet for at den ældste smides væk.
+- `backend/tests/test_live_cache.py` (ny) — kun ændringer publiceres; fuld kø bevarer første ændring og seneste værdi; andre abonnenter er upåvirkede.
+
 ## [0.31.2 build 0046] — 2026-10-13 — fix: toggle er atomisk og bruger PLC'ens aktuelle værdi
 
 - `backend/app/services/operate.py` — `write(toggle=True)`: værdien læses frisk fra PLC'en under tag-låsen, og den nye værdi beregnes derfra; `toggle()` bruger den. min/max-tjek flyttet til `_check_limits()` (samme regel for write og toggle). Svaret på write er uændret; toggle returnerer fortsat `from`.
