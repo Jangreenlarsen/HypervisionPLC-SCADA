@@ -182,8 +182,9 @@ export const SYMBOLS: SymbolDef[] = [
   },
   {
     id: 'boejning45', label: 'Bøjning 45°', category: 'vvs', hint: 'Rotér/spejl i Tegn for at vende den',
-    // Rund bøjning med samme radius (20 i centerlinjen) som Bøjning 90°; enderne ligger samme sted som før (v0.28.1)
-    svg: `<g>${pipe('M0 45 H21.72 A20 20 0 0 0 35.86 39.14 L60 15')}</g>`,
+    // Rund bøjning med samme radius (20 i centerlinjen) som Bøjning 90°. Knækpunktet er (45,45), og begge ben er 45
+    // lange som på de andre fittings (v0.28.2)
+    svg: `<g>${pipe('M0 45 H36.72 A20 20 0 0 0 50.86 39.14 L76.82 13.18')}</g>`,
   },
   {
     id: 't_stykke', label: 'T-stykke', category: 'vvs', hint: 'Rotér i Tegn for at vende afgreningen',

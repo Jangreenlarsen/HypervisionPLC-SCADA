@@ -2,6 +2,10 @@
 
 ---
 
+## v0.28.2 — 2026-10-13 — Lige lange ben på rørdelene
+
+- **Bøjning 45°** har nu to lige lange ben (45), ligesom Bøjning 90°, T-stykke og kryds. Bøjninger der allerede ligger i en tegning, ændres ikke.
+
 ## v0.28.1 — 2026-10-13 — Rør og fittings ser ens ud
 
 - I **Tegn** vises rør, bøjninger, T-stykke, kryds og de øvrige rørdele nu i samme målestok, så rørene ser lige tykke ud.

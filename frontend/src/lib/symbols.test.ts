@@ -112,6 +112,29 @@ describe('rør og fittings (v0.28.1)', () => {
   it('andre symboler tilpasses stadig deres egen størrelse', () => {
     expect(previewViewBox({ x: 0, y: 0, width: 100, height: 50 }, false)).toBe('-8 -8 116 66');
   });
+  it('alle ben på bøjninger, T-stykke og kryds er 45 lange målt fra knæk-/midtpunktet (45,45)', () => {
+    const ends = (id: string): number[][] => {
+      const d = SYMBOLS.find((s) => s.id === id)!.svg.match(/ d="([^"]+)"/)![1];
+      // hver delsti: startpunktet og slutpunktet (H/V/L/A-kommandoernes sidste koordinat)
+      return d.split('M').filter(Boolean).flatMap((sub) => {
+        let x = 0, y = 0; const pts: number[][] = [];
+        const toks = sub.trim().match(/[HVLA]|-?[\d.]+/g)!;
+        x = Number(toks[0]); y = Number(toks[1]); pts.push([x, y]);
+        for (let i = 2; i < toks.length;) {
+          const c = toks[i++];
+          if (c === 'H') x = Number(toks[i++]);
+          else if (c === 'V') y = Number(toks[i++]);
+          else if (c === 'L') { x = Number(toks[i++]); y = Number(toks[i++]); }
+          else if (c === 'A') { i += 5; x = Number(toks[i++]); y = Number(toks[i++]); }
+        }
+        pts.push([x, y]); return pts;
+      });
+    };
+    for (const id of ['boejning90', 'boejning45', 't_stykke', 'kryds']) {
+      const legs = ends(id).map(([x, y]) => Math.hypot(x - 45, y - 45)).filter((l) => l > 1); // midtpunkter (l = 0) tæller ikke
+      for (const l of legs) expect(l, id).toBeCloseTo(45, 1);
+    }
+  });
   it('bøjningerne er runde og har samme rørtykkelse som de lige rør', () => {
     for (const id of ['boejning90', 'boejning45']) {
       const svg = SYMBOLS.find((s) => s.id === id)!.svg;

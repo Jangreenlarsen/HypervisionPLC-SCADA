@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.28.2 build 0041] — 2026-10-13 — fix: Bøjning 45° har lige lange ben
+
+- `frontend/src/lib/symbols.ts` — Bøjning 45°: knækpunkt (45,45), begge ben 45 lange som på Bøjning 90°, T-stykke og kryds (før 30 og ca. 42); stadig radius 20.
+- `frontend/src/lib/symbols.test.ts` — test af at alle ben på bøjninger, T-stykke og kryds er 45 fra midtpunktet.
+- `docs/prototyper/symbolguide.html` — indlejret symbolbibliotek opdateret.
+
 ## [0.28.1 build 0040] — 2026-10-13 — fix: rør og fittings ens tykke i paletten, rund 45°-bøjning
 
 - `frontend/src/lib/symbols.ts` — `PIPE_IDS` og `previewViewBox()`: rør og fittings får samme målestok i forhåndsvisningen (før blev hvert symbol skaleret efter egen størrelse, og stregen blev klippet fordi getBBox ikke medregner den). Rør (vandret/lodret) 160 → 90 lange som udgangspunkt. Bøjning 45° tegnet med bue (radius 20) i stedet for knæk; enderne ligger samme sted.
