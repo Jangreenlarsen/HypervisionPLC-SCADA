@@ -94,11 +94,51 @@ def test_binding_validation(api):
         ("Tank", [{"tag": "Niveau", "anim": "text", "params": {"prefix": "x" * 41}}], "prefix"),
         ("Tank", [{"tag": "Niveau", "anim": "move", "params": {"min": 5, "max": 5}}], "min skal være mindre"),
         ("Tank", [{"tag": "Niveau", "anim": "move", "params": {"dx": 1e9}}], "dx"),
+        ("Tank", [{"tag": "Niveau", "anim": "flow", "params": {"mode": "baglæns"}}], "mode"),
+        ("Tank", [{"tag": "Niveau", "anim": "flow", "params": {"light": "url(javascript:1)"}}], "ugyldig farve"),
+        ("Tank", [{"tag": "Niveau", "anim": "flow", "params": {"speed": 0}}], "speed"),
+        ("Tank", [{"tag": "Niveau", "anim": "flow", "params": {"dash": 1000}}], "dash"),
+        ("Tank", [{"tag": "Niveau", "anim": "flow", "params": {"arm": "diagonal"}}], "arm"),
+        ("Tank", [{"tag": "Niveau", "anim": "flow", "params": {"arm": "left", "arm_flow": "sideways"}}], "arm_flow"),
     ]
     for element, bindings, message in cases:
         r = api.put(f"/api/drawings/{did}/bindings/{element}", json={"bindings": bindings})
         assert r.status_code == 400, (element, r.text)
         assert message in r.json()["error"], r.json()["error"]
+
+
+def test_flow_binding_defaults_and_roundtrip(api):
+    did = _create(api)["drawing"]["id"]
+    r = api.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": [
+        {"tag": "Niveau", "anim": "flow", "params": {"mode": "code", "reverse": True, "speed": 80}}]})
+    assert r.status_code == 200, r.text
+    flow = next(b for b in api.get(f"/api/drawings/{did}/view").json()["bindings"] if b["element"] == "Tank")
+    assert flow["anim"] == "flow"
+    assert flow["params"] == {"mode": "code", "reverse": True, "invert": False, "base": "#555555",
+                              "light": "#8fc8ea", "speed": 80, "dash": 12, "arm": "", "arm_flow": "in", "dir_tag": ""}
+    r = api.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": [
+        {"tag": "Niveau", "anim": "flow", "params": {"arm": "up", "arm_flow": "out"}}]})
+    assert r.status_code == 200, r.text
+    flow = next(b for b in api.get(f"/api/drawings/{did}/view").json()["bindings"] if b["element"] == "Tank")
+    assert (flow["params"]["arm"], flow["params"]["arm_flow"]) == ("up", "out")
+
+
+def test_flow_direction_tag_is_validated_exposed_and_blocks_tag_delete(api):
+    did = _create(api)["drawing"]["id"]
+    put = lambda params: api.put(f"/api/drawings/{did}/bindings/Tank",
+                                 json={"bindings": [{"tag": "Pumpe", "anim": "flow", "params": params}]})
+    r = put({"dir_tag": "Findes_ikke"})
+    assert r.status_code == 400 and "Retnings-tagget 'Findes_ikke' findes ikke" in r.json()["error"]
+    r = put({"dir_tag": "Pumpe"})
+    assert r.status_code == 400 and "et andet tag" in r.json()["error"]
+    assert put({"dir_tag": "  Niveau  "}).status_code == 200
+    view = api.get(f"/api/drawings/{did}/view").json()
+    flow = next(b for b in view["bindings"] if b["element"] == "Tank")
+    assert flow["params"]["dir_tag"] == "Niveau"           # mellemrum fjernet
+    assert "Niveau" in view["tags"]                          # metadata for retnings-tagget sendes med
+    # Tagget kan ikke slettes mens et løbelys bruger det som retning
+    r = api.delete("/api/tags/Niveau")
+    assert r.status_code == 409 and "binding" in r.json()["error"]
 
 
 def test_text_prefix_suffix_kept_verbatim(api):

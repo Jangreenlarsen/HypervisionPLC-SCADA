@@ -14,6 +14,7 @@ export const ANIMS: { id: Anim; label: string; help: string }[] = [
   { id: 'rotate', label: 'Rotation', help: 'Roterer elementet efter værdien' },
   { id: 'opacity', label: 'Gennemsigtighed', help: 'Fra usynlig (min) til fuldt synlig (max)' },
   { id: 'move', label: 'Flyt', help: 'Flytter elementet fra sin plads (ved min) til forskydningen dx/dy (ved max) — fx spjæld, glider, cylinder' },
+  { id: 'flow', label: 'Løbelys', help: 'To farver der løber langs en streg eller et rør — tagget styrer start/stop og retning' },
   { id: 'click:write', label: 'Klik: setpunkt', help: 'Operatøren indtaster en ny værdi (tagget skal være skrivbart)' },
   { id: 'click:toggle', label: 'Klik: til/fra', help: 'Skifter et til/fra-tag (coil eller heltals-register)' },
   { id: 'click:pulse', label: 'Klik: puls', help: 'Sætter tagget i et kort øjeblik — serveren nulstiller det' },
@@ -48,6 +49,18 @@ export interface BindingForm {
   angle_max: string;
   dx: string;
   dy: string;
+  /** Løbelys: hvordan tagget styrer start/stop og retning */
+  mode: 'onoff' | 'signed' | 'code';
+  reverse: boolean;
+  base: string;
+  light: string;
+  speed: string;
+  dash: string;
+  /** Løbelys i T-stykke/kryds: valgt rør (som på skærmen) og om det løber ind i eller ud af krydset */
+  arm: '' | 'left' | 'right' | 'up' | 'down';
+  arm_flow: 'in' | 'out';
+  /** Løbelys: valgfrit tag der styrer retningen (Fra = frem, Til = tilbage) */
+  dir_tag: string;
   title: string;
   confirm: boolean;
   ms: string;
@@ -60,6 +73,7 @@ export function emptyForm(tag = '', anim: Anim = 'text'): BindingForm {
     tag, anim, decimals: '', true_text: 'Til', false_text: 'Fra', show_unit: true, prefix: '', suffix: '',
     on: '#2e7d32', off: '#9e9e9e', thresholds: [], invert: false,
     min: '0', max: '100', direction: 'up', angle_min: '0', angle_max: '360', dx: '100', dy: '0',
+    mode: 'onoff', reverse: false, base: '#555555', light: '#8fc8ea', speed: '40', dash: '12', arm: '', arm_flow: 'in', dir_tag: '',
     title: '', confirm: anim === 'click:toggle', ms: '500', drawing: '',
     positions: [{ value: '0', label: 'Hånd' }, { value: '1', label: '0' }, { value: '2', label: 'Auto' }],
   };
@@ -129,6 +143,15 @@ export function toForm(b: Pick<Binding, 'tag' | 'anim' | 'params'>): BindingForm
     angle_max: str(p.angle_max, f.angle_max),
     dx: str(p.dx, f.dx),
     dy: str(p.dy, f.dy),
+    mode: p.mode === 'signed' || p.mode === 'code' ? p.mode : 'onoff',
+    reverse: Boolean(p.reverse),
+    base: str(p.base, f.base),
+    light: str(p.light, f.light),
+    speed: str(p.speed, f.speed),
+    dash: str(p.dash, f.dash),
+    arm: ['left', 'right', 'up', 'down'].includes(p.arm) ? p.arm : '',
+    arm_flow: p.arm_flow === 'out' ? 'out' : 'in',
+    dir_tag: str(p.dir_tag, ''),
     title: str(p.title, ''),
     confirm: p.confirm ?? f.confirm,
     ms: str(p.ms, f.ms),
@@ -205,6 +228,20 @@ export function fromForm(f: BindingForm): { tag: string; anim: Anim; params: Rec
       if (dx === 0 && dy === 0) throw new Error('Flyt X og Y kan ikke begge være 0 — så flytter elementet sig ikke');
       if (Math.abs(dx) > 100000 || Math.abs(dy) > 100000) throw new Error('Flyt X/Y må højst være ±100000');
       params = { ...range(f), dx, dy };
+      break;
+    }
+    case 'flow': {
+      const speed = parseNumber(f.speed, 'Hastighed');
+      if (speed < 5 || speed > 500) throw new Error('Hastighed skal være 5-500 (enheder pr. sekund)');
+      const dash = parseNumber(f.dash, 'Streglængde');
+      if (dash < 2 || dash > 200) throw new Error('Streglængde skal være 2-200');
+      const base = f.base.trim(), light = f.light.trim();
+      if (!base || !light) throw new Error('Vælg begge farver til løbelyset');
+      if (base.toLowerCase() === light.toLowerCase()) throw new Error('Løbelysets to farver skal være forskellige — ellers kan man ikke se det løbe');
+      const dirTag = f.dir_tag.trim();
+      if (dirTag && dirTag === f.tag.trim()) throw new Error('Retnings-tagget skal være et andet tag end start/stop-tagget');
+      params = { mode: f.mode, reverse: f.reverse, invert: f.mode === 'onoff' && f.invert, base, light, speed, dash,
+        arm: f.arm, arm_flow: f.arm ? f.arm_flow : 'in', dir_tag: dirTag };
       break;
     }
     case 'click:write':

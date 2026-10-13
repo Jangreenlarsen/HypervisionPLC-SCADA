@@ -405,7 +405,10 @@ class Database:
 
     def count_bindings_for_tag(self, tag: str) -> int:
         with self._lock:
-            return int(self._conn.execute("SELECT COUNT(*) FROM bindings WHERE tag = ?", (tag,)).fetchone()[0])
+            # Også løbelys der bruger tagget som retnings-tag (params.dir_tag)
+            return int(self._conn.execute(
+                "SELECT COUNT(*) FROM bindings WHERE tag = ? OR (anim = 'flow' AND json_extract(params, '$.dir_tag') = ?)",
+                (tag, tag)).fetchone()[0])
 
     # ------------------------------------------------------------- brugere
 

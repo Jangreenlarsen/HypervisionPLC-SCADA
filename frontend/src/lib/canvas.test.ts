@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { addTooltips, fitSize } from './canvas';
+import { addTooltips, bindingTags, byTag, fitSize } from './canvas';
+import type { Binding } from './api';
 
 describe('fitSize', () => {
   it('bred tegning begrænses af bredden', () => expect(fitSize(2000, 1000, 1000, 900)).toEqual({ width: 1000, height: 500 }));
@@ -29,4 +30,20 @@ describe('addTooltips', () => {
     expect(d.getElementById('t')!.textContent).toBe('1');
   });
   it('null er ok', () => expect(() => addTooltips(null)).not.toThrow());
+});
+
+describe('bindingTags / byTag (løbelys med retnings-tag)', () => {
+  const flow: Binding = { element: 'R1', tag: 'Pumpe', anim: 'flow', params: { dir_tag: 'Retning' } };
+  const text: Binding = { element: 'T', tag: 'Pumpe', anim: 'text', params: { dir_tag: 'Ignoreres' } };
+  it('løbelys læser to tags; andre animationer kun deres eget', () => {
+    expect(bindingTags(flow)).toEqual(['Pumpe', 'Retning']);
+    expect(bindingTags(text)).toEqual(['Pumpe']);
+    expect(bindingTags({ ...flow, params: { dir_tag: '' } })).toEqual(['Pumpe']);
+    expect(bindingTags({ tag: '', anim: 'click:goto', params: {} })).toEqual([]);
+  });
+  it('en ændring på retnings-tagget gentegner løbelyset', () => {
+    const map = byTag([flow, text]);
+    expect(map.get('Retning')).toEqual([flow]);
+    expect(map.get('Pumpe')).toEqual([flow, text]);
+  });
 });

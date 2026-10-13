@@ -110,3 +110,31 @@ describe('click:select', () => {
     expect(() => fromForm({ ...base, positions: [{ value: '1', label: 'a' }] })).toThrow('2-8');
   });
 });
+
+describe('løbelys-formular', () => {
+  const f = () => ({ ...emptyForm('Pumpe', 'flow') });
+  it('standardværdier giver gyldige parametre', () => {
+    expect(fromForm(f()).params).toEqual({ mode: 'onoff', reverse: false, invert: false, base: '#555555', light: '#8fc8ea', speed: 40, dash: 12, arm: '', arm_flow: 'in', dir_tag: '' });
+  });
+  it('omvendt gælder kun for til/fra', () => {
+    expect(fromForm({ ...f(), mode: 'signed', invert: true }).params.invert).toBe(false);
+    expect(fromForm({ ...f(), mode: 'onoff', invert: true }).params.invert).toBe(true);
+  });
+  it('fejl med danske beskeder', () => {
+    expect(() => fromForm({ ...f(), speed: '1' })).toThrow('Hastighed skal være 5-500');
+    expect(() => fromForm({ ...f(), dash: '' })).toThrow('Streglængde skal udfyldes');
+    expect(() => fromForm({ ...f(), light: '#555555' })).toThrow('forskellige');
+    expect(() => fromForm({ ...f(), light: '  ' })).toThrow('begge farver');
+  });
+  it('retnings-tag: mellemrum fjernes, og det må ikke være start/stop-tagget', () => {
+    expect(fromForm({ ...f(), dir_tag: ' Retning ' }).params.dir_tag).toBe('Retning');
+    expect(() => fromForm({ ...f(), dir_tag: 'Pumpe' })).toThrow('et andet tag');
+  });
+  it('uden valgt rør gemmes ind/ud ikke (standard "ind")', () => {
+    expect(fromForm({ ...f(), arm: '', arm_flow: 'out' }).params.arm_flow).toBe('in');
+  });
+  it('round-trip via toForm', () => {
+    const p = { mode: 'code', reverse: true, invert: false, base: '#111111', light: '#eeeeee', speed: 80, dash: 6, arm: 'up', arm_flow: 'out', dir_tag: 'Retning' };
+    expect(fromForm(toForm({ tag: 'Pumpe', anim: 'flow', params: p })).params).toEqual(p);
+  });
+});

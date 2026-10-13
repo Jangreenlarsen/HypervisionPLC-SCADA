@@ -93,6 +93,7 @@ Import af tags fra PLC'ens `GET /api/bindings` og `GET /api/logic/{id}` (variabe
 | `rotate` | Rotation (ventilator, viser) om centrum |
 | `move` | Flyt mellem to positioner (glider/ventil) |
 | `opacity` | Gennemsigtighed |
+| `flow` | Løbelys: to farver løber langs en streg/et rør; tagget styrer start/stop og retning (til/fra, fortegn eller kode 0/1/2) — v0.29.0 |
 | `click:write` | Setpunkt-dialog (min/max, bekræft) → skriv tag |
 | `click:toggle` / `click:pulse` | Skift coil / puls (momentary) |
 | `click:goto` | Navigér til anden tegning (drill-down) |

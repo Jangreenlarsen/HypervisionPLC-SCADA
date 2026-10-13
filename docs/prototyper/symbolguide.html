@@ -160,6 +160,10 @@ dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; }
 .sym .ghosttext { fill: var(--alarm); font: 650 11px var(--font); }
 .sym .spinning { animation: spin 1.6s linear infinite; transform-box: fill-box; transform-origin: center; }
 .sym .tmove { transition: transform .4s ease-in-out; transform-box: fill-box; transform-origin: center; }
+/* Løbelys: stiplet kopi i farve 2 der løber én periode (lys + mørk) pr. omgang; --p = -2 × streglængde */
+.sym .flowing { animation-name: flowdash; animation-timing-function: linear; animation-iteration-count: infinite; }
+@keyframes flowdash { from { stroke-dashoffset: 0; } to { stroke-dashoffset: var(--p); } }
+@media (prefers-reduced-motion: reduce) { .sym .flowing { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .sym .tmove { transition: none; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .sym .spinning { animation: none; } }
@@ -251,7 +255,12 @@ const GLYPH = { confirmed: '✓', pending: '…', mismatch: '!', unknown: '?' };
 const ALARM_TXT = { '': 'Nej', low: 'Ja — lav', medium: 'Ja — medium', high: 'Ja — høj' };
 const ALARM_LBL = { low: 'LAV', medium: 'MEDIUM', high: 'HØJ' };
 const ALARM_ORDER = { high: 0, medium: 1, low: 2 };
-const ATYPES = { color: 'Farve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', level: 'Niveau', value: 'Værdi', turn: 'Drej', move: 'Flyt' };
+const ATYPES = { color: 'Farve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', level: 'Niveau', value: 'Værdi', turn: 'Drej', move: 'Flyt', flow: 'Løbelys' };
+const FLOW_DIR = { 0: 'Stop', 1: 'Frem', '-1': 'Tilbage' };
+// Løbelys i T-stykke og kryds: rørenes endepunkter ud fra krydspunktet (45,45) — som i appen, hvor de findes af stregerne
+const JUNC = { kryds: { left: [0, 45], right: [90, 45], up: [45, 0], down: [45, 90] }, t_stykke: { left: [0, 45], right: [90, 45], up: [45, 0] } };
+const ARM_TXT = { left: 'venstre', right: 'højre', up: 'op', down: 'ned' };
+const jidOf = (c) => (c.type === 'imp' ? IMPDEF[c.imp]?.def.id : '');
 
 // ===================================================================== symbolbibliotek
 // Alle symboler følger samme standard: dele (til animationer), evt. positioner (betjening via kontaktplaner),
@@ -447,6 +456,8 @@ function fieldSwitch(c, j) {
 }
 
 // ===================================================================== animationer
+// Alle tags en animation læser: kilden og evt. løbelysets retnings-tag
+const animTags = (a) => [a.src, a.type === 'flow' ? a.p?.dirSrc : ''].filter(Boolean);
 const srcKind = (src) => (src === '@pos' ? 'pos' : tag(src)?.kind === 'coil' ? 'bool' : 'num');
 function typesFor(c, part) {
   const L = libOf(c), t = ['color', 'blink', 'visible'];
@@ -454,6 +465,8 @@ function typesFor(c, part) {
   if (L.level.includes(part)) t.push('level');
   if (L.text.includes(part)) t.push('value');
   if (L.turnMove && part !== 'bg' && part !== 'frame') t.push('turn', 'move');
+  // Løbelys: rør og fittings (lige rør, bøjninger, T-stykke, kryds …) — på hele symbolet
+  if (c.type === 'imp' && part === 'all' && FLOW_OK(IMPDEF[c.imp]?.def.id)) t.push('flow');
   return t;
 }
 function animDefaults(c, type, kind) {
@@ -467,6 +480,12 @@ function animDefaults(c, type, kind) {
   if (type === 'turn') return kind === 'pos' ? { pa: Array.from({ length: n }, (_, j) => (n > 1 ? Math.round(-45 + (90 * j) / (n - 1)) : 0)) } : kind === 'bool' ? { a0: 0, a1: 90 } : { min: 0, max: 100, a0: -120, a1: 120 };
   if (type === 'move') return kind === 'pos' ? { pdx: Array.from({ length: n }, (_, j) => j * 20), pdy: Array.from({ length: n }, () => 0) } : kind === 'bool' ? { dx: 20, dy: 0 } : { min: 0, max: 100, dx: 40, dy: 0 };
   if (type === 'value') return { unit: '', dec: 0 };
+  if (type === 'flow') {
+    const base = { reverse: false, base: '#555555', light: '#8fc8ea', speed: 40, dash: 12, arm: '', armFlow: 'in' };
+    if (kind === 'bool') return { ...base, when: 'on' };
+    if (kind === 'num') return { ...base, mode: 'code' };
+    return { ...base, pdir: Array.from({ length: n }, (_, j) => (j === 0 ? 0 : 1)) };
+  }
   if (kind === 'bool') return { when: 'on' };
   if (kind === 'num') return { v: 50 };
   return { set: Array.from({ length: n }, (_, j) => j === 0) };
@@ -498,6 +517,16 @@ function evalAnims(c, posIdx) {
       else if (kind === 'pos') { o.dx = Number(a.p.pdx?.[v] || 0); o.dy = Number(a.p.pdy?.[v] || 0); }
       else if (kind === 'bool') { o.dx = Number(v) ? Number(a.p.dx) : 0; o.dy = Number(v) ? Number(a.p.dy) : 0; }
       else { o.dx = Number(a.p.dx) * f; o.dy = Number(a.p.dy) * f; }
+    }
+    if (a.type === 'flow') {
+      // 1 = frem langs tegneretningen, -1 = tilbage, 0 = stop
+      let dir = kind === 'bool' ? (cond() ? 1 : 0) : kind === 'pos' ? Number(a.p.pdir?.[v] || 0)
+        : a.p.mode === 'signed' ? (Number.isFinite(Number(v)) ? Math.sign(Number(v)) : 0) : Number(v) === 1 ? 1 : Number(v) === 2 ? -1 : 0;
+      if (a.p.reverse && dir) dir = -dir;
+      // Eget retnings-tag: Fra = som valgt, Til = modsat; ukendt = stop
+      if (dir && a.p.dirSrc) { const dv = tagValue(a.p.dirSrc); dir = dv == null ? 0 : Number(dv) ? -dir : dir; }
+      o.flow = dir ? { dir, base: a.p.base, light: a.p.light, speed: Number(a.p.speed) || 40, dash: Number(a.p.dash) || 12,
+        arms: a.p.arm ? JUNC[jidOf(c)] : null, arm: a.p.arm, armFlow: a.p.armFlow } : null;
     }
     if (a.type === 'value') o.text = kind === 'bool' ? (Number(v) ? 'Til' : 'Fra') : kind === 'pos' ? posName(c, v) : `${Number(v).toFixed(Number(a.p.dec) || 0)}${a.p.unit ? ' ' + a.p.unit : ''}`;
   });
@@ -637,6 +666,11 @@ function validate(c) {
     if (a.type === 'level' && !(Number(a.p.max) > Number(a.p.min))) step4.push(`${nm}: max skal være større end min.`);
     if (a.type === 'level' && kind !== 'num') step4.push(`${nm}: niveau kræver et tal-tag.`);
     if ((a.type === 'turn' || a.type === 'move') && kind === 'num' && !(Number(a.p.max) > Number(a.p.min))) step4.push(`${nm}: max skal være større end min.`);
+    if (a.type === 'flow') {
+      if (!(Number(a.p.speed) >= 5 && Number(a.p.speed) <= 500)) step4.push(`${nm}: hastighed skal være 5–500.`);
+      if (!(Number(a.p.dash) >= 2 && Number(a.p.dash) <= 200)) step4.push(`${nm}: streglængde skal være 2–200.`);
+      if (String(a.p.base).toLowerCase() === String(a.p.light).toLowerCase()) step4.push(`${nm}: løbelysets to farver skal være forskellige.`);
+    }
     if (!typesFor(c, a.part).includes(a.type)) step4.push(`${nm}: ${ATYPES[a.type].toLowerCase()} kan ikke bruges på ${libOf(c).parts[a.part]?.toLowerCase()}.`);
     if (a.only && !a.only.some(Boolean)) W.push(`${nm} gælder ikke i nogen position.`);
   });
@@ -819,6 +853,20 @@ function animParams(c, a, i) {
     const mm = kind === 'num' ? `<label>min<input type="number" id="alo-${i}" data-bind="anim-min" data-i="${i}" value="${esc(a.p.min)}"></label><label>max<input type="number" id="ahi-${i}" data-bind="anim-max" data-i="${i}" value="${esc(a.p.max)}"></label>` : '';
     return `${mm}<label>${kind === 'bool' ? 'Til:' : 'ved max:'} dx<input type="number" id="adx-${i}" data-bind="anim-dx" data-i="${i}" value="${esc(a.p.dx)}"></label><label>dy<input type="number" id="ady-${i}" data-bind="anim-dy" data-i="${i}" value="${esc(a.p.dy)}"></label><span class="muted">${kind === 'bool' ? 'Fra = på plads' : 'på plads ved min'}</span>`;
   }
+  if (a.type === 'flow') {
+    const dirSel = (id, bind, val, k = '') => `<select id="${id}" data-bind="${bind}" data-i="${i}" data-k="${k}">${Object.entries(FLOW_DIR).map(([d, t]) => `<option value="${d}" ${String(val) === d ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+    const ctl = kind === 'bool' ? `<label>Kører<select id="aw-${i}" data-bind="anim-when" data-i="${i}"><option value="on" ${a.p.when === 'on' ? 'selected' : ''}>når Til</option><option value="off" ${a.p.when === 'off' ? 'selected' : ''}>når Fra</option></select></label>`
+      : kind === 'num' ? `<label>Tagget<select id="afm-${i}" data-bind="anim-fmode" data-i="${i}"><option value="code" ${a.p.mode !== 'signed' ? 'selected' : ''}>Kode: 0 stop, 1 frem, 2 tilbage</option><option value="signed" ${a.p.mode === 'signed' ? 'selected' : ''}>Fortegn: &gt; 0 frem, &lt; 0 tilbage, 0 stop</option></select></label>`
+      : '<span>pr. position:</span>' + c.positions.map((_, j) => `<label>${Lb(j)}${dirSel(`apd-${i}-${j}`, 'anim-pdir', a.p.pdir?.[j] ?? 0, j)}</label>`).join('');
+    const dirOpt = `<label>retning styres af<select id="afdt-${i}" data-bind="anim-fdir" data-i="${i}"><option value="">intet (fast)</option>${TAGS.filter((t) => t.kind === 'coil' && t.name !== a.src).map((t) => `<option value="${t.name}" ${a.p.dirSrc === t.name ? 'selected' : ''}>${t.name} · Fra = frem, Til = tilbage</option>`).join('')}</select></label>`;
+    return ctl + dirOpt + color('anim-fbase', a.p.base, 'Farve 1 (røret)') + color('anim-flight', a.p.light, 'Farve 2 (lyset)')
+      + `<label>hastighed<input type="number" id="afs-${i}" data-bind="anim-fspeed" data-i="${i}" value="${esc(a.p.speed)}" min="5" max="500" style="width: 5rem"></label>`
+      + `<label>streglængde<input type="number" id="afd-${i}" data-bind="anim-fdash" data-i="${i}" value="${esc(a.p.dash)}" min="2" max="200" style="width: 5rem"></label>`
+      + (JUNC[jidOf(c)] ? `<label>valgt rør<select id="afa-${i}" data-bind="anim-farm" data-i="${i}"><option value="">intet (tegneretningen)</option>${Object.keys(JUNC[jidOf(c)]).map((k) => `<option value="${k}" ${a.p.arm === k ? 'selected' : ''}>${ARM_TXT[k]}</option>`).join('')}</select></label>`
+        + (a.p.arm ? `<label>løber<select id="aff-${i}" data-bind="anim-farmflow" data-i="${i}"><option value="in" ${a.p.armFlow !== 'out' ? 'selected' : ''}>ind i krydset (de øvrige ud)</option><option value="out" ${a.p.armFlow === 'out' ? 'selected' : ''}>ud af krydset (de øvrige ind)</option></select></label>` : '') : '')
+      + `<label class="check"><input type="checkbox" id="afr-${i}" data-bind="anim-frev" data-i="${i}" ${a.p.reverse ? 'checked' : ''}>vend retningen${a.p.arm ? ' (byt ind og ud)' : ''}</label>`
+      + `<span class="muted">${a.p.arm ? 'Det valgte rør løber ind (eller ud), de øvrige den modsatte vej; "tilbage" vender det hele.' : 'Lyset løber langs rørets tegneretning.'} Stop og komm.fejl = stille.</span>`;
+  }
   if (a.type === 'level') return `<label>min<input type="number" id="alo-${i}" data-bind="anim-min" data-i="${i}" value="${esc(a.p.min)}"></label><label>max<input type="number" id="ahi-${i}" data-bind="anim-max" data-i="${i}" value="${esc(a.p.max)}"></label><span class="muted">tom ved min, fuld ved max</span>`;
   if (a.type === 'value') return kind === 'num' ? `<label>enhed<input id="au-${i}" data-bind="anim-unit" data-i="${i}" value="${esc(a.p.unit)}" style="width: 5rem"></label><label>decimaler<input type="number" id="ad-${i}" data-bind="anim-dec" data-i="${i}" value="${esc(a.p.dec)}" min="0" max="3"></label>` : `<span class="muted">${kind === 'pos' ? 'viser positionens navn' : 'viser Til/Fra'}</span>`;
   if (a.type === 'color') {
@@ -854,7 +902,7 @@ function renderLive6() {
   const el = document.getElementById('live6'); if (!el) return;
   const c = cur;
   if (!hasPos(c)) {
-    const names = [...new Set([...c.signals.map((s) => rk(s)), ...c.anims.map((a) => a.src)].filter((n) => n && n !== '@pos'))];
+    const names = [...new Set([...c.signals.map((s) => rk(s)), ...c.anims.flatMap(animTags)].filter((n) => n && n !== '@pos'))];
     el.innerHTML = `<div class="tablebox"><table><thead><tr><th scope="col">Tag</th><th scope="col">Værdi</th></tr></thead><tbody>${names.map((n) => `<tr><th scope="row" style="font-weight: 400">${esc(n)} <span class="sub">${esc(tag(n)?.src)}</span></th><td class="mono">${sim.comm ? '<span class="ck-err">komm.fejl</span>' : esc(Math.round(Number(tagValue(n)) * 10) / 10)}</td></tr>`).join('')}</tbody></table></div>`;
     return;
   }
@@ -886,9 +934,12 @@ function nextStep(c, dir) { let s = step + dir; while (s > 0 && s < 5 && stepSki
 
 // Rør og fittings — samme liste som PIPE_IDS i frontend/src/lib/symbols.ts
 const PIPE_IDS = new Set(['roer_v', 'roer_l', 'boejning90', 'boejning45', 't_stykke', 'kryds', 'reduktion', 'prop', 'flange', 'flowpil']);
+// Løbelys kræver en streg eller et lige rør — reduktionen er en udfyldt form uden midterlinje
+const FLOW_OK = (id) => PIPE_IDS.has(id) && id !== 'reduktion';
 // ===================================================================== Overview
 // Opdatér en tegnet SVG på stedet når kun attributter/tekst har ændret sig — så CSS-transitions (Flyt/Drej)
 // glider og blink ikke genstartes. Ændrer strukturen sig, tegnes den forfra.
+const NO_DELAY = /animation-delay:-?\d+ms;?/g;
 function morph(holder, html) {
   if (holder.dataset.html === html) return;
   holder.dataset.html = html;
@@ -900,7 +951,12 @@ function morph(holder, html) {
   a.forEach((o, i) => {
     const n = b[i];
     [...o.attributes].forEach((at) => { if (!n.hasAttribute(at.name)) o.removeAttribute(at.name); });
-    [...n.attributes].forEach((at) => { if (o.getAttribute(at.name) !== at.value) o.setAttribute(at.name, at.value); });
+    [...n.attributes].forEach((at) => {
+      const was = o.getAttribute(at.name);
+      // animation-delay fasesætter kun et nyt element; på et element der allerede kører, ville en ny delay få blink/løbelys til at hoppe
+      if (at.name === 'style' && was != null && was.replace(NO_DELAY, '') === at.value.replace(NO_DELAY, '')) return;
+      if (was !== at.value) o.setAttribute(at.name, at.value);
+    });
     if (!n.children.length && o.textContent !== n.textContent) o.textContent = n.textContent;
   });
 }
@@ -926,7 +982,7 @@ function renderOv() {
     </section>
   </div>
   <section class="panel" aria-labelledby="al-title"><div class="panel-head"><h2 id="al-title">Alarmer</h2></div><div class="panel-body" id="alarms"></div></section>`;
-  const names = [...new Set(symbols.flatMap((c) => [...c.anims.map((a) => a.src), c.fault]))].filter((n) => n && n !== '@pos' && !(n in sim.read));
+  const names = [...new Set(symbols.flatMap((c) => [...c.anims.flatMap(animTags), c.fault]))].filter((n) => n && n !== '@pos' && !(n in sim.read));
   document.getElementById('simtags').innerHTML = names.map((n) => tag(n)?.kind === 'coil'
     ? `<label class="check" for="stg-${n}"><input id="stg-${n}" type="checkbox" data-bind="simtag" data-tag="${n}" ${Number(sim.tags[n]) ? 'checked' : ''}>${esc(n)}</label>`
     : `<label class="field" for="stg-${n}">${esc(n)}<input id="stg-${n}" type="number" data-bind="simtag" data-tag="${n}" value="${esc(Math.round((sim.tags[n] ?? 0) * 10) / 10)}" style="width: 6rem"></label>`).join('');
@@ -966,7 +1022,7 @@ function renderOvLive() {
       ${c.fault && Number(tagValue(c.fault)) ? `<div class="small ck-err">${esc(c.fault)} er aktiv — betjening er blokeret.</div>` : ''}
       <div class="row"><button class="primary" data-action="open-dialog">Betjen ${esc(c.name)}…</button><span class="small muted">klik også direkte på symbolet</span></div></div>`;
   } else {
-    const names = [...new Set(c.anims.map((a) => a.src).filter((n) => n && n !== '@pos'))];
+    const names = [...new Set(c.anims.flatMap(animTags).filter((n) => n && n !== '@pos'))];
     det.innerHTML = `<div class="box small"><b>${esc(c.name)}</b> · kun visning · ${names.map((n) => `${esc(n)} = ${sim.comm ? '?' : esc(Math.round(Number(tagValue(n)) * 10) / 10)}`).join(' · ')}</div>`;
   }
   document.getElementById('log').innerHTML = sim.log.length ? sim.log.map((l) => `<div><span class="t">${fmtT(l.t)}</span> ${esc(l.text)}</div>`).join('') : '<span class="muted">Ingen skrivninger endnu</span>';
@@ -1182,6 +1238,16 @@ document.addEventListener('change', (e) => {
   if (k === 'anim-max') an.p.max = el.value;
   if (k === 'anim-unit') an.p.unit = el.value;
   if (k === 'anim-dec') an.p.dec = el.value;
+  if (k === 'anim-fmode') an.p.mode = el.value;
+  if (k === 'anim-pdir') an.p.pdir[kk] = Number(el.value);
+  if (k === 'anim-fbase') an.p.base = el.value;
+  if (k === 'anim-flight') an.p.light = el.value;
+  if (k === 'anim-fspeed') an.p.speed = el.value;
+  if (k === 'anim-fdash') an.p.dash = el.value;
+  if (k === 'anim-frev') an.p.reverse = el.checked;
+  if (k === 'anim-farm') an.p.arm = el.value;
+  if (k === 'anim-fdir') an.p.dirSrc = el.value;
+  if (k === 'anim-farmflow') an.p.armFlow = el.value;
   if (k === 'anim-only') { an.only ||= c.positions.map(() => true); an.only[kk] = el.checked; }
   if (tab === 'guide') renderGuide();
 });
@@ -1214,8 +1280,9 @@ TAGS.push({ name: 'Demo_drift', src: 'plc1:di:90', kind: 'coil', writable: false
   { name: 'Demo_niveau', src: 'plc1:ir:90', kind: 'reg', dt: 'uint', writable: false, min: 0, max: 100 },
   { name: 'Demo_tryk', src: 'plc1:ir:91', kind: 'reg', dt: 'uint', writable: false, min: 0, max: 10 },
   { name: 'Demo_maaling', src: 'plc1:ir:92', kind: 'reg', dt: 'int', writable: false },
-  { name: 'Demo_energi', src: 'plc1:ir:93', kind: 'reg', dt: 'uint', writable: false });
-Object.assign(sim.tags, { Demo_drift: 1, Demo_niveau: 55, Demo_tryk: 4, Demo_maaling: 21, Demo_energi: 12345.6 });
+  { name: 'Demo_energi', src: 'plc1:ir:93', kind: 'reg', dt: 'uint', writable: false },
+  { name: 'Demo_retning', src: 'plc1:di:91', kind: 'coil', writable: false });
+Object.assign(sim.tags, { Demo_drift: 1, Demo_niveau: 55, Demo_tryk: 4, Demo_maaling: 21, Demo_energi: 12345.6, Demo_retning: 0 });
 
 const svgDoc = (svg) => new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${svg}</svg>`, 'image/svg+xml');
 function convertDef(def) {
@@ -1288,7 +1355,8 @@ function convertDef(def) {
     if (has('viser')) { c.anims.push({ part: 'viser', type: 'turn', src: 'Demo_tryk', p: { min: 0, max: 10, a0: -120, a1: 120 } }); needs.add('turn'); }
     if (has('vaerdi')) c.anims.push(def.id === 'elmaaler' ? { part: 'vaerdi', type: 'value', src: 'Demo_energi', p: { unit: '', dec: 1 } }
       : { part: 'vaerdi', type: 'value', src: 'Demo_maaling', p: { unit: '°C', dec: 1 } });
-    if (!c.anims.length) c.anims.push({ part: 'all', type: 'color', src: 'Demo_drift', p: { on: '#7cc47f', off: '' } });
+    if (!c.anims.length) c.anims.push(FLOW_OK(def.id) ? { part: 'all', type: 'flow', src: 'Demo_drift', p: animDefaults(c, 'flow', 'bool') }
+      : { part: 'all', type: 'color', src: 'Demo_drift', p: { on: '#7cc47f', off: '' } });
     if (!ids.length) notes.push('Ingen navngivne dele — kun hele symbolet kan animeres.');
     if (def.id === 'knap') notes.push('Har ingen klik-handling i dag; kan gøres betjenbar i trin 1 (Til/fra eller Trykknap).');
   }
@@ -1330,6 +1398,51 @@ function recolor(el, col) {
     else s.setAttribute('fill', col);
   });
 }
+// Løbelys: røret får farve 1; en stiplet kopi af hver streg (eller midterlinjen af et lige rør) i farve 2
+// lægges ovenpå og løber langs tegneretningen. Samme metode som i appen (frontend/src/lib/animate.ts).
+function drawFlow(el, f) {
+  const doc = el.ownerDocument, NS = 'http://www.w3.org/2000/svg';
+  const shapes = el.tagName === 'g' ? [...el.querySelectorAll('path,rect,line,polyline,polygon,circle,ellipse')] : [el];
+  const layer = doc.createElementNS(NS, 'g');
+  const dur = Math.round((2 * f.dash / f.speed) * 1000);
+  const dash = (d, out) => {
+    d.setAttribute('stroke', f.light); d.setAttribute('stroke-dasharray', `${f.dash} ${f.dash}`); d.setAttribute('class', 'flowing');
+    d.setAttribute('style', `--p:${-2 * f.dash}px;animation-duration:${dur}ms;animation-direction:${out ? 'normal' : 'reverse'};animation-delay:-@@flow${dur}@@ms`);
+    layer.appendChild(d);
+  };
+  if (f.arms && f.arms[f.arm]) {
+    shapes.forEach((s) => s.setAttribute('stroke', f.base));
+    Object.entries(f.arms).forEach(([name, [x, y]]) => {
+      const d = doc.createElementNS(NS, 'line');
+      [['x1', 45], ['y1', 45], ['x2', x], ['y2', y], ['stroke-width', 10]].forEach(([k, v]) => d.setAttribute(k, v));
+      let out = name === f.arm ? f.armFlow === 'out' : f.armFlow !== 'out'; // ud = væk fra krydspunktet
+      if (f.dir < 0) out = !out;
+      dash(d, out);
+    });
+    el.appendChild(layer);
+    return;
+  }
+  shapes.forEach((s) => {
+    let d = null;
+    if (s.tagName === 'rect') {
+      const n = (a) => parseFloat(s.getAttribute(a) || '0') || 0, [x, y, w, h] = [n('x'), n('y'), n('width'), n('height')];
+      if (w <= 0 || h <= 0) return;
+      const hz = w >= h; d = doc.createElementNS(NS, 'line');
+      [['x1', hz ? x : x + w / 2], ['y1', hz ? y + h / 2 : y], ['x2', hz ? x + w : x + w / 2], ['y2', hz ? y + h / 2 : y + h], ['stroke-width', hz ? h : w]].forEach(([k, v]) => d.setAttribute(k, v));
+      if (s.getAttribute('transform')) d.setAttribute('transform', s.getAttribute('transform'));
+      s.setAttribute('fill', f.base);
+    } else if (s.getAttribute('stroke') && s.getAttribute('stroke') !== 'none') {
+      d = s.cloneNode(false); ['id', 'class', 'style'].forEach((k) => d.removeAttribute(k)); d.setAttribute('fill', 'none');
+      s.setAttribute('stroke', f.base);
+    }
+    if (!d) return;
+    d.setAttribute('stroke', f.light); d.setAttribute('stroke-dasharray', `${f.dash} ${f.dash}`); d.setAttribute('class', 'flowing');
+    d.setAttribute('style', `--p:${-2 * f.dash}px;animation-duration:${dur}ms;animation-direction:${f.dir < 0 ? 'reverse' : 'normal'};animation-delay:-@@flow${dur}@@ms`);
+    layer.appendChild(d);
+  });
+  if (!layer.childNodes.length) return;
+  if (el.tagName === 'g') el.appendChild(layer); else el.parentNode.insertBefore(layer, el.nextSibling);
+}
 function drawImported(c, styles) {
   const d = IMPDEF[c.imp], def = d.def;
   const key = def.id + JSON.stringify(styles);
@@ -1359,6 +1472,7 @@ function drawImported(c, styles) {
       if (cls.length) el.setAttribute('class', cls.join(' '));
       if (css.length) el.setAttribute('style', css.join(';'));
       if (st.hidden) el.setAttribute('visibility', 'hidden');
+      if (st.flow) drawFlow(el, st.flow);
     }
     // Rør og fittings tegnes i én fælles målestok (som paletten i Tegn, v0.28.1), så rørtykkelsen er ens
     const bw = def.bbox.w || 1, bh = def.bbox.h || 1;
@@ -1369,7 +1483,7 @@ function drawImported(c, styles) {
     impCache.set(key, out);
   }
   // Fasen sættes ved hver tegning, så alle blink med samme frekvens kører i takt
-  return out.replace(/@@(\w+)@@/g, (_, k) => Date.now() % (k === 'spin' ? 1600 : BLINK_MS[k] || 1000));
+  return out.replace(/@@(\w+)@@/g, (_, k) => Date.now() % (k === 'spin' ? 1600 : k.startsWith('flow') ? Number(k.slice(4)) || 1000 : BLINK_MS[k] || 1000));
 }
 
 // Faneblad: symbolbiblioteket i dag

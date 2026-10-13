@@ -52,9 +52,12 @@ for andet end Positioner, trin 5 for Kun visning. Trykknap og Setpunkt vælger d
 Et symbol kan have vilkårligt mange animationer (prototypen: 12). Hver animation har:
 
 - **Del** — en af symbolets dele.
-- **Type** — Farve, Blink, Synlig, Drej, Flyt, og hvor delen tillader det Roterer, Niveau og Værdi.
+- **Type** — Farve, Blink, Synlig, Drej, Flyt, og hvor delen tillader det Roterer, Niveau, Værdi og Løbelys.
   - **Drej**: delen drejes om sit centrum til en vinkel pr. position, eller lineært efter et tal-tag (min/max → vinkel fra/til). Fx omskiftergreb og manometerviser.
   - **Flyt**: delen forskydes dx/dy pr. position, eller lineært efter et tal-tag. Fx vippekontaktens greb.
+  - **Løbelys** (rør og fittings, v0.29.0): røret får farve 1, og en stiplet kopi i farve 2 løber langs tegneretningen. Tagget styrer start/stop og retning: til/fra-tag → kører når Til (eller Fra); tal-tag → *Kode* (0 stop, 1 frem, 2 tilbage) eller *Fortegn* (> 0 frem, < 0 tilbage, 0 stop); position → Stop/Frem/Tilbage pr. position. "Vend retningen" bytter frem og tilbage, så frem kan følge flowet uanset hvordan røret er tegnet. Hastighed 5–500 enheder/s og streglængde 2–200. Alle løbelys med samme hastighed løber i takt; ved stop, ukendt værdi og kommunikationsfejl står lyset stille (røret får sin egen farve), så der aldrig vises flow der ikke er der. Ved "reduceret bevægelse" vises lyset som faste striber.
+  - **Retning fra et andet tag** (v0.31.0): "Retning styres af" vælger valgfrit et til/fra-tag der vender lyset (Fra = som valgt, Til = modsat), så én animation kører begge veje når PLC'en har start/stop og retning som to signaler. Virker sammen med alle tilstande og med T-stykke/kryds; ukendt retning = stop. Retnings-tagget tæller med overalt hvor en bindings tags bruges: live-data, adgang pr. tegning, sletning af tags og backup-import.
+  - **Løbelys i T-stykke og kryds** (v0.30.0): vælg ét af rørene (venstre/højre/op/ned som det ses på skærmen, også når symbolet er roteret) og om det løber *ind i* eller *ud af* krydset; de øvrige rør løber den modsatte vej. "Frem" giver det valgte mønster, "tilbage" vender det hele (fx kode 2), og "vend retningen" bytter ind og ud. Findes det valgte rør ikke (fx "ned" i et T-stykke), følger lyset tegneretningen, og elementet får en advarsel.
 - **Styres af** — symbolets position eller et hvilket som helst tag.
 - **Parametre** efter kilden: til/fra-tag → farve for Til/Fra eller "når Til/Fra"; tal-tag → farve efter stigende grænser + "ellers", eller "når ≥ X"; Niveau → min/max; Værdi → enhed og decimaler; position → farve pr. position eller udvalgte positioner.
 - **Gælder i positionerne** (kun symboler med positioner) — animationen virker kun i de afkrydsede positioner.

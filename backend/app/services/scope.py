@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from .auth import CurrentUser, role_at_least
-from .bindings import WRITE_CLICKS
+from .bindings import WRITE_CLICKS, binding_tags
 from .drawings import DrawingService
 
 
@@ -38,7 +38,7 @@ class ScopeService:
             return None
         tags: set[str] = set()
         for did in self._ids(user):
-            tags.update(b["tag"] for b in self.drawings.effective_bindings(did) if b["tag"])
+            tags.update(t for b in self.drawings.effective_bindings(did) for t in binding_tags(b))
         return tags
 
     # Hvilke klik-handlinger der giver ret til hvilken betjening (operatører)

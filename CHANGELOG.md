@@ -4,6 +4,38 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.31.0 build 0044] — 2026-10-13 — Løbelys: retning fra et andet tag
+
+- `backend/app/services/bindings.py` — `FlowParams.dir_tag` og `binding_tags()` (bindingens tag + evt. retnings-tag), brugt alle steder der samler en bindings tags:
+  - `drawings.py` — retnings-tagget skal findes og være et andet end start/stop-tagget; tag-metadata i `view()` medtager det.
+  - `scope.py` — begrænsede brugere får live-værdien (adgang pr. tegning).
+  - `backup.py` — import afvises hvis retnings-tagget mangler.
+  - `storage/db.py` — `count_bindings_for_tag` tæller også `params.dir_tag`, så tagget ikke kan slettes mens det bruges.
+- `frontend/src/lib/canvas.ts` — `bindingTags()`; `byTag()` indekserer under begge tags, så en ændring på retnings-tagget gentegner løbelyset; `renderBinding` sender retningens live-værdi med.
+- `frontend/src/lib/animate.ts` — `withDirection()`: Fra = som valgt, Til = modsat, ukendt = stop.
+- `frontend/src/pages/Editor.svelte`, `frontend/src/lib/bindingForm.ts` — "Retning styres af (valgfrit)" med tag-vælgeren; preview abonnerer også på retnings-tagget. Afkrydsningsfelterne står på hver sin linje.
+- Tests: `withDirection`, løbelys i DOM med retnings-tag, `bindingTags`/`byTag`, formular; backend: validering, metadata, tag-sletning blokeret, adgang pr. tegning, backup-import.
+- `docs/prototyper/symbolguide.html`, `docs/SYMBOLSTANDARD.md` — samme valg i prototypen (demo-tag `Demo_retning`); prototypens tag-lister medtager også retnings-tagget.
+- Set i den kørende app i Chromium med mock-PLC: rør og T-stykke (op ind) med Pumpe (coil 5) og Retning (coil 6) — Retning fra/til vender lyset, Pumpe fra stopper.
+
+## [0.30.0 build 0043] — 2026-10-13 — Løbelys i T-stykke og kryds
+
+- `backend/app/services/bindings.py` — `FlowParams.arm` ('' | left | right | up | down) og `arm_flow` (in | out).
+- `frontend/src/lib/animate.ts` — `segmentsOf()` (lige linjestykker fra path M/L/H/V/Z inkl. relative, line, polyline, polygon, rect), `junctionArms()` (krydspunkt + rør), `armName()` (rørets retning på skærmen via elementets CTM, så roterede/spejlede symboler følger det man ser) og `armFlowsOut()`. Med valgt rør tegnes én lys-linje pr. rør fra krydspunktet: det valgte løber ind/ud, de øvrige modsat; "tilbage" vender alt. Findes røret ikke, eller har elementet buer, falder lyset tilbage til tegneretningen med en advarsel.
+- `frontend/src/lib/bindingForm.ts`, `frontend/src/pages/Editor.svelte` — "T-stykke/kryds: valgt rør" og "Det valgte rør løber ind/ud".
+- Tests: krydspunkt/rør for kryds og T-stykke, relative paths, buer/parallelle, skærmretning ved rotation og spejling, ind/ud-logik, kryds og T-stykke i DOM inkl. kode 2, manglende rør (`animate.test.ts`); formular (`bindingForm.test.ts`); backend-validering.
+- `docs/prototyper/symbolguide.html`, `docs/SYMBOLSTANDARD.md` — samme valg i prototypen og standarden.
+- Set i den kørende app i Chromium: kryds (venstre ind), T-stykke (op ud) og T-stykke roteret 90° (højre ind) — retninger målt pr. rør i skærmkoordinater, også ved kode 2 og 0.
+
+## [0.29.0 build 0042] — 2026-10-13 — Ny animation: Løbelys
+
+- `backend/app/services/bindings.py` — ny animationstype `flow` med `FlowParams` (mode onoff/signed/code, reverse, invert, base, light, speed 5–500, dash 2–200; farver valideres som de øvrige).
+- `frontend/src/lib/animate.ts` — `flowState()` (tagværdi → frem/tilbage/stop) og løbelyset: røret får farve 1, og et lag med en stiplet kopi af hver streg (et lige rør/rect får en streg ad midterlinjen) løber via Web Animations (startTime 0, så alle løbelys er i takt). Laget genskabes kun når tilstanden ændres, så animationen ikke hopper ved hver live-opdatering. Ukendt værdi/kommunikationsfejl = stop. Ingen id'er i kopien; `pointer-events: none`. Advarsel på elementer uden streg.
+- `frontend/src/lib/bindingForm.ts`, `frontend/src/pages/Editor.svelte`, `frontend/src/lib/api.ts` — Løbelys i binding-editoren: styring (til/fra, fortegn, kode), to farver, hastighed, streglængde, vend retning, omvendt; danske fejlbeskeder (fx ens farver).
+- Tests: `animate.test.ts` (tilstande, lag på rect/gruppe, stop, ingen genskabelse, ukendt værdi, advarsel), `bindingForm.test.ts` (standard, validering, round-trip), `backend/tests/test_drawings_api.py` (validering og standardparametre).
+- `docs/RESEARCH_OG_DESIGN.md` — `flow` i animationstabellen.
+- Set i den kørende app i Chromium med mock-PLC: lige rør, bøjning 90°/45° og T-stykke løber, kode 2 vender retningen, fra/0 stopper.
+
 ## [0.28.2 build 0041] — 2026-10-13 — fix: Bøjning 45° har lige lange ben
 
 - `frontend/src/lib/symbols.ts` — Bøjning 45°: knækpunkt (45,45), begge ben 45 lange som på Bøjning 90°, T-stykke og kryds (før 30 og ca. 42); stadig radius 20.

@@ -2,6 +2,23 @@
 
 ---
 
+## v0.31.0 — 2026-10-13 — Løbelys kan køre begge veje fra to signaler
+
+- Løbelys har fået **"Retning styres af"**: vælg et ekstra til/fra-tag der bestemmer retningen (Fra = som valgt, Til = modsat). Så kan én animation køre begge veje, når PLC'en har start/stop og retning som to separate signaler.
+- Virker sammen med alle måder at styre løbelyset på og med T-stykker og kryds. Er retningen ukendt (fx kommunikationsfejl), står lyset stille.
+
+## v0.30.0 — 2026-10-13 — Løbelys i T-stykker og kryds
+
+- Løbelys på et **T-stykke** eller **kryds** kan nu sættes pr. rør: vælg ét af rørene (venstre, højre, op eller ned — som det ses på skærmen, også når symbolet er drejet) og om det løber **ind i** eller **ud af** krydset. De øvrige rør løber automatisk den modsatte vej.
+- Tagget styrer stadig start/stop, og "tilbage" (fx kode 2) vender hele mønstret.
+
+## v0.29.0 — 2026-10-13 — Løbelys i rør
+
+- Ny animation **Løbelys** under Bindinger: to farver løber langs et rør eller en streg, så man kan se flowet. Virker på lige rør, bøjninger, T-stykker, kryds og tegnede streger.
+- Tagget styrer **start/stop og retning** på en af tre måder: *Til/fra* (kører når til, fast retning), *Fortegn* (over 0 frem, under 0 tilbage, 0 stop — fx en frekvensomformers hastighed) eller *Kode* (0 stop, 1 frem, 2 tilbage).
+- Farver, hastighed og streglængde kan vælges, og retningen kan vendes, hvis røret er tegnet "baglæns".
+- Lyset står stille ved stop og ved kommunikationsfejl, så der aldrig vises flow der ikke er der.
+
 ## v0.28.2 — 2026-10-13 — Lige lange ben på rørdelene
 
 - **Bøjning 45°** har nu to lige lange ben (45), ligesom Bøjning 90°, T-stykke og kryds. Bøjninger der allerede ligger i en tegning, ændres ikke.

@@ -8,7 +8,7 @@ from typing import Any
 
 from ..storage.db import Database
 from ..storage.files import DrawingFiles
-from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, _spec_list, auto_binding, symbol_bindings, validate_binding
+from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, _spec_list, auto_binding, binding_tags, symbol_bindings, validate_binding
 from .errors import ServiceError
 from .live_cache import LiveCache
 from .svg_sanitize import SvgError, index_svg, sanitize_svg, symbol_specs
@@ -165,6 +165,11 @@ class DrawingService:
             tag = self.db.get_tag(b["tag"])
             if tag is None:
                 raise ServiceError(400, f"Tagget '{b['tag']}' findes ikke")
+            if b["anim"] == "flow" and (dir_tag := b["params"].get("dir_tag")):
+                if dir_tag == b["tag"]:
+                    raise ServiceError(400, "Retnings-tagget skal være et andet tag end start/stop-tagget")
+                if self.db.get_tag(dir_tag) is None:
+                    raise ServiceError(400, f"Retnings-tagget '{dir_tag}' findes ikke")
             if b["anim"] in WRITE_CLICKS and not tag["writable"]:
                 raise ServiceError(400, f"Tagget '{b['tag']}' er ikke markeret skrivbart — ret det under Tags først")
             if b["anim"] in ("click:toggle", "click:pulse") and parse_source(tag["source"]).datatype == "real":
@@ -229,7 +234,7 @@ class DrawingService:
         if visible_drawings is not None:
             effective = [b for b in effective
                          if b["anim"] != "click:goto" or b["params"].get("drawing") in visible_drawings]
-        used = sorted({b["tag"] for b in effective if b["tag"]})
+        used = sorted({t for b in effective for t in binding_tags(b)})
         meta = {n: self._meta(tags[n]) for n in used if n in tags}
         return {"id": drawing["id"], "name": drawing["name"], "version": drawing["active_version"],
                 "svg": svg, "bindings": effective, "orphaned_bindings": sorted(set(orphans)), "tags": meta,
