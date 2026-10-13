@@ -2,6 +2,12 @@
 
 ---
 
+## v0.38.1 — 2026-10-13 — Rettelser i symbolguiden og Konvertér alle
+
+- Symboler med "Gå til tegning" eller betjening på en del af symbolet konverteres ikke længere automatisk — de står som "kræver manuel handling", så linket eller betjeningen ikke forsvinder.
+- Konverterede setpunkter beder kun om bekræftelse hvis tagget gør det, som før.
+- Guiden fortsætter med at kontrollere efter en fejl ved gem, og Gem kan ikke trykkes før den seneste ændring er kontrolleret.
+
 ## v0.38.0 — 2026-10-13 — Symbolstandard, del 8: konvertér alle symboler
 
 - Under **Tegninger** er der nu et panel **Symbolstandard: konvertér alle**. **Tør-kørsel** viser for hvert symbol om det kan konverteres til den nye standard, og hvorfor ikke hvis det ikke kan — uden at gemme noget.

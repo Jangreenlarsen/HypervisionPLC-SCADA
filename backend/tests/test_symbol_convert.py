@@ -137,3 +137,31 @@ def test_convert_all_dry_run_then_apply(api):
     assert any(e["action"] == "symbol.convert_all" for e in api.get("/api/audit?limit=20").json())
     # Ukendt tegning afvises; kun teknikere
     assert api.post("/api/drawings/convert-symbols", json={"drawings": ["findes-ikke"]}).status_code == 404
+
+
+def test_what_would_be_lost_makes_the_symbol_manual(api):
+    """'Gå til tegning' og klik på dele kan ikke overføres — så konverteres symbolet ikke automatisk (review A1/A2)."""
+    assert api.put(f"/api/drawings/{api.did}/bindings/Vippe_spor",
+                   json={"bindings": [{"anim": "click:goto", "params": {"drawing": api.did}}]}).status_code == 200
+    assert api.put(f"/api/drawings/{api.did}/bindings/Link_flade", json={"bindings": [
+        {"tag": "Kvit", "anim": "click:pulse"}, {"tag": "Kvit", "anim": "fill"}]}).status_code == 200
+    s = _suggest(api, "Vippe")
+    assert s["convertible"] is False and "Gå til tegning" in s["notes"][0]
+    s = _suggest(api, "Link")
+    assert s["convertible"] is False and "click:pulse på Link_flade" in s["notes"][0]
+    rows = {r["element"]: r for r in api.post("/api/drawings/convert-symbols", json={"apply": True}).json()["symbols"]}
+    assert rows["Vippe"]["status"] == "manual" and rows["Link"]["status"] == "manual"
+    assert api.get(f"/api/drawings/{api.did}/symbols/Vippe/config").json()["config"] is None
+
+
+def test_setpoint_keeps_confirmation_and_toggle_colors_ignore_thresholds(api):
+    assert api.post("/api/tags", json={"name": "SP", "source": "plc1:hr:33", "writable": True,
+                                       "confirm_write": False}).status_code == 201
+    assert api.put(f"/api/drawings/{api.did}/bindings/Los", json={"bindings": [{"tag": "SP", "anim": "click:write"}]}).status_code == 200
+    cfg = _suggest(api, "Los")["config"]
+    assert cfg["op"] == "entry" and cfg["confirm"] is False                       # som før: tagget kræver ikke bekræftelse
+    assert api.put(f"/api/drawings/{api.did}/bindings/Vippe_spor", json={"bindings": [
+        {"tag": "Lys", "anim": "fill", "params": {"on": "#00aa00", "off": "#cccccc",
+                                                  "thresholds": [{"value": 1, "color": "#ff0000"}]}}]}).status_code == 200
+    anims = {a["part"]: a for a in _suggest(api, "Vippe")["config"]["anims"]}
+    assert anims["Vippe_spor"]["params"]["colors"] == ["#cccccc", "#00aa00"]     # til/fra: tærskler bruges ikke

@@ -28,10 +28,10 @@ from .svg_sanitize import describe_element, symbol_roots
 CLICKS = ("click:toggle", "click:select", "click:pulse", "click:write")
 
 
-def _color_for(value: float, p: dict[str, Any]) -> str:
-    """Som frontendens colorFor: tærskler for tal, ellers on/off."""
+def _color_for(value: float, p: dict[str, Any], boolean: bool = False) -> str:
+    """Som frontendens colorFor: tærskler for tal, ellers on/off (et til/fra-tag bruger altid on/off)."""
     th = p.get("thresholds") or []
-    if th:
+    if th and not boolean:
         color = p.get("off") or DEFAULT_OFF
         for t in th:
             if value >= t["value"]:
@@ -40,8 +40,14 @@ def _color_for(value: float, p: dict[str, Any]) -> str:
     return (p.get("on") or DEFAULT_ON) if value else (p.get("off") or DEFAULT_OFF)
 
 
+def _num(p: dict[str, Any], key: str, default: float) -> float:
+    """Parameterens tal — `None`/manglende giver standardværdien (som frontendens `??`)."""
+    v = p.get(key)
+    return float(default) if v is None else float(v)
+
+
 def _frac(v: float, p: dict[str, Any]) -> float:
-    lo, hi = float(p.get("min", 0)), float(p.get("max", 100))
+    lo, hi = _num(p, "min", 0), _num(p, "max", 100)
     return 0.0 if hi <= lo else min(1.0, max(0.0, (v - lo) / (hi - lo)))
 
 
@@ -51,10 +57,19 @@ def suggest(drawings: Any, drawing_id: str, element: str) -> dict[str, Any]:
     svg = drawings.svg(drawing_id)
     info = describe_element(svg, element)
     if info is None:
-        return {"config": None, "notes": [f"Elementet '{element}' findes ikke i den aktive version"], "convertible": False}
+        return {"config": None, "notes": [f"Elementet '{element}' findes ikke i den aktive version"], "blockers": [],
+                "has_bindings": False, "convertible": False}
     legacy = drawings.legacy_bindings(drawing_id, element)
     notes: list[str] = []
+    blockers: list[str] = []   # det der ville gå tabt — så skal symbolet sættes op manuelt i guiden
     click = next((b for b in legacy if b["anim"] in CLICKS and b["element"] == element), None)
+    for b in legacy:
+        if b["anim"] in CLICKS and b is not click:
+            blockers.append(f"Klik-handlingen {b['anim']} på {b['element']} kan ikke overføres (symbolet betjenes kun fra roden) "
+                            f"— sæt betjeningen op i guiden.")
+        elif b["anim"] == "click:goto":
+            blockers.append(f"'Gå til tegning' på {b['element']} kan ikke bruges på et symbol med symbol-konfiguration — "
+                            f"linket ville forsvinde.")
     cfg: dict[str, Any] = {"op": "view", "positions": [], "signals": [], "planes": [], "anims": [], "confirm": True,
                            "display": "remote", "validate_s": 5, "alarm": "medium", "lock": {"positions": [], "leave": False}}
     values: list[float] = []   # positionernes værdier (til animationer pr. position)
@@ -76,20 +91,20 @@ def suggest(drawings: Any, drawing_id: str, element: str) -> dict[str, Any]:
             notes.append(f"Omskifter → {len(pos)} positioner, ét register med værdierne "
                          f"{'/'.join(f'{v:g}' for v in values)}.")
         elif click["anim"] == "click:pulse":
-            cfg.update(op="pulse", pulse_ms=int(p.get("ms", 500)), confirm=bool(p.get("confirm", False)),
+            cfg.update(op="pulse", pulse_ms=int(_num(p, "ms", 500)), confirm=bool(p.get("confirm", False)),
                        signals=[{"id": "S1", "tag": tag}])
             notes.append("Puls → betjeningsform Trykknap.")
         else:
-            cfg.update(op="entry", signals=[{"id": "S1", "tag": tag}])
+            row = drawings.db.get_tag(tag)
+            cfg.update(op="entry", signals=[{"id": "S1", "tag": tag}],
+                       confirm=bool(row["confirm_write"]) if row is not None else True)
             notes.append("Setpunkt → betjeningsform Setpunkt.")
     pos_mode = cfg["op"] == "positions"
     n = len(cfg["positions"])
     cfg["lock"]["positions"] = [False] * n
     for b in legacy:
         if b["anim"] in CLICKS or b["anim"] == "click:goto":
-            if b["anim"] == "click:goto":
-                notes.append(f"'Gå til tegning' på {b['element']} bevares ikke af symbolet — sæt den igen under Bindinger.")
-            continue
+            continue   # (klik på dele og "gå til" er med i blockers)
         part = "all" if b["element"] == element else b["element"]
         p, anim = dict(b["params"]), b["anim"]
         own = click is not None and b["tag"] == click["tag"] and pos_mode
@@ -97,15 +112,20 @@ def suggest(drawings: Any, drawing_id: str, element: str) -> dict[str, Any]:
             cfg["anims"].append({"part": part, "type": anim, "src": b["tag"], "params": p})
             continue
         if anim in ("fill", "stroke"):
-            cfg["anims"].append({"part": part, "type": anim, "src": "@pos", "params": {"colors": [_color_for(v, p) for v in values]}})
+            toggle = click["anim"] == "click:toggle"
+            cfg["anims"].append({"part": part, "type": anim, "src": "@pos",
+                                 "params": {"colors": [_color_for(v, p, toggle) for v in values]}})
         elif anim == "text":
             cfg["anims"].append({"part": part, "type": "text", "src": "@pos", "params": {}})
+            if p.get("prefix") or p.get("suffix"):
+                notes.append(f"Teksten på {b['element']} viser nu positionens navn — for-/eftertekst "
+                             f"('{p.get('prefix', '')}'/'{p.get('suffix', '')}') kommer ikke med.")
         elif anim == "move":
             cfg["anims"].append({"part": part, "type": "move", "src": "@pos", "params": {
-                "dxs": [round(float(p.get("dx", 100)) * _frac(v, p), 2) for v in values],
-                "dys": [round(float(p.get("dy", 0)) * _frac(v, p), 2) for v in values]}})
+                "dxs": [round(_num(p, "dx", 100) * _frac(v, p), 2) for v in values],
+                "dys": [round(_num(p, "dy", 0) * _frac(v, p), 2) for v in values]}})
         elif anim == "rotate":
-            a0, a1 = float(p.get("angle_min", 0)), float(p.get("angle_max", 360))
+            a0, a1 = _num(p, "angle_min", 0), _num(p, "angle_max", 360)
             cfg["anims"].append({"part": part, "type": "rotate", "src": "@pos",
                                  "params": {"angles": [round(a0 + (a1 - a0) * _frac(v, p), 2) for v in values]}})
         elif anim in ("visible", "blink"):
@@ -117,7 +137,8 @@ def suggest(drawings: Any, drawing_id: str, element: str) -> dict[str, Any]:
         notes.append("Symbolet har ingen bindinger i dag — vælg betjening og animationer i guiden.")
     elif not cfg["anims"] and cfg["op"] == "view":
         notes.append("Ingen animationer kunne overføres.")
-    return {"config": cfg, "notes": notes, "convertible": bool(legacy) and (cfg["op"] != "view" or bool(cfg["anims"])),
+    return {"config": cfg, "notes": blockers + notes, "blockers": blockers, "has_bindings": bool(legacy),
+            "convertible": bool(legacy) and not blockers and (cfg["op"] != "view" or bool(cfg["anims"])),
             "symbol": {"type": info["type"], "name": info["name"]}}
 
 
@@ -157,12 +178,12 @@ def convert_all(symbols: Any, actor: Any, drawing_ids: list[str], apply: bool) -
                 row.update(status="manual", reasons=["Elementet findes ikke"])
                 continue
             s = suggest(drawings, did, el)
-            row["notes"] = s["notes"]
-            if not drawings.legacy_bindings(did, el):
+            row["notes"] = [n for n in s["notes"] if n not in s["blockers"]]
+            if not s["has_bindings"]:
                 row["status"] = "none"
                 continue
             if not s["convertible"]:
-                row.update(status="manual", reasons=s["notes"] or ["Ingen animationer kunne overføres"])
+                row.update(status="manual", reasons=s["blockers"] or ["Ingen animationer kunne overføres"])
                 continue
             _, res = validate_config(s["config"], info, tags, has_pin=False)
             if res.count:

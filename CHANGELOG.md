@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.38.1 build 0056] — 2026-10-13 — fix: fund fra gennemgangen af symbolstandardens fase 6–8
+
+- `backend/app/services/symbol_convert.py` — klik-handlinger på dele og "Gå til tegning" er nu "blockers": forslaget er ikke konverterbart, og Konvertér alle viser "kræver manuel handling" med grunden; setpunkt arver taggets `confirm_write`; til/fra-farver ignorerer tærskler (som frontendens `colorFor`); manglende/`None`-parametre giver standardværdien; note når for-/eftertekst ikke kommer med; én `legacy_bindings`-beregning pr. symbol.
+- `backend/app/services/symbols.py` — koden kontrolleres med `fullmatch` på præcis 4 ASCII-cifre.
+- `frontend/src/lib/SymbolGuide.svelte` — indlæsningsfejl adskilt fra gem/fjern-fejl (kontrollen fortsætter efter en fejl); hver ændring gør ældre kontrolsvar forældede; Gem er spærret mens kontrollen kører.
+- Tests: `test_symbol_convert.py` (tab af link/klik → manuel, setpunktets bekræftelse, til/fra-farver), `test_symbol_pin.py` (kodeformat).
+
 ## [0.38.0 build 0055] — 2026-10-13 — Symbolstandard fase 8: Konvertér alle (tør-kørsel og rapport)
 
 - `backend/app/services/symbol_convert.py` — `convert_all()`: alle bibliotekssymboler med gamle bindinger på tværs af tegninger → rapport pr. symbol (kan konverteres / konverteret / kræver manuel handling med grund / allerede sat op / ingen bindinger). Tør-kørsel som standard; ved `apply` gemmes kun forslag uden fejl (fejl på ét symbol stopper ikke resten).

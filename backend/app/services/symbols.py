@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 MAX_POSITIONS, MAX_PLANES, MAX_SIGNALS, MAX_ANIMS = 8, 8, 8, 12
 POS = "@pos"
 _SIG_ID = re.compile(r"^[A-Za-z0-9_]{1,10}$")
-_PIN = re.compile(r"^\d{4}$")
+_PIN = re.compile(r"[0-9]{4}")   # bruges med fullmatch: kun ASCII-cifre, ingen linjeskift
 
 
 class _M(BaseModel):
@@ -603,7 +603,7 @@ class SymbolService:
 
     def put(self, actor: CurrentUser, drawing_id: str, element: str, config: Any, pin: str | None = None) -> dict[str, Any]:
         info = self._element(drawing_id, element)
-        if pin is not None and not _PIN.match(pin):
+        if pin is not None and not _PIN.fullmatch(pin):
             raise ServiceError(400, "Koden til nøglelåsen skal være præcis 4 cifre", {"steps": {"5": ["Koden til nøglelåsen skal være præcis 4 cifre."]}})
         has_pin = pin is not None or self.db.get_symbol_pin_hash(drawing_id, element) is not None
         normalized, res = validate_config(config, info, self._tags(), has_pin)
@@ -625,7 +625,7 @@ class SymbolService:
         self._element(drawing_id, element)
         if self.db.get_symbol_config(drawing_id, element) is None:
             raise ServiceError(404, f"'{element}' har ingen symbol-konfiguration — opsæt symbolet før koden sættes")
-        if not _PIN.match(pin or ""):
+        if not _PIN.fullmatch(pin or ""):
             raise ServiceError(400, "Koden til nøglelåsen skal være præcis 4 cifre")
         self.db.set_symbol_pin_hash(drawing_id, element, hash_password(pin), actor.username)
         log.info("Kode til symbol %s#%s sat af %s", drawing_id, element, actor.username)

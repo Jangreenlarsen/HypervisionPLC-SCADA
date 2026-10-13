@@ -35,10 +35,12 @@
   let notes = $state<string[]>([]);
   let step = $state(0);
   let loading = $state(true);
-  let error = $state('');
+  let error = $state('');       // fejl fra gem/fjern — vises, men stopper ikke guiden
+  let loadError = $state('');   // symbolet kunne ikke hentes — guiden kan ikke bruges
   let saving = $state(false);
   let preview = $state<Preview | null>(null);
   let previewError = $state('');
+  let checking = $state(false);   // en ændring venter på serverens kontrol
   let liveVals = $state<Record<string, LiveValue>>({});
 
   const tagByName = $derived(new Map(tags.map((t) => [t.name, t])));
@@ -62,7 +64,7 @@
   const needPin = $derived(locks && !hasPin && !pin);
   const pinMissing = $derived(exists ? 'Symbolet har ingen kode (fx efter gendannelse af en backup) — sæt en ny kode.' : 'Låste positioner kræver en kode.');
   const stepErrors = (k: number): string[] => [...(preview?.steps[String(k + 1)] ?? []), ...(k === 4 && needPin ? [pinMissing] : [])];
-  const canSave = $derived(!!preview && preview.errors === 0 && !needPin && pinOk && !saving && !previewError);
+  const canSave = $derived(!!preview && !checking && preview.errors === 0 && !needPin && pinOk && !saving && !previewError);
 
   // ---------------------------------------------------------------- indlæsning
   onMount(async () => {
@@ -78,7 +80,7 @@
         await convert(false);
       }
     } catch (e) {
-      error = (e as Error).message;
+      loadError = (e as Error).message;
     } finally {
       loading = false;
     }
@@ -113,18 +115,21 @@
   let seq = 0;
   $effect(() => {
     const body = JSON.stringify(cfg);
-    if (loading || error) return;
+    if (loading || loadError) return;
     if (timer) clearTimeout(timer);
+    const mine = ++seq;   // hver ændring gør ældre svar forældede — også dem der allerede er undervejs
+    checking = true;
     timer = setTimeout(async () => {
-      const mine = ++seq;
       try {
         const r = await post<Preview>(`${base}/preview`, { config: JSON.parse(body) });
         if (mine !== seq) return;
         preview = r;
         previewError = '';
+        checking = false;
       } catch (e) {
         if (mine !== seq) return;
         previewError = (e as Error).message;
+        checking = false;
       }
     }, 300);
   });
@@ -236,6 +241,7 @@
   async function remove(): Promise<void> {
     if (!confirm(`Fjern symbol-konfigurationen for ${name}? Symbolets gamle bindinger gælder så igen.`)) return;
     saving = true;
+    error = '';
     try {
       await api('DELETE', `${base}/config`);
       onsaved();
@@ -249,6 +255,7 @@
   async function clearPin(): Promise<void> {
     const msg = locks ? 'Fjern koden? De låste positioner kan så ikke vælges, før en ny kode er sat.' : 'Fjern koden?';
     if (!confirm(msg)) return;
+    error = '';
     try {
       const r = await api<{ has_pin: boolean }>('DELETE', `${base}/pin`);
       hasPin = r.has_pin;
@@ -273,7 +280,7 @@
     {#if loading}
       <p class="muted">Henter…</p>
     {:else if !symbol}
-      <p class="error">{error}</p>
+      <p class="error">{loadError}</p>
     {:else}
       <nav class="steps" aria-label="Trin">
         {#each STEPS as s, k}
@@ -492,7 +499,7 @@
       <footer class="row">
         {#if exists}<button class="danger" onclick={remove} disabled={saving}>Fjern konfiguration</button>{/if}
         <span class="spacer"></span>
-        <span class="small muted">{preview ? (preview.errors || needPin ? `${preview.errors + (needPin ? 1 : 0)} fejl` : 'Ingen fejl') : 'Kontrollerer…'}</span>
+        <span class="small muted">{checking ? 'Kontrollerer…' : preview ? (preview.errors || needPin ? `${preview.errors + (needPin ? 1 : 0)} fejl` : 'Ingen fejl') : 'Kontrollerer…'}</span>
         <button onclick={() => (step = Math.max(0, step - 1 - (!isPos && step === 3 ? 1 : 0)))} disabled={step === 0}>Tilbage</button>
         {#if step < 5}
           <button onclick={() => (step = Math.min(5, step + 1 + (!isPos && step === 1 ? 1 : 0)))}>Næste</button>

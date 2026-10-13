@@ -79,3 +79,11 @@ def test_only_engineers_set_or_clear_pin(api, mock_plc):
     assert _pin(api, "0000").status_code == 403
     assert _pin(api).status_code == 403
     assert _wait(lambda: True)
+
+
+def test_pin_must_be_exactly_four_ascii_digits(api, mock_plc):
+    _setup(api, mock_plc, dec_bin(display="remote", lock=LOCKED), pin="1357")
+    for bad in ("1234\n", "١٢٣٤"):
+        assert _pin(api, bad).status_code == 400, repr(bad)
+    r = api.put(f"/api/drawings/{api.did}/symbols/{V1}/config", json={"config": dec_bin(lock=LOCKED), "pin": "1234\n"})
+    assert r.status_code == 400
