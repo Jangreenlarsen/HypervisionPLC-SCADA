@@ -113,6 +113,9 @@ class FlowParams(_P):
     - code: 0 stop, 1 frem, 2 tilbage; andre værdier = stop.
     `reverse` vender retningen i alle tilstande, så "frem" kan følge rørets flow uanset tegneretning.
 
+    `dir_tag` (valgfrit): et andet tag der styrer retningen — Fra = frem, Til = tilbage — så start/stop og
+    retning kan komme fra to signaler i PLC'en. Ukendt retning = stop.
+
     T-stykke og kryds: `arm` vælger ét af rørene (som det ses på skærmen) og `arm_flow` om det løber ind i
     eller ud af krydset ved "frem"; de øvrige rør løber den modsatte vej. Tom `arm` = langs tegneretningen.
     """
@@ -125,6 +128,9 @@ class FlowParams(_P):
     dash: float = Field(default=12, ge=2, le=200)    # længde af hver lys/mørk streg
     arm: Literal["", "left", "right", "up", "down"] = ""
     arm_flow: Literal["in", "out"] = "in"
+    dir_tag: str = Field(default="", max_length=64)
+
+    _d = field_validator("dir_tag")(lambda cls, v: (v or "").strip())
 
     _c = field_validator("base", "light")(lambda cls, v: _color(v))
 
@@ -179,6 +185,16 @@ PARAM_MODELS: dict[str, type[_P]] = {
 
 class BindingError(ValueError):
     pass
+
+
+def binding_tags(b: dict[str, Any]) -> list[str]:
+    """Alle tags en binding læser: bindingens eget tag og evt. løbelysets retnings-tag. Bruges alle steder
+    der samler en tegnings tags (live-data, adgang, sletning, import), så det ekstra tag aldrig glemmes."""
+    tags = [b["tag"]] if b.get("tag") else []
+    extra = (b.get("params") or {}).get("dir_tag") if b.get("anim") == "flow" else None
+    if extra and extra not in tags:
+        tags.append(extra)
+    return tags
 
 
 def validate_binding(item: Any) -> dict[str, Any]:

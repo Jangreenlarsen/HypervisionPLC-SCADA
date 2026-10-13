@@ -82,6 +82,17 @@ def test_scoped_user_sees_only_tags_in_own_drawing(setup):
                 break
 
 
+def test_scoped_user_sees_flow_direction_tag(setup):
+    """Et løbelys' retnings-tag hører til tegningen: en begrænset bruger skal have dets live-værdi."""
+    c, a, b = setup
+    _as_admin(c)
+    assert c.put(f"/api/drawings/{a}/bindings/Niveau_A", json={"bindings": [
+        {"tag": "Motor_A", "anim": "flow", "params": {"dir_tag": "Motor_B"}}]}).status_code == 200
+    _as_op(c)
+    assert "Motor_B" in {t["name"] for t in c.get("/api/tags").json()}
+    assert "Motor_B" in c.get("/api/live?tags=Motor_B").json()["values"]
+
+
 def test_scoped_operator_can_only_operate_own_drawing(setup, mock_plc):
     c, a, b = setup
     assert c.post("/api/tags/Motor_A/toggle").status_code == 200

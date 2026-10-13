@@ -4,7 +4,7 @@
   import { ANIMS, flatten, fromForm, groupIds, isClick, nextBinding, pickElement, toDrafts, toForm, toHex, type BindingForm, type Draft } from '../lib/bindingForm';
   import { textFor } from '../lib/animate';
   import { ancestorsOf, buildElements, defaultExpanded, descendantCount, displayName, relevantElements, showsId, visibleRows, type ElementInfo } from '../lib/elementTree';
-  import { findElement, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
+  import { bindingTags, findElement, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
   import TagSelect from '../lib/TagSelect.svelte';
 
@@ -40,7 +40,7 @@
   const live = new LiveClient((changes) => {
     Object.assign(values, changes);
     if (!container || !view) return;
-    for (const b of effective()) if (b.tag in changes) renderBinding(container, b, values, view.tags);
+    for (const b of effective()) if (bindingTags(b).some((t) => t in changes)) renderBinding(container, b, values, view.tags);
   });
 
   const explicitFor = (id: string) => (view?.bindings ?? []).filter((b) => b.element === id && b.source === 'explicit');
@@ -76,7 +76,7 @@
     fitSvg(svgRoot, container);
     const bindings = effective();
     renderAll(container, bindings, values, view.tags);
-    live.subscribe([...new Set([...bindings.map((b) => b.tag), ...drafts.map((d) => d.tag).filter(Boolean)])]);
+    live.subscribe([...new Set([...bindings.flatMap((b) => bindingTags(b)), ...drafts.flatMap((d) => [d.tag, d.anim === 'flow' ? d.dir_tag : '']).filter(Boolean)])]);
     selBox = boxOf(selected);
   }
 
@@ -494,10 +494,13 @@
                   <div class="grid-form">
                     <label>Styres af tagget
                       <select bind:value={d.mode} onchange={changed}>
-                        <option value="onoff">Til/fra — kører når til, fast retning</option>
+                        <option value="onoff">Til/fra — kører når til</option>
                         <option value="signed">Fortegn — over 0 frem, under 0 tilbage, 0 stop</option>
                         <option value="code">Kode — 0 stop, 1 frem, 2 tilbage</option>
                       </select>
+                    </label>
+                    <label>Retning styres af (valgfrit)
+                      <TagSelect bind:value={d.dir_tag} {tags} placeholder="— intet: retningen er fast —" onchange={changed} />
                     </label>
                     <label>Farve 1 (røret)
                       <span class="row"><input type="color" value={toHex(d.base)} oninput={(e) => { d.base = e.currentTarget.value; changed(); }} /><input bind:value={d.base} oninput={changed} /></span>
@@ -525,10 +528,11 @@
                       </label>
                     {/if}
                   </div>
-                  <label class="check"><input type="checkbox" bind:checked={d.reverse} onchange={changed} /> Vend retningen ({d.arm ? 'byt ind og ud' : 'frem = modsat tegneretningen'})</label>
+                  <div><label class="check"><input type="checkbox" bind:checked={d.reverse} onchange={changed} /> Vend retningen ({d.arm ? 'byt ind og ud' : 'frem = modsat tegneretningen'})</label></div>
                   {#if d.mode === 'onoff'}
-                    <label class="check"><input type="checkbox" bind:checked={d.invert} onchange={changed} /> Omvendt (kører når værdien er falsk)</label>
+                    <div><label class="check"><input type="checkbox" bind:checked={d.invert} onchange={changed} /> Omvendt (kører når værdien er falsk)</label></div>
                   {/if}
+                  {#if d.dir_tag}<p class="small muted">Retnings-tagget: Fra = som valgt ovenfor, Til = modsat. Ukendt retning = stop.</p>{/if}
                   <p class="small muted">{d.arm ? 'I et T-stykke eller kryds løber det valgte rør ind (eller ud), og de øvrige rør den modsatte vej. Ved "tilbage" vendes det hele.' : 'Lyset løber langs elementets tegneretning (for et lige rør: mod højre/nedad).'} Står stille ved stop og når værdien er ukendt.</p>
                 {:else}
                   <div class="grid-form">

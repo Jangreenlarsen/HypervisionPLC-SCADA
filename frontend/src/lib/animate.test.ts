@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBinding, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, segmentsOf, textFor } from './animate';
+import { applyBinding, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, segmentsOf, textFor, withDirection } from './animate';
 import type { Binding, LiveValue } from './api';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -290,5 +290,31 @@ describe('løbelys i T-stykke og kryds', () => {
     applyBinding(g, flowB({ arm: 'down' }), good(true));
     expect(g.getAttribute('data-hv-warning')).toContain('findes ikke');
     expect(g.querySelector('.hv-flow path')).not.toBeNull(); // kopi af stregen i stedet for rør-linjer
+  });
+});
+
+describe('løbelys med eget retnings-tag', () => {
+  const live = (value: unknown): LiveValue => ({ value, quality: 'good', ts: 0, error: null });
+  it('Fra = som valgt, Til = modsat; uden retnings-tag uændret', () => {
+    expect(withDirection(1, { dir_tag: 'Retning' }, live(false))).toBe(1);
+    expect(withDirection(1, { dir_tag: 'Retning' }, live(true))).toBe(-1);
+    expect(withDirection(-1, { dir_tag: 'Retning' }, live(1))).toBe(1); // også sammen med kode/fortegn
+    expect(withDirection(1, {}, live(true))).toBe(1);
+  });
+  it('ukendt retning stopper; stop forbliver stop', () => {
+    expect(withDirection(1, { dir_tag: 'Retning' }, undefined)).toBe(0);
+    expect(withDirection(1, { dir_tag: 'Retning' }, live(null))).toBe(0);
+    expect(withDirection(0, { dir_tag: 'Retning' }, live(true))).toBe(0);
+  });
+  it('i DOM: start/stop-tag til og retnings-tag til → lyset løber baglæns', () => {
+    const rect = el('rect', { width: '90', height: '10' });
+    const svg = el('svg'); svg.appendChild(rect);
+    const b: Binding = { element: 'r', tag: 'Pumpe', anim: 'flow', params: { dir_tag: 'Retning' } };
+    applyBinding(rect, b, live(true), undefined, live(true));
+    expect(svg.querySelector('.hv-flow line')!.getAttribute('data-hv-dir')).toBe('in');
+    applyBinding(rect, b, live(true), undefined, live(false));
+    expect(svg.querySelector('.hv-flow line')!.getAttribute('data-hv-dir')).toBe('out');
+    applyBinding(rect, b, live(true), undefined, undefined);
+    expect(svg.querySelector('.hv-flow')).toBeNull();
   });
 });

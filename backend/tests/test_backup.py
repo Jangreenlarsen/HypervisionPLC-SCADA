@@ -100,6 +100,15 @@ def test_restore_on_fresh_install(api, tmp_path):
         assert [u["username"] for u in fresh.get("/api/users").json()] == ["admin"]  # brugere røres ikke
 
 
+def test_backup_with_unknown_flow_direction_tag_is_rejected(api):
+    backup = api.get("/api/backup").json()
+    bad = json.loads(json.dumps(backup))
+    bad["bindings"].append({"drawing_id": bad["drawings"][0]["id"], "element": "Tank", "position": 7,
+                            "tag": "Motor", "anim": "flow", "params": {"dir_tag": "Retning_mangler"}})
+    r = api.post("/api/backup/restore", json=bad)
+    assert r.status_code == 400 and "Retning_mangler" in r.json()["error"]
+
+
 def test_invalid_backup_changes_nothing(api):
     before = _state(api)
     backup = api.get("/api/backup").json()

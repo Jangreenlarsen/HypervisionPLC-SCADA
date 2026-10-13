@@ -27,7 +27,7 @@ from typing import Any
 
 from ..config import read_version
 from ..storage.files import DrawingFiles
-from .bindings import BindingError, validate_binding
+from .bindings import BindingError, binding_tags, validate_binding
 from .schedules import validate_schedule
 from .errors import ServiceError
 from .manager import PlcManager
@@ -368,8 +368,8 @@ class BackupService:
                 if nb["params"]["drawing"] not in drawing_ids:
                     err(f"Binding {did}#{element}: goto-tegning '{nb['params']['drawing']}' findes ikke i backuppen")
                     continue
-            elif nb["tag"] not in tag_names:
-                err(f"Binding {did}#{element}: tagget '{nb['tag']}' findes ikke i backuppen")
+            elif missing := [t for t in binding_tags(nb) if t not in tag_names]:
+                err(f"Binding {did}#{element}: tagget '{missing[0]}' findes ikke i backuppen")
                 continue
             pos = b.get("position", 0)
             if not isinstance(pos, int) or (did, element, pos) in seen:

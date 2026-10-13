@@ -4,6 +4,20 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.31.0 build 0044] — 2026-10-13 — Løbelys: retning fra et andet tag
+
+- `backend/app/services/bindings.py` — `FlowParams.dir_tag` og `binding_tags()` (bindingens tag + evt. retnings-tag), brugt alle steder der samler en bindings tags:
+  - `drawings.py` — retnings-tagget skal findes og være et andet end start/stop-tagget; tag-metadata i `view()` medtager det.
+  - `scope.py` — begrænsede brugere får live-værdien (adgang pr. tegning).
+  - `backup.py` — import afvises hvis retnings-tagget mangler.
+  - `storage/db.py` — `count_bindings_for_tag` tæller også `params.dir_tag`, så tagget ikke kan slettes mens det bruges.
+- `frontend/src/lib/canvas.ts` — `bindingTags()`; `byTag()` indekserer under begge tags, så en ændring på retnings-tagget gentegner løbelyset; `renderBinding` sender retningens live-værdi med.
+- `frontend/src/lib/animate.ts` — `withDirection()`: Fra = som valgt, Til = modsat, ukendt = stop.
+- `frontend/src/pages/Editor.svelte`, `frontend/src/lib/bindingForm.ts` — "Retning styres af (valgfrit)" med tag-vælgeren; preview abonnerer også på retnings-tagget. Afkrydsningsfelterne står på hver sin linje.
+- Tests: `withDirection`, løbelys i DOM med retnings-tag, `bindingTags`/`byTag`, formular; backend: validering, metadata, tag-sletning blokeret, adgang pr. tegning, backup-import.
+- `docs/prototyper/symbolguide.html`, `docs/SYMBOLSTANDARD.md` — samme valg i prototypen (demo-tag `Demo_retning`); prototypens tag-lister medtager også retnings-tagget.
+- Set i den kørende app i Chromium med mock-PLC: rør og T-stykke (op ind) med Pumpe (coil 5) og Retning (coil 6) — Retning fra/til vender lyset, Pumpe fra stopper.
+
 ## [0.30.0 build 0043] — 2026-10-13 — Løbelys i T-stykke og kryds
 
 - `backend/app/services/bindings.py` — `FlowParams.arm` ('' | left | right | up | down) og `arm_flow` (in | out).

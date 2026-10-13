@@ -349,7 +349,19 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   flowLayers.set(el, layer);
 }
 
-export function applyBinding(el: Element, b: Binding, live: LiveValue | undefined, meta?: TagMeta): void {
+/**
+ * Løbelys med eget retnings-tag (`dir_tag`): Fra = som valgt, Til = modsat. Ukendt retning = stop, så der
+ * aldrig vises en retning man ikke kender.
+ */
+export function withDirection(state: -1 | 0 | 1, p: Record<string, any>, dirLive?: LiveValue): -1 | 0 | 1 {
+  if (!p.dir_tag || state === 0) return state;
+  const v = dirLive?.value;
+  if (v === null || v === undefined) return 0;
+  return isOn(v) ? (-state as -1 | 1) : state;
+}
+
+/** `dirLive`: live-værdien af løbelysets retnings-tag, hvis bindingen har et. */
+export function applyBinding(el: Element, b: Binding, live: LiveValue | undefined, meta?: TagMeta, dirLive?: LiveValue): void {
   if (b.anim.startsWith('click:')) {
     el.classList.add('hv-clickable');
     return;
@@ -393,7 +405,7 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
       move(el, fraction(v, p.min, p.max), p.dx ?? 100, p.dy ?? 0);
       break;
     case 'flow':
-      flow(el, flowState(v, p), p);
+      flow(el, withDirection(flowState(v, p), p, dirLive), p);
       break;
   }
 }

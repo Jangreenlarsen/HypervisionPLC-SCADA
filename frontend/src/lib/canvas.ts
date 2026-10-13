@@ -81,9 +81,18 @@ export function onLayoutChange(fn: () => void, ...elements: (Element | null | un
   };
 }
 
+/** Alle tags en binding læser: dens eget og evt. løbelysets retnings-tag (samme regel som backendens binding_tags). */
+export function bindingTags(b: Pick<Binding, 'tag' | 'anim' | 'params'>): string[] {
+  const tags = b.tag ? [b.tag] : [];
+  const extra = b.anim === 'flow' ? b.params?.dir_tag : '';
+  if (extra && !tags.includes(extra)) tags.push(extra);
+  return tags;
+}
+
+/** Bindinger pr. tag — en binding står under hvert tag den læser, så den gentegnes når et af dem ændres. */
 export function byTag(bindings: Binding[]): Map<string, Binding[]> {
   const map = new Map<string, Binding[]>();
-  for (const b of bindings) map.set(b.tag, [...(map.get(b.tag) ?? []), b]);
+  for (const b of bindings) for (const t of bindingTags(b)) map.set(t, [...(map.get(t) ?? []), b]);
   return map;
 }
 
@@ -95,7 +104,7 @@ export function renderBinding(
   container: HTMLElement, b: Binding, values: Record<string, LiveValue>, tags: Record<string, TagMeta>,
 ): void {
   const el = findElement(container, b.element);
-  if (el) applyBinding(el, b, values[b.tag], tags[b.tag]);
+  if (el) applyBinding(el, b, values[b.tag], tags[b.tag], b.anim === 'flow' && b.params?.dir_tag ? values[b.params.dir_tag] : undefined);
 }
 
 export function renderAll(

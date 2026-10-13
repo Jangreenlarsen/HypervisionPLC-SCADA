@@ -2,6 +2,11 @@
 
 ---
 
+## v0.31.0 — 2026-10-13 — Løbelys kan køre begge veje fra to signaler
+
+- Løbelys har fået **"Retning styres af"**: vælg et ekstra til/fra-tag der bestemmer retningen (Fra = som valgt, Til = modsat). Så kan én animation køre begge veje, når PLC'en har start/stop og retning som to separate signaler.
+- Virker sammen med alle måder at styre løbelyset på og med T-stykker og kryds. Er retningen ukendt (fx kommunikationsfejl), står lyset stille.
+
 ## v0.30.0 — 2026-10-13 — Løbelys i T-stykker og kryds
 
 - Løbelys på et **T-stykke** eller **kryds** kan nu sættes pr. rør: vælg ét af rørene (venstre, højre, op eller ned — som det ses på skærmen, også når symbolet er drejet) og om det løber **ind i** eller **ud af** krydset. De øvrige rør løber automatisk den modsatte vej.
