@@ -1,6 +1,6 @@
 # Arkitektur: HypervisionPLC SCADA
 
-Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md). Design for symboler: [docs/SYMBOLSTANDARD.md](docs/SYMBOLSTANDARD.md) — gælder for alle symboler og al ny symbolkode.
+Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md). Design for symboler: [docs/SYMBOLSTANDARD.md](docs/SYMBOLSTANDARD.md) — gælder for alle symboler og al ny symbolkode; teknisk plan: [docs/SYMBOLSTANDARD_IMPLEMENTERING.md](docs/SYMBOLSTANDARD_IMPLEMENTERING.md).
 
 ## Principper
 
