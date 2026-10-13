@@ -2,6 +2,13 @@
 
 ---
 
+## v0.32.0 — 2026-10-13 — Symbolstandard, del 1: serveren kan gemme og kontrollere symboler
+
+- Første del af den nye symbolstandard: serveren kan nu gemme en samlet opsætning pr. symbol (positioner, signaler, kontaktplaner, visning, alarmniveau, nøglelås og animationer) og kontrollerer den efter de samme regler som prototypen — med en præcis fejlbesked pr. trin.
+- Koden til en nøglelås gemmes kun krypteret og kommer aldrig med i backup; efter en gendannelse skal en tekniker sætte en ny kode.
+- Indsatte symboler husker nu deres type og deres dele, så guiden kan kende dem igen.
+- Der er endnu ingen skærmbilleder til det — de kommer i de næste dele. Eksisterende tegninger virker som før.
+
 ## v0.31.4 — 2026-10-13 — Ændrede rettigheder slår igennem på åbne skærme
 
 - Logges en bruger ud, deaktiveres, eller ændres rollen, lukkes åbne Overview-skærme for brugeren inden for 10 sekunder og viser login. Før fortsatte de med at vise live-data.

@@ -4,6 +4,20 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.32.0 build 0049] — 2026-10-13 — Symbolstandard fase 1: konfiguration og validering
+
+- `backend/app/storage/db.py` — skema 11: tabellerne `symbol_config`, `symbol_pins` (kun scrypt-hash), `symbol_state`; metoder til dem; backup-eksport af konfigurationerne (aldrig koder eller tilstand), restore lægger dem ind igen.
+- `backend/app/services/symbols.py` (ny) — skema (positioner, signaler, kontaktplaner, visning, alarmniveau, bekræftelse, lås, animationer) og validering pr. trin efter prototypens regler: skrivbare tags, ét tag pr. signal, samme type på tilbagemelding, ét signal pr. plan, unikke kontaktmønstre, register-celler inden for tagets min/max ellers datatypens område og præcist skrivbare, puls med påkrævet hvileværdi, mindst ét læsbart plan, trykknap/setpunkt/visning, animationer mod delens geometri (Niveau → rect, Værdi → text, Løbelys → streger/rør), værdier pr. position, retnings-tag, nøglelås kræver kode. Advarsler blokerer ikke. `config_tags()` og pseudo-tag-navne (`sym:<tegning>:<element>:pos|remote|state|locked`).
+- `backend/app/api/symbols.py` (ny) — `GET/PUT/DELETE /api/drawings/{d}/symbols/{e}/config`; PUT tager valgfri `pin` (gemmes kun som hash; svar siger kun `has_pin`); fejl med `steps` pr. trin og `warnings`.
+- `backend/app/services/svg_sanitize.py` — `describe_element()` (dele, elementtyper, data-hv-type/-pid).
+- `backend/app/services/errors.py`, `backend/app/api/errors.py` — ServiceError kan bære ekstra felter i svaret.
+- `backend/app/services/scope.py` — begrænsede brugere ser også symbolernes tags og pseudo-tags.
+- `backend/app/services/tags.py` — et tag der bruges af en symbol-konfiguration kan ikke slettes.
+- `backend/app/services/backup.py` — validerer symbol-konfigurationer ved restore (skema + tags findes).
+- `frontend/svgedit-host/scada-editor.js` — indsatte symboler får `data-hv-type` og delene `data-hv-pid`.
+- Tests: `backend/tests/test_symbols.py` (ny, 42), `test_scope.py`.
+- `docs/SYMBOLSTANDARD_IMPLEMENTERING.md` — validering mod geometri i stedet for bibliotekets meta.
+
 ## [0.31.4 build 0048] — 2026-10-13 — fix: live-forbindelsen følger sessionen og tegningsadgangen
 
 - `backend/app/api/live_ws.py` — `revalidate()` hvert `ws_revalidate_s` og ved hver subscribe: ugyldig session → fejlbesked + luk 4401; ændret rolle/tegningsadgang → genberegn synlige tags, nyt snapshot og alarmer. Klientens ønskede tags huskes, så adgangen kan udvides uden ny subscribe.

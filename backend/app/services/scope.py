@@ -18,9 +18,10 @@ from .drawings import DrawingService
 
 
 class ScopeService:
-    def __init__(self, drawings: DrawingService):
+    def __init__(self, drawings: DrawingService, symbols: Any = None):
         self.drawings = drawings
         self.db = drawings.db
+        self.symbols = symbols  # SymbolService: symbol-konfigurationernes tags og pseudo-tags hører til tegningen
 
     def drawing_ids(self, user: CurrentUser) -> set[str] | None:
         return None if user.drawings is None else set(user.drawings)
@@ -39,6 +40,8 @@ class ScopeService:
         tags: set[str] = set()
         for did in self._ids(user):
             tags.update(t for b in self.drawings.effective_bindings(did) for t in binding_tags(b))
+            if self.symbols is not None:
+                tags.update(self.symbols.tags_for_drawing(did))
         return tags
 
     # Hvilke klik-handlinger der giver ret til hvilken betjening (operatører)

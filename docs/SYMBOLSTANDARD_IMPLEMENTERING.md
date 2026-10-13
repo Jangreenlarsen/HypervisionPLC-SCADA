@@ -165,8 +165,10 @@ Betingelser fra prototypen: til/fra-kilde "når Til/Fra" = eksisterende `invert`
    ```
    Udfyldes for alle 82 symboler ud fra det prototypens import gør (`convertDef`): navngivne dele (`fyld`, `soejle`,
    `rotor`, `flamme`, `viser`, `vaerdi` …), rør/fittings = `flow`, T-stykke/kryds = `junction`.
-2. Ved indsættelse i Tegn skrives `data-hv-type="<id>"` på roden (`scada-editor.js` `insertSymbol`), og saneringen
-   tillader attributten (`svg_sanitize.py` `TEXT_ATTRS`, maks 40 tegn, `[a-z0-9_]`).
+2. Ved indsættelse i Tegn skrives `data-hv-type="<id>"` på roden og `data-hv-pid="<delens id i biblioteket>"` på hver del
+   (`svgedit-host/scada-editor.js` `insertSymbol`) — delenes id'er kan få løbenumre, så delens navn kan ikke udledes af
+   id'et. Saneringen bevarer `data-*`; backend læser typen kun hvis den matcher `[a-z0-9_]{1,40}` (`describe_element`).
+   `meta` bruges kun af guiden (forslag og navne) — backend validerer mod tegningens geometri (5.1).
 3. Elementer uden `data-hv-type` (egne tegninger, gamle symboler): type `custom`; dele = børn med id; ingen særlige
    dele — Farve/Blink/Synlig/Flyt/Drej på hele symbolet eller en del. Løbelys tilbydes når elementet har streger.
 4. `data-hv-auto`/`data-hv-part` bevares til den gamle model og bruges af "Konvertér" (afsnit 11).
@@ -185,8 +187,10 @@ Betingelser fra prototypen: til/fra-kilde "når Til/Fra" = eksisterende `invert`
     min/max ellers datatypens område (`INT_RANGES` i `operate.py`);
   - puls: længde, hvileværdi påkrævet, heltal, i området og ≠ alle positionsværdier; mindst ét plan med et sat-signal;
   - op=pulse kræver til/fra-tag; op=entry kræver tal-tag; view kræver mindst én animation;
-  - animationer: del findes i elementet (eller `all`), typen tilladt for delen (bibliotekets `meta`), `@pos` kun ved
-    positioner, grænser stigende, min < max, løbelys-farver forskellige, `dir_tag` ≠ kilden;
+  - animationer: del findes i elementet (eller `all`), typen passer til delens **geometri** — Niveau kræver `<rect>`,
+    Værdi `<text>`, Løbelys streger eller et rør (besluttet under fase 1: så gælder reglen også egne tegninger, og
+    bibliotekets beskrivelse findes kun ét sted, i frontend) — `@pos` kun ved positioner, grænser stigende, min < max,
+    løbelys-farver forskellige, `dir_tag` ≠ kilden;
   - lås: låste positioner kræver at PIN er sat eller sættes i samme kald.
   Advarsler (blokerer ikke) returneres separat: ubrugt signal, celler der "røres ikke", animation uden gyldige positioner,
   alle positioner låst.

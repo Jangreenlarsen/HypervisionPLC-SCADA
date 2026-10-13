@@ -93,6 +93,18 @@ def test_scoped_user_sees_flow_direction_tag(setup):
     assert "Motor_B" in c.get("/api/live?tags=Motor_B").json()["values"]
 
 
+def test_scoped_user_sees_symbol_config_tags(setup):
+    """Tags der kun bruges i et symbols konfiguration hører også til tegningen."""
+    c, a, b = setup
+    _as_admin(c)
+    cfg = {"op": "view", "anims": [{"part": "all", "type": "fill", "src": "Motor_B", "params": {}}]}
+    r = c.put(f"/api/drawings/{a}/symbols/Knap_A/config", json={"config": cfg})
+    assert r.status_code == 200, r.text
+    _as_op(c)
+    assert "Motor_B" in {t["name"] for t in c.get("/api/tags").json()}
+    assert "Motor_B" in c.get("/api/live?tags=Motor_B").json()["values"]
+
+
 def test_scoped_operator_can_only_operate_own_drawing(setup, mock_plc):
     c, a, b = setup
     assert c.post("/api/tags/Motor_A/toggle").status_code == 200

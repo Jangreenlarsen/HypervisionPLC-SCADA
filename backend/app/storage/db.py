@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -143,6 +143,32 @@ CREATE TABLE IF NOT EXISTS symbol_meta (
     drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
     element     TEXT NOT NULL,
     description TEXT NOT NULL,
+    PRIMARY KEY (drawing_id, element)
+);
+-- Symbolstandard (docs/SYMBOLSTANDARD_IMPLEMENTERING.md afsnit 3): én konfiguration pr. symbol,
+-- PIN-hash adskilt (kommer aldrig i svar eller backup) og den lokale tilstand (sidst valgte position).
+CREATE TABLE IF NOT EXISTS symbol_config (
+    drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+    element     TEXT NOT NULL,
+    config      TEXT NOT NULL,
+    updated_at  REAL NOT NULL,
+    updated_by  TEXT NOT NULL,
+    PRIMARY KEY (drawing_id, element)
+);
+CREATE TABLE IF NOT EXISTS symbol_pins (
+    drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+    element     TEXT NOT NULL,
+    pin_hash    TEXT NOT NULL,
+    set_by      TEXT NOT NULL,
+    set_at      REAL NOT NULL,
+    PRIMARY KEY (drawing_id, element)
+);
+CREATE TABLE IF NOT EXISTS symbol_state (
+    drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+    element     TEXT NOT NULL,
+    chosen      INTEGER,
+    chosen_at   REAL NOT NULL,
+    chosen_by   TEXT NOT NULL,
     PRIMARY KEY (drawing_id, element)
 );
 CREATE TABLE IF NOT EXISTS user_drawings (
@@ -403,6 +429,74 @@ class Database:
                           "ON CONFLICT(drawing_id, element) DO UPDATE SET description = excluded.description",
                           (drawing_id, element, description))
 
+    # ------------------------------------------------------------ symbolstandard
+
+    def get_symbol_config(self, drawing_id: str, element: str) -> dict[str, Any] | None:
+        rows = self._query("SELECT config, updated_at, updated_by FROM symbol_config WHERE drawing_id = ? AND element = ?",
+                           (drawing_id, element))
+        if not rows:
+            return None
+        return {**rows[0], "config": json.loads(rows[0]["config"])}
+
+    def list_symbol_configs(self, drawing_id: str | None = None) -> list[dict[str, Any]]:
+        sql = "SELECT drawing_id, element, config, updated_at, updated_by FROM symbol_config"
+        rows = (self._query(sql + " WHERE drawing_id = ? ORDER BY element", (drawing_id,)) if drawing_id is not None
+                else self._query(sql + " ORDER BY drawing_id, element"))
+        for r in rows:
+            r["config"] = json.loads(r["config"])
+        return rows
+
+    def set_symbol_config(self, drawing_id: str, element: str, config: dict[str, Any], username: str) -> None:
+        self._execute("INSERT INTO symbol_config(drawing_id, element, config, updated_at, updated_by) VALUES (?,?,?,?,?) "
+                      "ON CONFLICT(drawing_id, element) DO UPDATE SET config = excluded.config, "
+                      "updated_at = excluded.updated_at, updated_by = excluded.updated_by",
+                      (drawing_id, element, json.dumps(config, ensure_ascii=False), time.time(), username))
+
+    def delete_symbol_config(self, drawing_id: str, element: str) -> bool:
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                n = cur.execute("DELETE FROM symbol_config WHERE drawing_id = ? AND element = ?",
+                                (drawing_id, element)).rowcount
+                cur.execute("DELETE FROM symbol_pins WHERE drawing_id = ? AND element = ?", (drawing_id, element))
+                cur.execute("DELETE FROM symbol_state WHERE drawing_id = ? AND element = ?", (drawing_id, element))
+                cur.execute("COMMIT")
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+        return n > 0
+
+    def get_symbol_pin_hash(self, drawing_id: str, element: str) -> str | None:
+        rows = self._query("SELECT pin_hash FROM symbol_pins WHERE drawing_id = ? AND element = ?", (drawing_id, element))
+        return rows[0]["pin_hash"] if rows else None
+
+    def set_symbol_pin_hash(self, drawing_id: str, element: str, pin_hash: str, username: str) -> None:
+        self._execute("INSERT INTO symbol_pins(drawing_id, element, pin_hash, set_by, set_at) VALUES (?,?,?,?,?) "
+                      "ON CONFLICT(drawing_id, element) DO UPDATE SET pin_hash = excluded.pin_hash, "
+                      "set_by = excluded.set_by, set_at = excluded.set_at",
+                      (drawing_id, element, pin_hash, username, time.time()))
+
+    def delete_symbol_pin(self, drawing_id: str, element: str) -> bool:
+        return self._execute("DELETE FROM symbol_pins WHERE drawing_id = ? AND element = ?", (drawing_id, element)) > 0
+
+    def symbol_pin_keys(self) -> set[tuple[str, str]]:
+        return {(r["drawing_id"], r["element"]) for r in self._query("SELECT drawing_id, element FROM symbol_pins")}
+
+    def get_symbol_state(self, drawing_id: str, element: str) -> dict[str, Any] | None:
+        rows = self._query("SELECT chosen, chosen_at, chosen_by FROM symbol_state WHERE drawing_id = ? AND element = ?",
+                           (drawing_id, element))
+        return rows[0] if rows else None
+
+    def list_symbol_states(self) -> list[dict[str, Any]]:
+        return self._query("SELECT drawing_id, element, chosen, chosen_at, chosen_by FROM symbol_state")
+
+    def set_symbol_state(self, drawing_id: str, element: str, chosen: int | None, chosen_at: float, chosen_by: str) -> None:
+        self._execute("INSERT INTO symbol_state(drawing_id, element, chosen, chosen_at, chosen_by) VALUES (?,?,?,?,?) "
+                      "ON CONFLICT(drawing_id, element) DO UPDATE SET chosen = excluded.chosen, "
+                      "chosen_at = excluded.chosen_at, chosen_by = excluded.chosen_by",
+                      (drawing_id, element, chosen, chosen_at, chosen_by))
+
     def count_bindings_for_tag(self, tag: str) -> int:
         with self._lock:
             # Også løbelys der bruger tagget som retnings-tag (params.dir_tag)
@@ -597,6 +691,9 @@ class Database:
                                     "FROM drawing_versions ORDER BY drawing_id, version"),
             "bindings": self.list_all_bindings(),
             "symbol_meta": self.list_all_symbol_meta(),
+            # Symbol-konfigurationer — men aldrig PIN-hashes eller driftstilstand (symbol_pins/symbol_state)
+            "symbol_config": [{"drawing_id": r["drawing_id"], "element": r["element"], "config": r["config"]}
+                              for r in self.list_symbol_configs()],
             "settings": {"start_drawing": self.get_setting("start_drawing")},
             "schedules": [{k: s[k] for k in ("name", "tag", "enabled", "default_value", "entries", "exceptions")}
                           for s in self.list_schedules()],
@@ -703,6 +800,12 @@ class Database:
                 for m in data.get("symbol_meta", []):
                     cur.execute("INSERT INTO symbol_meta(drawing_id, element, description) VALUES (?,?,?)",
                                 (m["drawing_id"], m["element"], m["description"]))
+                # Tegningerne er slettet ovenfor → symbol_config/-pins/-state er væk via ON DELETE CASCADE.
+                # Konfigurationerne lægges ind igen; koder ikke (efter restore skal en tekniker sætte nye).
+                for c in data.get("symbol_config", []):
+                    cur.execute("INSERT INTO symbol_config(drawing_id, element, config, updated_at, updated_by) "
+                                "VALUES (?,?,?,?,?)",
+                                (c["drawing_id"], c["element"], json.dumps(c["config"], ensure_ascii=False), now, "restore"))
                 for b in data["bindings"]:
                     cur.execute("INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
                                 (b["drawing_id"], b["element"], b["position"], b["tag"], b["anim"],
