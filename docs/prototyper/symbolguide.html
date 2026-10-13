@@ -456,6 +456,8 @@ function fieldSwitch(c, j) {
 }
 
 // ===================================================================== animationer
+// Alle tags en animation læser: kilden og evt. løbelysets retnings-tag
+const animTags = (a) => [a.src, a.type === 'flow' ? a.p?.dirSrc : ''].filter(Boolean);
 const srcKind = (src) => (src === '@pos' ? 'pos' : tag(src)?.kind === 'coil' ? 'bool' : 'num');
 function typesFor(c, part) {
   const L = libOf(c), t = ['color', 'blink', 'visible'];
@@ -521,6 +523,8 @@ function evalAnims(c, posIdx) {
       let dir = kind === 'bool' ? (cond() ? 1 : 0) : kind === 'pos' ? Number(a.p.pdir?.[v] || 0)
         : a.p.mode === 'signed' ? (Number.isFinite(Number(v)) ? Math.sign(Number(v)) : 0) : Number(v) === 1 ? 1 : Number(v) === 2 ? -1 : 0;
       if (a.p.reverse && dir) dir = -dir;
+      // Eget retnings-tag: Fra = som valgt, Til = modsat; ukendt = stop
+      if (dir && a.p.dirSrc) { const dv = tagValue(a.p.dirSrc); dir = dv == null ? 0 : Number(dv) ? -dir : dir; }
       o.flow = dir ? { dir, base: a.p.base, light: a.p.light, speed: Number(a.p.speed) || 40, dash: Number(a.p.dash) || 12,
         arms: a.p.arm ? JUNC[jidOf(c)] : null, arm: a.p.arm, armFlow: a.p.armFlow } : null;
     }
@@ -854,7 +858,8 @@ function animParams(c, a, i) {
     const ctl = kind === 'bool' ? `<label>Kører<select id="aw-${i}" data-bind="anim-when" data-i="${i}"><option value="on" ${a.p.when === 'on' ? 'selected' : ''}>når Til</option><option value="off" ${a.p.when === 'off' ? 'selected' : ''}>når Fra</option></select></label>`
       : kind === 'num' ? `<label>Tagget<select id="afm-${i}" data-bind="anim-fmode" data-i="${i}"><option value="code" ${a.p.mode !== 'signed' ? 'selected' : ''}>Kode: 0 stop, 1 frem, 2 tilbage</option><option value="signed" ${a.p.mode === 'signed' ? 'selected' : ''}>Fortegn: &gt; 0 frem, &lt; 0 tilbage, 0 stop</option></select></label>`
       : '<span>pr. position:</span>' + c.positions.map((_, j) => `<label>${Lb(j)}${dirSel(`apd-${i}-${j}`, 'anim-pdir', a.p.pdir?.[j] ?? 0, j)}</label>`).join('');
-    return ctl + color('anim-fbase', a.p.base, 'Farve 1 (røret)') + color('anim-flight', a.p.light, 'Farve 2 (lyset)')
+    const dirOpt = `<label>retning styres af<select id="afdt-${i}" data-bind="anim-fdir" data-i="${i}"><option value="">intet (fast)</option>${TAGS.filter((t) => t.kind === 'coil' && t.name !== a.src).map((t) => `<option value="${t.name}" ${a.p.dirSrc === t.name ? 'selected' : ''}>${t.name} · Fra = frem, Til = tilbage</option>`).join('')}</select></label>`;
+    return ctl + dirOpt + color('anim-fbase', a.p.base, 'Farve 1 (røret)') + color('anim-flight', a.p.light, 'Farve 2 (lyset)')
       + `<label>hastighed<input type="number" id="afs-${i}" data-bind="anim-fspeed" data-i="${i}" value="${esc(a.p.speed)}" min="5" max="500" style="width: 5rem"></label>`
       + `<label>streglængde<input type="number" id="afd-${i}" data-bind="anim-fdash" data-i="${i}" value="${esc(a.p.dash)}" min="2" max="200" style="width: 5rem"></label>`
       + (JUNC[jidOf(c)] ? `<label>valgt rør<select id="afa-${i}" data-bind="anim-farm" data-i="${i}"><option value="">intet (tegneretningen)</option>${Object.keys(JUNC[jidOf(c)]).map((k) => `<option value="${k}" ${a.p.arm === k ? 'selected' : ''}>${ARM_TXT[k]}</option>`).join('')}</select></label>`
@@ -897,7 +902,7 @@ function renderLive6() {
   const el = document.getElementById('live6'); if (!el) return;
   const c = cur;
   if (!hasPos(c)) {
-    const names = [...new Set([...c.signals.map((s) => rk(s)), ...c.anims.map((a) => a.src)].filter((n) => n && n !== '@pos'))];
+    const names = [...new Set([...c.signals.map((s) => rk(s)), ...c.anims.flatMap(animTags)].filter((n) => n && n !== '@pos'))];
     el.innerHTML = `<div class="tablebox"><table><thead><tr><th scope="col">Tag</th><th scope="col">Værdi</th></tr></thead><tbody>${names.map((n) => `<tr><th scope="row" style="font-weight: 400">${esc(n)} <span class="sub">${esc(tag(n)?.src)}</span></th><td class="mono">${sim.comm ? '<span class="ck-err">komm.fejl</span>' : esc(Math.round(Number(tagValue(n)) * 10) / 10)}</td></tr>`).join('')}</tbody></table></div>`;
     return;
   }
@@ -977,7 +982,7 @@ function renderOv() {
     </section>
   </div>
   <section class="panel" aria-labelledby="al-title"><div class="panel-head"><h2 id="al-title">Alarmer</h2></div><div class="panel-body" id="alarms"></div></section>`;
-  const names = [...new Set(symbols.flatMap((c) => [...c.anims.map((a) => a.src), c.fault]))].filter((n) => n && n !== '@pos' && !(n in sim.read));
+  const names = [...new Set(symbols.flatMap((c) => [...c.anims.flatMap(animTags), c.fault]))].filter((n) => n && n !== '@pos' && !(n in sim.read));
   document.getElementById('simtags').innerHTML = names.map((n) => tag(n)?.kind === 'coil'
     ? `<label class="check" for="stg-${n}"><input id="stg-${n}" type="checkbox" data-bind="simtag" data-tag="${n}" ${Number(sim.tags[n]) ? 'checked' : ''}>${esc(n)}</label>`
     : `<label class="field" for="stg-${n}">${esc(n)}<input id="stg-${n}" type="number" data-bind="simtag" data-tag="${n}" value="${esc(Math.round((sim.tags[n] ?? 0) * 10) / 10)}" style="width: 6rem"></label>`).join('');
@@ -1017,7 +1022,7 @@ function renderOvLive() {
       ${c.fault && Number(tagValue(c.fault)) ? `<div class="small ck-err">${esc(c.fault)} er aktiv — betjening er blokeret.</div>` : ''}
       <div class="row"><button class="primary" data-action="open-dialog">Betjen ${esc(c.name)}…</button><span class="small muted">klik også direkte på symbolet</span></div></div>`;
   } else {
-    const names = [...new Set(c.anims.map((a) => a.src).filter((n) => n && n !== '@pos'))];
+    const names = [...new Set(c.anims.flatMap(animTags).filter((n) => n && n !== '@pos'))];
     det.innerHTML = `<div class="box small"><b>${esc(c.name)}</b> · kun visning · ${names.map((n) => `${esc(n)} = ${sim.comm ? '?' : esc(Math.round(Number(tagValue(n)) * 10) / 10)}`).join(' · ')}</div>`;
   }
   document.getElementById('log').innerHTML = sim.log.length ? sim.log.map((l) => `<div><span class="t">${fmtT(l.t)}</span> ${esc(l.text)}</div>`).join('') : '<span class="muted">Ingen skrivninger endnu</span>';
@@ -1241,6 +1246,7 @@ document.addEventListener('change', (e) => {
   if (k === 'anim-fdash') an.p.dash = el.value;
   if (k === 'anim-frev') an.p.reverse = el.checked;
   if (k === 'anim-farm') an.p.arm = el.value;
+  if (k === 'anim-fdir') an.p.dirSrc = el.value;
   if (k === 'anim-farmflow') an.p.armFlow = el.value;
   if (k === 'anim-only') { an.only ||= c.positions.map(() => true); an.only[kk] = el.checked; }
   if (tab === 'guide') renderGuide();
@@ -1274,8 +1280,9 @@ TAGS.push({ name: 'Demo_drift', src: 'plc1:di:90', kind: 'coil', writable: false
   { name: 'Demo_niveau', src: 'plc1:ir:90', kind: 'reg', dt: 'uint', writable: false, min: 0, max: 100 },
   { name: 'Demo_tryk', src: 'plc1:ir:91', kind: 'reg', dt: 'uint', writable: false, min: 0, max: 10 },
   { name: 'Demo_maaling', src: 'plc1:ir:92', kind: 'reg', dt: 'int', writable: false },
-  { name: 'Demo_energi', src: 'plc1:ir:93', kind: 'reg', dt: 'uint', writable: false });
-Object.assign(sim.tags, { Demo_drift: 1, Demo_niveau: 55, Demo_tryk: 4, Demo_maaling: 21, Demo_energi: 12345.6 });
+  { name: 'Demo_energi', src: 'plc1:ir:93', kind: 'reg', dt: 'uint', writable: false },
+  { name: 'Demo_retning', src: 'plc1:di:91', kind: 'coil', writable: false });
+Object.assign(sim.tags, { Demo_drift: 1, Demo_niveau: 55, Demo_tryk: 4, Demo_maaling: 21, Demo_energi: 12345.6, Demo_retning: 0 });
 
 const svgDoc = (svg) => new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${svg}</svg>`, 'image/svg+xml');
 function convertDef(def) {
