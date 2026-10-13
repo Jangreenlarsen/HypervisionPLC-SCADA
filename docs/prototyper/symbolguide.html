@@ -257,6 +257,10 @@ const ALARM_LBL = { low: 'LAV', medium: 'MEDIUM', high: 'HØJ' };
 const ALARM_ORDER = { high: 0, medium: 1, low: 2 };
 const ATYPES = { color: 'Farve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', level: 'Niveau', value: 'Værdi', turn: 'Drej', move: 'Flyt', flow: 'Løbelys' };
 const FLOW_DIR = { 0: 'Stop', 1: 'Frem', '-1': 'Tilbage' };
+// Løbelys i T-stykke og kryds: rørenes endepunkter ud fra krydspunktet (45,45) — som i appen, hvor de findes af stregerne
+const JUNC = { kryds: { left: [0, 45], right: [90, 45], up: [45, 0], down: [45, 90] }, t_stykke: { left: [0, 45], right: [90, 45], up: [45, 0] } };
+const ARM_TXT = { left: 'venstre', right: 'højre', up: 'op', down: 'ned' };
+const jidOf = (c) => (c.type === 'imp' ? IMPDEF[c.imp]?.def.id : '');
 
 // ===================================================================== symbolbibliotek
 // Alle symboler følger samme standard: dele (til animationer), evt. positioner (betjening via kontaktplaner),
@@ -475,7 +479,7 @@ function animDefaults(c, type, kind) {
   if (type === 'move') return kind === 'pos' ? { pdx: Array.from({ length: n }, (_, j) => j * 20), pdy: Array.from({ length: n }, () => 0) } : kind === 'bool' ? { dx: 20, dy: 0 } : { min: 0, max: 100, dx: 40, dy: 0 };
   if (type === 'value') return { unit: '', dec: 0 };
   if (type === 'flow') {
-    const base = { reverse: false, base: '#555555', light: '#8fc8ea', speed: 40, dash: 12 };
+    const base = { reverse: false, base: '#555555', light: '#8fc8ea', speed: 40, dash: 12, arm: '', armFlow: 'in' };
     if (kind === 'bool') return { ...base, when: 'on' };
     if (kind === 'num') return { ...base, mode: 'code' };
     return { ...base, pdir: Array.from({ length: n }, (_, j) => (j === 0 ? 0 : 1)) };
@@ -517,7 +521,8 @@ function evalAnims(c, posIdx) {
       let dir = kind === 'bool' ? (cond() ? 1 : 0) : kind === 'pos' ? Number(a.p.pdir?.[v] || 0)
         : a.p.mode === 'signed' ? (Number.isFinite(Number(v)) ? Math.sign(Number(v)) : 0) : Number(v) === 1 ? 1 : Number(v) === 2 ? -1 : 0;
       if (a.p.reverse && dir) dir = -dir;
-      o.flow = dir ? { dir, base: a.p.base, light: a.p.light, speed: Number(a.p.speed) || 40, dash: Number(a.p.dash) || 12 } : null;
+      o.flow = dir ? { dir, base: a.p.base, light: a.p.light, speed: Number(a.p.speed) || 40, dash: Number(a.p.dash) || 12,
+        arms: a.p.arm ? JUNC[jidOf(c)] : null, arm: a.p.arm, armFlow: a.p.armFlow } : null;
     }
     if (a.type === 'value') o.text = kind === 'bool' ? (Number(v) ? 'Til' : 'Fra') : kind === 'pos' ? posName(c, v) : `${Number(v).toFixed(Number(a.p.dec) || 0)}${a.p.unit ? ' ' + a.p.unit : ''}`;
   });
@@ -852,8 +857,10 @@ function animParams(c, a, i) {
     return ctl + color('anim-fbase', a.p.base, 'Farve 1 (røret)') + color('anim-flight', a.p.light, 'Farve 2 (lyset)')
       + `<label>hastighed<input type="number" id="afs-${i}" data-bind="anim-fspeed" data-i="${i}" value="${esc(a.p.speed)}" min="5" max="500" style="width: 5rem"></label>`
       + `<label>streglængde<input type="number" id="afd-${i}" data-bind="anim-fdash" data-i="${i}" value="${esc(a.p.dash)}" min="2" max="200" style="width: 5rem"></label>`
-      + `<label class="check"><input type="checkbox" id="afr-${i}" data-bind="anim-frev" data-i="${i}" ${a.p.reverse ? 'checked' : ''}>vend retningen</label>`
-      + '<span class="muted">Lyset løber langs rørets tegneretning; stop og komm.fejl = stille.</span>';
+      + (JUNC[jidOf(c)] ? `<label>valgt rør<select id="afa-${i}" data-bind="anim-farm" data-i="${i}"><option value="">intet (tegneretningen)</option>${Object.keys(JUNC[jidOf(c)]).map((k) => `<option value="${k}" ${a.p.arm === k ? 'selected' : ''}>${ARM_TXT[k]}</option>`).join('')}</select></label>`
+        + (a.p.arm ? `<label>løber<select id="aff-${i}" data-bind="anim-farmflow" data-i="${i}"><option value="in" ${a.p.armFlow !== 'out' ? 'selected' : ''}>ind i krydset (de øvrige ud)</option><option value="out" ${a.p.armFlow === 'out' ? 'selected' : ''}>ud af krydset (de øvrige ind)</option></select></label>` : '') : '')
+      + `<label class="check"><input type="checkbox" id="afr-${i}" data-bind="anim-frev" data-i="${i}" ${a.p.reverse ? 'checked' : ''}>vend retningen${a.p.arm ? ' (byt ind og ud)' : ''}</label>`
+      + `<span class="muted">${a.p.arm ? 'Det valgte rør løber ind (eller ud), de øvrige den modsatte vej; "tilbage" vender det hele.' : 'Lyset løber langs rørets tegneretning.'} Stop og komm.fejl = stille.</span>`;
   }
   if (a.type === 'level') return `<label>min<input type="number" id="alo-${i}" data-bind="anim-min" data-i="${i}" value="${esc(a.p.min)}"></label><label>max<input type="number" id="ahi-${i}" data-bind="anim-max" data-i="${i}" value="${esc(a.p.max)}"></label><span class="muted">tom ved min, fuld ved max</span>`;
   if (a.type === 'value') return kind === 'num' ? `<label>enhed<input id="au-${i}" data-bind="anim-unit" data-i="${i}" value="${esc(a.p.unit)}" style="width: 5rem"></label><label>decimaler<input type="number" id="ad-${i}" data-bind="anim-dec" data-i="${i}" value="${esc(a.p.dec)}" min="0" max="3"></label>` : `<span class="muted">${kind === 'pos' ? 'viser positionens navn' : 'viser Til/Fra'}</span>`;
@@ -1233,6 +1240,8 @@ document.addEventListener('change', (e) => {
   if (k === 'anim-fspeed') an.p.speed = el.value;
   if (k === 'anim-fdash') an.p.dash = el.value;
   if (k === 'anim-frev') an.p.reverse = el.checked;
+  if (k === 'anim-farm') an.p.arm = el.value;
+  if (k === 'anim-farmflow') an.p.armFlow = el.value;
   if (k === 'anim-only') { an.only ||= c.positions.map(() => true); an.only[kk] = el.checked; }
   if (tab === 'guide') renderGuide();
 });
@@ -1389,6 +1398,23 @@ function drawFlow(el, f) {
   const shapes = el.tagName === 'g' ? [...el.querySelectorAll('path,rect,line,polyline,polygon,circle,ellipse')] : [el];
   const layer = doc.createElementNS(NS, 'g');
   const dur = Math.round((2 * f.dash / f.speed) * 1000);
+  const dash = (d, out) => {
+    d.setAttribute('stroke', f.light); d.setAttribute('stroke-dasharray', `${f.dash} ${f.dash}`); d.setAttribute('class', 'flowing');
+    d.setAttribute('style', `--p:${-2 * f.dash}px;animation-duration:${dur}ms;animation-direction:${out ? 'normal' : 'reverse'};animation-delay:-@@flow${dur}@@ms`);
+    layer.appendChild(d);
+  };
+  if (f.arms && f.arms[f.arm]) {
+    shapes.forEach((s) => s.setAttribute('stroke', f.base));
+    Object.entries(f.arms).forEach(([name, [x, y]]) => {
+      const d = doc.createElementNS(NS, 'line');
+      [['x1', 45], ['y1', 45], ['x2', x], ['y2', y], ['stroke-width', 10]].forEach(([k, v]) => d.setAttribute(k, v));
+      let out = name === f.arm ? f.armFlow === 'out' : f.armFlow !== 'out'; // ud = væk fra krydspunktet
+      if (f.dir < 0) out = !out;
+      dash(d, out);
+    });
+    el.appendChild(layer);
+    return;
+  }
   shapes.forEach((s) => {
     let d = null;
     if (s.tagName === 'rect') {
