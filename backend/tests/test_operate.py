@@ -174,6 +174,33 @@ def test_pulse_rejected_by_plc_sends_no_reset(api, mock_plc):
     assert mock_plc.state.writes == []
 
 
+def test_concurrent_toggles_cancel_out(api, mock_plc):
+    """BUGS v0.27.0 #2: to samtidige toggles skal give til→fra (ikke til to gange)."""
+    import threading
+    assert mock_plc.state.coils[3] is False
+    mock_plc.state.writes.clear()
+    mock_plc.state.slow_writes, mock_plc.state.slow_write_s = 2, 0.3   # hold låsen længe nok til at kaldene overlapper
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(api.post("/api/tags/Motor/toggle"))) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert [r.status_code for r in results] == [200, 200], [r.text for r in results]
+    assert [w for w in mock_plc.state.writes if w[0] == "coil"] == [("coil", 3, True), ("coil", 3, False)]
+    assert mock_plc.state.coils[3] is False
+    assert sorted(r.json()["from"] for r in results) == [False, True]
+
+
+def test_toggle_uses_fresh_plc_value_not_cache(api, mock_plc):
+    """Ændres udgangen i PLC'en lige før et toggle (cachen er endnu ikke opdateret), skal toggle gå ud fra PLC'en."""
+    mock_plc.state.coils[3] = True          # fx skiftet af PLC-programmet
+    mock_plc.state.writes.clear()
+    r = api.post("/api/tags/Motor/toggle")
+    assert r.status_code == 200 and r.json()["from"] is True
+    assert mock_plc.state.writes == [("coil", 3, False)]
+
+
 def test_non_writable_and_unknown(api):
     r = api.post("/api/tags/Kun_laes/write", json={"value": 1})
     assert r.status_code == 403 and "ikke skrivbart" in r.json()["error"]

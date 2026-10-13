@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.31.2 build 0046] — 2026-10-13 — fix: toggle er atomisk og bruger PLC'ens aktuelle værdi
+
+- `backend/app/services/operate.py` — `write(toggle=True)`: værdien læses frisk fra PLC'en under tag-låsen, og den nye værdi beregnes derfra; `toggle()` bruger den. min/max-tjek flyttet til `_check_limits()` (samme regel for write og toggle). Svaret på write er uændret; toggle returnerer fortsat `from`.
+- `backend/tests/test_operate.py` — to samtidige toggles giver til→fra; toggle går ud fra PLC'en når cachen er bagud.
+
 ## [0.31.1 build 0045] — 2026-10-13 — fix: puls efterlader aldrig udgangen tændt
 
 - `backend/app/services/operate.py` — `pulse`: ved `PlcUnreachable` på TÆND (udfald ukendt) sendes SLUK alligevel; fejlbesked "Puls kunne ikke bekræftes (udgangen er sat til fra for en sikkerheds skyld)" eller ADVARSEL hvis SLUK også fejler; audit-detalje `on_result`. Eksplicit afvisning fra PLC'en (fx 409) sender ingen SLUK.

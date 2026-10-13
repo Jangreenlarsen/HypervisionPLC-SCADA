@@ -2,6 +2,11 @@
 
 ---
 
+## v0.31.2 — 2026-10-13 — Til/fra-knapper skifter altid korrekt
+
+- Trykker to operatører på samme til/fra-knap samtidig, skifter den nu til og derefter fra igen — før kunne begge tryk give "til".
+- En til/fra-knap går altid ud fra den værdi PLC'en har lige nu, også hvis visningen endnu ikke er opdateret.
+
 ## v0.31.1 — 2026-10-13 — Puls efterlader aldrig udgangen tændt
 
 - Hvis PLC'en ikke når at svare på en puls (fx ustabilt net), sætter serveren nu alligevel udgangen til fra, så den ikke kan blive stående tændt. Operatøren får besked om, at pulsen ikke kunne bekræftes.

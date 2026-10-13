@@ -121,27 +121,48 @@ class OperateService:
                           "error" if error else ("warning" if warning else "ok"),
                           error.message if error else warning)
 
+    @staticmethod
+    def _check_limits(tag: dict[str, Any], source: TagSource, value: Any) -> None:
+        if source.kind != "coil" and not isinstance(value, bool) and isinstance(value, (int, float)):
+            # min/max: 0 er en gyldig grænse — derfor `is not None`, ikke truthiness.
+            if tag["min"] is not None and value < tag["min"]:
+                raise ServiceError(400, f"Værdien {value:g} er under minimum {tag['min']:g}")
+            if tag["max"] is not None and value > tag["max"]:
+                raise ServiceError(400, f"Værdien {value:g} er over maksimum {tag['max']:g}")
+
     async def write(self, actor: CurrentUser, ip: str, tag_name: str, value: Any, action: str = "write",
-                    allowed: set[str] | None = None, allowed_values: set[float] | None = None) -> dict[str, Any]:
-        detail: dict[str, Any] = {"requested": value}
+                    allowed: set[str] | None = None, allowed_values: set[float] | None = None,
+                    toggle: bool = False) -> dict[str, Any]:
+        """Skriv `value` — eller med `toggle=True` det modsatte af den værdi PLC'en har NU. Ved toggle læses
+        værdien frisk fra PLC'en under tag-låsen, så samtidige tryk giver til→fra og aldrig "til" to gange
+        (BUGS v0.27.0 #2), og en forældet cache-værdi aldrig bruges."""
+        detail: dict[str, Any] = {"requested": "toggle" if toggle else value}
         try:
             tag, source, runtime = self._prepare(tag_name, allowed)
             # Operatør med kun en omskifter: kun dens positioner (ikke vilkårlige værdier via API'et)
-            if allowed_values is not None and not (
+            if not toggle and allowed_values is not None and not (
                     isinstance(value, (int, float)) and float(value) in allowed_values):
                 shown = ", ".join(f"{v:g}" for v in sorted(allowed_values)) or "ingen"
                 raise ServiceError(403, f"Værdien {value} er ikke en af omskifterens positioner ({shown})")
             detail["source"] = str(source)
             detail["old"] = self.manager.cache.get(tag_name).value
-            if source.kind != "coil" and not isinstance(value, bool) and isinstance(value, (int, float)):
-                # min/max: 0 er en gyldig grænse — derfor `is not None`, ikke truthiness.
-                if tag["min"] is not None and value < tag["min"]:
-                    raise ServiceError(400, f"Værdien {value:g} er under minimum {tag['min']:g}")
-                if tag["max"] is not None and value > tag["max"]:
-                    raise ServiceError(400, f"Værdien {value:g} er over maksimum {tag['max']:g}")
-            raw, actual = to_raw(value, source, tag["scale"], tag["offset"])
-            detail.update(raw=raw, written=actual)
+            if not toggle:
+                self._check_limits(tag, source, value)
+                raw, actual = to_raw(value, source, tag["scale"], tag["offset"])
+                detail.update(raw=raw, written=actual)
             async with self._locks.setdefault(tag_name, asyncio.Lock()):
+                if toggle:
+                    try:
+                        current = await self._readback(runtime, source, tag)
+                    except PlcError as exc:
+                        raise _plc_error(exc, f"Kan ikke skifte '{tag_name}': den aktuelle værdi kunne ikke læses") from exc
+                    if current is None:
+                        raise ServiceError(409, f"Kan ikke skifte '{tag_name}': den aktuelle værdi er ukendt")
+                    detail["old"] = current
+                    value = (not current) if isinstance(current, bool) else (0 if current else 1)
+                    self._check_limits(tag, source, value)
+                    raw, actual = to_raw(value, source, tag["scale"], tag["offset"])
+                    detail.update(raw=raw, written=actual)
                 try:
                     confirmed = await self._write_raw(runtime, source, raw)
                     readback = await self._readback(runtime, source, tag)
@@ -166,22 +187,17 @@ class OperateService:
             warning = (f"PLC'en viser {readback} efter skrivning af {actual} — værdien er sandsynligvis "
                        "overskrevet af PLC'ens eget program (fx en ST-binding)")
         self._log(actor, ip, action, tag_name, detail, warning=warning)
-        return {"tag": tag_name, "written": actual, "readback": readback, "matches": not warning, "warning": warning}
+        result = {"tag": tag_name, "written": actual, "readback": readback, "matches": not warning, "warning": warning}
+        if toggle:
+            result["from"] = detail["old"]  # værdien PLC'en havde lige før skiftet (læst under låsen)
+        return result
 
     async def toggle(self, actor: CurrentUser, ip: str, tag_name: str, allowed: set[str] | None = None) -> dict[str, Any]:
         if allowed is not None and tag_name not in allowed:
             exc = ServiceError(403, f"Du har ikke adgang til at betjene '{tag_name}'")
             self._log(actor, ip, "toggle", tag_name, {}, error=exc)
             raise exc
-        current = self.manager.cache.get(tag_name)
-        if current.quality != "good" or current.value is None:
-            exc = ServiceError(409, f"Kan ikke skifte '{tag_name}': den aktuelle værdi er ukendt ({current.quality})")
-            self._log(actor, ip, "toggle", tag_name, {}, error=exc)
-            raise exc
-        on = bool(current.value)
-        result = await self.write(actor, ip, tag_name, (not on) if isinstance(current.value, bool) else (0 if on else 1),
-                                  action="toggle", allowed=allowed)
-        return {**result, "from": current.value}
+        return await self.write(actor, ip, tag_name, None, action="toggle", allowed=allowed, toggle=True)
 
     async def pulse(self, actor: CurrentUser, ip: str, tag_name: str, ms: int,
                     allowed: set[str] | None = None) -> dict[str, Any]:
