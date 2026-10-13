@@ -85,3 +85,34 @@ write, ms, rest), `planes[]` (signal, values[] med `null` = røres ikke), `fault
 `alarm`, `confirm`, `lock` (positions[], pin_hash, leave), `anims[]` (part, type, src, params, only[]). Den lokale tilstand (sidst valgt, af hvem,
 hvornår) gemmes i `symbol_state`. Afledte værdier (position, tilstand) lægges i live-cachen, så
 WebSocket-protokollen er uændret.
+
+## 7. Test mod symbolbiblioteket i dag (2026-10-13)
+
+Alle 82 symboler i `frontend/src/lib/symbols.ts` er importeret i prototypen (faneblad "Symbolbiblioteket
+i dag"). Deres eksisterende `data-hv-auto`/`data-hv-part` oversættes automatisk til den nye model:
+
+| I dag | I den nye model |
+| --- | --- |
+| `click:toggle` | 2 positioner (navne fra `true_text`/`false_text`), ét til/fra-signal, én kontaktplan |
+| `click:select` | Positioner og værdier fra symbolet, ét register, én kontaktplan |
+| `click:pulse` | Trykknap (se forslag) |
+| `click:write` | Setpunkt (se forslag) |
+| `fill` på en del | Farve pr. position (eller efter tagget) |
+| `text` på en del | Værdi: positionens navn (eller tagværdien) |
+| `move` / `rotate` på en del | Flyt / Drej pr. position (se forslag) |
+| Ingen bindinger (75 visningssymboler) | Kun visning; animationer foreslås ud fra navngivne dele (`fyld`/`soejle` → Niveau, `rotor` → Roterer, `flamme` → Synlig, `viser` → Drej, `vaerdi` → Værdi), ellers Farve på hele symbolet |
+
+**Resultat:** 76 af 82 passer direkte. 6 kræver en af fire tilføjelser. 63 symboler har ingen navngivne
+dele, så kun hele symbolet kan animeres; det er nok til farve/blink/synlig, men giver fx ikke mulighed
+for at farve en pumpes løbehjul for sig.
+
+### Foreslåede tilføjelser — afventer beslutning
+
+1. **Drej** (animation): delen drejes om sit centrum til en vinkel pr. position eller lineært efter et tal-tag (min/max → vinkel). Bruges af Omskifter Hånd/0/Auto, Drejeomskifter 0/1 og Manometer.
+2. **Flyt** (animation): delen forskydes dx/dy pr. position eller efter et tag. Bruges af Vippekontakt.
+3. **Trykknap** (betjeningsform): ét til/fra-tag sættes til 1 i N ms og derefter 0 (serveren nulstiller). Standarden siger i dag at til/fra-signaler altid "sættes", så en puls-trykknap kan ikke laves. Bruges af Trykknap (puls).
+4. **Setpunkt** (betjeningsform): fri indtastning af en værdi til ét tal-tag inden for tagets min/max — passer ikke i positionsmodellen. Bruges af Setpunkt-felt.
+
+Prototypen har alle fire med, så de kan prøves. Trin 1 har for importerede symboler et valg
+"Betjening" (kun visning / positioner / trykknap / setpunkt), så også et visningssymbol som "Knap" kan
+gøres betjenbart.
