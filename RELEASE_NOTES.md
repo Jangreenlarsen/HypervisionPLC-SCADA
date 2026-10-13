@@ -2,6 +2,13 @@
 
 ---
 
+## v0.34.0 — 2026-10-13 — Symbolstandard, del 3: betjening af symboler
+
+- Serveren kan nu betjene symboler efter den nye standard: et skift skriver kun de signaler der skal ændres, og det der skal slukkes, slukkes før noget tændes.
+- Fejler en skrivning midt i et skift, stopper det — og beskeden siger præcis hvad der er skrevet, hvad der er usikkert (intet svar fra PLC'en), og hvad der ikke er skrevet.
+- Puls med hvileværdi, fejl/låst-signal der blokerer betjening, nøglelås med 4-cifret kode (3 forkerte koder spærrer i 60 s), og "acceptér PLC'ens position" ved en afvigelse.
+- Skærmbillederne til det kommer i næste del.
+
 ## v0.33.0 — 2026-10-13 — Symbolstandard, del 2: serveren kender symbolernes position
 
 - Serveren finder nu selv hvilken position et symbol står i ud fra PLC'ens tilbagemeldinger, og om den er Bekræftet, Venter, Afvigelse eller Ukendt — også for omskiftere med flere signaler (fx 7 positioner på 3 bits).

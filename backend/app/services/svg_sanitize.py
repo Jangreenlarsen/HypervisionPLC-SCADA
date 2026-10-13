@@ -275,3 +275,15 @@ def describe_element(svg: str, element_id: str) -> dict[str, Any] | None:
         return {**_shape_info(el), "type": sym_type if _TYPE_RE.match(sym_type) else "custom",
                 "name": el.attrib.get("data-hv-name"), "parts": parts}
     return None
+
+
+def subtree_ids(svg: str, roots: set[str]) -> set[str]:
+    """Alle id'er i de givne elementer og deres efterkommere (én gennemgang af tegningen)."""
+    if not roots:
+        return set()
+    root = fromstring(svg.encode("utf-8"), forbid_dtd=True)
+    out: set[str] = set()
+    for el in root.iter():
+        if isinstance(el.tag, str) and el.attrib.get("id") in roots:
+            out.update(c.attrib["id"] for c in el.iter() if isinstance(c.tag, str) and c.attrib.get("id"))
+    return out

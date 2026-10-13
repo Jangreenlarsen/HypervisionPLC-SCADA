@@ -66,6 +66,8 @@ class MockPlcState:
     request_log: list[str] = field(default_factory=list)
     # Test: afvis alle skrivninger med denne tekst (409), fx "Safe mode aktiv".
     reject_writes: str = ""
+    # Test: afvis skrivning til bestemte adresser: {("coil", 12): "Udgang låst"}
+    reject_addr: dict[tuple[str, int], str] = field(default_factory=dict)
     # Test: de næste N skrivninger UDFØRES, men svaret kommer først efter slow_write_s (svar tabt/timeout)
     slow_writes: int = 0
     slow_write_s: float = 2.0
@@ -254,6 +256,8 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
             return _err(400, "Invalid register address")
         if st.reject_writes:
             return _err(409, st.reject_writes)
+        if ("hr", addr) in st.reject_addr:
+            return _err(409, st.reject_addr[("hr", addr)])
         try:
             body = await request.json()
         except ValueError:
@@ -283,6 +287,8 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
             return _err(400, "Invalid coil address")
         if st.reject_writes:
             return _err(409, st.reject_writes)
+        if ("coil", addr) in st.reject_addr:
+            return _err(409, st.reject_addr[("coil", addr)])
         body = await request.json()
         st.coils[addr] = bool(body.get("value"))
         st.writes.append(("coil", addr, st.coils[addr]))

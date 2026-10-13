@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.34.0 build 0051] — 2026-10-13 — Symbolstandard fase 3: betjening
+
+- `backend/app/services/symbol_operate.py` (ny) — positionsskift efter skriveplanen (kun signaler der ændres; break-before-make: mod 0/Fra først), stop ved første fejl uden tilbagerulning med præcis besked (skrevet / usikkert pga. timeout / ikke skrevet), pulssignaler med hvileværdi som selvstændige opgaver (hvile skrives også ved afbrudt request og ved timeout på værdien), fejl/låst-tag (aktivt eller ukendt blokerer), komm.fejl blokerer, én betjening ad gangen pr. symbol (409), nøglelås med kode (låst mål eller "kode for at forlade"; 3 forkerte → 60 s spærring pr. symbol og bruger; konstant-tids kontrol), accept af PLC'ens position (skriver intet), trykknap og setpunkt. Audit `symbol.operate/.pulse/.entry/.accept/.unlock/.pin_failed` — aldrig koden.
+- `backend/app/services/symbols.py` — `targets()`, `write_plan()`, `needs_pin()` (delt mellem betjening og guidens forhåndsvisning).
+- `backend/app/services/operate.py` — `write_value()` og `pulse_value()` (samme omregning, min/max og tag-lås; uden audit, som symbolet logger samlet).
+- `backend/app/api/symbols.py` — `GET …/plan/{position}`, `POST …/operate|pulse|entry|accept` (operatør, tegningsadgang), `POST …/preview` (tekniker: validering + skriveplan pr. position uden at gemme).
+- `backend/app/services/drawings.py`, `svg_sanitize.py` — gamle bindinger på et konfigureret symbol og dets dele ignoreres (`subtree_ids`).
+- `backend/mock_plc/app.py` — testkrog `reject_addr` (afvis bestemte adresser).
+- Tests: `backend/tests/test_symbol_operate.py` (ny, 15).
+
 ## [0.33.0 build 0050] — 2026-10-13 — Symbolstandard fase 2: position, tilstand og afvigelsesalarm
 
 - `backend/app/services/symbol_runtime.py` (ny) — `remote_position()` (præcis én position hvis alle læsbare planer matcher tilbagemelding/kommando; pulsplaner og "røres ikke" tæller ikke; komm.fejl → ukendt) og `compute_state()` (Remote/Lokal, Venter i valideringstiden, Afvigelse, Ukendt, hængelås) som prototypens `remotePos`/`status`. `SymbolRuntime` genberegner ved hver live-ændring og mindst hvert `SCADA_SYMBOL_TICK_S` (0,5 s), lægger `sym:<tegning>:<element>:pos|remote|state|locked` i live-cachen, gemmer sidst valgte position i `symbol_state` (overlever genstart; første gang = det PLC'en viser) og fjerner pseudo-tags for slettede symboler. Genindlæser ved ændrede konfigurationer eller tegningsversioner.

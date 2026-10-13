@@ -186,6 +186,46 @@ def config_tags(config: dict[str, Any]) -> list[str]:
     return out
 
 
+def targets(cfg: dict[str, Any], k: int) -> dict[str, float]:
+    """Hvad position k sætter: {signal-id: værdi} fra kontaktplanerne (første plan pr. signal; tomme celler røres ikke)."""
+    out: dict[str, float] = {}
+    sigs = {s["id"] for s in cfg.get("signals", [])}
+    for p in cfg.get("planes", []):
+        if p["signal"] in sigs and p["signal"] not in out and k < len(p["values"]) and p["values"][k] is not None:
+            out[p["signal"]] = p["values"][k]
+    return out
+
+
+def write_plan(cfg: dict[str, Any], k: int, current: Callable[[str], Any] | None = None) -> list[dict[str, Any]]:
+    """Skriveplanen for et skift til position k (prototypens `plannedWrites`):
+    - sat-signaler springes over hvis kommando-tagget allerede har værdien (`current(tag)`; None = ukendt → skriv);
+    - pulssignaler skrives altid (værdi, så hvileværdi efter `ms`);
+    - break-before-make: skrivninger mod 0/Fra først, derefter resten — i planernes rækkefølge.
+    → [{"signal", "tag", "value", "pulse": bool, "ms", "rest"}]"""
+    sigs = {s["id"]: s for s in cfg.get("signals", [])}
+    plan = []
+    for sid, value in targets(cfg, k).items():
+        s = sigs[sid]
+        if not s.get("tag"):
+            continue
+        pulse = s.get("write") == "pulse"
+        if not pulse and current is not None:
+            now = current(s["tag"])
+            if now is not None and not isinstance(now, str) and math.isclose(float(now), float(value), abs_tol=1e-9):
+                continue
+        plan.append({"signal": sid, "tag": s["tag"], "value": value, "pulse": pulse,
+                     "ms": s.get("ms", 500) if pulse else None, "rest": s.get("rest") if pulse else None})
+    return sorted(plan, key=lambda w: 0 if float(w["value"]) == 0 else 1)
+
+
+def needs_pin(cfg: dict[str, Any], shown: int | None, to: int) -> bool:
+    """Nøglelås: låst mål, eller (med "kode for at forlade") en låst vist position der forlades."""
+    lock = cfg.get("lock") or {}
+    locked = lock.get("positions") or []
+    is_locked = lambda j: j is not None and 0 <= j < len(locked) and bool(locked[j])  # noqa: E731
+    return is_locked(to) or (bool(lock.get("leave")) and is_locked(shown) and shown != to)
+
+
 class _TagInfo:
     """Det valideringen behøver om et tag."""
 

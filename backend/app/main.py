@@ -38,6 +38,7 @@ from .services.drawings import DrawingService
 from .services.scope import ScopeService
 from .services.symbols import SymbolService
 from .services.symbol_runtime import SymbolRuntime
+from .services.symbol_operate import SymbolOperateService
 from .services.schedules import ScheduleService
 from .services.trends import TrendRecorder
 from .services.live_cache import LiveCache
@@ -87,6 +88,8 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                                                  tick_s=settings.symbol_tick_s)
         app.state.symbol_runtime.reload()
         app.state.alarm_service.providers.append(app.state.symbol_runtime.alarm_conditions)
+        app.state.symbol_operate_service = SymbolOperateService(app.state.operate_service, app.state.symbol_runtime,
+                                                                app.state.audit_service)
         symbol_task = asyncio.create_task(app.state.symbol_runtime.run(), name="symbols")
         alarm_task = asyncio.create_task(app.state.alarm_service.run(), name="alarms")
         trend_db = TrendDatabase(settings.data_dir / "trends.db")

@@ -11,7 +11,7 @@ from ..storage.files import DrawingFiles
 from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, _spec_list, auto_binding, binding_tags, symbol_bindings, validate_binding
 from .errors import ServiceError
 from .live_cache import LiveCache
-from .svg_sanitize import SvgError, index_svg, sanitize_svg, symbol_specs
+from .svg_sanitize import SvgError, index_svg, sanitize_svg, subtree_ids, symbol_specs
 from .tagsource import TagSourceError, parse_source
 
 
@@ -250,15 +250,20 @@ class DrawingService:
         effective: list[dict[str, Any]] = []
         orphans: list[str] = []
         explicit_elements: set[str] = set()
+        # Symbolstandard: har et symbol en konfiguration, gælder den — gamle bindinger på symbolet og dets dele ignoreres
+        configured = {r["element"] for r in self.db.list_symbol_configs(drawing_id)}
+        covered = subtree_ids(svg, configured & set(index))
         for b in self.db.list_bindings(drawing_id):
             explicit_elements.add(b["element"])
             if b["element"] not in index:
                 orphans.append(b["element"])
                 continue
+            if b["element"] in covered:
+                continue
             effective.append({**b, "source": "explicit"})
 
         for element, (el_tag, label) in index.items():
-            if element in explicit_elements:
+            if element in explicit_elements or element in covered:
                 continue
             name = element if element in tags else label if label in tags else None
             if name is None:

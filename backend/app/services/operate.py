@@ -192,6 +192,50 @@ class OperateService:
             result["from"] = detail["old"]  # værdien PLC'en havde lige før skiftet (læst under låsen)
         return result
 
+    # ------------------------------------------------- byggesten til symboler (symbol_operate.py)
+
+    async def write_value(self, tag_name: str, value: Any) -> Any:
+        """Skriv én værdi uden tilbagelæsning og uden audit (symbolets betjening logger hele skiftet samlet).
+        Samme omregning, min/max og tag-lås som `write`. → den skrevne tekniske værdi. Kaster ServiceError."""
+        tag, source, runtime = self._prepare(tag_name)
+        self._check_limits(tag, source, value)
+        raw, actual = to_raw(value, source, tag["scale"], tag["offset"])
+        async with self._locks.setdefault(tag_name, asyncio.Lock()):
+            try:
+                await self._write_raw(runtime, source, raw)
+            except PlcError as exc:
+                raise _plc_error(exc, f"Skrivning til {tag_name} fejlede") from exc
+        runtime.poke()
+        return actual
+
+    async def pulse_value(self, tag_name: str, value: Any, rest: Any, ms: int) -> None:
+        """Puls på et register: værdi → vent `ms` → hvileværdi. Hvileværdien skrives ALTID — også hvis kaldet
+        afbrydes, og også ved timeout på første skrivning (udfaldet er da ukendt, jf. `pulse`)."""
+        tag, source, runtime = self._prepare(tag_name)
+        self._check_limits(tag, source, value)
+        self._check_limits(tag, source, rest)
+        raw, _ = to_raw(value, source, tag["scale"], tag["offset"])
+        rest_raw, _ = to_raw(rest, source, tag["scale"], tag["offset"])
+        async with self._locks.setdefault(tag_name, asyncio.Lock()):
+            first_error: PlcError | None = None
+            try:
+                await self._write_raw(runtime, source, raw)
+            except PlcUnreachable as exc:
+                first_error = exc
+            except PlcError as exc:
+                raise _plc_error(exc, f"Puls på {tag_name} kunne ikke startes") from exc
+            try:
+                if first_error is None:
+                    await asyncio.sleep(ms / 1000)
+            finally:
+                try:
+                    await self._write_raw(runtime, source, rest_raw)
+                except PlcError as exc:
+                    raise _plc_error(exc, f"ADVARSEL: {tag_name} blev ikke sat tilbage til hvileværdien") from exc
+            if first_error is not None:
+                raise _plc_error(first_error, f"Puls på {tag_name} kunne ikke bekræftes (hvileværdien er skrevet)")
+        runtime.poke()
+
     async def toggle(self, actor: CurrentUser, ip: str, tag_name: str, allowed: set[str] | None = None) -> dict[str, Any]:
         if allowed is not None and tag_name not in allowed:
             exc = ServiceError(403, f"Du har ikke adgang til at betjene '{tag_name}'")

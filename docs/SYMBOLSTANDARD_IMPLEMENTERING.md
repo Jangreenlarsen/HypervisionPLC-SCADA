@@ -234,7 +234,8 @@ kommando-tags. Én `asyncio.Lock` pr. symbol — er den optaget, svar 409 "Symbo
   3. Rækkefølge **break-before-make**: signaler der går mod 0/Fra først, derefter resten (planernes rækkefølge).
   4. Hver skrivning via `OperateService._write_raw` (samme omregning/min-max som `write`). **Fejler en skrivning,
      stoppes planen** — der rulles ikke tilbage (et automatisk tilbageskift kan være farligere end at stå stille);
-     svaret siger præcis hvilke skrivninger der er udført, og tilstanden bliver `mismatch`/`unknown`.
+     svaret siger præcis hvilke skrivninger der er udført, hvilke der er *usikre* (timeout — PLC'en kan have udført dem)
+     og hvilke der ikke er skrevet; tilstanden bliver `mismatch`/`unknown`.
   5. Pulssignaler: værdi → vent `ms` → hvileværdi, kørt som baggrundsopgave (`asyncio.shield`) så hvileværdien skrives
      selvom browseren lukkes; hvile forsøges altid (også efter timeout på første skrivning — fase 0 punkt 1).
   6. `symbol_state` = valgt position (af hvem, hvornår); `runtime.poke()` én gang.
