@@ -620,6 +620,29 @@ class SymbolService:
         return {"element": element, "config": normalized, "warnings": res.warnings,
                 "has_pin": self.db.get_symbol_pin_hash(drawing_id, element) is not None}
 
+    def set_pin(self, actor: CurrentUser, drawing_id: str, element: str, pin: str) -> dict[str, Any]:
+        """Sæt/skift koden til nøglelåsen (skriv-kun): gemmes kun som hash, returnerer kun at den er sat (regel 6)."""
+        self._element(drawing_id, element)
+        if self.db.get_symbol_config(drawing_id, element) is None:
+            raise ServiceError(404, f"'{element}' har ingen symbol-konfiguration — opsæt symbolet før koden sættes")
+        if not _PIN.match(pin or ""):
+            raise ServiceError(400, "Koden til nøglelåsen skal være præcis 4 cifre")
+        self.db.set_symbol_pin_hash(drawing_id, element, hash_password(pin), actor.username)
+        log.info("Kode til symbol %s#%s sat af %s", drawing_id, element, actor.username)
+        if self.on_change is not None:
+            self.on_change(drawing_id, element)
+        return {"element": element, "has_pin": True}
+
+    def clear_pin(self, actor: CurrentUser, drawing_id: str, element: str) -> dict[str, Any]:
+        """Fjern koden. Låste positioner kan derefter ikke vælges før en ny kode er sat (sikker standard)."""
+        self.drawings._require(drawing_id)
+        if not self.db.delete_symbol_pin(drawing_id, element):
+            raise ServiceError(404, f"'{element}' har ingen kode")
+        log.info("Kode til symbol %s#%s fjernet af %s", drawing_id, element, actor.username)
+        if self.on_change is not None:
+            self.on_change(drawing_id, element)
+        return {"element": element, "has_pin": False}
+
     def delete(self, drawing_id: str, element: str) -> None:
         self.drawings._require(drawing_id)
         if not self.db.delete_symbol_config(drawing_id, element):

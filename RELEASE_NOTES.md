@@ -2,6 +2,12 @@
 
 ---
 
+## v0.37.0 — 2026-10-13 — Symbolstandard, del 7: koden til nøglelåsen
+
+- Koden til et symbols låste positioner kan skiftes og fjernes i guiden (trin 5). Koden vises aldrig igen efter den er gemt, og den står ikke i loggen eller i backuppen.
+- Har en operatør tastet forkert kode for mange gange, ophæves spærringen når teknikeren sætter koden igen.
+- Mangler et symbol sin kode (fx efter gendannelse af en backup), siger guiden det — og de låste positioner kan ikke vælges, før en ny kode er sat.
+
 ## v0.36.0 — 2026-10-13 — Symbolstandard, del 6: guiden
 
 - Under **Bindinger** har grupper og symboler nu knappen **Opsæt symbol (guide)**. Guiden fører gennem 6 trin: hvordan symbolet betjenes, hvilke signaler det skriver, kontaktplanerne (med skabeloner og eksemplet "7-trins vælger"), animationerne, betjening og nøglelås, og til sidst live-værdier og hvad hvert positionsskift vil skrive.

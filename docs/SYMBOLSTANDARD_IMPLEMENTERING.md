@@ -254,7 +254,11 @@ kommando-tags. Én `asyncio.Lock` pr. symbol — er den optaget, svar 409 "Symbo
 - Kontrol kun i backend med konstant-tids sammenligning. Fejltæller pr. (symbol, bruger) i hukommelsen: 3 forkerte →
   spærret 60 s for den bruger på det symbol (svar 429 med resterende sekunder). Audit: `symbol.unlock` (ok) og
   `symbol.pin_failed` (antal) — aldrig koden.
-- Tælleren nulstilles ved genstart (dokumenteret begrænsning; samme som login-låsningen).
+- Tælleren nulstilles ved genstart (dokumenteret begrænsning; samme som login-låsningen) og når en tekniker sætter
+  eller fjerner koden (ny kode = ny start).
+- En kode kan kun sættes på et symbol med en konfiguration (ellers 404); fjernes konfigurationen, fjernes koden med.
+  En konfiguration med låste positioner kan ikke gemmes uden kode — "låst uden kode" opstår kun efter `DELETE …/pin`
+  eller en restore, og guiden viser da "Symbolet har ingen kode — sæt en ny kode".
 
 ### 5.5 Adgang (`services/scope.py`)
 

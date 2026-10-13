@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.37.0 build 0054] — 2026-10-13 — Symbolstandard fase 7: nøglelåsens kode
+
+- `backend/app/services/symbols.py` — `set_pin()` (kun symboler med konfiguration; præcis 4 cifre; gemmes som scrypt-hash) og `clear_pin()`; svar kun `has_pin`.
+- `backend/app/services/symbol_operate.py` — `reset_pin_fails()`: ny eller fjernet kode ophæver spærring og fejltæller for symbolet.
+- `backend/app/api/symbols.py` — `PUT`/`DELETE …/pin` (tekniker, skriv-kun), audit `symbol.pin_set`/`symbol.pin_cleared` (også når koden sættes sammen med konfigurationen) — aldrig koden.
+- `frontend/src/lib/SymbolGuide.svelte` — trin 5: "Fjern kode" (med advarsel når der er låste positioner); manglende kode efter fjernelse/gendannelse vises som fejl på trinnet ("sæt en ny kode") og spærrer Gem.
+- `docs/SYMBOLSTANDARD_IMPLEMENTERING.md` afsnit 5.4 — reglerne ovenfor.
+- Tests: `test_symbol_pin.py` (ny): sæt/skift/fjern, låst uden kode → 409, ny kode ophæver spærring, formatregler, kun tekniker, koden findes ikke i svar, app-log, audit eller backup. Set i Chromium: fjern kode → fejl på trin 5, ny kode → gemt.
+
 ## [0.36.0 build 0053] — 2026-10-13 — Symbolstandard fase 6: guiden under Bindinger og Konvertér
 
 - `frontend/src/lib/SymbolGuide.svelte` (ny) — guiden i 6 trin (Symbol, Signaler, Kontakter, Visning, Betjening, Test og gem) som vindue fra "Opsæt symbol (guide)"/"Ret symbol (guide)" under Bindinger: betjeningsform, signaler (kommando, tilbagemelding, sæt/puls med hvileværdi), fejlsignal, positioner, kontaktplaner med skabeloner A–D og eksemplet "7-trins vælger", rækken "Aktive signaler", visning/alarmniveau, animationer pr. del (typer efter delens geometri, kilde = position eller tag, værdier pr. position, "gælder i", ▲▼), bekræftelse, pulslængde, nøglelås med kode (skriv-kun), live-værdier, fundet position og skriveplan pr. position. Valideringen er serverens (`POST …/preview`, kaldt løbende) — fejl vises pr. trin med prik på fanen; Gem er spærret ved fejl eller manglende kode. "Fjern konfiguration" giver symbolets gamle bindinger tilbage.

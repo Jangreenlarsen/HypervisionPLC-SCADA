@@ -69,6 +69,30 @@ async def put_config(drawing_id: str, element: str, body: ConfigBody, request: R
     # Audit: konfigurationen (aldrig koden — kun at den er sat)
     audit(request, "symbol.config", f"{drawing_id}#{element}",
           {"op": result["config"]["op"], "pin_set": body.pin is not None})
+    if body.pin is not None:
+        _ops(request).reset_pin_fails(drawing_id, element)
+        audit(request, "symbol.pin_set", f"{drawing_id}#{element}", {})
+    return result
+
+
+class PinBody(_Model):
+    pin: str = Field(max_length=8)
+
+
+@router.put("/{drawing_id}/symbols/{element}/pin", dependencies=[ENGINEER])
+async def set_pin(drawing_id: str, element: str, body: PinBody, request: Request) -> dict[str, Any]:
+    """Sæt/skift koden (skriv-kun). Svaret siger kun at en kode er sat — aldrig koden (CLAUDE.md regel 6)."""
+    result = _svc(request).set_pin(request.state.user, drawing_id, element, body.pin)
+    _ops(request).reset_pin_fails(drawing_id, element)
+    audit(request, "symbol.pin_set", f"{drawing_id}#{element}", {})
+    return result
+
+
+@router.delete("/{drawing_id}/symbols/{element}/pin", dependencies=[ENGINEER])
+async def clear_pin(drawing_id: str, element: str, request: Request) -> dict[str, Any]:
+    result = _svc(request).clear_pin(request.state.user, drawing_id, element)
+    _ops(request).reset_pin_fails(drawing_id, element)
+    audit(request, "symbol.pin_cleared", f"{drawing_id}#{element}", {})
     return result
 
 

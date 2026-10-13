@@ -60,7 +60,8 @@
   const locks = $derived(isPos && cfg.lock.positions.some(Boolean));
   const pinOk = $derived(pin === '' || /^\d{4}$/.test(pin));
   const needPin = $derived(locks && !hasPin && !pin);
-  const stepErrors = (k: number): string[] => [...(preview?.steps[String(k + 1)] ?? []), ...(k === 4 && needPin ? ['Låste positioner kræver en kode.'] : [])];
+  const pinMissing = $derived(exists ? 'Symbolet har ingen kode (fx efter gendannelse af en backup) — sæt en ny kode.' : 'Låste positioner kræver en kode.');
+  const stepErrors = (k: number): string[] => [...(preview?.steps[String(k + 1)] ?? []), ...(k === 4 && needPin ? [pinMissing] : [])];
   const canSave = $derived(!!preview && preview.errors === 0 && !needPin && pinOk && !saving && !previewError);
 
   // ---------------------------------------------------------------- indlæsning
@@ -242,6 +243,18 @@
       error = (e as Error).message;
     } finally {
       saving = false;
+    }
+  }
+  /** Fjern koden straks (skriv-kun; serveren svarer kun has_pin). */
+  async function clearPin(): Promise<void> {
+    const msg = locks ? 'Fjern koden? De låste positioner kan så ikke vælges, før en ny kode er sat.' : 'Fjern koden?';
+    if (!confirm(msg)) return;
+    try {
+      const r = await api<{ has_pin: boolean }>('DELETE', `${base}/pin`);
+      hasPin = r.has_pin;
+      pin = '';
+    } catch (e) {
+      error = (e as Error).message;
     }
   }
   const writeText = (w: Write) => `${w.tag} := ${fmt(w.value)}${w.kind === 'pulse' ? ' (puls)' : ''}`;
@@ -433,7 +446,10 @@
                   <input class="n pin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="4" bind:value={pin} placeholder={hasPin ? '••••' : ''} />
                 </label>
                 {#if !pinOk}<p class="small error">Koden skal være præcis 4 cifre.</p>{/if}
+                {#if exists && hasPin}<div class="row"><button class="small danger" onclick={clearPin}>Fjern kode</button></div>{/if}
                 <p class="small muted">Koden gemmes kun som hash og kommer ikke med i backup — efter en gendannelse skal den sættes igen.</p>
+              {:else if exists && hasPin}
+                <p class="small muted">Der er en kode, men ingen låste positioner. <button class="small danger" onclick={clearPin}>Fjern kode</button></p>
               {/if}
             {/if}
           {/if}

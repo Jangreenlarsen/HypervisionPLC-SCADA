@@ -89,6 +89,11 @@ class SymbolOperateService:
 
     # ------------------------------------------------------------- nøglelås
 
+    def reset_pin_fails(self, drawing_id: str, element: str) -> None:
+        """Ny eller fjernet kode: spærringer og fejltællere for symbolet gælder ikke længere."""
+        for k in [k for k in self._pin_fails if k[0] == drawing_id and k[1] == element]:
+            del self._pin_fails[k]
+
     def _check_pin(self, actor: CurrentUser, ip: str, key: tuple[str, str], pin: str | None, label: str) -> None:
         fail_key = (key[0], key[1], actor.username)
         count, until = self._pin_fails.get(fail_key, (0, 0.0))
