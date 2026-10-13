@@ -25,10 +25,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from ..config import read_version
 from ..storage.files import DrawingFiles
 from .bindings import BindingError, binding_tags, validate_binding
 from .schedules import validate_schedule
+from .symbols import SymbolConfig, config_tags
 from .errors import ServiceError
 from .manager import PlcManager
 from .plcs import normalize_base_url
@@ -140,6 +143,7 @@ class BackupService:
             "settings": data["settings"],
             "schedules": data["schedules"],
             "symbol_meta": data["symbol_meta"],
+            "symbol_config": data["symbol_config"],
         }
 
     def save_to_server(self, kind: str, created_by: str) -> str:
@@ -390,6 +394,27 @@ class BackupService:
                 continue
             symbol_meta.append({"drawing_id": m["drawing_id"], "element": m["element"], "description": m["description"]})
 
+        symbol_config = []
+        raw_cfg = backup.get("symbol_config", [])  # ældre backups har ingen symbol-konfigurationer
+        if not isinstance(raw_cfg, list):
+            err("symbol_config skal være en liste")
+            raw_cfg = []
+        tag_names_all = {t["name"] for t in tags}
+        for i, c in enumerate(raw_cfg):
+            if not isinstance(c, dict) or c.get("drawing_id") not in drawing_ids or not isinstance(c.get("element"), str):
+                err(f"Symbol-konfiguration #{i + 1}: ukendt tegning eller element mangler")
+                continue
+            where = f"Symbol {c['drawing_id']}#{c['element']}"
+            try:
+                cfg = SymbolConfig.model_validate(c.get("config")).model_dump()
+            except ValidationError as exc:
+                err(f"{where}: ugyldig konfiguration ({exc.errors()[0].get('msg', 'fejl')})")
+                continue
+            if missing := [t for t in config_tags(cfg) if t not in tag_names_all]:
+                err(f"{where}: tagget '{missing[0]}' findes ikke i backuppen")
+                continue
+            symbol_config.append({"drawing_id": c["drawing_id"], "element": c["element"], "config": cfg})
+
         schedules = []
         raw_schedules = backup.get("schedules", [])  # ældre backups har ingen ugeprogrammer
         if not isinstance(raw_schedules, list):
@@ -417,7 +442,7 @@ class BackupService:
         # En start-tegning der ikke findes i backuppen ignoreres (ikke en fejl — Overview viser så den første)
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
                 "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
-                "schedules": schedules, "symbol_meta": symbol_meta}
+                "schedules": schedules, "symbol_meta": symbol_meta, "symbol_config": symbol_config}
 
     # ---------------------------------------------------------------- restore
 

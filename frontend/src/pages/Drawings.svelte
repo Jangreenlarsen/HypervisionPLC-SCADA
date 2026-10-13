@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { del, get, patch, post, put } from '../lib/api';
+  import SymbolConvert from '../lib/SymbolConvert.svelte';
 
   let { canEdit = false }: { canEdit?: boolean } = $props();
 
@@ -185,6 +186,10 @@
     <p class="muted">Ingen tegninger endnu.</p>
   {/if}
 </section>
+
+{#if canEdit && rows.length}
+  <SymbolConvert names={Object.fromEntries(rows.map((r) => [r.id, r.name]))} />
+{/if}
 
 {#if open}
   <section class="panel">

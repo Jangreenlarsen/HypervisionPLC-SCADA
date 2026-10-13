@@ -137,6 +137,70 @@ def test_toggle_and_pulse(api, mock_plc):
     assert api.post("/api/tags/Motor/pulse", json={"ms": 50}).status_code == 422
 
 
+@pytest.fixture
+def api_short_timeout(tmp_path, mock_plc):
+    """Som `api`, men med kort PLC-timeout, så et forsinket svar giver PlcUnreachable hurtigt."""
+    settings = Settings(data_dir=tmp_path, poll_fast_s=0.05, poll_slow_s=0.2, plc_rate=9, plc_timeout_s=0.5,
+                        frontend_dir=tmp_path / "nope", admin_password=ADMIN_PW)
+    with TestClient(create_app(settings)) as c:
+        c.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
+        c.post("/api/plcs", json={"key": "plc1", "base_url": mock_plc.url, "username": "scada",
+                                  "password": "scada123", "sse_enabled": False})
+        assert c.post("/api/tags", json={"name": "Motor", "source": "plc1:coil:3", "writable": True}).status_code == 201
+        _wait(lambda: c.get("/api/live?tags=Motor").json()["values"]["Motor"]["quality"] == "good")
+        yield c
+
+
+def test_pulse_resets_output_when_on_write_times_out(api_short_timeout, mock_plc):
+    """BUGS v0.27.0 #1: TÆND blev udført, men svaret gik tabt → serveren skal alligevel sende SLUK."""
+    api = api_short_timeout
+    mock_plc.state.writes.clear()
+    mock_plc.state.slow_writes, mock_plc.state.slow_write_s = 1, 1.5
+    r = api.post("/api/tags/Motor/pulse", json={"ms": 200})
+    assert r.status_code == 503
+    assert "sat til fra for en sikkerheds skyld" in r.json()["error"]
+    assert mock_plc.state.writes == [("coil", 3, True), ("coil", 3, False)]
+    assert mock_plc.state.coils[3] is False                       # udgangen er IKKE efterladt tændt
+    entry = api.get("/api/audit?action=pulse").json()[0]
+    assert entry["result"] == "error"
+
+
+def test_pulse_rejected_by_plc_sends_no_reset(api, mock_plc):
+    """Har PLC'en eksplicit afvist TÆND, skete intet — ingen ekstra SLUK (og ingen misvisende advarsel)."""
+    mock_plc.state.writes.clear()
+    mock_plc.state.reject_writes = "Safe mode aktiv"
+    r = api.post("/api/tags/Motor/pulse", json={"ms": 200})
+    assert r.status_code == 409 and "Safe mode aktiv" in r.json()["error"]
+    assert mock_plc.state.writes == []
+
+
+def test_concurrent_toggles_cancel_out(api, mock_plc):
+    """BUGS v0.27.0 #2: to samtidige toggles skal give til→fra (ikke til to gange)."""
+    import threading
+    assert mock_plc.state.coils[3] is False
+    mock_plc.state.writes.clear()
+    mock_plc.state.slow_writes, mock_plc.state.slow_write_s = 2, 0.3   # hold låsen længe nok til at kaldene overlapper
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(api.post("/api/tags/Motor/toggle"))) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert [r.status_code for r in results] == [200, 200], [r.text for r in results]
+    assert [w for w in mock_plc.state.writes if w[0] == "coil"] == [("coil", 3, True), ("coil", 3, False)]
+    assert mock_plc.state.coils[3] is False
+    assert sorted(r.json()["from"] for r in results) == [False, True]
+
+
+def test_toggle_uses_fresh_plc_value_not_cache(api, mock_plc):
+    """Ændres udgangen i PLC'en lige før et toggle (cachen er endnu ikke opdateret), skal toggle gå ud fra PLC'en."""
+    mock_plc.state.coils[3] = True          # fx skiftet af PLC-programmet
+    mock_plc.state.writes.clear()
+    r = api.post("/api/tags/Motor/toggle")
+    assert r.status_code == 200 and r.json()["from"] is True
+    assert mock_plc.state.writes == [("coil", 3, False)]
+
+
 def test_non_writable_and_unknown(api):
     r = api.post("/api/tags/Kun_laes/write", json={"value": 1})
     assert r.status_code == 403 and "ikke skrivbart" in r.json()["error"]

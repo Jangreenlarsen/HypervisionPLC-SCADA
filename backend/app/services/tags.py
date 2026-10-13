@@ -31,6 +31,7 @@ class TagService:
         self.db = manager.db
         self.on_delete: Any = None  # fx trend-historikken der skal glemme tagget
         self.schedule_usage: Any = None  # navn → ugeprogrammer der skriver til tagget
+        self.symbol_usage: Any = None    # navn → symboler (tegning#element) hvis konfiguration bruger tagget
         self.on_change: Any = None  # fx trend-opsamleren der skal læse historik-indstillingerne straks
 
     def list(self, plc: str | None = None) -> list[dict[str, Any]]:
@@ -197,6 +198,9 @@ class TagService:
     def delete(self, name: str) -> None:
         if names := self._schedules_using(name):
             raise ServiceError(409, f"Tagget '{name}' bruges i ugeprogram: {', '.join(names)} — slet eller ret dem først")
+        if self.symbol_usage is not None and (symbols := self.symbol_usage(name)):
+            raise ServiceError(409, f"Tagget '{name}' bruges af symbol: {', '.join(symbols[:5])}"
+                                    f"{' …' if len(symbols) > 5 else ''} — ret dem under Bindinger først")
         used = self.db.count_bindings_for_tag(name)
         if used:
             raise ServiceError(409, f"Tagget '{name}' bruges i {used} binding(er) i tegninger — fjern dem først")

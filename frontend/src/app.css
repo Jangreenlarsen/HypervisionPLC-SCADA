@@ -111,7 +111,24 @@ code, .mono { font-family: ui-monospace, Consolas, monospace; font-size: .9em; }
   filter: grayscale(1);
 }
 .hv-blink { animation: hv-blink 1s steps(2, start) infinite; }
+/* Symbolstandard: blinkfrekvens (0,5 / 1 / 2 Hz), Roterer og glidende Flyt/Drej */
+.hv-blink.hv-blink-slow { animation-duration: 2s; }
+.hv-blink.hv-blink-fast { animation-duration: .5s; }
+.hv-spin { animation: hv-spin 1.6s linear infinite; transform-box: fill-box; transform-origin: center; }
+.hv-glide { transition: transform .4s ease-in-out; }
+@keyframes hv-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .hv-spin { animation: none; } .hv-glide { transition: none; } }
 .hv-clickable { cursor: pointer; }
+/* Symbolstandard: tilstandsmærke, skygge af PLC'ens position og hængelås (symbolOverlay.ts) */
+.hv-badge circle { stroke-width: 1.5; fill: #fff; stroke: var(--muted); }
+.hv-badge text { font-family: system-ui, sans-serif; font-weight: 700; fill: var(--muted); }
+.hv-badge.confirmed circle { fill: #e7f2e8; stroke: var(--ok); } .hv-badge.confirmed text { fill: var(--ok); }
+.hv-badge.pending circle { fill: #fff4e0; stroke: var(--warn); } .hv-badge.pending text { fill: var(--warn); }
+.hv-badge.mismatch circle { fill: #fdecea; stroke: var(--alarm); } .hv-badge.mismatch text { fill: var(--alarm); }
+.hv-ghost { fill: none; stroke: var(--alarm); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.hv-ghosttext { fill: var(--alarm); font-family: system-ui, sans-serif; font-weight: 600; }
+.hv-lock path, .hv-lock rect { fill: none; stroke: var(--text); stroke-width: 2.4; }
+.hv-lock rect { fill: #fff; }
 /* Alarm på et element: rød markering; ukvitteret blinker (farve er reserveret til alarmer — ISA-101) */
 .hv-alarm-ack { filter: drop-shadow(0 0 3px #c62828) drop-shadow(0 0 3px #c62828); }
 .hv-alarm-unack { animation: hv-alarm 1s steps(2, start) infinite; }
@@ -122,6 +139,7 @@ code, .mono { font-family: ui-monospace, Consolas, monospace; font-size: .9em; }
 @media (prefers-reduced-motion: reduce) { .hv-alarm-unack { animation: none; filter: drop-shadow(0 0 4px #c62828); } }
 .prio-high { color: var(--alarm); font-weight: 600; }
 .prio-medium { color: var(--warn); font-weight: 600; }
+.prio-low { color: var(--accent); font-weight: 600; }
 .hv-clickable:hover { filter: brightness(1.12) drop-shadow(0 0 3px rgba(31, 95, 153, .7)); }
 @keyframes hv-blink { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .hv-blink { animation: none; outline: 2px solid var(--alarm); } }

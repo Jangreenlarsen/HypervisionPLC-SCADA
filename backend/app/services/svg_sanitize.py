@@ -236,3 +236,62 @@ def index_svg(svg: str) -> dict[str, tuple[str, str | None]]:
         if el_id:
             out[el_id] = (_local(el.tag)[1], el.attrib.get(f"{{{INKSCAPE_NS}}}label"))
     return out
+
+
+_TYPE_RE = re.compile(r"^[a-z0-9_]{1,40}$")
+_STROKE_SHAPES = {"path", "line", "polyline", "polygon", "circle", "ellipse"}
+
+
+def _shape_info(el: ET.Element) -> dict[str, Any]:
+    """Hvad en del kan animeres med: elementtype og om den har streger/rør (til løbelys)."""
+    name = _local(el.tag)[1]
+    shapes = [el, *[c for c in el.iter() if c is not el]]
+    has_line = False
+    for s in shapes:
+        if not isinstance(s.tag, str):
+            continue
+        sn = _local(s.tag)[1]
+        stroke = (s.attrib.get("stroke") or "").strip()
+        if sn == "rect" or (sn in _STROKE_SHAPES and stroke and stroke != "none"):
+            has_line = True
+            break
+    return {"tag": name, "line": has_line}
+
+
+def describe_element(svg: str, element_id: str) -> dict[str, Any] | None:
+    """Et symbol i tegningen: elementtype, bibliotekstype (data-hv-type), navn og dele (børn med id).
+    `parts`: {barn-id: {"tag", "line", "pid"}} — pid = delens id i biblioteket (data-hv-pid), hvis kendt.
+    None hvis elementet ikke findes."""
+    root = fromstring(svg.encode("utf-8"), forbid_dtd=True)
+    for el in root.iter():
+        if not isinstance(el.tag, str) or el.attrib.get("id") != element_id:
+            continue
+        sym_type = el.attrib.get("data-hv-type", "")
+        parts: dict[str, dict[str, Any]] = {}
+        for c in el.iter():
+            if c is el or not isinstance(c.tag, str) or not c.attrib.get("id"):
+                continue
+            parts[c.attrib["id"]] = {**_shape_info(c), "pid": c.attrib.get("data-hv-pid")}
+        return {**_shape_info(el), "type": sym_type if _TYPE_RE.match(sym_type) else "custom",
+                "name": el.attrib.get("data-hv-name"), "parts": parts}
+    return None
+
+
+def symbol_roots(svg: str) -> list[str]:
+    """Bibliotekssymboler i tegningen (rødder med data-hv-type eller data-hv-auto), i dokumentrækkefølge."""
+    root = fromstring(svg.encode("utf-8"), forbid_dtd=True)
+    return [el.attrib["id"] for el in root.iter()
+            if isinstance(el.tag, str) and el.attrib.get("id")
+            and ("data-hv-type" in el.attrib or "data-hv-auto" in el.attrib)]
+
+
+def subtree_ids(svg: str, roots: set[str]) -> set[str]:
+    """Alle id'er i de givne elementer og deres efterkommere (én gennemgang af tegningen)."""
+    if not roots:
+        return set()
+    root = fromstring(svg.encode("utf-8"), forbid_dtd=True)
+    out: set[str] = set()
+    for el in root.iter():
+        if isinstance(el.tag, str) and el.attrib.get("id") in roots:
+            out.update(c.attrib["id"] for c in el.iter() if isinstance(c.tag, str) and c.attrib.get("id"))
+    return out

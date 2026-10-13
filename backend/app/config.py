@@ -43,6 +43,9 @@ class Settings:
     # Sæt til true når serveren kører bag TLS (nginx) — så sendes session-cookien kun over HTTPS.
     cookie_secure: bool = field(default_factory=lambda: os.environ.get("SCADA_COOKIE_SECURE", "").lower() in ("1", "true", "yes"))
     session_hours: float = field(default_factory=lambda: _env_float("SCADA_SESSION_HOURS", 8.0))
+    # Åbne /ws/live-forbindelser gentjekker sessionen så ofte: logout, deaktivering, rolle- og tegningsadgang slår
+    # igennem inden for så mange sekunder (en åben skærm tæller som brug og forlænger sessionen som et kald).
+    ws_revalidate_s: float = field(default_factory=lambda: _env_float("SCADA_WS_REVALIDATE_S", 10.0))
     # Kun ved første opstart (ingen brugere): adgangskode til 'admin'. Ellers genereres en engangsadgangskode.
     admin_password: str | None = field(default_factory=lambda: os.environ.get("SCADA_ADMIN_PASSWORD") or None)
     # Automatisk backup på serveren hvert N. time (0 = fra); de seneste `backup_keep` gemmes.
@@ -51,6 +54,8 @@ class Settings:
     # Antal automatiske øjebliksbilleder af trend-historikken der gemmes (0 = ingen)
     trend_backup_keep: int = field(default_factory=lambda: int(os.environ.get("SCADA_TREND_BACKUP_KEEP", "2")))
     alarm_tick_s: float = field(default_factory=lambda: _env_float("SCADA_ALARM_TICK_S", 1.0))
+    # Symbolernes position/tilstand genberegnes ved hver live-ændring og mindst så ofte (valideringstid, Venter → Afvigelse)
+    symbol_tick_s: float = field(default_factory=lambda: _env_float("SCADA_SYMBOL_TICK_S", 0.5))
     # En PLC skal have været utilgængelig så længe før kommunikationsalarmen udløses
     alarm_comm_delay_s: float = field(default_factory=lambda: _env_float("SCADA_ALARM_COMM_DELAY_S", 10.0))
     trend_days: float = field(default_factory=lambda: _env_float("SCADA_TREND_DAYS", 30.0))

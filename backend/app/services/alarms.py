@@ -29,6 +29,7 @@ from .manager import PlcManager
 log = logging.getLogger(__name__)
 
 PRIORITY = {"HH": "high", "LL": "high", "ON": "high", "COMM": "high", "H": "medium", "L": "medium"}
+PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 SEVERITY = {"H": 1, "HH": 2, "L": 1, "LL": 2}
 KEEP_EVENTS = 50_000
 
@@ -43,6 +44,11 @@ class Condition:
     value: Any
     message: str
     delay_s: float = 0.0
+    priority: str | None = None  # fast prioritet (fx symbolets valgte alarmniveau); ellers efter niveauet
+
+    @property
+    def prio(self) -> str:
+        return self.priority or PRIORITY[self.level]
 
 
 def _fmt(value: Any, unit: str) -> str:
@@ -109,6 +115,9 @@ class AlarmService:
         self._comm_since: dict[str, float] = {}
         self._subscribers: set[asyncio.Queue[int]] = set()
         self._version = 0
+        # Ekstra kilder til alarmer (fx symbolernes afvigelse): now → (betingelser, "frosne" tags hvis alarmer ikke må
+        # ryddes fordi værdien er ukendt — en kommunikationsfejl må aldrig rydde en alarm)
+        self.providers: list[Any] = []
 
     # ------------------------------------------------------------ abonnenter
 
@@ -172,6 +181,16 @@ class AlarmService:
             else:
                 self._comm_since.pop(plc["key"], None)
 
+        for provider in self.providers:
+            try:
+                conds, frozen_extra = provider(now)
+            except Exception:
+                log.exception("Fejl i alarmkilde")
+                continue
+            for c in conds:
+                desired[c.key] = c
+            frozen |= frozen_extra
+
         changed = False
         keys = set(self.state) | set(desired) | set(self._pending)
         for key in keys:
@@ -187,7 +206,7 @@ class AlarmService:
                 continue
             if active:
                 self._pending.pop(key, None)
-                if existing["level"] != cond.level:
+                if existing["level"] != cond.level or existing["priority"] != cond.prio:
                     changed |= self._relevel(existing, cond, now)
                 continue
             since = self._pending.setdefault(key, now)
@@ -207,7 +226,7 @@ class AlarmService:
 
     def _raise(self, c: Condition, now: float) -> bool:
         row = {"key": c.key, "tag": c.tag, "plc": c.plc, "kind": c.kind, "level": c.level,
-               "priority": PRIORITY[c.level], "state": "active_unack", "raised_at": now, "value": c.value,
+               "priority": c.prio, "state": "active_unack", "raised_at": now, "value": c.value,
                "message": c.message, "acked_by": None, "acked_at": None}
         self.state[c.key] = row
         self.db.upsert_alarm_state(row)
@@ -216,8 +235,9 @@ class AlarmService:
         return True
 
     def _relevel(self, row: dict[str, Any], c: Condition, now: float) -> bool:
-        worse = SEVERITY.get(c.level, 0) > SEVERITY.get(row["level"], 0)
-        row.update(level=c.level, priority=PRIORITY[c.level], value=c.value, message=c.message)
+        worse = (SEVERITY.get(c.level, 0) > SEVERITY.get(row["level"], 0)
+                 or PRIORITY_ORDER.get(c.prio, 9) < PRIORITY_ORDER.get(row["priority"], 9))
+        row.update(level=c.level, priority=c.prio, value=c.value, message=c.message)
         if worse:  # eskalering kræver ny kvittering
             row.update(state="active_unack", raised_at=now, acked_by=None, acked_at=None)
         self.db.upsert_alarm_state(row)
@@ -268,7 +288,7 @@ class AlarmService:
         keys = self.visible_keys(visible_tags)
         rows = [a for k, a in self.state.items() if keys is None or k in keys]
         order = {"active_unack": 0, "rtn_unack": 1, "active_ack": 2}
-        return sorted(rows, key=lambda a: (order[a["state"]], a["priority"] != "high", -a["raised_at"]))
+        return sorted(rows, key=lambda a: (order[a["state"]], PRIORITY_ORDER.get(a["priority"], 9), -a["raised_at"]))
 
     def summary(self, visible_tags: set[str] | None) -> dict[str, int]:
         rows = self.active(visible_tags)

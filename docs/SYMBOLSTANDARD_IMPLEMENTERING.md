@@ -165,8 +165,10 @@ Betingelser fra prototypen: til/fra-kilde "når Til/Fra" = eksisterende `invert`
    ```
    Udfyldes for alle 82 symboler ud fra det prototypens import gør (`convertDef`): navngivne dele (`fyld`, `soejle`,
    `rotor`, `flamme`, `viser`, `vaerdi` …), rør/fittings = `flow`, T-stykke/kryds = `junction`.
-2. Ved indsættelse i Tegn skrives `data-hv-type="<id>"` på roden (`scada-editor.js` `insertSymbol`), og saneringen
-   tillader attributten (`svg_sanitize.py` `TEXT_ATTRS`, maks 40 tegn, `[a-z0-9_]`).
+2. Ved indsættelse i Tegn skrives `data-hv-type="<id>"` på roden og `data-hv-pid="<delens id i biblioteket>"` på hver del
+   (`svgedit-host/scada-editor.js` `insertSymbol`) — delenes id'er kan få løbenumre, så delens navn kan ikke udledes af
+   id'et. Saneringen bevarer `data-*`; backend læser typen kun hvis den matcher `[a-z0-9_]{1,40}` (`describe_element`).
+   `meta` bruges kun af guiden (forslag og navne) — backend validerer mod tegningens geometri (5.1).
 3. Elementer uden `data-hv-type` (egne tegninger, gamle symboler): type `custom`; dele = børn med id; ingen særlige
    dele — Farve/Blink/Synlig/Flyt/Drej på hele symbolet eller en del. Løbelys tilbydes når elementet har streger.
 4. `data-hv-auto`/`data-hv-part` bevares til den gamle model og bruges af "Konvertér" (afsnit 11).
@@ -185,8 +187,10 @@ Betingelser fra prototypen: til/fra-kilde "når Til/Fra" = eksisterende `invert`
     min/max ellers datatypens område (`INT_RANGES` i `operate.py`);
   - puls: længde, hvileværdi påkrævet, heltal, i området og ≠ alle positionsværdier; mindst ét plan med et sat-signal;
   - op=pulse kræver til/fra-tag; op=entry kræver tal-tag; view kræver mindst én animation;
-  - animationer: del findes i elementet (eller `all`), typen tilladt for delen (bibliotekets `meta`), `@pos` kun ved
-    positioner, grænser stigende, min < max, løbelys-farver forskellige, `dir_tag` ≠ kilden;
+  - animationer: del findes i elementet (eller `all`), typen passer til delens **geometri** — Niveau kræver `<rect>`,
+    Værdi `<text>`, Løbelys streger eller et rør (besluttet under fase 1: så gælder reglen også egne tegninger, og
+    bibliotekets beskrivelse findes kun ét sted, i frontend) — `@pos` kun ved positioner, grænser stigende, min < max,
+    løbelys-farver forskellige, `dir_tag` ≠ kilden;
   - lås: låste positioner kræver at PIN er sat eller sættes i samme kald.
   Advarsler (blokerer ikke) returneres separat: ubrugt signal, celler der "røres ikke", animation uden gyldige positioner,
   alle positioner låst.
@@ -230,7 +234,8 @@ kommando-tags. Én `asyncio.Lock` pr. symbol — er den optaget, svar 409 "Symbo
   3. Rækkefølge **break-before-make**: signaler der går mod 0/Fra først, derefter resten (planernes rækkefølge).
   4. Hver skrivning via `OperateService._write_raw` (samme omregning/min-max som `write`). **Fejler en skrivning,
      stoppes planen** — der rulles ikke tilbage (et automatisk tilbageskift kan være farligere end at stå stille);
-     svaret siger præcis hvilke skrivninger der er udført, og tilstanden bliver `mismatch`/`unknown`.
+     svaret siger præcis hvilke skrivninger der er udført, hvilke der er *usikre* (timeout — PLC'en kan have udført dem)
+     og hvilke der ikke er skrevet; tilstanden bliver `mismatch`/`unknown`.
   5. Pulssignaler: værdi → vent `ms` → hvileværdi, kørt som baggrundsopgave (`asyncio.shield`) så hvileværdien skrives
      selvom browseren lukkes; hvile forsøges altid (også efter timeout på første skrivning — fase 0 punkt 1).
   6. `symbol_state` = valgt position (af hvem, hvornår); `runtime.poke()` én gang.
@@ -249,7 +254,11 @@ kommando-tags. Én `asyncio.Lock` pr. symbol — er den optaget, svar 409 "Symbo
 - Kontrol kun i backend med konstant-tids sammenligning. Fejltæller pr. (symbol, bruger) i hukommelsen: 3 forkerte →
   spærret 60 s for den bruger på det symbol (svar 429 med resterende sekunder). Audit: `symbol.unlock` (ok) og
   `symbol.pin_failed` (antal) — aldrig koden.
-- Tælleren nulstilles ved genstart (dokumenteret begrænsning; samme som login-låsningen).
+- Tælleren nulstilles ved genstart (dokumenteret begrænsning; samme som login-låsningen) og når en tekniker sætter
+  eller fjerner koden (ny kode = ny start).
+- En kode kan kun sættes på et symbol med en konfiguration (ellers 404); fjernes konfigurationen, fjernes koden med.
+  En konfiguration med låste positioner kan ikke gemmes uden kode — "låst uden kode" opstår kun efter `DELETE …/pin`
+  eller en restore, og guiden viser da "Symbolet har ingen kode — sæt en ny kode".
 
 ### 5.5 Adgang (`services/scope.py`)
 
@@ -359,9 +368,18 @@ Hver fase: FEATURES.md først, egen MINOR-version, tests, CHANGELOG/RELEASE_NOTE
    `click:write` → op=entry; `fill` → farve pr. position; `text` → værdi; `move`/`rotate` → Flyt/Drej pr. position.
    Teknikeren ser forslaget i guiden og gemmer.
 2. **Konvertér alle** (fase 8): samme regler på tværs af tegninger med en rapport (konverteret / kræver manuel
-   handling). Kører som tør-kørsel først.
+   handling). Kører som tør-kørsel først. Implementeret som `POST /api/drawings/convert-symbols` (engineer; body
+   `{apply: false, drawings?: [...]}`) og panelet "Symbolstandard: konvertér alle" under Tegninger. Kandidater er
+   bibliotekssymboler (rødder med `data-hv-type`/`data-hv-auto`) uden konfiguration; status pr. symbol:
+   `ready` (kan konverteres) / `converted` / `manual` (grund: forslaget kan ikke valideres eller intet kan overføres,
+   fx kun "Gå til tegning") / `configured` / `none` (ingen bindinger). `apply` gemmer kun forslag uden fejl, via samme
+   `put()` som guiden; audit `symbol.convert_all`. Hvert symbol kan fortrydes med "Fjern konfiguration".
+   Almindelige bindinger på elementer der ikke er bibliotekssymboler berøres ikke.
+   Kontrolleret mod hele biblioteket (82 symboler): de 7 betjeningssymboler med færdige bindinger konverteres uden
+   fejl; alle animationstyper delenes geometri tillader, valideres på alle dele.
 3. **Fjern gammel model** når ingen tegninger har gamle bindinger på symboler: `data-hv-auto`-logikken og
    symbol-delen af `_compute()` udgår (MAJOR).
+   **Ikke udført** — kræver Jans godkendelse efter test på anlægget (irreversibel ændring).
 
 ---
 

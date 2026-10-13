@@ -38,7 +38,7 @@ def format_validation_errors(errors: list[Any]) -> str:
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ServiceError)
     async def _service(_: Request, exc: ServiceError) -> JSONResponse:
-        return JSONResponse({"error": exc.message}, status_code=exc.status)
+        return JSONResponse({**exc.extra, "error": exc.message}, status_code=exc.status)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError) -> JSONResponse:

@@ -87,10 +87,12 @@ export interface TagMeta {
 export interface Binding {
   element: string;
   tag: string;
-  anim: 'text' | 'fill' | 'stroke' | 'visible' | 'blink' | 'level' | 'rotate' | 'opacity' | 'move' | 'flow'
+  anim: 'text' | 'fill' | 'stroke' | 'visible' | 'blink' | 'level' | 'rotate' | 'opacity' | 'move' | 'flow' | 'spin'
     | 'click:write' | 'click:toggle' | 'click:pulse' | 'click:select' | 'click:goto';
   params: Record<string, any>;
-  source?: 'explicit' | 'auto';
+  source?: 'explicit' | 'auto' | 'symbol';
+  /** Bindinger dannet af en symbol-konfiguration: symbolets element-id */
+  symbol?: string;
 }
 
 export interface DrawingView {
@@ -103,6 +105,8 @@ export interface DrawingView {
   tags: Record<string, TagMeta>;
   /** Symbolers forklaring (element → tekst), sat under Bindinger. */
   symbols: Record<string, string>;
+  /** Symboler med en symbol-konfiguration (symbolstandarden): element → det Overview behøver. */
+  symbol_config?: Record<string, import('./symbolUi').SymbolView>;
 }
 
 export type Role = 'viewer' | 'operator' | 'engineer' | 'admin';
@@ -123,9 +127,9 @@ export interface Alarm {
   key: string;
   tag: string;
   plc: string;
-  kind: 'high' | 'low' | 'state' | 'comm';
+  kind: 'high' | 'low' | 'state' | 'comm' | 'symbol';
   level: 'HH' | 'H' | 'L' | 'LL' | 'ON' | 'COMM';
-  priority: 'high' | 'medium';
+  priority: 'high' | 'medium' | 'low';
   state: 'active_unack' | 'active_ack' | 'rtn_unack';
   raised_at: number;
   value: unknown;

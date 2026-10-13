@@ -57,9 +57,16 @@ class LiveCache:
         if delta:
             for queue in list(self._subscribers):
                 if queue.full():
-                    # Langsom klient: drop ældste delta frem for at blokere pollingen.
-                    queue.get_nowait()
-                queue.put_nowait(delta)
+                    # Langsom klient: flet alle ventende deltaer til én (seneste værdi pr. tag vinder) i stedet for
+                    # at smide den ældste væk — ellers kan en ændring forsvinde for altid, fordi kun ændringer
+                    # sendes (BUGS v0.27.0 #3). Klienten bliver forsinket, men aldrig forkert. Blokerer ikke pollingen.
+                    merged: dict[str, dict[str, Any]] = {}
+                    while not queue.empty():
+                        merged.update(queue.get_nowait())
+                    merged.update(delta)
+                    queue.put_nowait(merged)
+                else:
+                    queue.put_nowait(delta)
 
     def mark_comm_error(self, names: list[str], message: str) -> None:
         now = time.time()

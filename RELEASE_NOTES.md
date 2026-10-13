@@ -2,6 +2,80 @@
 
 ---
 
+## v0.38.1 — 2026-10-13 — Rettelser i symbolguiden og Konvertér alle
+
+- Symboler med "Gå til tegning" eller betjening på en del af symbolet konverteres ikke længere automatisk — de står som "kræver manuel handling", så linket eller betjeningen ikke forsvinder.
+- Konverterede setpunkter beder kun om bekræftelse hvis tagget gør det, som før.
+- Guiden fortsætter med at kontrollere efter en fejl ved gem, og Gem kan ikke trykkes før den seneste ændring er kontrolleret.
+
+## v0.38.0 — 2026-10-13 — Symbolstandard, del 8: konvertér alle symboler
+
+- Under **Tegninger** er der nu et panel **Symbolstandard: konvertér alle**. **Tør-kørsel** viser for hvert symbol om det kan konverteres til den nye standard, og hvorfor ikke hvis det ikke kan — uden at gemme noget.
+- **Konvertér N symboler** sætter derefter de symboler op der kan. Hvert symbol kan fortrydes i guiden med **Fjern konfiguration**.
+- Den gamle måde (ét tag pr. symbol) virker stadig side om side med den nye.
+
+## v0.37.0 — 2026-10-13 — Symbolstandard, del 7: koden til nøglelåsen
+
+- Koden til et symbols låste positioner kan skiftes og fjernes i guiden (trin 5). Koden vises aldrig igen efter den er gemt, og den står ikke i loggen eller i backuppen.
+- Har en operatør tastet forkert kode for mange gange, ophæves spærringen når teknikeren sætter koden igen.
+- Mangler et symbol sin kode (fx efter gendannelse af en backup), siger guiden det — og de låste positioner kan ikke vælges, før en ny kode er sat.
+
+## v0.36.0 — 2026-10-13 — Symbolstandard, del 6: guiden
+
+- Under **Bindinger** har grupper og symboler nu knappen **Opsæt symbol (guide)**. Guiden fører gennem 6 trin: hvordan symbolet betjenes, hvilke signaler det skriver, kontaktplanerne (med skabeloner og eksemplet "7-trins vælger"), animationerne, betjening og nøglelås, og til sidst live-værdier og hvad hvert positionsskift vil skrive.
+- Fejl vises ved det trin de hører til, og symbolet kan først gemmes når alt er i orden.
+- Har symbolet bindinger fra før, foreslår guiden en opsætning ud fra dem (**Foreslå ud fra symbolet**). Når symbolet er gemt i guiden, bruges de gamle bindinger ikke længere; **Fjern konfiguration** giver dem tilbage.
+
+## v0.35.0 — 2026-10-13 — Symbolstandard, del 4–5: symbolerne på Overview
+
+- Symboler sat op efter den nye standard vises og betjenes nu på Overview:
+  - et mærke viser om positionen er **Bekræftet**, **Venter**, i **Afvigelse** eller **Ukendt** — ved afvigelse står PLC'ens position under symbolet;
+  - en vippekontakt eller start/stop uden bekræftelse skifter med ét klik; andre symboler åbner en dialog med positionerne og viser hvilke signaler der skrives;
+  - låste positioner har en hængelås og kræver koden;
+  - en afvigelse kan accepteres direkte i dialogen;
+  - trykknapper og setpunkt-felter virker som før.
+- Animationerne kan styres af symbolets position (farve, tekst, vinkel, flyt, løbelys pr. position), kan begrænses til udvalgte positioner, kan blinke langsomt/normalt/hurtigt i takt, og kan rotere. Greb og vipper glider til den nye position.
+- Alarmlisten viser niveauet Lav/Medium/Høj for symbolernes afvigelser.
+- Selve opsætningen (guiden under Bindinger) kommer i næste del.
+
+## v0.34.0 — 2026-10-13 — Symbolstandard, del 3: betjening af symboler
+
+- Serveren kan nu betjene symboler efter den nye standard: et skift skriver kun de signaler der skal ændres, og det der skal slukkes, slukkes før noget tændes.
+- Fejler en skrivning midt i et skift, stopper det — og beskeden siger præcis hvad der er skrevet, hvad der er usikkert (intet svar fra PLC'en), og hvad der ikke er skrevet.
+- Puls med hvileværdi, fejl/låst-signal der blokerer betjening, nøglelås med 4-cifret kode (3 forkerte koder spærrer i 60 s), og "acceptér PLC'ens position" ved en afvigelse.
+- Skærmbillederne til det kommer i næste del.
+
+## v0.33.0 — 2026-10-13 — Symbolstandard, del 2: serveren kender symbolernes position
+
+- Serveren finder nu selv hvilken position et symbol står i ud fra PLC'ens tilbagemeldinger, og om den er Bekræftet, Venter, Afvigelse eller Ukendt — også for omskiftere med flere signaler (fx 7 positioner på 3 bits).
+- Står et symbol i "Lokal" visning, og PLC'en ikke følger med inden for valideringstiden, kommer der en alarm med det niveau teknikeren har valgt (Lav, Medium eller Høj). Alarmlisten sorteres Høj → Medium → Lav.
+- Sidst valgte position huskes også efter genstart af serveren.
+
+## v0.32.0 — 2026-10-13 — Symbolstandard, del 1: serveren kan gemme og kontrollere symboler
+
+- Første del af den nye symbolstandard: serveren kan nu gemme en samlet opsætning pr. symbol (positioner, signaler, kontaktplaner, visning, alarmniveau, nøglelås og animationer) og kontrollerer den efter de samme regler som prototypen — med en præcis fejlbesked pr. trin.
+- Koden til en nøglelås gemmes kun krypteret og kommer aldrig med i backup; efter en gendannelse skal en tekniker sætte en ny kode.
+- Indsatte symboler husker nu deres type og deres dele, så guiden kan kende dem igen.
+- Der er endnu ingen skærmbilleder til det — de kommer i de næste dele. Eksisterende tegninger virker som før.
+
+## v0.31.4 — 2026-10-13 — Ændrede rettigheder slår igennem på åbne skærme
+
+- Logges en bruger ud, deaktiveres, eller ændres rollen, lukkes åbne Overview-skærme for brugeren inden for 10 sekunder og viser login. Før fortsatte de med at vise live-data.
+- Ændres en brugers tegningsadgang, opdateres åbne skærme med det samme brugeren nu må se.
+
+## v0.31.3 — 2026-10-13 — Overview viser altid den rigtige værdi
+
+- På en langsom forbindelse (fx en skærm på et svagt net) kunne en ændring gå tabt, så fx en pumpe stod som stoppet selvom den kørte. Nu samles ventende ændringer, så skærmen kan blive lidt forsinket, men aldrig viser en forkert værdi.
+
+## v0.31.2 — 2026-10-13 — Til/fra-knapper skifter altid korrekt
+
+- Trykker to operatører på samme til/fra-knap samtidig, skifter den nu til og derefter fra igen — før kunne begge tryk give "til".
+- En til/fra-knap går altid ud fra den værdi PLC'en har lige nu, også hvis visningen endnu ikke er opdateret.
+
+## v0.31.1 — 2026-10-13 — Puls efterlader aldrig udgangen tændt
+
+- Hvis PLC'en ikke når at svare på en puls (fx ustabilt net), sætter serveren nu alligevel udgangen til fra, så den ikke kan blive stående tændt. Operatøren får besked om, at pulsen ikke kunne bekræftes.
+
 ## v0.31.0 — 2026-10-13 — Løbelys kan køre begge veje fra to signaler
 
 - Løbelys har fået **"Retning styres af"**: vælg et ekstra til/fra-tag der bestemmer retningen (Fra = som valgt, Til = modsat). Så kan én animation køre begge veje, når PLC'en har start/stop og retning som to separate signaler.

@@ -4,6 +4,105 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.38.1 build 0056] — 2026-10-13 — fix: fund fra gennemgangen af symbolstandardens fase 6–8
+
+- `backend/app/services/symbol_convert.py` — klik-handlinger på dele og "Gå til tegning" er nu "blockers": forslaget er ikke konverterbart, og Konvertér alle viser "kræver manuel handling" med grunden; setpunkt arver taggets `confirm_write`; til/fra-farver ignorerer tærskler (som frontendens `colorFor`); manglende/`None`-parametre giver standardværdien; note når for-/eftertekst ikke kommer med; én `legacy_bindings`-beregning pr. symbol.
+- `backend/app/services/symbols.py` — koden kontrolleres med `fullmatch` på præcis 4 ASCII-cifre.
+- `frontend/src/lib/SymbolGuide.svelte` — indlæsningsfejl adskilt fra gem/fjern-fejl (kontrollen fortsætter efter en fejl); hver ændring gør ældre kontrolsvar forældede; Gem er spærret mens kontrollen kører.
+- Tests: `test_symbol_convert.py` (tab af link/klik → manuel, setpunktets bekræftelse, til/fra-farver), `test_symbol_pin.py` (kodeformat).
+
+## [0.38.0 build 0055] — 2026-10-13 — Symbolstandard fase 8: Konvertér alle (tør-kørsel og rapport)
+
+- `backend/app/services/symbol_convert.py` — `convert_all()`: alle bibliotekssymboler med gamle bindinger på tværs af tegninger → rapport pr. symbol (kan konverteres / konverteret / kræver manuel handling med grund / allerede sat op / ingen bindinger). Tør-kørsel som standard; ved `apply` gemmes kun forslag uden fejl (fejl på ét symbol stopper ikke resten).
+- `backend/app/services/svg_sanitize.py` — `symbol_roots()`: bibliotekssymbolerne i en tegning.
+- `backend/app/api/symbols.py` — `POST /api/drawings/convert-symbols` (tekniker), audit `symbol.convert_all` ved konvertering.
+- `frontend/src/lib/SymbolConvert.svelte` (ny), `frontend/src/pages/Drawings.svelte` — panelet "Symbolstandard: konvertér alle" under Tegninger: Tør-kørsel → rapport med links til symbolerne i Bindinger → "Konvertér N symboler".
+- `docs/SYMBOLSTANDARD_IMPLEMENTERING.md` afsnit 11 — Konvertér alle; fjernelse af den gamle model er bevidst ikke udført (kræver godkendelse).
+- Tests: `test_symbol_convert.py` (tør-kørsel gemmer intet, apply, manuel ved kun "Gå til tegning", allerede sat op, ukendt tegning). Kontrolleret mod hele biblioteket (82 symboler) i den kørende app: de 7 betjeningssymboler konverteres uden fejl; alle tilladte animationstyper validerer på alle dele. Panelet set i Chromium.
+
+## [0.37.0 build 0054] — 2026-10-13 — Symbolstandard fase 7: nøglelåsens kode
+
+- `backend/app/services/symbols.py` — `set_pin()` (kun symboler med konfiguration; præcis 4 cifre; gemmes som scrypt-hash) og `clear_pin()`; svar kun `has_pin`.
+- `backend/app/services/symbol_operate.py` — `reset_pin_fails()`: ny eller fjernet kode ophæver spærring og fejltæller for symbolet.
+- `backend/app/api/symbols.py` — `PUT`/`DELETE …/pin` (tekniker, skriv-kun), audit `symbol.pin_set`/`symbol.pin_cleared` (også når koden sættes sammen med konfigurationen) — aldrig koden.
+- `frontend/src/lib/SymbolGuide.svelte` — trin 5: "Fjern kode" (med advarsel når der er låste positioner); manglende kode efter fjernelse/gendannelse vises som fejl på trinnet ("sæt en ny kode") og spærrer Gem.
+- `docs/SYMBOLSTANDARD_IMPLEMENTERING.md` afsnit 5.4 — reglerne ovenfor.
+- Tests: `test_symbol_pin.py` (ny): sæt/skift/fjern, låst uden kode → 409, ny kode ophæver spærring, formatregler, kun tekniker, koden findes ikke i svar, app-log, audit eller backup. Set i Chromium: fjern kode → fejl på trin 5, ny kode → gemt.
+
+## [0.36.0 build 0053] — 2026-10-13 — Symbolstandard fase 6: guiden under Bindinger og Konvertér
+
+- `frontend/src/lib/SymbolGuide.svelte` (ny) — guiden i 6 trin (Symbol, Signaler, Kontakter, Visning, Betjening, Test og gem) som vindue fra "Opsæt symbol (guide)"/"Ret symbol (guide)" under Bindinger: betjeningsform, signaler (kommando, tilbagemelding, sæt/puls med hvileværdi), fejlsignal, positioner, kontaktplaner med skabeloner A–D og eksemplet "7-trins vælger", rækken "Aktive signaler", visning/alarmniveau, animationer pr. del (typer efter delens geometri, kilde = position eller tag, værdier pr. position, "gælder i", ▲▼), bekræftelse, pulslængde, nøglelås med kode (skriv-kun), live-værdier, fundet position og skriveplan pr. position. Valideringen er serverens (`POST …/preview`, kaldt løbende) — fejl vises pr. trin med prik på fanen; Gem er spærret ved fejl eller manglende kode. "Fjern konfiguration" giver symbolets gamle bindinger tilbage.
+- `frontend/src/lib/symbolConfig.ts` (ny) + `symbolConfig.test.ts` — datamodel og ren logik: standardværdier, skabeloner A–D, eksemplet dec → bin, positioner tilføjet/fjernet (alle arrays følger med), aktive signaler, cellecyklus, fundet position, skift af betjeningsform, animationstyper efter geometri og standardparametre.
+- `frontend/src/pages/Editor.svelte` — afsnittet "Symbolstandard" for grupper og symboler (status + knap til guiden); visningen genindlæses efter gem.
+- `backend/app/services/symbol_convert.py` (ny) — Konvertér: forslag til en konfiguration ud fra symbolets bindinger i dag (til/fra → 2 positioner, vælg position → positionerne, puls → trykknap, skriv → setpunkt; farver/tekst/flyt/drej/synlig/blink omsat til værdier pr. position; øvrige følger fortsat deres tag). Gemmes ikke.
+- `backend/app/services/drawings.py` — `legacy_bindings()`: symbolets gamle bindinger uanset konfiguration (grundlag for forslaget).
+- `backend/app/api/symbols.py` — `GET …/suggest` (tekniker).
+- Tests: `test_symbol_convert.py` (ny; forslaget kan gemmes uændret og giver samme visning). Set i den kørende app i Chromium med mock-PLC: omskifter konverteret og gemt, eksemplet 7-trins vælger med tags, låst position uden/med kode, kun visning med Niveau, trykknap, ret eksisterende og fjern.
+
+## [0.35.0 build 0052] — 2026-10-13 — Symbolstandard fase 4–5: Overview og animationer
+
+- `backend/app/services/symbols.py` — `config_bindings()`: symbolets animationer som almindelige bindinger (kilde "position" → pseudo-tag `…:pos` + `params.pos`; "gælder i positionerne" → `params.only` + `pos_tag`; positionsnavne til Værdi); `symbol_view()`: det Overview behøver (betjeningsform, navne, visning, bekræftelse, låste positioner, om kode er sat — aldrig koden).
+- `backend/app/services/drawings.py` — `view()` medtager symbolernes bindinger og `symbol_config`.
+- `frontend/src/lib/animate.ts` — værdier pr. position (farve, synlig/blink/roterer, Drej-vinkel, Flyt dx/dy, løbelysretning, positionsnavn), "gælder i positionerne" (delen vises som tegnet udenfor), "når ≥ X", blinkfrekvens 0,5/1/2 Hz i takt (fase fra uret, sat kun når blinket starter), ny animation Roterer (`spin`), glidende Flyt/Drej som CSS-transform (kun symbol-animationer på dele uden egen transform).
+- `frontend/src/lib/symbolUi.ts` (ny) — klik-regler (`clickAction`, `pickAction`), nøglelås (`needsPin`), knaptekst; `symbolOverlay.ts` (ny) — tilstandsmærke ✓ … ! ?, skygge "PLC: …" ved afvigelse og hængelås i et lag øverst i tegningen.
+- `frontend/src/pages/Overview.svelte` — klik på et konfigureret symbol: 2 positioner uden bekræftelse skifter straks; ellers dialog med positioner (nuværende markeret, låste med hængelås), skriveplan fra serveren, kodefelt ved låst position ("Lås op og skift til …"), "Acceptér <PLC'ens position>" ved afvigelse; trykknap og setpunkt. Serverens fejltekst vises uændret.
+- `frontend/src/pages/Alarms.svelte`, `app.css`, `api.ts` — prioritet Lav; symbolalarmer viser niveauet (Høj/Medium/Lav) og symbolet.
+- `frontend/src/lib/canvas.ts` — `pos_tag` i `bindingTags`; positionens live-værdi sendes til animationerne.
+- Tests: `symbolUi.test.ts` (ny), `animate.test.ts`, `canvas.test.ts`, backend `test_symbols.py` (view). Set i den kørende app i Chromium med mock-PLC: vippekontakt glider 0 → 32 på 0,4 s, omskifter med skriveplan, Afvigelse med skygge og alarm "Høj", accept, låst position med forkert/rigtig kode, trykknap, setpunkt med fejl og ok.
+
+## [0.34.0 build 0051] — 2026-10-13 — Symbolstandard fase 3: betjening
+
+- `backend/app/services/symbol_operate.py` (ny) — positionsskift efter skriveplanen (kun signaler der ændres; break-before-make: mod 0/Fra først), stop ved første fejl uden tilbagerulning med præcis besked (skrevet / usikkert pga. timeout / ikke skrevet), pulssignaler med hvileværdi som selvstændige opgaver (hvile skrives også ved afbrudt request og ved timeout på værdien), fejl/låst-tag (aktivt eller ukendt blokerer), komm.fejl blokerer, én betjening ad gangen pr. symbol (409), nøglelås med kode (låst mål eller "kode for at forlade"; 3 forkerte → 60 s spærring pr. symbol og bruger; konstant-tids kontrol), accept af PLC'ens position (skriver intet), trykknap og setpunkt. Audit `symbol.operate/.pulse/.entry/.accept/.unlock/.pin_failed` — aldrig koden.
+- `backend/app/services/symbols.py` — `targets()`, `write_plan()`, `needs_pin()` (delt mellem betjening og guidens forhåndsvisning).
+- `backend/app/services/operate.py` — `write_value()` og `pulse_value()` (samme omregning, min/max og tag-lås; uden audit, som symbolet logger samlet).
+- `backend/app/api/symbols.py` — `GET …/plan/{position}`, `POST …/operate|pulse|entry|accept` (operatør, tegningsadgang), `POST …/preview` (tekniker: validering + skriveplan pr. position uden at gemme).
+- `backend/app/services/drawings.py`, `svg_sanitize.py` — gamle bindinger på et konfigureret symbol og dets dele ignoreres (`subtree_ids`).
+- `backend/mock_plc/app.py` — testkrog `reject_addr` (afvis bestemte adresser).
+- Tests: `backend/tests/test_symbol_operate.py` (ny, 15).
+
+## [0.33.0 build 0050] — 2026-10-13 — Symbolstandard fase 2: position, tilstand og afvigelsesalarm
+
+- `backend/app/services/symbol_runtime.py` (ny) — `remote_position()` (præcis én position hvis alle læsbare planer matcher tilbagemelding/kommando; pulsplaner og "røres ikke" tæller ikke; komm.fejl → ukendt) og `compute_state()` (Remote/Lokal, Venter i valideringstiden, Afvigelse, Ukendt, hængelås) som prototypens `remotePos`/`status`. `SymbolRuntime` genberegner ved hver live-ændring og mindst hvert `SCADA_SYMBOL_TICK_S` (0,5 s), lægger `sym:<tegning>:<element>:pos|remote|state|locked` i live-cachen, gemmer sidst valgte position i `symbol_state` (overlever genstart; første gang = det PLC'en viser) og fjerner pseudo-tags for slettede symboler. Genindlæser ved ændrede konfigurationer eller tegningsversioner.
+- `backend/app/services/alarms.py` — eksterne alarmkilder (`providers`) med egen prioritet og "frosne" tags; prioritet `low`; sortering Høj → Medium → Lav; ændret prioritet slår igennem på en aktiv alarm.
+- `backend/app/main.py`, `backend/app/config.py` — runtime startes og leverer afvigelsesalarmer (Lokal + alarm valgt), med symbolets navn i teksten ("Vælger V1: valgt 6, PLC viser 3"). Komm.fejl fryser alarmen.
+- Tests: `backend/tests/test_symbol_runtime.py` (ny, 15): alle 7 positioner i dec→bin, registerskabelon, pulsplaner, tidslinjer Lokal/Remote, pseudo-tags mod mock-PLC, alarm med valgt niveau og genstart, frosset alarm, fjernede pseudo-tags.
+
+## [0.32.0 build 0049] — 2026-10-13 — Symbolstandard fase 1: konfiguration og validering
+
+- `backend/app/storage/db.py` — skema 11: tabellerne `symbol_config`, `symbol_pins` (kun scrypt-hash), `symbol_state`; metoder til dem; backup-eksport af konfigurationerne (aldrig koder eller tilstand), restore lægger dem ind igen.
+- `backend/app/services/symbols.py` (ny) — skema (positioner, signaler, kontaktplaner, visning, alarmniveau, bekræftelse, lås, animationer) og validering pr. trin efter prototypens regler: skrivbare tags, ét tag pr. signal, samme type på tilbagemelding, ét signal pr. plan, unikke kontaktmønstre, register-celler inden for tagets min/max ellers datatypens område og præcist skrivbare, puls med påkrævet hvileværdi, mindst ét læsbart plan, trykknap/setpunkt/visning, animationer mod delens geometri (Niveau → rect, Værdi → text, Løbelys → streger/rør), værdier pr. position, retnings-tag, nøglelås kræver kode. Advarsler blokerer ikke. `config_tags()` og pseudo-tag-navne (`sym:<tegning>:<element>:pos|remote|state|locked`).
+- `backend/app/api/symbols.py` (ny) — `GET/PUT/DELETE /api/drawings/{d}/symbols/{e}/config`; PUT tager valgfri `pin` (gemmes kun som hash; svar siger kun `has_pin`); fejl med `steps` pr. trin og `warnings`.
+- `backend/app/services/svg_sanitize.py` — `describe_element()` (dele, elementtyper, data-hv-type/-pid).
+- `backend/app/services/errors.py`, `backend/app/api/errors.py` — ServiceError kan bære ekstra felter i svaret.
+- `backend/app/services/scope.py` — begrænsede brugere ser også symbolernes tags og pseudo-tags.
+- `backend/app/services/tags.py` — et tag der bruges af en symbol-konfiguration kan ikke slettes.
+- `backend/app/services/backup.py` — validerer symbol-konfigurationer ved restore (skema + tags findes).
+- `frontend/svgedit-host/scada-editor.js` — indsatte symboler får `data-hv-type` og delene `data-hv-pid`.
+- Tests: `backend/tests/test_symbols.py` (ny, 42), `test_scope.py`.
+- `docs/SYMBOLSTANDARD_IMPLEMENTERING.md` — validering mod geometri i stedet for bibliotekets meta.
+
+## [0.31.4 build 0048] — 2026-10-13 — fix: live-forbindelsen følger sessionen og tegningsadgangen
+
+- `backend/app/api/live_ws.py` — `revalidate()` hvert `ws_revalidate_s` og ved hver subscribe: ugyldig session → fejlbesked + luk 4401; ændret rolle/tegningsadgang → genberegn synlige tags, nyt snapshot og alarmer. Klientens ønskede tags huskes, så adgangen kan udvides uden ny subscribe.
+- `backend/app/config.py` — `SCADA_WS_REVALIDATE_S` (standard 10 s).
+- `backend/tests/test_scope.py` — åben WebSocket får nyt snapshot ved udvidet tegningsadgang og lukkes med 4401 ved deaktivering; læsninger med tidsgrænse, så en manglende besked fejler i stedet for at hænge.
+
+## [0.31.3 build 0047] — 2026-10-13 — fix: live-ændringer går ikke tabt hos langsomme klienter
+
+- `backend/app/services/live_cache.py` — `update`: fuld klient-kø → alle ventende deltaer flettes til én (seneste værdi pr. tag), i stedet for at den ældste smides væk.
+- `backend/tests/test_live_cache.py` (ny) — kun ændringer publiceres; fuld kø bevarer første ændring og seneste værdi; andre abonnenter er upåvirkede.
+
+## [0.31.2 build 0046] — 2026-10-13 — fix: toggle er atomisk og bruger PLC'ens aktuelle værdi
+
+- `backend/app/services/operate.py` — `write(toggle=True)`: værdien læses frisk fra PLC'en under tag-låsen, og den nye værdi beregnes derfra; `toggle()` bruger den. min/max-tjek flyttet til `_check_limits()` (samme regel for write og toggle). Svaret på write er uændret; toggle returnerer fortsat `from`.
+- `backend/tests/test_operate.py` — to samtidige toggles giver til→fra; toggle går ud fra PLC'en når cachen er bagud.
+
+## [0.31.1 build 0045] — 2026-10-13 — fix: puls efterlader aldrig udgangen tændt
+
+- `backend/app/services/operate.py` — `pulse`: ved `PlcUnreachable` på TÆND (udfald ukendt) sendes SLUK alligevel; fejlbesked "Puls kunne ikke bekræftes (udgangen er sat til fra for en sikkerheds skyld)" eller ADVARSEL hvis SLUK også fejler; audit-detalje `on_result`. Eksplicit afvisning fra PLC'en (fx 409) sender ingen SLUK.
+- `backend/mock_plc/app.py` — testkrog `slow_writes`/`slow_write_s`: skrivningen udføres, svaret forsinkes (tabt svar).
+- `backend/tests/test_operate.py` — puls ved timeout på TÆND nulstilles; puls afvist af PLC'en sender intet ekstra.
+
 ## [0.31.0 build 0044] — 2026-10-13 — Løbelys: retning fra et andet tag
 
 - `backend/app/services/bindings.py` — `FlowParams.dir_tag` og `binding_tags()` (bindingens tag + evt. retnings-tag), brugt alle steder der samler en bindings tags:

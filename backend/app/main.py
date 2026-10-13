@@ -26,6 +26,7 @@ from .api.trends import router as trends_router
 from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
 from .api.operate import router as operate_router
+from .api.symbols import router as symbols_router
 from .api.routes import router
 from .config import Settings, read_version
 from .services.alarms import AlarmService
@@ -35,6 +36,9 @@ from .services.backup import BackupService
 from .services.operate import OperateService
 from .services.drawings import DrawingService
 from .services.scope import ScopeService
+from .services.symbols import SymbolService
+from .services.symbol_runtime import SymbolRuntime
+from .services.symbol_operate import SymbolOperateService
 from .services.schedules import ScheduleService
 from .services.trends import TrendRecorder
 from .services.live_cache import LiveCache
@@ -70,13 +74,23 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.operate_service = OperateService(manager, app.state.audit_service)
         drawing_files = DrawingFiles(settings.data_dir / "drawings")
         app.state.drawing_service = DrawingService(db, drawing_files, manager.cache)
-        app.state.scope_service = ScopeService(app.state.drawing_service)
+        app.state.symbol_service = SymbolService(db, app.state.drawing_service)
+        app.state.tag_service.symbol_usage = app.state.symbol_service.usage
+        app.state.scope_service = ScopeService(app.state.drawing_service, app.state.symbol_service)
         app.state.backup_service = BackupService(manager, drawing_files, settings.data_dir / "backups",
                                                  keep=max(1, settings.backup_keep),
                                                  trend_keep=max(0, settings.trend_backup_keep))
         await manager.start_all()
         app.state.alarm_service = AlarmService(manager, db, tick_s=settings.alarm_tick_s,
                                                comm_delay_s=settings.alarm_comm_delay_s)
+        # Symbolstandard: position/tilstand som pseudo-tags + afvigelsesalarmer
+        app.state.symbol_runtime = SymbolRuntime(db, manager.cache, app.state.drawing_service,
+                                                 tick_s=settings.symbol_tick_s)
+        app.state.symbol_runtime.reload()
+        app.state.alarm_service.providers.append(app.state.symbol_runtime.alarm_conditions)
+        app.state.symbol_operate_service = SymbolOperateService(app.state.operate_service, app.state.symbol_runtime,
+                                                                app.state.audit_service)
+        symbol_task = asyncio.create_task(app.state.symbol_runtime.run(), name="symbols")
         alarm_task = asyncio.create_task(app.state.alarm_service.run(), name="alarms")
         trend_db = TrendDatabase(settings.data_dir / "trends.db")
         app.state.trend_db = trend_db
@@ -101,6 +115,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
             yield
         finally:
             alarm_task.cancel()
+            symbol_task.cancel()
             if schedule_task is not None:
                 schedule_task.cancel()
             trend_task.cancel()
@@ -134,6 +149,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(schedules_router)
     app.include_router(router)
     app.include_router(drawings_router)
+    app.include_router(symbols_router)
     app.include_router(live_router)
     app.include_router(operate_router)
     if settings.frontend_dir.is_dir():

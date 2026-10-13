@@ -11,7 +11,8 @@ from ..storage.files import DrawingFiles
 from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, _spec_list, auto_binding, binding_tags, symbol_bindings, validate_binding
 from .errors import ServiceError
 from .live_cache import LiveCache
-from .svg_sanitize import SvgError, index_svg, sanitize_svg, symbol_specs
+from .svg_sanitize import SvgError, index_svg, sanitize_svg, subtree_ids, symbol_specs
+from .symbols import config_bindings, symbol_view
 from .tagsource import TagSourceError, parse_source
 
 
@@ -236,11 +237,26 @@ class DrawingService:
                          if b["anim"] != "click:goto" or b["params"].get("drawing") in visible_drawings]
         used = sorted({t for b in effective for t in binding_tags(b)})
         meta = {n: self._meta(tags[n]) for n in used if n in tags}
+        pins = self.db.symbol_pin_keys()
+        index = index_svg(svg)
+        configured = {r["element"]: symbol_view(drawing_id, r["element"], r["config"], (drawing_id, r["element"]) in pins)
+                      for r in self.db.list_symbol_configs(drawing_id) if r["element"] in index}
+        for v in configured.values():
+            for name in [v.get("fault"), v.get("tag")]:
+                if name and name in tags and name not in meta:
+                    meta[name] = self._meta(tags[name])
         return {"id": drawing["id"], "name": drawing["name"], "version": drawing["active_version"],
                 "svg": svg, "bindings": effective, "orphaned_bindings": sorted(set(orphans)), "tags": meta,
-                "symbols": self.db.list_symbol_meta(drawing_id)}
+                "symbols": self.db.list_symbol_meta(drawing_id), "symbol_config": configured}
 
-    def _compute(self, drawing_id: str) -> tuple[dict[str, Any], str, list[dict[str, Any]], list[str], dict[str, Any]]:
+    def legacy_bindings(self, drawing_id: str, element: str) -> list[dict[str, Any]]:
+        """Bindinger efter den gamle model (eksplicitte + automatiske) for et symbol og dets dele — også hvis symbolet
+        har en symbol-konfiguration. Bruges til at foreslå en konfiguration (Konvertér)."""
+        svg = self.svg(drawing_id)
+        subtree = subtree_ids(svg, {element})
+        return [b for b in self._compute(drawing_id, legacy=True)[2] if b["element"] in subtree]
+
+    def _compute(self, drawing_id: str, legacy: bool = False) -> tuple[dict[str, Any], str, list[dict[str, Any]], list[str], dict[str, Any]]:
         drawing = self._require(drawing_id)
         svg = self.svg(drawing_id)
         index = index_svg(svg)
@@ -250,15 +266,21 @@ class DrawingService:
         effective: list[dict[str, Any]] = []
         orphans: list[str] = []
         explicit_elements: set[str] = set()
+        # Symbolstandard: har et symbol en konfiguration, gælder den — gamle bindinger på symbolet og dets dele ignoreres
+        configs = ({} if legacy else
+                   {r["element"]: r["config"] for r in self.db.list_symbol_configs(drawing_id) if r["element"] in index})
+        covered = subtree_ids(svg, set(configs))
         for b in self.db.list_bindings(drawing_id):
             explicit_elements.add(b["element"])
             if b["element"] not in index:
                 orphans.append(b["element"])
                 continue
+            if b["element"] in covered:
+                continue
             effective.append({**b, "source": "explicit"})
 
         for element, (el_tag, label) in index.items():
-            if element in explicit_elements:
+            if element in explicit_elements or element in covered:
                 continue
             name = element if element in tags else label if label in tags else None
             if name is None:
@@ -273,6 +295,8 @@ class DrawingService:
             auto = auto_binding(el_tag, {"name": name, "is_bool": self._is_bool(tags[name])})
             if auto is not None:
                 effective.append({"element": element, "position": 0, **auto, "source": "auto"})
+        for element, cfg in configs.items():
+            effective.extend(config_bindings(drawing_id, element, cfg, covered))
         return drawing, svg, effective, orphans, tags
 
     def _meta(self, tag: dict[str, Any]) -> dict[str, Any]:

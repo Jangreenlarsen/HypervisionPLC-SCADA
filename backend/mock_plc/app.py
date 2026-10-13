@@ -66,6 +66,11 @@ class MockPlcState:
     request_log: list[str] = field(default_factory=list)
     # Test: afvis alle skrivninger med denne tekst (409), fx "Safe mode aktiv".
     reject_writes: str = ""
+    # Test: afvis skrivning til bestemte adresser: {("coil", 12): "Udgang låst"}
+    reject_addr: dict[tuple[str, int], str] = field(default_factory=dict)
+    # Test: de næste N skrivninger UDFØRES, men svaret kommer først efter slow_write_s (svar tabt/timeout)
+    slow_writes: int = 0
+    slow_write_s: float = 2.0
     # Test: registre/coils som "ST-programmet" holder fast efter enhver skrivning: {("hr", 5): 0}
     locks: dict[tuple[str, int], int] = field(default_factory=dict)
     writes: list[tuple[str, int, object]] = field(default_factory=list)
@@ -175,6 +180,12 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
 
     # --------------------------------------------------------------- auth
 
+    async def _maybe_slow() -> None:
+        """Skrivningen er udført; svaret forsinkes så klienten giver op (som et tabt svar på et ustabilt net)."""
+        if st.slow_writes > 0:
+            st.slow_writes -= 1
+            await asyncio.sleep(st.slow_write_s)
+
     @app.post("/api/login")
     async def login(request: Request) -> Response:
         header = request.headers.get("authorization", "")
@@ -245,6 +256,8 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
             return _err(400, "Invalid register address")
         if st.reject_writes:
             return _err(409, st.reject_writes)
+        if ("hr", addr) in st.reject_addr:
+            return _err(409, st.reject_addr[("hr", addr)])
         try:
             body = await request.json()
         except ValueError:
@@ -263,6 +276,7 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
             return _err(400, "Invalid type (use: uint, int, dint, dword, real)")
         st.writes.append(("hr", addr, value))
         st.apply_locks()
+        await _maybe_slow()
         return JSONResponse({"status": 200, "address": addr, "value": value, "type": dtype})
 
     @app.post("/api/registers/coils/{addr}")
@@ -273,10 +287,13 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
             return _err(400, "Invalid coil address")
         if st.reject_writes:
             return _err(409, st.reject_writes)
+        if ("coil", addr) in st.reject_addr:
+            return _err(409, st.reject_addr[("coil", addr)])
         body = await request.json()
         st.coils[addr] = bool(body.get("value"))
         st.writes.append(("coil", addr, st.coils[addr]))
         st.apply_locks()
+        await _maybe_slow()
         return JSONResponse({"status": 200, "address": addr, "value": st.coils[addr]})
 
     # ------------------------------------------------------------- ST Logic

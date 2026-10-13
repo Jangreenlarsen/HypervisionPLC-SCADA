@@ -5,12 +5,19 @@
   import { formatValue } from '../lib/animate';
   import { byTag as indexByTag, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
+  import { clearOverlays, drawOverlay } from '../lib/symbolOverlay';
+  import { clickAction, lockedPosition, needsPin, operateLabel, pickAction, STATE_TXT, type SymbolState, type SymbolView } from '../lib/symbolUi';
   import { panBy, pickDrawing, zoomAt, zoomLevel, type View } from '../lib/viewport';
 
   let { route = 'overview', canEdit = false, canOperate = false }: { route?: string; canEdit?: boolean; canOperate?: boolean } = $props();
 
   interface Dialog { binding: Binding; step: 'input' | 'confirm'; input: string; value: number | null; error: string; busy: boolean }
   interface Toast { kind: 'ok' | 'warn' | 'error'; text: string }
+  /** Dialog for et symbol efter symbolstandarden (positioner, trykknap eller setpunkt). */
+  interface SymDialog {
+    element: string; name: string; sym: SymbolView; pick: number | null; pin: string; entry: string;
+    writes: { tag: string; value: number; pulse: boolean }[] | null; error: string; busy: boolean;
+  }
 
   let drawings = $state<{ id: string; name: string; start?: boolean }[]>([]);
   let selected = $state('');
@@ -19,6 +26,7 @@
   let plcs = $state<Record<string, PlcSummary>>({});
   let connected = $state(false);
   let dialog = $state<Dialog | null>(null);
+  let symDialog = $state<SymDialog | null>(null);
   let toast = $state<Toast | null>(null);
   let container: HTMLDivElement;
   let svgRoot: SVGSVGElement | null = null;
@@ -121,10 +129,42 @@
     }
   }
 
+  // ---- symbolstandarden: pseudo-tag → symbol (til tilstandsmærker)
+  let pseudoOf = new Map<string, string>();
+
+  const symbolsOf = (): Record<string, SymbolView> => view?.symbol_config ?? {};
+  const shownPos = (element: string): number | null => {
+    const v = values[symbolsOf()[element]?.pseudo?.pos ?? '']?.value;
+    return typeof v === 'number' ? v : null;
+  };
+  const symState = (element: string): SymbolState | null => {
+    const p = symbolsOf()[element]?.pseudo;
+    if (!p) return null;
+    const lv = values[p.state];
+    return (lv?.value as SymbolState) ?? 'unknown';
+  };
+  const symName = (element: string): string =>
+    svgRoot?.querySelector(`#${CSS.escape(element)}`)?.getAttribute('data-hv-name') || element;
+
+  function overlay(element: string): void {
+    const s = symbolsOf()[element];
+    if (!svgRoot || !s || s.op !== 'positions') return;
+    const remote = values[s.pseudo?.remote ?? '']?.value;
+    drawOverlay(svgRoot, element, {
+      state: symState(element),
+      remoteLabel: typeof remote === 'number' ? s.labels[remote] ?? null : null,
+      locked: values[s.pseudo?.locked ?? '']?.value === true,
+    });
+  }
+
   const live = new LiveClient(
     (changes) => {
       Object.assign(values, changes);
       for (const name of Object.keys(changes)) for (const b of byTag.get(name) ?? []) render(b);
+      for (const name of Object.keys(changes)) {
+        const el = pseudoOf.get(name);
+        if (el) overlay(el);
+      }
     },
     (p, c) => {
       plcs = p;
@@ -169,7 +209,15 @@
       byTag = indexByTag(view.bindings.filter((b) => b.tag));
       renderAll(container, view.bindings, values, view.tags);
       markAlarms();
-      live.subscribe([...byTag.keys()]);
+      clearOverlays(svgRoot);
+      pseudoOf = new Map();
+      for (const [element, s] of Object.entries(symbolsOf())) {
+        for (const name of Object.values(s.pseudo ?? {})) pseudoOf.set(name, element);
+        if (s.fault) pseudoOf.set(s.fault, element);
+        if (s.op !== 'view') svgRoot?.querySelector(`#${CSS.escape(element)}`)?.classList.add('hv-clickable');
+        overlay(element);
+      }
+      live.subscribe([...new Set([...byTag.keys(), ...pseudoOf.keys(), ...Object.values(symbolsOf()).map((s) => s.tag ?? '').filter(Boolean)])]);
     } catch (e) {
       view = null;
       error = `Kunne ikke vise tegningen: ${(e as Error).message}`;
@@ -195,9 +243,25 @@
     return null;
   }
 
+  /** Første forfader der er et konfigureret symbol (symbolstandarden). */
+  function symbolTarget(target: Element | null): string | null {
+    let el = target;
+    const syms = symbolsOf();
+    while (el && el !== svgRoot) {
+      if (el.id && syms[el.id] && syms[el.id].op !== 'view') return el.id;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
   async function onCanvasClick(e: MouseEvent): Promise<void> {
     if (dragged) {
       dragged = false; // afslutningen på et træk/knib er ikke et klik
+      return;
+    }
+    const element = symbolTarget(e.target as Element);
+    if (element) {
+      await clickSymbol(element);
       return;
     }
     const b = clickTarget(e.target as Element);
@@ -285,7 +349,117 @@
     }
   }
 
+  // ---- symbolstandarden: betjening (serveren afgør — fejlbeskeder vises uændret)
+  const symUrl = (element: string, what: string) =>
+    `/api/drawings/${encodeURIComponent(view?.id ?? '')}/symbols/${encodeURIComponent(element)}/${what}`;
+
+  async function clickSymbol(element: string): Promise<void> {
+    const s = symbolsOf()[element];
+    if (!s) return;
+    if (!canOperate) {
+      showToast('error', 'Betjening kræver rollen operatør');
+      return;
+    }
+    const action = clickAction(s, shownPos(element));
+    if (action.kind === 'pulse') await doPulse(element);
+    else if (action.kind === 'operate') await doOperate(element, action.to, '');
+    else if (action.kind === 'dialog') {
+      const v = s.tag ? values[s.tag]?.value : undefined;
+      symDialog = { element, name: symName(element), sym: s, pick: action.pick, pin: '', entry: typeof v === 'number' ? String(v) : '',
+        writes: null, error: '', busy: false };
+      if (action.pick !== null) await loadPlan(action.pick);
+    }
+  }
+
+  async function loadPlan(position: number): Promise<void> {
+    if (!symDialog) return;
+    try {
+      const r = await get<{ writes: SymDialog['writes'] }>(symUrl(symDialog.element, `plan/${position}`));
+      if (symDialog && symDialog.pick === position) symDialog.writes = r.writes;
+    } catch (e) {
+      if (symDialog) symDialog.error = (e as Error).message;
+    }
+  }
+
+  async function pickPosition(j: number): Promise<void> {
+    if (!symDialog) return;
+    symDialog.error = '';
+    if (pickAction(symDialog.sym, shownPos(symDialog.element), j) === 'operate') {
+      await submitSymbol(j);
+      return;
+    }
+    symDialog.pick = j;
+    symDialog.pin = '';
+    symDialog.writes = null;
+    await loadPlan(j);
+  }
+
+  async function doOperate(element: string, position: number, pin: string): Promise<boolean> {
+    const s = symbolsOf()[element];
+    try {
+      const r = await post<{ label: string; writes: unknown[] }>(symUrl(element, 'operate'), pin ? { position, pin } : { position });
+      showToast('ok', `${symName(element)}: ${r.label} valgt${r.writes.length ? '' : ' (intet at skrive)'}`);
+      return true;
+    } catch (e) {
+      if (symDialog) symDialog.error = (e as Error).message;
+      else showToast('error', `${symName(element)} → ${s?.labels[position] ?? ''}: ${(e as Error).message}`);
+      return false;
+    }
+  }
+
+  async function doPulse(element: string): Promise<boolean> {
+    try {
+      await post(symUrl(element, 'pulse'), {});
+      showToast('ok', `Puls sendt: ${symName(element)}`);
+      return true;
+    } catch (e) {
+      if (symDialog) symDialog.error = (e as Error).message;
+      else showToast('error', `${symName(element)}: ${(e as Error).message}`);
+      return false;
+    }
+  }
+
+  async function submitSymbol(position: number | null = null): Promise<void> {
+    if (!symDialog || !view) return;
+    const d = symDialog;
+    d.busy = true;
+    d.error = '';
+    let ok = false;
+    if (d.sym.op === 'pulse') ok = await doPulse(d.element);
+    else if (d.sym.op === 'entry') {
+      try {
+        const value = parseSetpoint(d.entry, d.sym.tag ? view.tags[d.sym.tag] : undefined);
+        const r = await post<{ written: number; matches: boolean; warning: string }>(symUrl(d.element, 'entry'), { value });
+        if (r.matches) showToast('ok', `${d.name} sat til ${formatValue(r.written, d.sym.tag ? view.tags[d.sym.tag] : undefined)}`);
+        else showToast('warn', r.warning);
+        ok = true;
+      } catch (e) {
+        d.error = (e as Error).message;
+      }
+    } else {
+      const to = position ?? d.pick;
+      if (to !== null) ok = await doOperate(d.element, to, d.pin.trim());
+    }
+    if (ok) symDialog = null;
+    else if (symDialog) symDialog.busy = false;
+  }
+
+  async function acceptPlc(): Promise<void> {
+    if (!symDialog) return;
+    try {
+      const r = await post<{ label: string }>(symUrl(symDialog.element, 'accept'), {});
+      showToast('ok', `${symDialog.name}: PLC'ens position "${r.label}" accepteret`);
+      symDialog = null;
+    } catch (e) {
+      if (symDialog) symDialog.error = (e as Error).message;
+    }
+  }
+
   function onKey(e: KeyboardEvent): void {
+    if (symDialog && !symDialog.busy) {
+      if (e.key === 'Escape') symDialog = null;
+      return;
+    }
     if (!dialog || dialog.busy) return;
     if (e.key === 'Escape') dialog = null;
     else if (e.key === 'Enter') submitDialog();
@@ -370,6 +544,72 @@
   onpointerdown={onPointerDown} onpointermove={onPointerMove} onpointerup={onPointerUp} onpointercancel={onPointerUp}
   onpointerleave={onPointerUp}></div>
 
+{#if symDialog}
+  {@const d = symDialog}
+  {@const shown = shownPos(d.element)}
+  {@const st = symState(d.element)}
+  {@const remote = values[d.sym.pseudo?.remote ?? '']?.value}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="backdrop" onclick={() => !d.busy && (symDialog = null)}>
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div class="panel dialog" role="dialog" aria-modal="true" aria-label={d.name} tabindex="-1" onclick={(e) => e.stopPropagation()}>
+      <h2>{d.name}</h2>
+      {#if d.sym.op === 'positions'}
+        <p class="muted small">
+          Nu: <strong>{shown !== null ? d.sym.labels[shown] : 'ingen position'}</strong>
+          {#if st}<span class="state-chip {st}">{STATE_TXT[st]}</span>{/if}
+          {#if d.sym.display === 'local'}<span class="small muted"> · lokal visning</span>{/if}
+        </p>
+        {#if st === 'mismatch' && typeof remote === 'number'}
+          <div class="notice">PLC'en viser <strong>{d.sym.labels[remote]}</strong>.
+            <button class="small" onclick={acceptPlc} disabled={d.busy}>Acceptér {d.sym.labels[remote]}</button></div>
+        {/if}
+        <div class="positions" role="group" aria-label="Vælg position">
+          {#each d.sym.labels as label, j}
+            <button class:primary={d.pick === j} aria-pressed={d.pick === j} class:current={shown === j}
+              onclick={() => pickPosition(j)} disabled={d.busy}>
+              {#if lockedPosition(d.sym, j)}<span aria-label="låst">🔒 </span>{/if}{label}
+            </button>
+          {/each}
+        </div>
+        {#if d.pick !== null}
+          {#if needsPin(d.sym, shown, d.pick)}
+            <label class="field">Kode (4 cifre)
+              <!-- svelte-ignore a11y_autofocus -->
+              <input bind:value={d.pin} inputmode="numeric" maxlength="4" autocomplete="off" autofocus
+                onkeydown={(e) => e.key === 'Enter' && submitSymbol()} />
+            </label>
+          {/if}
+          {#if d.writes}
+            <p class="small muted">{d.writes.length ? 'Skrives:' : 'Intet at skrive — PLC\'en står allerede sådan.'}
+              {d.writes.map((w) => `${w.tag} ← ${w.value}${w.pulse ? ' (puls)' : ''}`).join(' · ')}</p>
+          {/if}
+        {/if}
+      {:else if d.sym.op === 'entry'}
+        <p class="muted small">Nu: <strong>{formatValue(values[d.sym.tag ?? '']?.value, view?.tags[d.sym.tag ?? ''])}</strong></p>
+        <label class="field">Ny værdi
+          <!-- svelte-ignore a11y_autofocus -->
+          <input bind:value={d.entry} inputmode="decimal" autofocus onkeydown={(e) => e.key === 'Enter' && submitSymbol()} />
+        </label>
+        <p class="muted small">Tilladt: {rangeText(view?.tags[d.sym.tag ?? ''])}</p>
+      {:else}
+        <p>Send en puls på {d.sym.pulse_ms ?? 500} ms?</p>
+      {/if}
+      {#if d.error}<div class="error">{d.error}</div>{/if}
+      <div class="row">
+        {#if d.sym.op === 'positions'}
+          {#if d.pick !== null}
+            <button class="primary" onclick={() => submitSymbol()} disabled={d.busy}>{operateLabel(d.sym, shown, d.pick)}</button>
+          {/if}
+        {:else}
+          <button class="primary" onclick={() => submitSymbol()} disabled={d.busy}>{d.sym.op === 'entry' ? 'OK' : 'Send puls'}</button>
+        {/if}
+        <button onclick={() => (symDialog = null)} disabled={d.busy}>Annullér</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 {#if dialog}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="backdrop" onclick={() => !dialog?.busy && (dialog = null)}>
@@ -422,6 +662,11 @@
   .toolbar { margin-bottom: .75rem; }
   .positions { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 .8rem; }
   .positions button { min-width: 4.5rem; padding: .6rem .9rem; font-size: 1rem; }
+  .positions button.current { outline: 2px solid var(--ok); outline-offset: 1px; }
+  .state-chip { display: inline-block; margin-left: .4rem; padding: 0 .45rem; border-radius: 999px; border: 1px solid var(--line); font-size: .8rem; }
+  .state-chip.confirmed { color: var(--ok); border-color: var(--ok); }
+  .state-chip.pending { color: var(--warn); border-color: var(--warn); }
+  .state-chip.mismatch { color: var(--alarm); border-color: var(--alarm); }
   .canvas {
     background: var(--panel-2);
     border: 1px solid var(--line);

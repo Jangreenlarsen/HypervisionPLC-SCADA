@@ -153,8 +153,14 @@ window.scada = {
     if (!src) return '';
     const node = document.importNode(src, true);
     node.setAttribute('id', uniqueId(baseId));
+    // Bibliotekstypen og delenes egne navne gemmes, så symbol-guiden kender symbolet og dets dele
+    // (id'erne nedenfor kan få et løbenummer, så delens navn kan ikke udledes sikkert af id'et)
+    node.setAttribute('data-hv-type', String(baseId).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 40));
     // Børn får unikke id'er så flere kopier af samme symbol ikke kolliderer
-    node.querySelectorAll('[id]').forEach((el) => el.setAttribute('id', uniqueId(`${node.id}_${el.id}`)));
+    node.querySelectorAll('[id]').forEach((el) => {
+      el.setAttribute('data-hv-pid', el.id);
+      el.setAttribute('id', uniqueId(`${node.id}_${el.id}`));
+    });
     const res = c.getResolution();
     const step = (insertCount++ % 6) * 30; // forskyd hvert nyt symbol, så de ikke ligger oven i hinanden
     node.setAttribute('transform', `translate(${Math.round(res.w / 2 - 40 + step)} ${Math.round(res.h / 2 - 40 + step)})`);
