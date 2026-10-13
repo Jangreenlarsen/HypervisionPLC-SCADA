@@ -106,6 +106,49 @@ def test_scoped_operator_can_only_operate_own_drawing(setup, mock_plc):
     assert denied and all(e["result"] == "error" for e in denied)  # afviste forsøg logges
 
 
+def _ws_until(ws, predicate, timeout=5.0):
+    """Læs beskeder indtil `predicate(msg)` er sand. Hver læsning har en tidsgrænse (i en tråd), så en manglende
+    besked giver en fejl i stedet for en test der hænger. Lukkes forbindelsen → WebSocketDisconnect."""
+    import concurrent.futures
+    deadline = time.monotonic() + timeout
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        while True:
+            left = deadline - time.monotonic()
+            if left <= 0:
+                raise AssertionError("forventet besked kom ikke")
+            try:
+                msg = pool.submit(ws.receive_json).result(timeout=left)
+            except concurrent.futures.TimeoutError:
+                raise AssertionError("forventet besked kom ikke inden for tidsgrænsen") from None
+            if predicate(msg):
+                return msg
+    finally:
+        pool.shutdown(wait=False)  # en hængende læsning slippes når forbindelsen lukkes
+
+
+def test_live_ws_follows_scope_change_and_deactivation(setup):
+    """BUGS v0.27.0 #4: en åben /ws/live skal følge ændret tegningsadgang og lukke ved deaktivering."""
+    from starlette.websockets import WebSocketDisconnect
+    c, a, b = setup
+    c.app.state.settings.ws_revalidate_s = 0.2
+    op_cookie = {"cookie": f"scada_session={c.cookies.get('scada_session')}"}
+    with c.websocket_connect("/ws/live", headers=op_cookie) as ws:
+        ws.send_json({"type": "subscribe", "tags": ["Niveau_A", "Niveau_B"]})
+        snap = _ws_until(ws, lambda m: m["type"] == "snapshot")
+        assert set(snap["values"]) == {"Niveau_A"}
+        _as_admin(c)                                     # samme klient; WebSocket'en bruger operatørens cookie
+        assert c.patch("/api/users/op_a", json={"drawings": [a, b]}).status_code == 200
+        snap = _ws_until(ws, lambda m: m["type"] == "snapshot")   # ny adgang → nyt snapshot uden ny subscribe
+        assert set(snap["values"]) == {"Niveau_A", "Niveau_B"}
+        assert c.patch("/api/users/op_a", json={"disabled": True}).status_code == 200
+        msg = _ws_until(ws, lambda m: m["type"] == "error")
+        assert "log ind igen" in msg["error"]
+        with pytest.raises(WebSocketDisconnect) as closed:
+            _ws_until(ws, lambda m: True)
+        assert closed.value.code == 4401
+
+
 def test_scope_changes_apply_immediately_and_null_means_all(setup):
     c, a, b = setup
     _as_admin(c)

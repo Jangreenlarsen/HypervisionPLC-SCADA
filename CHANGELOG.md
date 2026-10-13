@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.31.4 build 0048] — 2026-10-13 — fix: live-forbindelsen følger sessionen og tegningsadgangen
+
+- `backend/app/api/live_ws.py` — `revalidate()` hvert `ws_revalidate_s` og ved hver subscribe: ugyldig session → fejlbesked + luk 4401; ændret rolle/tegningsadgang → genberegn synlige tags, nyt snapshot og alarmer. Klientens ønskede tags huskes, så adgangen kan udvides uden ny subscribe.
+- `backend/app/config.py` — `SCADA_WS_REVALIDATE_S` (standard 10 s).
+- `backend/tests/test_scope.py` — åben WebSocket får nyt snapshot ved udvidet tegningsadgang og lukkes med 4401 ved deaktivering; læsninger med tidsgrænse, så en manglende besked fejler i stedet for at hænge.
+
 ## [0.31.3 build 0047] — 2026-10-13 — fix: live-ændringer går ikke tabt hos langsomme klienter
 
 - `backend/app/services/live_cache.py` — `update`: fuld klient-kø → alle ventende deltaer flettes til én (seneste værdi pr. tag), i stedet for at den ældste smides væk.

@@ -2,6 +2,11 @@
 
 ---
 
+## v0.31.4 — 2026-10-13 — Ændrede rettigheder slår igennem på åbne skærme
+
+- Logges en bruger ud, deaktiveres, eller ændres rollen, lukkes åbne Overview-skærme for brugeren inden for 10 sekunder og viser login. Før fortsatte de med at vise live-data.
+- Ændres en brugers tegningsadgang, opdateres åbne skærme med det samme brugeren nu må se.
+
 ## v0.31.3 — 2026-10-13 — Overview viser altid den rigtige værdi
 
 - På en langsom forbindelse (fx en skærm på et svagt net) kunne en ændring gå tabt, så fx en pumpe stod som stoppet selvom den kørte. Nu samles ventende ændringer, så skærmen kan blive lidt forsinket, men aldrig viser en forkert værdi.

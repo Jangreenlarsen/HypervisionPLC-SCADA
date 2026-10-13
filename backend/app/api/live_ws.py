@@ -6,7 +6,11 @@ Protokol:
   server → {"type": "delta", "values": {...}}             (kun ændrede, kun abonnerede tags)
   server → {"type": "plcs", "plcs": {key: {state, message, sse}}}   (ved ændring, tjekkes hvert 2. s)
   server → {"type": "alarms", "summary": {...}, "active": [...]}   (ved abonnement og ved ændring)
-  server → {"type": "error", "error": "..."}              (ugyldig besked)
+  server → {"type": "error", "error": "..."}              (ugyldig besked; ved udløbet session lukkes med 4401)
+
+Sessionen gentjekkes hvert `ws_revalidate_s` og ved hver subscribe (BUGS v0.27.0 #4): er den væk (logout, udløbet,
+deaktiveret, rolle/adgangskode ændret), sendes en fejl og forbindelsen lukkes med 4401; er tegningsadgangen ændret,
+genberegnes hvad brugeren må se, og et nyt snapshot og alarmer sendes.
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import time
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -65,17 +70,45 @@ async def live_ws(ws: WebSocket) -> None:
     queue = cache.subscribe()
     alarms = ws.app.state.alarm_service
     alarm_queue = alarms.subscribe()
-    wanted: set[str] = set()
-    visible = ws.app.state.scope_service.visible_tags(user)
+    scope = ws.app.state.scope_service
+    settings = ws.app.state.settings
+    requested: set[str] = set()   # hvad klienten bad om
+    wanted: set[str] = set()      # … begrænset til det brugeren må se
+    visible = scope.visible_tags(user)
+    access = (user.role, user.drawings)
 
     async def send_alarms() -> None:
         await ws.send_json({"type": "alarms", "summary": alarms.summary(visible), "active": alarms.active(visible)})
 
+    async def revalidate() -> bool:
+        """→ False når sessionen er væk (forbindelsen er da lukket). Genberegner adgang hvis den er ændret."""
+        nonlocal user, visible, wanted, access
+        current = websocket_user(ws)
+        if current is None:
+            log.info("Live-forbindelse for '%s' lukket: sessionen er ikke længere gyldig", user.username)
+            with contextlib.suppress(Exception):
+                await ws.send_json({"type": "error", "error": "Din session er udløbet eller ændret — log ind igen"})
+                await ws.close(code=4401)
+            return False
+        user = current
+        if (current.role, current.drawings) != access:
+            access = (current.role, current.drawings)
+            visible = scope.visible_tags(current)
+            wanted = requested if visible is None else requested & visible
+            await ws.send_json({"type": "snapshot", "values": cache.snapshot(sorted(wanted))})
+            await send_alarms()
+        return True
+
     async def sender() -> None:
         last_status: dict[str, Any] | None = None
+        last_check = time.monotonic()
         await send_alarms()
         while True:
-            delta, alarm_changed = await _next_event(queue, alarm_queue, 2.0)
+            delta, alarm_changed = await _next_event(queue, alarm_queue, min(2.0, settings.ws_revalidate_s))
+            if time.monotonic() - last_check >= settings.ws_revalidate_s:
+                last_check = time.monotonic()
+                if not await revalidate():
+                    return
             if alarm_changed:
                 await send_alarms()
             if delta and wanted:
@@ -96,7 +129,10 @@ async def live_ws(ws: WebSocket) -> None:
                 await ws.send_json({"type": "error",
                                     "error": f"Forventet {{'type':'subscribe','tags':[...]}} med max {MAX_TAGS} navne"})
                 continue
-            wanted = set(tags) if visible is None else set(tags) & visible
+            requested = set(tags)
+            if not await revalidate():
+                return
+            wanted = requested if visible is None else requested & visible
             await ws.send_json({"type": "snapshot", "values": cache.snapshot(sorted(wanted))})
     except WebSocketDisconnect:
         pass
