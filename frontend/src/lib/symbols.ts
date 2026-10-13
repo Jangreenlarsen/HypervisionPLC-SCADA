@@ -59,8 +59,14 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'trykknap_puls', label: 'Trykknap (puls)', category: 'betjening',
     hint: 'Sender en kort puls (500 ms) — fx start, stop, kvittér. Vælg et skrivbart tag',
     svg: `<g ${auto([{ anim: 'click:pulse', params: { ms: 500, confirm: false } }])}>` +
-      `<rect id="flade" x="0" y="0" width="110" height="44" rx="6" fill="${OFF}" stroke="${LINE}" stroke-width="2" ${part({ anim: 'fill', params: { on: ON, off: OFF } })}/>` +
-      text(55, 28, 'Start', 16, 'font-weight="600"') + '</g>',
+      // Tavlemonteret trykknap set forfra: frontplade, metalkrave, rund knap med glans og et skilt under (v0.28.0)
+      `<rect x="0" y="0" width="76" height="76" rx="8" fill="${PANEL}" stroke="${LINE}" stroke-width="2"/>` +
+      `<circle cx="38" cy="38" r="30" fill="#c8c8c8" stroke="${DARK}" stroke-width="2"/>` +
+      `<circle cx="38" cy="38" r="25" fill="none" stroke="#f5f5f5" stroke-width="1.5"/>` +
+      `<circle id="flade" cx="38" cy="38" r="21" fill="${OFF}" stroke="${LINE}" stroke-width="2" ${part({ anim: 'fill', params: { on: ON, off: OFF } })}/>` +
+      `<path d="M24 32 A15 15 0 0 1 44 22" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/>` +
+      `<rect x="6" y="84" width="64" height="22" rx="2" fill="#fff" stroke="${LINE}" stroke-width="1.5"/>` +
+      text(38, 100, 'Start', 14, 'font-weight="600" id="tekst"') + '</g>',
   },
   {
     id: 'startstop', label: 'Start/stop (til/fra)', category: 'betjening',
@@ -448,9 +454,10 @@ export const SYMBOLS: SymbolDef[] = [
   },
   {
     id: 'elmaaler', label: 'Elmåler (kWh)', category: 'sol', hint: 'Bind "Tekst" på tallet til energi/effekt',
-    svg: `<g><rect x="0" y="0" width="90" height="70" rx="4" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
-      `<rect x="10" y="12" width="70" height="26" fill="#fff" stroke="${LINE}" stroke-width="1.5"/>` +
-      `<text id="vaerdi" x="74" y="31" font-size="15" text-anchor="end" fill="${DARK}" ${FONT}>0</text>${text(45, 58, 'kWh', 13)}</g>`,
+    // Displayet har plads til 5 cifre + decimal + enhed, fx "12345.6 kWh" (v0.27.1)
+    svg: `<g><rect x="0" y="0" width="130" height="70" rx="4" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
+      `<rect x="10" y="12" width="110" height="26" fill="#fff" stroke="${LINE}" stroke-width="1.5"/>` +
+      `<text id="vaerdi" x="114" y="31" font-size="15" text-anchor="end" fill="${DARK}" ${FONT}>0</text>${text(65, 58, 'kWh', 13)}</g>`,
   },
   {
     id: 'elnet', label: 'Elnet', category: 'sol', hint: 'Forsyningsnettet; bind "Stregfarve" til import/eksport',

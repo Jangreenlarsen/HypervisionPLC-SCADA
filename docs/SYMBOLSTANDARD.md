@@ -28,7 +28,7 @@ for symboler uden positioner.
 | 1 Symbol | Navn, type, dele. Omskifteren kan indlæse eksemplet "7-trins vælger, dec → bin" |
 | 2 Signaler | Puljen af signaler symbolet bruger: kommando-tag (skrivbart) og valgfrit tilbagemeldings-tag. Viser hvilken plan der bruger hvert signal. Fejl/låst-tag (valgfrit) blokerer betjening |
 | 3 Kontakter | Kontaktdiagram: kontaktplaner (rækker, 1–8) × positioner (kolonner). Hver plan styrer ét signal; cellen er Til/Fra/røres ikke (til/fra-signal) eller en værdi (register). Række "Aktive signaler" viser hvad hver position sætter. Skabeloner: A ét register, B ét signal pr. position, C bitmaske, D dec → bin |
-| 4 Visning | Positionen følger Remote (PLC'ens tilbagemelding) eller Lokal (sidst valgte, valideret af PLC'en efter N s; afvigelse kan give alarm). Vinkel pr. position (omskifter). **Animationer** (afsnit 4) |
+| 4 Visning | Positionen følger Remote (PLC'ens tilbagemelding) eller Lokal (sidst valgte, valideret af PLC'en efter N s; afvigelse kan give alarm med valgt niveau: Nej / Lav / Medium (standard) / Høj). Vinkel pr. position (omskifter). **Animationer** (afsnit 4) |
 | 5 Betjening | Bekræftelse til/fra pr. symbol og nøglelås (se afsnit 5); skrivemåde pr. signal: til/fra-signaler altid "sæt", registre "sæt værdi" eller "puls" (pulslængde + påkrævet hvileværdi, der ikke må være en positions værdi) |
 | 6 Test og gem | Live-værdier pr. signal, fundet position, advarsler, oversigt over det der gemmes |
 
@@ -50,6 +50,10 @@ Et symbol kan have vilkårligt mange animationer (prototypen: 12). Hver animatio
 - **Parametre** efter kilden: til/fra-tag → farve for Til/Fra eller "når Til/Fra"; tal-tag → farve efter stigende grænser + "ellers", eller "når ≥ X"; Niveau → min/max; Værdi → enhed og decimaler; position → farve pr. position eller udvalgte positioner.
 - **Gælder i positionerne** (kun symboler med positioner) — animationen virker kun i de afkrydsede positioner.
 
+**Blinkfrekvens** vælges pr. blink-animation: Langsom (0,5 Hz), Normal (1 Hz, standard) eller Hurtig (2 Hz). Alle blink med samme frekvens kører i takt på tværs af symboler. Anbefaling (ISA-101): hurtigt blink til fejl og ukvitterede alarmer, langsomt til advarsler og tilstande der kræver opmærksomhed. Ved "reduceret bevægelse" i browseren vises blink som halv gennemsigtighed i stedet.
+
+**Flyt og Drej glider** til den nye position (0,4 s) i stedet for at hoppe, så man kan se skiftet ske — fx vippekontaktens greb der skifter side. Overview opdaterer symbolet på stedet, så bevægelsen og igangværende blink ikke genstartes. Ved "reduceret bevægelse" springes glidningen over.
+
 Står flere animationer på samme del, vinder den nederste (rækkefølgen ændres med ▲▼).
 
 ## 5. Tilstandsmærke og betjening på Overview
@@ -58,6 +62,8 @@ Alle symboler med positioner viser samme mærke: ✓ Bekræftet, … Venter, ! A
 PLC'ens position), ? Ukendt (kommunikationsfejl eller ingen entydig position). Betjening sker i en
 dialog der viser præcis hvilke tags der skrives; signaler der går mod 0/fra skrives først
 (break-before-make). Afvigelser kan kvitteres ved at acceptere PLC'ens position (der skrives intet).
+
+**Alarmniveau**: Afvigelsesalarmen har det niveau teknikeren har valgt i trin 4 (Lav, Medium, Høj). Alarmlisten sorteres efter niveau (Høj øverst) og viser niveauet med farve. Bemærk: backend kender i dag kun high/medium — `low` skal tilføjes når standarden implementeres.
 
 **Bekræftelse kan fravælges pr. symbol** (trin 5). Et klik på symbolet på Overview betjener det:
 
@@ -80,6 +86,39 @@ Alle skift logges i audit-loggen, og rettigheder, Fejl/låst og validering gæld
 
 `symbol_config` pr. (tegning, element): `type`, `positions[]` (label, angle), `signals[]` (id, tag, fb,
 write, ms, rest), `planes[]` (signal, values[] med `null` = røres ikke), `fault`, `display`, `validate_s`,
-`alarm`, `confirm`, `lock` (positions[], pin_hash, leave), `anims[]` (part, type, src, params, only[]). Den lokale tilstand (sidst valgt, af hvem,
+`alarm` ('' | low | medium | high), `confirm`, `lock` (positions[], pin_hash, leave), `anims[]` (part, type, src, params, only[]). Den lokale tilstand (sidst valgt, af hvem,
 hvornår) gemmes i `symbol_state`. Afledte værdier (position, tilstand) lægges i live-cachen, så
 WebSocket-protokollen er uændret.
+
+## 7. Test mod symbolbiblioteket i dag (2026-10-13)
+
+Alle 82 symboler i `frontend/src/lib/symbols.ts` er importeret i prototypen (faneblad "Symbolbiblioteket
+i dag"). Deres eksisterende `data-hv-auto`/`data-hv-part` oversættes automatisk til den nye model:
+
+| I dag | I den nye model |
+| --- | --- |
+| `click:toggle` | 2 positioner (navne fra `true_text`/`false_text`), ét til/fra-signal, én kontaktplan |
+| `click:select` | Positioner og værdier fra symbolet, ét register, én kontaktplan |
+| `click:pulse` | Trykknap (se forslag) |
+| `click:write` | Setpunkt (se forslag) |
+| `fill` på en del | Farve pr. position (eller efter tagget) |
+| `text` på en del | Værdi: positionens navn (eller tagværdien) |
+| `move` / `rotate` på en del | Flyt / Drej pr. position (se forslag) |
+| Ingen bindinger (75 visningssymboler) | Kun visning; animationer foreslås ud fra navngivne dele (`fyld`/`soejle` → Niveau, `rotor` → Roterer, `flamme` → Synlig, `viser` → Drej, `vaerdi` → Værdi), ellers Farve på hele symbolet |
+
+**Resultat:** 76 af 82 passer direkte. 6 kræver en af fire tilføjelser. 63 symboler har ingen navngivne
+dele, så kun hele symbolet kan animeres; det er nok til farve/blink/synlig, men giver fx ikke mulighed
+for at farve en pumpes løbehjul for sig.
+
+### Foreslåede tilføjelser — afventer beslutning
+
+1. **Drej** (animation): delen drejes om sit centrum til en vinkel pr. position eller lineært efter et tal-tag (min/max → vinkel). Bruges af Omskifter Hånd/0/Auto, Drejeomskifter 0/1 og Manometer.
+2. **Flyt** (animation): delen forskydes dx/dy pr. position eller efter et tag. Bruges af Vippekontakt.
+3. **Trykknap** (betjeningsform): ét til/fra-tag sættes til 1 i N ms og derefter 0 (serveren nulstiller). Standarden siger i dag at til/fra-signaler altid "sættes", så en puls-trykknap kan ikke laves. Bruges af Trykknap (puls).
+4. **Setpunkt** (betjeningsform): fri indtastning af en værdi til ét tal-tag inden for tagets min/max — passer ikke i positionsmodellen. Bruges af Setpunkt-felt.
+
+Prototypen har alle fire med, så de kan prøves. Trin 1 har for importerede symboler et valg
+"Betjening" (kun visning / positioner / trykknap / setpunkt), så også et visningssymbol som "Knap" kan
+gøres betjenbart.
+
+Under testen viste Elmåler (kWh) sig at være for smal til 5 cifre; symbolet er rettet i v0.27.1 (hus 130, display 110).

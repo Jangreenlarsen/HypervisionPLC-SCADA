@@ -25,6 +25,7 @@
   --sym-face: #3a3e43; --sym-line: #9aa0a6; --sym-grip: #6b7075; --sym-ink: #e6e6e6; color-scheme: dark; }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* også når filen åbnes direkte (uden artefakt-rammen) */
 body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.4; }
 h1, h2, h3 { font-weight: 650; margin: 0; text-wrap: balance; }
 h2 { font-size: 1.1rem; } h3 { font-size: 1rem; }
@@ -118,6 +119,7 @@ dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; }
 .sym .faultframe { fill: none; stroke: var(--alarm); stroke-width: 3; animation: blink 1s steps(2, start) infinite; }
 @keyframes blink { to { visibility: hidden; } }
 .sym .blinking { animation: blink 1s steps(2, start) infinite; }
+.sym .blink-slow { animation-duration: 2s; } .sym .blink-fast { animation-duration: .5s; }
 @media (prefers-reduced-motion: reduce) { .sym .blinking { animation: none; opacity: .5; } }
 .anims { display: flex; flex-direction: column; gap: .6rem; }
 .anim { background: var(--field); border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem .7rem; display: flex; flex-direction: column; gap: .5rem; }
@@ -143,6 +145,7 @@ dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; }
 .log .t { color: var(--muted); }
 .alarmrow { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
 .prio { background: var(--warn); color: var(--panel); font-size: .72rem; font-weight: 700; padding: .1rem .5rem; border-radius: 3px; letter-spacing: .04em; }
+.prio.high { background: var(--alarm); } .prio.low { background: var(--accent); }
 .toast { background: var(--ok-bg); border: 1px solid var(--ok); border-radius: var(--radius); padding: .5rem .8rem; }
 .sym .face.pending { stroke-dasharray: 4 3; fill: var(--field); }
 .sym .face.unknown { fill: var(--panel-2); stroke: var(--muted); }
@@ -156,6 +159,8 @@ dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; }
 .sym .valtext { fill: var(--sym-ink); font: 700 15px var(--font); }
 .sym .ghosttext { fill: var(--alarm); font: 650 11px var(--font); }
 .sym .spinning { animation: spin 1.6s linear infinite; transform-box: fill-box; transform-origin: center; }
+.sym .tmove { transition: transform .4s ease-in-out; transform-box: fill-box; transform-origin: center; }
+@media (prefers-reduced-motion: reduce) { .sym .tmove { transition: none; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .sym .spinning { animation: none; } }
 .layout { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
@@ -172,6 +177,9 @@ dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; }
 .plant { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: .6rem; }
 .plant .symbtn.sel { border: 2px solid var(--accent); }
 .steps button.skip { opacity: .55; font-style: italic; }
+.impgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: .6rem; }
+.impcard { background: var(--field); border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem; display: flex; flex-direction: column; align-items: center; gap: .3rem; text-align: center; }
+.impcard details { color: var(--muted); }
 .sym .padlock rect { fill: var(--warn); } .sym .padlock path { fill: none; stroke: var(--warn); stroke-width: 2.5; }
 .lockico { display: inline-block; width: .8em; height: .9em; vertical-align: -.1em; margin-left: .3rem; }
 .lockico rect { fill: var(--warn); } .lockico path { fill: none; stroke: var(--warn); stroke-width: 2.5; }
@@ -184,6 +192,7 @@ dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; }
   <span class="brand">HypervisionPLC SCADA</span>
   <button role="tab" id="tab-guide" data-action="tab" data-tab="guide" aria-selected="true">Bindinger · guide (tekniker)</button>
   <button role="tab" id="tab-ov" data-action="tab" data-tab="ov" aria-selected="false">Overview (operatør)</button>
+  <button role="tab" id="tab-lib" data-action="tab" data-tab="lib" aria-selected="false">Symbolbiblioteket i dag</button>
   <span class="note">Prototype · PLC'en er simuleret</span>
 </div>
 
@@ -194,6 +203,7 @@ dl.sum dt { color: var(--muted); } dl.sum dd { margin: 0; }
     <section class="main panel" id="guidepanel" aria-labelledby="g-title"></section>
   </div>
   <section id="ov" hidden></section>
+  <div id="libview" hidden></div>
 </main>
 
 <script>
@@ -237,7 +247,11 @@ const hide = 'position:absolute;left:-9999px';
 const STEPS = ['Symbol', 'Signaler', 'Kontakter', 'Visning', 'Betjening', 'Test og gem'];
 const STATE_TXT = { confirmed: 'Bekræftet', pending: 'Venter', mismatch: 'Afvigelse', unknown: 'Ukendt', view: 'Visning' };
 const GLYPH = { confirmed: '✓', pending: '…', mismatch: '!', unknown: '?' };
-const ATYPES = { color: 'Farve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', level: 'Niveau', value: 'Værdi' };
+// Alarmniveau (prioritet) for afvigelsesalarmen; '' = ingen alarm. Rækkefølge = sortering på Alarmer.
+const ALARM_TXT = { '': 'Nej', low: 'Ja — lav', medium: 'Ja — medium', high: 'Ja — høj' };
+const ALARM_LBL = { low: 'LAV', medium: 'MEDIUM', high: 'HØJ' };
+const ALARM_ORDER = { high: 0, medium: 1, low: 2 };
+const ATYPES = { color: 'Farve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', level: 'Niveau', value: 'Værdi', turn: 'Drej', move: 'Flyt' };
 
 // ===================================================================== symbolbibliotek
 // Alle symboler følger samme standard: dele (til animationer), evt. positioner (betjening via kontaktplaner),
@@ -256,7 +270,10 @@ const LIB = {
   lamp: { label: 'Lampe', positions: null,
     parts: { bg: 'Baggrund', face: 'Lampe', frame: 'Ramme' }, spin: [], level: [], text: [] },
 };
-const hasPos = (c) => !!LIB[c.type].positions;
+// Betjeningsform: positions (kontaktplaner), pulse (trykknap), entry (setpunkt) eller view (kun visning)
+const opKind = (c) => c.op || (LIB[c.type]?.positions ? 'positions' : 'view');
+const hasPos = (c) => opKind(c) === 'positions';
+const libOf = (c) => (c.type === 'imp' ? IMPDEF[c.imp].lib : LIB[c.type]);
 
 let sigSeq = 100;
 const newSignal = (t = '', fb = '') => ({ id: `S${++sigSeq}`, tag: t, fb, write: 'set', ms: 500, rest: '' });
@@ -264,7 +281,7 @@ function newSymbol(type, name) {
   const L = LIB[type];
   return { id: `sym${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, type, name,
     positions: (L.positions || []).map(([label, angle]) => ({ label, angle: angle ?? 0 })),
-    signals: [], planes: [], fault: '', display: 'remote', validateS: 5, alarm: true, confirm: true, anims: [],
+    signals: [], planes: [], fault: '', display: 'remote', validateS: 5, alarm: 'medium', confirm: true, anims: [],
     lock: { positions: (L.positions || []).map(() => false), pin: '', leave: false }, pinFails: 0, pinLockUntil: 0,
     local: { chosen: 0, at: Date.now() - 60000, by: 'olsen' }, saved: false };
 }
@@ -278,14 +295,14 @@ function seed() {
   a.lock = { positions: [true, false, false], pin: '1234', leave: false }; // nøglelås: Hand kræver kode (prototype: 1234)
   a.anims = [{ part: 'bg', type: 'color', src: '@pos', p: { colors: ['#fde2b8', '#e4e4e4', '#cfe8d1'] } },
     { part: 'face', type: 'color', src: 'P1_temp', p: { th: [{ v: 60, c: '#f0b44a' }, { v: 80, c: '#e06060' }], def: '#e3e3e3' } },
-    { part: 'frame', type: 'blink', src: 'P1_fejl', p: { when: 'on' } }];
+    { part: 'frame', type: 'blink', src: 'P1_fejl', p: { when: 'on', speed: 'fast' } }];
 
   const p = newSymbol('pump', 'Pumpe P1');
   p.signals = [{ id: 'S1', tag: 'P1_start', fb: 'P1_drift', write: 'set', ms: 500, rest: '' }];
   p.planes = [{ signal: 'S1', values: [0, 1] }]; p.fault = 'P1_fejl'; p.local.chosen = 1;
   p.anims = [{ part: 'face', type: 'color', src: 'P1_drift', p: { on: '#7cc47f', off: '#d6d6d6' } },
     { part: 'grip', type: 'spin', src: 'P1_drift', p: { when: 'on' } },
-    { part: 'frame', type: 'blink', src: 'P1_fejl', p: { when: 'on' } }];
+    { part: 'frame', type: 'blink', src: 'P1_fejl', p: { when: 'on', speed: 'fast' } }];
 
   const v = newSymbol('valve', 'Ventil V1');
   v.signals = [{ id: 'S1', tag: 'V1_aaben', fb: 'V1_aaben_di', write: 'set', ms: 500, rest: '' }];
@@ -296,11 +313,11 @@ function seed() {
   t.anims = [{ part: 'level', type: 'level', src: 'T1_niveau', p: { min: 0, max: 100 } },
     { part: 'level', type: 'color', src: 'T1_niveau', p: { th: [{ v: 90, c: '#e06060' }], def: '#6ea8dc' } },
     { part: 'text', type: 'value', src: 'T1_niveau', p: { unit: '%', dec: 0 } },
-    { part: 'frame', type: 'blink', src: 'T1_hoej', p: { when: 'on' } }];
+    { part: 'frame', type: 'blink', src: 'T1_hoej', p: { when: 'on', speed: 'slow' } }];
 
   const l = newSymbol('lamp', 'Alarm L1');
   l.anims = [{ part: 'face', type: 'color', src: 'L1_alarm', p: { on: '#e06060', off: '#d6d6d6' } },
-    { part: 'face', type: 'blink', src: 'L1_alarm', p: { when: 'on' } }];
+    { part: 'face', type: 'blink', src: 'L1_alarm', p: { when: 'on', speed: 'fast' } }];
 
   const k = newSymbol('startstop', 'Kompressor K1');
   k.signals = [{ id: 'S1', tag: 'K1_koer', fb: '', write: 'set', ms: 500, rest: '' }];
@@ -330,6 +347,8 @@ function targets(c, k) {
   return out;
 }
 function resetSim(c) {
+  const K = opKind(c);
+  if (K === 'pulse' || K === 'entry') { c.signals.forEach((s) => { if (s.tag && !(rk(s) in sim.read)) { const v0 = K === 'entry' ? 20 : 0; sim.read[rk(s)] = v0; sim.cmd[s.tag] = v0; } }); return; }
   if (!hasPos(c)) return;
   if (c.local.chosen >= c.positions.length) c.local.chosen = 0;
   const t = targets(c, c.local.chosen);
@@ -413,6 +432,9 @@ function needsPin(c, to) {
 // Den position der vises nu (til 2-positions-symboler uden bekræftelse: et klik skifter til den anden).
 function shownPos(c) { return c.display === 'local' ? c.local.chosen : status(c).r; }
 function clickSymbol(c) {
+  const K = opKind(c);
+  if (K === 'pulse') { if (c.confirm) dialog = { sym: c.id, open: true, pick: null, msg: '' }; else operatePulse(c); return; }
+  if (K === 'entry') { dialog = { sym: c.id, open: true, pick: null, msg: '', err: '', entry: '' }; return; }
   if (!hasPos(c)) { dialog = { sym: null, open: false, pick: null, msg: '' }; return; }
   if (!c.confirm && c.positions.length === 2) { const now = shownPos(c), to = now === 1 ? 0 : 1;
     if (needsPin(c, to)) { dialog = { sym: c.id, open: true, pick: to, msg: '' }; return; }
@@ -427,10 +449,11 @@ function fieldSwitch(c, j) {
 // ===================================================================== animationer
 const srcKind = (src) => (src === '@pos' ? 'pos' : tag(src)?.kind === 'coil' ? 'bool' : 'num');
 function typesFor(c, part) {
-  const L = LIB[c.type], t = ['color', 'blink', 'visible'];
+  const L = libOf(c), t = ['color', 'blink', 'visible'];
   if (L.spin.includes(part)) t.push('spin');
   if (L.level.includes(part)) t.push('level');
   if (L.text.includes(part)) t.push('value');
+  if (L.turnMove && part !== 'bg' && part !== 'frame') t.push('turn', 'move');
   return t;
 }
 function animDefaults(c, type, kind) {
@@ -441,6 +464,8 @@ function animDefaults(c, type, kind) {
     return { colors: Array.from({ length: n }, () => '#e4e4e4') };
   }
   if (type === 'level') return { min: 0, max: 100 };
+  if (type === 'turn') return kind === 'pos' ? { pa: Array.from({ length: n }, (_, j) => (n > 1 ? Math.round(-45 + (90 * j) / (n - 1)) : 0)) } : kind === 'bool' ? { a0: 0, a1: 90 } : { min: 0, max: 100, a0: -120, a1: 120 };
+  if (type === 'move') return kind === 'pos' ? { pdx: Array.from({ length: n }, (_, j) => j * 20), pdy: Array.from({ length: n }, () => 0) } : kind === 'bool' ? { dx: 20, dy: 0 } : { min: 0, max: 100, dx: 40, dy: 0 };
   if (type === 'value') return { unit: '', dec: 0 };
   if (kind === 'bool') return { when: 'on' };
   if (kind === 'num') return { v: 50 };
@@ -461,23 +486,33 @@ function evalAnims(c, posIdx) {
       if (kind === 'bool') col = Number(v) ? a.p.on : a.p.off;
       else if (kind === 'num') { col = a.p.def; (a.p.th || []).forEach((t) => { if (Number(v) >= Number(t.v)) col = t.c; }); }
       else col = a.p.colors?.[v];
-      o.color = col;
+      if (col) o.color = col; // tom farve = symbolets egen farve
     }
-    if (a.type === 'blink') o.blink = cond();
+    if (a.type === 'blink') o.blink = cond() ? (a.p.speed || 'normal') : false;
     if (a.type === 'visible') o.hidden = !cond();
     if (a.type === 'spin') o.spin = cond();
     if (a.type === 'level') { const lo = Number(a.p.min), hi = Number(a.p.max); o.frac = hi > lo ? Math.max(0, Math.min(1, (Number(v) - lo) / (hi - lo))) : 0; }
+    if (a.type === 'turn' || a.type === 'move') {
+      const lo = Number(a.p.min), hi = Number(a.p.max), f = kind === 'num' ? (hi > lo ? Math.max(0, Math.min(1, (Number(v) - lo) / (hi - lo))) : 0) : 0;
+      if (a.type === 'turn') o.angle = kind === 'pos' ? Number(a.p.pa?.[v] ?? 0) : kind === 'bool' ? Number(Number(v) ? a.p.a1 : a.p.a0) : Number(a.p.a0) + (Number(a.p.a1) - Number(a.p.a0)) * f;
+      else if (kind === 'pos') { o.dx = Number(a.p.pdx?.[v] || 0); o.dy = Number(a.p.pdy?.[v] || 0); }
+      else if (kind === 'bool') { o.dx = Number(v) ? Number(a.p.dx) : 0; o.dy = Number(v) ? Number(a.p.dy) : 0; }
+      else { o.dx = Number(a.p.dx) * f; o.dy = Number(a.p.dy) * f; }
+    }
     if (a.type === 'value') o.text = kind === 'bool' ? (Number(v) ? 'Til' : 'Fra') : kind === 'pos' ? posName(c, v) : `${Number(v).toFixed(Number(a.p.dec) || 0)}${a.p.unit ? ' ' + a.p.unit : ''}`;
   });
   return out;
 }
 
 // ===================================================================== tegning af symboler
+// Blinkfrekvens: periode i ms (tændt halvdelen af tiden). Delay faser alle blink ens, så de blinker i takt.
+const BLINK_MS = { slow: 2000, normal: 1000, fast: 500 };
+const BLINK_TXT = { slow: 'Langsom (0,5 Hz)', normal: 'Normal (1 Hz)', fast: 'Hurtig (2 Hz)' };
 const colOk = (x) => (/^#[0-9a-fA-F]{3,8}$/.test(x || '') ? x : null);
 function drawSymbol(c, { grip, gripClass = '', ghost = null, badge = null, size = 150, styles = {} }) {
   const S = (k) => styles[k] || {};
   const fill = (k) => (colOk(S(k).color) ? ` style="fill:${colOk(S(k).color)}"` : '');
-  const wrap = (k, inner) => `<g class="${S(k).blink ? 'blinking' : ''}"${S(k).blink ? ` style="animation-delay:-${Date.now() % 1000}ms"` : ''}${S(k).hidden ? ' visibility="hidden"' : ''}>${inner}</g>`;
+  const wrap = (k, inner) => `<g class="${S(k).blink ? `blinking blink-${S(k).blink}` : ''}"${S(k).blink ? ` style="animation-delay:-${Date.now() % BLINK_MS[S(k).blink]}ms"` : ''}${S(k).hidden ? ' visibility="hidden"' : ''}>${inner}</g>`;
   const posLbl = grip != null && c.positions[grip] ? c.positions[grip].label : '?';
   const ghostTxt = ghost != null ? `<text class="ghosttext" x="8" y="156">PLC: ${esc(posName(c, ghost))}</text>` : '';
   const faceCls = gripClass === 'pending' ? 'pending' : gripClass === 'unknown' ? 'unknown' : '';
@@ -489,7 +524,7 @@ function drawSymbol(c, { grip, gripClass = '', ghost = null, badge = null, size 
     const lab = c.positions.map((p) => { const [x, y] = pt(p.angle, R); return `<text class="lab" x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle">${esc(p.label)}</text>`; }).join('');
     const ticks = c.positions.map((p) => { const [x1, y1] = pt(p.angle, 34), [x2, y2] = pt(p.angle, 40); return `<line class="tick" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`; }).join('');
     const gf = colOk(S('grip').color);
-    const g = (angle, cls, mark = true) => `<g transform="rotate(${angle} ${cx} ${cy})"><rect class="grip ${cls}" x="${cx - 6}" y="${cy - 26}" width="12" height="52" rx="4"${!cls && gf ? ` style="fill:${gf}"` : ''}/>${mark ? `<rect class="grip-mark ${cls === 'unknown' ? 'unknown' : ''}" x="${cx - 3}" y="${cy - 24}" width="6" height="14" rx="2"/>` : ''}</g>`;
+    const g = (angle, cls, mark = true) => `<g class="tmove" style="transform:rotate(${angle}deg)"><rect class="grip ${cls}" x="${cx - 6}" y="${cy - 26}" width="12" height="52" rx="4"${!cls && gf ? ` style="fill:${gf}"` : ''}/>${mark ? `<rect class="grip-mark ${cls === 'unknown' ? 'unknown' : ''}" x="${cx - 3}" y="${cy - 24}" width="6" height="14" rx="2"/>` : ''}</g>`;
     const gh = ghost != null && c.positions[ghost] ? `<g transform="rotate(${Number(c.positions[ghost].angle) || 0} ${cx} ${cy})"><rect class="ghost" x="${cx - 6}" y="${cy - 26}" width="12" height="52" rx="4"/></g>` : '';
     const gs = grip != null && c.positions[grip] ? g(Number(c.positions[grip].angle) || 0, gripClass) : g(0, 'unknown', false);
     inner = wrap('face', `<circle class="face" cx="${cx}" cy="${cy}" r="30"${fill('face')}/>`) + ticks + lab + gh + wrap('grip', gs);
@@ -513,6 +548,8 @@ function drawSymbol(c, { grip, gripClass = '', ghost = null, badge = null, size 
   } else if (c.type === 'lamp') {
     const rays = [0, 45, 90, 135, 180, 225, 270, 315].map((d) => { const a = d * Math.PI / 180; return `<line class="part-line" x1="${(70 + 38 * Math.cos(a)).toFixed(1)}" y1="${(68 + 38 * Math.sin(a)).toFixed(1)}" x2="${(70 + 48 * Math.cos(a)).toFixed(1)}" y2="${(68 + 48 * Math.sin(a)).toFixed(1)}"/>`; }).join('');
     inner = rays + wrap('face', `<circle class="face" cx="70" cy="68" r="30"${fill('face')}/>`) + `<rect class="body" x="56" y="104" width="28" height="16" rx="2"/>`;
+  } else if (c.type === 'imp') {
+    inner = `<g${gripClass === 'unknown' ? ' opacity=".5"' : ''}>${drawImported(c, styles)}</g>` + ghostTxt;
   }
   const bg = wrap('bg', `<rect x="2" y="2" width="136" height="156" rx="8" style="fill:${colOk(S('bg').color) || 'transparent'}"/>`);
   const frame = wrap('frame', `<rect x="2.5" y="2.5" width="135" height="155" rx="8" style="fill:none;stroke:${colOk(S('frame').color) || (S('frame').blink ? 'var(--alarm)' : 'transparent')};stroke-width:3"/>`);
@@ -529,7 +566,16 @@ function liveSymbol(c, size) {
 // ===================================================================== validering
 function validate(c) {
   const step2 = [], step3 = [], step4 = [], step5 = [], W = [];
-  const P = hasPos(c);
+  const K = opKind(c), P = K === 'positions';
+  if (K === 'pulse' || K === 'entry') {
+    const s = c.signals[0], t = tag(s?.tag);
+    if (c.signals.length !== 1) step2.push('Vælg præcis ét signal.');
+    if (s && !t) step2.push(`${s.id}: vælg et kommando-tag.`);
+    if (t && !t.writable) step2.push(`${s.id}: ${t.name} er ikke skrivbart.`);
+    if (t && K === 'pulse' && t.kind !== 'coil') step2.push('En trykknap kræver et til/fra-tag.');
+    if (t && K === 'entry' && t.kind !== 'reg') step2.push('Et setpunkt kræver et tal-tag (register).');
+    if (K === 'pulse' && !(Number(c.pulseMs) >= 100 && Number(c.pulseMs) <= 10000)) step5.push('Pulslængde skal være 100–10000 ms.');
+  }
   if (P) {
     const labels = c.positions.map((p) => p.label.trim());
     if (!c.signals.length) step2.push('Tilføj mindst ét signal.');
@@ -577,7 +623,7 @@ function validate(c) {
     if (c.planes.length && !readable.length) step5.push('Mindst ét plan skal styre et signal der sættes (ikke puls), ellers kan positionen ikke aflæses.');
     if (!(c.validateS >= 1 && c.validateS <= 120)) step4.push('Valideringstid skal være 1–120 s.');
   }
-  if (!c.anims.length && !P) step4.push('Et visningssymbol skal have mindst én animation.');
+  if (!c.anims.length && K === 'view') step4.push('Et visningssymbol skal have mindst én animation.');
   c.anims.forEach((a, i) => {
     const nm = `Animation ${i + 1}`, kind = srcKind(a.src);
     if (!a.src) { step4.push(`${nm}: vælg hvad der styrer den.`); return; }
@@ -590,14 +636,15 @@ function validate(c) {
     if (['blink', 'visible', 'spin'].includes(a.type) && kind === 'num' && !Number.isFinite(Number(a.p.v))) step4.push(`${nm}: grænsen skal være et tal.`);
     if (a.type === 'level' && !(Number(a.p.max) > Number(a.p.min))) step4.push(`${nm}: max skal være større end min.`);
     if (a.type === 'level' && kind !== 'num') step4.push(`${nm}: niveau kræver et tal-tag.`);
-    if (!typesFor(c, a.part).includes(a.type)) step4.push(`${nm}: ${ATYPES[a.type].toLowerCase()} kan ikke bruges på ${LIB[c.type].parts[a.part]?.toLowerCase()}.`);
+    if ((a.type === 'turn' || a.type === 'move') && kind === 'num' && !(Number(a.p.max) > Number(a.p.min))) step4.push(`${nm}: max skal være større end min.`);
+    if (!typesFor(c, a.part).includes(a.type)) step4.push(`${nm}: ${ATYPES[a.type].toLowerCase()} kan ikke bruges på ${libOf(c).parts[a.part]?.toLowerCase()}.`);
     if (a.only && !a.only.some(Boolean)) W.push(`${nm} gælder ikke i nogen position.`);
   });
   return { step2, step3, step4, step5, warnings: W, count: step2.length + step3.length + step4.length + step5.length };
 }
 
 // ===================================================================== guide
-function stepSkipped(c, i) { return !hasPos(c) && (i === 1 || i === 2 || i === 4); }
+function stepSkipped(c, i) { const K = opKind(c); return (K === 'view' && (i === 1 || i === 2 || i === 4)) || ((K === 'pulse' || K === 'entry') && i === 2); }
 function stepsBar(c, v) {
   const err = [0, v.step2.length, v.step3.length, v.step4.length, v.step5.length, 0];
   return `<ol class="steps">${STEPS.map((s, i) => `<li><button data-action="step" data-i="${i}" class="${i === step ? 'current' : i < step ? 'done' : ''} ${stepSkipped(c, i) ? 'skip' : ''}" aria-current="${i === step ? 'step' : 'false'}">${i < step && !stepSkipped(c, i) ? '✓ ' : ''}${i + 1} ${s}${err[i] ? '<span class="dot" aria-label="har fejl"></span>' : ''}</button></li>`).join('')}</ol>`;
@@ -611,42 +658,45 @@ function activeAt(c, j) {
     return sigKind(s) === 'coil' ? (Number(p.values[j]) === 1 ? s.id : null) : `${s.id}=${p.values[j]}`; }).filter(Boolean);
 }
 function renderSymList() {
-  document.getElementById('symlist').innerHTML = `<div class="symlist">${symbols.map((c) => `<button data-action="pick-sym" data-id="${c.id}" class="${c === cur && !newType ? 'sel' : ''}">${drawSymbol(c, { grip: hasPos(c) ? c.local.chosen : null, size: 40, styles: evalAnims(c, hasPos(c) ? c.local.chosen : null) })}<span><span class="nm">${esc(c.name)}</span><span class="tp">${LIB[c.type].label}${c.saved ? ' · gemt' : ''}</span></span></button>`).join('')}
+  document.getElementById('symlist').innerHTML = `<div class="symlist">${symbols.map((c) => `<button data-action="pick-sym" data-id="${c.id}" class="${c === cur && !newType ? 'sel' : ''}">${drawSymbol(c, { grip: hasPos(c) ? c.local.chosen : null, size: 40, styles: evalAnims(c, hasPos(c) ? c.local.chosen : null) })}<span><span class="nm">${esc(c.name)}</span><span class="tp">${libOf(c).label}${c.saved ? ' · gemt' : ''}</span></span></button>`).join('')}
     <button class="ghost" data-action="new-sym" style="justify-content: center">+ Nyt symbol fra biblioteket</button></div>`;
 }
 function renderNewSym() {
   document.getElementById('guidepanel').innerHTML = `
     <div class="panel-head"><h2 id="g-title">Nyt symbol · vælg fra biblioteket</h2><span class="small muted">Alle symboler konfigureres med den samme guide. Symboler med positioner kan betjenes; de andre viser kun.</span></div>
     <div class="panel-body"><div class="libgrid">${Object.entries(LIB).map(([k, L]) => { const demo = newSymbol(k, L.label); return `<button data-action="lib" data-t="${k}" class="${newType === k ? 'sel' : ''}">${drawSymbol(demo, { grip: L.positions ? 0 : null, size: 70 })}<b>${L.label}</b><span class="small muted">${L.positions ? `${L.positions.length} positioner` : 'kun visning'}</span></button>`; }).join('')}</div>
-      <label class="field" for="nsname" style="max-width: 24rem">Navn<input id="nsname" placeholder="fx Pumpe P2"></label></div>
+      <label class="field" for="nsname" style="max-width: 24rem">Navn<input id="nsname" placeholder="fx Pumpe P2"></label>
+      <div><button class="ghost" data-action="goto-lib">Se symbolbiblioteket i dag (${Object.keys(IMPDEF).length} symboler) ›</button></div></div>
     <div class="panel-foot"><button data-action="cancel-new">Annullér</button><button class="primary" data-action="create-sym" ${newType ? '' : 'disabled'}>Opret og konfigurér ›</button></div>`;
 }
 function stepBody(c, v) {
-  const P = hasPos(c), L = LIB[c.type];
+  const P = hasPos(c), L = libOf(c), K = opKind(c), S0 = c.signals[0], T0 = tag(S0?.tag);
   if (step === 0) return `
     <div class="split">
       <div class="symbtn" style="flex: 0 0 auto">${drawSymbol(c, { grip: P ? c.local.chosen : null, size: 150, styles: evalAnims(c, P ? c.local.chosen : null) })}</div>
       <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: .8rem">
         <label class="field" for="f-name">Symbolets navn (vises på Overview og i audit-loggen)<input id="f-name" data-bind="name" value="${esc(c.name)}"></label>
-        <div class="box"><b>${L.label}</b> · ${P ? `${c.positions.length} positioner — kan betjenes` : 'kun visning'}
-          <div class="small muted">Dele til animationer: ${Object.values(L.parts).join(', ')}.${P ? ' Trin 2: signaler. Trin 3: kontaktplaner der tildeler signalerne til positionerne.' : ' Trin 2, 3 og 5 springes over — animationerne bindes direkte til tags i trin 4.'}</div></div>
+        <div class="box"><b>${L.label}</b> · ${P ? `${c.positions.length} positioner — kan betjenes` : K === 'view' ? 'kun visning' : `${KIND_TXT[K].toLowerCase()} — kan betjenes`}
+          <div class="small muted">Dele til animationer: ${Object.values(L.parts).join(', ')}.${P ? ' Trin 2: signaler. Trin 3: kontaktplaner der tildeler signalerne til positionerne.' : K === 'view' ? ' Trin 2, 3 og 5 springes over — animationerne bindes direkte til tags i trin 4.' : ' Trin 2: vælg tagget. Trin 3 (kontaktplaner) springes over.'}</div></div>
+        ${c.type === 'imp' ? `<label class="field" for="f-op" style="max-width: 22rem">Betjening<select id="f-op" data-bind="op">${Object.entries(KIND_TXT).map(([k, t]) => `<option value="${k}" ${K === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+        <details class="small"><summary>Importeret fra symbolbiblioteket i dag (${esc(IMPDEF[c.imp].def.id)})</summary><ul style="margin: .3rem 0 0; padding-left: 1.1rem">${IMPDEF[c.imp].notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></details>` : ''}
         ${c.type === 'selector' ? '<div class="row"><button data-action="preset">Indlæs eksempel: 7-trins vælger, dec → bin</button><span class="small muted">3 planer, 3 signaler</span></div>' : ''}
         <div class="row"><button data-action="del-sym" ${symbols.length < 2 ? 'disabled' : ''}>Slet symbol</button></div>
       </div>
     </div>`;
   if (stepSkipped(c, step)) return `<div class="box">${L.label} har ingen positioner, så "${STEPS[step]}" bruges ikke. Gå til <button data-action="step" data-i="3">4 Visning</button></div>`;
   if (step === 1) return `
-    <p class="muted small" style="margin: 0">De signaler symbolet skal bruge for at sætte og aflæse sine positioner. Hvilke signaler der er aktive i hvilken position, bestemmes i trin 3. Tilbagemelding er valgfri — tom betyder at signalets eget tag læses tilbage.</p>
+    <p class="muted small" style="margin: 0">${K === 'pulse' ? 'Trykknappen sender en puls på ét til/fra-tag.' : K === 'entry' ? 'Setpunktet skriver den indtastede værdi til ét tal-tag.' : ''} De signaler symbolet skal bruge for at sætte og aflæse sine positioner. Hvilke signaler der er aktive i hvilken position, bestemmes i trin 3. Tilbagemelding er valgfri — tom betyder at signalets eget tag læses tilbage.</p>
     <div class="sigs">
       <span class="small muted hdr">Signal</span><span class="small muted hdr">Kommando (skrivbart tag)</span><span class="small muted hdr">Tilbagemelding</span><span class="small muted hdr">Bruges af</span><span class="hdr"></span>
       ${c.signals.map((s, i) => { const kind = sigKind(s), used = usedBy(c, s);
         return `<span class="lbl">${s.id}</span>
-        <label class="field" for="st-${s.id}"><span style="${hide}">${s.id} kommando</span><select id="st-${s.id}" data-bind="sig-tag" data-i="${i}">${tagOptions(s.tag, (t) => t.writable, s.tag ? '' : '— vælg tag —')}</select></label>
+        <label class="field" for="st-${s.id}"><span style="${hide}">${s.id} kommando</span><select id="st-${s.id}" data-bind="sig-tag" data-i="${i}">${tagOptions(s.tag, (t) => t.writable && (K === 'pulse' ? t.kind === 'coil' : K === 'entry' ? t.kind === 'reg' : true), s.tag ? '' : '— vælg tag —')}</select></label>
         <label class="field" for="sf-${s.id}"><span style="${hide}">${s.id} tilbagemelding</span><select id="sf-${s.id}" data-bind="sig-fb" data-i="${i}">${tagOptions(s.fb, (t) => !kind || t.kind === kind, '— samme som kommando —')}</select></label>
-        <span class="small ${used.length ? '' : 'ck-warn'}" style="padding-bottom: .45rem">${used.length ? used.map((x) => `Plan ${x + 1}`).join(', ') : 'ikke brugt endnu'}</span>
+        <span class="small ${used.length || !P ? '' : 'ck-warn'}" style="padding-bottom: .45rem">${!P ? esc(KIND_TXT[K]) : used.length ? used.map((x) => `Plan ${x + 1}`).join(', ') : 'ikke brugt endnu'}</span>
         <button data-action="del-sig" data-i="${i}" aria-label="Fjern ${s.id}">✕</button>`; }).join('')}
     </div>
-    <div><button class="ghost" data-action="add-sig" ${c.signals.length >= 16 ? 'disabled' : ''}>+ Tilføj signal (${c.signals.length} af 16)</button></div>
+    <div><button class="ghost" data-action="add-sig" ${c.signals.length >= (P ? 16 : 1) ? 'disabled' : ''}>+ Tilføj signal (${c.signals.length} af 16)</button></div>
     <label class="field" for="f-fault" style="max-width: 32rem">Fejl/låst (valgfri) — blokerer betjening<select id="f-fault" data-bind="fault">${tagOptions(c.fault, (t) => t.kind === 'coil', '— ingen —')}</select></label>
     <div class="checks">${v.step2.length ? listMsgs(v.step2, 'ck-err') : '<div class="ck-ok">✓ Alle signaler har et skrivbart kommando-tag</div>'}</div>`;
   if (step === 2) return `
@@ -687,7 +737,7 @@ function stepBody(c, v) {
         </fieldset>
         <div class="row" style="gap: 1rem">
           <label class="field" for="f-val">Valideringstid (s)<input id="f-val" data-bind="validateS" type="number" min="1" max="120" value="${c.validateS}" style="width: 6rem"></label>
-          <label class="check" for="f-alarm"><input id="f-alarm" type="checkbox" data-bind="alarm" ${c.alarm ? 'checked' : ''}>Afvigelse giver alarm (medium)</label>
+          <label class="field" for="f-alarm">Afvigelse giver alarm<select id="f-alarm" data-bind="alarm">${Object.entries(ALARM_TXT).map(([k, t]) => `<option value="${k}" ${(c.alarm || '') === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
         </div>
         ${L.angles ? `<div class="field">Grebets vinkel pr. position (grader)<div class="row">${c.positions.map((p, j) => `<label class="field" for="pa-${j}">${esc(p.label)}<input id="pa-${j}" type="number" min="-150" max="150" data-bind="pos-angle" data-j="${j}" value="${p.angle}" style="width: 5.5rem"></label>`).join('')}</div></div>` : ''}
       </div>
@@ -702,6 +752,13 @@ function stepBody(c, v) {
       <p class="small muted" style="margin: 0">Flere animationer på samme symbol. Hver virker på én del og kan styres af ${P ? 'symbolets position eller ' : ''}et hvilket som helst tag${P ? ', og kan begrænses til bestemte positioner' : ''}.</p>
       ${animUI(c)}
     </div>`;
+  if (step === 4 && K === 'pulse') return `
+    <label class="check" for="f-confirm"><input id="f-confirm" type="checkbox" data-bind="confirm" ${c.confirm ? 'checked' : ''}>Operatøren skal bekræfte pulsen</label>
+    <label class="field" for="f-pms" style="max-width: 12rem">Pulslængde (ms)<input id="f-pms" type="number" min="100" max="10000" data-bind="pulse-ms" value="${esc(c.pulseMs)}" class="${v.step5.length ? 'bad' : ''}"></label>
+    <div class="checks">${v.step5.length ? listMsgs(v.step5, 'ck-err') : '<div class="ck-ok">✓ Pulsen er gyldig</div>'}</div>
+    <p class="small muted" style="margin: 0">Tagget sættes til 1 og efter pulslængden tilbage til 0 — serveren nulstiller, også hvis browseren lukkes. Alle tryk logges i audit-loggen.</p>`;
+  if (step === 4 && K === 'entry') return `
+    <p class="small muted" style="margin: 0">Et klik på symbolet åbner et indtastningsfelt. Værdien tjekkes mod tagets område (${T0 ? esc(rangeText(T0)) : 'intet tag valgt'}) i backend, og skrivningen læses tilbage.</p>`;
   if (step === 4) return `
     <label class="check" for="f-confirm"><input id="f-confirm" type="checkbox" data-bind="confirm" ${c.confirm ? 'checked' : ''}>Operatøren skal bekræfte valget</label>
     <p class="small muted" style="margin: 0">${c.confirm ? 'Til: et klik på symbolet åbner en dialog, og skiftet sker først når operatøren trykker "Skift til …".' : (c.positions.length === 2 ? 'Fra: et klik på symbolet skifter straks til den anden position.' : 'Fra: et klik på symbolet viser positionerne, og et klik på en position skifter straks.')} Alle skift logges i audit-loggen uanset valget.</p>
@@ -735,13 +792,15 @@ function stepBody(c, v) {
         <h3 style="margin-bottom: .6rem">Gemmes som</h3>
         <dl class="sum">
           <dt>Symbol</dt><dd>${esc(c.name)} · ${L.label}</dd>
+          ${K === 'pulse' || K === 'entry' ? `<dt>Betjening</dt><dd>${K === 'pulse' ? `Puls ${esc(c.pulseMs)} ms på ${esc(S0?.tag || '—')}${c.confirm ? ', bekræftes' : ''}` : `Indtastning til ${esc(S0?.tag || '—')}`}</dd>
+          <dt>Fejl/låst</dt><dd>${c.fault ? esc(c.fault) + ' blokerer betjening' : 'Ingen'}</dd>` : ''}
           ${P ? `<dt>Positioner</dt><dd>${c.positions.map((p) => esc(p.label)).join(' · ')}</dd>
           <dt>Signaler</dt><dd>${c.signals.length} · ${c.planes.length} kontaktplan${c.planes.length === 1 ? '' : 'er'}</dd>
           <dt>Positionen følger</dt><dd>${c.display === 'local' ? `Lokal, valideres efter ${c.validateS} s` : 'Remote (PLC)'}</dd>
           <dt>Betjening</dt><dd>${c.confirm ? 'Bekræftes' : 'Uden bekræftelse'}${c.signals.filter((s) => s.write === 'pulse').map((s) => ` · ${esc(s.id)} puls ${esc(s.ms)} ms, hvile ${esc(s.rest || '?')}`).join('')}</dd>
           <dt>Nøglelås</dt><dd>${c.lock.positions.some(Boolean) ? `${c.positions.filter((_, j) => c.lock.positions[j]).map((p) => esc(p.label)).join(', ')} kræver kode${c.lock.leave ? ' (også for at forlade)' : ''}` : 'Ingen'}</dd>
           <dt>Fejl/låst</dt><dd>${c.fault ? esc(c.fault) + ' blokerer betjening' : 'Ingen'}</dd>` : ''}
-          <dt>Animationer</dt><dd>${c.anims.length ? c.anims.map((a) => `${L.parts[a.part]}: ${ATYPES[a.type].toLowerCase()} ← ${a.src === '@pos' ? 'position' : esc(a.src)}${a.only && !a.only.every(Boolean) ? ` (kun ${c.positions.filter((_, j) => a.only[j]).map((p) => esc(p.label)).join(', ')})` : ''}`).join('<br>') : 'Ingen'}</dd>
+          <dt>Animationer</dt><dd>${c.anims.length ? c.anims.map((a) => `${L.parts[a.part]}: ${ATYPES[a.type].toLowerCase()}${a.type === 'blink' ? ` ${BLINK_TXT[a.p.speed || 'normal'].split(' ')[0].toLowerCase()}` : ''} ← ${a.src === '@pos' ? 'position' : esc(a.src)}${a.only && !a.only.every(Boolean) ? ` (kun ${c.positions.filter((_, j) => a.only[j]).map((p) => esc(p.label)).join(', ')})` : ''}`).join('<br>') : 'Ingen'}</dd>
         </dl>
       </div>
     </div>`;
@@ -750,10 +809,20 @@ function animParams(c, a, i) {
   const kind = srcKind(a.src), Lb = (j) => esc(c.positions[j]?.label);
   if (!a.src) return '<span class="muted">Vælg først hvad der styrer animationen.</span>';
   const color = (bind, val, label, k = '') => `<label>${label}<input type="color" id="ac-${bind}-${i}-${k}" data-bind="${bind}" data-i="${i}" data-k="${k}" value="${esc(val)}" aria-label="${label || 'farve'}"></label>`;
+  if (a.type === 'turn') {
+    if (kind === 'pos') return '<span>vinkel pr. position:</span>' + c.positions.map((_, j) => `<label>${Lb(j)}<input type="number" id="apa-${i}-${j}" data-bind="anim-pa" data-i="${i}" data-k="${j}" value="${esc(a.p.pa?.[j] ?? 0)}">°</label>`).join('');
+    if (kind === 'bool') return `<label>Fra<input type="number" id="aa0-${i}" data-bind="anim-a0" data-i="${i}" value="${esc(a.p.a0)}">°</label><label>Til<input type="number" id="aa1-${i}" data-bind="anim-a1" data-i="${i}" value="${esc(a.p.a1)}">°</label>`;
+    return `<label>min<input type="number" id="alo-${i}" data-bind="anim-min" data-i="${i}" value="${esc(a.p.min)}"></label><label>max<input type="number" id="ahi-${i}" data-bind="anim-max" data-i="${i}" value="${esc(a.p.max)}"></label><label>vinkel ved min<input type="number" id="aa0-${i}" data-bind="anim-a0" data-i="${i}" value="${esc(a.p.a0)}">°</label><label>ved max<input type="number" id="aa1-${i}" data-bind="anim-a1" data-i="${i}" value="${esc(a.p.a1)}">°</label><span class="muted">drejer om delens centrum</span>`;
+  }
+  if (a.type === 'move') {
+    if (kind === 'pos') return '<span>forskydning pr. position (dx, dy):</span>' + c.positions.map((_, j) => `<label>${Lb(j)}<input type="number" id="apx-${i}-${j}" data-bind="anim-pdx" data-i="${i}" data-k="${j}" value="${esc(a.p.pdx?.[j] ?? 0)}" aria-label="${Lb(j)} dx"><input type="number" id="apy-${i}-${j}" data-bind="anim-pdy" data-i="${i}" data-k="${j}" value="${esc(a.p.pdy?.[j] ?? 0)}" aria-label="${Lb(j)} dy"></label>`).join('');
+    const mm = kind === 'num' ? `<label>min<input type="number" id="alo-${i}" data-bind="anim-min" data-i="${i}" value="${esc(a.p.min)}"></label><label>max<input type="number" id="ahi-${i}" data-bind="anim-max" data-i="${i}" value="${esc(a.p.max)}"></label>` : '';
+    return `${mm}<label>${kind === 'bool' ? 'Til:' : 'ved max:'} dx<input type="number" id="adx-${i}" data-bind="anim-dx" data-i="${i}" value="${esc(a.p.dx)}"></label><label>dy<input type="number" id="ady-${i}" data-bind="anim-dy" data-i="${i}" value="${esc(a.p.dy)}"></label><span class="muted">${kind === 'bool' ? 'Fra = på plads' : 'på plads ved min'}</span>`;
+  }
   if (a.type === 'level') return `<label>min<input type="number" id="alo-${i}" data-bind="anim-min" data-i="${i}" value="${esc(a.p.min)}"></label><label>max<input type="number" id="ahi-${i}" data-bind="anim-max" data-i="${i}" value="${esc(a.p.max)}"></label><span class="muted">tom ved min, fuld ved max</span>`;
   if (a.type === 'value') return kind === 'num' ? `<label>enhed<input id="au-${i}" data-bind="anim-unit" data-i="${i}" value="${esc(a.p.unit)}" style="width: 5rem"></label><label>decimaler<input type="number" id="ad-${i}" data-bind="anim-dec" data-i="${i}" value="${esc(a.p.dec)}" min="0" max="3"></label>` : `<span class="muted">${kind === 'pos' ? 'viser positionens navn' : 'viser Til/Fra'}</span>`;
   if (a.type === 'color') {
-    if (kind === 'bool') return color('anim-on', a.p.on, 'Til') + color('anim-off', a.p.off, 'Fra');
+    if (kind === 'bool') return color('anim-on', a.p.on, 'Til') + (a.p.off ? color('anim-off', a.p.off, 'Fra') : '<span>Fra</span>') + `<label class="check"><input type="checkbox" id="aof-${i}" data-bind="anim-off-orig" data-i="${i}" ${a.p.off ? '' : 'checked'}>${a.p.off ? 'brug symbolets egen farve' : 'symbolets egen farve'}</label>`;
     if (kind === 'num') return (a.p.th ||= []).map((t, k) => `<label>≥<input type="number" id="atv-${i}-${k}" data-bind="anim-thv" data-i="${i}" data-k="${k}" value="${esc(t.v)}" aria-label="Grænse ${k + 1}"></label>${color('anim-thc', t.c, '', k)}<button class="small" data-action="anim-th-del" data-i="${i}" data-k="${k}" aria-label="Fjern grænse ${k + 1}" ${a.p.th.length < 2 ? 'disabled' : ''}>✕</button>`).join('<span class="muted">·</span>')
       + `<button class="ghost small" data-action="anim-th-add" data-i="${i}" ${a.p.th.length >= 5 ? 'disabled' : ''}>+ grænse</button>` + color('anim-def', a.p.def, 'ellers');
     return c.positions.map((_, j) => color('anim-pc', a.p.colors?.[j] || '#e4e4e4', Lb(j), j)).join('');
@@ -769,7 +838,7 @@ function animSrcOptions(c, sel, type) {
     + TAGS.filter((t) => !numOnly || t.kind === 'reg').map((t) => `<option value="${t.name}" ${t.name === sel ? 'selected' : ''}>${t.name} · ${t.src} · ${t.kind === 'coil' ? 'til/fra' : 'tal'}</option>`).join('');
 }
 function animUI(c) {
-  const L = LIB[c.type], P = hasPos(c);
+  const L = libOf(c), P = hasPos(c);
   return `<div class="anims">${c.anims.map((a, i) => `<div class="anim">
     <div class="head"><span class="no">${i + 1}</span>
       <label for="apart-${i}" style="${hide}">Del</label><select id="apart-${i}" data-bind="anim-part" data-i="${i}">${Object.entries(L.parts).map(([k, v]) => `<option value="${k}" ${k === a.part ? 'selected' : ''}>${v}</option>`).join('')}</select>
@@ -777,7 +846,7 @@ function animUI(c) {
       <span class="small muted">styres af</span>
       <label for="asrc-${i}" style="${hide}">Styres af</label><select id="asrc-${i}" data-bind="anim-src" data-i="${i}" style="max-width: 18rem">${animSrcOptions(c, a.src, a.type)}</select>
       <span style="margin-left: auto; display: inline-flex; gap: .3rem"><button class="small" data-action="anim-up" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Flyt op">▲</button><button class="small" data-action="anim-down" data-i="${i}" ${i === c.anims.length - 1 ? 'disabled' : ''} aria-label="Flyt ned">▼</button><button class="small" data-action="anim-del" data-i="${i}" aria-label="Fjern animation ${i + 1}">✕</button></span></div>
-    <div class="params">${animParams(c, a, i)}</div>
+    <div class="params">${animParams(c, a, i)}${a.type === 'blink' && a.src ? `<label>frekvens<select id="abs-${i}" data-bind="anim-speed" data-i="${i}">${Object.entries(BLINK_TXT).map(([k, t]) => `<option value="${k}" ${(a.p.speed || 'normal') === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>` : ''}</div>
     ${P ? `<div class="params"><span class="muted">Gælder i positionerne:</span>${c.positions.map((p, j) => `<label class="check"><input type="checkbox" id="ao-${i}-${j}" data-bind="anim-only" data-i="${i}" data-k="${j}" ${!a.only || a.only[j] ? 'checked' : ''}>${esc(p.label)}</label>`).join('')}${a.only && !a.only.some(Boolean) ? '<span class="ck-warn">! ingen positioner valgt</span>' : ''}</div>` : ''}</div>`).join('')}
     <div><button class="ghost" data-action="anim-add" ${c.anims.length >= 12 ? 'disabled' : ''}>+ Tilføj animation</button> <span class="small muted">Står to animationer på samme del, vinder den nederste.</span></div></div>`;
 }
@@ -785,7 +854,7 @@ function renderLive6() {
   const el = document.getElementById('live6'); if (!el) return;
   const c = cur;
   if (!hasPos(c)) {
-    const names = [...new Set(c.anims.map((a) => a.src).filter((n) => n && n !== '@pos'))];
+    const names = [...new Set([...c.signals.map((s) => rk(s)), ...c.anims.map((a) => a.src)].filter((n) => n && n !== '@pos'))];
     el.innerHTML = `<div class="tablebox"><table><thead><tr><th scope="col">Tag</th><th scope="col">Værdi</th></tr></thead><tbody>${names.map((n) => `<tr><th scope="row" style="font-weight: 400">${esc(n)} <span class="sub">${esc(tag(n)?.src)}</span></th><td class="mono">${sim.comm ? '<span class="ck-err">komm.fejl</span>' : esc(Math.round(Number(tagValue(n)) * 10) / 10)}</td></tr>`).join('')}</tbody></table></div>`;
     return;
   }
@@ -803,7 +872,7 @@ function renderGuide() {
   const c = cur, v = validate(c);
   document.getElementById('guidepanel').innerHTML = `
     <div class="panel-head">
-      <div class="row" style="justify-content: space-between"><h2 id="g-title">Konfigurér ${esc(c.name)}</h2><span class="small muted">${LIB[c.type].label} · ${c.saved ? 'gemt' : 'intet gemmes før trin 6'}</span></div>
+      <div class="row" style="justify-content: space-between"><h2 id="g-title">Konfigurér ${esc(c.name)}</h2><span class="small muted">${libOf(c).label} · ${c.saved ? 'gemt' : 'intet gemmes før trin 6'}</span></div>
       ${stepsBar(c, v)}
     </div>
     <div class="panel-body">${stepBody(c, v)}</div>
@@ -816,6 +885,23 @@ function renderGuide() {
 function nextStep(c, dir) { let s = step + dir; while (s > 0 && s < 5 && stepSkipped(c, s)) s += dir; return Math.max(0, Math.min(5, s)); }
 
 // ===================================================================== Overview
+// Opdatér en tegnet SVG på stedet når kun attributter/tekst har ændret sig — så CSS-transitions (Flyt/Drej)
+// glider og blink ikke genstartes. Ændrer strukturen sig, tegnes den forfra.
+function morph(holder, html) {
+  if (holder.dataset.html === html) return;
+  holder.dataset.html = html;
+  const tpl = document.createElement('template'); tpl.innerHTML = html;
+  const nu = tpl.content.firstElementChild, old = holder.firstElementChild;
+  const shape = (el) => [el, ...el.querySelectorAll('*')].map((e) => e.tagName).join(',');
+  if (!old || !nu || shape(old) !== shape(nu)) { holder.innerHTML = html; return; }
+  const a = [old, ...old.querySelectorAll('*')], b = [nu, ...nu.querySelectorAll('*')];
+  a.forEach((o, i) => {
+    const n = b[i];
+    [...o.attributes].forEach((at) => { if (!n.hasAttribute(at.name)) o.removeAttribute(at.name); });
+    [...n.attributes].forEach((at) => { if (o.getAttribute(at.name) !== at.value) o.setAttribute(at.name, at.value); });
+    if (!n.children.length && o.textContent !== n.textContent) o.textContent = n.textContent;
+  });
+}
 function renderOv() {
   document.getElementById('ov').innerHTML = `
   <div class="split">
@@ -856,9 +942,8 @@ function renderOvLive() {
   symbols.forEach((c) => {
     const b = document.getElementById(`ovs-${c.id}`), { st, html } = liveSymbol(c, 120);
     b.classList.toggle('sel', c.id === ovSel);
-    const holder = b.querySelector('.svg');
-    if (holder.dataset.html !== html) { holder.innerHTML = html; holder.dataset.html = html; }
-    const chip = `<span class="state-chip ${st.s === 'view' ? 'unknown' : st.s}">${st.s === 'view' ? 'visning' : GLYPH[st.s] + ' ' + STATE_TXT[st.s]}</span>`;
+    morph(b.querySelector('.svg'), html);
+    const chip = `<span class="state-chip ${st.s === 'view' ? 'unknown' : st.s}">${st.s === 'view' ? { view: 'visning', pulse: 'trykknap', entry: 'setpunkt' }[opKind(c)] : GLYPH[st.s] + ' ' + STATE_TXT[st.s]}</span>`;
     const ch = b.querySelector('.chip'); if (ch.innerHTML !== chip) ch.innerHTML = chip;
   });
   const c = symbols.find((x) => x.id === ovSel), st = status(c);
@@ -871,14 +956,22 @@ function renderOvLive() {
       <div class="small"><span class="muted">Valgt:</span> <b>${esc(posName(c, c.local.chosen))}</b> <span class="muted">af ${esc(c.local.by)} ${fmtT(c.local.at)}</span> · <span class="muted">PLC viser:</span> <b>${sim.comm ? 'ukendt (komm.fejl)' : esc(posName(c, st.r))}</b></div>
       ${c.fault && Number(tagValue(c.fault)) ? `<div class="small ck-err">${esc(c.fault)} er aktiv — betjening er blokeret.</div>` : ''}
       <div class="row"><button class="primary" data-action="open-dialog">Betjen ${esc(c.name)}…</button><span class="small muted">${c.confirm ? 'med bekræftelse' : 'uden bekræftelse'} · klik også direkte på symbolet</span></div></div>`;
+  } else if (opKind(c) !== 'view') {
+    const s0 = c.signals[0];
+    det.innerHTML = `<div class="box" style="display: flex; flex-direction: column; gap: .35rem">
+      <div class="row" style="justify-content: space-between"><b>${esc(c.name)}</b><span class="small muted">${KIND_TXT[opKind(c)]}</span></div>
+      <div class="small"><span class="muted">${esc(s0?.tag || 'intet tag')}:</span> <b>${sim.comm ? 'ukendt (komm.fejl)' : esc(s0 ? tagValue(rk(s0)) : '—')}</b></div>
+      ${c.fault && Number(tagValue(c.fault)) ? `<div class="small ck-err">${esc(c.fault)} er aktiv — betjening er blokeret.</div>` : ''}
+      <div class="row"><button class="primary" data-action="open-dialog">Betjen ${esc(c.name)}…</button><span class="small muted">klik også direkte på symbolet</span></div></div>`;
   } else {
     const names = [...new Set(c.anims.map((a) => a.src).filter((n) => n && n !== '@pos'))];
     det.innerHTML = `<div class="box small"><b>${esc(c.name)}</b> · kun visning · ${names.map((n) => `${esc(n)} = ${sim.comm ? '?' : esc(Math.round(Number(tagValue(n)) * 10) / 10)}`).join(' · ')}</div>`;
   }
   document.getElementById('log').innerHTML = sim.log.length ? sim.log.map((l) => `<div><span class="t">${fmtT(l.t)}</span> ${esc(l.text)}</div>`).join('') : '<span class="muted">Ingen skrivninger endnu</span>';
-  const rows = symbols.filter((x) => x.display === 'local' && x.alarm && status(x).s === 'mismatch');
+  const rows = symbols.filter((x) => x.display === 'local' && x.alarm && status(x).s === 'mismatch')
+    .sort((p, q) => ALARM_ORDER[p.alarm] - ALARM_ORDER[q.alarm]);
   const al = document.getElementById('alarms');
-  const alHtml = rows.length ? rows.map((x) => { const r = status(x).r; return `<div class="alarmrow"><span class="prio">MEDIUM</span><span style="flex: 1 1 240px">${esc(x.name)}: valgt ${esc(posName(x, x.local.chosen))}, PLC viser ${esc(posName(x, r))}</span><button data-action="accept" data-id="${x.id}" ${r == null ? 'disabled' : ''}>${r == null ? 'PLC viser ingen position' : `Acceptér ${esc(posName(x, r))}`}</button></div>`; }).join('') : '<span class="muted small">Ingen aktive alarmer</span>';
+  const alHtml = rows.length ? rows.map((x) => { const r = status(x).r; return `<div class="alarmrow"><span class="prio ${x.alarm}">${ALARM_LBL[x.alarm]}</span><span style="flex: 1 1 240px">${esc(x.name)}: valgt ${esc(posName(x, x.local.chosen))}, PLC viser ${esc(posName(x, r))}</span><button data-action="accept" data-id="${x.id}" ${r == null ? 'disabled' : ''}>${r == null ? 'PLC viser ingen position' : `Acceptér ${esc(posName(x, r))}`}</button></div>`; }).join('') : '<span class="muted small">Ingen aktive alarmer</span>';
   if (al.dataset.html !== alHtml) { al.innerHTML = alHtml; al.dataset.html = alHtml; }
   renderDialog();
 }
@@ -886,6 +979,20 @@ function renderDialog() {
   const el = document.getElementById('dialog'); if (!el) return;
   const c = symbols.find((x) => x.id === dialog.sym);
   if (!dialog.open || !c) { el.dataset.rendered = ''; el.innerHTML = dialog.msg ? `<div class="box err small">${esc(dialog.msg)}</div>` : ''; return; }
+  const DK = opKind(c);
+  if (DK === 'pulse' || DK === 'entry') {
+    const dkey = `${c.id}:${DK}:${dialog.err || ''}`;
+    if (el.dataset.rendered === dkey) return;
+    el.dataset.rendered = dkey;
+    const s0 = c.signals[0], t0 = tag(s0?.tag);
+    el.innerHTML = `<div class="box" role="dialog" aria-labelledby="dlg-t" style="display: flex; flex-direction: column; gap: .7rem; max-width: 36rem">
+      <div class="row" style="justify-content: space-between"><b id="dlg-t">${esc(c.name)} · ${DK === 'pulse' ? 'trykknap' : 'ny værdi'}</b><button data-action="close-dialog" aria-label="Luk">✕</button></div>
+      ${DK === 'pulse' ? `<div class="small">Sender en puls på <b>${esc(s0?.tag || '—')}</b> (${esc(c.pulseMs)} ms).</div>`
+        : `<div class="small">Nu: <b>${esc(s0 ? tagValue(rk(s0)) : '—')}</b> <span class="muted">${t0 ? esc(rangeText(t0)) : ''}</span></div>
+      <div class="pinrow"><label class="field" for="entry">Ny værdi<input id="entry" type="number" step="any" ${t0 ? `min="${range(t0)[0]}" max="${range(t0)[1]}"` : ''} value="${esc(dialog.entry || '')}" style="width: 9rem; letter-spacing: normal; text-align: left"></label>${dialog.err ? `<span class="ck-err small">${esc(dialog.err)}</span>` : ''}</div>`}
+      <div class="row" style="justify-content: flex-end"><button data-action="close-dialog">Annullér</button><button class="primary" data-action="do-operate">${DK === 'pulse' ? 'Tryk' : 'Skriv'}</button></div></div>`;
+    return;
+  }
   const key = `${c.id}:${dialog.pick}:${dialog.pinErr || ''}`;
   if (el.dataset.rendered === key) return;
   const st = status(c), k = dialog.pick, writes = k == null ? [] : plannedWrites(c, k);
@@ -935,6 +1042,7 @@ function structural(c) {
     if (a.p.colors) { a.p.colors.length = n; for (let j = 0; j < n; j++) a.p.colors[j] ||= '#e4e4e4'; }
     if (a.p.set) { a.p.set.length = n; for (let j = 0; j < n; j++) a.p.set[j] = !!a.p.set[j]; }
     if (a.only) { const len = a.only.length; a.only.length = n; for (let j = len; j < n; j++) a.only[j] = true; }
+    for (const key of ['pa', 'pdx', 'pdy']) if (a.p[key]) { a.p[key].length = n; for (let j = 0; j < n; j++) a.p[key][j] ??= 0; }
   });
   resetSim(c);
 }
@@ -944,9 +1052,11 @@ function setTab(t) {
   tab = t;
   document.getElementById('tab-guide').setAttribute('aria-selected', t === 'guide');
   document.getElementById('tab-ov').setAttribute('aria-selected', t === 'ov');
+  document.getElementById('tab-lib').setAttribute('aria-selected', t === 'lib');
   document.getElementById('guide').hidden = t !== 'guide';
   document.getElementById('ov').hidden = t !== 'ov';
-  if (t === 'ov') renderOv(); else renderGuide();
+  document.getElementById('libview').hidden = t !== 'lib';
+  if (t === 'ov') renderOv(); else if (t === 'lib') renderLib(); else renderGuide();
 }
 function showToast(text) {
   const el = document.getElementById('toast');
@@ -962,7 +1072,23 @@ document.addEventListener('click', (e) => {
   if (a === 'open-dialog') { dialog = { sym: ovSel, open: true, pick: null, msg: '' }; return renderDialog(); }
   if (a === 'close-dialog') { dialog = { sym: null, open: false, pick: null, msg: '' }; return renderDialog(); }
   if (a === 'pick') { const s = symbols.find((x) => x.id === dialog.sym); dialog.pick = j; dialog.pinErr = ''; if (!s.confirm && !needsPin(s, j)) operate(s, j); return renderOvLive(); }
-  if (a === 'do-operate') { operate(symbols.find((x) => x.id === dialog.sym), dialog.pick, document.getElementById('pin')?.value || ''); return renderOvLive(); }
+  if (a === 'do-operate') {
+    const s = symbols.find((x) => x.id === dialog.sym), K = opKind(s);
+    if (K === 'pulse') operatePulse(s);
+    else if (K === 'entry') { dialog.entry = document.getElementById('entry')?.value ?? ''; operateEntry(s, dialog.entry); }
+    else operate(s, dialog.pick, document.getElementById('pin')?.value || '');
+    return renderOvLive();
+  }
+  // symbolbiblioteket i dag
+  if (a === 'goto-lib') return setTab('lib');
+  if (a === 'lib-filter') { libFilter = b.dataset.cat; return renderLib(); }
+  if (a === 'imp-try') { const s = newImported(b.dataset.id); symbols.push(s); cur = s; newType = null; step = 0; return setTab('guide'); }
+  if (a === 'imp-add') {
+    const list = Object.values(IMPDEF).filter((d) => b.dataset.cat === 'all' || d.def.category === b.dataset.cat);
+    list.forEach((d) => symbols.push(newImported(d.def.id)));
+    showToast(`${list.length} symboler er tilføjet til anlægget — se dem på Overview, eller konfigurér dem under Bindinger.`);
+    return;
+  }
   if (a === 'field') { fieldSwitch(symbols.find((x) => x.id === ovSel), j); return renderOvLive(); }
   if (a === 'accept') { const s = symbols.find((x) => x.id === b.dataset.id), r = remotePos(s); if (r != null) s.local = { chosen: r, at: Date.now() - s.validateS * 1000, by: 'olsen (accepteret)' }; return renderOvLive(); }
   // symbolliste og bibliotek
@@ -987,10 +1113,10 @@ document.addEventListener('click', (e) => {
   if (a === 'add-plane') { const free = c.signals.find((s) => !usedBy(c, s).length); c.planes.push({ signal: free?.id || '', values: c.positions.map(() => (sigKind(free) === 'coil' ? 0 : null)) }); structural(c); }
   if (a === 'del-plane') { c.planes.splice(i, 1); structural(c); }
   if (a === 'add-pos') { c.positions.push({ label: String(c.positions.length + 1), angle: Math.min(150, (Number(c.positions.at(-1)?.angle) || 0) + 30) }); structural(c); }
-  if (a === 'del-pos') { c.positions.splice(j, 1); c.planes.forEach((p) => p.values.splice(j, 1)); c.anims.forEach((x) => { x.p.colors?.splice(j, 1); x.p.set?.splice(j, 1); x.only?.splice(j, 1); }); c.lock.positions.splice(j, 1); if (c.local.chosen >= c.positions.length) c.local.chosen = 0; structural(c); }
+  if (a === 'del-pos') { c.positions.splice(j, 1); c.planes.forEach((p) => p.values.splice(j, 1)); c.anims.forEach((x) => { x.p.colors?.splice(j, 1); x.p.set?.splice(j, 1); x.only?.splice(j, 1); x.p.pa?.splice(j, 1); x.p.pdx?.splice(j, 1); x.p.pdy?.splice(j, 1); }); c.lock.positions.splice(j, 1); if (c.local.chosen >= c.positions.length) c.local.chosen = 0; structural(c); }
   if (a === 'cycle') { const v = c.planes[i].values[j]; c.planes[i].values[j] = v === 1 ? 0 : v === 0 ? null : 1; }
   if (a === 'tpl') template(c, b.dataset.t);
-  if (a === 'anim-add') { const part = Object.keys(LIB[c.type].parts)[1], src = hasPos(c) ? '@pos' : ''; c.anims.push({ part, type: 'color', src, p: animDefaults(c, 'color', src ? srcKind(src) : 'bool') }); }
+  if (a === 'anim-add') { const part = Object.keys(libOf(c).parts)[1], src = hasPos(c) ? '@pos' : ''; c.anims.push({ part, type: 'color', src, p: animDefaults(c, 'color', src ? srcKind(src) : 'bool') }); }
   if (a === 'anim-del') c.anims.splice(i, 1);
   if (a === 'anim-up' && i > 0) [c.anims[i - 1], c.anims[i]] = [c.anims[i], c.anims[i - 1]];
   if (a === 'anim-down' && i < c.anims.length - 1) [c.anims[i + 1], c.anims[i]] = [c.anims[i], c.anims[i + 1]];
@@ -1006,7 +1132,17 @@ document.addEventListener('change', (e) => {
   if (k === 'sim-mode') { sim.mode = el.value; return; }
   if (k === 'sim-delay') { sim.delayS = Math.max(0, Number(el.value) || 0); return; }
   if (k === 'sim-comm') { sim.comm = el.checked; logWrite(sim.comm ? '— kommunikation tabt' : '— kommunikation genoprettet'); return renderOvLive(); }
-  if (k === 'name') c.name = el.value.trim() || LIB[c.type].label;
+  if (k === 'name') c.name = el.value.trim() || libOf(c).label;
+  if (k === 'op') setOp(c, el.value);
+  if (k === 'pulse-ms') c.pulseMs = el.value;
+  if (k === 'anim-a0') an.p.a0 = el.value;
+  if (k === 'anim-a1') an.p.a1 = el.value;
+  if (k === 'anim-pa') an.p.pa[kk] = Number(el.value) || 0;
+  if (k === 'anim-pdx') an.p.pdx[kk] = Number(el.value) || 0;
+  if (k === 'anim-pdy') an.p.pdy[kk] = Number(el.value) || 0;
+  if (k === 'anim-dx') an.p.dx = el.value;
+  if (k === 'anim-dy') an.p.dy = el.value;
+  if (k === 'anim-off-orig') an.p.off = el.checked ? '' : '#9e9e9e';
   if (k === 'sig-tag') { const s = c.signals[i], was = sigKind(s); s.tag = el.value; const kind = sigKind(s);
     if (kind !== was) { s.fb = ''; c.planes.forEach((p) => { if (p.signal === s.id) p.values = p.values.map((v, jj) => (kind === 'coil' ? (Number(v) ? 1 : 0) : jj)); }); }
     structural(c); }
@@ -1019,7 +1155,7 @@ document.addEventListener('change', (e) => {
   if (k === 'cell') c.planes[i].values[j] = el.value.trim() === '' ? null : el.value.trim();
   if (k === 'display') c.display = el.value;
   if (k === 'validateS') c.validateS = Number(el.value);
-  if (k === 'alarm') c.alarm = el.checked;
+  if (k === 'alarm') c.alarm = el.value;
   if (k === 'confirm') c.confirm = el.checked;
   if (k === 'lock-pos') c.lock.positions[kk] = el.checked;
   if (k === 'lock-pin') c.lock.pin = el.value.trim();
@@ -1037,6 +1173,7 @@ document.addEventListener('change', (e) => {
   if (k === 'anim-thc') an.p.th[kk].c = el.value;
   if (k === 'anim-pc') an.p.colors[kk] = el.value;
   if (k === 'anim-when') an.p.when = el.value;
+  if (k === 'anim-speed') an.p.speed = el.value;
   if (k === 'anim-numv') an.p.v = el.value;
   if (k === 'anim-pset') an.p.set[kk] = el.checked;
   if (k === 'anim-min') an.p.min = el.value;
@@ -1056,5 +1193,245 @@ setInterval(() => {
   }
   if (tab === 'ov') renderOvLive(); else if (step === 5) renderLive6();
 }, 250);
+// ===================================================================== import af symbolbiblioteket i dag
+// Kilde: frontend/src/lib/symbols.ts (eksporteret 1:1). bbox/parts er målt i Chromium (getBBox), så
+// rotation sker om delens centrum som i den rigtige app.
+const IMPORT_SRC = {"categories":[{"id":"betjening","label":"Betjening (skriver til PLC)"},{"id":"proces","label":"Proces og visning"},{"id":"vvs","label":"Rør og VVS"},{"id":"el","label":"Elektrisk"},{"id":"sol","label":"Solcelleanlæg"}],"symbols":[{"id":"trykknap_puls","label":"Trykknap (puls)","category":"betjening","hint":"Sender en kort puls (500 ms) — fx start, stop, kvittér. Vælg et skrivbart tag","svg":"<g data-hv-auto='[{\"anim\":\"click:pulse\",\"params\":{\"ms\":500,\"confirm\":false}}]'><rect x=\"0\" y=\"0\" width=\"76\" height=\"76\" rx=\"8\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"2\"/><circle cx=\"38\" cy=\"38\" r=\"30\" fill=\"#c8c8c8\" stroke=\"#333\" stroke-width=\"2\"/><circle cx=\"38\" cy=\"38\" r=\"25\" fill=\"none\" stroke=\"#f5f5f5\" stroke-width=\"1.5\"/><circle id=\"flade\" cx=\"38\" cy=\"38\" r=\"21\" fill=\"#d6d6d6\" stroke=\"#555\" stroke-width=\"2\" data-hv-part='{\"anim\":\"fill\",\"params\":{\"on\":\"#7cc47f\",\"off\":\"#d6d6d6\"}}'/><path d=\"M24 32 A15 15 0 0 1 44 22\" fill=\"none\" stroke=\"#fff\" stroke-width=\"3\" stroke-linecap=\"round\" opacity=\".8\"/><rect x=\"6\" y=\"84\" width=\"64\" height=\"22\" rx=\"2\" fill=\"#fff\" stroke=\"#555\" stroke-width=\"1.5\"/><text x=\"38\" y=\"100\" font-size=\"14\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\" id=\"tekst\">Start</text></g>","bbox":{"x":0,"y":0,"w":76,"h":106},"parts":{"flade":{"tag":"circle","x":17,"y":17,"w":42,"h":42},"tekst":{"tag":"text","x":21.5390625,"y":86,"w":32.9658203125,"h":17}}},{"id":"startstop","label":"Start/stop (til/fra)","category":"betjening","hint":"Skifter tagget til/fra med bekræftelse; lampen og teksten viser tilstanden","svg":"<g data-hv-auto='[{\"anim\":\"click:toggle\",\"params\":{\"confirm\":true}}]'><rect x=\"0\" y=\"0\" width=\"130\" height=\"50\" rx=\"6\" fill=\"#e3e3e3\" stroke=\"#555\" stroke-width=\"2\"/><circle id=\"lampe\" cx=\"24\" cy=\"25\" r=\"11\" fill=\"#9e9e9e\" stroke=\"#333\" stroke-width=\"1.5\" data-hv-part='{\"anim\":\"fill\",\"params\":{\"on\":\"#7cc47f\",\"off\":\"#9e9e9e\"}}'/><text id=\"status\" x=\"44\" y=\"31\" font-size=\"15\" fill=\"#333\" font-family=\"Segoe UI, Arial\" data-hv-part='{\"anim\":\"text\",\"params\":{\"true_text\":\"Kører\",\"false_text\":\"Stoppet\"}}'>Stoppet</text></g>","bbox":{"x":0,"y":0,"w":130,"h":50},"parts":{"lampe":{"tag":"circle","x":13,"y":14,"w":22,"h":22},"status":{"tag":"text","x":44,"y":16,"w":55.4931640625,"h":19}}},{"id":"vippekontakt","label":"Vippekontakt","category":"betjening","hint":"Til/fra uden bekræftelse — vippen flytter sig og skifter farve","svg":"<g data-hv-auto='[{\"anim\":\"click:toggle\",\"params\":{\"confirm\":false}}]'><rect id=\"spor\" x=\"0\" y=\"0\" width=\"64\" height=\"32\" rx=\"16\" fill=\"#d6d6d6\" stroke=\"#555\" stroke-width=\"2\" data-hv-part='{\"anim\":\"fill\",\"params\":{\"on\":\"#7cc47f\",\"off\":\"#d6d6d6\"}}'/><circle id=\"vippe\" cx=\"16\" cy=\"16\" r=\"12\" fill=\"#fff\" stroke=\"#555\" stroke-width=\"2\" data-hv-part='{\"anim\":\"move\",\"params\":{\"min\":0,\"max\":1,\"dx\":32,\"dy\":0}}'/><text id=\"tekst\" x=\"32\" y=\"50\" font-size=\"13\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" data-hv-part='{\"anim\":\"text\",\"params\":{\"true_text\":\"TIL\",\"false_text\":\"FRA\"}}'>FRA</text></g>","bbox":{"x":0,"y":0,"w":64,"h":53},"parts":{"spor":{"tag":"rect","x":0,"y":0,"w":64,"h":32},"vippe":{"tag":"circle","x":4,"y":4,"w":24,"h":24},"tekst":{"tag":"text","x":19.4921875,"y":37,"w":25.04052734375,"h":16}}},{"id":"omskifter3","label":"Omskifter Hånd/0/Auto","category":"betjening","hint":"Vælg position i en dialog (værdi 0/1/2). Andre positioner: brug \"Omskifter med egne positioner\" nedenfor","svg":"<g data-hv-auto='[{\"anim\":\"click:select\",\"params\":{\"positions\":[{\"value\":0,\"label\":\"Hånd\"},{\"value\":1,\"label\":\"0\"},{\"value\":2,\"label\":\"Auto\"}],\"confirm\":true}}]'><circle cx=\"70\" cy=\"70\" r=\"30\" fill=\"#e3e3e3\" stroke=\"#555\" stroke-width=\"2.5\"/><line x1=\"47\" y1=\"47\" x2=\"43\" y2=\"43\" stroke=\"#333\" stroke-width=\"2\"/><line x1=\"70\" y1=\"37\" x2=\"70\" y2=\"32\" stroke=\"#333\" stroke-width=\"2\"/><line x1=\"93\" y1=\"47\" x2=\"97\" y2=\"43\" stroke=\"#333\" stroke-width=\"2\"/><text x=\"33\" y=\"38\" font-size=\"13\" font-weight=\"600\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\">Hånd</text><text x=\"70\" y=\"23\" font-size=\"13\" font-weight=\"600\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\">0</text><text x=\"107\" y=\"38\" font-size=\"13\" font-weight=\"600\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\">Auto</text><g id=\"greb\" data-hv-part='{\"anim\":\"rotate\",\"params\":{\"min\":0,\"max\":2,\"angle_min\":-45,\"angle_max\":45}}'><rect x=\"64\" y=\"44\" width=\"12\" height=\"52\" rx=\"4\" fill=\"#9e9e9e\" stroke=\"#333\" stroke-width=\"1.5\"/><rect x=\"67\" y=\"46\" width=\"6\" height=\"14\" rx=\"2\" fill=\"#333\"/></g></g>","bbox":{"x":16.3828125,"y":10,"w":105.59912109375,"h":90},"parts":{"greb":{"tag":"g","x":64,"y":44,"w":12,"h":52}}},{"id":"drejeomskifter","label":"Drejeomskifter 0/1","category":"betjening","hint":"Til/fra med bekræftelse — grebet drejer mellem 0 og 1","svg":"<g data-hv-auto='[{\"anim\":\"click:toggle\",\"params\":{\"confirm\":true}}]'><circle cx=\"40\" cy=\"46\" r=\"30\" fill=\"#e3e3e3\" stroke=\"#555\" stroke-width=\"2.5\"/><text x=\"14\" y=\"12\" font-size=\"14\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\">0</text><text x=\"66\" y=\"12\" font-size=\"14\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\">1</text><g id=\"greb\" data-hv-part='{\"anim\":\"rotate\",\"params\":{\"min\":0,\"max\":1,\"angle_min\":-45,\"angle_max\":45}}'><rect x=\"34\" y=\"18\" width=\"12\" height=\"56\" rx=\"4\" fill=\"#9e9e9e\" stroke=\"#333\" stroke-width=\"1.5\"/><rect x=\"37\" y=\"20\" width=\"6\" height=\"14\" rx=\"2\" fill=\"#333\"/></g></g>","bbox":{"x":9.375,"y":-2,"w":60.625,"h":78},"parts":{"greb":{"tag":"g","x":34,"y":18,"w":12,"h":56}}},{"id":"automanuel","label":"Auto/Manuel","category":"betjening","hint":"Skifter driftsform (til = AUTO) med bekræftelse","svg":"<g data-hv-auto='[{\"anim\":\"click:toggle\",\"params\":{\"confirm\":true}}]'><rect id=\"flade\" x=\"0\" y=\"0\" width=\"120\" height=\"40\" rx=\"6\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"2\" data-hv-part='{\"anim\":\"fill\",\"params\":{\"on\":\"#bcd6ee\",\"off\":\"#eeeeee\"}}'/><text id=\"tekst\" x=\"60\" y=\"26\" font-size=\"15\" font-weight=\"600\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" data-hv-part='{\"anim\":\"text\",\"params\":{\"true_text\":\"AUTO\",\"false_text\":\"MANUEL\"}}'>MANUEL</text></g>","bbox":{"x":0,"y":0,"w":120,"h":40},"parts":{"flade":{"tag":"rect","x":0,"y":0,"w":120,"h":40},"tekst":{"tag":"text","x":27.625,"y":11,"w":64.75,"h":19}}},{"id":"setpunkt","label":"Setpunkt-felt","category":"betjening","hint":"Klik for at indtaste en ny værdi (min/max fra tagget) — viser den aktuelle værdi","svg":"<g data-hv-auto='[{\"anim\":\"click:write\"}]'><rect x=\"0\" y=\"0\" width=\"150\" height=\"40\" rx=\"4\" fill=\"#fff\" stroke=\"#555\" stroke-width=\"2\"/><text id=\"vaerdi\" x=\"12\" y=\"26\" font-size=\"17\" font-weight=\"600\" fill=\"#1f1f1f\" font-family=\"Segoe UI, Arial\" data-hv-part='{\"anim\":\"text\"}'>--</text><path d=\"M126 28 L130 16 L140 12 L136 22 Z M126 28 L132 26\" fill=\"#9e9e9e\" stroke=\"#333\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/></g>","bbox":{"x":0,"y":0,"w":150,"h":40},"parts":{"vaerdi":{"tag":"text","x":12,"y":10,"w":15.828125,"h":20}}},{"id":"pumpe","label":"Pumpe","category":"proces","hint":"Bind \"Fyldfarve\" til drift-signalet","svg":"<g><circle cx=\"40\" cy=\"40\" r=\"32\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\"/><path d=\"M28 22 L60 40 L28 58 Z\" fill=\"#9e9e9e\" stroke=\"#333\" stroke-width=\"2\"/></g>","bbox":{"x":8,"y":8,"w":64,"h":64},"parts":{}},{"id":"motor","label":"Motor","category":"proces","hint":"Bind \"Fyldfarve\" til drift-signalet","svg":"<g><circle cx=\"40\" cy=\"40\" r=\"32\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\"/><text x=\"40\" y=\"49\" font-size=\"26\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\">M</text></g>","bbox":{"x":8,"y":8,"w":64,"h":64},"parts":{}},{"id":"tank","label":"Tank","category":"proces","hint":"Bind \"Niveau\" på det indre rektangel","svg":"<g><rect x=\"0\" y=\"0\" width=\"90\" height=\"140\" rx=\"8\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"3\"/><rect id=\"fyld\" x=\"3\" y=\"3\" width=\"84\" height=\"134\" rx=\"5\" fill=\"#7aa7c7\"/></g>","bbox":{"x":0,"y":0,"w":90,"h":140},"parts":{"fyld":{"tag":"rect","x":3,"y":3,"w":84,"h":134}}},{"id":"vaerdi","label":"Værdifelt","category":"proces","hint":"Bind \"Tekst\" på teksten","svg":"<g><rect x=\"0\" y=\"0\" width=\"160\" height=\"56\" rx=\"4\" fill=\"#eeeeee\" stroke=\"#888\"/><text id=\"titel\" x=\"12\" y=\"20\" font-size=\"12\" fill=\"#5c5c5c\" font-family=\"Segoe UI, Arial\">Måling</text><text id=\"vaerdi\" x=\"12\" y=\"45\" font-size=\"20\" font-weight=\"600\" fill=\"#1f1f1f\" font-family=\"Segoe UI, Arial\">--</text></g>","bbox":{"x":0,"y":0,"w":160,"h":56},"parts":{"titel":{"tag":"text","x":12,"y":8,"w":37.84375,"h":15},"vaerdi":{"tag":"text","x":12,"y":26,"w":18.625,"h":24}}},{"id":"lampe","label":"Lampe","category":"proces","hint":"Bind \"Fyldfarve\" til signalet","svg":"<g><circle cx=\"16\" cy=\"16\" r=\"14\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"2\"/></g>","bbox":{"x":2,"y":2,"w":28,"h":28},"parts":{}},{"id":"knap","label":"Knap","category":"proces","hint":"Bind \"Klik: til/fra\" eller \"Klik: puls\"","svg":"<g><rect x=\"0\" y=\"0\" width=\"110\" height=\"40\" rx=\"6\" fill=\"#e3e3e3\" stroke=\"#555\" stroke-width=\"2\"/><text x=\"55\" y=\"26\" font-size=\"15\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >Start</text></g>","bbox":{"x":0,"y":0,"w":110,"h":40},"parts":{}},{"id":"roer_v","label":"Rør (vandret)","category":"vvs","hint":"Træk i enderne for at forlænge","svg":"<g><rect x=\"0\" y=\"0\" width=\"160\" height=\"10\" fill=\"#555\"/></g>","bbox":{"x":0,"y":0,"w":160,"h":10},"parts":{}},{"id":"roer_l","label":"Rør (lodret)","category":"vvs","hint":"Træk i enderne for at forlænge","svg":"<g><rect x=\"0\" y=\"0\" width=\"10\" height=\"160\" fill=\"#555\"/></g>","bbox":{"x":0,"y":0,"w":10,"h":160},"parts":{}},{"id":"boejning90","label":"Bøjning 90°","category":"vvs","hint":"Rotér/spejl i Tegn for at vende den","svg":"<g><path d=\"M0 45 H25 A20 20 0 0 0 45 25 V0\" fill=\"none\" stroke=\"#555\" stroke-width=\"10\" stroke-linejoin=\"miter\"/></g>","bbox":{"x":0,"y":0,"w":45,"h":45},"parts":{}},{"id":"boejning45","label":"Bøjning 45°","category":"vvs","hint":"Rotér/spejl i Tegn for at vende den","svg":"<g><path d=\"M0 45 H30 L60 15\" fill=\"none\" stroke=\"#555\" stroke-width=\"10\" stroke-linejoin=\"round\"/></g>","bbox":{"x":0,"y":15,"w":60,"h":30},"parts":{}},{"id":"t_stykke","label":"T-stykke","category":"vvs","hint":"Rotér i Tegn for at vende afgreningen","svg":"<g><path d=\"M0 45 H90 M45 45 V0\" fill=\"none\" stroke=\"#555\" stroke-width=\"10\" stroke-linejoin=\"miter\"/></g>","bbox":{"x":0,"y":0,"w":90,"h":45},"parts":{}},{"id":"kryds","label":"Kryds","category":"vvs","hint":"Fire rør mødes","svg":"<g><path d=\"M0 45 H90 M45 0 V90\" fill=\"none\" stroke=\"#555\" stroke-width=\"10\" stroke-linejoin=\"miter\"/></g>","bbox":{"x":0,"y":0,"w":90,"h":90},"parts":{}},{"id":"reduktion","label":"Reduktion","category":"vvs","hint":"Overgang fra stort til lille rør","svg":"<g><path d=\"M0 38 H28 L52 41 H80 V49 H52 L28 52 H0 Z\" fill=\"#555\"/></g>","bbox":{"x":0,"y":38,"w":80,"h":14},"parts":{}},{"id":"prop","label":"Prop/endedæksel","category":"vvs","hint":"Afslutning af et rør","svg":"<g><rect x=\"0\" y=\"40\" width=\"30\" height=\"10\" fill=\"#555\"/><rect x=\"30\" y=\"32\" width=\"7\" height=\"26\" fill=\"#555\"/></g>","bbox":{"x":0,"y":32,"w":37,"h":26},"parts":{}},{"id":"flange","label":"Flangesamling","category":"vvs","hint":"Samling mellem to rør","svg":"<g><rect x=\"0\" y=\"40\" width=\"30\" height=\"10\" fill=\"#555\"/><rect x=\"30\" y=\"31\" width=\"5\" height=\"28\" fill=\"#555\"/><rect x=\"38\" y=\"31\" width=\"5\" height=\"28\" fill=\"#555\"/><rect x=\"43\" y=\"40\" width=\"30\" height=\"10\" fill=\"#555\"/></g>","bbox":{"x":0,"y":31,"w":73,"h":28},"parts":{}},{"id":"flowpil","label":"Strømningsretning","category":"vvs","hint":"Læg på et rør; bind evt. \"Synlighed\" til pumpedrift","svg":"<g><path d=\"M0 45 H40\" stroke=\"#555\" stroke-width=\"10\"/><path d=\"M36 31 L64 45 L36 59 Z\" fill=\"#555\"/></g>","bbox":{"x":0,"y":31,"w":64,"h":28},"parts":{}},{"id":"ventil","label":"Ventil (manuel)","category":"vvs","hint":"Bind \"Fyldfarve\" til åben/lukket","svg":"<g><path d=\"M8 27 L40 45 L8 63 Z M72 27 L40 45 L72 63 Z\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\" stroke-linejoin=\"round\"/><line x1=\"40\" y1=\"45\" x2=\"40\" y2=\"20\" stroke=\"#555\" stroke-width=\"3\"/><rect x=\"28\" y=\"11\" width=\"24\" height=\"10\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"2\"/></g>","bbox":{"x":8,"y":11,"w":64,"h":52},"parts":{}},{"id":"kugleventil","label":"Kugleventil","category":"vvs","hint":"Bind \"Fyldfarve\" til åben/lukket","svg":"<g><path d=\"M8 27 L40 45 L8 63 Z M72 27 L40 45 L72 63 Z\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\" stroke-linejoin=\"round\"/><circle cx=\"40\" cy=\"45\" r=\"9\" fill=\"#333\"/><line x1=\"40\" y1=\"36\" x2=\"40\" y2=\"18\" stroke=\"#555\" stroke-width=\"3\"/><line x1=\"40\" y1=\"18\" x2=\"62\" y2=\"18\" stroke=\"#555\" stroke-width=\"4\"/></g>","bbox":{"x":8,"y":18,"w":64,"h":45},"parts":{}},{"id":"kontraventil","label":"Kontraventil","category":"vvs","hint":"Tillader kun strømning i pilens retning","svg":"<g><path d=\"M8 27 L40 45 L8 63 Z\" fill=\"#333\" stroke=\"#555\" stroke-width=\"3\" stroke-linejoin=\"round\"/><path d=\"M72 27 L40 45 L72 63 Z\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\" stroke-linejoin=\"round\"/><path d=\"M24 14 H52 M46 9 L54 14 L46 19\" fill=\"none\" stroke=\"#555\" stroke-width=\"2\"/></g>","bbox":{"x":8,"y":9,"w":64,"h":54},"parts":{}},{"id":"trevejsventil","label":"3-vejs ventil","category":"vvs","hint":"Bind \"Fyldfarve\" pr. port eller på hele ventilen","svg":"<g><path d=\"M8 27 L40 45 L8 63 Z M72 27 L40 45 L72 63 Z M22 77 L40 45 L58 77 Z\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\" stroke-linejoin=\"round\"/><line x1=\"40\" y1=\"45\" x2=\"40\" y2=\"20\" stroke=\"#555\" stroke-width=\"3\"/><circle cx=\"40\" cy=\"45\" r=\"4\" fill=\"#333\"/></g>","bbox":{"x":8,"y":20,"w":64,"h":57},"parts":{}},{"id":"motorventil","label":"Motorventil","category":"vvs","hint":"Bind \"Fyldfarve\" til åben/lukket","svg":"<g><path d=\"M8 27 L40 45 L8 63 Z M72 27 L40 45 L72 63 Z\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\" stroke-linejoin=\"round\"/><line x1=\"40\" y1=\"45\" x2=\"40\" y2=\"20\" stroke=\"#555\" stroke-width=\"3\"/><circle cx=\"40\" cy=\"12\" r=\"12\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"2.5\"/><text x=\"40\" y=\"17\" font-size=\"14\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\">M</text></g>","bbox":{"x":8,"y":0,"w":64,"h":63},"parts":{}},{"id":"magnetventil","label":"Magnetventil","category":"vvs","hint":"Bind \"Fyldfarve\" til spolen","svg":"<g><path d=\"M8 27 L40 45 L8 63 Z M72 27 L40 45 L72 63 Z\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\" stroke-linejoin=\"round\"/><line x1=\"40\" y1=\"45\" x2=\"40\" y2=\"20\" stroke=\"#555\" stroke-width=\"3\"/><rect x=\"28\" y=\"0\" width=\"24\" height=\"20\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"2.5\"/><text x=\"40\" y=\"15\" font-size=\"14\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\">S</text></g>","bbox":{"x":8,"y":0,"w":64,"h":63},"parts":{}},{"id":"regventil","label":"Reguleringsventil","category":"vvs","hint":"Bind \"Tekst\" (åbning %) i et værdifelt ved siden af","svg":"<g><path d=\"M8 27 L40 45 L8 63 Z M72 27 L40 45 L72 63 Z\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\" stroke-linejoin=\"round\"/><line x1=\"40\" y1=\"45\" x2=\"40\" y2=\"20\" stroke=\"#555\" stroke-width=\"3\"/><path d=\"M22 20 A18 18 0 0 1 58 20 Z\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"2.5\"/></g>","bbox":{"x":8,"y":2,"w":64,"h":61},"parts":{}},{"id":"sikkerhedsventil","label":"Sikkerhedsventil","category":"vvs","hint":"Indløb nedefra, afgang til højre","svg":"<g><path d=\"M22 77 L40 45 L58 77 Z M72 27 L40 45 L72 63 Z\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\" stroke-linejoin=\"round\"/><path d=\"M40 45 V36 L30 32 L50 26 L30 20 L50 14 L40 10 V4\" fill=\"none\" stroke=\"#555\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/></g>","bbox":{"x":22,"y":4,"w":50,"h":73},"parts":{}},{"id":"varmeveksler","label":"Varmeveksler","category":"vvs","hint":"Bind \"Fyldfarve\" til drift","svg":"<g><circle cx=\"40\" cy=\"40\" r=\"32\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"3\"/><path d=\"M8 40 H18 L26 24 L36 56 L46 24 L56 56 L62 40 H72\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/></g>","bbox":{"x":8,"y":8,"w":64,"h":64},"parts":{}},{"id":"filter","label":"Filter/snavssamler","category":"vvs","hint":"Bind \"Fyldfarve\" til f.eks. tilstoppet-alarm","svg":"<g><path d=\"M40 5 L75 40 L40 75 L5 40 Z\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"3\" stroke-linejoin=\"round\"/><line x1=\"22\" y1=\"22\" x2=\"58\" y2=\"58\" stroke=\"#555\" stroke-width=\"2.5\" stroke-dasharray=\"5 4\"/></g>","bbox":{"x":5,"y":5,"w":70,"h":70},"parts":{}},{"id":"ekspansion","label":"Ekspansionsbeholder","category":"vvs","hint":"Bind \"Tekst\" (tryk) i et værdifelt ved siden af","svg":"<g><rect x=\"10\" y=\"0\" width=\"60\" height=\"90\" rx=\"30\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"3\"/><path d=\"M12 45 Q40 35 68 45\" fill=\"none\" stroke=\"#555\" stroke-width=\"2.5\"/><rect x=\"35\" y=\"90\" width=\"10\" height=\"25\" fill=\"#555\"/></g>","bbox":{"x":10,"y":0,"w":60,"h":115},"parts":{}},{"id":"radiator","label":"Radiator","category":"vvs","hint":"Bind \"Fyldfarve\" til varme til/fra","svg":"<g><rect x=\"0\" y=\"0\" width=\"110\" height=\"60\" rx=\"4\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"3\"/><path d=\"M15 8 V52 M30 8 V52 M45 8 V52 M60 8 V52 M75 8 V52 M90 8 V52\" stroke=\"#555\" stroke-width=\"3\"/></g>","bbox":{"x":0,"y":0,"w":110,"h":60},"parts":{}},{"id":"ventilator","label":"Ventilator/blæser","category":"vvs","hint":"Bind \"Fyldfarve\" til drift, evt. \"Rotation\" på rotoren","svg":"<g><circle cx=\"40\" cy=\"40\" r=\"32\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\"/><g id=\"rotor\"><path d=\"M40 40 C30 30 32 14 40 12 C48 14 50 30 40 40 C50 50 48 66 40 68 C32 66 30 50 40 40 Z\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2\"/><circle cx=\"40\" cy=\"40\" r=\"4\" fill=\"#333\"/></g></g>","bbox":{"x":8,"y":8,"w":64,"h":64},"parts":{"rotor":{"tag":"g","x":33.22929382324219,"y":12,"w":13.541412353515625,"h":56}}},{"id":"kedel","label":"Kedel/fyr","category":"vvs","hint":"Bind \"Fyldfarve\" på flammen til brænderdrift","svg":"<g><rect x=\"0\" y=\"0\" width=\"90\" height=\"120\" rx=\"6\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"3\"/><path id=\"flamme\" d=\"M45 98 C28 96 26 78 36 66 C36 76 42 78 42 78 C38 64 46 52 52 46 C52 60 64 66 62 82 C60 92 54 98 45 98 Z\" fill=\"#9e9e9e\" stroke=\"#333\" stroke-width=\"2\"/></g>","bbox":{"x":0,"y":0,"w":90,"h":120},"parts":{"flamme":{"tag":"path","x":29.951637268066406,"y":46,"w":32.273216247558594,"h":52}}},{"id":"tt","label":"Temperatur (TT)","category":"vvs","hint":"ISA-boble; værdien vises i et værdifelt","svg":"<g><line x1=\"30\" y1=\"54\" x2=\"30\" y2=\"80\" stroke=\"#555\" stroke-width=\"2\" stroke-dasharray=\"4 3\"/><circle cx=\"30\" cy=\"30\" r=\"24\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"2.5\"/><text x=\"30\" y=\"36\" font-size=\"16\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\" id=\"tekst\">TT</text></g>","bbox":{"x":6,"y":6,"w":48,"h":74},"parts":{"tekst":{"tag":"text","x":19.4375,"y":20,"w":21.125,"h":20}}},{"id":"pt","label":"Tryk (PT)","category":"vvs","hint":"ISA-boble; værdien vises i et værdifelt","svg":"<g><line x1=\"30\" y1=\"54\" x2=\"30\" y2=\"80\" stroke=\"#555\" stroke-width=\"2\" stroke-dasharray=\"4 3\"/><circle cx=\"30\" cy=\"30\" r=\"24\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"2.5\"/><text x=\"30\" y=\"36\" font-size=\"16\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\" id=\"tekst\">PT</text></g>","bbox":{"x":6,"y":6,"w":48,"h":74},"parts":{"tekst":{"tag":"text","x":19.5546875,"y":20,"w":20.890625,"h":20}}},{"id":"ft","label":"Flow (FT)","category":"vvs","hint":"ISA-boble; værdien vises i et værdifelt","svg":"<g><line x1=\"30\" y1=\"54\" x2=\"30\" y2=\"80\" stroke=\"#555\" stroke-width=\"2\" stroke-dasharray=\"4 3\"/><circle cx=\"30\" cy=\"30\" r=\"24\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"2.5\"/><text x=\"30\" y=\"36\" font-size=\"16\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\" id=\"tekst\">FT</text></g>","bbox":{"x":6,"y":6,"w":48,"h":74},"parts":{"tekst":{"tag":"text","x":20.015625,"y":20,"w":19.96875,"h":20}}},{"id":"lt","label":"Niveau (LT)","category":"vvs","hint":"ISA-boble; værdien vises i et værdifelt","svg":"<g><line x1=\"30\" y1=\"54\" x2=\"30\" y2=\"80\" stroke=\"#555\" stroke-width=\"2\" stroke-dasharray=\"4 3\"/><circle cx=\"30\" cy=\"30\" r=\"24\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"2.5\"/><text x=\"30\" y=\"36\" font-size=\"16\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\" id=\"tekst\">LT</text></g>","bbox":{"x":6,"y":6,"w":48,"h":74},"parts":{"tekst":{"tag":"text","x":20.9375,"y":20,"w":18.125,"h":20}}},{"id":"manometer","label":"Manometer","category":"vvs","hint":"Bind \"Rotation\" på viseren (fx min -120°, max 120°)","svg":"<g><circle cx=\"40\" cy=\"40\" r=\"32\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"3\"/><path d=\"M17 63 A32 32 0 1 1 63 63\" fill=\"none\" stroke=\"#bbb\" stroke-width=\"2\"/><g id=\"viser\"><circle cx=\"40\" cy=\"40\" r=\"26\" fill=\"none\"/><path d=\"M40 40 L37 37 L40 16 L43 37 Z\" fill=\"#333\"/><circle cx=\"40\" cy=\"40\" r=\"4\" fill=\"#333\"/></g><rect x=\"35\" y=\"72\" width=\"10\" height=\"20\" fill=\"#555\"/></g>","bbox":{"x":7.999998092651367,"y":8,"w":64,"h":84},"parts":{"viser":{"tag":"g","x":14,"y":14,"w":52,"h":52}}},{"id":"termometer","label":"Termometer","category":"vvs","hint":"Bind \"Niveau\" på søjlen (min/max = måleområdet)","svg":"<g><rect x=\"10\" y=\"0\" width=\"20\" height=\"100\" rx=\"10\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"2.5\"/><circle cx=\"20\" cy=\"108\" r=\"14\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"2.5\"/><rect id=\"soejle\" x=\"16\" y=\"10\" width=\"8\" height=\"92\" fill=\"#9e9e9e\"/></g>","bbox":{"x":6,"y":0,"w":28,"h":122},"parts":{"soejle":{"tag":"rect","x":16,"y":10,"w":8,"h":92}}},{"id":"ledning_v","label":"Ledning (vandret)","category":"el","hint":"Træk i enderne for at forlænge; bind \"Stregfarve\" til spænding","svg":"<g><path d=\"M0 10 H120\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":0,"y":10,"w":120,"h":0},"parts":{}},{"id":"ledning_l","label":"Ledning (lodret)","category":"el","hint":"Træk i enderne for at forlænge; bind \"Stregfarve\" til spænding","svg":"<g><path d=\"M10 0 V120\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":10,"y":0,"w":0,"h":120},"parts":{}},{"id":"forbindelse","label":"Forbindelsespunkt","category":"el","hint":"Hvor ledninger er forbundet","svg":"<g><circle cx=\"8\" cy=\"8\" r=\"5\" fill=\"#333\"/></g>","bbox":{"x":3,"y":3,"w":10,"h":10},"parts":{}},{"id":"klemme","label":"Klemme","category":"el","hint":"Klemmerække/tilslutning — ret nummeret i Tegn","svg":"<g><circle cx=\"20\" cy=\"20\" r=\"7\" fill=\"#fff\" stroke=\"#333\" stroke-width=\"2.5\"/><text x=\"20\" y=\"46\" font-size=\"12\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >X1</text></g>","bbox":{"x":13,"y":13,"w":14,"h":36},"parts":{}},{"id":"kontakt_no","label":"Sluttekontakt (NO)","category":"el","hint":"Bind \"Stregfarve\" til kontaktens tilstand","svg":"<g><path d=\"M0 40 H22 L50 24 M48 40 H70\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":0,"y":24,"w":70,"h":16},"parts":{}},{"id":"kontakt_nc","label":"Brydekontakt (NC)","category":"el","hint":"Bind \"Stregfarve\" til kontaktens tilstand","svg":"<g><path d=\"M0 40 H22 L52 34 M48 40 H70 M48 40 V28\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":0,"y":28,"w":70,"h":12},"parts":{}},{"id":"trykknap","label":"Trykknap (NO)","category":"el","hint":"Bind \"Klik: puls\" for at betjene fra SCADA","svg":"<g><path d=\"M0 50 H22 L50 34 M48 50 H70\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><path d=\"M36 42 V14\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-dasharray=\"4 3\"/><path d=\"M26 14 H46 M26 14 V8 M46 14 V8\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":0,"y":8,"w":70,"h":42},"parts":{}},{"id":"noedstop","label":"Nødstop","category":"el","hint":"Bind \"Fyldfarve\"/\"Blink\" til aktiveret nødstop","svg":"<g><path d=\"M0 60 H22 L52 54 M48 60 H70 M48 60 V48\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><path d=\"M37 57 V26\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-dasharray=\"4 3\"/><path d=\"M17 26 A20 18 0 0 1 57 26 Z\" fill=\"#9e9e9e\" stroke=\"#333\" stroke-width=\"2.5\"/></g>","bbox":{"x":0,"y":8,"w":70,"h":52},"parts":{}},{"id":"kontaktor","label":"Kontaktor 3-polet","category":"el","hint":"Bind \"Stregfarve\" til kontaktorens tilbagemelding","svg":"<g><path d=\"M10 0 V20 L26 46 M10 52 V72 M40 0 V20 L56 46 M40 52 V72 M70 0 V20 L86 46 M70 52 V72\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><path d=\"M14 33 H76\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-dasharray=\"4 3\"/><text x=\"98\" y=\"40\" font-size=\"13\" text-anchor=\"start\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >K1</text></g>","bbox":{"x":10,"y":0,"w":102.03125,"h":72},"parts":{}},{"id":"spole","label":"Relæ-/kontaktorspole","category":"el","hint":"Bind \"Fyldfarve\" til spolen er aktiv","svg":"<g><path d=\"M30 0 V14 M30 46 V60\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><rect x=\"10\" y=\"14\" width=\"40\" height=\"32\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/><text x=\"30\" y=\"35\" font-size=\"14\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >K1</text></g>","bbox":{"x":10,"y":0,"w":40,"h":60},"parts":{}},{"id":"sikring","label":"Sikring","category":"el","hint":"Bind \"Stregfarve\"/\"Blink\" til sikring sprunget","svg":"<g><path d=\"M20 0 V80\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><rect x=\"11\" y=\"18\" width=\"18\" height=\"44\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/><path d=\"M20 18 V62\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":11,"y":0,"w":18,"h":80},"parts":{}},{"id":"automatsikring","label":"Automatsikring","category":"el","hint":"Bind \"Stregfarve\" til slået fra","svg":"<g><path d=\"M20 0 V24 L36 52 M20 58 V80\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><path d=\"M15 19 L25 29 M25 19 L15 29\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><rect x=\"36\" y=\"32\" width=\"12\" height=\"10\" fill=\"none\" stroke=\"#333\" stroke-width=\"2\"/></g>","bbox":{"x":15,"y":0,"w":33,"h":80},"parts":{}},{"id":"motorvaern","label":"Motorværn","category":"el","hint":"Bind \"Blink\" til udløst motorværn","svg":"<g><path d=\"M30 0 V16 M30 64 V80\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><rect x=\"6\" y=\"16\" width=\"48\" height=\"48\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/><path d=\"M14 48 H24 V32 H36 V48 H46\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":6,"y":0,"w":48,"h":80},"parts":{}},{"id":"motor3","label":"Motor 3~","category":"el","hint":"Bind \"Fyldfarve\" til drift","svg":"<g><path d=\"M40 0 V8\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><circle cx=\"40\" cy=\"40\" r=\"32\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\"/><text x=\"40\" y=\"40\" font-size=\"24\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\">M</text><text x=\"40\" y=\"60\" font-size=\"14\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >3~</text></g>","bbox":{"x":8,"y":0,"w":64,"h":72},"parts":{}},{"id":"frekvensomformer","label":"Frekvensomformer","category":"el","hint":"Bind \"Tekst\" (Hz) i et værdifelt ved siden af","svg":"<g><rect x=\"0\" y=\"0\" width=\"70\" height=\"70\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/><path d=\"M0 70 L70 0\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><text x=\"18\" y=\"24\" font-size=\"20\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >~</text><text x=\"50\" y=\"60\" font-size=\"20\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >~</text><text x=\"35\" y=\"88\" font-size=\"12\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >VFD</text></g>","bbox":{"x":0,"y":0,"w":70,"h":91},"parts":{}},{"id":"transformer","label":"Transformer","category":"el","hint":"Fx 400/24 V","svg":"<g><path d=\"M30 0 V12 M30 84 V96\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><circle cx=\"30\" cy=\"36\" r=\"22\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\"/><circle cx=\"30\" cy=\"60\" r=\"22\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\"/></g>","bbox":{"x":8,"y":0,"w":44,"h":96},"parts":{}},{"id":"stroemforsyning","label":"Strømforsyning","category":"el","hint":"AC/DC, fx 230 V~ → 24 V=","svg":"<g><rect x=\"0\" y=\"0\" width=\"70\" height=\"70\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/><path d=\"M0 70 L70 0\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><text x=\"18\" y=\"24\" font-size=\"20\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >~</text><text x=\"50\" y=\"62\" font-size=\"20\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >=</text></g>","bbox":{"x":0,"y":0,"w":70,"h":70},"parts":{}},{"id":"jord","label":"Jord","category":"el","hint":"Beskyttelsesjord","svg":"<g><path d=\"M25 0 V22 M5 22 H45 M12 30 H38 M19 38 H31\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":5,"y":0,"w":40,"h":38},"parts":{}},{"id":"signallampe","label":"Signallampe","category":"el","hint":"Bind \"Fyldfarve\" til lampen","svg":"<g><path d=\"M25 0 V8 M25 42 V50\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><circle cx=\"25\" cy=\"25\" r=\"17\" fill=\"#9e9e9e\" stroke=\"#333\" stroke-width=\"2.5\"/><path d=\"M13 13 L37 37 M37 13 L13 37\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":8,"y":0,"w":34,"h":50},"parts":{}},{"id":"modstand","label":"Modstand","category":"el","hint":"Fx varmelegeme — bind \"Fyldfarve\" til til/fra","svg":"<g><path d=\"M0 15 H15 M65 15 H80\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><rect x=\"15\" y=\"5\" width=\"50\" height=\"20\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/></g>","bbox":{"x":0,"y":5,"w":80,"h":20},"parts":{}},{"id":"foeler","label":"Føler (nærhed)","category":"el","hint":"Bind \"Fyldfarve\" til føler aktiv","svg":"<g><path d=\"M30 0 V10\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><path d=\"M30 10 L50 30 L30 50 L10 30 Z\" fill=\"#9e9e9e\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/><path d=\"M22 30 H38 M24 36 H36\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":10,"y":0,"w":40,"h":50},"parts":{}},{"id":"hovedafbryder","label":"Hovedafbryder","category":"el","hint":"Bind \"Stregfarve\" til slået til/fra","svg":"<g><path d=\"M20 0 V24 L38 52 M20 58 V80\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><path d=\"M29 38 H52\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-dasharray=\"4 3\"/><circle cx=\"58\" cy=\"38\" r=\"7\" fill=\"#9e9e9e\" stroke=\"#333\" stroke-width=\"2\"/></g>","bbox":{"x":20,"y":0,"w":45,"h":80},"parts":{}},{"id":"plc","label":"PLC","category":"el","hint":"Bind \"Fyldfarve\" på feltet til PLC-forbindelse ok","svg":"<g><rect x=\"0\" y=\"0\" width=\"110\" height=\"70\" rx=\"4\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/><text x=\"55\" y=\"42\" font-size=\"18\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\">PLC</text><path d=\"M15 70 V82 M35 70 V82 M55 70 V82 M75 70 V82 M95 70 V82\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":0,"y":0,"w":110,"h":82},"parts":{}},{"id":"solpanel","label":"Solcellepanel","category":"sol","hint":"Bind \"Fyldfarve\" til produktion, eller vis effekten i et værdifelt","svg":"<g><rect x=\"0\" y=\"0\" width=\"80\" height=\"110\" rx=\"3\" fill=\"#5f7d95\" stroke=\"#555\" stroke-width=\"3\"/><path d=\"M27 3 V107 M53 3 V107 M3 28 H77 M3 55 H77 M3 82 H77\" stroke=\"#c9d6e0\" stroke-width=\"2\"/></g>","bbox":{"x":0,"y":0,"w":80,"h":110},"parts":{}},{"id":"solstreng","label":"Solcellestreng","category":"sol","hint":"Flere paneler i serie — kopiér for flere strenge","svg":"<g><rect x=\"0\" y=\"0\" width=\"48\" height=\"66\" rx=\"2\" fill=\"#5f7d95\" stroke=\"#555\" stroke-width=\"2.5\"/><path d=\"M16 2 V64 M32 2 V64 M2 22 H46 M2 44 H46\" stroke=\"#c9d6e0\" stroke-width=\"1.5\"/><rect x=\"54\" y=\"0\" width=\"48\" height=\"66\" rx=\"2\" fill=\"#5f7d95\" stroke=\"#555\" stroke-width=\"2.5\"/><path d=\"M70 2 V64 M86 2 V64 M56 22 H100 M56 44 H100\" stroke=\"#c9d6e0\" stroke-width=\"1.5\"/><rect x=\"108\" y=\"0\" width=\"48\" height=\"66\" rx=\"2\" fill=\"#5f7d95\" stroke=\"#555\" stroke-width=\"2.5\"/><path d=\"M124 2 V64 M140 2 V64 M110 22 H154 M110 44 H154\" stroke=\"#c9d6e0\" stroke-width=\"1.5\"/><path d=\"M24 66 V80 H132 V66\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":0,"y":0,"w":156,"h":80},"parts":{}},{"id":"sol","label":"Sol/indstråling","category":"sol","hint":"Bind \"Gennemsigtighed\" til indstråling (W/m²)","svg":"<g><circle cx=\"40\" cy=\"40\" r=\"16\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"2.5\"/><path d=\"M40 4 V16 M40 64 V76 M4 40 H16 M64 40 H76 M14 14 L23 23 M57 57 L66 66 M66 14 L57 23 M23 57 L14 66\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":4,"y":4,"w":72,"h":72},"parts":{}},{"id":"inverter","label":"Inverter","category":"sol","hint":"DC → AC; bind \"Fyldfarve\" til drift/fejl","svg":"<g><path d=\"M0 25 H14 M94 55 H108\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><rect x=\"14\" y=\"0\" width=\"80\" height=\"80\" rx=\"3\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/><path d=\"M14 80 L94 0\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><text x=\"36\" y=\"30\" font-size=\"22\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >=</text><text x=\"72\" y=\"68\" font-size=\"22\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >~</text></g>","bbox":{"x":0,"y":0,"w":108,"h":80},"parts":{}},{"id":"hybridinverter","label":"Hybridinverter","category":"sol","hint":"PV + batteri + net i én enhed","svg":"<g><text x=\"20\" y=\"10\" font-size=\"10\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >PV</text><text x=\"50\" y=\"10\" font-size=\"10\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >BAT</text><path d=\"M20 14 V26 M50 14 V26 M100 86 H114\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><rect x=\"0\" y=\"26\" width=\"100\" height=\"90\" rx=\"3\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/><text x=\"50\" y=\"52\" font-size=\"13\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\">HYBRID</text><text x=\"24\" y=\"86\" font-size=\"20\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >=</text><text x=\"76\" y=\"86\" font-size=\"22\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >~</text><path d=\"M50 64 V104\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":0,"y":0,"w":114,"h":116},"parts":{}},{"id":"mppt","label":"MPPT-regulator","category":"sol","hint":"Laderegulator mellem paneler og batteri","svg":"<g><rect x=\"0\" y=\"0\" width=\"80\" height=\"60\" rx=\"3\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/><text x=\"40\" y=\"26\" font-size=\"14\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" font-weight=\"600\">MPPT</text><text x=\"40\" y=\"48\" font-size=\"14\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >= / =</text></g>","bbox":{"x":0,"y":0,"w":80,"h":60},"parts":{}},{"id":"batteri","label":"Batteri","category":"sol","hint":"Bind \"Niveau\" på det indre felt til ladetilstand (SOC %)","svg":"<g><rect x=\"0\" y=\"10\" width=\"70\" height=\"110\" rx=\"5\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"3\"/><rect x=\"22\" y=\"0\" width=\"26\" height=\"10\" rx=\"2\" fill=\"#555\"/><rect id=\"fyld\" x=\"5\" y=\"15\" width=\"60\" height=\"100\" rx=\"3\" fill=\"#8fbf8f\"/></g>","bbox":{"x":0,"y":0,"w":70,"h":120},"parts":{"fyld":{"tag":"rect","x":5,"y":15,"w":60,"h":100}}},{"id":"batteribank","label":"Batteribank","category":"sol","hint":"Flere battericeller i serie (elektrisk symbol)","svg":"<g><path d=\"M0 30 H14 M66 30 H80\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><path d=\"M14 12 V48\" stroke=\"#333\" stroke-width=\"3\"/><path d=\"M22 20 V40\" stroke=\"#333\" stroke-width=\"5\"/><path d=\"M36 12 V48\" stroke=\"#333\" stroke-width=\"3\"/><path d=\"M44 20 V40\" stroke=\"#333\" stroke-width=\"5\"/><path d=\"M58 12 V48\" stroke=\"#333\" stroke-width=\"3\"/><path d=\"M66 20 V40\" stroke=\"#333\" stroke-width=\"5\"/><path d=\"M22 30 H36 M44 30 H58\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><text x=\"8\" y=\"20\" font-size=\"14\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >+</text><text x=\"74\" y=\"20\" font-size=\"14\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >−</text></g>","bbox":{"x":0,"y":6,"w":80,"h":42},"parts":{}},{"id":"dc_afbryder","label":"DC-afbryder","category":"sol","hint":"Bind \"Stregfarve\" til slået til/fra","svg":"<g><path d=\"M20 0 V24 L38 52 M20 58 V80\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><text x=\"44\" y=\"24\" font-size=\"18\" text-anchor=\"start\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >=</text></g>","bbox":{"x":20,"y":0,"w":35.921875,"h":80},"parts":{}},{"id":"ac_afbryder","label":"AC-afbryder","category":"sol","hint":"Bind \"Stregfarve\" til slået til/fra","svg":"<g><path d=\"M20 0 V24 L38 52 M20 58 V80\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><text x=\"44\" y=\"26\" font-size=\"20\" text-anchor=\"start\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >~</text></g>","bbox":{"x":20,"y":0,"w":37.234375,"h":80},"parts":{}},{"id":"spd","label":"Overspændingsbeskyttelse","category":"sol","hint":"SPD/afleder mod jord","svg":"<g><path d=\"M25 0 V16 M25 64 V76 M8 76 H42 M14 83 H36 M20 90 H30\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><rect x=\"13\" y=\"16\" width=\"24\" height=\"48\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/><path d=\"M28 22 L20 40 H30 L22 58\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></g>","bbox":{"x":8,"y":0,"w":34,"h":90},"parts":{}},{"id":"elmaaler","label":"Elmåler (kWh)","category":"sol","hint":"Bind \"Tekst\" på tallet til energi/effekt","svg":"<g><rect x=\"0\" y=\"0\" width=\"130\" height=\"70\" rx=\"4\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"2.5\"/><rect x=\"10\" y=\"12\" width=\"110\" height=\"26\" fill=\"#fff\" stroke=\"#555\" stroke-width=\"1.5\"/><text id=\"vaerdi\" x=\"114\" y=\"31\" font-size=\"15\" text-anchor=\"end\" fill=\"#333\" font-family=\"Segoe UI, Arial\">0</text><text x=\"65\" y=\"58\" font-size=\"13\" text-anchor=\"middle\" fill=\"#333\" font-family=\"Segoe UI, Arial\" >kWh</text></g>","bbox":{"x":0,"y":0,"w":130,"h":70},"parts":{"vaerdi":{"tag":"text","x":104.53125,"y":16,"w":9.46875,"h":19}}},{"id":"elnet","label":"Elnet","category":"sol","hint":"Forsyningsnettet; bind \"Stregfarve\" til import/eksport","svg":"<g><path d=\"M40 0 L22 100 M40 0 L58 100 M10 18 H70 M14 34 H66 M31 50 L49 76 M49 50 L31 76 M28 52 H52 M25 76 H55\" fill=\"none\" stroke=\"#333\" stroke-width=\"3\" stroke-linejoin=\"round\"/><circle cx=\"10\" cy=\"18\" r=\"3\" fill=\"#333\"/><circle cx=\"70\" cy=\"18\" r=\"3\" fill=\"#333\"/><circle cx=\"14\" cy=\"34\" r=\"3\" fill=\"#333\"/><circle cx=\"66\" cy=\"34\" r=\"3\" fill=\"#333\"/></g>","bbox":{"x":7,"y":0,"w":66,"h":100},"parts":{}},{"id":"forbrug","label":"Forbrug/hus","category":"sol","hint":"Husstandens forbrug — vis effekten i et værdifelt","svg":"<g><path d=\"M5 45 L45 8 L85 45\" fill=\"none\" stroke=\"#555\" stroke-width=\"4\" stroke-linejoin=\"round\"/><rect x=\"15\" y=\"42\" width=\"60\" height=\"50\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\"/><rect x=\"38\" y=\"62\" width=\"16\" height=\"30\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"2\"/></g>","bbox":{"x":5,"y":8,"w":80,"h":84},"parts":{}},{"id":"elbillader","label":"Elbillader","category":"sol","hint":"Bind \"Fyldfarve\" til ladning i gang","svg":"<g><rect x=\"0\" y=\"0\" width=\"50\" height=\"90\" rx=\"6\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"3\"/><rect x=\"9\" y=\"10\" width=\"32\" height=\"22\" rx=\"2\" fill=\"#eeeeee\" stroke=\"#555\" stroke-width=\"1.5\"/><path d=\"M28 40 L18 58 H27 L22 76 L34 54 H25 Z\" fill=\"#eeeeee\" stroke=\"#333\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/><path d=\"M50 60 C70 60 70 90 86 90\" fill=\"none\" stroke=\"#333\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></g>","bbox":{"x":0,"y":0,"w":86,"h":90},"parts":{}},{"id":"energipil","label":"Energiflow-pil","category":"sol","hint":"Bind \"Synlighed\" (fx kun ved eksport) eller \"Fyldfarve\"","svg":"<g><path d=\"M0 18 H70 V4 L100 30 L70 56 V42 H0 Z\" fill=\"#9e9e9e\" stroke=\"#555\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/></g>","bbox":{"x":0,"y":4,"w":100,"h":52},"parts":{}}]};
+const IMPDEF = {};   // id → { def, lib, tpl }
+const KIND_TXT = { view: 'Kun visning', positions: 'Positioner', pulse: 'Trykknap (puls)', entry: 'Setpunkt (indtastning)' };
+const NEED_TXT = { turn: 'Drej (vinkel efter værdi/position)', move: 'Flyt (forskydning efter værdi/position)',
+  pulse: 'Trykknap: puls på et til/fra-tag', entry: 'Setpunkt: indtastning af en vilkårlig værdi' };
+let demoSeq = 200;
+function demoTag(kind, base, extra = {}) {
+  const name = `${base}`;
+  if (!tag(name)) TAGS.push({ name, src: `plc1:${kind === 'coil' ? 'coil' : 'hr'}:${demoSeq++}`, kind: kind === 'coil' ? 'coil' : 'reg', dt: 'uint', writable: true, ...extra });
+  return name;
+}
+// Fælles demo-tags til visningssymboler (kan ændres under Simuleret PLC → Andre tags)
+TAGS.push({ name: 'Demo_drift', src: 'plc1:di:90', kind: 'coil', writable: false },
+  { name: 'Demo_niveau', src: 'plc1:ir:90', kind: 'reg', dt: 'uint', writable: false, min: 0, max: 100 },
+  { name: 'Demo_tryk', src: 'plc1:ir:91', kind: 'reg', dt: 'uint', writable: false, min: 0, max: 10 },
+  { name: 'Demo_maaling', src: 'plc1:ir:92', kind: 'reg', dt: 'int', writable: false },
+  { name: 'Demo_energi', src: 'plc1:ir:93', kind: 'reg', dt: 'uint', writable: false });
+Object.assign(sim.tags, { Demo_drift: 1, Demo_niveau: 55, Demo_tryk: 4, Demo_maaling: 21, Demo_energi: 12345.6 });
+
+const svgDoc = (svg) => new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${svg}</svg>`, 'image/svg+xml');
+function convertDef(def) {
+  const g = svgDoc(def.svg).documentElement.firstElementChild;
+  const auto = (() => { try { return JSON.parse(g.getAttribute('data-hv-auto') || '[]'); } catch { return []; } })();
+  const click = auto[0];
+  const hvParts = [...g.querySelectorAll('[data-hv-part]')].map((e) => ({ id: e.getAttribute('id'), spec: JSON.parse(e.getAttribute('data-hv-part')) }));
+  const ids = Object.keys(def.parts);
+  const parts = { bg: 'Baggrund', all: 'Hele symbolet' };
+  ids.forEach((id) => { parts[id] = `Del "${id}"`; });
+  parts.frame = 'Ramme';
+  const lib = { label: def.label, parts, spin: ['all', ...ids.filter((id) => def.parts[id].tag !== 'text')],
+    level: ids.filter((id) => def.parts[id].tag === 'rect'), text: ids.filter((id) => def.parts[id].tag === 'text'),
+    turnMove: true, hint: def.hint, category: def.category, def };
+  const c = { id: '', type: 'imp', imp: def.id, name: def.label, op: 'view', positions: [], signals: [], planes: [], fault: '',
+    display: 'remote', validateS: 5, alarm: 'medium', confirm: true, anims: [], pulseMs: 500,
+    lock: { positions: [], pin: '', leave: false }, pinFails: 0, pinLockUntil: 0,
+    local: { chosen: 0, at: Date.now() - 60000, by: 'olsen' }, saved: false };
+  const needs = new Set(), notes = [];
+  const textSpec = hvParts.find((p) => p.spec.anim === 'text')?.spec.params || {};
+  if (click?.anim === 'click:toggle') {
+    c.op = 'positions';
+    c.positions = [{ label: textSpec.false_text || 'Fra', angle: 0 }, { label: textSpec.true_text || 'Til', angle: 0 }];
+    c.confirm = click.params?.confirm ?? true;
+    const s = newSignal(demoTag('coil', `${def.id}_cmd`)); c.signals = [s]; c.planes = [{ signal: s.id, values: [0, 1] }];
+    notes.push('Til/fra → 2 positioner med ét signal og én kontaktplan.');
+  } else if (click?.anim === 'click:select') {
+    c.op = 'positions';
+    const pos = click.params?.positions || [];
+    c.positions = pos.map((p) => ({ label: p.label, angle: 0 }));
+    c.confirm = click.params?.confirm ?? true;
+    const s = newSignal(demoTag('reg', `${def.id}_cmd`)); c.signals = [s]; c.planes = [{ signal: s.id, values: pos.map((p) => p.value) }];
+    notes.push(`Omskifter → ${pos.length} positioner, ét register med værdierne ${pos.map((p) => p.value).join('/')}.`);
+  } else if (click?.anim === 'click:pulse') {
+    c.op = 'pulse'; c.pulseMs = click.params?.ms ?? 500; c.confirm = click.params?.confirm ?? false;
+    c.signals = [newSignal(demoTag('coil', `${def.id}_cmd`))];
+    needs.add('pulse'); notes.push('Puls på et til/fra-tag findes ikke i standarden i dag (der er til/fra-signaler altid "sæt").');
+  } else if (click?.anim === 'click:write') {
+    c.op = 'entry';
+    c.signals = [newSignal(demoTag('reg', `${def.id}_sp`, { min: 0, max: 100 }))];
+    needs.add('entry'); notes.push('Fri indtastning af en værdi passer ikke i positionsmodellen.');
+  }
+  c.lock.positions = c.positions.map(() => false);
+  const n = c.positions.length, pos = c.op === 'positions';
+  hvParts.forEach(({ id, spec }) => {
+    const p = spec.params || {};
+    if (spec.anim === 'fill') {
+      if (pos) c.anims.push({ part: id, type: 'color', src: '@pos', p: { colors: n === 2 ? [p.off || '#9e9e9e', p.on || '#2e7d32'] : Array.from({ length: n }, () => '#e4e4e4') } });
+      else if (c.signals[0]) c.anims.push({ part: id, type: 'color', src: c.signals[0].tag, p: { on: p.on || '#2e7d32', off: p.off || '#9e9e9e' } });
+    } else if (spec.anim === 'text') {
+      if (pos) c.anims.push({ part: id, type: 'value', src: '@pos', p: { unit: '', dec: 0 } });
+      else if (c.signals[0]) c.anims.push({ part: id, type: 'value', src: c.signals[0].tag, p: { unit: '', dec: 1 } });
+    } else if (spec.anim === 'move' && pos) {
+      const f = (j) => (n > 1 ? (j - (p.min ?? 0)) / (((p.max ?? 1) - (p.min ?? 0)) || 1) : 0);
+      c.anims.push({ part: id, type: 'move', src: '@pos', p: { pdx: c.positions.map((_, j) => Math.round((p.dx || 0) * f(j))), pdy: c.positions.map((_, j) => Math.round((p.dy || 0) * f(j))) } });
+      needs.add('move');
+    } else if (spec.anim === 'rotate' && pos) {
+      const lo = p.min ?? 0, hi = p.max ?? 1, a0 = p.angle_min ?? 0, a1 = p.angle_max ?? 360;
+      c.anims.push({ part: id, type: 'turn', src: '@pos', p: { pa: c.positions.map((_, j) => Math.round(a0 + (a1 - a0) * ((j - lo) / ((hi - lo) || 1)))) } });
+      needs.add('turn');
+    }
+  });
+  if (!click) {
+    // Visningssymbol: foreslå animationer ud fra de navngivne dele (svarer til vejledningen i symbolbiblioteket)
+    const has = (id) => ids.includes(id);
+    if (has('fyld')) c.anims.push({ part: 'fyld', type: 'level', src: 'Demo_niveau', p: { min: 0, max: 100 } });
+    if (has('soejle')) c.anims.push({ part: 'soejle', type: 'level', src: 'Demo_niveau', p: { min: 0, max: 100 } });
+    if (has('rotor')) c.anims.push({ part: 'rotor', type: 'spin', src: 'Demo_drift', p: { when: 'on' } });
+    if (has('flamme')) c.anims.push({ part: 'flamme', type: 'visible', src: 'Demo_drift', p: { when: 'on' } });
+    if (has('viser')) { c.anims.push({ part: 'viser', type: 'turn', src: 'Demo_tryk', p: { min: 0, max: 10, a0: -120, a1: 120 } }); needs.add('turn'); }
+    if (has('vaerdi')) c.anims.push(def.id === 'elmaaler' ? { part: 'vaerdi', type: 'value', src: 'Demo_energi', p: { unit: '', dec: 1 } }
+      : { part: 'vaerdi', type: 'value', src: 'Demo_maaling', p: { unit: '°C', dec: 1 } });
+    if (!c.anims.length) c.anims.push({ part: 'all', type: 'color', src: 'Demo_drift', p: { on: '#7cc47f', off: '' } });
+    if (!ids.length) notes.push('Ingen navngivne dele — kun hele symbolet kan animeres.');
+    if (def.id === 'knap') notes.push('Har ingen klik-handling i dag; kan gøres betjenbar i trin 1 (Til/fra eller Trykknap).');
+  }
+  notes.unshift(`Vejledning i dag: ${def.hint}`);
+  return { lib, tpl: c, needs: [...needs], notes };
+}
+IMPORT_SRC.symbols.forEach((def) => { const r = convertDef(def); IMPDEF[def.id] = { def, ...r }; });
+
+function newImported(defId, name) {
+  const d = IMPDEF[defId], c = JSON.parse(JSON.stringify(d.tpl));
+  c.id = `imp${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const base = name || d.def.label, same = symbols.filter((x) => x.name === base || x.name.startsWith(base + ' ')).length;
+  c.name = same ? `${base} ${same + 1}` : base;
+  c.local = { chosen: 0, at: Date.now() - 60000, by: 'olsen' };
+  structural(c);
+  return c;
+}
+// Skift betjeningsform for et importeret symbol (trin 1)
+function setOp(c, op) {
+  c.op = op; c.positions = []; c.signals = []; c.planes = []; c.lock = { positions: [], pin: '', leave: false };
+  if (op === 'positions') {
+    c.positions = [{ label: 'Fra', angle: 0 }, { label: 'Til', angle: 0 }];
+    const s = newSignal(demoTag('coil', `${c.imp}_cmd`)); c.signals = [s]; c.planes = [{ signal: s.id, values: [0, 1] }];
+  }
+  if (op === 'pulse') c.signals = [newSignal(demoTag('coil', `${c.imp}_cmd`))];
+  if (op === 'entry') c.signals = [newSignal(demoTag('reg', `${c.imp}_sp`, { min: 0, max: 100 }))];
+  c.anims = c.anims.filter((a) => a.src !== '@pos');
+  c.local = { chosen: 0, at: Date.now() - 60000, by: 'olsen' };
+  structural(c);
+}
+
+// Tegning: symbolets egen SVG, skaleret ind i den fælles ramme; animationer sættes på delene (id) eller hele symbolet.
+const impCache = new Map();
+function recolor(el, col) {
+  const shapes = el.tagName === 'g' ? [...el.querySelectorAll('path,rect,circle,ellipse,polygon,polyline,line')] : [el];
+  shapes.forEach((s) => {
+    if (s.tagName === 'text') { s.setAttribute('fill', col); return; }
+    if (s.tagName === 'line' || s.tagName === 'polyline' || s.getAttribute('fill') === 'none') s.setAttribute('stroke', col);
+    else s.setAttribute('fill', col);
+  });
+}
+function drawImported(c, styles) {
+  const d = IMPDEF[c.imp], def = d.def;
+  const key = def.id + JSON.stringify(styles);
+  let out = impCache.get(key);
+  if (!out) {
+    const g = svgDoc(def.svg).documentElement.firstElementChild;
+    [g, ...g.querySelectorAll('*')].forEach((e) => [...e.attributes].forEach((a) => { if (a.name.startsWith('data-hv')) e.removeAttribute(a.name); }));
+    for (const [part, st] of Object.entries(styles)) {
+      if (part === 'bg' || part === 'frame') continue;
+      const el = part === 'all' ? g : g.querySelector(`[id="${part}"]`); if (!el) continue;
+      const bb = part === 'all' ? def.bbox : def.parts[part];
+      if (colOk(st.color)) recolor(el, st.color);
+      if (st.frac != null && el.tagName === 'rect') { const h = bb.h * st.frac; el.setAttribute('y', (bb.y + bb.h - h).toFixed(1)); el.setAttribute('height', h.toFixed(1)); }
+      if (st.text != null && el.tagName === 'text') el.textContent = st.text;
+      const cls = [], css = [];
+      if ('dx' in st || 'angle' in st) {
+        // Flyt/Drej som CSS-transform om delens centrum, så skiftet glider (transition) i stedet for at hoppe
+        if (el.getAttribute('transform')) {
+          el.setAttribute('transform', `translate(${st.dx || 0} ${st.dy || 0}) rotate(${st.angle || 0} ${(bb.x + bb.w / 2).toFixed(1)} ${(bb.y + bb.h / 2).toFixed(1)}) ${el.getAttribute('transform')}`);
+        } else {
+          cls.push('tmove'); css.push(`transform:translate(${(st.dx || 0).toFixed(2)}px,${(st.dy || 0).toFixed(2)}px) rotate(${(st.angle || 0).toFixed(2)}deg)`);
+        }
+      }
+      if (st.blink) cls.push('blinking', `blink-${st.blink}`);
+      if (st.spin) cls.push('spinning');
+      if (st.blink || st.spin) css.push(`animation-delay:-@@${st.blink || 'spin'}@@ms`);
+      if (cls.length) el.setAttribute('class', cls.join(' '));
+      if (css.length) el.setAttribute('style', css.join(';'));
+      if (st.hidden) el.setAttribute('visibility', 'hidden');
+    }
+    const bw = def.bbox.w || 1, bh = def.bbox.h || 1, s = Math.min(116 / bw, 118 / bh, 2.2);
+    const tx = 12 + (116 - bw * s) / 2 - def.bbox.x * s, ty = 10 + (118 - bh * s) / 2 - def.bbox.y * s;
+    out = `<g transform="translate(${tx.toFixed(1)} ${ty.toFixed(1)}) scale(${s.toFixed(3)})">${new XMLSerializer().serializeToString(g)}</g>`;
+    if (impCache.size > 2000) impCache.clear();
+    impCache.set(key, out);
+  }
+  // Fasen sættes ved hver tegning, så alle blink med samme frekvens kører i takt
+  return out.replace(/@@(\w+)@@/g, (_, k) => Date.now() % (k === 'spin' ? 1600 : BLINK_MS[k] || 1000));
+}
+
+// Faneblad: symbolbiblioteket i dag
+let libFilter = 'all';
+function renderLib() {
+  const all = Object.values(IMPDEF);
+  const ok = all.filter((d) => !d.needs.length).length;
+  const byNeed = {};
+  all.forEach((d) => d.needs.forEach((n) => (byNeed[n] ||= []).push(d.def.label)));
+  const noParts = all.filter((d) => !Object.keys(d.def.parts).length).length;
+  const cats = IMPORT_SRC.categories.filter((k) => libFilter === 'all' || k.id === libFilter);
+  document.getElementById('libview').innerHTML = `
+  <section class="panel" aria-labelledby="lib-title">
+    <div class="panel-head">
+      <div class="row" style="justify-content: space-between"><h2 id="lib-title">Symbolbiblioteket i dag · ${all.length} symboler</h2><span class="small muted">Importeret fra frontend/src/lib/symbols.ts</span></div>
+      <div class="row"><span class="state-chip confirmed">✓ ${ok} passer direkte</span><span class="state-chip pending">! ${all.length - ok} kræver en tilføjelse til standarden</span><span class="small muted">${noParts} har ingen navngivne dele</span></div>
+    </div>
+    <div class="panel-body">
+      <div class="box warn"><b>Det mangler standarden for at dække alle symboler i dag</b>
+        <ul style="margin: .4rem 0 0; padding-left: 1.2rem">${Object.entries(byNeed).map(([n, l]) => `<li><b>${NEED_TXT[n]}</b> — ${l.map(esc).join(', ')}</li>`).join('')}</ul>
+        <div class="small muted" style="margin-top: .4rem">Prototypen har de fire tilføjelser med, så alle symboler kan prøves nu.</div></div>
+      <div class="row"><span class="small muted">Vis:</span>
+        <button data-action="lib-filter" data-cat="all" class="${libFilter === 'all' ? 'primary' : ''}">Alle</button>
+        ${IMPORT_SRC.categories.map((k) => `<button data-action="lib-filter" data-cat="${k.id}" class="${libFilter === k.id ? 'primary' : ''}">${esc(k.label)}</button>`).join('')}
+        <button class="ghost" data-action="imp-add" data-cat="${libFilter}" style="margin-left: auto">+ Tilføj ${libFilter === 'all' ? 'alle' : 'kategorien'} til anlægget</button></div>
+      ${cats.map((k) => `<h3>${esc(k.label)}</h3><div class="impgrid">${all.filter((d) => d.def.category === k.id).map((d) => {
+        const t = d.tpl, P = t.op === 'positions', p = P ? 1 % t.positions.length : null;
+        return `<div class="impcard">${drawSymbol(t, { grip: p, size: 96, styles: evalAnims(t, p) })}
+          <b>${esc(d.def.label)}</b><span class="small muted">${KIND_TXT[t.op]}${P ? ` · ${t.positions.map((x) => esc(x.label)).join('/')}` : ''}</span>
+          ${d.needs.length ? `<span class="state-chip pending">! ${d.needs.map((n) => ATYPES[n] || (n === 'pulse' ? 'Trykknap' : 'Setpunkt')).join(', ')}</span>` : '<span class="state-chip confirmed">✓ passer</span>'}
+          <span class="small muted">${t.anims.length} animation${t.anims.length === 1 ? '' : 'er'} foreslået</span>
+          <details class="small" style="text-align: left; width: 100%"><summary>Detaljer</summary><ul style="margin: .3rem 0 0; padding-left: 1.1rem">${d.notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></details>
+          <button data-action="imp-try" data-id="${d.def.id}">Prøv i guiden</button></div>`; }).join('')}</div>`).join('')}
+    </div>
+  </section>`;
+}
+
+// Betjening af trykknap (puls) og setpunkt (indtastning) — tilføjelser til standarden, så de importerede symboler virker
+function blockedMsg(c) {
+  if (c.fault && Number(tagValue(c.fault))) return `${c.name}: betjening er blokeret — ${c.fault} er aktiv.`;
+  if (sim.comm) return 'Ingen forbindelse til PLC\'en — intet er skrevet.';
+  return '';
+}
+function operatePulse(c) {
+  const s = c.signals[0];
+  if (!s?.tag) { dialog = { sym: c.id, open: false, pick: null, msg: `${c.name}: der er ikke valgt et tag.` }; return; }
+  const m = blockedMsg(c); if (m) { dialog = { sym: c.id, open: false, pick: null, msg: m }; return; }
+  logWrite(`— ${c.name}: puls af olsen`); logWrite(`1. ${s.tag} ← 1 (puls ${c.pulseMs} ms)`);
+  sim.cmd[s.tag] = 1; if (sim.mode !== 'none') sim.read[rk(s)] = 1;
+  setTimeout(() => { sim.cmd[s.tag] = 0; sim.read[rk(s)] = 0; logWrite(`   ${s.tag} ← 0 (puls slut)`); }, Number(c.pulseMs) || 500);
+  dialog = { sym: c.id, open: false, pick: null, msg: '' };
+}
+function operateEntry(c, raw) {
+  const s = c.signals[0], t = tag(s?.tag);
+  if (!t) { dialog.err = 'Der er ikke valgt et tag.'; return; }
+  const v = Number(String(raw ?? '').replace(',', '.'));
+  if (String(raw ?? '').trim() === '' || !Number.isFinite(v)) { dialog.err = 'Skriv et tal.'; return; }
+  const [lo, hi] = range(t);
+  if (v < lo || v > hi) { dialog.err = `Værdien skal være mellem ${lo} og ${hi}.`; return; }
+  const m = blockedMsg(c); if (m) { dialog = { sym: c.id, open: false, pick: null, msg: m }; return; }
+  logWrite(`— ${c.name}: ny værdi ${v} af olsen`); logWrite(`1. ${s.tag} ← ${v}`);
+  sim.cmd[s.tag] = v;
+  const mode = sim.mode;
+  setTimeout(() => { if (sim.comm) return; if (mode === 'ok') sim.read[rk(s)] = v; if (mode === 'wrong') sim.read[rk(s)] = v + 1; }, sim.delayS * 1000);
+  dialog = { sym: c.id, open: false, pick: null, msg: '' };
+}
+
 renderGuide();
 </script>
