@@ -11,6 +11,7 @@ from fastapi import Depends
 
 from ..services.auth import CurrentUser
 from ..services.errors import ServiceError
+from ..services.symbol_convert import suggest
 from ..services.symbol_operate import SymbolOperateService
 from ..services.symbols import SymbolService, validate_config, write_plan
 from ..services.svg_sanitize import describe_element
@@ -127,3 +128,11 @@ async def preview(drawing_id: str, element: str, body: PreviewBody, request: Req
     plans = ([{"position": k, "label": p["label"], "writes": write_plan(cfg, k)} for k, p in enumerate(cfg["positions"])]
              if cfg["op"] == "positions" and not res.count else [])
     return {"config": cfg, "steps": res.steps, "warnings": res.warnings, "errors": res.count, "plans": plans}
+
+
+@router.get("/{drawing_id}/symbols/{element}/suggest", dependencies=[ENGINEER])
+async def suggest_config(drawing_id: str, element: str, request: Request) -> dict[str, Any]:
+    """Forslag til en konfiguration ud fra symbolets bindinger i dag (Konvertér) — gemmes ikke."""
+    svc = _svc(request)
+    svc.drawings._require(drawing_id)
+    return suggest(svc.drawings, drawing_id, element)

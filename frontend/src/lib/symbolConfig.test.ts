@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest';
+import {
+  activeAt, animDefaults, cycleCell, emptyConfig, foundPosition, preset, resize, setOp, tagKind, template, typesFor,
+  type SymbolConfig,
+} from './symbolConfig';
+
+const positions = (labels: string[]): SymbolConfig => {
+  const c = emptyConfig();
+  setOp(c, 'positions');
+  c.positions = labels.map((label) => ({ label }));
+  return c;
+};
+
+describe('tagKind', () => {
+  it('til/fra, tal og ukendt', () => {
+    expect(tagKind('plc1:coil:3')).toBe('bool');
+    expect(tagKind('plc1:di:3')).toBe('bool');
+    expect(tagKind('plc1:hr:30')).toBe('num');
+    expect(tagKind('plc1:hr:30:real')).toBe('num');
+    expect(tagKind('plc1:logic:1:Niveau')).toBe('unknown');
+  });
+});
+
+describe('skabeloner og eksemplet dec → bin', () => {
+  it('7-trins vælger: 3 signaler, 3 planer, tallet j+1 binært', () => {
+    const c = emptyConfig();
+    preset(c);
+    expect(c.signals.map((s) => s.id)).toEqual(['S1', 'S2', 'S3']);
+    expect(c.planes.map((p) => p.values)).toEqual([[1, 0, 1, 0, 1, 0, 1], [0, 1, 1, 0, 0, 1, 1], [0, 0, 0, 1, 1, 1, 1]]);
+  });
+  it('dec → bin tæller fra 0 når første position hedder "0"', () => {
+    const c = positions(['0', '1', '2', '3']);
+    template(c, 'D');
+    expect(c.planes.map((p) => p.values)).toEqual([[0, 1, 0, 1], [0, 0, 1, 1]]);
+  });
+  it('A ét register, B ét signal pr. position, C bitmaske', () => {
+    const c = positions(['Hand', '0', 'Auto']);
+    template(c, 'A');
+    expect(c.planes).toEqual([{ signal: 'S1', values: [0, 1, 2] }]);
+    template(c, 'B');
+    expect(c.planes.map((p) => p.values)).toEqual([[1, 0, 0], [0, 1, 0], [0, 0, 1]]);
+    template(c, 'C');
+    expect(c.planes).toEqual([{ signal: 'S1', values: [1, 2, 4] }]);
+  });
+});
+
+describe('struktur', () => {
+  it('flere positioner: celler, lås, "gælder i" og værdier pr. position følger med', () => {
+    const c = positions(['A', 'B']);
+    c.signals = [{ id: 'S1', tag: 'Bit', fb: '', write: 'set', ms: 500, rest: null }, { id: 'S2', tag: 'Reg', fb: '', write: 'set', ms: 500, rest: null }];
+    c.planes = [{ signal: 'S1', values: [0, 1] }, { signal: 'S2', values: [5, 6] }];
+    c.anims = [{ part: 'all', type: 'fill', src: '@pos', params: { colors: ['#000', '#111'] }, only: [true, false] }];
+    c.positions.push({ label: 'C' });
+    resize(c, (id) => (id === 'S1' ? 'bool' : 'num'));
+    expect(c.planes.map((p) => p.values)).toEqual([[0, 1, 0], [5, 6, null]]);
+    expect(c.lock.positions).toEqual([false, false, false]);
+    expect(c.anims[0].only).toEqual([true, false, true]);
+    expect(c.anims[0].params.colors).toEqual(['#000', '#111', '#e4e4e4']);
+  });
+  it('aktive signaler pr. position og cyklus Til → Fra → røres ikke', () => {
+    const c = emptyConfig();
+    preset(c);
+    expect(activeAt(c, 4, () => 'bool')).toEqual(['S1', 'S3']);       // 5 = 101
+    expect(cycleCell(1)).toBe(0);
+    expect(cycleCell(0)).toBe(null);
+    expect(cycleCell(null)).toBe(1);
+  });
+  it('fundet position ud fra live-værdier (tilbagemelding foran kommando)', () => {
+    const c = emptyConfig();
+    preset(c);
+    c.signals[0].tag = 'B0'; c.signals[0].fb = 'B0_fb'; c.signals[1].tag = 'B1'; c.signals[2].tag = 'B2';
+    const live: Record<string, unknown> = { B0_fb: true, B0: false, B1: true, B2: false };   // 3 = 011
+    expect(foundPosition(c, (t) => live[t])).toBe(2);
+    live.B2 = true;   // 7
+    expect(foundPosition(c, (t) => live[t])).toBe(6);
+    expect(foundPosition(c, () => undefined)).toBe(null);
+  });
+  it('skift betjeningsform rydder det der ikke passer', () => {
+    const c = emptyConfig();
+    preset(c);
+    c.anims = [{ part: 'all', type: 'fill', src: '@pos', params: { colors: [] }, only: null }];
+    setOp(c, 'pulse');
+    expect([c.positions.length, c.planes.length, c.signals.length, c.anims.length]).toEqual([0, 0, 1, 0]);
+    setOp(c, 'view');
+    expect(c.signals).toEqual([]);
+  });
+});
+
+describe('animationer', () => {
+  it('typer efter delens geometri', () => {
+    expect(typesFor({ tag: 'rect', line: true })).toContain('level');
+    expect(typesFor({ tag: 'circle', line: false })).not.toContain('level');
+    expect(typesFor({ tag: 'text', line: false })).toContain('text');
+    expect(typesFor({ tag: 'path', line: true })).toContain('flow');
+  });
+  it('standardparametre efter kilden', () => {
+    expect(animDefaults('fill', 'pos', 2)).toEqual({ colors: ['#d6d6d6', '#7cc47f'] });
+    expect(animDefaults('rotate', 'pos', 3)).toEqual({ angles: [-45, 0, 45] });
+    expect(animDefaults('blink', 'num', 0)).toEqual({ at_least: 50, speed: 'normal' });
+    expect(animDefaults('flow', 'pos', 3).dirs).toEqual([0, 1, 1]);
+  });
+});

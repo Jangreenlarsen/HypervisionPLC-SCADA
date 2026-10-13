@@ -2,6 +2,12 @@
 
 ---
 
+## v0.36.0 — 2026-10-13 — Symbolstandard, del 6: guiden
+
+- Under **Bindinger** har grupper og symboler nu knappen **Opsæt symbol (guide)**. Guiden fører gennem 6 trin: hvordan symbolet betjenes, hvilke signaler det skriver, kontaktplanerne (med skabeloner og eksemplet "7-trins vælger"), animationerne, betjening og nøglelås, og til sidst live-værdier og hvad hvert positionsskift vil skrive.
+- Fejl vises ved det trin de hører til, og symbolet kan først gemmes når alt er i orden.
+- Har symbolet bindinger fra før, foreslår guiden en opsætning ud fra dem (**Foreslå ud fra symbolet**). Når symbolet er gemt i guiden, bruges de gamle bindinger ikke længere; **Fjern konfiguration** giver dem tilbage.
+
 ## v0.35.0 — 2026-10-13 — Symbolstandard, del 4–5: symbolerne på Overview
 
 - Symboler sat op efter den nye standard vises og betjenes nu på Overview:

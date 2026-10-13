@@ -7,6 +7,7 @@
   import { bindingTags, findElement, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
   import TagSelect from '../lib/TagSelect.svelte';
+  import SymbolGuide from '../lib/SymbolGuide.svelte';
 
   let { route = 'editor' }: { route?: string } = $props();
 
@@ -26,6 +27,7 @@
   let descDraft = $state('');
   const current = $derived(elements.find((e) => e.id === selected) ?? null);
   let symWarning = $state('');
+  let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (symbolstandarden) er åben
   let selected = $state<string | null>(null);
   let drafts = $state<Draft[]>([]); // én binding = ét tag (gid) med en eller flere animationer
   let explicitMode = $state(false); // true = elementet har (eller får) eksplicitte bindinger
@@ -384,6 +386,19 @@
             </label>
           </section>
         {/if}
+        {#if current.type === 'g' || current.name || current.spec}
+          {@const sc = view?.symbol_config?.[current.id]}
+          <section class="symbol-cfg">
+            <h4>Symbolstandard</h4>
+            {#if sc}
+              <p class="small">Konfigureret: <strong>{({ positions: `${sc.labels.length} positioner`, pulse: 'trykknap', entry: 'setpunkt', view: 'kun visning' } as Record<string, string>)[sc.op] ?? sc.op}</strong>.
+                Symbolets egne bindinger nedenfor bruges ikke, så længe konfigurationen findes.</p>
+            {:else}
+              <p class="small muted">Saml betjening, positioner, kontaktplaner, animationer og nøglelås i én konfiguration.</p>
+            {/if}
+            <div class="row"><button onclick={() => (guideFor = { id: current.id, name: displayName(current) })}>{sc ? 'Ret symbol (guide)' : 'Opsæt symbol (guide)'}</button></div>
+          </section>
+        {/if}
 
         {#if !explicitMode}
           {#if autoFor(current.id).length}
@@ -615,6 +630,11 @@
   </aside>
 </div>
 
+{#if guideFor && view}
+  <SymbolGuide drawingId={view.id} element={guideFor.id} name={guideFor.name} {tags}
+    onclose={() => (guideFor = null)}
+    onsaved={async () => { const id = guideFor?.id; guideFor = null; await load(drawingId, true); if (id) select(id, true); }} />
+{/if}
 
 <style>
   .anim { border-top: 1px dashed var(--line); padding: .5rem 0 .4rem; margin-top: .4rem; }

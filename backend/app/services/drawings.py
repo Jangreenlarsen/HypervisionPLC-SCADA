@@ -249,7 +249,14 @@ class DrawingService:
                 "svg": svg, "bindings": effective, "orphaned_bindings": sorted(set(orphans)), "tags": meta,
                 "symbols": self.db.list_symbol_meta(drawing_id), "symbol_config": configured}
 
-    def _compute(self, drawing_id: str) -> tuple[dict[str, Any], str, list[dict[str, Any]], list[str], dict[str, Any]]:
+    def legacy_bindings(self, drawing_id: str, element: str) -> list[dict[str, Any]]:
+        """Bindinger efter den gamle model (eksplicitte + automatiske) for et symbol og dets dele — også hvis symbolet
+        har en symbol-konfiguration. Bruges til at foreslå en konfiguration (Konvertér)."""
+        svg = self.svg(drawing_id)
+        subtree = subtree_ids(svg, {element})
+        return [b for b in self._compute(drawing_id, legacy=True)[2] if b["element"] in subtree]
+
+    def _compute(self, drawing_id: str, legacy: bool = False) -> tuple[dict[str, Any], str, list[dict[str, Any]], list[str], dict[str, Any]]:
         drawing = self._require(drawing_id)
         svg = self.svg(drawing_id)
         index = index_svg(svg)
@@ -260,7 +267,8 @@ class DrawingService:
         orphans: list[str] = []
         explicit_elements: set[str] = set()
         # Symbolstandard: har et symbol en konfiguration, gælder den — gamle bindinger på symbolet og dets dele ignoreres
-        configs = {r["element"]: r["config"] for r in self.db.list_symbol_configs(drawing_id) if r["element"] in index}
+        configs = ({} if legacy else
+                   {r["element"]: r["config"] for r in self.db.list_symbol_configs(drawing_id) if r["element"] in index})
         covered = subtree_ids(svg, set(configs))
         for b in self.db.list_bindings(drawing_id):
             explicit_elements.add(b["element"])

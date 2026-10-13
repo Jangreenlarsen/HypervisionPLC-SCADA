@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.36.0 build 0053] — 2026-10-13 — Symbolstandard fase 6: guiden under Bindinger og Konvertér
+
+- `frontend/src/lib/SymbolGuide.svelte` (ny) — guiden i 6 trin (Symbol, Signaler, Kontakter, Visning, Betjening, Test og gem) som vindue fra "Opsæt symbol (guide)"/"Ret symbol (guide)" under Bindinger: betjeningsform, signaler (kommando, tilbagemelding, sæt/puls med hvileværdi), fejlsignal, positioner, kontaktplaner med skabeloner A–D og eksemplet "7-trins vælger", rækken "Aktive signaler", visning/alarmniveau, animationer pr. del (typer efter delens geometri, kilde = position eller tag, værdier pr. position, "gælder i", ▲▼), bekræftelse, pulslængde, nøglelås med kode (skriv-kun), live-værdier, fundet position og skriveplan pr. position. Valideringen er serverens (`POST …/preview`, kaldt løbende) — fejl vises pr. trin med prik på fanen; Gem er spærret ved fejl eller manglende kode. "Fjern konfiguration" giver symbolets gamle bindinger tilbage.
+- `frontend/src/lib/symbolConfig.ts` (ny) + `symbolConfig.test.ts` — datamodel og ren logik: standardværdier, skabeloner A–D, eksemplet dec → bin, positioner tilføjet/fjernet (alle arrays følger med), aktive signaler, cellecyklus, fundet position, skift af betjeningsform, animationstyper efter geometri og standardparametre.
+- `frontend/src/pages/Editor.svelte` — afsnittet "Symbolstandard" for grupper og symboler (status + knap til guiden); visningen genindlæses efter gem.
+- `backend/app/services/symbol_convert.py` (ny) — Konvertér: forslag til en konfiguration ud fra symbolets bindinger i dag (til/fra → 2 positioner, vælg position → positionerne, puls → trykknap, skriv → setpunkt; farver/tekst/flyt/drej/synlig/blink omsat til værdier pr. position; øvrige følger fortsat deres tag). Gemmes ikke.
+- `backend/app/services/drawings.py` — `legacy_bindings()`: symbolets gamle bindinger uanset konfiguration (grundlag for forslaget).
+- `backend/app/api/symbols.py` — `GET …/suggest` (tekniker).
+- Tests: `test_symbol_convert.py` (ny; forslaget kan gemmes uændret og giver samme visning). Set i den kørende app i Chromium med mock-PLC: omskifter konverteret og gemt, eksemplet 7-trins vælger med tags, låst position uden/med kode, kun visning med Niveau, trykknap, ret eksisterende og fjern.
+
 ## [0.35.0 build 0052] — 2026-10-13 — Symbolstandard fase 4–5: Overview og animationer
 
 - `backend/app/services/symbols.py` — `config_bindings()`: symbolets animationer som almindelige bindinger (kilde "position" → pseudo-tag `…:pos` + `params.pos`; "gælder i positionerne" → `params.only` + `pos_tag`; positionsnavne til Værdi); `symbol_view()`: det Overview behøver (betjeningsform, navne, visning, bekræftelse, låste positioner, om kode er sat — aldrig koden).
