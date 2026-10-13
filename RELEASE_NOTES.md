@@ -2,6 +2,12 @@
 
 ---
 
+## v0.33.0 — 2026-10-13 — Symbolstandard, del 2: serveren kender symbolernes position
+
+- Serveren finder nu selv hvilken position et symbol står i ud fra PLC'ens tilbagemeldinger, og om den er Bekræftet, Venter, Afvigelse eller Ukendt — også for omskiftere med flere signaler (fx 7 positioner på 3 bits).
+- Står et symbol i "Lokal" visning, og PLC'en ikke følger med inden for valideringstiden, kommer der en alarm med det niveau teknikeren har valgt (Lav, Medium eller Høj). Alarmlisten sorteres Høj → Medium → Lav.
+- Sidst valgte position huskes også efter genstart af serveren.
+
 ## v0.32.0 — 2026-10-13 — Symbolstandard, del 1: serveren kan gemme og kontrollere symboler
 
 - Første del af den nye symbolstandard: serveren kan nu gemme en samlet opsætning pr. symbol (positioner, signaler, kontaktplaner, visning, alarmniveau, nøglelås og animationer) og kontrollerer den efter de samme regler som prototypen — med en præcis fejlbesked pr. trin.

@@ -37,6 +37,7 @@ from .services.operate import OperateService
 from .services.drawings import DrawingService
 from .services.scope import ScopeService
 from .services.symbols import SymbolService
+from .services.symbol_runtime import SymbolRuntime
 from .services.schedules import ScheduleService
 from .services.trends import TrendRecorder
 from .services.live_cache import LiveCache
@@ -81,6 +82,12 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         await manager.start_all()
         app.state.alarm_service = AlarmService(manager, db, tick_s=settings.alarm_tick_s,
                                                comm_delay_s=settings.alarm_comm_delay_s)
+        # Symbolstandard: position/tilstand som pseudo-tags + afvigelsesalarmer
+        app.state.symbol_runtime = SymbolRuntime(db, manager.cache, app.state.drawing_service,
+                                                 tick_s=settings.symbol_tick_s)
+        app.state.symbol_runtime.reload()
+        app.state.alarm_service.providers.append(app.state.symbol_runtime.alarm_conditions)
+        symbol_task = asyncio.create_task(app.state.symbol_runtime.run(), name="symbols")
         alarm_task = asyncio.create_task(app.state.alarm_service.run(), name="alarms")
         trend_db = TrendDatabase(settings.data_dir / "trends.db")
         app.state.trend_db = trend_db
@@ -105,6 +112,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
             yield
         finally:
             alarm_task.cancel()
+            symbol_task.cancel()
             if schedule_task is not None:
                 schedule_task.cancel()
             trend_task.cancel()

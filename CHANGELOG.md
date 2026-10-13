@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.33.0 build 0050] — 2026-10-13 — Symbolstandard fase 2: position, tilstand og afvigelsesalarm
+
+- `backend/app/services/symbol_runtime.py` (ny) — `remote_position()` (præcis én position hvis alle læsbare planer matcher tilbagemelding/kommando; pulsplaner og "røres ikke" tæller ikke; komm.fejl → ukendt) og `compute_state()` (Remote/Lokal, Venter i valideringstiden, Afvigelse, Ukendt, hængelås) som prototypens `remotePos`/`status`. `SymbolRuntime` genberegner ved hver live-ændring og mindst hvert `SCADA_SYMBOL_TICK_S` (0,5 s), lægger `sym:<tegning>:<element>:pos|remote|state|locked` i live-cachen, gemmer sidst valgte position i `symbol_state` (overlever genstart; første gang = det PLC'en viser) og fjerner pseudo-tags for slettede symboler. Genindlæser ved ændrede konfigurationer eller tegningsversioner.
+- `backend/app/services/alarms.py` — eksterne alarmkilder (`providers`) med egen prioritet og "frosne" tags; prioritet `low`; sortering Høj → Medium → Lav; ændret prioritet slår igennem på en aktiv alarm.
+- `backend/app/main.py`, `backend/app/config.py` — runtime startes og leverer afvigelsesalarmer (Lokal + alarm valgt), med symbolets navn i teksten ("Vælger V1: valgt 6, PLC viser 3"). Komm.fejl fryser alarmen.
+- Tests: `backend/tests/test_symbol_runtime.py` (ny, 15): alle 7 positioner i dec→bin, registerskabelon, pulsplaner, tidslinjer Lokal/Remote, pseudo-tags mod mock-PLC, alarm med valgt niveau og genstart, frosset alarm, fjernede pseudo-tags.
+
 ## [0.32.0 build 0049] — 2026-10-13 — Symbolstandard fase 1: konfiguration og validering
 
 - `backend/app/storage/db.py` — skema 11: tabellerne `symbol_config`, `symbol_pins` (kun scrypt-hash), `symbol_state`; metoder til dem; backup-eksport af konfigurationerne (aldrig koder eller tilstand), restore lægger dem ind igen.
