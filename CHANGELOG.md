@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.30.0 build 0043] — 2026-10-13 — Løbelys i T-stykke og kryds
+
+- `backend/app/services/bindings.py` — `FlowParams.arm` ('' | left | right | up | down) og `arm_flow` (in | out).
+- `frontend/src/lib/animate.ts` — `segmentsOf()` (lige linjestykker fra path M/L/H/V/Z inkl. relative, line, polyline, polygon, rect), `junctionArms()` (krydspunkt + rør), `armName()` (rørets retning på skærmen via elementets CTM, så roterede/spejlede symboler følger det man ser) og `armFlowsOut()`. Med valgt rør tegnes én lys-linje pr. rør fra krydspunktet: det valgte løber ind/ud, de øvrige modsat; "tilbage" vender alt. Findes røret ikke, eller har elementet buer, falder lyset tilbage til tegneretningen med en advarsel.
+- `frontend/src/lib/bindingForm.ts`, `frontend/src/pages/Editor.svelte` — "T-stykke/kryds: valgt rør" og "Det valgte rør løber ind/ud".
+- Tests: krydspunkt/rør for kryds og T-stykke, relative paths, buer/parallelle, skærmretning ved rotation og spejling, ind/ud-logik, kryds og T-stykke i DOM inkl. kode 2, manglende rør (`animate.test.ts`); formular (`bindingForm.test.ts`); backend-validering.
+- `docs/prototyper/symbolguide.html`, `docs/SYMBOLSTANDARD.md` — samme valg i prototypen og standarden.
+- Set i den kørende app i Chromium: kryds (venstre ind), T-stykke (op ud) og T-stykke roteret 90° (højre ind) — retninger målt pr. rør i skærmkoordinater, også ved kode 2 og 0.
+
 ## [0.29.0 build 0042] — 2026-10-13 — Ny animation: Løbelys
 
 - `backend/app/services/bindings.py` — ny animationstype `flow` med `FlowParams` (mode onoff/signed/code, reverse, invert, base, light, speed 5–500, dash 2–200; farver valideres som de øvrige).

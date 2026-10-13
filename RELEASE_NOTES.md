@@ -2,6 +2,11 @@
 
 ---
 
+## v0.30.0 — 2026-10-13 — Løbelys i T-stykker og kryds
+
+- Løbelys på et **T-stykke** eller **kryds** kan nu sættes pr. rør: vælg ét af rørene (venstre, højre, op eller ned — som det ses på skærmen, også når symbolet er drejet) og om det løber **ind i** eller **ud af** krydset. De øvrige rør løber automatisk den modsatte vej.
+- Tagget styrer stadig start/stop, og "tilbage" (fx kode 2) vender hele mønstret.
+
 ## v0.29.0 — 2026-10-13 — Løbelys i rør
 
 - Ny animation **Løbelys** under Bindinger: to farver løber langs et rør eller en streg, så man kan se flowet. Virker på lige rør, bøjninger, T-stykker, kryds og tegnede streger.

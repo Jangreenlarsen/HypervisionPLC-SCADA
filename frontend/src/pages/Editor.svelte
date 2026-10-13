@@ -508,11 +508,28 @@
                     <label>Hastighed (enheder/s)<input bind:value={d.speed} oninput={changed} inputmode="decimal" title="5-500 tegningsenheder pr. sekund" /></label>
                     <label>Streglængde<input bind:value={d.dash} oninput={changed} inputmode="decimal" title="Længden af hver lys og mørk streg (2-200)" /></label>
                   </div>
-                  <label class="check"><input type="checkbox" bind:checked={d.reverse} onchange={changed} /> Vend retningen (frem = modsat tegneretningen)</label>
+                  <div class="grid-form">
+                    <label>T-stykke/kryds: valgt rør
+                      <select bind:value={d.arm} onchange={changed} title="Som røret ses på skærmen — også når symbolet er roteret">
+                        <option value="">Intet (lyset følger tegneretningen)</option>
+                        <option value="left">Venstre</option><option value="right">Højre</option>
+                        <option value="up">Op</option><option value="down">Ned</option>
+                      </select>
+                    </label>
+                    {#if d.arm}
+                      <label>Det valgte rør løber
+                        <select bind:value={d.arm_flow} onchange={changed}>
+                          <option value="in">Ind i krydset (de øvrige ud)</option>
+                          <option value="out">Ud af krydset (de øvrige ind)</option>
+                        </select>
+                      </label>
+                    {/if}
+                  </div>
+                  <label class="check"><input type="checkbox" bind:checked={d.reverse} onchange={changed} /> Vend retningen ({d.arm ? 'byt ind og ud' : 'frem = modsat tegneretningen'})</label>
                   {#if d.mode === 'onoff'}
                     <label class="check"><input type="checkbox" bind:checked={d.invert} onchange={changed} /> Omvendt (kører når værdien er falsk)</label>
                   {/if}
-                  <p class="small muted">Lyset løber langs elementets tegneretning (for et lige rør: mod højre/nedad). Står stille ved stop og når værdien er ukendt.</p>
+                  <p class="small muted">{d.arm ? 'I et T-stykke eller kryds løber det valgte rør ind (eller ud), og de øvrige rør den modsatte vej. Ved "tilbage" vendes det hele.' : 'Lyset løber langs elementets tegneretning (for et lige rør: mod højre/nedad).'} Står stille ved stop og når værdien er ukendt.</p>
                 {:else}
                   <div class="grid-form">
                     <label>Min<input bind:value={d.min} oninput={changed} inputmode="decimal" /></label>

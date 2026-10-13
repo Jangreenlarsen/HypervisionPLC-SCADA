@@ -98,6 +98,8 @@ def test_binding_validation(api):
         ("Tank", [{"tag": "Niveau", "anim": "flow", "params": {"light": "url(javascript:1)"}}], "ugyldig farve"),
         ("Tank", [{"tag": "Niveau", "anim": "flow", "params": {"speed": 0}}], "speed"),
         ("Tank", [{"tag": "Niveau", "anim": "flow", "params": {"dash": 1000}}], "dash"),
+        ("Tank", [{"tag": "Niveau", "anim": "flow", "params": {"arm": "diagonal"}}], "arm"),
+        ("Tank", [{"tag": "Niveau", "anim": "flow", "params": {"arm": "left", "arm_flow": "sideways"}}], "arm_flow"),
     ]
     for element, bindings, message in cases:
         r = api.put(f"/api/drawings/{did}/bindings/{element}", json={"bindings": bindings})
@@ -113,7 +115,12 @@ def test_flow_binding_defaults_and_roundtrip(api):
     flow = next(b for b in api.get(f"/api/drawings/{did}/view").json()["bindings"] if b["element"] == "Tank")
     assert flow["anim"] == "flow"
     assert flow["params"] == {"mode": "code", "reverse": True, "invert": False, "base": "#555555",
-                              "light": "#8fc8ea", "speed": 80, "dash": 12}
+                              "light": "#8fc8ea", "speed": 80, "dash": 12, "arm": "", "arm_flow": "in"}
+    r = api.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": [
+        {"tag": "Niveau", "anim": "flow", "params": {"arm": "up", "arm_flow": "out"}}]})
+    assert r.status_code == 200, r.text
+    flow = next(b for b in api.get(f"/api/drawings/{did}/view").json()["bindings"] if b["element"] == "Tank")
+    assert (flow["params"]["arm"], flow["params"]["arm_flow"]) == ("up", "out")
 
 
 def test_text_prefix_suffix_kept_verbatim(api):

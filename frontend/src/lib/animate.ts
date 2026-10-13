@@ -171,14 +171,135 @@ function shapesOf(el: Element): Element[] {
   return Array.from(el.querySelectorAll(SHAPES)).filter((s) => !s.closest('.hv-flow'));
 }
 
+// ---------------------------------------------------------------- Løbelys i T-stykke og kryds
+export type Seg = [number, number, number, number];
+export type ArmName = 'left' | 'right' | 'up' | 'down';
+
+/** Rette linjestykker i en figur (path med M/L/H/V/Z, line, polyline, polygon, rect-midterlinje). null = buer o.l. */
+export function segmentsOf(shape: Element): Seg[] | null {
+  const n = (a: string) => parseFloat(shape.getAttribute(a) ?? '0') || 0;
+  const tag = shape.tagName;
+  if (tag === 'line') return [[n('x1'), n('y1'), n('x2'), n('y2')]];
+  if (tag === 'rect') {
+    const [x, y, w, h] = [n('x'), n('y'), n('width'), n('height')];
+    return w >= h ? [[x, y + h / 2, x + w, y + h / 2]] : [[x + w / 2, y, x + w / 2, y + h]];
+  }
+  if (tag === 'polyline' || tag === 'polygon') {
+    const v = (shape.getAttribute('points') ?? '').trim().split(/[\s,]+/).map(Number);
+    const out: Seg[] = [];
+    for (let i = 0; i + 3 < v.length; i += 2) out.push([v[i], v[i + 1], v[i + 2], v[i + 3]]);
+    if (tag === 'polygon' && v.length >= 6) out.push([v[v.length - 2], v[v.length - 1], v[0], v[1]]);
+    return out.every((sg) => sg.every(Number.isFinite)) ? out : null;
+  }
+  if (tag !== 'path') return null;
+  const toks = (shape.getAttribute('d') ?? '').match(/[a-zA-Z]|-?(?:\d+\.?\d*|\.\d+)(?:e-?\d+)?/g) ?? [];
+  const out: Seg[] = [];
+  let x = 0, y = 0, sx = 0, sy = 0, cmd = '', i = 0;
+  const num = () => Number(toks[i++]);
+  while (i < toks.length) {
+    if (/[a-zA-Z]/.test(toks[i])) cmd = toks[i++];
+    const rel = cmd === cmd.toLowerCase();
+    const C = cmd.toUpperCase();
+    if (C === 'Z') { if (x !== sx || y !== sy) out.push([x, y, sx, sy]); x = sx; y = sy; continue; }
+    if (!'MLHV'.includes(C)) return null; // buer og kurver: ikke et kryds af lige rør
+    if (C === 'M') { x = (rel ? x : 0) + num(); y = (rel ? y : 0) + num(); sx = x; sy = y; cmd = rel ? 'l' : 'L'; continue; }
+    const [ox, oy] = [x, y];
+    if (C === 'L') { x = (rel ? x : 0) + num(); y = (rel ? y : 0) + num(); }
+    if (C === 'H') x = (rel ? x : 0) + num();
+    if (C === 'V') y = (rel ? y : 0) + num();
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    out.push([ox, oy, x, y]);
+  }
+  return out;
+}
+
+const near = (a: number, b: number) => Math.abs(a - b) < 0.5;
+function onSeg([x1, y1, x2, y2]: Seg, px: number, py: number): boolean {
+  const len = Math.hypot(x2 - x1, y2 - y1);
+  if (len === 0) return near(px, x1) && near(py, y1);
+  const cross = Math.abs((x2 - x1) * (py - y1) - (y2 - y1) * (px - x1)) / len;
+  const t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / (len * len);
+  return cross < 0.5 && t > -0.01 && t < 1.01;
+}
+
+/** Krydspunkt og rørene ud fra det (endepunkter), fx 4 for et kryds og 3 for et T-stykke. null = intet kryds. */
+export function junctionArms(segs: Seg[]): { cx: number; cy: number; arms: [number, number][] } | null {
+  let c: [number, number] | null = null;
+  for (let i = 0; i < segs.length && !c; i++) {
+    for (let j = i + 1; j < segs.length && !c; j++) {
+      const [x1, y1, x2, y2] = segs[i], [x3, y3, x4, y4] = segs[j];
+      const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+      if (Math.abs(den) < 1e-9) continue; // parallelle
+      const px = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / den;
+      const py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / den;
+      if (onSeg(segs[i], px, py) && onSeg(segs[j], px, py)) c = [px, py];
+    }
+  }
+  if (!c) return null;
+  const [cx, cy] = c;
+  const arms: [number, number][] = [];
+  for (const sg of segs) {
+    if (!onSeg(sg, cx, cy)) continue;
+    for (const [ex, ey] of [[sg[0], sg[1]], [sg[2], sg[3]]] as [number, number][]) {
+      if (Math.hypot(ex - cx, ey - cy) < 0.5) continue;
+      if (!arms.some(([ax, ay]) => near(ax, ex) && near(ay, ey))) arms.push([ex, ey]);
+    }
+  }
+  return arms.length >= 3 ? { cx, cy, arms } : null;
+}
+
+/** Retningen af et rør som det ses på skærmen (m = elementets transform: roteret/spejlet symbol). */
+export function armName(vx: number, vy: number, m: { a: number; b: number; c: number; d: number } = { a: 1, b: 0, c: 0, d: 1 }): ArmName {
+  const sx = m.a * vx + m.c * vy, sy = m.b * vx + m.d * vy;
+  return Math.abs(sx) >= Math.abs(sy) ? (sx >= 0 ? 'right' : 'left') : (sy >= 0 ? 'down' : 'up');
+}
+
+/** Ét rørs lysretning i et kryds: true = ud fra krydset. Det valgte rør følger arm_flow, de øvrige det modsatte. */
+export function armFlowsOut(isChosen: boolean, armFlow: string, state: -1 | 1): boolean {
+  const out = isChosen ? armFlow === 'out' : armFlow !== 'out';
+  return state > 0 ? out : !out;
+}
+
+/** Lys-streger til et kryds: én linje pr. rør fra krydspunktet; null hvis elementet ikke er et kryds med det valgte rør. */
+function junctionDashes(el: Element, shapes: Element[], p: Record<string, any>, state: -1 | 1): { d: SVGElement; out: boolean }[] | string {
+  const segs: Seg[] = [];
+  let width = 0;
+  for (const s of shapes) {
+    const sg = segmentsOf(s);
+    if (!sg) return 'krydsning kræver lige rør (ingen buer)';
+    segs.push(...sg);
+    const n = (a: string) => parseFloat(s.getAttribute(a) ?? '0') || 0;
+    width ||= s.tagName === 'rect' ? Math.min(n('width'), n('height')) : parseFloat(s.getAttribute('stroke-width') ?? '1');
+  }
+  const j = junctionArms(segs);
+  if (!j) return 'krydsning: fandt ikke et T-stykke eller kryds i elementet';
+  let m = { a: 1, b: 0, c: 0, d: 1 };
+  try {
+    const ctm = (el as SVGGraphicsElement).getCTM?.();
+    if (ctm) m = ctm;
+  } catch {
+    // getCTM findes ikke i alle miljøer (fx jsdom) — så gælder symbolets egne retninger
+  }
+  const names = j.arms.map(([x, y]) => armName(x - j.cx, y - j.cy, m));
+  if (!names.includes(p.arm)) return `krydsning: røret "${p.arm}" findes ikke her (har: ${names.join(', ')})`;
+  return j.arms.map(([x, y], k) => {
+    const d = document.createElementNS(SVG_NS, 'line') as SVGElement;
+    d.setAttribute('x1', String(j.cx)); d.setAttribute('y1', String(j.cy));
+    d.setAttribute('x2', String(x)); d.setAttribute('y2', String(y));
+    d.setAttribute('stroke-width', String(width));
+    return { d, out: armFlowsOut(names[k] === p.arm, p.arm_flow, state) };
+  });
+}
+
 function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   const base = p.base ?? '#555555', light = p.light ?? '#8fc8ea';
   const dash = Number(p.dash ?? 12), speed = Number(p.speed ?? 40);
-  const key = `${state}|${base}|${light}|${dash}|${speed}`;
+  const key = `${state}|${base}|${light}|${dash}|${speed}|${p.arm ?? ''}|${p.arm_flow ?? ''}`;
   const old = flowLayers.get(el);
   if (old?.getAttribute('data-hv-flow') === key) return; // uændret: lad animationen køre videre uden hop
   old?.remove();
   flowLayers.delete(el);
+  el.removeAttribute('data-hv-warning');
   const shapes = shapesOf(el);
   for (const s of shapes) {
     const st = (s as SVGElement).style;
@@ -188,22 +309,34 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
     else st.stroke = state ? base : '';
   }
   if (!state) return;
+  // Hver lys-streg med sin retning: langs tegneretningen, eller pr. rør i et kryds (ud = væk fra krydspunktet)
+  let dashes: { d: SVGElement; out: boolean }[] = [];
+  if (p.arm) {
+    const j = junctionDashes(el, shapes, p, state);
+    if (typeof j === 'string') el.setAttribute('data-hv-warning', j); // falder tilbage til tegneretningen
+    else dashes = j;
+  }
+  if (!dashes.length) {
+    for (const s of shapes) {
+      const d = flowDash(s);
+      if (d) dashes.push({ d, out: state > 0 });
+    }
+  }
   const layer = document.createElementNS(SVG_NS, 'g') as SVGGElement;
   layer.setAttribute('class', 'hv-flow');
   layer.setAttribute('data-hv-flow', key);
   layer.setAttribute('pointer-events', 'none');
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  for (const s of shapes) {
-    const d = flowDash(s);
-    if (!d) continue;
+  for (const { d, out } of dashes) {
     d.setAttribute('stroke', light);
     d.setAttribute('stroke-dasharray', `${dash} ${dash}`);
     d.setAttribute('stroke-linecap', 'butt');
+    d.setAttribute('data-hv-dir', out ? 'out' : 'in');
     layer.appendChild(d);
     if (!reduce && typeof (d as any).animate === 'function') {
       // Lyset flytter én periode (lys + mørk) pr. omgang; startTime 0 holder alle løbelys i takt
       const a = d.animate([{ strokeDashoffset: 0 }, { strokeDashoffset: -2 * dash }],
-        { duration: (2 * dash / speed) * 1000, iterations: Infinity, direction: state > 0 ? 'normal' : 'reverse' });
+        { duration: (2 * dash / speed) * 1000, iterations: Infinity, direction: out ? 'normal' : 'reverse' });
       a.startTime = 0;
     }
   }

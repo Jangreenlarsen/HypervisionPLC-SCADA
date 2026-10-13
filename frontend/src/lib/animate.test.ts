@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBinding, colorFor, flowState, formatValue, fraction, textFor } from './animate';
+import { applyBinding, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, segmentsOf, textFor } from './animate';
 import type { Binding, LiveValue } from './api';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -240,5 +240,55 @@ describe('løbelys (flow)', () => {
     applyBinding(c, flowB(), good(true));
     expect(svg.querySelector('.hv-flow')).toBeNull();
     expect(c.getAttribute('data-hv-warning')).toContain('løbelys');
+  });
+});
+
+describe('løbelys i T-stykke og kryds', () => {
+  const pipeG = (d: string) => { const g = el('g'); g.appendChild(el('path', { d, fill: 'none', stroke: '#555', 'stroke-width': '10' })); return g; };
+  const flowB = (params: Record<string, unknown> = {}): Binding => ({ element: 'r', tag: 'P', anim: 'flow', params });
+  const dirs = (g: Element) => Object.fromEntries([...g.querySelectorAll('.hv-flow line')].map((l) =>
+    [armName(Number(l.getAttribute('x2')) - 45, Number(l.getAttribute('y2')) - 45), l.getAttribute('data-hv-dir')]));
+  const mount = (g: Element) => { el('svg').appendChild(g); return g; };
+
+  it('finder krydspunktet og rørene: 4 i et kryds, 3 i et T-stykke', () => {
+    const k = junctionArms(segmentsOf(el('path', { d: 'M0 45 H90 M45 0 V90' }))!)!;
+    expect([k.cx, k.cy, k.arms.length]).toEqual([45, 45, 4]);
+    const t = junctionArms(segmentsOf(el('path', { d: 'M0 45 H90 M45 45 V0' }))!)!;
+    expect([t.cx, t.cy, t.arms.length]).toEqual([45, 45, 3]);
+    expect(t.arms.map(([x, y]) => armName(x - 45, y - 45)).sort()).toEqual(['left', 'right', 'up']);
+  });
+  it('relative path-kommandoer og linjer i en gruppe virker også; buer giver null', () => {
+    expect(segmentsOf(el('path', { d: 'm0 45 h90 m-45 -45 v90' }))).toEqual([[0, 45, 90, 45], [45, 0, 45, 90]]);
+    expect(segmentsOf(el('path', { d: 'M0 45 H25 A20 20 0 0 0 45 25 V0' }))).toBeNull();
+    expect(junctionArms([[0, 45, 90, 45], [10, 0, 80, 0]])).toBeNull(); // parallelle rør er ikke et kryds
+  });
+  it('rørets retning følger skærmen: et symbol roteret 90° har "op" der hvor det tegnede "højre" er', () => {
+    expect(armName(45, 0)).toBe('right');
+    expect(armName(45, 0, { a: 0, b: -1, c: 1, d: 0 })).toBe('up'); // rotate(-90)
+    expect(armName(45, 0, { a: -1, b: 0, c: 0, d: 1 })).toBe('left'); // spejlet vandret
+  });
+  it('valgt rør ind → de øvrige ud; ud → de øvrige ind; "tilbage" vender det hele', () => {
+    expect([armFlowsOut(true, 'in', 1), armFlowsOut(false, 'in', 1)]).toEqual([false, true]);
+    expect([armFlowsOut(true, 'out', 1), armFlowsOut(false, 'out', 1)]).toEqual([true, false]);
+    expect([armFlowsOut(true, 'in', -1), armFlowsOut(false, 'in', -1)]).toEqual([true, false]);
+  });
+  it('kryds: venstre rør ind → højre, op og ned løber ud', () => {
+    const g = mount(pipeG('M0 45 H90 M45 0 V90'));
+    applyBinding(g, flowB({ arm: 'left', arm_flow: 'in' }), good(true));
+    expect(dirs(g)).toEqual({ left: 'in', right: 'out', up: 'out', down: 'out' });
+  });
+  it('T-stykke: afgreningen op løber ud → venstre og højre løber ind; kode 2 (tilbage) vender', () => {
+    const g = mount(pipeG('M0 45 H90 M45 45 V0'));
+    applyBinding(g, flowB({ arm: 'up', arm_flow: 'out', mode: 'code' }), good(1));
+    expect(dirs(g)).toEqual({ left: 'in', right: 'in', up: 'out' });
+    applyBinding(g, flowB({ arm: 'up', arm_flow: 'out', mode: 'code' }), good(2));
+    expect(dirs(g)).toEqual({ left: 'out', right: 'out', up: 'in' });
+    expect(g.querySelectorAll('.hv-flow').length).toBe(1);
+  });
+  it('valgt rør der ikke findes (ned i et T-stykke): advarsel, og lyset følger tegneretningen', () => {
+    const g = mount(pipeG('M0 45 H90 M45 45 V0'));
+    applyBinding(g, flowB({ arm: 'down' }), good(true));
+    expect(g.getAttribute('data-hv-warning')).toContain('findes ikke');
+    expect(g.querySelector('.hv-flow path')).not.toBeNull(); // kopi af stregen i stedet for rør-linjer
   });
 });

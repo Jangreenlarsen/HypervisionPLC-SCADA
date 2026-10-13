@@ -112,6 +112,9 @@ class FlowParams(_P):
     - signed: > 0 frem, < 0 tilbage, 0 stop (fx en frekvensomformers hastighed).
     - code: 0 stop, 1 frem, 2 tilbage; andre værdier = stop.
     `reverse` vender retningen i alle tilstande, så "frem" kan følge rørets flow uanset tegneretning.
+
+    T-stykke og kryds: `arm` vælger ét af rørene (som det ses på skærmen) og `arm_flow` om det løber ind i
+    eller ud af krydset ved "frem"; de øvrige rør løber den modsatte vej. Tom `arm` = langs tegneretningen.
     """
     mode: Literal["onoff", "signed", "code"] = "onoff"
     reverse: bool = False
@@ -120,6 +123,8 @@ class FlowParams(_P):
     light: str = "#8fc8ea"
     speed: float = Field(default=40, ge=5, le=500)   # tegningens enheder pr. sekund
     dash: float = Field(default=12, ge=2, le=200)    # længde af hver lys/mørk streg
+    arm: Literal["", "left", "right", "up", "down"] = ""
+    arm_flow: Literal["in", "out"] = "in"
 
     _c = field_validator("base", "light")(lambda cls, v: _color(v))
 
