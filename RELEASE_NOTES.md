@@ -2,6 +2,12 @@
 
 ---
 
+## v0.28.1 — 2026-10-13 — Rør og fittings ser ens ud
+
+- I **Tegn** vises rør, bøjninger, T-stykke, kryds og de øvrige rørdele nu i samme målestok, så rørene ser lige tykke ud.
+- **Bøjning 45°** er nu rund som Bøjning 90°.
+- Nye lige rør er 90 lange som udgangspunkt (som T-stykke og kryds) — træk i enderne for at forlænge. Rør der allerede ligger i en tegning, ændres ikke.
+
 ## v0.28.0 — 2026-10-13 — Trykknappen ligner en trykknap
 
 - Symbolet **Trykknap (puls)** under Betjening ser nu ud som en rigtig tavle-trykknap: rund knap i en metalkrave på en frontplade, med et skilt under (teksten "Start" kan rettes i Tegn). Knappen lyser grøn mens pulsen sendes. Trykknapper der allerede ligger i en tegning, skal indsættes igen for at få det nye udseende.

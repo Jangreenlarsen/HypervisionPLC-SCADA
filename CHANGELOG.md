@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.28.1 build 0040] — 2026-10-13 — fix: rør og fittings ens tykke i paletten, rund 45°-bøjning
+
+- `frontend/src/lib/symbols.ts` — `PIPE_IDS` og `previewViewBox()`: rør og fittings får samme målestok i forhåndsvisningen (før blev hvert symbol skaleret efter egen størrelse, og stregen blev klippet fordi getBBox ikke medregner den). Rør (vandret/lodret) 160 → 90 lange som udgangspunkt. Bøjning 45° tegnet med bue (radius 20) i stedet for knæk; enderne ligger samme sted.
+- `frontend/src/pages/DrawEditor.svelte` — forhåndsvisningen bruger `previewViewBox`.
+- `frontend/src/lib/symbols.test.ts` — tests af målestok, centrering og bøjninger.
+- `docs/prototyper/symbolguide.html` — indlejret symbolbibliotek opdateret.
+
 ## [0.28.0 build 0039] — 2026-10-13 — Trykknap (puls) ligner en trykknap
 
 - `frontend/src/lib/symbols.ts` — Trykknap (puls) tegnet om fra en flad rektangel-knap til en tavlemonteret trykknap set forfra: frontplade 76×76, metalkrave, rund knap (`flade`, samme fyld-binding som før) med glans, og et skilt (`tekst`) med "Start" under. Bindinger (`click:pulse`, fyld) er uændrede. Set i Chromium.
