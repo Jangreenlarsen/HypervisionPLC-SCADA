@@ -5,6 +5,7 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v0.27.1 — Elmåler-symbolet var for smalt: et 5-cifret tal med decimal (fx 12345.6) løb ud over displayet (rapporteret af Jan ved test af symbolbiblioteket i prototypen 13.10.2026). **Løsning:** huset er 130 bredt og displayet 110, så der er plads til "12345.6 kWh"; set i Chromium. Elmålere der allerede ligger i en tegning, beholder den gamle bredde, indtil de indsættes igen.
 - [open] v0.27.0 — Puls kan efterlade udgangen tændt: fejler TÆND-skrivningen med timeout (`PlcUnreachable`), sendes SLUK ikke, selvom PLC'en kan have udført skrivningen (`operate.py` `pulse`). Fundet i kodegennemgang 12.10.2026 ([docs/GENNEMGANG_2026-10-12.md](docs/GENNEMGANG_2026-10-12.md) #1).
 - [open] v0.27.0 — Toggle er ikke atomisk: ny værdi beregnes fra cachen før låsen tages, så to samtidige tryk begge skriver "til"; cachen kan desuden være op til 2 s gammel (`operate.py` `toggle`). Gennemgang #2.
 - [open] v0.27.0 — Live-ændringer kan gå tabt: fuld klient-kø dropper den ældste delta, så Overview kan vise en forkert værdi indtil næste ændring (`live_cache.py` `update`). Verificeret. Gennemgang #3.

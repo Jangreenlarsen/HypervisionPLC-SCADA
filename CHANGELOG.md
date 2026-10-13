@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.27.1 build 0038] — 2026-10-13 — fix: elmåler har plads til 5 cifre
+
+- `frontend/src/lib/symbols.ts` — Elmåler (kWh): hus 90 → 130 bredt, display 70 → 110, tallet højrestillet ved x=114, "kWh" centreret; plads til fx "12345.6 kWh" (før løb et 5-cifret tal med decimal ud over displayet). Set i Chromium.
+
 ## [0.27.0 build 0037] — 2026-10-09 — Al symbol-konfiguration samlet under Bindinger
 
 **Bemærk:** implementeret efter Jans ønske UDEN nye tests og uden browser-/PLC-test — Jan tester først, og først derefter gennemgås og testes resten (se FEATURES). Eksisterende tests er ikke kørt for dette commit ud over frontendens enhedstests (115 består) og at backend kan importeres.

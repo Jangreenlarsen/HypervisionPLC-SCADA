@@ -448,9 +448,10 @@ export const SYMBOLS: SymbolDef[] = [
   },
   {
     id: 'elmaaler', label: 'Elmåler (kWh)', category: 'sol', hint: 'Bind "Tekst" på tallet til energi/effekt',
-    svg: `<g><rect x="0" y="0" width="90" height="70" rx="4" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
-      `<rect x="10" y="12" width="70" height="26" fill="#fff" stroke="${LINE}" stroke-width="1.5"/>` +
-      `<text id="vaerdi" x="74" y="31" font-size="15" text-anchor="end" fill="${DARK}" ${FONT}>0</text>${text(45, 58, 'kWh', 13)}</g>`,
+    // Displayet har plads til 5 cifre + decimal + enhed, fx "12345.6 kWh" (v0.27.1)
+    svg: `<g><rect x="0" y="0" width="130" height="70" rx="4" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
+      `<rect x="10" y="12" width="110" height="26" fill="#fff" stroke="${LINE}" stroke-width="1.5"/>` +
+      `<text id="vaerdi" x="114" y="31" font-size="15" text-anchor="end" fill="${DARK}" ${FONT}>0</text>${text(65, 58, 'kWh', 13)}</g>`,
   },
   {
     id: 'elnet', label: 'Elnet', category: 'sol', hint: 'Forsyningsnettet; bind "Stregfarve" til import/eksport',
