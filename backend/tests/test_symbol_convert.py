@@ -26,7 +26,9 @@ OMSK = ('<g id="Omsk" data-hv-type="omskifter3" transform="translate(100 0)" dat
 KNAP = ('<g id="Knap" data-hv-auto=' + _auto([{"anim": "click:pulse", "params": {"ms": 700, "confirm": False}}]) + '>'
         '<rect id="Knap_flade" width="40" height="40" data-hv-part=' + _auto({"anim": "fill", "params": {"on": "#7cc47f", "off": "#d6d6d6"}}) + '/></g>')
 TANK = '<g id="Tank"><rect id="Tank_fyld" x="0" y="200" width="40" height="80"/></g>'
-SVG = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">{VIPPE}{OMSK}{KNAP}{TANK}</svg>'
+LINK = '<g id="Link" data-hv-type="knap"><rect id="Link_flade" x="300" y="0" width="30" height="30"/></g>'
+LOS = '<g id="Los" data-hv-type="lampe"><circle id="Los_lampe" cx="350" cy="50" r="10"/></g>'
+SVG = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">{VIPPE}{OMSK}{KNAP}{TANK}{LINK}{LOS}</svg>'
 
 
 @pytest.fixture
@@ -109,3 +111,29 @@ def test_symbol_without_bindings_is_not_convertible(api):
     api.put(f"/api/drawings/{api.did}/bindings/Tank_fyld", json={"bindings": []})
     s = _suggest(api, "Tank")
     assert s["convertible"] is False and "ingen bindinger" in s["notes"][0]
+
+
+def test_convert_all_dry_run_then_apply(api):
+    assert api.put(f"/api/drawings/{api.did}/bindings/Link",
+                   json={"bindings": [{"anim": "click:goto", "params": {"drawing": api.did}}]}).status_code == 200
+    assert _save(api, "Omsk", _suggest(api, "Omsk")["config"]).status_code == 200      # allerede sat op i guiden
+    before = api.get(f"/api/drawings/{api.did}/view").json()["bindings"]
+    r = api.post("/api/drawings/convert-symbols", json={})
+    assert r.status_code == 200, r.text
+    rep = r.json()
+    status = {s["element"]: s["status"] for s in rep["symbols"]}
+    # Tank er ikke et bibliotekssymbol (almindelige bindinger berøres ikke)
+    assert status == {"Vippe": "ready", "Omsk": "configured", "Knap": "ready", "Link": "manual", "Los": "none"}
+    assert rep["apply"] is False and rep["counts"]["ready"] == 2
+    link = next(s for s in rep["symbols"] if s["element"] == "Link")
+    assert any("Gå til tegning" in m for m in link["reasons"])
+    # Tør-kørsel gemmer intet
+    assert api.get(f"/api/drawings/{api.did}/view").json()["bindings"] == before
+    assert api.get(f"/api/drawings/{api.did}/symbols/Vippe/config").json()["config"] is None
+    rep = api.post("/api/drawings/convert-symbols", json={"apply": True}).json()
+    assert {s["element"]: s["status"] for s in rep["symbols"]} == {
+        "Vippe": "converted", "Omsk": "configured", "Knap": "converted", "Link": "manual", "Los": "none"}
+    assert api.get(f"/api/drawings/{api.did}/symbols/Knap/config").json()["config"]["op"] == "pulse"
+    assert any(e["action"] == "symbol.convert_all" for e in api.get("/api/audit?limit=20").json())
+    # Ukendt tegning afvises; kun teknikere
+    assert api.post("/api/drawings/convert-symbols", json={"drawings": ["findes-ikke"]}).status_code == 404

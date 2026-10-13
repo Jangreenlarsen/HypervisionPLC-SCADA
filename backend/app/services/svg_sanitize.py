@@ -277,6 +277,14 @@ def describe_element(svg: str, element_id: str) -> dict[str, Any] | None:
     return None
 
 
+def symbol_roots(svg: str) -> list[str]:
+    """Bibliotekssymboler i tegningen (rødder med data-hv-type eller data-hv-auto), i dokumentrækkefølge."""
+    root = fromstring(svg.encode("utf-8"), forbid_dtd=True)
+    return [el.attrib["id"] for el in root.iter()
+            if isinstance(el.tag, str) and el.attrib.get("id")
+            and ("data-hv-type" in el.attrib or "data-hv-auto" in el.attrib)]
+
+
 def subtree_ids(svg: str, roots: set[str]) -> set[str]:
     """Alle id'er i de givne elementer og deres efterkommere (én gennemgang af tegningen)."""
     if not roots:

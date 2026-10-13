@@ -2,6 +2,12 @@
 
 ---
 
+## v0.38.0 — 2026-10-13 — Symbolstandard, del 8: konvertér alle symboler
+
+- Under **Tegninger** er der nu et panel **Symbolstandard: konvertér alle**. **Tør-kørsel** viser for hvert symbol om det kan konverteres til den nye standard, og hvorfor ikke hvis det ikke kan — uden at gemme noget.
+- **Konvertér N symboler** sætter derefter de symboler op der kan. Hvert symbol kan fortrydes i guiden med **Fjern konfiguration**.
+- Den gamle måde (ét tag pr. symbol) virker stadig side om side med den nye.
+
 ## v0.37.0 — 2026-10-13 — Symbolstandard, del 7: koden til nøglelåsen
 
 - Koden til et symbols låste positioner kan skiftes og fjernes i guiden (trin 5). Koden vises aldrig igen efter den er gemt, og den står ikke i loggen eller i backuppen.

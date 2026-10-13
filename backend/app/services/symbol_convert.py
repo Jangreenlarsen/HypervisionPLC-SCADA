@@ -22,7 +22,8 @@ from __future__ import annotations
 from typing import Any
 
 from .bindings import DEFAULT_OFF, DEFAULT_ON
-from .svg_sanitize import describe_element
+from .errors import ServiceError
+from .svg_sanitize import describe_element, symbol_roots
 
 CLICKS = ("click:toggle", "click:select", "click:pulse", "click:write")
 
@@ -118,3 +119,62 @@ def suggest(drawings: Any, drawing_id: str, element: str) -> dict[str, Any]:
         notes.append("Ingen animationer kunne overføres.")
     return {"config": cfg, "notes": notes, "convertible": bool(legacy) and (cfg["op"] != "view" or bool(cfg["anims"])),
             "symbol": {"type": info["type"], "name": info["name"]}}
+
+
+# ------------------------------------------------------------------ Konvertér alle (fase 8)
+
+STATUS_TXT = {"ready": "Kan konverteres", "converted": "Konverteret", "manual": "Kræver manuel handling",
+              "configured": "Allerede sat op", "none": "Ingen bindinger"}
+
+
+def convert_all(symbols: Any, actor: Any, drawing_ids: list[str], apply: bool) -> dict[str, Any]:
+    """Konvertér alle bibliotekssymboler med gamle bindinger (afsnit 11.2). `apply=False` er en tør-kørsel: intet gemmes,
+    rapporten viser hvad der ville ske. Ved `apply=True` gemmes kun forslag uden fejl — resten står som "kræver
+    manuel handling" med grunden. Konverteringen kan fortrydes pr. symbol ("Fjern konfiguration" i guiden).
+    Den gamle model fjernes IKKE her (afsnit 11.3 kræver Jans godkendelse)."""
+    from .symbols import validate_config   # (cirkulær import: symbols → drawings → symbols)
+
+    drawings = symbols.drawings
+    tags = symbols._tags()
+    report: list[dict[str, Any]] = []
+    for did in drawing_ids:
+        try:
+            svg = drawings.svg(did)
+        except ServiceError as e:
+            report.append({"drawing": did, "element": "", "name": None, "type": "", "status": "manual",
+                           "reasons": [e.message], "notes": []})
+            continue
+        configured = symbols.configs(did)
+        for el in symbol_roots(svg):
+            info = describe_element(svg, el)
+            row: dict[str, Any] = {"drawing": did, "element": el, "name": info and info["name"],
+                                   "type": info["type"] if info else "", "reasons": [], "notes": []}
+            report.append(row)
+            if el in configured:
+                row["status"] = "configured"
+                continue
+            if info is None:   # (kan ikke ske — elementet kommer fra samme tegning)
+                row.update(status="manual", reasons=["Elementet findes ikke"])
+                continue
+            s = suggest(drawings, did, el)
+            row["notes"] = s["notes"]
+            if not drawings.legacy_bindings(did, el):
+                row["status"] = "none"
+                continue
+            if not s["convertible"]:
+                row.update(status="manual", reasons=s["notes"] or ["Ingen animationer kunne overføres"])
+                continue
+            _, res = validate_config(s["config"], info, tags, has_pin=False)
+            if res.count:
+                row.update(status="manual", reasons=[f"Trin {k}: {m}" for k, v in res.steps.items() for m in v])
+                continue
+            if not apply:
+                row["status"] = "ready"
+                continue
+            try:
+                symbols.put(actor, did, el, s["config"])
+                row["status"] = "converted"
+            except ServiceError as e:   # (fx tag slettet imellem) — kun dette symbol, resten fortsætter
+                row.update(status="manual", reasons=[e.message])
+    counts = {k: sum(r["status"] == k for r in report) for k in STATUS_TXT}
+    return {"apply": apply, "counts": counts, "symbols": report}

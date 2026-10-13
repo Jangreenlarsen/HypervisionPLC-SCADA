@@ -11,7 +11,7 @@ from fastapi import Depends
 
 from ..services.auth import CurrentUser
 from ..services.errors import ServiceError
-from ..services.symbol_convert import suggest
+from ..services.symbol_convert import convert_all, suggest
 from ..services.symbol_operate import SymbolOperateService
 from ..services.symbols import SymbolService, validate_config, write_plan
 from ..services.svg_sanitize import describe_element
@@ -160,3 +160,21 @@ async def suggest_config(drawing_id: str, element: str, request: Request) -> dic
     svc = _svc(request)
     svc.drawings._require(drawing_id)
     return suggest(svc.drawings, drawing_id, element)
+
+
+class ConvertAllBody(_Model):
+    apply: bool = False                       # False = tør-kørsel (standard): intet gemmes
+    drawings: list[str] | None = None         # None = alle tegninger
+
+
+@router.post("/convert-symbols", dependencies=[ENGINEER])
+async def convert_symbols(body: ConvertAllBody, request: Request) -> dict[str, Any]:
+    """Konvertér alle (symbolstandarden afsnit 11.2): rapport pr. symbol; gemmer kun når `apply` er sat."""
+    svc = _svc(request)
+    ids = body.drawings if body.drawings is not None else [d["id"] for d in svc.drawings.list()]
+    for d in ids:
+        svc.drawings._require(d)
+    result = convert_all(svc, request.state.user, ids, body.apply)
+    if body.apply:
+        audit(request, "symbol.convert_all", ",".join(ids)[:200], result["counts"])
+    return result

@@ -368,9 +368,18 @@ Hver fase: FEATURES.md først, egen MINOR-version, tests, CHANGELOG/RELEASE_NOTE
    `click:write` → op=entry; `fill` → farve pr. position; `text` → værdi; `move`/`rotate` → Flyt/Drej pr. position.
    Teknikeren ser forslaget i guiden og gemmer.
 2. **Konvertér alle** (fase 8): samme regler på tværs af tegninger med en rapport (konverteret / kræver manuel
-   handling). Kører som tør-kørsel først.
+   handling). Kører som tør-kørsel først. Implementeret som `POST /api/drawings/convert-symbols` (engineer; body
+   `{apply: false, drawings?: [...]}`) og panelet "Symbolstandard: konvertér alle" under Tegninger. Kandidater er
+   bibliotekssymboler (rødder med `data-hv-type`/`data-hv-auto`) uden konfiguration; status pr. symbol:
+   `ready` (kan konverteres) / `converted` / `manual` (grund: forslaget kan ikke valideres eller intet kan overføres,
+   fx kun "Gå til tegning") / `configured` / `none` (ingen bindinger). `apply` gemmer kun forslag uden fejl, via samme
+   `put()` som guiden; audit `symbol.convert_all`. Hvert symbol kan fortrydes med "Fjern konfiguration".
+   Almindelige bindinger på elementer der ikke er bibliotekssymboler berøres ikke.
+   Kontrolleret mod hele biblioteket (82 symboler): de 7 betjeningssymboler med færdige bindinger konverteres uden
+   fejl; alle animationstyper delenes geometri tillader, valideres på alle dele.
 3. **Fjern gammel model** når ingen tegninger har gamle bindinger på symboler: `data-hv-auto`-logikken og
    symbol-delen af `_compute()` udgår (MAJOR).
+   **Ikke udført** — kræver Jans godkendelse efter test på anlægget (irreversibel ændring).
 
 ---
 

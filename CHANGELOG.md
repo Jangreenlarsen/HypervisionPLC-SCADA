@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.38.0 build 0055] — 2026-10-13 — Symbolstandard fase 8: Konvertér alle (tør-kørsel og rapport)
+
+- `backend/app/services/symbol_convert.py` — `convert_all()`: alle bibliotekssymboler med gamle bindinger på tværs af tegninger → rapport pr. symbol (kan konverteres / konverteret / kræver manuel handling med grund / allerede sat op / ingen bindinger). Tør-kørsel som standard; ved `apply` gemmes kun forslag uden fejl (fejl på ét symbol stopper ikke resten).
+- `backend/app/services/svg_sanitize.py` — `symbol_roots()`: bibliotekssymbolerne i en tegning.
+- `backend/app/api/symbols.py` — `POST /api/drawings/convert-symbols` (tekniker), audit `symbol.convert_all` ved konvertering.
+- `frontend/src/lib/SymbolConvert.svelte` (ny), `frontend/src/pages/Drawings.svelte` — panelet "Symbolstandard: konvertér alle" under Tegninger: Tør-kørsel → rapport med links til symbolerne i Bindinger → "Konvertér N symboler".
+- `docs/SYMBOLSTANDARD_IMPLEMENTERING.md` afsnit 11 — Konvertér alle; fjernelse af den gamle model er bevidst ikke udført (kræver godkendelse).
+- Tests: `test_symbol_convert.py` (tør-kørsel gemmer intet, apply, manuel ved kun "Gå til tegning", allerede sat op, ukendt tegning). Kontrolleret mod hele biblioteket (82 symboler) i den kørende app: de 7 betjeningssymboler konverteres uden fejl; alle tilladte animationstyper validerer på alle dele. Panelet set i Chromium.
+
 ## [0.37.0 build 0054] — 2026-10-13 — Symbolstandard fase 7: nøglelåsens kode
 
 - `backend/app/services/symbols.py` — `set_pin()` (kun symboler med konfiguration; præcis 4 cifre; gemmes som scrypt-hash) og `clear_pin()`; svar kun `has_pin`.
