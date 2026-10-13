@@ -59,8 +59,14 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'trykknap_puls', label: 'Trykknap (puls)', category: 'betjening',
     hint: 'Sender en kort puls (500 ms) — fx start, stop, kvittér. Vælg et skrivbart tag',
     svg: `<g ${auto([{ anim: 'click:pulse', params: { ms: 500, confirm: false } }])}>` +
-      `<rect id="flade" x="0" y="0" width="110" height="44" rx="6" fill="${OFF}" stroke="${LINE}" stroke-width="2" ${part({ anim: 'fill', params: { on: ON, off: OFF } })}/>` +
-      text(55, 28, 'Start', 16, 'font-weight="600"') + '</g>',
+      // Tavlemonteret trykknap set forfra: frontplade, metalkrave, rund knap med glans og et skilt under (v0.28.0)
+      `<rect x="0" y="0" width="76" height="76" rx="8" fill="${PANEL}" stroke="${LINE}" stroke-width="2"/>` +
+      `<circle cx="38" cy="38" r="30" fill="#c8c8c8" stroke="${DARK}" stroke-width="2"/>` +
+      `<circle cx="38" cy="38" r="25" fill="none" stroke="#f5f5f5" stroke-width="1.5"/>` +
+      `<circle id="flade" cx="38" cy="38" r="21" fill="${OFF}" stroke="${LINE}" stroke-width="2" ${part({ anim: 'fill', params: { on: ON, off: OFF } })}/>` +
+      `<path d="M24 32 A15 15 0 0 1 44 22" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/>` +
+      `<rect x="6" y="84" width="64" height="22" rx="2" fill="#fff" stroke="${LINE}" stroke-width="1.5"/>` +
+      text(38, 100, 'Start', 14, 'font-weight="600" id="tekst"') + '</g>',
   },
   {
     id: 'startstop', label: 'Start/stop (til/fra)', category: 'betjening',

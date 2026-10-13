@@ -2,6 +2,10 @@
 
 ---
 
+## v0.28.0 — 2026-10-13 — Trykknappen ligner en trykknap
+
+- Symbolet **Trykknap (puls)** under Betjening ser nu ud som en rigtig tavle-trykknap: rund knap i en metalkrave på en frontplade, med et skilt under (teksten "Start" kan rettes i Tegn). Knappen lyser grøn mens pulsen sendes. Trykknapper der allerede ligger i en tegning, skal indsættes igen for at få det nye udseende.
+
 ## v0.27.1 — 2026-10-13 — Elmåleren har plads til 5 cifre
 
 - Elmåler-symbolet er gjort bredere, så displayet kan vise fx **12345.6 kWh**. Elmålere, der allerede ligger i en tegning, skal indsættes igen for at få den nye bredde.

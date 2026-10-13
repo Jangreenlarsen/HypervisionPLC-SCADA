@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.28.0 build 0039] — 2026-10-13 — Trykknap (puls) ligner en trykknap
+
+- `frontend/src/lib/symbols.ts` — Trykknap (puls) tegnet om fra en flad rektangel-knap til en tavlemonteret trykknap set forfra: frontplade 76×76, metalkrave, rund knap (`flade`, samme fyld-binding som før) med glans, og et skilt (`tekst`) med "Start" under. Bindinger (`click:pulse`, fyld) er uændrede. Set i Chromium.
+- `docs/prototyper/symbolguide.html` — det indlejrede symbolbibliotek opdateret.
+
 ## [0.27.1 build 0038] — 2026-10-13 — fix: elmåler har plads til 5 cifre
 
 - `frontend/src/lib/symbols.ts` — Elmåler (kWh): hus 90 → 130 bredt, display 70 → 110, tallet højrestillet ved x=114, "kWh" centreret; plads til fx "12345.6 kWh" (før løb et 5-cifret tal med decimal ud over displayet). Set i Chromium.
