@@ -31,8 +31,11 @@ from .errors import ServiceError
 
 log = logging.getLogger(__name__)
 
-ROLES = ("viewer", "operator", "engineer", "admin")
-SCOPABLE_ROLES = ("viewer", "operator")  # tekniker og admin ser altid alle tegninger
+ROLES = ("viewer", "operator", "panel", "engineer", "admin")
+# Rettighedsniveau: "panel" (driftpanel) har præcis operatørens rettigheder — forskellen er kun at web-UI'et viser
+# drifttegningen alene (ingen menu). Rettighederne håndhæves her, aldrig ud fra hvad UI'et viser.
+ROLE_LEVEL = {"viewer": 0, "operator": 1, "panel": 1, "engineer": 2, "admin": 3}
+SCOPABLE_ROLES = ("viewer", "operator", "panel")  # tekniker og admin ser altid alle tegninger
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{2,32}$")
 MIN_PASSWORD = 10
 _SCRYPT = {"n": 2**14, "r": 8, "p": 1}
@@ -62,7 +65,7 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def role_at_least(role: str, required: str) -> bool:
-    return role in ROLES and ROLES.index(role) >= ROLES.index(required)
+    return role in ROLE_LEVEL and ROLE_LEVEL[role] >= ROLE_LEVEL[required]
 
 
 def _token_hash(token: str) -> str:

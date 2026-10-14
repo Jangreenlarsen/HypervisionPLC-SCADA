@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, errorText } from './api';
+import { api, errorText, roleAtLeast } from './api';
 
 describe('errorText', () => {
   it('bruger serverens error-felt', () =>
@@ -41,5 +41,17 @@ describe('api()', () => {
   it('204 giver undefined', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })));
     await expect(api('DELETE', '/api/tags/x')).resolves.toBeUndefined();
+  });
+});
+
+describe('roller', () => {
+  it('driftpanel har operatørens rettigheder — ikke teknikerens', () => {
+    expect(roleAtLeast('panel', 'operator')).toBe(true);
+    expect(roleAtLeast('panel', 'viewer')).toBe(true);
+    expect(roleAtLeast('panel', 'engineer')).toBe(false);
+    expect(roleAtLeast('operator', 'panel')).toBe(true);
+    expect(roleAtLeast('viewer', 'operator')).toBe(false);
+    expect(roleAtLeast('admin', 'engineer')).toBe(true);
+    expect(roleAtLeast(undefined, 'viewer')).toBe(false);
   });
 });

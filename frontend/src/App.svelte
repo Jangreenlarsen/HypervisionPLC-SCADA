@@ -91,8 +91,18 @@
   const visible = $derived(pages.filter((p) => roleAtLeast(me?.role, p.role)));
   const page = $derived(visible.some((p) => p.id === route.split('/')[0]) ? route.split('/')[0] : 'overview');
   const canEdit = $derived(roleAtLeast(me?.role, 'engineer'));
+  // Driftpanel (fx en skærm i produktionen): kun drifttegningen. Først når adgangskoden er skiftet — før det vises
+  // det almindelige skift-adgangskode-billede.
+  const isPanel = $derived(me?.role === 'panel' && !me.must_change_password && !changingPassword);
 </script>
 
+{#if isPanel && me}
+  <!-- Driftpanel: kun drifttegningen — ingen topmenu, alarmklokke eller sidefod (kildekode-linket står i kolonnen) -->
+  <main class="panel-mode">
+    {#if error}<div class="error">{error}</div>{/if}
+    <Overview {route} canOperate={true} panel sourceUrl={info?.source_url ?? ''} onlogout={logout} />
+  </main>
+{:else}
 <header>
   <span class="brand">HypervisionPLC SCADA</span>
   {#if me && !me.must_change_password}
@@ -162,6 +172,7 @@
     <a href={info?.source_url ?? 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener">kildekode</a>
   </span>
 </footer>
+{/if}
 
 <style>
   header {
@@ -203,6 +214,7 @@
   .link:hover { color: #fff; }
   /* Ingen breddegrænse: SCADA bruges også på store kontrolrumsskærme */
   main { padding: 1rem; }
+  main.panel-mode { padding: .5rem; }
   footer {
     display: flex;
     flex-wrap: wrap;

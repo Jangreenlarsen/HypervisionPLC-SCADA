@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.39.0 build 0057] — 2026-10-14 — Rolle Driftpanel
+
+- `backend/app/services/auth.py` — ny rolle `panel` (Driftpanel) med operatørens rettighedsniveau (`ROLE_LEVEL`; `role_at_least` bruger niveauer i stedet for listeplacering) og begrænsning til udvalgte tegninger som viewer/operatør.
+- `frontend/src/lib/api.ts` — `Role` + `roleAtLeast` med samme niveauer som backend.
+- `frontend/src/App.svelte` — driftpanel-brugere får kun drifttegningen: ingen topmenu, alarmklokke eller sidefod (efter tvunget skift af adgangskode).
+- `frontend/src/pages/Overview.svelte` — driftpanel-tilstand: smal kolonne i venstre side med "Log ud", tegningerne som knapper (kun hvis brugeren har adgang til flere), "Ingen forbindelse" ved afbrudt forbindelse og kildekode-linket (AGPL §13); ingen værktøjslinje; "Tilpas" svæver over tegningen når der er zoomet ind. Fejl- og forbindelsesbeskeder vises stadig.
+- `frontend/src/pages/Users.svelte` — rollen kan vælges og begrænses til tegninger; forklaring i rollelisten.
+- Tests: `test_scope.py` (driftpanel betjener og kvitterer som operatør, kun i egne tegninger, ingen tekniker-/admin-rettigheder, rolleskift), `api.test.ts` (`roleAtLeast`). PIN-lækagetests søger nu efter koden som selvstændigt tal (se BUGS.md). Set i Chromium ved 1280×800 og 800×1000: ingen topmenu/sidefod, ingen vandret rulning, skift mellem tegninger, log ud; begrænset til én tegning → kun "Log ud"; admin ser stadig den almindelige menu.
+
 ## [0.38.1 build 0056] — 2026-10-13 — fix: fund fra gennemgangen af symbolstandardens fase 6–8
 
 - `backend/app/services/symbol_convert.py` — klik-handlinger på dele og "Gå til tegning" er nu "blockers": forslaget er ikke konverterbart, og Konvertér alle viser "kræver manuel handling" med grunden; setpunkt arver taggets `confirm_write`; til/fra-farver ignorerer tærskler (som frontendens `colorFor`); manglende/`None`-parametre giver standardværdien; note når for-/eftertekst ikke kommer med; én `legacy_bindings`-beregning pr. symbol.

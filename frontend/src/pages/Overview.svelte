@@ -9,7 +9,11 @@
   import { clickAction, lockedPosition, needsPin, operateLabel, pickAction, STATE_TXT, type SymbolState, type SymbolView } from '../lib/symbolUi';
   import { panBy, pickDrawing, zoomAt, zoomLevel, type View } from '../lib/viewport';
 
-  let { route = 'overview', canEdit = false, canOperate = false }: { route?: string; canEdit?: boolean; canOperate?: boolean } = $props();
+  let { route = 'overview', canEdit = false, canOperate = false, panel = false, sourceUrl = '', onlogout }: {
+    route?: string; canEdit?: boolean; canOperate?: boolean;
+    /** Driftpanel: kun tegningen — ingen værktøjslinje; "Log ud" (og evt. tegningerne) i en smal kolonne til venstre. */
+    panel?: boolean; sourceUrl?: string; onlogout?: () => void;
+  } = $props();
 
   interface Dialog { binding: Binding; step: 'input' | 'confirm'; input: string; value: number | null; error: string; busy: boolean }
   interface Toast { kind: 'ok' | 'warn' | 'error'; text: string }
@@ -499,6 +503,23 @@
 
 <svelte:window onkeydown={onKey} />
 
+{#if panel}
+  <nav class="rail" aria-label="Driftpanel">
+    <button class="logout" onclick={() => onlogout?.()}>Log ud</button>
+    {#if drawings.length > 1}
+      {#each drawings as d}
+        <button class="drawing" class:active={selected === d.id} onclick={() => load(d.id)}>{d.name}</button>
+      {/each}
+    {/if}
+    <span class="spacer"></span>
+    {#if !connected}<span class="badge error" title="Forbindelsen til SCADA-serveren er afbrudt">Ingen forbindelse</span>{/if}
+    <!-- AGPL-3.0 §13: link til kildekoden skal altid være synligt -->
+    <a class="src" href={sourceUrl || 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener">AGPL · kildekode</a>
+  </nav>
+{/if}
+
+<div class="panel-main" class:is-panel={panel}>
+{#if !panel}
 <div class="toolbar row">
   <select bind:value={selected} onchange={() => load(selected)} aria-label="Vælg tegning">
     {#each drawings as d}<option value={d.id}>{d.name}</option>{/each}
@@ -517,6 +538,7 @@
     <span class="badge {p.state}" title={p.message || p.state}>{p.name || key}: {p.state}{p.sse === 'connected' ? ' · SSE' : ''}</span>
   {/each}
 </div>
+{/if}
 
 {#if toast}
   <div class={toast.kind === 'error' ? 'error' : toast.kind === 'warn' ? 'notice' : 'notice ok-toast'} role="status">
@@ -543,6 +565,10 @@
 <div class="canvas" class:zoomed={zoom > 1.0001} bind:this={container} onclick={onCanvasClick}
   onpointerdown={onPointerDown} onpointermove={onPointerMove} onpointerup={onPointerUp} onpointercancel={onPointerUp}
   onpointerleave={onPointerUp}></div>
+{#if panel && zoom > 1.0001}
+  <button class="fit-btn" onclick={resetView} title="Vis hele tegningen">Tilpas</button>
+{/if}
+</div>
 
 {#if symDialog}
   {@const d = symDialog}
@@ -660,6 +686,20 @@
 
 <style>
   .toolbar { margin-bottom: .75rem; }
+  /* Driftpanel: smal kolonne fast i venstre side; tegningen fylder resten */
+  .rail {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 8.5rem; z-index: 5;
+    display: flex; flex-direction: column; gap: .5rem; padding: .75rem .5rem;
+    background: #3a3a3a; color: #ddd; box-sizing: border-box; overflow-y: auto;
+  }
+  .rail button { width: 100%; text-align: left; white-space: normal; overflow-wrap: break-word; hyphens: auto; padding: .4rem .5rem; font-size: .9rem; }
+  .rail .logout { font-weight: 600; background: #eeeeee; color: #1f1f1f; border-color: #bbbbbb; }
+  .rail .drawing { background: #4a4a4a; color: #eee; border-color: #5a5a5a; }
+  .rail .drawing.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .rail .spacer { flex: 1; }
+  .rail .src { color: #bbb; font-size: .72rem; }
+  .panel-main.is-panel { margin-left: 8.5rem; position: relative; }
+  .fit-btn { position: absolute; right: 1rem; bottom: 1rem; z-index: 4; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
   .positions { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 .8rem; }
   .positions button { min-width: 4.5rem; padding: .6rem .9rem; font-size: 1rem; }
   .positions button.current { outline: 2px solid var(--ok); outline-offset: 1px; }

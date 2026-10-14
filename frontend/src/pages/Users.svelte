@@ -7,11 +7,12 @@
   interface User { username: string; role: Role; disabled: boolean; must_change_password: boolean; created_at: number; drawings: string[] | null }
   interface ScopeEdit { username: string; all: boolean; selected: string[] }
 
-  const SCOPABLE: Role[] = ['viewer', 'operator'];
+  const SCOPABLE: Role[] = ['viewer', 'operator', 'panel'];
 
   const ROLE_TEXT: Record<Role, string> = {
     viewer: 'Viewer — ser Overview og tags (kan begrænses til udvalgte tegninger)',
     operator: 'Operatør — + betjening af klik-handlinger i tegningerne',
+    panel: 'Driftpanel — som operatør, men ser kun drifttegningen: ingen menu, kun "Log ud" (fx en skærm i produktionen)',
     engineer: 'Tekniker — + tegninger, tags og bindinger',
     admin: 'Admin — + PLC-forbindelser og brugere',
   };
