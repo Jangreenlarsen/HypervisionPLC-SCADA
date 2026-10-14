@@ -2,6 +2,18 @@
 
 ---
 
+## v0.40.0 — 2026-10-14 — Ny hovedmenu
+
+- Menuen foroven er nu én smal bjælke: **Menu**, hvor du er (fx "Drift › Overview"), antal alarmer og dit brugernavn.
+- **Menu** folder siderne ud over tegningen, delt i **Drift**, **Opsætning** og **System**, plus skift adgangskode og log ud. Tegningen bliver ikke skubbet ned og får dermed mere plads end før.
+- Menuen lukker når du vælger en side, trykker Escape eller klikker ved siden af.
+
+## v0.39.0 — 2026-10-14 — Ny rolle: Driftpanel
+
+- Under **Brugere** kan en bruger nu få rollen **panel** (Driftpanel) — tænkt til en skærm i produktionen.
+- Et driftpanel viser kun drifttegningen: ingen menu foroven, kun **Log ud** i en smal kolonne i venstre side. Har brugeren adgang til flere tegninger, står de som knapper under Log ud; begrænses brugeren til én tegning, er der kun Log ud.
+- Driftpanelet kan betjene og kvittere alarmer som en operatør — og kan som operatører begrænses til udvalgte tegninger.
+
 ## v0.38.1 — 2026-10-13 — Rettelser i symbolguiden og Konvertér alle
 
 - Symboler med "Gå til tegning" eller betjening på en del af symbolet konverteres ikke længere automatisk — de står som "kræver manuel handling", så linket eller betjeningen ikke forsvinder.

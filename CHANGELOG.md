@@ -4,6 +4,21 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.40.0 build 0058] — 2026-10-14 — Ny hovedmenu: smal topbjælke, menuen foldes ud over tegningen
+
+- `frontend/src/lib/nav.ts` (ny) + `nav.test.ts` — siderne i grupperne Drift / Opsætning / System med rollekrav og ikoner; `navFor(rolle)` (tomme grupper udelades), `pageFor(rute, rolle)` (ikke tilladt/ukendt side → Overview), `groupOf`.
+- `frontend/src/App.svelte` — den flade menu (13 sider på én linje, ombrudt til op til 133 px) er erstattet af en topbjælke på 2,5 rem: "Menu"-knap, gruppe › side, alarmtæller, kildekode-link (AGPL §13) og bruger. Menuen foldes ud som et panel *over* indholdet (skubber ikke tegningen ned) med grupperne som kolonner og bruger-delen (skift adgangskode, log ud, version); lukkes ved valg, Escape eller klik udenfor. Sidefoden er fjernet (version står i menuen, kildekode-linket i bjælken). Driftpanel uændret.
+- Set i Chromium ved 1440, 1024 og 420 px: bjælken er 37,5 px i alle bredder, ingen vandret rulning, tegningen ændrer ikke størrelse når menuen åbnes, valg og Escape lukker menuen, Bindinger og Tegn har fuld højde. Ved 1024 px er Overview-tegningen 857 × 643 px.
+
+## [0.39.0 build 0057] — 2026-10-14 — Rolle Driftpanel
+
+- `backend/app/services/auth.py` — ny rolle `panel` (Driftpanel) med operatørens rettighedsniveau (`ROLE_LEVEL`; `role_at_least` bruger niveauer i stedet for listeplacering) og begrænsning til udvalgte tegninger som viewer/operatør.
+- `frontend/src/lib/api.ts` — `Role` + `roleAtLeast` med samme niveauer som backend.
+- `frontend/src/App.svelte` — driftpanel-brugere får kun drifttegningen: ingen topmenu, alarmklokke eller sidefod (efter tvunget skift af adgangskode).
+- `frontend/src/pages/Overview.svelte` — driftpanel-tilstand: smal kolonne i venstre side med "Log ud", tegningerne som knapper (kun hvis brugeren har adgang til flere), "Ingen forbindelse" ved afbrudt forbindelse og kildekode-linket (AGPL §13); ingen værktøjslinje; "Tilpas" svæver over tegningen når der er zoomet ind. Fejl- og forbindelsesbeskeder vises stadig.
+- `frontend/src/pages/Users.svelte` — rollen kan vælges og begrænses til tegninger; forklaring i rollelisten.
+- Tests: `test_scope.py` (driftpanel betjener og kvitterer som operatør, kun i egne tegninger, ingen tekniker-/admin-rettigheder, rolleskift), `api.test.ts` (`roleAtLeast`). PIN-lækagetests søger nu efter koden som selvstændigt tal (se BUGS.md). Set i Chromium ved 1280×800 og 800×1000: ingen topmenu/sidefod, ingen vandret rulning, skift mellem tegninger, log ud; begrænset til én tegning → kun "Log ud"; admin ser stadig den almindelige menu.
+
 ## [0.38.1 build 0056] — 2026-10-13 — fix: fund fra gennemgangen af symbolstandardens fase 6–8
 
 - `backend/app/services/symbol_convert.py` — klik-handlinger på dele og "Gå til tegning" er nu "blockers": forslaget er ikke konverterbart, og Konvertér alle viser "kræver manuel handling" med grunden; setpunkt arver taggets `confirm_write`; til/fra-farver ignorerer tærskler (som frontendens `colorFor`); manglende/`None`-parametre giver standardværdien; note når for-/eftertekst ikke kommer med; én `legacy_bindings`-beregning pr. symbol.

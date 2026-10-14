@@ -2,6 +2,7 @@
 og at koden aldrig findes i svar, log, audit eller backup (CLAUDE.md regel 6)."""
 
 import json
+import re
 import logging
 
 from tests.test_symbol_operate import V1, _op, _set_bits, _setup, _wait, api  # noqa: F401 (fixture)
@@ -41,7 +42,9 @@ def test_set_change_and_clear_pin(api, mock_plc, caplog):
     actions = [e["action"] for e in log]
     assert actions.count("symbol.pin_set") == 3 and actions.count("symbol.pin_cleared") == 2   # inkl. opsætningen
     everything = json.dumps(log) + caplog.text + json.dumps(api.get("/api/backup").json())
-    assert "4711" not in everything and "8080" not in everything and "1357" not in everything
+    # Som selvstændigt tal — tidsstempler (fx 1791954711.2) kan tilfældigt indeholde de samme fire cifre
+    for pin in ("4711", "8080", "1357"):
+        assert not re.search(rf"(?<![0-9]){pin}(?![0-9])", everything), pin
 
 
 def test_new_pin_lifts_lockout(api, mock_plc):

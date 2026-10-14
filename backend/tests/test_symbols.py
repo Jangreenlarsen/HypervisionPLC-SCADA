@@ -1,6 +1,7 @@
 """Symbolstandard fase 1: konfiguration, validering (prototypens regler), PIN som hash, tag-brug, backup."""
 
 import json
+import re
 import time
 
 import pytest
@@ -244,7 +245,7 @@ def test_locked_positions_need_pin_and_pin_never_leaves_server(api):
     got = api.get(f"/api/drawings/{api.did}/symbols/V1/config")
     assert got.json()["has_pin"] is True
     for text in (r.text, got.text, json.dumps(api.get("/api/audit?limit=20").json()), json.dumps(api.get("/api/backup").json())):
-        assert "4711" not in text and "scrypt$" not in text
+        assert not re.search(r"(?<![0-9])4711(?![0-9])", text) and "scrypt$" not in text   # (ikke del af et tidsstempel)
     # Uden ny kode bevares den gamle ved næste gem
     assert put(api, cfg).status_code == 200
 

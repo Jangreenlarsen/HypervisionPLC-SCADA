@@ -1,6 +1,7 @@
 """Symbolstandard fase 3: betjening — skriveplan, break-before-make, stop ved fejl, puls med hvile, fejl/låst,
 nøglelås, samtidighed, accept, trykknap/setpunkt, adgang og forhåndsvisning."""
 
+import re
 import threading
 import time
 
@@ -225,7 +226,7 @@ def test_locked_position_needs_pin_with_lockout(api, mock_plc):
     log = api.get("/api/audit?limit=50").json()
     assert [e["action"] for e in log if e["action"] in ("symbol.unlock",)] == ["symbol.unlock"]
     assert sum(e["action"] == "symbol.pin_failed" for e in log) == 3
-    assert "4711" not in str(log) and "2222" not in str(log)
+    assert not re.search(r"(?<![0-9])(4711|2222)(?![0-9])", str(log))   # (tidsstempler kan indeholde cifrene)
     # Uden lås skiftes frit
     assert _op(api, 1).status_code == 200
 

@@ -109,11 +109,13 @@ export interface DrawingView {
   symbol_config?: Record<string, import('./symbolUi').SymbolView>;
 }
 
-export type Role = 'viewer' | 'operator' | 'engineer' | 'admin';
-export const ROLES: Role[] = ['viewer', 'operator', 'engineer', 'admin'];
+export type Role = 'viewer' | 'operator' | 'panel' | 'engineer' | 'admin';
+export const ROLES: Role[] = ['viewer', 'operator', 'panel', 'engineer', 'admin'];
+/** Rettighedsniveau (som backendens ROLE_LEVEL): driftpanel = operatør; forskellen er kun visningen (ingen menu). */
+const ROLE_LEVEL: Record<Role, number> = { viewer: 0, operator: 1, panel: 1, engineer: 2, admin: 3 };
 
 export function roleAtLeast(role: Role | undefined, required: Role): boolean {
-  return !!role && ROLES.indexOf(role) >= ROLES.indexOf(required);
+  return !!role && role in ROLE_LEVEL && ROLE_LEVEL[role] >= ROLE_LEVEL[required];
 }
 
 export interface Me {

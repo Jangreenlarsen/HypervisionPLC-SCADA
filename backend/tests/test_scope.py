@@ -198,3 +198,28 @@ def test_deleting_drawing_removes_it_from_scope(setup):
     assert user["drawings"] == []
     _as_op(c)
     assert c.get("/api/drawings").json() == []
+
+
+def test_panel_role_has_operator_rights_and_scope_but_nothing_more(setup, mock_plc):
+    """Driftpanel: samme rettigheder som operatør (betjening, begrænsning til tegninger) — ikke tekniker-rettigheder."""
+    c, a, b = setup
+    _as_admin(c)
+    r = c.post("/api/users", json={"username": "panel1", "role": "panel", "password": "Hemmelig-123", "drawings": [a]})
+    assert r.status_code == 201 and r.json()["role"] == "panel" and r.json()["drawings"] == [a]
+    c.post("/api/auth/login", json={"username": "panel1", "password": "Hemmelig-123"})
+    c.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})
+    me = c.get("/api/auth/me").json()
+    assert me["role"] == "panel" and me["drawings"] == [a]
+    assert {d["id"] for d in c.get("/api/drawings").json()} == {a}
+    assert c.post("/api/tags/Motor_A/toggle").status_code == 200          # betjener som en operatør
+    assert c.post("/api/tags/Motor_B/toggle").status_code == 403          # men kun i sine tegninger
+    assert c.post("/api/alarms/ack", json={"keys": None}).status_code == 200      # kan kvittere alarmer
+    # Ingen tekniker-/admin-rettigheder
+    assert c.post("/api/tags", json={"name": "X", "source": "plc1:hr:9"}).status_code == 403
+    assert c.get("/api/users").status_code == 403
+    assert c.put(f"/api/drawings/{a}/bindings/Knap_A", json={"bindings": []}).status_code == 403
+    # Kan skiftes til operatør og tilbage; ukendt rolle afvises stadig
+    _as_admin(c)
+    assert c.patch("/api/users/panel1", json={"role": "operator"}).json()["role"] == "operator"
+    assert c.patch("/api/users/panel1", json={"role": "panel"}).json()["role"] == "panel"
+    assert c.patch("/api/users/panel1", json={"role": "kiosk"}).status_code == 400

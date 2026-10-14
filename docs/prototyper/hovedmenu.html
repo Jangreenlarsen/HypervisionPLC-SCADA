@@ -1,0 +1,353 @@
+<title>Hovedmenu-prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: forslagsside med variantvælger øverst; under den en levende app-skal (menu + Overview med tegning) i projektets ISA-101-tokens — grå flade, farve kun for tilstand. */
+:root {
+  --bg: #d9d9d9; --panel: #eeeeee; --panel-2: #e3e3e3; --field: #ffffff; --line: #b8b8b8;
+  --text: #1f1f1f; --muted: #5c5c5c; --bar: #2f3133; --bar-2: #3c3f42; --bar-hover: #4a4e52; --bar-text: #f2f2f2; --bar-muted: #b4b8bc;
+  --accent: #1f5f99; --accent-bg: #e6eef6; --on-accent: #ffffff;
+  --ok: #2e7d32; --warn: #b26a00; --alarm: #c62828;
+  --sym-face: #e3e3e3; --sym-line: #555555;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Consolas, monospace;
+  --radius: 4px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1b1d1f; --panel: #26292c; --panel-2: #2f3236; --field: #1f2225; --line: #474b50;
+  --text: #e6e6e6; --muted: #a3a8ad; --bar: #121315; --bar-2: #1c1e20; --bar-hover: #2a2d30; --bar-text: #f2f2f2; --bar-muted: #9aa0a6;
+  --accent: #6aa6dc; --accent-bg: #1d2f40; --on-accent: #0d1520;
+  --ok: #66bb6a; --warn: #e0a040; --alarm: #ef5350; --sym-face: #3a3e42; --sym-line: #b0b4b8;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #1b1d1f; --panel: #26292c; --panel-2: #2f3236; --field: #1f2225; --line: #474b50;
+  --text: #e6e6e6; --muted: #a3a8ad; --bar: #121315; --bar-2: #1c1e20; --bar-hover: #2a2d30; --bar-text: #f2f2f2; --bar-muted: #9aa0a6;
+  --accent: #6aa6dc; --accent-bg: #1d2f40; --on-accent: #0d1520;
+  --ok: #66bb6a; --warn: #e0a040; --alarm: #ef5350; --sym-face: #3a3e42; --sym-line: #b0b4b8;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 32px; }
+button, select { font: inherit; color: inherit; }
+button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-size: 1.35rem; margin: 0; text-wrap: balance; }
+h2 { font-size: 1.05rem; margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 72ch; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+
+/* Variantvælger og forklaring */
+.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--panel); }
+.seg button { border: 0; background: transparent; padding: 6px 12px; cursor: pointer; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.why { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.why > div { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.why ul { margin: 0; padding-left: 1.1rem; }
+.rec { border-color: var(--accent) !important; background: var(--accent-bg) !important; }
+.tag { display: inline-block; font-size: .72rem; padding: 0 6px; border-radius: 9px; border: 1px solid var(--line); color: var(--muted); }
+.tag.rec-tag { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- App-skallen (den levende prøve) ---------- */
+.app { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); height: 560px; display: flex; position: relative; }
+.app.v-top, .app.v-now { flex-direction: column; }
+.canvas-area { flex: 1; min-width: 0; min-height: 0; padding: 10px; display: flex; flex-direction: column; gap: 8px; position: relative; }
+.toolrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .85rem; }
+.toolrow select { padding: 2px 6px; background: var(--field); border: 1px solid var(--line); border-radius: var(--radius); }
+.chip { font-size: .75rem; padding: 0 7px; border-radius: 9px; border: 1px solid var(--ok); color: var(--ok); }
+.drawing { flex: 1; min-height: 0; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); display: grid; place-items: center; position: relative; overflow: hidden; }
+.drawing svg { width: 100%; height: 100%; }
+.measure { position: absolute; right: 8px; bottom: 6px; font: .75rem var(--mono); color: var(--muted); background: var(--panel); padding: 1px 6px; border-radius: var(--radius); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+
+/* Fælles for menuerne */
+.alarm { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: var(--radius); background: var(--alarm); color: #fff; font-size: .85rem; text-decoration: none; white-space: nowrap; border: 0; cursor: pointer; }
+.alarm .n { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ico { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.later { opacity: .55; font-style: italic; }
+
+/* Nu: den flade menu der ombrydes */
+.now-head { background: #3a3a3a; color: #fff; padding: 6px 12px; display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; }
+.now-head nav { display: flex; flex-wrap: wrap; gap: 2px; }
+.now-head nav a { color: #ddd; text-decoration: none; padding: 3px 8px; border-radius: 4px; font-size: .9rem; }
+.now-head nav a.on { background: #575757; color: #fff; }
+.now-head .u { margin-left: auto; display: flex; gap: 10px; font-size: .85rem; align-items: center; }
+.now-head .u a { color: #fff; }
+.now-head .bell { color: #ddd; border: 1px solid #666; padding: 1px 8px; border-radius: 4px; font-size: .85rem; }
+
+/* A: grupperet topbar */
+.top { background: var(--bar); color: var(--bar-text); height: 44px; display: flex; align-items: center; gap: 4px; padding: 0 10px; flex: none; }
+.top .brand { font-weight: 650; margin-right: 12px; white-space: nowrap; }
+.top .brand small { color: var(--bar-muted); font-weight: 400; }
+.top .tab, .top .dd > button { color: var(--bar-text); background: transparent; border: 0; padding: 0 10px; height: 44px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; white-space: nowrap; border-bottom: 3px solid transparent; }
+.top .tab:hover, .top .dd > button:hover { background: var(--bar-hover); }
+.top .tab.on { border-bottom-color: var(--accent); }
+.top .dd { position: relative; }
+.top .dd > button.on { border-bottom-color: var(--accent); }
+.menu { position: absolute; top: 44px; left: 0; min-width: 210px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); box-shadow: 0 6px 18px rgba(0,0,0,.18); padding: 4px; z-index: 20; display: flex; flex-direction: column; }
+.menu a, .menu button { display: flex; gap: 8px; align-items: center; padding: 7px 10px; border-radius: var(--radius); color: var(--text); text-decoration: none; background: none; border: 0; text-align: left; cursor: pointer; }
+.menu a:hover, .menu button:hover { background: var(--accent-bg); }
+.menu a.on { background: var(--accent); color: var(--on-accent); }
+.menu .sep { height: 1px; background: var(--line); margin: 4px 2px; }
+.menu .hint { font-size: .75rem; color: var(--muted); margin-left: auto; }
+.menu.right { left: auto; right: 0; }
+.top .spacer { flex: 1; }
+.top .user > button { padding: 0 8px; }
+.top .dd > button.burger { display: none; }
+
+/* B: sidemenu */
+.side { width: 208px; background: var(--bar); color: var(--bar-text); display: flex; flex-direction: column; flex: none; transition: width .18s ease; overflow: hidden; }
+.side.collapsed { width: 56px; }
+.side .head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; min-height: 48px; }
+.side .head .brand { font-weight: 650; white-space: nowrap; }
+.side .head .brand small { display: block; color: var(--bar-muted); font-weight: 400; font-size: .72rem; }
+.side .toggle { margin-left: auto; background: transparent; border: 0; color: var(--bar-muted); cursor: pointer; padding: 4px; border-radius: var(--radius); display: grid; place-items: center; }
+.side.collapsed .toggle { margin: 0 auto; }
+.side .toggle:hover { background: var(--bar-hover); color: var(--bar-text); }
+.side .alarm { margin: 0 10px 8px; justify-content: flex-start; }
+.side.collapsed .alarm { margin: 0 8px 8px; padding: 4px; justify-content: center; }
+.side nav { flex: 1; overflow-y: auto; padding: 0 6px; display: flex; flex-direction: column; gap: 1px; }
+.side .grp { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--bar-muted); padding: 10px 8px 4px; white-space: nowrap; }
+.side.collapsed .grp { visibility: hidden; height: 10px; padding: 0; border-top: 1px solid var(--bar-hover); margin: 6px 6px 4px; }
+.side a { display: flex; align-items: center; gap: 10px; padding: 6px 9px; border-radius: var(--radius); color: var(--bar-text); text-decoration: none; white-space: nowrap; font-size: .92rem; }
+.side a:hover { background: var(--bar-hover); }
+.side a.on { background: var(--accent); color: var(--on-accent); }
+.side .foot { border-top: 1px solid var(--bar-hover); padding: 6px; display: flex; flex-direction: column; gap: 1px; }
+.side .foot .who { font-size: .8rem; color: var(--bar-muted); padding: 4px 9px; white-space: nowrap; }
+.side.collapsed .txt, .side.collapsed .brand, .side.collapsed .who { display: none; }
+.side.collapsed a { justify-content: center; padding: 8px 0; }
+.burger { display: none; }
+
+/* Telefonbredde: topbaren skjuler grupperne bag ☰; sidemenuen bliver en skuffe */
+@media (max-width: 720px) {
+  .app { height: 520px; }
+  .top .tab.drift, .top .dd.grp-dd, .top .brand small { display: none; }
+  .top .dd > button.burger, .canvas-area .burger { display: inline-flex; }
+  .app.v-side .side { position: absolute; inset: 0 auto 0 0; z-index: 30; width: 230px; transform: translateX(-100%); transition: transform .2s ease; box-shadow: 4px 0 18px rgba(0,0,0,.3); }
+  .app.v-side .side.open { transform: none; }
+  .app.v-side .side .toggle { display: none; }
+}
+.burger { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 3px 8px; cursor: pointer; align-items: center; gap: 6px; }
+.top .burger { background: transparent; color: var(--bar-text); border: 0; height: 44px; }
+@media (prefers-reduced-motion: reduce) { .side, .app.v-side .side { transition: none; } }
+
+/* Gruppetabel */
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+th, td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+th { background: var(--panel-2); font-weight: 600; }
+td.r { white-space: nowrap; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <span class="label">HypervisionPLC SCADA · forslag til hovedmenu</span>
+    <h1>En hovedmenu der kan vokse</h1>
+    <p class="muted">I dag ligger 13 sider på én linje. Ved 1024 px bredde ombrydes menuen til tre linjer (133 px høj), og tegningen mister den plads. Begge forslag samler siderne i tre grupper efter hvad man er i gang med, og flytter bruger og "Log ud" ind i en menu. Prøven nedenfor er levende: skift variant, rolle og klik rundt.</p>
+  </header>
+
+  <div class="controls">
+    <span class="label">Variant</span>
+    <div class="seg" role="group" aria-label="Variant">
+      <button id="v-now" data-v="now">Nu</button>
+      <button id="v-top" data-v="top">A · Grupperet topbar</button>
+      <button id="v-side" data-v="side">B · Sidemenu</button>
+    </div>
+    <span class="label">Rolle</span>
+    <div class="seg" role="group" aria-label="Rolle">
+      <button data-r="viewer">Viewer</button>
+      <button data-r="operator">Operatør</button>
+      <button data-r="engineer">Tekniker</button>
+      <button data-r="admin">Admin</button>
+    </div>
+  </div>
+
+  <div class="app" id="app"></div>
+
+  <div class="why">
+    <div>
+      <h2>A · Grupperet topbar</h2>
+      <p class="small">Én fast linje på 44 px. Driftsiderne står som faner, da de bruges hele tiden. Opsætning og System er rullemenuer. Bruger, adgangskode og Log ud ligger i brugermenuen til højre.</p>
+      <ul class="small">
+        <li>Mindst forandring fra i dag</li>
+        <li>Altid én linje, også ved 1024 px</li>
+        <li>Nye sider lægges i en gruppe; menuen bliver ikke bredere</li>
+        <li>Opsætningssiderne er altid to klik væk</li>
+      </ul>
+    </div>
+    <div class="rec">
+      <h2>B · Sidemenu <span class="tag rec-tag">anbefalet</span></h2>
+      <p class="small">Menuen står lodret i venstre side med grupper. Den kan foldes ind til en smal ikonkolonne (56 px), og valget huskes pr. bruger. Ingen topbjælke, så tegningen får hele højden. På telefon bliver den en skuffe bag ☰.</p>
+      <ul class="small">
+        <li>Skalerer bedst: en ny side er én linje mere</li>
+        <li>Plads til korte forklaringer og tællere (fx alarmer)</li>
+        <li>Samme idé som Driftpanelets kolonne i venstre side</li>
+        <li>Indfoldet: tegningen får næsten hele skærmen</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Grupperne</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Gruppe</th><th>Sider</th><th>Ses af</th><th>Plads til senere</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Drift</strong></td><td>Overview · Alarmer · Trends · Energi</td><td class="r">alle</td><td class="muted">Rapporter, hændelseslog for drift</td></tr>
+        <tr><td><strong>Opsætning</strong></td><td>Tegninger · Tegn · Bindinger · Tags · Ugeprogrammer · PLC'er</td><td class="r">tekniker (Tegninger og Tags også viewer)</td><td class="muted">Alarmopsætning, symbolbibliotek</td></tr>
+        <tr><td><strong>System</strong></td><td>Log · Brugere · Backup</td><td class="r">tekniker / admin</td><td class="muted">Systemstatus (Pi, PLC-forbindelser), indstillinger, licens/om</td></tr>
+        <tr><td><strong>Bruger</strong></td><td>Skift adgangskode · Log ud</td><td class="r">alle</td><td class="muted">Sprog, egne indstillinger</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">Grupper uden sider for rollen vises ikke. En viewer ser derfor kun Drift og et par opsætningssider, og en Driftpanel-bruger ser fortsat kun sin tegning. Siderne i kursiv i prøven findes ikke endnu og viser blot, hvor de vil havne.</p>
+</div>
+
+<script>
+const ICON = {
+  overview: '<rect x="3" y="4" width="18" height="14" rx="1"/><path d="M7 14l3-4 3 3 4-5"/>',
+  alarms: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  trends: '<path d="M3 20h18"/><path d="M4 16l5-6 4 3 7-8"/>',
+  energy: '<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>',
+  reports: '<path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/>',
+  drawings: '<path d="M4 4h10l6 6v10H4z"/><path d="M14 4v6h6"/>',
+  draw: '<path d="M4 20l4-1 11-11-3-3L5 16z"/>',
+  bindings: '<circle cx="7" cy="12" r="3"/><circle cx="17" cy="12" r="3"/><path d="M10 12h4"/>',
+  tags: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/>',
+  schedules: '<rect x="3" y="5" width="18" height="16" rx="1"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  plcs: '<rect x="4" y="6" width="16" height="12" rx="1"/><path d="M8 10v4M12 10v4M16 10v4"/>',
+  audit: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  users: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M21 20c0-2.6-1.6-4.8-4-5.6"/>',
+  backup: '<path d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z"/><path d="M4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  status: '<path d="M3 12h4l2-6 4 12 2-6h6"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>',
+  logout: '<path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4M18 12H9"/>',
+  fold: '<path d="M15 6l-6 6 6 6"/>',
+  unfold: '<path d="M9 6l6 6-6 6"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  caret: '<path d="M7 10l5 5 5-5"/>',
+};
+const ico = (k) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
+const LEVEL = { viewer: 0, operator: 1, engineer: 2, admin: 3 };
+const GROUPS = [
+  { id: 'drift', label: 'Drift', pages: [
+    { id: 'overview', label: 'Overview', role: 'viewer' }, { id: 'alarms', label: 'Alarmer', role: 'viewer', count: true },
+    { id: 'trends', label: 'Trends', role: 'viewer' }, { id: 'energy', label: 'Energi', role: 'viewer' },
+    { id: 'reports', label: 'Rapporter', role: 'viewer', later: true } ] },
+  { id: 'setup', label: 'Opsætning', pages: [
+    { id: 'drawings', label: 'Tegninger', role: 'viewer' }, { id: 'draw', label: 'Tegn', role: 'engineer' },
+    { id: 'bindings', label: 'Bindinger', role: 'engineer' }, { id: 'tags', label: 'Tags', role: 'viewer' },
+    { id: 'schedules', label: 'Ugeprogrammer', role: 'engineer' }, { id: 'plcs', label: "PLC'er", role: 'engineer' } ] },
+  { id: 'system', label: 'System', pages: [
+    { id: 'audit', label: 'Log', role: 'engineer' }, { id: 'users', label: 'Brugere', role: 'admin' },
+    { id: 'backup', label: 'Backup', role: 'admin' }, { id: 'status', label: 'Systemstatus', role: 'engineer', later: true } ] },
+];
+const ALARMS = 3;
+let state = { v: 'side', role: 'admin', page: 'overview', collapsed: false, open: null, drawer: false };
+try { const s = JSON.parse(localStorage.getItem('hovedmenu') || '{}'); Object.assign(state, s, { open: null, drawer: false }); } catch (e) { /* ingen lagring — standard bruges */ }
+const save = () => { try { localStorage.setItem('hovedmenu', JSON.stringify({ v: state.v, role: state.role, collapsed: state.collapsed })); } catch (e) { /* ignoreres */ } };
+const visible = (g) => g.pages.filter((p) => LEVEL[state.role] >= LEVEL[p.role]);
+const pageLabel = () => GROUPS.flatMap((g) => g.pages).find((p) => p.id === state.page)?.label ?? 'Overview';
+const groupOf = (id) => GROUPS.find((g) => g.pages.some((p) => p.id === id))?.id;
+const ROLE_TXT = { viewer: 'viewer', operator: 'operatør', engineer: 'tekniker', admin: 'admin' };
+
+const DRAWING = `<svg viewBox="0 0 640 300" preserveAspectRatio="xMidYMid meet" aria-label="Eksempeltegning: tank, pumpe og ventil">
+  <g fill="none" stroke="var(--sym-line)" stroke-width="3">
+    <rect x="60" y="50" width="110" height="190" rx="6" fill="var(--sym-face)"/>
+    <rect x="62" y="140" width="106" height="98" fill="var(--accent-bg)" stroke="none"/>
+    <path d="M170 210 H300"/><circle cx="330" cy="210" r="30" fill="var(--sym-face)"/><path d="M318 194 L348 210 L318 226Z" fill="var(--ok)" stroke="none"/>
+    <path d="M360 210 H450"/><path d="M450 195 L480 225 M450 225 L480 195" /><path d="M480 210 H590 V90"/>
+  </g>
+  <g font-family="var(--font)" font-size="15" fill="var(--text)">
+    <text x="115" y="40" text-anchor="middle">T1 · 62 %</text><text x="330" y="262" text-anchor="middle">P1 · drift</text>
+    <text x="465" y="262" text-anchor="middle">V3 · åben</text><text x="590" y="80" text-anchor="middle">Afløb</text>
+  </g></svg>`;
+
+function canvasArea(withBurger) {
+  return `<div class="canvas-area">
+    <div class="toolrow">${withBurger ? `<button class="burger" data-act="drawer" aria-label="Åbn menu">${ico('menu')} Menu</button>` : ''}
+      <strong>${pageLabel()}</strong>${state.page === 'overview' ? `<select aria-label="Tegning"><option>Pumpestation</option></select><span class="chip">Live</span>` : ''}</div>
+    <div class="drawing">${state.page === 'overview' ? DRAWING : `<p class="muted">Siden "${pageLabel()}"</p>`}<span class="measure" id="measure"></span></div>
+  </div>`;
+}
+
+function renderNow() {
+  const pages = GROUPS.flatMap((g) => visible(g)).filter((p) => !p.later);
+  return `<div class="now-head"><strong>HypervisionPLC SCADA</strong>
+    <nav>${pages.map((p) => `<a href="#" data-page="${p.id}" class="${p.id === state.page ? 'on' : ''}">${p.label}</a>`).join('')}</nav>
+    <div class="u"><span class="bell">Alarmer ${ALARMS}</span><span>admin</span><a href="#">Adgangskode</a><a href="#">Log ud</a></div></div>${canvasArea(false)}`;
+}
+
+function renderTop() {
+  const drift = visible(GROUPS[0]);
+  const dd = (g) => {
+    const pages = visible(g);
+    if (!pages.length) return '';
+    const on = groupOf(state.page) === g.id;
+    return `<div class="dd grp-dd"><button data-open="${g.id}" aria-expanded="${state.open === g.id}" class="${on ? 'on' : ''}">${g.label} ${ico('caret')}</button>
+      ${state.open === g.id ? `<div class="menu">${pages.map((p) => `<a href="#" data-page="${p.id}" class="${p.id === state.page ? 'on' : ''} ${p.later ? 'later' : ''}">${ico(p.id)} ${p.label}${p.later ? '<span class="hint">senere</span>' : ''}</a>`).join('')}</div>` : ''}</div>`;
+  };
+  const burgerMenu = state.open === 'all' ? `<div class="menu">${GROUPS.map((g) => visible(g).length ? `<div class="label" style="padding:6px 10px 2px">${g.label}</div>` + visible(g).map((p) => `<a href="#" data-page="${p.id}" class="${p.id === state.page ? 'on' : ''} ${p.later ? 'later' : ''}">${ico(p.id)} ${p.label}</a>`).join('') : '').join('')}</div>` : '';
+  return `<div class="top">
+    <div class="dd"><button class="burger" data-open="all" aria-label="Menu">${ico('menu')}</button>${burgerMenu}</div>
+    <span class="brand">HypervisionPLC <small>SCADA</small></span>
+    ${drift.filter((p) => !p.later).map((p) => `<a href="#" class="tab drift ${p.id === state.page ? 'on' : ''}" data-page="${p.id}">${p.label}</a>`).join('')}
+    ${dd(GROUPS[1])}${dd(GROUPS[2])}
+    <span class="spacer"></span>
+    <button class="alarm" data-page="alarms" title="${ALARMS} aktive alarmer">${ico('alarms')}<span class="n">${ALARMS}</span></button>
+    <div class="dd user"><button data-open="user" aria-expanded="${state.open === 'user'}">${ico('user')} <span class="txt">admin</span> ${ico('caret')}</button>
+      ${state.open === 'user' ? `<div class="menu right"><span class="hint" style="padding:6px 10px;margin:0">Logget ind som admin (${ROLE_TXT[state.role]})</span><div class="sep"></div><button>${ico('key')} Skift adgangskode</button><button>${ico('logout')} Log ud</button></div>` : ''}</div>
+  </div>${canvasArea(false)}`;
+}
+
+function renderSide() {
+  const c = state.collapsed;
+  const items = GROUPS.map((g) => {
+    const pages = visible(g);
+    if (!pages.length) return '';
+    return `<div class="grp">${g.label}</div>` + pages.map((p) => `<a href="#" data-page="${p.id}" class="${p.id === state.page ? 'on' : ''} ${p.later ? 'later' : ''}" title="${p.label}${p.later ? ' (senere)' : ''}">${ico(p.id)}<span class="txt">${p.label}</span></a>`).join('');
+  }).join('');
+  return `<aside class="side ${c ? 'collapsed' : ''} ${state.drawer ? 'open' : ''}" aria-label="Hovedmenu">
+    <div class="head"><span class="brand">HypervisionPLC<small>SCADA · v0.39.0</small></span>
+      <button class="toggle" data-act="fold" aria-label="${c ? 'Fold menuen ud' : 'Fold menuen ind'}" title="${c ? 'Fold ud' : 'Fold ind'}">${ico(c ? 'unfold' : 'fold')}</button></div>
+    <button class="alarm" data-page="alarms" title="${ALARMS} aktive alarmer">${ico('alarms')}<span class="txt"><span class="n">${ALARMS}</span> aktive alarmer</span></button>
+    <nav>${items}</nav>
+    <div class="foot"><span class="who">admin · ${ROLE_TXT[state.role]}</span>
+      <a href="#" title="Skift adgangskode">${ico('key')}<span class="txt">Skift adgangskode</span></a>
+      <a href="#" title="Log ud">${ico('logout')}<span class="txt">Log ud</span></a></div>
+  </aside>${canvasArea(true)}`;
+}
+
+function render() {
+  const app = document.getElementById('app');
+  app.className = `app v-${state.v}`;
+  app.innerHTML = state.v === 'now' ? renderNow() : state.v === 'top' ? renderTop() : renderSide();
+  document.querySelectorAll('[data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === state.v)));
+  document.querySelectorAll('[data-r]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.r === state.role)));
+  measure();
+}
+function measure() {
+  const d = document.querySelector('#app .drawing'), m = document.getElementById('measure');
+  if (d && m) m.textContent = `tegningsflade ${Math.round(d.clientWidth)} × ${Math.round(d.clientHeight)} px`;
+}
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-v],[data-r],[data-page],[data-open],[data-act]');
+  if (!t) { if (state.open) { state.open = null; render(); } return; }
+  e.preventDefault();
+  if (t.dataset.v) { state.v = t.dataset.v; state.open = null; }
+  else if (t.dataset.r) { state.role = t.dataset.r; if (!GROUPS.some((g) => visible(g).some((p) => p.id === state.page))) state.page = 'overview'; }
+  else if (t.dataset.page) { const p = GROUPS.flatMap((g) => g.pages).find((x) => x.id === t.dataset.page); if (p && !p.later) state.page = p.id; state.open = null; state.drawer = false; }
+  else if (t.dataset.open) { state.open = state.open === t.dataset.open ? null : t.dataset.open; }
+  else if (t.dataset.act === 'fold') state.collapsed = !state.collapsed;
+  else if (t.dataset.act === 'drawer') state.drawer = !state.drawer;
+  save(); render();
+  if (t.dataset.act === 'fold') setTimeout(measure, 220);
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && (state.open || state.drawer)) { state.open = null; state.drawer = false; render(); } });
+window.addEventListener('resize', measure);
+render();
+</script>
