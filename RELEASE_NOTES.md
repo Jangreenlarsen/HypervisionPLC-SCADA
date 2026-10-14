@@ -2,6 +2,12 @@
 
 ---
 
+## v0.40.0 — 2026-10-14 — Ny hovedmenu
+
+- Menuen foroven er nu én smal bjælke: **Menu**, hvor du er (fx "Drift › Overview"), antal alarmer og dit brugernavn.
+- **Menu** folder siderne ud over tegningen, delt i **Drift**, **Opsætning** og **System**, plus skift adgangskode og log ud. Tegningen bliver ikke skubbet ned og får dermed mere plads end før.
+- Menuen lukker når du vælger en side, trykker Escape eller klikker ved siden af.
+
 ## v0.39.0 — 2026-10-14 — Ny rolle: Driftpanel
 
 - Under **Brugere** kan en bruger nu få rollen **panel** (Driftpanel) — tænkt til en skærm i produktionen.

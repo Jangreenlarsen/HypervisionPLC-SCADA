@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { ApiError, get, onUnauthorized, post, roleAtLeast, type AlarmSummary, type Me, type Role } from './lib/api';
+  import { ApiError, get, onUnauthorized, post, roleAtLeast, type AlarmSummary, type Me } from './lib/api';
+  import { NAV_ICON, groupOf, navFor, pageFor } from './lib/nav';
   import Overview from './pages/Overview.svelte';
   import Drawings from './pages/Drawings.svelte';
   import Tags from './pages/Tags.svelte';
@@ -18,21 +19,6 @@
   import Login from './pages/Login.svelte';
   import ChangePassword from './pages/ChangePassword.svelte';
 
-  const pages: { id: string; label: string; role: Role }[] = [
-    { id: 'overview', label: 'Overview', role: 'viewer' },
-    { id: 'alarms', label: 'Alarmer', role: 'viewer' },
-    { id: 'trends', label: 'Trends', role: 'viewer' },
-    { id: 'energy', label: 'Energi', role: 'viewer' },
-    { id: 'drawings', label: 'Tegninger', role: 'viewer' },
-    { id: 'draw', label: 'Tegn', role: 'engineer' },
-    { id: 'editor', label: 'Bindinger', role: 'engineer' },
-    { id: 'schedules', label: 'Ugeprogrammer', role: 'engineer' },
-    { id: 'tags', label: 'Tags', role: 'viewer' },
-    { id: 'plcs', label: "PLC'er", role: 'engineer' },
-    { id: 'audit', label: 'Log', role: 'engineer' },
-    { id: 'users', label: 'Brugere', role: 'admin' },
-    { id: 'backup', label: 'Backup', role: 'admin' },
-  ];
 
   let route = $state(location.hash.slice(1) || 'overview');
   let info = $state<{ version: string; build: string; source_url: string } | null>(null);
@@ -88,13 +74,24 @@
     return () => window.removeEventListener('hashchange', onHash);
   });
 
-  const visible = $derived(pages.filter((p) => roleAtLeast(me?.role, p.role)));
-  const page = $derived(visible.some((p) => p.id === route.split('/')[0]) ? route.split('/')[0] : 'overview');
+  const groups = $derived(navFor(me?.role));
+  const current = $derived(pageFor(route, me?.role));
+  const page = $derived(current.id);
+  // Menuen foldes ud OVER indholdet (skubber ikke tegningen ned) og lukkes ved valg, Escape eller klik udenfor
+  let menuOpen = $state(false);
+  $effect(() => { void route; menuOpen = false; });
+  function onKey(e: KeyboardEvent): void {
+    if (e.key === 'Escape' && menuOpen) menuOpen = false;
+  }
+  const ROLE_TXT: Record<string, string> = { viewer: 'viewer', operator: 'operatør', panel: 'driftpanel', engineer: 'tekniker', admin: 'admin' };
   const canEdit = $derived(roleAtLeast(me?.role, 'engineer'));
   // Driftpanel (fx en skærm i produktionen): kun drifttegningen. Først når adgangskoden er skiftet — før det vises
   // det almindelige skift-adgangskode-billede.
   const isPanel = $derived(me?.role === 'panel' && !me.must_change_password && !changingPassword);
 </script>
+
+<svelte:window onkeydown={onKey} />
+{#snippet icon(name: string)}<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">{@html NAV_ICON[name]}</svg>{/snippet}
 
 {#if isPanel && me}
   <!-- Driftpanel: kun drifttegningen — ingen topmenu, alarmklokke eller sidefod (kildekode-linket står i kolonnen) -->
@@ -104,24 +101,48 @@
   </main>
 {:else}
 <header>
-  <span class="brand">HypervisionPLC SCADA</span>
   {#if me && !me.must_change_password}
-    <nav>
-      {#each visible as p}
-        <a href={'#' + p.id} class:active={page === p.id}>{p.label}</a>
-      {/each}
-    </nav>
+    <button class="menu-btn" aria-expanded={menuOpen} aria-controls="hovedmenu" onclick={() => (menuOpen = !menuOpen)}>
+      {@render icon(menuOpen ? 'close' : 'menu')}<span>Menu</span>
+    </button>
+    <span class="crumb"><span class="grp">{groupOf(page)?.label}</span> <span class="sep">›</span> <strong>{current.label}</strong></span>
+    <span class="spacer"></span>
     <a href="#alarms" class="bell {alarmSummary.unacked ? 'unacked' : ''} {alarmSummary.high ? 'high' : alarmSummary.active ? 'medium' : ''}"
        title="{alarmSummary.active} aktive alarmer, {alarmSummary.unacked} ukvitterede">
-      Alarmer <span class="count">{alarmSummary.active}</span>{#if alarmSummary.unacked}<span class="unack">&nbsp;· {alarmSummary.unacked} ny</span>{/if}
+      {@render icon('alarms')}<span class="count">{alarmSummary.active}</span>{#if alarmSummary.unacked}<span class="unack">· {alarmSummary.unacked} ny</span>{/if}
     </a>
-    <div class="user">
-      <span title="Rolle: {me.role}">{me.username} <span class="role">{me.role}</span></span>
-      <button class="link" onclick={() => (changingPassword = true)}>Adgangskode</button>
-      <button class="link" onclick={logout}>Log ud</button>
-    </div>
+    <!-- AGPL-3.0 §13: link til kildekoden altid synligt -->
+    <a class="src" href={info?.source_url ?? 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener"
+       title="Fri software under AGPL-3.0{info ? ` · v${info.version} build ${info.build}` : ''}">AGPL · kildekode</a>
+    <span class="who" title="Rolle: {ROLE_TXT[me.role] ?? me.role}">{@render icon('user')}<span class="name">{me.username}</span></span>
+  {:else}
+    <span class="brand">HypervisionPLC SCADA</span>
+    <span class="spacer"></span>
+    <a class="src" href={info?.source_url ?? 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener">AGPL · kildekode</a>
   {/if}
 </header>
+
+{#if menuOpen && me}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="menu-scrim" onclick={() => (menuOpen = false)}></div>
+  <nav id="hovedmenu" class="menu-panel" aria-label="Hovedmenu">
+    {#each groups as g}
+      <section>
+        <h2>{g.label}</h2>
+        {#each g.pages as p}
+          <a href={'#' + p.id} class:active={page === p.id} aria-current={page === p.id ? 'page' : undefined}
+             onclick={() => (menuOpen = false)}>{@render icon(p.icon)}<span>{p.label}</span></a>
+        {/each}
+      </section>
+    {/each}
+    <section class="me">
+      <h2>{me.username} <span class="role">· {ROLE_TXT[me.role] ?? me.role}</span></h2>
+      <button onclick={() => { menuOpen = false; changingPassword = true; }}>{@render icon('key')}<span>Skift adgangskode</span></button>
+      <button onclick={() => { menuOpen = false; logout(); }}>{@render icon('logout')}<span>Log ud</span></button>
+      <p class="about">HypervisionPLC SCADA{#if info}<br />v{info.version} build {info.build}{/if}</p>
+    </section>
+  </nav>
+{/if}
 
 <main>
   {#if error}<div class="error">{error}</div>{/if}
@@ -164,69 +185,68 @@
   {/if}
 </main>
 
-<footer>
-  {#if info}
-    <span>v{info.version} build {info.build}</span>
-  {/if}
-  <span>Fri software under AGPL-3.0 —
-    <a href={info?.source_url ?? 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener">kildekode</a>
-  </span>
-</footer>
 {/if}
 
 <style>
+  /* Smal topbjælke (40 px); menuen foldes ud over indholdet i et panel, så tegningen beholder pladsen */
   header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: .5rem 1.5rem;
-    padding: .5rem 1rem;
-    background: #3a3a3a;
-    color: #fff;
-    min-height: 2.75rem;
+    position: sticky; top: 0; z-index: 40;
+    display: flex; align-items: center; gap: .6rem;
+    height: 2.5rem; padding: 0 .6rem;
+    background: #3a3a3a; color: #fff;
   }
-  .brand { font-weight: 600; }
-  nav { display: flex; gap: .25rem; flex-wrap: wrap; }
-  nav a {
-    color: #ddd;
-    text-decoration: none;
-    padding: .3rem .7rem;
-    border-radius: 4px;
+  .brand { font-weight: 600; padding-left: .4rem; }
+  .spacer { flex: 1; }
+  .ico { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .menu-btn {
+    display: inline-flex; align-items: center; gap: .4rem; height: 2rem; padding: 0 .7rem;
+    background: transparent; color: #fff; border: 1px solid #666; border-radius: 4px;
   }
-  nav a.active, nav a:hover { background: #575757; color: #fff; }
+  .menu-btn:hover, .menu-btn[aria-expanded="true"] { background: #575757; border-color: #888; }
+  .crumb { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; font-size: .95rem; }
+  .crumb .grp, .crumb .sep { color: #bbb; }
   .bell {
-    margin-left: auto;
-    color: #ddd;
-    text-decoration: none;
-    padding: .2rem .6rem;
-    border-radius: 4px;
-    border: 1px solid #666;
-    font-size: .9rem;
+    display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap;
+    color: #ddd; text-decoration: none; padding: .15rem .55rem; border-radius: 4px; border: 1px solid #666; font-size: .9rem;
   }
+  .bell .count { font-weight: 700; font-variant-numeric: tabular-nums; }
   .bell.medium { background: #b26a00; color: #fff; border-color: #b26a00; }
   .bell.high { background: #c62828; color: #fff; border-color: #c62828; }
   .bell.unacked { animation: bell 1s steps(2, start) infinite; }
   @keyframes bell { to { opacity: .55; } }
   @media (prefers-reduced-motion: reduce) { .bell.unacked { animation: none; } }
-  .user { margin-left: .5rem; display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; font-size: .9rem; }
-  .role { color: #bbb; font-size: .8rem; }
-  .link { background: none; border: none; color: #ddd; padding: 0; text-decoration: underline; }
-  .link:hover { color: #fff; }
-  /* Ingen breddegrænse: SCADA bruges også på store kontrolrumsskærme */
-  main { padding: 1rem; }
-  main.panel-mode { padding: .5rem; }
-  footer {
-    display: flex;
-    flex-wrap: wrap;
-    gap: .25rem 1rem;
-    justify-content: space-between;
-    padding: .5rem 1rem 1rem;
-    font-size: .8rem;
-    color: var(--muted);
+  .src { color: #bbb; font-size: .75rem; white-space: nowrap; }
+  .who { display: inline-flex; align-items: center; gap: .3rem; color: #ddd; font-size: .9rem; white-space: nowrap; }
+
+  .menu-scrim { position: fixed; inset: 2.5rem 0 0 0; background: rgba(0, 0, 0, .25); z-index: 30; }
+  .menu-panel {
+    position: fixed; top: 2.5rem; left: 0; z-index: 35;
+    width: min(100vw, 56rem); max-height: calc(100vh - 2.5rem); overflow-y: auto;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .25rem 1rem;
+    padding: .75rem 1rem 1rem; background: var(--panel); color: var(--text);
+    border: 1px solid var(--line); border-top: 0; border-radius: 0 0 var(--radius) 0; box-shadow: 0 10px 28px rgba(0, 0, 0, .25);
   }
-  @media (max-width: 600px) {
+  .menu-panel section { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .menu-panel h2 { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: .35rem .5rem .3rem; }
+  .menu-panel a, .menu-panel button {
+    display: flex; align-items: center; gap: .6rem; width: 100%; text-align: left;
+    padding: .45rem .5rem; border-radius: var(--radius); color: var(--text); text-decoration: none;
+    background: none; border: 0; font: inherit; cursor: pointer;
+  }
+  .menu-panel a:hover, .menu-panel button:hover { background: var(--panel-2); }
+  .menu-panel a.active { background: var(--accent); color: #fff; }
+  .menu-panel .me { border-left: 1px solid var(--line); padding-left: .75rem; }
+  .menu-panel .role { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .menu-panel .about { font-size: .75rem; color: var(--muted); margin: .5rem .5rem 0; }
+
+  /* Ingen breddegrænse: SCADA bruges også på store kontrolrumsskærme */
+  main { padding: .75rem 1rem 1rem; }
+  main.panel-mode { padding: .5rem; }
+  @media (max-width: 640px) {
     main { padding: .75rem 16px; }
-    header { padding: .5rem 16px; }
-    .user { margin-left: 0; }
+    header { padding: 0 .5rem; gap: .45rem; }
+    .crumb .grp, .crumb .sep, .who .name, .menu-btn span { display: none; }
+    .src { font-size: .7rem; }
+    .menu-panel .me { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: .5rem; }
   }
 </style>

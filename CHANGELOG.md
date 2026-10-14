@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.40.0 build 0058] — 2026-10-14 — Ny hovedmenu: smal topbjælke, menuen foldes ud over tegningen
+
+- `frontend/src/lib/nav.ts` (ny) + `nav.test.ts` — siderne i grupperne Drift / Opsætning / System med rollekrav og ikoner; `navFor(rolle)` (tomme grupper udelades), `pageFor(rute, rolle)` (ikke tilladt/ukendt side → Overview), `groupOf`.
+- `frontend/src/App.svelte` — den flade menu (13 sider på én linje, ombrudt til op til 133 px) er erstattet af en topbjælke på 2,5 rem: "Menu"-knap, gruppe › side, alarmtæller, kildekode-link (AGPL §13) og bruger. Menuen foldes ud som et panel *over* indholdet (skubber ikke tegningen ned) med grupperne som kolonner og bruger-delen (skift adgangskode, log ud, version); lukkes ved valg, Escape eller klik udenfor. Sidefoden er fjernet (version står i menuen, kildekode-linket i bjælken). Driftpanel uændret.
+- Set i Chromium ved 1440, 1024 og 420 px: bjælken er 37,5 px i alle bredder, ingen vandret rulning, tegningen ændrer ikke størrelse når menuen åbnes, valg og Escape lukker menuen, Bindinger og Tegn har fuld højde. Ved 1024 px er Overview-tegningen 857 × 643 px.
+
 ## [0.39.0 build 0057] — 2026-10-14 — Rolle Driftpanel
 
 - `backend/app/services/auth.py` — ny rolle `panel` (Driftpanel) med operatørens rettighedsniveau (`ROLE_LEVEL`; `role_at_least` bruger niveauer i stedet for listeplacering) og begrænsning til udvalgte tegninger som viewer/operatør.
