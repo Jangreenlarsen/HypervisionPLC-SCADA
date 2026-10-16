@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.54.1 build 0080] — 2026-10-16 — manual: billeder af Tegnehjælp
+
+- `frontend/public/manual/tegn-gitter.png` (nyt) og et nyt `tegn.png` med rækken Tegnehjælp; billedet er indsat i kapitlet *Tegninger og Tegn*. Verificeret på testserveren efter OTA-installation af 0.54.0: rotationsrettelsen er med i den leverede `Editor.js`, og gitteret ligger over det rigtige anlæg.
+
 ## [0.54.0 build 0079] — 2026-10-16 — Tegnehjælp: gitter, fang til gitter/objekter og rotation i 15°-trin
 
 - `frontend/svgedit-host/scada-editor.js` — **gitter** tegnet som et gennemsigtigt lag OVENPÅ tegningen (SVG-Edits eget gitter lå under og var skjult bag baggrundsrektanglet), afstand 5/10/20/25/50 med kraftigere linje for hver 5.; følger zoom og rulning; **fang til gitter** (SVG-Edits egen `gridSnapping`/`snappingStep`); **fang til objekter**: ved museslip efter et træk lægges det flyttede objekt kant mod kant eller midte mod midte med nærmeste objekt inden for 8 skærm-pixel (kan fortrydes). SVG-Edit sender ikke `changed` efter en flytning, så der lyttes på museknappen. API: `window.scada.setGuides({ grid, snapGrid, snapObjects, step })`. `ext-grid` er fjernet.

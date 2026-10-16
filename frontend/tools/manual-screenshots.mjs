@@ -96,6 +96,14 @@ await shot('tag-redigeer', async () => {
 await shot('tegninger', async () => { await go('drawings', 'text=Upload tegning'); });
 await shot('tegninger-versioner', async () => { await go('drawings', 'text=Upload tegning'); await page.getByRole('button', { name: 'Versioner' }).first().click(); await settle(800); await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await settle(300); });
 await shot('tegn', async () => { await go(`draw/${startDrawing}`, 'iframe'); await settle(3500); });
+await shot('tegn-gitter', async () => {
+  await go(`draw/${startDrawing}`, 'iframe');
+  await settle(3500);
+  await page.getByLabel('Vis gitter').check();     // kun visning i browseren (localStorage) — gemmer intet på serveren
+  await page.getByLabel('Fang til gitter').check();
+  await page.getByLabel('Fang til objekter').check();
+  await settle(800);
+}, { clip: { x: 0, y: 84, width: 1180, height: 480 } });
 await shot('tegn-symboler', async () => {
   await go(`draw/${startDrawing}`, 'iframe');
   await settle(3000);

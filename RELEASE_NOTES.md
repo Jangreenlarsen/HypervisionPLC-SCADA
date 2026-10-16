@@ -2,6 +2,10 @@
 
 ---
 
+## v0.54.1 — 2026-10-16
+
+- Manualen har fået et billede af **Tegnehjælp** (gitter og fang) i Tegn.
+
 ## v0.54.0 — 2026-10-16 — Gitter og fang i Tegn
 
 - Under værktøjslinjen i **Tegn** er der en ny række, **Tegnehjælp**:

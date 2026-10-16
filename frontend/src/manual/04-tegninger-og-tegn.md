@@ -45,6 +45,8 @@ Under værktøjslinjen i Tegn står rækken **Tegnehjælp**:
 
 Indstillingerne huskes i din browser.
 
+![Tegn med Tegnehjælp: gitter vist, fang til gitter og fang til objekter slået til](/manual/tegn-gitter.png)
+
 ### Symbolbiblioteket
 
 ![Symbolbiblioteket i Tegn, sorteret i kategorier med søgning](/manual/tegn-symboler.png)
