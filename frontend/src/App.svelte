@@ -11,6 +11,7 @@
   import DrawEditor from './pages/DrawEditor.svelte';
   import Audit from './pages/Audit.svelte';
   import Backup from './pages/Backup.svelte';
+  import Update from './pages/Update.svelte';
   import Alarms from './pages/Alarms.svelte';
   import Energy from './pages/Energy.svelte';
   import Schedules from './pages/Schedules.svelte';
@@ -178,6 +179,8 @@
     <Audit />
   {:else if page === 'backup'}
     <Backup />
+  {:else if page === 'update'}
+    <Update />
   {:else if page === 'users'}
     <Users {me} />
   {:else}

@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.50.0 build 0071] — 2026-10-16 — OTA-opdatering fra web-GUI'et
+
+- `backend/app/services/updates.py` (ny) — `inspect_package()` kontrollerer en pakke uden at pakke den ud (kun filer og mapper under `scada/`, ingen `..`/absolutte stier/links, størrelses- og antalsgrænser, nødvendige filer, gyldigt `version.json`, SHA-256); `UpdateService`: status (aktiveret, klargjort pakke, tilstand idle/queued/applying/done/failed/rolled_back/stalled, log), `stage`, `apply` (kontrolsummen skal svare til den klargjorte pakke; ældre version afvises; samme version kræver bekræftelse; backup `scada-pre-update-*` før anmodningen), `discard`; intet kan ændres mens en opdatering er i gang.
+- `backend/app/api/system.py` (ny, kun admin) — `GET /api/system/update`, `POST …/upload` (streames, max 60 MB), `POST …/apply`, `DELETE …/staged`; alt i audit-loggen.
+- `deploy/apply-update.sh` + `hypervisionplc-scada-update.{path,service}` (nye) — root-hjælper udløst af en anmodningsfil: sletter anmodningen først, kopierer pakken til en root-ejet arbejdsmappe, tjekker kontrolsum og version, gemmer forrige kode, kører `install.sh --update`, tjekker `/api/health` (skal melde den nye version) og **ruller tilbage** ved fejl; skriver `status.json` og `update.log`. Ligger uden for programmappen, som installationen erstatter.
+- `deploy/install.sh` — `--update` (springer apt/pip-opgradering over), installerer hjælper og enheder, `updates/`-mappen og markøren `enabled`; genstarter mock-PLC'en hvis den kører.
+- `deploy/make-package.sh` (ny) — bygger pakken af det committede.
+- `frontend/src/pages/Update.svelte` + `lib/updateUi.ts` — siden System › Opdatering (upload, version og kontrolsum, bekræftelse, fremdrift gennem serverens genstart, resultat/tilbagerulning, log); menupunkt og rute.
+- Tests: `test_updates.py` (38) og `updateUi.test.ts`.
+- **Afgrænsning:** kontrolsummen beskytter mod beskadigelse, ikke mod en ondsindet admin (kode kører som root via opdateringen). Signerede pakker kan tilføjes senere.
+
 ## [0.49.0 build 0070] — 2026-10-16 — Betjeningsformer efter symbol i guidens trin 1
 
 - `frontend/src/lib/symbolConfig.ts` — `allowedOps(type, current)`: hvilke af Kun visning / Positioner / Trykknap / Setpunkt der giver mening for hvert bibliotekssymbol (3-vejs motorventil: visning + positioner; reguleringsventil: visning + setpunkt; pumper, motorer, kontaktorer: visning + positioner + trykknap; rør, tanke, målere, lamper og solcelledele: kun visning; betjeningssymboler: deres egen form). Ukendte typer og egne tegninger får alle fire; den nuværende (gemte) form skjules aldrig.

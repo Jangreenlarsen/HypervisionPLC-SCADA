@@ -1,0 +1,9 @@
+[Unit]
+Description=Venter på en OTA-opdateringsanmodning fra HypervisionPLC SCADA
+
+[Path]
+PathExists=/var/lib/hypervisionplc-scada/updates/apply.request
+Unit=hypervisionplc-scada-update.service
+
+[Install]
+WantedBy=multi-user.target

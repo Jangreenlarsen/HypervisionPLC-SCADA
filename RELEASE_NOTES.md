@@ -2,6 +2,13 @@
 
 ---
 
+## v0.50.0 — 2026-10-16 — Opdatering direkte fra web-siden (OTA)
+
+- Ny side **System › Opdatering** (kun admin): upload en opdateringspakke, kontrollér version og kontrolsum, og tryk **Installér og genstart**. Du behøver ikke længere SSH.
+- Før opdateringen tages en backup. Svarer den nye version ikke efter genstarten, **rulles der automatisk tilbage** til den forrige. Status og log vises på siden.
+- Pakken bygges med `sh deploy/make-package.sh`. Ældre versioner kan ikke installeres.
+- **Første gang** skal serveren have installationen kørt som root (`sh deploy/install.sh`); derefter kan alle nye versioner komme via siden.
+
 ## v0.49.0 — 2026-10-16 — Kun relevante betjeningsformer i guiden
 
 - I guidens **trin 1** vises nu kun de betjeningsformer, der giver mening for symbolet. En 3-vejs motorventil kan fx kun have **Kun visning** eller **Positioner**, og rør og tanke kun **Kun visning**.
