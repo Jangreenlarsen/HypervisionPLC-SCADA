@@ -58,7 +58,7 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
   if (!symbol) return null;
   const partOf = (pid: string) => Object.entries(symbol.parts).find(([, p]) => p.pid === pid)?.[0];
   const cfg = emptyConfig(symbol.type);
-  if (symbol.type === 'trevejs_motorventil') {
+  if (symbol.type === 'trevejs_motorventil' || symbol.type === 'trevejs_motorventil_ab') {
     cfg.positions = [{ label: 'AB → A' }, { label: 'AB → B' }];
     setOp(cfg, 'positions');
     cfg.display = 'remote';

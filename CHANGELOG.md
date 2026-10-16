@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.47.0 build 0065] — 2026-10-16 — 3-vejs motorventil med AB i midten
+
+- `frontend/src/lib/symbols.ts` — nyt symbol **3-vejs motorventil (AB i midten)**: AB nederst, A til venstre, B til højre, motor øverst; samme delnavne (`port_a`, `port_b`, `port_ab`, `motor`).
+- `frontend/src/lib/symbolConfig.ts` — guidens forslag (AB → A / AB → B med farver pr. port) gælder begge varianter; test i `libraryDefaults.test.ts`.
+
 ## [0.46.0 build 0064] — 2026-10-16 — 3-vejs motorventil + logikblok som løbelysets retning
 
 - `frontend/src/lib/symbols.ts` — nyt bibliotekssymbol **3-vejs motorventil** (Rør og VVS): portene A (venstre), B (top) og AB (højre) og motoren er egne dele (`port_a`, `port_b`, `port_ab`, `motor`), så hver port kan farves for sig.

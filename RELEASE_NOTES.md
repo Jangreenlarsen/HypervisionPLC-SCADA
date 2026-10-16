@@ -2,6 +2,10 @@
 
 ---
 
+## v0.47.0 — 2026-10-16 — 3-vejs motorventil med AB i midten
+
+- Ny variant af 3-vejs motorventilen (Rør og VVS): **AB nederst**, A til venstre og B til højre, motoren øverst. Samme opsætning som den første variant: positionerne AB → A og AB → B med farve pr. port.
+
 ## v0.46.0 — 2026-10-16 — 3-vejs motorventil og logikblok som retning
 
 - Nyt symbol i biblioteket (Rør og VVS): **3-vejs motorventil** med portene A, B og AB og en motor. Hver port kan farves for sig.

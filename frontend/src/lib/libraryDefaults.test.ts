@@ -42,6 +42,16 @@ describe('3-vejs motorventil', () => {
   });
 });
 
+describe('3-vejs motorventil (AB i midten)', () => {
+  it('har de samme dele og samme forslag som den første variant', () => {
+    expect(sym('trevejs_motorventil_ab').category).toBe('vvs');
+    expect(partIds('trevejs_motorventil_ab')).toEqual(['port_a', 'port_b', 'port_ab', 'motor']);
+    const r = libraryDefault(info('trevejs_motorventil_ab', ['port_a', 'port_b', 'port_ab', 'motor']))!;
+    expect(r.config.positions.map((p) => p.label)).toEqual(['AB → A', 'AB → B']);
+    expect(r.config.anims.map((a) => a.params.colors)).toEqual([['#7cc47f', '#ffffff'], ['#ffffff', '#7cc47f'], ['#7cc47f', '#7cc47f']]);
+  });
+});
+
 describe('statusfelt', () => {
   it('findes under Proces og visning med feltet og teksten som dele', () => {
     expect(sym('statusfelt').category).toBe('proces');

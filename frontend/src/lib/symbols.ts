@@ -137,6 +137,16 @@ export const SYMBOLS: SymbolDef[] = [
 
   // ---------------------------------------------------------------- Proces og visning
   {
+    id: 'trevejs_motorventil_ab', label: '3-vejs motorventil (AB i midten)', category: 'vvs',
+    hint: 'AB nederst, A til venstre og B til højre — portene farves hver for sig (AB → A eller AB → B); opsæt med guiden',
+    svg: `<g><path id="port_a" d="M8 27 L40 45 L8 63 Z" fill="#222222" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path id="port_b" d="M72 27 L40 45 L72 63 Z" fill="#ffffff" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path id="port_ab" d="M22 77 L58 77 L40 45 Z" fill="#222222" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<line x1="40" y1="45" x2="40" y2="24" stroke="${LINE}" stroke-width="3"/><circle cx="40" cy="45" r="4" fill="${DARK}"/>` +
+      `<circle id="motor" cx="40" cy="12" r="12" fill="${PANEL}" stroke="${LINE}" stroke-width="2.5"/>` +
+      text(40, 17, 'M', 14, 'font-weight="600"') + text(8, 24, 'A', 13) + text(72, 24, 'B', 13) + text(76, 86, 'AB', 13) + '</g>',
+  },
+  {
     id: 'statusfelt', label: 'Statusfelt', category: 'proces', hint: 'Knyt til et register: farven følger værdien (Fyldfarve) — ret teksten i Tegn',
     svg: `<g><rect id="felt" x="2" y="2" width="76" height="26" rx="13" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
       text(40, 21, 'STF', 15, 'font-weight="700" id="tekst"') + '</g>',
