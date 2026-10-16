@@ -2,6 +2,10 @@
 
 ---
 
+## v0.51.1 — 2026-10-16 — Bruger-menuen til højre
+
+- **Bruger** står nu yderst til højre i topbjælken, som du kender det fra andre programmer.
+
 ## v0.51.0 — 2026-10-16 — Ny topmenu: Drift, Opsætning, System, Bruger
 
 - Menuen er nu fire punkter i topbjælken: **Drift**, **Opsætning**, **System** og **Bruger**. Før musen hen over et punkt, så folder menuen sig ud af sig selv, og du kan vælge siden direkte.

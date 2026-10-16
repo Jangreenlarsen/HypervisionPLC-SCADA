@@ -136,6 +136,17 @@
           {/if}
         </div>
       {/each}
+    </nav>
+    <span class="crumb"><span class="grp">{groupOf(page)?.label}</span> <span class="sep">›</span> <strong>{current.label}</strong></span>
+    <span class="spacer"></span>
+    <a href="#alarms" class="bell {alarmSummary.unacked ? 'unacked' : ''} {alarmSummary.high ? 'high' : alarmSummary.active ? 'medium' : ''}"
+       title="{alarmSummary.active} aktive alarmer, {alarmSummary.unacked} ukvitterede">
+      {@render icon('alarms')}<span class="count">{alarmSummary.active}</span>{#if alarmSummary.unacked}<span class="unack">· {alarmSummary.unacked} ny</span>{/if}
+    </a>
+    <!-- AGPL-3.0 §13: link til kildekoden altid synligt -->
+    <a class="src" href={info?.source_url ?? 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener"
+       title="Fri software under AGPL-3.0{info ? ` · v${info.version} build ${info.build}` : ''}">AGPL · kildekode</a>
+    <nav class="menubar" aria-label="Brugermenu">
       <div class="menu user" class:open={openMenu === 'user'} role="presentation" onpointerenter={onHover('user')} onpointerleave={onLeave}>
         <button class="top" aria-haspopup="true" aria-expanded={openMenu === 'user'} title="Rolle: {ROLE_TXT[me.role] ?? me.role}"
                 onclick={() => (openMenu === 'user' ? (openMenu = null) : showMenu('user'))}>
@@ -151,15 +162,6 @@
         {/if}
       </div>
     </nav>
-    <span class="crumb"><span class="grp">{groupOf(page)?.label}</span> <span class="sep">›</span> <strong>{current.label}</strong></span>
-    <span class="spacer"></span>
-    <a href="#alarms" class="bell {alarmSummary.unacked ? 'unacked' : ''} {alarmSummary.high ? 'high' : alarmSummary.active ? 'medium' : ''}"
-       title="{alarmSummary.active} aktive alarmer, {alarmSummary.unacked} ukvitterede">
-      {@render icon('alarms')}<span class="count">{alarmSummary.active}</span>{#if alarmSummary.unacked}<span class="unack">· {alarmSummary.unacked} ny</span>{/if}
-    </a>
-    <!-- AGPL-3.0 §13: link til kildekoden altid synligt -->
-    <a class="src" href={info?.source_url ?? 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener"
-       title="Fri software under AGPL-3.0{info ? ` · v${info.version} build ${info.build}` : ''}">AGPL · kildekode</a>
   {:else}
     <span class="brand">HypervisionPLC SCADA</span>
     <span class="spacer"></span>
@@ -225,7 +227,7 @@
   .ico { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .menubar { display: flex; align-items: center; gap: .15rem; height: 100%; }
   .menu { position: relative; height: 100%; display: flex; align-items: center; }
-  .menu.user { margin-left: .35rem; padding-left: .35rem; border-left: 1px solid #555; }
+  .menu.user { margin-left: .2rem; padding-left: .45rem; border-left: 1px solid #555; }
   .top {
     display: inline-flex; align-items: center; gap: .35rem; height: 2rem; padding: 0 .75rem;
     background: transparent; color: #eee; border: 1px solid transparent; border-radius: 4px; font: inherit; font-size: .95rem; cursor: pointer;
