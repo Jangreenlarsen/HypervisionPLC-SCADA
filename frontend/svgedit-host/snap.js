@@ -91,3 +91,81 @@ export function transformBox(box, m) {
   const ys = pts.map((p) => p[1]);
   return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
 }
+
+/**
+ * Hjørnerne i en sti (d-attributten) som [[x, y], …]: M/L/H/V/Z, store og små bogstaver (relativ/absolut).
+ * Kurver (C/S/Q/A) tolkes ikke — så giver den null, og delen regnes ikke for en retningsgivende trekant.
+ */
+export function pathVertices(d) {
+  const tokens = String(d || '').match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g);
+  if (!tokens) return null;
+  const pts = [];
+  let i = 0;
+  let cmd = '';
+  let x = 0;
+  let y = 0;
+  let startX = 0;
+  let startY = 0;
+  const num = () => Number(tokens[i++]);
+  const push = (px, py) => {
+    x = px;
+    y = py;
+    const last = pts[pts.length - 1];
+    if (!last || Math.abs(last[0] - px) > 1e-6 || Math.abs(last[1] - py) > 1e-6) pts.push([px, py]);
+  };
+  while (i < tokens.length) {
+    if (/[a-zA-Z]/.test(tokens[i])) cmd = tokens[i++];
+    else if (cmd === 'm') cmd = 'l';
+    else if (cmd === 'M') cmd = 'L';
+    const rel = cmd === cmd.toLowerCase();
+    switch (cmd.toUpperCase()) {
+      case 'M': { const px = num(), py = num(); push(rel ? x + px : px, rel ? y + py : py); startX = x; startY = y; break; }
+      case 'L': { const px = num(), py = num(); push(rel ? x + px : px, rel ? y + py : py); break; }
+      case 'H': { const px = num(); push(rel ? x + px : px, y); break; }
+      case 'V': { const py = num(); push(x, rel ? y + py : py); break; }
+      case 'Z': push(startX, startY); break;
+      default: return null;
+    }
+    if (tokens.slice(0, i).some((t) => Number.isNaN(Number(t)) && !/[a-zA-Z]/.test(t))) return null;
+  }
+  // en lukket sti slutter i startpunktet: fjern den dobbelte
+  if (pts.length > 1 && Math.abs(pts[0][0] - pts[pts.length - 1][0]) < 1e-6 && Math.abs(pts[0][1] - pts[pts.length - 1][1]) < 1e-6) pts.pop();
+  return pts;
+}
+
+/**
+ * Er hjørnerne en ligebenet trekant? → { apex: [x, y], vector: [dx, dy] } hvor vector går fra grundlinjens midte til toppen
+ * (retningen trekanten "peger"). Ellers null. En ligesidet trekant har ingen entydig retning og giver null.
+ */
+export function triangleApex(vertices) {
+  if (!vertices || vertices.length !== 3) return null;
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  let best = null;
+  for (let k = 0; k < 3; k++) {
+    const a = vertices[k];
+    const b = vertices[(k + 1) % 3];
+    const c = vertices[(k + 2) % 3];
+    const e1 = dist(a, b);
+    const e2 = dist(a, c);
+    const base = dist(b, c);
+    if (e1 < 1e-6 || e2 < 1e-6 || base < 1e-6) return null;
+    const similar = Math.min(e1, e2) / Math.max(e1, e2);
+    if (similar >= 0.97 && Math.abs(e1 - base) / base > 0.05 && (!best || similar > best.similar)) {
+      best = { similar, apex: a, vector: [a[0] - (b[0] + c[0]) / 2, a[1] - (b[1] + c[1]) / 2] };
+    }
+  }
+  return best ? { apex: best.apex, vector: best.vector } : null;
+}
+
+/** Vinklen (grader, 0 = mod højre, 90 = nedad som på skærmen) for en vektor efter en matrix; afrundet til 0,1°. */
+export function directionAngle(vector, m) {
+  const dx = m.a * vector[0] + m.c * vector[1];
+  const dy = m.b * vector[0] + m.d * vector[1];
+  return Math.round((Math.atan2(dy, dx) * 1800) / Math.PI) / 10;
+}
+
+/** Drejning der får et symbol med retningen `native` til at pege som `target` — i området −180…180. */
+export function turnTo(target, native = 0) {
+  const d = (((target - native + 180) % 360) + 360) % 360 - 180;
+  return d === -180 ? 180 : d;
+}

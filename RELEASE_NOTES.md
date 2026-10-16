@@ -2,6 +2,10 @@
 
 ---
 
+## v0.56.0 — 2026-10-16 — Pumpernes retning bevares ved erstatning
+
+- Når du erstatter en tegnet pumpe med symbolet **Pumpe**, aflæser systemet, hvilken vej den tegnede trekant peger, og **drejer symbolet, så det peger samme vej** — også når du erstatter flere pumper på én gang. Valget kan slås fra.
+
 ## v0.55.1 — 2026-10-16 — Erstat med symbol rører ikke bundne dele
 
 - Når du erstatter **alle lignende** dele med et symbol, **springes de dele over, der har bindinger** (også på deres tekster), så ingen binding går tabt. Du får besked om hvor mange, og kan erstatte dem enkeltvis.

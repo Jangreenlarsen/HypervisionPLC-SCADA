@@ -1,7 +1,7 @@
 // Fang til objekter i Tegn: de rene beregninger (svgedit-host/snap.js).
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — ren JS-fil i værtsmappen til SVG-Edit (ingen typer)
-import { gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, snapToObjects, transformBox, unionBox } from '../../svgedit-host/snap.js';
+import { directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, snapToObjects, transformBox, triangleApex, turnTo, unionBox } from '../../svgedit-host/snap.js';
 
 const box = (x: number, y: number, w: number, h: number) => ({ x, y, w, h });
 
@@ -98,5 +98,51 @@ describe('matricer', () => {
     expect(transformBox(box(0, 0, 10, 10), m)).toEqual(box(10, 20, 20, 30));
     expect(transformBox(box(0, 0, 10, 4), { a: 0, b: 1, c: -1, d: 0, e: 0, f: 0 })).toEqual(box(-4, 0, 4, 10));   // drejet 90°
     expect(invertMatrix({ a: 0, b: 0, c: 0, d: 0, e: 0, f: 0 })).toBeNull();
+  });
+});
+
+describe('retning af en trekant (pumpens trekant)', () => {
+  // Stierne er hentet fra pumperne i "varme"-tegningen
+  const PUMP_D = 'm1341.3,591.13l25.64,-37.44l25.64,37.44l-51.28,0l0,0z';
+
+  it('pathVertices læser relative linjer og fjerner degenererede/lukkende hjørner', () => {
+    const v = pathVertices(PUMP_D)!;
+    expect(v).toHaveLength(3);
+    expect(v[0]).toEqual([1341.3, 591.13]);
+    expect(v[1][0]).toBeCloseTo(1366.94);
+    expect(v[1][1]).toBeCloseTo(553.69);
+  });
+
+  it('pathVertices: store bogstaver, H/V og lukkede stier; kurver giver null', () => {
+    expect(pathVertices('M0 0 L10 0 L5 10 Z')).toEqual([[0, 0], [10, 0], [5, 10]]);
+    expect(pathVertices('M0 0 H10 V10 H0 Z')).toEqual([[0, 0], [10, 0], [10, 10], [0, 10]]);
+    expect(pathVertices('M0 0 C 5 5 10 5 10 0')).toBeNull();
+    expect(pathVertices('')).toBeNull();
+  });
+
+  it('triangleApex: toppen er hjørnet med to lige lange sider; vektoren går fra grundlinjens midte til toppen', () => {
+    const t = triangleApex(pathVertices(PUMP_D))!;
+    expect(t.apex[1]).toBeCloseTo(553.69);                        // toppen ligger øverst (y mindst)
+    expect(t.vector[0]).toBeCloseTo(0);
+    expect(t.vector[1]).toBeCloseTo(-37.44);
+    expect(triangleApex([[0, 0], [10, 0], [5, 8.66]])).toBeNull(); // ligesidet: ingen entydig retning
+    expect(triangleApex([[0, 0], [1, 1]])).toBeNull();
+  });
+
+  it('directionAngle følger matricen: op = −90°, og drejning 180° vender den', () => {
+    const t = triangleApex(pathVertices(PUMP_D))!;
+    expect(directionAngle(t.vector, identityMatrix())).toBe(-90);                                            // peger opad
+    expect(directionAngle(t.vector, { a: -1, b: 0, c: 0, d: -1, e: 0, f: 0 })).toBe(90);                    // rotate(180) → nedad
+    expect(directionAngle(t.vector, { a: 0, b: 1, c: -1, d: 0, e: 0, f: 0 })).toBe(0);                      // rotate(90) → mod højre
+    expect(directionAngle([25, 0], identityMatrix())).toBe(0);
+  });
+
+  it('turnTo: symbolets drejning så dets retning (native) rammer målet — i området −180…180', () => {
+    expect(turnTo(-90, 0)).toBe(-90);       // et symbol der peger mod højre skal drejes −90° for at pege opad
+    expect(turnTo(90, 0)).toBe(90);
+    expect(turnTo(0, 0)).toBe(0);
+    expect(turnTo(180, 0)).toBe(180);
+    expect(turnTo(-180, 0)).toBe(180);
+    expect(turnTo(10, 350)).toBe(20);
   });
 });

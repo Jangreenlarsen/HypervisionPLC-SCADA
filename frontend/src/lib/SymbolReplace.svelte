@@ -2,10 +2,10 @@
   // "Erstat med symbol": vælg hvilket bibliotekssymbol den markerede tegnede del skal erstattes af. Forslag ud fra delens
   // form (symbolSuggest.ts), eller søg i hele biblioteket. Selve erstatningen sker i Tegn (host-API'et), i ét fortryd-trin.
   import { CATEGORIES, previewViewBox, PIPE_IDS, SYMBOLS, type SymbolDef } from './symbols';
-  import { hasTextSlot, nameHint, stretchesByDefault, suggestSymbols, type SelectionInfo } from './symbolSuggest';
+  import { hasTextSlot, nameHint, NATIVE_DIRECTION, stretchesByDefault, suggestSymbols, type SelectionInfo } from './symbolSuggest';
 
   export type SimilarMode = false | 'same' | 'any';
-  export interface ReplaceOptions { symbol: SymbolDef; name: string; keepId: boolean; stretch: boolean; useText: boolean; similar: SimilarMode }
+  export interface ReplaceOptions { symbol: SymbolDef; name: string; keepId: boolean; stretch: boolean; useText: boolean; similar: SimilarMode; apexNative: number | undefined }
 
   let { info, lostBindings, onreplace, onclose }: {
     info: SelectionInfo;
@@ -21,6 +21,7 @@
   let stretch = $state(false);
   let useText = $state(true);
   let similar = $state<'none' | 'same' | 'any'>('same');
+  let followDirection = $state(true);
 
   const byId = new Map(SYMBOLS.map((s) => [s.id, s]));
   const suggestions = $derived(suggestSymbols(info).flatMap((x) => (byId.has(x.id) ? [{ ...x, symbol: byId.get(x.id)! }] : [])));
@@ -31,6 +32,7 @@
   });
   const lost = $derived(lostBindings.own);
   const skipped = $derived(similar === 'none' ? 0 : lostBindings.similarBound);
+  const directional = $derived(!!chosen && chosen.id in NATIVE_DIRECTION && info.apexAngle !== null);
   const slot = $derived(!!chosen && hasTextSlot(chosen.svg) && info.texts.length > 0);
 
   function choose(s: SymbolDef): void {
@@ -55,7 +57,7 @@
   );
 
   function go(): void {
-    if (chosen) onreplace({ symbol: chosen, name: name.trim(), keepId, stretch, useText: slot && useText, similar: similar === 'none' ? false : similar });
+    if (chosen) onreplace({ symbol: chosen, name: name.trim(), keepId, stretch, useText: slot && useText, similar: similar === 'none' ? false : similar, apexNative: directional && followDirection ? NATIVE_DIRECTION[chosen.id] : undefined });
   }
 </script>
 
@@ -108,6 +110,7 @@
         </label>
         <label class="opt"><input type="checkbox" bind:checked={keepId} /> Behold delens id{info.id ? ` (${info.id})` : ''} — så bindinger på selve delen følger med</label>
         {#if slot}<label class="opt"><input type="checkbox" bind:checked={useText} /> Overtag den tegnede tekst ({info.texts[0]}) og fjern den gamle</label>{/if}
+        {#if directional}<label class="opt"><input type="checkbox" bind:checked={followDirection} /> Drej symbolet, så trekanten peger samme vej som den tegnede ({Math.round(info.apexAngle ?? 0)}°)</label>{/if}
         <label class="opt"><input type="checkbox" bind:checked={stretch} /> Stræk symbolet til at fylde delens boks (ellers beholdes proportionerne)</label>
         {#if info.similarAny > 0}
           <fieldset class="similar">
