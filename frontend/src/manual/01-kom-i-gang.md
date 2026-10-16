@@ -19,6 +19,10 @@ Skriv brugernavn og adgangskode. Er det første gang, eller har en administrator
 
 ## Menuen
 
+![Menuen Opsætning foldet ud, når musen peger på punktet](/manual/menu-opsaetning.png)
+
+![Menuen Bruger yderst til højre: navn og rolle, Manual, Skift adgangskode, Log ud og version](/manual/menu-bruger.png)
+
 Øverst står fire menupunkter. Før musen hen over et punkt, så folder menuen sig ud af sig selv — vælg siden direkte. På en touch-skærm trykker du på punktet; **Escape** eller et klik udenfor lukker menuen igen.
 
 | Punkt | Indhold | Hvem |

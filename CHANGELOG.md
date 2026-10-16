@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.53.0 build 0078] — 2026-10-16 — Skærmbilleder i brugermanualen
+
+- `frontend/tools/manual-screenshots.mjs` (nyt; `npm run manual:screenshots`) — tager billederne fra en kørende server med Playwright (devDependency, Apache-2.0): logger ind som admin, åbner siderne og guiden og gemmer PNG i `frontend/public/manual/`. **Kun læsning** — der trykkes aldrig Gem, og intet skrives eller slettes. Kan afgrænses med `ONLY=navn,navn`. Fold tag-redigeringen ud, så alle felter ses; begræns symbolpaletten til 760 px.
+- `frontend/public/manual/*.png` (29 billeder, 1,7 MB) og henvisninger i kapitlerne (menu, Drift, PLC'er og tags, Tegninger og Tegn, Bindinger, guidens 6 trin + logik + hurtig opsætning, Ugeprogrammer, System).
+- `frontend/src/lib/manual.ts` — billeder bliver til `<figure>` med billedtekst (alt-teksten, escapet), uden `<p>` omkring; `Manual.svelte` — klik på et billede åbner det stort (Escape/klik lukker), billederne tilpasses bredden.
+- Manualen rettet efter skærmbillederne: tag-formularens felter hedder *Skrivbar fra Overview* og *Kræv bekræftelse ved skrivning*.
+- Tests: `manualImages.test.ts` (alle henvisninger har en fil >3 kB, ingen forældreløse filer, rene filnavne, billedtekster) og figur-rendering i `manual.test.ts` (fandt at en `<figure>` ellers ender i et tomt `<p>`).
+
 ## [0.52.2 build 0077] — 2026-10-16 — manual: setpunktets tag vælges i trin 2
 
 - `frontend/src/manual/10-eksempler.md` — eksemplet "Setpunkt med beregning" sagde, at registeret vælges i trin 1; det vælges i guidens trin 2 (Signaler). Rettet ved gennemlæsning mod guiden.

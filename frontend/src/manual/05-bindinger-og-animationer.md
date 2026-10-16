@@ -4,6 +4,8 @@ En **binding** knytter et element i en tegning til et **tag**, og en **animation
 
 ## Siden Bindinger
 
+![Bindinger: tegningen til venstre, det valgte elements binding (tag og animation) til højre og listen over symboler og bundne elementer](/manual/bindinger.png)
+
 Til venstre ser du tegningen, til højre en liste over **symboler og bundne** elementer. Klik et element i tegningen — eller i listen — for at vælge det. Listen viser som standard kun navngivne symboler og elementer med bindinger; afkryds **Vis alle elementer** for at se resten. Søg med feltet øverst.
 
 For det valgte element ser du dets bindinger. **Tilføj binding** laver en ny; **Fjern binding** sletter den. Du kan give ét element flere animationer (fx farve **og** blink).
@@ -62,6 +64,8 @@ Et element kan også **betjenes** fra Overview. Vælg en klik-handling i stedet 
 Tagget skal være **skrivbart** (afkrydset *Betjening* under Tags), og operatøren skal have rollen operatør. Skriveadgang kan også indskrænkes pr. tegning og pr. element.
 
 ## Symboler med bindinger
+
+![Et valgt symbol under Bindinger med knappen Opsæt symbol (6 trin) og feltet Forklaring](/manual/bindinger-symbol.png)
 
 For symboler fra biblioteket sættes alt op i **guiden** (se næste kapitel). Vælg symbolet i listen og tryk **Opsæt symbol (6 trin)** — eller **Ret symbol**, hvis det allerede er sat op. Her kan du også skrive en **Forklaring**, som vises som tooltip på Overview. Er et symbol sat op med guiden, bruges symbolets egne bindinger ikke.
 

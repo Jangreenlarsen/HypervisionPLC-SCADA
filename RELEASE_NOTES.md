@@ -2,6 +2,12 @@
 
 ---
 
+## v0.53.0 — 2026-10-16 — Skærmbilleder i manualen
+
+- Manualen har nu **29 skærmbilleder**: menuen, Overview, alarmer, kurver, tags, tegninger, Tegn, bindinger, **alle seks trin i guiden**, ugeprogrammer og System-siderne.
+- Klik på et billede for at se det stort. Billedteksten står under billedet.
+- Billederne kan **tages om automatisk** fra en kørende server, når skærmene ændrer sig (`npm run manual:screenshots`).
+
 ## v0.52.2 — 2026-10-16 — Manual rettet
 
 - Et eksempel i manualen (setpunkt) pegede på et forkert trin i guiden. Rettet.

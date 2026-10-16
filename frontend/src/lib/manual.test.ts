@@ -41,6 +41,17 @@ describe('renderMarkdown', () => {
     expect(buildChapters({ '../manual/01-t.md': md })[0].headings[0].id).toBe('m-foerste-afsnit');
   });
 
+  it('billeder bliver til figur med billedtekst (alt-teksten), og teksten escapes', () => {
+    const html = renderMarkdown('![Overview: <live> "værdier"](/manual/overview.png)');
+    expect(html).toContain('<figure>');
+    expect(html).toContain('src="/manual/overview.png"');
+    expect(html).toContain('<figcaption>Overview: &lt;live&gt;');
+    expect(html.replace(/alt="[^"]*"/, '')).not.toContain('<live>');   // teksten er escapet (en < i en attributværdi er ufarlig)
+    expect(html).not.toContain('<p><figure>');                   // ingen <figure> i et <p>
+    expect(html).not.toContain('<p></p>');
+    expect(html).toContain('loading="lazy"');
+  });
+
   it('renser farligt indhold (script, hændelser, javascript-links)', () => {
     const html = renderMarkdown('hej <script>alert(1)</script> <img src=x onerror="alert(2)"> [klik](javascript:alert(3))');
     expect(html).not.toMatch(/<script|onerror|javascript:/i);

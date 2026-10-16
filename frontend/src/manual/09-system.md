@@ -4,9 +4,13 @@ Under **System** ligger Log, Brugere, Backup og Opdatering. **Log** kræver roll
 
 ## Log
 
+![Log: tidspunkt, bruger, handling og resultat — med filter øverst](/manual/log.png)
+
 **Log** er systemets revisionsspor: **alle skrivninger til PLC'erne og alle ændringer af konfigurationen** — også afviste forsøg. Hver linje viser tidspunkt, bruger, handling, hvad den gjaldt og om det lykkedes. Brug filtrene (*Alt*, *Skrivninger*, *Til/fra*, *Pulser* og flere) til at indsnævre, og **Opdatér** for at hente nyt. Loggen kan ikke redigeres.
 
 ## Brugere
+
+![Brugere: roller, tegningsadgang, aktivér/deaktivér og oprettelse af en ny bruger](/manual/brugere.png)
 
 **Brugere** (admin) styrer, hvem der må hvad.
 
@@ -20,6 +24,8 @@ Under **System** ligger Log, Brugere, Backup og Opdatering. **Log** kræver roll
 
 ## Backup
 
+![Backup: hent og gendan opsætningen, trend-historik og backup på serveren](/manual/backup.png)
+
 **Backup** (admin) beskytter din opsætning.
 
 - **Hent backup** henter en fil med PLC-forbindelser, tags, alle tegninger (med alle versioner), bindinger, symbolopsætninger og ugeprogrammer. Den indeholder **ikke** PLC-adgangskoder, brugere eller koder til nøglelås.
@@ -28,6 +34,8 @@ Under **System** ligger Log, Brugere, Backup og Opdatering. **Log** kræver roll
 - **Trend-historik**: **hent historik** giver et øjebliksbillede af alle gemte kurver, og **flet historik** indlæser en historikfil og sætter den ind (eksisterende værdier bevares).
 
 ## Opdatering
+
+![Opdatering: installeret version og upload af en ny pakke](/manual/opdatering.png)
 
 **Opdatering** (admin) installerer en ny version af SCADA'en direkte fra websiden — uden SSH.
 

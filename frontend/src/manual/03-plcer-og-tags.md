@@ -4,6 +4,8 @@ Du skal bruge en **PLC** og nogle **tags**, før en tegning kan vise noget. Begg
 
 ## PLC'er
 
+![Siden PLC'er med de tilsluttede PLC'er og deres status](/manual/plcer.png)
+
 Siden **PLC'er** lister de HypervisionPLC-enheder, SCADA'en henter data fra. Tryk **Tilføj PLC** og udfyld:
 
 | Felt | Betydning |
@@ -16,6 +18,8 @@ Siden **PLC'er** lister de HypervisionPLC-enheder, SCADA'en henter data fra. Try
 Statusen (*ok*, *ikke tilgængelig*) vises ud for hver PLC. SCADA'en bruger PLC'ens **REST-API** og **SSE** (en push-strøm med ændringer), så værdier opdateres hurtigt uden at belaste PLC'en.
 
 ## Tags
+
+![Siden Tags: alle tags med kilde, værdi og knapper til at redigere](/manual/tags.png)
 
 Et **tag** er en navngivet værdi. Siden **Tags** viser dem alle. **Nyt tag** opretter et; **Redigér** ændrer det; **Slet** fjerner det — men et tag, der bruges af en binding, et symbol, et ugeprogram eller en alarm, kan ikke slettes, før det er frigjort, og systemet siger hvor det bruges.
 
@@ -39,6 +43,8 @@ Et tal kan have en **datatype** til sidst (fx `:float`) hvis det fylder mere end
 
 ### Felter
 
+![Redigér tag: kilde, skala, betjening, historik, energi og alarmer](/manual/tag-redigeer.png)
+
 | Felt | Hvad det gør |
 | --- | --- |
 | **Navn** | Tagets navn, fx `Pumpe1_Drift`. Bogstaver, tal og `_`; må ikke begynde med et tal; højst 64 tegn. Er et element i en tegning navngivet som et tag, bindes det automatisk |
@@ -47,7 +53,8 @@ Et tal kan have en **datatype** til sidst (fx `:float`) hvis det fylder mere end
 | **Skala** og **Offset** | Værdien omregnes `råværdi × skala + offset`. Fx et register med 215 for 21,5 °C → skala 0,1 |
 | **Decimaler** | Antal decimaler der vises (tom = automatisk) |
 | **Min** og **Max** (teknisk enhed) | Det tilladte område. Setpunkter uden for området afvises af serveren |
-| **Betjening** | Sæt hak for at tagget må **skrives** fra Overview. Kun coil og hr kan skrives |
+| **Skrivbar fra Overview** (under *Betjening*) | Sæt hak for at tagget må **skrives** fra Overview. Kun coil og hr kan skrives |
+| **Kræv bekræftelse ved skrivning** | Operatøren skal bekræfte i en dialog, før der skrives |
 | **Beskrivelse** | Fri tekst |
 
 ### Alarmer på et tag
@@ -66,7 +73,7 @@ Hak i **Energi (til energirapporten)** og vælg **Tæller** eller **Effekt**. **
 
 | Navn | Kilde | Betjening | Bemærkning |
 | --- | --- | --- | --- |
-| `Pumpe1_Start` | `plc1:coil:0` | ja | Kommando start/stop |
+| `Pumpe1_Start` | `plc1:coil:0` | ja (skrivbar) | Kommando start/stop |
 | `Pumpe1_Drift` | `plc1:di:0` | nej | Tilbagemelding: kører |
 | `Pumpe1_Fejl` | `plc1:di:1` | nej | Fejl — kan have en til/fra-alarm |
 | `Tank_Temp` | `plc1:hr:10` | nej | Skala 0,1, enhed °C, alarm H = 70 |

@@ -9,6 +9,11 @@
   let { route }: { route: string } = $props();   // "manual", "manual/<kapitel>" eller "manual/<kapitel>/<afsnit>"
   let query = $state('');
   let body: HTMLElement | undefined = $state();
+  let zoomed = $state<{ src: string; alt: string } | null>(null);   // et skærmbillede vist stort
+  function onBodyClick(e: MouseEvent): void {
+    const t = e.target as HTMLElement;
+    if (t instanceof HTMLImageElement) zoomed = { src: t.src, alt: t.alt };
+  }
 
   const parts = $derived(route.split('/'));
   const chapter = $derived(chapters.find((c) => c.slug === parts[1]) ?? chapters[0]);
@@ -33,6 +38,16 @@
     });
   });
 </script>
+
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape') zoomed = null; }} />
+
+{#if zoomed}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="lightbox" onclick={() => (zoomed = null)} role="dialog" aria-label="Skærmbillede: {zoomed.alt}" tabindex="-1">
+    <img src={zoomed.src} alt={zoomed.alt} />
+    <p>{zoomed.alt} <span class="muted small">— klik eller tryk Escape for at lukke</span></p>
+  </div>
+{/if}
 
 <div class="manual">
   <aside aria-label="Kapitler">
@@ -69,7 +84,8 @@
   </aside>
 
   <article class="panel">
-    <div class="body" bind:this={body}>{@html html}</div>
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div class="body" bind:this={body} onclick={onBodyClick}>{@html html}</div>
     <footer class="pager">
       {#if index > 0}<a class="btn" href={href(chapters[index - 1].slug)}>← {chapters[index - 1].title}</a>{:else}<span></span>{/if}
       {#if index < chapters.length - 1}<a class="btn" href={href(chapters[index + 1].slug)}>{chapters[index + 1].title} →</a>{/if}
@@ -103,6 +119,19 @@
   .body :global(blockquote) { margin: .8rem 0; padding: .4rem .9rem; background: #fff8e1; border-left: 4px solid #f0b429; border-radius: var(--radius); }
   .body :global(blockquote p) { margin: .3rem 0; }
   .body :global(mark) { background: #ffe58f; padding: 0 .1rem; }
+  .body :global(figure) { margin: 1rem 0 1.4rem; }
+  .body :global(figure img) {
+    display: block; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .12); cursor: zoom-in; background: #fff;
+  }
+  .body :global(figcaption) { margin-top: .35rem; font-size: .82rem; color: var(--muted); }
+  .lightbox {
+    position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, .82); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: .6rem; padding: 1rem; cursor: zoom-out;
+  }
+  .lightbox img { max-width: 96vw; max-height: 86vh; background: #fff; border-radius: 4px; }
+  .lightbox p { color: #fff; margin: 0; text-align: center; }
+  .lightbox .muted { color: #bbb; }
   .pager { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; padding-top: .8rem; border-top: 1px solid var(--line); }
   .chapter-select { display: none; width: 100%; margin-bottom: .5rem; }
   @media (max-width: 800px) {

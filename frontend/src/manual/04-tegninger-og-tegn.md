@@ -4,6 +4,8 @@ En **tegning** er et SVG-billede af anlægget. Du kan **uploade** en tegning lav
 
 ## Tegninger
 
+![Siden Tegninger: upload, listen over tegninger og deres versioner](/manual/tegninger.png)
+
 Siden **Tegninger** er listen over alle tegninger.
 
 - **Upload tegning**: vælg en SVG-fil (højst 5 MB), giv den et **navn** og evt. en **kommentar**. Serveren renser filen (scripts og andet farligt fjernes) og viser en rapport over, hvad der blev fjernet.
@@ -13,7 +15,11 @@ Siden **Tegninger** er listen over alle tegninger.
 
 > Bindinger følger tegningens **element-id'er**. Ændrer en ny version et elements id, mister det sin binding; **Bindinger** viser *Forsvundne elementer*, som du kan rydde op i.
 
+![Versioner af en tegning: Gør aktiv, upload ny version og visning af selve SVG'en](/manual/tegninger-versioner.png)
+
 ## Tegn
+
+![Tegn: editoren til venstre og det valgte element med navn, symboler og Gem-knapper til højre](/manual/tegn.png)
 
 **Tegn** er en indbygget tegneeditor (SVG-Edit). Brug den til at tegne rør, tanke og tekst, eller til at indsætte færdige **symboler** fra biblioteket.
 
@@ -29,6 +35,8 @@ Siden **Tegninger** er listen over alle tegninger.
 Er der ændringer, du ikke har gemt, spørger systemet, før de kasseres.
 
 ### Symbolbiblioteket
+
+![Symbolbiblioteket i Tegn, sorteret i kategorier med søgning](/manual/tegn-symboler.png)
 
 Under tegneområdet finder du **symbolbiblioteket**, sorteret i kategorier (*Betjening*, *Proces og visning*, *Rør og VVS*, *Elektrisk*, *Solcelleanlæg*). Søg efter et symbol (fx *bøjning* eller *kontaktor*), og tryk på det for at sætte det ind midt på tegningen; flyt og tilpas det bagefter. Hvert indsat symbol får et **navn** (fx *Pumpe 2*), som du kan ændre.
 
