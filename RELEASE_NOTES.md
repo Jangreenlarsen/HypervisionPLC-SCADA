@@ -2,6 +2,10 @@
 
 ---
 
+## v0.55.1 — 2026-10-16 — Erstat med symbol rører ikke bundne dele
+
+- Når du erstatter **alle lignende** dele med et symbol, **springes de dele over, der har bindinger** (også på deres tekster), så ingen binding går tabt. Du får besked om hvor mange, og kan erstatte dem enkeltvis.
+
 ## v0.55.0 — 2026-10-16 — Erstat tegnede dele med symboler
 
 - I **Tegn** kan du markere en tegnet del og trykke **Erstat med symbol …**. Systemet foreslår det rigtige symbol ud fra formen (fx statusfelt til en pille-etiket, pumpe til en cirkel med trekant), eller du søger i biblioteket.

@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.55.1 build 0083] — 2026-10-16 — fix: Erstat med symbol rører ikke dele med bindinger
+
+- `frontend/svgedit-host/scada-editor.js` — `describeSelection()` leverer `similarGroups` (id'er pr. lignende del) og `ids` tæller nu også de tekster der ligger inde i delen; `replaceSelected()` tager `protectIds` og **springer lignende dele over**, hvis noget af det der ville forsvinde har en binding (meldes som `skipped`). Selve den valgte del erstattes som valgt.
+- `frontend/src/pages/DrawEditor.svelte` + `lib/SymbolReplace.svelte` — henter bindingerne i den gemte version, giver dem videre som beskyttelse, advarer om bindinger på tekster/underelementer der ikke følger med, og viser "N lignende dele med bindinger blev sprunget over".
+- Fundet ved prøvekørsel (kun læsning) på den rigtige "varme"-tegning; se BUGS.md.
+
 ## [0.55.0 build 0082] — 2026-10-16 — Erstat tegnede dele med symboler
 
 Ønske fra Jan: konvertér "varme"-tegningen til at bruge symboler fra systemet. Metode (valgt af Jan): værktøj med forslag + resultatet som ny kladde-version.

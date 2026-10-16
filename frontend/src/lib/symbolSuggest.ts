@@ -20,7 +20,7 @@ export interface SelectionInfo {
   texts: string[];                   // tekster inde i elementets boks
   similar: number;                   // antal andre elementer med samme opbygning og størrelse
   similarAny: number;                // … uanset størrelse (fx etiketter med forskellig tekstlængde)
-  similarIds: string[];              // alle id'er der forsvinder på de lignende dele (til advarslen om bindinger)
+  similarGroups: string[][];         // pr. lignende del: de id'er der forsvinder (til at springe bundne dele over)
 }
 
 export interface Suggestion { id: string; score: number; why: string }

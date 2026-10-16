@@ -450,7 +450,7 @@ window.scada = {
       texts: textsWithin(el, g).map((t) => t.text),
       similar: similarTo(el).length,
       similarAny: similarTo(el, true).length,
-      similarIds: similarTo(el, true).flatMap((o) => affectedIds(o, geometryOf(o))),
+      similarGroups: similarTo(el, true).map((o) => affectedIds(o, geometryOf(o))),   // pr. lignende del: de id'er der forsvinder
     };
   },
 
@@ -466,9 +466,16 @@ window.scada = {
     const batch = new c.history.BatchCommand(`Erstat med symbol (${targets.length})`);
     c.clearSelection();
     const created = [];
+    const protect = new Set(opts.protectIds || []);
+    let skipped = 0;
     for (const [index, old] of targets.entries()) {
       const g = geometryOf(old);
       if (!g) continue;
+      // Lignende dele med bindinger (på dem selv, deres dele eller deres tekster) røres ikke — de erstattes enkeltvis
+      if (index > 0 && affectedIds(old, g).some((id) => protect.has(id))) {
+        skipped++;
+        continue;
+      }
       const parent = old.parentNode;
       const anchor = topLevelOf(old);
       const layer = anchor.parentNode;
@@ -516,7 +523,7 @@ window.scada = {
     lastBoxes = new Map(selectedEls().map((el) => [el, boxOf(el)]));
     if (changeListener) changeListener();
     if (selectionListener) selectionListener(currentSelection());
-    return created.length ? { ok: true, replaced: created.length, ids: created.map((n) => n.id) } : { error: 'Intet blev erstattet' };
+    return created.length ? { ok: true, replaced: created.length, skipped, ids: created.map((n) => n.id) } : { error: 'Intet blev erstattet' };
   },
 
   /** Vælg elementet med dette id (til test og til at hoppe til et element). Returnerer false hvis det ikke findes. */

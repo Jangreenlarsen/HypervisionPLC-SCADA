@@ -27,8 +27,8 @@
     insertSymbol(fragment: string, baseId: string): string;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; step: number }): void;
     describeSelection(): SelectionInfo | null;
-    replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any' }):
-      { ok?: boolean; replaced?: number; ids?: string[]; error?: string };
+    replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any'; protectIds?: string[] }):
+      { ok?: boolean; replaced?: number; skipped?: number; ids?: string[]; error?: string };
     ungroupSelected(): string;
   }
 
@@ -158,7 +158,8 @@
 
   // ---- Erstat med symbol (tegnet del → bibliotekssymbol)
   let replaceInfo = $state<SelectionInfo | null>(null);
-  let replaceLost = $state({ own: 0, similar: 0 });
+  let replaceLost = $state({ own: 0, similarBound: 0 });
+  let boundIds: string[] = [];        // elementer med bindinger i den gemte version — lignende dele med dem springes over
 
   async function openReplace(): Promise<void> {
     if (!ed) return;
@@ -169,16 +170,18 @@
       return;
     }
     // Bindinger på delens underelementer følger ikke med (kun på selve delen, hvis id'et beholdes)
-    let lost = { own: 0, similar: 0 };
+    let lost = { own: 0, similarBound: 0 };
+    boundIds = [];
     if (current) {
       try {
         const view = await get<{ bindings: { element: string }[] }>(`/api/drawings/${encodeURIComponent(current.id)}/view`);
         const own = new Set(d.ids);
-        const other = new Set(d.similarIds);
+        const bound = new Set(view.bindings.map((b) => b.element));
+        boundIds = [...bound];
         // selve delens id følger med (hvis id'et beholdes); alt andet — underelementer og tekster der fjernes — gør ikke
         lost = {
           own: view.bindings.filter((b) => own.has(b.element) && b.element !== d.id).length,
-          similar: view.bindings.filter((b) => other.has(b.element)).length,
+          similarBound: d.similarGroups.filter((ids) => ids.some((id) => bound.has(id))).length,
         };
       } catch (e) {
         error = `Bindinger kunne ikke kontrolleres: ${(e as Error).message}`;
@@ -191,14 +194,15 @@
   function doReplace(o: ReplaceOptions): void {
     if (!ed) return;
     const res = ed.replaceSelected(withName(o.symbol.svg, o.name || o.symbol.label), o.symbol.id,
-      { name: o.name || o.symbol.label, namePrefix: o.symbol.label, keepId: o.keepId, stretch: o.stretch, useText: o.useText, similar: o.similar });
+      { name: o.name || o.symbol.label, namePrefix: o.symbol.label, keepId: o.keepId, stretch: o.stretch, useText: o.useText, similar: o.similar, protectIds: boundIds });
     replaceInfo = null;
     if (res.error) {
       error = res.error;
       return;
     }
     dirty = true;
-    info = `${res.replaced} del${res.replaced === 1 ? '' : 'e'} er erstattet med «${o.symbol.label}». Ctrl+Z fortryder det i ét trin. Tryk Gem kladde, når du er tilfreds — Overview viser først ændringen, når du udgiver versionen.`;
+    const skipped = res.skipped ? ` ${res.skipped} lignende del${res.skipped === 1 ? '' : 'e'} med bindinger blev sprunget over — erstat dem enkeltvis, hvis de også skal erstattes.` : '';
+    info = `${res.replaced} del${res.replaced === 1 ? '' : 'e'} er erstattet med «${o.symbol.label}».${skipped} Ctrl+Z fortryder det i ét trin. Tryk Gem kladde, når du er tilfreds — Overview viser først ændringen, når du udgiver versionen.`;
   }
 
   function ungroup(): void {

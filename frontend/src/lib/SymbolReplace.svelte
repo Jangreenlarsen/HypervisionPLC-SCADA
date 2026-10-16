@@ -9,7 +9,7 @@
 
   let { info, lostBindings, onreplace, onclose }: {
     info: SelectionInfo;
-    lostBindings: { own: number; similar: number };   // bindinger på delens underelementer/tekster (og på de lignende dele), som ikke følger med
+    lostBindings: { own: number; similarBound: number };   // bindinger på delens underelementer/tekster, som ikke følger med · lignende dele med bindinger (springes over)
     onreplace: (opts: ReplaceOptions) => void;
     onclose: () => void;
   } = $props();
@@ -29,7 +29,8 @@
     if (q.length < 2) return [];
     return SYMBOLS.filter((s) => s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q) || s.id.includes(q));
   });
-  const lost = $derived(lostBindings.own + (similar === 'none' ? 0 : lostBindings.similar));
+  const lost = $derived(lostBindings.own);
+  const skipped = $derived(similar === 'none' ? 0 : lostBindings.similarBound);
   const slot = $derived(!!chosen && hasTextSlot(chosen.svg) && info.texts.length > 0);
 
   function choose(s: SymbolDef): void {
@@ -119,6 +120,9 @@
               <label class="opt"><input type="radio" name="similar" value="any" bind:group={similar} /> Alle <strong>{info.similarAny}</strong> af samme slags, uanset størrelse (fx etiketter med forskellig tekstlængde)</label>
             {/if}
           </fieldset>
+        {/if}
+        {#if skipped > 0}
+          <p class="small warn">ℹ {skipped} af de lignende dele har bindinger og <strong>springes over</strong> (så ingen binding går tabt) — erstat dem enkeltvis, hvis de også skal erstattes.</p>
         {/if}
         {#if lost > 0}
           <p class="small warn">⚠ {lost} binding{lost === 1 ? '' : 'er'} sidder på underelementer eller tekster i de dele der erstattes og følger <strong>ikke</strong> med — sæt dem op igen i guiden bagefter.</p>
