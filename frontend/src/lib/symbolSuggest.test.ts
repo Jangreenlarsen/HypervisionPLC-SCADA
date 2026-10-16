@@ -23,6 +23,15 @@ describe('forslag til symboler (opbygninger fra "varme"-tegningen)', () => {
     expect(suggestSymbols(sel({ tag: 'path', counts: { path: 1 }, w: 40, h: 200, fill: 'none', stroke: '#000', strokeWidth: 2 }))).toEqual([]);
   });
 
+  it('flere løse dele (3 trekanter, prik, motorcirkel, streg, bogstaver) → 3-vejs motorventil', () => {
+    const s = sel({ tag: 'markering', counts: { path: 3, ellipse: 2, line: 1, text: 4 }, children: 10, w: 118, h: 96 });
+    expect(top(s)).toBe('trevejs_motorventil');
+    expect(ids(s)).toEqual(expect.arrayContaining(['trevejs_motorventil_ab', 'motorventil']));
+    // for få figurer eller for lille/stor: intet forslag
+    expect(suggestSymbols(sel({ tag: 'markering', counts: { path: 1, ellipse: 1 }, w: 100, h: 100 }))).toEqual([]);
+    expect(suggestSymbols(sel({ tag: 'markering', counts: { path: 3, ellipse: 2, line: 1 }, w: 20, h: 20 }))).toEqual([]);
+  });
+
   it('cirkel + trekant (72×70) → pumpe, med ventilator og motor som alternativer', () => {
     const s = sel({ counts: { g: 2, ellipse: 1, path: 1 }, w: 72.5, h: 70 });
     expect(ids(s).slice(0, 3)).toEqual(['pumpe', 'ventilator', 'motor']);

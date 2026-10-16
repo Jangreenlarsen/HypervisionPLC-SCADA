@@ -240,8 +240,8 @@ function uniqueId(base) {
 }
 
 /** Et navn der ikke er i brug: "Pumpe", "Pumpe 2", … */
-function uniqueNameIn(base) {
-  const used = new Set(Array.from(canvas().getSvgContent().querySelectorAll('[data-hv-name]')).map((el) => el.getAttribute('data-hv-name')));
+function uniqueNameIn(base, except = null) {
+  const used = new Set(Array.from(canvas().getSvgContent().querySelectorAll('[data-hv-name]')).filter((el) => el !== except).map((el) => el.getAttribute('data-hv-name')));
   if (!used.has(base)) return base;
   for (let i = 2; ; i++) if (!used.has(`${base} ${i}`)) return `${base} ${i}`;
 }
@@ -282,6 +282,12 @@ function geometryOf(el) {
     cy: M.b * cxl + M.d * cyl + M.f,
     box: boxOf(el),
   };
+}
+
+/** Samlet geometri for flere dele: boksen i tegningen, uden drejning. */
+function unionGeometry(els) {
+  const u = unionBox(els.map(boxOf));
+  return u ? { w: u.w, h: u.h, angle: 0, cx: u.x + u.w / 2, cy: u.y + u.h / 2, box: u } : null;
 }
 
 /** Tæl figurerne i et element (inkl. det selv): { rect: 1, path: 2, … }. */
@@ -444,7 +450,21 @@ window.scada = {
    */
   describeSelection() {
     const sel = selectedEls();
-    if (sel.length !== 1) return null;
+    if (!sel.length) return null;
+    if (sel.length > 1) {
+      // En markering af flere dele regnes som ÉN del: samlet boks og samlede figurer (fx en ventil tegnet af løse trekanter)
+      const boxes = sel.map(boxOf);
+      const u = unionBox(boxes);
+      const counts = {};
+      for (const el of sel) for (const [k, v] of Object.entries(countShapes(el))) counts[k] = (counts[k] || 0) + v;
+      const texts = sel.flatMap((el) => (el.tagName.toLowerCase() === 'text' ? [(el.textContent || '').replace(/\s+/g, ' ').trim()] : [])).filter(Boolean);
+      return {
+        id: '', tag: 'markering', counts, children: sel.length, w: Math.round(u.w * 10) / 10, h: Math.round(u.h * 10) / 10, angle: 0,
+        fill: '', stroke: '', strokeWidth: 0, rx: 0, name: '', symbolType: '', apexAngle: null,
+        ids: sel.flatMap((el) => [el.id, ...[...el.querySelectorAll('[id]')].map((e) => e.id)]).filter(Boolean),
+        texts, similar: 0, similarAny: 0, similarGroups: [],
+      };
+    }
     const el = sel[0];
     const g = geometryOf(el);
     if (!g) return null;
@@ -480,15 +500,19 @@ window.scada = {
   replaceSelected(fragment, baseId, opts = {}) {
     const c = canvas();
     const sel = selectedEls();
-    if (sel.length !== 1) return { error: 'Vælg præcis ét element' };
-    const targets = [sel[0], ...(opts.similar ? similarTo(sel[0], opts.similar === 'any') : [])];
+    if (!sel.length) return { error: 'Vælg mindst ét element' };
+    const multi = sel.length > 1;
+    // Flere valgte dele erstattes samlet af ét symbol; ét valgt element kan tage lignende med
+    const units = multi ? [sel] : [sel[0], ...(opts.similar ? similarTo(sel[0], opts.similar === 'any') : [])].map((o) => [o]);
+    const targets = units;
     const batch = new c.history.BatchCommand(`Erstat med symbol (${targets.length})`);
     c.clearSelection();
     const created = [];
     const protect = new Set(opts.protectIds || []);
     let skipped = 0;
-    for (const [index, old] of targets.entries()) {
-      const g = geometryOf(old);
+    for (const [index, olds] of targets.entries()) {
+      const old = olds[olds.length - 1];
+      const g = multi ? unionGeometry(olds) : geometryOf(old);
       if (!g) continue;
       // Lignende dele med bindinger (på dem selv, deres dele eller deres tekster) røres ikke — de erstattes enkeltvis
       if (index > 0 && affectedIds(old, g).some((id) => protect.has(id))) {
@@ -498,10 +522,10 @@ window.scada = {
       const parent = old.parentNode;
       const anchor = topLevelOf(old);
       const layer = anchor.parentNode;
-      const texts = opts.useText ? textsWithin(old, g) : [];
-      const oldId = old.id;
+      const texts = !multi && opts.useText ? textsWithin(old, g) : [];
+      const oldId = multi ? '' : old.id;
       // Retningen måles FØR delen fjernes (en frakoblet del har ingen matrix i tegningen)
-      const apex = opts.apexNative !== undefined ? apexAngleOf(old) : null;
+      const apex = !multi && opts.apexNative !== undefined ? apexAngleOf(old) : null;
       // 1) fjern det gamle (og de tekster det overtager) — i samme fortryd-trin
       const removeTracked = (node) => {
         const next = node.nextSibling;
@@ -512,7 +536,7 @@ window.scada = {
       const anchorNext = anchor.nextSibling;
       for (const t of texts) if (t.el.parentNode === parent && !old.contains(t.el)) removeTracked(t.el);
       const insertBeforeNode = anchor === old ? old.nextSibling : anchorNext;
-      removeTracked(old);
+      for (const o of olds) removeTracked(o);
       // 2) nyt symbol (bevarer id'et hvis ønsket, så bindinger på elementet følger med)
       const node = buildSymbolNode(fragment, baseId, opts.keepId && oldId ? oldId : undefined);
       if (!node) continue;
@@ -522,12 +546,20 @@ window.scada = {
       const sy0 = nb.height > 0 ? g.h / nb.height : 1;
       const sx = opts.stretch ? sx0 : Math.min(sx0, sy0);
       const sy = opts.stretch ? sy0 : Math.min(sx0, sy0);
-      const tx = g.cx - sx * (nb.x + nb.width / 2);
+      const flip = opts.mirror ? -1 : 1;   // spejlvendt vandret om symbolets midte (teksterne spejles ikke — se nedenfor)
+      const tx = g.cx - flip * sx * (nb.x + nb.width / 2);
       const ty = g.cy - sy * (nb.y + nb.height / 2);
       // Retningsgivende symboler (pumpe): drej, så symbolets trekant peger samme vej som den tegnede; ellers delens egen drejning
       const angle = apex !== null ? turnTo(apex, opts.apexNative) : g.angle;
       const rot = Math.abs(angle) > 0.01 ? `rotate(${angle.toFixed(3)} ${g.cx.toFixed(3)} ${g.cy.toFixed(3)}) ` : '';
-      node.setAttribute('transform', `${rot}translate(${tx.toFixed(3)} ${ty.toFixed(3)}) scale(${sx.toFixed(5)} ${sy.toFixed(5)})`);
+      node.setAttribute('transform', `${rot}translate(${tx.toFixed(3)} ${ty.toFixed(3)}) scale(${(flip * sx).toFixed(5)} ${sy.toFixed(5)})`);
+      if (opts.mirror) {
+        // Spejlingen skal vende symbolets form, ikke bogstaverne: hver tekst vendes tilbage om sit eget midterlinje
+        for (const t of node.querySelectorAll('text')) {
+          const tb = t.getBBox();
+          t.setAttribute('transform', `translate(${(2 * (tb.x + tb.width / 2)).toFixed(3)} 0) scale(-1 1)`);
+        }
+      }
       if (texts.length) {
         const slot = node.querySelector('[data-hv-pid="tekst"]');
         if (slot) slot.textContent = texts[0].text;
@@ -535,7 +567,7 @@ window.scada = {
       // Det valgte element får det indtastede navn; de øvrige "<symbol> <deres egen tekst>" (ellers løbenumre)
       if (opts.name) {
         const own = index === 0 ? opts.name : `${opts.namePrefix || opts.name}${texts[0] ? ` ${texts[0].text}` : ''}`;
-        node.setAttribute('data-hv-name', uniqueNameIn(own));
+        node.setAttribute('data-hv-name', uniqueNameIn(own, node));   // uden selve symbolet, ellers får navnet et falsk " 2"
       }
       batch.addSubCommand(new c.history.InsertElementCommand(node));
       created.push(node);
@@ -556,6 +588,15 @@ window.scada = {
     canvas().clearSelection();
     canvas().addToSelection([el]);
     return true;
+  },
+
+  /** Vælg flere elementer på én gang (til en samlet erstatning). Returnerer antal fundne. */
+  selectByIds(ids) {
+    const content = canvas().getSvgContent();
+    const els = ids.map((id) => content.querySelector(`#${CSS.escape(id)}`)).filter(Boolean);
+    canvas().clearSelection();
+    if (els.length) canvas().addToSelection(els);
+    return els.length;
   },
 
   /** Opløs den valgte gruppe, så dens dele kan vælges enkeltvis. Returnerer fejltekst eller ''. */

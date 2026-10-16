@@ -2,6 +2,12 @@
 
 ---
 
+## v0.57.0 — 2026-10-16 — Erstat med symbol: ventiler tegnet af flere dele
+
+- Er en ventil (eller et andet symbol) tegnet af **flere løse figurer**, kan du markere dem alle og trykke **Erstat markeringen med symbol …**. Systemet foreslår fx **3-vejs motorventil**.
+- Nyt valg: **Spejlvend vandret** — til en ventil, der er tegnet omvendt (A og AB byttet). Bogstaverne bliver ved at vende rigtigt.
+- Rettet: navne på de nye symboler fik fejlagtigt et " 2" til sidst.
+
 ## v0.56.0 — 2026-10-16 — Pumpernes retning bevares ved erstatning
 
 - Når du erstatter en tegnet pumpe med symbolet **Pumpe**, aflæser systemet, hvilken vej den tegnede trekant peger, og **drejer symbolet, så det peger samme vej** — også når du erstatter flere pumper på én gang. Valget kan slås fra.

@@ -60,6 +60,13 @@ export function suggestSymbols(s: SelectionInfo): Suggestion[] {
     add('vaerdi', 45, 'Kan også være et værdifelt');
   }
 
+  // ---- en markering af flere løse dele: en ventil tegnet af trekanter, midterprik, motorcirkel med streg og bogstaver
+  if (s.tag === 'markering' && (c.path ?? 0) >= 3 && (c.ellipse ?? 0) >= 2 && (c.line ?? 0) >= 1 && near(s.w, 60, 170) && near(s.h, 60, 170)) {
+    add('trevejs_motorventil', 88, 'Tre trekanter, midterprik og motorcirkel — en 3-vejs motorventil');
+    add('trevejs_motorventil_ab', 50, 'Eller en 3-vejs motorventil med AB i midten');
+    add('motorventil', 40, 'Eller en almindelig motorventil');
+  }
+
   // ---- store fyldte rektangler: beholdere, kedler
   if (s.tag === 'rect' && filled(s.fill) && s.w >= 50 && s.h >= 50) {
     const tall = s.h >= s.w * 1.2;

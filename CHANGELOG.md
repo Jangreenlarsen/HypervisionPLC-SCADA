@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.57.0 build 0085] — 2026-10-16 — Erstat med symbol: flere dele samlet, og spejlvending
+
+Rettelse efter at Jan opdagede, at motorventilerne i "varme" ikke var konverteret (se BUGS.md).
+
+- `frontend/svgedit-host/scada-editor.js` — `describeSelection()` og `replaceSelected()` håndterer **flere valgte dele som én enhed** (samlet boks i tegningens koordinater, samlede figurantal, alle id'er); `selectByIds()`; `replaceSelected({ mirror })` spejlvender symbolet vandret om midten og **vender hver tekst tilbage om sin egen midterlinje**, så bogstaverne ikke spejles; `uniqueNameIn(base, except)` ser bort fra selve symbolet (falsk " 2" i navne).
+- `frontend/src/lib/symbolSuggest.ts` — forslag til en markering af flere løse dele: ≥ 3 stier, ≥ 2 ellipser og ≥ 1 streg i ventilstørrelse → **3-vejs motorventil** (88), AB i midten (50), motorventil (40).
+- `frontend/src/lib/SymbolReplace.svelte` + `pages/DrawEditor.svelte` — knappen **Erstat markeringen med symbol …** når flere dele er valgt, og valget **Spejlvend vandret (symbolets bogstaver spejles ikke)**.
+- Manualen: afsnittet *Erstat tegnede dele med symboler* opdateret (flere dele, spejlvend).
+- Tests: `symbolSuggest.test.ts` (flere løse dele → 3-vejs motorventil; for få figurer/forkert størrelse → intet). **Afprøvet i browseren** på en lokal kopi af "varme": MVS1 (10 dele) og MVS2 (10 dele, spejlvendt) erstattet af 3-vejs motorventil på rette sted og i rette størrelse, A/B/AB og M med rigtig læseretning, ingen af de gamle dele tilbage, navne uden falsk " 2".
+
 ## [0.56.0 build 0084] — 2026-10-16 — Erstat med symbol: pumpens retning aflæses
 
 - `frontend/svgedit-host/snap.js` — `pathVertices()` (M/L/H/V/Z, relativ og absolut; kurver giver null), `triangleApex()` (ligebenet trekant → toppen og retningen fra grundlinjens midte; ligesidet giver null), `directionAngle()` (retningen efter en matrix) og `turnTo()` (drejning så et symbols retning rammer målet).

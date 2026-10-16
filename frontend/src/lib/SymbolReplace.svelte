@@ -5,7 +5,7 @@
   import { hasTextSlot, nameHint, NATIVE_DIRECTION, stretchesByDefault, suggestSymbols, type SelectionInfo } from './symbolSuggest';
 
   export type SimilarMode = false | 'same' | 'any';
-  export interface ReplaceOptions { symbol: SymbolDef; name: string; keepId: boolean; stretch: boolean; useText: boolean; similar: SimilarMode; apexNative: number | undefined }
+  export interface ReplaceOptions { symbol: SymbolDef; name: string; keepId: boolean; stretch: boolean; useText: boolean; similar: SimilarMode; apexNative: number | undefined; mirror: boolean }
 
   let { info, lostBindings, onreplace, onclose }: {
     info: SelectionInfo;
@@ -22,6 +22,7 @@
   let useText = $state(true);
   let similar = $state<'none' | 'same' | 'any'>('same');
   let followDirection = $state(true);
+  let mirror = $state(false);
 
   const byId = new Map(SYMBOLS.map((s) => [s.id, s]));
   const suggestions = $derived(suggestSymbols(info).flatMap((x) => (byId.has(x.id) ? [{ ...x, symbol: byId.get(x.id)! }] : [])));
@@ -52,12 +53,12 @@
   };
 
   const describe = $derived(
-    `${info.tag === 'g' ? 'gruppe' : info.tag} · ${Math.round(info.w)} × ${Math.round(info.h)}${info.angle ? ` · drejet ${Math.round(info.angle)}°` : ''}` +
+    `${info.tag === 'g' ? 'gruppe' : info.tag === 'markering' ? `${info.children} dele valgt` : info.tag} · ${Math.round(info.w)} × ${Math.round(info.h)}${info.angle ? ` · drejet ${Math.round(info.angle)}°` : ''}` +
     `${info.texts.length ? ` · tekst: ${info.texts.slice(0, 3).join(', ')}` : ''}`,
   );
 
   function go(): void {
-    if (chosen) onreplace({ symbol: chosen, name: name.trim(), keepId, stretch, useText: slot && useText, similar: similar === 'none' ? false : similar, apexNative: directional && followDirection ? NATIVE_DIRECTION[chosen.id] : undefined });
+    if (chosen) onreplace({ symbol: chosen, name: name.trim(), keepId, stretch, useText: slot && useText, similar: similar === 'none' ? false : similar, apexNative: directional && followDirection ? NATIVE_DIRECTION[chosen.id] : undefined, mirror });
   }
 </script>
 
@@ -111,6 +112,7 @@
         <label class="opt"><input type="checkbox" bind:checked={keepId} /> Behold delens id{info.id ? ` (${info.id})` : ''} — så bindinger på selve delen følger med</label>
         {#if slot}<label class="opt"><input type="checkbox" bind:checked={useText} /> Overtag den tegnede tekst ({info.texts[0]}) og fjern den gamle</label>{/if}
         {#if directional}<label class="opt"><input type="checkbox" bind:checked={followDirection} /> Drej symbolet, så trekanten peger samme vej som den tegnede ({Math.round(info.apexAngle ?? 0)}°)</label>{/if}
+        <label class="opt"><input type="checkbox" bind:checked={mirror} /> Spejlvend vandret (symbolets bogstaver spejles ikke) — fx når A og AB sidder omvendt i den tegnede ventil</label>
         <label class="opt"><input type="checkbox" bind:checked={stretch} /> Stræk symbolet til at fylde delens boks (ellers beholdes proportionerne)</label>
         {#if info.similarAny > 0}
           <fieldset class="similar">

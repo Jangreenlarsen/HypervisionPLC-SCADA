@@ -56,8 +56,9 @@ Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige 
 3. Systemet foreslår symboler ud fra delens form (fx *Statusfelt* til en afrundet etiket, *Pumpe* til en cirkel med trekant). Du kan også søge i hele biblioteket.
 4. Vælg symbolet og tilret indstillingerne: **navn**, **behold delens id** (så bindinger på selve delen følger med), **overtag teksten** (en etiket beholder sin tekst) og **stræk til at fylde**.
 5. Under **Andre dele af samme slags** kan du erstatte **alle lignende** på én gang — enten kun dem med samme størrelse eller alle af samme slags uanset størrelse (fx etiketter med forskellig tekstlængde).
-6. Tryk **Erstat**. Symbolet får samme **midte, størrelse og drejning** som den gamle del. **Ctrl+Z** fortryder hele erstatningen i ét trin.
-7. Tryk **Gem kladde**. Så er resultatet en ny version, og **Overview viser stadig den gamle**, til du udgiver den nye.
+6. **Flere løse dele?** Er symbolet tegnet af flere figurer (fx en ventil af trekanter, en prik og en motorcirkel), så marker dem alle og tryk **Erstat markeringen med symbol …** — så erstattes de samlet af ét symbol (tag også bogstaverne med, hvis symbolet selv har dem). **Spejlvend vandret** bruges, hvis den tegnede ventil vender omvendt; symbolets bogstaver spejles ikke.
+7. Tryk **Erstat**. Symbolet får samme **midte, størrelse og drejning** som den gamle del. **Ctrl+Z** fortryder hele erstatningen i ét trin.
+8. Tryk **Gem kladde**. Så er resultatet en ny version, og **Overview viser stadig den gamle**, til du udgiver den nye.
 
 ![Erstat med symbol: forslag ud fra delens form, indstillinger og valg om at erstatte alle lignende](/manual/tegn-erstat.png)
 
