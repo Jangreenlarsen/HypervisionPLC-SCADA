@@ -2,6 +2,11 @@
 
 ---
 
+## v0.43.0 — 2026-10-16 — Symboler opsættes med guiden i 6 trin
+
+- I **Tegn**: giv et symbol et navn, og tryk **Opsæt symbol (6 trin)**. Nyindsatte symboler opfordrer til det. Tegningen gemmes og udgives først (du bliver spurgt).
+- Under **Bindinger**: sektionen **Symbol** har nu guiden som den primære måde at sætte tag, positioner, animationer og nøglelås op på. Den gamle "vælg ét tag til hele symbolet" er væk; **Forklaring** er stadig der.
+
 ## v0.42.0 — 2026-10-16 — Slet tegning også fra Tegn
 
 - Knappen **Slet tegning** findes nu også i **Tegn** (ved siden af Gem), ud over på siden **Tegninger**.

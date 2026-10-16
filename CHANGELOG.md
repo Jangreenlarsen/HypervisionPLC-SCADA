@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.43.0 build 0061] — 2026-10-16 — Guiden i 6 trin er den primære model for symboler
+
+**Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først); kun kompilering er kontrolleret.
+
+- `frontend/src/pages/DrawEditor.svelte` — et navngivet symbol har knappen **Opsæt symbol (6 trin)**, som åbner guiden direkte i Tegn. Guiden arbejder på tegningens aktive version, så en ny eller ændret tegning gemmes og udgives først (efter bekræftelse; ny tegning kræver et navn). Efter indsættelse af et symbol vises en opfordring til at opsætte det.
+- `frontend/src/pages/Editor.svelte` (Bindinger) — den gamle sektion "Symbol" (ét tag på hele symbolet, v0.27.0) er fjernet fra brugerfladen; sektionen **Symbol** har nu guiden som primær knap ("Opsæt/Ret symbol (6 trin)"), status og **Forklaring**. Bagvedliggende `PUT …/symbols/{element}` med `tag` er uændret i backend (fjernes sammen med den gamle model, når Jan godkender).
+
 ## [0.42.0 build 0060] — 2026-10-16 — Slet tegning fra Tegn, med oversigt over hvad der rammes
 
 **Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først); kun kompilering er kontrolleret.

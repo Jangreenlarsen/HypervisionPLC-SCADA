@@ -3,6 +3,7 @@
   import { get, patch, post } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
+  import SymbolGuide from '../lib/SymbolGuide.svelte';
   import { CATEGORIES, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
 
   let { route = 'draw' }: { route?: string } = $props();
@@ -38,6 +39,8 @@
   let info = $state('');
   let report = $state<Report | null>(null);
   let ready = $state(false);
+  let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
+  let tags = $state<{ name: string; source: string; unit: string; writable: boolean; plc: string }[]>([]);
   let iframe: HTMLIFrameElement;
   let ed: ScadaApi | null = null;
 
@@ -96,6 +99,33 @@
     } catch (e) {
       error = (e as Error).message;
     }
+  }
+
+  /**
+   * Opsæt det valgte symbol med guiden (6 trin). Guiden arbejder på tegningens AKTIVE version, så tegningen
+   * gemmes og udgives først, hvis den er ny eller har ændringer.
+   */
+  async function openGuide(): Promise<void> {
+    const sel = selection.length === 1 ? selection[0] : null;
+    if (!ed || !sel?.name) return;
+    error = '';
+    const published = current !== null && !dirty && loadedVersion === current.active_version;
+    if (!published) {
+      if (!current && !newName.trim()) {
+        error = 'Giv tegningen et navn (nederst i panelet) — den skal gemmes, før symbolet kan opsættes';
+        return;
+      }
+      if (!confirm('Tegningen gemmes og udgives først, så symbolet kan opsættes. Fortsæt?')) return;
+      await save(true);
+      if (error || dirty || !current) return; // save() har vist fejlen
+    }
+    try {
+      if (!tags.length) tags = await get('/api/tags');
+    } catch (e) {
+      error = (e as Error).message;
+      return;
+    }
+    guideFor = { id: sel.id, name: sel.name };
   }
 
   /** Slet den åbne tegning (alle versioner og bindinger) — efter en bekræftelse der viser hvad det rammer. */
@@ -206,6 +236,7 @@
       if (!ed) return;
       ed.insertSymbol(withName(svg, ed.uniqueName('Omskifter')), 'omskifter');
       dirty = true;
+      info = 'Omskifteren er indsat — tryk "Opsæt symbol (6 trin)" i panelet til højre for at koble den til PLC\'en.';
     } catch (e) {
       selectorError = (e as Error).message;
     }
@@ -216,6 +247,7 @@
     if (!ed || !s) return;
     ed.insertSymbol(withName(s.svg, ed.uniqueName(s.label)), s.id);
     dirty = true;
+    info = 'Symbolet er indsat — tryk "Opsæt symbol (6 trin)" i panelet til højre for at sætte tag, positioner og animationer.';
   }
 
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -301,12 +333,8 @@
             onchange={() => applyText('data-hv-name', nameInput)} />
         </label>
         {#if single.name}
-          <p class="small muted">Symbolet findes under <strong>Bindinger</strong> med dette navn — dér sættes tag, forklaring og animationer.</p>
-          {#if current && !dirty}
-            <a class="btn" href={'#editor/' + encodeURIComponent(current.id) + '/' + encodeURIComponent(single.id)}>Konfigurér under Bindinger</a>
-          {:else}
-            <p class="small muted">Gem tegningen for at konfigurere symbolet.</p>
-          {/if}
+          <div class="row"><button class="primary" onclick={openGuide} disabled={busy || !ready}>Opsæt symbol (6 trin)</button></div>
+          <p class="small muted">Tag, positioner, animationer og nøglelås sættes i guiden — samme guide findes under <strong>Bindinger</strong>.{!current || dirty ? ' Tegningen gemmes og udgives først.' : ''}</p>
         {:else}
           <p class="small muted">Giv elementet et <strong>navn</strong> for at gøre det til et symbol, der kan konfigureres under <strong>Bindinger</strong>. Uden navn er det kun tegning.</p>
         {/if}
@@ -353,6 +381,12 @@
     </section>
   </aside>
 </div>
+
+{#if guideFor && current}
+  <SymbolGuide drawingId={current.id} element={guideFor.id} name={guideFor.name} {tags}
+    onclose={() => (guideFor = null)}
+    onsaved={() => { info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`; guideFor = null; }} />
+{/if}
 
 <style>
   .toolbar { margin-bottom: .6rem; }

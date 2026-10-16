@@ -27,7 +27,6 @@
   let showAll = $state(false);                   // standard: kun symboler (navngivne) og bundne elementer
   let descDraft = $state('');
   const current = $derived(elements.find((e) => e.id === selected) ?? null);
-  let symWarning = $state('');
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (symbolstandarden) er åben
   let selected = $state<string | null>(null);
   let drafts = $state<Draft[]>([]); // én binding = ét tag (gid) med en eller flere animationer
@@ -117,7 +116,6 @@
   function select(id: string, force = false): void {
     if (!force && dirty && !confirm('Du har ændringer der ikke er gemt. Kassér dem?')) return;
     selected = id;
-    symWarning = '';
     descDraft = descFor(elements.find((e) => e.id === id) ?? null);
     if (!filter) expanded = new Set([...expanded, ...ancestorsOf(elements, id)]); // vis hvor det valgte element ligger
     const explicit = explicitFor(id);
@@ -236,7 +234,6 @@
   const rows = $derived(visibleRows(scope.elements, expanded, filter).map((r) => ({ ...r, context: r.context || !scope.direct.has(r.id) })));
   /** Symbolets forklaring: den der er sat her (gemt ved bindingerne), ellers en evt. ældre i selve tegningen. */
   const descFor = (e: ElementInfo | null) => (e ? view?.symbols?.[e.id] ?? e.desc ?? '' : '');
-  const symTag = $derived(current ? view?.bindings.find((b) => b.element === current.id && b.tag)?.tag ?? '' : '');
   const enc = encodeURIComponent;
 
   async function saveDesc(): Promise<void> {
@@ -250,21 +247,6 @@
       else delete symbols[current.id];
       view = { ...view, symbols };
       info = 'Forklaring gemt.';
-    } catch (e) {
-      error = (e as Error).message;
-    }
-  }
-
-  /** Tilknyt (eller fjern med '') et tag til hele symbolet — serveren danner bindingerne for symbolets dele. */
-  async function bindSymbolTag(tag: string): Promise<void> {
-    if (!view || !current) return;
-    if (dirty && !confirm('Du har ændringer der ikke er gemt på dette element. Kassér dem?')) return;
-    const element = current.id;
-    try {
-      const r = await put<{ warning?: string; elements?: number }>(`/api/drawings/${enc(view.id)}/symbols/${enc(element)}`, { tag: tag || null });
-      await load(view.id, true);
-      symWarning = r.warning ?? '';
-      info = tag ? `Tag "${tag}" er tilknyttet — bindinger oprettet for ${r.elements ?? 0} element${r.elements === 1 ? '' : 'er'}.` : 'Tagget er fjernet fra symbolet.';
     } catch (e) {
       error = (e as Error).message;
     }
@@ -369,35 +351,22 @@
         {#if current.parent}<p class="small muted">Del af <button class="link-btn" onclick={() => select(current.parent!)}>{displayName(elements.find((x) => x.id === current.parent)!)}</button></p>{/if}
         {#if info}<div class="notice">{info}</div>{/if}
 
-        {#if current.name || current.spec}
-          <section class="symbol-cfg">
-            <h4>Symbol</h4>
-            <p class="small muted">Navnet sættes i <a href={'#draw/' + (view?.id ?? '')}>Tegn</a>. Tag, forklaring og animationer sættes her.</p>
-            {#if current.spec}
-              <label class="field-row">Tag{current.writes ? ' (skrivbart — symbolet kan betjene PLC\'en)' : ''}
-                <TagSelect value={symTag} {tags} writableOnly={current.writes} placeholder="— vælg tag —" onchange={bindSymbolTag} />
-              </label>
-              {#if symTag}<div class="row"><button class="small" onclick={() => bindSymbolTag('')}>Fjern tag</button></div>{/if}
-              {#if symWarning}<p class="small error">{symWarning}</p>{/if}
-              <p class="small muted">Når et tag vælges, oprettes bindingerne for hele symbolet (klik og visning). Vælg en del i listen for at finjustere den; vælges et tag igen, erstattes bindingerne.</p>
-            {/if}
-            <label class="field-row">Forklaring
-              <textarea bind:value={descDraft} rows="3" maxlength="500" onchange={saveDesc}
-                placeholder="Hvad gør symbolet, og hvem må betjene det? Vises som tooltip på Overview"></textarea>
-            </label>
-          </section>
-        {/if}
         {#if current.type === 'g' || current.name || current.spec}
           {@const sc = view?.symbol_config?.[current.id]}
           <section class="symbol-cfg">
-            <h4>Symbolstandard</h4>
+            <h4>Symbol</h4>
             {#if sc}
               <p class="small">Konfigureret: <strong>{({ positions: `${sc.labels.length} positioner`, pulse: 'trykknap', entry: 'setpunkt', view: 'kun visning' } as Record<string, string>)[sc.op] ?? sc.op}</strong>.
                 Symbolets egne bindinger nedenfor bruges ikke, så længe konfigurationen findes.</p>
             {:else}
-              <p class="small muted">Saml betjening, positioner, kontaktplaner, animationer og nøglelås i én konfiguration.</p>
+              <p class="small muted">Ikke opsat endnu. Guiden i 6 trin samler betjening, positioner, kontaktplaner, animationer og nøglelås ét sted.</p>
             {/if}
-            <div class="row"><button onclick={() => (guideFor = { id: current.id, name: displayName(current) })}>{sc ? 'Ret symbol (guide)' : 'Opsæt symbol (guide)'}</button></div>
+            <div class="row"><button class="primary" onclick={() => (guideFor = { id: current.id, name: displayName(current) })}>{sc ? 'Ret symbol (6 trin)' : 'Opsæt symbol (6 trin)'}</button></div>
+            <p class="small muted">Navnet sættes i <a href={'#draw/' + (view?.id ?? '')}>Tegn</a>.</p>
+            <label class="field-row">Forklaring
+              <textarea bind:value={descDraft} rows="3" maxlength="500" onchange={saveDesc}
+                placeholder="Hvad gør symbolet, og hvem må betjene det? Vises som tooltip på Overview"></textarea>
+            </label>
           </section>
         {/if}
 
