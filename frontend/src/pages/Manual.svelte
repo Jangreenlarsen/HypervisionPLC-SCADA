@@ -39,6 +39,9 @@
     <label class="search">Søg i manualen
       <input type="search" bind:value={query} placeholder="fx logikblok, setpunkt, backup" />
     </label>
+    <select class="chapter-select" aria-label="Kapitel" value={chapter.slug} onchange={(e) => (location.hash = href(e.currentTarget.value))}>
+      {#each chapters as c}<option value={c.slug}>{c.title}</option>{/each}
+    </select>
     {#if query.trim().length >= 2}
       <p class="small muted">{hits.length ? `${total} træf i ${hits.length} kapitler` : 'Ingen træf'}</p>
       <ul class="hits">
@@ -101,8 +104,12 @@
   .body :global(blockquote p) { margin: .3rem 0; }
   .body :global(mark) { background: #ffe58f; padding: 0 .1rem; }
   .pager { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; padding-top: .8rem; border-top: 1px solid var(--line); }
+  .chapter-select { display: none; width: 100%; margin-bottom: .5rem; }
   @media (max-width: 800px) {
     .manual { grid-template-columns: minmax(0, 1fr); }
     aside { position: static; max-height: none; }
+    .chapter-select { display: block; }
+    nav { display: none; }                  /* kapitelvælgeren erstatter den lange liste */
+    .body :global(pre), .body :global(code) { overflow-wrap: anywhere; }
   }
 </style>

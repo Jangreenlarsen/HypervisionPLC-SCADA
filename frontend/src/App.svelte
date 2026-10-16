@@ -146,7 +146,7 @@
     </a>
     <!-- AGPL-3.0 §13: link til kildekoden altid synligt -->
     <a class="src" href={info?.source_url ?? 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener"
-       title="Fri software under AGPL-3.0{info ? ` · v${info.version} build ${info.build}` : ''}">AGPL · kildekode</a>
+       title="Fri software under AGPL-3.0{info ? ` · v${info.version} build ${info.build}` : ''}">AGPL<span class="srcfull"> · kildekode</span></a>
     <nav class="menubar" aria-label="Brugermenu">
       <div class="menu user" class:open={openMenu === 'user'} role="presentation" onpointerenter={onHover('user')} onpointerleave={onLeave}>
         <button class="top" aria-haspopup="true" aria-expanded={openMenu === 'user'} title="Rolle: {ROLE_TXT[me.role] ?? me.role}"
@@ -276,8 +276,10 @@
   @media (max-width: 640px) {
     main { padding: .75rem 16px; }
     header { padding: 0 .5rem; gap: .45rem; }
-    .crumb, .menu.user .name { display: none; }
-    .top { padding: 0 .5rem; }
+    .crumb, .menu.user .name, .srcfull, .caret { display: none; }   /* alle fire menupunkter, klokken og AGPL-linket skal være på én linje */
+    .top { padding: 0 .4rem; font-size: .88rem; }
+    .menubar { gap: 0; }
+    .menu.user { margin-left: 0; padding-left: .25rem; }
     .src { font-size: .7rem; }
   }
 </style>

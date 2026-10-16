@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.52.1 build 0076] — 2026-10-16 — fix: topmenu og manual på smalle skærme
+
+- `frontend/src/App.svelte` — på skærme ≤ 640 px er alle fire menupunkter, alarmklokken og AGPL-linket på én linje (Bruger-menuen blev før skubbet ud over kanten); pilene og "· kildekode" skjules, AGPL-linket bliver.
+- `frontend/src/pages/Manual.svelte` — kapitelvælger (rulleliste) i stedet for den lange liste på smalle skærme. Set i browser. Se BUGS.md.
+
 ## [0.52.0 build 0075] — 2026-10-16 — Brugermanual i systemet
 
 - `frontend/src/manual/*.md` (nye, 11 kapitler) — kom i gang og roller; Drift (Overview, Alarmer, Trends, Energi); PLC'er og tags; Tegninger og Tegn; Bindinger og animationer (inkl. beregning); symboler og guiden (positioner, kontaktplaner, logikblokke, nøglelås, hurtig opsætning af 3-vejs ventil); symbolbiblioteket (**genereres** af `src/lib/manualGen.test.ts` ud fra koden: 85 symboler med de betjeningsformer guiden tilbyder); ugeprogrammer; System (Log, Brugere, Backup, Opdatering); 11 trin-for-trin-eksempler; fejlfinding og ordliste.
