@@ -383,7 +383,7 @@
                     <td><strong>{s.id}</strong></td>
                     <td><TagSelect bind:value={s.tag} {tags} writableOnly /></td>
                     <td><TagSelect bind:value={s.fb} {tags} placeholder="— ingen —" /></td>
-                    <td class="nowrap">
+                    <td class="skriv">
                       <select bind:value={s.write}><option value="set">Sæt</option><option value="pulse">Puls</option></select>
                       {#if s.write === 'pulse'}
                         <input class="n" type="number" min="100" max="10000" step="100" bind:value={s.ms} title="Pulslængde (ms)" /> ms
@@ -741,8 +741,10 @@
   .wrap { flex-wrap: wrap; gap: .35rem .6rem; align-items: center; }
   .grid { border-collapse: collapse; margin: .3rem 0; }
   .grid th, .grid td { border: 1px solid var(--line); padding: .2rem .35rem; text-align: left; }
+  /* En tag-dropdown er ellers lige så bred som sin længste valgmulighed ("navn · kilde (type) [enhed]") og presser nabokolonnerne */
+  .grid :global(select), .anim :global(select) { width: auto; max-width: 15em; }   /* :global — TagSelect er en underkomponent */
+  .grid td.skriv { min-width: 13em; }
   .planes td, .planes th { text-align: center; }
-  .nowrap { white-space: nowrap; }
   .n { width: 5.5em; }
   .lbl { width: 7em; }
   .pin { letter-spacing: .3em; }
