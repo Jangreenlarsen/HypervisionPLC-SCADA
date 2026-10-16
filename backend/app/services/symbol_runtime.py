@@ -25,7 +25,7 @@ from ..storage.db import Database
 from .alarms import Condition
 from .live_cache import LiveCache, LiveValue
 from .svg_sanitize import describe_element, index_svg
-from .symbols import PSEUDO_KINDS, pseudo_tag
+from .symbols import PSEUDO_KINDS, evaluate_logic, logic_pseudo_tags, pseudo_tag
 
 log = logging.getLogger(__name__)
 
@@ -128,6 +128,7 @@ class SymbolRuntime:
         self.states: dict[tuple[str, str], SymbolState] = {}
         self.names: dict[tuple[str, str], str] = {}
         self._signature: Any = None
+        self._logic_published: set[str] = set()   # logik-pseudo-tags i live-cachen (så slettede blokke ryddes)
 
     # ------------------------------------------------------------ indlæsning
 
@@ -174,7 +175,13 @@ class SymbolRuntime:
         if self._current_signature() != self._signature:
             self.reload()
         updates: dict[str, LiveValue] = {}
+        logic_now: set[str] = set()
         for key, cfg in self.symbols.items():
+            if cfg.get("logic"):
+                tags = logic_pseudo_tags(key[0], key[1], cfg)
+                for bid, result in evaluate_logic(cfg["logic"], self.cache.get).items():
+                    updates[tags[bid]] = LiveValue(value=result, quality="good" if result is not None else "comm_error", ts=now)
+                    logic_now.add(tags[bid])
             if cfg.get("op") != "positions":
                 continue
             remote, comm, read = remote_position(cfg, self.cache.get)
@@ -189,6 +196,10 @@ class SymbolRuntime:
             d, e = key
             for kind, value in (("pos", st.pos), ("remote", st.remote), ("state", st.state), ("locked", st.locked)):
                 updates[pseudo_tag(d, e, kind)] = LiveValue(value=value, quality=quality, ts=now)
+        stale = self._logic_published - logic_now
+        if stale:
+            self.cache.remove(sorted(stale))
+        self._logic_published = logic_now
         if updates:
             self.cache.update(updates)
 

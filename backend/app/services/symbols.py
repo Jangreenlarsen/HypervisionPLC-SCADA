@@ -32,8 +32,10 @@ from .tagsource import TagSourceError, parse_source
 log = logging.getLogger(__name__)
 
 MAX_POSITIONS, MAX_PLANES, MAX_SIGNALS, MAX_ANIMS = 8, 8, 8, 12
+MAX_LOGIC, MAX_LOGIC_INPUTS = 8, 4
 POS = "@pos"
 _SIG_ID = re.compile(r"^[A-Za-z0-9_]{1,10}$")
+_LOGIC_ID = re.compile(r"^L[0-9]{1,2}$")
 _PIN = re.compile(r"[0-9]{4}")   # bruges med fullmatch: kun ASCII-cifre, ingen linjeskift
 
 
@@ -63,6 +65,27 @@ class Signal(_M):
 class Plane(_M):
     signal: str
     values: list[float | None]
+
+
+class LogicInput(_M):
+    """Én indgang til en logikblok: et tag (til/fra, eller et tal sammenlignet med en grænse) eller en tidligere blok (`@L1`)."""
+    src: str = Field(default="", max_length=64)
+    neg: bool = False                                  # NOT på indgangen
+    cmp: Literal["", "ge", "le", "eq"] = ""            # kun for tal-tags: ≥, ≤, =
+    value: float | None = None
+
+    _s = field_validator("src")(lambda cls, v: (v or "").strip())
+
+
+class LogicBlock(_M):
+    """AND/OR over 1–4 indgange (+ NOT pr. indgang og på resultatet). Kan bruges som kilde (`@L1`) i animationer og som indgang i senere blokke."""
+    id: str
+    name: str = Field(default="", max_length=40)
+    op: Literal["and", "or"] = "and"
+    inputs: list[LogicInput] = Field(default_factory=list, max_length=MAX_LOGIC_INPUTS)
+    invert: bool = False
+
+    _n = field_validator("name")(lambda cls, v: " ".join((v or "").split()))
 
 
 class Lock(_M):
@@ -144,6 +167,7 @@ class SymbolConfig(_M):
     pulse_ms: int = 500
     lock: Lock = Field(default_factory=Lock)
     anims: list[Anim] = Field(default_factory=list, max_length=MAX_ANIMS)
+    logic: list[LogicBlock] = Field(default_factory=list, max_length=MAX_LOGIC)
 
     _f = field_validator("fault")(lambda cls, v: (v or "").strip())
 
@@ -161,6 +185,16 @@ def _is_set(v: Any) -> bool:
 PSEUDO_KINDS = ("pos", "remote", "state", "locked")
 
 
+def is_logic_ref(src: Any) -> bool:
+    """`@L1` — kilden er en logikblok (`@pos` er positionen)."""
+    return isinstance(src, str) and src.startswith("@") and src != POS
+
+
+def logic_pseudo_tags(drawing_id: str, element: str, cfg: dict[str, Any]) -> dict[str, str]:
+    """{blok-id: pseudo-tag i live-cachen} for symbolets logikblokke."""
+    return {b["id"]: pseudo_tag(drawing_id, element, f"logic:{b['id']}") for b in cfg.get("logic", [])}
+
+
 def pseudo_tag(drawing_id: str, element: str, kind: str) -> str:
     """Afledt værdi for et symbol i live-cachen (afsnit 5.2). `:` findes ikke i tag-navne, så navnene kan ikke kollidere."""
     return f"sym:{drawing_id}:{element}:{kind}"
@@ -172,17 +206,59 @@ def config_tags(config: dict[str, Any]) -> list[str]:
     out: list[str] = []
 
     def add(name: Any) -> None:
-        if isinstance(name, str) and name and name != POS and name not in out:
+        if isinstance(name, str) and name and not name.startswith("@") and name not in out:
             out.append(name)
 
     for s in config.get("signals", []):
         add(s.get("tag"))
         add(s.get("fb"))
     add(config.get("fault"))
+    for b in config.get("logic", []):
+        for i in b.get("inputs", []):
+            add(i.get("src"))
     for a in config.get("anims", []):
         add(a.get("src"))
         if a.get("type") == "flow":
             add((a.get("params") or {}).get("dir_tag"))
+    return out
+
+
+def _input_value(lv: Any, inp: dict[str, Any]) -> bool | None:
+    """Indgangens sandhedsværdi; None = ukendt (komm.fejl, manglende værdi eller forkert type)."""
+    if lv is None or lv.quality != "good" or lv.value is None:
+        return None
+    v = lv.value
+    if isinstance(v, bool):
+        return v
+    if not isinstance(v, (int, float)):
+        return None
+    cmp, limit = inp.get("cmp") or "", inp.get("value")
+    if not cmp or limit is None:
+        return v != 0
+    if cmp == "ge":
+        return v >= limit
+    if cmp == "le":
+        return v <= limit
+    return abs(v - limit) <= 1e-9 * max(1.0, abs(limit))
+
+
+def evaluate_logic(blocks: list[dict[str, Any]], value_of: Callable[[str], Any]) -> dict[str, bool | None]:
+    """Beregn logikblokkene i rækkefølge (en blok kan kun bruge tidligere blokke). Tre-værdi-logik: en afgørende
+    indgang vinder (AND med en Fra = Fra, OR med en Til = Til) selv om en anden er ukendt; ellers er resultatet ukendt."""
+    out: dict[str, bool | None] = {}
+    for b in blocks:
+        vals: list[bool | None] = []
+        for inp in b.get("inputs", []):
+            src = inp.get("src") or ""
+            v = out.get(src[1:]) if src.startswith("@") else _input_value(value_of(src), inp)
+            vals.append(None if v is None else (not v if inp.get("neg") else v))
+        if not vals:
+            r = None
+        elif b.get("op") == "or":
+            r = True if any(v is True for v in vals) else False if all(v is False for v in vals) else None
+        else:
+            r = False if any(v is False for v in vals) else True if all(v is True for v in vals) else None
+        out[b["id"]] = (not r) if (r is not None and b.get("invert")) else r
     return out
 
 
@@ -246,7 +322,11 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
         if a.get("only"):
             params["only"] = a["only"]
             params["pos_tag"] = pos_tag
-        out.append({"element": target, "position": 1000 + i, "tag": pos_tag if a["src"] == POS else a["src"],
+        if is_logic_ref(a["src"]):
+            tag = pseudo_tag(drawing_id, element, f"logic:{a['src'][1:]}")
+        else:
+            tag = pos_tag if a["src"] == POS else a["src"]
+        out.append({"element": target, "position": 1000 + i, "tag": tag,
                     "anim": a["type"], "params": params, "source": "symbol", "symbol": element})
     return out
 
@@ -488,6 +568,45 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
         if cfg.planes and not readable:
             res.err("5", "Mindst ét plan skal styre et signal der sættes (ikke puls), ellers kan positionen ikke aflæses.")
 
+    # -- logikblokke (trin 4)
+    block_ids: list[str] = []
+    for b in cfg.logic:
+        nm = f"Logik {b.id}"
+        if not _LOGIC_ID.match(b.id):
+            res.err("4", f"Blok-id '{b.id}' skal være som L1, L2 …")
+        elif b.id in block_ids:
+            res.err("4", f"To logikblokke har id'et {b.id}.")
+        if not b.inputs:
+            res.err("4", f"{nm}: tilføj mindst én indgang.")
+        for k, inp in enumerate(b.inputs):
+            w = f"{nm}, indgang {k + 1}"
+            if not inp.src:
+                res.err("4", f"{w}: vælg et tag eller en tidligere blok.")
+                continue
+            if inp.src.startswith("@"):
+                if inp.src[1:] not in block_ids:
+                    res.err("4", f"{w}: '{inp.src[1:]}' er ikke en tidligere blok (en blok kan kun bruge blokke over sig).")
+                inp.cmp, inp.value = "", None
+                continue
+            t = tag_of(inp.src)
+            if t is None:
+                res.err("4", f"{w}: tagget '{inp.src}' findes ikke.")
+            elif inp.cmp:
+                if inp.value is None:
+                    res.err("4", f"{w}: angiv grænseværdien.")
+                if t.known and t.is_bool:
+                    res.err("4", f"{w}: {t.name} er et til/fra-tag — en sammenligning kræver et tal-tag.")
+            else:
+                inp.value = None
+                if t.known and not t.is_bool:
+                    res.err("4", f"{w}: {t.name} er et tal-tag — vælg ≥, ≤ eller = og en grænseværdi.")
+        block_ids.append(b.id)
+    used_blocks = {a.src[1:] for a in cfg.anims if is_logic_ref(a.src)} | \
+                  {i.src[1:] for b in cfg.logic for i in b.inputs if i.src.startswith("@")}
+    for b in cfg.logic:
+        if b.id not in used_blocks:
+            res.warnings.append(f"Logik {b.id}{f' ({b.name})' if b.name else ''} bruges ikke af nogen animation eller blok.")
+
     # -- visning (trin 4)
     if not 1 <= cfg.validate_s <= 120:
         res.err("4", "Valideringstid skal være 1–120 s.")
@@ -508,10 +627,18 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             res.err("4", f"{nm}: vælg hvad der styrer den.")
             continue
         pos_src = a.src == POS
+        logic_src = is_logic_ref(a.src)
         if pos_src and not P:
             res.err("4", f"{nm}: symbolet har ingen positioner.")
             continue
-        if not pos_src:
+        if logic_src:
+            if a.src[1:] not in block_ids:
+                res.err("4", f"{nm}: logikblokken '{a.src[1:]}' findes ikke.")
+                continue
+            if a.type in NUMERIC_ONLY:
+                res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en logikblok — vælg et tal-tag.")
+                continue
+        elif not pos_src:
             t = tag_of(a.src)
             if t is None:
                 res.err("4", f"{nm}: tagget '{a.src}' findes ikke.")
@@ -660,6 +787,7 @@ class SymbolService:
             out.update(config_tags(cfg))
             if cfg.get("op") == "positions":
                 out.update(pseudo_tag(drawing_id, element, k) for k in PSEUDO_KINDS)
+            out.update(logic_pseudo_tags(drawing_id, element, cfg).values())
         return out
 
     def usage(self, tag: str) -> list[str]:

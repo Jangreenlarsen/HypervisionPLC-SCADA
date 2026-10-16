@@ -9,16 +9,20 @@ export type SrcKind = 'pos' | 'bool' | 'num';
 export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null }
 export interface Plane { signal: string; values: (number | null)[] }
 export interface Anim { part: string; type: AnimType; src: string; params: Record<string, any>; only: boolean[] | null }
+export type Cmp = '' | 'ge' | 'le' | 'eq';
+/** Én indgang til en logikblok: et tag (til/fra, eller et tal sammenlignet med en grænse) eller en tidligere blok (`@L1`). */
+export interface LogicInput { src: string; neg: boolean; cmp: Cmp; value: number | null }
+export interface LogicBlock { id: string; name: string; op: 'and' | 'or'; inputs: LogicInput[]; invert: boolean }
 export interface SymbolConfig {
   type: string; op: Op; positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
   display: 'remote' | 'local'; validate_s: number; alarm: '' | 'low' | 'medium' | 'high'; confirm: boolean; pulse_ms: number;
-  lock: { positions: boolean[]; leave: boolean }; anims: Anim[];
+  lock: { positions: boolean[]; leave: boolean }; anims: Anim[]; logic: LogicBlock[];
 }
 export interface PartInfo { tag: string; line: boolean; pid?: string | null }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }
 
 export const POS = '@pos';
-export const MAX_POSITIONS = 8, MAX_PLANES = 8, MAX_ANIMS = 12;
+export const MAX_POSITIONS = 8, MAX_PLANES = 8, MAX_ANIMS = 12, MAX_LOGIC = 8, MAX_LOGIC_INPUTS = 4;
 
 export const STEPS = ['Symbol', 'Signaler', 'Kontakter', 'Visning', 'Betjening', 'Test og gem'];
 export const OP_TXT: Record<Op, string> = { view: 'Kun visning', positions: 'Positioner', pulse: 'Trykknap (puls)', entry: 'Setpunkt (indtastning)' };
@@ -55,7 +59,7 @@ export function tagKind(source: string | undefined): 'bool' | 'num' | 'unknown' 
 export function emptyConfig(type = 'custom'): SymbolConfig {
   return {
     type, op: 'view', positions: [], signals: [], planes: [], fault: '', display: 'remote', validate_s: 5, alarm: 'medium',
-    confirm: true, pulse_ms: 500, lock: { positions: [], leave: false }, anims: [],
+    confirm: true, pulse_ms: 500, lock: { positions: [], leave: false }, anims: [], logic: [],
   };
 }
 
@@ -63,6 +67,62 @@ export function newSignal(cfg: SymbolConfig, tag = '', fb = ''): Signal {
   let i = 1;
   while (cfg.signals.some((s) => s.id === `S${i}`)) i++;
   return { id: `S${i}`, tag, fb, write: 'set', ms: 500, rest: null };
+}
+
+export const CMP_TXT: Record<string, string> = { ge: '≥', le: '≤', eq: '=' };
+
+/** `@L1` — animationens kilde er en logikblok (`@pos` er positionen). */
+export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS;
+
+export function newBlock(cfg: SymbolConfig): LogicBlock {
+  let i = 1;
+  while (cfg.logic.some((b) => b.id === `L${i}`)) i++;
+  return { id: `L${i}`, name: '', op: 'and', inputs: [{ src: '', neg: false, cmp: '', value: null }, { src: '', neg: false, cmp: '', value: null }], invert: false };
+}
+
+/** Fjern en blok; indgange og animationer der brugte den bliver tomme (serveren melder dem som manglende valg). */
+export function removeBlock(cfg: SymbolConfig, id: string): void {
+  cfg.logic = cfg.logic.filter((b) => b.id !== id);
+  for (const b of cfg.logic) for (const i of b.inputs) if (i.src === `@${id}`) i.src = '';
+  for (const a of cfg.anims) if (a.src === `@${id}`) a.src = '';
+}
+
+/** Blokkens formel som tekst, fx `Pumpe AND NOT Alarm` — til oversigt og test. */
+export function describeBlock(b: LogicBlock): string {
+  const parts = b.inputs.map((i) => {
+    const what = !i.src ? '?' : isLogicRef(i.src) ? i.src.slice(1) : i.cmp ? `${i.src} ${CMP_TXT[i.cmp]} ${i.value ?? '?'}` : i.src;
+    return i.neg ? `NOT ${what}` : what;
+  });
+  const body = parts.join(b.op === 'or' ? ' OR ' : ' AND ');
+  return b.invert ? `NOT (${body})` : body;
+}
+
+/**
+ * Logikblokkene ud fra live-værdier (som serverens `evaluate_logic`): tre-værdi-logik — en afgørende indgang vinder
+ * (AND med en Fra = Fra, OR med en Til = Til), ellers er resultatet ukendt (null). `valueOf` giver undefined/null for ukendt.
+ */
+export function evalLogic(blocks: LogicBlock[], valueOf: (tag: string) => unknown): Record<string, boolean | null> {
+  const out: Record<string, boolean | null> = {};
+  for (const b of blocks) {
+    const vals = b.inputs.map((i): boolean | null => {
+      let v: boolean | null;
+      if (isLogicRef(i.src)) v = out[i.src.slice(1)] ?? null;
+      else {
+        const raw = valueOf(i.src);
+        if (typeof raw === 'boolean') v = raw;
+        else if (typeof raw !== 'number' || !Number.isFinite(raw)) v = null;
+        else if (!i.cmp || i.value === null) v = raw !== 0;
+        else v = i.cmp === 'ge' ? raw >= i.value : i.cmp === 'le' ? raw <= i.value : Math.abs(raw - i.value) <= 1e-9 * Math.max(1, Math.abs(i.value));
+      }
+      return v === null ? null : i.neg ? !v : v;
+    });
+    let r: boolean | null;
+    if (!vals.length) r = null;
+    else if (b.op === 'or') r = vals.some((v) => v === true) ? true : vals.every((v) => v === false) ? false : null;
+    else r = vals.some((v) => v === false) ? false : vals.every((v) => v === true) ? true : null;
+    out[b.id] = r !== null && b.invert ? !r : r;
+  }
+  return out;
 }
 
 /** Hvilke animationer en del kan have — efter delens geometri (samme regel som serveren). */

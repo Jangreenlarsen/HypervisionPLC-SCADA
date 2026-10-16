@@ -7,9 +7,10 @@
   import { LiveClient } from './live';
   import TagSelect from './TagSelect.svelte';
   import {
-    ALARM_TXT, ANIM_TXT, BLINK_TXT, MAX_ANIMS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS, activeAt, animDefaults,
-    cycleCell, emptyConfig, foundPosition, newSignal, partLabel, preset, resize, setOp, tagKind, template, typesFor,
-    type Anim, type AnimType, type Op, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
+    ALARM_TXT, ANIM_TXT, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
+    activeAt, animDefaults, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
+    preset, removeBlock, resize, setOp, tagKind, template, typesFor,
+    type Anim, type AnimType, type LogicBlock, type Op, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
 
   interface TagRow { name: string; source: string; unit: string; writable: boolean; plc: string }
@@ -54,7 +55,7 @@
     const v = liveVals[tag]?.value;   // ST-variabel: typen kendes fra live-værdien
     return typeof v === 'boolean' ? 'bool' : typeof v === 'number' ? 'num' : 'unknown';
   }
-  const srcKind = (a: Anim): SrcKind => (a.src === POS ? 'pos' : tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
+  const srcKind = (a: Anim): SrcKind => (a.src === POS ? 'pos' : isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
   const n = $derived(cfg.positions.length);
   const isPos = $derived(cfg.op === 'positions');
   const partIds = $derived(['all', ...Object.keys(symbol?.parts ?? {})]);
@@ -93,6 +94,10 @@
       ...d, ...c, fault: c.fault ?? '', lock: { ...d.lock, ...(c.lock ?? {}) },
       signals: (c.signals ?? []).map((s: Partial<Signal> & { id: string }) => ({ ...{ tag: '', fb: '', write: 'set' as const, ms: 500, rest: null }, ...s })),
       anims: (c.anims ?? []).map((a) => ({ ...a, src: a.src ?? '', params: a.params ?? {}, only: a.only ?? null })),
+      logic: (c.logic ?? []).map((b) => ({
+        id: b.id, name: b.name ?? '', op: b.op ?? 'and', invert: Boolean(b.invert),
+        inputs: (b.inputs ?? []).map((i) => ({ src: i.src ?? '', neg: Boolean(i.neg), cmp: i.cmp ?? '', value: i.value ?? null })),
+      })),
     };
   }
 
@@ -138,7 +143,8 @@
   const live = new LiveClient((changes) => { liveVals = { ...liveVals, ...changes }; });
   const usedTags = $derived([...new Set([
     ...cfg.signals.flatMap((s) => [s.tag, s.fb]), cfg.fault, ...cfg.anims.map((a) => a.src), ...cfg.anims.map((a) => a.params.dir_tag ?? ''),
-  ].filter((t) => t && t !== POS && tagByName.has(t)))].sort());
+    ...cfg.logic.flatMap((b) => b.inputs.map((i) => i.src)),
+  ].filter((t) => t && t !== POS && !isLogicRef(t) && tagByName.has(t)))].sort());
   $effect(() => { live.subscribe(usedTags); });
   onDestroy(() => {
     live.close();
@@ -146,6 +152,8 @@
   });
   const valueOf = (t: string) => liveVals[t]?.value;
   const found = $derived(isPos ? foundPosition(cfg, valueOf) : null);
+  const logicNow = $derived(evalLogic(cfg.logic, valueOf));
+  const triText = (v: boolean | null | undefined) => (v === true ? 'Til' : v === false ? 'Fra' : 'ukendt');
   const fmt = (v: unknown) => (v === undefined || v === null ? '—' : typeof v === 'boolean' ? (v ? 'Til' : 'Fra') : String(v));
 
   // ---------------------------------------------------------------- redigering
@@ -195,6 +203,40 @@
     preset(cfg);
     step = 1;
   }
+
+  // ---- logikblokke
+  const blockLabel = (b: LogicBlock) => `${b.id}${b.name ? ` – ${b.name}` : ''}`;
+  const srcMode = (a: Anim): string => (a.src === POS ? POS : isLogicRef(a.src) ? 'logic' : 'tag');
+  function setSrcMode(a: Anim, mode: string): void {
+    a.src = mode === POS ? POS : mode === 'logic' ? `@${cfg.logic[0]?.id ?? ''}` : '';
+    resetParams(a);
+  }
+  function addBlock(): void {
+    if (cfg.logic.length >= MAX_LOGIC) return;
+    cfg.logic.push(newBlock(cfg));
+  }
+  function addInput(b: LogicBlock): void {
+    if (b.inputs.length >= MAX_LOGIC_INPUTS) return;
+    b.inputs.push({ src: '', neg: false, cmp: '', value: null });
+  }
+  /** Tagget er valgt: et tal-tag får en sammenligning (≥), et til/fra-tag ingen. */
+  function inputTagChanged(i: LogicBlock['inputs'][number]): void {
+    const k = tagKindOf(i.src);
+    if (k === 'num') {
+      if (!i.cmp) i.cmp = 'ge';
+    } else if (k === 'bool') {
+      i.cmp = '';
+      i.value = null;
+    }
+  }
+  /** Blokke en indgang må bruge: kun dem over blokken (serveren afviser løkker). */
+  const earlier = (b: LogicBlock) => cfg.logic.slice(0, cfg.logic.indexOf(b));
+  function setInputMode(b: LogicBlock, i: LogicBlock['inputs'][number], mode: string): void {
+    i.src = mode === 'block' ? `@${earlier(b)[0]?.id ?? ''}` : '';
+    i.cmp = '';
+    i.value = null;
+  }
+  const num2 = (v: string): number | null => (v.trim() !== '' && Number.isFinite(Number(v.replace(',', '.'))) ? Number(v.replace(',', '.')) : null);
 
   function addAnim(): void {
     if (cfg.anims.length >= MAX_ANIMS) return;
@@ -402,6 +444,48 @@
               </label>
             {/if}
           </div>
+          <h4>Logik ({cfg.logic.length}/{MAX_LOGIC})</h4>
+          <p class="small muted">Saml flere tags i én betingelse (fx pumpe kører OG ventil åben), og brug den som kilde til en animation. En blok kan også bruge blokkene over sig.</p>
+          {#each cfg.logic as b (b.id)}
+            <div class="anim logic">
+              <div class="row wrap">
+                <strong>{b.id}</strong>
+                <input class="name" bind:value={b.name} maxlength="40" placeholder="Navn (fx Pumpe kører og ventil åben)" aria-label="Blokkens navn" />
+                <select bind:value={b.op} aria-label="Regel"><option value="and">AND — alle skal være Til</option><option value="or">OR — mindst én Til</option></select>
+                <label class="opt small"><input type="checkbox" bind:checked={b.invert} /> NOT på resultatet</label>
+                <span class="spacer"></span>
+                <button class="small" onclick={() => removeBlock(cfg, b.id)} aria-label="Fjern blok">✕</button>
+              </div>
+              {#each b.inputs as inp, k}
+                {@const refs = earlier(b)}
+                {@const isBlock = isLogicRef(inp.src)}
+                <div class="row wrap small input">
+                  <label class="opt"><input type="checkbox" bind:checked={inp.neg} /> NOT</label>
+                  {#if refs.length}
+                    <select value={isBlock ? 'block' : 'tag'} onchange={(e) => setInputMode(b, inp, e.currentTarget.value)} aria-label="Indgangstype">
+                      <option value="tag">tag</option><option value="block">blok</option>
+                    </select>
+                  {/if}
+                  {#if isBlock}
+                    <select bind:value={inp.src} aria-label="Blok">{#each refs as r}<option value={'@' + r.id}>{blockLabel(r)}</option>{/each}</select>
+                  {:else}
+                    <TagSelect bind:value={inp.src} {tags} onchange={() => inputTagChanged(inp)} />
+                    {#if inp.src && tagKindOf(inp.src) !== 'bool'}
+                      <select bind:value={inp.cmp} aria-label="Sammenligning">
+                        {#if tagKindOf(inp.src) === 'unknown'}<option value="">er Til</option>{/if}
+                        {#each Object.entries(CMP_TXT) as [v, t]}<option value={v}>{t}</option>{/each}
+                      </select>
+                      {#if inp.cmp}<input class="n" value={inp.value ?? ''} onchange={(e) => (inp.value = num2(e.currentTarget.value))} aria-label="Grænseværdi" />{/if}
+                    {/if}
+                  {/if}
+                  <button class="small" onclick={() => b.inputs.splice(k, 1)} disabled={b.inputs.length <= 1} aria-label="Fjern indgang">✕</button>
+                </div>
+              {/each}
+              <div class="row small"><button class="small" onclick={() => addInput(b)} disabled={b.inputs.length >= MAX_LOGIC_INPUTS}>+ Indgang ({b.inputs.length}/{MAX_LOGIC_INPUTS})</button>
+                <span class="muted">{describeBlock(b)}</span></div>
+            </div>
+          {/each}
+          <button class="small" onclick={addBlock} disabled={cfg.logic.length >= MAX_LOGIC}>+ Logikblok</button>
           <h4>Animationer ({cfg.anims.length}/{MAX_ANIMS})</h4>
           {#each cfg.anims as a, i}
             {@const kind = srcKind(a)}
@@ -414,12 +498,18 @@
                   {#each typesFor(partInfo(a.part)) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
                 </select>
                 <span class="small muted">styres af</span>
-                {#if isPos}
-                  <select value={a.src === POS ? POS : 'tag'} onchange={(e) => { a.src = e.currentTarget.value === POS ? POS : ''; resetParams(a); }} aria-label="Kilde">
-                    <option value={POS}>symbolets position</option><option value="tag">et tag</option>
+                {#if isPos || cfg.logic.length}
+                  <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
+                    {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
+                    {#if cfg.logic.length}<option value="logic">en logikblok</option>{/if}
                   </select>
                 {/if}
-                {#if a.src !== POS}<TagSelect bind:value={a.src} {tags} onchange={() => resetParams(a)} />{/if}
+                {#if srcMode(a) === 'tag'}<TagSelect bind:value={a.src} {tags} onchange={() => resetParams(a)} />{/if}
+                {#if srcMode(a) === 'logic'}
+                  <select bind:value={a.src} onchange={() => resetParams(a)} aria-label="Logikblok">
+                    {#each cfg.logic as b}<option value={'@' + b.id}>{blockLabel(b)}</option>{/each}
+                  </select>
+                {/if}
                 <span class="spacer"></span>
                 <button class="small" onclick={() => moveAnim(i, -1)} disabled={i === 0} aria-label="Op">▲</button>
                 <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
@@ -472,6 +562,14 @@
               </tbody>
             </table>
             {#if isPos}<p class="small">PLC'ens position lige nu: <strong>{found !== null ? cfg.positions[found].label : 'ingen entydig position'}</strong></p>{/if}
+          {/if}
+          {#if cfg.logic.length}
+            <h4>Logik (live)</h4>
+            <table class="grid">
+              <tbody>
+                {#each cfg.logic as b}<tr><td><strong>{b.id}</strong> {b.name}</td><td class="small">{describeBlock(b)}</td><td><strong>{triText(logicNow[b.id])}</strong></td></tr>{/each}
+              </tbody>
+            </table>
           {/if}
           {#if preview?.plans.length}
             <h4>Skriveplan pr. position (fra den aktuelle tilstand)</h4>
@@ -617,6 +715,8 @@
   .cell.on { background: #c8e6c9; border-color: var(--ok); }
   .cell.off { background: #eeeeee; }
   .active-row td { background: var(--panel-2); }
+  .name { min-width: 14em; }
+  .logic .input { margin: .15rem 0 .15rem 1rem; }
   .anim { border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem; margin: .35rem 0; background: var(--panel-2); }
   .params { margin-top: .3rem; }
   .errors { color: var(--alarm); margin: .5rem 0; }

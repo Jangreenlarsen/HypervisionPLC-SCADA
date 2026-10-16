@@ -2,6 +2,14 @@
 
 ---
 
+## v0.44.0 — 2026-10-16 — Logikblokke: animationer der afhænger af flere tags
+
+- I guidens **trin 4 (Visning)** kan du lave **logikblokke**: AND eller OR over op til 4 indgange, med NOT på hver indgang og på resultatet. Eksempel: *pumpe kører (coils0) OG ventil åben (input0)*.
+- En indgang kan være et til/fra-tag, et tal-tag sammenlignet med en grænse (≥, ≤, =) eller en anden blok **over** den — så kan du bygge flere niveauer.
+- Vælg blokken som **kilde** i en animation ("en logikblok"). Så er animationen aktiv, når betingelsen er opfyldt.
+- Er et tag ukendt (fx kommunikationsfejl), men en anden indgang allerede afgør resultatet, bruges det (AND med en Fra giver Fra). Ellers er resultatet ukendt, og delen vises som tegnet.
+- **Trin 6 (Test og gem)** viser hver blok og dens værdi lige nu.
+
 ## v0.43.0 — 2026-10-16 — Symboler opsættes med guiden i 6 trin
 
 - I **Tegn**: giv et symbol et navn, og tryk **Opsæt symbol (6 trin)**. Nyindsatte symboler opfordrer til det. Tegningen gemmes og udgives først (du bliver spurgt).

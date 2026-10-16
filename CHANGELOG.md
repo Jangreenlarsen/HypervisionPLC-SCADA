@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.44.0 build 0062] — 2026-10-16 — Logikblokke i symbol-guiden
+
+**Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først). Kun kompilering er kontrolleret, plus en kørsel af de eksisterende suiter (backend symbol/backup: 106 bestået, frontend: 175 bestået) og en røgtest af beregningen.
+
+- `backend/app/services/symbols.py` — nyt skema `logic` (højst 8 blokke): `LogicBlock` (`id` L1…, `name`, `op` and/or, 1–4 `inputs`, `invert`) og `LogicInput` (`src` = tag eller tidligere blok `@L1`, `neg`, for tal-tags `cmp` ge/le/eq + `value`). `evaluate_logic()` regner blokkene i rækkefølge med tre-værdi-logik: en afgørende indgang vinder (AND med Fra = Fra, OR med Til = Til), ellers er resultatet ukendt. Valideringen (trin 4) kontrollerer unikke id'er, 1–4 indgange, at tags findes, at en blok kun bruger blokke over sig (ingen løkker), at tal-tags har sammenligning og til/fra-tags ikke har, og at animationer kun peger på blokke der findes (ikke Niveau/Gennemsigtighed); en ubrugt blok giver en advarsel. `config_tags` tager blokkenes tags med (så de ikke kan slettes, og backup tjekker dem); animationer med kilde `@L1` bliver bindinger på blokkens pseudo-tag; `tags_for_drawing` tager blokkenes pseudo-tags med (adgang pr. tegning).
+- `backend/app/services/symbol_runtime.py` — beregner logikblokkene for alle symboler med `logic` (også visnings-symboler) og lægger dem i live-cachen som `sym:<tegning>:<element>:logic:<id>`; slettede blokke ryddes. Ukendt resultat = kvalitet `comm_error`.
+- `frontend/src/lib/symbolConfig.ts` — typer, `newBlock`, `removeBlock`, `describeBlock` og `evalLogic` (samme regler som serveren, til trin 6).
+- `frontend/src/lib/SymbolGuide.svelte` — sektionen **Logik** øverst i trin 4 (blokke med AND/OR, NOT pr. indgang og på resultatet, op til 4 indgange, tal-tags med ≥/≤/=, en blok som indgang i en senere blok); en animations kilde kan nu være **en logikblok**; trin 6 viser blokkenes live-værdier.
+
 ## [0.43.0 build 0061] — 2026-10-16 — Guiden i 6 trin er den primære model for symboler
 
 **Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først); kun kompilering er kontrolleret.
