@@ -78,11 +78,29 @@
   const groups = $derived(navFor(me?.role));
   const current = $derived(pageFor(route, me?.role));
   const page = $derived(current.id);
-  // Menuen foldes ud OVER indholdet (skubber ikke tegningen ned) og lukkes ved valg, Escape eller klik udenfor
-  let menuOpen = $state(false);
-  $effect(() => { void route; menuOpen = false; });
+  // Fire menupunkter i topbjælken (Drift, Opsætning, System, Bruger). En rullemenu åbner af sig selv når musen
+  // føres hen over punktet og lukker lidt efter at den forlader det; klik/tryk og tastatur virker også (touch har ingen hover).
+  // Menuen foldes ud OVER indholdet (skubber ikke tegningen ned) og lukkes ved valg, Escape eller klik udenfor.
+  let openMenu = $state<string | null>(null);
+  let closeTimer: ReturnType<typeof setTimeout> | null = null;
+  const HOVER_CLOSE_MS = 220;   // tid til at føre musen skråt fra punktet ned i menuen uden at den lukker
+  $effect(() => { void route; openMenu = null; });
+  function showMenu(id: string): void {
+    if (closeTimer) clearTimeout(closeTimer);
+    closeTimer = null;
+    openMenu = id;
+  }
+  function hideMenuSoon(): void {
+    if (closeTimer) clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => (openMenu = null), HOVER_CLOSE_MS);
+  }
+  const onHover = (id: string) => (e: PointerEvent) => { if (e.pointerType === 'mouse') showMenu(id); };
+  const onLeave = (e: PointerEvent) => { if (e.pointerType === 'mouse') hideMenuSoon(); };
   function onKey(e: KeyboardEvent): void {
-    if (e.key === 'Escape' && menuOpen) menuOpen = false;
+    if (e.key === 'Escape' && openMenu) openMenu = null;
+  }
+  function onWindowClick(e: MouseEvent): void {
+    if (openMenu && !(e.target as Element | null)?.closest?.('.menubar')) openMenu = null;
   }
   const ROLE_TXT: Record<string, string> = { viewer: 'viewer', operator: 'operatør', panel: 'driftpanel', engineer: 'tekniker', admin: 'admin' };
   const canEdit = $derived(roleAtLeast(me?.role, 'engineer'));
@@ -91,7 +109,7 @@
   const isPanel = $derived(me?.role === 'panel' && !me.must_change_password && !changingPassword);
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} onclick={onWindowClick} />
 {#snippet icon(name: string)}<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">{@html NAV_ICON[name]}</svg>{/snippet}
 
 {#if isPanel && me}
@@ -103,9 +121,36 @@
 {:else}
 <header>
   {#if me && !me.must_change_password}
-    <button class="menu-btn" aria-expanded={menuOpen} aria-controls="hovedmenu" onclick={() => (menuOpen = !menuOpen)}>
-      {@render icon(menuOpen ? 'close' : 'menu')}<span>Menu</span>
-    </button>
+    <nav class="menubar" aria-label="Hovedmenu">
+      {#each groups as g}
+        <div class="menu" class:open={openMenu === g.id} role="presentation" onpointerenter={onHover(g.id)} onpointerleave={onLeave}>
+          <button class="top" class:here={groupOf(page)?.id === g.id} aria-haspopup="true" aria-expanded={openMenu === g.id}
+                  onclick={() => (openMenu === g.id ? (openMenu = null) : showMenu(g.id))}>{g.label}<span class="caret" aria-hidden="true"></span></button>
+          {#if openMenu === g.id}
+            <div class="drop" role="menu">
+              {#each g.pages as p}
+                <a href={'#' + p.id} role="menuitem" class:active={page === p.id} aria-current={page === p.id ? 'page' : undefined}
+                   onclick={() => (openMenu = null)}>{@render icon(p.icon)}<span>{p.label}</span></a>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/each}
+      <div class="menu user" class:open={openMenu === 'user'} role="presentation" onpointerenter={onHover('user')} onpointerleave={onLeave}>
+        <button class="top" aria-haspopup="true" aria-expanded={openMenu === 'user'} title="Rolle: {ROLE_TXT[me.role] ?? me.role}"
+                onclick={() => (openMenu === 'user' ? (openMenu = null) : showMenu('user'))}>
+          {@render icon('user')}<span class="name">Bruger</span><span class="caret" aria-hidden="true"></span>
+        </button>
+        {#if openMenu === 'user'}
+          <div class="drop right" role="menu">
+            <p class="who-line"><strong>{me.username}</strong> <span class="role">· {ROLE_TXT[me.role] ?? me.role}</span></p>
+            <button role="menuitem" onclick={() => { openMenu = null; changingPassword = true; }}>{@render icon('key')}<span>Skift adgangskode</span></button>
+            <button role="menuitem" onclick={() => { openMenu = null; logout(); }}>{@render icon('logout')}<span>Log ud</span></button>
+            <p class="about">HypervisionPLC SCADA{#if info}<br />v{info.version} build {info.build}{/if}</p>
+          </div>
+        {/if}
+      </div>
+    </nav>
     <span class="crumb"><span class="grp">{groupOf(page)?.label}</span> <span class="sep">›</span> <strong>{current.label}</strong></span>
     <span class="spacer"></span>
     <a href="#alarms" class="bell {alarmSummary.unacked ? 'unacked' : ''} {alarmSummary.high ? 'high' : alarmSummary.active ? 'medium' : ''}"
@@ -115,35 +160,12 @@
     <!-- AGPL-3.0 §13: link til kildekoden altid synligt -->
     <a class="src" href={info?.source_url ?? 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener"
        title="Fri software under AGPL-3.0{info ? ` · v${info.version} build ${info.build}` : ''}">AGPL · kildekode</a>
-    <span class="who" title="Rolle: {ROLE_TXT[me.role] ?? me.role}">{@render icon('user')}<span class="name">{me.username}</span></span>
   {:else}
     <span class="brand">HypervisionPLC SCADA</span>
     <span class="spacer"></span>
     <a class="src" href={info?.source_url ?? 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener">AGPL · kildekode</a>
   {/if}
 </header>
-
-{#if menuOpen && me}
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="menu-scrim" onclick={() => (menuOpen = false)}></div>
-  <nav id="hovedmenu" class="menu-panel" aria-label="Hovedmenu">
-    {#each groups as g}
-      <section>
-        <h2>{g.label}</h2>
-        {#each g.pages as p}
-          <a href={'#' + p.id} class:active={page === p.id} aria-current={page === p.id ? 'page' : undefined}
-             onclick={() => (menuOpen = false)}>{@render icon(p.icon)}<span>{p.label}</span></a>
-        {/each}
-      </section>
-    {/each}
-    <section class="me">
-      <h2>{me.username} <span class="role">· {ROLE_TXT[me.role] ?? me.role}</span></h2>
-      <button onclick={() => { menuOpen = false; changingPassword = true; }}>{@render icon('key')}<span>Skift adgangskode</span></button>
-      <button onclick={() => { menuOpen = false; logout(); }}>{@render icon('logout')}<span>Log ud</span></button>
-      <p class="about">HypervisionPLC SCADA{#if info}<br />v{info.version} build {info.build}{/if}</p>
-    </section>
-  </nav>
-{/if}
 
 <main>
   {#if error}<div class="error">{error}</div>{/if}
@@ -191,7 +213,7 @@
 {/if}
 
 <style>
-  /* Smal topbjælke (40 px); menuen foldes ud over indholdet i et panel, så tegningen beholder pladsen */
+  /* Smal topbjælke (40 px) med fire menupunkter; rullemenuerne foldes ud over indholdet, så tegningen beholder pladsen */
   header {
     position: sticky; top: 0; z-index: 40;
     display: flex; align-items: center; gap: .6rem;
@@ -201,11 +223,33 @@
   .brand { font-weight: 600; padding-left: .4rem; }
   .spacer { flex: 1; }
   .ico { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-  .menu-btn {
-    display: inline-flex; align-items: center; gap: .4rem; height: 2rem; padding: 0 .7rem;
-    background: transparent; color: #fff; border: 1px solid #666; border-radius: 4px;
+  .menubar { display: flex; align-items: center; gap: .15rem; height: 100%; }
+  .menu { position: relative; height: 100%; display: flex; align-items: center; }
+  .menu.user { margin-left: .35rem; padding-left: .35rem; border-left: 1px solid #555; }
+  .top {
+    display: inline-flex; align-items: center; gap: .35rem; height: 2rem; padding: 0 .75rem;
+    background: transparent; color: #eee; border: 1px solid transparent; border-radius: 4px; font: inherit; font-size: .95rem; cursor: pointer;
   }
-  .menu-btn:hover, .menu-btn[aria-expanded="true"] { background: #575757; border-color: #888; }
+  .top:hover, .menu.open .top { background: #575757; border-color: #777; color: #fff; }
+  .top.here { box-shadow: inset 0 -2px 0 var(--accent); }
+  .caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; opacity: .7; }
+  .drop {
+    position: absolute; top: 100%; left: 0; min-width: 13rem; padding: .35rem;
+    background: var(--panel); color: var(--text); border: 1px solid var(--line); border-top: 0;
+    border-radius: 0 0 var(--radius) var(--radius); box-shadow: 0 10px 28px rgba(0, 0, 0, .28);
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .drop.right { left: auto; right: 0; min-width: 15rem; }
+  .drop a, .drop button {
+    display: flex; align-items: center; gap: .6rem; width: 100%; text-align: left;
+    padding: .45rem .5rem; border-radius: var(--radius); color: var(--text); text-decoration: none;
+    background: none; border: 0; font: inherit; cursor: pointer;
+  }
+  .drop a:hover, .drop button:hover { background: var(--panel-2); }
+  .drop a.active { background: var(--accent); color: #fff; }
+  .drop .who-line { margin: .25rem .5rem .3rem; }
+  .drop .role { color: var(--muted); }
+  .drop .about { font-size: .75rem; color: var(--muted); margin: .4rem .5rem .2rem; border-top: 1px solid var(--line); padding-top: .4rem; }
   .crumb { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; font-size: .95rem; }
   .crumb .grp, .crumb .sep { color: #bbb; }
   .bell {
@@ -219,28 +263,6 @@
   @keyframes bell { to { opacity: .55; } }
   @media (prefers-reduced-motion: reduce) { .bell.unacked { animation: none; } }
   .src { color: #bbb; font-size: .75rem; white-space: nowrap; }
-  .who { display: inline-flex; align-items: center; gap: .3rem; color: #ddd; font-size: .9rem; white-space: nowrap; }
-
-  .menu-scrim { position: fixed; inset: 2.5rem 0 0 0; background: rgba(0, 0, 0, .25); z-index: 30; }
-  .menu-panel {
-    position: fixed; top: 2.5rem; left: 0; z-index: 35;
-    width: min(100vw, 56rem); max-height: calc(100vh - 2.5rem); overflow-y: auto;
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .25rem 1rem;
-    padding: .75rem 1rem 1rem; background: var(--panel); color: var(--text);
-    border: 1px solid var(--line); border-top: 0; border-radius: 0 0 var(--radius) 0; box-shadow: 0 10px 28px rgba(0, 0, 0, .25);
-  }
-  .menu-panel section { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-  .menu-panel h2 { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: .35rem .5rem .3rem; }
-  .menu-panel a, .menu-panel button {
-    display: flex; align-items: center; gap: .6rem; width: 100%; text-align: left;
-    padding: .45rem .5rem; border-radius: var(--radius); color: var(--text); text-decoration: none;
-    background: none; border: 0; font: inherit; cursor: pointer;
-  }
-  .menu-panel a:hover, .menu-panel button:hover { background: var(--panel-2); }
-  .menu-panel a.active { background: var(--accent); color: #fff; }
-  .menu-panel .me { border-left: 1px solid var(--line); padding-left: .75rem; }
-  .menu-panel .role { text-transform: none; letter-spacing: 0; font-weight: 400; }
-  .menu-panel .about { font-size: .75rem; color: var(--muted); margin: .5rem .5rem 0; }
 
   /* Ingen breddegrænse: SCADA bruges også på store kontrolrumsskærme */
   main { padding: .75rem 1rem 1rem; }
@@ -248,8 +270,8 @@
   @media (max-width: 640px) {
     main { padding: .75rem 16px; }
     header { padding: 0 .5rem; gap: .45rem; }
-    .crumb .grp, .crumb .sep, .who .name, .menu-btn span { display: none; }
+    .crumb, .menu.user .name { display: none; }
+    .top { padding: 0 .5rem; }
     .src { font-size: .7rem; }
-    .menu-panel .me { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: .5rem; }
   }
 </style>

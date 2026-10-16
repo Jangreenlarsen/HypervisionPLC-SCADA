@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.51.0 build 0073] — 2026-10-16 — Hovedmenu: Drift, Opsætning, System, Bruger med rullemenuer
+
+- `frontend/src/App.svelte` — topbjælken har nu fire menupunkter i stedet for ét "Menu"-panel: **Drift**, **Opsætning**, **System** (efter rolle) og **Bruger**. En rullemenu åbner af sig selv, når musen føres hen over et punkt (kun rigtig mus — touch bruger tryk), lukker 220 ms efter at musen forlader den (så man kan gå skråt ned i menuen) og skifter straks ved flytning mellem punkter; klik åbner/lukker, Escape og klik udenfor lukker, valg af en side lukker. Det punkt hvis side man står på, er understreget. **Bruger** (til højre for menuerne) viser navn og rolle, Skift adgangskode, Log ud og version. Brødkrumme, alarmklokke og kildekode-link uændrede; Driftpanel-rollen har stadig ingen topmenu. Menuindholdet er uændret (`nav.ts`). Layoutet er **set** i browser på testserveren.
+
 ## [0.50.1 build 0072] — 2026-10-16 — fix: OTA viser build og tjekker build; pakkekort skjules under opdatering
 
 Fundet ved afprøvning på testserveren (se BUGS.md); selve opdateringen blev installeret **gennem OTA-siden**.

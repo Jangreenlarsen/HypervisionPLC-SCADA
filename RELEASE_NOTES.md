@@ -2,6 +2,12 @@
 
 ---
 
+## v0.51.0 — 2026-10-16 — Ny topmenu: Drift, Opsætning, System, Bruger
+
+- Menuen er nu fire punkter i topbjælken: **Drift**, **Opsætning**, **System** og **Bruger**. Før musen hen over et punkt, så folder menuen sig ud af sig selv, og du kan vælge siden direkte.
+- **Bruger** har dit navn, **Skift adgangskode**, **Log ud** og versionen.
+- På touch-skærme trykker du på punktet i stedet. Escape eller et klik udenfor lukker menuen.
+
 ## v0.50.1 — 2026-10-16 — OTA: rettelser fra afprøvningen
 
 - Resultatet af en opdatering viser nu både version og build (fx *0.50.0 build 0072 → 0.50.0 build 0074*), og sundhedstjekket kræver den rigtige build.
