@@ -1,6 +1,7 @@
 // Formular-model for én binding i editoren, og konvertering til/fra backendens params.
 // Backenden validerer igen (bindings.py) — her fanges de oplagte fejl med danske beskeder.
 import type { Binding } from './api';
+import { expressionError } from './expression';
 
 export type Anim = Binding['anim'];
 
@@ -38,6 +39,7 @@ export interface BindingForm {
   show_unit: boolean;
   prefix: string;
   suffix: string;
+  expression: string;
   on: string;
   off: string;
   thresholds: Threshold[];
@@ -70,7 +72,7 @@ export interface BindingForm {
 
 export function emptyForm(tag = '', anim: Anim = 'text'): BindingForm {
   return {
-    tag, anim, decimals: '', true_text: 'Til', false_text: 'Fra', show_unit: true, prefix: '', suffix: '',
+    tag, anim, decimals: '', true_text: 'Til', false_text: 'Fra', show_unit: true, prefix: '', suffix: '', expression: '',
     on: '#2e7d32', off: '#9e9e9e', thresholds: [], invert: false,
     min: '0', max: '100', direction: 'up', angle_min: '0', angle_max: '360', dx: '100', dy: '0',
     mode: 'onoff', reverse: false, base: '#555555', light: '#8fc8ea', speed: '40', dash: '12', arm: '', arm_flow: 'in', dir_tag: '',
@@ -132,6 +134,7 @@ export function toForm(b: Pick<Binding, 'tag' | 'anim' | 'params'>): BindingForm
     show_unit: p.show_unit ?? true,
     prefix: str(p.prefix, ''),
     suffix: str(p.suffix, ''),
+    expression: str(p.expression, ''),
     on: str(p.on, f.on),
     off: str(p.off, f.off),
     thresholds: (p.thresholds ?? []).map((t: { value: number; color: string }) => ({ value: String(t.value), color: t.color })),
@@ -190,6 +193,12 @@ export function fromForm(f: BindingForm): { tag: string; anim: Anim; params: Rec
     case 'text': {
       params = { true_text: f.true_text, false_text: f.false_text, show_unit: f.show_unit };
       // Mellemrum er bevidste ("Tank : ") og bevares; kun tekst der er helt tom udelades
+      const expr = f.expression.trim();
+      if (expr) {
+        const problem = expressionError(expr);
+        if (problem) throw new Error(`Beregning: ${problem}`);
+        params.expression = expr;
+      }
       if (f.prefix !== '') params.prefix = f.prefix;
       if (f.suffix !== '') params.suffix = f.suffix;
       if (f.prefix.length > 40 || f.suffix.length > 40) throw new Error('Tekst før/efter må højst være 40 tegn');

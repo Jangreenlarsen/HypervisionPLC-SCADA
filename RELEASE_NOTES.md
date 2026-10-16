@@ -2,6 +2,13 @@
 
 ---
 
+## v0.41.0 — 2026-10-16 — Beregning på tekst-felter
+
+- Tekst-animationen under **Bindinger** har fået feltet **Beregning**, så værdien kan regnes om, før den vises. Fx `x / 10` viser registerværdien 128 som 12,8. `x` er tagets værdi.
+- Du kan bruge + − * / %, parenteser og få funktioner (`round`, `abs`, `min`, `max` …), fx `x * 1,8 + 32` eller `round(x / 10)`.
+- **Decimaler** og **enhed** gælder resultatet af beregningen.
+- Skriver du en ugyldig formel, får du en forklaring med det samme, og den kan ikke gemmes. Deler du med 0, vises et tankestreg.
+
 ## v0.40.0 — 2026-10-14 — Ny hovedmenu
 
 - Menuen foroven er nu én smal bjælke: **Menu**, hvor du er (fx "Drift › Overview"), antal alarmer og dit brugernavn.

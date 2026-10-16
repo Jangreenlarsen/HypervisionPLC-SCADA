@@ -3,6 +3,7 @@
   import { get, put, type Binding, type DrawingView, type LiveValue } from '../lib/api';
   import { ANIMS, flatten, fromForm, groupIds, isClick, nextBinding, pickElement, toDrafts, toForm, toHex, type BindingForm, type Draft } from '../lib/bindingForm';
   import { textFor } from '../lib/animate';
+  import { expressionError } from '../lib/expression';
   import { ancestorsOf, buildElements, defaultExpanded, descendantCount, displayName, relevantElements, showsId, visibleRows, type ElementInfo } from '../lib/elementTree';
   import { bindingTags, findElement, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
@@ -478,11 +479,15 @@
                   <div class="grid-form">
                     <label>Tekst før<input bind:value={d.prefix} oninput={changed} maxlength="40" placeholder="fx Tank : " /></label>
                     <label>Tekst efter<input bind:value={d.suffix} oninput={changed} maxlength="40" placeholder="fx  liter" /></label>
+                    <label>Beregning<input bind:value={d.expression} oninput={changed} maxlength="80" placeholder="fx x / 10" /></label>
                     <label>Decimaler<input bind:value={d.decimals} oninput={changed} placeholder="tag-standard" inputmode="numeric" /></label>
                     <label>Tekst ved sand<input bind:value={d.true_text} oninput={changed} maxlength="40" /></label>
                     <label>Tekst ved falsk<input bind:value={d.false_text} oninput={changed} maxlength="40" /></label>
                     <label class="check"><input type="checkbox" bind:checked={d.show_unit} onchange={changed} /> Vis enhed</label>
                   </div>
+                  {#if expressionError(d.expression)}<p class="small error">Beregning: {expressionError(d.expression)}</p>{/if}
+                  <p class="muted small">Beregning (valgfri): <code>x</code> er tagets værdi — fx <code>x / 10</code>, <code>x * 1,8 + 32</code>, <code>round(x / 10)</code>.
+                    + − * / % og parenteser; funktioner abs, round, floor, ceil, sqrt, min, max (flere værdier adskilles med <code>;</code>). Decimaler og enhed gælder resultatet.</p>
                   <p class="muted small">Vises som: <code class="preview">{textPreview(d)}</code></p>
                 {:else if d.anim === 'fill' || d.anim === 'stroke'}
                   <div class="grid-form">

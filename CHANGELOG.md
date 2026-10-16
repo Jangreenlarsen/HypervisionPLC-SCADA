@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.41.0 build 0059] — 2026-10-16 — Beregning på tekst-bindinger
+
+**Bemærk:** implementeret efter Jans ønske UDEN nye tests — Jan tester først, derefter gennemgås og testes resten (se FEATURES). Kun kompilering/typecheck er kontrolleret.
+
+- `frontend/src/lib/expression.ts` (ny) — lille parser uden `eval`: tal (komma eller punktum), `x`/`værdi`/`parameter` = værdien, `+ - * / %`, parenteser, fortegn og funktionerne abs, round, floor, ceil, sqrt, min, max (flere værdier adskilles med `;`, da komma er decimalkomma); højst 80 tegn; dansk fejltekst ("Ukendt navn …", "Manglende )" …); resultat der ikke er et endeligt tal (fx ÷ 0) = ingen værdi
+- `frontend/src/lib/animate.ts` — tekst-animationen beregner udtrykket FØR decimaler og enhed (`x / 10` med 1 decimal: 128 → `12.8`); gælder kun tal, ikke til/fra
+- `frontend/src/lib/bindingForm.ts` + `pages/Editor.svelte` — feltet **Beregning** i tekst-animationen med hjælpetekst, fejl vist mens man skriver og i "Vises som"-linjen; ugyldigt udtryk afvises ved gem
+- `backend/app/services/expression.py` (ny) + `services/bindings.py` — `TextParams.expression`; serveren parser samme grammatik og afviser ugyldige udtryk ved gem, opret, import og restore (så en tegning aldrig kan indeholde en formel der ikke kan beregnes)
+
 ## [0.40.0 build 0058] — 2026-10-14 — Ny hovedmenu: smal topbjælke, menuen foldes ud over tegningen
 
 - `frontend/src/lib/nav.ts` (ny) + `nav.test.ts` — siderne i grupperne Drift / Opsætning / System med rollekrav og ikoner; `navFor(rolle)` (tomme grupper udelades), `pageFor(rute, rolle)` (ikke tilladt/ukendt side → Overview), `groupOf`.
