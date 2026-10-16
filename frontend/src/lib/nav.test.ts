@@ -18,6 +18,14 @@ describe('hovedmenuen', () => {
     expect(pageFor('findes-ikke', 'admin').id).toBe('overview');
     expect(groupOf('backup')?.label).toBe('System');
   });
+  it('Manual er en side under Bruger for alle roller — ikke en gruppe-side', () => {
+    expect(pageFor('manual', 'viewer').id).toBe('manual');
+    expect(pageFor('manual/symboler/m-trin', 'admin').id).toBe('manual');
+    expect(pageFor('manual', undefined).id).toBe('overview');          // ikke logget ind
+    expect(groupOf('manual')?.label).toBe('Bruger');
+    expect(ids('viewer').join()).not.toContain('manual');
+    expect(NAV_ICON.manual).toBeTruthy();
+  });
   it('hver side har et ikon og et unikt id', () => {
     const pages = NAV.flatMap((g) => g.pages);
     expect(new Set(pages.map((p) => p.id)).size).toBe(pages.length);

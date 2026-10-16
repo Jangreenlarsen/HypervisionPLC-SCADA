@@ -2,6 +2,12 @@
 
 ---
 
+## v0.52.0 — 2026-10-16 — Brugermanual
+
+- Ny side **Bruger › Manual** med en komplet brugermanual: hvordan systemet hænger sammen, roller, alle sider i menuen, tags og PLC'er, tegninger, animationer, symbolguiden i 6 trin, logikblokke, alle 85 symboler i biblioteket, ugeprogrammer, backup og opdatering — og **11 eksempler trin for trin** (pumpe, tank, 3-vejs ventil, logik, setpunkt med beregning, alarm, ugeprogram, omskifter, ekstern Modbus, opdatering).
+- Du kan **søge** i hele manualen, hoppe mellem kapitler og direkte til afsnit.
+- Biblioteks-kapitlet opdateres automatisk, når der kommer nye symboler.
+
 ## v0.51.1 — 2026-10-16 — Bruger-menuen til højre
 
 - **Bruger** står nu yderst til højre i topbjælken, som du kender det fra andre programmer.

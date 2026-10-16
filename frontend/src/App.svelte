@@ -12,6 +12,7 @@
   import Audit from './pages/Audit.svelte';
   import Backup from './pages/Backup.svelte';
   import Update from './pages/Update.svelte';
+  import Manual from './pages/Manual.svelte';
   import Alarms from './pages/Alarms.svelte';
   import Energy from './pages/Energy.svelte';
   import Schedules from './pages/Schedules.svelte';
@@ -155,6 +156,7 @@
         {#if openMenu === 'user'}
           <div class="drop right" role="menu">
             <p class="who-line"><strong>{me.username}</strong> <span class="role">· {ROLE_TXT[me.role] ?? me.role}</span></p>
+            <a href="#manual" role="menuitem" class:active={page === 'manual'} onclick={() => (openMenu = null)}>{@render icon('manual')}<span>Manual</span></a>
             <button role="menuitem" onclick={() => { openMenu = null; changingPassword = true; }}>{@render icon('key')}<span>Skift adgangskode</span></button>
             <button role="menuitem" onclick={() => { openMenu = null; logout(); }}>{@render icon('logout')}<span>Log ud</span></button>
             <p class="about">HypervisionPLC SCADA{#if info}<br />v{info.version} build {info.build}{/if}</p>
@@ -205,6 +207,8 @@
     <Backup />
   {:else if page === 'update'}
     <Update />
+  {:else if page === 'manual'}
+    <Manual {route} />
   {:else if page === 'users'}
     <Users {me} />
   {:else}

@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.52.0 build 0075] — 2026-10-16 — Brugermanual i systemet
+
+- `frontend/src/manual/*.md` (nye, 11 kapitler) — kom i gang og roller; Drift (Overview, Alarmer, Trends, Energi); PLC'er og tags; Tegninger og Tegn; Bindinger og animationer (inkl. beregning); symboler og guiden (positioner, kontaktplaner, logikblokke, nøglelås, hurtig opsætning af 3-vejs ventil); symbolbiblioteket (**genereres** af `src/lib/manualGen.test.ts` ud fra koden: 85 symboler med de betjeningsformer guiden tilbyder); ugeprogrammer; System (Log, Brugere, Backup, Opdatering); 11 trin-for-trin-eksempler; fejlfinding og ordliste.
+- `frontend/src/pages/Manual.svelte` + `lib/manual.ts` — siden **Manual** (Bruger-menuen, `#manual/<kapitel>/<afsnit>`): kapiteloversigt med afsnit, søgning på tværs af kapitler med træf og uddrag, fremhævning af søgeordet, forrige/næste kapitel. Markdown vises med `marked` (MIT — kompatibel med AGPL) og renses med DOMPurify.
+- `frontend/src/lib/nav.ts` — `USER_PAGES`: Manual er en side under **Bruger** for alle roller; `pageFor`/`groupOf` kender den.
+- Tests: `manual.test.ts` (opbygning, anker, rendering, rensning af farligt indhold, søgning, fremhævning, og at **alle menusider og alle 85 symboler er omtalt**), `manualGen.test.ts` (kapitlet er opdateret), `nav.test.ts`. En fejl i søgefremhævningen (regex med g-flag sprang tekstnoder over) blev fundet af testen og rettet.
+
 ## [0.51.1 build 0074] — 2026-10-16 — Bruger-menuen yderst til højre
 
 - `frontend/src/App.svelte` — **Bruger**-punktet står nu yderst til højre i topbjælken (efter alarmklokke og kildekode-linket), de tre andre menuer til venstre. Set i browser.
