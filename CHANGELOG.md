@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.42.0 build 0060] — 2026-10-16 — Slet tegning fra Tegn, med oversigt over hvad der rammes
+
+**Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først); kun kompilering er kontrolleret.
+
+- `frontend/src/pages/DrawEditor.svelte` — knappen **Slet tegning** i Tegn; efter sletning åbnes en ny, tom tegning og listen opdateres
+- `frontend/src/lib/drawingDelete.ts` (ny) — fælles sletteflow for Tegn og Tegninger: henter hvad sletningen rammer, viser en bekræftelse og sletter; Tegninger-siden bruger nu samme flow
+- `backend/app/services/drawings.py` + `api/drawings.py` + `storage/db.py` — `GET /api/drawings/{id}/usage` (tekniker+): antal versioner og bindinger, andre tegninger med en "gå til"-knap hertil (bliver døde), om det er start-tegningen, og brugere med adgang
+- Bekræftelsen nævner kun det der rammes; sletning er uændret en kaskade (versioner, bindinger, forklaringer, symbolkonfiguration og brugeradgang slettes med tegningen)
+
 ## [0.41.0 build 0059] — 2026-10-16 — Beregning på tekst-bindinger
 
 **Bemærk:** implementeret efter Jans ønske UDEN nye tests — Jan tester først, derefter gennemgås og testes resten (se FEATURES). Kun kompilering/typecheck er kontrolleret.

@@ -118,6 +118,22 @@ class DrawingService:
         self.db.set_active_version(drawing_id, version)
         return self.get(drawing_id)
 
+    def usage(self, drawing_id: str) -> dict[str, Any]:
+        """Hvad en sletning rammer — til bekræftelsen i brugerfladen."""
+        drawing = self._require(drawing_id)
+        names = {d["id"]: d["name"] for d in self.db.list_drawings()}
+        all_bindings = self.db.list_all_bindings()
+        gotos = sorted({names.get(b["drawing_id"], b["drawing_id"]) for b in all_bindings
+                        if b["anim"] == "click:goto" and b["params"].get("drawing") == drawing_id and b["drawing_id"] != drawing_id})
+        return {
+            "id": drawing["id"], "name": drawing["name"],
+            "versions": len(self.db.list_versions(drawing_id)),
+            "bindings": sum(1 for b in all_bindings if b["drawing_id"] == drawing_id),
+            "goto_from": gotos,                       # andre tegninger med en "gå til"-knap hertil
+            "start": self.db.get_setting("start_drawing") == drawing_id,
+            "users": self.db.users_with_drawing(drawing_id),  # brugere med adgang (begrænset til udvalgte tegninger)
+        }
+
     def delete(self, drawing_id: str) -> None:
         self._require(drawing_id)
         self.db.delete_drawing(drawing_id)

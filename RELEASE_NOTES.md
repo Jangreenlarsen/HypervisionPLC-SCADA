@@ -2,6 +2,11 @@
 
 ---
 
+## v0.42.0 — 2026-10-16 — Slet tegning også fra Tegn
+
+- Knappen **Slet tegning** findes nu også i **Tegn** (ved siden af Gem), ud over på siden **Tegninger**.
+- Før sletningen vises, hvad den rammer: antal versioner og bindinger, andre tegninger med en "gå til"-knap hertil (de holder op med at virke), om det er start-tegningen, og hvilke brugere der har adgang til den.
+
 ## v0.41.0 — 2026-10-16 — Beregning på tekst-felter
 
 - Tekst-animationen under **Bindinger** har fået feltet **Beregning**, så værdien kan regnes om, før den vises. Fx `x / 10` viser registerværdien 128 som 12,8. `x` er tagets værdi.

@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { get, patch, post } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
+  import { deleteDrawingFlow } from '../lib/drawingDelete';
   import { CATEGORIES, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
 
   let { route = 'draw' }: { route?: string } = $props();
@@ -92,6 +93,21 @@
       loadedVersion = v;
       dirty = false;
       history.replaceState(null, '', `#draw/${id}`);
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
+
+  /** Slet den åbne tegning (alle versioner og bindinger) — efter en bekræftelse der viser hvad det rammer. */
+  async function removeCurrent(): Promise<void> {
+    if (!current) return;
+    error = info = '';
+    const { id, name } = current;
+    try {
+      if (!(await deleteDrawingFlow(id))) return;
+      drawings = await get<{ id: string; name: string }[]>('/api/drawings');
+      startNew(true); // tegningen findes ikke mere — tilbage til en tom, ny tegning
+      info = `Tegningen "${name}" er slettet.`;
     } catch (e) {
       error = (e as Error).message;
     }
@@ -252,6 +268,7 @@
     <button onclick={() => save(false)} disabled={busy || !ready}>Gem kladde</button>
     <button class="primary" onclick={() => save(true)} disabled={busy || !ready}>Gem og udgiv</button>
     <a class="btn" href={'#editor/' + current.id}>Bindinger</a>
+    <button class="danger" onclick={removeCurrent} disabled={busy || !ready} title="Slet tegningen med alle versioner og bindinger">Slet tegning</button>
   {:else}
     <button class="primary" onclick={() => save(true)} disabled={busy || !ready}>Opret tegning</button>
   {/if}

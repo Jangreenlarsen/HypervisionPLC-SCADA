@@ -103,6 +103,12 @@ async def update_drawing(drawing_id: str, body: DrawingUpdate, request: Request)
     return svc.get(drawing_id)
 
 
+@router.get("/{drawing_id}/usage", dependencies=[ENGINEER])
+async def drawing_usage(drawing_id: str, request: Request) -> dict[str, Any]:
+    """Hvad en sletning af tegningen rammer (til bekræftelsen)."""
+    return _svc(request).usage(drawing_id)
+
+
 @router.delete("/{drawing_id}", status_code=204, dependencies=[ENGINEER])
 async def delete_drawing(drawing_id: str, request: Request) -> None:
     _svc(request).delete(drawing_id)
