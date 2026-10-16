@@ -133,7 +133,7 @@
       onchange={(e) => upload((e.currentTarget as HTMLInputElement).files?.[0])} />
     {#if uploading}<p class="muted small">Uploader og kontrollerer …</p>{/if}
 
-    {#if staged}
+    {#if staged && !status.busy}   <!-- under en opdatering er pakken i brug: ingen knapper at trykke på -->
       <div class="notice">
         <strong>Version {staged.version} build {staged.build}</strong> — {RELATION_TEXT[staged.relation]}<br />
         <span class="small">{fmtSize(staged.size)} · {staged.files} filer · uploadet af {staged.uploaded_by} {fmtTs(staged.uploaded_at)}</span><br />

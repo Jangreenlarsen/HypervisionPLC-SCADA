@@ -2,6 +2,11 @@
 
 ---
 
+## v0.50.1 — 2026-10-16 — OTA: rettelser fra afprøvningen
+
+- Resultatet af en opdatering viser nu både version og build (fx *0.50.0 build 0072 → 0.50.0 build 0074*), og sundhedstjekket kræver den rigtige build.
+- Mens en opdatering kører, skjules pakkekortet og dets knapper.
+
 ## v0.50.0 — 2026-10-16 — Opdatering direkte fra web-siden (OTA)
 
 - Ny side **System › Opdatering** (kun admin): upload en opdateringspakke, kontrollér version og kontrolsum, og tryk **Installér og genstart**. Du behøver ikke længere SSH.

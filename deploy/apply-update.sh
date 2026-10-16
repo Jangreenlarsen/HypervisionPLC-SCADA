@@ -28,11 +28,13 @@ SHA=$(field SHA256); BY=$(field BY); TO=$(field VERSION); BUILD=$(field BUILD)
 rm -f "$REQ"
 FROM=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$APP/version.json" 2>/dev/null | head -n 1)
 FROM=${FROM:-ukendt}
+FROMB=$(sed -n 's/.*"build": *"\([^"]*\)".*/\1/p' "$APP/version.json" 2>/dev/null | head -n 1)
+FROMB=${FROMB:-?}
 : > "$LOG"
 
 # Kun tegn der er sikre i JSON (beskederne er vores egne konstanter; versionerne er tjekket af tjenesten)
 status() {
-    printf '{"state":"%s","message":"%s","from":"%s","to":"%s","by":"%s","ts":%s}\n' "$1" "$2" "$FROM" "${TO:-?}" "${BY:-ukendt}" "$(date +%s)" > "$STATUS.tmp"
+    printf '{"state":"%s","message":"%s","from":"%s build %s","to":"%s build %s","by":"%s","ts":%s}\n' "$1" "$2" "$FROM" "$FROMB" "${TO:-?}" "${BUILD:-?}" "${BY:-ukendt}" "$(date +%s)" > "$STATUS.tmp"
     chmod 0644 "$STATUS.tmp"
     mv "$STATUS.tmp" "$STATUS"
 }
@@ -47,24 +49,24 @@ fail() {
     exit 1
 }
 
-# 0 hvis tjenesten svarer på /api/health og melder den forventede version
+# 0 hvis tjenesten svarer på /api/health og melder den forventede version og build
 health() {
     PORT=$(sed -n 's/^SCADA_PORT=//p' "$ENVFILE" 2>/dev/null | head -n 1)
-    "$APP/venv/bin/python" - "${PORT:-8000}" "$1" <<'PY'
+    "$APP/venv/bin/python" - "${PORT:-8000}" "$1" "$2" <<'PY'
 import json, sys, urllib.request
 try:
     with urllib.request.urlopen(f"http://127.0.0.1:{sys.argv[1]}/api/health", timeout=3) as r:
         data = json.load(r)
 except Exception:
     sys.exit(1)
-sys.exit(0 if data.get("status") == "ok" and data.get("version") == sys.argv[2] else 1)
+sys.exit(0 if data.get("status") == "ok" and data.get("version") == sys.argv[2] and data.get("build") == sys.argv[3] else 1)
 PY
 }
 
-wait_health() { # forventet version, højst så mange sekunder
+wait_health() { # forventet version, forventet build, højst så mange sekunder
     i=0
-    while [ "$i" -lt "$2" ]; do
-        health "$1" && return 0
+    while [ "$i" -lt "$3" ]; do
+        health "$1" "$2" && return 0
         sleep 2
         i=$((i + 2))
     done
@@ -80,7 +82,7 @@ rollback() {
     [ -d "$APP.prev/frontend" ] && cp -a "$APP.prev/frontend" "$APP/frontend"
     cp -a "$APP.prev/version.json" "$APP/version.json"
     systemctl restart hypervisionplc-scada
-    wait_health "$FROM" 60
+    wait_health "$FROM" "$FROMB" 60
 }
 
 log "Opdatering $FROM -> $TO build $BUILD anmodet af ${BY:-ukendt}"
@@ -119,7 +121,7 @@ if ! sh "$WORK/scada/deploy/install.sh" --update >> "$LOG" 2>&1; then
 fi
 
 status applying "Tjekker at den nye version svarer"
-if wait_health "$TO" 90; then
+if wait_health "$TO" "$BUILD" 90; then
     log "Ny version svarer: $TO"
     rm -f "$U/staged.tar" "$U/staged.json"
     status done "Opdateret til $TO build $BUILD"

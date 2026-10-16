@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.50.1 build 0072] — 2026-10-16 — fix: OTA viser build og tjekker build; pakkekort skjules under opdatering
+
+Fundet ved afprøvning på testserveren (se BUGS.md); selve opdateringen blev installeret **gennem OTA-siden**.
+
+- `deploy/apply-update.sh` — status og besked viser "version build N" (før: "0.50.0 → 0.50.0" når kun build ændredes); sundhedstjekket efter opdateringen og efter tilbagerulning kræver både version og build.
+- `frontend/src/pages/Update.svelte` — pakkekortet (med "geninstallér alligevel" og knapper) skjules mens en opdatering kører.
+
 ## [0.50.0 build 0071] — 2026-10-16 — OTA-opdatering fra web-GUI'et
 
 - `backend/app/services/updates.py` (ny) — `inspect_package()` kontrollerer en pakke uden at pakke den ud (kun filer og mapper under `scada/`, ingen `..`/absolutte stier/links, størrelses- og antalsgrænser, nødvendige filer, gyldigt `version.json`, SHA-256); `UpdateService`: status (aktiveret, klargjort pakke, tilstand idle/queued/applying/done/failed/rolled_back/stalled, log), `stage`, `apply` (kontrolsummen skal svare til den klargjorte pakke; ældre version afvises; samme version kræver bekræftelse; backup `scada-pre-update-*` før anmodningen), `discard`; intet kan ændres mens en opdatering er i gang.
