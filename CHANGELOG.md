@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.46.0 build 0064] — 2026-10-16 — 3-vejs motorventil + logikblok som løbelysets retning
+
+- `frontend/src/lib/symbols.ts` — nyt bibliotekssymbol **3-vejs motorventil** (Rør og VVS): portene A (venstre), B (top) og AB (højre) og motoren er egne dele (`port_a`, `port_b`, `port_ab`, `motor`), så hver port kan farves for sig.
+- `frontend/src/lib/symbolConfig.ts` + `SymbolGuide.svelte` — `libraryDefault()`: et nyt 3-vejs symbol får et forslag med to positioner **AB → A** og **AB → B** og farve pr. port (A og AB åbne i den første, B og AB i den anden); tag vælges i trin 2. Danske delnavne (Port A/B/AB, Motor).
+- `backend/app/services/symbols.py` + `SymbolGuide.svelte` — løbelysets **Retning fra** kan være et tag **eller en logikblok** (i symbolet selv eller et andet); serveren oversætter blokken til dens live-værdi, validerer at den findes, og blokken tæller som brugt (advarsel/integritet).
+- Tests: backend `test_symbol_logic.py` (36), `test_expression_and_delete.py` (31), frontend `logicExpr.test.ts` (36) — dækker logikblokke, beregning (parity med browseren), slet tegning og retning fra blok; regel 14 indhentet for v0.41–v0.45.
+
 ## [0.45.0 build 0063] — 2026-10-16 — Logikblokke kan bruges i andre symboler
 
 **Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først). Kun kompilering, en røgtest af beregning og løkkekontrol, og de eksisterende suiter er kørt.

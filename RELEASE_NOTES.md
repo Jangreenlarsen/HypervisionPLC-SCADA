@@ -2,6 +2,12 @@
 
 ---
 
+## v0.46.0 — 2026-10-16 — 3-vejs motorventil og logikblok som retning
+
+- Nyt symbol i biblioteket (Rør og VVS): **3-vejs motorventil** med portene A, B og AB og en motor. Hver port kan farves for sig.
+- Når du opsætter det med guiden, får du et forslag med to positioner: **AB → A** og **AB → B**. AB er altid åben, og enten A eller B er åben. Vælg tagget under trin 2, og ret farverne i trin 4, hvis du vil.
+- Et løbelys' **Retning fra** kan nu også være en **logikblok**, ikke kun et tag.
+
 ## v0.45.0 — 2026-10-16 — Logikblokke kan bruges i andre symboler
 
 - En logikblok, du har lavet i ét symbol, kan nu vælges som **kilde** i animationer i **andre symboler på samme tegning** — og som indgang i deres egne logikblokke. Valglisterne har grupperne *Dette symbol* og *Andre symboler*.

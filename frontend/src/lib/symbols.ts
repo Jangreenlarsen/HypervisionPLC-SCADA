@@ -137,6 +137,11 @@ export const SYMBOLS: SymbolDef[] = [
 
   // ---------------------------------------------------------------- Proces og visning
   {
+    id: 'statusfelt', label: 'Statusfelt', category: 'proces', hint: 'Knyt til et register: farven følger værdien (Fyldfarve) — ret teksten i Tegn',
+    svg: `<g><rect id="felt" x="2" y="2" width="76" height="26" rx="13" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
+      text(40, 21, 'STF', 15, 'font-weight="700" id="tekst"') + '</g>',
+  },
+  {
     id: 'pumpe', label: 'Pumpe', category: 'proces', hint: 'Bind "Fyldfarve" til drift-signalet',
     svg: `<g><circle cx="40" cy="40" r="32" fill="${FILL}" stroke="${LINE}" stroke-width="3"/>` +
       `<path d="M28 22 L60 40 L28 58 Z" fill="${FILL}" stroke="${DARK}" stroke-width="2"/></g>`,
@@ -232,6 +237,16 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'trevejsventil', label: '3-vejs ventil', category: 'vvs', hint: 'Bind "Fyldfarve" pr. port eller på hele ventilen',
     svg: `<g><path d="M8 27 L40 45 L8 63 Z M72 27 L40 45 L72 63 Z M22 77 L40 45 L58 77 Z" fill="${FILL}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>` +
       `${STEM}<circle cx="40" cy="45" r="4" fill="${DARK}"/></g>`,
+  },
+  {
+    id: 'trevejs_motorventil', label: '3-vejs motorventil', category: 'vvs',
+    hint: 'Portene A, B og AB farves hver for sig (fx AB → A eller AB → B) — opsæt med guiden',
+    svg: `<g><path id="port_a" d="M8 27 L40 45 L8 63 Z" fill="#222222" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path id="port_b" d="M22 13 L58 13 L40 45 Z" fill="#222222" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path id="port_ab" d="M72 27 L40 45 L72 63 Z" fill="#ffffff" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<line x1="40" y1="45" x2="40" y2="66" stroke="${LINE}" stroke-width="3"/><circle cx="40" cy="45" r="4" fill="${DARK}"/>` +
+      `<circle id="motor" cx="40" cy="78" r="12" fill="${PANEL}" stroke="${LINE}" stroke-width="2.5"/>` +
+      text(40, 83, 'M', 14, 'font-weight="600"') + text(8, 86, 'A', 13) + text(66, 20, 'B', 13) + text(76, 86, 'AB', 13) + '</g>',
   },
   {
     id: 'motorventil', label: 'Motorventil', category: 'vvs', hint: 'Bind "Fyldfarve" til åben/lukket',

@@ -196,6 +196,16 @@ def split_logic_ref(src: str, own: str = "") -> tuple[str, str]:
     return (element or own), block
 
 
+def cfg_refs(cfg: dict[str, Any]) -> list[str]:
+    """Alle henvisninger til logikblokke (`@L1`, `@symbol:L1`) i en konfiguration: blokkenes indgange,
+    animationernes kilde og løbelysets retning."""
+    refs = [i.get("src", "") for b in cfg.get("logic", []) for i in b.get("inputs", [])]
+    for a in cfg.get("anims", []):
+        refs.append(a.get("src", ""))
+        refs.append(str((a.get("params") or {}).get("dir_tag") or ""))
+    return [r for r in refs if is_logic_ref(r)]
+
+
 def logic_pseudo_tags(drawing_id: str, element: str, cfg: dict[str, Any]) -> dict[str, str]:
     """{blok-id: pseudo-tag i live-cachen} for symbolets logikblokke."""
     return {b["id"]: pseudo_tag(drawing_id, element, f"logic:{b['id']}") for b in cfg.get("logic", [])}
@@ -351,6 +361,10 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
             params["pos"] = True
             if a["type"] == "text":
                 params["labels"] = labels
+        dir_ref = params.get("dir_tag")
+        if isinstance(dir_ref, str) and is_logic_ref(dir_ref):   # løbelysets retning styret af en logikblok
+            owner, bid = split_logic_ref(dir_ref, element)
+            params["dir_tag"] = pseudo_tag(drawing_id, owner, f"logic:{bid}")
         if a.get("only"):
             params["only"] = a["only"]
             params["pos_tag"] = pos_tag
@@ -671,12 +685,12 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
         block_ids.append(b.id)
     if cycle := _logic_cycle(element_id, [b.model_dump() for b in cfg.logic], others):
         res.err("4", f"Logikblokkene danner en løkke (via {cycle}) — en blok kan ikke afhænge af sig selv.")
-    used_blocks = {a.src[1:] for a in cfg.anims if is_logic_ref(a.src)} | \
-                  {i.src[1:] for b in cfg.logic for i in b.inputs if i.src.startswith("@")} | \
-                  {bid for c in others.values() for bid in (split_logic_ref(i["src"])[1] for b in c.get("logic", []) for i in b.get("inputs", [])
-                                                           if i.get("src", "").startswith("@") and split_logic_ref(i["src"])[0] == element_id)} | \
-                  {bid for c in others.values() for bid in (split_logic_ref(a["src"])[1] for a in c.get("anims", [])
-                                                           if is_logic_ref(a.get("src")) and split_logic_ref(a["src"])[0] == element_id)}
+    own_refs = [i.src for b in cfg.logic for i in b.inputs] + [a.src for a in cfg.anims] + \
+               [str((a.params or {}).get("dir_tag") or "") for a in cfg.anims]
+    used_blocks = {split_logic_ref(s, element_id)[1] for s in own_refs
+                   if is_logic_ref(s) and split_logic_ref(s, element_id)[0] == element_id} | \
+                  {split_logic_ref(s)[1] for c in others.values() for s in cfg_refs(c)
+                   if ":" in s and split_logic_ref(s)[0] == element_id}
     for b in cfg.logic:
         if b.id not in used_blocks:
             res.warnings.append(f"Logik {b.id}{f' ({b.name})' if b.name else ''} bruges ikke af nogen animation eller blok.")
@@ -742,9 +756,15 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if params["base"].lower() == params["light"].lower():
                 res.err("4", f"{nm}: løbelysets to farver skal være forskellige.")
             if params["dir_tag"]:
-                if params["dir_tag"] == a.src:
+                dt = params["dir_tag"]
+                if dt == a.src:
                     res.err("4", f"{nm}: retnings-tagget skal være et andet tag end det der styrer start/stop.")
-                elif tag_of(params["dir_tag"]) is None:
+                elif is_logic_ref(dt):
+                    owner, bid = split_logic_ref(dt, element_id)
+                    local = ":" not in dt
+                    if (local and bid not in block_ids) or (not local and (owner == element_id or bid not in other_blocks.get(owner, set()))):
+                        res.err("4", f"{nm}: retningens logikblok '{dt[1:]}' findes ikke.")
+                elif tag_of(dt) is None:
                     res.err("4", f"{nm}: retnings-tagget '{params['dir_tag']}' findes ikke.")
         a.params = params
         if a.only is not None:
@@ -756,8 +776,8 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 res.warnings.append(f"{nm} gælder ikke i nogen position.")
             elif all(a.only):
                 a.only = None    # gælder i alle = ingen begrænsning
-    if cfg.op == "view" and not cfg.anims:
-        res.err("4", "Et visningssymbol skal have mindst én animation.")
+    if cfg.op == "view" and not cfg.anims and not cfg.logic:
+        res.err("4", "Et visningssymbol skal have mindst én animation (eller en logikblok til andre symboler).")
 
     # -- nøglelås (trin 5)
     if P:
@@ -862,10 +882,9 @@ class SymbolService:
         for other, cfg in self.configs(drawing_id).items():
             if other == element:
                 continue
-            srcs = [i.get("src", "") for b in cfg.get("logic", []) for i in b.get("inputs", [])] + \
-                   [a.get("src", "") for a in cfg.get("anims", [])]
+            srcs = cfg_refs(cfg)
             for s in srcs:
-                if s.startswith("@") and s != POS and ":" in s:
+                if ":" in s:
                     owner, bid = split_logic_ref(s)
                     if owner == element and bid in block_ids and (other, bid) not in out:
                         out.append((other, bid))

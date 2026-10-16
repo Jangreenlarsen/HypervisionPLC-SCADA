@@ -9,7 +9,7 @@
   import {
     ALARM_TXT, ANIM_TXT, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
-    preset, removeBlock, resize, setOp, tagKind, template, typesFor,
+    libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
 
@@ -81,6 +81,11 @@
         exists = true;
       } else {
         await convert(false);
+        const proposal = libraryDefault(symbol);
+        if (proposal && !cfg.anims.length && !cfg.signals.length) {
+          cfg = proposal.config;
+          notes = [...notes, proposal.note];
+        }
       }
     } catch (e) {
       loadError = (e as Error).message;
@@ -149,7 +154,7 @@
   ].filter((t) => t && t !== POS && !isLogicRef(t) && tagByName.has(t)))].sort());
   /** Pseudo-tags for blokke i andre symboler som denne konfiguration bruger (til live-værdierne i trin 6). */
   const foreignTags = $derived([...new Set([
-    ...cfg.logic.flatMap((b) => b.inputs.map((i) => i.src)), ...cfg.anims.map((a) => a.src),
+    ...cfg.logic.flatMap((b) => b.inputs.map((i) => i.src)), ...cfg.anims.map((a) => a.src), ...cfg.anims.map((a) => a.params.dir_tag ?? ''),
   ].filter((s) => isLogicRef(s) && s.includes(':')).map(pseudoOf))]);
   function pseudoOf(ref: string): string {
     const k = ref.lastIndexOf(':');
@@ -694,7 +699,21 @@
         {/each}
       {:else}
         <select bind:value={p.mode} aria-label="Styring"><option value="onoff">Til/fra</option><option value="signed">Fortegn (+/−)</option><option value="code">Kode 0/1/2</option></select>
-        <label class="opt small">Retning fra tag <TagSelect value={p.dir_tag ?? ''} {tags} placeholder="— ingen —" onchange={(v) => (p.dir_tag = v)} /></label>
+        <label class="opt small">Retning fra
+          {#if cfg.logic.length || pool.length}
+            <select value={isLogicRef(p.dir_tag ?? '') ? 'logic' : 'tag'} onchange={(e) => (p.dir_tag = e.currentTarget.value === 'logic' ? firstBlockRef(cfg.logic) : '')} aria-label="Retningens kilde">
+              <option value="tag">et tag</option><option value="logic">en logikblok</option>
+            </select>
+          {/if}
+          {#if isLogicRef(p.dir_tag ?? '')}
+            <select bind:value={p.dir_tag} aria-label="Retningens logikblok">
+              {#if cfg.logic.length}<optgroup label="Dette symbol">{#each cfg.logic as b}<option value={'@' + b.id}>{blockLabel(b)}</option>{/each}</optgroup>{/if}
+              {#if pool.length}<optgroup label="Andre symboler">{#each pool as q}<option value={poolRef(q)}>{poolLabel(q)}</option>{/each}</optgroup>{/if}
+            </select>
+          {:else}
+            <TagSelect value={p.dir_tag ?? ''} {tags} placeholder="— ingen —" onchange={(v) => (p.dir_tag = v)} />
+          {/if}
+        </label>
       {/if}
       <label class="opt small"><input type="checkbox" bind:checked={p.reverse} /> Omvendt</label>
       {@render colorInput(p, 'base', 'Rør')}{@render colorInput(p, 'light', 'Lys')}

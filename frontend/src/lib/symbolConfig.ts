@@ -38,6 +38,7 @@ export const BLINK_TXT: Record<string, string> = { slow: 'Langsom (0,5 Hz)', nor
 /** Danske navne på bibliotekets dele (data-hv-pid). Ukendte vises med deres eget navn. */
 export const PART_LABEL: Record<string, string> = {
   greb: 'Greb', vippe: 'Vippe', spor: 'Spor', flade: 'Knap', tekst: 'Tekst', vaerdi: 'Værdi', status: 'Status',
+  felt: 'Felt', port_a: 'Port A', port_b: 'Port B', port_ab: 'Port AB', motor: 'Motor',
   lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive',
 };
 
@@ -46,6 +47,36 @@ export function partLabel(id: string, info: SymbolInfo | null): string {
   const pid = info?.parts[id]?.pid;
   if (pid) return PART_LABEL[pid] ?? pid;
   return id;
+}
+
+/**
+ * Forslag til et nyt symbol ud fra biblioteket (kun når symbolet ikke er konfigureret og ikke kan konverteres).
+ * 3-vejs motorventil: to positioner, AB → A og AB → B; AB er altid åben, og A eller B er åben efter positionen.
+ * Statusfelt: farven følger et register (vælg tagget i trin 4).
+ */
+export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfig; note: string } | null {
+  if (!symbol) return null;
+  const partOf = (pid: string) => Object.entries(symbol.parts).find(([, p]) => p.pid === pid)?.[0];
+  const cfg = emptyConfig(symbol.type);
+  if (symbol.type === 'trevejs_motorventil') {
+    cfg.positions = [{ label: 'AB → A' }, { label: 'AB → B' }];
+    setOp(cfg, 'positions');
+    cfg.display = 'remote';
+    const OPEN = '#7cc47f', CLOSED = '#ffffff';
+    const colors: [string, string[]][] = [['port_a', [OPEN, CLOSED]], ['port_b', [CLOSED, OPEN]], ['port_ab', [OPEN, OPEN]]];
+    for (const [pid, cols] of colors) {
+      const part = partOf(pid);
+      if (part) cfg.anims.push({ part, type: 'fill', src: POS, params: { colors: cols }, only: null });
+    }
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: to positioner (AB → A og AB → B) med farver pr. port. Vælg tag under trin 2.' };
+  }
+  if (symbol.type === 'statusfelt') {
+    const part = partOf('felt');
+    if (!part) return null;
+    cfg.anims.push({ part, type: 'fill', src: '', params: { ...animDefaults('fill', 'num', 0), off: '#e4e4e4' }, only: null });
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: feltets farve følger et register. Vælg registeret og grænserne under trin 4.' };
+  }
+  return null;
 }
 
 /** Til/fra, tal eller ukendt (ST-variabler kendes først fra live-værdien) ud fra tagets kilde `plc:type:adr[:datatype]`. */
