@@ -23,6 +23,7 @@
     setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
     uniqueName(base: string): string;
     insertSymbol(fragment: string, baseId: string): string;
+    setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; step: number }): void;
   }
 
   let drawings = $state<{ id: string; name: string }[]>([]);
@@ -39,6 +40,27 @@
   let info = $state('');
   let report = $state<Report | null>(null);
   let ready = $state(false);
+  // Tegnehjælp: gitter, fang til gitter/objekter. Huskes pr. browser (ikke pr. tegning).
+  const GUIDE_STEPS = [5, 10, 20, 25, 50];
+  function loadGuides(): { grid: boolean; snapGrid: boolean; snapObjects: boolean; step: number } {
+    const fallback = { grid: false, snapGrid: false, snapObjects: false, step: 10 };
+    try {
+      const raw = JSON.parse(localStorage.getItem('draw.guides') ?? '{}');
+      return { grid: !!raw.grid, snapGrid: !!raw.snapGrid, snapObjects: !!raw.snapObjects, step: GUIDE_STEPS.includes(Number(raw.step)) ? Number(raw.step) : 10 };
+    } catch {
+      return fallback; // ingen eller ødelagt localStorage: standardværdier
+    }
+  }
+  let guides = $state(loadGuides());
+  $effect(() => {
+    const g = $state.snapshot(guides);
+    if (ready && ed) ed.setGuides(g);
+    try {
+      localStorage.setItem('draw.guides', JSON.stringify(g));
+    } catch {
+      // localStorage kan være blokeret (privat vindue): hjælpen virker stadig, den huskes bare ikke
+    }
+  });
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let tags = $state<{ name: string; source: string; unit: string; writable: boolean; plc: string }[]>([]);
   let iframe: HTMLIFrameElement;
@@ -307,6 +329,17 @@
   {#if dirty}<span class="badge">ikke gemt</span>{/if}
 </div>
 
+<div class="row guides small" role="group" aria-label="Tegnehjælp">
+  <strong>Tegnehjælp</strong>
+  <label class="opt"><input type="checkbox" bind:checked={guides.grid} /> Vis gitter</label>
+  <label class="opt"><input type="checkbox" bind:checked={guides.snapGrid} /> Fang til gitter</label>
+  <label class="opt">Gitterafstand
+    <select bind:value={guides.step} aria-label="Gitterafstand">{#each GUIDE_STEPS as s}<option value={s}>{s}</option>{/each}</select>
+  </label>
+  <label class="opt" title="Når du slipper et objekt, lægges det kant mod kant eller midte mod midte med nærmeste objekt, hvis det er tæt på"><input type="checkbox" bind:checked={guides.snapObjects} /> Fang til objekter</label>
+  <span class="muted">Rotation sker i 15°-trin — hold <kbd>Shift</kbd> nede for fri rotation</span>
+</div>
+
 {#if error}<div class="error">{error}</div>{/if}
 {#if info}
   <div class="notice">
@@ -389,7 +422,9 @@
 {/if}
 
 <style>
-  .toolbar { margin-bottom: .6rem; }
+  .toolbar { margin-bottom: .35rem; }
+  .guides { margin-bottom: .6rem; flex-wrap: wrap; gap: .3rem 1rem; align-items: center; }
+  .guides kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 .3rem; background: var(--panel-2); font-size: .85em; }
   .comment { flex: 1; min-width: 12rem; }
   .layout {
     display: grid;

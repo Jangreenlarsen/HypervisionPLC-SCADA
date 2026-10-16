@@ -4,6 +4,27 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.54.1 build 0080] — 2026-10-16 — manual: billeder af Tegnehjælp
+
+- `frontend/public/manual/tegn-gitter.png` (nyt) og et nyt `tegn.png` med rækken Tegnehjælp; billedet er indsat i kapitlet *Tegninger og Tegn*. Verificeret på testserveren efter OTA-installation af 0.54.0: rotationsrettelsen er med i den leverede `Editor.js`, og gitteret ligger over det rigtige anlæg.
+
+## [0.54.0 build 0079] — 2026-10-16 — Tegnehjælp: gitter, fang til gitter/objekter og rotation i 15°-trin
+
+- `frontend/svgedit-host/scada-editor.js` — **gitter** tegnet som et gennemsigtigt lag OVENPÅ tegningen (SVG-Edits eget gitter lå under og var skjult bag baggrundsrektanglet), afstand 5/10/20/25/50 med kraftigere linje for hver 5.; følger zoom og rulning; **fang til gitter** (SVG-Edits egen `gridSnapping`/`snappingStep`); **fang til objekter**: ved museslip efter et træk lægges det flyttede objekt kant mod kant eller midte mod midte med nærmeste objekt inden for 8 skærm-pixel (kan fortrydes). SVG-Edit sender ikke `changed` efter en flytning, så der lyttes på museknappen. API: `window.scada.setGuides({ grid, snapGrid, snapObjects, step })`. `ext-grid` er fjernet.
+- `frontend/svgedit-host/snap.js` (ny) — de rene beregninger (`unionBox`, `snapToObjects`, `isDrag`; piletast-justeringer under 3 px fanges ikke).
+- `frontend/scripts/copy-svgedit.mjs` — **rotation i 15°-trin, Shift = fri rotation** (SVG-Edit er normalt fri og snapper til 45° med Shift): tekstrettelse i den medfølgende editor-fil; passer teksten ikke (ny SVG-Edit-version), stopper kopieringen med en klar fejl.
+- `frontend/src/pages/DrawEditor.svelte` — rækken **Tegnehjælp** under værktøjslinjen (Vis gitter, Fang til gitter, Gitterafstand, Fang til objekter, rotationshint); huskes i browseren (`draw.guides`).
+- Manualen (kapitlet Tegninger og Tegn) beskriver det.
+- Tests: `snap.test.ts` (fang-beregningerne), `svgeditPatch.test.ts` (rotationsrettelsen og værtssiden er med i den leverede kopi). **Afprøvet med rigtig mus** i browseren: gitter synligt og flugtende med linealen, flytning i 10-trin med fang til gitter, objekt fanget præcis kant mod kant, rotation 30°/75°/−15° uden Shift og ≈ fri med Shift.
+
+## [0.53.0 build 0078] — 2026-10-16 — Skærmbilleder i brugermanualen
+
+- `frontend/tools/manual-screenshots.mjs` (nyt; `npm run manual:screenshots`) — tager billederne fra en kørende server med Playwright (devDependency, Apache-2.0): logger ind som admin, åbner siderne og guiden og gemmer PNG i `frontend/public/manual/`. **Kun læsning** — der trykkes aldrig Gem, og intet skrives eller slettes. Kan afgrænses med `ONLY=navn,navn`. Fold tag-redigeringen ud, så alle felter ses; begræns symbolpaletten til 760 px.
+- `frontend/public/manual/*.png` (29 billeder, 1,7 MB) og henvisninger i kapitlerne (menu, Drift, PLC'er og tags, Tegninger og Tegn, Bindinger, guidens 6 trin + logik + hurtig opsætning, Ugeprogrammer, System).
+- `frontend/src/lib/manual.ts` — billeder bliver til `<figure>` med billedtekst (alt-teksten, escapet), uden `<p>` omkring; `Manual.svelte` — klik på et billede åbner det stort (Escape/klik lukker), billederne tilpasses bredden.
+- Manualen rettet efter skærmbillederne: tag-formularens felter hedder *Skrivbar fra Overview* og *Kræv bekræftelse ved skrivning*.
+- Tests: `manualImages.test.ts` (alle henvisninger har en fil >3 kB, ingen forældreløse filer, rene filnavne, billedtekster) og figur-rendering i `manual.test.ts` (fandt at en `<figure>` ellers ender i et tomt `<p>`).
+
 ## [0.52.2 build 0077] — 2026-10-16 — manual: setpunktets tag vælges i trin 2
 
 - `frontend/src/manual/10-eksempler.md` — eksemplet "Setpunkt med beregning" sagde, at registeret vælges i trin 1; det vælges i guidens trin 2 (Signaler). Rettet ved gennemlæsning mod guiden.

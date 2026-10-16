@@ -4,6 +4,8 @@ Under **Drift** ser og betjener du anlægget. Siderne er **Overview**, **Alarmer
 
 ## Overview
 
+![Overview: en tegning med live-værdier, zoomknapper og status for forbindelsen til PLC'en](/manual/overview.png)
+
 Overview viser en tegning af anlægget med live-værdier. Øverst vælger du **tegning**; en tegning kan være sat som **start-tegning** (se *Tegninger og Tegn*), og den åbner Overview først.
 
 ### Hvad du ser
@@ -37,6 +39,10 @@ Et symbol kan vise tre tilstande efter en positionsændring: **bekræftet** (PLC
 
 ## Alarmer
 
+![Alarmer — fanen Aktive (her uden aktive alarmer)](/manual/alarmer.png)
+
+![Alarmer — fanen Historik med tidligere alarmer og kvitteringer](/manual/alarmer-historik.png)
+
 Alarmklokken i topbjælken åbner siden **Alarmer**. Den har to faner:
 
 - **Aktive** — alarmer, der er i gang lige nu. Tryk **Kvittér** på en alarm for at sige, at du har set den, eller **Kvittér alle**. En kvitteret alarm er stadig aktiv, indtil årsagen er væk.
@@ -55,6 +61,8 @@ Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*).
 
 ## Trends
 
+![Trends: valgte tags, tidsrum og kurver](/manual/trends.png)
+
 **Trends** viser kurver over værdier gennem tiden. Kun tags, hvor **historik** er slået til, har kurver (slås til under **Tags**, eller direkte på Trends-siden med **Begynd at gemme historik**).
 
 - Vælg et eller flere **tags** i listen (søg med feltet **Søg**).
@@ -64,6 +72,8 @@ Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*).
 - Hullerne i en kurve betyder, at der ikke var kontakt til PLC'en dengang.
 
 ## Energi
+
+![Energi: forbrug pr. dag for et energi-tag, med tabel under søjlerne](/manual/energi.png)
 
 **Energi** viser forbrug og produktion for tags, der er markeret som **energi-tags** under **Tags → Redigér → Energi**:
 

@@ -41,6 +41,17 @@ export function renderMarkdown(md: string): string {
   const marked = new Marked({
     gfm: true,
     renderer: {
+      // Skærmbilleder: billedet med billedteksten (alt-teksten) under. Klik på et billede åbner det stort (Manual.svelte)
+      image({ href, text }) {
+        const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `<figure><img src="${esc(href)}" alt="${esc(text)}" loading="lazy" decoding="async"><figcaption>${esc(text)}</figcaption></figure>`;
+      },
+      // Et afsnit der kun er et billede bliver til en figur uden <p> omkring (en <figure> må ikke ligge i et <p>)
+      paragraph({ tokens }) {
+        const inner = this.parser.parseInline(tokens);
+        return tokens.length === 1 && tokens[0].type === 'image' ? inner : `<p>${inner}</p>
+`;
+      },
       heading({ tokens, depth }) {
         const inner = this.parser.parseInline(tokens);
         const text = plain(tokens.map((t) => ('text' in t ? String(t.text) : t.raw)).join(''));

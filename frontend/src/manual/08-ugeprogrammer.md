@@ -4,6 +4,8 @@ Et **ugeprogram** skriver automatisk en værdi til et tag på bestemte tidspunkt
 
 ## Opret et ugeprogram
 
+![Siden Ugeprogrammer med et ugeprogram, dets status og ugens forløb](/manual/ugeprogrammer.png)
+
 Tryk **+ Nyt ugeprogram** og udfyld:
 
 | Felt | Betydning |

@@ -4,6 +4,8 @@ En **tegning** er et SVG-billede af anlægget. Du kan **uploade** en tegning lav
 
 ## Tegninger
 
+![Siden Tegninger: upload, listen over tegninger og deres versioner](/manual/tegninger.png)
+
 Siden **Tegninger** er listen over alle tegninger.
 
 - **Upload tegning**: vælg en SVG-fil (højst 5 MB), giv den et **navn** og evt. en **kommentar**. Serveren renser filen (scripts og andet farligt fjernes) og viser en rapport over, hvad der blev fjernet.
@@ -13,7 +15,11 @@ Siden **Tegninger** er listen over alle tegninger.
 
 > Bindinger følger tegningens **element-id'er**. Ændrer en ny version et elements id, mister det sin binding; **Bindinger** viser *Forsvundne elementer*, som du kan rydde op i.
 
+![Versioner af en tegning: Gør aktiv, upload ny version og visning af selve SVG'en](/manual/tegninger-versioner.png)
+
 ## Tegn
+
+![Tegn: editoren til venstre og det valgte element med navn, symboler og Gem-knapper til højre](/manual/tegn.png)
 
 **Tegn** er en indbygget tegneeditor (SVG-Edit). Brug den til at tegne rør, tanke og tekst, eller til at indsætte færdige **symboler** fra biblioteket.
 
@@ -28,7 +34,22 @@ Siden **Tegninger** er listen over alle tegninger.
 
 Er der ændringer, du ikke har gemt, spørger systemet, før de kasseres.
 
+### Tegnehjælp: gitter, fang og rotation
+
+Under værktøjslinjen i Tegn står rækken **Tegnehjælp**:
+
+- **Vis gitter** viser et net **ovenpå** tegningen (det ændrer ikke tegningen). Linjerne ligger med den valgte **gitterafstand** (5, 10, 20, 25 eller 50 enheder), og hver 5. linje er kraftigere. Gitteret følger zoom og rulning og flugter med linealerne.
+- **Fang til gitter** får objekter til at flytte og tegnes i gitterets trin, så de ender på pæne tal.
+- **Fang til objekter**: slipper du et objekt tæt på et andet (inden for ca. 8 pixel på skærmen), lægger det sig **kant mod kant** eller **midte mod midte** med det nærmeste objekt. Det virker, når du **flytter** et eksisterende objekt (ikke mens du tegner et nyt), og fangen kan fortrydes med **Ctrl+Z**. Små justeringer med piletasterne fanges ikke.
+- **Rotation** sker i **15°-trin**. Hold **Shift** nede, mens du drejer, for at rotere **frit**.
+
+Indstillingerne huskes i din browser.
+
+![Tegn med Tegnehjælp: gitter vist, fang til gitter og fang til objekter slået til](/manual/tegn-gitter.png)
+
 ### Symbolbiblioteket
+
+![Symbolbiblioteket i Tegn, sorteret i kategorier med søgning](/manual/tegn-symboler.png)
 
 Under tegneområdet finder du **symbolbiblioteket**, sorteret i kategorier (*Betjening*, *Proces og visning*, *Rør og VVS*, *Elektrisk*, *Solcelleanlæg*). Søg efter et symbol (fx *bøjning* eller *kontaktor*), og tryk på det for at sætte det ind midt på tegningen; flyt og tilpas det bagefter. Hvert indsat symbol får et **navn** (fx *Pumpe 2*), som du kan ændre.
 

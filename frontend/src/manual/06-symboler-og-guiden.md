@@ -13,6 +13,18 @@ Alle symboler i biblioteket sættes op på samme måde: med **guiden i 6 trin**.
 | **5. Betjening** | **Operatøren skal bekræfte** før der skrives. **Pulslængde** (trykknapper). **Nøglelås**: vælg hvilke positioner der kræver en **kode** (4 cifre) |
 | **6. Test og gem** | Se **live** værdier for signalerne og hvilken position PLC'en står på lige nu. En **skriveplan** viser præcis, hvad hver position vil skrive. Advarsler vises; **Gem** er kun muligt uden fejl |
 
+![Trin 1 — Symbol: vælg betjeningsform](/manual/guide-1.png)
+
+![Trin 2 — Signaler: kommando, tilbagemelding og hvordan der skrives](/manual/guide-2.png)
+
+![Trin 3 — Kontakter: hvad hver position sætter (kontaktdiagrammet)](/manual/guide-3.png)
+
+![Trin 4 — Visning: hurtig opsætning, logikblokke og animationer](/manual/guide-4.png)
+
+![Trin 5 — Betjening: bekræftelse og nøglelås](/manual/guide-5.png)
+
+![Trin 6 — Test og gem: live-værdier, fundet position og skriveplan](/manual/guide-6.png)
+
 ## Betjeningsformer
 
 | Form | Hvad den gør | Eksempel |
@@ -45,6 +57,8 @@ Står flere animationer på samme del, **vinder den nederste** (▲▼ ændrer r
 
 ### Logikblokke (betingelser på flere tags)
 
+![Sektionen Logik i trin 4 med en ny logikblok (AND/OR, NOT og op til 4 indgange)](/manual/guide-logik.png)
+
 Vil du have en animation, der kun er aktiv, når **flere ting er sande** — fx *pumpen kører OG ventilen er åben* — laver du en **logikblok** i trin 4, sektionen **Logik**:
 
 - En blok er **AND** (alle skal være Til) eller **OR** (mindst én Til) over **1–4 indgange**.
@@ -60,6 +74,8 @@ Vil du have en animation, der kun er aktiv, når **flere ting er sande** — fx 
 I trin 5 kan du vælge de **positioner**, der kræver en **kode** (4 cifre). Operatøren skal indtaste koden, før den position kan vælges; **Koden kræves også for at forlade en låst position** er valgfrit. Koden gemmes kun som hash på serveren, vises aldrig igen og kommer ikke med i backup — efter en gendannelse skal den sættes igen. **Fjern kode** sletter den.
 
 ## Hurtig opsætning: 3-vejs ventil
+
+![Hurtig opsætning af en 3-vejs ventil: vælg til/fra-tagget og tryk Opret animationer](/manual/guide-hurtig.png)
 
 De to **3-vejs motorventiler** har en **Hurtig opsætning** øverst i trin 4: vælg det **til/fra-tag**, der styrer ventilen, og tryk **Opret animationer**. Så får du tre farve-animationer: **Til** = AB → A (Port A og AB åbne), **Fra** = AB → B (Port B og AB åbne); **Port AB** er altid åben. Virker også med en indgang, du kun kan læse. Er der intet skrivbart tag valgt, sættes symbolet til *Kun visning*.
 
