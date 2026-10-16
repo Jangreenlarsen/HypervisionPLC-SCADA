@@ -239,10 +239,13 @@
       valveMsg = `${valveTag} er et tal-tag — vælg et til/fra-tag.`;
       return;
     }
+    // Intet at skrive til endnu (forslaget "Positioner" uden tag): hurtig opsætning er til visning, så skift til "Kun visning"
+    const toView = cfg.op === 'positions' && !cfg.signals.some((s) => s.tag);
     const used = cfg.anims.filter((a) => ['port_a', 'port_b', 'port_ab'].includes(symbol!.parts[a.part]?.pid ?? '')).length;
-    if (used && !confirm(`Erstat de ${used} eksisterende animationer på portene A, B og AB?`)) return;
+    if (used && !toView && !confirm(`Erstat de ${used} eksisterende animationer på portene A, B og AB?`)) return;
+    if (toView) setOp(cfg, 'view');   // fjerner også forslagets positions-animationer
     const k = valveFromTag(cfg, symbol, valveTag);
-    valveMsg = k > 0 ? `${k} animationer oprettet: Til = AB → A, Fra = AB → B.`
+    valveMsg = k > 0 ? `${k} animationer oprettet: Til = AB → A, Fra = AB → B.${toView ? ' Symbolet er sat til "Kun visning".' : ''}`
       : k === 0 ? 'Symbolet har ikke portene A, B og AB.' : 'Der er ikke plads til tre flere animationer (højst 12).';
   }
 

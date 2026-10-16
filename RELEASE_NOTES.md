@@ -2,6 +2,10 @@
 
 ---
 
+## v0.48.1 — 2026-10-16 — Hurtig opsætning: Kun visning
+
+- Når du bruger **Hurtig opsætning** på en ny 3-vejs ventil, sættes symbolet automatisk til **Kun visning**, så guiden ikke bagefter beder om et tag at skrive til.
+
 ## v0.48.0 — 2026-10-16 — 3-vejs ventil: ét tag styrer alle tre porte
 
 - I guidens **trin 4 (Visning)** har de to 3-vejs motorventiler en **Hurtig opsætning**: vælg det til/fra-tag, der styrer ventilen, og tryk **Opret animationer**.
