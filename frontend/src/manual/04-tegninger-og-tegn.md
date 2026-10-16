@@ -47,6 +47,22 @@ Indstillingerne huskes i din browser.
 
 ![Tegn med Tegnehjælp: gitter vist, fang til gitter og fang til objekter slået til](/manual/tegn-gitter.png)
 
+### Erstat tegnede dele med symboler
+
+Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige figurer, kan du **erstatte dem med symboler fra biblioteket**, så de kan sættes op med guiden:
+
+1. **Opløs en stor gruppe først:** er hele tegningen samlet i én gruppe, så vælg gruppen og tryk **Opløs gruppen** — så kan delene vælges enkeltvis.
+2. Vælg den tegnede del (fx en pumpe eller en etiket) og tryk **Erstat med symbol …**.
+3. Systemet foreslår symboler ud fra delens form (fx *Statusfelt* til en afrundet etiket, *Pumpe* til en cirkel med trekant). Du kan også søge i hele biblioteket.
+4. Vælg symbolet og tilret indstillingerne: **navn**, **behold delens id** (så bindinger på selve delen følger med), **overtag teksten** (en etiket beholder sin tekst) og **stræk til at fylde**.
+5. Under **Andre dele af samme slags** kan du erstatte **alle lignende** på én gang — enten kun dem med samme størrelse eller alle af samme slags uanset størrelse (fx etiketter med forskellig tekstlængde).
+6. Tryk **Erstat**. Symbolet får samme **midte, størrelse og drejning** som den gamle del. **Ctrl+Z** fortryder hele erstatningen i ét trin.
+7. Tryk **Gem kladde**. Så er resultatet en ny version, og **Overview viser stadig den gamle**, til du udgiver den nye.
+
+![Erstat med symbol: forslag ud fra delens form, indstillinger og valg om at erstatte alle lignende](/manual/tegn-erstat.png)
+
+> Symbolets **retning** (fx pumpens trekant) er tegnet ind i den gamle del og kan ikke aflæses sikkert — kontrollér og drej symbolet efter erstatning (**Shift** giver fri rotation). Bindinger på **underelementer** i den gamle del følger ikke med; dialogen advarer, hvis der er nogen.
+
 ### Symbolbiblioteket
 
 ![Symbolbiblioteket i Tegn, sorteret i kategorier med søgning](/manual/tegn-symboler.png)

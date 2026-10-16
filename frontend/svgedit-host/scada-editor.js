@@ -223,6 +223,7 @@ function currentSelection() {
   return elems.map((el) => ({
     id: el.id || '', tag: el.tagName.toLowerCase(), interactive: el.hasAttribute('data-hv-auto'),
     name: el.getAttribute('data-hv-name') || '', desc: el.getAttribute('data-hv-desc') || '',
+    children: [...el.children].filter((c) => !RESERVED.has(c.tagName.toLowerCase())).length,
   }));
 }
 
@@ -234,6 +235,107 @@ function uniqueId(base) {
   const clean = base.replace(/[^A-Za-z0-9_-]/g, '_') || 'symbol';
   if (!idExists(clean)) return clean;
   for (let i = 2; ; i++) if (!idExists(`${clean}_${i}`)) return `${clean}_${i}`;
+}
+
+/** Et navn der ikke er i brug: "Pumpe", "Pumpe 2", … */
+function uniqueNameIn(base) {
+  const used = new Set(Array.from(canvas().getSvgContent().querySelectorAll('[data-hv-name]')).map((el) => el.getAttribute('data-hv-name')));
+  if (!used.has(base)) return base;
+  for (let i = 2; ; i++) if (!used.has(`${base} ${i}`)) return `${base} ${i}`;
+}
+
+/** Et bibliotekssymbol (SVG-fragment med ét rodelement) som et element med unikke id'er — endnu ikke sat ind. */
+function buildSymbolNode(fragment, baseId, wantedId) {
+  const parsed = new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${fragment}</svg>`, 'image/svg+xml');
+  const src = parsed.documentElement.firstElementChild;
+  if (!src) return null;
+  const node = document.importNode(src, true);
+  node.setAttribute('id', uniqueId(wantedId || baseId));
+  // Bibliotekstypen og delenes egne navne gemmes, så symbol-guiden kender symbolet og dets dele
+  // (id'erne nedenfor kan få et løbenummer, så delens navn kan ikke udledes sikkert af id'et)
+  node.setAttribute('data-hv-type', String(baseId).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 40));
+  // Børn får unikke id'er så flere kopier af samme symbol ikke kolliderer
+  node.querySelectorAll('[id]').forEach((el) => {
+    el.setAttribute('data-hv-pid', el.id);
+    el.setAttribute('id', uniqueId(`${node.id}_${el.id}`));
+  });
+  return node;
+}
+
+const TAGS_OF_INTEREST = ['rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'path', 'text', 'g', 'image'];
+const RESERVED = new Set(['title', 'defs', 'desc', 'metadata']);
+
+/** Tegningens koordinater for elementet: geometriens boks og matrix (uden zoom) — størrelse langs egne akser, drejning og midte. */
+function geometryOf(el) {
+  const M = toDocMatrix(el);
+  const bb = el.getBBox();
+  if (!M || !Number.isFinite(bb.x)) return null;
+  const cxl = bb.x + bb.width / 2;
+  const cyl = bb.y + bb.height / 2;
+  return {
+    w: bb.width * Math.hypot(M.a, M.b),
+    h: bb.height * Math.hypot(M.c, M.d),
+    angle: (Math.atan2(M.b, M.a) * 180) / Math.PI,
+    cx: M.a * cxl + M.c * cyl + M.e,
+    cy: M.b * cxl + M.d * cyl + M.f,
+    box: boxOf(el),
+  };
+}
+
+/** Tæl figurerne i et element (inkl. det selv): { rect: 1, path: 2, … }. */
+function countShapes(el) {
+  const counts = {};
+  for (const e of [el, ...el.querySelectorAll('*')]) {
+    const t = e.tagName.toLowerCase();
+    if (TAGS_OF_INTEREST.includes(t)) counts[t] = (counts[t] || 0) + 1;
+  }
+  return counts;
+}
+
+/** Det øverste element under laget som indeholder `el` (så et nyt symbol kan lægges lige efter). */
+function topLevelOf(el) {
+  let cur = el;
+  while (cur.parentNode && !(cur.parentNode.tagName === 'g' && cur.parentNode.classList.contains('layer'))) cur = cur.parentNode;
+  return cur;
+}
+
+/** Tekster der ligger inde i elementets boks (midten), både inde i og ved siden af det. */
+function textsWithin(el, geom) {
+  const parent = el.parentNode;
+  if (!parent || !geom) return [];
+  const inside = (b) => b && b.x + b.w / 2 >= geom.box.x && b.x + b.w / 2 <= geom.box.x + geom.box.w && b.y + b.h / 2 >= geom.box.y && b.y + b.h / 2 <= geom.box.y + geom.box.h;
+  const candidates = [...el.querySelectorAll('text'), ...[...parent.children].filter((c) => c !== el && c.tagName.toLowerCase() === 'text')];
+  return candidates.map((t) => ({ el: t, text: (t.textContent || '').replace(/\s+/g, ' ').trim() })).filter((t) => t.text && inside(boxOf(t.el)));
+}
+
+/** Alle id'er der forsvinder, når elementet erstattes: det selv, dets underelementer og tekster der ligger inde i det. */
+function affectedIds(el, geom) {
+  const own = [el.id, ...[...el.querySelectorAll('[id]')].map((e) => e.id)];
+  const texts = textsWithin(el, geom).map((t) => t.el.id);
+  return [...new Set([...own, ...texts])].filter(Boolean);
+}
+
+/** Andre elementer under samme forælder med samme opbygning og omtrent samme størrelse (til "erstat alle lignende"). */
+function similarTo(el, any = false) {
+  const parent = el.parentNode;
+  const g0 = geometryOf(el);
+  if (!parent || !g0) return [];
+  const key = (c) => JSON.stringify(Object.entries(c).sort());
+  const k0 = key(countShapes(el));
+  const near = (a, b) => Math.abs(a - b) <= Math.max(2, 0.12 * Math.max(a, b));
+  return [...parent.children].filter((o) => {
+    if (o === el || RESERVED.has(o.tagName.toLowerCase()) || o.tagName.toLowerCase() !== el.tagName.toLowerCase()) return false;
+    if (o.hasAttribute('data-hv-type') || key(countShapes(o)) !== k0) return false;
+    const g = geometryOf(o);
+    if (!g || (o.getAttribute('rx') ?? '') !== (el.getAttribute('rx') ?? '') || (o.getAttribute('fill') ?? '') !== (el.getAttribute('fill') ?? '')) return false;
+    if ((o.getAttribute('stroke') ?? '') !== (el.getAttribute('stroke') ?? '') || (o.getAttribute('stroke-width') ?? '') !== (el.getAttribute('stroke-width') ?? '')) return false;
+    if (!any) return near(Math.abs(g.angle), Math.abs(g0.angle)) && near(g.w, g0.w) && near(g.h, g0.h);
+    // "Alle af samme slags": drejning er ligegyldig (hver beholder sin egen), og størrelsen må afvige — men formen skal ligne:
+    // omtrent samme højde og samme proportioner (en etiket med lang tekst er bredere, men en tynd linje er ikke en etiket)
+    const ratio = (a, b) => (Math.max(a, b) > 0 ? Math.min(a, b) / Math.max(a, b) : 1);
+    const lo = Math.min(g.w, g.h), hi = Math.max(g.w, g.h), lo0 = Math.min(g0.w, g0.h), hi0 = Math.max(g0.w, g0.h);
+    return ratio(lo, lo0) >= 0.65 && ratio(hi / (lo || 1), hi0 / (lo0 || 1)) >= 0.38;
+  });
 }
 
 window.scada = {
@@ -318,30 +420,135 @@ window.scada = {
     return '';
   },
 
+  /**
+   * Beskrivelse af det valgte element til "Erstat med symbol": opbygning, størrelse, drejning, farver, tekster inde i
+   * det, andre lignende elementer og alle id'er (til at finde bindinger der ville gå tabt).
+   */
+  describeSelection() {
+    const sel = selectedEls();
+    if (sel.length !== 1) return null;
+    const el = sel[0];
+    const g = geometryOf(el);
+    if (!g) return null;
+    const children = [...el.children].filter((c) => !RESERVED.has(c.tagName.toLowerCase())).length;
+    return {
+      id: el.id || '',
+      tag: el.tagName.toLowerCase(),
+      counts: countShapes(el),
+      children,
+      w: Math.round(g.w * 10) / 10,
+      h: Math.round(g.h * 10) / 10,
+      angle: Math.round(g.angle * 10) / 10,
+      fill: el.getAttribute('fill') || '',
+      stroke: el.getAttribute('stroke') || '',
+      strokeWidth: parseFloat(el.getAttribute('stroke-width') || '0') || 0,
+      rx: parseFloat(el.getAttribute('rx') || '0') || 0,
+      name: el.getAttribute('data-hv-name') || '',
+      symbolType: el.getAttribute('data-hv-type') || '',
+      // id'er der forsvinder ved en erstatning: delen, dens underelementer og de tekster der ligger inde i den
+      ids: affectedIds(el, g),
+      texts: textsWithin(el, g).map((t) => t.text),
+      similar: similarTo(el).length,
+      similarAny: similarTo(el, true).length,
+      similarIds: similarTo(el, true).flatMap((o) => affectedIds(o, geometryOf(o))),
+    };
+  },
+
+  /**
+   * Erstat det valgte element (og evt. alle lignende) med et bibliotekssymbol: samme midte, størrelse og drejning, i ét
+   * fortryd-trin. opts: { name, keepId, stretch, useText, similar }. → { ok, replaced, ids } eller { error }.
+   */
+  replaceSelected(fragment, baseId, opts = {}) {
+    const c = canvas();
+    const sel = selectedEls();
+    if (sel.length !== 1) return { error: 'Vælg præcis ét element' };
+    const targets = [sel[0], ...(opts.similar ? similarTo(sel[0], opts.similar === 'any') : [])];
+    const batch = new c.history.BatchCommand(`Erstat med symbol (${targets.length})`);
+    c.clearSelection();
+    const created = [];
+    for (const [index, old] of targets.entries()) {
+      const g = geometryOf(old);
+      if (!g) continue;
+      const parent = old.parentNode;
+      const anchor = topLevelOf(old);
+      const layer = anchor.parentNode;
+      const texts = opts.useText ? textsWithin(old, g) : [];
+      const oldId = old.id;
+      // 1) fjern det gamle (og de tekster det overtager) — i samme fortryd-trin
+      const removeTracked = (node) => {
+        const next = node.nextSibling;
+        const par = node.parentNode;
+        batch.addSubCommand(new c.history.RemoveElementCommand(node, next, par));
+        par.removeChild(node);
+      };
+      const anchorNext = anchor.nextSibling;
+      for (const t of texts) if (t.el.parentNode === parent && !old.contains(t.el)) removeTracked(t.el);
+      const insertBeforeNode = anchor === old ? old.nextSibling : anchorNext;
+      removeTracked(old);
+      // 2) nyt symbol (bevarer id'et hvis ønsket, så bindinger på elementet følger med)
+      const node = buildSymbolNode(fragment, baseId, opts.keepId && oldId ? oldId : undefined);
+      if (!node) continue;
+      layer.insertBefore(node, insertBeforeNode && insertBeforeNode.parentNode === layer ? insertBeforeNode : null);
+      const nb = node.getBBox();
+      const sx0 = nb.width > 0 ? g.w / nb.width : 1;
+      const sy0 = nb.height > 0 ? g.h / nb.height : 1;
+      const sx = opts.stretch ? sx0 : Math.min(sx0, sy0);
+      const sy = opts.stretch ? sy0 : Math.min(sx0, sy0);
+      const tx = g.cx - sx * (nb.x + nb.width / 2);
+      const ty = g.cy - sy * (nb.y + nb.height / 2);
+      const rot = Math.abs(g.angle) > 0.01 ? `rotate(${g.angle.toFixed(3)} ${g.cx.toFixed(3)} ${g.cy.toFixed(3)}) ` : '';
+      node.setAttribute('transform', `${rot}translate(${tx.toFixed(3)} ${ty.toFixed(3)}) scale(${sx.toFixed(5)} ${sy.toFixed(5)})`);
+      if (texts.length) {
+        const slot = node.querySelector('[data-hv-pid="tekst"]');
+        if (slot) slot.textContent = texts[0].text;
+      }
+      // Det valgte element får det indtastede navn; de øvrige "<symbol> <deres egen tekst>" (ellers løbenumre)
+      if (opts.name) {
+        const own = index === 0 ? opts.name : `${opts.namePrefix || opts.name}${texts[0] ? ` ${texts[0].text}` : ''}`;
+        node.setAttribute('data-hv-name', uniqueNameIn(own));
+      }
+      batch.addSubCommand(new c.history.InsertElementCommand(node));
+      created.push(node);
+    }
+    c.undoMgr.addCommandToHistory(batch);
+    c.clearSelection();
+    if (created.length) c.addToSelection([created[0]]);
+    lastBoxes = new Map(selectedEls().map((el) => [el, boxOf(el)]));
+    if (changeListener) changeListener();
+    if (selectionListener) selectionListener(currentSelection());
+    return created.length ? { ok: true, replaced: created.length, ids: created.map((n) => n.id) } : { error: 'Intet blev erstattet' };
+  },
+
+  /** Vælg elementet med dette id (til test og til at hoppe til et element). Returnerer false hvis det ikke findes. */
+  selectById(id) {
+    const el = canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`);
+    if (!el) return false;
+    canvas().clearSelection();
+    canvas().addToSelection([el]);
+    return true;
+  },
+
+  /** Opløs den valgte gruppe, så dens dele kan vælges enkeltvis. Returnerer fejltekst eller ''. */
+  ungroupSelected() {
+    const sel = selectedEls();
+    if (sel.length !== 1 || sel[0].tagName.toLowerCase() !== 'g') return 'Vælg en gruppe';
+    if (sel[0].hasAttribute('data-hv-type')) return 'Et symbol kan ikke opløses — det mister sin opsætning';
+    canvas().ungroupSelectedElement();
+    if (changeListener) changeListener();
+    if (selectionListener) selectionListener(currentSelection());
+    return '';
+  },
+
   /** Et navn der ikke er i brug: "Vippekontakt", "Vippekontakt 2", … */
   uniqueName(base) {
-    const used = new Set(Array.from(canvas().getSvgContent().querySelectorAll('[data-hv-name]')).map((el) => el.getAttribute('data-hv-name')));
-    if (!used.has(base)) return base;
-    for (let i = 2; ; i++) if (!used.has(`${base} ${i}`)) return `${base} ${i}`;
+    return uniqueNameIn(base);
   },
 
   /** Indsæt et symbol (SVG-fragment med ét rodelement) midt i den synlige del, valgt og med fortryd. */
   insertSymbol(fragment, baseId) {
     const c = canvas();
-    const parsed = new DOMParser().parseFromString(
-      `<svg xmlns="http://www.w3.org/2000/svg">${fragment}</svg>`, 'image/svg+xml');
-    const src = parsed.documentElement.firstElementChild;
-    if (!src) return '';
-    const node = document.importNode(src, true);
-    node.setAttribute('id', uniqueId(baseId));
-    // Bibliotekstypen og delenes egne navne gemmes, så symbol-guiden kender symbolet og dets dele
-    // (id'erne nedenfor kan få et løbenummer, så delens navn kan ikke udledes sikkert af id'et)
-    node.setAttribute('data-hv-type', String(baseId).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 40));
-    // Børn får unikke id'er så flere kopier af samme symbol ikke kolliderer
-    node.querySelectorAll('[id]').forEach((el) => {
-      el.setAttribute('data-hv-pid', el.id);
-      el.setAttribute('id', uniqueId(`${node.id}_${el.id}`));
-    });
+    const node = buildSymbolNode(fragment, baseId);
+    if (!node) return '';
     const res = c.getResolution();
     const step = (insertCount++ % 6) * 30; // forskyd hvert nyt symbol, så de ikke ligger oven i hinanden
     node.setAttribute('transform', `translate(${Math.round(res.w / 2 - 40 + step)} ${Math.round(res.h / 2 - 40 + step)})`);

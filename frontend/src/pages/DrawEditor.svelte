@@ -4,6 +4,8 @@
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
+  import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
+  import type { SelectionInfo } from '../lib/symbolSuggest';
   import { CATEGORIES, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
 
   let { route = 'draw' }: { route?: string } = $props();
@@ -11,7 +13,7 @@
   interface Version { version: number; comment: string; created_at: number }
   interface Detail { id: string; name: string; active_version: number; versions: Version[] }
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[] }
-  interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string }
+  interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string; children?: number }
   interface ScadaApi {
     ready: Promise<void>;
     load(svg: string): boolean;
@@ -24,6 +26,10 @@
     uniqueName(base: string): string;
     insertSymbol(fragment: string, baseId: string): string;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; step: number }): void;
+    describeSelection(): SelectionInfo | null;
+    replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any' }):
+      { ok?: boolean; replaced?: number; ids?: string[]; error?: string };
+    ungroupSelected(): string;
   }
 
   let drawings = $state<{ id: string; name: string }[]>([]);
@@ -148,6 +154,62 @@
       return;
     }
     guideFor = { id: sel.id, name: sel.name };
+  }
+
+  // ---- Erstat med symbol (tegnet del → bibliotekssymbol)
+  let replaceInfo = $state<SelectionInfo | null>(null);
+  let replaceLost = $state({ own: 0, similar: 0 });
+
+  async function openReplace(): Promise<void> {
+    if (!ed) return;
+    error = info = '';
+    const d = ed.describeSelection();
+    if (!d) {
+      error = 'Vælg præcis ét element at erstatte';
+      return;
+    }
+    // Bindinger på delens underelementer følger ikke med (kun på selve delen, hvis id'et beholdes)
+    let lost = { own: 0, similar: 0 };
+    if (current) {
+      try {
+        const view = await get<{ bindings: { element: string }[] }>(`/api/drawings/${encodeURIComponent(current.id)}/view`);
+        const own = new Set(d.ids);
+        const other = new Set(d.similarIds);
+        // selve delens id følger med (hvis id'et beholdes); alt andet — underelementer og tekster der fjernes — gør ikke
+        lost = {
+          own: view.bindings.filter((b) => own.has(b.element) && b.element !== d.id).length,
+          similar: view.bindings.filter((b) => other.has(b.element)).length,
+        };
+      } catch (e) {
+        error = `Bindinger kunne ikke kontrolleres: ${(e as Error).message}`;
+      }
+    }
+    replaceLost = lost;
+    replaceInfo = d;
+  }
+
+  function doReplace(o: ReplaceOptions): void {
+    if (!ed) return;
+    const res = ed.replaceSelected(withName(o.symbol.svg, o.name || o.symbol.label), o.symbol.id,
+      { name: o.name || o.symbol.label, namePrefix: o.symbol.label, keepId: o.keepId, stretch: o.stretch, useText: o.useText, similar: o.similar });
+    replaceInfo = null;
+    if (res.error) {
+      error = res.error;
+      return;
+    }
+    dirty = true;
+    info = `${res.replaced} del${res.replaced === 1 ? '' : 'e'} er erstattet med «${o.symbol.label}». Ctrl+Z fortryder det i ét trin. Tryk Gem kladde, når du er tilfreds — Overview viser først ændringen, når du udgiver versionen.`;
+  }
+
+  function ungroup(): void {
+    if (!ed) return;
+    const err = ed.ungroupSelected();
+    if (err) error = err;
+    else {
+      error = '';
+      dirty = true;
+      info = 'Gruppen er opløst — dens dele kan nu vælges enkeltvis.';
+    }
   }
 
   /** Slet den åbne tegning (alle versioner og bindinger) — efter en bekræftelse der viser hvad det rammer. */
@@ -371,6 +433,11 @@
         {:else}
           <p class="small muted">Giv elementet et <strong>navn</strong> for at gøre det til et symbol, der kan konfigureres under <strong>Bindinger</strong>. Uden navn er det kun tegning.</p>
         {/if}
+        {#if single.tag === 'g' && !single.name && (single.children ?? 0) > 20}
+          <p class="small notice">Denne gruppe har {single.children} dele. Opløs den for at vælge delene enkeltvis, så de kan erstattes med symboler.</p>
+          <div class="row"><button onclick={ungroup} disabled={!ready}>Opløs gruppen</button></div>
+        {/if}
+        <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat den tegnede del med et symbol fra biblioteket (samme placering, størrelse og drejning)">Erstat med symbol …</button></div>
         <details class="adv">
           <summary class="small">Avanceret</summary>
           <label class="field">Id (teknisk)
@@ -414,6 +481,10 @@
     </section>
   </aside>
 </div>
+
+{#if replaceInfo}
+  <SymbolReplace info={replaceInfo} lostBindings={replaceLost} onreplace={doReplace} onclose={() => (replaceInfo = null)} />
+{/if}
 
 {#if guideFor && current}
   <SymbolGuide drawingId={current.id} element={guideFor.id} name={guideFor.name} {tags}

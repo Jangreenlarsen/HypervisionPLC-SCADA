@@ -2,6 +2,14 @@
 
 ---
 
+## v0.55.0 — 2026-10-16 — Erstat tegnede dele med symboler
+
+- I **Tegn** kan du markere en tegnet del og trykke **Erstat med symbol …**. Systemet foreslår det rigtige symbol ud fra formen (fx statusfelt til en pille-etiket, pumpe til en cirkel med trekant), eller du søger i biblioteket.
+- Symbolet får **samme placering, størrelse og drejning** som den gamle del. Teksten i en etiket kan overtages.
+- Du kan erstatte **alle lignende dele på én gang** — fx alle etiketter — og et enkelt Ctrl+Z gendanner det hele.
+- Er tegningen samlet i én stor gruppe, kan du **opløse gruppen** først.
+- Resultatet gemmer du som en **kladde-version**; Overview viser først ændringen, når du udgiver den.
+
 ## v0.54.2 — 2026-10-16 — Løbelys og gitter rettet
 
 - **Løbelyset** er nu uafhængigt af, hvordan du har strakt eller skaleret et rør: lysstykkernes længde og fart er de samme, uanset rørets længde.
