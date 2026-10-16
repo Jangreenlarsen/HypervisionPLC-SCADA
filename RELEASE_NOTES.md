@@ -2,6 +2,11 @@
 
 ---
 
+## v0.49.0 — 2026-10-16 — Kun relevante betjeningsformer i guiden
+
+- I guidens **trin 1** vises nu kun de betjeningsformer, der giver mening for symbolet. En 3-vejs motorventil kan fx kun have **Kun visning** eller **Positioner**, og rør og tanke kun **Kun visning**.
+- Vil du alligevel bruge en anden, så afkryds **Vis alle betjeningsformer**. Egne tegninger viser altid alle fire.
+
 ## v0.48.1 — 2026-10-16 — Hurtig opsætning: Kun visning
 
 - Når du bruger **Hurtig opsætning** på en ny 3-vejs ventil, sættes symbolet automatisk til **Kun visning**, så guiden ikke bagefter beder om et tag at skrive til.

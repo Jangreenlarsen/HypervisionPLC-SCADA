@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.49.0 build 0070] — 2026-10-16 — Betjeningsformer efter symbol i guidens trin 1
+
+- `frontend/src/lib/symbolConfig.ts` — `allowedOps(type, current)`: hvilke af Kun visning / Positioner / Trykknap / Setpunkt der giver mening for hvert bibliotekssymbol (3-vejs motorventil: visning + positioner; reguleringsventil: visning + setpunkt; pumper, motorer, kontaktorer: visning + positioner + trykknap; rør, tanke, målere, lamper og solcelledele: kun visning; betjeningssymboler: deres egen form). Ukendte typer og egne tegninger får alle fire; den nuværende (gemte) form skjules aldrig.
+- `frontend/src/lib/SymbolGuide.svelte` — trin 1 viser kun de relevante former med afkrydsningen "Vis alle betjeningsformer". Kun i brugerfladen; serveren afviser ikke de øvrige. Tests i `libraryDefaults.test.ts`.
+- Knappen "Eksempel: 7-trins vælger" vises kun for vælgere og egne tegninger.
+
 ## [0.48.1 build 0069] — 2026-10-16 — fix: hurtig opsætning af 3-vejs ventil skifter til "Kun visning"
 
 - `frontend/src/lib/SymbolGuide.svelte` — uden et valgt skrivbart tag skifter hurtig opsætning symbolet fra "Positioner" til "Kun visning" (så trin 2 ikke viser en fejl, og forslagets positions-animationer fjernes) og oplyser det. Set på testserveren. Se BUGS.md.

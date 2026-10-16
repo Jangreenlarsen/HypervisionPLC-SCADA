@@ -9,7 +9,7 @@
   import {
     ALARM_TXT, ANIM_TXT, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
-    isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
+    ALL_OPS, allowedOps, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
 
@@ -172,6 +172,9 @@
   const fmt = (v: unknown) => (v === undefined || v === null ? '—' : typeof v === 'boolean' ? (v ? 'Til' : 'Fra') : String(v));
 
   // ---------------------------------------------------------------- redigering
+  let showAllOps = $state(false);
+  const opList = $derived(showAllOps ? ALL_OPS : allowedOps(symbol?.type ?? 'custom', cfg.op));
+  const opsRestricted = $derived(opList.length < ALL_OPS.length);
   function changeOp(op: Op): void {
     setOp(cfg, op);
   }
@@ -375,13 +378,16 @@
         {#if step === 0}
           <p class="muted small">Vælg hvordan symbolet betjenes. Alt andet i guiden følger af dette valg.</p>
           <div class="ops">
-            {#each Object.entries(OP_TXT) as [op, txt]}
-              <label class="opt"><input type="radio" name="op" checked={cfg.op === op} onchange={() => changeOp(op as Op)} /> {txt}</label>
+            {#each opList as op}
+              <label class="opt"><input type="radio" name="op" checked={cfg.op === op} onchange={() => changeOp(op)} /> {OP_TXT[op]}</label>
             {/each}
           </div>
+          {#if opsRestricted || showAllOps}
+            <label class="opt small muted"><input type="checkbox" bind:checked={showAllOps} /> Vis alle betjeningsformer (kun de der giver mening for dette symbol vises som standard)</label>
+          {/if}
           <div class="row">
             <button onclick={() => convert(true)}>Foreslå ud fra symbolet</button>
-            <button onclick={applyPreset}>Eksempel: 7-trins vælger</button>
+            {#if offersSelectorExample(symbol.type)}<button onclick={applyPreset}>Eksempel: 7-trins vælger</button>{/if}
           </div>
           {#if notes.length}
             <div class="notice small"><strong>Forslag fra de gamle bindinger:</strong><ul>{#each notes as m}<li>{m}</li>{/each}</ul></div>

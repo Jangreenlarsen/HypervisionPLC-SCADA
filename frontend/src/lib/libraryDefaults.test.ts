@@ -1,7 +1,7 @@
 // 3-vejs motorventil og statusfelt i symbolbiblioteket (v0.46.0): delene og guidens forslag.
 import { describe, expect, it } from 'vitest';
 import { SYMBOLS } from './symbols';
-import { emptyConfig, isValveType, libraryDefault, MAX_ANIMS, partLabel, POS, valveFromTag, type SymbolInfo } from './symbolConfig';
+import { allowedOps, offersSelectorExample, emptyConfig, isValveType, libraryDefault, MAX_ANIMS, partLabel, POS, valveFromTag, type SymbolInfo } from './symbolConfig';
 
 const sym = (id: string) => SYMBOLS.find((s) => s.id === id)!;
 const partIds = (id: string) => [...new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${sym(id).svg}</svg>`, 'image/svg+xml').querySelectorAll('[id]')].map((e) => e.id);
@@ -105,5 +105,46 @@ describe('3-vejs ventil styret af ét til/fra-tag', () => {
     expect(isValveType('trevejs_motorventil')).toBe(true);
     expect(isValveType('trevejs_motorventil_ab')).toBe(true);
     expect(isValveType('trevejsventil')).toBe(false);
+  });
+});
+
+describe('betjeningsformer pr. symbol (guidens trin 1)', () => {
+  it('3-vejs motorventilen kan kun vises eller have positioner', () => {
+    expect(allowedOps('trevejs_motorventil')).toEqual(['view', 'positions']);
+    expect(allowedOps('trevejs_motorventil_ab')).toEqual(['view', 'positions']);
+  });
+
+  it('hver kategori får det der giver mening', () => {
+    expect(allowedOps('pumpe')).toEqual(['view', 'positions', 'pulse']);
+    expect(allowedOps('regventil')).toEqual(['view', 'entry']);
+    expect(allowedOps('setpunkt')).toEqual(['entry']);
+    expect(allowedOps('omskifter3')).toEqual(['positions']);
+    expect(allowedOps('roer_v')).toEqual(['view']);
+    expect(allowedOps('solpanel')).toEqual(['view']);
+    expect(allowedOps('frekvensomformer')).toEqual(['view', 'positions', 'pulse', 'entry']);
+  });
+
+  it('egne tegninger og ukendte typer får alle fire', () => {
+    expect(allowedOps('custom')).toEqual(['view', 'positions', 'pulse', 'entry']);
+    expect(allowedOps('noget_nyt')).toEqual(['view', 'positions', 'pulse', 'entry']);
+  });
+
+  it('en allerede gemt betjeningsform skjules aldrig', () => {
+    expect(allowedOps('roer_v', 'pulse')).toEqual(['view', 'pulse']);
+  });
+
+  it('alle bibliotekssymboler er gyldige: hver type har mindst én betjeningsform, og betjeningssymboler kan betjenes', () => {
+    for (const s of SYMBOLS) {
+      const ops = allowedOps(s.id);
+      expect(ops.length, s.id).toBeGreaterThan(0);
+      if (s.category === 'betjening') expect(ops.every((o) => o === 'view'), s.id).toBe(false);
+    }
+  });
+});
+
+describe('eksemplet "7-trins vælger"', () => {
+  it('tilbydes kun for vælgere og egne tegninger', () => {
+    for (const t of ['custom', 'omskifter', 'omskifter3', 'drejeomskifter']) expect(offersSelectorExample(t), t).toBe(true);
+    for (const t of ['trevejs_motorventil', 'pumpe', 'roer_v', 'solpanel']) expect(offersSelectorExample(t), t).toBe(false);
   });
 });

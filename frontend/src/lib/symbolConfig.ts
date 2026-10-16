@@ -101,6 +101,44 @@ export function valveFromTag(cfg: SymbolConfig, symbol: SymbolInfo, tag: string)
   return made.length;
 }
 
+/**
+ * Hvilke betjeningsformer der giver mening for et bibliotekssymbol (guidens trin 1). Kun en bekvemmelighed i
+ * guiden — serveren afviser dem ikke. Symboler der ikke er nævnt (egne tegninger, ukendte typer) får alle fire.
+ */
+const VIEW: Op[] = ['view'];
+const SWITCH: Op[] = ['view', 'positions', 'pulse'];       // tænd/sluk, åbn/luk, start/stop (kommando: Til/Fra eller puls)
+const OPS_BY_TYPE: Record<string, Op[]> = {
+  // betjeningssymboler: har deres egen form
+  trykknap_puls: ['pulse', 'positions'], startstop: ['positions', 'pulse'], vippekontakt: ['positions', 'pulse'],
+  omskifter3: ['positions'], omskifter: ['positions'], drejeomskifter: ['positions'], automanuel: ['positions'], setpunkt: ['entry'],
+  // ventiler: den manuelle betjenes ikke; reguleringsventilen sættes til en åbning; 3-vejs har kun to positioner (AB → A / AB → B)
+  ventil: VIEW, trevejsventil: VIEW, kontraventil: VIEW, sikkerhedsventil: VIEW,
+  kugleventil: SWITCH, motorventil: SWITCH, magnetventil: SWITCH, regventil: ['view', 'entry'],
+  trevejs_motorventil: ['view', 'positions'], trevejs_motorventil_ab: ['view', 'positions'],
+  // maskiner og kontakter: start/stop (frekvensomformer også en hastighed)
+  pumpe: SWITCH, motor: SWITCH, ventilator: SWITCH, kontaktor: SWITCH, hovedafbryder: SWITCH, dc_afbryder: SWITCH, ac_afbryder: SWITCH,
+  elbillader: SWITCH, frekvensomformer: [...SWITCH, 'entry'],
+  // kun visning: rør, fittings, beholdere, målere, lamper og statusfelter, passive el- og solcelledele
+  statusfelt: VIEW, lampe: VIEW, signallampe: VIEW, vaerdi: VIEW, tank: VIEW, manometer: VIEW, termometer: VIEW,
+  roer_v: VIEW, roer_l: VIEW, boejning90: VIEW, boejning45: VIEW, t_stykke: VIEW, kryds: VIEW, reduktion: VIEW, prop: VIEW,
+  flange: VIEW, flowpil: VIEW, filter: VIEW, ekspansion: VIEW, radiator: VIEW, varmeveksler: VIEW, kedel: VIEW,
+  ledning_v: VIEW, ledning_l: VIEW, forbindelse: VIEW, klemme: VIEW, sikring: VIEW, automatsikring: VIEW, jord: VIEW,
+  modstand: VIEW, transformer: VIEW, stroemforsyning: VIEW, foeler: VIEW, plc: VIEW, motor3: VIEW, motorvaern: VIEW,
+  solpanel: VIEW, solstreng: VIEW, sol: VIEW, inverter: VIEW, hybridinverter: VIEW, mppt: VIEW, batteri: VIEW, batteribank: VIEW,
+  spd: VIEW, elmaaler: VIEW, elnet: VIEW, forbrug: VIEW, energipil: VIEW,
+};
+export const ALL_OPS: Op[] = ['view', 'positions', 'pulse', 'entry'];
+
+/** Betjeningsformer der giver mening for symbolet; `current` (den nuværende) er altid med, så en gemt opsætning aldrig skjules. */
+export function allowedOps(type: string, current?: Op): Op[] {
+  const list = OPS_BY_TYPE[type] ?? ALL_OPS;
+  const out = ALL_OPS.filter((op) => list.includes(op) || op === current);
+  return out.length ? out : ALL_OPS;
+}
+
+/** Eksemplet "7-trins vælger" giver kun mening for vælgere og egne tegninger — ikke for fx en ventil eller en pumpe. */
+export const offersSelectorExample = (type: string): boolean => type === 'custom' || type.startsWith('omskifter') || type === 'drejeomskifter';
+
 /** Til/fra, tal eller ukendt (ST-variabler kendes først fra live-værdien) ud fra tagets kilde `plc:type:adr[:datatype]`. */
 export function tagKind(source: string | undefined): 'bool' | 'num' | 'unknown' {
   if (!source) return 'unknown';
