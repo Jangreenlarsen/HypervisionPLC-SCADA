@@ -10,7 +10,7 @@
     ALARM_TXT, ANIM_TXT, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     preset, removeBlock, resize, setOp, tagKind, template, typesFor,
-    type Anim, type AnimType, type LogicBlock, type Op, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
+    type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
 
   interface TagRow { name: string; source: string; unit: string; writable: boolean; plc: string }
@@ -34,6 +34,7 @@
   let hasPin = $state(false);
   let pin = $state('');
   let notes = $state<string[]>([]);
+  let pool = $state<PoolBlock[]>([]);   // logikblokke i andre symboler på tegningen
   let step = $state(0);
   let loading = $state(true);
   let error = $state('');       // fejl fra gem/fjern — vises, men stopper ikke guiden
@@ -70,9 +71,10 @@
   // ---------------------------------------------------------------- indlæsning
   onMount(async () => {
     try {
-      const r = await get<{ config: SymbolConfig | null; has_pin: boolean; symbol: SymbolInfo | null; orphaned: boolean; warnings: string[] }>(`${base}/config`);
+      const r = await get<{ config: SymbolConfig | null; has_pin: boolean; symbol: SymbolInfo | null; orphaned: boolean; warnings: string[]; logic_pool?: PoolBlock[] }>(`${base}/config`);
       if (r.orphaned || !r.symbol) throw new Error(`Elementet '${element}' findes ikke i den aktive version af tegningen`);
       symbol = r.symbol;
+      pool = r.logic_pool ?? [];
       hasPin = r.has_pin;
       if (r.config) {
         cfg = normalize(r.config);
@@ -145,14 +147,22 @@
     ...cfg.signals.flatMap((s) => [s.tag, s.fb]), cfg.fault, ...cfg.anims.map((a) => a.src), ...cfg.anims.map((a) => a.params.dir_tag ?? ''),
     ...cfg.logic.flatMap((b) => b.inputs.map((i) => i.src)),
   ].filter((t) => t && t !== POS && !isLogicRef(t) && tagByName.has(t)))].sort());
-  $effect(() => { live.subscribe(usedTags); });
+  /** Pseudo-tags for blokke i andre symboler som denne konfiguration bruger (til live-værdierne i trin 6). */
+  const foreignTags = $derived([...new Set([
+    ...cfg.logic.flatMap((b) => b.inputs.map((i) => i.src)), ...cfg.anims.map((a) => a.src),
+  ].filter((s) => isLogicRef(s) && s.includes(':')).map(pseudoOf))]);
+  function pseudoOf(ref: string): string {
+    const k = ref.lastIndexOf(':');
+    return `sym:${drawingId}:${ref.slice(1, k)}:logic:${ref.slice(k + 1)}`;
+  }
+  $effect(() => { live.subscribe([...usedTags, ...foreignTags]); });
   onDestroy(() => {
     live.close();
     if (timer) clearTimeout(timer);
   });
   const valueOf = (t: string) => liveVals[t]?.value;
   const found = $derived(isPos ? foundPosition(cfg, valueOf) : null);
-  const logicNow = $derived(evalLogic(cfg.logic, valueOf));
+  const logicNow = $derived(evalLogic(cfg.logic, valueOf, (ref) => { const v = valueOf(pseudoOf(ref)); return typeof v === 'boolean' ? v : null; }));
   const triText = (v: boolean | null | undefined) => (v === true ? 'Til' : v === false ? 'Fra' : 'ukendt');
   const fmt = (v: unknown) => (v === undefined || v === null ? '—' : typeof v === 'boolean' ? (v ? 'Til' : 'Fra') : String(v));
 
@@ -206,9 +216,12 @@
 
   // ---- logikblokke
   const blockLabel = (b: LogicBlock) => `${b.id}${b.name ? ` – ${b.name}` : ''}`;
+  const poolLabel = (p: PoolBlock) => `${p.symbol} · ${p.id}${p.name ? ` – ${p.name}` : ''}`;
+  const poolRef = (p: PoolBlock) => `@${p.element}:${p.id}`;
+  const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
   const srcMode = (a: Anim): string => (a.src === POS ? POS : isLogicRef(a.src) ? 'logic' : 'tag');
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === POS ? POS : mode === 'logic' ? `@${cfg.logic[0]?.id ?? ''}` : '';
+    a.src = mode === POS ? POS : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
     resetParams(a);
   }
   function addBlock(): void {
@@ -232,7 +245,7 @@
   /** Blokke en indgang må bruge: kun dem over blokken (serveren afviser løkker). */
   const earlier = (b: LogicBlock) => cfg.logic.slice(0, cfg.logic.indexOf(b));
   function setInputMode(b: LogicBlock, i: LogicBlock['inputs'][number], mode: string): void {
-    i.src = mode === 'block' ? `@${earlier(b)[0]?.id ?? ''}` : '';
+    i.src = mode === 'block' ? firstBlockRef(earlier(b)) : '';
     i.cmp = '';
     i.value = null;
   }
@@ -445,7 +458,7 @@
             {/if}
           </div>
           <h4>Logik ({cfg.logic.length}/{MAX_LOGIC})</h4>
-          <p class="small muted">Saml flere tags i én betingelse (fx pumpe kører OG ventil åben), og brug den som kilde til en animation. En blok kan også bruge blokkene over sig.</p>
+          <p class="small muted">Saml flere tags i én betingelse (fx pumpe kører OG ventil åben), og brug den som kilde til en animation. En blok kan også bruge blokkene over sig og blokke i andre symboler på tegningen (og omvendt — dine blokke kan bruges dér).</p>
           {#each cfg.logic as b (b.id)}
             <div class="anim logic">
               <div class="row wrap">
@@ -461,13 +474,16 @@
                 {@const isBlock = isLogicRef(inp.src)}
                 <div class="row wrap small input">
                   <label class="opt"><input type="checkbox" bind:checked={inp.neg} /> NOT</label>
-                  {#if refs.length}
+                  {#if refs.length || pool.length}
                     <select value={isBlock ? 'block' : 'tag'} onchange={(e) => setInputMode(b, inp, e.currentTarget.value)} aria-label="Indgangstype">
                       <option value="tag">tag</option><option value="block">blok</option>
                     </select>
                   {/if}
                   {#if isBlock}
-                    <select bind:value={inp.src} aria-label="Blok">{#each refs as r}<option value={'@' + r.id}>{blockLabel(r)}</option>{/each}</select>
+                    <select bind:value={inp.src} aria-label="Blok">
+                      {#if refs.length}<optgroup label="Dette symbol">{#each refs as r}<option value={'@' + r.id}>{blockLabel(r)}</option>{/each}</optgroup>{/if}
+                      {#if pool.length}<optgroup label="Andre symboler">{#each pool as p}<option value={poolRef(p)}>{poolLabel(p)}</option>{/each}</optgroup>{/if}
+                    </select>
                   {:else}
                     <TagSelect bind:value={inp.src} {tags} onchange={() => inputTagChanged(inp)} />
                     {#if inp.src && tagKindOf(inp.src) !== 'bool'}
@@ -498,16 +514,17 @@
                   {#each typesFor(partInfo(a.part)) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
                 </select>
                 <span class="small muted">styres af</span>
-                {#if isPos || cfg.logic.length}
+                {#if isPos || cfg.logic.length || pool.length}
                   <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
                     {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
-                    {#if cfg.logic.length}<option value="logic">en logikblok</option>{/if}
+                    {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
                   </select>
                 {/if}
                 {#if srcMode(a) === 'tag'}<TagSelect bind:value={a.src} {tags} onchange={() => resetParams(a)} />{/if}
                 {#if srcMode(a) === 'logic'}
                   <select bind:value={a.src} onchange={() => resetParams(a)} aria-label="Logikblok">
-                    {#each cfg.logic as b}<option value={'@' + b.id}>{blockLabel(b)}</option>{/each}
+                    {#if cfg.logic.length}<optgroup label="Dette symbol">{#each cfg.logic as b}<option value={'@' + b.id}>{blockLabel(b)}</option>{/each}</optgroup>{/if}
+                    {#if pool.length}<optgroup label="Andre symboler">{#each pool as p}<option value={poolRef(p)}>{poolLabel(p)}</option>{/each}</optgroup>{/if}
                   </select>
                 {/if}
                 <span class="spacer"></span>

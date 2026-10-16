@@ -2,6 +2,12 @@
 
 ---
 
+## v0.45.0 — 2026-10-16 — Logikblokke kan bruges i andre symboler
+
+- En logikblok, du har lavet i ét symbol, kan nu vælges som **kilde** i animationer i **andre symboler på samme tegning** — og som indgang i deres egne logikblokke. Valglisterne har grupperne *Dette symbol* og *Andre symboler*.
+- Fx: lav blokken *Pumpe kører og ventil åben* i pumpe-symbolet, og lad rørene og en lampe i andre symboler bruge den.
+- Du kan ikke fjerne en blok (eller hele symbolets konfiguration), mens et andet symbol bruger den — fjern henvisningen dér først. Blokke der henviser til hinanden i ring afvises.
+
 ## v0.44.0 — 2026-10-16 — Logikblokke: animationer der afhænger af flere tags
 
 - I guidens **trin 4 (Visning)** kan du lave **logikblokke**: AND eller OR over op til 4 indgange, med NOT på hver indgang og på resultatet. Eksempel: *pumpe kører (coils0) OG ventil åben (input0)*.

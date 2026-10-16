@@ -25,7 +25,7 @@ from ..storage.db import Database
 from .alarms import Condition
 from .live_cache import LiveCache, LiveValue
 from .svg_sanitize import describe_element, index_svg
-from .symbols import PSEUDO_KINDS, evaluate_logic, logic_pseudo_tags, pseudo_tag
+from .symbols import PSEUDO_KINDS, logic_pseudo_tags, logic_results, pseudo_tag
 
 log = logging.getLogger(__name__)
 
@@ -176,12 +176,16 @@ class SymbolRuntime:
             self.reload()
         updates: dict[str, LiveValue] = {}
         logic_now: set[str] = set()
-        for key, cfg in self.symbols.items():
+        by_drawing: dict[str, dict[str, dict[str, Any]]] = {}
+        for (d, e), cfg in self.symbols.items():
             if cfg.get("logic"):
-                tags = logic_pseudo_tags(key[0], key[1], cfg)
-                for bid, result in evaluate_logic(cfg["logic"], self.cache.get).items():
-                    updates[tags[bid]] = LiveValue(value=result, quality="good" if result is not None else "comm_error", ts=now)
-                    logic_now.add(tags[bid])
+                by_drawing.setdefault(d, {})[e] = cfg
+        for d, configs in by_drawing.items():   # blokke kan bruge blokke i andre symboler på samme tegning
+            for (e, bid), result in logic_results(configs, self.cache.get).items():
+                tag = logic_pseudo_tags(d, e, configs[e])[bid]
+                updates[tag] = LiveValue(value=result, quality="good" if result is not None else "comm_error", ts=now)
+                logic_now.add(tag)
+        for key, cfg in self.symbols.items():
             if cfg.get("op") != "positions":
                 continue
             remote, comm, read = remote_position(cfg, self.cache.get)

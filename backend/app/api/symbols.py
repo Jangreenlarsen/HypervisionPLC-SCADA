@@ -148,7 +148,8 @@ async def preview(drawing_id: str, element: str, body: PreviewBody, request: Req
     if info is None:
         raise ServiceError(404, f"Elementet '{element}' findes ikke i den aktive version af tegningen")
     # Koden tastes i guiden og sendes først ved gem — så kræv den ikke her (PUT afviser stadig lås uden kode)
-    cfg, res = validate_config(body.config, info, svc._tags(), has_pin=True)
+    others = {k: v for k, v in svc.configs(drawing_id).items() if k != element}
+    cfg, res = validate_config(body.config, info, svc._tags(), has_pin=True, element_id=element, others=others)
     plans = ([{"position": k, "label": p["label"], "writes": write_plan(cfg, k)} for k, p in enumerate(cfg["positions"])]
              if cfg["op"] == "positions" and not res.count else [])
     return {"config": cfg, "steps": res.steps, "warnings": res.warnings, "errors": res.count, "plans": plans}

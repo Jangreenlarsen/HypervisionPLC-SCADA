@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.45.0 build 0063] — 2026-10-16 — Logikblokke kan bruges i andre symboler
+
+**Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først). Kun kompilering, en røgtest af beregning og løkkekontrol, og de eksisterende suiter er kørt.
+
+- `backend/app/services/symbols.py` — en blok i et andet symbol på samme tegning kan bruges som kilde i en animation eller som indgang i en blok: `@<symbol>:<blok>` (egne blokke er stadig `@L1`). `logic_results()` regner hele tegningens blokke på én gang (med memo og vagt mod løkker); `_logic_cycle()` afviser løkker på tværs af symboler ved gem; `validate_config` tjekker at det andet symbol og dets blok findes og at blokken ikke bruges uden advarsel. Integritet: en blok (eller et symbols konfiguration) der bruges af et andet symbol kan ikke fjernes, før henvisningen er fjernet dér (400 ved gem, 409 ved "Fjern konfiguration"). `GET …/config` leverer `logic_pool` (de andre symbolers blokke) til guiden.
+- `backend/app/services/symbol_runtime.py` — blokkene regnes pr. tegning, så en blok kan afhænge af blokke i andre symboler.
+- `backend/app/api/symbols.py` — kontrollen i guiden (`preview`) kender de andre symboler.
+- `frontend/src/lib/SymbolGuide.svelte` + `symbolConfig.ts` — valglisterne for kilde og indgang har nu grupperne "Dette symbol" og "Andre symboler"; trin 6 viser også blokke fra andre symboler live (`evalLogic` med `foreign`).
+
 ## [0.44.0 build 0062] — 2026-10-16 — Logikblokke i symbol-guiden
 
 **Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først). Kun kompilering er kontrolleret, plus en kørsel af de eksisterende suiter (backend symbol/backup: 106 bestået, frontend: 175 bestået) og en røgtest af beregningen.

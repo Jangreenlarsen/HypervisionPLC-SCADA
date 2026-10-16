@@ -12,6 +12,8 @@ export interface Anim { part: string; type: AnimType; src: string; params: Recor
 export type Cmp = '' | 'ge' | 'le' | 'eq';
 /** Én indgang til en logikblok: et tag (til/fra, eller et tal sammenlignet med en grænse) eller en tidligere blok (`@L1`). */
 export interface LogicInput { src: string; neg: boolean; cmp: Cmp; value: number | null }
+/** En logikblok i et ANDET symbol på tegningen, som kan bruges som kilde: `@<symbol>:<blok>`. */
+export interface PoolBlock { element: string; symbol: string; id: string; name: string }
 export interface LogicBlock { id: string; name: string; op: 'and' | 'or'; inputs: LogicInput[]; invert: boolean }
 export interface SymbolConfig {
   type: string; op: Op; positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
@@ -101,12 +103,14 @@ export function describeBlock(b: LogicBlock): string {
  * Logikblokkene ud fra live-værdier (som serverens `evaluate_logic`): tre-værdi-logik — en afgørende indgang vinder
  * (AND med en Fra = Fra, OR med en Til = Til), ellers er resultatet ukendt (null). `valueOf` giver undefined/null for ukendt.
  */
-export function evalLogic(blocks: LogicBlock[], valueOf: (tag: string) => unknown): Record<string, boolean | null> {
+export function evalLogic(
+  blocks: LogicBlock[], valueOf: (tag: string) => unknown, foreign: (ref: string) => boolean | null = () => null,
+): Record<string, boolean | null> {
   const out: Record<string, boolean | null> = {};
   for (const b of blocks) {
     const vals = b.inputs.map((i): boolean | null => {
       let v: boolean | null;
-      if (isLogicRef(i.src)) v = out[i.src.slice(1)] ?? null;
+      if (isLogicRef(i.src)) v = i.src.includes(':') ? foreign(i.src) : out[i.src.slice(1)] ?? null;   // @symbol:L1 = blok i et andet symbol
       else {
         const raw = valueOf(i.src);
         if (typeof raw === 'boolean') v = raw;
