@@ -167,6 +167,66 @@ export function flowState(value: unknown, p: Record<string, any> = {}): -1 | 0 |
   return dir !== 0 && p.reverse ? (-dir as -1 | 1) : dir;
 }
 
+/** Hvor mange gange en længde langs retningen (dx, dy) forstørres af en matrix (a b c d): |M·dir| / |dir|. */
+export function lengthScale(m: { a: number; b: number; c: number; d: number }, dx: number, dy: number): number {
+  const len = Math.hypot(dx, dy);
+  if (!(len > 0)) return Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;       // ingen retning: geometrisk middel
+  return Math.hypot(m.a * dx + m.c * dy, m.b * dx + m.d * dy) / len || 1;
+}
+
+type Mat = { a: number; b: number; c: number; d: number; e: number; f: number };
+const mulMat = (m: Mat, n: Mat): Mat => ({
+  a: m.a * n.a + m.c * n.b, b: m.b * n.a + m.d * n.b, c: m.a * n.c + m.c * n.d, d: m.b * n.c + m.d * n.d,
+  e: m.a * n.e + m.c * n.f + m.e, f: m.b * n.e + m.d * n.f + m.f,
+});
+const invMat = (m: Mat): Mat | null => {
+  const det = m.a * m.d - m.b * m.c;
+  if (!det || !Number.isFinite(det)) return null;
+  return { a: m.d / det, b: -m.b / det, c: -m.c / det, d: m.a / det, e: (m.c * m.f - m.d * m.e) / det, f: (m.b * m.e - m.a * m.f) / det };
+};
+
+/**
+ * Skalering af lys-stregen ud fra elementets samlede transform (egen + forfædres), målt langs stregen: er et rør strakt 3
+ * gange i længden, er 1 lokal enhed 3 enheder i tegningen. Lysets længde og fart skal være den samme i tegningen uanset
+ * hvordan røret er skaleret, så de regnes om med denne faktor. Tegningens egen visning (viewBox/zoom) tæller IKKE med —
+ * den skalerer røret og lyset ens — så den fjernes ved at dividere med en probe lagt direkte under roden. Kan der ikke
+ * måles (uden for skærmen, jsdom), er faktoren 1 — som før.
+ */
+function flowScale(d: SVGElement): number {
+  try {
+    const own = (d as SVGGraphicsElement).getCTM?.() as Mat | null | undefined;
+    if (!own) return 1;
+    let m: Mat = own;
+    const root = d.ownerSVGElement;
+    if (root) {
+      const probe = document.createElementNS(SVG_NS, 'g') as SVGGElement;
+      root.appendChild(probe);
+      let base: Mat | null = null;
+      try {
+        base = (probe.getCTM?.() as Mat | null | undefined) ?? null;
+      } finally {
+        root.removeChild(probe);
+      }
+      const inv = base ? invMat(base) : null;
+      if (inv) m = mulMat(inv, own);
+    }
+    let dx = 0, dy = 0;
+    if (d.tagName === 'line') {
+      const n = (a: string) => parseFloat(d.getAttribute(a) ?? '0') || 0;
+      dx = n('x2') - n('x1');
+      dy = n('y2') - n('y1');
+    } else {
+      const b = (d as SVGGraphicsElement).getBBox?.();
+      if (b && b.width > 0 && b.height > 0 && Math.min(b.width, b.height) / Math.max(b.width, b.height) > 0.3) return lengthScale(m, 0, 0);   // bøjning/kurve
+      if (b) [dx, dy] = b.width >= b.height ? [1, 0] : [0, 1];
+    }
+    const s = lengthScale(m, dx, dy);
+    return Number.isFinite(s) && s > 0.001 && s < 1000 ? s : 1;
+  } catch {
+    return 1;   // getCTM/getBBox kan kaste for elementer der ikke vises
+  }
+}
+
 /** Stiplet kopi (lyset) til hvert element der løber — nøgle: det bundne element. */
 const flowLayers = new WeakMap<Element, SVGGElement>();
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -363,24 +423,29 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   for (const { d, out } of dashes) {
     d.setAttribute('stroke', light);
-    d.setAttribute('stroke-dasharray', `${dash} ${dash}`);
     d.setAttribute('stroke-linecap', 'butt');
     d.setAttribute('data-hv-dir', out ? 'out' : 'in');
     layer.appendChild(d);
-    if (!reduce && typeof (d as any).animate === 'function') {
-      // Lyset flytter én periode (lys + mørk) pr. omgang; startTime 0 holder alle løbelys i takt
-      const a = d.animate([{ strokeDashoffset: 0 }, { strokeDashoffset: -2 * dash }],
-        { duration: (2 * dash / speed) * 1000, iterations: Infinity, direction: out ? 'normal' : 'reverse' });
-      a.startTime = 0;
-    }
   }
   if (!layer.childNodes.length) {
     el.setAttribute('data-hv-warning', 'løbelys kræver en streg (path/line/polyline) eller et rør (rect)');
     return;
   }
+  // Først i tegningen — så elementernes samlede transform kan måles — og først derefter sættes længde og fart
   if (el.tagName === 'g') el.appendChild(layer);
   else el.parentNode?.insertBefore(layer, el.nextSibling);
   flowLayers.set(el, layer);
+  for (const { d, out } of dashes) {
+    // Lysets længde og fart er i TEGNINGENS enheder, uanset hvordan røret er skaleret: omregnet til rørets egne enheder
+    const unit = dash / flowScale(d);
+    d.setAttribute('stroke-dasharray', `${unit} ${unit}`);
+    if (!reduce && typeof (d as any).animate === 'function') {
+      // Lyset flytter én periode (lys + mørk) pr. omgang; startTime 0 holder alle løbelys i takt
+      const a = d.animate([{ strokeDashoffset: 0 }, { strokeDashoffset: -2 * unit }],
+        { duration: (2 * dash / speed) * 1000, iterations: Infinity, direction: out ? 'normal' : 'reverse' });
+      a.startTime = 0;
+    }
+  }
 }
 
 /**

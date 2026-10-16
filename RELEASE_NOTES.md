@@ -2,6 +2,11 @@
 
 ---
 
+## v0.54.2 — 2026-10-16 — Løbelys og gitter rettet
+
+- **Løbelyset** er nu uafhængigt af, hvordan du har strakt eller skaleret et rør: lysstykkernes længde og fart er de samme, uanset rørets længde.
+- **Fang til gitter** lægger nu objektet på et rigtigt gitterpunkt (ikke bare i trin fra hvor det stod). Det gælder også, når du indsætter, duplikerer eller sætter et symbol ind: kopier havner på samme gitter som originalen.
+
 ## v0.54.1 — 2026-10-16
 
 - Manualen har fået et billede af **Tegnehjælp** (gitter og fang) i Tegn.

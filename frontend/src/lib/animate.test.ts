@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeFor, applyBinding, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, segmentsOf, textFor, withDirection } from './animate';
+import { activeFor, applyBinding, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, lengthScale, segmentsOf, textFor, withDirection } from './animate';
 import type { Binding, LiveValue } from './api';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -240,6 +240,75 @@ describe('løbelys (flow)', () => {
     applyBinding(c, flowB(), good(true));
     expect(svg.querySelector('.hv-flow')).toBeNull();
     expect(c.getAttribute('data-hv-warning')).toContain('løbelys');
+  });
+});
+
+describe('løbelys er uafhængigt af rørets skalering', () => {
+  it('lengthScale: forstørrelse langs en retning — strækning på tværs og drejning påvirker ikke længden', () => {
+    expect(lengthScale({ a: 3, b: 0, c: 0, d: 1 }, 1, 0)).toBeCloseTo(3);      // strakt 3× i x, målt langs x
+    expect(lengthScale({ a: 3, b: 0, c: 0, d: 1 }, 0, 1)).toBeCloseTo(1);      // … men langs y er den uændret
+    expect(lengthScale({ a: 1, b: 0, c: 0, d: 3 }, 1, 0)).toBeCloseTo(1);      // strakt på tværs af et vandret rør: ingen ændring
+    expect(lengthScale({ a: 0, b: 3, c: -1, d: 0 }, 1, 0)).toBeCloseTo(3);     // drejet 90° og strakt 3× langs røret
+    expect(lengthScale({ a: 2, b: 0, c: 0, d: 2 }, 5, 5)).toBeCloseTo(2);      // ensartet skalering
+    expect(lengthScale({ a: 4, b: 0, c: 0, d: 1 }, 0, 0)).toBeCloseTo(2);      // ingen retning: geometrisk middel
+  });
+
+  // jsdom har ikke getCTM: vi leverer en matrix for den streg der tegnes (den samlede transform i tegningen)
+  const withMatrix = (m: { a: number; b: number; c: number; d: number } | null, fn: () => void) => {
+    const proto = (globalThis as any).SVGElement.prototype;
+    const had = Object.getOwnPropertyDescriptor(proto, 'getCTM');
+    const identity = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+    // linjen (lyset) har rørets samlede matrix; proben (en tom <g> under roden) har tegningens egen visning (identitet)
+    proto.getCTM = function getCTM(this: Element) { return this.tagName === 'line' && m ? { ...identity, ...m } : this.tagName === 'line' ? null : identity; };
+    try {
+      fn();
+    } finally {
+      if (had) Object.defineProperty(proto, 'getCTM', had);
+      else delete proto.getCTM;
+    }
+  };
+  const dashOf = (rect: Element, svg: Element) => {
+    applyBinding(rect, { element: 'r', tag: 'P', anim: 'flow', params: { dash: 12, speed: 40 } }, good(true));
+    return svg.querySelector('.hv-flow line')!.getAttribute('stroke-dasharray');
+  };
+  const pipe = (w: string, h: string) => {
+    const rect = el('rect', { x: '0', y: '0', width: w, height: h });
+    const svg = el('svg');
+    svg.appendChild(rect);
+    return { rect, svg };
+  };
+
+  it('et rør strakt 3 gange i længden får samme lysstykke i tegningen (lokal længde 12/3)', () => {
+    const { rect, svg } = pipe('90', '10');
+    withMatrix({ a: 3, b: 0, c: 0, d: 1 }, () => expect(dashOf(rect, svg)).toBe('4 4'));
+  });
+
+  it('gælder også lodrette rør, drejede rør og symboler skaleret via en gruppe', () => {
+    let { rect, svg } = pipe('10', '90');
+    withMatrix({ a: 1, b: 0, c: 0, d: 2 }, () => expect(dashOf(rect, svg)).toBe('6 6'));
+    ({ rect, svg } = pipe('90', '10'));
+    withMatrix({ a: 0, b: 3, c: -1, d: 0 }, () => expect(dashOf(rect, svg)).toBe('4 4'));
+  });
+
+  it('tegningens egen visning (viewBox/zoom) tæller ikke med: den skalerer rør og lys ens', () => {
+    const { rect, svg } = pipe('90', '10');
+    const proto = (globalThis as any).SVGElement.prototype;
+    const had = Object.getOwnPropertyDescriptor(proto, 'getCTM');
+    // roden vises i halv størrelse (viewBox): både proben og linjen har 0,5 — rørets egen skalering er stadig 3
+    proto.getCTM = function getCTM(this: Element) { return this.tagName === 'line' ? { a: 1.5, b: 0, c: 0, d: 0.5, e: 0, f: 0 } : { a: 0.5, b: 0, c: 0, d: 0.5, e: 0, f: 0 }; };
+    try {
+      expect(dashOf(rect, svg)).toBe('4 4');
+    } finally {
+      if (had) Object.defineProperty(proto, 'getCTM', had);
+      else delete proto.getCTM;
+    }
+  });
+
+  it('skalering på tværs af røret og uskaleret rør ændrer ikke lyset', () => {
+    let { rect, svg } = pipe('90', '10');
+    withMatrix({ a: 1, b: 0, c: 0, d: 3 }, () => expect(dashOf(rect, svg)).toBe('12 12'));
+    ({ rect, svg } = pipe('90', '10'));
+    withMatrix(null, () => expect(dashOf(rect, svg)).toBe('12 12'));     // intet at måle på: som før
   });
 });
 

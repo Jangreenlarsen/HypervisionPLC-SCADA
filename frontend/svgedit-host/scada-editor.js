@@ -1,7 +1,7 @@
 // Værtsside for SVG-Edit inde i SCADA'en (indlæses i en iframe fra samme origin).
 // Forældresiden (DrawEditor.svelte) bruger `window.scada` nedenfor.
 import Editor from './Editor.js';
-import { isDrag, snapToObjects, unionBox } from './snap.js';
+import { gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, snapToObjects, transformBox, unionBox } from './snap.js';
 
 const editor = new Editor(document.getElementById('container'));
 editor.setConfig({
@@ -27,8 +27,35 @@ const SNAP_PX = 8;                       // fang inden for så mange skærm-pixe
 let lastBoxes = new Map();               // valgte elementer → deres boks ved forrige 'selected'/'changed' (til at se en flytning)
 let snapping = false;
 
-/** Elementets boks i tegningens koordinater (inkl. transform), ud fra skærmplaceringen og zoom. */
+/**
+ * Elementets matrix til tegningens koordinater: dets egen og forfædres transform, uden zoom (rodens viewBox/størrelse
+ * fjernes ved at dividere med en probe lagt direkte under roden).
+ */
+function toDocMatrix(el) {
+  const root = canvas().getSvgContent();
+  const own = el.getCTM?.();
+  if (!own) return null;
+  const probe = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  root.appendChild(probe);
+  let base = null;
+  try {
+    base = probe.getCTM?.() ?? null;
+  } finally {
+    root.removeChild(probe);
+  }
+  const inv = invertMatrix(base ?? identityMatrix());
+  return inv ? multiplyMatrix(inv, own) : own;
+}
+
+/** Elementets boks i tegningens koordinater (geometrien inkl. transform, uden streg), uafhængig af zoom. */
 function boxOf(el) {
+  try {
+    const m = toDocMatrix(el);
+    const bb = el.getBBox();
+    if (m && Number.isFinite(bb.x)) return transformBox({ x: bb.x, y: bb.y, w: bb.width, h: bb.height }, m);
+  } catch {
+    // getBBox/getCTM kaster for elementer der ikke vises — fald tilbage til skærmplaceringen
+  }
   const r = el.getBoundingClientRect();
   const o = canvas().getSvgContent().getBoundingClientRect();
   const z = canvas().getZoom() || 1;
@@ -96,30 +123,48 @@ function applyGuides() {
   drawGrid();
 }
 
-/** Efter en flytning: ligg kant mod kant (eller midte mod midte) med nærmeste objekt, hvis det er tæt på. */
-function snapSelectionToObjects() {
+/**
+ * Fang de valgte elementer: med "fang til gitter" lægges deres øverste venstre hjørne på nærmeste gitterpunkt
+ * (ABSOLUT: SVG-Edits egen fang afrunder kun selve flytningen, så et objekt uden for gitteret ender uden for gitteret,
+ * og en indsat kopi lander et tilfældigt sted). Med "fang til objekter" og et træk lægges det kant mod kant eller midte
+ * mod midte med nærmeste objekt, hvis det er tæt på — det vinder over gitteret i den retning.
+ */
+function settleSelection(dragged) {
   const sel = selectedEls();
-  if (!sel.length) return;
+  if (!sel.length || snapping) return;
   const now = unionBox(sel.map(boxOf));
-  const before = unionBox(sel.map((el) => lastBoxes.get(el)));
-  const known = sel.every((el) => lastBoxes.has(el));
-  if (guides.snapObjects && known && isDrag(before, now)) {
+  if (!now) return;
+  let dx = 0;
+  let dy = 0;
+  if (guides.snapGrid) ({ dx, dy } = gridCorrection(now, guides.step));
+  if (guides.snapObjects && dragged) {
     const content = canvas().getSvgContent();
     const others = [...content.querySelectorAll('g.layer > *')]
       .filter((el) => el.tagName !== 'title' && !sel.includes(el) && !sel.some((s) => s.contains(el) || el.contains(s)))
       .map(boxOf)
       .filter((b) => b.w > 0 || b.h > 0);
     const hit = snapToObjects(now, others, SNAP_PX / (canvas().getZoom() || 1));
-    if ((hit.dx || hit.dy) && !snapping) {
-      snapping = true;
-      try {
-        canvas().moveSelectedElements(hit.dx, hit.dy, true);
-      } finally {
-        snapping = false;
-      }
+    if (hit.guideX !== null) dx = hit.dx;
+    if (hit.guideY !== null) dy = hit.dy;
+  }
+  if (dx || dy) {
+    snapping = true;
+    try {
+      canvas().moveSelectedElements(dx, dy, true);
+    } finally {
+      snapping = false;
     }
   }
-  lastBoxes = new Map(selectedEls().map((el) => [el, boxOf(el)]));
+  rememberBoxes();
+}
+
+/** Efter et museslip: var det et træk (samme størrelse, ny placering), så fang. */
+function settleAfterMouseUp() {
+  const sel = selectedEls();
+  const now = unionBox(sel.map(boxOf));
+  const before = unionBox(sel.map((el) => lastBoxes.get(el)));
+  if (sel.length && sel.every((el) => lastBoxes.has(el)) && isDrag(before, now)) settleSelection(true);
+  else rememberBoxes();
 }
 
 let selectionListener = null;
@@ -154,7 +199,18 @@ function hookEvents() {
   // SVG-Edit sender ikke 'changed' efter en flytning med musen, så vi lytter selv på museknappen (efter editorens egen
   // håndtering): ved nedtryk huskes de valgte elementers placering, ved slip fanges der — hvis det var et træk.
   document.addEventListener('mousedown', () => setTimeout(rememberBoxes, 0), true);
-  document.addEventListener('mouseup', () => setTimeout(() => { if (!snapping) snapSelectionToObjects(); }, 0), true);
+  document.addEventListener('mouseup', () => setTimeout(() => { if (!snapping) settleAfterMouseUp(); }, 0), true);
+  // Indsæt og dupliker (Ctrl+V, Ctrl+D): kopien lægges på gitteret, så den passer sammen med originalen
+  for (const name of ['pasteElements', 'cloneSelectedElements']) {
+    const original = c[name];
+    if (typeof original !== 'function') continue;
+    c[name] = function wrapped(...args) {
+      const result = original.apply(this, args);
+      const small = name === 'cloneSelectedElements' && Math.max(Math.abs(args[0] ?? 0), Math.abs(args[1] ?? 0)) < 5;   // finjustering med tasterne
+      if (!small) setTimeout(() => settleSelection(false), 0);
+      return result;
+    };
+  }
   const prevZoomed = c.bind('zoomed', (...args) => {
     if (prevZoomed) prevZoomed(...args);
     drawGrid();
@@ -293,6 +349,7 @@ window.scada = {
     c.undoMgr.addCommandToHistory(new c.history.InsertElementCommand(node));
     c.clearSelection();
     c.addToSelection([node]);
+    settleSelection(false);   // et nyt symbol lægges på gitteret
     if (changeListener) changeListener();
     return node.id;
   },

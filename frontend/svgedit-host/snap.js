@@ -54,3 +54,40 @@ export function isDrag(before, after, minMove = 3, sizeTolerance = 0.5) {
   const moved = Math.max(Math.abs(after.x - before.x), Math.abs(after.y - before.y));
   return sameSize && moved > minMove;
 }
+
+/** Hvor langt skal en boks flyttes for at dens øverste venstre hjørne ligger på et gitterpunkt (multipla af `step`)? */
+export function gridCorrection(box, step) {
+  if (!(step > 0)) return { dx: 0, dy: 0 };
+  const fix = (v) => (Math.abs(v) < 1e-9 ? 0 : v);   // undgå -0 og afrundingsstøj
+  return { dx: fix(Math.round(box.x / step) * step - box.x), dy: fix(Math.round(box.y / step) * step - box.y) };
+}
+
+// 2D-matricer som i SVG: { a, b, c, d, e, f } — x' = a·x + c·y + e, y' = b·x + d·y + f
+export const identityMatrix = () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+
+/** m · n (n anvendes først). */
+export function multiplyMatrix(m, n) {
+  return {
+    a: m.a * n.a + m.c * n.b, b: m.b * n.a + m.d * n.b, c: m.a * n.c + m.c * n.d, d: m.b * n.c + m.d * n.d,
+    e: m.a * n.e + m.c * n.f + m.e, f: m.b * n.e + m.d * n.f + m.f,
+  };
+}
+
+/** Den omvendte matrix; null hvis den ikke kan vendes (nul-skalering). */
+export function invertMatrix(m) {
+  const det = m.a * m.d - m.b * m.c;
+  if (!det || !Number.isFinite(det)) return null;
+  return {
+    a: m.d / det, b: -m.b / det, c: -m.c / det, d: m.a / det,
+    e: (m.c * m.f - m.d * m.e) / det, f: (m.b * m.e - m.a * m.f) / det,
+  };
+}
+
+/** Boksen (x, y, w, h) efter en matrix — den mindste boks om de fire transformerede hjørner. */
+export function transformBox(box, m) {
+  const pts = [[box.x, box.y], [box.x + box.w, box.y], [box.x, box.y + box.h], [box.x + box.w, box.y + box.h]]
+    .map(([x, y]) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f]);
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+}

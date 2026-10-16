@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.54.2 build 0081] — 2026-10-16 — fix: løbelys uafhængigt af rørets skalering; fang til gitter er absolut
+
+- `frontend/src/lib/animate.ts` — **løbelys**: lysets længde (`dash`) og fart (`speed`) er nu i tegningens enheder, uanset hvordan røret er skaleret. Stregen måles i tegningen (først efter at laget er sat ind): rørets samlede matrix (egen + forfædres transform) divideret med en probe under roden (så tegningens viewBox/zoom ikke tæller med), og skaleringen langs røret (rect/line: langs linjen; kurve/bøjning: geometrisk middel) omregner lysstykket og forskydningen til rørets lokale enheder. Uden mulighed for at måle (jsdom, uden for skærmen) er faktoren 1 som før. Rør der ikke er skaleret, ser ud som før.
+- `frontend/svgedit-host/scada-editor.js` + `snap.js` — **fang til gitter er absolut**: `gridCorrection()` lægger de valgte elementers øverste venstre hjørne på nærmeste gitterpunkt efter en flytning med musen, **indsæt** (`pasteElements`), **duplikér** (`cloneSelectedElements`, ikke tasternes 1–5 px finjustering) og isætning af et symbol fra paletten; fang til objekter vinder i sin retning. Boksen måles nu som geometri i tegningens koordinater (`getBBox` + matrix uden zoom) i stedet for skærmplaceringen. Matrix-hjælpere (`multiplyMatrix`, `invertMatrix`, `transformBox`, `identityMatrix`).
+- Manualen: Løbelys og Tegnehjælp opdateret.
+- Tests: `animate.test.ts` (lengthScale, strakt/drejet/lodret rør, skalering på tværs, tegningens egen visning tæller ikke), `snap.test.ts` (gridCorrection — også at en kopi havner på samme gitterpunkter —, matricer). **Afprøvet med rigtig mus** i browseren: træk fra (593,337) med fang til gitter → (600,350); duplikat af objekt uden for gitteret → på gitteret; nyt symbol → på gitteret. Ctrl+C/Ctrl+V kunne ikke afprøves i en testbrowser (kræver udklipsholder), men bruger samme hook som duplikering.
+
 ## [0.54.1 build 0080] — 2026-10-16 — manual: billeder af Tegnehjælp
 
 - `frontend/public/manual/tegn-gitter.png` (nyt) og et nyt `tegn.png` med rækken Tegnehjælp; billedet er indsat i kapitlet *Tegninger og Tegn*. Verificeret på testserveren efter OTA-installation af 0.54.0: rotationsrettelsen er med i den leverede `Editor.js`, og gitteret ligger over det rigtige anlæg.
