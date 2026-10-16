@@ -1,7 +1,7 @@
 // 3-vejs motorventil og statusfelt i symbolbiblioteket (v0.46.0): delene og guidens forslag.
 import { describe, expect, it } from 'vitest';
 import { SYMBOLS } from './symbols';
-import { libraryDefault, partLabel, POS, type SymbolInfo } from './symbolConfig';
+import { emptyConfig, isValveType, libraryDefault, MAX_ANIMS, partLabel, POS, valveFromTag, type SymbolInfo } from './symbolConfig';
 
 const sym = (id: string) => SYMBOLS.find((s) => s.id === id)!;
 const partIds = (id: string) => [...new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${sym(id).svg}</svg>`, 'image/svg+xml').querySelectorAll('[id]')].map((e) => e.id);
@@ -65,5 +65,45 @@ describe('statusfelt', () => {
     expect(r.config.anims[0]).toMatchObject({ part: 'V1_felt_2', type: 'fill', src: '' });
     expect(r.config.anims[0].params.thresholds.length).toBeGreaterThan(0);
     expect(libraryDefault(info('statusfelt', ['tekst']))).toBeNull();
+  });
+});
+
+describe('3-vejs ventil styret af ét til/fra-tag', () => {
+  const sy = info('trevejs_motorventil', ['port_a', 'port_b', 'port_ab', 'motor']);
+
+  it('Til = AB → A, Fra = AB → B, og AB er altid åben', () => {
+    const cfg = emptyConfig(sy.type);
+    expect(valveFromTag(cfg, sy, 'PLC1_DI8')).toBe(3);
+    const by = Object.fromEntries(cfg.anims.map((a) => [a.part, a]));
+    expect(cfg.anims.every((a) => a.type === 'fill' && a.src === 'PLC1_DI8' && a.only === null)).toBe(true);
+    expect(by['V1_port_a_2'].params).toEqual({ on: '#7cc47f', off: '#ffffff' });
+    expect(by['V1_port_b_2'].params).toEqual({ on: '#ffffff', off: '#7cc47f' });
+    expect(by['V1_port_ab_2'].params).toEqual({ on: '#7cc47f', off: '#7cc47f' });
+  });
+
+  it('erstatter kun animationer på de tre porte og bevarer resten', () => {
+    const cfg = emptyConfig(sy.type);
+    cfg.anims = [
+      { part: 'V1_port_ab_2', type: 'fill', src: '@L2', params: {}, only: null },
+      { part: 'V1_motor_2', type: 'blink', src: 'Motor', params: {}, only: null },
+    ];
+    expect(valveFromTag(cfg, sy, 'T')).toBe(3);
+    expect(cfg.anims).toHaveLength(4);
+    expect(cfg.anims.filter((a) => a.part === 'V1_port_ab_2')).toHaveLength(1);     // ikke to på samme del (den nederste vinder)
+    expect(cfg.anims.find((a) => a.part === 'V1_motor_2')!.src).toBe('Motor');
+  });
+
+  it('ingen porte = 0, ingen plads = -1 uden at ændre noget', () => {
+    expect(valveFromTag(emptyConfig('x'), info('trevejs_motorventil', ['motor']), 'T')).toBe(0);
+    const full = emptyConfig(sy.type);
+    full.anims = Array.from({ length: MAX_ANIMS }, (_, i) => ({ part: `x${i}`, type: 'blink' as const, src: 'T', params: {}, only: null }));
+    expect(valveFromTag(full, sy, 'T')).toBe(-1);
+    expect(full.anims).toHaveLength(MAX_ANIMS);
+  });
+
+  it('isValveType kender begge varianter', () => {
+    expect(isValveType('trevejs_motorventil')).toBe(true);
+    expect(isValveType('trevejs_motorventil_ab')).toBe(true);
+    expect(isValveType('trevejsventil')).toBe(false);
   });
 });

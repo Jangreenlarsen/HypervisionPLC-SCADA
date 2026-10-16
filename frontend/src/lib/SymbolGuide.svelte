@@ -9,7 +9,7 @@
   import {
     ALARM_TXT, ANIM_TXT, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
-    libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor,
+    isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
 
@@ -229,6 +229,23 @@
     a.src = mode === POS ? POS : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
     resetParams(a);
   }
+  // ---- 3-vejs ventil styret af ét til/fra-tag
+  let valveTag = $state('');
+  let valveMsg = $state('');
+  function applyValve(): void {
+    valveMsg = '';
+    if (!symbol || !valveTag) return;
+    if (tagKindOf(valveTag) === 'num') {
+      valveMsg = `${valveTag} er et tal-tag — vælg et til/fra-tag.`;
+      return;
+    }
+    const used = cfg.anims.filter((a) => ['port_a', 'port_b', 'port_ab'].includes(symbol!.parts[a.part]?.pid ?? '')).length;
+    if (used && !confirm(`Erstat de ${used} eksisterende animationer på portene A, B og AB?`)) return;
+    const k = valveFromTag(cfg, symbol, valveTag);
+    valveMsg = k > 0 ? `${k} animationer oprettet: Til = AB → A, Fra = AB → B.`
+      : k === 0 ? 'Symbolet har ikke portene A, B og AB.' : 'Der er ikke plads til tre flere animationer (højst 12).';
+  }
+
   function addBlock(): void {
     if (cfg.logic.length >= MAX_LOGIC) return;
     cfg.logic.push(newBlock(cfg));
@@ -462,6 +479,14 @@
               </label>
             {/if}
           </div>
+          {#if isValveType(symbol.type)}
+            <div class="notice small">
+              <strong>Hurtig opsætning:</strong> styres ventilen af ét til/fra-tag? Til = AB → A, Fra = AB → B (AB er altid åben).
+              <div class="row wrap"><TagSelect bind:value={valveTag} {tags} placeholder="— vælg til/fra-tag —" />
+                <button class="small" onclick={applyValve} disabled={!valveTag}>Opret animationer</button></div>
+              {#if valveMsg}<span class="small">{valveMsg}</span>{/if}
+            </div>
+          {/if}
           <h4>Logik ({cfg.logic.length}/{MAX_LOGIC})</h4>
           <p class="small muted">Saml flere tags i én betingelse (fx pumpe kører OG ventil åben), og brug den som kilde til en animation. En blok kan også bruge blokkene over sig og blokke i andre symboler på tegningen (og omvendt — dine blokke kan bruges dér).</p>
           {#each cfg.logic as b (b.id)}

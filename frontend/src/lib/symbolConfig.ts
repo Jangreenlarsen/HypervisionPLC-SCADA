@@ -79,6 +79,28 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
   return null;
 }
 
+export const isValveType = (type: string): boolean => type === 'trevejs_motorventil' || type === 'trevejs_motorventil_ab';
+
+/**
+ * 3-vejs ventil styret af ÉT til/fra-tag: Til = AB → A, Fra = AB → B. Opretter tre farve-animationer (A, B og AB)
+ * og erstatter eksisterende animationer på de tre porte. AB er altid åben. Returnerer antal oprettede animationer, eller
+ * 0 hvis symbolet ikke har portene, eller -1 hvis der ikke er plads (højst 12 animationer).
+ */
+export function valveFromTag(cfg: SymbolConfig, symbol: SymbolInfo, tag: string): number {
+  const OPEN = '#7cc47f', CLOSED = '#ffffff';
+  const wanted: [string, string, string][] = [['port_a', OPEN, CLOSED], ['port_b', CLOSED, OPEN], ['port_ab', OPEN, OPEN]];
+  const made: Anim[] = [];
+  for (const [pid, on, off] of wanted) {
+    const part = Object.entries(symbol.parts).find(([, p]) => p.pid === pid)?.[0];
+    if (part) made.push({ part, type: 'fill', src: tag, params: { on, off }, only: null });
+  }
+  if (!made.length) return 0;
+  const kept = cfg.anims.filter((a) => !made.some((m) => m.part === a.part));
+  if (kept.length + made.length > MAX_ANIMS) return -1;
+  cfg.anims = [...kept, ...made];
+  return made.length;
+}
+
 /** Til/fra, tal eller ukendt (ST-variabler kendes først fra live-værdien) ud fra tagets kilde `plc:type:adr[:datatype]`. */
 export function tagKind(source: string | undefined): 'bool' | 'num' | 'unknown' {
   if (!source) return 'unknown';

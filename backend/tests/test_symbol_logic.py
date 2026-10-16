@@ -304,3 +304,20 @@ def test_library_defaults_for_three_way_valve_and_status_field_are_accepted_by_t
     status["anims"][0]["src"] = ""
     r = api.put(f"/api/drawings/{did}/symbols/STF1/config", json={"config": status})
     assert r.status_code == 400 and "vælg hvad der styrer den" in " ".join(m for v in r.json()["steps"].values() for m in v)
+
+
+def test_valve_driven_by_one_bool_tag_is_accepted_and_has_one_animation_per_port(api):
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"><g id="V3" data-hv-type="trevejs_motorventil" data-hv-name="Ventil 3">'
+           '<path id="V3_a" data-hv-pid="port_a" d="M8 27 L40 45 L8 63 Z"/><path id="V3_b" data-hv-pid="port_b" d="M22 13 L58 13 L40 45 Z"/>'
+           '<path id="V3_ab" data-hv-pid="port_ab" d="M72 27 L40 45 L72 63 Z"/></g></svg>')
+    did = api.post("/api/drawings", json={"name": "Ventil", "svg": svg}).json()["drawing"]["id"]
+    on, off = "#7cc47f", "#ffffff"
+    cfg = {"op": "view", "anims": [
+        {"part": "V3_a", "type": "fill", "src": "Fejl", "params": {"on": on, "off": off}},
+        {"part": "V3_b", "type": "fill", "src": "Fejl", "params": {"on": off, "off": on}},
+        {"part": "V3_ab", "type": "fill", "src": "Fejl", "params": {"on": on, "off": on}}]}
+    r = api.put(f"/api/drawings/{did}/symbols/V3/config", json={"config": cfg})      # Fejl er en skrivebeskyttet indgang (di)
+    assert r.status_code == 200, r.text
+    view = api.get(f"/api/drawings/{did}/view").json()
+    fills = {b["element"]: b["params"] for b in view["bindings"] if b["anim"] == "fill"}
+    assert fills["V3_a"]["on"] == on and fills["V3_b"]["off"] == on and fills["V3_ab"]["on"] == fills["V3_ab"]["off"] == on

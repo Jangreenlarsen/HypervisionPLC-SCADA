@@ -2,6 +2,12 @@
 
 ---
 
+## v0.48.0 — 2026-10-16 — 3-vejs ventil: ét tag styrer alle tre porte
+
+- I guidens **trin 4 (Visning)** har de to 3-vejs motorventiler en **Hurtig opsætning**: vælg det til/fra-tag, der styrer ventilen, og tryk **Opret animationer**.
+- **Til** = AB → A (Port A og AB åbne), **Fra** = AB → B (Port B og AB åbne). Port AB er altid åben.
+- Virker også med en indgang, du kun kan læse. Farverne kan rettes bagefter under Animationer.
+
 ## v0.47.2 — 2026-10-16 — 3-vejs motorventil: tre hvide porte
 
 - Begge 3-vejs motorventiler er nu tegnet med tre hvide porte (A, B og AB), så det kun er animationerne, der farver dem.

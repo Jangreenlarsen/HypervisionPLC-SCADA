@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.48.0 build 0068] — 2026-10-16 — 3-vejs ventil: hurtig opsætning med ét til/fra-tag
+
+- `frontend/src/lib/symbolConfig.ts` — `valveFromTag()` (+ `isValveType`): tre farve-animationer for portene A, B og AB ud fra ét tag (Til = AB → A, Fra = AB → B, AB altid åben); erstatter kun animationer på de tre porte; melder om symbolet mangler portene eller der ikke er plads (højst 12).
+- `frontend/src/lib/SymbolGuide.svelte` — sektionen **Hurtig opsætning** øverst i trin 4 for de to 3-vejs motorventiler: vælg et til/fra-tag, tryk **Opret animationer** (bekræftelse hvis portene allerede har animationer; tal-tags afvises med en klar besked). Virker også for skrivebeskyttede indgange (visning).
+- Tests: `libraryDefaults.test.ts` (frontend) og `test_symbol_logic.py` (serveren accepterer formen).
+
 ## [0.47.2 build 0067] — 2026-10-16 — fix: 3-vejs motorventilerne har tre hvide porte
 
 - `frontend/src/lib/symbols.ts` — portene A, B og AB er hvide i begge varianter (før: to sorte og én hvid), så farven alene styres af animationerne. Set i browser. Se BUGS.md.
