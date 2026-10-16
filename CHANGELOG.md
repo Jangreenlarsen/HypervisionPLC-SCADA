@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.52.2 build 0077] — 2026-10-16 — manual: setpunktets tag vælges i trin 2
+
+- `frontend/src/manual/10-eksempler.md` — eksemplet "Setpunkt med beregning" sagde, at registeret vælges i trin 1; det vælges i guidens trin 2 (Signaler). Rettet ved gennemlæsning mod guiden.
+
 ## [0.52.1 build 0076] — 2026-10-16 — fix: topmenu og manual på smalle skærme
 
 - `frontend/src/App.svelte` — på skærme ≤ 640 px er alle fire menupunkter, alarmklokken og AGPL-linket på én linje (Bruger-menuen blev før skubbet ud over kanten); pilene og "· kildekode" skjules, AGPL-linket bliver.

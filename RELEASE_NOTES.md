@@ -2,6 +2,10 @@
 
 ---
 
+## v0.52.2 — 2026-10-16 — Manual rettet
+
+- Et eksempel i manualen (setpunkt) pegede på et forkert trin i guiden. Rettet.
+
 ## v0.52.1 — 2026-10-16 — Bedre på telefon og tablet
 
 - Topmenuen med **Bruger** passer nu på en smal skærm, og manualen har en kapitelvælger i stedet for en lang liste.

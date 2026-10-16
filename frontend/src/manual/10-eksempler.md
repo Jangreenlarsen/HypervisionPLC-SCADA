@@ -52,7 +52,7 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 **Mål:** operatøren indtaster en ønsket temperatur, som PLC'en gemmer i et register med én decimal for meget.
 
 1. **Tag:** `Stue_Setpunkt` (`plc1:hr:20`, *Betjening* sat, *Min* 5, *Max* 30). PLC'en gemmer 215 for 21,5 °C.
-2. **Tegn:** indsæt **Setpunkt-felt**. Opsæt det med guiden: trin 1 **Setpunkt**, trin 1 vælger tagget `Stue_Setpunkt`.
+2. **Tegn:** indsæt **Setpunkt-felt**. Opsæt det med guiden: **trin 1** vælg **Setpunkt**; **trin 2** vælg det register, der skrives: `Stue_Setpunkt`.
 3. Vil du i stedet bare vise værdien som tekst: **Bindinger**, vælg elementet, animation **Tekst**, **Beregning** `x / 10`, **Decimaler** 1, enhed °C — så vises 215 som *21,5 °C*.
 4. På Overview skriver operatøren fx 22; serveren tjekker mod min/max og afviser 40 med en forklaring.
 
