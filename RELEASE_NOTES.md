@@ -2,6 +2,10 @@
 
 ---
 
+## v0.47.2 — 2026-10-16 — 3-vejs motorventil: tre hvide porte
+
+- Begge 3-vejs motorventiler er nu tegnet med tre hvide porte (A, B og AB), så det kun er animationerne, der farver dem.
+
 ## v0.47.1 — 2026-10-16 — Guiden: smallere tag-valg
 
 - I guidens trin 2 er **Kommando** og **Tilbagemelding** ikke længere så brede, at **Skrives som** blev presset ud til højre. Det samme gælder tag-valgene ved animationerne.

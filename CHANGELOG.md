@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.47.2 build 0067] — 2026-10-16 — fix: 3-vejs motorventilerne har tre hvide porte
+
+- `frontend/src/lib/symbols.ts` — portene A, B og AB er hvide i begge varianter (før: to sorte og én hvid), så farven alene styres af animationerne. Set i browser. Se BUGS.md.
+
 ## [0.47.1 build 0066] — 2026-10-16 — fix: guidens tag-dropdowns pressede "Skrives som" ud
 
 - `frontend/src/lib/SymbolGuide.svelte` — tag-dropdowns i guidens tabeller og animationsrækker er højst 15 em brede (`:global`, da TagSelect er en underkomponent); "Skrives som" har mindstebredde og må ombrydes. Se BUGS.md. Layoutet er **set** på testserveren (1280 px).
