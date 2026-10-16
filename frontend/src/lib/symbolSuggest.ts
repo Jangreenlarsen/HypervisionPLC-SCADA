@@ -18,6 +18,7 @@ export interface SelectionInfo {
   symbolType: string;                // data-hv-type, hvis det allerede er et bibliotekssymbol
   ids: string[];
   texts: string[];                   // tekster inde i elementets boks
+  apexAngle: number | null;          // retningen (grader) delens ene ligebenede trekant peger — null hvis ingen/flere
   similar: number;                   // antal andre elementer med samme opbygning og størrelse
   similarAny: number;                // … uanset størrelse (fx etiketter med forskellig tekstlængde)
   similarGroups: string[][];         // pr. lignende del: de id'er der forsvinder (til at springe bundne dele over)
@@ -138,6 +139,9 @@ export function nameHint(s: SelectionInfo, symbolLabel: string): string {
   if (text) return `${symbolLabel} ${text}`;
   return symbolLabel;
 }
+
+/** Symboler med en retning (deres trekant peger mod højre ved 0°) — her kan symbolet drejes efter den tegnede trekant. */
+export const NATIVE_DIRECTION: Record<string, number> = { pumpe: 0 };
 
 /** Skal symbolet strækkes til at fylde delens boks (rør) i stedet for at beholde sine proportioner? */
 export const stretchesByDefault = (symbolId: string): boolean => ['roer_v', 'roer_l', 'ledning_v', 'ledning_l'].includes(symbolId);

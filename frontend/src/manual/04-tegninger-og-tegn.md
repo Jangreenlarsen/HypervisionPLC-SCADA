@@ -61,7 +61,7 @@ Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige 
 
 ![Erstat med symbol: forslag ud fra delens form, indstillinger og valg om at erstatte alle lignende](/manual/tegn-erstat.png)
 
-> Symbolets **retning** (fx pumpens trekant) er tegnet ind i den gamle del og kan ikke aflæses sikkert — kontrollér og drej symbolet efter erstatning (**Shift** giver fri rotation). Bindinger på **underelementer** i den gamle del følger ikke med; dialogen advarer, hvis der er nogen.
+> **Retning:** for en **pumpe** aflæser systemet, hvilken vej den tegnede trekant peger, og drejer symbolet, så det peger samme vej (valget *Drej symbolet …* i dialogen). For andre symboler er retningen tegnet ind i den gamle del og kan ikke aflæses sikkert — kontrollér og drej dem efter erstatning (**Shift** giver fri rotation). Bindinger på **underelementer** i den gamle del følger ikke med; dialogen advarer, hvis der er nogen.
 
 ### Symbolbiblioteket
 

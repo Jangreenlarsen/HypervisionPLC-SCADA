@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.56.0 build 0084] — 2026-10-16 — Erstat med symbol: pumpens retning aflæses
+
+- `frontend/svgedit-host/snap.js` — `pathVertices()` (M/L/H/V/Z, relativ og absolut; kurver giver null), `triangleApex()` (ligebenet trekant → toppen og retningen fra grundlinjens midte; ligesidet giver null), `directionAngle()` (retningen efter en matrix) og `turnTo()` (drejning så et symbols retning rammer målet).
+- `frontend/svgedit-host/scada-editor.js` — `describeSelection()` leverer `apexAngle` (delens ENE trekant, målt i tegningens koordinater inkl. alle lags drejning; null ved ingen eller flere); `replaceSelected()` tager `apexNative` og drejer hvert nyt symbol, så dets trekant peger som den tegnede — pr. del ved "erstat alle lignende". Retningen måles **før** den gamle del fjernes (en frakoblet del har ingen matrix).
+- `frontend/src/lib/SymbolReplace.svelte` + `symbolSuggest.ts` — valget "Drej symbolet, så trekanten peger samme vej som den tegnede (N°)" for retningsgivende symboler (`NATIVE_DIRECTION`: pumpen peger mod højre ved 0°).
+- Manualen: afsnittet om retning opdateret.
+- Tests: `snap.test.ts` (stiparsing med pumpestierne fra "varme", trekantens top, retning efter matrix, drejning). **Afprøvet** på en lokal kopi af "varme": de fire pumpers trekanter pegede −90°/90°/−90°/90° før og peger efter erstatning samme vej (symbolerne har rotate(−90)/rotate(90)); et første forsøg målte retningen efter fjernelsen og gav −90° til alle — fundet af afprøvningen og rettet.
+
 ## [0.55.1 build 0083] — 2026-10-16 — fix: Erstat med symbol rører ikke dele med bindinger
 
 - `frontend/svgedit-host/scada-editor.js` — `describeSelection()` leverer `similarGroups` (id'er pr. lignende del) og `ids` tæller nu også de tekster der ligger inde i delen; `replaceSelected()` tager `protectIds` og **springer lignende dele over**, hvis noget af det der ville forsvinde har en binding (meldes som `skipped`). Selve den valgte del erstattes som valgt.

@@ -1,7 +1,9 @@
 // Værtsside for SVG-Edit inde i SCADA'en (indlæses i en iframe fra samme origin).
 // Forældresiden (DrawEditor.svelte) bruger `window.scada` nedenfor.
 import Editor from './Editor.js';
-import { gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, snapToObjects, transformBox, unionBox } from './snap.js';
+import {
+  directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, snapToObjects, transformBox, triangleApex, turnTo, unionBox,
+} from './snap.js';
 
 const editor = new Editor(document.getElementById('container'));
 editor.setConfig({
@@ -308,6 +310,22 @@ function textsWithin(el, geom) {
   return candidates.map((t) => ({ el: t, text: (t.textContent || '').replace(/\s+/g, ' ').trim() })).filter((t) => t.text && inside(boxOf(t.el)));
 }
 
+/** Retningen (grader i tegningen) som delens ENE trekant peger: ligebenet trekant i en sti/polygon. Null hvis der ikke er præcis én. */
+function apexAngleOf(el) {
+  const found = [];
+  for (const e of [el, ...el.querySelectorAll('path, polygon')]) {
+    const tag = e.tagName.toLowerCase();
+    let verts = null;
+    if (tag === 'path') verts = pathVertices(e.getAttribute('d'));
+    else if (tag === 'polygon') verts = (e.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number).reduce((acc, v, i, all) => (i % 2 ? acc : [...acc, [v, all[i + 1]]]), []);
+    const tri = verts && verts.length === 3 ? triangleApex(verts) : null;
+    if (tri) found.push({ e, tri });
+  }
+  if (found.length !== 1) return null;
+  const M = toDocMatrix(found[0].e);
+  return M ? directionAngle(found[0].tri.vector, M) : null;
+}
+
 /** Alle id'er der forsvinder, når elementet erstattes: det selv, dets underelementer og tekster der ligger inde i det. */
 function affectedIds(el, geom) {
   const own = [el.id, ...[...el.querySelectorAll('[id]')].map((e) => e.id)];
@@ -446,6 +464,7 @@ window.scada = {
       name: el.getAttribute('data-hv-name') || '',
       symbolType: el.getAttribute('data-hv-type') || '',
       // id'er der forsvinder ved en erstatning: delen, dens underelementer og de tekster der ligger inde i den
+      apexAngle: apexAngleOf(el),
       ids: affectedIds(el, g),
       texts: textsWithin(el, g).map((t) => t.text),
       similar: similarTo(el).length,
@@ -481,6 +500,8 @@ window.scada = {
       const layer = anchor.parentNode;
       const texts = opts.useText ? textsWithin(old, g) : [];
       const oldId = old.id;
+      // Retningen måles FØR delen fjernes (en frakoblet del har ingen matrix i tegningen)
+      const apex = opts.apexNative !== undefined ? apexAngleOf(old) : null;
       // 1) fjern det gamle (og de tekster det overtager) — i samme fortryd-trin
       const removeTracked = (node) => {
         const next = node.nextSibling;
@@ -503,7 +524,9 @@ window.scada = {
       const sy = opts.stretch ? sy0 : Math.min(sx0, sy0);
       const tx = g.cx - sx * (nb.x + nb.width / 2);
       const ty = g.cy - sy * (nb.y + nb.height / 2);
-      const rot = Math.abs(g.angle) > 0.01 ? `rotate(${g.angle.toFixed(3)} ${g.cx.toFixed(3)} ${g.cy.toFixed(3)}) ` : '';
+      // Retningsgivende symboler (pumpe): drej, så symbolets trekant peger samme vej som den tegnede; ellers delens egen drejning
+      const angle = apex !== null ? turnTo(apex, opts.apexNative) : g.angle;
+      const rot = Math.abs(angle) > 0.01 ? `rotate(${angle.toFixed(3)} ${g.cx.toFixed(3)} ${g.cy.toFixed(3)}) ` : '';
       node.setAttribute('transform', `${rot}translate(${tx.toFixed(3)} ${ty.toFixed(3)}) scale(${sx.toFixed(5)} ${sy.toFixed(5)})`);
       if (texts.length) {
         const slot = node.querySelector('[data-hv-pid="tekst"]');

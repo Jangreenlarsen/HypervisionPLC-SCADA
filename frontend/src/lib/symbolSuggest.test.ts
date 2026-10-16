@@ -4,7 +4,7 @@ import { hasTextSlot, nameHint, stretchesByDefault, suggestSymbols, type Selecti
 
 const sel = (over: Partial<SelectionInfo>): SelectionInfo => ({
   id: 'svg_1', tag: 'g', counts: {}, children: 1, w: 70, h: 70, angle: 0, fill: '', stroke: '', strokeWidth: 0, rx: 0, name: '',
-  symbolType: '', ids: ['svg_1'], texts: [], similar: 0, similarAny: 0, similarGroups: [], ...over,
+  symbolType: '', ids: ['svg_1'], texts: [], apexAngle: null, similar: 0, similarAny: 0, similarGroups: [], ...over,
 });
 const top = (s: SelectionInfo) => suggestSymbols(s)[0]?.id;
 const ids = (s: SelectionInfo) => suggestSymbols(s).map((x) => x.id);
