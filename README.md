@@ -10,9 +10,10 @@ Dokumentation:
 - [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md) — research, design og faseplan
 - [ARCHITECTURE.md](ARCHITECTURE.md) — lag og projektstruktur
 - [FEATURES.md](FEATURES.md) — backlog
+- **Brugermanual:** i programmet under **Bruger › Manual** (kilden er markdown i [frontend/src/manual/](frontend/src/manual/)).
 - [docs/SYMBOLSTANDARD.md](docs/SYMBOLSTANDARD.md) — designet for symboler (guide, kontaktplaner, animationer) + [interaktiv prototype](docs/prototyper/symbolguide.html)
 
-Status: v0.49.0 — Overview med live SVG-tegninger, betjening, alarmer og trends, tegne-editor, binding-editor, tags, audit-log, backup/restore, login, roller med adgang pr. tegning og HTTPS.
+Status: v0.52.2 — Overview med live SVG-tegninger, betjening, alarmer og trends, tegne-editor, binding-editor, tags, audit-log, backup/restore, login, roller med adgang pr. tegning og HTTPS.
 
 ## Udvikling
 
@@ -46,6 +47,17 @@ sudo sh deploy/install.sh --with-mock-plc # + mock-PLC til test
 sudo sh deploy/install.sh --with-nginx scada.laces.dk 10.1.1.31   # + nginx med TLS (selvsigneret certifikat)
 ```
 Konfiguration: `/etc/hypervisionplc-scada.env`. Data: `/var/lib/hypervisionplc-scada`. Certifikat: `/etc/hypervisionplc-scada/tls/`.
+
+### Opdatering via web-siden (OTA)
+
+Efter én installation med `deploy/install.sh` kan en admin opdatere serveren fra **System › Opdatering**:
+
+1. Byg pakken på udviklingsmaskinen: `sh deploy/make-package.sh` → `scada-<version>-b<build>.tar`.
+2. Upload den under System › Opdatering. Serveren kontrollerer pakken (sikre stier, version, nødvendige filer) og viser version og kontrolsum.
+3. Tryk **Installér og genstart**. Der tages en backup, en lille root-tjeneste (`hypervisionplc-scada-update`) installerer pakken, genstarter og tjekker `/api/health`.
+   Svarer den nye version ikke, **rulles der automatisk tilbage** til forrige kode. Status og log vises på siden og i `/var/lib/hypervisionplc-scada/updates/`.
+
+Nedgradering understøttes ikke (databasen kan være opgraderet). Kontrolsummen beskytter mod beskadigelse — ikke mod en ondsindet admin, som via opdateringen i praksis kan køre kode som root.
 
 ### Opdatering af en server fra Windows
 

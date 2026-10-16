@@ -19,3 +19,6 @@ frontend/dist/
 Thumbs.db
 desktop.ini
 frontend/public/svgedit/
+
+# Opdateringspakker bygget af deploy/make-package.sh
+scada-*.tar

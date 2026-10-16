@@ -1,0 +1,7 @@
+[Unit]
+Description=Installér en OTA-opdatering af HypervisionPLC SCADA (root)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/hypervisionplc-scada/apply-update.sh
+TimeoutStartSec=900

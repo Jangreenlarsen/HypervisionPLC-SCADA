@@ -2,6 +2,42 @@
 
 ---
 
+## v0.52.2 — 2026-10-16 — Manual rettet
+
+- Et eksempel i manualen (setpunkt) pegede på et forkert trin i guiden. Rettet.
+
+## v0.52.1 — 2026-10-16 — Bedre på telefon og tablet
+
+- Topmenuen med **Bruger** passer nu på en smal skærm, og manualen har en kapitelvælger i stedet for en lang liste.
+
+## v0.52.0 — 2026-10-16 — Brugermanual
+
+- Ny side **Bruger › Manual** med en komplet brugermanual: hvordan systemet hænger sammen, roller, alle sider i menuen, tags og PLC'er, tegninger, animationer, symbolguiden i 6 trin, logikblokke, alle 85 symboler i biblioteket, ugeprogrammer, backup og opdatering — og **11 eksempler trin for trin** (pumpe, tank, 3-vejs ventil, logik, setpunkt med beregning, alarm, ugeprogram, omskifter, ekstern Modbus, opdatering).
+- Du kan **søge** i hele manualen, hoppe mellem kapitler og direkte til afsnit.
+- Biblioteks-kapitlet opdateres automatisk, når der kommer nye symboler.
+
+## v0.51.1 — 2026-10-16 — Bruger-menuen til højre
+
+- **Bruger** står nu yderst til højre i topbjælken, som du kender det fra andre programmer.
+
+## v0.51.0 — 2026-10-16 — Ny topmenu: Drift, Opsætning, System, Bruger
+
+- Menuen er nu fire punkter i topbjælken: **Drift**, **Opsætning**, **System** og **Bruger**. Før musen hen over et punkt, så folder menuen sig ud af sig selv, og du kan vælge siden direkte.
+- **Bruger** har dit navn, **Skift adgangskode**, **Log ud** og versionen.
+- På touch-skærme trykker du på punktet i stedet. Escape eller et klik udenfor lukker menuen.
+
+## v0.50.1 — 2026-10-16 — OTA: rettelser fra afprøvningen
+
+- Resultatet af en opdatering viser nu både version og build (fx *0.50.0 build 0072 → 0.50.0 build 0074*), og sundhedstjekket kræver den rigtige build.
+- Mens en opdatering kører, skjules pakkekortet og dets knapper.
+
+## v0.50.0 — 2026-10-16 — Opdatering direkte fra web-siden (OTA)
+
+- Ny side **System › Opdatering** (kun admin): upload en opdateringspakke, kontrollér version og kontrolsum, og tryk **Installér og genstart**. Du behøver ikke længere SSH.
+- Før opdateringen tages en backup. Svarer den nye version ikke efter genstarten, **rulles der automatisk tilbage** til den forrige. Status og log vises på siden.
+- Pakken bygges med `sh deploy/make-package.sh`. Ældre versioner kan ikke installeres.
+- **Første gang** skal serveren have installationen kørt som root (`sh deploy/install.sh`); derefter kan alle nye versioner komme via siden.
+
 ## v0.49.0 — 2026-10-16 — Kun relevante betjeningsformer i guiden
 
 - I guidens **trin 1** vises nu kun de betjeningsformer, der giver mening for symbolet. En 3-vejs motorventil kan fx kun have **Kun visning** eller **Positioner**, og rør og tanke kun **Kun visning**.

@@ -1,7 +1,8 @@
 #!/bin/sh
 # Installér/opdatér HypervisionPLC SCADA på Debian / Raspberry Pi OS. Køres som root
 # fra roden af en udpakket kopi af repoet:
-#   sh deploy/install.sh [--with-mock-plc] [--with-nginx <hostnavn> [ip]]
+#   sh deploy/install.sh [--with-mock-plc] [--with-nginx <hostnavn> [ip]] [--update]
+# --update: bruges af OTA-opdateringen — springer apt og pip-opgradering over (virker uden internet når alt er installeret).
 # --with-nginx: nginx med TLS foran SCADA (selvsigneret certifikat hvis intet findes) og Secure-cookie.
 #
 # - kode:  /opt/hypervisionplc-scada (erstattes ved hver installation)
@@ -15,11 +16,13 @@ DATA=/var/lib/hypervisionplc-scada
 ENVFILE=/etc/hypervisionplc-scada.env
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 WITH_MOCK=0
+UPDATE=0
 NGINX_HOST=""
 NGINX_IP=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --with-mock-plc) WITH_MOCK=1 ;;
+        --update) UPDATE=1 ;;
         --with-nginx) NGINX_HOST=${2:?--with-nginx kræver et hostnavn}; shift
                       case "${2:-}" in --*|"") ;; *) NGINX_IP=$2; shift ;; esac ;;
         *) echo "Ukendt parameter: $1" >&2; exit 2 ;;
@@ -33,8 +36,12 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 echo "== Pakker"
-apt-get update -qq
-apt-get install -y -qq python3 python3-venv >/dev/null
+if [ "$UPDATE" -eq 1 ] && python3 -c 'import venv, ensurepip' 2>/dev/null; then
+    echo "(--update: apt springes over)"
+else
+    apt-get update -qq
+    apt-get install -y -qq python3 python3-venv >/dev/null
+fi
 
 echo "== Bruger og mapper"
 id scada >/dev/null 2>&1 || useradd --system --home-dir "$DATA" --shell /usr/sbin/nologin scada
@@ -54,8 +61,8 @@ chown -R root:root "$APP"
 
 echo "== Python-miljø"
 [ -d "$APP/venv" ] || python3 -m venv "$APP/venv"
-"$APP/venv/bin/pip" install -q --upgrade pip
-"$APP/venv/bin/pip" install -q -r "$APP/backend/requirements.txt"
+[ "$UPDATE" -eq 1 ] || "$APP/venv/bin/pip" install -q --upgrade pip
+"$APP/venv/bin/pip" install -q --disable-pip-version-check -r "$APP/backend/requirements.txt"
 
 echo "== Konfiguration"
 if [ ! -f "$ENVFILE" ]; then
@@ -88,6 +95,15 @@ if [ -n "$NGINX_HOST" ]; then
     fi
 fi
 
+echo "== OTA-opdatering"
+# Hjælperen ligger UDEN FOR $APP (den erstattes ved hver installation) og udskiftes ved at lægge en ny fil ved siden af
+install -d -m 0755 /usr/local/lib/hypervisionplc-scada
+install -m 0755 "$SRC/deploy/apply-update.sh" /usr/local/lib/hypervisionplc-scada/apply-update.sh.new
+mv /usr/local/lib/hypervisionplc-scada/apply-update.sh.new /usr/local/lib/hypervisionplc-scada/apply-update.sh
+install -m 0644 "$SRC/deploy/hypervisionplc-scada-update.service" "$SRC/deploy/hypervisionplc-scada-update.path" /etc/systemd/system/
+install -d -o scada -g scada -m 0750 "$DATA/updates"
+: > "$DATA/updates/enabled"
+
 echo "== systemd"
 install -m 0644 "$SRC/deploy/hypervisionplc-scada.service" /etc/systemd/system/
 if [ "$WITH_MOCK" -eq 1 ]; then
@@ -96,9 +112,13 @@ fi
 systemctl daemon-reload
 systemctl enable -q hypervisionplc-scada
 systemctl restart hypervisionplc-scada
+systemctl enable -q hypervisionplc-scada-update.path
+systemctl restart hypervisionplc-scada-update.path
 if [ "$WITH_MOCK" -eq 1 ]; then
     systemctl enable -q hypervisionplc-mock-plc
     systemctl restart hypervisionplc-mock-plc
+elif systemctl is-active --quiet hypervisionplc-mock-plc 2>/dev/null; then
+    systemctl restart hypervisionplc-mock-plc   # kører fra den kode der lige er erstattet
 fi
 
 sleep 2

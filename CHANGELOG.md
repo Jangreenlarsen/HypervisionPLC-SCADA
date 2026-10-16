@@ -4,6 +4,48 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.52.2 build 0077] — 2026-10-16 — manual: setpunktets tag vælges i trin 2
+
+- `frontend/src/manual/10-eksempler.md` — eksemplet "Setpunkt med beregning" sagde, at registeret vælges i trin 1; det vælges i guidens trin 2 (Signaler). Rettet ved gennemlæsning mod guiden.
+
+## [0.52.1 build 0076] — 2026-10-16 — fix: topmenu og manual på smalle skærme
+
+- `frontend/src/App.svelte` — på skærme ≤ 640 px er alle fire menupunkter, alarmklokken og AGPL-linket på én linje (Bruger-menuen blev før skubbet ud over kanten); pilene og "· kildekode" skjules, AGPL-linket bliver.
+- `frontend/src/pages/Manual.svelte` — kapitelvælger (rulleliste) i stedet for den lange liste på smalle skærme. Set i browser. Se BUGS.md.
+
+## [0.52.0 build 0075] — 2026-10-16 — Brugermanual i systemet
+
+- `frontend/src/manual/*.md` (nye, 11 kapitler) — kom i gang og roller; Drift (Overview, Alarmer, Trends, Energi); PLC'er og tags; Tegninger og Tegn; Bindinger og animationer (inkl. beregning); symboler og guiden (positioner, kontaktplaner, logikblokke, nøglelås, hurtig opsætning af 3-vejs ventil); symbolbiblioteket (**genereres** af `src/lib/manualGen.test.ts` ud fra koden: 85 symboler med de betjeningsformer guiden tilbyder); ugeprogrammer; System (Log, Brugere, Backup, Opdatering); 11 trin-for-trin-eksempler; fejlfinding og ordliste.
+- `frontend/src/pages/Manual.svelte` + `lib/manual.ts` — siden **Manual** (Bruger-menuen, `#manual/<kapitel>/<afsnit>`): kapiteloversigt med afsnit, søgning på tværs af kapitler med træf og uddrag, fremhævning af søgeordet, forrige/næste kapitel. Markdown vises med `marked` (MIT — kompatibel med AGPL) og renses med DOMPurify.
+- `frontend/src/lib/nav.ts` — `USER_PAGES`: Manual er en side under **Bruger** for alle roller; `pageFor`/`groupOf` kender den.
+- Tests: `manual.test.ts` (opbygning, anker, rendering, rensning af farligt indhold, søgning, fremhævning, og at **alle menusider og alle 85 symboler er omtalt**), `manualGen.test.ts` (kapitlet er opdateret), `nav.test.ts`. En fejl i søgefremhævningen (regex med g-flag sprang tekstnoder over) blev fundet af testen og rettet.
+
+## [0.51.1 build 0074] — 2026-10-16 — Bruger-menuen yderst til højre
+
+- `frontend/src/App.svelte` — **Bruger**-punktet står nu yderst til højre i topbjælken (efter alarmklokke og kildekode-linket), de tre andre menuer til venstre. Set i browser.
+
+## [0.51.0 build 0073] — 2026-10-16 — Hovedmenu: Drift, Opsætning, System, Bruger med rullemenuer
+
+- `frontend/src/App.svelte` — topbjælken har nu fire menupunkter i stedet for ét "Menu"-panel: **Drift**, **Opsætning**, **System** (efter rolle) og **Bruger**. En rullemenu åbner af sig selv, når musen føres hen over et punkt (kun rigtig mus — touch bruger tryk), lukker 220 ms efter at musen forlader den (så man kan gå skråt ned i menuen) og skifter straks ved flytning mellem punkter; klik åbner/lukker, Escape og klik udenfor lukker, valg af en side lukker. Det punkt hvis side man står på, er understreget. **Bruger** (til højre for menuerne) viser navn og rolle, Skift adgangskode, Log ud og version. Brødkrumme, alarmklokke og kildekode-link uændrede; Driftpanel-rollen har stadig ingen topmenu. Menuindholdet er uændret (`nav.ts`). Layoutet er **set** i browser på testserveren.
+
+## [0.50.1 build 0072] — 2026-10-16 — fix: OTA viser build og tjekker build; pakkekort skjules under opdatering
+
+Fundet ved afprøvning på testserveren (se BUGS.md); selve opdateringen blev installeret **gennem OTA-siden**.
+
+- `deploy/apply-update.sh` — status og besked viser "version build N" (før: "0.50.0 → 0.50.0" når kun build ændredes); sundhedstjekket efter opdateringen og efter tilbagerulning kræver både version og build.
+- `frontend/src/pages/Update.svelte` — pakkekortet (med "geninstallér alligevel" og knapper) skjules mens en opdatering kører.
+
+## [0.50.0 build 0071] — 2026-10-16 — OTA-opdatering fra web-GUI'et
+
+- `backend/app/services/updates.py` (ny) — `inspect_package()` kontrollerer en pakke uden at pakke den ud (kun filer og mapper under `scada/`, ingen `..`/absolutte stier/links, størrelses- og antalsgrænser, nødvendige filer, gyldigt `version.json`, SHA-256); `UpdateService`: status (aktiveret, klargjort pakke, tilstand idle/queued/applying/done/failed/rolled_back/stalled, log), `stage`, `apply` (kontrolsummen skal svare til den klargjorte pakke; ældre version afvises; samme version kræver bekræftelse; backup `scada-pre-update-*` før anmodningen), `discard`; intet kan ændres mens en opdatering er i gang.
+- `backend/app/api/system.py` (ny, kun admin) — `GET /api/system/update`, `POST …/upload` (streames, max 60 MB), `POST …/apply`, `DELETE …/staged`; alt i audit-loggen.
+- `deploy/apply-update.sh` + `hypervisionplc-scada-update.{path,service}` (nye) — root-hjælper udløst af en anmodningsfil: sletter anmodningen først, kopierer pakken til en root-ejet arbejdsmappe, tjekker kontrolsum og version, gemmer forrige kode, kører `install.sh --update`, tjekker `/api/health` (skal melde den nye version) og **ruller tilbage** ved fejl; skriver `status.json` og `update.log`. Ligger uden for programmappen, som installationen erstatter.
+- `deploy/install.sh` — `--update` (springer apt/pip-opgradering over), installerer hjælper og enheder, `updates/`-mappen og markøren `enabled`; genstarter mock-PLC'en hvis den kører.
+- `deploy/make-package.sh` (ny) — bygger pakken af det committede.
+- `frontend/src/pages/Update.svelte` + `lib/updateUi.ts` — siden System › Opdatering (upload, version og kontrolsum, bekræftelse, fremdrift gennem serverens genstart, resultat/tilbagerulning, log); menupunkt og rute.
+- Tests: `test_updates.py` (38) og `updateUi.test.ts`.
+- **Afgrænsning:** kontrolsummen beskytter mod beskadigelse, ikke mod en ondsindet admin (kode kører som root via opdateringen). Signerede pakker kan tilføjes senere.
+
 ## [0.49.0 build 0070] — 2026-10-16 — Betjeningsformer efter symbol i guidens trin 1
 
 - `frontend/src/lib/symbolConfig.ts` — `allowedOps(type, current)`: hvilke af Kun visning / Positioner / Trykknap / Setpunkt der giver mening for hvert bibliotekssymbol (3-vejs motorventil: visning + positioner; reguleringsventil: visning + setpunkt; pumper, motorer, kontaktorer: visning + positioner + trykknap; rør, tanke, målere, lamper og solcelledele: kun visning; betjeningssymboler: deres egen form). Ukendte typer og egne tegninger får alle fire; den nuværende (gemte) form skjules aldrig.

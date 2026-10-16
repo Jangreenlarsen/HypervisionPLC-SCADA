@@ -27,6 +27,7 @@ from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
 from .api.operate import router as operate_router
 from .api.symbols import router as symbols_router
+from .api.system import router as system_router
 from .api.routes import router
 from .config import Settings, read_version
 from .services.alarms import AlarmService
@@ -45,6 +46,7 @@ from .services.live_cache import LiveCache
 from .services.manager import PlcManager, TransportFactory
 from .services.plcs import PlcService
 from .services.tags import TagService
+from .services.updates import UpdateService
 from .storage.db import Database
 from .storage.files import DrawingFiles
 from .storage.trends_db import TrendDatabase
@@ -80,6 +82,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.backup_service = BackupService(manager, drawing_files, settings.data_dir / "backups",
                                                  keep=max(1, settings.backup_keep),
                                                  trend_keep=max(0, settings.trend_backup_keep))
+        app.state.update_service = UpdateService(settings.data_dir, app.state.backup_service)
         await manager.start_all()
         app.state.alarm_service = AlarmService(manager, db, tick_s=settings.alarm_tick_s,
                                                comm_delay_s=settings.alarm_comm_delay_s)
@@ -143,6 +146,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
 
     app.include_router(auth_router)
     app.include_router(backup_router)
+    app.include_router(system_router)
     app.include_router(alarms_router)
     app.include_router(trends_router)
     app.include_router(energy_router)

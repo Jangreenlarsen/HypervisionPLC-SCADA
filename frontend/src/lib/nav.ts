@@ -24,8 +24,13 @@ export const NAV: NavGroup[] = [
     { id: 'audit', label: 'Log', role: 'engineer', icon: 'audit' },
     { id: 'users', label: 'Brugere', role: 'admin', icon: 'users' },
     { id: 'backup', label: 'Backup', role: 'admin', icon: 'backup' },
+    { id: 'update', label: 'Opdatering', role: 'admin', icon: 'update' },
   ] },
 ];
+
+/** Sider under menupunktet Bruger (alle roller) — ikke en del af grupperne ovenfor. */
+export const USER_PAGES: NavPage[] = [{ id: 'manual', label: 'Manual', role: 'viewer', icon: 'manual' }];
+const USER_GROUP: NavGroup = { id: 'user', label: 'Bruger', pages: USER_PAGES };
 
 /** Grupperne med de sider rollen må se; grupper uden sider udelades. */
 export function navFor(role: Role | undefined): NavGroup[] {
@@ -35,12 +40,13 @@ export function navFor(role: Role | undefined): NavGroup[] {
 /** Den side ruten peger på — en side rollen ikke må se (eller en ukendt rute) giver Overview. */
 export function pageFor(route: string, role: Role | undefined): NavPage {
   const id = route.split('/')[0];
-  const all = navFor(role).flatMap((g) => g.pages);
+  const all = [...navFor(role).flatMap((g) => g.pages), ...(role ? USER_PAGES : [])];
   return all.find((p) => p.id === id) ?? NAV[0].pages[0];
 }
 
 /** Gruppen siden hører til (til brødkrummen i topbjælken). */
-export const groupOf = (pageId: string): NavGroup | undefined => NAV.find((g) => g.pages.some((p) => p.id === pageId));
+export const groupOf = (pageId: string): NavGroup | undefined =>
+  NAV.find((g) => g.pages.some((p) => p.id === pageId)) ?? (USER_PAGES.some((p) => p.id === pageId) ? USER_GROUP : undefined);
 
 /** Ikoner (24×24, streg) til menuen. */
 export const NAV_ICON: Record<string, string> = {
@@ -57,6 +63,8 @@ export const NAV_ICON: Record<string, string> = {
   audit: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
   users: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M21 20c0-2.6-1.6-4.8-4-5.6"/>',
   backup: '<path d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z"/><path d="M4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  update: '<path d="M12 3v12"/><path d="M7 10l5-5 5 5"/><path d="M4 15v4h16v-4"/>',
+  manual: '<path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M8 4v13a3 3 0 0 0-3 3"/><path d="M10 8h5M10 12h5"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>',
