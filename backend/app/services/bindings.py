@@ -9,6 +9,7 @@ import re
 import json
 from typing import Any, Literal
 
+from .expression import ExpressionError, validate_expression
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 AnimType = Literal["text", "fill", "stroke", "visible", "blink", "level", "rotate", "opacity", "move", "flow",
@@ -50,6 +51,16 @@ class TextParams(_P):
     # Fast tekst før/efter værdien, fx "Tank : " … " liter". Mellemrum bevares som skrevet.
     prefix: str = Field(default="", max_length=40)
     suffix: str = Field(default="", max_length=40)
+    # Simpel matematik på værdien før visning, fx "x / 10" (128 → 12,8). Se services/expression.py.
+    expression: str = Field(default="", max_length=80)
+
+    @field_validator("expression")
+    @classmethod
+    def _expression(cls, v: str) -> str:
+        try:
+            return validate_expression(v)
+        except ExpressionError as exc:
+            raise ValueError(f"beregningen er ugyldig: {exc}") from None
 
 
 class Threshold(_P):

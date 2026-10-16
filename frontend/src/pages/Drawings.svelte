@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { del, get, patch, post, put } from '../lib/api';
+  import { deleteDrawingFlow } from '../lib/drawingDelete';
   import SymbolConvert from '../lib/SymbolConvert.svelte';
 
   let { canEdit = false }: { canEdit?: boolean } = $props();
@@ -105,9 +106,9 @@
   }
 
   async function remove(row: DrawingRow): Promise<void> {
-    if (!confirm(`Slet tegningen "${row.name}" med alle ${row.version_count} versioner og bindinger?`)) return;
+    error = '';
     try {
-      await del(`/api/drawings/${encodeURIComponent(row.id)}`);
+      if (!(await deleteDrawingFlow(row.id))) return;
       if (open?.id === row.id) open = null;
       await refresh();
     } catch (e) {

@@ -1,6 +1,7 @@
 // Anvend bindinger på SVG-elementer ud fra live-værdier.
 // Ren DOM-manipulation via attributter/style — der indsættes aldrig HTML.
 import type { Binding, LiveValue, TagMeta } from './api';
+import { evalExpression } from './expression';
 
 const SHAPES = 'path,rect,circle,ellipse,polygon,polyline,line';
 
@@ -21,11 +22,18 @@ export function formatValue(value: unknown, meta: TagMeta | undefined, params: R
   if (typeof value === 'boolean') return value ? params.true_text ?? 'Til' : params.false_text ?? 'Fra';
   const unit = params.show_unit === false || !meta?.unit ? '' : ` ${meta.unit}`;
   if (typeof value === 'number') {
+    // Beregning (fx "x / 10") først — decimaler og enhed gælder resultatet. Ikke et tal (fx ÷ 0) = ingen værdi.
+    let shown = value;
+    if (typeof params.expression === 'string' && params.expression.trim()) {
+      const r = evalExpression(params.expression.trim(), value);
+      if (r === null) return '—';
+      shown = r;
+    }
     // decimals: binding-parameter vinder over tag-default; 0 er en gyldig værdi.
     const decimals = params.decimals ?? meta?.decimals ?? null;
     const text = decimals !== null && decimals !== undefined
-      ? value.toFixed(decimals)
-      : Number.isInteger(value) ? String(value) : String(Math.round(value * 1000) / 1000);
+      ? shown.toFixed(decimals)
+      : Number.isInteger(shown) ? String(shown) : String(Math.round(shown * 1000) / 1000);
     return text + unit;
   }
   return String(value) + unit;

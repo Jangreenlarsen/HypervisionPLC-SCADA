@@ -7,9 +7,10 @@
   import { LiveClient } from './live';
   import TagSelect from './TagSelect.svelte';
   import {
-    ALARM_TXT, ANIM_TXT, BLINK_TXT, MAX_ANIMS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS, activeAt, animDefaults,
-    cycleCell, emptyConfig, foundPosition, newSignal, partLabel, preset, resize, setOp, tagKind, template, typesFor,
-    type Anim, type AnimType, type Op, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
+    ALARM_TXT, ANIM_TXT, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
+    activeAt, animDefaults, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
+    ALL_OPS, allowedOps, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
+    type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
 
   interface TagRow { name: string; source: string; unit: string; writable: boolean; plc: string }
@@ -33,6 +34,7 @@
   let hasPin = $state(false);
   let pin = $state('');
   let notes = $state<string[]>([]);
+  let pool = $state<PoolBlock[]>([]);   // logikblokke i andre symboler på tegningen
   let step = $state(0);
   let loading = $state(true);
   let error = $state('');       // fejl fra gem/fjern — vises, men stopper ikke guiden
@@ -54,7 +56,7 @@
     const v = liveVals[tag]?.value;   // ST-variabel: typen kendes fra live-værdien
     return typeof v === 'boolean' ? 'bool' : typeof v === 'number' ? 'num' : 'unknown';
   }
-  const srcKind = (a: Anim): SrcKind => (a.src === POS ? 'pos' : tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
+  const srcKind = (a: Anim): SrcKind => (a.src === POS ? 'pos' : isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
   const n = $derived(cfg.positions.length);
   const isPos = $derived(cfg.op === 'positions');
   const partIds = $derived(['all', ...Object.keys(symbol?.parts ?? {})]);
@@ -69,15 +71,21 @@
   // ---------------------------------------------------------------- indlæsning
   onMount(async () => {
     try {
-      const r = await get<{ config: SymbolConfig | null; has_pin: boolean; symbol: SymbolInfo | null; orphaned: boolean; warnings: string[] }>(`${base}/config`);
+      const r = await get<{ config: SymbolConfig | null; has_pin: boolean; symbol: SymbolInfo | null; orphaned: boolean; warnings: string[]; logic_pool?: PoolBlock[] }>(`${base}/config`);
       if (r.orphaned || !r.symbol) throw new Error(`Elementet '${element}' findes ikke i den aktive version af tegningen`);
       symbol = r.symbol;
+      pool = r.logic_pool ?? [];
       hasPin = r.has_pin;
       if (r.config) {
         cfg = normalize(r.config);
         exists = true;
       } else {
         await convert(false);
+        const proposal = libraryDefault(symbol);
+        if (proposal && !cfg.anims.length && !cfg.signals.length) {
+          cfg = proposal.config;
+          notes = [...notes, proposal.note];
+        }
       }
     } catch (e) {
       loadError = (e as Error).message;
@@ -93,6 +101,10 @@
       ...d, ...c, fault: c.fault ?? '', lock: { ...d.lock, ...(c.lock ?? {}) },
       signals: (c.signals ?? []).map((s: Partial<Signal> & { id: string }) => ({ ...{ tag: '', fb: '', write: 'set' as const, ms: 500, rest: null }, ...s })),
       anims: (c.anims ?? []).map((a) => ({ ...a, src: a.src ?? '', params: a.params ?? {}, only: a.only ?? null })),
+      logic: (c.logic ?? []).map((b) => ({
+        id: b.id, name: b.name ?? '', op: b.op ?? 'and', invert: Boolean(b.invert),
+        inputs: (b.inputs ?? []).map((i) => ({ src: i.src ?? '', neg: Boolean(i.neg), cmp: i.cmp ?? '', value: i.value ?? null })),
+      })),
     };
   }
 
@@ -138,17 +150,31 @@
   const live = new LiveClient((changes) => { liveVals = { ...liveVals, ...changes }; });
   const usedTags = $derived([...new Set([
     ...cfg.signals.flatMap((s) => [s.tag, s.fb]), cfg.fault, ...cfg.anims.map((a) => a.src), ...cfg.anims.map((a) => a.params.dir_tag ?? ''),
-  ].filter((t) => t && t !== POS && tagByName.has(t)))].sort());
-  $effect(() => { live.subscribe(usedTags); });
+    ...cfg.logic.flatMap((b) => b.inputs.map((i) => i.src)),
+  ].filter((t) => t && t !== POS && !isLogicRef(t) && tagByName.has(t)))].sort());
+  /** Pseudo-tags for blokke i andre symboler som denne konfiguration bruger (til live-værdierne i trin 6). */
+  const foreignTags = $derived([...new Set([
+    ...cfg.logic.flatMap((b) => b.inputs.map((i) => i.src)), ...cfg.anims.map((a) => a.src), ...cfg.anims.map((a) => a.params.dir_tag ?? ''),
+  ].filter((s) => isLogicRef(s) && s.includes(':')).map(pseudoOf))]);
+  function pseudoOf(ref: string): string {
+    const k = ref.lastIndexOf(':');
+    return `sym:${drawingId}:${ref.slice(1, k)}:logic:${ref.slice(k + 1)}`;
+  }
+  $effect(() => { live.subscribe([...usedTags, ...foreignTags]); });
   onDestroy(() => {
     live.close();
     if (timer) clearTimeout(timer);
   });
   const valueOf = (t: string) => liveVals[t]?.value;
   const found = $derived(isPos ? foundPosition(cfg, valueOf) : null);
+  const logicNow = $derived(evalLogic(cfg.logic, valueOf, (ref) => { const v = valueOf(pseudoOf(ref)); return typeof v === 'boolean' ? v : null; }));
+  const triText = (v: boolean | null | undefined) => (v === true ? 'Til' : v === false ? 'Fra' : 'ukendt');
   const fmt = (v: unknown) => (v === undefined || v === null ? '—' : typeof v === 'boolean' ? (v ? 'Til' : 'Fra') : String(v));
 
   // ---------------------------------------------------------------- redigering
+  let showAllOps = $state(false);
+  const opList = $derived(showAllOps ? ALL_OPS : allowedOps(symbol?.type ?? 'custom', cfg.op));
+  const opsRestricted = $derived(opList.length < ALL_OPS.length);
   function changeOp(op: Op): void {
     setOp(cfg, op);
   }
@@ -195,6 +221,63 @@
     preset(cfg);
     step = 1;
   }
+
+  // ---- logikblokke
+  const blockLabel = (b: LogicBlock) => `${b.id}${b.name ? ` – ${b.name}` : ''}`;
+  const poolLabel = (p: PoolBlock) => `${p.symbol} · ${p.id}${p.name ? ` – ${p.name}` : ''}`;
+  const poolRef = (p: PoolBlock) => `@${p.element}:${p.id}`;
+  const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
+  const srcMode = (a: Anim): string => (a.src === POS ? POS : isLogicRef(a.src) ? 'logic' : 'tag');
+  function setSrcMode(a: Anim, mode: string): void {
+    a.src = mode === POS ? POS : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
+    resetParams(a);
+  }
+  // ---- 3-vejs ventil styret af ét til/fra-tag
+  let valveTag = $state('');
+  let valveMsg = $state('');
+  function applyValve(): void {
+    valveMsg = '';
+    if (!symbol || !valveTag) return;
+    if (tagKindOf(valveTag) === 'num') {
+      valveMsg = `${valveTag} er et tal-tag — vælg et til/fra-tag.`;
+      return;
+    }
+    // Intet at skrive til endnu (forslaget "Positioner" uden tag): hurtig opsætning er til visning, så skift til "Kun visning"
+    const toView = cfg.op === 'positions' && !cfg.signals.some((s) => s.tag);
+    const used = cfg.anims.filter((a) => ['port_a', 'port_b', 'port_ab'].includes(symbol!.parts[a.part]?.pid ?? '')).length;
+    if (used && !toView && !confirm(`Erstat de ${used} eksisterende animationer på portene A, B og AB?`)) return;
+    if (toView) setOp(cfg, 'view');   // fjerner også forslagets positions-animationer
+    const k = valveFromTag(cfg, symbol, valveTag);
+    valveMsg = k > 0 ? `${k} animationer oprettet: Til = AB → A, Fra = AB → B.${toView ? ' Symbolet er sat til "Kun visning".' : ''}`
+      : k === 0 ? 'Symbolet har ikke portene A, B og AB.' : 'Der er ikke plads til tre flere animationer (højst 12).';
+  }
+
+  function addBlock(): void {
+    if (cfg.logic.length >= MAX_LOGIC) return;
+    cfg.logic.push(newBlock(cfg));
+  }
+  function addInput(b: LogicBlock): void {
+    if (b.inputs.length >= MAX_LOGIC_INPUTS) return;
+    b.inputs.push({ src: '', neg: false, cmp: '', value: null });
+  }
+  /** Tagget er valgt: et tal-tag får en sammenligning (≥), et til/fra-tag ingen. */
+  function inputTagChanged(i: LogicBlock['inputs'][number]): void {
+    const k = tagKindOf(i.src);
+    if (k === 'num') {
+      if (!i.cmp) i.cmp = 'ge';
+    } else if (k === 'bool') {
+      i.cmp = '';
+      i.value = null;
+    }
+  }
+  /** Blokke en indgang må bruge: kun dem over blokken (serveren afviser løkker). */
+  const earlier = (b: LogicBlock) => cfg.logic.slice(0, cfg.logic.indexOf(b));
+  function setInputMode(b: LogicBlock, i: LogicBlock['inputs'][number], mode: string): void {
+    i.src = mode === 'block' ? firstBlockRef(earlier(b)) : '';
+    i.cmp = '';
+    i.value = null;
+  }
+  const num2 = (v: string): number | null => (v.trim() !== '' && Number.isFinite(Number(v.replace(',', '.'))) ? Number(v.replace(',', '.')) : null);
 
   function addAnim(): void {
     if (cfg.anims.length >= MAX_ANIMS) return;
@@ -295,13 +378,16 @@
         {#if step === 0}
           <p class="muted small">Vælg hvordan symbolet betjenes. Alt andet i guiden følger af dette valg.</p>
           <div class="ops">
-            {#each Object.entries(OP_TXT) as [op, txt]}
-              <label class="opt"><input type="radio" name="op" checked={cfg.op === op} onchange={() => changeOp(op as Op)} /> {txt}</label>
+            {#each opList as op}
+              <label class="opt"><input type="radio" name="op" checked={cfg.op === op} onchange={() => changeOp(op)} /> {OP_TXT[op]}</label>
             {/each}
           </div>
+          {#if opsRestricted || showAllOps}
+            <label class="opt small muted"><input type="checkbox" bind:checked={showAllOps} /> Vis alle betjeningsformer (kun de der giver mening for dette symbol vises som standard)</label>
+          {/if}
           <div class="row">
             <button onclick={() => convert(true)}>Foreslå ud fra symbolet</button>
-            <button onclick={applyPreset}>Eksempel: 7-trins vælger</button>
+            {#if offersSelectorExample(symbol.type)}<button onclick={applyPreset}>Eksempel: 7-trins vælger</button>{/if}
           </div>
           {#if notes.length}
             <div class="notice small"><strong>Forslag fra de gamle bindinger:</strong><ul>{#each notes as m}<li>{m}</li>{/each}</ul></div>
@@ -323,7 +409,7 @@
                     <td><strong>{s.id}</strong></td>
                     <td><TagSelect bind:value={s.tag} {tags} writableOnly /></td>
                     <td><TagSelect bind:value={s.fb} {tags} placeholder="— ingen —" /></td>
-                    <td class="nowrap">
+                    <td class="skriv">
                       <select bind:value={s.write}><option value="set">Sæt</option><option value="pulse">Puls</option></select>
                       {#if s.write === 'pulse'}
                         <input class="n" type="number" min="100" max="10000" step="100" bind:value={s.ms} title="Pulslængde (ms)" /> ms
@@ -402,6 +488,59 @@
               </label>
             {/if}
           </div>
+          {#if isValveType(symbol.type)}
+            <div class="notice small">
+              <strong>Hurtig opsætning:</strong> styres ventilen af ét til/fra-tag? Til = AB → A, Fra = AB → B (AB er altid åben).
+              <div class="row wrap"><TagSelect bind:value={valveTag} {tags} placeholder="— vælg til/fra-tag —" />
+                <button class="small" onclick={applyValve} disabled={!valveTag}>Opret animationer</button></div>
+              {#if valveMsg}<span class="small">{valveMsg}</span>{/if}
+            </div>
+          {/if}
+          <h4>Logik ({cfg.logic.length}/{MAX_LOGIC})</h4>
+          <p class="small muted">Saml flere tags i én betingelse (fx pumpe kører OG ventil åben), og brug den som kilde til en animation. En blok kan også bruge blokkene over sig og blokke i andre symboler på tegningen (og omvendt — dine blokke kan bruges dér).</p>
+          {#each cfg.logic as b (b.id)}
+            <div class="anim logic">
+              <div class="row wrap">
+                <strong>{b.id}</strong>
+                <input class="name" bind:value={b.name} maxlength="40" placeholder="Navn (fx Pumpe kører og ventil åben)" aria-label="Blokkens navn" />
+                <select bind:value={b.op} aria-label="Regel"><option value="and">AND — alle skal være Til</option><option value="or">OR — mindst én Til</option></select>
+                <label class="opt small"><input type="checkbox" bind:checked={b.invert} /> NOT på resultatet</label>
+                <span class="spacer"></span>
+                <button class="small" onclick={() => removeBlock(cfg, b.id)} aria-label="Fjern blok">✕</button>
+              </div>
+              {#each b.inputs as inp, k}
+                {@const refs = earlier(b)}
+                {@const isBlock = isLogicRef(inp.src)}
+                <div class="row wrap small input">
+                  <label class="opt"><input type="checkbox" bind:checked={inp.neg} /> NOT</label>
+                  {#if refs.length || pool.length}
+                    <select value={isBlock ? 'block' : 'tag'} onchange={(e) => setInputMode(b, inp, e.currentTarget.value)} aria-label="Indgangstype">
+                      <option value="tag">tag</option><option value="block">blok</option>
+                    </select>
+                  {/if}
+                  {#if isBlock}
+                    <select bind:value={inp.src} aria-label="Blok">
+                      {#if refs.length}<optgroup label="Dette symbol">{#each refs as r}<option value={'@' + r.id}>{blockLabel(r)}</option>{/each}</optgroup>{/if}
+                      {#if pool.length}<optgroup label="Andre symboler">{#each pool as p}<option value={poolRef(p)}>{poolLabel(p)}</option>{/each}</optgroup>{/if}
+                    </select>
+                  {:else}
+                    <TagSelect bind:value={inp.src} {tags} onchange={() => inputTagChanged(inp)} />
+                    {#if inp.src && tagKindOf(inp.src) !== 'bool'}
+                      <select bind:value={inp.cmp} aria-label="Sammenligning">
+                        {#if tagKindOf(inp.src) === 'unknown'}<option value="">er Til</option>{/if}
+                        {#each Object.entries(CMP_TXT) as [v, t]}<option value={v}>{t}</option>{/each}
+                      </select>
+                      {#if inp.cmp}<input class="n" value={inp.value ?? ''} onchange={(e) => (inp.value = num2(e.currentTarget.value))} aria-label="Grænseværdi" />{/if}
+                    {/if}
+                  {/if}
+                  <button class="small" onclick={() => b.inputs.splice(k, 1)} disabled={b.inputs.length <= 1} aria-label="Fjern indgang">✕</button>
+                </div>
+              {/each}
+              <div class="row small"><button class="small" onclick={() => addInput(b)} disabled={b.inputs.length >= MAX_LOGIC_INPUTS}>+ Indgang ({b.inputs.length}/{MAX_LOGIC_INPUTS})</button>
+                <span class="muted">{describeBlock(b)}</span></div>
+            </div>
+          {/each}
+          <button class="small" onclick={addBlock} disabled={cfg.logic.length >= MAX_LOGIC}>+ Logikblok</button>
           <h4>Animationer ({cfg.anims.length}/{MAX_ANIMS})</h4>
           {#each cfg.anims as a, i}
             {@const kind = srcKind(a)}
@@ -414,12 +553,19 @@
                   {#each typesFor(partInfo(a.part)) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
                 </select>
                 <span class="small muted">styres af</span>
-                {#if isPos}
-                  <select value={a.src === POS ? POS : 'tag'} onchange={(e) => { a.src = e.currentTarget.value === POS ? POS : ''; resetParams(a); }} aria-label="Kilde">
-                    <option value={POS}>symbolets position</option><option value="tag">et tag</option>
+                {#if isPos || cfg.logic.length || pool.length}
+                  <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
+                    {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
+                    {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
                   </select>
                 {/if}
-                {#if a.src !== POS}<TagSelect bind:value={a.src} {tags} onchange={() => resetParams(a)} />{/if}
+                {#if srcMode(a) === 'tag'}<TagSelect bind:value={a.src} {tags} onchange={() => resetParams(a)} />{/if}
+                {#if srcMode(a) === 'logic'}
+                  <select bind:value={a.src} onchange={() => resetParams(a)} aria-label="Logikblok">
+                    {#if cfg.logic.length}<optgroup label="Dette symbol">{#each cfg.logic as b}<option value={'@' + b.id}>{blockLabel(b)}</option>{/each}</optgroup>{/if}
+                    {#if pool.length}<optgroup label="Andre symboler">{#each pool as p}<option value={poolRef(p)}>{poolLabel(p)}</option>{/each}</optgroup>{/if}
+                  </select>
+                {/if}
                 <span class="spacer"></span>
                 <button class="small" onclick={() => moveAnim(i, -1)} disabled={i === 0} aria-label="Op">▲</button>
                 <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
@@ -472,6 +618,14 @@
               </tbody>
             </table>
             {#if isPos}<p class="small">PLC'ens position lige nu: <strong>{found !== null ? cfg.positions[found].label : 'ingen entydig position'}</strong></p>{/if}
+          {/if}
+          {#if cfg.logic.length}
+            <h4>Logik (live)</h4>
+            <table class="grid">
+              <tbody>
+                {#each cfg.logic as b}<tr><td><strong>{b.id}</strong> {b.name}</td><td class="small">{describeBlock(b)}</td><td><strong>{triText(logicNow[b.id])}</strong></td></tr>{/each}
+              </tbody>
+            </table>
           {/if}
           {#if preview?.plans.length}
             <h4>Skriveplan pr. position (fra den aktuelle tilstand)</h4>
@@ -579,7 +733,21 @@
         {/each}
       {:else}
         <select bind:value={p.mode} aria-label="Styring"><option value="onoff">Til/fra</option><option value="signed">Fortegn (+/−)</option><option value="code">Kode 0/1/2</option></select>
-        <label class="opt small">Retning fra tag <TagSelect value={p.dir_tag ?? ''} {tags} placeholder="— ingen —" onchange={(v) => (p.dir_tag = v)} /></label>
+        <label class="opt small">Retning fra
+          {#if cfg.logic.length || pool.length}
+            <select value={isLogicRef(p.dir_tag ?? '') ? 'logic' : 'tag'} onchange={(e) => (p.dir_tag = e.currentTarget.value === 'logic' ? firstBlockRef(cfg.logic) : '')} aria-label="Retningens kilde">
+              <option value="tag">et tag</option><option value="logic">en logikblok</option>
+            </select>
+          {/if}
+          {#if isLogicRef(p.dir_tag ?? '')}
+            <select bind:value={p.dir_tag} aria-label="Retningens logikblok">
+              {#if cfg.logic.length}<optgroup label="Dette symbol">{#each cfg.logic as b}<option value={'@' + b.id}>{blockLabel(b)}</option>{/each}</optgroup>{/if}
+              {#if pool.length}<optgroup label="Andre symboler">{#each pool as q}<option value={poolRef(q)}>{poolLabel(q)}</option>{/each}</optgroup>{/if}
+            </select>
+          {:else}
+            <TagSelect value={p.dir_tag ?? ''} {tags} placeholder="— ingen —" onchange={(v) => (p.dir_tag = v)} />
+          {/if}
+        </label>
       {/if}
       <label class="opt small"><input type="checkbox" bind:checked={p.reverse} /> Omvendt</label>
       {@render colorInput(p, 'base', 'Rør')}{@render colorInput(p, 'light', 'Lys')}
@@ -607,8 +775,10 @@
   .wrap { flex-wrap: wrap; gap: .35rem .6rem; align-items: center; }
   .grid { border-collapse: collapse; margin: .3rem 0; }
   .grid th, .grid td { border: 1px solid var(--line); padding: .2rem .35rem; text-align: left; }
+  /* En tag-dropdown er ellers lige så bred som sin længste valgmulighed ("navn · kilde (type) [enhed]") og presser nabokolonnerne */
+  .grid :global(select), .anim :global(select) { width: auto; max-width: 15em; }   /* :global — TagSelect er en underkomponent */
+  .grid td.skriv { min-width: 13em; }
   .planes td, .planes th { text-align: center; }
-  .nowrap { white-space: nowrap; }
   .n { width: 5.5em; }
   .lbl { width: 7em; }
   .pin { letter-spacing: .3em; }
@@ -617,6 +787,8 @@
   .cell.on { background: #c8e6c9; border-color: var(--ok); }
   .cell.off { background: #eeeeee; }
   .active-row td { background: var(--panel-2); }
+  .name { min-width: 14em; }
+  .logic .input { margin: .15rem 0 .15rem 1rem; }
   .anim { border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem; margin: .35rem 0; background: var(--panel-2); }
   .params { margin-top: .3rem; }
   .errors { color: var(--alarm); margin: .5rem 0; }

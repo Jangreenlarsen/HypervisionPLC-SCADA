@@ -610,6 +610,11 @@ class Database:
 
     # ------------------------------------------------- adgang pr. tegning
 
+    def users_with_drawing(self, drawing_id: str) -> list[str]:
+        """Brugere der er begrænset til udvalgte tegninger og har denne iblandt."""
+        return [r["username"] for r in self._query(
+            "SELECT username FROM user_drawings WHERE drawing_id = ? ORDER BY username", (drawing_id,))]
+
     def get_user_drawings(self, username: str) -> list[str]:
         rows = self._query("SELECT drawing_id FROM user_drawings WHERE username = ? ORDER BY drawing_id", (username,))
         return [r["drawing_id"] for r in rows]

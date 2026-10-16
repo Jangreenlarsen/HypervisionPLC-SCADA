@@ -32,8 +32,10 @@ from .tagsource import TagSourceError, parse_source
 log = logging.getLogger(__name__)
 
 MAX_POSITIONS, MAX_PLANES, MAX_SIGNALS, MAX_ANIMS = 8, 8, 8, 12
+MAX_LOGIC, MAX_LOGIC_INPUTS = 8, 4
 POS = "@pos"
 _SIG_ID = re.compile(r"^[A-Za-z0-9_]{1,10}$")
+_LOGIC_ID = re.compile(r"^L[0-9]{1,2}$")
 _PIN = re.compile(r"[0-9]{4}")   # bruges med fullmatch: kun ASCII-cifre, ingen linjeskift
 
 
@@ -63,6 +65,27 @@ class Signal(_M):
 class Plane(_M):
     signal: str
     values: list[float | None]
+
+
+class LogicInput(_M):
+    """Én indgang til en logikblok: et tag (til/fra, eller et tal sammenlignet med en grænse) eller en tidligere blok (`@L1`)."""
+    src: str = Field(default="", max_length=64)
+    neg: bool = False                                  # NOT på indgangen
+    cmp: Literal["", "ge", "le", "eq"] = ""            # kun for tal-tags: ≥, ≤, =
+    value: float | None = None
+
+    _s = field_validator("src")(lambda cls, v: (v or "").strip())
+
+
+class LogicBlock(_M):
+    """AND/OR over 1–4 indgange (+ NOT pr. indgang og på resultatet). Kan bruges som kilde (`@L1`) i animationer og som indgang i senere blokke."""
+    id: str
+    name: str = Field(default="", max_length=40)
+    op: Literal["and", "or"] = "and"
+    inputs: list[LogicInput] = Field(default_factory=list, max_length=MAX_LOGIC_INPUTS)
+    invert: bool = False
+
+    _n = field_validator("name")(lambda cls, v: " ".join((v or "").split()))
 
 
 class Lock(_M):
@@ -144,6 +167,7 @@ class SymbolConfig(_M):
     pulse_ms: int = 500
     lock: Lock = Field(default_factory=Lock)
     anims: list[Anim] = Field(default_factory=list, max_length=MAX_ANIMS)
+    logic: list[LogicBlock] = Field(default_factory=list, max_length=MAX_LOGIC)
 
     _f = field_validator("fault")(lambda cls, v: (v or "").strip())
 
@@ -161,6 +185,32 @@ def _is_set(v: Any) -> bool:
 PSEUDO_KINDS = ("pos", "remote", "state", "locked")
 
 
+def is_logic_ref(src: Any) -> bool:
+    """`@L1` — kilden er en logikblok (`@pos` er positionen)."""
+    return isinstance(src, str) and src.startswith("@") and src != POS
+
+
+def split_logic_ref(src: str, own: str = "") -> tuple[str, str]:
+    """`@L1` → (eget symbol, L1); `@pumpe:L1` → (pumpe, L1) — en blok i et andet symbol på samme tegning."""
+    element, _, block = src[1:].rpartition(":")
+    return (element or own), block
+
+
+def cfg_refs(cfg: dict[str, Any]) -> list[str]:
+    """Alle henvisninger til logikblokke (`@L1`, `@symbol:L1`) i en konfiguration: blokkenes indgange,
+    animationernes kilde og løbelysets retning."""
+    refs = [i.get("src", "") for b in cfg.get("logic", []) for i in b.get("inputs", [])]
+    for a in cfg.get("anims", []):
+        refs.append(a.get("src", ""))
+        refs.append(str((a.get("params") or {}).get("dir_tag") or ""))
+    return [r for r in refs if is_logic_ref(r)]
+
+
+def logic_pseudo_tags(drawing_id: str, element: str, cfg: dict[str, Any]) -> dict[str, str]:
+    """{blok-id: pseudo-tag i live-cachen} for symbolets logikblokke."""
+    return {b["id"]: pseudo_tag(drawing_id, element, f"logic:{b['id']}") for b in cfg.get("logic", [])}
+
+
 def pseudo_tag(drawing_id: str, element: str, kind: str) -> str:
     """Afledt værdi for et symbol i live-cachen (afsnit 5.2). `:` findes ikke i tag-navne, så navnene kan ikke kollidere."""
     return f"sym:{drawing_id}:{element}:{kind}"
@@ -172,18 +222,86 @@ def config_tags(config: dict[str, Any]) -> list[str]:
     out: list[str] = []
 
     def add(name: Any) -> None:
-        if isinstance(name, str) and name and name != POS and name not in out:
+        if isinstance(name, str) and name and not name.startswith("@") and name not in out:
             out.append(name)
 
     for s in config.get("signals", []):
         add(s.get("tag"))
         add(s.get("fb"))
     add(config.get("fault"))
+    for b in config.get("logic", []):
+        for i in b.get("inputs", []):
+            add(i.get("src"))
     for a in config.get("anims", []):
         add(a.get("src"))
         if a.get("type") == "flow":
             add((a.get("params") or {}).get("dir_tag"))
     return out
+
+
+def _input_value(lv: Any, inp: dict[str, Any]) -> bool | None:
+    """Indgangens sandhedsværdi; None = ukendt (komm.fejl, manglende værdi eller forkert type)."""
+    if lv is None or lv.quality != "good" or lv.value is None:
+        return None
+    v = lv.value
+    if isinstance(v, bool):
+        return v
+    if not isinstance(v, (int, float)):
+        return None
+    cmp, limit = inp.get("cmp") or "", inp.get("value")
+    if not cmp or limit is None:
+        return v != 0
+    if cmp == "ge":
+        return v >= limit
+    if cmp == "le":
+        return v <= limit
+    return abs(v - limit) <= 1e-9 * max(1.0, abs(limit))
+
+
+def logic_results(configs: dict[str, dict[str, Any]], value_of: Callable[[str], Any]) -> dict[tuple[str, str], bool | None]:
+    """Beregn alle logikblokke på én tegning: {(symbol, blok-id): Til/Fra/ukendt}. `configs` = symbol → konfiguration.
+    Tre-værdi-logik: en afgørende indgang vinder (AND med en Fra = Fra, OR med en Til = Til) selv om en anden er
+    ukendt; ellers er resultatet ukendt. En blok kan bruge blokke i andre symboler (`@symbol:L1`); en løkke
+    (afvises ved gem) giver ukendt i stedet for uendelig rekursion."""
+    memo: dict[tuple[str, str], bool | None] = {}
+    visiting: set[tuple[str, str]] = set()
+
+    def block(element: str, bid: str) -> bool | None:
+        key = (element, bid)
+        if key in memo:
+            return memo[key]
+        b = next((x for x in (configs.get(element) or {}).get("logic", []) if x.get("id") == bid), None)
+        if b is None or key in visiting:
+            return None
+        visiting.add(key)
+        vals: list[bool | None] = []
+        for inp in b.get("inputs", []):
+            src = inp.get("src") or ""
+            if src.startswith("@"):
+                v = block(*split_logic_ref(src, element))
+            else:
+                v = _input_value(value_of(src), inp)
+            vals.append(None if v is None else (not v if inp.get("neg") else v))
+        if not vals:
+            r = None
+        elif b.get("op") == "or":
+            r = True if any(v is True for v in vals) else False if all(v is False for v in vals) else None
+        else:
+            r = False if any(v is False for v in vals) else True if all(v is True for v in vals) else None
+        visiting.discard(key)
+        memo[key] = (not r) if (r is not None and b.get("invert")) else r
+        return memo[key]
+
+    for element, cfg in configs.items():
+        for b in cfg.get("logic", []):
+            block(element, b["id"])
+    return memo
+
+
+def evaluate_logic(blocks: list[dict[str, Any]], value_of: Callable[[str], Any]) -> dict[str, bool | None]:
+    """Ét symbols blokke alene (uden henvisninger til andre symboler)."""
+    res = logic_results({"": {"logic": blocks}}, value_of)
+    return {bid: v for (_, bid), v in res.items()}
 
 
 def targets(cfg: dict[str, Any], k: int) -> dict[str, float]:
@@ -243,10 +361,19 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
             params["pos"] = True
             if a["type"] == "text":
                 params["labels"] = labels
+        dir_ref = params.get("dir_tag")
+        if isinstance(dir_ref, str) and is_logic_ref(dir_ref):   # løbelysets retning styret af en logikblok
+            owner, bid = split_logic_ref(dir_ref, element)
+            params["dir_tag"] = pseudo_tag(drawing_id, owner, f"logic:{bid}")
         if a.get("only"):
             params["only"] = a["only"]
             params["pos_tag"] = pos_tag
-        out.append({"element": target, "position": 1000 + i, "tag": pos_tag if a["src"] == POS else a["src"],
+        if is_logic_ref(a["src"]):
+            owner, bid = split_logic_ref(a["src"], element)
+            tag = pseudo_tag(drawing_id, owner, f"logic:{bid}")
+        else:
+            tag = pos_tag if a["src"] == POS else a["src"]
+        out.append({"element": target, "position": 1000 + i, "tag": tag,
                     "anim": a["type"], "params": params, "source": "symbol", "symbol": element})
     return out
 
@@ -335,8 +462,35 @@ class Result:
         return ""
 
 
+def _logic_cycle(element: str, own: list[dict[str, Any]], others: dict[str, dict[str, Any]]) -> str | None:
+    """Find en løkke mellem logikblokke på tværs af symboler (A bruger B der bruger A). → 'symbol:blok' eller None."""
+    graph: dict[tuple[str, str], list[tuple[str, str]]] = {}
+    for el, blocks in {**{e: c.get("logic", []) for e, c in others.items()}, element: own}.items():
+        for b in blocks:
+            graph[(el, b["id"])] = [split_logic_ref(i["src"], el) for i in b.get("inputs", []) if i.get("src", "").startswith("@")]
+    state: dict[tuple[str, str], int] = {}
+
+    def visit(node: tuple[str, str]) -> tuple[str, str] | None:
+        if state.get(node) == 2:
+            return None
+        if state.get(node) == 1:
+            return node
+        state[node] = 1
+        for nxt in graph.get(node, []):
+            if nxt in graph and (hit := visit(nxt)) is not None:
+                return hit
+        state[node] = 2
+        return None
+
+    for node in graph:
+        if (hit := visit(node)) is not None:
+            return f"{hit[0]}:{hit[1]}" if hit[0] != element else hit[1]
+    return None
+
+
 def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str, Any]],
-                    has_pin: bool) -> tuple[dict[str, Any], Result]:
+                    has_pin: bool, element_id: str = "",
+                    others: dict[str, dict[str, Any]] | None = None) -> tuple[dict[str, Any], Result]:
     """Valider og normalisér en konfiguration mod symbolets geometri (`describe_element`) og tags.
     → (normaliseret config, Result). Skemafejl (forkerte felter/typer) kaster ServiceError 400 straks."""
     try:
@@ -345,6 +499,8 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
         details = "; ".join(f"{'.'.join(str(p) for p in e['loc']) or 'config'}: {e['msg']}" for e in exc.errors())
         raise ServiceError(400, f"Ugyldig symbol-konfiguration — {details}") from None
     res = Result()
+    others = others or {}   # de andre symbolers konfigurationer på tegningen (til henvisninger mellem logikblokke)
+    other_blocks = {el: {b["id"] for b in c.get("logic", [])} for el, c in others.items()}
     info = {n: _TagInfo(t) for n, t in tags.items()}
     cfg.type = element["type"]
     n = len(cfg.positions)
@@ -488,6 +644,57 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
         if cfg.planes and not readable:
             res.err("5", "Mindst ét plan skal styre et signal der sættes (ikke puls), ellers kan positionen ikke aflæses.")
 
+    # -- logikblokke (trin 4)
+    block_ids: list[str] = []
+    for b in cfg.logic:
+        nm = f"Logik {b.id}"
+        if not _LOGIC_ID.match(b.id):
+            res.err("4", f"Blok-id '{b.id}' skal være som L1, L2 …")
+        elif b.id in block_ids:
+            res.err("4", f"To logikblokke har id'et {b.id}.")
+        if not b.inputs:
+            res.err("4", f"{nm}: tilføj mindst én indgang.")
+        for k, inp in enumerate(b.inputs):
+            w = f"{nm}, indgang {k + 1}"
+            if not inp.src:
+                res.err("4", f"{w}: vælg et tag eller en tidligere blok.")
+                continue
+            if inp.src.startswith("@"):
+                owner, bid = split_logic_ref(inp.src, element_id)
+                if not inp.src[1:].count(":"):
+                    if bid not in block_ids:
+                        res.err("4", f"{w}: '{bid}' er ikke en tidligere blok (en blok kan kun bruge blokke over sig).")
+                elif owner == element_id:
+                    res.err("4", f"{w}: brug @{bid} til symbolets egne blokke.")
+                elif bid not in other_blocks.get(owner, set()):
+                    res.err("4", f"{w}: symbolet '{owner}' har ikke blokken '{bid}'.")
+                inp.cmp, inp.value = "", None
+                continue
+            t = tag_of(inp.src)
+            if t is None:
+                res.err("4", f"{w}: tagget '{inp.src}' findes ikke.")
+            elif inp.cmp:
+                if inp.value is None:
+                    res.err("4", f"{w}: angiv grænseværdien.")
+                if t.known and t.is_bool:
+                    res.err("4", f"{w}: {t.name} er et til/fra-tag — en sammenligning kræver et tal-tag.")
+            else:
+                inp.value = None
+                if t.known and not t.is_bool:
+                    res.err("4", f"{w}: {t.name} er et tal-tag — vælg ≥, ≤ eller = og en grænseværdi.")
+        block_ids.append(b.id)
+    if cycle := _logic_cycle(element_id, [b.model_dump() for b in cfg.logic], others):
+        res.err("4", f"Logikblokkene danner en løkke (via {cycle}) — en blok kan ikke afhænge af sig selv.")
+    own_refs = [i.src for b in cfg.logic for i in b.inputs] + [a.src for a in cfg.anims] + \
+               [str((a.params or {}).get("dir_tag") or "") for a in cfg.anims]
+    used_blocks = {split_logic_ref(s, element_id)[1] for s in own_refs
+                   if is_logic_ref(s) and split_logic_ref(s, element_id)[0] == element_id} | \
+                  {split_logic_ref(s)[1] for c in others.values() for s in cfg_refs(c)
+                   if ":" in s and split_logic_ref(s)[0] == element_id}
+    for b in cfg.logic:
+        if b.id not in used_blocks:
+            res.warnings.append(f"Logik {b.id}{f' ({b.name})' if b.name else ''} bruges ikke af nogen animation eller blok.")
+
     # -- visning (trin 4)
     if not 1 <= cfg.validate_s <= 120:
         res.err("4", "Valideringstid skal være 1–120 s.")
@@ -508,10 +715,20 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             res.err("4", f"{nm}: vælg hvad der styrer den.")
             continue
         pos_src = a.src == POS
+        logic_src = is_logic_ref(a.src)
         if pos_src and not P:
             res.err("4", f"{nm}: symbolet har ingen positioner.")
             continue
-        if not pos_src:
+        if logic_src:
+            owner, bid = split_logic_ref(a.src, element_id)
+            if (owner == element_id and ":" not in a.src and bid not in block_ids) or \
+                    (":" in a.src and (owner == element_id or bid not in other_blocks.get(owner, set()))):
+                res.err("4", f"{nm}: logikblokken '{a.src[1:]}' findes ikke.")
+                continue
+            if a.type in NUMERIC_ONLY:
+                res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en logikblok — vælg et tal-tag.")
+                continue
+        elif not pos_src:
             t = tag_of(a.src)
             if t is None:
                 res.err("4", f"{nm}: tagget '{a.src}' findes ikke.")
@@ -539,9 +756,15 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if params["base"].lower() == params["light"].lower():
                 res.err("4", f"{nm}: løbelysets to farver skal være forskellige.")
             if params["dir_tag"]:
-                if params["dir_tag"] == a.src:
+                dt = params["dir_tag"]
+                if dt == a.src:
                     res.err("4", f"{nm}: retnings-tagget skal være et andet tag end det der styrer start/stop.")
-                elif tag_of(params["dir_tag"]) is None:
+                elif is_logic_ref(dt):
+                    owner, bid = split_logic_ref(dt, element_id)
+                    local = ":" not in dt
+                    if (local and bid not in block_ids) or (not local and (owner == element_id or bid not in other_blocks.get(owner, set()))):
+                        res.err("4", f"{nm}: retningens logikblok '{dt[1:]}' findes ikke.")
+                elif tag_of(dt) is None:
                     res.err("4", f"{nm}: retnings-tagget '{params['dir_tag']}' findes ikke.")
         a.params = params
         if a.only is not None:
@@ -553,8 +776,8 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 res.warnings.append(f"{nm} gælder ikke i nogen position.")
             elif all(a.only):
                 a.only = None    # gælder i alle = ingen begrænsning
-    if cfg.op == "view" and not cfg.anims:
-        res.err("4", "Et visningssymbol skal have mindst én animation.")
+    if cfg.op == "view" and not cfg.anims and not cfg.logic:
+        res.err("4", "Et visningssymbol skal have mindst én animation (eller en logikblok til andre symboler).")
 
     # -- nøglelås (trin 5)
     if P:
@@ -594,19 +817,27 @@ class SymbolService:
         warnings: list[str] = []
         if row is not None and info is not None:
             _, res = validate_config(row["config"], info, self._tags(),
-                                     self.db.get_symbol_pin_hash(drawing_id, element) is not None)
+                                     self.db.get_symbol_pin_hash(drawing_id, element) is not None, element,
+                                     {k: v for k, v in self.configs(drawing_id).items() if k != element})
             warnings = res.warnings + [f"Trin {k}: {m}" for k, v in res.steps.items() for m in v]
         return {"element": element, "config": row["config"] if row else None,
                 "updated_at": row["updated_at"] if row else None, "updated_by": row["updated_by"] if row else None,
                 "has_pin": self.db.get_symbol_pin_hash(drawing_id, element) is not None,
-                "orphaned": info is None, "symbol": info, "warnings": warnings}
+                "orphaned": info is None, "symbol": info, "warnings": warnings,
+                "logic_pool": self.logic_pool(drawing_id, element)}
 
     def put(self, actor: CurrentUser, drawing_id: str, element: str, config: Any, pin: str | None = None) -> dict[str, Any]:
         info = self._element(drawing_id, element)
         if pin is not None and not _PIN.fullmatch(pin):
             raise ServiceError(400, "Koden til nøglelåsen skal være præcis 4 cifre", {"steps": {"5": ["Koden til nøglelåsen skal være præcis 4 cifre."]}})
         has_pin = pin is not None or self.db.get_symbol_pin_hash(drawing_id, element) is not None
-        normalized, res = validate_config(config, info, self._tags(), has_pin)
+        others = {k: v for k, v in self.configs(drawing_id).items() if k != element}
+        normalized, res = validate_config(config, info, self._tags(), has_pin, element, others)
+        if not res.count:
+            gone = {b["id"] for b in (self.db.get_symbol_config(drawing_id, element) or {}).get("config", {}).get("logic", [])} \
+                - {b["id"] for b in normalized.get("logic", [])}
+            for user, bid in self._logic_users(drawing_id, element, gone):
+                res.err("4", f"Blokken {bid} bruges af symbolet '{user}' — fjern dens henvisning dér først.")
         if res.count:
             raise ServiceError(400, f"Symbolet kan ikke gemmes ({res.count} fejl) — {res.first()}",
                                {"steps": res.steps, "warnings": res.warnings})
@@ -643,8 +874,43 @@ class SymbolService:
             self.on_change(drawing_id, element)
         return {"element": element, "has_pin": False}
 
+    def _logic_users(self, drawing_id: str, element: str, block_ids: set[str]) -> list[tuple[str, str]]:
+        """(symbol, blok) for andre symboler på tegningen der bruger en af blokkene i `element`."""
+        out: list[tuple[str, str]] = []
+        if not block_ids:
+            return out
+        for other, cfg in self.configs(drawing_id).items():
+            if other == element:
+                continue
+            srcs = cfg_refs(cfg)
+            for s in srcs:
+                if ":" in s:
+                    owner, bid = split_logic_ref(s)
+                    if owner == element and bid in block_ids and (other, bid) not in out:
+                        out.append((other, bid))
+        return out
+
+    def logic_pool(self, drawing_id: str, element: str) -> list[dict[str, Any]]:
+        """Logikblokke i de ANDRE symboler på tegningen — til guidens valg af kilde."""
+        svg = self.drawings.svg(drawing_id)
+        out: list[dict[str, Any]] = []
+        for other, cfg in self.configs(drawing_id).items():
+            if other == element or not cfg.get("logic"):
+                continue
+            info = describe_element(svg, other)
+            if info is None:
+                continue   # forældreløs
+            for b in cfg["logic"]:
+                out.append({"element": other, "symbol": info.get("name") or other, "id": b["id"], "name": b.get("name") or ""})
+        return out
+
     def delete(self, drawing_id: str, element: str) -> None:
         self.drawings._require(drawing_id)
+        old = self.db.get_symbol_config(drawing_id, element)
+        if old is not None:
+            users = self._logic_users(drawing_id, element, {b["id"] for b in old["config"].get("logic", [])})
+            if users:
+                raise ServiceError(409, f"Symbolets logikblok {users[0][1]} bruges af symbolet '{users[0][0]}' — fjern henvisningen dér først")
         if not self.db.delete_symbol_config(drawing_id, element):
             raise ServiceError(404, f"'{element}' har ingen symbol-konfiguration")
         if self.on_change is not None:
@@ -660,6 +926,7 @@ class SymbolService:
             out.update(config_tags(cfg))
             if cfg.get("op") == "positions":
                 out.update(pseudo_tag(drawing_id, element, k) for k in PSEUDO_KINDS)
+            out.update(logic_pseudo_tags(drawing_id, element, cfg).values())
         return out
 
     def usage(self, tag: str) -> list[str]:

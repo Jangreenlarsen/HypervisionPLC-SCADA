@@ -2,6 +2,70 @@
 
 ---
 
+## v0.49.0 — 2026-10-16 — Kun relevante betjeningsformer i guiden
+
+- I guidens **trin 1** vises nu kun de betjeningsformer, der giver mening for symbolet. En 3-vejs motorventil kan fx kun have **Kun visning** eller **Positioner**, og rør og tanke kun **Kun visning**.
+- Vil du alligevel bruge en anden, så afkryds **Vis alle betjeningsformer**. Egne tegninger viser altid alle fire.
+
+## v0.48.1 — 2026-10-16 — Hurtig opsætning: Kun visning
+
+- Når du bruger **Hurtig opsætning** på en ny 3-vejs ventil, sættes symbolet automatisk til **Kun visning**, så guiden ikke bagefter beder om et tag at skrive til.
+
+## v0.48.0 — 2026-10-16 — 3-vejs ventil: ét tag styrer alle tre porte
+
+- I guidens **trin 4 (Visning)** har de to 3-vejs motorventiler en **Hurtig opsætning**: vælg det til/fra-tag, der styrer ventilen, og tryk **Opret animationer**.
+- **Til** = AB → A (Port A og AB åbne), **Fra** = AB → B (Port B og AB åbne). Port AB er altid åben.
+- Virker også med en indgang, du kun kan læse. Farverne kan rettes bagefter under Animationer.
+
+## v0.47.2 — 2026-10-16 — 3-vejs motorventil: tre hvide porte
+
+- Begge 3-vejs motorventiler er nu tegnet med tre hvide porte (A, B og AB), så det kun er animationerne, der farver dem.
+
+## v0.47.1 — 2026-10-16 — Guiden: smallere tag-valg
+
+- I guidens trin 2 er **Kommando** og **Tilbagemelding** ikke længere så brede, at **Skrives som** blev presset ud til højre. Det samme gælder tag-valgene ved animationerne.
+
+## v0.47.0 — 2026-10-16 — 3-vejs motorventil med AB i midten
+
+- Ny variant af 3-vejs motorventilen (Rør og VVS): **AB nederst**, A til venstre og B til højre, motoren øverst. Samme opsætning som den første variant: positionerne AB → A og AB → B med farve pr. port.
+
+## v0.46.0 — 2026-10-16 — 3-vejs motorventil og logikblok som retning
+
+- Nyt symbol i biblioteket (Rør og VVS): **3-vejs motorventil** med portene A, B og AB og en motor. Hver port kan farves for sig.
+- Når du opsætter det med guiden, får du et forslag med to positioner: **AB → A** og **AB → B**. AB er altid åben, og enten A eller B er åben. Vælg tagget under trin 2, og ret farverne i trin 4, hvis du vil.
+- Et løbelys' **Retning fra** kan nu også være en **logikblok**, ikke kun et tag.
+
+## v0.45.0 — 2026-10-16 — Logikblokke kan bruges i andre symboler
+
+- En logikblok, du har lavet i ét symbol, kan nu vælges som **kilde** i animationer i **andre symboler på samme tegning** — og som indgang i deres egne logikblokke. Valglisterne har grupperne *Dette symbol* og *Andre symboler*.
+- Fx: lav blokken *Pumpe kører og ventil åben* i pumpe-symbolet, og lad rørene og en lampe i andre symboler bruge den.
+- Du kan ikke fjerne en blok (eller hele symbolets konfiguration), mens et andet symbol bruger den — fjern henvisningen dér først. Blokke der henviser til hinanden i ring afvises.
+
+## v0.44.0 — 2026-10-16 — Logikblokke: animationer der afhænger af flere tags
+
+- I guidens **trin 4 (Visning)** kan du lave **logikblokke**: AND eller OR over op til 4 indgange, med NOT på hver indgang og på resultatet. Eksempel: *pumpe kører (coils0) OG ventil åben (input0)*.
+- En indgang kan være et til/fra-tag, et tal-tag sammenlignet med en grænse (≥, ≤, =) eller en anden blok **over** den — så kan du bygge flere niveauer.
+- Vælg blokken som **kilde** i en animation ("en logikblok"). Så er animationen aktiv, når betingelsen er opfyldt.
+- Er et tag ukendt (fx kommunikationsfejl), men en anden indgang allerede afgør resultatet, bruges det (AND med en Fra giver Fra). Ellers er resultatet ukendt, og delen vises som tegnet.
+- **Trin 6 (Test og gem)** viser hver blok og dens værdi lige nu.
+
+## v0.43.0 — 2026-10-16 — Symboler opsættes med guiden i 6 trin
+
+- I **Tegn**: giv et symbol et navn, og tryk **Opsæt symbol (6 trin)**. Nyindsatte symboler opfordrer til det. Tegningen gemmes og udgives først (du bliver spurgt).
+- Under **Bindinger**: sektionen **Symbol** har nu guiden som den primære måde at sætte tag, positioner, animationer og nøglelås op på. Den gamle "vælg ét tag til hele symbolet" er væk; **Forklaring** er stadig der.
+
+## v0.42.0 — 2026-10-16 — Slet tegning også fra Tegn
+
+- Knappen **Slet tegning** findes nu også i **Tegn** (ved siden af Gem), ud over på siden **Tegninger**.
+- Før sletningen vises, hvad den rammer: antal versioner og bindinger, andre tegninger med en "gå til"-knap hertil (de holder op med at virke), om det er start-tegningen, og hvilke brugere der har adgang til den.
+
+## v0.41.0 — 2026-10-16 — Beregning på tekst-felter
+
+- Tekst-animationen under **Bindinger** har fået feltet **Beregning**, så værdien kan regnes om, før den vises. Fx `x / 10` viser registerværdien 128 som 12,8. `x` er tagets værdi.
+- Du kan bruge + − * / %, parenteser og få funktioner (`round`, `abs`, `min`, `max` …), fx `x * 1,8 + 32` eller `round(x / 10)`.
+- **Decimaler** og **enhed** gælder resultatet af beregningen.
+- Skriver du en ugyldig formel, får du en forklaring med det samme, og den kan ikke gemmes. Deler du med 0, vises et tankestreg.
+
 ## v0.40.0 — 2026-10-14 — Ny hovedmenu
 
 - Menuen foroven er nu én smal bjælke: **Menu**, hvor du er (fx "Drift › Overview"), antal alarmer og dit brugernavn.

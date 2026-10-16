@@ -4,6 +4,85 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.49.0 build 0070] — 2026-10-16 — Betjeningsformer efter symbol i guidens trin 1
+
+- `frontend/src/lib/symbolConfig.ts` — `allowedOps(type, current)`: hvilke af Kun visning / Positioner / Trykknap / Setpunkt der giver mening for hvert bibliotekssymbol (3-vejs motorventil: visning + positioner; reguleringsventil: visning + setpunkt; pumper, motorer, kontaktorer: visning + positioner + trykknap; rør, tanke, målere, lamper og solcelledele: kun visning; betjeningssymboler: deres egen form). Ukendte typer og egne tegninger får alle fire; den nuværende (gemte) form skjules aldrig.
+- `frontend/src/lib/SymbolGuide.svelte` — trin 1 viser kun de relevante former med afkrydsningen "Vis alle betjeningsformer". Kun i brugerfladen; serveren afviser ikke de øvrige. Tests i `libraryDefaults.test.ts`.
+- Knappen "Eksempel: 7-trins vælger" vises kun for vælgere og egne tegninger.
+
+## [0.48.1 build 0069] — 2026-10-16 — fix: hurtig opsætning af 3-vejs ventil skifter til "Kun visning"
+
+- `frontend/src/lib/SymbolGuide.svelte` — uden et valgt skrivbart tag skifter hurtig opsætning symbolet fra "Positioner" til "Kun visning" (så trin 2 ikke viser en fejl, og forslagets positions-animationer fjernes) og oplyser det. Set på testserveren. Se BUGS.md.
+
+## [0.48.0 build 0068] — 2026-10-16 — 3-vejs ventil: hurtig opsætning med ét til/fra-tag
+
+- `frontend/src/lib/symbolConfig.ts` — `valveFromTag()` (+ `isValveType`): tre farve-animationer for portene A, B og AB ud fra ét tag (Til = AB → A, Fra = AB → B, AB altid åben); erstatter kun animationer på de tre porte; melder om symbolet mangler portene eller der ikke er plads (højst 12).
+- `frontend/src/lib/SymbolGuide.svelte` — sektionen **Hurtig opsætning** øverst i trin 4 for de to 3-vejs motorventiler: vælg et til/fra-tag, tryk **Opret animationer** (bekræftelse hvis portene allerede har animationer; tal-tags afvises med en klar besked). Virker også for skrivebeskyttede indgange (visning).
+- Tests: `libraryDefaults.test.ts` (frontend) og `test_symbol_logic.py` (serveren accepterer formen).
+
+## [0.47.2 build 0067] — 2026-10-16 — fix: 3-vejs motorventilerne har tre hvide porte
+
+- `frontend/src/lib/symbols.ts` — portene A, B og AB er hvide i begge varianter (før: to sorte og én hvid), så farven alene styres af animationerne. Set i browser. Se BUGS.md.
+
+## [0.47.1 build 0066] — 2026-10-16 — fix: guidens tag-dropdowns pressede "Skrives som" ud
+
+- `frontend/src/lib/SymbolGuide.svelte` — tag-dropdowns i guidens tabeller og animationsrækker er højst 15 em brede (`:global`, da TagSelect er en underkomponent); "Skrives som" har mindstebredde og må ombrydes. Se BUGS.md. Layoutet er **set** på testserveren (1280 px).
+
+## [0.47.0 build 0065] — 2026-10-16 — 3-vejs motorventil med AB i midten
+
+- `frontend/src/lib/symbols.ts` — nyt symbol **3-vejs motorventil (AB i midten)**: AB nederst, A til venstre, B til højre, motor øverst; samme delnavne (`port_a`, `port_b`, `port_ab`, `motor`).
+- `frontend/src/lib/symbolConfig.ts` — guidens forslag (AB → A / AB → B med farver pr. port) gælder begge varianter; test i `libraryDefaults.test.ts`.
+
+## [0.46.0 build 0064] — 2026-10-16 — 3-vejs motorventil + logikblok som løbelysets retning
+
+- `frontend/src/lib/symbols.ts` — nyt bibliotekssymbol **3-vejs motorventil** (Rør og VVS): portene A (venstre), B (top) og AB (højre) og motoren er egne dele (`port_a`, `port_b`, `port_ab`, `motor`), så hver port kan farves for sig.
+- `frontend/src/lib/symbolConfig.ts` + `SymbolGuide.svelte` — `libraryDefault()`: et nyt 3-vejs symbol får et forslag med to positioner **AB → A** og **AB → B** og farve pr. port (A og AB åbne i den første, B og AB i den anden); tag vælges i trin 2. Danske delnavne (Port A/B/AB, Motor).
+- `backend/app/services/symbols.py` + `SymbolGuide.svelte` — løbelysets **Retning fra** kan være et tag **eller en logikblok** (i symbolet selv eller et andet); serveren oversætter blokken til dens live-værdi, validerer at den findes, og blokken tæller som brugt (advarsel/integritet).
+- Tests: backend `test_symbol_logic.py` (36), `test_expression_and_delete.py` (31), frontend `logicExpr.test.ts` (36) — dækker logikblokke, beregning (parity med browseren), slet tegning og retning fra blok; regel 14 indhentet for v0.41–v0.45.
+
+## [0.45.0 build 0063] — 2026-10-16 — Logikblokke kan bruges i andre symboler
+
+**Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først). Kun kompilering, en røgtest af beregning og løkkekontrol, og de eksisterende suiter er kørt.
+
+- `backend/app/services/symbols.py` — en blok i et andet symbol på samme tegning kan bruges som kilde i en animation eller som indgang i en blok: `@<symbol>:<blok>` (egne blokke er stadig `@L1`). `logic_results()` regner hele tegningens blokke på én gang (med memo og vagt mod løkker); `_logic_cycle()` afviser løkker på tværs af symboler ved gem; `validate_config` tjekker at det andet symbol og dets blok findes og at blokken ikke bruges uden advarsel. Integritet: en blok (eller et symbols konfiguration) der bruges af et andet symbol kan ikke fjernes, før henvisningen er fjernet dér (400 ved gem, 409 ved "Fjern konfiguration"). `GET …/config` leverer `logic_pool` (de andre symbolers blokke) til guiden.
+- `backend/app/services/symbol_runtime.py` — blokkene regnes pr. tegning, så en blok kan afhænge af blokke i andre symboler.
+- `backend/app/api/symbols.py` — kontrollen i guiden (`preview`) kender de andre symboler.
+- `frontend/src/lib/SymbolGuide.svelte` + `symbolConfig.ts` — valglisterne for kilde og indgang har nu grupperne "Dette symbol" og "Andre symboler"; trin 6 viser også blokke fra andre symboler live (`evalLogic` med `foreign`).
+
+## [0.44.0 build 0062] — 2026-10-16 — Logikblokke i symbol-guiden
+
+**Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først). Kun kompilering er kontrolleret, plus en kørsel af de eksisterende suiter (backend symbol/backup: 106 bestået, frontend: 175 bestået) og en røgtest af beregningen.
+
+- `backend/app/services/symbols.py` — nyt skema `logic` (højst 8 blokke): `LogicBlock` (`id` L1…, `name`, `op` and/or, 1–4 `inputs`, `invert`) og `LogicInput` (`src` = tag eller tidligere blok `@L1`, `neg`, for tal-tags `cmp` ge/le/eq + `value`). `evaluate_logic()` regner blokkene i rækkefølge med tre-værdi-logik: en afgørende indgang vinder (AND med Fra = Fra, OR med Til = Til), ellers er resultatet ukendt. Valideringen (trin 4) kontrollerer unikke id'er, 1–4 indgange, at tags findes, at en blok kun bruger blokke over sig (ingen løkker), at tal-tags har sammenligning og til/fra-tags ikke har, og at animationer kun peger på blokke der findes (ikke Niveau/Gennemsigtighed); en ubrugt blok giver en advarsel. `config_tags` tager blokkenes tags med (så de ikke kan slettes, og backup tjekker dem); animationer med kilde `@L1` bliver bindinger på blokkens pseudo-tag; `tags_for_drawing` tager blokkenes pseudo-tags med (adgang pr. tegning).
+- `backend/app/services/symbol_runtime.py` — beregner logikblokkene for alle symboler med `logic` (også visnings-symboler) og lægger dem i live-cachen som `sym:<tegning>:<element>:logic:<id>`; slettede blokke ryddes. Ukendt resultat = kvalitet `comm_error`.
+- `frontend/src/lib/symbolConfig.ts` — typer, `newBlock`, `removeBlock`, `describeBlock` og `evalLogic` (samme regler som serveren, til trin 6).
+- `frontend/src/lib/SymbolGuide.svelte` — sektionen **Logik** øverst i trin 4 (blokke med AND/OR, NOT pr. indgang og på resultatet, op til 4 indgange, tal-tags med ≥/≤/=, en blok som indgang i en senere blok); en animations kilde kan nu være **en logikblok**; trin 6 viser blokkenes live-værdier.
+
+## [0.43.0 build 0061] — 2026-10-16 — Guiden i 6 trin er den primære model for symboler
+
+**Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først); kun kompilering er kontrolleret.
+
+- `frontend/src/pages/DrawEditor.svelte` — et navngivet symbol har knappen **Opsæt symbol (6 trin)**, som åbner guiden direkte i Tegn. Guiden arbejder på tegningens aktive version, så en ny eller ændret tegning gemmes og udgives først (efter bekræftelse; ny tegning kræver et navn). Efter indsættelse af et symbol vises en opfordring til at opsætte det.
+- `frontend/src/pages/Editor.svelte` (Bindinger) — den gamle sektion "Symbol" (ét tag på hele symbolet, v0.27.0) er fjernet fra brugerfladen; sektionen **Symbol** har nu guiden som primær knap ("Opsæt/Ret symbol (6 trin)"), status og **Forklaring**. Bagvedliggende `PUT …/symbols/{element}` med `tag` er uændret i backend (fjernes sammen med den gamle model, når Jan godkender).
+
+## [0.42.0 build 0060] — 2026-10-16 — Slet tegning fra Tegn, med oversigt over hvad der rammes
+
+**Bemærk:** implementeret uden nye tests efter Jans ønske (Jan tester først); kun kompilering er kontrolleret.
+
+- `frontend/src/pages/DrawEditor.svelte` — knappen **Slet tegning** i Tegn; efter sletning åbnes en ny, tom tegning og listen opdateres
+- `frontend/src/lib/drawingDelete.ts` (ny) — fælles sletteflow for Tegn og Tegninger: henter hvad sletningen rammer, viser en bekræftelse og sletter; Tegninger-siden bruger nu samme flow
+- `backend/app/services/drawings.py` + `api/drawings.py` + `storage/db.py` — `GET /api/drawings/{id}/usage` (tekniker+): antal versioner og bindinger, andre tegninger med en "gå til"-knap hertil (bliver døde), om det er start-tegningen, og brugere med adgang
+- Bekræftelsen nævner kun det der rammes; sletning er uændret en kaskade (versioner, bindinger, forklaringer, symbolkonfiguration og brugeradgang slettes med tegningen)
+
+## [0.41.0 build 0059] — 2026-10-16 — Beregning på tekst-bindinger
+
+**Bemærk:** implementeret efter Jans ønske UDEN nye tests — Jan tester først, derefter gennemgås og testes resten (se FEATURES). Kun kompilering/typecheck er kontrolleret.
+
+- `frontend/src/lib/expression.ts` (ny) — lille parser uden `eval`: tal (komma eller punktum), `x`/`værdi`/`parameter` = værdien, `+ - * / %`, parenteser, fortegn og funktionerne abs, round, floor, ceil, sqrt, min, max (flere værdier adskilles med `;`, da komma er decimalkomma); højst 80 tegn; dansk fejltekst ("Ukendt navn …", "Manglende )" …); resultat der ikke er et endeligt tal (fx ÷ 0) = ingen værdi
+- `frontend/src/lib/animate.ts` — tekst-animationen beregner udtrykket FØR decimaler og enhed (`x / 10` med 1 decimal: 128 → `12.8`); gælder kun tal, ikke til/fra
+- `frontend/src/lib/bindingForm.ts` + `pages/Editor.svelte` — feltet **Beregning** i tekst-animationen med hjælpetekst, fejl vist mens man skriver og i "Vises som"-linjen; ugyldigt udtryk afvises ved gem
+- `backend/app/services/expression.py` (ny) + `services/bindings.py` — `TextParams.expression`; serveren parser samme grammatik og afviser ugyldige udtryk ved gem, opret, import og restore (så en tegning aldrig kan indeholde en formel der ikke kan beregnes)
+
 ## [0.40.0 build 0058] — 2026-10-14 — Ny hovedmenu: smal topbjælke, menuen foldes ud over tegningen
 
 - `frontend/src/lib/nav.ts` (ny) + `nav.test.ts` — siderne i grupperne Drift / Opsætning / System med rollekrav og ikoner; `navFor(rolle)` (tomme grupper udelades), `pageFor(rute, rolle)` (ikke tilladt/ukendt side → Overview), `groupOf`.
