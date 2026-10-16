@@ -1,6 +1,7 @@
 // Værtsside for SVG-Edit inde i SCADA'en (indlæses i en iframe fra samme origin).
 // Forældresiden (DrawEditor.svelte) bruger `window.scada` nedenfor.
 import Editor from './Editor.js';
+import { isDrag, snapToObjects, unionBox } from './snap.js';
 
 const editor = new Editor(document.getElementById('container'));
 editor.setConfig({
@@ -9,7 +10,7 @@ editor.setConfig({
   extPath: './extensions',
   noDefaultExtensions: true,
   // Kun udvidelser der arbejder lokalt — ingen browser-lagring eller filåbning udenom SCADA'en
-  extensions: ['ext-connector', 'ext-eyedropper', 'ext-grid', 'ext-markers', 'ext-panning', 'ext-polystar', 'ext-shapes'],
+  extensions: ['ext-connector', 'ext-eyedropper', 'ext-markers', 'ext-panning', 'ext-polystar', 'ext-shapes'],
   noStorageOnLoad: true,
   forceStorage: false,
   emptyStorageOnDecline: true,
@@ -18,6 +19,108 @@ editor.setConfig({
   allowInitialUserOverride: false,
 });
 editor.init();
+
+// ---------------------------------------------------------------- hjælpelinjer: gitter, fang til gitter, fang til objekter
+// Gitteret tegnes af os selv (SVG-Edits eget gitter kan kun 10/100/…-inddelinger og matcher ikke fangtrinnet).
+const guides = { grid: false, snapGrid: false, step: 10, snapObjects: false };
+const SNAP_PX = 8;                       // fang inden for så mange skærm-pixel
+let lastBoxes = new Map();               // valgte elementer → deres boks ved forrige 'selected'/'changed' (til at se en flytning)
+let snapping = false;
+
+/** Elementets boks i tegningens koordinater (inkl. transform), ud fra skærmplaceringen og zoom. */
+function boxOf(el) {
+  const r = el.getBoundingClientRect();
+  const o = canvas().getSvgContent().getBoundingClientRect();
+  const z = canvas().getZoom() || 1;
+  return { x: (r.left - o.left) / z, y: (r.top - o.top) / z, w: r.width / z, h: r.height / z };
+}
+
+const selectedEls = () => (canvas().getSelectedElements() || []).filter(Boolean);
+
+function rememberBoxes() {
+  lastBoxes = new Map(selectedEls().map((el) => [el, boxOf(el)]));
+}
+
+function drawGrid() {
+  // Gitteret ligger OVENPÅ tegningen som et gennemsigtigt lag: en tegning har ofte et uigennemsigtigt baggrundsrektangel
+  // (nye tegninger har), og et lag under tegningen — som SVG-Edits eget gitter — ville aldrig kunne ses.
+  const host = document.getElementById('svgcanvas');
+  const content = canvas()?.getSvgContent?.();
+  if (!host || !content) return;
+  let layer = host.querySelector('#hvGrid');
+  if (!layer) {
+    const NS = 'http://www.w3.org/2000/svg';
+    layer = document.createElementNS(NS, 'svg');
+    layer.setAttribute('id', 'hvGrid');
+    layer.style.cssText = 'position:absolute; pointer-events:none; z-index:50; overflow:hidden;';
+    layer.innerHTML = '<defs><pattern id="hvGridMinor" patternUnits="userSpaceOnUse"><path fill="none" stroke="#000" stroke-opacity=".2" stroke-width="1"/></pattern>' +
+      '<pattern id="hvGridMajor" patternUnits="userSpaceOnUse"><path fill="none" stroke="#000" stroke-opacity=".4" stroke-width="1"/></pattern></defs>' +
+      '<rect width="100%" height="100%" fill="url(#hvGridMinor)"/><rect width="100%" height="100%" fill="url(#hvGridMajor)"/>';
+    host.appendChild(layer);
+  }
+  layer.style.display = guides.grid ? 'block' : 'none';
+  if (!guides.grid) return;
+  const z = canvas().getZoom() || 1;
+  // For tæt et net er ubrugeligt at se på: spring over til hver 2./4./8. linje ved lav zoom
+  let minor = guides.step;
+  while (minor * z < 6) minor *= 2;
+  // laget dækker præcis tegningen (skærmplacering og -størrelse, så det følger zoom og rulning)
+  const hr = host.getBoundingClientRect();
+  const cr = content.getBoundingClientRect();
+  layer.style.left = `${cr.left - hr.left + host.scrollLeft}px`;
+  layer.style.top = `${cr.top - hr.top + host.scrollTop}px`;
+  layer.setAttribute('width', cr.width);
+  layer.setAttribute('height', cr.height);
+  const set = (id, size) => {
+    const p = layer.querySelector(`#${id}`);
+    p.setAttribute('width', size);
+    p.setAttribute('height', size);
+    p.firstElementChild.setAttribute('d', `M ${size} 0 L 0 0 0 ${size}`);
+  };
+  set('hvGridMinor', minor * z);
+  set('hvGridMajor', minor * z * 5);
+}
+
+function applyGuides() {
+  const c = canvas();
+  const cfg = editor.configObj?.curConfig;
+  if (cfg) {
+    cfg.gridSnapping = guides.snapGrid;
+    cfg.snappingStep = guides.step;
+  }
+  try {
+    c.setConfig({ gridSnapping: guides.snapGrid, snappingStep: guides.step });
+  } catch {
+    // ældre SVG-Edit uden setConfig på lærredet: curConfig ovenfor er det samme objekt
+  }
+  drawGrid();
+}
+
+/** Efter en flytning: ligg kant mod kant (eller midte mod midte) med nærmeste objekt, hvis det er tæt på. */
+function snapSelectionToObjects() {
+  const sel = selectedEls();
+  if (!sel.length) return;
+  const now = unionBox(sel.map(boxOf));
+  const before = unionBox(sel.map((el) => lastBoxes.get(el)));
+  const known = sel.every((el) => lastBoxes.has(el));
+  if (guides.snapObjects && known && isDrag(before, now)) {
+    const content = canvas().getSvgContent();
+    const others = [...content.querySelectorAll('g.layer > *')]
+      .filter((el) => el.tagName !== 'title' && !sel.includes(el) && !sel.some((s) => s.contains(el) || el.contains(s)))
+      .map(boxOf)
+      .filter((b) => b.w > 0 || b.h > 0);
+    const hit = snapToObjects(now, others, SNAP_PX / (canvas().getZoom() || 1));
+    if ((hit.dx || hit.dy) && !snapping) {
+      snapping = true;
+      try {
+        canvas().moveSelectedElements(hit.dx, hit.dy, true);
+      } finally {
+        snapping = false;
+      }
+    }
+  }
+  lastBoxes = new Map(selectedEls().map((el) => [el, boxOf(el)]));
+}
 
 let selectionListener = null;
 let insertCount = 0;
@@ -40,6 +143,7 @@ function hookEvents() {
   // bind() returnerer editorens egen handler — kald den først, så editoren virker uændret.
   const prevSelected = c.bind('selected', (win, elems) => {
     if (prevSelected) prevSelected(win, elems);
+    rememberBoxes();
     if (selectionListener) selectionListener(currentSelection());
   });
   const prevChanged = c.bind('changed', (win, elems) => {
@@ -47,6 +151,15 @@ function hookEvents() {
     if (changeListener) changeListener();
     if (selectionListener) selectionListener(currentSelection());
   });
+  // SVG-Edit sender ikke 'changed' efter en flytning med musen, så vi lytter selv på museknappen (efter editorens egen
+  // håndtering): ved nedtryk huskes de valgte elementers placering, ved slip fanges der — hvis det var et træk.
+  document.addEventListener('mousedown', () => setTimeout(rememberBoxes, 0), true);
+  document.addEventListener('mouseup', () => setTimeout(() => { if (!snapping) snapSelectionToObjects(); }, 0), true);
+  const prevZoomed = c.bind('zoomed', (...args) => {
+    if (prevZoomed) prevZoomed(...args);
+    drawGrid();
+  });
+  drawGrid();
 }
 
 function currentSelection() {
@@ -73,6 +186,7 @@ window.scada = {
   load(svg) {
     const ok = editor.loadFromString(svg, { noAlert: true });
     canvas().undoMgr.resetUndoStack();
+    drawGrid();
     return ok;
   },
 
@@ -83,6 +197,7 @@ window.scada = {
       { noAlert: true },
     );
     canvas().undoMgr.resetUndoStack();
+    drawGrid();
   },
 
   getSvg() {
@@ -93,6 +208,16 @@ window.scada = {
       if (el.getAttribute('data-hv-desc') === '') el.removeAttribute('data-hv-desc');
     });
     return canvas().getSvgString();
+  },
+
+  /** Gitter, fang til gitter (trin i tegningens enheder) og fang til objekter — sættes fra Tegn-siden. */
+  setGuides(opts) {
+    guides.grid = !!opts.grid;
+    guides.snapGrid = !!opts.snapGrid;
+    guides.snapObjects = !!opts.snapObjects;
+    const step = Number(opts.step);
+    guides.step = Number.isFinite(step) && step >= 1 ? step : 10;
+    applyGuides();
   },
 
   hasUndo() {

@@ -2,6 +2,15 @@
 
 ---
 
+## v0.54.0 — 2026-10-16 — Gitter og fang i Tegn
+
+- Under værktøjslinjen i **Tegn** er der en ny række, **Tegnehjælp**:
+  - **Vis gitter** — et net ovenpå tegningen (afstand 5, 10, 20, 25 eller 50), med kraftigere linje for hver 5.
+  - **Fang til gitter** — objekter flyttes og tegnes i gitterets trin.
+  - **Fang til objekter** — slipper du et objekt tæt på et andet, lægger det sig kant mod kant eller midte mod midte. Tryk Ctrl+Z for at fortryde fangen.
+- **Rotation sker nu i 15°-trin.** Hold **Shift** nede for at rotere frit.
+- Indstillingerne huskes i din browser.
+
 ## v0.53.0 — 2026-10-16 — Skærmbilleder i manualen
 
 - Manualen har nu **29 skærmbilleder**: menuen, Overview, alarmer, kurver, tags, tegninger, Tegn, bindinger, **alle seks trin i guiden**, ugeprogrammer og System-siderne.

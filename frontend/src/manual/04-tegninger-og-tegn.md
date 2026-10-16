@@ -34,6 +34,17 @@ Siden **Tegninger** er listen over alle tegninger.
 
 Er der ændringer, du ikke har gemt, spørger systemet, før de kasseres.
 
+### Tegnehjælp: gitter, fang og rotation
+
+Under værktøjslinjen i Tegn står rækken **Tegnehjælp**:
+
+- **Vis gitter** viser et net **ovenpå** tegningen (det ændrer ikke tegningen). Linjerne ligger med den valgte **gitterafstand** (5, 10, 20, 25 eller 50 enheder), og hver 5. linje er kraftigere. Gitteret følger zoom og rulning og flugter med linealerne.
+- **Fang til gitter** får objekter til at flytte og tegnes i gitterets trin, så de ender på pæne tal.
+- **Fang til objekter**: slipper du et objekt tæt på et andet (inden for ca. 8 pixel på skærmen), lægger det sig **kant mod kant** eller **midte mod midte** med det nærmeste objekt. Det virker, når du **flytter** et eksisterende objekt (ikke mens du tegner et nyt), og fangen kan fortrydes med **Ctrl+Z**. Små justeringer med piletasterne fanges ikke.
+- **Rotation** sker i **15°-trin**. Hold **Shift** nede, mens du drejer, for at rotere **frit**.
+
+Indstillingerne huskes i din browser.
+
 ### Symbolbiblioteket
 
 ![Symbolbiblioteket i Tegn, sorteret i kategorier med søgning](/manual/tegn-symboler.png)

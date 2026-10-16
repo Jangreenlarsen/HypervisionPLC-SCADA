@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.54.0 build 0079] — 2026-10-16 — Tegnehjælp: gitter, fang til gitter/objekter og rotation i 15°-trin
+
+- `frontend/svgedit-host/scada-editor.js` — **gitter** tegnet som et gennemsigtigt lag OVENPÅ tegningen (SVG-Edits eget gitter lå under og var skjult bag baggrundsrektanglet), afstand 5/10/20/25/50 med kraftigere linje for hver 5.; følger zoom og rulning; **fang til gitter** (SVG-Edits egen `gridSnapping`/`snappingStep`); **fang til objekter**: ved museslip efter et træk lægges det flyttede objekt kant mod kant eller midte mod midte med nærmeste objekt inden for 8 skærm-pixel (kan fortrydes). SVG-Edit sender ikke `changed` efter en flytning, så der lyttes på museknappen. API: `window.scada.setGuides({ grid, snapGrid, snapObjects, step })`. `ext-grid` er fjernet.
+- `frontend/svgedit-host/snap.js` (ny) — de rene beregninger (`unionBox`, `snapToObjects`, `isDrag`; piletast-justeringer under 3 px fanges ikke).
+- `frontend/scripts/copy-svgedit.mjs` — **rotation i 15°-trin, Shift = fri rotation** (SVG-Edit er normalt fri og snapper til 45° med Shift): tekstrettelse i den medfølgende editor-fil; passer teksten ikke (ny SVG-Edit-version), stopper kopieringen med en klar fejl.
+- `frontend/src/pages/DrawEditor.svelte` — rækken **Tegnehjælp** under værktøjslinjen (Vis gitter, Fang til gitter, Gitterafstand, Fang til objekter, rotationshint); huskes i browseren (`draw.guides`).
+- Manualen (kapitlet Tegninger og Tegn) beskriver det.
+- Tests: `snap.test.ts` (fang-beregningerne), `svgeditPatch.test.ts` (rotationsrettelsen og værtssiden er med i den leverede kopi). **Afprøvet med rigtig mus** i browseren: gitter synligt og flugtende med linealen, flytning i 10-trin med fang til gitter, objekt fanget præcis kant mod kant, rotation 30°/75°/−15° uden Shift og ≈ fri med Shift.
+
 ## [0.53.0 build 0078] — 2026-10-16 — Skærmbilleder i brugermanualen
 
 - `frontend/tools/manual-screenshots.mjs` (nyt; `npm run manual:screenshots`) — tager billederne fra en kørende server med Playwright (devDependency, Apache-2.0): logger ind som admin, åbner siderne og guiden og gemmer PNG i `frontend/public/manual/`. **Kun læsning** — der trykkes aldrig Gem, og intet skrives eller slettes. Kan afgrænses med `ONLY=navn,navn`. Fold tag-redigeringen ud, så alle felter ses; begræns symbolpaletten til 760 px.
