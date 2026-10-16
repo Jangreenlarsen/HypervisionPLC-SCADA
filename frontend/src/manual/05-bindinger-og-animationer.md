@@ -28,7 +28,7 @@ Hedder et element det samme som et tag (id eller label), bindes det **automatisk
 | **Drej** | Elementet drejes en vinkel efter værdien (eller efter position) | Viser på manometer, omskifterstilling |
 | **Flyt** | Elementet forskydes dx/dy efter værdien | Skyder, vippekontakt |
 | **Roterer** | Elementet roterer kontinuerligt | Pumpehjul, blæser |
-| **Løbelys** | Et lysende mønster løber langs røret og viser strømning og retning | Rør med flow |
+| **Løbelys** | Et lysende mønster løber langs røret og viser strømning og retning. Lysstykkernes længde og fart er de samme, uanset hvordan røret er strakt eller skaleret | Rør med flow |
 
 For til/fra-tags vælger du farver for **Til** og **Fra**. For tal-tags vælger du en **basisfarve** og **grænser** (*værdi og farve*). Et tal-tag kan også styre Blink, Synlig og Roterer med "aktiv når ≥ en grænse".
 

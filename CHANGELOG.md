@@ -4,6 +4,30 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.55.1 build 0083] — 2026-10-16 — fix: Erstat med symbol rører ikke dele med bindinger
+
+- `frontend/svgedit-host/scada-editor.js` — `describeSelection()` leverer `similarGroups` (id'er pr. lignende del) og `ids` tæller nu også de tekster der ligger inde i delen; `replaceSelected()` tager `protectIds` og **springer lignende dele over**, hvis noget af det der ville forsvinde har en binding (meldes som `skipped`). Selve den valgte del erstattes som valgt.
+- `frontend/src/pages/DrawEditor.svelte` + `lib/SymbolReplace.svelte` — henter bindingerne i den gemte version, giver dem videre som beskyttelse, advarer om bindinger på tekster/underelementer der ikke følger med, og viser "N lignende dele med bindinger blev sprunget over".
+- Fundet ved prøvekørsel (kun læsning) på den rigtige "varme"-tegning; se BUGS.md.
+
+## [0.55.0 build 0082] — 2026-10-16 — Erstat tegnede dele med symboler
+
+Ønske fra Jan: konvertér "varme"-tegningen til at bruge symboler fra systemet. Metode (valgt af Jan): værktøj med forslag + resultatet som ny kladde-version.
+
+- `frontend/svgedit-host/scada-editor.js` — `describeSelection()` (opbygning, størrelse, drejning, farver, tekster inde i delen, lignende dele, alle id'er), `replaceSelected()` (samme midte, størrelse og drejning — matrixen i tegningens koordinater uden zoom —, id kan beholdes, teksten kan overtages og den gamle fjernes, stræk til at fylde, **alle lignende** (samme størrelse, eller alle af samme slags uanset størrelse/drejning), navn pr. del efter dens egen tekst, alt i ét fortryd-trin), `ungroupSelected()` (en stor gruppe kan opløses, så dens dele kan vælges), `selectById()`; `buildSymbolNode()` er fælles med `insertSymbol`.
+- `frontend/src/lib/symbolSuggest.ts` (ny) — forslag ud fra delens form, målt på den rigtige "varme"-tegning: afrundet ufyldt rektangel/sti i pillestørrelse → **statusfelt**; cirkel + trekant → **pumpe**; ventil med stilk og motorcirkel → **motorventil** (m.fl.); lille cirkel med streg → **føler**; stort fyldt rektangel → **tank/kedel**; kedelgruppe → **kedel**; tykke streger → **rør/bøjning**.
+- `frontend/src/lib/SymbolReplace.svelte` (ny) + `pages/DrawEditor.svelte` — knappen **Erstat med symbol …** (og **Opløs gruppen** for en gruppe med mere end 20 dele); dialogen med forslag, søgning i hele biblioteket, navn, behold id, overtag tekst, stræk, "andre dele af samme slags", og en advarsel om bindinger på underelementer, som ikke følger med.
+- Manualen (Tegninger og Tegn) beskriver værktøjet, med billede (`tegn-erstat.png`).
+- Tests: `symbolSuggest.test.ts` (forslagsreglerne med opbygninger fra "varme"). **Afprøvet i browseren** på en lokal kopi af "varme": gruppen opløst (226 dele), 30 etiketter (22 rektangler + 8 stier) → statusfelt med overtaget tekst og eget navn, 4 pumper, 18 følere, tank og kedel erstattet på rette sted og i rette størrelse; ét Ctrl+Z gendanner alle; resultatet gemt som kladde-version 2 med alle symboler, navne og tekster.
+- **Kendt begrænsning:** et symbols *retning* (fx pumpens trekant, ventilens akse) er tegnet ind i den gamle del og kan ikke aflæses sikkert; efter erstatning kan symbolet skulle drejes (15°-trin, Shift = fri). Bindinger på underelementer følger ikke med (advarsel vises); bindinger på selve delen følger med, hvis id'et beholdes.
+
+## [0.54.2 build 0081] — 2026-10-16 — fix: løbelys uafhængigt af rørets skalering; fang til gitter er absolut
+
+- `frontend/src/lib/animate.ts` — **løbelys**: lysets længde (`dash`) og fart (`speed`) er nu i tegningens enheder, uanset hvordan røret er skaleret. Stregen måles i tegningen (først efter at laget er sat ind): rørets samlede matrix (egen + forfædres transform) divideret med en probe under roden (så tegningens viewBox/zoom ikke tæller med), og skaleringen langs røret (rect/line: langs linjen; kurve/bøjning: geometrisk middel) omregner lysstykket og forskydningen til rørets lokale enheder. Uden mulighed for at måle (jsdom, uden for skærmen) er faktoren 1 som før. Rør der ikke er skaleret, ser ud som før.
+- `frontend/svgedit-host/scada-editor.js` + `snap.js` — **fang til gitter er absolut**: `gridCorrection()` lægger de valgte elementers øverste venstre hjørne på nærmeste gitterpunkt efter en flytning med musen, **indsæt** (`pasteElements`), **duplikér** (`cloneSelectedElements`, ikke tasternes 1–5 px finjustering) og isætning af et symbol fra paletten; fang til objekter vinder i sin retning. Boksen måles nu som geometri i tegningens koordinater (`getBBox` + matrix uden zoom) i stedet for skærmplaceringen. Matrix-hjælpere (`multiplyMatrix`, `invertMatrix`, `transformBox`, `identityMatrix`).
+- Manualen: Løbelys og Tegnehjælp opdateret.
+- Tests: `animate.test.ts` (lengthScale, strakt/drejet/lodret rør, skalering på tværs, tegningens egen visning tæller ikke), `snap.test.ts` (gridCorrection — også at en kopi havner på samme gitterpunkter —, matricer). **Afprøvet med rigtig mus** i browseren: træk fra (593,337) med fang til gitter → (600,350); duplikat af objekt uden for gitteret → på gitteret; nyt symbol → på gitteret. Ctrl+C/Ctrl+V kunne ikke afprøves i en testbrowser (kræver udklipsholder), men bruger samme hook som duplikering.
+
 ## [0.54.1 build 0080] — 2026-10-16 — manual: billeder af Tegnehjælp
 
 - `frontend/public/manual/tegn-gitter.png` (nyt) og et nyt `tegn.png` med rækken Tegnehjælp; billedet er indsat i kapitlet *Tegninger og Tegn*. Verificeret på testserveren efter OTA-installation af 0.54.0: rotationsrettelsen er med i den leverede `Editor.js`, og gitteret ligger over det rigtige anlæg.

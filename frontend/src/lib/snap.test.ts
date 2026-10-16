@@ -1,7 +1,7 @@
 // Fang til objekter i Tegn: de rene beregninger (svgedit-host/snap.js).
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — ren JS-fil i værtsmappen til SVG-Edit (ingen typer)
-import { isDrag, snapToObjects, unionBox } from '../../svgedit-host/snap.js';
+import { gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, snapToObjects, transformBox, unionBox } from '../../svgedit-host/snap.js';
 
 const box = (x: number, y: number, w: number, h: number) => ({ x, y, w, h });
 
@@ -61,5 +61,42 @@ describe('isDrag', () => {
   });
   it('mangler en boks, er det ikke et træk', () => {
     expect(isDrag(null, box(0, 0, 1, 1))).toBe(false);
+  });
+});
+
+describe('gridCorrection (absolut fang til gitter)', () => {
+  it('lægger øverste venstre hjørne på nærmeste gitterpunkt', () => {
+    expect(gridCorrection(box(543, 207, 10, 10), 10)).toEqual({ dx: -3, dy: 3 });
+    expect(gridCorrection(box(546, 204, 10, 10), 10)).toEqual({ dx: 4, dy: -4 });
+  });
+  it('et objekt der allerede ligger på gitteret flyttes ikke (heller ikke -0)', () => {
+    const r = gridCorrection(box(550, 200, 10, 10), 10);
+    expect(Object.is(r.dx, 0) && Object.is(r.dy, 0)).toBe(true);
+  });
+  it('en kopi, der lægges ved siden af, havner på samme gitterpunkter som originalen', () => {
+    const original = box(543, 207, 90, 10);
+    const copy = box(543 + 20, 207 + 20, 90, 10);                          // indsat med forskydning 20,20
+    const place = (b: ReturnType<typeof box>) => { const c = gridCorrection(b, 10); return { x: b.x + c.dx, y: b.y + c.dy }; };
+    const a = place(original), b = place(copy);
+    expect(a).toEqual({ x: 540, y: 210 });
+    expect(b).toEqual({ x: 560, y: 230 });
+    for (const v of [a.x, a.y, b.x, b.y]) expect(v % 10).toBe(0);
+  });
+  it('virker med andre trin og negative placeringer; trin 0 gør intet', () => {
+    expect(gridCorrection(box(-7, 12, 5, 5), 5)).toEqual({ dx: 2, dy: -2 });
+    expect(gridCorrection(box(37, 38, 5, 5), 25)).toEqual({ dx: -12, dy: 12 });
+    expect(gridCorrection(box(3, 3, 1, 1), 0)).toEqual({ dx: 0, dy: 0 });
+  });
+});
+
+describe('matricer', () => {
+  it('multiply og invert er hinandens modsætninger; transformBox følger skalering og drejning', () => {
+    const m = { a: 2, b: 0, c: 0, d: 3, e: 10, f: 20 };
+    const inv = invertMatrix(m)!;
+    const id = multiplyMatrix(inv, m);
+    for (const k of ['a', 'b', 'c', 'd', 'e', 'f'] as const) expect(id[k]).toBeCloseTo(identityMatrix()[k]);
+    expect(transformBox(box(0, 0, 10, 10), m)).toEqual(box(10, 20, 20, 30));
+    expect(transformBox(box(0, 0, 10, 4), { a: 0, b: 1, c: -1, d: 0, e: 0, f: 0 })).toEqual(box(-4, 0, 4, 10));   // drejet 90°
+    expect(invertMatrix({ a: 0, b: 0, c: 0, d: 0, e: 0, f: 0 })).toBeNull();
   });
 });

@@ -104,6 +104,23 @@ await shot('tegn-gitter', async () => {
   await page.getByLabel('Fang til objekter').check();
   await settle(800);
 }, { clip: { x: 0, y: 84, width: 1180, height: 480 } });
+await shot('tegn-erstat', async () => {
+  // Opløs den store gruppe i browseren (gemmer ikke), vælg en pille-etiket og åbn "Erstat med symbol" med Statusfelt valgt
+  await go(`draw/${startDrawing}`, 'iframe');
+  await settle(3500);
+  const f = page.frames().find((x) => x.url().includes('scada-editor'));
+  await f.evaluate(() => {
+    const big = [...document.querySelectorAll('#svgcontent g.layer > g')].find((g) => g.children.length > 20);
+    if (big) { window.scada.selectById(big.id); window.scada.ungroupSelected(); }
+    const pill = document.querySelector('#svgcontent g.layer > rect[rx]');
+    if (pill) window.scada.selectById(pill.id);
+  });
+  await settle(500);
+  await page.getByRole('button', { name: /Erstat med symbol/ }).click();
+  await page.waitForSelector('.dlg');
+  await page.locator('.dlg .sym', { hasText: 'Statusfelt' }).first().click();
+  await settle(500);
+}, { locator: '.dlg' });
 await shot('tegn-symboler', async () => {
   await go(`draw/${startDrawing}`, 'iframe');
   await settle(3000);
