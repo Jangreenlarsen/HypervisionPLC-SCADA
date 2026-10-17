@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.65.1 build 0100] — 2026-10-17 — fix: det øverste midtergreb strækker i stedet for at flytte
+
+- `frontend/svgedit-host/scada-editor.css` — `#selectorGrip_rotateconnector { pointer-events: none; }`: drejegrebets forbindelsesstreg lå oven på det øverste midtergreb, så et træk dér flyttede elementet. Test i `svgeditPatch.test.ts`. **Set i browseren** (Chrome og Firefox) på rør som i "varme": vandret sti, lodret sti (bredde 0), skaleret sti og drejet biblioteksrør kan nu strækkes i begge ender. Se BUGS.md (også en åben post om drejede rør).
+
 ## [0.65.0 build 0099] — 2026-10-17 — Løbelys i T-stykkets afgrening starter ved gennemløbets kant
 
 - `frontend/src/lib/flowChain.ts` — `trimInnerEnds()`: en delsti der starter eller slutter inde på en anden delsti (lige stykke) i samme figur, forkortes med en halv stregbredde langs sit første/sidste lige stykke; kryds, ender der mødes, buer og for korte stykker røres ikke.

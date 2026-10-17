@@ -22,4 +22,9 @@ describe.skipIf(!existsSync(editor))('SVG-Edit-kopien (public/svgedit)', () => {
     expect(js).not.toContain("'ext-grid'");
     expect(existsSync(join(process.cwd(), 'public', 'svgedit', 'snap.js'))).toBe(true);
   });
+
+  it('drejegrebets forbindelsesstreg tager ikke imod musen (ellers flyttede det øverste midtergreb elementet)', () => {
+    const css = readFileSync(join(process.cwd(), 'public', 'svgedit', 'scada-editor.css'), 'utf-8');
+    expect(css).toMatch(/#selectorGrip_rotateconnector\s*\{\s*pointer-events:\s*none;?\s*\}/);
+  });
 });

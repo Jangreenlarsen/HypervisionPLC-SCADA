@@ -2,6 +2,10 @@
 
 ---
 
+## v0.65.1 — 2026-10-17 — Rettet: rør kan strækkes i begge ender
+
+- I **Tegn** kan et lodret rør (og alle andre figurer) nu strækkes opad med det øverste midtergreb. Før flyttede grebet hele elementet, fordi drejegrebets streg lå ovenpå.
+
 ## v0.65.0 — 2026-10-17 — T-stykkets afgrening
 
 - Løbelyset i et T-stykkes afgrening starter nu ved kanten af gennemløbet i stedet for midt inde i det, så lyset ikke tegnes hen over gennemløbet.

@@ -1,2 +1,5 @@
 /* Små tilpasninger af SVG-Edit inde i SCADA'en */
 #main_button, #tool_wireframe, #tool_source_save { display: none !important; }
+/* Drejegrebets forbindelsesstreg ligger oven på det øverste midtergreb; tog den imod musen, flyttede et træk i grebet
+   elementet i stedet for at strække det (BUGS.md v0.65.0). Drejegrebet er cirklen for enden af stregen. */
+#selectorGrip_rotateconnector { pointer-events: none; }
