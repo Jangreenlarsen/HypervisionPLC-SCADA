@@ -97,6 +97,27 @@ describe('sammenhængende løbelys', () => {
   });
 });
 
+describe('nærmeste ender', () => {
+  it('et kort rør mellem et T-stykke og en bøjning: enderne kobles til det korte rør, ikke hen over det', () => {
+    // T-stykkets afgrening ender i x=1548,9, det korte rør går 1549,1 → 1540,4, bøjningen starter i 1541 (7,9 fra T-stykket)
+    const pieces = [
+      P('T', [1593.9, 478.6], [1548.9, 433.6]),
+      P('kort', [1549.1, 433.6], [1540.4, 433.6]),
+      { ...P('bøjning', [1541, 433.6], [1496, 477.5]), len: 63.6 },
+    ];
+    const ph = chainPhases(pieces, 8);
+    const T = ph.get('T')!, K = ph.get('kort')!, B = ph.get('bøjning')!;
+    const lenT = pieces[0].len;
+    expect(K.g0).toBeCloseTo(T.g0 + lenT);           // det korte rør fortsætter, hvor T-stykket slap
+    expect(B.g0).toBeCloseTo(K.g0 + 8.7);            // bøjningen fortsætter efter det korte rør
+  });
+  it('tre ender i samme punkt (kryds) kobles alle', () => {
+    const ph = chainPhases([P('A', [0, 0], [100, 0]), P('B', [100, 0], [200, 0]), P('C', [100, 0], [100, 100])], 1);
+    expect(ph.get('B')!.g0).toBe(100);
+    expect(ph.get('C')!.g0).toBe(100);
+  });
+});
+
 describe('delstier', () => {
   it('T-stykke: absolut og relativ (som SVG-Edit gemmer den)', () => {
     expect(splitSubpaths('M0 45 H90 M45 45 V0')).toEqual(['M0 45 H90', 'M45 45 V0']);

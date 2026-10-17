@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.64.2 build 0098] — 2026-10-17 — fix: løbelys kobles kun til de nærmeste ender
+
+- `frontend/src/lib/flowChain.ts` — `chainPhases()`: en ende kobles kun til ender højst 1 enhed længere væk end den nærmeste (kort rør mellem T-stykke og bøjning). Tests: `flowChain.test.ts` (+2). Se BUGS.md.
+
 ## [0.64.1 build 0097] — 2026-10-17 — fix: løbelys-forløb med forskellig lyslængde og T-stykker
 
 - `frontend/src/lib/flowChain.ts` — `Piece`/`Phase` har lyslængde og fart; forløbet bruger flertallets (uafgjort → første del). `splitSubpaths()` deler en sti i delstier med absolut start (også relative stier som SVG-Edit gemmer dem).

@@ -2,6 +2,10 @@
 
 ---
 
+## v0.64.2 — 2026-10-17 — Løbelys over korte rørstykker
+
+- Et kort rørstykke mellem fx et T-stykke og en bøjning bryder ikke længere det sammenhængende løbelys.
+
 ## v0.64.1 — 2026-10-17 — Løbelys: også over T-stykker og med forskellig lyslængde
 
 - T-stykker indgår nu i det sammenhængende løbelys (både gennemløbet og afgreningen).

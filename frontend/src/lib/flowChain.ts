@@ -45,18 +45,31 @@ export function chainPhases(pieces: Piece[], tol: number): Map<string, Phase> {
   // Naboer: (anden del, mit endepunkt 'a'|'b', dens endepunkt 'a'|'b')
   type Link = { j: number; mine: 'a' | 'b'; theirs: 'a' | 'b' };
   const links: Link[][] = usable.map(() => []);
+  // En ende kobles kun til de NÆRMESTE ender inden for tolerancen (fx et kort rør mellem et T-stykke og en bøjning: T-stykket
+  // og bøjningen er inden for tolerancen af hinanden, men hver har det korte rør tættere på). Flere ender i samme punkt
+  // (et kryds) kobles alle.
+  const SLACK = 1;
+  const near: { i: number; mine: 'a' | 'b'; j: number; theirs: 'a' | 'b'; d: number }[] = [];
+  const best = new Map<string, number>();
+  const bump = (k: string, d: number) => best.set(k, Math.min(best.get(k) ?? Infinity, d));
   for (let i = 0; i < usable.length; i++) {
     for (let j = i + 1; j < usable.length; j++) {
       if (usable[i].group !== usable[j].group) continue;
       for (const mine of ['a', 'b'] as const) {
         for (const theirs of ['a', 'b'] as const) {
-          if (dist(usable[i][mine], usable[j][theirs]) <= tol) {
-            links[i].push({ j, mine, theirs });
-            links[j].push({ j: i, mine: theirs, theirs: mine });
-          }
+          const d = dist(usable[i][mine], usable[j][theirs]);
+          if (d > tol) continue;
+          near.push({ i, mine, j, theirs, d });
+          bump(`${i}${mine}`, d);
+          bump(`${j}${theirs}`, d);
         }
       }
     }
+  }
+  for (const { i, mine, j, theirs, d } of near) {
+    if (d > best.get(`${i}${mine}`)! + SLACK || d > best.get(`${j}${theirs}`)! + SLACK) continue;
+    links[i].push({ j, mine, theirs });
+    links[j].push({ j: i, mine: theirs, theirs: mine });
   }
   const seen = new Array<boolean>(usable.length).fill(false);
   for (let root = 0; root < usable.length; root++) {
