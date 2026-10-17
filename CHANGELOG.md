@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.60.0 build 0088] — 2026-10-17 — Kopiér/indsæt symbolopsætning i Tegn
+
+- `frontend/src/pages/DrawEditor.svelte` — knapperne *Kopiér opsætning* (ét valgt symbol; kontrollerer at det har en opsætning i den udgivne version) og *Indsæt opsætning* (ét eller flere valgte symboler; bruger `POST …/symbols/{element}/copy`). Spørger før symboler med opsætning overskrives; elementer uden navn springes over; problemer pr. symbol vises som fejl. "Gem og udgiv først" er trukket ud i `ensurePublished()`, som guiden og indsæt deler.
+- `frontend/src/lib/symbolCopy.ts` — `pasteTargets()` og `pasteReport()` (rene, testet i `symbolCopy.test.ts`).
+- **Set i browseren** lokalt: kopiér fra et symbol uden opsætning giver en forklaring; indsæt i ét rør, i flere (rør, bøjninger, T-stykke; spørgsmål før overskrivning af en bøjning; pumpen afvist med "Løbelys kræver streger"), og med ikke-gemte ændringer (tegningen gemmes og udgives først).
+
 ## [0.59.0 build 0087] — 2026-10-17 — Kopiér symbolopsætning til flere symboler
 
 - `backend/app/services/svg_sanitize.py` — `named_symbols()`: tegningens symboler (bibliotekstype eller navn) i dokumentrækkefølge.

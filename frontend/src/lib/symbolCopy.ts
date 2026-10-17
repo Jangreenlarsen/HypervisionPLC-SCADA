@@ -35,3 +35,29 @@ export function summary(r: CopyResponse): string {
   if (r.error) parts.push(`${r.error} med fejl`);
   return parts.join(', ') + '.';
 }
+
+// ---- Kopiér/indsæt opsætning i Tegn (v0.60.0)
+
+/** Det kopierede symbol. Selve opsætningen ligger på serveren — indsæt bruger den GEMTE opsætning på indsætningstidspunktet. */
+export interface ConfigClip { drawingId: string; element: string; name: string }
+
+/** Mål for "Indsæt opsætning": de valgte elementer med navn (symboler), uden kilden selv. */
+export function pasteTargets(sel: { id: string; name?: string }[], clip: ConfigClip): { targets: string[]; unnamed: number; self: boolean } {
+  const named = sel.filter((s) => !!s.name?.trim());
+  return {
+    targets: named.filter((s) => s.id !== clip.element).map((s) => s.id),
+    unnamed: sel.length - named.length,
+    self: named.some((s) => s.id === clip.element),
+  };
+}
+
+/** Oversæt serverens svar til en besked (info) og en liste over problemer pr. symbol (vises som fejl). */
+export function pasteReport(r: CopyResponse, from: string, nameOf: (id: string) => string): { info: string; problems: string[] } {
+  const okNames = r.results.filter((x) => x.status === 'ok').map((x) => nameOf(x.element));
+  const info = r.ok ? `Opsætningen fra "${from}" er indsat i ${okNames.length === 1 ? `"${okNames[0]}"` : `${r.ok} symboler`}.` : '';
+  const problems = r.results.flatMap((x) => [
+    ...(x.status !== 'ok' ? [`${nameOf(x.element)}: ${x.message}`] : []),
+    ...x.notes.map((n) => `${nameOf(x.element)}: ${n}`),
+  ]);
+  return { info, problems };
+}

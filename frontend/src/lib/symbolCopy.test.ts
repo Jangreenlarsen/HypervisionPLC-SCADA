@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { candidates, pipes, rowLabel, sameType, summary, typeLabel, type SymbolRow } from './symbolCopy';
+import { candidates, pasteReport, pasteTargets, pipes, rowLabel, sameType, summary, typeLabel, type SymbolRow } from './symbolCopy';
 
 const rows: SymbolRow[] = [
   { element: 'R1', name: 'Rør 1', type: 'roer_v', configured: true },
@@ -35,5 +35,27 @@ describe('kopiér opsætning til flere', () => {
     expect(typeLabel('pumpe')).not.toBe('pumpe');
     expect(summary({ source: 'R1', results: [], ok: 3, skipped: 0, error: 0 })).toBe('3 kopieret.');
     expect(summary({ source: 'R1', results: [], ok: 1, skipped: 2, error: 1 })).toBe('1 kopieret, 2 sprunget over (havde allerede en opsætning), 1 med fejl.');
+  });
+});
+
+describe('kopiér/indsæt i Tegn', () => {
+  const clip = { drawingId: 'd', element: 'R1', name: 'Rør 1' };
+  it('mål er de valgte symboler med navn, uden kilden', () => {
+    expect(pasteTargets([{ id: 'R2', name: 'Rør 2' }, { id: 'x', name: '' }, { id: 'y', name: '  ' }, { id: 'z' }], clip))
+      .toEqual({ targets: ['R2'], unnamed: 3, self: false });
+    expect(pasteTargets([{ id: 'R1', name: 'Rør 1' }], clip)).toEqual({ targets: [], unnamed: 0, self: true });
+  });
+  it('rapport: info for kopierede, problemer og noter pr. symbol', () => {
+    const name = (id: string) => ({ R2: 'Rør 2', B1: 'Bøjning 1', L: 'Lampe' } as Record<string, string>)[id] ?? id;
+    const one = pasteReport({ source: 'R1', ok: 1, skipped: 0, error: 0, results: [{ element: 'R2', status: 'ok', message: '', notes: [] }] }, 'Rør 1', name);
+    expect(one).toEqual({ info: 'Opsætningen fra "Rør 1" er indsat i "Rør 2".', problems: [] });
+    const mixed = pasteReport({ source: 'R1', ok: 2, skipped: 0, error: 1, results: [
+      { element: 'R2', status: 'ok', message: '', notes: [] },
+      { element: 'B1', status: 'ok', message: '', notes: ['Animation 2 … sprunget over.'] },
+      { element: 'L', status: 'error', message: 'Trin 4: Løbelys kræver streger', notes: [] },
+    ] }, 'Rør 1', name);
+    expect(mixed.info).toBe('Opsætningen fra "Rør 1" er indsat i 2 symboler.');
+    expect(mixed.problems).toEqual(['Bøjning 1: Animation 2 … sprunget over.', 'Lampe: Trin 4: Løbelys kræver streger']);
+    expect(pasteReport({ source: 'R1', ok: 0, skipped: 0, error: 1, results: [{ element: 'L', status: 'error', message: 'x', notes: [] }] }, 'Rør 1', name).info).toBe('');
   });
 });

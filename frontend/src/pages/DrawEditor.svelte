@@ -5,6 +5,7 @@
   import { deleteDrawingFlow } from '../lib/drawingDelete';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
+  import { pasteReport, pasteTargets, type ConfigClip, type CopyResponse, type SymbolRow } from '../lib/symbolCopy';
   import type { SelectionInfo } from '../lib/symbolSuggest';
   import { CATEGORIES, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
 
@@ -137,16 +138,7 @@
     const sel = selection.length === 1 ? selection[0] : null;
     if (!ed || !sel?.name) return;
     error = '';
-    const published = current !== null && !dirty && loadedVersion === current.active_version;
-    if (!published) {
-      if (!current && !newName.trim()) {
-        error = 'Giv tegningen et navn (nederst i panelet) — den skal gemmes, før symbolet kan opsættes';
-        return;
-      }
-      if (!confirm('Tegningen gemmes og udgives først, så symbolet kan opsættes. Fortsæt?')) return;
-      await save(true);
-      if (error || dirty || !current) return; // save() har vist fejlen
-    }
+    if (!(await ensurePublished('symbolet kan opsættes'))) return;
     try {
       if (!tags.length) tags = await get('/api/tags');
     } catch (e) {
@@ -154,6 +146,69 @@
       return;
     }
     guideFor = { id: sel.id, name: sel.name };
+  }
+
+  /** Symbolopsætninger hører til tegningens AKTIVE version: gem og udgiv først, hvis tegningen er ny, ændret eller en kladde. → klar? */
+  async function ensurePublished(why: string): Promise<boolean> {
+    if (current !== null && !dirty && loadedVersion === current.active_version) return true;
+    if (!current && !newName.trim()) {
+      error = `Giv tegningen et navn (øverst) — den skal gemmes, før ${why}`;
+      return false;
+    }
+    if (!confirm(`Tegningen gemmes og udgives først, så ${why}. Fortsæt?`)) return false;
+    await save(true);
+    return !error && !dirty && current !== null; // save() har vist en evt. fejl
+  }
+
+  // ---- Kopiér/indsæt symbolopsætning (v0.60.0): selve opsætningen ligger på serveren; "udklipsholderen" husker kun kilden
+  let clip = $state<ConfigClip | null>(null);
+  async function copyConfig(): Promise<void> {
+    const sel = selection.length === 1 ? selection[0] : null;
+    if (!sel?.name) return;
+    error = info = '';
+    if (!current) {
+      error = 'Tegningen er ikke gemt endnu — der er ingen opsætning at kopiere';
+      return;
+    }
+    try {
+      // opsætningen findes kun for symboler i den UDGIVNE version (et nyt, ikke-udgivet symbol har ingen)
+      const r = await get<{ config: unknown | null; orphaned: boolean }>(`/api/drawings/${encodeURIComponent(current.id)}/symbols/${encodeURIComponent(sel.id)}/config`);
+      if (r.orphaned) throw new Error(`"${sel.name}" findes ikke i den udgivne version af tegningen — gem og udgiv, og sæt det op først`);
+      if (!r.config) throw new Error(`"${sel.name}" har ingen opsætning endnu — sæt det op med "Opsæt symbol (6 trin)" først`);
+      clip = { drawingId: current.id, element: sel.id, name: sel.name };
+      info = `Opsætningen fra "${sel.name}" er kopieret — vælg et eller flere andre symboler og tryk "Indsæt opsætning".`;
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
+  const clipHere = $derived(!!clip && !!current && clip.drawingId === current.id);
+  async function pasteConfig(): Promise<void> {
+    if (!clip || !clipHere) return;
+    const src = clip;
+    const { targets, unnamed, self } = pasteTargets(selection, src);
+    error = info = '';
+    if (!targets.length) {
+      error = self ? `Det er "${src.name}" selv — vælg et andet symbol.` : 'Vælg et eller flere symboler (elementer med navn) at indsætte opsætningen i.';
+      return;
+    }
+    if (!(await ensurePublished('opsætningen kan indsættes'))) return;
+    busy = true;
+    try {
+      const base = `/api/drawings/${encodeURIComponent(src.drawingId)}`;
+      const rows = await get<SymbolRow[]>(`${base}/symbols`);
+      const byId = new Map(rows.map((r) => [r.element, r]));
+      const nameOf = (id: string) => byId.get(id)?.name || selection.find((x) => x.id === id)?.name || id;
+      const taken = targets.filter((t) => byId.get(t)?.configured);
+      if (taken.length && !confirm(`${taken.length === 1 ? `"${nameOf(taken[0])}" har` : `${taken.length} af de valgte har`} allerede en opsætning. Overskriv med opsætningen fra "${src.name}"?`)) return;
+      const res = await post<CopyResponse>(`${base}/symbols/${encodeURIComponent(src.element)}/copy`, { targets, overwrite: taken.length > 0 });
+      const rep = pasteReport(res, src.name, nameOf);
+      info = rep.info + (unnamed ? ` ${unnamed} valgt${unnamed === 1 ? '' : 'e'} element${unnamed === 1 ? '' : 'er'} uden navn er sprunget over.` : '');
+      if (rep.problems.length) error = rep.problems.join(' · ');
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      busy = false;
+    }
   }
 
   // ---- Erstat med symbol (tegnet del → bibliotekssymbol)
@@ -427,6 +482,7 @@
         <p class="muted small">{selection.length > 1 ? `${selection.length} elementer valgt` : 'Vælg et element i tegningen.'}</p>
         {#if selection.length > 1}
           <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat de valgte dele samlet med ét symbol — fx en ventil tegnet af flere løse figurer">Erstat markeringen med symbol …</button></div>
+          {@render clipRow(false)}
         {/if}
       {:else}
         <p class="small muted">&lt;{single.tag}&gt;</p>
@@ -436,6 +492,7 @@
         </label>
         {#if single.name}
           <div class="row"><button class="primary" onclick={openGuide} disabled={busy || !ready}>Opsæt symbol (6 trin)</button></div>
+          {@render clipRow(true)}
           <p class="small muted">Tag, positioner, animationer og nøglelås sættes i guiden — samme guide findes under <strong>Bindinger</strong>.{!current || dirty ? ' Tegningen gemmes og udgives først.' : ''}</p>
         {:else}
           <p class="small muted">Giv elementet et <strong>navn</strong> for at gøre det til et symbol, der kan konfigureres under <strong>Bindinger</strong>. Uden navn er det kun tegning.</p>
@@ -489,6 +546,17 @@
   </aside>
 </div>
 
+{#snippet clipRow(canCopy: boolean)}
+  <div class="row clip">
+    {#if canCopy}<button onclick={copyConfig} disabled={busy || !ready} title="Husk dette symbols opsætning (tag og animationer), så den kan indsættes i andre symboler">Kopiér opsætning</button>{/if}
+    {#if clip}
+      <button onclick={pasteConfig} disabled={busy || !ready || !clipHere || (single?.id === clip.element)}
+        title={!clipHere ? 'Opsætningen er kopieret fra en anden tegning' : `Indsæt opsætningen fra "${clip.name}" i de valgte symboler`}>Indsæt opsætning</button>
+    {/if}
+  </div>
+  {#if clip}<p class="small muted">Kopieret: <strong>{clip.name}</strong>{clipHere ? '' : ' (fra en anden tegning — kan ikke indsættes her)'}</p>{/if}
+{/snippet}
+
 {#if replaceInfo}
   <SymbolReplace info={replaceInfo} lostBindings={replaceLost} onreplace={doReplace} onclose={() => (replaceInfo = null)} />
 {/if}
@@ -529,6 +597,7 @@
   .symbols button { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; font-size: .72rem; line-height: 1.15; }
   details { margin-top: .6rem; }
   .adv { margin-top: .8rem; }
+  .clip { margin-top: .4rem; gap: .4rem; }
   .selector-cfg { margin-top: .5rem; }
   .selector-cfg input { flex: 1; min-width: 0; }
   summary { cursor: pointer; font-weight: 600; font-size: .9rem; margin-bottom: .4rem; }

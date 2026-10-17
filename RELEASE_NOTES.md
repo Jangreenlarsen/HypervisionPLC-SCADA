@@ -2,6 +2,11 @@
 
 ---
 
+## v0.60.0 — 2026-10-17 — Kopiér og indsæt opsætning i Tegn
+
+- I **Tegn** kan du vælge et symbol og trykke **Kopiér opsætning**, og derefter vælge et eller flere andre symboler og trykke **Indsæt opsætning**.
+- Har et af symbolerne allerede en opsætning, spørger systemet, før den overskrives. Passer opsætningen ikke til et symbol (fx løbelys på en pumpe), får du at vide hvorfor, og de andre symboler får den stadig.
+
 ## v0.59.0 — 2026-10-17 — Samme opsætning på mange symboler
 
 - I symbolguiden kan du nu trykke **Gem og anvend på flere …** og kopiere opsætningen (tag og animationer) til andre symboler på tegningen — fx alle rør, bøjninger og T-stykker på én gang med **Alle rør og fittings**.
