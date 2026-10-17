@@ -4,13 +4,17 @@
   // Reference for opførsel: docs/prototyper/symbolguide.html · teknik: docs/SYMBOLSTANDARD_IMPLEMENTERING.md afsnit 8.
   import { onDestroy, onMount } from 'svelte';
   import { ask as askUser } from './ask';
-  import { api, get, post, put, type LiveValue } from './api';
+  import { api, get, post, put, type LiveValue, type TagMeta } from './api';
+  import { textFor } from './animate';
+  import { expressionError } from './expression';
   import { pasteReport, type CopyResponse } from './symbolCopy';
   import { LiveClient } from './live';
   import SymbolCopy from './SymbolCopy.svelte';
+  import TagAlarm from './TagAlarm.svelte';
   import TagSelect from './TagSelect.svelte';
+  import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
-    ALARM_TXT, ANIM_TXT, ON, WHEN_TYPES, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
+    ALARM_TXT, ANIM_TXT, ON, WHEN_TYPES, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, allowedOps, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
@@ -65,7 +69,7 @@
     const v = liveVals[tag]?.value;   // ST-variabel: typen kendes fra live-værdien
     return typeof v === 'boolean' ? 'bool' : typeof v === 'number' ? 'num' : 'unknown';
   }
-  const srcKind = (a: Anim): SrcKind => (a.src === POS ? 'pos' : a.src === ON || isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
+  const srcKind = (a: Anim): SrcKind => (a.src === POS ? 'pos' : a.src === ON || parseAlarmRef(a.src) || isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
   const n = $derived(cfg.positions.length);
   const isPos = $derived(cfg.op === 'positions');
   const partIds = $derived(['all', ...Object.keys(symbol?.parts ?? {})]);
@@ -138,8 +142,10 @@
   // ---------------------------------------------------------------- serverens validering (løbende)
   let timer: ReturnType<typeof setTimeout> | null = null;
   let seq = 0;
+  let recheck = $state(0);   // tæller op, når noget UDEN for opsætningen ændres (fx en tag-alarm rettet i trin 6)
   $effect(() => {
     const body = JSON.stringify(cfg);
+    void recheck;
     if (loading || loadError) return;
     if (timer) clearTimeout(timer);
     const mine = ++seq;   // hver ændring gør ældre svar forældede — også dem der allerede er undervejs
@@ -173,12 +179,26 @@
     const k = ref.lastIndexOf(':');
     return `sym:${drawingId}:${ref.slice(1, k)}:logic:${ref.slice(k + 1)}`;
   }
-  $effect(() => { live.subscribe([...usedTags, ...foreignTags]); });
+  /** Symbolets tags (også dem bag en alarmkilde) — til alarmafsnittet i trin 6 (v0.74.0). */
+  const symbolTags = $derived([...new Set([...usedTags, ...cfg.anims.map((a) => parseAlarmRef(a.src)?.tag ?? '')].filter((t) => t && tagByName.has(t)))].sort());
+  const alarmNames = $derived(symbolTags.flatMap((t) => [`alarm:${t}:active`, `alarm:${t}:unack`]));
+  $effect(() => { live.subscribe([...usedTags, ...foreignTags, ...alarmNames]); });
+  // Tagenes alarmopsætning hentes, når trin 6 åbnes (og opdateres, når en alarm rettes her)
+  let alarmRows = $state<Record<string, TagAlarmRow & { unit?: string; source?: string }>>({});
+  let alarmLoadError = $state('');
+  $effect(() => {
+    if (step !== 5) return;
+    get<(TagAlarmRow & { name: string; unit?: string; source?: string })[]>('/api/tags')
+      .then((list) => { alarmRows = Object.fromEntries(list.map((t) => [t.name, t])); alarmLoadError = ''; })
+      .catch((e) => { alarmLoadError = (e as Error).message; });
+  });
   onDestroy(() => {
     live.close();
     if (timer) clearTimeout(timer);
   });
   const valueOf = (t: string) => liveVals[t]?.value;
+  /** Tagets enhed til forhåndsvisningen af en Værdi-animation. */
+  const metaOf = (t: string): TagMeta | undefined => { const row = tagByName.get(t); return row ? ({ unit: row.unit } as TagMeta) : undefined; };
   const found = $derived(isPos ? foundPosition(cfg, valueOf) : null);
   const logicNow = $derived(evalLogic(cfg.logic, valueOf, (ref) => { const v = valueOf(pseudoOf(ref)); return typeof v === 'boolean' ? v : null; }));
   const triText = (v: boolean | null | undefined) => (v === true ? 'Til' : v === false ? 'Fra' : 'ukendt');
@@ -240,9 +260,9 @@
   const poolLabel = (p: PoolBlock) => `${p.symbol} · ${p.id}${p.name ? ` – ${p.name}` : ''}`;
   const poolRef = (p: PoolBlock) => `@${p.element}:${p.id}`;
   const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
-  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : isLogicRef(a.src) ? 'logic' : 'tag');
+  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : 'tag');
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
+    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
     resetParams(a);
   }
   // ---- 3-vejs ventil styret af ét til/fra-tag
@@ -627,9 +647,17 @@
                 <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
                   {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
-                  {#if !['level', 'opacity', 'text'].includes(a.type)}<option value={ON}>altid til</option>{/if}
+                  {#if !['level', 'opacity', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
                 </select>
                 {#if srcMode(a) === 'tag'}<TagSelect bind:value={a.src} {tags} onchange={() => resetParams(a)} />{/if}
+                {#if srcMode(a) === 'alarm'}
+                  {@const al = parseAlarmRef(a.src)!}
+                  <select value={al.kind} onchange={(e) => (a.src = alarmRef(e.currentTarget.value as 'active' | 'unack', al.tag))} aria-label="Alarmtilstand">
+                    <option value="active">er aktiv</option><option value="unack">er ukvitteret</option>
+                  </select>
+                  <span class="small muted">på</span>
+                  <TagSelect value={al.tag} {tags} onchange={(v) => { a.src = alarmRef(al.kind, v); resetParams(a); }} />
+                {/if}
                 {#if srcMode(a) === 'logic'}
                   <select bind:value={a.src} onchange={() => resetParams(a)} aria-label="Logikblok">
                     {#if cfg.logic.length}<optgroup label="Dette symbol">{#each cfg.logic as b}<option value={'@' + b.id}>{blockLabel(b)}</option>{/each}</optgroup>{/if}
@@ -709,6 +737,20 @@
             <table class="grid">
               <tbody>
                 {#each cfg.logic as b}<tr><td><strong>{b.id}</strong> {b.name}</td><td class="small">{describeBlock(b)}</td><td><strong>{triText(logicNow[b.id])}</strong></td></tr>{/each}
+              </tbody>
+            </table>
+          {/if}
+          {#if symbolTags.length}
+            <h4>Alarmer på symbolets tags</h4>
+            {#if alarmLoadError}<p class="small error">Kunne ikke hente tagenes alarmer: {alarmLoadError}</p>{/if}
+            <table class="grid">
+              <thead><tr><th>Tag</th><th>Alarm</th><th>Lige nu</th><th></th></tr></thead>
+              <tbody>
+                {#each symbolTags.filter((t) => alarmRows[t]) as t (t)}
+                  <TagAlarm name={t} row={alarmRows[t]} kind={tagKindOf(t) === 'bool' ? 'bool' : 'num'}
+                    active={liveVals[`alarm:${t}:active`]?.value} unack={liveVals[`alarm:${t}:unack`]?.value}
+                    onsaved={(r) => { alarmRows = { ...alarmRows, [t]: r }; recheck++; }} />
+                {/each}
               </tbody>
             </table>
           {/if}
@@ -811,6 +853,11 @@
       {:else}
         {@render numInput(p, 'decimals', 'Decimaler')}
         <label class="opt small">Før <input class="lbl" bind:value={p.prefix} /></label><label class="opt small">Efter <input class="lbl" bind:value={p.suffix} /></label>
+        <!-- som på siden Bindinger (v0.73.0): beregning på værdien før visning, og tagets enhed efter tallet -->
+        <label class="opt small">Beregning <input class="lbl" bind:value={p.expression} maxlength="80" placeholder="fx x / 10" /></label>
+        <label class="opt small"><input type="checkbox" checked={p.show_unit !== false} onchange={(e) => (p.show_unit = e.currentTarget.checked)} /> Vis enhed</label>
+        {#if expressionError(p.expression ?? '')}<span class="small error">Beregning: {expressionError(p.expression ?? '')}</span>{/if}
+        {#if valueOf(a.src) !== undefined && valueOf(a.src) !== null}<span class="small muted">Lige nu: {fmt(valueOf(a.src))} → <strong>{textFor(valueOf(a.src), metaOf(a.src), p)}</strong></span>{/if}
       {/if}
     {:else if a.type === 'rotate'}
       {#if kind === 'pos'}

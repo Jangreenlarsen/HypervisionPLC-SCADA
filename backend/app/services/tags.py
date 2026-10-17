@@ -161,6 +161,9 @@ class TagService:
         source = parse_source(out.get("source") or (current or {}).get("source"))  # type: ignore[arg-type]
         if limits and source.datatype == "bool":
             raise ServiceError(400, "HH/H/L/LL-grænser kræver et tal-tag — brug 'alarm ved til/fra' for til/fra-tags")
+        if limits and final("alarm_on") is not None:
+            # alarmmotoren bruger kun til/fra-alarmen, når den er sat — grænserne ville blive stille ignoreret (BUGS v0.74.0)
+            raise ServiceError(400, "Et tag kan ikke have både grænser (HH/H/L/LL) og til/fra-alarm — ryd den ene (grænser til tal, til/fra-alarm til til/fra-værdier)")
         if final("alarm_on") is not None and source.datatype not in ("bool", "auto"):
             raise ServiceError(400, "'Alarm ved til/fra' kræver et til/fra-tag (coil, di eller BOOL-variabel)")
 

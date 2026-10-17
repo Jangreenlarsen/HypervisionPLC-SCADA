@@ -59,7 +59,29 @@ Et tal kan have en **datatype** til sidst (fx `:float`) hvis det fylder mere end
 
 ### Alarmer på et tag
 
-Under **Alarmer** sætter du grænser: **LL**, **L**, **H**, **HH** for tal; **Til/fra-alarm** for til/fra-tags. Hver alarm har prioritet, **Dødbånd** og **Forsinkelse (s)**. Se *Drift › Alarmer*.
+Under **Alarmer** bestemmer du, hvornår tagget giver en alarm. Et tag har **enten grænser** (tal) **eller en til/fra-alarm** (til/fra-værdier) — ikke begge.
+
+| Felt | Betydning |
+|---|---|
+| **HH (høj-høj)** | Alarm når værdien er **≥ HH**. Prioritet **høj** |
+| **H (høj)** | Alarm når værdien er **≥ H**. Prioritet **medium** |
+| **L (lav)** | Alarm når værdien er **≤ L**. Prioritet **medium** |
+| **LL (lav-lav)** | Alarm når værdien er **≤ LL**. Prioritet **høj** |
+| **Dødbånd** | Hvor langt værdien skal tilbage, før en grænsealarm **ophører** — så alarmen ikke svinger til og fra, når værdien ligger og vipper ved grænsen |
+| **Forsinkelse (s)** | Hvor længe betingelsen skal holde, før alarmen **udløses** (0 = med det samme). Korte udsving giver så ingen alarm |
+| **Til/fra-alarm** | Kun for til/fra-tags: alarm **når sand** (Til) eller **når falsk** (Fra). Prioritet **høj** |
+
+Grænserne er i tagets **tekniske enhed** (efter skalering), og tomt felt betyder "ingen grænse". De skal stige: LL ≤ L ≤ H ≤ HH. Du behøver ikke udfylde alle — fx kun **H** og **HH**.
+
+**Sådan opfører en grænsealarm sig** (eksempel: H = 90, HH = 100, dødbånd 2, forsinkelse 5 s):
+
+- Værdien når **90** og bliver der i mindst 5 s → alarm **H** (medium).
+- Den stiger til **100** → alarmen skifter til **HH** (høj) og bliver **ukvitteret igen**, også hvis H var kvitteret.
+- Den falder til 99 → stadig **HH** (den skal under 100 − 2 = **98**, før den går tilbage til H).
+- Den falder til 89 → stadig **H**; først under **88** ophører alarmen.
+- Én alarm pr. retning: høj (H/HH) og lav (L/LL) er hver sin alarm.
+
+Prioriteten følger niveauet og kan ikke vælges. Mister PLC'en forbindelsen, bevares tagets alarmer som de er (en kommunikationsfejl rydder ikke en alarm — den giver sin egen kommunikationsalarm). Alarmer vises og kvitteres under *Drift › Alarmer*; i symbolguiden kan alarmen også sættes op (trin 6) og styre en animation (fx blinke ved en ukvitteret alarm), se *Symboler og guiden › Alarmer i guiden*.
 
 ### Historik (trends)
 

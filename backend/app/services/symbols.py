@@ -35,6 +35,21 @@ MAX_POSITIONS, MAX_PLANES, MAX_SIGNALS, MAX_ANIMS = 8, 8, 8, 12
 MAX_LOGIC, MAX_LOGIC_INPUTS = 8, 4
 POS = "@pos"
 ON = "@on"   # kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag
+ALARM_REF = "@alarm:"   # kilden "alarm på et tag" (v0.74.0): @alarm:active:<tag> eller @alarm:unack:<tag>
+ALARM_KINDS = ("active", "unack")
+
+
+def parse_alarm_ref(src: Any) -> tuple[str, str] | None:
+    """`@alarm:active:Pumpe1_Fejl` → ("active", "Pumpe1_Fejl"); None hvis det ikke er en (gyldig) alarmkilde."""
+    if not isinstance(src, str) or not src.startswith(ALARM_REF):
+        return None
+    kind, _, tag = src[len(ALARM_REF):].partition(":")
+    return (kind, tag) if kind in ALARM_KINDS and tag else None
+
+
+def alarm_tag(kind: str, tag: str) -> str:
+    """Live-navnet alarmmotoren udgiver (`:` findes ikke i tag-navne)."""
+    return f"alarm:{tag}:{kind}"
 _SIG_ID = re.compile(r"^[A-Za-z0-9_]{1,10}$")
 _LOGIC_ID = re.compile(r"^L[0-9]{1,2}$")
 _PIN = re.compile(r"[0-9]{4}")   # bruges med fullmatch: kun ASCII-cifre, ingen linjeskift
@@ -221,7 +236,7 @@ PSEUDO_KINDS = ("pos", "remote", "state", "locked")
 
 def is_logic_ref(src: Any) -> bool:
     """`@L1` — kilden er en logikblok (`@pos` er positionen, `@on` er "Altid til")."""
-    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON)
+    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON) and not src.startswith(ALARM_REF)
 
 
 def split_logic_ref(src: str, own: str = "") -> tuple[str, str]:
@@ -267,6 +282,8 @@ def config_tags(config: dict[str, Any]) -> list[str]:
         for i in b.get("inputs", []):
             add(i.get("src"))
     for a in config.get("anims", []):
+        if (alarm := parse_alarm_ref(a.get("src"))) is not None:
+            add(alarm[1])
         add(a.get("src"))
         if a.get("type") == "flow":
             add((a.get("params") or {}).get("dir_tag"))
@@ -408,6 +425,8 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
         if is_logic_ref(a["src"]):
             owner, bid = split_logic_ref(a["src"], element)
             tag = pseudo_tag(drawing_id, owner, f"logic:{bid}")
+        elif (alarm := parse_alarm_ref(a["src"])) is not None:
+            tag = alarm_tag(*alarm)
         else:
             tag = pos_tag if a["src"] == POS else a["src"]
         out.append({"element": target, "position": 1000 + i, "tag": tag,
@@ -784,6 +803,21 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
         pos_src = a.src == POS
         on_src = a.src == ON
         logic_src = is_logic_ref(a.src)
+        alarm_src = a.src.startswith(ALARM_REF)
+        if alarm_src:
+            ref = parse_alarm_ref(a.src)
+            if ref is None:
+                res.err("4", f"{nm}: ugyldig alarmkilde — vælg 'aktiv' eller 'ukvitteret' og et tag.")
+                continue
+            if a.type in NUMERIC_ONLY or a.type == "text":
+                res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en alarm — vælg et tal-tag.")
+                continue
+            row = tags.get(ref[1])
+            if row is None:
+                res.err("4", f"{nm}: tagget '{ref[1]}' findes ikke.")
+                continue
+            if row.get("alarm_on") is None and all(row.get(f"alarm_{k}") is None for k in ("hh", "h", "l", "ll")):
+                res.warnings.append(f"Trin 4: {nm}: tagget '{ref[1]}' har ingen alarm endnu — opsæt den i trin 6.")
         if on_src and (a.type in NUMERIC_ONLY or a.type == "text"):
             res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af \"Altid til\" — vælg et tal-tag.")
             continue
@@ -799,7 +833,7 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if a.type in NUMERIC_ONLY:
                 res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en logikblok — vælg et tal-tag.")
                 continue
-        elif not pos_src and not on_src:
+        elif not pos_src and not on_src and not alarm_src:
             t = tag_of(a.src)
             if t is None:
                 res.err("4", f"{nm}: tagget '{a.src}' findes ikke.")

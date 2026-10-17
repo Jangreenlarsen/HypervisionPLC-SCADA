@@ -28,6 +28,18 @@ export const POS = '@pos';
 export const WHEN_TYPES: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'flow'];
 /** Kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag. */
 export const ON = '@on';
+/** Kilden "alarm på et tag" (v0.74.0): @alarm:active:<tag> (en alarm er aktiv) eller @alarm:unack:<tag> (ukvitteret). */
+export const ALARM_REF = '@alarm:';
+export type AlarmKind = 'active' | 'unack';
+export const alarmRef = (kind: AlarmKind, tag: string): string => `${ALARM_REF}${kind}:${tag}`;
+export function parseAlarmRef(src: string | undefined | null): { kind: AlarmKind; tag: string } | null {
+  if (typeof src !== 'string' || !src.startsWith(ALARM_REF)) return null;
+  const rest = src.slice(ALARM_REF.length);
+  const i = rest.indexOf(':');
+  const kind = (i < 0 ? rest : rest.slice(0, i)) as AlarmKind;
+  if (kind !== 'active' && kind !== 'unack') return null;
+  return { kind, tag: i < 0 ? '' : rest.slice(i + 1) };
+}
 /** Blafrer: standardfarverne (rød, orange, gul), som flammen skifter tilfældigt imellem (v0.70.0). */
 export const FLICKER_PALETTE = ['#ff3b00', '#ff8c1a', '#ffd21a'];
 /** Paletten for en Blafrer-animation: altid tre farver — fra `palette`, ellers fra v0.69.0's ene `color`, ellers standard. */
@@ -194,7 +206,7 @@ export function newSignal(cfg: SymbolConfig, tag = '', fb = ''): Signal {
 export const CMP_TXT: Record<string, string> = { ge: '≥', le: '≤', eq: '=' };
 
 /** `@L1` — animationens kilde er en logikblok (`@pos` er positionen). */
-export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS && src !== ON;
+export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS && src !== ON && !src.startsWith(ALARM_REF);
 
 export function newBlock(cfg: SymbolConfig): LogicBlock {
   let i = 1;

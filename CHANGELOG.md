@@ -4,6 +4,23 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.74.1 build 0113] — 2026-10-17 — fix: grænser og til/fra-alarm på samme tag afvises; manual om tag-alarmer
+
+- `backend/app/services/tags.py` — et tag kan ikke få både grænser (HH/H/L/LL) og til/fra-alarm (alarmmotoren brugte kun til/fra-alarmen; grænserne blev stille ignoreret for "auto"-tags). Tests: `test_alarms.py` (afvisning; skift tilladt, når den anden ryddes i samme gem).
+- `frontend/src/manual/03-plcer-og-tags.md` — "Alarmer på et tag": tabel over felterne, rækkefølge, prioritet pr. niveau, dødbånd og forsinkelse med eksempel, eskalering, kommunikationsfejl. Se BUGS.md.
+
+## [0.74.0 build 0112] — 2026-10-17 — Alarmer i symbolguiden
+
+- `backend/app/services/alarms.py` — `publish()`: alarmtilstanden pr. tag som live-værdier `alarm:<tag>:active` og `alarm:<tag>:unack` (for alle tags med alarmopsætning; efter hver evaluering og kvittering; forældede fjernes).
+- `backend/app/services/symbols.py` — kilden `@alarm:active|unack:<tag>` (`parse_alarm_ref`, `alarm_tag`): valideres (gyldig art, tag findes, ikke Niveau/Gennemsigtighed/Værdi; advarsel hvis tagget ingen alarm har), bliver bindingens tag `alarm:<tag>:<art>`; tagget tæller som brugt (`config_tags`, kan ikke slettes); ikke en logikreference.
+- `frontend/src/lib/symbolConfig.ts` (`alarmRef`, `parseAlarmRef`), `SymbolGuide.svelte` ("styres af: en alarm — er aktiv / er ukvitteret — på tag"; trin 6 "Alarmer på symbolets tags"; kontrollen køres igen, når en alarm rettes), `TagAlarm.svelte` (én rækkes visning og "Ret alarm" → `PATCH /api/tags/{navn}`, serverens fejltekst vises), `tagAlarm.ts` (opsummering, formular → data, status).
+- Manual (02, 06). Tests: `test_symbols.py` (kilden, pseudotags), `tagAlarm.test.ts`. **Set i browseren** lokalt: lampe med Blink styret af "en alarm / er aktiv / AlarmTest"; alarmen sat i trin 6 ("når Til"); Overview: ingen alarm → blinker ikke, tag Til → blinker, tag Fra → stopper; trin 6 viste "Ophørt — ukvitteret".
+
+## [0.73.0 build 0111] — 2026-10-17 — Beregning og enhed i guidens Værdi-animation
+
+- `frontend/src/lib/SymbolGuide.svelte` — Værdi (tal-tag): felterne *Beregning* (fejlbesked straks via `expressionError`) og *Vis enhed*, og "Lige nu: værdi → visning" (`textFor` med tagets enhed). Serveren godtog allerede `expression`/`show_unit` (samme `TextParams` som Bindinger).
+- Manual (06): afsnittet "Værdi: decimaler, tekst før/efter, beregning og enhed". Test: `test_symbols.py`. **Set i browseren** lokalt: tag 128 [bar], *x / 10*, 1 decimal, "Tryk: " → guiden viser "Lige nu: 128 → Tryk: 12.8 bar", en ugyldig beregning "Manglende )"; Overview viser "Tryk: 12.8 bar".
+
 ## [0.72.0 build 0110] — 2026-10-17 — Aktiv/passiv-animationer og standard
 
 - `backend/app/services/symbols.py` — `Anim.when` ("aktiv/passiv"; kun Farve, Stregfarve, Blink, Synlig, Roterer, Blafrer, Løbelys — `WHEN_TYPES`), bliver `params.when` på bindingen.

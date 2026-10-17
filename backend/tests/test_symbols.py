@@ -371,3 +371,56 @@ def test_active_passive_animations(api):
                       element="Tank"))
     assert any("aktiv/passiv" in m for m in body["steps"]["4"]), body
 
+
+
+def test_value_animation_expression_and_unit(api):
+    """Værdi-animationen i guiden har beregning og "vis enhed" som på siden Bindinger (v0.73.0)."""
+    anim = {"part": "V1_tekst", "type": "text", "src": "Niveau", "params": {"expression": "x / 10", "decimals": 1, "show_unit": False, "suffix": " bar"}}
+    r = put(api, dec_bin(anims=[anim]))
+    assert r.status_code == 200, r.text
+    p = r.json()["config"]["anims"][0]["params"]
+    assert (p["expression"], p["show_unit"], p["decimals"], p["suffix"]) == ("x / 10", False, 1, " bar")
+    body = errors(put(api, dec_bin(anims=[{**anim, "params": {"expression": "x / (2"}}])))
+    assert any("beregningen er ugyldig" in m for m in body["steps"]["4"]), body
+
+
+def test_alarm_source(api):
+    """Kilden "alarm på et tag" (v0.74.0): @alarm:active|unack:<tag> → bindingens tag alarm:<tag>:<art>."""
+    assert api.patch("/api/tags/Fejl", json={"alarm_on": "true"}).status_code == 200
+    r = put(api, {"op": "view", "anims": [{"part": "Lampe_glas", "type": "blink", "src": "@alarm:unack:Fejl", "params": {}},
+                                          {"part": "Lampe_glas", "type": "fill", "src": "@alarm:active:Fejl", "params": {}}]}, element="Lampe")
+    assert r.status_code == 200, r.text
+    assert r.json()["warnings"] == [] or all("ingen alarm" not in w for w in r.json()["warnings"])
+    view = api.get(f"/api/drawings/{api.did}/view").json()
+    tags = sorted(b["tag"] for b in view["bindings"] if b.get("symbol") == "Lampe")
+    assert tags == ["alarm:Fejl:active", "alarm:Fejl:unack"]
+    # tagget bag alarmen er i brug af symbolet: kan ikke slettes
+    assert api.delete("/api/tags/Fejl").status_code == 409
+    # tag uden alarm: advarsel, ikke fejl; ugyldig kilde og forkerte typer: fejl
+    r = put(api, {"op": "view", "anims": [{"part": "Lampe_glas", "type": "blink", "src": "@alarm:active:Lys", "params": {}}]}, element="Lampe")
+    assert r.status_code == 200 and any("ingen alarm" in w for w in r.json()["warnings"]), r.text
+    for src, typ, text in (("@alarm:bogus:Fejl", "blink", "ugyldig alarmkilde"), ("@alarm:active:Findes_ikke", "blink", "findes ikke"),
+                           ("@alarm:active:Fejl", "level", "kan ikke styres af en alarm")):
+        body = errors(put(api, {"op": "view", "anims": [{"part": "all", "type": typ, "src": src, "params": {}}]}, element="Tank"))
+        assert any(text in m for m in body["steps"]["4"]), (src, body)
+
+
+def test_alarm_engine_publishes_pseudo_tags(api):
+    """Alarmmotoren udgiver alarm:<tag>:active/unack for tags med alarmopsætning (v0.74.0)."""
+    assert api.patch("/api/tags/Fejl", json={"alarm_on": "true"}).status_code == 200
+    svc = api.app.state.alarm_service
+    cache = api.app.state.manager.cache if hasattr(api.app.state, "manager") else svc.manager.cache
+    svc.publish()
+    assert cache.get("alarm:Fejl:active").value is False and cache.get("alarm:Fejl:unack").value is False
+    svc.state["tag:Fejl:state"] = {"key": "tag:Fejl:state", "tag": "Fejl", "plc": "plc1", "kind": "state", "level": "ON", "priority": "high",
+                                   "state": "active_unack", "raised_at": 0, "value": True, "message": "", "acked_by": None, "acked_at": None}
+    svc.publish()
+    assert cache.get("alarm:Fejl:active").value is True and cache.get("alarm:Fejl:unack").value is True
+    svc.state["tag:Fejl:state"]["state"] = "rtn_unack"
+    svc.publish()
+    assert cache.get("alarm:Fejl:active").value is False and cache.get("alarm:Fejl:unack").value is True
+    svc.state.clear()
+    assert api.patch("/api/tags/Fejl", json={"alarm_on": None}).status_code == 200
+    svc.publish()
+    assert cache.get("alarm:Fejl:active").value is None   # ingen alarm mere: fjernet fra cachen
+

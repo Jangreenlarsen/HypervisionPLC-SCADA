@@ -177,6 +177,8 @@ def test_alarms_survive_restart(tmp_path, mock_plc):
     ({"name": "X", "source": "plc1:hr:1", "alarm_on": "ja"}, "alarm_on"),
     ({"name": "X", "source": "plc1:hr:1", "alarm_h": 1, "alarm_deadband": -1}, "negativt"),
     ({"name": "X", "source": "plc1:hr:1", "alarm_h": 1, "alarm_delay_s": 4000}, "0-3600"),
+    # "auto"-tag (PLC-logik): både grænser og til/fra-alarm — grænserne ville blive ignoreret (BUGS v0.74.0)
+    ({"name": "X", "source": "plc1:logic:1:Niveau", "alarm_h": 90, "alarm_hh": 100, "alarm_on": "true"}, "både grænser"),
 ])
 def test_alarm_validation(api, body, message):
     r = api.post("/api/tags", json=body)
@@ -229,3 +231,13 @@ def test_alarm_limits_in_backup(api):
     temp["alarm_h"] = 70
     assert api.post("/api/backup/restore", json=backup).status_code == 200
     assert api.get("/api/tags/Temp").json()["alarm_h"] == 70
+
+
+def test_switching_between_limits_and_on_off_alarm(api):
+    """Skift mellem grænser og til/fra-alarm på et "auto"-tag: tilladt, når den anden ryddes i samme gem."""
+    assert api.post("/api/tags", json={"name": "Auto", "source": "plc1:logic:1:Niveau", "alarm_h": 90}).status_code == 201
+    r = api.patch("/api/tags/Auto", json={"alarm_on": "true"})
+    assert r.status_code == 400 and "både grænser" in r.json()["error"]
+    r = api.patch("/api/tags/Auto", json={"alarm_on": "true", "alarm_h": None})
+    assert r.status_code == 200, r.text
+
