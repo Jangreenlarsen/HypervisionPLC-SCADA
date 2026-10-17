@@ -2,6 +2,11 @@
 
 ---
 
+## v0.74.1 — 2026-10-17 — Tag-alarmer forklaret
+
+- Manualen (*PLC'er og tags › Alarmer på et tag*) forklarer nu HH/H/L/LL, dødbånd, forsinkelse og til/fra-alarm med et eksempel.
+- Rettet: et tag kunne gemmes med både grænser og til/fra-alarm, og så virkede grænserne ikke. Det afvises nu med en forklaring — vælg den ene.
+
 ## v0.74.0 — 2026-10-17 — Alarmer i symbolguiden
 
 - En animation kan styres af **en alarm** på et tag — fx en lampe der **blinker**, så længe alarmen er **ukvitteret**, eller bliver **rød**, så længe den er **aktiv**.

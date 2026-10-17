@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.74.1 build 0113] — 2026-10-17 — fix: grænser og til/fra-alarm på samme tag afvises; manual om tag-alarmer
+
+- `backend/app/services/tags.py` — et tag kan ikke få både grænser (HH/H/L/LL) og til/fra-alarm (alarmmotoren brugte kun til/fra-alarmen; grænserne blev stille ignoreret for "auto"-tags). Tests: `test_alarms.py` (afvisning; skift tilladt, når den anden ryddes i samme gem).
+- `frontend/src/manual/03-plcer-og-tags.md` — "Alarmer på et tag": tabel over felterne, rækkefølge, prioritet pr. niveau, dødbånd og forsinkelse med eksempel, eskalering, kommunikationsfejl. Se BUGS.md.
+
 ## [0.74.0 build 0112] — 2026-10-17 — Alarmer i symbolguiden
 
 - `backend/app/services/alarms.py` — `publish()`: alarmtilstanden pr. tag som live-værdier `alarm:<tag>:active` og `alarm:<tag>:unack` (for alle tags med alarmopsætning; efter hver evaluering og kvittering; forældede fjernes).
