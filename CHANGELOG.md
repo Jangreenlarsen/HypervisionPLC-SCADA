@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.63.3 build 0095] — 2026-10-17 — fix: afslutter fejlsøgningen af "Indsæt opsætning" i Firefox
+
+- Jan har bekræftet i Firefox, at *Indsæt opsætning* i et symbol uden navn virker med spørgsmålene på siden (v0.63.2.1). BUGS.md: de to poster lukket. Ingen kodeændringer ud over versionen.
+
 ## [0.63.2.1 build 0094] — 2026-10-17 — debug: spørgsmål på siden i stedet for browserens confirm/prompt (Firefox)
 
 - `frontend/src/lib/ask.ts` (ny) — `ask()` / `askText()`: spørgsmål i en kø, besvares i siden; `AskDialog.svelte` (ny) viser køens første (Enter/Escape, fokus på OK eller feltet) og sættes ind én gang i `App.svelte`.
