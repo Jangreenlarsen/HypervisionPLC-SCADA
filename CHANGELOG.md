@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.66.1 build 0102] — 2026-10-17 — fix: højreklikmenuen i Tegn lukker efter et valg
+
+- `frontend/svgedit-host/scada-editor.js` — `hookContextMenu()`: SVG-Edits højreklikmenu lukkes, når et punkt er valgt (efter editorens egen håndtering), ved Escape og når vinduet mister fokus. Før stod den åben, og et nyt højreklik oven på den ramte menuen i stedet for tegningen. **Set i browseren** (Chrome og Firefox): 6 runder kopiér/indsæt via menuen på rør, bøjning og rektangel — alle rigtige. Se BUGS.md.
+
 ## [0.66.0 build 0101] — 2026-10-17 — Symbol: Varmepumpe
 
 - `frontend/src/lib/symbols.ts` — `varmepumpe` (Rør og VVS): aggregat med ventilator (delen `rotor`, tegnet om sit eget centrum uden transform, så "Roterer" drejer den på stedet), varmeveksler-slynge, "VP" og driftslampe (delen `lampe`).

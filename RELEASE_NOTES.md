@@ -2,6 +2,10 @@
 
 ---
 
+## v0.66.1 — 2026-10-17 — Rettet: højreklikmenuen i Tegn
+
+- Højreklikmenuen lukker nu, når du har valgt *Kopiér*, *Indsæt* osv. Før blev den stående, og det næste højreklik kunne ramme den gamle menu i stedet for tegningen — så blev det forkerte element kopieret, eller der skete ingenting.
+
 ## v0.66.0 — 2026-10-17 — Nyt symbol: Varmepumpe
 
 - Symbolbiblioteket (*Rør og VVS*) har nu en **Varmepumpe**: et aggregat med ventilator, varmeveksler og driftslampe. Guiden foreslår, at ventilatoren drejer, og lampen bliver grøn, når varmepumpen kører.

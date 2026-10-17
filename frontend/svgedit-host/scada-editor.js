@@ -187,8 +187,27 @@ function whenReady() {
   });
 }
 
+/**
+ * SVG-Edits højreklikmenu lukker ikke, når et punkt vælges — den står åben, til man venstreklikker på tegningen, og et
+ * nyt højreklik oven på den gamle menu rammer menuen i stedet for tegningen (så det forkerte element kopieres, eller der
+ * sker ingenting — BUGS.md v0.66.0). Luk den, når et punkt er valgt, og ved Escape.
+ */
+function hookContextMenu() {
+  const cmenu = document.getElementById('se-cmenu_canvas');
+  if (!cmenu) return;
+  const hide = () => {
+    const dlg = cmenu.$dialog ?? cmenu.shadowRoot?.firstElementChild;
+    if (dlg) dlg.style.display = 'none';
+  };
+  // efter editorens egen håndtering af valget (den lytter på samme hændelse)
+  cmenu.addEventListener('change', () => setTimeout(hide, 0));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+  window.addEventListener('blur', hide);
+}
+
 function hookEvents() {
   const c = canvas();
+  hookContextMenu();
   // bind() returnerer editorens egen handler — kald den først, så editoren virker uændret.
   const prevSelected = c.bind('selected', (win, elems) => {
     if (prevSelected) prevSelected(win, elems);
