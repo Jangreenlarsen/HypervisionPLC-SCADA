@@ -263,6 +263,9 @@ function currentSelection() {
   const elems = (canvas().getSelectedElements() || []).filter(Boolean);
   return elems.map((el) => ({
     id: el.id || '', tag: el.tagName.toLowerCase(), interactive: el.hasAttribute('data-hv-auto'),
+    type: el.getAttribute('data-hv-type') || '',
+    // et T-stykke/kryds fra før v0.68.0: én sti, der kan deles i rør
+    onePath: el.tagName === 'g' && [...el.children].filter((ch) => !RESERVED.has(ch.tagName.toLowerCase())).length === 1 && el.querySelector(':scope > path') !== null,
     name: el.getAttribute('data-hv-name') || '', desc: el.getAttribute('data-hv-desc') || '',
     children: [...el.children].filter((c) => !RESERVED.has(c.tagName.toLowerCase())).length,
   }));
@@ -720,6 +723,44 @@ window.scada = {
   },
 
   /** Et navn der ikke er i brug: "Vippekontakt", "Vippekontakt 2", … */
+  /**
+   * Del et T-stykke eller kryds, der er tegnet som ÉN sti (fra før v0.68.0), i selvstændige rør — `legs` er bibliotekets
+   * rør (FITTING_LEGS). Gruppen beholder id, navn, type og transform; ét fortryd-trin. → { ok, removed: [gamle id'er], parts }
+   */
+  splitFitting(id, legs) {
+    const c = canvas();
+    const g = c.getSvgContent().querySelector(`[id="${CSS.escape(id)}"]`);
+    if (!g || g.tagName !== 'g') return { error: 'Vælg et T-stykke eller kryds' };
+    const old = [...g.children].filter((ch) => !RESERVED.has(ch.tagName.toLowerCase()));
+    if (old.length !== 1 || old[0].tagName !== 'path') return { error: 'Symbolet er allerede delt i rør' };
+    const node = buildSymbolNode(`<g>${legs}</g>`, g.getAttribute('data-hv-type') || 'fitting', `${g.id}_tmp`);
+    if (!node) return { error: 'Kunne ikke bygge rørene' };
+    const batch = new c.history.BatchCommand('Del i rør');
+    const removed = old.map((el) => el.id).filter(Boolean);
+    for (const el of old) {
+      const next = el.nextSibling, parent = el.parentNode;
+      el.remove();
+      batch.addSubCommand(new c.history.RemoveElementCommand(el, next, parent));
+    }
+    const parts = [];
+    for (const leg of [...node.children]) {
+      // id'er efter gruppen (ikke den midlertidige node)
+      leg.setAttribute('id', uniqueId(`${g.id}_${leg.getAttribute('data-hv-pid')}`));
+      // overtag den gamle stis farve/streg, så tegningen ser ens ud
+      for (const a of ['stroke', 'stroke-width', 'class', 'opacity']) {
+        const v = old[0].getAttribute(a);
+        if (v) leg.setAttribute(a, v);
+      }
+      g.appendChild(leg);
+      batch.addSubCommand(new c.history.InsertElementCommand(leg));
+      parts.push(leg.id);
+    }
+    c.undoMgr.addCommandToHistory(batch);
+    if (changeListener) changeListener();
+    if (selectionListener) selectionListener(currentSelection());
+    return { ok: true, removed, parts };
+  },
+
   uniqueName(base) {
     return uniqueNameIn(base);
   },

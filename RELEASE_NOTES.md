@@ -2,6 +2,11 @@
 
 ---
 
+## v0.68.0 — 2026-10-17 — Løbelys pr. rør i T-stykker
+
+- Et T-stykke består nu af tre rør — **Tilløbsrør 1**, **Tilløbsrør 2** og **Midterrør** (et kryds af fire) — som du kan vælge hver for sig i guiden og give hvert sit løbelys og sin retning.
+- T-stykker, der allerede står i dine tegninger, deles med **Del i rør** i Tegn (vælg T-stykket; fortrydes med Ctrl+Z).
+
 ## v0.67.0 — 2026-10-17 — Løbelys følger din retning
 
 - Den retning, du sætter på løbelyset i animationen, gælder nu altid — systemet vender ikke længere et rør efter naboerne.

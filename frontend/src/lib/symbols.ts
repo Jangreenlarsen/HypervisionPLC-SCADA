@@ -30,6 +30,17 @@ const FONT = 'font-family="Segoe UI, Arial"';
 /** Rør-/fitting-sti: tykkelse 10 som de lige rør. */
 const pipe = (d: string, join = 'miter') =>
   `<path d="${d}" fill="none" stroke="${LINE}" stroke-width="10" stroke-linejoin="${join}"/>`;
+/** Et rør i en fitting som egen del (id → data-hv-pid ved indsættelse), så det kan få sit eget løbelys (v0.68.0). */
+const leg = (id: string, d: string) => `<path id="${id}" d="${d}" fill="none" stroke="${LINE}" stroke-width="10"/>`;
+/**
+ * T-stykke og kryds som selvstændige rør: tilløbene mødes i midten; midterrøret/de lodrette rør starter ved gennemløbets
+ * KANT (y = 40/50), så de ikke tegnes ind over det. Tegneretningen er "ind fra venstre, ud til højre og op/ned", så
+ * løbelys med standardretningen løber igennem.
+ */
+export const FITTING_LEGS: Record<string, string> = {
+  t_stykke: leg('tilloeb1', 'M0 45 H45') + leg('tilloeb2', 'M45 45 H90') + leg('midte', 'M45 40 V0'),
+  kryds: leg('roer1', 'M0 45 H45') + leg('roer2', 'M45 45 H90') + leg('roer3', 'M45 40 V0') + leg('roer4', 'M45 50 V90'),
+};
 /** Tynd elektrisk streg. */
 const wire = (d: string, extra = '') => `<path d="${d}" fill="none" stroke="${DARK}" stroke-width="2.5" stroke-linecap="round"${extra}/>`;
 /** Ventilhus (sommerfugl) med centrum i (40,45) — rørenden flugter med rørets centerlinje. */
@@ -202,12 +213,12 @@ export const SYMBOLS: SymbolDef[] = [
     svg: `<g>${pipe('M0 45 H36.72 A20 20 0 0 0 50.86 39.14 L76.82 13.18')}</g>`,
   },
   {
-    id: 't_stykke', label: 'T-stykke', category: 'vvs', hint: 'Rotér i Tegn for at vende afgreningen',
-    svg: `<g>${pipe('M0 45 H90 M45 45 V0')}</g>`,
+    id: 't_stykke', label: 'T-stykke', category: 'vvs', hint: 'Rotér i Tegn for at vende afgreningen. Hvert rør kan få sit eget løbelys',
+    svg: `<g>${FITTING_LEGS.t_stykke}</g>`,
   },
   {
-    id: 'kryds', label: 'Kryds', category: 'vvs', hint: 'Fire rør mødes',
-    svg: `<g>${pipe('M0 45 H90 M45 0 V90')}</g>`,
+    id: 'kryds', label: 'Kryds', category: 'vvs', hint: 'Fire rør mødes. Hvert rør kan få sit eget løbelys',
+    svg: `<g>${FITTING_LEGS.kryds}</g>`,
   },
   {
     id: 'reduktion', label: 'Reduktion', category: 'vvs', hint: 'Overgang fra stort til lille rør',

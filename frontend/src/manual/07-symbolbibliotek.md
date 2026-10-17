@@ -36,8 +36,8 @@ Biblioteket har **86 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og
 | **Rør (lodret)** | Kun visning | Træk i enderne for at forlænge |
 | **Bøjning 90°** | Kun visning | Rotér/spejl i Tegn for at vende den |
 | **Bøjning 45°** | Kun visning | Rotér/spejl i Tegn for at vende den |
-| **T-stykke** | Kun visning | Rotér i Tegn for at vende afgreningen |
-| **Kryds** | Kun visning | Fire rør mødes |
+| **T-stykke** | Kun visning | Rotér i Tegn for at vende afgreningen. Hvert rør kan få sit eget løbelys |
+| **Kryds** | Kun visning | Fire rør mødes. Hvert rør kan få sit eget løbelys |
 | **Reduktion** | Kun visning | Overgang fra stort til lille rør |
 | **Prop/endedæksel** | Kun visning | Afslutning af et rør |
 | **Flangesamling** | Kun visning | Samling mellem to rør |

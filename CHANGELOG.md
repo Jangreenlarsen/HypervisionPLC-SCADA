@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.68.0 build 0104] — 2026-10-17 — T-stykke og kryds består af rør (eget løbelys pr. rør)
+
+- `frontend/src/lib/symbols.ts` — `FITTING_LEGS`: T-stykket er *Tilløbsrør 1* (`tilloeb1`), *Tilløbsrør 2* (`tilloeb2`) og *Midterrør* (`midte`, starter ved gennemløbets kant); krydset er *Rør 1–4*. Tegneretning: ind fra venstre, ud til højre og op/ned.
+- `frontend/src/lib/symbolConfig.ts` — danske navne på rørene (`PART_LABEL`).
+- `frontend/svgedit-host/scada-editor.js` — `splitFitting(id, legs)`: deler et T-stykke/kryds tegnet som én sti i rør (beholder id, navn, type, transform og den gamle stis farve/streg; ét fortryd-trin); markeringen fortæller `type` og `onePath`.
+- `frontend/src/pages/DrawEditor.svelte` — knappen *Del i rør* for et T-stykke/kryds med én sti; advarer, hvis opsætningen har animationer på den gamle sti.
+- Manual (04, 05, 07). Tests: `symbols.test.ts`. **Set i browseren** lokalt: et T-stykke som i "varme" (én relativ sti, lyserød) → *Del i rør* → tre rør med navne og samme farve; Ctrl+Z/Ctrl+Y; guiden tilbyder Hele symbolet, Tilløbsrør 1, Tilløbsrør 2, Midterrør; Overview med løbelys pr. rør (gennemløbet synkroniseret, midterrøret efter sin egen retning).
+
 ## [0.67.0 build 0103] — 2026-10-17 — Løbelys: den indstillede retning har forrang
 
 - `frontend/src/lib/flowChain.ts` — ingen automatisk vending efter flertallet (feltet `flip` er fjernet); `fits()`: to ender kobles kun, når lyset løber ind i samlingen fra den ene del og ud i den anden. Synkroniseringen (fælles koordinat, flertallets lyslængde/fart) er uændret for de dele, der kobles.
