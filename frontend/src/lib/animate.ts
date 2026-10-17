@@ -1,6 +1,6 @@
 // Anvend bindinger på SVG-elementer ud fra live-værdier.
 // Ren DOM-manipulation via attributter/style — der indsættes aldrig HTML.
-import { chainPhases, dashOffset, type Phase, type Piece } from './flowChain';
+import { chainPhases, dashOffset, splitSubpaths, type Phase, type Piece } from './flowChain';
 import type { Binding, LiveValue, TagMeta } from './api';
 import { evalExpression } from './expression';
 
@@ -397,7 +397,16 @@ function buildDashes(el: Element, shapes: Element[], p: Record<string, any>, sta
   const dashes: { d: SVGElement; out: boolean; arm: boolean }[] = [];
   for (const s of shapes) {
     const d = flowDash(s);
-    if (d) dashes.push({ d, out: state > 0, arm: false });
+    if (!d) continue;
+    // En sti med flere delstier (fx et T-stykkes gennemløb og afgrening) deles, så hver delsti kan indgå i et forløb
+    const parts = d.tagName === 'path' ? splitSubpaths(d.getAttribute('d') ?? '') : null;
+    if (parts && parts.length > 1) {
+      for (const part of parts) {
+        const c = d.cloneNode(false) as SVGElement;
+        c.setAttribute('d', part);
+        dashes.push({ d: c, out: state > 0, arm: false });
+      }
+    } else dashes.push({ d, out: state > 0, arm: false });
   }
   return { dashes, warning };
 }
@@ -422,9 +431,12 @@ function rootOf(el: Element): Element | null {
   return r;
 }
 
-/** Gruppen et løbelys hører til: kun dele med samme tag og samme indstillinger kan danne et forløb. */
+/**
+ * Gruppen et løbelys hører til: kun dele med samme tag og samme måde at tænde/vende på kan danne et forløb. Lyslængde og
+ * fart er IKKE med — forløbet bruger den, flest dele har (ellers kan mønstret ikke fortsætte over samlingerne).
+ */
 export function flowGroup(tag: string, p: Record<string, any>): string {
-  return [tag, p.dir_tag ?? '', p.mode ?? 'onoff', p.invert ? 1 : 0, p.pos ? 'pos' : '', Number(p.dash ?? 12), Number(p.speed ?? 40)].join('|');
+  return [tag, p.dir_tag ?? '', p.mode ?? 'onoff', p.invert ? 1 : 0, p.pos ? 'pos' : ''].join('|');
 }
 
 /** Kendt løbelys på tegningen. Nye medlemmer giver nye forløb — de løbelys der allerede kører, regnes om (samlet). */
@@ -488,7 +500,7 @@ function computePhases(root: Element): Map<string, Phase> {
       dashes.forEach(({ d, arm }, i) => {
         const tag = d.tagName;
         if (['circle', 'ellipse', 'polygon'].includes(tag)) return;
-        if (tag === 'path' && ((d.getAttribute('d') ?? '').match(/[Mm]/g) ?? []).length > 1) return;   // fx et T-stykke uden valgt rør
+        if (tag === 'path' && ((d.getAttribute('d') ?? '').match(/[Mm]/g) ?? []).length > 1) return;   // kunne ikke deles i delstier
         const g = d as unknown as SVGGeometryElement;
         if (typeof g.getTotalLength !== 'function') return;
         const L = g.getTotalLength();
@@ -499,7 +511,8 @@ function computePhases(root: Element): Map<string, Phase> {
           return [m.a * q.x + m.c * q.y + m.e, m.b * q.x + m.d * q.y + m.f];
         };
         const scale = flowScale(d);
-        pieces.push({ key: flowKey(el, i), a: at(0), b: at(L), len: L * scale, group, dir: arm ? 0 : p.reverse ? -1 : 1 });
+        pieces.push({ key: flowKey(el, i), a: at(0), b: at(L), len: L * scale, group, dir: arm ? 0 : p.reverse ? -1 : 1,
+          dash: Number(p.dash ?? 12), speed: Number(p.speed ?? 40) });
         widths.push((parseFloat(d.getAttribute('stroke-width') ?? '1') || 1) * scale);
       });
     } catch {
@@ -563,19 +576,21 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   else el.parentNode?.insertBefore(layer, el.nextSibling);
   flowLayers.set(el, layer);
   dashes.forEach(({ d, out }, i) => {
+    // Sammenhængende forløb: stiplingen fortsætter fra nabodelen, retningen følger forløbet, og hele forløbet har samme
+    // lyslængde og fart (flertallets)
+    const ph = phaseFor(el, i);
+    const len = ph?.dash ?? dash, pace = ph?.speed ?? speed;
     // Lysets længde og fart er i TEGNINGENS enheder, uanset hvordan røret er skaleret: omregnet til rørets egne enheder
     const scale = flowScale(d);
-    const unit = dash / scale;
+    const unit = len / scale;
     d.setAttribute('stroke-dasharray', `${unit} ${unit}`);
-    // Sammenhængende forløb: stiplingen fortsætter fra nabodelen, og retningen følger forløbet
-    const ph = phaseFor(el, i);
-    const off = ph ? dashOffset(ph, dash) / scale : 0;
+    const off = ph ? dashOffset(ph, len) / scale : 0;
     const dir = ph?.flip ? !out : out;
     d.setAttribute('stroke-dashoffset', String(off));
     if (!reduce && typeof (d as any).animate === 'function') {
       // Lyset flytter én periode (lys + mørk) pr. omgang; startTime 0 holder alle løbelys i takt
       const a = d.animate([{ strokeDashoffset: off }, { strokeDashoffset: off - 2 * unit }],
-        { duration: (2 * dash / speed) * 1000, iterations: Infinity, direction: dir ? 'normal' : 'reverse' });
+        { duration: (2 * len / pace) * 1000, iterations: Infinity, direction: dir ? 'normal' : 'reverse' });
       a.startTime = 0;
     }
   });

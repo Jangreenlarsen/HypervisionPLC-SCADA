@@ -2,6 +2,11 @@
 
 ---
 
+## v0.64.1 — 2026-10-17 — Løbelys: også over T-stykker og med forskellig lyslængde
+
+- T-stykker indgår nu i det sammenhængende løbelys (både gennemløbet og afgreningen).
+- Har delene i et forløb forskellig lyslængde eller fart, bruger hele forløbet den, flest dele har — så mønstret kan fortsætte over samlingerne.
+
 ## v0.64.0 — 2026-10-17 — Løbelys uden synlige samlinger
 
 - Løbelys på rør, bøjninger og T-stykker, der hænger sammen og bruger samme tag, kører nu som **ét sammenhængende lys** — mønstret fortsætter hen over samlingerne i stedet for at starte forfra i hver del.

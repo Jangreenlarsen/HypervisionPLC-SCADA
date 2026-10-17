@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.64.1 build 0097] — 2026-10-17 — fix: løbelys-forløb med forskellig lyslængde og T-stykker
+
+- `frontend/src/lib/flowChain.ts` — `Piece`/`Phase` har lyslængde og fart; forløbet bruger flertallets (uafgjort → første del). `splitSubpaths()` deler en sti i delstier med absolut start (også relative stier som SVG-Edit gemmer dem).
+- `frontend/src/lib/animate.ts` — `flowGroup()` uden lyslængde/fart; `buildDashes()` deler stier med flere delstier; hver lysstreg bruger forløbets lyslængde og fart.
+- Tests: `flowChain.test.ts` (+4). Se BUGS.md.
+
 ## [0.64.0 build 0096] — 2026-10-17 — Sammenhængende løbelys over flere rør og bøjninger
 
 - `frontend/src/lib/flowChain.ts` (ny, ren): `chainPhases()` samler løbelys-dele, hvis ender rører hinanden (samme gruppe), til forløb med én fælles koordinat g, og ensretter retningen efter flertallet (indstillet retning × tegneretning; uafgjort → første del; T-stykkers ben vendes aldrig). `dashOffset()` giver stiplingens forskydning, så mønstret fortsætter over samlingerne.

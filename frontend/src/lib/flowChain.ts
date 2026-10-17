@@ -16,6 +16,9 @@ export interface Piece {
   group: string;
   /** Den indstillede retning langs delens tegneretning: 1 = frem, -1 = "Vend retning", 0 = fast (fx et ben i et T-stykke). */
   dir: 1 | -1 | 0;
+  /** Delens indstillede lyslængde og fart (tegningens enheder) — forløbet bruger den, flest dele har. */
+  dash: number;
+  speed: number;
 }
 
 export interface Phase {
@@ -25,6 +28,9 @@ export interface Phase {
   orient: 1 | -1;
   /** true: delen skal køre modsat sin indstilling for at følge forløbets retning. */
   flip: boolean;
+  /** Forløbets fælles lyslængde og fart (flertallet; uafgjort → den første del). */
+  dash: number;
+  speed: number;
 }
 
 const dist = (p: Pt, q: Pt) => Math.hypot(p[0] - q[0], p[1] - q[1]);
@@ -88,13 +94,63 @@ export function chainPhases(pieces: Piece[], tol: number): Map<string, Phase> {
       if (!first && v) first = v;
     }
     const D = vote > 0 ? 1 : vote < 0 ? -1 : first;
+    // Én lyslængde og fart i hele forløbet — ellers kan mønstret ikke fortsætte over samlingerne
+    const common = majority(order.map((i) => `${usable[i].dash}|${usable[i].speed}`));
+    const [dash, speed] = common.split('|').map(Number);
     for (const i of order) {
       const o = orient.get(i)!, d = usable[i].dir;
       const g0 = o === 1 ? lo.get(i)! : lo.get(i)! + usable[i].len;   // g i delens START (a)
-      out.set(usable[i].key, { g0, orient: o, flip: d !== 0 && D !== 0 && d * o !== D });
+      out.set(usable[i].key, { g0, orient: o, flip: d !== 0 && D !== 0 && d * o !== D, dash, speed });
     }
   }
-  for (const p of pieces) if (!out.has(p.key)) out.set(p.key, { g0: 0, orient: 1, flip: false });
+  for (const p of pieces) if (!out.has(p.key)) out.set(p.key, { g0: 0, orient: 1, flip: false, dash: p.dash, speed: p.speed });
+  return out;
+}
+
+/** Den hyppigste værdi; uafgjort → den der kom først. */
+function majority(values: string[]): string {
+  const n = new Map<string, number>();
+  for (const v of values) n.set(v, (n.get(v) ?? 0) + 1);
+  let best = values[0], most = 0;
+  for (const v of values) if (n.get(v)! > most) [best, most] = [v, n.get(v)!];
+  return best;
+}
+
+/**
+ * Del en SVG-sti i dens delstier, hver som en selvstændig sti der starter med et ABSOLUT M (fx et T-stykke "M0 45 H90 M45 45 V0"
+ * → gennemløb og afgrening), så hver delsti kan få sin egen plads i et forløb. Relative kommandoer i en delsti er relative
+ * til dens eget startpunkt og kan derfor stå uændret. → null hvis stien ikke kan læses.
+ */
+export function splitSubpaths(d: string): string[] | null {
+  const toks = d.match(/[a-zA-Z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g) ?? [];
+  const ARGS: Record<string, number> = { M: 2, L: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, T: 2, A: 7, Z: 0 };
+  const out: string[] = [];
+  let cur: string[] = [];
+  let x = 0, y = 0, sx = 0, sy = 0, i = 0, cmd = '';
+  while (i < toks.length) {
+    if (/[a-zA-Z]/.test(toks[i])) cmd = toks[i++];
+    const C = cmd.toUpperCase(), rel = cmd !== C, n = ARGS[C];
+    if (n === undefined) return null;
+    const args = toks.slice(i, i + n).map(Number);
+    if (args.length < n || args.some((v) => !Number.isFinite(v))) return null;
+    i += n;
+    if (C === 'M') {
+      x = (rel ? x : 0) + args[0];
+      y = (rel ? y : 0) + args[1];
+      sx = x; sy = y;
+      if (cur.length) out.push(cur.join(' '));
+      cur = [`M${x} ${y}`];
+      cmd = rel ? 'l' : 'L';   // efterfølgende talpar er linjer (SVG-reglen)
+      continue;
+    }
+    if (!cur.length) return null;   // stien skal starte med M
+    cur.push(`${cmd}${args.join(' ')}`);
+    if (C === 'Z') { x = sx; y = sy; continue; }
+    if (C === 'H') x = (rel ? x : 0) + args[0];
+    else if (C === 'V') y = (rel ? y : 0) + args[0];
+    else { x = (rel ? x : 0) + args[n - 2]; y = (rel ? y : 0) + args[n - 1]; }
+  }
+  if (cur.length) out.push(cur.join(' '));
   return out;
 }
 
