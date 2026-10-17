@@ -2,6 +2,11 @@
 
 ---
 
+## v0.66.0 — 2026-10-17 — Nyt symbol: Varmepumpe
+
+- Symbolbiblioteket (*Rør og VVS*) har nu en **Varmepumpe**: et aggregat med ventilator, varmeveksler og driftslampe. Guiden foreslår, at ventilatoren drejer, og lampen bliver grøn, når varmepumpen kører.
+- *Erstat med symbol* foreslår varmepumpen, når den tegnede del har teksten "Varme Pumpe".
+
 ## v0.65.1 — 2026-10-17 — Rettet: rør kan strækkes i begge ender
 
 - I **Tegn** kan et lodret rør (og alle andre figurer) nu strækkes opad med det øverste midtergreb. Før flyttede grebet hele elementet, fordi drejegrebets streg lå ovenpå.

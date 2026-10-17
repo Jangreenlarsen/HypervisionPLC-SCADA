@@ -1,7 +1,7 @@
 <!-- GENERERET af src/lib/manualGen.test.ts ud fra symbolbiblioteket — ret ikke i hånden; kør GEN_MANUAL=1 npx vitest run src/lib/manualGen.test.ts -->
 # Symbolbiblioteket
 
-Biblioteket har **85 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
+Biblioteket har **86 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
 
 ## Betjening (skriver til PLC)
 
@@ -57,6 +57,7 @@ Biblioteket har **85 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og
 | **Radiator** | Kun visning | Bind "Fyldfarve" til varme til/fra |
 | **Ventilator/blæser** | Kun visning, Positioner, Trykknap (puls) | Bind "Fyldfarve" til drift, evt. "Rotation" på rotoren |
 | **Kedel/fyr** | Kun visning | Bind "Fyldfarve" på flammen til brænderdrift |
+| **Varmepumpe** | Kun visning, Positioner, Trykknap (puls) | Bind "Roterer" på rotoren og "Fyldfarve" på lampen til drift |
 | **Temperatur (TT)** | Kun visning, Positioner, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
 | **Tryk (PT)** | Kun visning, Positioner, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
 | **Flow (FT)** | Kun visning, Positioner, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |

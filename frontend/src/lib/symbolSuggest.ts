@@ -76,6 +76,10 @@ export function suggestSymbols(s: SelectionInfo): Suggestion[] {
     add('kugleventil', 30, 'Eller en kugleventil');
   }
 
+  // ---- teksten siger det: "Varme Pumpe", "Varmepumpe" (fx en tegnet kasse med teksten i)
+  const words = (s.texts ?? []).join(' ').toLowerCase().replace(/\s+/g, '');
+  if (words.includes('varmepumpe')) add('varmepumpe', 95, 'Teksten nævner en varmepumpe');
+
   // ---- store fyldte rektangler: beholdere, kedler
   if (s.tag === 'rect' && filled(s.fill) && s.w >= 50 && s.h >= 50) {
     const tall = s.h >= s.w * 1.2;

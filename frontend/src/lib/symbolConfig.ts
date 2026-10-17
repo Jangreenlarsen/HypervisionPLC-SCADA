@@ -70,6 +70,14 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     }
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: to positioner (AB → A og AB → B) med farver pr. port. Vælg tag under trin 2.' };
   }
+  if (symbol.type === 'varmepumpe') {
+    // Drift: rotoren drejer og lampen bliver grøn — begge fra samme drifts-tag (vælges i trin 4)
+    const rotor = partOf('rotor'), lampe = partOf('lampe');
+    if (rotor) cfg.anims.push({ part: rotor, type: 'spin', src: '', params: animDefaults('spin', 'bool', 0), only: null });
+    if (lampe) cfg.anims.push({ part: lampe, type: 'fill', src: '', params: animDefaults('fill', 'bool', 0), only: null });
+    if (!cfg.anims.length) return null;
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: rotoren drejer og lampen bliver grøn, når varmepumpen kører. Vælg drifts-tagget for begge under trin 4.' };
+  }
   if (symbol.type === 'statusfelt') {
     const part = partOf('felt');
     if (!part) return null;
@@ -122,6 +130,7 @@ const OPS_BY_TYPE: Record<string, Op[]> = {
   statusfelt: VIEW, lampe: VIEW, signallampe: VIEW, vaerdi: VIEW, tank: VIEW, manometer: VIEW, termometer: VIEW,
   roer_v: VIEW, roer_l: VIEW, boejning90: VIEW, boejning45: VIEW, t_stykke: VIEW, kryds: VIEW, reduktion: VIEW, prop: VIEW,
   flange: VIEW, flowpil: VIEW, filter: VIEW, ekspansion: VIEW, radiator: VIEW, varmeveksler: VIEW, kedel: VIEW,
+  varmepumpe: SWITCH,
   ledning_v: VIEW, ledning_l: VIEW, forbindelse: VIEW, klemme: VIEW, sikring: VIEW, automatsikring: VIEW, jord: VIEW,
   modstand: VIEW, transformer: VIEW, stroemforsyning: VIEW, foeler: VIEW, plc: VIEW, motor3: VIEW, motorvaern: VIEW,
   solpanel: VIEW, solstreng: VIEW, sol: VIEW, inverter: VIEW, hybridinverter: VIEW, mppt: VIEW, batteri: VIEW, batteribank: VIEW,

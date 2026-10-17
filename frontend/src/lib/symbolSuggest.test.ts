@@ -136,3 +136,15 @@ describe('hjælpere til dialogen', () => {
     expect(stretchesByDefault('pumpe')).toBe(false);
   });
 });
+
+describe('varmepumpe ud fra teksten (v0.66.0)', () => {
+  it('"Varme Pumpe" i en tegnet kasse (som i "varme") → varmepumpe først', () => {
+    const s = sel({ counts: { rect: 2, text: 3 }, w: 95, h: 95, texts: ['køre', 'Varme', 'Pumpe'] });
+    expect(top(s)).toBe('varmepumpe');
+    expect(top(sel({ tag: 'rect', counts: { rect: 1 }, w: 146, h: 155, fill: '#f27185', texts: ['Varmepumpe 2'] }))).toBe('varmepumpe');
+  });
+  it('andre tekster giver ikke varmepumpe', () => {
+    expect(ids(sel({ counts: { rect: 1, path: 2 }, w: 130.9, h: 216.5, texts: ['Pille', 'Fyr'] }))).not.toContain('varmepumpe');
+    expect(ids(sel({ texts: ['Pumpe 1'] }))).not.toContain('varmepumpe');
+  });
+});

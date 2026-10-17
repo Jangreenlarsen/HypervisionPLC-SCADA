@@ -148,3 +148,28 @@ describe('eksemplet "7-trins vælger"', () => {
     for (const t of ['trevejs_motorventil', 'pumpe', 'roer_v', 'solpanel']) expect(offersSelectorExample(t), t).toBe(false);
   });
 });
+
+describe('varmepumpe (v0.66.0)', () => {
+  it('findes under Rør og VVS med rotoren og lampen som egne dele; start/stop', () => {
+    expect(sym('varmepumpe').category).toBe('vvs');
+    expect(partIds('varmepumpe')).toEqual(['rotor', 'lampe']);
+    expect(allowedOps('varmepumpe')).toEqual(['view', 'positions', 'pulse']);
+  });
+
+  it('rotoren er tegnet om sit eget centrum (ingen transform), så "Roterer" drejer den på stedet', () => {
+    const doc = new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${sym('varmepumpe').svg}</svg>`, 'image/svg+xml');
+    const rotor = doc.getElementById('rotor')!;
+    expect(rotor.hasAttribute('transform')).toBe(false);
+    expect(rotor.querySelector('circle')!.getAttribute('cx')).toBe('36');
+    expect(rotor.querySelector('circle')!.getAttribute('cy')).toBe('45');
+  });
+
+  it('guiden foreslår: rotoren drejer og lampen farves ved drift (tagget vælges i trin 4)', () => {
+    const r = libraryDefault(info('varmepumpe', ['rotor', 'lampe']))!;
+    expect(r.config.op).toBe('view');
+    expect(r.config.anims.map((a) => [a.part, a.type, a.src])).toEqual([['V1_rotor_2', 'spin', ''], ['V1_lampe_2', 'fill', '']]);
+    expect(r.config.anims[1].params).toMatchObject({ on: '#2e7d32' });
+    expect(r.note).toContain('trin 4');
+    expect(libraryDefault(info('varmepumpe', []))).toBeNull();
+  });
+});

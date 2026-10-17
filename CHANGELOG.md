@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.66.0 build 0101] — 2026-10-17 — Symbol: Varmepumpe
+
+- `frontend/src/lib/symbols.ts` — `varmepumpe` (Rør og VVS): aggregat med ventilator (delen `rotor`, tegnet om sit eget centrum uden transform, så "Roterer" drejer den på stedet), varmeveksler-slynge, "VP" og driftslampe (delen `lampe`).
+- `frontend/src/lib/symbolConfig.ts` — betjening: start/stop (som pumpe og ventilator); guidens forslag: rotoren drejer og lampen bliver grøn ved drift (tagget vælges i trin 4).
+- `frontend/src/lib/symbolSuggest.ts` — "Erstat med symbol": en tegnet del med teksten "varmepumpe"/"varme pumpe" foreslår varmepumpen først.
+- `frontend/src/manual/07-symbolbibliotek.md` — genereret med varmepumpen.
+- Tests: `libraryDefaults.test.ts`, `symbolSuggest.test.ts`. **Set i browseren** lokalt: paletten (søg "varme"), indsat i Tegn med delene rotor og lampe, og i Overview med drift tændt: rotoren drejer (`hv-spin`), lampen grøn.
+
 ## [0.65.1 build 0100] — 2026-10-17 — fix: det øverste midtergreb strækker i stedet for at flytte
 
 - `frontend/svgedit-host/scada-editor.css` — `#selectorGrip_rotateconnector { pointer-events: none; }`: drejegrebets forbindelsesstreg lå oven på det øverste midtergreb, så et træk dér flyttede elementet. Test i `svgeditPatch.test.ts`. **Set i browseren** (Chrome og Firefox) på rør som i "varme": vandret sti, lodret sti (bredde 0), skaleret sti og drejet biblioteksrør kan nu strækkes i begge ender. Se BUGS.md (også en åben post om drejede rør).

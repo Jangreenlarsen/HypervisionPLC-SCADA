@@ -312,6 +312,19 @@ export const SYMBOLS: SymbolDef[] = [
       `<path id="flamme" d="M45 98 C28 96 26 78 36 66 C36 76 42 78 42 78 C38 64 46 52 52 46 C52 60 64 66 62 82 C60 92 54 98 45 98 Z" fill="${FILL}" stroke="${DARK}" stroke-width="2"/></g>`,
   },
 
+  {
+    // Aggregat: ventilator (rotoren kan dreje med "Roterer"), varmeveksler-slynge, driftslampe og "VP" (v0.66.0)
+    id: 'varmepumpe', label: 'Varmepumpe', category: 'vvs', hint: 'Bind "Roterer" på rotoren og "Fyldfarve" på lampen til drift',
+    svg: `<g><rect x="0" y="0" width="120" height="90" rx="6" fill="${PANEL}" stroke="${LINE}" stroke-width="3"/>` +
+      `<circle cx="36" cy="45" r="28" fill="${FILL}" stroke="${LINE}" stroke-width="2.5"/>` +
+      `<g id="rotor"><path d="M 36 45 C 27.5 36.5 29.2 22.9 36 21.2 C 42.8 22.9 44.5 36.5 36 45 C 44.5 53.5 42.8 67.1 36 68.8 C 29.2 67.1 27.5 53.5 36 45 Z" fill="${PANEL}" stroke="${DARK}" stroke-width="1.5"/>` +
+      `<path d="M 36 45 C 44.5 36.5 58.1 38.2 59.8 45 C 58.1 51.8 44.5 53.5 36 45 C 27.5 53.5 13.9 51.8 12.2 45 C 13.9 38.2 27.5 36.5 36 45 Z" fill="${PANEL}" stroke="${DARK}" stroke-width="1.5"/>` +
+      `<circle cx="36" cy="45" r="4" fill="${DARK}"/></g>` +
+      `<path d="M74 14 H108 V26 H78 V38 H108 V50 H74" fill="none" stroke="${DARK}" stroke-width="2.5" stroke-linejoin="round"/>` +
+      text(88, 80, 'VP', 16, 'font-weight="bold"') +
+      `<circle id="lampe" cx="109" cy="74" r="6" fill="${OFF}" stroke="${LINE}" stroke-width="2"/></g>`,
+  },
+
   // ---------------------------------------------------------------- Måleinstrumenter
   { id: 'tt', label: 'Temperatur (TT)', category: 'vvs', hint: 'ISA-boble; værdien vises i et værdifelt', svg: bubble('TT') },
   { id: 'pt', label: 'Tryk (PT)', category: 'vvs', hint: 'ISA-boble; værdien vises i et værdifelt', svg: bubble('PT') },
