@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { activeFor, applyBinding, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, lengthScale, segmentsOf, textFor, withDirection } from './animate';
+import { describe, expect, it, vi } from 'vitest';
+import { activeFor, applyBinding, FLICKER_MS, nextFlickerColor, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, lengthScale, segmentsOf, textFor, withDirection } from './animate';
+import { FLICKER_PALETTE, flickerPalette } from './symbolConfig';
 import type { Binding, LiveValue } from './api';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -438,19 +439,51 @@ describe('symbol-animationer (kilde = position, gælder i positionerne, blinkfre
     applyBinding(r, { element: 'p', tag: 'Drift', anim: 'spin', params: {} }, live(true));
     expect(r.classList.contains('hv-spin')).toBe(true);
   });
-  it('blafrer (v0.69.0): farves og blafrer ved drift; slukket = som tegnet; pr. position og "når ≥"', () => {
+  it('blafrer: farves og blafrer ved drift; slukket = som tegnet; pr. position og "når ≥"', () => {
     const f = el('path');
-    const b = { element: 'f', tag: 'Brænder', anim: 'flicker' as const, params: { color: '#ff8c1a' } };
+    const b = { element: 'f', tag: 'Brænder', anim: 'flicker' as const, params: { palette: ['#ff0000', '#00ff00', '#0000ff'] } };
     applyBinding(f, b, live(true));
     expect(f.classList.contains('hv-flicker')).toBe(true);
-    expect((f as SVGElement).style.fill).toBe('rgb(255, 140, 26)');
+    expect((f as SVGElement).style.fill).toBe('rgb(255, 0, 0)');   // starter med første farve
     applyBinding(f, b, live(false));
     expect(f.classList.contains('hv-flicker')).toBe(false);
     expect((f as SVGElement).style.fill).toBe('');
-    applyBinding(f, { ...b, params: { at_least: 50 } }, live(60));
-    expect((f as SVGElement).style.fill).toBe('rgb(255, 140, 26)');   // standardfarven
-    applyBinding(f, { ...b, params: { pos: true, set: [false, true], color: '#ff0000' } }, live(0));
+    applyBinding(f, { ...b, params: { at_least: 50, color: '#ff8c1a' } }, live(60));   // gemt med v0.69.0: én farve
+    expect((f as SVGElement).style.fill).toBe('rgb(255, 140, 26)');
+    applyBinding(f, { ...b, params: { pos: true, set: [false, true] } }, live(0));
     expect(f.classList.contains('hv-flicker')).toBe(false);
+  });
+  it('blafrer skifter tilfældigt mellem de tre farver — aldrig den samme to gange i træk', () => {
+    vi.useFakeTimers();
+    try {
+      const f = el('path');
+      document.body.querySelector('svg')?.appendChild(f) ?? document.body.appendChild(f);
+      applyBinding(f, { element: 'f', tag: 'B', anim: 'flicker', params: { palette: ['#ff0000', '#00ff00', '#0000ff'] } }, live(true));
+      const seen = new Set<string>();
+      let prev = (f as SVGElement).style.fill;
+      for (let i = 0; i < 40; i++) {
+        vi.advanceTimersByTime(FLICKER_MS);
+        const now = (f as SVGElement).style.fill;
+        expect(now).not.toBe(prev);
+        seen.add(now);
+        prev = now;
+      }
+      expect(seen.size).toBe(3);
+      applyBinding(f, { element: 'f', tag: 'B', anim: 'flicker', params: {} }, live(false));
+      vi.advanceTimersByTime(FLICKER_MS * 3);
+      expect((f as SVGElement).style.fill).toBe('');   // slukket: timeren rører den ikke mere
+      f.remove();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('næste farve og paletten', () => {
+    expect(nextFlickerColor(['#a', '#b', '#c'], '#a', () => 0)).toBe('#b');
+    expect(nextFlickerColor(['#a', '#b', '#c'], '#A', () => 0.99)).toBe('#c');
+    expect(nextFlickerColor(['#a'], '#a', () => 0.5)).toBe('#a');
+    expect(flickerPalette({})).toEqual(FLICKER_PALETTE);
+    expect(flickerPalette({ color: '#123456' })).toEqual(['#123456', FLICKER_PALETTE[1], FLICKER_PALETTE[2]]);
+    expect(flickerPalette({ palette: ['#1', '#2', '#3', '#4'] })).toEqual(['#1', '#2', '#3']);
   });
   it('Drej/Flyt pr. position glider som CSS-transform; del med egen transform beholder attributten', () => {
     const r = el('rect');

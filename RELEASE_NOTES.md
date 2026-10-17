@@ -2,6 +2,10 @@
 
 ---
 
+## v0.70.0 — 2026-10-17 — Flammen skifter farve
+
+- **Blafrer** farver nu hele flammen og skifter tilfældigt mellem **tre farver**, du vælger (standard rød, orange og gul), mens den blafrer.
+
 ## v0.69.0 — 2026-10-17 — Blafrende flamme og Gem på alle trin
 
 - Ny animation **Blafrer**: delen bliver farvet og blafrer som en flamme, mens fyret kører. Guiden foreslår den på flammen for **Kedel/fyr**.

@@ -1,5 +1,6 @@
 // Anvend bindinger på SVG-elementer ud fra live-værdier.
 // Ren DOM-manipulation via attributter/style — der indsættes aldrig HTML.
+import { flickerPalette } from './symbolConfig';
 import { chainPhases, dashOffset, splitSubpaths, trimInnerEnds, type Phase, type Piece } from './flowChain';
 import type { Binding, LiveValue, TagMeta } from './api';
 import { evalExpression } from './expression';
@@ -80,12 +81,46 @@ function paint(el: Element, prop: 'fill' | 'stroke', color: string): void {
 }
 
 /**
- * Blafrer (v0.69.0): delen farves og blafrer (CSS-klassen hv-flicker skalerer blødt fra bunden). Slukket: delen som tegnet.
- * Farven sættes som inline-fyld på figuren(e), ligesom "Farve".
+ * Blafrer: delen blafrer (CSS-klassen hv-flicker skalerer blødt fra bunden) og skifter tilfældigt mellem paletten (v0.70.0).
+ * Slukket: delen som tegnet. Én fælles timer skifter farven for alle blafrende dele; dele der er fjernet fra siden, glemmes.
  */
-function flicker(el: Element, on: boolean, color: string): void {
+const flickering = new Map<Element, string[]>();
+let flickerTimer: ReturnType<typeof setInterval> | null = null;
+export const FLICKER_MS = 160;
+
+/** Næste farve: tilfældig, men aldrig den samme to gange i træk (ellers ser flammen ud til at gå i stå). */
+export function nextFlickerColor(palette: string[], current: string, random: () => number = Math.random): string {
+  const choices = palette.filter((c) => c.toLowerCase() !== current.toLowerCase());
+  const list = choices.length ? choices : palette;
+  return list[Math.min(list.length - 1, Math.floor(random() * list.length))];
+}
+
+function flickerTick(): void {
+  for (const [el, palette] of flickering) {
+    if (!el.isConnected) { flickering.delete(el); continue; }
+    const now = (el as SVGElement).getAttribute('data-hv-flicker-color') ?? '';
+    const next = nextFlickerColor(palette, now);
+    el.setAttribute('data-hv-flicker-color', next);
+    paint(el, 'fill', next);
+  }
+  if (!flickering.size && flickerTimer) { clearInterval(flickerTimer); flickerTimer = null; }
+}
+
+function flicker(el: Element, on: boolean, palette: string[]): void {
   el.classList.toggle('hv-flicker', on);
-  paint(el, 'fill', on ? color : '');
+  if (!on) {
+    flickering.delete(el);
+    el.removeAttribute('data-hv-flicker-color');
+    paint(el, 'fill', '');
+    if (!flickering.size && flickerTimer) { clearInterval(flickerTimer); flickerTimer = null; }   // ingen flammer: ingen timer
+    return;
+  }
+  const first = flickering.has(el) ? el.getAttribute('data-hv-flicker-color') ?? palette[0] : palette[0];
+  flickering.set(el, palette);
+  el.setAttribute('data-hv-flicker-color', first);
+  paint(el, 'fill', first);
+  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduce && !flickerTimer) flickerTimer = setInterval(flickerTick, FLICKER_MS);
 }
 
 function level(el: Element, f: number, direction: string): void {
@@ -672,7 +707,7 @@ function resetAnim(el: Element, anim: string, p: Record<string, any>): void {
       el.classList.remove('hv-spin');
       break;
     case 'flicker':
-      flicker(el, false, '');
+      flicker(el, false, []);
       break;
     case 'opacity':
       st.opacity = '';
@@ -754,7 +789,7 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
       el.classList.toggle('hv-spin', activeFor(v, p));
       break;
     case 'flicker':
-      flicker(el, activeFor(v, p), p.color ?? '#ff8c1a');
+      flicker(el, activeFor(v, p), flickerPalette(p));
       break;
     case 'level':
       level(el, fraction(v, p.min, p.max), p.direction ?? 'up');

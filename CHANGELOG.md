@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.70.0 build 0106] — 2026-10-17 — Blafrer: hele flammen skifter tilfældigt mellem tre farver
+
+- `backend/app/services/symbols.py` — `AFlicker.palette` (1–3 farver, standard rød/orange/gul); gemt med v0.69.0 (`color`, ingen palette) → den farve først.
+- `frontend/src/lib/symbolConfig.ts` — `FLICKER_PALETTE`, `flickerPalette()`; guidens standard.
+- `frontend/src/lib/animate.ts` — én fælles timer (160 ms) skifter fyldfarven tilfældigt for alle blafrende dele (`nextFlickerColor()`: aldrig samme farve to gange i træk); stoppes, når den sidste flamme slukkes; ingen skift ved "reducer bevægelse". `app.css`: blød overgang mellem farverne.
+- `frontend/src/lib/SymbolGuide.svelte` — "Skifter tilfældigt mellem: Farve 1–3"; ældre opsætninger normaliseres ved indlæsning.
+- Tests: `test_symbols.py`, `animate.test.ts` (falske timere: alle tre farver, aldrig samme to gange, stop ved sluk), `libraryDefaults.test.ts`. **Set i browseren** lokalt: guiden viser tre farver; i Overview skiftede flammens farve ved alle 11 målinger og blafrede; en opsætning fra v0.69.0 åbner med sin farve først.
+
 ## [0.69.0 build 0105] — 2026-10-17 — Blafrende flamme, Gem på alle trin, id'er genbruges ikke
 
 - **Animation "Blafrer"** (`flicker`): `backend/app/services/symbols.py` (`AFlicker`: farve + til/fra/≥/pr. position; navn og pr.-position-felt), `frontend/src/lib/symbolConfig.ts` (type, standard, guidens forslag for Kedel/fyr), `SymbolGuide.svelte` (felt "Flammefarve"), `animate.ts` (`flicker()`: inline-fyld + klassen `hv-flicker`), `app.css` (keyframes: skalerer blødt fra bunden, hælder lidt; slået fra ved "reducer bevægelse"). Biblioteket: Kedel/fyr-hint.

@@ -18,7 +18,7 @@ import math
 import re
 from typing import Any, Callable, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from ..storage.db import Database
 from .auth import CurrentUser, hash_password
@@ -113,14 +113,31 @@ class ABlink(AToggle):
     speed: Literal["slow", "normal", "fast"] = "normal"
 
 
+FLICKER_PALETTE = ["#ff3b00", "#ff8c1a", "#ffd21a"]   # rød, orange, gul
+
+
 class AFlicker(AToggle):
-    """Blafrer (v0.69.0): delen farves med `color` og blafrer, mens kilden er aktiv (som Roterer: til/fra, ≥, pr. position)."""
-    color: str = "#ff8c1a"
+    """Blafrer: delen blafrer og skifter tilfældigt mellem farverne i `palette` (1–3; v0.70.0), mens kilden er aktiv
+    (som Roterer: til/fra, ≥, pr. position). `color` er fra v0.69.0 (én farve) og bruges, hvis der ikke er en palette."""
+    palette: list[str] = Field(default_factory=lambda: list(FLICKER_PALETTE), min_length=1, max_length=3)
+    color: str | None = None
+
+    @field_validator("palette")
+    @classmethod
+    def _pal(cls, v: list[str]) -> list[str]:
+        return [_color(c) for c in v]
 
     @field_validator("color")
     @classmethod
-    def _col(cls, v: str) -> str:
-        return _color(v)
+    def _col(cls, v: str | None) -> str | None:
+        return None if v is None else _color(v)
+
+    @model_validator(mode="after")
+    def _from_color(self) -> "AFlicker":
+        # gemt med v0.69.0: én farve og ingen palette → den farve først, derefter standardfarverne
+        if "palette" not in self.model_fields_set and self.color:
+            self.palette = [self.color, *FLICKER_PALETTE[1:]]
+        return self
 
 
 class AText(TextParams):

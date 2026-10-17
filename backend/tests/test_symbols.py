@@ -313,12 +313,23 @@ def test_view_contains_symbol_bindings_and_summary(api):
 
 def test_flicker_animation_on_flame(api):
     """Blafrer (v0.69.0): til/fra-tag eller ≥ for tal; farven valideres; bindingen får animationen "flicker"."""
-    ok = put(api, {"op": "view", "anims": [{"part": "Lampe_glas", "type": "flicker", "src": "Lys", "params": {"color": "#ff8c1a"}}]},
-             element="Lampe")
+    ok = put(api, {"op": "view", "anims": [{"part": "Lampe_glas", "type": "flicker", "src": "Lys",
+                                            "params": {"palette": ["#ff0000", "#ff8c1a", "#ffff00"]}}]}, element="Lampe")
     assert ok.status_code == 200, ok.text
     view = api.get(f"/api/drawings/{api.did}/view").json()
     b = next(x for x in view["bindings"] if x.get("symbol") == "Lampe")
-    assert b["anim"] == "flicker" and b["params"]["color"] == "#ff8c1a" and b["tag"] == "Lys"
+    assert b["anim"] == "flicker" and b["params"]["palette"] == ["#ff0000", "#ff8c1a", "#ffff00"] and b["tag"] == "Lys"
+    # gemt med v0.69.0 (én farve) er stadig gyldigt; uden palette får den standardfarverne
+    old = put(api, {"op": "view", "anims": [{"part": "Lampe_glas", "type": "flicker", "src": "Lys", "params": {"color": "#ff8c1a"}}]},
+              element="Lampe")
+    assert old.status_code == 200, old.text
+    assert old.json()["config"]["anims"][0]["params"]["palette"] == ["#ff8c1a", "#ff8c1a", "#ffd21a"]   # den gamle farve først
+    none = put(api, {"op": "view", "anims": [{"part": "Lampe_glas", "type": "flicker", "src": "Lys", "params": {}}]}, element="Lampe")
+    assert none.json()["config"]["anims"][0]["params"]["palette"] == ["#ff3b00", "#ff8c1a", "#ffd21a"]
+    for bad in ([], ["#000000"] * 4):
+        body = errors(put(api, {"op": "view", "anims": [{"part": "Lampe_glas", "type": "flicker", "src": "Lys", "params": {"palette": bad}}]},
+                          element="Lampe"))
+        assert any("palette" in m for m in body["steps"]["4"]), body
     assert put(api, {"op": "view", "anims": [{"part": "all", "type": "flicker", "src": "Niveau", "params": {"at_least": 50}}]},
                element="Tank").status_code == 200
     body = errors(put(api, {"op": "view", "anims": [{"part": "Lampe_glas", "type": "flicker", "src": "Lys", "params": {"color": "orange-ish"}}]},

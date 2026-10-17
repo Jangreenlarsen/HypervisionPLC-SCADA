@@ -83,7 +83,7 @@ Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positio
 
 ## Ret og fjern en opsætning
 
-**Gem** står på alle seks trin og kan bruges, så snart opsætningen er uden fejl. **Blafrer** farver delen og får den til at blafre som en flamme, mens kilden er aktiv (guiden foreslår den på fyrets flamme).
+**Gem** står på alle seks trin og kan bruges, så snart opsætningen er uden fejl. **Blafrer** får delen til at blafre som en flamme og skifter tilfældigt mellem tre farver, du vælger (standard rød, orange og gul), mens kilden er aktiv — guiden foreslår den på fyrets flamme.
 
 **Ret symbol** åbner guiden med den gemte opsætning. **Fjern konfiguration** sletter den (symbolets gamle bindinger gælder så igen). Et tag, der bruges af et symbol, kan ikke slettes under **Tags**.
 

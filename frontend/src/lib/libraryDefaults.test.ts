@@ -177,7 +177,7 @@ describe('varmepumpe (v0.66.0)', () => {
 describe('kedel/fyr: blafrende flamme (v0.69.0)', () => {
   it('guiden foreslår "Blafrer" på flammen (orange, til/fra-tag vælges i trin 4)', () => {
     const r = libraryDefault(info('kedel', ['flamme']))!;
-    expect(r.config.anims).toEqual([{ part: 'V1_flamme_2', type: 'flicker', src: '', params: { invert: false, color: '#ff8c1a' }, only: null }]);
+    expect(r.config.anims).toEqual([{ part: 'V1_flamme_2', type: 'flicker', src: '', params: { invert: false, palette: ['#ff3b00', '#ff8c1a', '#ffd21a'] }, only: null }]);
     expect(libraryDefault(info('kedel', []))).toBeNull();
   });
 });

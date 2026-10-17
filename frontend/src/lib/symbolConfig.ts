@@ -24,6 +24,14 @@ export interface PartInfo { tag: string; line: boolean; pid?: string | null }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }
 
 export const POS = '@pos';
+/** Blafrer: standardfarverne (rød, orange, gul), som flammen skifter tilfældigt imellem (v0.70.0). */
+export const FLICKER_PALETTE = ['#ff3b00', '#ff8c1a', '#ffd21a'];
+/** Paletten for en Blafrer-animation: altid tre farver — fra `palette`, ellers fra v0.69.0's ene `color`, ellers standard. */
+export function flickerPalette(p: Record<string, any>): string[] {
+  const given: string[] = Array.isArray(p.palette) ? p.palette.filter((c: unknown) => typeof c === 'string' && c) : [];
+  const first = given.length ? given : typeof p.color === 'string' && p.color ? [p.color] : [];
+  return [0, 1, 2].map((i) => first[i] ?? (first.length && i > 0 ? FLICKER_PALETTE[i] : FLICKER_PALETTE[i]));
+}
 export const MAX_POSITIONS = 8, MAX_PLANES = 8, MAX_ANIMS = 12, MAX_LOGIC = 8, MAX_LOGIC_INPUTS = 4;
 
 export const STEPS = ['Symbol', 'Signaler', 'Kontakter', 'Visning', 'Betjening', 'Test og gem'];
@@ -260,7 +268,7 @@ export function animDefaults(type: AnimType, kind: SrcKind, n: number): Record<s
     case 'spin':
     case 'flicker': {
       const base = kind === 'pos' ? { set: Array.from({ length: n }, (_, j) => j > 0) } : kind === 'num' ? { at_least: 50 } : { invert: false };
-      if (type === 'flicker') return { ...base, color: '#ff8c1a' };
+      if (type === 'flicker') return { ...base, palette: [...FLICKER_PALETTE] };
       return type === 'blink' ? { ...base, speed: 'normal' } : base;
     }
     case 'level':
