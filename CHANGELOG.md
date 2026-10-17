@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.75.0 build 0114] — 2026-10-17 — Genvejssymboler: Alarmer, Trends, Energi
+
+- `frontend/src/lib/symbols.ts` — kategorien *Genveje* med `genvej_alarmer`, `genvej_trends`, `genvej_energi` (`navButton`: roden har `data-hv-nav`; alarmknappen har delene `maerke` og `antal`).
+- `frontend/src/lib/navSymbols.ts` (ny) — `navTarget()` (kun alarms/trends/energy godtages), `alarmBadge()`, `markNavClickable()`, `applyAlarmBadges()`.
+- `frontend/src/pages/Overview.svelte` — klik på en genvej åbner siden (driftpanel: besked i stedet); alarmmærket opdateres ved hver alarmliste fra serveren og når tegningen monteres. `app.css`: mærkets farver og blink. `symbolConfig.ts`: kun visning.
+- Manual (04, 07). Tests: `navSymbols.test.ts`. **Set i browseren** lokalt: de tre genveje indsat fra paletten; med én aktiv ukvitteret alarm viste mærket "1" rødt; klik åbnede Alarmer, Trends og Energi.
+
 ## [0.74.1 build 0113] — 2026-10-17 — fix: grænser og til/fra-alarm på samme tag afvises; manual om tag-alarmer
 
 - `backend/app/services/tags.py` — et tag kan ikke få både grænser (HH/H/L/LL) og til/fra-alarm (alarmmotoren brugte kun til/fra-alarmen; grænserne blev stille ignoreret for "auto"-tags). Tests: `test_alarms.py` (afvisning; skift tilladt, når den anden ryddes i samme gem).

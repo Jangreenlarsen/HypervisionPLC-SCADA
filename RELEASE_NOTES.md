@@ -2,6 +2,11 @@
 
 ---
 
+## v0.75.0 — 2026-10-17 — Genveje i tegningen
+
+- Ny kategori **Genveje** i symbolbiblioteket: **Gå til Alarmer**, **Gå til Trends** og **Gå til Energi**. Et klik i Overview åbner siden.
+- Alarmknappen viser **antallet af aktive alarmer** — rødt og blinkende, når der er ukvitterede.
+
 ## v0.74.1 — 2026-10-17 — Tag-alarmer forklaret
 
 - Manualen (*PLC'er og tags › Alarmer på et tag*) forklarer nu HH/H/L/LL, dødbånd, forsinkelse og til/fra-alarm med et eksempel.

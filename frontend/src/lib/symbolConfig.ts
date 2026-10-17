@@ -163,6 +163,7 @@ const OPS_BY_TYPE: Record<string, Op[]> = {
   roer_v: VIEW, roer_l: VIEW, boejning90: VIEW, boejning45: VIEW, t_stykke: VIEW, kryds: VIEW, reduktion: VIEW, prop: VIEW,
   flange: VIEW, flowpil: VIEW, filter: VIEW, ekspansion: VIEW, radiator: VIEW, varmeveksler: VIEW, kedel: VIEW,
   varmepumpe: SWITCH,
+  genvej_alarmer: VIEW, genvej_trends: VIEW, genvej_energi: VIEW,
   ledning_v: VIEW, ledning_l: VIEW, forbindelse: VIEW, klemme: VIEW, sikring: VIEW, automatsikring: VIEW, jord: VIEW,
   modstand: VIEW, transformer: VIEW, stroemforsyning: VIEW, foeler: VIEW, plc: VIEW, motor3: VIEW, motorvaern: VIEW,
   solpanel: VIEW, solstreng: VIEW, sol: VIEW, inverter: VIEW, hybridinverter: VIEW, mppt: VIEW, batteri: VIEW, batteribank: VIEW,

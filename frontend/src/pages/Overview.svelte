@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
+  import { applyAlarmBadges, markNavClickable, navTarget, NAV_TARGETS } from '../lib/navSymbols';
   import { get, post, type Binding, type DrawingView, type LiveValue, type PlcSummary } from '../lib/api';
   import { clickFor, parseSetpoint, positionLabel, positions, rangeText, toggleQuestion } from '../lib/actions';
   import { formatValue } from '../lib/animate';
@@ -176,7 +177,10 @@
     },
   );
 
-  live.onAlarms = (_s, active) => {
+  let alarmSummaryNow: { active: number; unacked: number } | null = null;   // til genvejen til Alarmer (v0.75.0)
+  live.onAlarms = (summary, active) => {
+    alarmSummaryNow = summary;
+    applyAlarmBadges(container, summary);
     const next = new Map<string, 'unack' | 'ack'>();
     for (const a of active) {
       if (!a.tag) continue; // PLC-kommunikationsalarmer vises i banneret, ikke på elementer
@@ -213,6 +217,8 @@
       byTag = indexByTag(view.bindings.filter((b) => b.tag));
       renderAll(container, view.bindings, values, view.tags);
       markAlarms();
+      markNavClickable(svgRoot);
+      applyAlarmBadges(svgRoot, alarmSummaryNow);
       clearOverlays(svgRoot);
       pseudoOf = new Map();
       for (const [element, s] of Object.entries(symbolsOf())) {
@@ -261,6 +267,13 @@
   async function onCanvasClick(e: MouseEvent): Promise<void> {
     if (dragged) {
       dragged = false; // afslutningen på et træk/knib er ikke et klik
+      return;
+    }
+    // Genvej (data-hv-nav): åbn Alarmer, Trends eller Energi
+    const nav = navTarget(e.target as Element);
+    if (nav) {
+      if (panel) showToast('error', `${NAV_TARGETS[nav]} kan ikke åbnes på driftpanelet — det viser kun drifttegningen`);
+      else location.hash = `#${nav}`;
       return;
     }
     const element = symbolTarget(e.target as Element);

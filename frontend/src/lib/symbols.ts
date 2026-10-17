@@ -3,7 +3,7 @@
 // Rør har tykkelse 10 og centerlinje i y=45 / x=45, så fittings og rør passer sammen. Brug
 // SVG-Edits rotation (eller spejling) for at vende en bøjning/T-stykke den rigtige vej.
 
-export type SymbolCategory = 'betjening' | 'proces' | 'vvs' | 'el' | 'sol';
+export type SymbolCategory = 'betjening' | 'proces' | 'vvs' | 'el' | 'sol' | 'genveje';
 
 export interface SymbolDef {
   id: string;
@@ -19,6 +19,7 @@ export const CATEGORIES: { id: SymbolCategory; label: string }[] = [
   { id: 'vvs', label: 'Rør og VVS' },
   { id: 'el', label: 'Elektrisk' },
   { id: 'sol', label: 'Solcelleanlæg' },
+  { id: 'genveje', label: 'Genveje (gå til side)' },
 ];
 
 const LINE = '#555';
@@ -82,6 +83,14 @@ export function previewViewBox(b: { x: number; y: number; width: number; height:
   const pad = 4 + Math.max(b.width, b.height) * 0.04;
   return `${b.x - pad} ${b.y - pad} ${b.width + 2 * pad} ${b.height + 2 * pad}`;
 }
+
+/**
+ * Genvejsknap (v0.75.0): et klik i Overview åbner siden `target` (data-hv-nav — kun alarms, trends, energy godtages).
+ * Ikonet står til venstre (x 8–44), teksten centreret i resten.
+ */
+const navButton = (target: string, label: string, icon: string, extra = '') =>
+  `<g data-hv-nav="${target}"><rect x="0" y="0" width="150" height="46" rx="8" fill="${PANEL}" stroke="${LINE}" stroke-width="2"/>` +
+  icon + text(94, 29, label, 16, 'font-weight="600"') + extra + '</g>';
 
 export const SYMBOLS: SymbolDef[] = [
   // ---------------------------------------------------------------- Betjening
@@ -334,6 +343,27 @@ export const SYMBOLS: SymbolDef[] = [
       `<path d="M74 14 H108 V26 H78 V38 H108 V50 H74" fill="none" stroke="${DARK}" stroke-width="2.5" stroke-linejoin="round"/>` +
       text(88, 80, 'VP', 16, 'font-weight="bold"') +
       `<circle id="lampe" cx="109" cy="74" r="6" fill="${OFF}" stroke="${LINE}" stroke-width="2"/></g>`,
+  },
+
+  // ---------------------------------------------------------------- Genveje (v0.75.0)
+  {
+    id: 'genvej_alarmer', label: 'Gå til Alarmer', category: 'genveje', hint: 'Klik i Overview åbner Alarmer; mærket viser antal aktive alarmer (rødt og blinkende når ukvitteret)',
+    svg: navButton('alarms', 'Alarmer',
+      `<path d="M26 9 C19 9 15 14 15 21 V28 L11 33 H41 L37 28 V21 C37 14 33 9 26 9 Z" fill="${FILL}" stroke="${DARK}" stroke-width="2" stroke-linejoin="round"/>` +
+      `<path d="M22 36 A4 4 0 0 0 30 36" fill="none" stroke="${DARK}" stroke-width="2"/>`,
+      `<circle id="maerke" cx="140" cy="8" r="11" fill="${OFF}" stroke="${LINE}" stroke-width="1.5"/>` +
+      text(140, 12, '0', 12, 'id="antal" font-weight="700"')),
+  },
+  {
+    id: 'genvej_trends', label: 'Gå til Trends', category: 'genveje', hint: 'Klik i Overview åbner Trends',
+    svg: navButton('trends', 'Trends',
+      `<path d="M12 10 V35 H42" fill="none" stroke="${DARK}" stroke-width="2"/>` +
+      `<path d="M14 30 L21 21 L28 26 L35 13 L41 17" fill="none" stroke="${DARK}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`),
+  },
+  {
+    id: 'genvej_energi', label: 'Gå til Energi', category: 'genveje', hint: 'Klik i Overview åbner Energi',
+    svg: navButton('energy', 'Energi',
+      `<path d="M30 7 L16 26 H25 L21 39 L37 18 H28 Z" fill="${FILL}" stroke="${DARK}" stroke-width="2" stroke-linejoin="round"/>`),
   },
 
   // ---------------------------------------------------------------- Måleinstrumenter
