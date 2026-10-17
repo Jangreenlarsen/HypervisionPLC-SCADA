@@ -28,7 +28,7 @@ Hedder et element det samme som et tag (id eller label), bindes det **automatisk
 | **Drej** | Elementet drejes en vinkel efter værdien (eller efter position) | Viser på manometer, omskifterstilling |
 | **Flyt** | Elementet forskydes dx/dy efter værdien | Skyder, vippekontakt |
 | **Roterer** | Elementet roterer kontinuerligt | Pumpehjul, blæser |
-| **Løbelys** | Et lysende mønster løber langs røret og viser strømning og retning. Lysstykkernes længde og fart er de samme, uanset hvordan røret er strakt eller skaleret | Rør med flow |
+| **Løbelys** | Et lysende mønster løber langs røret og viser strømning og retning. Lysstykkernes længde og fart er de samme, uanset hvordan røret er strakt eller skaleret. Rør, bøjninger og T-stykker, der hænger sammen og bruger samme tag, kører som **ét sammenhængende lys** i samme retning (se nedenfor) | Rør med flow |
 
 For til/fra-tags vælger du farver for **Til** og **Fra**. For tal-tags vælger du en **basisfarve** og **grænser** (*værdi og farve*). Et tal-tag kan også styre Blink, Synlig og Roterer med "aktiv når ≥ en grænse".
 
@@ -72,3 +72,7 @@ For symboler fra biblioteket sættes alt op i **guiden** (se næste kapitel). V�
 ## Forsvundne elementer
 
 Fjerner en ny version et element, der havde bindinger, vises det under **Forsvundne elementer**, og du kan **Fjerne bindinger** for dem.
+
+### Løbelys over flere rør
+
+Løbelys på flere dele, hvis ender rører hinanden (inden for ca. en rørbredde), og som har **samme tag og samme indstillinger** (retnings-tag, tilstand, længde og fart), kører som **ét sammenhængende forløb**: lys og mørke fortsætter hen over samlingerne, og alle delene kører samme vej. Det er ligegyldigt, hvilken vej de enkelte rør er tegnet — retningen bestemmes af flertallet af delene. Kører hele forløbet den forkerte vej, så sæt **Vend retning** på alle delene (fx med *Opsæt de valgte samlet* i Tegn). Et T-stykke med et valgt rør (*krydsning*) beholder sine egne retninger.

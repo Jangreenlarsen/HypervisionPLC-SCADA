@@ -1,5 +1,6 @@
 // Anvend bindinger på SVG-elementer ud fra live-værdier.
 // Ren DOM-manipulation via attributter/style — der indsættes aldrig HTML.
+import { chainPhases, dashOffset, type Phase, type Piece } from './flowChain';
 import type { Binding, LiveValue, TagMeta } from './api';
 import { evalExpression } from './expression';
 
@@ -385,7 +386,143 @@ function junctionDashes(el: Element, shapes: Element[], p: Record<string, any>, 
   });
 }
 
+/** Lys-stregerne til et element (uden at sætte dem ind). `warning`: hvorfor et kryds faldt tilbage til tegneretningen. */
+function buildDashes(el: Element, shapes: Element[], p: Record<string, any>, state: -1 | 1): { dashes: { d: SVGElement; out: boolean; arm: boolean }[]; warning: string } {
+  let warning = '';
+  if (p.arm) {
+    const j = junctionDashes(el, shapes, p, state);
+    if (typeof j === 'string') warning = j; // falder tilbage til tegneretningen
+    else return { dashes: j.map((x) => ({ ...x, arm: true })), warning };
+  }
+  const dashes: { d: SVGElement; out: boolean; arm: boolean }[] = [];
+  for (const s of shapes) {
+    const d = flowDash(s);
+    if (d) dashes.push({ d, out: state > 0, arm: false });
+  }
+  return { dashes, warning };
+}
+
+// ---------------------------------------------------------------- Sammenhængende løbelys (v0.64.0)
+// Løbelys-dele med samme tag, hvis ender rører hinanden, danner et forløb med én fælles stiplingskoordinat (flowChain.ts).
+interface FlowMember { p: Record<string, any>; group: string }
+const flowMembers = new WeakMap<Element, Map<Element, FlowMember>>();   // pr. tegning (rod-<svg>)
+const flowPhases = new WeakMap<Element, Map<string, Phase>>();
+const lastFlow = new WeakMap<Element, { state: -1 | 0 | 1; p: Record<string, any> }>();
+const rephasePending = new WeakSet<Element>();
+const flowIds = new WeakMap<Element, number>();
+let nextFlowId = 1;
+const flowKey = (el: Element, i: number): string => {
+  let id = flowIds.get(el);
+  if (!id) flowIds.set(el, (id = nextFlowId++));
+  return `${id}:${i}`;
+};
+function rootOf(el: Element): Element | null {
+  let r = (el as SVGElement).ownerSVGElement ?? null;
+  while (r?.ownerSVGElement) r = r.ownerSVGElement;
+  return r;
+}
+
+/** Gruppen et løbelys hører til: kun dele med samme tag og samme indstillinger kan danne et forløb. */
+export function flowGroup(tag: string, p: Record<string, any>): string {
+  return [tag, p.dir_tag ?? '', p.mode ?? 'onoff', p.invert ? 1 : 0, p.pos ? 'pos' : '', Number(p.dash ?? 12), Number(p.speed ?? 40)].join('|');
+}
+
+/** Kendt løbelys på tegningen. Nye medlemmer giver nye forløb — de løbelys der allerede kører, regnes om (samlet). */
+function registerFlow(el: Element, p: Record<string, any>, group: string): void {
+  const root = rootOf(el);
+  if (!root) return;
+  let m = flowMembers.get(root);
+  if (!m) flowMembers.set(root, (m = new Map()));
+  const old = m.get(el);
+  m.set(el, { p, group });
+  if (old && old.group === group) return;
+  flowPhases.delete(root);
+  if (rephasePending.has(root)) return;
+  rephasePending.add(root);
+  queueMicrotask(() => {
+    rephasePending.delete(root);
+    for (const member of m!.keys()) {
+      const last = lastFlow.get(member);
+      const layer = flowLayers.get(member);
+      if (!last?.state || !layer) continue;
+      layer.removeAttribute('data-hv-flow');   // tving en ny tegning med de nye forskydninger
+      flow(member, last.state, last.p);
+    }
+  });
+}
+
+/** Matrix fra elementets koordinater til TEGNINGENS (uden visningens zoom/viewBox — som flowScale). */
+function worldMatrix(d: SVGElement): Mat | null {
+  const own = (d as SVGGraphicsElement).getCTM?.() as Mat | null | undefined;
+  if (!own) return null;
+  const root = d.ownerSVGElement;
+  if (!root) return own;
+  const probe = document.createElementNS(SVG_NS, 'g') as SVGGElement;
+  root.appendChild(probe);
+  try {
+    const base = probe.getCTM?.() as Mat | null | undefined;
+    const inv = base ? invMat(base) : null;
+    return inv ? mulMat(inv, own) : own;
+  } finally {
+    root.removeChild(probe);
+  }
+}
+
+/** Mål alle løbelys-dele på tegningen og beregn forløbene. Lukkede figurer og stier med flere delstier er ikke dele. */
+function computePhases(root: Element): Map<string, Phase> {
+  const members = [...(flowMembers.get(root)?.entries() ?? [])]
+    .filter(([el]) => el.isConnected)
+    .sort(([a], [b]) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+  const pieces: Piece[] = [];
+  const widths: number[] = [];
+  for (const [el, { p, group }] of members) {
+    const { dashes } = buildDashes(el, shapesOf(el), p, 1);
+    if (!dashes.length) continue;
+    const tmp = document.createElementNS(SVG_NS, 'g') as SVGGElement;
+    tmp.setAttribute('class', 'hv-flow');
+    tmp.setAttribute('visibility', 'hidden');
+    for (const { d } of dashes) tmp.appendChild(d);
+    if (el.tagName === 'g') el.appendChild(tmp);
+    else el.parentNode?.insertBefore(tmp, el.nextSibling);
+    try {
+      dashes.forEach(({ d, arm }, i) => {
+        const tag = d.tagName;
+        if (['circle', 'ellipse', 'polygon'].includes(tag)) return;
+        if (tag === 'path' && ((d.getAttribute('d') ?? '').match(/[Mm]/g) ?? []).length > 1) return;   // fx et T-stykke uden valgt rør
+        const g = d as unknown as SVGGeometryElement;
+        if (typeof g.getTotalLength !== 'function') return;
+        const L = g.getTotalLength();
+        const m = worldMatrix(d);
+        if (!(L > 0) || !m) return;
+        const at = (t: number): [number, number] => {
+          const q = g.getPointAtLength(t);
+          return [m.a * q.x + m.c * q.y + m.e, m.b * q.x + m.d * q.y + m.f];
+        };
+        const scale = flowScale(d);
+        pieces.push({ key: flowKey(el, i), a: at(0), b: at(L), len: L * scale, group, dir: arm ? 0 : p.reverse ? -1 : 1 });
+        widths.push((parseFloat(d.getAttribute('stroke-width') ?? '1') || 1) * scale);
+      });
+    } catch {
+      // getTotalLength/getCTM kan kaste for elementer der ikke vises — så kører delen for sig selv (som før)
+    } finally {
+      tmp.remove();
+    }
+  }
+  widths.sort((x, y) => x - y);
+  const width = widths.length ? widths[Math.floor(widths.length / 2)] : 10;
+  return chainPhases(pieces, Math.max(4, 0.8 * width));   // ender inden for ~en rørbredde hænger sammen
+}
+
+function phaseFor(el: Element, i: number): Phase | undefined {
+  const root = rootOf(el);
+  if (!root || !flowMembers.get(root)?.has(el)) return undefined;
+  let ph = flowPhases.get(root);
+  if (!ph) flowPhases.set(root, (ph = computePhases(root)));
+  return ph.get(flowKey(el, i));
+}
+
 function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
+  lastFlow.set(el, { state, p });
   const base = p.base ?? '#555555', light = p.light ?? '#8fc8ea';
   const dash = Number(p.dash ?? 12), speed = Number(p.speed ?? 40);
   const key = `${state}|${base}|${light}|${dash}|${speed}|${p.arm ?? ''}|${p.arm_flow ?? ''}`;
@@ -404,18 +541,8 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   }
   if (!state) return;
   // Hver lys-streg med sin retning: langs tegneretningen, eller pr. rør i et kryds (ud = væk fra krydspunktet)
-  let dashes: { d: SVGElement; out: boolean }[] = [];
-  if (p.arm) {
-    const j = junctionDashes(el, shapes, p, state);
-    if (typeof j === 'string') el.setAttribute('data-hv-warning', j); // falder tilbage til tegneretningen
-    else dashes = j;
-  }
-  if (!dashes.length) {
-    for (const s of shapes) {
-      const d = flowDash(s);
-      if (d) dashes.push({ d, out: state > 0 });
-    }
-  }
+  const { dashes, warning } = buildDashes(el, shapes, p, state);
+  if (warning) el.setAttribute('data-hv-warning', warning);
   const layer = document.createElementNS(SVG_NS, 'g') as SVGGElement;
   layer.setAttribute('class', 'hv-flow');
   layer.setAttribute('data-hv-flow', key);
@@ -435,17 +562,23 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   if (el.tagName === 'g') el.appendChild(layer);
   else el.parentNode?.insertBefore(layer, el.nextSibling);
   flowLayers.set(el, layer);
-  for (const { d, out } of dashes) {
+  dashes.forEach(({ d, out }, i) => {
     // Lysets længde og fart er i TEGNINGENS enheder, uanset hvordan røret er skaleret: omregnet til rørets egne enheder
-    const unit = dash / flowScale(d);
+    const scale = flowScale(d);
+    const unit = dash / scale;
     d.setAttribute('stroke-dasharray', `${unit} ${unit}`);
+    // Sammenhængende forløb: stiplingen fortsætter fra nabodelen, og retningen følger forløbet
+    const ph = phaseFor(el, i);
+    const off = ph ? dashOffset(ph, dash) / scale : 0;
+    const dir = ph?.flip ? !out : out;
+    d.setAttribute('stroke-dashoffset', String(off));
     if (!reduce && typeof (d as any).animate === 'function') {
       // Lyset flytter én periode (lys + mørk) pr. omgang; startTime 0 holder alle løbelys i takt
-      const a = d.animate([{ strokeDashoffset: 0 }, { strokeDashoffset: -2 * unit }],
-        { duration: (2 * dash / speed) * 1000, iterations: Infinity, direction: out ? 'normal' : 'reverse' });
+      const a = d.animate([{ strokeDashoffset: off }, { strokeDashoffset: off - 2 * unit }],
+        { duration: (2 * dash / speed) * 1000, iterations: Infinity, direction: dir ? 'normal' : 'reverse' });
       a.startTime = 0;
     }
-  }
+  });
 }
 
 /**
@@ -546,6 +679,7 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
   const quality = live?.quality ?? 'unknown';
   el.setAttribute('data-hv-quality', quality);
   const p = b.params ?? {};
+  if (b.anim === 'flow') registerFlow(el, p, flowGroup(b.tag, p));
   if (b.anim === 'text' && !el.hasAttribute('data-hv-orig-text')) {
     el.setAttribute('data-hv-orig-text', (el.querySelector('tspan') ?? el).textContent ?? '');
   }

@@ -13,7 +13,7 @@ Dokumentation:
 - **Brugermanual:** i programmet under **Bruger › Manual** (kilden er markdown i [frontend/src/manual/](frontend/src/manual/)). Skærmbillederne tages automatisk fra en kørende server: `cd frontend && SCADA_URL=https://<server> SCADA_USER=<admin> SCADA_PASS=… npm run manual:screenshots` (kun læsning).
 - [docs/SYMBOLSTANDARD.md](docs/SYMBOLSTANDARD.md) — designet for symboler (guide, kontaktplaner, animationer) + [interaktiv prototype](docs/prototyper/symbolguide.html)
 
-Status: v0.63.3 — Overview med live SVG-tegninger, betjening, alarmer og trends, tegne-editor, binding-editor, tags, audit-log, backup/restore, login, roller med adgang pr. tegning og HTTPS.
+Status: v0.64.0 — Overview med live SVG-tegninger, betjening, alarmer og trends, tegne-editor, binding-editor, tags, audit-log, backup/restore, login, roller med adgang pr. tegning og HTTPS.
 
 ## Udvikling
 

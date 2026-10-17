@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.64.0 build 0096] — 2026-10-17 — Sammenhængende løbelys over flere rør og bøjninger
+
+- `frontend/src/lib/flowChain.ts` (ny, ren): `chainPhases()` samler løbelys-dele, hvis ender rører hinanden (samme gruppe), til forløb med én fælles koordinat g, og ensretter retningen efter flertallet (indstillet retning × tegneretning; uafgjort → første del; T-stykkers ben vendes aldrig). `dashOffset()` giver stiplingens forskydning, så mønstret fortsætter over samlingerne.
+- `frontend/src/lib/animate.ts` — `buildDashes()` (fælles for måling og tegning); løbelys registreres pr. tegning med en gruppe (`flowGroup()`: tag, retnings-tag, tilstand, længde, fart); delene måles i tegningens koordinater (`getTotalLength`/`getPointAtLength`, uden zoom); hver lysstreg får sin forskydning og evt. vendt retning; nye medlemmer regner kørende løbelys om (samlet pr. opdatering). Stier med flere delstier (fx T-stykke uden valgt rør) og lukkede figurer kører som før.
+- Tests: `flowChain.test.ts` (8, bl.a. at mønstret er det samme set fra begge sider af hver samling). **Set i browseren** lokalt: rør tegnet højre→venstre, bøjning, lodret rør tegnet nedefra, rør, strakt rør (scale 2): målt ved 4 samlinger × 15 tidspunkter — før: lys/mørk sprang 17 gange og 2 samlinger kørte modsat (30/60); efter: 1 spring (en overgang lige i samlingen) og ingen modsat retning.
+
 ## [0.63.3 build 0095] — 2026-10-17 — fix: afslutter fejlsøgningen af "Indsæt opsætning" i Firefox
 
 - Jan har bekræftet i Firefox, at *Indsæt opsætning* i et symbol uden navn virker med spørgsmålene på siden (v0.63.2.1). BUGS.md: de to poster lukket. Ingen kodeændringer ud over versionen.

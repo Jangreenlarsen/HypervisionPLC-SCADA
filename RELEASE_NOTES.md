@@ -2,6 +2,11 @@
 
 ---
 
+## v0.64.0 — 2026-10-17 — Løbelys uden synlige samlinger
+
+- Løbelys på rør, bøjninger og T-stykker, der hænger sammen og bruger samme tag, kører nu som **ét sammenhængende lys** — mønstret fortsætter hen over samlingerne i stedet for at starte forfra i hver del.
+- Er et rør tegnet "baglæns", kører det nu alligevel samme vej som sine naboer. Vil du vende hele forløbet, så sæt **Vend retning** på alle delene (fx med *Opsæt de valgte samlet*).
+
 ## v0.63.3 — 2026-10-17 — Rettet: Indsæt opsætning i Firefox
 
 - Bekræftet: *Indsæt opsætning* og alle andre spørgsmål virker nu også i Firefox.
