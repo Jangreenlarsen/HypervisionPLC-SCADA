@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.63.1 build 0092] — 2026-10-17 — fix: gammel side efter opdatering, dubletnavne ved kopi
+
+- `frontend/vite.config.ts`, `src/globals.d.ts`, `src/lib/staleCheck.ts` (ny) — versionen fra `version.json` bygges ind (`__APP_VERSION__`, `__APP_BUILD__`); `isStale()` sammenligner med serverens.
+- `frontend/src/App.svelte` — tjekker `/api/health` hvert minut og når fanen bliver synlig; banner "SCADA er opdateret … Genindlæs" (også i driftpanelet).
+- `backend/app/main.py` — `FrontendFiles`: `Cache-Control: no-cache` for index.html, SVG-Edit-værten og andre filer uden hash; `public, max-age=31536000, immutable` for `assets/`.
+- `frontend/svgedit-host/names.js` — `nextFreeName()`; `scada-editor.js` — `renameCopies()` efter indsæt/dupliker, så kopier får et ledigt navn.
+- Tests: `tests/test_frontend_cache.py`, `staleCheck.test.ts`, `names.test.ts`. **Set i browseren** lokalt: dupliker "Bøjning 90° 6" → "… 8" (7 optaget), kopiér/indsæt → "… 9", fortryd fjerner kopien; banneret vises, når serveren melder en anden version. Se BUGS.md.
+
 ## [0.63.0 build 0091] — 2026-10-17 — Opsæt flere symboler samlet i Tegn
 
 - `frontend/src/lib/symbolCopy.ts` — `configSignature()` (opsætningen uafhængigt af symbolets egne id'er: dele efter biblioteksnavn; type og nøglelås tæller ikke), `describeConfig()`, `configGroups()`, `memberNames()`.

@@ -5,7 +5,7 @@ import {
   axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox,
 } from './snap.js';
 import { collectColors, recolorAttrs } from './colors.js';
-import { numberedNames } from './names.js';
+import { nextFreeName, numberedNames } from './names.js';
 
 const editor = new Editor(document.getElementById('container'));
 editor.setConfig({
@@ -210,6 +210,7 @@ function hookEvents() {
     if (typeof original !== 'function') continue;
     c[name] = function wrapped(...args) {
       const result = original.apply(this, args);
+      renameCopies();
       const small = name === 'cloneSelectedElements' && Math.max(Math.abs(args[0] ?? 0), Math.abs(args[1] ?? 0)) < 5;   // finjustering med tasterne
       if (!small) setTimeout(() => settleSelection(false), 0);
       return result;
@@ -220,6 +221,23 @@ function hookEvents() {
     drawGrid();
   });
   drawGrid();
+}
+
+/**
+ * Efter indsæt/dupliker: kopierne (den nye markering) har fået originalens navn med — giv dem et ledigt navn, så navnene
+ * forbliver unikke (BUGS.md v0.63.0). Kopien hører til samme fortryd-trin som indsætningen, så navnet fortrydes med den.
+ */
+function renameCopies() {
+  const root = canvas().getSvgContent();
+  const copies = selectedEls().flatMap((el) => [el, ...el.querySelectorAll('[data-hv-name]')]).filter((el) => el.getAttribute('data-hv-name'));
+  if (!copies.length) return;
+  const copySet = new Set(copies);
+  const used = Array.from(root.querySelectorAll('[data-hv-name]')).filter((el) => !copySet.has(el)).map((el) => el.getAttribute('data-hv-name'));
+  for (const el of copies) {
+    const name = nextFreeName(el.getAttribute('data-hv-name'), used);
+    if (name) el.setAttribute('data-hv-name', name);
+    used.push(name);
+  }
 }
 
 function currentSelection() {

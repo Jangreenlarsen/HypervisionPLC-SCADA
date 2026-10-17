@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { BUNDLE, isStale } from './lib/staleCheck';
   import { ApiError, get, onUnauthorized, post, roleAtLeast, type AlarmSummary, type Me } from './lib/api';
   import { NAV_ICON, groupOf, navFor, pageFor } from './lib/nav';
   import Overview from './pages/Overview.svelte';
@@ -24,6 +25,7 @@
 
   let route = $state(location.hash.slice(1) || 'overview');
   let info = $state<{ version: string; build: string; source_url: string } | null>(null);
+  const stale = $derived(isStale(BUNDLE, info));   // serveren er opdateret, men fanen kører den gamle side
   let me = $state<Me | null>(null);
   let checked = $state(false);
   let changingPassword = $state(false);
@@ -70,10 +72,20 @@
     window.addEventListener('hashchange', onHash);
     onUnauthorized(() => (me = null));
     loadMe();
-    get<{ version: string; build: string; source_url: string }>('/api/health')
+    const checkVersion = () => get<{ version: string; build: string; source_url: string }>('/api/health')
       .then((h) => (info = h))
+      // fx under genstart efter en opdatering: næste tjek prøver igen, og banneret afhænger kun af et gyldigt svar
       .catch((e) => console.error('Kunne ikke hente version:', e));
-    return () => window.removeEventListener('hashchange', onHash);
+    checkVersion();
+    // En fane kan stå åben over en opdatering: tjek serverens version jævnligt og når fanen får fokus igen
+    const timer = setInterval(checkVersion, 60_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') checkVersion(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('hashchange', onHash);
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(timer);
+    };
   });
 
   const groups = $derived(navFor(me?.role));
@@ -111,11 +123,18 @@
 </script>
 
 <svelte:window onkeydown={onKey} onclick={onWindowClick} />
+{#snippet staleBanner()}
+  <div class="stale" role="alert">
+    <span><strong>SCADA er opdateret</strong> til v{info?.version} build {info?.build}, men denne side kører stadig v{BUNDLE.version} build {BUNDLE.build}. Genindlæs for at få de nye funktioner — gem dit arbejde først (fx i Tegn).</span>
+    <button class="primary" onclick={() => location.reload()}>Genindlæs</button>
+  </div>
+{/snippet}
 {#snippet icon(name: string)}<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">{@html NAV_ICON[name]}</svg>{/snippet}
 
 {#if isPanel && me}
   <!-- Driftpanel: kun drifttegningen — ingen topmenu, alarmklokke eller sidefod (kildekode-linket står i kolonnen) -->
   <main class="panel-mode">
+    {#if stale}{@render staleBanner()}{/if}
     {#if error}<div class="error">{error}</div>{/if}
     <Overview {route} canOperate={true} panel sourceUrl={info?.source_url ?? ''} onlogout={logout} />
   </main>
@@ -172,6 +191,7 @@
 </header>
 
 <main>
+  {#if stale}{@render staleBanner()}{/if}
   {#if error}<div class="error">{error}</div>{/if}
   {#if !checked}
     <p class="muted">Indlæser …</p>
@@ -219,6 +239,8 @@
 {/if}
 
 <style>
+  .stale { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: .6rem; padding: .5rem .8rem; color: #5a3a00; background: #fff4e0; border: 1px solid #f0c27a; border-radius: var(--radius); }
+  .stale span { flex: 1; min-width: 14rem; }
   /* Smal topbjælke (40 px) med fire menupunkter; rullemenuerne foldes ud over indholdet, så tegningen beholder pladsen */
   header {
     position: sticky; top: 0; z-index: 40;

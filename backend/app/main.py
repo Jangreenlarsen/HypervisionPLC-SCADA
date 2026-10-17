@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from urllib.parse import urlsplit
 
@@ -157,8 +157,21 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(live_router)
     app.include_router(operate_router)
     if settings.frontend_dir.is_dir():
-        app.mount("/", StaticFiles(directory=settings.frontend_dir, html=True), name="frontend")
+        app.mount("/", FrontendFiles(directory=settings.frontend_dir, html=True), name="frontend")
     return app
+
+
+
+class FrontendFiles(StaticFiles):
+    """Frontend med cache-regler (BUGS.md v0.63.0): Vites filer under assets/ har hash i navnet og må gemmes længe; alt
+    andet (index.html, SVG-Edit-værten under svgedit/, manualbilleder) skal genvalideres, så en opdatering slår igennem
+    ved næste indlæsning i stedet for at browseren genbruger en gammel kopi."""
+
+    async def get_response(self, path: str, scope: Any) -> Any:
+        response = await super().get_response(path, scope)
+        immutable = path.replace("\\", "/").startswith("assets/")
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable" if immutable else "no-cache"
+        return response
 
 
 def configure_logging(level: str) -> None:

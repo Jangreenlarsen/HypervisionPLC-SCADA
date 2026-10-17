@@ -2,6 +2,11 @@
 
 ---
 
+## v0.63.1 — 2026-10-17 — Rettelser
+
+- Står en side åben, mens SCADA bliver opdateret, viser den nu et banner **"SCADA er opdateret … Genindlæs"**. Før kørte fanen videre med den gamle version, så nye funktioner (fx *Opsæt de valgte samlet* og navngivning ved *Indsæt opsætning*) ikke var der.
+- Kopierer eller duplikerer du et symbol i Tegn, får kopien nu sit eget navn (fx *Bøjning 90° 8*) i stedet for originalens.
+
 ## v0.63.0 — 2026-10-17 — Opsæt flere symboler samlet
 
 - Markér flere symboler i **Tegn** og tryk **Opsæt de valgte samlet**. Guiden åbner med ét af dem, og når du trykker **Gem i alle**, får alle de valgte den samme opsætning (tag og animationer).
