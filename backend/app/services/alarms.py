@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..storage.db import Database
+from .live_cache import LiveValue
 from .manager import PlcManager
 
 log = logging.getLogger(__name__)
@@ -118,6 +119,7 @@ class AlarmService:
         # Ekstra kilder til alarmer (fx symbolernes afvigelse): now → (betingelser, "frosne" tags hvis alarmer ikke må
         # ryddes fordi værdien er ukendt — en kommunikationsfejl må aldrig rydde en alarm)
         self.providers: list[Any] = []
+        self._published: set[str] = set()   # alarm:<tag>:active|unack i live-cachen (v0.74.0)
 
     # ------------------------------------------------------------ abonnenter
 
@@ -215,6 +217,27 @@ class AlarmService:
                 changed |= self._raise(cond, now)
         if changed:
             self._changed()
+        self.publish(now)
+
+    def publish(self, now: float | None = None) -> None:
+        """Alarmtilstanden pr. tag som live-værdier, så animationer kan styres af den (symbolguidens kilde "alarm på et
+        tag", v0.74.0): `alarm:<tag>:active` (en alarm er aktiv) og `alarm:<tag>:unack` (en alarm er ukvitteret — også
+        efter den er ophørt). Udgives for alle tags med alarmopsætning; cachen sender kun ændringer videre."""
+        now = time.time() if now is None else now
+        names = {t["name"] for t in self.db.list_tags()
+                 if t["alarm_on"] is not None or any(t[f"alarm_{k}"] is not None for k in ("hh", "h", "l", "ll"))}
+        active = {a["tag"] for a in self.state.values() if a["tag"] and a["state"] in ("active_unack", "active_ack")}
+        unack = {a["tag"] for a in self.state.values() if a["tag"] and a["state"] in ("active_unack", "rtn_unack")}
+        updates: dict[str, LiveValue] = {}
+        for name in names | active | unack:
+            updates[f"alarm:{name}:active"] = LiveValue(value=name in active, quality="good", ts=now)
+            updates[f"alarm:{name}:unack"] = LiveValue(value=name in unack, quality="good", ts=now)
+        stale = self._published - set(updates)
+        if stale:
+            self.manager.cache.remove(sorted(stale))
+        self._published = set(updates)
+        if updates:
+            self.manager.cache.update(updates)
 
     # ------------------------------------------------------ tilstandsskift
 
@@ -273,6 +296,7 @@ class AlarmService:
             count += 1
         if count:
             self._changed()
+            self.publish(now)
         return count
 
     # ------------------------------------------------------------- visning

@@ -57,7 +57,7 @@ Alarmer har en **prioritet** (lav, medium, høj). Klokken i toppen er rød ved h
 - **Kommunikationsalarm**: en PLC har ikke svaret i en periode.
 - **Symbolafvigelse**: et symbol, hvor den valgte position ikke svarer til PLC'ens position (vælges i guiden, trin 4).
 
-Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*).
+Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*) — eller i symbolguidens trin 6 for symbolets tags. Et symbol kan også vise alarmen selv (fx blinke ved en ukvitteret alarm), se *Symboler og guiden › Alarmer i guiden*.
 
 ## Trends
 

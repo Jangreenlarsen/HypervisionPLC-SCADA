@@ -2,6 +2,11 @@
 
 ---
 
+## v0.74.0 — 2026-10-17 — Alarmer i symbolguiden
+
+- En animation kan styres af **en alarm** på et tag — fx en lampe der **blinker**, så længe alarmen er **ukvitteret**, eller bliver **rød**, så længe den er **aktiv**.
+- Trin 6 viser **alarmerne på symbolets tags** og deres status lige nu, og du kan **rette alarmen** (grænser eller til/fra, dødbånd, forsinkelse) direkte dér.
+
 ## v0.73.0 — 2026-10-17 — Beregning i Værdi-animationen
 
 - Guidens **Værdi** har nu **Beregning** (fx *x / 10*) og **Vis enhed** som på siden Bindinger, og viser hvordan den aktuelle værdi bliver vist (*Lige nu: 128 → 12.8 bar*).

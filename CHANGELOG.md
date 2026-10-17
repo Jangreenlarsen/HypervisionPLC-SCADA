@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.74.0 build 0112] — 2026-10-17 — Alarmer i symbolguiden
+
+- `backend/app/services/alarms.py` — `publish()`: alarmtilstanden pr. tag som live-værdier `alarm:<tag>:active` og `alarm:<tag>:unack` (for alle tags med alarmopsætning; efter hver evaluering og kvittering; forældede fjernes).
+- `backend/app/services/symbols.py` — kilden `@alarm:active|unack:<tag>` (`parse_alarm_ref`, `alarm_tag`): valideres (gyldig art, tag findes, ikke Niveau/Gennemsigtighed/Værdi; advarsel hvis tagget ingen alarm har), bliver bindingens tag `alarm:<tag>:<art>`; tagget tæller som brugt (`config_tags`, kan ikke slettes); ikke en logikreference.
+- `frontend/src/lib/symbolConfig.ts` (`alarmRef`, `parseAlarmRef`), `SymbolGuide.svelte` ("styres af: en alarm — er aktiv / er ukvitteret — på tag"; trin 6 "Alarmer på symbolets tags"; kontrollen køres igen, når en alarm rettes), `TagAlarm.svelte` (én rækkes visning og "Ret alarm" → `PATCH /api/tags/{navn}`, serverens fejltekst vises), `tagAlarm.ts` (opsummering, formular → data, status).
+- Manual (02, 06). Tests: `test_symbols.py` (kilden, pseudotags), `tagAlarm.test.ts`. **Set i browseren** lokalt: lampe med Blink styret af "en alarm / er aktiv / AlarmTest"; alarmen sat i trin 6 ("når Til"); Overview: ingen alarm → blinker ikke, tag Til → blinker, tag Fra → stopper; trin 6 viste "Ophørt — ukvitteret".
+
 ## [0.73.0 build 0111] — 2026-10-17 — Beregning og enhed i guidens Værdi-animation
 
 - `frontend/src/lib/SymbolGuide.svelte` — Værdi (tal-tag): felterne *Beregning* (fejlbesked straks via `expressionError`) og *Vis enhed*, og "Lige nu: værdi → visning" (`textFor` med tagets enhed). Serveren godtog allerede `expression`/`show_unit` (samme `TextParams` som Bindinger).

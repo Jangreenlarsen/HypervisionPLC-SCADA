@@ -85,6 +85,12 @@ Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positio
 
 En animation kan også styres af **altid til** (i stedet for et tag): så er den altid aktiv — fx en flamme der altid blafrer, eller et løbelys der altid kører. (Ikke for *Niveau*, *Gennemsigtighed* og *Værdi*, som skal have et tal.)
 
+### Alarmer i guiden
+
+**Alarm som kilde:** under *styres af* kan en animation styres af **en alarm**: vælg **er aktiv** (alarmen er i gang) eller **er ukvitteret** (ingen har kvitteret den endnu — også efter den er ophørt), og tagget. Fx lader du en lampe **blinke**, så længe en alarm er ukvitteret, og **farve** den rød, så længe den er aktiv. Har tagget ingen alarm endnu, får du en advarsel.
+
+**Alarmer på symbolets tags (trin 6):** en tabel viser hvert tag, symbolet bruger, med dets alarmopsætning (fx *H 80 · HH 90 bar* eller *når Til*) og status lige nu (*Ingen alarm*, *Aktiv — ukvitteret*, *Aktiv — kvitteret*, *Ophørt — ukvitteret*). Med **Ret alarm** sætter du alarmen direkte her: grænser **HH/H/L/LL** og **Dødbånd** for tal-tags, **Alarm når Til / når Fra** for til/fra-tags, og **Forsinkelse**. Alarmen gælder tagget overalt — det er den samme som under *Tags*.
+
 ### Værdi: decimaler, tekst før/efter, beregning og enhed
 
 Animationen **Værdi** skriver taggets værdi i en tekst-del. For et tal-tag har den felterne:
