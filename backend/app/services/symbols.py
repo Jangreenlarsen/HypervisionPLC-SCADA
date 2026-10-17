@@ -18,7 +18,7 @@ import math
 import re
 from typing import Any, Callable, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from ..storage.db import Database
 from .auth import CurrentUser, hash_password
@@ -113,6 +113,33 @@ class ABlink(AToggle):
     speed: Literal["slow", "normal", "fast"] = "normal"
 
 
+FLICKER_PALETTE = ["#ff3b00", "#ff8c1a", "#ffd21a"]   # rød, orange, gul
+
+
+class AFlicker(AToggle):
+    """Blafrer: delen blafrer og skifter tilfældigt mellem farverne i `palette` (1–3; v0.70.0), mens kilden er aktiv
+    (som Roterer: til/fra, ≥, pr. position). `color` er fra v0.69.0 (én farve) og bruges, hvis der ikke er en palette."""
+    palette: list[str] = Field(default_factory=lambda: list(FLICKER_PALETTE), min_length=1, max_length=3)
+    color: str | None = None
+
+    @field_validator("palette")
+    @classmethod
+    def _pal(cls, v: list[str]) -> list[str]:
+        return [_color(c) for c in v]
+
+    @field_validator("color")
+    @classmethod
+    def _col(cls, v: str | None) -> str | None:
+        return None if v is None else _color(v)
+
+    @model_validator(mode="after")
+    def _from_color(self) -> "AFlicker":
+        # gemt med v0.69.0: én farve og ingen palette → den farve først, derefter standardfarverne
+        if "palette" not in self.model_fields_set and self.color:
+            self.palette = [self.color, *FLICKER_PALETTE[1:]]
+        return self
+
+
 class AText(TextParams):
     pass
 
@@ -133,19 +160,20 @@ class AFlow(FlowParams):
 ANIM_PARAMS: dict[str, type[BaseModel]] = {
     "fill": AColor, "stroke": AColor, "blink": ABlink, "visible": AToggle, "spin": AToggle,
     "level": LevelParams, "opacity": RangeParams, "text": AText, "rotate": ARotate, "move": AMove, "flow": AFlow,
+    "flicker": AFlicker,
 }
 ANIM_LABEL = {"fill": "Farve", "stroke": "Stregfarve", "blink": "Blink", "visible": "Synlig", "spin": "Roterer",
               "level": "Niveau", "opacity": "Gennemsigtighed", "text": "Værdi", "rotate": "Drej", "move": "Flyt",
-              "flow": "Løbelys"}
+              "flow": "Løbelys", "flicker": "Blafrer"}
 # Parametre pr. position: (feltnavn(e) der skal have én værdi pr. position) — kun når kilden er @pos
 POS_FIELDS = {"fill": ("colors",), "stroke": ("colors",), "blink": ("set",), "visible": ("set",), "spin": ("set",),
-              "rotate": ("angles",), "move": ("dxs", "dys"), "flow": ("dirs",), "text": ()}
+              "rotate": ("angles",), "move": ("dxs", "dys"), "flow": ("dirs",), "text": (), "flicker": ("set",)}
 NUMERIC_ONLY = {"level", "opacity"}
 
 
 class Anim(_M):
     part: str = Field(max_length=120)
-    type: Literal["fill", "stroke", "blink", "visible", "spin", "level", "opacity", "text", "rotate", "move", "flow"]
+    type: Literal["fill", "stroke", "blink", "visible", "spin", "level", "opacity", "text", "rotate", "move", "flow", "flicker"]
     src: str = Field(default="", max_length=64)
     params: dict[str, Any] = Field(default_factory=dict)
     only: list[bool] | None = None
@@ -878,6 +906,13 @@ class SymbolService:
             self.on_change(drawing_id, element)
         return {"element": element, "config": normalized, "warnings": res.warnings,
                 "has_pin": self.db.get_symbol_pin_hash(drawing_id, element) is not None}
+
+    def used_ids(self, drawing_id: str) -> list[str]:
+        """Element-id'er der har en symbolopsætning eller en binding på tegningen — også dem, der ikke findes i den aktive
+        version. Tegn må ikke give nye elementer disse id'er, ellers "vågner" en gammel opsætning op på det nye element."""
+        self.drawings._require(drawing_id)
+        ids = set(self.configs(drawing_id)) | {b["element"] for b in self.db.list_bindings(drawing_id)}
+        return sorted(ids)
 
     def list_symbols(self, drawing_id: str) -> list[dict[str, Any]]:
         """Symbolerne i tegningens aktive version, med om de har en opsætning — til "kopiér opsætning til flere"."""

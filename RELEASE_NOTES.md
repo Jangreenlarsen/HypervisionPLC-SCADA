@@ -2,6 +2,39 @@
 
 ---
 
+## v0.70.1 — 2026-10-17 — Rettet: drejede rør i Tegn
+
+- Et drejet rør (fx et lodret rør lavet ved at dreje et vandret) følger nu musen, hver gang du strækker det. Før voksede det for meget anden gang.
+
+## v0.70.0 — 2026-10-17 — Flammen skifter farve
+
+- **Blafrer** farver nu hele flammen og skifter tilfældigt mellem **tre farver**, du vælger (standard rød, orange og gul), mens den blafrer.
+
+## v0.69.0 — 2026-10-17 — Blafrende flamme og Gem på alle trin
+
+- Ny animation **Blafrer**: delen bliver farvet og blafrer som en flamme, mens fyret kører. Guiden foreslår den på flammen for **Kedel/fyr**.
+- I symbolguiden står **Gem** nu på alle seks trin — du kan gemme, så snart der ikke er fejl.
+- Rettet: et nyt element i Tegn kunne få id'et fra et slettet element og dermed "arve" dets gamle opsætning (fx løbelys på ekspansionsbeholderens streg). Nye elementer får nu aldrig et id, der stadig har en opsætning.
+
+## v0.68.0 — 2026-10-17 — Løbelys pr. rør i T-stykker
+
+- Et T-stykke består nu af tre rør — **Tilløbsrør 1**, **Tilløbsrør 2** og **Midterrør** (et kryds af fire) — som du kan vælge hver for sig i guiden og give hvert sit løbelys og sin retning.
+- T-stykker, der allerede står i dine tegninger, deles med **Del i rør** i Tegn (vælg T-stykket; fortrydes med Ctrl+Z).
+
+## v0.67.0 — 2026-10-17 — Løbelys følger din retning
+
+- Den retning, du sætter på løbelyset i animationen, gælder nu altid — systemet vender ikke længere et rør efter naboerne.
+- Rør, bøjninger og T-stykker synkroniseres ved de samlinger, hvor retningerne passer sammen. Kører et rør den forkerte vej, så sæt **Vend retning** på det.
+
+## v0.66.1 — 2026-10-17 — Rettet: højreklikmenuen i Tegn
+
+- Højreklikmenuen lukker nu, når du har valgt *Kopiér*, *Indsæt* osv. Før blev den stående, og det næste højreklik kunne ramme den gamle menu i stedet for tegningen — så blev det forkerte element kopieret, eller der skete ingenting.
+
+## v0.66.0 — 2026-10-17 — Nyt symbol: Varmepumpe
+
+- Symbolbiblioteket (*Rør og VVS*) har nu en **Varmepumpe**: et aggregat med ventilator, varmeveksler og driftslampe. Guiden foreslår, at ventilatoren drejer, og lampen bliver grøn, når varmepumpen kører.
+- *Erstat med symbol* foreslår varmepumpen, når den tegnede del har teksten "Varme Pumpe".
+
 ## v0.65.1 — 2026-10-17 — Rettet: rør kan strækkes i begge ender
 
 - I **Tegn** kan et lodret rør (og alle andre figurer) nu strækkes opad med det øverste midtergreb. Før flyttede grebet hele elementet, fordi drejegrebets streg lå ovenpå.

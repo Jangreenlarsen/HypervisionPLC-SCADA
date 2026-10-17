@@ -1,7 +1,8 @@
 // Sammenhængende løbelys (v0.64.0): løbelys-dele (et rør, en bøjning, et ben i et T-stykke), hvis ender rører hinanden,
 // danner et FORLØB. Langs forløbet tælles én fælles koordinat g (i tegningens enheder), og hver del får sin stiplings-
-// forskydning ud fra den — så lys og mørke fortsætter hen over samlingerne. Retningen ensrettes inden for forløbet, så et
-// rør der er tegnet "baglæns" ikke kører imod sine naboer. Rene beregninger — målingen i tegningen sker i animate.ts.
+// forskydning ud fra den — så lys og mørke fortsætter hen over samlingerne. Den INDSTILLEDE retning har forrang (v0.67.0):
+// to dele kobles kun ved en samling, hvor retningerne passer (lyset løber ind fra den ene og ud i den anden); ellers kører
+// de hver for sig. Rene beregninger — målingen i tegningen sker i animate.ts.
 
 export type Pt = [number, number];
 
@@ -14,7 +15,8 @@ export interface Piece {
   len: number;
   /** Kun dele i samme gruppe (samme tag og samme løbelys-indstillinger) kan danne forløb. */
   group: string;
-  /** Den indstillede retning langs delens tegneretning: 1 = frem, -1 = "Vend retning", 0 = fast (fx et ben i et T-stykke). */
+  /** Den indstillede retning langs delens tegneretning: 1 = frem, -1 = modsat ("Vend retning", eller et T-stykkes ben ind
+   *  mod midten); 0 = ukendt (kobles uden hensyn til retning). */
   dir: 1 | -1 | 0;
   /** Delens indstillede lyslængde og fart (tegningens enheder) — forløbet bruger den, flest dele har. */
   dash: number;
@@ -26,8 +28,6 @@ export interface Phase {
   g0: number;
   /** 1: g vokser langs delens tegneretning; -1: g falder. */
   orient: 1 | -1;
-  /** true: delen skal køre modsat sin indstilling for at følge forløbets retning. */
-  flip: boolean;
   /** Forløbets fælles lyslængde og fart (flertallet; uafgjort → den første del). */
   dash: number;
   speed: number;
@@ -37,7 +37,7 @@ const dist = (p: Pt, q: Pt) => Math.hypot(p[0] - q[0], p[1] - q[1]);
 
 /**
  * Forløb og koordinater for alle dele. `tol`: hvor tæt to ender skal være for at hænge sammen. Dele uden nabo får
- * g0 = 0 / orient 1 / flip false (som før). Rækkefølgen af `pieces` bestemmer, hvilken del der er udgangspunkt (stabilt).
+ * g0 = 0 / orient 1 (som før). Rækkefølgen af `pieces` bestemmer, hvilken del der er udgangspunkt (stabilt).
  */
 export function chainPhases(pieces: Piece[], tol: number): Map<string, Phase> {
   const out = new Map<string, Phase>();
@@ -58,7 +58,7 @@ export function chainPhases(pieces: Piece[], tol: number): Map<string, Phase> {
       for (const mine of ['a', 'b'] as const) {
         for (const theirs of ['a', 'b'] as const) {
           const d = dist(usable[i][mine], usable[j][theirs]);
-          if (d > tol) continue;
+          if (d > tol || !fits(usable[i], mine, usable[j], theirs)) continue;
           near.push({ i, mine, j, theirs, d });
           bump(`${i}${mine}`, d);
           bump(`${j}${theirs}`, d);
@@ -99,25 +99,28 @@ export function chainPhases(pieces: Piece[], tol: number): Map<string, Phase> {
         queue.push(j);
       }
     }
-    // Retning: flertallet af de indstillede retninger (målt på g) bestemmer; uafgjort → den første del med en retning
-    let vote = 0, first = 0;
-    for (const i of order) {
-      const v = usable[i].dir * orient.get(i)!;
-      vote += v;
-      if (!first && v) first = v;
-    }
-    const D = vote > 0 ? 1 : vote < 0 ? -1 : first;
     // Én lyslængde og fart i hele forløbet — ellers kan mønstret ikke fortsætte over samlingerne
     const common = majority(order.map((i) => `${usable[i].dash}|${usable[i].speed}`));
     const [dash, speed] = common.split('|').map(Number);
     for (const i of order) {
-      const o = orient.get(i)!, d = usable[i].dir;
+      const o = orient.get(i)!;
       const g0 = o === 1 ? lo.get(i)! : lo.get(i)! + usable[i].len;   // g i delens START (a)
-      out.set(usable[i].key, { g0, orient: o, flip: d !== 0 && D !== 0 && d * o !== D, dash, speed });
+      out.set(usable[i].key, { g0, orient: o, dash, speed });
     }
   }
-  for (const p of pieces) if (!out.has(p.key)) out.set(p.key, { g0: 0, orient: 1, flip: false, dash: p.dash, speed: p.speed });
+  for (const p of pieces) if (!out.has(p.key)) out.set(p.key, { g0: 0, orient: 1, dash: p.dash, speed: p.speed });
   return out;
+}
+
+/**
+ * Passer retningerne ved samlingen mellem `p`s ende `mine` og `q`s ende `theirs`? Ja, når lyset løber IND i samlingen fra
+ * den ene og UD af den i den anden. Løber begge mod samlingen (eller begge væk fra den), kører de hver for sig.
+ */
+export function fits(p: Pick<Piece, 'dir'>, mine: 'a' | 'b', q: Pick<Piece, 'dir'>, theirs: 'a' | 'b'): boolean {
+  if (!p.dir || !q.dir) return true;
+  const intoJoint = (mine === 'b') === (p.dir === 1);       // p løber mod sin ende `mine`
+  const outOfJoint = (theirs === 'a') === (q.dir === 1);    // q løber væk fra sin ende `theirs`
+  return intoJoint === outOfJoint;
 }
 
 /** Den hyppigste værdi; uafgjort → den der kom først. */

@@ -12,7 +12,7 @@
   import {
     ALARM_TXT, ANIM_TXT, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
-    ALL_OPS, allowedOps, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
+    ALL_OPS, allowedOps, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
 
@@ -109,7 +109,11 @@
     return {
       ...d, ...c, fault: c.fault ?? '', lock: { ...d.lock, ...(c.lock ?? {}) },
       signals: (c.signals ?? []).map((s: Partial<Signal> & { id: string }) => ({ ...{ tag: '', fb: '', write: 'set' as const, ms: 500, rest: null }, ...s })),
-      anims: (c.anims ?? []).map((a) => ({ ...a, src: a.src ?? '', params: a.params ?? {}, only: a.only ?? null })),
+      anims: (c.anims ?? []).map((a) => {
+        const params = a.params ?? {};
+        // Blafrer gemt med v0.69.0 (én farve) eller uden palette: altid tre farver at vælge (v0.70.0)
+        return { ...a, src: a.src ?? '', only: a.only ?? null, params: a.type === 'flicker' ? { ...params, palette: flickerPalette(params) } : params };
+      }),
       logic: (c.logic ?? []).map((b) => ({
         id: b.id, name: b.name ?? '', op: b.op ?? 'and', invert: Boolean(b.invert),
         inputs: (b.inputs ?? []).map((i) => ({ src: i.src ?? '', neg: Boolean(i.neg), cmp: i.cmp ?? '', value: i.value ?? null })),
@@ -719,9 +723,10 @@
         <button onclick={() => (step = Math.max(0, step - 1 - (!isPos && step === 3 ? 1 : 0)))} disabled={step === 0}>Tilbage</button>
         {#if step < 5}
           <button onclick={() => (step = Math.min(5, step + 1 + (!isPos && step === 1 ? 1 : 0)))}>Næste</button>
-        {:else}
-          <button class="primary" onclick={save} disabled={!canSave}>{saving ? 'Gemmer…' : group.length ? `Gem i alle ${group.length + 1}` : 'Gem'}</button>
         {/if}
+        <!-- Gem på alle trin (v0.69.0): serveren kontrollerer løbende, så der kan gemmes, så snart der ikke er fejl -->
+        <button class="primary" onclick={save} disabled={!canSave}
+          title={canSave ? '' : 'Ret fejlene først (se trinene markeret med rødt)'}>{saving ? 'Gemmer…' : group.length ? `Gem i alle ${group.length + 1}` : 'Gem'}</button>
       </footer>
     {/if}
   </div>
@@ -755,7 +760,11 @@
           <button class="small" onclick={() => (p.thresholds = [...(p.thresholds ?? []), { value: 0, color: '#b26a00' }])}>+ Grænse</button>
         {/if}
       {/if}
-    {:else if a.type === 'blink' || a.type === 'visible' || a.type === 'spin'}
+    {:else if a.type === 'blink' || a.type === 'visible' || a.type === 'spin' || a.type === 'flicker'}
+      {#if a.type === 'flicker'}
+        <span class="small muted">Skifter tilfældigt mellem:</span>
+        {#if Array.isArray(p.palette)}{#each [0, 1, 2] as i}{@render colorInput(p.palette, i, `Farve ${i + 1}`)}{/each}{/if}
+      {/if}
       {#if kind === 'pos'}
         {#each cfg.positions as pos, j}<label class="opt small"><input type="checkbox" bind:checked={p.set[j]} /> {pos.label}</label>{/each}
       {:else if kind === 'num'}

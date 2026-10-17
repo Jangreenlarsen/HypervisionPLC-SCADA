@@ -2,7 +2,7 @@
 // Forældresiden (DrawEditor.svelte) bruger `window.scada` nedenfor.
 import Editor from './Editor.js';
 import {
-  axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox,
+  axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, recenterOffset, rotationCenter, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox,
 } from './snap.js';
 import { collectColors, recolorAttrs } from './colors.js';
 import { nextFreeName, numberedNames } from './names.js';
@@ -162,13 +162,63 @@ function settleSelection(dragged) {
   rememberBoxes();
 }
 
-/** Efter et museslip: var det et træk (samme størrelse, ny placering), så fang. */
+/** Efter et museslip: var det et træk (samme størrelse, ny placering), så fang; var det en strækning, så ryd op i drejede grupper. */
 function settleAfterMouseUp() {
   const sel = selectedEls();
   const now = unionBox(sel.map(boxOf));
   const before = unionBox(sel.map((el) => lastBoxes.get(el)));
   if (sel.length && sel.every((el) => lastBoxes.has(el)) && isDrag(before, now)) settleSelection(true);
-  else rememberBoxes();
+  else {
+    const resized = before && now && (Math.abs(before.w - now.w) > 0.5 || Math.abs(before.h - now.h) > 0.5);
+    if (resized) normalizeRotatedGroups(sel);
+    rememberBoxes();
+  }
+}
+
+/**
+ * En DREJET gruppe (fx et drejet biblioteksrør), der strækkes, får af SVG-Edit stablet "translate · scale · translate" efter
+ * sin rotate — og næste strækning regnes så ud fra den ustrakte størrelse, så den vokser for meget (BUGS.md v0.65.1).
+ * Ryd op: læg strækningen ned i gruppens dele, og lad gruppen kun dreje om sin (nye) midte. Tegningen ser ens ud;
+ * oprydningen er sit eget fortryd-trin efter strækningen.
+ */
+function normalizeRotatedGroups(sel) {
+  const c = canvas();
+  const svg = c.getSvgRoot();
+  const batch = new c.history.BatchCommand('Ryd op i drejet gruppe');
+  const fmt = (m) => `matrix(${[m.a, m.b, m.c, m.d, m.e, m.f].map((v) => +v.toFixed(6)).join(' ')})`;
+  for (const g of sel) {
+    if (g.tagName !== 'g') continue;
+    const tl = g.transform?.baseVal;
+    if (!tl || tl.numberOfItems < 2) continue;
+    const first = tl.getItem(0);
+    if (first.type !== SVGTransform.SVG_TRANSFORM_ROTATE || !first.angle) continue;
+    const c0 = rotationCenter(first.matrix);
+    if (!c0) continue;
+    const angle = first.angle;
+    let M = svg.createSVGMatrix();
+    for (let i = 1; i < tl.numberOfItems; i++) M = M.multiply(tl.getItem(i).matrix);
+    const kids = [...g.children].filter((k) => !RESERVED.has(k.tagName.toLowerCase()) && k.transform);
+    const oldKids = new Map(kids.map((k) => [k, k.getAttribute('transform')]));
+    const oldG = g.getAttribute('transform');
+    const own = (k) => k.transform.baseVal.consolidate()?.matrix ?? svg.createSVGMatrix();
+    for (const k of kids) k.setAttribute('transform', fmt(M.multiply(own(k))));
+    const bb = g.getBBox();   // i gruppens egne koordinater, med delenes nye transform
+    const c1 = [bb.x + bb.width / 2, bb.y + bb.height / 2];
+    const [dx, dy] = recenterOffset(angle, c0, c1);
+    if (Math.abs(dx) > 1e-9 || Math.abs(dy) > 1e-9) {
+      const T = svg.createSVGMatrix().translate(dx, dy);
+      for (const k of kids) k.setAttribute('transform', fmt(T.multiply(own(k))));
+    }
+    const r = (v) => +v.toFixed(4);
+    g.setAttribute('transform', `rotate(${r(angle)} ${r(c1[0])} ${r(c1[1])})`);
+    batch.addSubCommand(new c.history.ChangeElementCommand(g, { transform: oldG }));
+    for (const k of kids) batch.addSubCommand(new c.history.ChangeElementCommand(k, { transform: oldKids.get(k) }));
+    c.selectorManager.requestSelector(g).resize();
+  }
+  if (!batch.isEmpty()) {
+    c.undoMgr.addCommandToHistory(batch);
+    if (changeListener) changeListener();
+  }
 }
 
 let selectionListener = null;
@@ -187,8 +237,39 @@ function whenReady() {
   });
 }
 
+/**
+ * SVG-Edits højreklikmenu lukker ikke, når et punkt vælges — den står åben, til man venstreklikker på tegningen, og et
+ * nyt højreklik oven på den gamle menu rammer menuen i stedet for tegningen (så det forkerte element kopieres, eller der
+ * sker ingenting — BUGS.md v0.66.0). Luk den, når et punkt er valgt, og ved Escape.
+ */
+function hookContextMenu() {
+  const cmenu = document.getElementById('se-cmenu_canvas');
+  if (!cmenu) return;
+  const hide = () => {
+    const dlg = cmenu.$dialog ?? cmenu.shadowRoot?.firstElementChild;
+    if (dlg) dlg.style.display = 'none';
+  };
+  // efter editorens egen håndtering af valget (den lytter på samme hændelse)
+  cmenu.addEventListener('change', () => setTimeout(hide, 0));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+  window.addEventListener('blur', hide);
+}
+
 function hookEvents() {
   const c = canvas();
+  hookContextMenu();
+  // SVG-Edits egne id'er (svg_N — tegneværktøjer, indsæt, dupliker): spring reserverede over. Dupliker henter id'et
+  // direkte fra tegningsobjektet (ikke lærredet), så det er tegningens getNextId — fælles for alle tegninger — der pakkes ind.
+  const proto = Object.getPrototypeOf(c.getCurrentDrawing());
+  if (proto && !proto.__hvReserved) {
+    const nextId = proto.getNextId;
+    proto.getNextId = function getNextIdSkippingReserved() {
+      let id = nextId.call(this);
+      for (let n = 0; reservedIds.has(id) && n < 100000; n++) id = nextId.call(this);
+      return id;
+    };
+    proto.__hvReserved = true;
+  }
   // bind() returnerer editorens egen handler — kald den først, så editoren virker uændret.
   const prevSelected = c.bind('selected', (win, elems) => {
     if (prevSelected) prevSelected(win, elems);
@@ -244,13 +325,22 @@ function currentSelection() {
   const elems = (canvas().getSelectedElements() || []).filter(Boolean);
   return elems.map((el) => ({
     id: el.id || '', tag: el.tagName.toLowerCase(), interactive: el.hasAttribute('data-hv-auto'),
+    type: el.getAttribute('data-hv-type') || '',
+    // et T-stykke/kryds fra før v0.68.0: én sti, der kan deles i rør
+    onePath: el.tagName === 'g' && [...el.children].filter((ch) => !RESERVED.has(ch.tagName.toLowerCase())).length === 1 && el.querySelector(':scope > path') !== null,
     name: el.getAttribute('data-hv-name') || '', desc: el.getAttribute('data-hv-desc') || '',
     children: [...el.children].filter((c) => !RESERVED.has(c.tagName.toLowerCase())).length,
   }));
 }
 
+/**
+ * Id'er der har en symbolopsætning eller binding på tegningen (også forsvundne) — nye elementer må ikke få dem, ellers
+ * "vågner" en gammel opsætning op på det nye element (BUGS.md v0.68.0). Sættes af Tegn, når en tegning åbnes.
+ */
+let reservedIds = new Set();
+
 function idExists(id) {
-  return !!canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`);
+  return reservedIds.has(id) || !!canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`);
 }
 
 function uniqueId(base) {
@@ -701,6 +791,49 @@ window.scada = {
   },
 
   /** Et navn der ikke er i brug: "Vippekontakt", "Vippekontakt 2", … */
+  /**
+   * Del et T-stykke eller kryds, der er tegnet som ÉN sti (fra før v0.68.0), i selvstændige rør — `legs` er bibliotekets
+   * rør (FITTING_LEGS). Gruppen beholder id, navn, type og transform; ét fortryd-trin. → { ok, removed: [gamle id'er], parts }
+   */
+  splitFitting(id, legs) {
+    const c = canvas();
+    const g = c.getSvgContent().querySelector(`[id="${CSS.escape(id)}"]`);
+    if (!g || g.tagName !== 'g') return { error: 'Vælg et T-stykke eller kryds' };
+    const old = [...g.children].filter((ch) => !RESERVED.has(ch.tagName.toLowerCase()));
+    if (old.length !== 1 || old[0].tagName !== 'path') return { error: 'Symbolet er allerede delt i rør' };
+    const node = buildSymbolNode(`<g>${legs}</g>`, g.getAttribute('data-hv-type') || 'fitting', `${g.id}_tmp`);
+    if (!node) return { error: 'Kunne ikke bygge rørene' };
+    const batch = new c.history.BatchCommand('Del i rør');
+    const removed = old.map((el) => el.id).filter(Boolean);
+    for (const el of old) {
+      const next = el.nextSibling, parent = el.parentNode;
+      el.remove();
+      batch.addSubCommand(new c.history.RemoveElementCommand(el, next, parent));
+    }
+    const parts = [];
+    for (const leg of [...node.children]) {
+      // id'er efter gruppen (ikke den midlertidige node)
+      leg.setAttribute('id', uniqueId(`${g.id}_${leg.getAttribute('data-hv-pid')}`));
+      // overtag den gamle stis farve/streg, så tegningen ser ens ud
+      for (const a of ['stroke', 'stroke-width', 'class', 'opacity']) {
+        const v = old[0].getAttribute(a);
+        if (v) leg.setAttribute(a, v);
+      }
+      g.appendChild(leg);
+      batch.addSubCommand(new c.history.InsertElementCommand(leg));
+      parts.push(leg.id);
+    }
+    c.undoMgr.addCommandToHistory(batch);
+    if (changeListener) changeListener();
+    if (selectionListener) selectionListener(currentSelection());
+    return { ok: true, removed, parts };
+  },
+
+  /** Id'er som nye elementer ikke må få (se reservedIds). */
+  setReservedIds(ids) {
+    reservedIds = new Set((ids || []).map(String));
+  },
+
   uniqueName(base) {
     return uniqueNameIn(base);
   },

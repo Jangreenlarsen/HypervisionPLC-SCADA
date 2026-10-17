@@ -4,6 +4,54 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.70.1 build 0107] — 2026-10-17 — fix: drejede biblioteksrør vokser ikke længere for meget ved anden strækning
+
+- `frontend/svgedit-host/snap.js` — `rotationCenter()` og `recenterOffset()` (rene, testet i `snap.test.ts`).
+- `frontend/svgedit-host/scada-editor.js` — `normalizeRotatedGroups()`: efter en strækning af en drejet gruppe lægges strækningen ned i delene, og gruppen drejes kun om sin nye midte (ét ekstra fortryd-trin; udseendet uændret). Se BUGS.md.
+- Data på testserveren (efter aftale med Jan): den gamle symbolopsætning på `svg_15` i "varme" (løbelys på ekspansionsbeholderens streg) er fjernet.
+
+## [0.70.0 build 0106] — 2026-10-17 — Blafrer: hele flammen skifter tilfældigt mellem tre farver
+
+- `backend/app/services/symbols.py` — `AFlicker.palette` (1–3 farver, standard rød/orange/gul); gemt med v0.69.0 (`color`, ingen palette) → den farve først.
+- `frontend/src/lib/symbolConfig.ts` — `FLICKER_PALETTE`, `flickerPalette()`; guidens standard.
+- `frontend/src/lib/animate.ts` — én fælles timer (160 ms) skifter fyldfarven tilfældigt for alle blafrende dele (`nextFlickerColor()`: aldrig samme farve to gange i træk); stoppes, når den sidste flamme slukkes; ingen skift ved "reducer bevægelse". `app.css`: blød overgang mellem farverne.
+- `frontend/src/lib/SymbolGuide.svelte` — "Skifter tilfældigt mellem: Farve 1–3"; ældre opsætninger normaliseres ved indlæsning.
+- Tests: `test_symbols.py`, `animate.test.ts` (falske timere: alle tre farver, aldrig samme to gange, stop ved sluk), `libraryDefaults.test.ts`. **Set i browseren** lokalt: guiden viser tre farver; i Overview skiftede flammens farve ved alle 11 målinger og blafrede; en opsætning fra v0.69.0 åbner med sin farve først.
+
+## [0.69.0 build 0105] — 2026-10-17 — Blafrende flamme, Gem på alle trin, id'er genbruges ikke
+
+- **Animation "Blafrer"** (`flicker`): `backend/app/services/symbols.py` (`AFlicker`: farve + til/fra/≥/pr. position; navn og pr.-position-felt), `frontend/src/lib/symbolConfig.ts` (type, standard, guidens forslag for Kedel/fyr), `SymbolGuide.svelte` (felt "Flammefarve"), `animate.ts` (`flicker()`: inline-fyld + klassen `hv-flicker`), `app.css` (keyframes: skalerer blødt fra bunden, hælder lidt; slået fra ved "reducer bevægelse"). Biblioteket: Kedel/fyr-hint.
+- **Gem på alle trin** i symbolguiden (`SymbolGuide.svelte`): Gem/"Gem i alle N" står ved siden af Næste og er aktiv, så snart opsætningen er uden fejl.
+- **Id'er med opsætning/binding genbruges ikke** (se BUGS.md): `SymbolService.used_ids()` + `GET /api/drawings/{id}/used-ids`; værten `setReservedIds()`, `idExists()` og tegningsobjektets `getNextId` springer dem over; Tegn henter listen ved åbning og efter guide/indsæt.
+- Tests: `test_symbols.py` (Blafrer), `test_symbol_copy.py` (used-ids), `animate.test.ts`, `libraryDefaults.test.ts`. **Set i browseren** lokalt: Kedel indsat → guiden foreslår Blafrer på flammen, Gem på trin 1 (inaktiv uden tag) og på trin 4 (gemt derfra); Overview: flammen orange med skiftende transform; id-test som i BUGS.md.
+
+## [0.68.0 build 0104] — 2026-10-17 — T-stykke og kryds består af rør (eget løbelys pr. rør)
+
+- `frontend/src/lib/symbols.ts` — `FITTING_LEGS`: T-stykket er *Tilløbsrør 1* (`tilloeb1`), *Tilløbsrør 2* (`tilloeb2`) og *Midterrør* (`midte`, starter ved gennemløbets kant); krydset er *Rør 1–4*. Tegneretning: ind fra venstre, ud til højre og op/ned.
+- `frontend/src/lib/symbolConfig.ts` — danske navne på rørene (`PART_LABEL`).
+- `frontend/svgedit-host/scada-editor.js` — `splitFitting(id, legs)`: deler et T-stykke/kryds tegnet som én sti i rør (beholder id, navn, type, transform og den gamle stis farve/streg; ét fortryd-trin); markeringen fortæller `type` og `onePath`.
+- `frontend/src/pages/DrawEditor.svelte` — knappen *Del i rør* for et T-stykke/kryds med én sti; advarer, hvis opsætningen har animationer på den gamle sti.
+- Manual (04, 05, 07). Tests: `symbols.test.ts`. **Set i browseren** lokalt: et T-stykke som i "varme" (én relativ sti, lyserød) → *Del i rør* → tre rør med navne og samme farve; Ctrl+Z/Ctrl+Y; guiden tilbyder Hele symbolet, Tilløbsrør 1, Tilløbsrør 2, Midterrør; Overview med løbelys pr. rør (gennemløbet synkroniseret, midterrøret efter sin egen retning).
+
+## [0.67.0 build 0103] — 2026-10-17 — Løbelys: den indstillede retning har forrang
+
+- `frontend/src/lib/flowChain.ts` — ingen automatisk vending efter flertallet (feltet `flip` er fjernet); `fits()`: to ender kobles kun, når lyset løber ind i samlingen fra den ene del og ud i den anden. Synkroniseringen (fælles koordinat, flertallets lyslængde/fart) er uændret for de dele, der kobles.
+- `frontend/src/lib/animate.ts` — hver lysstreg kører i den indstillede retning; et T-stykkes ben får retningen fra "ud fra/ind mod midten".
+- `frontend/src/manual/05-bindinger-og-animationer.md` — afsnittet om løbelys over flere rør.
+- Tests: `flowChain.test.ts`. **Set i browseren** lokalt: forløb med et lodret rør tegnet nedefra — uden *Vend retning* kører det modsat ved sine to samlinger (som indstillet) og synkroniseres ikke dér; med *Vend retning* passer alle fire samlinger og er synkroniserede.
+
+## [0.66.1 build 0102] — 2026-10-17 — fix: højreklikmenuen i Tegn lukker efter et valg
+
+- `frontend/svgedit-host/scada-editor.js` — `hookContextMenu()`: SVG-Edits højreklikmenu lukkes, når et punkt er valgt (efter editorens egen håndtering), ved Escape og når vinduet mister fokus. Før stod den åben, og et nyt højreklik oven på den ramte menuen i stedet for tegningen. **Set i browseren** (Chrome og Firefox): 6 runder kopiér/indsæt via menuen på rør, bøjning og rektangel — alle rigtige. Se BUGS.md.
+
+## [0.66.0 build 0101] — 2026-10-17 — Symbol: Varmepumpe
+
+- `frontend/src/lib/symbols.ts` — `varmepumpe` (Rør og VVS): aggregat med ventilator (delen `rotor`, tegnet om sit eget centrum uden transform, så "Roterer" drejer den på stedet), varmeveksler-slynge, "VP" og driftslampe (delen `lampe`).
+- `frontend/src/lib/symbolConfig.ts` — betjening: start/stop (som pumpe og ventilator); guidens forslag: rotoren drejer og lampen bliver grøn ved drift (tagget vælges i trin 4).
+- `frontend/src/lib/symbolSuggest.ts` — "Erstat med symbol": en tegnet del med teksten "varmepumpe"/"varme pumpe" foreslår varmepumpen først.
+- `frontend/src/manual/07-symbolbibliotek.md` — genereret med varmepumpen.
+- Tests: `libraryDefaults.test.ts`, `symbolSuggest.test.ts`. **Set i browseren** lokalt: paletten (søg "varme"), indsat i Tegn med delene rotor og lampe, og i Overview med drift tændt: rotoren drejer (`hv-spin`), lampen grøn.
+
 ## [0.65.1 build 0100] — 2026-10-17 — fix: det øverste midtergreb strækker i stedet for at flytte
 
 - `frontend/svgedit-host/scada-editor.css` — `#selectorGrip_rotateconnector { pointer-events: none; }`: drejegrebets forbindelsesstreg lå oven på det øverste midtergreb, så et træk dér flyttede elementet. Test i `svgeditPatch.test.ts`. **Set i browseren** (Chrome og Firefox) på rør som i "varme": vandret sti, lodret sti (bredde 0), skaleret sti og drejet biblioteksrør kan nu strækkes i begge ender. Se BUGS.md (også en åben post om drejede rør).

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CATEGORIES, PIPE_IDS, PIPE_PREVIEW, previewViewBox, selectorAngles, selectorSymbol, SYMBOLS, withName } from './symbols';
+import { PART_LABEL } from './symbolConfig';
+import { CATEGORIES, FITTING_LEGS, PIPE_IDS, PIPE_PREVIEW, previewViewBox, selectorAngles, selectorSymbol, SYMBOLS, withName } from './symbols';
 
 const parse = (fragment: string) =>
   new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${fragment}</svg>`, 'image/svg+xml');
@@ -114,7 +115,7 @@ describe('rør og fittings (v0.28.1)', () => {
   });
   it('alle ben på bøjninger, T-stykke og kryds er 45 lange målt fra knæk-/midtpunktet (45,45)', () => {
     const ends = (id: string): number[][] => {
-      const d = SYMBOLS.find((s) => s.id === id)!.svg.match(/ d="([^"]+)"/)![1];
+      const d = [...SYMBOLS.find((s) => s.id === id)!.svg.matchAll(/ d="([^"]+)"/g)].map((m) => m[1]).join(' ');
       // hver delsti: startpunktet og slutpunktet (H/V/L/A-kommandoernes sidste koordinat)
       return d.split('M').filter(Boolean).flatMap((sub) => {
         let x = 0, y = 0; const pts: number[][] = [];
@@ -131,7 +132,8 @@ describe('rør og fittings (v0.28.1)', () => {
       });
     };
     for (const id of ['boejning90', 'boejning45', 't_stykke', 'kryds']) {
-      const legs = ends(id).map(([x, y]) => Math.hypot(x - 45, y - 45)).filter((l) => l > 1); // midtpunkter (l = 0) tæller ikke
+      // midtpunktet og rørenes start ved gennemløbets kant (højst en halv rørbredde fra midten) tæller ikke
+      const legs = ends(id).map(([x, y]) => Math.hypot(x - 45, y - 45)).filter((l) => l > 5.5);
       for (const l of legs) expect(l, id).toBeCloseTo(45, 1);
     }
   });
@@ -145,3 +147,18 @@ describe('rør og fittings (v0.28.1)', () => {
     for (const id of ['roer_v', 'roer_l']) expect(SYMBOLS.find((s) => s.id === id)!.svg, id).toMatch(/(height|width)="10"/);
   });
 });
+
+describe('T-stykke og kryds består af rør (v0.68.0)', () => {
+  const ids = (id: string) => [...SYMBOLS.find((s) => s.id === id)!.svg.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+  it('hvert rør er sin egen del med et dansk navn', () => {
+    expect(ids('t_stykke')).toEqual(['tilloeb1', 'tilloeb2', 'midte']);
+    expect(ids('kryds')).toEqual(['roer1', 'roer2', 'roer3', 'roer4']);
+    for (const pid of [...ids('t_stykke'), ...ids('kryds')]) expect(PART_LABEL[pid], pid).toBeTruthy();
+    expect(PART_LABEL.midte).toBe('Midterrør');
+  });
+  it('midterrøret starter ved gennemløbets kant, ikke i midten', () => {
+    expect(FITTING_LEGS.t_stykke).toContain('d="M45 40 V0"');
+    expect(FITTING_LEGS.kryds).toContain('d="M45 50 V90"');
+  });
+});
+

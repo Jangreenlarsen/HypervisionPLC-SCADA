@@ -87,7 +87,7 @@ export interface TagMeta {
 export interface Binding {
   element: string;
   tag: string;
-  anim: 'text' | 'fill' | 'stroke' | 'visible' | 'blink' | 'level' | 'rotate' | 'opacity' | 'move' | 'flow' | 'spin'
+  anim: 'text' | 'fill' | 'stroke' | 'visible' | 'blink' | 'level' | 'rotate' | 'opacity' | 'move' | 'flow' | 'spin' | 'flicker'
     | 'click:write' | 'click:toggle' | 'click:pulse' | 'click:select' | 'click:goto';
   params: Record<string, any>;
   source?: 'explicit' | 'auto' | 'symbol';

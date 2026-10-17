@@ -11,14 +11,14 @@
   import { configGroups, pasteReport, pasteTargets, type ConfigClip, type ConfigGroup, type CopyResponse, type Member, type SymbolRow } from '../lib/symbolCopy';
   import type { SymbolConfig, SymbolInfo } from '../lib/symbolConfig';
   import type { SelectionInfo } from '../lib/symbolSuggest';
-  import { CATEGORIES, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
+  import { CATEGORIES, FITTING_LEGS, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
 
   let { route = 'draw' }: { route?: string } = $props();
 
   interface Version { version: number; comment: string; created_at: number }
   interface Detail { id: string; name: string; active_version: number; versions: Version[] }
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[] }
-  interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string; children?: number }
+  interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string; children?: number; type?: string; onePath?: boolean }
   interface ScadaApi {
     build?: string;
     ready: Promise<void>;
@@ -39,6 +39,8 @@
     selectionColors(): { color: string; uses: number }[];
     recolorSelection(from: string, to: string): number;
     nameElements(ids: string[], base: string): Record<string, string>;
+    setReservedIds(ids: string[]): void;
+    splitFitting(id: string, legs: string): { ok?: boolean; removed?: string[]; parts?: string[]; error?: string };
   }
 
   let drawings = $state<{ id: string; name: string }[]>([]);
@@ -116,6 +118,7 @@
   async function startNew(force = false): Promise<void> {
     if (!ed || (!force && !(await confirmDiscard()))) return;
     ed.newDrawing(1200, 700);
+    ed.setReservedIds([]);
     current = null;
     loadedVersion = null;
     newName = '';
@@ -138,6 +141,7 @@
       current = detail;
       loadedVersion = v;
       dirty = false;
+      await refreshReservedIds();
       history.replaceState(null, '', `#draw/${id}`);
     } catch (e) {
       error = (e as Error).message;
@@ -160,6 +164,20 @@
       return;
     }
     guideFor = { id: sel.id, name: sel.name };
+  }
+
+  /**
+   * Id'er med opsætning eller binding på tegningen (også forsvundne) må ikke gives til nye elementer — ellers "vågner" en
+   * gammel opsætning op på dem (BUGS.md v0.68.0). Hentes når tegningen åbnes, og når opsætninger ændres.
+   */
+  async function refreshReservedIds(): Promise<void> {
+    if (!ed || !current) return;
+    try {
+      ed.setReservedIds(await get<string[]>(`/api/drawings/${encodeURIComponent(current.id)}/used-ids`));
+    } catch (e) {
+      // uden listen kan et id blive genbrugt — sig det, men lad tegningen kunne bruges
+      error = `Kunne ikke hente tegningens brugte id'er (nye elementer kan arve en gammel opsætning): ${(e as Error).message}`;
+    }
   }
 
   /** Symbolopsætninger hører til tegningens AKTIVE version: gem og udgiv først, hvis tegningen er ny, ændret eller en kladde. → klar? */
@@ -302,6 +320,7 @@
       if (taken.length && !await askUser(`${taken.length === 1 ? `"${nameOf(taken[0])}" har` : `${taken.length} af de valgte har`} allerede en opsætning. Overskriv med opsætningen fra "${src.name}"?`)) return;
       const res = await post<CopyResponse>(`${base}/symbols/${encodeURIComponent(src.element)}/copy`, { targets, overwrite: taken.length > 0 });
       const rep = pasteReport(res, src.name, nameOf);
+      await refreshReservedIds();
       const newNames = Object.values(named);
       info = rep.info
         + (newNames.length ? ` Nye navne: ${newNames.length <= 4 ? newNames.join(', ') : `${newNames[0]} … ${newNames[newNames.length - 1]}`}.` : '')
@@ -321,6 +340,29 @@
     error = info = '';
     const n = ed.recolorSelection(from, to);
     if (!n) error = `Farven ${from} findes ikke længere i markeringen`;
+  }
+
+  // ---- Del et T-stykke/kryds (én sti, fra før v0.68.0) i rør, så hvert rør kan få sit eget løbelys
+  async function splitFitting(): Promise<void> {
+    const sel = selection.length === 1 ? selection[0] : null;
+    const legs = sel?.type ? FITTING_LEGS[sel.type] : undefined;
+    if (!ed || !sel || !legs) return;
+    error = info = '';
+    // en opsætning med animationer på den gamle sti mister dem (stien findes ikke mere) — sig det først
+    let lost = 0;
+    if (current && sel.name) {
+      try {
+        const r = await get<{ config: { anims?: { part: string }[] } | null }>(`/api/drawings/${encodeURIComponent(current.id)}/symbols/${encodeURIComponent(sel.id)}/config`);
+        lost = (r.config?.anims ?? []).filter((a) => a.part !== 'all').length;
+      } catch {
+        // symbolet findes ikke i den udgivne version endnu (ingen opsætning at miste)
+      }
+    }
+    const warn = lost ? `\n\n${lost} animation${lost === 1 ? '' : 'er'} på den gamle sti skal vælges igen på et af rørene i guiden (animationer på hele symbolet virker som før).` : '';
+    if (!(await askUser(`Del "${sel.name || sel.id}" i ${sel.type === 'kryds' ? 'fire' : 'tre'} rør, så hvert rør kan få sit eget løbelys?${warn}`, { ok: 'Del i rør' }))) return;
+    const r = ed.splitFitting(sel.id, legs);
+    if (r.error) error = r.error;
+    else info = `"${sel.name || sel.id}" er delt i ${r.parts?.length} rør. Gem tegningen, og sæt løbelys på hvert rør i guiden.`;
   }
 
   // ---- Erstat med symbol (tegnet del → bibliotekssymbol)
@@ -616,6 +658,9 @@
           <p class="small notice">Denne gruppe har {single.children} dele. Opløs den for at vælge delene enkeltvis, så de kan erstattes med symboler.</p>
           <div class="row"><button onclick={ungroup} disabled={!ready}>Opløs gruppen</button></div>
         {/if}
+        {#if single.onePath && single.type && FITTING_LEGS[single.type]}
+          <div class="row"><button onclick={() => guarded('Del i rør', splitFitting)} disabled={!ready || busy} title="Del T-stykket/krydset i selvstændige rør, så hvert rør kan få sit eget løbelys">Del i rør</button></div>
+        {/if}
         <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat den tegnede del med et symbol fra biblioteket (samme placering, størrelse og drejning)">Erstat med symbol …</button></div>
         {@render colorRow()}
         <details class="adv">
@@ -705,13 +750,13 @@
   {@const gf = groupFor}
   <SymbolGuide drawingId={current.id} element={gf.basis.id} name={gf.basis.name} {tags} group={gf.others}
     onclose={() => (groupFor = null)}
-    onsaved={() => { info = `${gf.others.length + 1} symboler er opsat ud fra "${gf.basis.name}".`; groupFor = null; }} />
+    onsaved={() => { info = `${gf.others.length + 1} symboler er opsat ud fra "${gf.basis.name}".`; groupFor = null; refreshReservedIds(); }} />
 {/if}
 
 {#if guideFor && current}
   <SymbolGuide drawingId={current.id} element={guideFor.id} name={guideFor.name} {tags}
     onclose={() => (guideFor = null)}
-    onsaved={() => { info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`; guideFor = null; }} />
+    onsaved={() => { info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`; guideFor = null; refreshReservedIds(); }} />
 {/if}
 
 <style>

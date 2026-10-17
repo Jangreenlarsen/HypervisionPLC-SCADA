@@ -3,7 +3,7 @@
 // Valideringen er serverens (POST …/preview) — her er kun struktur og forslag.
 
 export type Op = 'positions' | 'pulse' | 'entry' | 'view';
-export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow';
+export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow' | 'flicker';
 export type SrcKind = 'pos' | 'bool' | 'num';
 
 export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null }
@@ -24,13 +24,21 @@ export interface PartInfo { tag: string; line: boolean; pid?: string | null }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }
 
 export const POS = '@pos';
+/** Blafrer: standardfarverne (rød, orange, gul), som flammen skifter tilfældigt imellem (v0.70.0). */
+export const FLICKER_PALETTE = ['#ff3b00', '#ff8c1a', '#ffd21a'];
+/** Paletten for en Blafrer-animation: altid tre farver — fra `palette`, ellers fra v0.69.0's ene `color`, ellers standard. */
+export function flickerPalette(p: Record<string, any>): string[] {
+  const given: string[] = Array.isArray(p.palette) ? p.palette.filter((c: unknown) => typeof c === 'string' && c) : [];
+  const first = given.length ? given : typeof p.color === 'string' && p.color ? [p.color] : [];
+  return [0, 1, 2].map((i) => first[i] ?? (first.length && i > 0 ? FLICKER_PALETTE[i] : FLICKER_PALETTE[i]));
+}
 export const MAX_POSITIONS = 8, MAX_PLANES = 8, MAX_ANIMS = 12, MAX_LOGIC = 8, MAX_LOGIC_INPUTS = 4;
 
 export const STEPS = ['Symbol', 'Signaler', 'Kontakter', 'Visning', 'Betjening', 'Test og gem'];
 export const OP_TXT: Record<Op, string> = { view: 'Kun visning', positions: 'Positioner', pulse: 'Trykknap (puls)', entry: 'Setpunkt (indtastning)' };
 export const ALARM_TXT: Record<string, string> = { '': 'Nej', low: 'Ja — lav', medium: 'Ja — medium', high: 'Ja — høj' };
 export const ANIM_TXT: Record<AnimType, string> = {
-  fill: 'Farve', stroke: 'Stregfarve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', level: 'Niveau',
+  fill: 'Farve', stroke: 'Stregfarve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', flicker: 'Blafrer', level: 'Niveau',
   opacity: 'Gennemsigtighed', text: 'Værdi', rotate: 'Drej', move: 'Flyt', flow: 'Løbelys',
 };
 export const BLINK_TXT: Record<string, string> = { slow: 'Langsom (0,5 Hz)', normal: 'Normal (1 Hz)', fast: 'Hurtig (2 Hz)' };
@@ -40,6 +48,7 @@ export const PART_LABEL: Record<string, string> = {
   greb: 'Greb', vippe: 'Vippe', spor: 'Spor', flade: 'Knap', tekst: 'Tekst', vaerdi: 'Værdi', status: 'Status',
   felt: 'Felt', port_a: 'Port A', port_b: 'Port B', port_ab: 'Port AB', motor: 'Motor',
   lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive',
+  tilloeb1: 'Tilløbsrør 1', tilloeb2: 'Tilløbsrør 2', midte: 'Midterrør', roer1: 'Rør 1', roer2: 'Rør 2', roer3: 'Rør 3', roer4: 'Rør 4',
 };
 
 export function partLabel(id: string, info: SymbolInfo | null): string {
@@ -69,6 +78,21 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
       if (part) cfg.anims.push({ part, type: 'fill', src: POS, params: { colors: cols }, only: null });
     }
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: to positioner (AB → A og AB → B) med farver pr. port. Vælg tag under trin 2.' };
+  }
+  if (symbol.type === 'kedel') {
+    // Brænderdrift: flammen farves og blafrer (tagget vælges i trin 4)
+    const flamme = partOf('flamme');
+    if (!flamme) return null;
+    cfg.anims.push({ part: flamme, type: 'flicker', src: '', params: animDefaults('flicker', 'bool', 0), only: null });
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: flammen bliver orange og blafrer, når brænderen kører. Vælg drifts-tagget under trin 4.' };
+  }
+  if (symbol.type === 'varmepumpe') {
+    // Drift: rotoren drejer og lampen bliver grøn — begge fra samme drifts-tag (vælges i trin 4)
+    const rotor = partOf('rotor'), lampe = partOf('lampe');
+    if (rotor) cfg.anims.push({ part: rotor, type: 'spin', src: '', params: animDefaults('spin', 'bool', 0), only: null });
+    if (lampe) cfg.anims.push({ part: lampe, type: 'fill', src: '', params: animDefaults('fill', 'bool', 0), only: null });
+    if (!cfg.anims.length) return null;
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: rotoren drejer og lampen bliver grøn, når varmepumpen kører. Vælg drifts-tagget for begge under trin 4.' };
   }
   if (symbol.type === 'statusfelt') {
     const part = partOf('felt');
@@ -122,6 +146,7 @@ const OPS_BY_TYPE: Record<string, Op[]> = {
   statusfelt: VIEW, lampe: VIEW, signallampe: VIEW, vaerdi: VIEW, tank: VIEW, manometer: VIEW, termometer: VIEW,
   roer_v: VIEW, roer_l: VIEW, boejning90: VIEW, boejning45: VIEW, t_stykke: VIEW, kryds: VIEW, reduktion: VIEW, prop: VIEW,
   flange: VIEW, flowpil: VIEW, filter: VIEW, ekspansion: VIEW, radiator: VIEW, varmeveksler: VIEW, kedel: VIEW,
+  varmepumpe: SWITCH,
   ledning_v: VIEW, ledning_l: VIEW, forbindelse: VIEW, klemme: VIEW, sikring: VIEW, automatsikring: VIEW, jord: VIEW,
   modstand: VIEW, transformer: VIEW, stroemforsyning: VIEW, foeler: VIEW, plc: VIEW, motor3: VIEW, motorvaern: VIEW,
   solpanel: VIEW, solstreng: VIEW, sol: VIEW, inverter: VIEW, hybridinverter: VIEW, mppt: VIEW, batteri: VIEW, batteribank: VIEW,
@@ -222,7 +247,7 @@ export function evalLogic(
 
 /** Hvilke animationer en del kan have — efter delens geometri (samme regel som serveren). */
 export function typesFor(part: PartInfo | undefined): AnimType[] {
-  const t: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'rotate', 'move', 'opacity'];
+  const t: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'rotate', 'move', 'opacity'];
   if (part?.tag === 'rect') t.push('level');
   if (part?.tag === 'text' || part?.tag === 'tspan') t.push('text');
   if (part?.line) t.push('flow');
@@ -240,8 +265,10 @@ export function animDefaults(type: AnimType, kind: SrcKind, n: number): Record<s
       return { off: '#9e9e9e', thresholds: [{ value: 50, color: '#b26a00' }, { value: 80, color: '#c62828' }] };
     case 'blink':
     case 'visible':
-    case 'spin': {
+    case 'spin':
+    case 'flicker': {
       const base = kind === 'pos' ? { set: Array.from({ length: n }, (_, j) => j > 0) } : kind === 'num' ? { at_least: 50 } : { invert: false };
+      if (type === 'flicker') return { ...base, palette: [...FLICKER_PALETTE] };
       return type === 'blink' ? { ...base, speed: 'normal' } : base;
     }
     case 'level':

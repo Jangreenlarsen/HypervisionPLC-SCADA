@@ -1,7 +1,7 @@
 <!-- GENERERET af src/lib/manualGen.test.ts ud fra symbolbiblioteket — ret ikke i hånden; kør GEN_MANUAL=1 npx vitest run src/lib/manualGen.test.ts -->
 # Symbolbiblioteket
 
-Biblioteket har **85 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
+Biblioteket har **86 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
 
 ## Betjening (skriver til PLC)
 
@@ -36,8 +36,8 @@ Biblioteket har **85 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og
 | **Rør (lodret)** | Kun visning | Træk i enderne for at forlænge |
 | **Bøjning 90°** | Kun visning | Rotér/spejl i Tegn for at vende den |
 | **Bøjning 45°** | Kun visning | Rotér/spejl i Tegn for at vende den |
-| **T-stykke** | Kun visning | Rotér i Tegn for at vende afgreningen |
-| **Kryds** | Kun visning | Fire rør mødes |
+| **T-stykke** | Kun visning | Rotér i Tegn for at vende afgreningen. Hvert rør kan få sit eget løbelys |
+| **Kryds** | Kun visning | Fire rør mødes. Hvert rør kan få sit eget løbelys |
 | **Reduktion** | Kun visning | Overgang fra stort til lille rør |
 | **Prop/endedæksel** | Kun visning | Afslutning af et rør |
 | **Flangesamling** | Kun visning | Samling mellem to rør |
@@ -56,7 +56,8 @@ Biblioteket har **85 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og
 | **Ekspansionsbeholder** | Kun visning | Bind "Tekst" (tryk) i et værdifelt ved siden af |
 | **Radiator** | Kun visning | Bind "Fyldfarve" til varme til/fra |
 | **Ventilator/blæser** | Kun visning, Positioner, Trykknap (puls) | Bind "Fyldfarve" til drift, evt. "Rotation" på rotoren |
-| **Kedel/fyr** | Kun visning | Bind "Fyldfarve" på flammen til brænderdrift |
+| **Kedel/fyr** | Kun visning | Sæt "Blafrer" (eller "Farve") på flammen til brænderdrift |
+| **Varmepumpe** | Kun visning, Positioner, Trykknap (puls) | Bind "Roterer" på rotoren og "Fyldfarve" på lampen til drift |
 | **Temperatur (TT)** | Kun visning, Positioner, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
 | **Tryk (PT)** | Kun visning, Positioner, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
 | **Flow (FT)** | Kun visning, Positioner, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
