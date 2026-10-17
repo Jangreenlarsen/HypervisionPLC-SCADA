@@ -2,6 +2,10 @@
 
 ---
 
+## v0.70.1 — 2026-10-17 — Rettet: drejede rør i Tegn
+
+- Et drejet rør (fx et lodret rør lavet ved at dreje et vandret) følger nu musen, hver gang du strækker det. Før voksede det for meget anden gang.
+
 ## v0.70.0 — 2026-10-17 — Flammen skifter farve
 
 - **Blafrer** farver nu hele flammen og skifter tilfældigt mellem **tre farver**, du vælger (standard rød, orange og gul), mens den blafrer.

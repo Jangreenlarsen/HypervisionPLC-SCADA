@@ -2,7 +2,7 @@
 // Forældresiden (DrawEditor.svelte) bruger `window.scada` nedenfor.
 import Editor from './Editor.js';
 import {
-  axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox,
+  axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, recenterOffset, rotationCenter, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox,
 } from './snap.js';
 import { collectColors, recolorAttrs } from './colors.js';
 import { nextFreeName, numberedNames } from './names.js';
@@ -162,13 +162,63 @@ function settleSelection(dragged) {
   rememberBoxes();
 }
 
-/** Efter et museslip: var det et træk (samme størrelse, ny placering), så fang. */
+/** Efter et museslip: var det et træk (samme størrelse, ny placering), så fang; var det en strækning, så ryd op i drejede grupper. */
 function settleAfterMouseUp() {
   const sel = selectedEls();
   const now = unionBox(sel.map(boxOf));
   const before = unionBox(sel.map((el) => lastBoxes.get(el)));
   if (sel.length && sel.every((el) => lastBoxes.has(el)) && isDrag(before, now)) settleSelection(true);
-  else rememberBoxes();
+  else {
+    const resized = before && now && (Math.abs(before.w - now.w) > 0.5 || Math.abs(before.h - now.h) > 0.5);
+    if (resized) normalizeRotatedGroups(sel);
+    rememberBoxes();
+  }
+}
+
+/**
+ * En DREJET gruppe (fx et drejet biblioteksrør), der strækkes, får af SVG-Edit stablet "translate · scale · translate" efter
+ * sin rotate — og næste strækning regnes så ud fra den ustrakte størrelse, så den vokser for meget (BUGS.md v0.65.1).
+ * Ryd op: læg strækningen ned i gruppens dele, og lad gruppen kun dreje om sin (nye) midte. Tegningen ser ens ud;
+ * oprydningen er sit eget fortryd-trin efter strækningen.
+ */
+function normalizeRotatedGroups(sel) {
+  const c = canvas();
+  const svg = c.getSvgRoot();
+  const batch = new c.history.BatchCommand('Ryd op i drejet gruppe');
+  const fmt = (m) => `matrix(${[m.a, m.b, m.c, m.d, m.e, m.f].map((v) => +v.toFixed(6)).join(' ')})`;
+  for (const g of sel) {
+    if (g.tagName !== 'g') continue;
+    const tl = g.transform?.baseVal;
+    if (!tl || tl.numberOfItems < 2) continue;
+    const first = tl.getItem(0);
+    if (first.type !== SVGTransform.SVG_TRANSFORM_ROTATE || !first.angle) continue;
+    const c0 = rotationCenter(first.matrix);
+    if (!c0) continue;
+    const angle = first.angle;
+    let M = svg.createSVGMatrix();
+    for (let i = 1; i < tl.numberOfItems; i++) M = M.multiply(tl.getItem(i).matrix);
+    const kids = [...g.children].filter((k) => !RESERVED.has(k.tagName.toLowerCase()) && k.transform);
+    const oldKids = new Map(kids.map((k) => [k, k.getAttribute('transform')]));
+    const oldG = g.getAttribute('transform');
+    const own = (k) => k.transform.baseVal.consolidate()?.matrix ?? svg.createSVGMatrix();
+    for (const k of kids) k.setAttribute('transform', fmt(M.multiply(own(k))));
+    const bb = g.getBBox();   // i gruppens egne koordinater, med delenes nye transform
+    const c1 = [bb.x + bb.width / 2, bb.y + bb.height / 2];
+    const [dx, dy] = recenterOffset(angle, c0, c1);
+    if (Math.abs(dx) > 1e-9 || Math.abs(dy) > 1e-9) {
+      const T = svg.createSVGMatrix().translate(dx, dy);
+      for (const k of kids) k.setAttribute('transform', fmt(T.multiply(own(k))));
+    }
+    const r = (v) => +v.toFixed(4);
+    g.setAttribute('transform', `rotate(${r(angle)} ${r(c1[0])} ${r(c1[1])})`);
+    batch.addSubCommand(new c.history.ChangeElementCommand(g, { transform: oldG }));
+    for (const k of kids) batch.addSubCommand(new c.history.ChangeElementCommand(k, { transform: oldKids.get(k) }));
+    c.selectorManager.requestSelector(g).resize();
+  }
+  if (!batch.isEmpty()) {
+    c.undoMgr.addCommandToHistory(batch);
+    if (changeListener) changeListener();
+  }
 }
 
 let selectionListener = null;

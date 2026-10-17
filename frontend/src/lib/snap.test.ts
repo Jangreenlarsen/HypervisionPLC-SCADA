@@ -163,3 +163,33 @@ describe('ventilens akse (to trekanter)', () => {
     expect(turnAxis(0, 90)).toBe(90);
   });
 });
+
+describe('drejede grupper efter en strækning (v0.70.1)', async () => {
+  // @ts-expect-error — ren JS-fil i værtsmappen til SVG-Edit (ingen typer)
+  const { rotationCenter, recenterOffset } = await import('../../svgedit-host/snap.js');
+  const rot = (a: number, cx: number, cy: number) => {
+    const t = (a * Math.PI) / 180, c = Math.cos(t), s = Math.sin(t);
+    return { a: c, b: s, c: -s, d: c, e: cx - c * cx + s * cy, f: cy - s * cx - c * cy };
+  };
+  const apply = (m: { a: number; b: number; c: number; d: number; e: number; f: number }, [x, y]: number[]) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f];
+  it('midtpunktet aflæses af rotate-matricen; 0° har intet', () => {
+    for (const [a, cx, cy] of [[90, 845, 405], [45, 10, -3], [-30, 0, 0], [180, 12.5, 7]]) {
+      const c = rotationCenter(rot(a, cx, cy))!;
+      expect(c[0]).toBeCloseTo(cx, 6);
+      expect(c[1]).toBeCloseTo(cy, 6);
+    }
+    expect(rotationCenter(rot(0, 5, 5))).toBeNull();
+  });
+  it('rotate(a, ny midte) · translate(d) tegner som rotate(a, gammel midte)', () => {
+    for (const a of [90, 37, -120]) {
+      const c0 = [845, 405], c1 = [880, 405];
+      const d = recenterOffset(a, c0, c1);
+      for (const p of [[800, 400], [890, 410], [-5, 1000]]) {
+        const want = apply(rot(a, c0[0], c0[1]), p);
+        const got = apply(rot(a, c1[0], c1[1]), [p[0] + d[0], p[1] + d[1]]);
+        expect(got[0]).toBeCloseTo(want[0], 6);
+        expect(got[1]).toBeCloseTo(want[1], 6);
+      }
+    }
+  });
+});

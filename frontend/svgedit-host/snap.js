@@ -189,3 +189,23 @@ export function turnAxis(target, native = 0) {
   if (d > 90) d -= 180;                                // (−90, 90]
   return d;
 }
+
+// ---------------------------------------------------------------- Drejede grupper efter en strækning (v0.70.1)
+/** Midtpunktet (cx, cy) i en rotate(a cx cy)-matrix: løs (I − R)·c = (e, f). null for 0° (intet midtpunkt). */
+export function rotationCenter(m) {
+  const p = 1 - m.a, s = m.b;   // R = [[cos, −sin], [sin, cos]] ⇒ a = cos, b = sin
+  const det = p * p + s * s;
+  if (det < 1e-12) return null;
+  return [(p * m.e - s * m.f) / det, (s * m.e + p * m.f) / det];
+}
+
+/**
+ * Forskydning d, så rotate(a, c1) · translate(d) tegner præcis som rotate(a, c0): d = R⁻¹·(c0 − c1) + c1 − c0.
+ * Bruges når en drejet gruppes midte flytter sig (fx efter en strækning), så den igen drejes om sin egen midte.
+ */
+export function recenterOffset(angleDeg, c0, c1) {
+  const t = (angleDeg * Math.PI) / 180, cos = Math.cos(t), sin = Math.sin(t);
+  const vx = c0[0] - c1[0], vy = c0[1] - c1[1];
+  // R⁻¹ = Rᵀ
+  return [cos * vx + sin * vy + c1[0] - c0[0], -sin * vx + cos * vy + c1[1] - c0[1]];
+}

@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.70.1 build 0107] — 2026-10-17 — fix: drejede biblioteksrør vokser ikke længere for meget ved anden strækning
+
+- `frontend/svgedit-host/snap.js` — `rotationCenter()` og `recenterOffset()` (rene, testet i `snap.test.ts`).
+- `frontend/svgedit-host/scada-editor.js` — `normalizeRotatedGroups()`: efter en strækning af en drejet gruppe lægges strækningen ned i delene, og gruppen drejes kun om sin nye midte (ét ekstra fortryd-trin; udseendet uændret). Se BUGS.md.
+- Data på testserveren (efter aftale med Jan): den gamle symbolopsætning på `svg_15` i "varme" (løbelys på ekspansionsbeholderens streg) er fjernet.
+
 ## [0.70.0 build 0106] — 2026-10-17 — Blafrer: hele flammen skifter tilfældigt mellem tre farver
 
 - `backend/app/services/symbols.py` — `AFlicker.palette` (1–3 farver, standard rød/orange/gul); gemt med v0.69.0 (`color`, ingen palette) → den farve først.
