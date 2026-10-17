@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.71.0 build 0109] — 2026-10-17 — Manual: løbelysets styring
+
+- `frontend/src/manual/05-bindinger-og-animationer.md` — nyt afsnit "Løbelysets styring": *Til/fra*, *Fortegn (+/−)* og *Kode 0/1/2* (tabel), *Omvendt*, *Retning fra*, ukendt værdi, *altid til* og symbolets position. Afkrydsningsfeltet hedder *Omvendt* i guiden — manualen sagde "Vend retning"; rettet. Kun manualtekst (bygges ind i siden), derfor kun nyt build.
+
 ## [0.71.0 build 0108] — 2026-10-17 — Kilden "Altid til" i symbolguiden
 
 - `backend/app/services/symbols.py` — `ON = "@on"`: gyldig kilde for til/fra-animationer (ikke Niveau, Gennemsigtighed, Værdi); ikke en logikreference; bindingen får tagget `@on`. `bindings.py` — `binding_tags()` udelader `@on` (hentes aldrig live, kræver ingen adgang).

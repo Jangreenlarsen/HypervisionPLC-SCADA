@@ -2,6 +2,10 @@
 
 ---
 
+## v0.71.0 (build 0109) — 2026-10-17 — Manual
+
+- Manualen (*Bindinger og animationer*) forklarer nu løbelysets tre styringer — **Til/fra**, **Fortegn (+/−)** og **Kode 0/1/2** — samt **Omvendt** og **Retning fra**.
+
 ## v0.71.0 — 2026-10-17 — "Altid til"
 
 - I symbolguiden kan en animation nu styres af **altid til** i stedet for et tag — fx en flamme der altid blafrer, eller et løbelys der altid kører.
