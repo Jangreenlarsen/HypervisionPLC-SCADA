@@ -2,6 +2,10 @@
 
 ---
 
+## v0.62.0 — 2026-10-17 — Indsæt opsætning giver navne
+
+- Indsætter du en kopieret opsætning i elementer **uden navn**, får de nu kildens navn med løbenummer — fx *varme pumpe tilgang_1*, *varme pumpe tilgang_2* … (numre der allerede er brugt, springes over) — og derefter opsætningen. Før blev de sprunget over.
+
 ## v0.61.0 — 2026-10-17 — Farver på valgte symboler
 
 - I **Tegn** viser panelet *Valgt element* nu feltet **Farver** med de farver, de valgte symboler bruger. Vælg en ny farve for en af dem, så skiftes den i alle de valgte symboler på én gang — fx alle rør, bøjninger og T-stykker i en kreds. **Ctrl+Z** fortryder.

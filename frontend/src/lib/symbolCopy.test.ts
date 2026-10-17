@@ -41,9 +41,9 @@ describe('kopiér opsætning til flere', () => {
 describe('kopiér/indsæt i Tegn', () => {
   const clip = { drawingId: 'd', element: 'R1', name: 'Rør 1' };
   it('mål er de valgte symboler med navn, uden kilden', () => {
-    expect(pasteTargets([{ id: 'R2', name: 'Rør 2' }, { id: 'x', name: '' }, { id: 'y', name: '  ' }, { id: 'z' }], clip))
-      .toEqual({ targets: ['R2'], unnamed: 3, self: false });
-    expect(pasteTargets([{ id: 'R1', name: 'Rør 1' }], clip)).toEqual({ targets: [], unnamed: 0, self: true });
+    expect(pasteTargets([{ id: 'R2', name: 'Rør 2' }, { id: 'x', name: '' }, { id: 'y', name: '  ' }, { id: 'z' }, { id: '', name: '' }], clip))
+      .toEqual({ targets: ['R2'], unnamed: ['x', 'y', 'z'], noId: 1, self: false });
+    expect(pasteTargets([{ id: 'R1', name: 'Rør 1' }], clip)).toEqual({ targets: [], unnamed: [], noId: 0, self: true });
   });
   it('rapport: info for kopierede, problemer og noter pr. symbol', () => {
     const name = (id: string) => ({ R2: 'Rør 2', B1: 'Bøjning 1', L: 'Lampe' } as Record<string, string>)[id] ?? id;

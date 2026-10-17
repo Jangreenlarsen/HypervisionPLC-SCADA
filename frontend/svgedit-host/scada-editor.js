@@ -5,6 +5,7 @@ import {
   axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox,
 } from './snap.js';
 import { collectColors, recolorAttrs } from './colors.js';
+import { numberedNames } from './names.js';
 
 const editor = new Editor(document.getElementById('container'));
 editor.setConfig({
@@ -679,6 +680,32 @@ window.scada = {
   /** Et navn der ikke er i brug: "Vippekontakt", "Vippekontakt 2", … */
   uniqueName(base) {
     return uniqueNameIn(base);
+  },
+
+  /**
+   * Giv elementerne (id'er) navnene "<base>_1", "<base>_2" … (ledige numre, i tegningens rækkefølge) — ét fortryd-trin. Elementer der allerede
+   * har et navn, eller ikke findes, røres ikke. → { id: navn } for de navngivne.
+   */
+  nameElements(ids, base) {
+    const c = canvas();
+    const root = c.getSvgContent();
+    const els = ids.map((id) => root.querySelector(`[id="${CSS.escape(id)}"]`)).filter((el) => el && !el.getAttribute('data-hv-name'))
+      // løbenumre i tegningens rækkefølge (ikke den rækkefølge delene blev valgt i)
+      .sort((x, y) => (x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+    if (!els.length) return {};
+    const used = Array.from(root.querySelectorAll('[data-hv-name]')).map((el) => el.getAttribute('data-hv-name'));
+    const names = numberedNames(base, els.length, used);
+    const batch = new c.history.BatchCommand('Navngiv symboler');
+    const out = {};
+    els.forEach((el, i) => {
+      el.setAttribute('data-hv-name', names[i]);
+      batch.addSubCommand(new c.history.ChangeElementCommand(el, { 'data-hv-name': null }, 'navn'));
+      out[el.id] = names[i];
+    });
+    c.undoMgr.addCommandToHistory(batch);
+    if (changeListener) changeListener();
+    if (selectionListener) selectionListener(currentSelection());
+    return out;
   },
 
   /** Indsæt et symbol (SVG-fragment med ét rodelement) midt i den synlige del, valgt og med fortryd. */

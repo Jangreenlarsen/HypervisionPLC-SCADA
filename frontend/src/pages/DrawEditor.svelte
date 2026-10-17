@@ -33,6 +33,7 @@
     ungroupSelected(): string;
     selectionColors(): { color: string; uses: number }[];
     recolorSelection(from: string, to: string): number;
+    nameElements(ids: string[], base: string): Record<string, string>;
   }
 
   let drawings = $state<{ id: string; name: string }[]>([]);
@@ -153,13 +154,13 @@
   }
 
   /** Symbolopsætninger hører til tegningens AKTIVE version: gem og udgiv først, hvis tegningen er ny, ændret eller en kladde. → klar? */
-  async function ensurePublished(why: string): Promise<boolean> {
+  async function ensurePublished(why: string, asked = false): Promise<boolean> {
     if (current !== null && !dirty && loadedVersion === current.active_version) return true;
     if (!current && !newName.trim()) {
       error = `Giv tegningen et navn (øverst) — den skal gemmes, før ${why}`;
       return false;
     }
-    if (!confirm(`Tegningen gemmes og udgives først, så ${why}. Fortsæt?`)) return false;
+    if (!asked && !confirm(`Tegningen gemmes og udgives først, så ${why}. Fortsæt?`)) return false;
     await save(true);
     return !error && !dirty && current !== null; // save() har vist en evt. fejl
   }
@@ -189,24 +190,41 @@
   async function pasteConfig(): Promise<void> {
     if (!clip || !clipHere) return;
     const src = clip;
-    const { targets, unnamed, self } = pasteTargets(selection, src);
+    const { targets, unnamed, noId, self } = pasteTargets(selection, src);
     error = info = '';
-    if (!targets.length) {
-      error = self ? `Det er "${src.name}" selv — vælg et andet symbol.` : 'Vælg et eller flere symboler (elementer med navn) at indsætte opsætningen i.';
+    if (!targets.length && !unnamed.length) {
+      error = self ? `Det er "${src.name}" selv — vælg et andet symbol.` : 'Vælg et eller flere elementer at indsætte opsætningen i.';
       return;
     }
-    if (!(await ensurePublished('opsætningen kan indsættes'))) return;
+    let named: Record<string, string> = {};
+    if (unnamed.length) {
+      // elementer uden navn bliver symboler med kildens navn + løbenummer ("<navn>_1", "_2" …); navnet er en tegningsændring
+      const published = current !== null && !dirty && loadedVersion === current.active_version;
+      if (!current && !newName.trim()) {
+        error = 'Giv tegningen et navn (øverst) — den skal gemmes, før opsætningen kan indsættes';
+        return;
+      }
+      const who = unnamed.length === 1 ? 'Ét valgt element har' : `${unnamed.length} valgte elementer har`;
+      if (!confirm(`${who} intet navn. De får navnet "${src.name}" med løbenummer (${src.name}_1, ${src.name}_2 … — numre der allerede er brugt, springes over) og derefter opsætningen.`
+        + `${published ? ' Tegningen gemmes og udgives med de nye navne.' : ' Tegningen gemmes og udgives først (også dine andre ændringer).'} Fortsæt?`)) return;
+      named = ed?.nameElements(unnamed, src.name) ?? {};
+      targets.push(...Object.keys(named));
+      if (!(await ensurePublished('opsætningen kan indsættes', true))) return;
+    } else if (!(await ensurePublished('opsætningen kan indsættes'))) return;
     busy = true;
     try {
       const base = `/api/drawings/${encodeURIComponent(src.drawingId)}`;
       const rows = await get<SymbolRow[]>(`${base}/symbols`);
       const byId = new Map(rows.map((r) => [r.element, r]));
-      const nameOf = (id: string) => byId.get(id)?.name || selection.find((x) => x.id === id)?.name || id;
+      const nameOf = (id: string) => byId.get(id)?.name || named[id] || selection.find((x) => x.id === id)?.name || id;
       const taken = targets.filter((t) => byId.get(t)?.configured);
       if (taken.length && !confirm(`${taken.length === 1 ? `"${nameOf(taken[0])}" har` : `${taken.length} af de valgte har`} allerede en opsætning. Overskriv med opsætningen fra "${src.name}"?`)) return;
       const res = await post<CopyResponse>(`${base}/symbols/${encodeURIComponent(src.element)}/copy`, { targets, overwrite: taken.length > 0 });
       const rep = pasteReport(res, src.name, nameOf);
-      info = rep.info + (unnamed ? ` ${unnamed} valgt${unnamed === 1 ? '' : 'e'} element${unnamed === 1 ? '' : 'er'} uden navn er sprunget over.` : '');
+      const newNames = Object.values(named);
+      info = rep.info
+        + (newNames.length ? ` Nye navne: ${newNames.length <= 4 ? newNames.join(', ') : `${newNames[0]} … ${newNames[newNames.length - 1]}`}.` : '')
+        + (noId ? ` ${noId} element${noId === 1 ? '' : 'er'} uden id er sprunget over.` : '');
       if (rep.problems.length) error = rep.problems.join(' · ');
     } catch (e) {
       error = (e as Error).message;
@@ -510,6 +528,7 @@
           <p class="small muted">Tag, positioner, animationer og nøglelås sættes i guiden — samme guide findes under <strong>Bindinger</strong>.{!current || dirty ? ' Tegningen gemmes og udgives først.' : ''}</p>
         {:else}
           <p class="small muted">Giv elementet et <strong>navn</strong> for at gøre det til et symbol, der kan konfigureres under <strong>Bindinger</strong>. Uden navn er det kun tegning.</p>
+          {#if clip}{@render clipRow(false)}{/if}
         {/if}
         {#if single.tag === 'g' && !single.name && (single.children ?? 0) > 20}
           <p class="small notice">Denne gruppe har {single.children} dele. Opløs den for at vælge delene enkeltvis, så de kan erstattes med symboler.</p>

@@ -41,12 +41,17 @@ export function summary(r: CopyResponse): string {
 /** Det kopierede symbol. Selve opsætningen ligger på serveren — indsæt bruger den GEMTE opsætning på indsætningstidspunktet. */
 export interface ConfigClip { drawingId: string; element: string; name: string }
 
-/** Mål for "Indsæt opsætning": de valgte elementer med navn (symboler), uden kilden selv. */
-export function pasteTargets(sel: { id: string; name?: string }[], clip: ConfigClip): { targets: string[]; unnamed: number; self: boolean } {
-  const named = sel.filter((s) => !!s.name?.trim());
+/**
+ * Mål for "Indsæt opsætning": de valgte elementer med navn (symboler), uden kilden selv, og de valgte UDEN navn
+ * (de navngives efter kilden før indsætning). Elementer uden id kan ikke få en opsætning og tælles i `noId`.
+ */
+export function pasteTargets(sel: { id: string; name?: string }[], clip: ConfigClip): { targets: string[]; unnamed: string[]; noId: number; self: boolean } {
+  const withId = sel.filter((s) => !!s.id);
+  const named = withId.filter((s) => !!s.name?.trim());
   return {
     targets: named.filter((s) => s.id !== clip.element).map((s) => s.id),
-    unnamed: sel.length - named.length,
+    unnamed: withId.filter((s) => !s.name?.trim()).map((s) => s.id),
+    noId: sel.length - withId.length,
     self: named.some((s) => s.id === clip.element),
   };
 }

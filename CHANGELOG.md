@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.62.0 build 0090] — 2026-10-17 — Indsæt opsætning navngiver elementer uden navn
+
+- `frontend/svgedit-host/names.js` (ny, ren): `numberedNames(base, count, used)` — "<base>_1", "<base>_2" … med ledige numre, basen forkortet så navnet holder sig inden for 60 tegn.
+- `frontend/svgedit-host/scada-editor.js` — `nameElements(ids, base)`: navngiver elementer uden navn i tegningens rækkefølge; ét fortryd-trin.
+- `frontend/src/lib/symbolCopy.ts` — `pasteTargets()` returnerer nu også de valgte uden navn (`unnamed`) og uden id (`noId`).
+- `frontend/src/pages/DrawEditor.svelte` — *Indsæt opsætning*: valgte elementer uden navn får (efter et spørgsmål) kildens navn + løbenummer og derefter opsætningen; tegningen gemmes og udgives med de nye navne. Knappen vises nu også, når ét element uden navn er valgt. `ensurePublished()` kan springe sit eget spørgsmål over, når brugeren allerede er spurgt.
+- Tests: `names.test.ts`, `symbolCopy.test.ts`. **Set i browseren** lokalt: kilde "varme pumpe tilgang" med "_1" optaget → ét element uden navn blev "_2"; to uden navn (valgt i omvendt rækkefølge) + et navngivet → "_3"/"_4" i tegningens rækkefølge, alle tre fik opsætningen.
+
 ## [0.61.0 build 0089] — 2026-10-17 — Farver på valgte symboler i Tegn
 
 - `frontend/svgedit-host/colors.js` (ny, ren): `normColor()` (#rgb, #rrggbb, rgb(), navngivne → #rrggbb; none/url/currentColor → ingen), `colorsOf()`, `collectColors()`, `recolorAttrs()` (fill/stroke i attributter og style; øvrige style-egenskaber bevares).
