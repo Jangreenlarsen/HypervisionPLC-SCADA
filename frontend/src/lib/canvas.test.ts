@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addTooltips, bindingTags, byTag, fitSize } from './canvas';
+import { addTooltips, bindingTags, byTag, fitSize, groupWinner, priorityGroups, renderAll, renderBinding } from './canvas';
 import type { Binding } from './api';
 
 describe('fitSize', () => {
@@ -46,5 +46,67 @@ describe('bindingTags / byTag (løbelys med retnings-tag)', () => {
     const map = byTag([flow, text]);
     expect(map.get('Retning')).toEqual([flow]);
     expect(map.get('Pumpe')).toEqual([flow, text]);
+  });
+});
+
+describe('kilden "Altid til" (@on, v0.71.0)', () => {
+  it('er ikke et tag (hentes aldrig live) og er altid aktiv', () => {
+    const b: Binding = { element: 'f', tag: '@on', anim: 'flicker', params: { palette: ['#ff0000', '#00ff00', '#0000ff'] } };
+    expect(bindingTags(b)).toEqual([]);
+    expect(bindingTags({ ...b, anim: 'flow', params: { dir_tag: 'Retning' } })).toEqual(['Retning']);
+    const box = document.createElement('div');
+    box.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"><path id="f" d="M0 0 H10"/></svg>';
+    document.body.appendChild(box);
+    renderBinding(box, b, {}, {});
+    const f = box.querySelector('#f') as SVGElement;
+    expect(f.classList.contains('hv-flicker')).toBe(true);
+    expect(f.getAttribute('data-hv-quality')).toBe('good');
+    renderBinding(box, { ...b, anim: 'flicker', params: {} }, {}, {});
+    box.remove();
+  });
+});
+
+describe('aktiv/passiv og prioritering (v0.72.0)', () => {
+  const lv = (value: unknown) => ({ value, quality: 'good' as const, ts: 0, error: null });
+  const flowB = (tag: string, light: string, position: number, when = true): Binding =>
+    ({ element: 'r', tag, anim: 'flow', params: { light, base: '#555555', ...(when ? { when: true } : {}) }, position, source: 'symbol' });
+  const mount = () => {
+    const box = document.createElement('div');
+    box.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"><path id="r" d="M0 0 H100" stroke="#555" stroke-width="10" fill="none"/></svg>';
+    document.body.appendChild(box);
+    return box;
+  };
+  const light = (box: HTMLElement) => box.querySelector('.hv-flow > *')?.getAttribute('stroke') ?? null;
+
+  it('den øverste aktive vinder; ingen aktive → standarden; uden standard → som tegnet', () => {
+    const A = flowB('A', '#ff0000', 1000), B = flowB('B', '#00ff00', 1001), D = flowB('@on', '#8fc8ea', 1002, false);
+    const box = mount();
+    const values: Record<string, ReturnType<typeof lv>> = { A: lv(true), B: lv(true) };
+    renderAll(box, [A, B, D], values, {});
+    expect(light(box)).toBe('#ff0000');                 // A og B er aktive: A står øverst
+    values.A = lv(false);
+    renderBinding(box, A, values, {});
+    expect(light(box)).toBe('#00ff00');                 // kun B
+    values.B = lv(false);
+    renderBinding(box, B, values, {});
+    expect(light(box)).toBe('#8fc8ea');                 // ingen: standarden (altid til)
+    renderAll(box, [A, B], values, {});
+    expect(light(box)).toBeNull();                      // uden standard: røret som tegnet
+    values.B = lv(true);
+    renderBinding(box, B, values, {});
+    expect(light(box)).toBe('#00ff00');
+    box.remove();
+  });
+
+  it('kun grupper med en aktiv/passiv bliver prioriteret; Farve og Blafrer er samme slags', () => {
+    const plain = [flowB('A', '#f00', 1, false), flowB('B', '#0f0', 2, false)];
+    expect(priorityGroups(plain).size).toBe(0);         // som før: den sidste vinder
+    const fillW: Binding = { element: 'r', tag: 'A', anim: 'fill', params: { when: true, on: '#f00' }, position: 1 };
+    const flick: Binding = { element: 'r', tag: '@on', anim: 'flicker', params: {}, position: 2 };
+    const g = priorityGroups([fillW, flick]);
+    expect([...g.values()].map((l) => l.map((b) => b.anim))).toEqual([['fill', 'flicker']]);
+    expect(groupWinner([fillW, flick], { A: lv(false) })).toBe(flick);
+    expect(groupWinner([fillW, flick], { A: lv(true) })).toBe(fillW);
+    expect(groupWinner([fillW], { A: lv(null) })).toBeNull();   // ukendt værdi er ikke aktiv
   });
 });

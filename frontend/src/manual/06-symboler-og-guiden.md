@@ -83,6 +83,21 @@ Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positio
 
 ## Ret og fjern en opsætning
 
+En animation kan også styres af **altid til** (i stedet for et tag): så er den altid aktiv — fx en flamme der altid blafrer, eller et løbelys der altid kører. (Ikke for *Niveau*, *Gennemsigtighed* og *Værdi*, som skal have et tal.)
+
+### Flere animationer på samme del: aktiv/passiv og standard
+
+Hver animation af typen *Farve, Stregfarve, Blink, Synlig, Roterer, Blafrer* eller *Løbelys* har valget **Når den ikke er aktiv**:
+
+- **vis fra-tilstand** (aktiv/ikke aktiv — som før): når betingelsen ikke er opfyldt, viser animationen sin fra-tilstand (fx rørfarven eller farven for *Fra*).
+- **gør ingenting (passiv)** (aktiv/passiv): når betingelsen ikke er opfyldt, rører animationen ikke delen — så kan en anden animation bestemme.
+
+Står der flere animationer af samme slags på samme del (fx tre løbelys på samme rør), og er mindst én af dem passiv, vinder den **øverste aktive** (en med *vis fra-tilstand* tæller altid som aktiv). Er ingen aktive, vises delen som tegnet. Ordn dem med ▲▼. *Farve* og *Blafrer* tæller som samme slags (de bestemmer begge fyldfarven).
+
+**+ Standard** tilføjer en animation nederst, der styres af *altid til* — den gælder, når ingen af de passive over den er aktive.
+
+> Eksempel: løbelys på et rør — **rødt** når *Tilstand A* er Til (passiv), **grønt** når *Tilstand B* er Til (passiv), og som **standard** blåt. Er både A og B Til, vises rødt (A står øverst).
+
 **Gem** står på alle seks trin og kan bruges, så snart opsætningen er uden fejl. **Blafrer** får delen til at blafre som en flamme og skifter tilfældigt mellem tre farver, du vælger (standard rød, orange og gul), mens kilden er aktiv — guiden foreslår den på fyrets flamme.
 
 **Ret symbol** åbner guiden med den gemte opsætning. **Fjern konfiguration** sletter den (symbolets gamle bindinger gælder så igen). Et tag, der bruges af et symbol, kan ikke slettes under **Tags**.

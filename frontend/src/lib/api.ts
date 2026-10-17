@@ -93,6 +93,8 @@ export interface Binding {
   source?: 'explicit' | 'auto' | 'symbol';
   /** Bindinger dannet af en symbol-konfiguration: symbolets element-id */
   symbol?: string;
+  /** Rækkefølgen (symbolets animationer: 1000 + nummer) — bruges til prioriteringen af aktiv/passiv-animationer */
+  position?: number;
 }
 
 export interface DrawingView {

@@ -1,5 +1,5 @@
 // Fælles tegning af en SVG med bindinger — bruges af Overview og binding-editoren.
-import { applyBinding } from './animate';
+import { applyBinding, bindingActive, resetAnim } from './animate';
 import type { Binding, LiveValue, TagMeta } from './api';
 import { sanitizeSvg } from './svg';
 
@@ -83,7 +83,7 @@ export function onLayoutChange(fn: () => void, ...elements: (Element | null | un
 
 /** Alle tags en binding læser: dens eget og evt. løbelysets retnings-tag (samme regel som backendens binding_tags). */
 export function bindingTags(b: Pick<Binding, 'tag' | 'anim' | 'params'>): string[] {
-  const tags = b.tag ? [b.tag] : [];
+  const tags = b.tag && b.tag !== '@on' ? [b.tag] : [];   // "Altid til" er ikke et tag
   const extra = [b.anim === 'flow' ? b.params?.dir_tag : '', b.params?.pos_tag];
   for (const x of extra) if (x && !tags.includes(x)) tags.push(x);
   return tags;
@@ -100,16 +100,74 @@ export function findElement(container: HTMLElement, id: string): Element | null 
   return container.querySelector(`#${CSS.escape(id)}`);
 }
 
+const ALWAYS_ON: LiveValue = { value: true, quality: 'good', ts: 0, error: null };
+
+/**
+ * Prioritetsgrupper (v0.72.0): animationer af samme slags på samme del, hvor mindst én er "aktiv/passiv" (`params.when`).
+ * Den øverste, der er aktiv (en "aktiv/ikke aktiv" tæller altid som aktiv), vinder; er ingen aktive, vises delen som tegnet.
+ * Farve og Blafrer deler fyldfarven og er derfor samme slags.
+ */
+const channel = (anim: string): string => (anim === 'flicker' ? 'fill' : anim);
+const groupKey = (b: Pick<Binding, 'element' | 'anim'>): string => `${b.element}\u0000${channel(b.anim)}`;
+const groupsOf = new WeakMap<HTMLElement, Map<string, Binding[]>>();
+
+/** Byg prioritetsgrupperne for en tegning (bindingerne i deres rækkefølge). Kaldes af renderAll. */
+export function priorityGroups(bindings: Binding[]): Map<string, Binding[]> {
+  const all = new Map<string, Binding[]>();
+  for (const b of bindings) {
+    if (b.anim.startsWith('click:')) continue;
+    const k = groupKey(b);
+    all.set(k, [...(all.get(k) ?? []), b]);
+  }
+  const out = new Map<string, Binding[]>();
+  for (const [k, list] of all) if (list.some((b) => b.params?.when)) out.set(k, [...list].sort((x, y) => (x.position ?? 0) - (y.position ?? 0)));
+  return out;
+}
+
+const liveOf = (b: Binding, values: Record<string, LiveValue>): LiveValue | undefined => (b.tag === '@on' ? ALWAYS_ON : values[b.tag]);
+const dirOf = (b: Binding, values: Record<string, LiveValue>) => (b.anim === 'flow' && b.params?.dir_tag ? values[b.params.dir_tag] : undefined);
+const posOf = (b: Binding, values: Record<string, LiveValue>) => (b.params?.pos_tag ? values[b.params.pos_tag] : undefined);
+
+/** Den animation i gruppen, der skal vises nu (null = ingen — delen som tegnet). */
+export function groupWinner(members: Binding[], values: Record<string, LiveValue>): Binding | null {
+  for (const m of members) {
+    if (!m.params?.when || bindingActive(m, liveOf(m, values), dirOf(m, values), posOf(m, values))) return m;
+  }
+  return null;
+}
+
+function renderGroup(container: HTMLElement, members: Binding[], values: Record<string, LiveValue>, tags: Record<string, TagMeta>): void {
+  const el = findElement(container, members[0].element);
+  if (!el) return;
+  const winner = groupWinner(members, values);
+  // de andre rydder op efter sig (samme slags som vinderen overskrives af den)
+  const cleared = new Set<string>();
+  for (const m of members) {
+    if (m === winner || (winner && m.anim === winner.anim) || cleared.has(m.anim)) continue;
+    cleared.add(m.anim);
+    resetAnim(el, m.anim, m.params ?? {});
+  }
+  if (winner) applyBinding(el, winner, liveOf(winner, values), tags[winner.tag], dirOf(winner, values), posOf(winner, values));
+}
+
 export function renderBinding(
   container: HTMLElement, b: Binding, values: Record<string, LiveValue>, tags: Record<string, TagMeta>,
 ): void {
+  const group = groupsOf.get(container)?.get(groupKey(b));
+  if (group) {
+    renderGroup(container, group, values, tags);
+    return;
+  }
   const el = findElement(container, b.element);
-  if (el) applyBinding(el, b, values[b.tag], tags[b.tag], b.anim === 'flow' && b.params?.dir_tag ? values[b.params.dir_tag] : undefined,
+  // "Altid til" (symbolguiden): altid aktiv, uden et tag
+  const own = b.tag === '@on' ? ALWAYS_ON : values[b.tag];
+  if (el) applyBinding(el, b, own, tags[b.tag], b.anim === 'flow' && b.params?.dir_tag ? values[b.params.dir_tag] : undefined,
     b.params?.pos_tag ? values[b.params.pos_tag] : undefined);
 }
 
 export function renderAll(
   container: HTMLElement, bindings: Binding[], values: Record<string, LiveValue>, tags: Record<string, TagMeta>,
 ): void {
+  groupsOf.set(container, priorityGroups(bindings));
   for (const b of bindings) renderBinding(container, b, values, tags);
 }

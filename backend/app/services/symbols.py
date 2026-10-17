@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 MAX_POSITIONS, MAX_PLANES, MAX_SIGNALS, MAX_ANIMS = 8, 8, 8, 12
 MAX_LOGIC, MAX_LOGIC_INPUTS = 8, 4
 POS = "@pos"
+ON = "@on"   # kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag
 _SIG_ID = re.compile(r"^[A-Za-z0-9_]{1,10}$")
 _LOGIC_ID = re.compile(r"^L[0-9]{1,2}$")
 _PIN = re.compile(r"[0-9]{4}")   # bruges med fullmatch: kun ASCII-cifre, ingen linjeskift
@@ -165,6 +166,8 @@ ANIM_PARAMS: dict[str, type[BaseModel]] = {
 ANIM_LABEL = {"fill": "Farve", "stroke": "Stregfarve", "blink": "Blink", "visible": "Synlig", "spin": "Roterer",
               "level": "Niveau", "opacity": "Gennemsigtighed", "text": "Værdi", "rotate": "Drej", "move": "Flyt",
               "flow": "Løbelys", "flicker": "Blafrer"}
+# Animationer der kan være "aktiv/passiv" (til/fra-agtige); de andre følger et tal hele tiden
+WHEN_TYPES = {"fill", "stroke", "blink", "visible", "spin", "flicker", "flow"}
 # Parametre pr. position: (feltnavn(e) der skal have én værdi pr. position) — kun når kilden er @pos
 POS_FIELDS = {"fill": ("colors",), "stroke": ("colors",), "blink": ("set",), "visible": ("set",), "spin": ("set",),
               "rotate": ("angles",), "move": ("dxs", "dys"), "flow": ("dirs",), "text": (), "flicker": ("set",)}
@@ -174,6 +177,9 @@ NUMERIC_ONLY = {"level", "opacity"}
 class Anim(_M):
     part: str = Field(max_length=120)
     type: Literal["fill", "stroke", "blink", "visible", "spin", "level", "opacity", "text", "rotate", "move", "flow", "flicker"]
+    # "aktiv/passiv" (v0.72.0): når animationen ikke er aktiv, rører den ikke delen — så kan en anden (eller standarden)
+    # på samme del bestemme. Standard: "aktiv/ikke aktiv" (viser sin fra-tilstand).
+    when: bool = False
     src: str = Field(default="", max_length=64)
     params: dict[str, Any] = Field(default_factory=dict)
     only: list[bool] | None = None
@@ -214,8 +220,8 @@ PSEUDO_KINDS = ("pos", "remote", "state", "locked")
 
 
 def is_logic_ref(src: Any) -> bool:
-    """`@L1` — kilden er en logikblok (`@pos` er positionen)."""
-    return isinstance(src, str) and src.startswith("@") and src != POS
+    """`@L1` — kilden er en logikblok (`@pos` er positionen, `@on` er "Altid til")."""
+    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON)
 
 
 def split_logic_ref(src: str, own: str = "") -> tuple[str, str]:
@@ -375,8 +381,9 @@ def needs_pin(cfg: dict[str, Any], shown: int | None, to: int) -> bool:
 def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: set[str]) -> list[dict[str, Any]]:
     """Symbolets animationer som almindelige bindinger, så Overview tegner dem med den eksisterende motor
     (afsnit 7.1). Kilden "position" bliver pseudo-tagget `…:pos` med `params.pos = True`; "gælder i positionerne"
-    bliver `params.only` + `params.pos_tag`. Dele der ikke findes i tegningen, springes over. Rækkefølgen bevares
-    (står flere animationer på samme del, vinder den sidste)."""
+    bliver `params.only` + `params.pos_tag`; "aktiv/passiv" bliver `params.when`. Dele der ikke findes i tegningen,
+    springes over. Rækkefølgen bevares: står flere animationer af samme slags på samme del, og er mindst én aktiv/passiv,
+    vinder den øverste aktive (canvas.ts); ellers vinder den sidste."""
     pos_tag = pseudo_tag(drawing_id, element, "pos")
     labels = [p["label"] for p in cfg.get("positions", [])]
     out: list[dict[str, Any]] = []
@@ -396,6 +403,8 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
         if a.get("only"):
             params["only"] = a["only"]
             params["pos_tag"] = pos_tag
+        if a.get("when"):
+            params["when"] = True
         if is_logic_ref(a["src"]):
             owner, bid = split_logic_ref(a["src"], element)
             tag = pseudo_tag(drawing_id, owner, f"logic:{bid}")
@@ -765,13 +774,19 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             res.err("4", f"{nm}: Niveau kræver en rektangel-del (<rect>), ikke <{target['tag']}>.")
         if a.type == "text" and target["tag"] not in ("text", "tspan"):
             res.err("4", f"{nm}: Værdi kræver en tekst-del (<text>), ikke <{target['tag']}>.")
+        if a.when and a.type not in WHEN_TYPES:
+            res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke være aktiv/passiv — den følger et tal hele tiden.")
         if a.type == "flow" and not target["line"]:
             res.err("4", f"{nm}: Løbelys kræver streger eller et rør i delen.")
         if not a.src:
             res.err("4", f"{nm}: vælg hvad der styrer den.")
             continue
         pos_src = a.src == POS
+        on_src = a.src == ON
         logic_src = is_logic_ref(a.src)
+        if on_src and (a.type in NUMERIC_ONLY or a.type == "text"):
+            res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af \"Altid til\" — vælg et tal-tag.")
+            continue
         if pos_src and not P:
             res.err("4", f"{nm}: symbolet har ingen positioner.")
             continue
@@ -784,7 +799,7 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if a.type in NUMERIC_ONLY:
                 res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en logikblok — vælg et tal-tag.")
                 continue
-        elif not pos_src:
+        elif not pos_src and not on_src:
             t = tag_of(a.src)
             if t is None:
                 res.err("4", f"{nm}: tagget '{a.src}' findes ikke.")
@@ -1052,4 +1067,4 @@ class SymbolService:
 
 
 # Bruges af backup-import (tags valideres der mod backuppens tagliste)
-__all__ = ["SymbolService", "SymbolConfig", "validate_config", "config_tags", "POS", "DEFAULT_ON", "DEFAULT_OFF"]
+__all__ = ["SymbolService", "SymbolConfig", "validate_config", "config_tags", "POS", "ON", "DEFAULT_ON", "DEFAULT_OFF"]

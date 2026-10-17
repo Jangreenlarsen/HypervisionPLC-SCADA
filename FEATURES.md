@@ -96,6 +96,8 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done (v0.69.0) — **Animation "Blafrer"** (symbolguiden): delen farves og blafrer (bevæger sig blødt fra bunden), mens kilden er aktiv — til fyrets flamme; guiden foreslår den for Kedel/fyr
 - [x] done (v0.69.0) — **Gem på alle trin i symbolguiden**: knappen Gem (og "Gem i alle N") står på alle seks trin og er aktiv, så snart opsætningen er uden fejl
 - [x] done (v0.70.0) — **Blafrer med tre farver**: hele flammen skifter tilfældigt mellem tre valgte farver (standard rød, orange, gul), mens den blafrer
+- [x] done (v0.71.0) — **Kilden "Altid til"** i symbolguidens animationer: animationen er altid aktiv uden et tag (fx en flamme der altid blafrer eller et løbelys der altid kører)
+- [x] done (v0.72.0) — **Aktiv/passiv-animationer og standard**: en animation kan være "aktiv/ikke aktiv" (som før) eller "aktiv/passiv" (rører ikke delen, når den ikke er aktiv); flere animationer af samme slags på samme del prioriteres oppefra (den øverste aktive vinder); "+ Standard" tilføjer en animation med "altid til" nederst, der gælder når intet over den er aktivt. Gælder Farve, Stregfarve, Blink, Synlig, Roterer, Blafrer og Løbelys
 - [ ] planned — Raspberry Pi 4 deployment: Chromium-kiosk på lokal skærm (udskudt efter ønske — testserver 10.1.1.31 bruges indtil videre; install-script og systemd findes allerede)
 - [x] done v0.8.0 — Backup/restore af hele SCADA-projektet (PLC-forbindelser uden adgangskoder, tags, tegninger med alle versioner, bindinger; ikke brugere): download/restore som JSON (admin), fuld validering før noget ændres, automatisk backup før restore, atomisk udskiftning med tilbagerulning, automatiske døgn-backups på serveren (7 gemmes)
 

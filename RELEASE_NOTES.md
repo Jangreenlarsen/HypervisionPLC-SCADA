@@ -2,6 +2,19 @@
 
 ---
 
+## v0.72.0 — 2026-10-17 — Flere animationer på samme del
+
+- En animation kan nu være **passiv**: når den ikke er aktiv, rører den ikke delen. Så kan du stable fx flere løbelys på samme rør med hver sin betingelse og hvert sit sæt farver — den **øverste aktive** vinder.
+- **+ Standard** tilføjer en animation nederst, der gælder, når ingen af de andre er aktive.
+
+## v0.71.0 (build 0109) — 2026-10-17 — Manual
+
+- Manualen (*Bindinger og animationer*) forklarer nu løbelysets tre styringer — **Til/fra**, **Fortegn (+/−)** og **Kode 0/1/2** — samt **Omvendt** og **Retning fra**.
+
+## v0.71.0 — 2026-10-17 — "Altid til"
+
+- I symbolguiden kan en animation nu styres af **altid til** i stedet for et tag — fx en flamme der altid blafrer, eller et løbelys der altid kører.
+
 ## v0.70.1 — 2026-10-17 — Rettet: drejede rør i Tegn
 
 - Et drejet rør (fx et lodret rør lavet ved at dreje et vandret) følger nu musen, hver gang du strækker det. Før voksede det for meget anden gang.

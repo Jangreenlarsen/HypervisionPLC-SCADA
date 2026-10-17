@@ -10,7 +10,7 @@
   import SymbolCopy from './SymbolCopy.svelte';
   import TagSelect from './TagSelect.svelte';
   import {
-    ALARM_TXT, ANIM_TXT, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
+    ALARM_TXT, ANIM_TXT, ON, WHEN_TYPES, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, allowedOps, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
@@ -65,7 +65,7 @@
     const v = liveVals[tag]?.value;   // ST-variabel: typen kendes fra live-værdien
     return typeof v === 'boolean' ? 'bool' : typeof v === 'number' ? 'num' : 'unknown';
   }
-  const srcKind = (a: Anim): SrcKind => (a.src === POS ? 'pos' : isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
+  const srcKind = (a: Anim): SrcKind => (a.src === POS ? 'pos' : a.src === ON || isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
   const n = $derived(cfg.positions.length);
   const isPos = $derived(cfg.op === 'positions');
   const partIds = $derived(['all', ...Object.keys(symbol?.parts ?? {})]);
@@ -112,7 +112,7 @@
       anims: (c.anims ?? []).map((a) => {
         const params = a.params ?? {};
         // Blafrer gemt med v0.69.0 (én farve) eller uden palette: altid tre farver at vælge (v0.70.0)
-        return { ...a, src: a.src ?? '', only: a.only ?? null, params: a.type === 'flicker' ? { ...params, palette: flickerPalette(params) } : params };
+        return { ...a, src: a.src ?? '', only: a.only ?? null, when: Boolean(a.when), params: a.type === 'flicker' ? { ...params, palette: flickerPalette(params) } : params };
       }),
       logic: (c.logic ?? []).map((b) => ({
         id: b.id, name: b.name ?? '', op: b.op ?? 'and', invert: Boolean(b.invert),
@@ -240,9 +240,9 @@
   const poolLabel = (p: PoolBlock) => `${p.symbol} · ${p.id}${p.name ? ` – ${p.name}` : ''}`;
   const poolRef = (p: PoolBlock) => `@${p.element}:${p.id}`;
   const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
-  const srcMode = (a: Anim): string => (a.src === POS ? POS : isLogicRef(a.src) ? 'logic' : 'tag');
+  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : isLogicRef(a.src) ? 'logic' : 'tag');
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === POS ? POS : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
+    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
     resetParams(a);
   }
   // ---- 3-vejs ventil styret af ét til/fra-tag
@@ -298,6 +298,15 @@
     const src = isPos ? POS : cfg.signals[0]?.tag ?? '';
     const a: Anim = { part, type: 'fill', src, params: {}, only: null };
     a.params = animDefaults('fill', srcKind(a), n);
+    cfg.anims.push(a);
+  }
+  /** "+ Standard" (v0.72.0): en animation med "altid til" nederst — gælder, når ingen af de aktiv/passive over den er aktive. */
+  function addDefault(): void {
+    if (cfg.anims.length >= MAX_ANIMS) return;
+    const last = cfg.anims[cfg.anims.length - 1];
+    const type: AnimType = last && WHEN_TYPES.includes(last.type) ? last.type : 'fill';
+    const a: Anim = { part: last?.part ?? 'all', type, src: ON, params: {}, only: null, when: false };
+    a.params = animDefaults(type, 'bool', n);
     cfg.anims.push(a);
   }
   function resetParams(a: Anim): void {
@@ -615,12 +624,11 @@
                   {#each typesFor(partInfo(a.part)) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
                 </select>
                 <span class="small muted">styres af</span>
-                {#if isPos || cfg.logic.length || pool.length}
-                  <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
-                    {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
-                    {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
-                  </select>
-                {/if}
+                <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
+                  {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
+                  {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
+                  {#if !['level', 'opacity', 'text'].includes(a.type)}<option value={ON}>altid til</option>{/if}
+                </select>
                 {#if srcMode(a) === 'tag'}<TagSelect bind:value={a.src} {tags} onchange={() => resetParams(a)} />{/if}
                 {#if srcMode(a) === 'logic'}
                   <select bind:value={a.src} onchange={() => resetParams(a)} aria-label="Logikblok">
@@ -634,6 +642,14 @@
                 <button class="small" onclick={() => cfg.anims.splice(i, 1)} aria-label="Fjern animation">✕</button>
               </div>
               {@render params(a, kind)}
+              {#if WHEN_TYPES.includes(a.type)}
+                <label class="opt small">Når den ikke er aktiv:
+                  <select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">
+                    <option value="toggle">vis fra-tilstand</option>
+                    <option value="when">gør ingenting (passiv)</option>
+                  </select>
+                </label>
+              {/if}
               {#if isPos && a.src !== POS}
                 <div class="row wrap small"><span class="muted">Gælder i:</span>
                   {#each cfg.positions as p, j}<label class="opt"><input type="checkbox" checked={a.only?.[j] ?? true} onchange={() => toggleOnly(a, j)} /> {p.label}</label>{/each}
@@ -641,7 +657,14 @@
               {/if}
             </div>
           {/each}
-          <button class="small" onclick={addAnim} disabled={cfg.anims.length >= MAX_ANIMS}>+ Animation</button>
+          <div class="row wrap">
+            <button class="small" onclick={addAnim} disabled={cfg.anims.length >= MAX_ANIMS}>+ Animation</button>
+            <button class="small" onclick={addDefault} disabled={cfg.anims.length >= MAX_ANIMS}
+              title="Tilføj en animation med 'altid til' nederst — den gælder, når ingen af de aktiv/passive over den er aktive">+ Standard</button>
+          </div>
+          {#if cfg.anims.some((x) => x.when)}
+            <p class="small muted">Flere animationer af samme slags på samme del: den <strong>øverste aktive</strong> vinder (en med "vis fra-tilstand" tæller altid som aktiv). Er ingen aktive, vises delen som tegnet. Brug ▲▼ til at ordne dem.</p>
+          {/if}
         {:else if step === 4}
           {#if cfg.op === 'view'}
             <p class="muted small">Kun visning — intet at betjene.</p>
