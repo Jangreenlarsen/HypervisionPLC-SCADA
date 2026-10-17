@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.63.2 build 0093] — 2026-10-17 — debug: indsæt i symbol uden navn (gammel tegneeditor, skjulte fejl)
+
+- `frontend/scripts/versionHost.mjs` (ny) + `copy-svgedit.mjs` — værtens filer får `?v=<build>` i deres adresser (importer, script, stylesheet), og buildnummeret bygges ind i værten (`window.scada.build`).
+- `frontend/src/pages/DrawEditor.svelte` — editoren indlæses som `scada-editor.html?v=<build>`; melder fejl, hvis editorens build ikke er sidens; `guarded()` viser enhver fejl i *Kopiér/Indsæt opsætning* og *Opsæt de valgte samlet* (med hint ved en forældet editor).
+- `backend/app/services/updates.py` — opdatering godtager debug-versioner `MAJOR.MINOR.PATCH.D` (CLAUDE.md); 0.63.1.1 er nyere end 0.63.1. (Denne version hedder 0.63.2, fordi den installerede server endnu ikke godtager fire tal.)
+- Tests: `versionHost.test.ts`, `test_updates.py`. **Set i browseren** lokalt: værtsfiler hentes med `?v=0093`; en editor med build 0001 giver beskeden "Tegneeditoren er en ældre version … Ctrl+F5"; en editor uden `nameElements` giver "Indsæt opsætning fejlede: …" i stedet for ingenting; indsæt i elementer uden navn virker. Se BUGS.md (åben).
+
 ## [0.63.1 build 0092] — 2026-10-17 — fix: gammel side efter opdatering, dubletnavne ved kopi
 
 - `frontend/vite.config.ts`, `src/globals.d.ts`, `src/lib/staleCheck.ts` (ny) — versionen fra `version.json` bygges ind (`__APP_VERSION__`, `__APP_BUILD__`); `isStale()` sammenligner med serverens.

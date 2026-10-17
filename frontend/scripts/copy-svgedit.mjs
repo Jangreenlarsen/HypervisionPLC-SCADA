@@ -1,9 +1,10 @@
 // Kopiér SVG-Edit (npm-pakken `svgedit`) + vores værtsside til public/svgedit/,
 // så Vite serverer/bygger den som statiske filer på /svgedit/.
 // Køres automatisk før `npm run dev` og `npm run build`.
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stampBuild, versionRefs } from './versionHost.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = join(root, 'node_modules', 'svgedit', 'dist', 'editor');
@@ -40,4 +41,13 @@ if (!original.includes(ROTATE_OLD)) {
 }
 writeFileSync(editorJs, original.replace(ROTATE_OLD, ROTATE_NEW));
 cpSync(join(root, 'svgedit-host'), dest, { recursive: true });
-console.log('SVG-Edit kopieret til public/svgedit/');
+// Cache-sikring (BUGS.md v0.63.1): værtens filer får ?v=<build> i deres adresser, og buildnummeret bygges ind i værten
+const { build } = JSON.parse(readFileSync(join(root, '..', 'version.json'), 'utf-8'));
+for (const name of readdirSync(join(root, 'svgedit-host'))) {
+  if (!/\.(js|html)$/.test(name)) continue;
+  const file = join(dest, name);
+  let text = versionRefs(readFileSync(file, 'utf-8'), build);
+  if (name === 'scada-editor.js') text = stampBuild(text, build);
+  writeFileSync(file, text);
+}
+console.log(`SVG-Edit kopieret til public/svgedit/ (vært build ${build})`);

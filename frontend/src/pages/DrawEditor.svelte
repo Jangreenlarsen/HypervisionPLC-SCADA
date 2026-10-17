@@ -4,6 +4,7 @@
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
   import GroupBasis from '../lib/GroupBasis.svelte';
+  import { BUNDLE } from '../lib/staleCheck';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
   import { configGroups, pasteReport, pasteTargets, type ConfigClip, type ConfigGroup, type CopyResponse, type Member, type SymbolRow } from '../lib/symbolCopy';
@@ -18,6 +19,7 @@
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[] }
   interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string; children?: number }
   interface ScadaApi {
+    build?: string;
     ready: Promise<void>;
     load(svg: string): boolean;
     newDrawing(w: number, h: number): void;
@@ -88,6 +90,10 @@
       return;
     }
     ed = win.scada;
+    if (ed.build !== BUNDLE.build) {
+      // browseren har en gammel kopi af tegneeditoren — nye funktioner (fx navngivning ved indsæt) mangler i den
+      error = `Tegneeditoren er en ældre version (build ${ed.build ?? 'ukendt'}, siden er build ${BUNDLE.build}). Genindlæs siden med Ctrl+F5.`;
+    }
     await ed.ready;
     ed.onSelection((sel) => {
       selection = sel;
@@ -170,6 +176,19 @@
   // ---- Opsæt de valgte samlet (v0.63.0): guiden redigerer ét udgangspunkt, og Gem giver alle de valgte opsætningen
   let groupFor = $state<{ basis: { id: string; name: string }; others: { id: string; name: string }[] } | null>(null);
   let basisChoice = $state<{ groups: ConfigGroup[]; members: Member[]; unnamed: string[] } | null>(null);
+
+  /** Kør en handling fra panelet, så en uventet fejl altid vises (ellers sker der bare ingenting — BUGS.md v0.63.1). */
+  async function guarded(what: string, fn: () => Promise<void>): Promise<void> {
+    try {
+      await fn();
+    } catch (e) {
+      busy = false;
+      // "x is not a function": tegneeditoren mangler en funktion — typisk en gammel kopi i browseren
+      const old = e instanceof TypeError && /is not a function/.test(e.message) ? ' — tegneeditoren er sandsynligvis en ældre version; genindlæs siden med Ctrl+F5' : '';
+      error = `${what} fejlede: ${(e as Error).message}${old}`;
+      console.error(what, e);
+    }
+  }
 
   async function openGroupGuide(): Promise<void> {
     if (!ed || selection.length < 2) return;
@@ -565,7 +584,7 @@
 {/if}
 
 <div class="layout">
-  <iframe bind:this={iframe} src="/svgedit/scada-editor.html" title="Tegne-editor" onload={connect}></iframe>
+  <iframe bind:this={iframe} src="/svgedit/scada-editor.html?v={BUNDLE.build}" title="Tegne-editor" onload={connect}></iframe>
 
   <aside>
     <section class="panel">
@@ -573,7 +592,7 @@
       {#if !single}
         <p class="muted small">{selection.length > 1 ? `${selection.length} elementer valgt` : 'Vælg et element i tegningen.'}</p>
         {#if selection.length > 1}
-          <div class="row"><button class="primary" onclick={openGroupGuide} disabled={!ready || busy} title="Rediger tag og animationer for alle de valgte på én gang — guiden redigerer ét af dem, og Gem giver alle opsætningen">Opsæt de valgte samlet ({selection.length})</button></div>
+          <div class="row"><button class="primary" onclick={() => guarded('Opsæt de valgte samlet', openGroupGuide)} disabled={!ready || busy} title="Rediger tag og animationer for alle de valgte på én gang — guiden redigerer ét af dem, og Gem giver alle opsætningen">Opsæt de valgte samlet ({selection.length})</button></div>
           <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat de valgte dele samlet med ét symbol — fx en ventil tegnet af flere løse figurer">Erstat markeringen med symbol …</button></div>
           {@render clipRow(false)}
           {@render colorRow()}
@@ -662,9 +681,9 @@
 
 {#snippet clipRow(canCopy: boolean)}
   <div class="row clip">
-    {#if canCopy}<button onclick={copyConfig} disabled={busy || !ready} title="Husk dette symbols opsætning (tag og animationer), så den kan indsættes i andre symboler">Kopiér opsætning</button>{/if}
+    {#if canCopy}<button onclick={() => guarded('Kopiér opsætning', copyConfig)} disabled={busy || !ready} title="Husk dette symbols opsætning (tag og animationer), så den kan indsættes i andre symboler">Kopiér opsætning</button>{/if}
     {#if clip}
-      <button onclick={pasteConfig} disabled={busy || !ready || !clipHere || (single?.id === clip.element)}
+      <button onclick={() => guarded('Indsæt opsætning', pasteConfig)} disabled={busy || !ready || !clipHere || (single?.id === clip.element)}
         title={!clipHere ? 'Opsætningen er kopieret fra en anden tegning' : `Indsæt opsætningen fra "${clip.name}" i de valgte symboler`}>Indsæt opsætning</button>
     {/if}
   </div>
@@ -678,7 +697,7 @@
 {#if basisChoice}
   {@const bc = basisChoice}
   <GroupBasis groups={bc.groups} unconfigured={bc.members.filter((m) => !m.config)} unnamed={bc.unnamed.length}
-    onpick={(m) => startGroup(m, bc.members, bc.unnamed)} onclose={() => (basisChoice = null)} />
+    onpick={(m) => guarded('Opsæt de valgte samlet', () => startGroup(m, bc.members, bc.unnamed))} onclose={() => (basisChoice = null)} />
 {/if}
 
 {#if groupFor && current}

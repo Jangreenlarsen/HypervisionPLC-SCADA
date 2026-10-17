@@ -2,6 +2,11 @@
 
 ---
 
+## v0.63.2 — 2026-10-17 — Tegneeditoren holdes opdateret
+
+- Tegneeditoren hentes nu altid i den rigtige version efter en opdatering. Er den alligevel gammel, siger **Tegn** det og beder dig genindlæse med **Ctrl+F5**.
+- Går *Kopiér/Indsæt opsætning* eller *Opsæt de valgte samlet* galt, vises fejlen nu i stedet for, at der bare ingenting sker.
+
 ## v0.63.1 — 2026-10-17 — Rettelser
 
 - Står en side åben, mens SCADA bliver opdateret, viser den nu et banner **"SCADA er opdateret … Genindlæs"**. Før kørte fanen videre med den gamle version, så nye funktioner (fx *Opsæt de valgte samlet* og navngivning ved *Indsæt opsætning*) ikke var der.

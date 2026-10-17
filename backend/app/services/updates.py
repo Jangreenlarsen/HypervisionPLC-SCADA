@@ -33,15 +33,20 @@ MAX_UNPACKED_BYTES = 600 * 1024 * 1024
 ROOT = "scada"
 REQUIRED = ("version.json", "deploy/install.sh", "deploy/apply-update.sh", "backend/app/main.py",
             "backend/requirements.txt", "frontend/dist/index.html")
-_VERSION = re.compile(r"^\d{1,4}\.\d{1,4}\.\d{1,4}$")
+_VERSION = re.compile(r"^\d{1,4}\.\d{1,4}\.\d{1,4}(\.\d{1,4})?$")   # MAJOR.MINOR.PATCH[.D] — D under fejlsøgning (CLAUDE.md)
 _BUILD = re.compile(r"^\d{1,6}$")
 _USER = re.compile(r"[^A-Za-z0-9_.@-]")
 APPLYING_STALE_S = 20 * 60               # "applying" så længe = hjælperen er gået i stå
 
 
-def _key(version: str, build: str) -> tuple[int, int, int, int]:
-    major, minor, patch = (int(x) for x in version.split("."))
-    return major, minor, patch, int(build)
+def _key(version: str, build: str) -> tuple[int, int, int, int, int]:
+    """Sammenligningsnøgle; debug-versioner har et fjerde tal (0.63.1.1 er nyere end 0.63.1)."""
+    parts = [int(x) for x in version.split(".")]
+    if len(parts) not in (3, 4):
+        raise ValueError(f"Ugyldig version: {version}")
+    major, minor, patch = parts[:3]
+    debug = parts[3] if len(parts) == 4 else 0
+    return major, minor, patch, debug, int(build)
 
 
 def relation(current: dict[str, str], new: dict[str, str]) -> str:

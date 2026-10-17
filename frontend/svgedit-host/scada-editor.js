@@ -418,7 +418,12 @@ function similarTo(el, any = false) {
   });
 }
 
+/** Buildnummeret værten er bygget som (sat af scripts/copy-svgedit.mjs) — Tegn sammenligner med sit eget. */
+const HOST_BUILD = '__HOST_BUILD__';
+
 window.scada = {
+  build: HOST_BUILD,
+
   ready: whenReady().then(hookEvents),
 
   load(svg) {
