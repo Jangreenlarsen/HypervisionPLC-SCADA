@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chainPhases, dashOffset, splitSubpaths, type Piece } from './flowChain';
+import { chainPhases, dashOffset, splitSubpaths, trimInnerEnds, type Piece } from './flowChain';
 
 const P = (key: string, a: [number, number], b: [number, number], extra: Partial<Piece> = {}): Piece =>
   ({ key, a, b, len: Math.hypot(b[0] - a[0], b[1] - a[1]), group: 'g', dir: 1, dash: 12, speed: 40, ...extra });
@@ -132,5 +132,24 @@ describe('delstier', () => {
     expect(splitSubpaths('L5 5')).toBeNull();
     expect(splitSubpaths('M0 0 X5')).toBeNull();
     expect(splitSubpaths('M0 0 L5')).toBeNull();
+  });
+});
+
+describe('T-stykkets afgrening starter ved gennemløbets kant', () => {
+  it('bibliotekets T-stykke (absolut og relativt som SVG-Edit gemmer det)', () => {
+    expect(trimInnerEnds(['M0 45 H90', 'M45 45 V0'], 10)).toEqual(['M0 45 H90', 'M45 40 L45 0']);
+    expect(trimInnerEnds(splitSubpaths('m0,45l90,0m-45,0l0,-45')!, 10)).toEqual(['M0 45 l90 0', 'M45 40 L45 0']);
+  });
+  it('afgrening tegnet mod gennemløbet: slutningen trækkes tilbage', () => {
+    expect(trimInnerEnds(['M0 45 H90', 'M45 0 V45'], 10)).toEqual(['M0 45 H90', 'M45 0 L45 40']);
+  });
+  it('kryds, ender der mødes og buer røres ikke', () => {
+    expect(trimInnerEnds(['M0 45 H90', 'M45 0 V90'], 10)).toEqual(['M0 45 H90', 'M45 0 V90']);
+    expect(trimInnerEnds(['M0 0 H50', 'M50 0 V50'], 10)).toEqual(['M0 0 H50', 'M50 0 V50']);
+    expect(trimInnerEnds(['M0 45 H90', 'M45 45 A20 20 0 0 0 65 25'], 10)).toEqual(['M0 45 H90', 'M45 45 A20 20 0 0 0 65 25']);
+  });
+  it('for kort afgrening eller ulæselig sti: uændret', () => {
+    expect(trimInnerEnds(['M0 45 H90', 'M45 45 V42'], 10)).toEqual(['M0 45 H90', 'M45 45 V42']);
+    expect(trimInnerEnds(['M0 45 H90', 'L5 5'], 10)).toEqual(['M0 45 H90', 'L5 5']);
   });
 });

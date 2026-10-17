@@ -176,3 +176,74 @@ export function dashOffset(phase: Pick<Phase, 'g0' | 'orient'>, dash: number): n
   const raw = phase.orient === 1 ? phase.g0 : dash - phase.g0;
   return ((raw % period) + period) % period;
 }
+
+type XY = [number, number];
+/** Delstiens kommandoer med absolutte punkter (fra splitSubpaths: starter med et absolut M). null = kan ikke læses. */
+function walk(d: string): { start: XY; cmds: { raw: string; from: XY; to: XY; straight: boolean }[] } | null {
+  const toks = d.match(/[a-zA-Z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g) ?? [];
+  const ARGS: Record<string, number> = { M: 2, L: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, T: 2, A: 7, Z: 0 };
+  if (toks[0] !== 'M') return null;
+  const cmds: { raw: string; from: XY; to: XY; straight: boolean }[] = [];
+  let x = Number(toks[1]), y = Number(toks[2]), i = 3, cmd = 'L';
+  const start: XY = [x, y];
+  while (i < toks.length) {
+    if (/[a-zA-Z]/.test(toks[i])) cmd = toks[i++];
+    const C = cmd.toUpperCase(), rel = cmd !== C, n = ARGS[C];
+    if (n === undefined || C === 'M') return null;
+    const a = toks.slice(i, i + n).map(Number);
+    if (a.length < n || a.some((v) => !Number.isFinite(v))) return null;
+    i += n;
+    const from: XY = [x, y];
+    if (C === 'Z') [x, y] = start;
+    else if (C === 'H') x = (rel ? x : 0) + a[0];
+    else if (C === 'V') y = (rel ? y : 0) + a[0];
+    else { x = (rel ? x : 0) + a[n - 2]; y = (rel ? y : 0) + a[n - 1]; }
+    cmds.push({ raw: `${cmd}${a.join(' ')}`, from, to: [x, y], straight: 'LHVZ'.includes(C) });
+  }
+  return { start, cmds };
+}
+
+/** Ligger punktet inde på et lige stykke (ikke ved dets ender)? */
+function inside(p: XY, a: XY, b: XY, margin: number): boolean {
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (L <= 2 * margin) return false;
+  const t = ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / (L * L);
+  const cross = Math.abs((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) / L;
+  return cross < 0.5 && t * L > margin && (1 - t) * L > margin;
+}
+
+/**
+ * Lyset i et T-stykkes afgrening skal starte ved gennemløbets KANT, ikke i dets midterlinje (v0.65.0): en delsti der
+ * starter eller slutter inde på en anden delsti (lige stykke), forkortes med `width / 2` langs sit første/sidste lige
+ * stykke. Kryds (hvor ingen ende ligger inde på en anden) og buer røres ikke. Stierne kommer fra splitSubpaths.
+ */
+export function trimInnerEnds(subpaths: string[], width: number): string[] {
+  const half = width / 2;
+  const walked = subpaths.map(walk);
+  if (!(half > 0) || walked.some((w) => !w)) return subpaths;
+  const segs = walked.map((w) => w!.cmds.filter((c) => c.straight).map((c) => [c.from, c.to] as [XY, XY]));
+  const onOther = (k: number, p: XY) => segs.some((list, j) => j !== k && list.some(([a, b]) => inside(p, a, b, half)));
+  return walked.map((w, k) => {
+    const { start, cmds } = w!;
+    if (!cmds.length) return subpaths[k];
+    const first = cmds[0], last = cmds[cmds.length - 1];
+    let s0: XY = start, out = cmds.map((c) => c.raw);
+    const fmt = (v: number) => String(Math.round(v * 1000) / 1000);
+    const len = (a: XY, b: XY) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+    // start inde i en anden delsti: flyt startpunktet en halv bredde frem ad det første lige stykke
+    if (first.straight && onOther(k, start) && len(first.from, first.to) > half) {
+      const L = len(first.from, first.to);
+      s0 = [start[0] + (first.to[0] - start[0]) * half / L, start[1] + (first.to[1] - start[1]) * half / L];
+      out[0] = `L${fmt(first.to[0])} ${fmt(first.to[1])}`;
+    }
+    // slut inde i en anden delsti: træk slutpunktet en halv bredde tilbage ad det sidste lige stykke
+    const end = last.to;
+    if (last.straight && onOther(k, end) && len(last.from, last.to) > half && !(cmds.length === 1 && s0 !== start && len(s0, end) <= half)) {
+      const from = cmds.length === 1 ? s0 : last.from;
+      const L = len(from, end);
+      const e: XY = [end[0] - (end[0] - from[0]) * half / L, end[1] - (end[1] - from[1]) * half / L];
+      out[out.length - 1] = `L${fmt(e[0])} ${fmt(e[1])}`;
+    }
+    return s0 === start && out.every((r, i) => r === cmds[i].raw) ? subpaths[k] : [`M${fmt(s0[0])} ${fmt(s0[1])}`, ...out].join(' ');
+  });
+}

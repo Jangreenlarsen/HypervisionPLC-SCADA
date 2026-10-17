@@ -2,6 +2,10 @@
 
 ---
 
+## v0.65.0 — 2026-10-17 — T-stykkets afgrening
+
+- Løbelyset i et T-stykkes afgrening starter nu ved kanten af gennemløbet i stedet for midt inde i det, så lyset ikke tegnes hen over gennemløbet.
+
 ## v0.64.2 — 2026-10-17 — Løbelys over korte rørstykker
 
 - Et kort rørstykke mellem fx et T-stykke og en bøjning bryder ikke længere det sammenhængende løbelys.

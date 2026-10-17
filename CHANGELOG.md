@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.65.0 build 0099] — 2026-10-17 — Løbelys i T-stykkets afgrening starter ved gennemløbets kant
+
+- `frontend/src/lib/flowChain.ts` — `trimInnerEnds()`: en delsti der starter eller slutter inde på en anden delsti (lige stykke) i samme figur, forkortes med en halv stregbredde langs sit første/sidste lige stykke; kryds, ender der mødes, buer og for korte stykker røres ikke.
+- `frontend/src/lib/animate.ts` — `buildDashes()` bruger den på delte stier. Kun lyslaget ændres — symbolet i tegningen er uændret, så det virker også for T-stykker, der allerede er sat ind.
+- Tests: `flowChain.test.ts` (+4).
+
 ## [0.64.2 build 0098] — 2026-10-17 — fix: løbelys kobles kun til de nærmeste ender
 
 - `frontend/src/lib/flowChain.ts` — `chainPhases()`: en ende kobles kun til ender højst 1 enhed længere væk end den nærmeste (kort rør mellem T-stykke og bøjning). Tests: `flowChain.test.ts` (+2). Se BUGS.md.

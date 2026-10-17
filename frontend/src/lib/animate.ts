@@ -1,6 +1,6 @@
 // Anvend bindinger på SVG-elementer ud fra live-værdier.
 // Ren DOM-manipulation via attributter/style — der indsættes aldrig HTML.
-import { chainPhases, dashOffset, splitSubpaths, type Phase, type Piece } from './flowChain';
+import { chainPhases, dashOffset, splitSubpaths, trimInnerEnds, type Phase, type Piece } from './flowChain';
 import type { Binding, LiveValue, TagMeta } from './api';
 import { evalExpression } from './expression';
 
@@ -399,7 +399,9 @@ function buildDashes(el: Element, shapes: Element[], p: Record<string, any>, sta
     const d = flowDash(s);
     if (!d) continue;
     // En sti med flere delstier (fx et T-stykkes gennemløb og afgrening) deles, så hver delsti kan indgå i et forløb
-    const parts = d.tagName === 'path' ? splitSubpaths(d.getAttribute('d') ?? '') : null;
+    const split = d.tagName === 'path' ? splitSubpaths(d.getAttribute('d') ?? '') : null;
+    // T-stykkets afgrening starter ved gennemløbets kant (ikke i dets midte), så lyset ikke tegnes hen over gennemløbet
+    const parts = split && split.length > 1 ? trimInnerEnds(split, parseFloat(d.getAttribute('stroke-width') ?? '1') || 1) : split;
     if (parts && parts.length > 1) {
       for (const part of parts) {
         const c = d.cloneNode(false) as SVGElement;
