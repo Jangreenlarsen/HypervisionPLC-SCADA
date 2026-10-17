@@ -2,6 +2,10 @@
 
 ---
 
+## v0.61.0 — 2026-10-17 — Farver på valgte symboler
+
+- I **Tegn** viser panelet *Valgt element* nu feltet **Farver** med de farver, de valgte symboler bruger. Vælg en ny farve for en af dem, så skiftes den i alle de valgte symboler på én gang — fx alle rør, bøjninger og T-stykker i en kreds. **Ctrl+Z** fortryder.
+
 ## v0.60.0 — 2026-10-17 — Kopiér og indsæt opsætning i Tegn
 
 - I **Tegn** kan du vælge et symbol og trykke **Kopiér opsætning**, og derefter vælge et eller flere andre symboler og trykke **Indsæt opsætning**.

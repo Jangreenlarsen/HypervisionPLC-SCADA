@@ -4,6 +4,7 @@ import Editor from './Editor.js';
 import {
   axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox,
 } from './snap.js';
+import { collectColors, recolorAttrs } from './colors.js';
 
 const editor = new Editor(document.getElementById('container'));
 editor.setConfig({
@@ -266,6 +267,18 @@ function buildSymbolNode(fragment, baseId, wantedId) {
 
 const TAGS_OF_INTEREST = ['rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'path', 'text', 'g', 'image'];
 const RESERVED = new Set(['title', 'defs', 'desc', 'metadata']);
+
+/** De valgte elementer og alle deres efterkommere (uden title/desc/defs/metadata), hver kun én gang. */
+function paintedIn(roots) {
+  const seen = new Set();
+  const walk = (el) => {
+    if (!el || seen.has(el) || RESERVED.has(el.tagName.toLowerCase())) return;
+    seen.add(el);
+    for (const ch of el.children) walk(ch);
+  };
+  roots.forEach(walk);
+  return [...seen];
+}
 
 /** Tegningens koordinater for elementet: geometriens boks og matrix (uden zoom) — størrelse langs egne akser, drejning og midte. */
 function geometryOf(el) {
@@ -627,6 +640,32 @@ window.scada = {
   },
 
   /** Opløs den valgte gruppe, så dens dele kan vælges enkeltvis. Returnerer fejltekst eller ''. */
+  /** Farverne (fyld/streg) i de valgte elementer og alle deres dele. → [{ color: '#rrggbb', uses }], mest brugte først. */
+  selectionColors() {
+    return collectColors(paintedIn(selectedEls()).map((el) => ({ fill: el.getAttribute('fill'), stroke: el.getAttribute('stroke'), style: el.getAttribute('style') })));
+  },
+
+  /** Skift farven `from` til `to` i de valgte elementer og alle deres dele — ét fortryd-trin. → antal ændrede figurer. */
+  recolorSelection(from, to) {
+    const c = canvas();
+    const batch = new c.history.BatchCommand('Skift farve');
+    let n = 0;
+    for (const el of paintedIn(selectedEls())) {
+      const attrs = { fill: el.getAttribute('fill'), stroke: el.getAttribute('stroke'), style: el.getAttribute('style') };
+      const next = recolorAttrs(attrs, from, to);
+      if (!next) continue;
+      const old = {};
+      for (const k of Object.keys(next)) { old[k] = el.getAttribute(k); el.setAttribute(k, next[k]); }
+      batch.addSubCommand(new c.history.ChangeElementCommand(el, old, 'farve'));
+      n++;
+    }
+    if (!n) return 0;
+    c.undoMgr.addCommandToHistory(batch);
+    if (changeListener) changeListener();
+    if (selectionListener) selectionListener(currentSelection());
+    return n;
+  },
+
   ungroupSelected() {
     const sel = selectedEls();
     if (sel.length !== 1 || sel[0].tagName.toLowerCase() !== 'g') return 'Vælg en gruppe';

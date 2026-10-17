@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.61.0 build 0089] — 2026-10-17 — Farver på valgte symboler i Tegn
+
+- `frontend/svgedit-host/colors.js` (ny, ren): `normColor()` (#rgb, #rrggbb, rgb(), navngivne → #rrggbb; none/url/currentColor → ingen), `colorsOf()`, `collectColors()`, `recolorAttrs()` (fill/stroke i attributter og style; øvrige style-egenskaber bevares).
+- `frontend/svgedit-host/scada-editor.js` — `selectionColors()` og `recolorSelection(from, to)`: gennemgår de valgte elementer og alle deres dele; ændringen er ét fortryd-trin (`ChangeElementCommand` i en `BatchCommand`) og markerer tegningen som ændret.
+- `frontend/src/pages/DrawEditor.svelte` — feltet *Farver* i *Valgt element* (ét eller flere valgte): en farvevælger pr. farve i markeringen (højst 12 vist) med antal brug.
+- Tests: `src/lib/colors.test.ts`. **Set i browseren** lokalt: 6 rør/fittings valgt → én farve (#555) → skiftet til blå i alle; tegningen markeret "ikke gemt"; fortryd giver #555 igen; pumpen (ikke valgt) urørt.
+
 ## [0.60.0 build 0088] — 2026-10-17 — Kopiér/indsæt symbolopsætning i Tegn
 
 - `frontend/src/pages/DrawEditor.svelte` — knapperne *Kopiér opsætning* (ét valgt symbol; kontrollerer at det har en opsætning i den udgivne version) og *Indsæt opsætning* (ét eller flere valgte symboler; bruger `POST …/symbols/{element}/copy`). Spørger før symboler med opsætning overskrives; elementer uden navn springes over; problemer pr. symbol vises som fejl. "Gem og udgiv først" er trukket ud i `ensurePublished()`, som guiden og indsæt deler.

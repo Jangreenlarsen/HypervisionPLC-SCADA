@@ -47,6 +47,12 @@ Indstillingerne huskes i din browser.
 
 ![Tegn med Tegnehjælp: gitter vist, fang til gitter og fang til objekter slået til](/manual/tegn-gitter.png)
 
+### Farver på de valgte symboler
+
+Vælg et eller flere symboler (hold **Shift** nede, eller træk en ramme), så viser panelet *Valgt element* feltet **Farver** med de farver, markeringen bruger (fx rørenes grå). Tryk på en farve og vælg en ny — så skiftes den farve i **alle** de valgte symboler på én gang, både fyld og streg. De andre farver røres ikke. **Ctrl+Z** fortryder skiftet i ét trin, og ændringen gemmes med **Gem kladde** / **Gem og udgiv**.
+
+> Farven her er symbolets **grundfarve** i tegningen. Har symbolet en animation (fx *Farve* eller *Løbelys*), bestemmer animationen farven på Overview, når den er aktiv.
+
 ### Erstat tegnede dele med symboler
 
 Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige figurer, kan du **erstatte dem med symboler fra biblioteket**, så de kan sættes op med guiden:

@@ -31,6 +31,8 @@
     replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any'; protectIds?: string[]; apexNative?: number; axisNative?: number; mirror?: boolean }):
       { ok?: boolean; replaced?: number; skipped?: number; ids?: string[]; error?: string };
     ungroupSelected(): string;
+    selectionColors(): { color: string; uses: number }[];
+    recolorSelection(from: string, to: string): number;
   }
 
   let drawings = $state<{ id: string; name: string }[]>([]);
@@ -39,6 +41,7 @@
   let newName = $state('');
   let comment = $state('');
   let selection = $state<Sel[]>([]);
+  let colors = $state<{ color: string; uses: number }[]>([]);   // farverne i markeringen (panelet Farver)
   let idInput = $state('');
   let nameInput = $state('');
   let dirty = $state(false);
@@ -85,6 +88,7 @@
     await ed.ready;
     ed.onSelection((sel) => {
       selection = sel;
+      colors = sel.length && ed ? ed.selectionColors() : [];
       idInput = sel.length === 1 ? sel[0].id : '';
       nameInput = sel.length === 1 ? sel[0].name ?? '' : '';
     });
@@ -209,6 +213,15 @@
     } finally {
       busy = false;
     }
+  }
+
+  // ---- Farver på de valgte symboler (v0.61.0): én farve skiftes i hele markeringen
+  const MAX_COLORS = 12;
+  function recolor(from: string, to: string): void {
+    if (!ed || from === to) return;
+    error = info = '';
+    const n = ed.recolorSelection(from, to);
+    if (!n) error = `Farven ${from} findes ikke længere i markeringen`;
   }
 
   // ---- Erstat med symbol (tegnet del → bibliotekssymbol)
@@ -483,6 +496,7 @@
         {#if selection.length > 1}
           <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat de valgte dele samlet med ét symbol — fx en ventil tegnet af flere løse figurer">Erstat markeringen med symbol …</button></div>
           {@render clipRow(false)}
+          {@render colorRow()}
         {/if}
       {:else}
         <p class="small muted">&lt;{single.tag}&gt;</p>
@@ -502,6 +516,7 @@
           <div class="row"><button onclick={ungroup} disabled={!ready}>Opløs gruppen</button></div>
         {/if}
         <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat den tegnede del med et symbol fra biblioteket (samme placering, størrelse og drejning)">Erstat med symbol …</button></div>
+        {@render colorRow()}
         <details class="adv">
           <summary class="small">Avanceret</summary>
           <label class="field">Id (teknisk)
@@ -545,6 +560,24 @@
     </section>
   </aside>
 </div>
+
+{#snippet colorRow()}
+  {#if colors.length}
+    <div class="colors" role="group" aria-label="Farver i markeringen">
+      <span class="small"><strong>Farver</strong> <span class="muted">— vælg en ny for at skifte den i {selection.length > 1 ? `alle ${selection.length} valgte` : 'det valgte'}</span></span>
+      <div class="swatches">
+        {#each colors.slice(0, MAX_COLORS) as c (c.color)}
+          <label class="swatch" title="{c.color} — bruges {c.uses} gang{c.uses === 1 ? '' : 'e'}">
+            <input type="color" value={c.color} aria-label="Skift farven {c.color}" onchange={(e) => recolor(c.color, e.currentTarget.value)} />
+            <span class="small muted">{c.uses}</span>
+          </label>
+        {/each}
+      </div>
+      {#if colors.length > MAX_COLORS}<p class="small muted">+ {colors.length - MAX_COLORS} farver mere — vælg færre elementer for at se dem.</p>{/if}
+      <p class="small muted">Ctrl+Z fortryder. Animationer (fx farve eller løbelys) kan stadig farve symbolet på Overview.</p>
+    </div>
+  {/if}
+{/snippet}
 
 {#snippet clipRow(canCopy: boolean)}
   <div class="row clip">
@@ -598,6 +631,10 @@
   details { margin-top: .6rem; }
   .adv { margin-top: .8rem; }
   .clip { margin-top: .4rem; gap: .4rem; }
+  .colors { margin-top: .6rem; }
+  .swatches { display: flex; flex-wrap: wrap; gap: .35rem; margin: .3rem 0 .2rem; }
+  .swatch { display: flex; flex-direction: column; align-items: center; gap: .05rem; cursor: pointer; }
+  .swatch input { width: 2.1rem; height: 1.7rem; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
   .selector-cfg { margin-top: .5rem; }
   .selector-cfg input { flex: 1; min-width: 0; }
   summary { cursor: pointer; font-weight: 600; font-size: .9rem; margin-bottom: .4rem; }
