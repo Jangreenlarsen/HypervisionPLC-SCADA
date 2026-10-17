@@ -169,3 +169,23 @@ export function turnTo(target, native = 0) {
   const d = (((target - native + 180) % 360) + 360) % 360 - 180;
   return d === -180 ? 180 : d;
 }
+
+/** Tyngdepunktet af en polygons hjørner. */
+export const centroid = (vertices) => [
+  vertices.reduce((a, v) => a + v[0], 0) / vertices.length,
+  vertices.reduce((a, v) => a + v[1], 0) / vertices.length,
+];
+
+/** Aksen gennem to punkter som vinkel i [0, 180) — en ventils akse har ingen retning (0 = vandret, 90 = lodret). */
+export function axisAngle(p1, p2) {
+  const a = (Math.atan2(p2[1] - p1[1], p2[0] - p1[0]) * 180) / Math.PI;
+  const r = Math.round((((a % 180) + 180) % 180) * 10) / 10;
+  return r === 180 ? 0 : r;
+}
+
+/** Drejning der lægger et symbols akse (`native`) langs målaksen — den korteste vej, i (−90, 90]. */
+export function turnAxis(target, native = 0) {
+  let d = (((target - native) % 180) + 180) % 180;   // [0, 180)
+  if (d > 90) d -= 180;                                // (−90, 90]
+  return d;
+}

@@ -4,6 +4,113 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.65.1 build 0100] — 2026-10-17 — fix: det øverste midtergreb strækker i stedet for at flytte
+
+- `frontend/svgedit-host/scada-editor.css` — `#selectorGrip_rotateconnector { pointer-events: none; }`: drejegrebets forbindelsesstreg lå oven på det øverste midtergreb, så et træk dér flyttede elementet. Test i `svgeditPatch.test.ts`. **Set i browseren** (Chrome og Firefox) på rør som i "varme": vandret sti, lodret sti (bredde 0), skaleret sti og drejet biblioteksrør kan nu strækkes i begge ender. Se BUGS.md (også en åben post om drejede rør).
+
+## [0.65.0 build 0099] — 2026-10-17 — Løbelys i T-stykkets afgrening starter ved gennemløbets kant
+
+- `frontend/src/lib/flowChain.ts` — `trimInnerEnds()`: en delsti der starter eller slutter inde på en anden delsti (lige stykke) i samme figur, forkortes med en halv stregbredde langs sit første/sidste lige stykke; kryds, ender der mødes, buer og for korte stykker røres ikke.
+- `frontend/src/lib/animate.ts` — `buildDashes()` bruger den på delte stier. Kun lyslaget ændres — symbolet i tegningen er uændret, så det virker også for T-stykker, der allerede er sat ind.
+- Tests: `flowChain.test.ts` (+4).
+
+## [0.64.2 build 0098] — 2026-10-17 — fix: løbelys kobles kun til de nærmeste ender
+
+- `frontend/src/lib/flowChain.ts` — `chainPhases()`: en ende kobles kun til ender højst 1 enhed længere væk end den nærmeste (kort rør mellem T-stykke og bøjning). Tests: `flowChain.test.ts` (+2). Se BUGS.md.
+
+## [0.64.1 build 0097] — 2026-10-17 — fix: løbelys-forløb med forskellig lyslængde og T-stykker
+
+- `frontend/src/lib/flowChain.ts` — `Piece`/`Phase` har lyslængde og fart; forløbet bruger flertallets (uafgjort → første del). `splitSubpaths()` deler en sti i delstier med absolut start (også relative stier som SVG-Edit gemmer dem).
+- `frontend/src/lib/animate.ts` — `flowGroup()` uden lyslængde/fart; `buildDashes()` deler stier med flere delstier; hver lysstreg bruger forløbets lyslængde og fart.
+- Tests: `flowChain.test.ts` (+4). Se BUGS.md.
+
+## [0.64.0 build 0096] — 2026-10-17 — Sammenhængende løbelys over flere rør og bøjninger
+
+- `frontend/src/lib/flowChain.ts` (ny, ren): `chainPhases()` samler løbelys-dele, hvis ender rører hinanden (samme gruppe), til forløb med én fælles koordinat g, og ensretter retningen efter flertallet (indstillet retning × tegneretning; uafgjort → første del; T-stykkers ben vendes aldrig). `dashOffset()` giver stiplingens forskydning, så mønstret fortsætter over samlingerne.
+- `frontend/src/lib/animate.ts` — `buildDashes()` (fælles for måling og tegning); løbelys registreres pr. tegning med en gruppe (`flowGroup()`: tag, retnings-tag, tilstand, længde, fart); delene måles i tegningens koordinater (`getTotalLength`/`getPointAtLength`, uden zoom); hver lysstreg får sin forskydning og evt. vendt retning; nye medlemmer regner kørende løbelys om (samlet pr. opdatering). Stier med flere delstier (fx T-stykke uden valgt rør) og lukkede figurer kører som før.
+- Tests: `flowChain.test.ts` (8, bl.a. at mønstret er det samme set fra begge sider af hver samling). **Set i browseren** lokalt: rør tegnet højre→venstre, bøjning, lodret rør tegnet nedefra, rør, strakt rør (scale 2): målt ved 4 samlinger × 15 tidspunkter — før: lys/mørk sprang 17 gange og 2 samlinger kørte modsat (30/60); efter: 1 spring (en overgang lige i samlingen) og ingen modsat retning.
+
+## [0.63.3 build 0095] — 2026-10-17 — fix: afslutter fejlsøgningen af "Indsæt opsætning" i Firefox
+
+- Jan har bekræftet i Firefox, at *Indsæt opsætning* i et symbol uden navn virker med spørgsmålene på siden (v0.63.2.1). BUGS.md: de to poster lukket. Ingen kodeændringer ud over versionen.
+
+## [0.63.2.1 build 0094] — 2026-10-17 — debug: spørgsmål på siden i stedet for browserens confirm/prompt (Firefox)
+
+- `frontend/src/lib/ask.ts` (ny) — `ask()` / `askText()`: spørgsmål i en kø, besvares i siden; `AskDialog.svelte` (ny) viser køens første (Enter/Escape, fokus på OK eller feltet) og sættes ind én gang i `App.svelte`.
+- Alle 21 `confirm()` og den ene `prompt()` er skiftet til `askUser()`/`askText()`: `DrawEditor`, `Editor`, `SymbolGuide`, `SymbolConvert`, `Plcs`, `Schedules`, `Tags`, `Trends`, `Update`, `Users`, `drawingDelete.ts` (slet-knap som farlig handling). Synkrone funktioner der spørger, er gjort asynkrone (`confirmDiscard`, `startNew`, `select`, skabelon-knapperne i guiden).
+- Tests: `ask.test.ts`. **Set i Firefox** (Playwright): kopi af "varme" v36 på serveren — med browserens dialog afvist skete der stille ingenting (genskabt); lokalt med den nye dialog: Annullér lader elementet være uden navn, OK navngiver og indsætter; slet tag og "Kassér ændringer?" i Tegn virker; ingen browserdialoger. Se BUGS.md (åben til Jan bekræfter).
+
+## [0.63.2 build 0093] — 2026-10-17 — debug: indsæt i symbol uden navn (gammel tegneeditor, skjulte fejl)
+
+- `frontend/scripts/versionHost.mjs` (ny) + `copy-svgedit.mjs` — værtens filer får `?v=<build>` i deres adresser (importer, script, stylesheet), og buildnummeret bygges ind i værten (`window.scada.build`).
+- `frontend/src/pages/DrawEditor.svelte` — editoren indlæses som `scada-editor.html?v=<build>`; melder fejl, hvis editorens build ikke er sidens; `guarded()` viser enhver fejl i *Kopiér/Indsæt opsætning* og *Opsæt de valgte samlet* (med hint ved en forældet editor).
+- `backend/app/services/updates.py` — opdatering godtager debug-versioner `MAJOR.MINOR.PATCH.D` (CLAUDE.md); 0.63.1.1 er nyere end 0.63.1. (Denne version hedder 0.63.2, fordi den installerede server endnu ikke godtager fire tal.)
+- Tests: `versionHost.test.ts`, `test_updates.py`. **Set i browseren** lokalt: værtsfiler hentes med `?v=0093`; en editor med build 0001 giver beskeden "Tegneeditoren er en ældre version … Ctrl+F5"; en editor uden `nameElements` giver "Indsæt opsætning fejlede: …" i stedet for ingenting; indsæt i elementer uden navn virker. Se BUGS.md (åben).
+
+## [0.63.1 build 0092] — 2026-10-17 — fix: gammel side efter opdatering, dubletnavne ved kopi
+
+- `frontend/vite.config.ts`, `src/globals.d.ts`, `src/lib/staleCheck.ts` (ny) — versionen fra `version.json` bygges ind (`__APP_VERSION__`, `__APP_BUILD__`); `isStale()` sammenligner med serverens.
+- `frontend/src/App.svelte` — tjekker `/api/health` hvert minut og når fanen bliver synlig; banner "SCADA er opdateret … Genindlæs" (også i driftpanelet).
+- `backend/app/main.py` — `FrontendFiles`: `Cache-Control: no-cache` for index.html, SVG-Edit-værten og andre filer uden hash; `public, max-age=31536000, immutable` for `assets/`.
+- `frontend/svgedit-host/names.js` — `nextFreeName()`; `scada-editor.js` — `renameCopies()` efter indsæt/dupliker, så kopier får et ledigt navn.
+- Tests: `tests/test_frontend_cache.py`, `staleCheck.test.ts`, `names.test.ts`. **Set i browseren** lokalt: dupliker "Bøjning 90° 6" → "… 8" (7 optaget), kopiér/indsæt → "… 9", fortryd fjerner kopien; banneret vises, når serveren melder en anden version. Se BUGS.md.
+
+## [0.63.0 build 0091] — 2026-10-17 — Opsæt flere symboler samlet i Tegn
+
+- `frontend/src/lib/symbolCopy.ts` — `configSignature()` (opsætningen uafhængigt af symbolets egne id'er: dele efter biblioteksnavn; type og nøglelås tæller ikke), `describeConfig()`, `configGroups()`, `memberNames()`.
+- `frontend/src/lib/GroupBasis.svelte` (ny) — *Vælg udgangspunkt*: de forskellige opsætninger blandt de valgte med medlemmer; nævner dem uden opsætning og uden navn.
+- `frontend/src/lib/SymbolGuide.svelte` — gruppetilstand (`group`): overskrift "Opsæt N symboler samlet", note om hvem der får opsætningen, *Gem i alle N* gemmer udgangspunktet og kopierer det til de andre (overskriver); det der ikke kunne overføres, vises i guiden, som så bliver åben. *Fjern konfiguration* og *Gem og anvend på flere* skjules i gruppetilstand.
+- `frontend/src/pages/DrawEditor.svelte` — *Opsæt de valgte samlet (N)* ved flervalg: gemmer/udgiver først, henter de valgtes opsætninger, spørger om udgangspunkt når der er flere forskellige, navngiver elementer uden navn efter udgangspunktet, og åbner guiden i gruppetilstand.
+- Tests: `symbolCopy.test.ts`. **Set i browseren** lokalt: 2 rør (opsætning A), bøjning (B), T-stykke (ingen) og et element uden navn → dialogen viste 2 opsætninger, B valgt → alle 5 fik B, elementet uden navn blev "Bøjning 1_1"; med en pumpe i markeringen blev guiden åben med "Pumpe 1: … Løbelys kræver streger", og de 5 andre fik opsætningen.
+
+## [0.62.0 build 0090] — 2026-10-17 — Indsæt opsætning navngiver elementer uden navn
+
+- `frontend/svgedit-host/names.js` (ny, ren): `numberedNames(base, count, used)` — "<base>_1", "<base>_2" … med ledige numre, basen forkortet så navnet holder sig inden for 60 tegn.
+- `frontend/svgedit-host/scada-editor.js` — `nameElements(ids, base)`: navngiver elementer uden navn i tegningens rækkefølge; ét fortryd-trin.
+- `frontend/src/lib/symbolCopy.ts` — `pasteTargets()` returnerer nu også de valgte uden navn (`unnamed`) og uden id (`noId`).
+- `frontend/src/pages/DrawEditor.svelte` — *Indsæt opsætning*: valgte elementer uden navn får (efter et spørgsmål) kildens navn + løbenummer og derefter opsætningen; tegningen gemmes og udgives med de nye navne. Knappen vises nu også, når ét element uden navn er valgt. `ensurePublished()` kan springe sit eget spørgsmål over, når brugeren allerede er spurgt.
+- Tests: `names.test.ts`, `symbolCopy.test.ts`. **Set i browseren** lokalt: kilde "varme pumpe tilgang" med "_1" optaget → ét element uden navn blev "_2"; to uden navn (valgt i omvendt rækkefølge) + et navngivet → "_3"/"_4" i tegningens rækkefølge, alle tre fik opsætningen.
+
+## [0.61.0 build 0089] — 2026-10-17 — Farver på valgte symboler i Tegn
+
+- `frontend/svgedit-host/colors.js` (ny, ren): `normColor()` (#rgb, #rrggbb, rgb(), navngivne → #rrggbb; none/url/currentColor → ingen), `colorsOf()`, `collectColors()`, `recolorAttrs()` (fill/stroke i attributter og style; øvrige style-egenskaber bevares).
+- `frontend/svgedit-host/scada-editor.js` — `selectionColors()` og `recolorSelection(from, to)`: gennemgår de valgte elementer og alle deres dele; ændringen er ét fortryd-trin (`ChangeElementCommand` i en `BatchCommand`) og markerer tegningen som ændret.
+- `frontend/src/pages/DrawEditor.svelte` — feltet *Farver* i *Valgt element* (ét eller flere valgte): en farvevælger pr. farve i markeringen (højst 12 vist) med antal brug.
+- Tests: `src/lib/colors.test.ts`. **Set i browseren** lokalt: 6 rør/fittings valgt → én farve (#555) → skiftet til blå i alle; tegningen markeret "ikke gemt"; fortryd giver #555 igen; pumpen (ikke valgt) urørt.
+
+## [0.60.0 build 0088] — 2026-10-17 — Kopiér/indsæt symbolopsætning i Tegn
+
+- `frontend/src/pages/DrawEditor.svelte` — knapperne *Kopiér opsætning* (ét valgt symbol; kontrollerer at det har en opsætning i den udgivne version) og *Indsæt opsætning* (ét eller flere valgte symboler; bruger `POST …/symbols/{element}/copy`). Spørger før symboler med opsætning overskrives; elementer uden navn springes over; problemer pr. symbol vises som fejl. "Gem og udgiv først" er trukket ud i `ensurePublished()`, som guiden og indsæt deler.
+- `frontend/src/lib/symbolCopy.ts` — `pasteTargets()` og `pasteReport()` (rene, testet i `symbolCopy.test.ts`).
+- **Set i browseren** lokalt: kopiér fra et symbol uden opsætning giver en forklaring; indsæt i ét rør, i flere (rør, bøjninger, T-stykke; spørgsmål før overskrivning af en bøjning; pumpen afvist med "Løbelys kræver streger"), og med ikke-gemte ændringer (tegningen gemmes og udgives først).
+
+## [0.59.0 build 0087] — 2026-10-17 — Kopiér symbolopsætning til flere symboler
+
+- `backend/app/services/svg_sanitize.py` — `named_symbols()`: tegningens symboler (bibliotekstype eller navn) i dokumentrækkefølge.
+- `backend/app/services/symbols.py` — `map_config()` (ren): oversætter en opsætning til et andet symbol — animationer på hele symbolet følger med, del-animationer oversættes efter `data-hv-pid` og springes ellers over med en note; nøglelåsen nulstilles. `SymbolService.list_symbols()` og `copy_to()`: kilden skal have en gemt opsætning (409), hvert mål valideres som et almindeligt gem (inkl. logikblokke brugt af andre ved overskrivning), mål med opsætning springes over uden `overwrite`, fejl i ét mål stopper ikke de andre.
+- `backend/app/api/symbols.py` — `GET /api/drawings/{id}/symbols` og `POST /api/drawings/{id}/symbols/{element}/copy` (tekniker; højst 500 mål; audit `symbol.copy`).
+- `frontend/src/lib/symbolCopy.ts` + `SymbolCopy.svelte` — dialogen *Anvend opsætningen på flere*: søgning, *Alle af samme type*, *Alle rør og fittings*, *Vælg viste*, *Ryd*, mærket "har opsætning", *Overskriv*-hak og resultattabel (kopieret / sprunget over / fejl med noter).
+- `frontend/src/lib/SymbolGuide.svelte` — knappen *Gem og anvend på flere …* (gemmer først med samme kontrol som *Gem*); lukkes guiden derefter, opdateres siden som efter et gem.
+- Tests: `tests/test_symbol_copy.py` (9), `symbolCopy.test.ts` (3). **Set i browseren** lokalt: rør → 2 rør, 2 bøjninger og et T-stykke; den bøjning der allerede havde en opsætning, blev sprunget over.
+
+## [0.58.0 build 0086] — 2026-10-17 — Erstat med symbol: ventilens akse og bedre ventilforslag
+
+- `frontend/svgedit-host/snap.js` — `centroid()`, `axisAngle()` (aksen gennem to punkter, 0–180°, uden retning) og `turnAxis()` (korteste drejning så et symbols akse ligger langs målaksen).
+- `frontend/svgedit-host/scada-editor.js` — `trianglesIn()`/`valveAxisOf()`: aksen gennem en ventils to trekanter i tegningens koordinater (også for en markering af løse dele); `describeSelection()` leverer `axisAngle`; `replaceSelected({ axisNative })` drejer ventilsymbolet efter aksen (målt før de gamle dele fjernes).
+- `frontend/src/lib/symbolSuggest.ts` — `NATIVE_AXIS` (ventil, kugleventil, motorventil, magnetventil, reguleringsventil ligger vandret) og kontraventilen i `NATIVE_DIRECTION`; forslag: én prik → **ventil** (+ regulerings-, sikkerheds-, motor-, kugleventil), prik + motorcirkel → **motorventil**, trekant med tværstreg → **kontraventil**, to løse trekanter + prik → **ventil/reguleringsventil**. Se BUGS.md.
+- `frontend/src/lib/SymbolReplace.svelte` — valget "Drej symbolet efter den tegnede ventils akse (vandret/lodret)".
+- Tests: `snap.test.ts` (akse og drejning), `symbolSuggest.test.ts` (ventilforslagene). **Afprøvet i browseren** på en lokal kopi af "varme" version 13: AVTB, AVTA ×2 og Laddomat → reguleringsventil (lodrette drejet 90°), Bypass → manuel ventil, to sikkerhedsventiler, kontraventil drejet 180° efter trekanten; den stiplede følerlinje bevaret.
+
+## [0.57.0 build 0085] — 2026-10-16 — Erstat med symbol: flere dele samlet, og spejlvending
+
+Rettelse efter at Jan opdagede, at motorventilerne i "varme" ikke var konverteret (se BUGS.md).
+
+- `frontend/svgedit-host/scada-editor.js` — `describeSelection()` og `replaceSelected()` håndterer **flere valgte dele som én enhed** (samlet boks i tegningens koordinater, samlede figurantal, alle id'er); `selectByIds()`; `replaceSelected({ mirror })` spejlvender symbolet vandret om midten og **vender hver tekst tilbage om sin egen midterlinje**, så bogstaverne ikke spejles; `uniqueNameIn(base, except)` ser bort fra selve symbolet (falsk " 2" i navne).
+- `frontend/src/lib/symbolSuggest.ts` — forslag til en markering af flere løse dele: ≥ 3 stier, ≥ 2 ellipser og ≥ 1 streg i ventilstørrelse → **3-vejs motorventil** (88), AB i midten (50), motorventil (40).
+- `frontend/src/lib/SymbolReplace.svelte` + `pages/DrawEditor.svelte` — knappen **Erstat markeringen med symbol …** når flere dele er valgt, og valget **Spejlvend vandret (symbolets bogstaver spejles ikke)**.
+- Manualen: afsnittet *Erstat tegnede dele med symboler* opdateret (flere dele, spejlvend).
+- Tests: `symbolSuggest.test.ts` (flere løse dele → 3-vejs motorventil; for få figurer/forkert størrelse → intet). **Afprøvet i browseren** på en lokal kopi af "varme": MVS1 (10 dele) og MVS2 (10 dele, spejlvendt) erstattet af 3-vejs motorventil på rette sted og i rette størrelse, A/B/AB og M med rigtig læseretning, ingen af de gamle dele tilbage, navne uden falsk " 2".
+
 ## [0.56.0 build 0084] — 2026-10-16 — Erstat med symbol: pumpens retning aflæses
 
 - `frontend/svgedit-host/snap.js` — `pathVertices()` (M/L/H/V/Z, relativ og absolut; kurver giver null), `triangleApex()` (ligebenet trekant → toppen og retningen fra grundlinjens midte; ligesidet giver null), `directionAngle()` (retningen efter en matrix) og `turnTo()` (drejning så et symbols retning rammer målet).

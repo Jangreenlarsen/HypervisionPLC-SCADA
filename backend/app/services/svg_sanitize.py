@@ -277,6 +277,21 @@ def describe_element(svg: str, element_id: str) -> dict[str, Any] | None:
     return None
 
 
+def named_symbols(svg: str) -> list[dict[str, Any]]:
+    """Symboler i tegningen: elementer med bibliotekstype (data-hv-type) eller et navn (data-hv-name), i dokumentrækkefølge.
+    → [{"id", "name", "type"}] — til at vælge hvilke symboler en opsætning skal kopieres til."""
+    root = fromstring(svg.encode("utf-8"), forbid_dtd=True)
+    out: list[dict[str, Any]] = []
+    for el in root.iter():
+        if not isinstance(el.tag, str) or not el.attrib.get("id"):
+            continue
+        sym_type = el.attrib.get("data-hv-type", "")
+        name = el.attrib.get("data-hv-name")
+        if sym_type or name:
+            out.append({"id": el.attrib["id"], "name": name, "type": sym_type if _TYPE_RE.match(sym_type) else "custom"})
+    return out
+
+
 def symbol_roots(svg: str) -> list[str]:
     """Bibliotekssymboler i tegningen (rødder med data-hv-type eller data-hv-auto), i dokumentrækkefølge."""
     root = fromstring(svg.encode("utf-8"), forbid_dtd=True)

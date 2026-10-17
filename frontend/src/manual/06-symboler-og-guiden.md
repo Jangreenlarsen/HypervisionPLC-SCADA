@@ -84,3 +84,26 @@ Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positio
 ## Ret og fjern en opsætning
 
 **Ret symbol** åbner guiden med den gemte opsætning. **Fjern konfiguration** sletter den (symbolets gamle bindinger gælder så igen). Et tag, der bruges af et symbol, kan ikke slettes under **Tags**.
+
+### Opsæt flere symboler samlet
+
+Vil du redigere opsætningen for mange symboler på én gang (fx alle rør i en kreds), så markér dem i **Tegn** (hold **Shift** nede, eller træk en ramme) og tryk **Opsæt de valgte samlet**:
+
+1. Tegningen gemmes og udgives først, hvis den har ændringer.
+2. Har de valgte **forskellige opsætninger**, vælger du, hvilken der er **udgangspunktet** — dialogen viser hver opsætning og hvilke symboler, der har den. Har de samme opsætning (eller ingen), springes spørgsmålet over.
+3. Guiden åbner med udgangspunktet. Ret tag og animationer som for ét symbol.
+4. Tryk **Gem i alle**. Alle de valgte får opsætningen (deres tidligere opsætning erstattes). Kunne et symbol ikke få den (fx løbelys på en pumpe uden streger), står det i guiden, og de andre har fået den.
+
+Markerede elementer **uden navn** får udgangspunktets navn med løbenummer (fx *Rør 1_1*). Nøglelåsen og dens kode kopieres ikke.
+
+### Samme opsætning på flere symboler
+
+Skal mange symboler have samme opsætning (fx løbelys på alle rør, bøjninger og T-stykker i en kreds), så sæt **ét** af dem op og tryk **Gem og anvend på flere …** nederst i guiden. Opsætningen gemmes først, og derefter vælger du, hvilke symboler den skal kopieres til:
+
+- **Søg** efter navn eller type, eller brug **Alle af samme type**, **Alle rør og fittings** eller **Vælg viste**.
+- Symboler, der allerede er sat op, er mærket *har opsætning* og **springes over**, medmindre du sætter hak i **Overskriv**.
+- Tryk **Kopiér til …**. Resultatet viser for hvert symbol, om det blev kopieret, sprunget over eller gav en fejl (fx løbelys på et symbol uden streger).
+
+**Kopiér og indsæt i Tegn:** du kan også gøre det direkte på tegningen. Vælg det symbol, der er sat op, og tryk **Kopiér opsætning** i panelet *Valgt element*. Vælg derefter et eller flere andre symboler (hold **Shift** nede, eller træk en ramme) og tryk **Indsæt opsætning**. Har et af dem allerede en opsætning, spørger systemet, før den overskrives. Har tegningen ændringer, der ikke er gemt, gemmes og udgives den først. Har nogle af de valgte elementer **intet navn**, får de kildens navn med løbenummer — fx *varme pumpe tilgang_1*, *varme pumpe tilgang_2* … i tegningens rækkefølge (numre der allerede er brugt, springes over) — og derefter opsætningen. Du kan omdøbe dem bagefter.
+
+Hvert symbol får sin **egen kopi** — du kan bagefter rette det enkelte symbol i guiden uden at røre de andre. Animationer på en bestemt del af symbolet følger kun med, hvis det andet symbol har en del med samme navn; **nøglelåsen** og dens kode kopieres ikke.

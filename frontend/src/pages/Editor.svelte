@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
+  import { ask as askUser } from '../lib/ask';
   import { get, put, type Binding, type DrawingView, type LiveValue } from '../lib/api';
   import { ANIMS, flatten, fromForm, groupIds, isClick, nextBinding, pickElement, toDrafts, toForm, toHex, type BindingForm, type Draft } from '../lib/bindingForm';
   import { textFor } from '../lib/animate';
@@ -113,8 +114,8 @@
     selBox = null;
   }
 
-  function select(id: string, force = false): void {
-    if (!force && dirty && !confirm('Du har ændringer der ikke er gemt. Kassér dem?')) return;
+  async function select(id: string, force = false): Promise<void> {
+    if (!force && dirty && !await askUser('Du har ændringer der ikke er gemt. Kassér dem?')) return;
     selected = id;
     descDraft = descFor(elements.find((e) => e.id === id) ?? null);
     if (!filter) expanded = new Set([...expanded, ...ancestorsOf(elements, id)]); // vis hvor det valgte element ligger
@@ -214,7 +215,7 @@
   }
 
   async function removeOrphan(element: string): Promise<void> {
-    if (!view || !confirm(`Fjern bindingerne til det forsvundne element "${element}"?`)) return;
+    if (!view || !await askUser(`Fjern bindingerne til det forsvundne element "${element}"?`)) return;
     try {
       await put(`/api/drawings/${encodeURIComponent(view.id)}/bindings/${encodeURIComponent(element)}`, { bindings: [] });
       await load(view.id, true);

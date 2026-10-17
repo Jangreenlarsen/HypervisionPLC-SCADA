@@ -3,8 +3,11 @@
   // Valideringen er serverens (POST …/preview, kaldt løbende) — guiden viser fejl pr. trin og skriveplanen.
   // Reference for opførsel: docs/prototyper/symbolguide.html · teknik: docs/SYMBOLSTANDARD_IMPLEMENTERING.md afsnit 8.
   import { onDestroy, onMount } from 'svelte';
+  import { ask as askUser } from './ask';
   import { api, get, post, put, type LiveValue } from './api';
+  import { pasteReport, type CopyResponse } from './symbolCopy';
   import { LiveClient } from './live';
+  import SymbolCopy from './SymbolCopy.svelte';
   import TagSelect from './TagSelect.svelte';
   import {
     ALARM_TXT, ANIM_TXT, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
@@ -20,8 +23,10 @@
     plans: { position: number; label: string; writes: Write[] }[];
   }
 
-  let { drawingId, element, name, tags, onclose, onsaved }: {
+  let { drawingId, element, name, tags, group = [], onclose, onsaved }: {
     drawingId: string; element: string; name: string; tags: TagRow[];
+    /** "Opsæt de valgte samlet": de ANDRE valgte symboler — de får opsætningen, når der gemmes. */
+    group?: { id: string; name: string }[];
     onclose: () => void; onsaved: () => void;
   } = $props();
 
@@ -44,6 +49,10 @@
   let previewError = $state('');
   let checking = $state(false);   // en ændring venter på serverens kontrol
   let liveVals = $state<Record<string, LiveValue>>({});
+  let copyOpen = $state(false);   // "Anvend på flere …"
+  let savedHere = false;          // gemt undervejs (før kopiering) — luk guiden som efter et gem
+  let groupProblems = $state<string[]>([]);   // det der ikke kunne overføres til de andre valgte
+  let groupInfo = $state('');
 
   const tagByName = $derived(new Map(tags.map((t) => [t.name, t])));
   const sigKind = (id: string): 'bool' | 'num' | 'unknown' => {
@@ -110,7 +119,7 @@
 
   /** Forslag ud fra symbolets bindinger i dag (Konvertér). */
   async function convert(ask: boolean): Promise<void> {
-    if (ask && !confirm('Erstat guidens indhold med et forslag ud fra symbolets bindinger i dag?')) return;
+    if (ask && !await askUser('Erstat guidens indhold med et forslag ud fra symbolets bindinger i dag?')) return;
     try {
       const s = await get<{ config: SymbolConfig; notes: string[]; convertible: boolean }>(`${base}/suggest`);
       notes = s.notes ?? [];
@@ -212,12 +221,12 @@
     const t = raw.trim().replace(',', '.');
     p.values[j] = t === '' ? null : Number.isFinite(Number(t)) ? Number(t) : p.values[j];
   }
-  function applyTemplate(t: 'A' | 'B' | 'C' | 'D'): void {
-    if (cfg.planes.length && !confirm('Erstat kontaktplanerne med skabelonen?')) return;
+  async function applyTemplate(t: 'A' | 'B' | 'C' | 'D'): Promise<void> {
+    if (cfg.planes.length && !await askUser('Erstat kontaktplanerne med skabelonen?')) return;
     template(cfg, t);
   }
-  function applyPreset(): void {
-    if (!confirm('Indsæt eksemplet "7-trins vælger" (erstatter positioner, signaler og kontaktplaner)?')) return;
+  async function applyPreset(): Promise<void> {
+    if (!await askUser('Indsæt eksemplet "7-trins vælger" (erstatter positioner, signaler og kontaktplaner)?')) return;
     preset(cfg);
     step = 1;
   }
@@ -235,7 +244,7 @@
   // ---- 3-vejs ventil styret af ét til/fra-tag
   let valveTag = $state('');
   let valveMsg = $state('');
-  function applyValve(): void {
+  async function applyValve(): Promise<void> {
     valveMsg = '';
     if (!symbol || !valveTag) return;
     if (tagKindOf(valveTag) === 'num') {
@@ -245,7 +254,7 @@
     // Intet at skrive til endnu (forslaget "Positioner" uden tag): hurtig opsætning er til visning, så skift til "Kun visning"
     const toView = cfg.op === 'positions' && !cfg.signals.some((s) => s.tag);
     const used = cfg.anims.filter((a) => ['port_a', 'port_b', 'port_ab'].includes(symbol!.parts[a.part]?.pid ?? '')).length;
-    if (used && !toView && !confirm(`Erstat de ${used} eksisterende animationer på portene A, B og AB?`)) return;
+    if (used && !toView && !await askUser(`Erstat de ${used} eksisterende animationer på portene A, B og AB?`)) return;
     if (toView) setOp(cfg, 'view');   // fjerner også forslagets positions-animationer
     const k = valveFromTag(cfg, symbol, valveTag);
     valveMsg = k > 0 ? `${k} animationer oprettet: Til = AB → A, Fra = AB → B.${toView ? ' Symbolet er sat til "Kun visning".' : ''}`
@@ -305,7 +314,8 @@
   const num = (v: string, fallback: number) => (Number.isFinite(Number(v.replace(',', '.'))) && v.trim() !== '' ? Number(v.replace(',', '.')) : fallback);
 
   // ---------------------------------------------------------------- gem / fjern
-  async function save(): Promise<void> {
+  /** Gem opsætningen. → true hvis det lykkedes (fejlen vises i guiden). */
+  async function persist(): Promise<boolean> {
     saving = true;
     error = '';
     try {
@@ -314,15 +324,49 @@
       const r = await put<{ has_pin: boolean }>(`${base}/config`, body);
       hasPin = r.has_pin;
       pin = '';
-      onsaved();
+      exists = true;
+      return true;
     } catch (e) {
       error = (e as Error).message;
+      return false;
     } finally {
       saving = false;
     }
   }
+  async function save(): Promise<void> {
+    if (!(await persist())) return;
+    if (group.length && !(await applyGroup())) return;
+    onsaved();
+  }
+  /** Gruppetilstand: kopiér den netop gemte opsætning til de andre valgte (overskriver — det er hele formålet). → alt gik glat? */
+  async function applyGroup(): Promise<boolean> {
+    saving = true;
+    groupProblems = [];
+    groupInfo = '';
+    savedHere = true;
+    try {
+      const res = await post<CopyResponse>(`${base}/copy`, { targets: group.map((g) => g.id), overwrite: true });
+      const names = new Map(group.map((g) => [g.id, g.name]));
+      const rep = pasteReport(res, name, (id) => names.get(id) ?? id);
+      groupInfo = `Gemt i ${name}${res.ok ? ` og ${res.ok} ${res.ok === 1 ? 'andet symbol' : 'andre symboler'}` : ''}.`;
+      groupProblems = rep.problems;
+      return rep.problems.length === 0;
+    } catch (e) {
+      error = `Gemt i ${name}, men kunne ikke overføres til de andre: ${(e as Error).message}`;
+      return false;
+    } finally {
+      saving = false;
+    }
+  }
+  /** "Anvend på flere …": serveren kopierer den GEMTE opsætning, så gem først (samme kontrol som Gem). */
+  async function openCopy(): Promise<void> {
+    if (!(await persist())) return;
+    savedHere = true;
+    copyOpen = true;
+  }
+  const close = () => (savedHere ? onsaved() : onclose());
   async function remove(): Promise<void> {
-    if (!confirm(`Fjern symbol-konfigurationen for ${name}? Symbolets gamle bindinger gælder så igen.`)) return;
+    if (!await askUser(`Fjern symbol-konfigurationen for ${name}? Symbolets gamle bindinger gælder så igen.`)) return;
     saving = true;
     error = '';
     try {
@@ -337,7 +381,7 @@
   /** Fjern koden straks (skriv-kun; serveren svarer kun has_pin). */
   async function clearPin(): Promise<void> {
     const msg = locks ? 'Fjern koden? De låste positioner kan så ikke vælges, før en ny kode er sat.' : 'Fjern koden?';
-    if (!confirm(msg)) return;
+    if (!await askUser(msg)) return;
     error = '';
     try {
       const r = await api<{ has_pin: boolean }>('DELETE', `${base}/pin`);
@@ -351,15 +395,29 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="backdrop" onclick={() => !saving && onclose()}>
+<div class="backdrop" onclick={() => !saving && !copyOpen && close()}>
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="panel guide" role="dialog" aria-modal="true" aria-label="Opsæt symbol {name}" tabindex="-1" onclick={(e) => e.stopPropagation()}>
     <header class="row head">
-      <h2>Opsæt symbol: {name}</h2>
-      <span class="muted small">{element}{symbol?.type ? ` · ${symbol.type}` : ''}{exists ? ' · konfigureret' : ''}</span>
-      <button class="close" onclick={onclose} disabled={saving} aria-label="Luk">✕</button>
+      {#if group.length}
+        <h2>Opsæt {group.length + 1} symboler samlet</h2>
+        <span class="muted small">redigerer {name}{exists ? ' (konfigureret)' : ''}</span>
+      {:else}
+        <h2>Opsæt symbol: {name}</h2>
+        <span class="muted small">{element}{symbol?.type ? ` · ${symbol.type}` : ''}{exists ? ' · konfigureret' : ''}</span>
+      {/if}
+      <button class="close" onclick={close} disabled={saving} aria-label="Luk">✕</button>
     </header>
 
+    {#if group.length}
+      <p class="small group-note">Du redigerer <strong>{name}</strong>. Når du gemmer, får også {group.length <= 4 ? group.map((g) => g.name).join(', ') : `${group.slice(0, 3).map((g) => g.name).join(', ')} og ${group.length - 3} andre`} opsætningen (dele oversættes efter navn; nøglelåsen kopieres ikke).</p>
+    {/if}
+    {#if groupInfo || groupProblems.length}
+      <div class="small group-res">
+        {#if groupInfo}<p>{groupInfo}</p>{/if}
+        {#if groupProblems.length}<div class="error"><strong>Ikke alt kunne overføres</strong> — de øvrige har fået opsætningen:<ul>{#each groupProblems as m}<li>{m}</li>{/each}</ul></div>{/if}
+      </div>
+    {/if}
     {#if loading}
       <p class="muted">Henter…</p>
     {:else if !symbol}
@@ -651,19 +709,27 @@
       </div>
 
       <footer class="row">
-        {#if exists}<button class="danger" onclick={remove} disabled={saving}>Fjern konfiguration</button>{/if}
+        {#if !group.length}
+          {#if exists}<button class="danger" onclick={remove} disabled={saving}>Fjern konfiguration</button>{/if}
+          <button onclick={openCopy} disabled={!canSave}
+            title={canSave ? 'Gem opsætningen og kopiér den til andre symboler på tegningen' : 'Ret fejlene først — opsætningen gemmes, før den kopieres'}>Gem og anvend på flere …</button>
+        {/if}
         <span class="spacer"></span>
         <span class="small muted">{checking ? 'Kontrollerer…' : preview ? (preview.errors || needPin ? `${preview.errors + (needPin ? 1 : 0)} fejl` : 'Ingen fejl') : 'Kontrollerer…'}</span>
         <button onclick={() => (step = Math.max(0, step - 1 - (!isPos && step === 3 ? 1 : 0)))} disabled={step === 0}>Tilbage</button>
         {#if step < 5}
           <button onclick={() => (step = Math.min(5, step + 1 + (!isPos && step === 1 ? 1 : 0)))}>Næste</button>
         {:else}
-          <button class="primary" onclick={save} disabled={!canSave}>{saving ? 'Gemmer…' : 'Gem'}</button>
+          <button class="primary" onclick={save} disabled={!canSave}>{saving ? 'Gemmer…' : group.length ? `Gem i alle ${group.length + 1}` : 'Gem'}</button>
         {/if}
       </footer>
     {/if}
   </div>
 </div>
+
+{#if copyOpen}
+  <SymbolCopy {drawingId} {element} {name} type={symbol?.type ?? ''} onclose={() => (copyOpen = false)} />
+{/if}
 
 {#snippet colorInput(obj: Record<string, any>, key: string | number, label: string)}
   <label class="opt small"><input type="color" bind:value={obj[key]} /> {label}</label>
@@ -757,6 +823,9 @@
 {/snippet}
 
 <style>
+  .group-note { margin: .2rem 0 .4rem; padding: .35rem .6rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); }
+  .group-res { margin: 0 0 .4rem; }
+  .group-res ul { margin: .2rem 0 0; padding-left: 1.2rem; }
   .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px 0; z-index: 20; }
   .guide { width: 100%; max-width: 960px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 8px 30px rgba(0, 0, 0, .25); }
   .head { align-items: baseline; gap: .6rem; }

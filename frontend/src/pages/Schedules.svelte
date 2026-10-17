@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { ask as askUser } from '../lib/ask';
   import { api, get } from '../lib/api';
   import { DAYS, fmtValue, PRESETS, toForm, toPayload, type ScheduleForm } from '../lib/scheduleUi';
   import TagSelect, { type TagOption } from '../lib/TagSelect.svelte';
@@ -98,7 +99,7 @@
   }
 
   async function remove(s: Schedule): Promise<void> {
-    if (!confirm(`Slet ugeprogrammet "${s.name}"? Tagget bevarer sin nuværende værdi.`)) return;
+    if (!await askUser(`Slet ugeprogrammet "${s.name}"? Tagget bevarer sin nuværende værdi.`)) return;
     try {
       await api('DELETE', `/api/schedules/${s.id}`);
       await refresh();

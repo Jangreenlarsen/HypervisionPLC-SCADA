@@ -122,6 +122,15 @@ def test_relation_compares_version_then_build():
     assert relation({"version": "ukendt", "build": "ukendt"}, cur) == "unknown"
 
 
+def test_relation_with_debug_versions():
+    """Fejlsøgning bruger MAJOR.MINOR.PATCH.D (CLAUDE.md): 0.63.1.1 er nyere end 0.63.1, og 0.63.2 er nyere end 0.63.1.3."""
+    assert relation({"version": "0.63.1", "build": "0092"}, {"version": "0.63.1.1", "build": "0093"}) == "newer"
+    assert relation({"version": "0.63.1.1", "build": "0093"}, {"version": "0.63.1.1", "build": "0093"}) == "same"
+    assert relation({"version": "0.63.1.3", "build": "0095"}, {"version": "0.63.2", "build": "0096"}) == "newer"
+    assert relation({"version": "0.63.1.2", "build": "0094"}, {"version": "0.63.1.1", "build": "0093"}) == "older"
+    assert relation({"version": "0.63.1", "build": "0092"}, {"version": "0.63.1.1.1", "build": "0093"}) == "unknown"
+
+
 # ------------------------------------------------------------------ API
 
 @pytest.fixture

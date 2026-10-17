@@ -47,6 +47,12 @@ Indstillingerne huskes i din browser.
 
 ![Tegn med Tegnehjælp: gitter vist, fang til gitter og fang til objekter slået til](/manual/tegn-gitter.png)
 
+### Farver på de valgte symboler
+
+Vælg et eller flere symboler (hold **Shift** nede, eller træk en ramme), så viser panelet *Valgt element* feltet **Farver** med de farver, markeringen bruger (fx rørenes grå). Tryk på en farve og vælg en ny — så skiftes den farve i **alle** de valgte symboler på én gang, både fyld og streg. De andre farver røres ikke. **Ctrl+Z** fortryder skiftet i ét trin, og ændringen gemmes med **Gem kladde** / **Gem og udgiv**.
+
+> Farven her er symbolets **grundfarve** i tegningen. Har symbolet en animation (fx *Farve* eller *Løbelys*), bestemmer animationen farven på Overview, når den er aktiv.
+
 ### Erstat tegnede dele med symboler
 
 Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige figurer, kan du **erstatte dem med symboler fra biblioteket**, så de kan sættes op med guiden:
@@ -56,12 +62,13 @@ Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige 
 3. Systemet foreslår symboler ud fra delens form (fx *Statusfelt* til en afrundet etiket, *Pumpe* til en cirkel med trekant). Du kan også søge i hele biblioteket.
 4. Vælg symbolet og tilret indstillingerne: **navn**, **behold delens id** (så bindinger på selve delen følger med), **overtag teksten** (en etiket beholder sin tekst) og **stræk til at fylde**.
 5. Under **Andre dele af samme slags** kan du erstatte **alle lignende** på én gang — enten kun dem med samme størrelse eller alle af samme slags uanset størrelse (fx etiketter med forskellig tekstlængde).
-6. Tryk **Erstat**. Symbolet får samme **midte, størrelse og drejning** som den gamle del. **Ctrl+Z** fortryder hele erstatningen i ét trin.
-7. Tryk **Gem kladde**. Så er resultatet en ny version, og **Overview viser stadig den gamle**, til du udgiver den nye.
+6. **Flere løse dele?** Er symbolet tegnet af flere figurer (fx en ventil af trekanter, en prik og en motorcirkel), så marker dem alle og tryk **Erstat markeringen med symbol …** — så erstattes de samlet af ét symbol (tag også bogstaverne med, hvis symbolet selv har dem). **Spejlvend vandret** bruges, hvis den tegnede ventil vender omvendt; symbolets bogstaver spejles ikke.
+7. Tryk **Erstat**. Symbolet får samme **midte, størrelse og drejning** som den gamle del. **Ctrl+Z** fortryder hele erstatningen i ét trin.
+8. Tryk **Gem kladde**. Så er resultatet en ny version, og **Overview viser stadig den gamle**, til du udgiver den nye.
 
 ![Erstat med symbol: forslag ud fra delens form, indstillinger og valg om at erstatte alle lignende](/manual/tegn-erstat.png)
 
-> **Retning:** for en **pumpe** aflæser systemet, hvilken vej den tegnede trekant peger, og drejer symbolet, så det peger samme vej (valget *Drej symbolet …* i dialogen). For andre symboler er retningen tegnet ind i den gamle del og kan ikke aflæses sikkert — kontrollér og drej dem efter erstatning (**Shift** giver fri rotation). Bindinger på **underelementer** i den gamle del følger ikke med; dialogen advarer, hvis der er nogen.
+> **Retning og akse:** for en **pumpe** og en **kontraventil** aflæser systemet, hvilken vej den tegnede trekant peger, og drejer symbolet, så det peger samme vej. For en **ventil** tegnet som to trekanter aflæses, om den står **vandret eller lodret**, og ventilsymbolet drejes tilsvarende (valgene *Drej symbolet …* i dialogen). For andre symboler er retningen tegnet ind i den gamle del og kan ikke aflæses sikkert — kontrollér og drej dem efter erstatning (**Shift** giver fri rotation). Bindinger på **underelementer** i den gamle del følger ikke med; dialogen advarer, hvis der er nogen.
 
 ### Symbolbiblioteket
 

@@ -1,10 +1,15 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { ask as askUser } from '../lib/ask';
   import { get, patch, post } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
+  import GroupBasis from '../lib/GroupBasis.svelte';
+  import { BUNDLE } from '../lib/staleCheck';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
+  import { configGroups, pasteReport, pasteTargets, type ConfigClip, type ConfigGroup, type CopyResponse, type Member, type SymbolRow } from '../lib/symbolCopy';
+  import type { SymbolConfig, SymbolInfo } from '../lib/symbolConfig';
   import type { SelectionInfo } from '../lib/symbolSuggest';
   import { CATEGORIES, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
 
@@ -15,6 +20,7 @@
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[] }
   interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string; children?: number }
   interface ScadaApi {
+    build?: string;
     ready: Promise<void>;
     load(svg: string): boolean;
     newDrawing(w: number, h: number): void;
@@ -27,9 +33,12 @@
     insertSymbol(fragment: string, baseId: string): string;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; step: number }): void;
     describeSelection(): SelectionInfo | null;
-    replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any'; protectIds?: string[]; apexNative?: number }):
+    replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any'; protectIds?: string[]; apexNative?: number; axisNative?: number; mirror?: boolean }):
       { ok?: boolean; replaced?: number; skipped?: number; ids?: string[]; error?: string };
     ungroupSelected(): string;
+    selectionColors(): { color: string; uses: number }[];
+    recolorSelection(from: string, to: string): number;
+    nameElements(ids: string[], base: string): Record<string, string>;
   }
 
   let drawings = $state<{ id: string; name: string }[]>([]);
@@ -38,6 +47,7 @@
   let newName = $state('');
   let comment = $state('');
   let selection = $state<Sel[]>([]);
+  let colors = $state<{ color: string; uses: number }[]>([]);   // farverne i markeringen (panelet Farver)
   let idInput = $state('');
   let nameInput = $state('');
   let dirty = $state(false);
@@ -81,9 +91,14 @@
       return;
     }
     ed = win.scada;
+    if (ed.build !== BUNDLE.build) {
+      // browseren har en gammel kopi af tegneeditoren — nye funktioner (fx navngivning ved indsæt) mangler i den
+      error = `Tegneeditoren er en ældre version (build ${ed.build ?? 'ukendt'}, siden er build ${BUNDLE.build}). Genindlæs siden med Ctrl+F5.`;
+    }
     await ed.ready;
     ed.onSelection((sel) => {
       selection = sel;
+      colors = sel.length && ed ? ed.selectionColors() : [];
       idInput = sel.length === 1 ? sel[0].id : '';
       nameInput = sel.length === 1 ? sel[0].name ?? '' : '';
     });
@@ -94,12 +109,12 @@
     else startNew(true);
   }
 
-  function confirmDiscard(): boolean {
-    return !dirty || confirm('Der er ændringer der ikke er gemt. Kassér dem?');
+  async function confirmDiscard(): Promise<boolean> {
+    return !dirty || await askUser('Der er ændringer der ikke er gemt. Kassér dem?');
   }
 
-  function startNew(force = false): void {
-    if (!ed || (!force && !confirmDiscard())) return;
+  async function startNew(force = false): Promise<void> {
+    if (!ed || (!force && !(await confirmDiscard()))) return;
     ed.newDrawing(1200, 700);
     current = null;
     loadedVersion = null;
@@ -111,7 +126,7 @@
   }
 
   async function open(id: string, version?: number): Promise<void> {
-    if (!ed || !confirmDiscard()) return;
+    if (!ed || !(await confirmDiscard())) return;
     error = info = '';
     report = null;
     try {
@@ -137,16 +152,7 @@
     const sel = selection.length === 1 ? selection[0] : null;
     if (!ed || !sel?.name) return;
     error = '';
-    const published = current !== null && !dirty && loadedVersion === current.active_version;
-    if (!published) {
-      if (!current && !newName.trim()) {
-        error = 'Giv tegningen et navn (nederst i panelet) — den skal gemmes, før symbolet kan opsættes';
-        return;
-      }
-      if (!confirm('Tegningen gemmes og udgives først, så symbolet kan opsættes. Fortsæt?')) return;
-      await save(true);
-      if (error || dirty || !current) return; // save() har vist fejlen
-    }
+    if (!(await ensurePublished('symbolet kan opsættes'))) return;
     try {
       if (!tags.length) tags = await get('/api/tags');
     } catch (e) {
@@ -154,6 +160,167 @@
       return;
     }
     guideFor = { id: sel.id, name: sel.name };
+  }
+
+  /** Symbolopsætninger hører til tegningens AKTIVE version: gem og udgiv først, hvis tegningen er ny, ændret eller en kladde. → klar? */
+  async function ensurePublished(why: string, asked = false): Promise<boolean> {
+    if (current !== null && !dirty && loadedVersion === current.active_version) return true;
+    if (!current && !newName.trim()) {
+      error = `Giv tegningen et navn (øverst) — den skal gemmes, før ${why}`;
+      return false;
+    }
+    if (!asked && !await askUser(`Tegningen gemmes og udgives først, så ${why}. Fortsæt?`)) return false;
+    await save(true);
+    return !error && !dirty && current !== null; // save() har vist en evt. fejl
+  }
+
+  // ---- Opsæt de valgte samlet (v0.63.0): guiden redigerer ét udgangspunkt, og Gem giver alle de valgte opsætningen
+  let groupFor = $state<{ basis: { id: string; name: string }; others: { id: string; name: string }[] } | null>(null);
+  let basisChoice = $state<{ groups: ConfigGroup[]; members: Member[]; unnamed: string[] } | null>(null);
+
+  /** Kør en handling fra panelet, så en uventet fejl altid vises (ellers sker der bare ingenting — BUGS.md v0.63.1). */
+  async function guarded(what: string, fn: () => Promise<void>): Promise<void> {
+    try {
+      await fn();
+    } catch (e) {
+      busy = false;
+      // "x is not a function": tegneeditoren mangler en funktion — typisk en gammel kopi i browseren
+      const old = e instanceof TypeError && /is not a function/.test(e.message) ? ' — tegneeditoren er sandsynligvis en ældre version; genindlæs siden med Ctrl+F5' : '';
+      error = `${what} fejlede: ${(e as Error).message}${old}`;
+      console.error(what, e);
+    }
+  }
+
+  async function openGroupGuide(): Promise<void> {
+    if (!ed || selection.length < 2) return;
+    error = info = '';
+    const withId = selection.filter((s) => !!s.id);
+    const named = withId.filter((s) => !!s.name?.trim());
+    const unnamed = withId.filter((s) => !s.name?.trim()).map((s) => s.id);
+    if (!named.length) {
+      error = 'Giv mindst ét af de valgte symboler et navn — det bliver udgangspunktet, og de andre navngives efter det.';
+      return;
+    }
+    if (!(await ensurePublished('de valgte kan sættes op'))) return;
+    busy = true;
+    let members: Member[];
+    try {
+      if (!tags.length) tags = await get('/api/tags');
+      const did = encodeURIComponent(current!.id);
+      members = await Promise.all(named.map(async (s) => {
+        const r = await get<{ config: SymbolConfig | null; symbol: SymbolInfo | null }>(`/api/drawings/${did}/symbols/${encodeURIComponent(s.id)}/config`);
+        return { element: s.id, name: s.name!.trim(), config: r.config, symbol: r.symbol };
+      }));
+    } catch (e) {
+      error = (e as Error).message;
+      return;
+    } finally {
+      busy = false;
+    }
+    const gone = members.filter((m) => !m.symbol);
+    if (gone.length) {
+      error = `${gone.map((m) => m.name).join(', ')} findes ikke i den udgivne version af tegningen.`;
+      return;
+    }
+    const groups = configGroups(members);
+    if (groups.length > 1) {
+      basisChoice = { groups, members, unnamed };   // brugeren vælger udgangspunktet i dialogen
+      return;
+    }
+    await startGroup(groups[0]?.members[0] ?? members[0], members, unnamed);
+  }
+
+  async function startGroup(basis: Member, members: Member[], unnamed: string[]): Promise<void> {
+    basisChoice = null;
+    let extra: { id: string; name: string }[] = [];
+    if (unnamed.length) {
+      const who = unnamed.length === 1 ? 'Ét valgt element har' : `${unnamed.length} valgte elementer har`;
+      if (!await askUser(`${who} intet navn. De får navnet "${basis.name}" med løbenummer (${basis.name}_1, ${basis.name}_2 … — numre der allerede er brugt, springes over), og tegningen gemmes og udgives med de nye navne. Fortsæt?`)) return;
+      const named = ed?.nameElements(unnamed, basis.name) ?? {};
+      extra = Object.entries(named).map(([id, name]) => ({ id, name }));
+      if (!(await ensurePublished('de valgte kan sættes op', true))) return;
+    }
+    groupFor = {
+      basis: { id: basis.element, name: basis.name },
+      others: [...members.filter((m) => m.element !== basis.element).map((m) => ({ id: m.element, name: m.name })), ...extra],
+    };
+  }
+
+  // ---- Kopiér/indsæt symbolopsætning (v0.60.0): selve opsætningen ligger på serveren; "udklipsholderen" husker kun kilden
+  let clip = $state<ConfigClip | null>(null);
+  async function copyConfig(): Promise<void> {
+    const sel = selection.length === 1 ? selection[0] : null;
+    if (!sel?.name) return;
+    error = info = '';
+    if (!current) {
+      error = 'Tegningen er ikke gemt endnu — der er ingen opsætning at kopiere';
+      return;
+    }
+    try {
+      // opsætningen findes kun for symboler i den UDGIVNE version (et nyt, ikke-udgivet symbol har ingen)
+      const r = await get<{ config: unknown | null; orphaned: boolean }>(`/api/drawings/${encodeURIComponent(current.id)}/symbols/${encodeURIComponent(sel.id)}/config`);
+      if (r.orphaned) throw new Error(`"${sel.name}" findes ikke i den udgivne version af tegningen — gem og udgiv, og sæt det op først`);
+      if (!r.config) throw new Error(`"${sel.name}" har ingen opsætning endnu — sæt det op med "Opsæt symbol (6 trin)" først`);
+      clip = { drawingId: current.id, element: sel.id, name: sel.name };
+      info = `Opsætningen fra "${sel.name}" er kopieret — vælg et eller flere andre symboler og tryk "Indsæt opsætning".`;
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
+  const clipHere = $derived(!!clip && !!current && clip.drawingId === current.id);
+  async function pasteConfig(): Promise<void> {
+    if (!clip || !clipHere) return;
+    const src = clip;
+    const { targets, unnamed, noId, self } = pasteTargets(selection, src);
+    error = info = '';
+    if (!targets.length && !unnamed.length) {
+      error = self ? `Det er "${src.name}" selv — vælg et andet symbol.` : 'Vælg et eller flere elementer at indsætte opsætningen i.';
+      return;
+    }
+    let named: Record<string, string> = {};
+    if (unnamed.length) {
+      // elementer uden navn bliver symboler med kildens navn + løbenummer ("<navn>_1", "_2" …); navnet er en tegningsændring
+      const published = current !== null && !dirty && loadedVersion === current.active_version;
+      if (!current && !newName.trim()) {
+        error = 'Giv tegningen et navn (øverst) — den skal gemmes, før opsætningen kan indsættes';
+        return;
+      }
+      const who = unnamed.length === 1 ? 'Ét valgt element har' : `${unnamed.length} valgte elementer har`;
+      if (!await askUser(`${who} intet navn. De får navnet "${src.name}" med løbenummer (${src.name}_1, ${src.name}_2 … — numre der allerede er brugt, springes over) og derefter opsætningen.`
+        + `${published ? ' Tegningen gemmes og udgives med de nye navne.' : ' Tegningen gemmes og udgives først (også dine andre ændringer).'} Fortsæt?`)) return;
+      named = ed?.nameElements(unnamed, src.name) ?? {};
+      targets.push(...Object.keys(named));
+      if (!(await ensurePublished('opsætningen kan indsættes', true))) return;
+    } else if (!(await ensurePublished('opsætningen kan indsættes'))) return;
+    busy = true;
+    try {
+      const base = `/api/drawings/${encodeURIComponent(src.drawingId)}`;
+      const rows = await get<SymbolRow[]>(`${base}/symbols`);
+      const byId = new Map(rows.map((r) => [r.element, r]));
+      const nameOf = (id: string) => byId.get(id)?.name || named[id] || selection.find((x) => x.id === id)?.name || id;
+      const taken = targets.filter((t) => byId.get(t)?.configured);
+      if (taken.length && !await askUser(`${taken.length === 1 ? `"${nameOf(taken[0])}" har` : `${taken.length} af de valgte har`} allerede en opsætning. Overskriv med opsætningen fra "${src.name}"?`)) return;
+      const res = await post<CopyResponse>(`${base}/symbols/${encodeURIComponent(src.element)}/copy`, { targets, overwrite: taken.length > 0 });
+      const rep = pasteReport(res, src.name, nameOf);
+      const newNames = Object.values(named);
+      info = rep.info
+        + (newNames.length ? ` Nye navne: ${newNames.length <= 4 ? newNames.join(', ') : `${newNames[0]} … ${newNames[newNames.length - 1]}`}.` : '')
+        + (noId ? ` ${noId} element${noId === 1 ? '' : 'er'} uden id er sprunget over.` : '');
+      if (rep.problems.length) error = rep.problems.join(' · ');
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
+
+  // ---- Farver på de valgte symboler (v0.61.0): én farve skiftes i hele markeringen
+  const MAX_COLORS = 12;
+  function recolor(from: string, to: string): void {
+    if (!ed || from === to) return;
+    error = info = '';
+    const n = ed.recolorSelection(from, to);
+    if (!n) error = `Farven ${from} findes ikke længere i markeringen`;
   }
 
   // ---- Erstat med symbol (tegnet del → bibliotekssymbol)
@@ -166,7 +333,7 @@
     error = info = '';
     const d = ed.describeSelection();
     if (!d) {
-      error = 'Vælg præcis ét element at erstatte';
+      error = 'Vælg mindst ét element at erstatte';
       return;
     }
     // Bindinger på delens underelementer følger ikke med (kun på selve delen, hvis id'et beholdes)
@@ -194,7 +361,7 @@
   function doReplace(o: ReplaceOptions): void {
     if (!ed) return;
     const res = ed.replaceSelected(withName(o.symbol.svg, o.name || o.symbol.label), o.symbol.id,
-      { name: o.name || o.symbol.label, namePrefix: o.symbol.label, keepId: o.keepId, stretch: o.stretch, useText: o.useText, similar: o.similar, protectIds: boundIds, apexNative: o.apexNative });
+      { name: o.name || o.symbol.label, namePrefix: o.symbol.label, keepId: o.keepId, stretch: o.stretch, useText: o.useText, similar: o.similar, protectIds: boundIds, apexNative: o.apexNative, axisNative: o.axisNative, mirror: o.mirror });
     replaceInfo = null;
     if (res.error) {
       error = res.error;
@@ -418,13 +585,19 @@
 {/if}
 
 <div class="layout">
-  <iframe bind:this={iframe} src="/svgedit/scada-editor.html" title="Tegne-editor" onload={connect}></iframe>
+  <iframe bind:this={iframe} src="/svgedit/scada-editor.html?v={BUNDLE.build}" title="Tegne-editor" onload={connect}></iframe>
 
   <aside>
     <section class="panel">
       <h3>Valgt element</h3>
       {#if !single}
         <p class="muted small">{selection.length > 1 ? `${selection.length} elementer valgt` : 'Vælg et element i tegningen.'}</p>
+        {#if selection.length > 1}
+          <div class="row"><button class="primary" onclick={() => guarded('Opsæt de valgte samlet', openGroupGuide)} disabled={!ready || busy} title="Rediger tag og animationer for alle de valgte på én gang — guiden redigerer ét af dem, og Gem giver alle opsætningen">Opsæt de valgte samlet ({selection.length})</button></div>
+          <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat de valgte dele samlet med ét symbol — fx en ventil tegnet af flere løse figurer">Erstat markeringen med symbol …</button></div>
+          {@render clipRow(false)}
+          {@render colorRow()}
+        {/if}
       {:else}
         <p class="small muted">&lt;{single.tag}&gt;</p>
         <label class="field">Navn
@@ -433,15 +606,18 @@
         </label>
         {#if single.name}
           <div class="row"><button class="primary" onclick={openGuide} disabled={busy || !ready}>Opsæt symbol (6 trin)</button></div>
+          {@render clipRow(true)}
           <p class="small muted">Tag, positioner, animationer og nøglelås sættes i guiden — samme guide findes under <strong>Bindinger</strong>.{!current || dirty ? ' Tegningen gemmes og udgives først.' : ''}</p>
         {:else}
           <p class="small muted">Giv elementet et <strong>navn</strong> for at gøre det til et symbol, der kan konfigureres under <strong>Bindinger</strong>. Uden navn er det kun tegning.</p>
+          {#if clip}{@render clipRow(false)}{/if}
         {/if}
         {#if single.tag === 'g' && !single.name && (single.children ?? 0) > 20}
           <p class="small notice">Denne gruppe har {single.children} dele. Opløs den for at vælge delene enkeltvis, så de kan erstattes med symboler.</p>
           <div class="row"><button onclick={ungroup} disabled={!ready}>Opløs gruppen</button></div>
         {/if}
         <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat den tegnede del med et symbol fra biblioteket (samme placering, størrelse og drejning)">Erstat med symbol …</button></div>
+        {@render colorRow()}
         <details class="adv">
           <summary class="small">Avanceret</summary>
           <label class="field">Id (teknisk)
@@ -486,8 +662,50 @@
   </aside>
 </div>
 
+{#snippet colorRow()}
+  {#if colors.length}
+    <div class="colors" role="group" aria-label="Farver i markeringen">
+      <span class="small"><strong>Farver</strong> <span class="muted">— vælg en ny for at skifte den i {selection.length > 1 ? `alle ${selection.length} valgte` : 'det valgte'}</span></span>
+      <div class="swatches">
+        {#each colors.slice(0, MAX_COLORS) as c (c.color)}
+          <label class="swatch" title="{c.color} — bruges {c.uses} gang{c.uses === 1 ? '' : 'e'}">
+            <input type="color" value={c.color} aria-label="Skift farven {c.color}" onchange={(e) => recolor(c.color, e.currentTarget.value)} />
+            <span class="small muted">{c.uses}</span>
+          </label>
+        {/each}
+      </div>
+      {#if colors.length > MAX_COLORS}<p class="small muted">+ {colors.length - MAX_COLORS} farver mere — vælg færre elementer for at se dem.</p>{/if}
+      <p class="small muted">Ctrl+Z fortryder. Animationer (fx farve eller løbelys) kan stadig farve symbolet på Overview.</p>
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet clipRow(canCopy: boolean)}
+  <div class="row clip">
+    {#if canCopy}<button onclick={() => guarded('Kopiér opsætning', copyConfig)} disabled={busy || !ready} title="Husk dette symbols opsætning (tag og animationer), så den kan indsættes i andre symboler">Kopiér opsætning</button>{/if}
+    {#if clip}
+      <button onclick={() => guarded('Indsæt opsætning', pasteConfig)} disabled={busy || !ready || !clipHere || (single?.id === clip.element)}
+        title={!clipHere ? 'Opsætningen er kopieret fra en anden tegning' : `Indsæt opsætningen fra "${clip.name}" i de valgte symboler`}>Indsæt opsætning</button>
+    {/if}
+  </div>
+  {#if clip}<p class="small muted">Kopieret: <strong>{clip.name}</strong>{clipHere ? '' : ' (fra en anden tegning — kan ikke indsættes her)'}</p>{/if}
+{/snippet}
+
 {#if replaceInfo}
   <SymbolReplace info={replaceInfo} lostBindings={replaceLost} onreplace={doReplace} onclose={() => (replaceInfo = null)} />
+{/if}
+
+{#if basisChoice}
+  {@const bc = basisChoice}
+  <GroupBasis groups={bc.groups} unconfigured={bc.members.filter((m) => !m.config)} unnamed={bc.unnamed.length}
+    onpick={(m) => guarded('Opsæt de valgte samlet', () => startGroup(m, bc.members, bc.unnamed))} onclose={() => (basisChoice = null)} />
+{/if}
+
+{#if groupFor && current}
+  {@const gf = groupFor}
+  <SymbolGuide drawingId={current.id} element={gf.basis.id} name={gf.basis.name} {tags} group={gf.others}
+    onclose={() => (groupFor = null)}
+    onsaved={() => { info = `${gf.others.length + 1} symboler er opsat ud fra "${gf.basis.name}".`; groupFor = null; }} />
 {/if}
 
 {#if guideFor && current}
@@ -526,6 +744,11 @@
   .symbols button { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; font-size: .72rem; line-height: 1.15; }
   details { margin-top: .6rem; }
   .adv { margin-top: .8rem; }
+  .clip { margin-top: .4rem; gap: .4rem; }
+  .colors { margin-top: .6rem; }
+  .swatches { display: flex; flex-wrap: wrap; gap: .35rem; margin: .3rem 0 .2rem; }
+  .swatch { display: flex; flex-direction: column; align-items: center; gap: .05rem; cursor: pointer; }
+  .swatch input { width: 2.1rem; height: 1.7rem; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
   .selector-cfg { margin-top: .5rem; }
   .selector-cfg input { flex: 1; min-width: 0; }
   summary { cursor: pointer; font-weight: 600; font-size: .9rem; margin-bottom: .4rem; }

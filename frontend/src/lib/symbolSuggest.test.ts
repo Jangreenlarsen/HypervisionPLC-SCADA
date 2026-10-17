@@ -4,7 +4,7 @@ import { hasTextSlot, nameHint, stretchesByDefault, suggestSymbols, type Selecti
 
 const sel = (over: Partial<SelectionInfo>): SelectionInfo => ({
   id: 'svg_1', tag: 'g', counts: {}, children: 1, w: 70, h: 70, angle: 0, fill: '', stroke: '', strokeWidth: 0, rx: 0, name: '',
-  symbolType: '', ids: ['svg_1'], texts: [], apexAngle: null, similar: 0, similarAny: 0, similarGroups: [], ...over,
+  symbolType: '', ids: ['svg_1'], texts: [], apexAngle: null, axisAngle: null, similar: 0, similarAny: 0, similarGroups: [], ...over,
 });
 const top = (s: SelectionInfo) => suggestSymbols(s)[0]?.id;
 const ids = (s: SelectionInfo) => suggestSymbols(s).map((x) => x.id);
@@ -23,6 +23,15 @@ describe('forslag til symboler (opbygninger fra "varme"-tegningen)', () => {
     expect(suggestSymbols(sel({ tag: 'path', counts: { path: 1 }, w: 40, h: 200, fill: 'none', stroke: '#000', strokeWidth: 2 }))).toEqual([]);
   });
 
+  it('flere løse dele (3 trekanter, prik, motorcirkel, streg, bogstaver) → 3-vejs motorventil', () => {
+    const s = sel({ tag: 'markering', counts: { path: 3, ellipse: 2, line: 1, text: 4 }, children: 10, w: 118, h: 96 });
+    expect(top(s)).toBe('trevejs_motorventil');
+    expect(ids(s)).toEqual(expect.arrayContaining(['trevejs_motorventil_ab', 'motorventil']));
+    // for få figurer eller for lille/stor: intet forslag
+    expect(suggestSymbols(sel({ tag: 'markering', counts: { path: 1, ellipse: 1 }, w: 100, h: 100 }))).toEqual([]);
+    expect(suggestSymbols(sel({ tag: 'markering', counts: { path: 3, ellipse: 2, line: 1 }, w: 20, h: 20 }))).toEqual([]);
+  });
+
   it('cirkel + trekant (72×70) → pumpe, med ventilator og motor som alternativer', () => {
     const s = sel({ counts: { g: 2, ellipse: 1, path: 1 }, w: 72.5, h: 70 });
     expect(ids(s).slice(0, 3)).toEqual(['pumpe', 'ventilator', 'motor']);
@@ -34,10 +43,23 @@ describe('forslag til symboler (opbygninger fra "varme"-tegningen)', () => {
     expect(suggestSymbols(s)[0].score).toBeLessThan(90);
   });
 
-  it('ventil med stilk og motor-cirkel (68–78 bred) → motorventil først, 3-vejs som alternativ', () => {
+  it('ventil med stilk/greb og kun én prik (Bypas, sikkerhedsventil) → manuel ventil først; sikkerheds- og reguleringsventil som alternativ', () => {
     const s = sel({ counts: { g: 3, ellipse: 1, line: 2, path: 2 }, w: 77.6, h: 74.9 });
-    expect(top(s)).toBe('motorventil');
-    expect(ids(s)).toEqual(expect.arrayContaining(['trevejs_motorventil', 'ventil', 'regventil']));
+    expect(top(s)).toBe('ventil');
+    expect(ids(s)).toEqual(expect.arrayContaining(['regventil', 'sikkerhedsventil', 'motorventil']));
+  });
+
+  it('ventil med motorcirkel (to ellipser) → motorventil først', () => {
+    expect(top(sel({ counts: { g: 2, ellipse: 2, line: 1, path: 2 }, w: 70, h: 75 }))).toBe('motorventil');
+  });
+
+  it('to løse trekanter og en prik (AVTA/AVTB/Laddomat) → ventil eller reguleringsventil', () => {
+    const s = sel({ tag: 'markering', counts: { path: 2, ellipse: 1 }, children: 3, w: 53, h: 75 });
+    expect(ids(s).slice(0, 2)).toEqual(['ventil', 'regventil']);
+  });
+
+  it('trekant med tværstreg (40×53) → kontraventil', () => {
+    expect(top(sel({ counts: { g: 2, path: 1, line: 1 }, w: 39.5, h: 52.5 }))).toBe('kontraventil');
   });
 
   it('lille cirkel med streg (målepunkt, 14×24) → føler/forbindelsespunkt', () => {

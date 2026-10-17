@@ -17,9 +17,14 @@ describe.skipIf(!existsSync(editor))('SVG-Edit-kopien (public/svgedit)', () => {
 
   it('værtssiden bruger vores gitter og fang-funktioner, ikke SVG-Edits eget gitter-udvidelse', () => {
     const js = readFileSync(host, 'utf-8');
-    expect(js).toContain("from './snap.js'");
+    expect(js).toMatch(/from '\.\/snap\.js\?v=\d+'/);   // versioneret adresse (cache-sikring, v0.63.2)
     expect(js).toContain('setGuides');
     expect(js).not.toContain("'ext-grid'");
     expect(existsSync(join(process.cwd(), 'public', 'svgedit', 'snap.js'))).toBe(true);
+  });
+
+  it('drejegrebets forbindelsesstreg tager ikke imod musen (ellers flyttede det øverste midtergreb elementet)', () => {
+    const css = readFileSync(join(process.cwd(), 'public', 'svgedit', 'scada-editor.css'), 'utf-8');
+    expect(css).toMatch(/#selectorGrip_rotateconnector\s*\{\s*pointer-events:\s*none;?\s*\}/);
   });
 });

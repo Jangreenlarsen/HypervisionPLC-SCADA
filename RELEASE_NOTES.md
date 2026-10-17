@@ -2,6 +2,83 @@
 
 ---
 
+## v0.65.1 — 2026-10-17 — Rettet: rør kan strækkes i begge ender
+
+- I **Tegn** kan et lodret rør (og alle andre figurer) nu strækkes opad med det øverste midtergreb. Før flyttede grebet hele elementet, fordi drejegrebets streg lå ovenpå.
+
+## v0.65.0 — 2026-10-17 — T-stykkets afgrening
+
+- Løbelyset i et T-stykkes afgrening starter nu ved kanten af gennemløbet i stedet for midt inde i det, så lyset ikke tegnes hen over gennemløbet.
+
+## v0.64.2 — 2026-10-17 — Løbelys over korte rørstykker
+
+- Et kort rørstykke mellem fx et T-stykke og en bøjning bryder ikke længere det sammenhængende løbelys.
+
+## v0.64.1 — 2026-10-17 — Løbelys: også over T-stykker og med forskellig lyslængde
+
+- T-stykker indgår nu i det sammenhængende løbelys (både gennemløbet og afgreningen).
+- Har delene i et forløb forskellig lyslængde eller fart, bruger hele forløbet den, flest dele har — så mønstret kan fortsætte over samlingerne.
+
+## v0.64.0 — 2026-10-17 — Løbelys uden synlige samlinger
+
+- Løbelys på rør, bøjninger og T-stykker, der hænger sammen og bruger samme tag, kører nu som **ét sammenhængende lys** — mønstret fortsætter hen over samlingerne i stedet for at starte forfra i hver del.
+- Er et rør tegnet "baglæns", kører det nu alligevel samme vej som sine naboer. Vil du vende hele forløbet, så sæt **Vend retning** på alle delene (fx med *Opsæt de valgte samlet*).
+
+## v0.63.3 — 2026-10-17 — Rettet: Indsæt opsætning i Firefox
+
+- Bekræftet: *Indsæt opsætning* og alle andre spørgsmål virker nu også i Firefox.
+
+## v0.63.2.1 — 2026-10-17 — Spørgsmål virker også i Firefox (debug)
+
+- Spørgsmål som *"Slet …?"*, *"Kassér ændringer?"* og *"… intet navn. Fortsæt?"* vises nu i en dialog på siden i stedet for browserens egen. Firefox kunne blokere browserens dialoger, og så gjorde fx *Indsæt opsætning* ingenting.
+
+## v0.63.2 — 2026-10-17 — Tegneeditoren holdes opdateret
+
+- Tegneeditoren hentes nu altid i den rigtige version efter en opdatering. Er den alligevel gammel, siger **Tegn** det og beder dig genindlæse med **Ctrl+F5**.
+- Går *Kopiér/Indsæt opsætning* eller *Opsæt de valgte samlet* galt, vises fejlen nu i stedet for, at der bare ingenting sker.
+
+## v0.63.1 — 2026-10-17 — Rettelser
+
+- Står en side åben, mens SCADA bliver opdateret, viser den nu et banner **"SCADA er opdateret … Genindlæs"**. Før kørte fanen videre med den gamle version, så nye funktioner (fx *Opsæt de valgte samlet* og navngivning ved *Indsæt opsætning*) ikke var der.
+- Kopierer eller duplikerer du et symbol i Tegn, får kopien nu sit eget navn (fx *Bøjning 90° 8*) i stedet for originalens.
+
+## v0.63.0 — 2026-10-17 — Opsæt flere symboler samlet
+
+- Markér flere symboler i **Tegn** og tryk **Opsæt de valgte samlet**. Guiden åbner med ét af dem, og når du trykker **Gem i alle**, får alle de valgte den samme opsætning (tag og animationer).
+- Har de valgte **forskellige opsætninger**, spørger systemet først, hvilken der skal være udgangspunktet.
+- Kan et af symbolerne ikke få opsætningen (fx løbelys på en pumpe), står det i guiden — de andre får den alligevel.
+
+## v0.62.0 — 2026-10-17 — Indsæt opsætning giver navne
+
+- Indsætter du en kopieret opsætning i elementer **uden navn**, får de nu kildens navn med løbenummer — fx *varme pumpe tilgang_1*, *varme pumpe tilgang_2* … (numre der allerede er brugt, springes over) — og derefter opsætningen. Før blev de sprunget over.
+
+## v0.61.0 — 2026-10-17 — Farver på valgte symboler
+
+- I **Tegn** viser panelet *Valgt element* nu feltet **Farver** med de farver, de valgte symboler bruger. Vælg en ny farve for en af dem, så skiftes den i alle de valgte symboler på én gang — fx alle rør, bøjninger og T-stykker i en kreds. **Ctrl+Z** fortryder.
+
+## v0.60.0 — 2026-10-17 — Kopiér og indsæt opsætning i Tegn
+
+- I **Tegn** kan du vælge et symbol og trykke **Kopiér opsætning**, og derefter vælge et eller flere andre symboler og trykke **Indsæt opsætning**.
+- Har et af symbolerne allerede en opsætning, spørger systemet, før den overskrives. Passer opsætningen ikke til et symbol (fx løbelys på en pumpe), får du at vide hvorfor, og de andre symboler får den stadig.
+
+## v0.59.0 — 2026-10-17 — Samme opsætning på mange symboler
+
+- I symbolguiden kan du nu trykke **Gem og anvend på flere …** og kopiere opsætningen (tag og animationer) til andre symboler på tegningen — fx alle rør, bøjninger og T-stykker på én gang med **Alle rør og fittings**.
+- Hvert symbol får sin **egen kopi**, som du bagefter kan rette enkeltvis.
+- Symboler, der allerede er sat op, springes over, medmindre du sætter hak i **Overskriv**. Resultatet viser, hvad der blev kopieret, og hvad der ikke kunne.
+
+## v0.58.0 — 2026-10-17 — Ventiler vender rigtigt efter erstatning
+
+- Når du erstatter en tegnet ventil (to trekanter) med et ventilsymbol, aflæser systemet om ventilen står **vandret eller lodret** og drejer symbolet tilsvarende.
+- En **kontraventil** drejes, så pilen peger samme vej som den tegnede trekant.
+- Bedre forslag: en ventil med greb foreslås som **manuel ventil** (før blev den fejlagtigt foreslået som motorventil); en ventil med motorcirkel som **motorventil**.
+
+## v0.57.0 — 2026-10-16 — Erstat med symbol: ventiler tegnet af flere dele
+
+- Er en ventil (eller et andet symbol) tegnet af **flere løse figurer**, kan du markere dem alle og trykke **Erstat markeringen med symbol …**. Systemet foreslår fx **3-vejs motorventil**.
+- Nyt valg: **Spejlvend vandret** — til en ventil, der er tegnet omvendt (A og AB byttet). Bogstaverne bliver ved at vende rigtigt.
+- Rettet: navne på de nye symboler fik fejlagtigt et " 2" til sidst.
+
 ## v0.56.0 — 2026-10-16 — Pumpernes retning bevares ved erstatning
 
 - Når du erstatter en tegnet pumpe med symbolet **Pumpe**, aflæser systemet, hvilken vej den tegnede trekant peger, og **drejer symbolet, så det peger samme vej** — også når du erstatter flere pumper på én gang. Valget kan slås fra.

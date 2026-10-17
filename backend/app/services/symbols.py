@@ -26,7 +26,7 @@ from .bindings import (DEFAULT_OFF, DEFAULT_ON, ColorParams, FlowParams, LevelPa
                        RotateParams, TextParams, ToggleParams, _color)
 from .errors import ServiceError
 from .operate import INT_RANGES, to_raw
-from .svg_sanitize import describe_element
+from .svg_sanitize import describe_element, named_symbols
 from .tagsource import TagSourceError, parse_source
 
 log = logging.getLogger(__name__)
@@ -488,6 +488,34 @@ def _logic_cycle(element: str, own: list[dict[str, Any]], others: dict[str, dict
     return None
 
 
+def map_config(cfg: dict[str, Any], source: dict[str, Any], target: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Oversæt en opsætning fra ét symbol til et andet ("kopiér opsætning til flere"). Animationer på "hele symbolet" følger
+    med; en animation på en del oversættes til målets del med samme biblioteksnavn (data-hv-pid) — findes den ikke, springes
+    animationen over. Nøglelåsen følger ikke med (koden er pr. symbol). → (ny opsætning, noter til brugeren)."""
+    import copy
+    out = copy.deepcopy(cfg)
+    notes: list[str] = []
+    by_pid = {p.get("pid"): pid for pid, p in (target.get("parts") or {}).items() if p.get("pid")}
+    kept = []
+    for i, a in enumerate(out.get("anims", [])):
+        part = a.get("part", "all")
+        if part == "all":
+            kept.append(a)
+            continue
+        pid = ((source.get("parts") or {}).get(part) or {}).get("pid")
+        mapped = by_pid.get(pid) if pid else None
+        if mapped is None:
+            notes.append(f"Animation {i + 1} ({ANIM_LABEL.get(a.get('type'), a.get('type'))} på '{pid or part}') findes ikke i dette symbol — sprunget over.")
+            continue
+        kept.append({**a, "part": mapped})
+    out["anims"] = kept
+    lock = out.get("lock") or {}
+    if any(lock.get("positions") or []):
+        out["lock"] = {"positions": [False] * len(lock.get("positions") or []), "leave": False}
+        notes.append("Nøglelåsen er ikke kopieret — koden er pr. symbol; sæt den i guiden, hvis den skal bruges her.")
+    return out, notes
+
+
 def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str, Any]],
                     has_pin: bool, element_id: str = "",
                     others: dict[str, dict[str, Any]] | None = None) -> tuple[dict[str, Any], Result]:
@@ -850,6 +878,59 @@ class SymbolService:
             self.on_change(drawing_id, element)
         return {"element": element, "config": normalized, "warnings": res.warnings,
                 "has_pin": self.db.get_symbol_pin_hash(drawing_id, element) is not None}
+
+    def list_symbols(self, drawing_id: str) -> list[dict[str, Any]]:
+        """Symbolerne i tegningens aktive version, med om de har en opsætning — til "kopiér opsætning til flere"."""
+        self.drawings._require(drawing_id)
+        configured = set(self.configs(drawing_id))
+        return [{"element": s["id"], "name": s["name"], "type": s["type"], "configured": s["id"] in configured}
+                for s in named_symbols(self.drawings.svg(drawing_id))]
+
+    def copy_to(self, actor: CurrentUser, drawing_id: str, source: str, targets: list[str], overwrite: bool) -> dict[str, Any]:
+        """Kopiér et symbols GEMTE opsætning til andre symboler på tegningen. Hver kopi oversættes (dele efter navn) og
+        valideres som et almindeligt gem; et mål der fejler, påvirker ikke de andre. Symboler der allerede har en opsætning,
+        springes over, medmindre `overwrite`. → {"results": [{element, status: ok|skipped|error, message, notes}], …}"""
+        self.drawings._require(drawing_id)
+        row = self.db.get_symbol_config(drawing_id, source)
+        if row is None:
+            raise ServiceError(409, "Symbolet har ingen gemt opsætning — gem den i guiden, før den kopieres")
+        svg = self.drawings.svg(drawing_id)
+        src_info = describe_element(svg, source)
+        if src_info is None:
+            raise ServiceError(404, f"Elementet '{source}' findes ikke i den aktive version af tegningen")
+        tags = self._tags()
+        results: list[dict[str, Any]] = []
+        for target in dict.fromkeys(targets):        # unikke, i den valgte rækkefølge
+            if target == source:
+                continue
+            res_row: dict[str, Any] = {"element": target, "status": "ok", "message": "", "notes": []}
+            results.append(res_row)
+            info = describe_element(svg, target)
+            if info is None:
+                res_row.update(status="error", message="Findes ikke i den aktive version af tegningen")
+                continue
+            existing = self.db.get_symbol_config(drawing_id, target)
+            if existing is not None and not overwrite:
+                res_row.update(status="skipped", message="Har allerede en opsætning (sæt hak i 'Overskriv' for at erstatte den)")
+                continue
+            mapped, notes = map_config(row["config"], src_info, info)
+            res_row["notes"] = notes
+            has_pin = self.db.get_symbol_pin_hash(drawing_id, target) is not None
+            others = {k: v for k, v in self.configs(drawing_id).items() if k != target}
+            normalized, res = validate_config(mapped, info, tags, has_pin, target, others)
+            if not res.count and existing is not None:
+                gone = {b["id"] for b in existing["config"].get("logic", [])} - {b["id"] for b in normalized.get("logic", [])}
+                for user, bid in self._logic_users(drawing_id, target, gone):
+                    res.err("4", f"Blokken {bid} bruges af symbolet '{user}' — kan ikke overskrives.")
+            if res.count:
+                res_row.update(status="error", message=res.first())
+                continue
+            self.db.set_symbol_config(drawing_id, target, normalized, actor.username)
+            if self.on_change is not None:
+                self.on_change(drawing_id, target)
+        counts = {k: sum(1 for r in results if r["status"] == k) for k in ("ok", "skipped", "error")}
+        log.info("Opsætning for %s#%s kopieret af %s: %s", drawing_id, source, actor.username, counts)
+        return {"source": source, "results": results, **counts}
 
     def set_pin(self, actor: CurrentUser, drawing_id: str, element: str, pin: str) -> dict[str, Any]:
         """Sæt/skift koden til nøglelåsen (skriv-kun): gemmes kun som hash, returnerer kun at den er sat (regel 6)."""

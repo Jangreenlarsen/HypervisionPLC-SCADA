@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { ask as askUser } from '../lib/ask';
   import { del, get, patch, post, type LiveValue } from '../lib/api';
   import { formatValue } from '../lib/animate';
   import { SOURCE_LABEL, sourceKind } from '../lib/tagSource';
@@ -115,7 +116,7 @@
   }
 
   async function remove(t: Tag): Promise<void> {
-    if (!confirm(`Slet tagget ${t.name}?`)) return;
+    if (!await askUser(`Slet tagget ${t.name}?`)) return;
     try {
       await del(`/api/tags/${encodeURIComponent(t.name)}`);
       await refresh();

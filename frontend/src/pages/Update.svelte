@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { ask as askUser } from '../lib/ask';
   import { api, get, post } from '../lib/api';
   import { RELATION_TEXT, canInstall, fmtSize, isFinished, progressText, resultOf, type Staged, type UpdateStatus } from '../lib/updateUi';
 
@@ -57,7 +58,7 @@
   async function install(): Promise<void> {
     const s = status?.staged;
     if (!s) return;
-    if (!confirm(`Installér ${s.version} build ${s.build} og genstart SCADA'en?\n\nDer tages en backup først. Svarer den nye version ikke, rulles der automatisk tilbage til ${status?.current.version}.\nOverview og live-data er væk et øjeblik under genstarten.`)) return;
+    if (!await askUser(`Installér ${s.version} build ${s.build} og genstart SCADA'en?\n\nDer tages en backup først. Svarer den nye version ikke, rulles der automatisk tilbage til ${status?.current.version}.\nOverview og live-data er væk et øjeblik under genstarten.`)) return;
     error = info = '';
     try {
       startedAt = Math.floor(Date.now() / 1000);
