@@ -27,7 +27,7 @@
     insertSymbol(fragment: string, baseId: string): string;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; step: number }): void;
     describeSelection(): SelectionInfo | null;
-    replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any'; protectIds?: string[]; apexNative?: number; mirror?: boolean }):
+    replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any'; protectIds?: string[]; apexNative?: number; axisNative?: number; mirror?: boolean }):
       { ok?: boolean; replaced?: number; skipped?: number; ids?: string[]; error?: string };
     ungroupSelected(): string;
   }
@@ -194,7 +194,7 @@
   function doReplace(o: ReplaceOptions): void {
     if (!ed) return;
     const res = ed.replaceSelected(withName(o.symbol.svg, o.name || o.symbol.label), o.symbol.id,
-      { name: o.name || o.symbol.label, namePrefix: o.symbol.label, keepId: o.keepId, stretch: o.stretch, useText: o.useText, similar: o.similar, protectIds: boundIds, apexNative: o.apexNative, mirror: o.mirror });
+      { name: o.name || o.symbol.label, namePrefix: o.symbol.label, keepId: o.keepId, stretch: o.stretch, useText: o.useText, similar: o.similar, protectIds: boundIds, apexNative: o.apexNative, axisNative: o.axisNative, mirror: o.mirror });
     replaceInfo = null;
     if (res.error) {
       error = res.error;

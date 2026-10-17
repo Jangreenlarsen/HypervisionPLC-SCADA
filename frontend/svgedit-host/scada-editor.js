@@ -2,7 +2,7 @@
 // Forældresiden (DrawEditor.svelte) bruger `window.scada` nedenfor.
 import Editor from './Editor.js';
 import {
-  directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, snapToObjects, transformBox, triangleApex, turnTo, unionBox,
+  axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox,
 } from './snap.js';
 
 const editor = new Editor(document.getElementById('container'));
@@ -332,6 +332,30 @@ function apexAngleOf(el) {
   return M ? directionAngle(found[0].tri.vector, M) : null;
 }
 
+/** Trekanterne (3 hjørner) i elementerne og deres underelementer, med hjørnerne i tegningens koordinater. */
+function trianglesIn(els) {
+  const out = [];
+  for (const root of els) {
+    for (const e of [root, ...root.querySelectorAll('path, polygon')]) {
+      const tag = e.tagName.toLowerCase();
+      let verts = null;
+      if (tag === 'path') verts = pathVertices(e.getAttribute('d'));
+      else if (tag === 'polygon') verts = (e.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number).reduce((acc, v, i, all) => (i % 2 ? acc : [...acc, [v, all[i + 1]]]), []);
+      if (!verts || verts.length !== 3) continue;
+      const M = toDocMatrix(e);
+      if (!M) continue;
+      out.push(verts.map(([x, y]) => [M.a * x + M.c * y + M.e, M.b * x + M.d * y + M.f]));
+    }
+  }
+  return out;
+}
+
+/** Aksen (grader i [0, 180)) for en ventil tegnet som to trekanter med spidserne mod hinanden. Null hvis ikke præcis to trekanter. */
+function valveAxisOf(els) {
+  const tris = trianglesIn(els);
+  return tris.length === 2 ? axisAngle(centroid(tris[0]), centroid(tris[1])) : null;
+}
+
 /** Alle id'er der forsvinder, når elementet erstattes: det selv, dets underelementer og tekster der ligger inde i det. */
 function affectedIds(el, geom) {
   const own = [el.id, ...[...el.querySelectorAll('[id]')].map((e) => e.id)];
@@ -462,7 +486,7 @@ window.scada = {
         id: '', tag: 'markering', counts, children: sel.length, w: Math.round(u.w * 10) / 10, h: Math.round(u.h * 10) / 10, angle: 0,
         fill: '', stroke: '', strokeWidth: 0, rx: 0, name: '', symbolType: '', apexAngle: null,
         ids: sel.flatMap((el) => [el.id, ...[...el.querySelectorAll('[id]')].map((e) => e.id)]).filter(Boolean),
-        texts, similar: 0, similarAny: 0, similarGroups: [],
+        texts, similar: 0, similarAny: 0, similarGroups: [], axisAngle: valveAxisOf(sel),
       };
     }
     const el = sel[0];
@@ -485,6 +509,7 @@ window.scada = {
       symbolType: el.getAttribute('data-hv-type') || '',
       // id'er der forsvinder ved en erstatning: delen, dens underelementer og de tekster der ligger inde i den
       apexAngle: apexAngleOf(el),
+      axisAngle: valveAxisOf([el]),
       ids: affectedIds(el, g),
       texts: textsWithin(el, g).map((t) => t.text),
       similar: similarTo(el).length,
@@ -526,6 +551,7 @@ window.scada = {
       const oldId = multi ? '' : old.id;
       // Retningen måles FØR delen fjernes (en frakoblet del har ingen matrix i tegningen)
       const apex = !multi && opts.apexNative !== undefined ? apexAngleOf(old) : null;
+      const axis = opts.axisNative !== undefined ? valveAxisOf(olds) : null;
       // 1) fjern det gamle (og de tekster det overtager) — i samme fortryd-trin
       const removeTracked = (node) => {
         const next = node.nextSibling;
@@ -550,7 +576,8 @@ window.scada = {
       const tx = g.cx - flip * sx * (nb.x + nb.width / 2);
       const ty = g.cy - sy * (nb.y + nb.height / 2);
       // Retningsgivende symboler (pumpe): drej, så symbolets trekant peger samme vej som den tegnede; ellers delens egen drejning
-      const angle = apex !== null ? turnTo(apex, opts.apexNative) : g.angle;
+      // Retning (pumpe, kontraventil) eller akse (ventiler) aflæst af den tegnede del — ellers delens egen drejning
+      const angle = apex !== null ? turnTo(apex, opts.apexNative) : axis !== null ? turnAxis(axis, opts.axisNative) : g.angle;
       const rot = Math.abs(angle) > 0.01 ? `rotate(${angle.toFixed(3)} ${g.cx.toFixed(3)} ${g.cy.toFixed(3)}) ` : '';
       node.setAttribute('transform', `${rot}translate(${tx.toFixed(3)} ${ty.toFixed(3)}) scale(${(flip * sx).toFixed(5)} ${sy.toFixed(5)})`);
       if (opts.mirror) {

@@ -19,6 +19,7 @@ export interface SelectionInfo {
   ids: string[];
   texts: string[];                   // tekster inde i elementets boks
   apexAngle: number | null;          // retningen (grader) delens ene ligebenede trekant peger — null hvis ingen/flere
+  axisAngle: number | null;          // aksen (grader, 0 = vandret) gennem delens to trekanter (en ventil) — null hvis ikke to
   similar: number;                   // antal andre elementer med samme opbygning og størrelse
   similarAny: number;                // … uanset størrelse (fx etiketter med forskellig tekstlængde)
   similarGroups: string[][];         // pr. lignende del: de id'er der forsvinder (til at springe bundne dele over)
@@ -67,6 +68,14 @@ export function suggestSymbols(s: SelectionInfo): Suggestion[] {
     add('motorventil', 40, 'Eller en almindelig motorventil');
   }
 
+  // ---- en markering af løse dele: to trekanter og en midterprik (en ventil uden motor)
+  if (s.tag === 'markering' && (c.path ?? 0) === 2 && (c.ellipse ?? 0) === 1 && near(s.w, 30, 120) && near(s.h, 30, 120)) {
+    add('ventil', 72, 'To trekanter med midterprik — en ventil');
+    add('regventil', 62, 'Eller en reguleringsventil (fx termostatisk)');
+    add('motorventil', 40, 'Eller en motorventil');
+    add('kugleventil', 30, 'Eller en kugleventil');
+  }
+
   // ---- store fyldte rektangler: beholdere, kedler
   if (s.tag === 'rect' && filled(s.fill) && s.w >= 50 && s.h >= 50) {
     const tall = s.h >= s.w * 1.2;
@@ -91,13 +100,22 @@ export function suggestSymbols(s: SelectionInfo): Suggestion[] {
       add('motor', 50, 'Eller en motor');
       add('ventilator', 40, 'Eller en ventilator');
     }
-    if (circle && paths >= 2 && lines >= 1 && near(s.w, 40, 120) && near(s.h, 40, 120)) {
-      add('motorventil', 75, 'Ventil med stilk og motor-cirkel — en motorventil');
-      add('trevejs_motorventil', 60, 'Eller en 3-vejs motorventil');
-      add('trevejs_motorventil_ab', 50, 'Eller en 3-vejs motorventil (AB i midten)');
-      add('ventil', 45, 'Eller en manuel ventil');
-      add('regventil', 40, 'Eller en reguleringsventil');
-      add('sikkerhedsventil', 35, 'Eller en sikkerhedsventil');
+    const ellipses = (c.ellipse ?? 0) + (c.circle ?? 0);
+    if (circle && paths >= 2 && near(s.w, 40, 120) && near(s.h, 40, 120)) {
+      if (ellipses >= 2) {
+        add('motorventil', 80, 'To trekanter, midterprik og motorcirkel — en motorventil');
+        add('trevejs_motorventil', 60, 'Eller en 3-vejs motorventil');
+        add('ventil', 40, 'Eller en manuel ventil');
+      } else {
+        add('ventil', lines >= 1 ? 78 : 70, lines >= 1 ? 'To trekanter med stilk/greb — en manuel ventil' : 'To trekanter med midterprik — en ventil');
+        add('regventil', 60, 'Eller en reguleringsventil (fx termostatisk)');
+        add('sikkerhedsventil', lines >= 1 ? 55 : 35, 'Eller en sikkerhedsventil');
+        add('motorventil', 45, 'Eller en motorventil');
+        add('kugleventil', 30, 'Eller en kugleventil');
+      }
+    }
+    if (paths === 1 && lines >= 1 && !circle && near(s.w, 20, 90) && near(s.h, 20, 90)) {
+      add('kontraventil', 80, 'Trekant med en tværstreg — en kontraventil');
     }
     if (circle && lines >= 1 && paths === 0 && small && s.w <= 30) {
       add('foeler', 45, 'Lille cirkel med streg — et målepunkt/en føler');
@@ -148,7 +166,10 @@ export function nameHint(s: SelectionInfo, symbolLabel: string): string {
 }
 
 /** Symboler med en retning (deres trekant peger mod højre ved 0°) — her kan symbolet drejes efter den tegnede trekant. */
-export const NATIVE_DIRECTION: Record<string, number> = { pumpe: 0 };
+export const NATIVE_DIRECTION: Record<string, number> = { pumpe: 0, kontraventil: 0 };
+
+/** Ventiler tegnet som to trekanter: bibliotekets symbol ligger vandret (akse 0°) med stilken opad. */
+export const NATIVE_AXIS: Record<string, number> = { ventil: 0, kugleventil: 0, motorventil: 0, magnetventil: 0, regventil: 0 };
 
 /** Skal symbolet strækkes til at fylde delens boks (rør) i stedet for at beholde sine proportioner? */
 export const stretchesByDefault = (symbolId: string): boolean => ['roer_v', 'roer_l', 'ledning_v', 'ledning_l'].includes(symbolId);

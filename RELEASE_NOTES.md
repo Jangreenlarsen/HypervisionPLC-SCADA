@@ -2,6 +2,12 @@
 
 ---
 
+## v0.58.0 — 2026-10-17 — Ventiler vender rigtigt efter erstatning
+
+- Når du erstatter en tegnet ventil (to trekanter) med et ventilsymbol, aflæser systemet om ventilen står **vandret eller lodret** og drejer symbolet tilsvarende.
+- En **kontraventil** drejes, så pilen peger samme vej som den tegnede trekant.
+- Bedre forslag: en ventil med greb foreslås som **manuel ventil** (før blev den fejlagtigt foreslået som motorventil); en ventil med motorcirkel som **motorventil**.
+
 ## v0.57.0 — 2026-10-16 — Erstat med symbol: ventiler tegnet af flere dele
 
 - Er en ventil (eller et andet symbol) tegnet af **flere løse figurer**, kan du markere dem alle og trykke **Erstat markeringen med symbol …**. Systemet foreslår fx **3-vejs motorventil**.

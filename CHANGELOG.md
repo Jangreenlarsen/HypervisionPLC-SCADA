@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.58.0 build 0086] — 2026-10-17 — Erstat med symbol: ventilens akse og bedre ventilforslag
+
+- `frontend/svgedit-host/snap.js` — `centroid()`, `axisAngle()` (aksen gennem to punkter, 0–180°, uden retning) og `turnAxis()` (korteste drejning så et symbols akse ligger langs målaksen).
+- `frontend/svgedit-host/scada-editor.js` — `trianglesIn()`/`valveAxisOf()`: aksen gennem en ventils to trekanter i tegningens koordinater (også for en markering af løse dele); `describeSelection()` leverer `axisAngle`; `replaceSelected({ axisNative })` drejer ventilsymbolet efter aksen (målt før de gamle dele fjernes).
+- `frontend/src/lib/symbolSuggest.ts` — `NATIVE_AXIS` (ventil, kugleventil, motorventil, magnetventil, reguleringsventil ligger vandret) og kontraventilen i `NATIVE_DIRECTION`; forslag: én prik → **ventil** (+ regulerings-, sikkerheds-, motor-, kugleventil), prik + motorcirkel → **motorventil**, trekant med tværstreg → **kontraventil**, to løse trekanter + prik → **ventil/reguleringsventil**. Se BUGS.md.
+- `frontend/src/lib/SymbolReplace.svelte` — valget "Drej symbolet efter den tegnede ventils akse (vandret/lodret)".
+- Tests: `snap.test.ts` (akse og drejning), `symbolSuggest.test.ts` (ventilforslagene). **Afprøvet i browseren** på en lokal kopi af "varme" version 13: AVTB, AVTA ×2 og Laddomat → reguleringsventil (lodrette drejet 90°), Bypass → manuel ventil, to sikkerhedsventiler, kontraventil drejet 180° efter trekanten; den stiplede følerlinje bevaret.
+
 ## [0.57.0 build 0085] — 2026-10-16 — Erstat med symbol: flere dele samlet, og spejlvending
 
 Rettelse efter at Jan opdagede, at motorventilerne i "varme" ikke var konverteret (se BUGS.md).

@@ -1,7 +1,7 @@
 // Fang til objekter i Tegn: de rene beregninger (svgedit-host/snap.js).
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — ren JS-fil i værtsmappen til SVG-Edit (ingen typer)
-import { directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, snapToObjects, transformBox, triangleApex, turnTo, unionBox } from '../../svgedit-host/snap.js';
+import { axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox } from '../../svgedit-host/snap.js';
 
 const box = (x: number, y: number, w: number, h: number) => ({ x, y, w, h });
 
@@ -144,5 +144,22 @@ describe('retning af en trekant (pumpens trekant)', () => {
     expect(turnTo(180, 0)).toBe(180);
     expect(turnTo(-180, 0)).toBe(180);
     expect(turnTo(10, 350)).toBe(20);
+  });
+});
+
+describe('ventilens akse (to trekanter)', () => {
+  it('centroid og axisAngle: lodret og vandret akse, uden retning', () => {
+    expect(centroid([[0, 0], [6, 0], [3, 9]])).toEqual([3, 3]);
+    expect(axisAngle([0, 0], [10, 0])).toBe(0);
+    expect(axisAngle([10, 0], [0, 0])).toBe(0);         // samme akse uanset rækkefølge
+    expect(axisAngle([0, 0], [0, 10])).toBe(90);
+    expect(axisAngle([0, 10], [0, 0])).toBe(90);
+    expect(axisAngle([0, 0], [10, 10])).toBe(45);
+  });
+  it('turnAxis: korteste drejning så symbolets akse ligger langs målaksen', () => {
+    expect(turnAxis(90, 0)).toBe(90);
+    expect(turnAxis(0, 0)).toBe(0);
+    expect(turnAxis(135, 0)).toBe(-45);
+    expect(turnAxis(0, 90)).toBe(90);
   });
 });
