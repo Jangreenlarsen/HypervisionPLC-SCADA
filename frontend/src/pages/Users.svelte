@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { ask as askUser, askText } from '../lib/ask';
   import { del, get, patch, post, ROLES, type Me, type Role } from '../lib/api';
 
   let { me }: { me: Me } = $props();
@@ -78,13 +79,13 @@
     run(() => patch(`/api/users/${encodeURIComponent(u.username)}`, { disabled: !u.disabled }),
       `${u.username} er ${u.disabled ? 'aktiveret' : 'deaktiveret'}.`);
 
-  function reset(u: User): void {
-    const pw = prompt(`Ny midlertidig adgangskode til ${u.username} (mindst 10 tegn):`);
+  async function reset(u: User): Promise<void> {
+    const pw = await askText(`Ny midlertidig adgangskode til ${u.username} (mindst 10 tegn):`, { ok: 'Sæt adgangskode', placeholder: 'mindst 10 tegn' });
     if (pw) run(() => patch(`/api/users/${encodeURIComponent(u.username)}`, { password: pw }), `${u.username} skal skifte adgangskode ved næste login.`);
   }
 
-  function remove(u: User): void {
-    if (confirm(`Slet brugeren ${u.username}?`)) run(() => del(`/api/users/${encodeURIComponent(u.username)}`), `${u.username} er slettet.`);
+  async function remove(u: User): Promise<void> {
+    if (await askUser(`Slet brugeren ${u.username}?`)) run(() => del(`/api/users/${encodeURIComponent(u.username)}`), `${u.username} er slettet.`);
   }
 
   onMount(refresh);

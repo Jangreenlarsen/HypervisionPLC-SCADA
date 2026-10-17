@@ -21,6 +21,7 @@
   import { LiveClient } from './lib/live';
   import Login from './pages/Login.svelte';
   import ChangePassword from './pages/ChangePassword.svelte';
+  import AskDialog from './lib/AskDialog.svelte';
 
 
   let route = $state(location.hash.slice(1) || 'overview');
@@ -237,6 +238,9 @@
 </main>
 
 {/if}
+
+<!-- spørgsmål til brugeren (i stedet for browserens confirm/prompt, som Firefox kan blokere) -->
+<AskDialog />
 
 <style>
   .stale { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: .6rem; padding: .5rem .8rem; color: #5a3a00; background: #fff4e0; border: 1px solid #f0c27a; border-radius: var(--radius); }

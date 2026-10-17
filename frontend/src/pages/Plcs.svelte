@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { ask as askUser } from '../lib/ask';
   import { del, get, patch, post } from '../lib/api';
 
   let { isAdmin = false }: { isAdmin?: boolean } = $props();
@@ -51,7 +52,7 @@
   }
 
   async function remove(p: Plc): Promise<void> {
-    if (!confirm(`Fjern PLC'en ${p.name}?`)) return;
+    if (!await askUser(`Fjern PLC'en ${p.name}?`)) return;
     try {
       await del(`/api/plcs/${encodeURIComponent(p.key)}`);
       await refresh();

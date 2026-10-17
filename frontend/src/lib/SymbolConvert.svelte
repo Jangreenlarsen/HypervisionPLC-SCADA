@@ -2,6 +2,7 @@
   // Symbolstandard fase 8: "Konvertér alle" — tør-kørsel med rapport, derefter konvertering af de symboler der kan.
   // Den gamle model fjernes ikke her (kræver godkendelse); hvert symbol kan fortrydes med "Fjern konfiguration" i guiden.
   import { post } from './api';
+  import { ask as askUser } from './ask';
 
   interface Row { drawing: string; element: string; name: string | null; type: string; status: Status; reasons: string[]; notes: string[] }
   type Status = 'ready' | 'converted' | 'manual' | 'configured' | 'none';
@@ -19,7 +20,7 @@
   const shown = $derived((result?.symbols ?? []).filter((r) => showAll || r.status === 'ready' || r.status === 'manual' || r.status === 'converted'));
 
   async function run(apply: boolean): Promise<void> {
-    if (apply && !confirm(`Konvertér ${result?.counts.ready ?? 0} symboler til symbolstandarden? Deres gamle bindinger bruges derefter ikke (kan fortrydes pr. symbol i guiden).`)) return;
+    if (apply && !await askUser(`Konvertér ${result?.counts.ready ?? 0} symboler til symbolstandarden? Deres gamle bindinger bruges derefter ikke (kan fortrydes pr. symbol i guiden).`)) return;
     busy = true;
     error = '';
     try {

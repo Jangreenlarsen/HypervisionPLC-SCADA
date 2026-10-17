@@ -1,4 +1,5 @@
 // Slet en tegning — fælles for siderne Tegninger og Tegn: hent hvad sletningen rammer, bekræft, slet.
+import { ask as askUser } from './ask';
 import { api, get } from './api';
 
 export interface DrawingUsage {
@@ -17,9 +18,9 @@ export function deleteWarning(u: DrawingUsage): string {
 }
 
 /** Spørg, slet og returnér true hvis tegningen blev slettet. Kaster Error med serverens fejltekst. */
-export async function deleteDrawingFlow(id: string, ask: (text: string) => boolean = (t) => confirm(t)): Promise<boolean> {
+export async function deleteDrawingFlow(id: string, ask: (text: string) => boolean | Promise<boolean> = (t) => askUser(t, { ok: 'Slet', danger: true })): Promise<boolean> {
   const usage = await get<DrawingUsage>(`/api/drawings/${encodeURIComponent(id)}/usage`);
-  if (!ask(deleteWarning(usage))) return false;
+  if (!(await ask(deleteWarning(usage)))) return false;
   await api('DELETE', `/api/drawings/${encodeURIComponent(id)}`);
   return true;
 }

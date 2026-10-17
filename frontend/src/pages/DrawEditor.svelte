@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { ask as askUser } from '../lib/ask';
   import { get, patch, post } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
@@ -108,12 +109,12 @@
     else startNew(true);
   }
 
-  function confirmDiscard(): boolean {
-    return !dirty || confirm('Der er ændringer der ikke er gemt. Kassér dem?');
+  async function confirmDiscard(): Promise<boolean> {
+    return !dirty || await askUser('Der er ændringer der ikke er gemt. Kassér dem?');
   }
 
-  function startNew(force = false): void {
-    if (!ed || (!force && !confirmDiscard())) return;
+  async function startNew(force = false): Promise<void> {
+    if (!ed || (!force && !(await confirmDiscard()))) return;
     ed.newDrawing(1200, 700);
     current = null;
     loadedVersion = null;
@@ -125,7 +126,7 @@
   }
 
   async function open(id: string, version?: number): Promise<void> {
-    if (!ed || !confirmDiscard()) return;
+    if (!ed || !(await confirmDiscard())) return;
     error = info = '';
     report = null;
     try {
@@ -168,7 +169,7 @@
       error = `Giv tegningen et navn (øverst) — den skal gemmes, før ${why}`;
       return false;
     }
-    if (!asked && !confirm(`Tegningen gemmes og udgives først, så ${why}. Fortsæt?`)) return false;
+    if (!asked && !await askUser(`Tegningen gemmes og udgives først, så ${why}. Fortsæt?`)) return false;
     await save(true);
     return !error && !dirty && current !== null; // save() har vist en evt. fejl
   }
@@ -234,7 +235,7 @@
     let extra: { id: string; name: string }[] = [];
     if (unnamed.length) {
       const who = unnamed.length === 1 ? 'Ét valgt element har' : `${unnamed.length} valgte elementer har`;
-      if (!confirm(`${who} intet navn. De får navnet "${basis.name}" med løbenummer (${basis.name}_1, ${basis.name}_2 … — numre der allerede er brugt, springes over), og tegningen gemmes og udgives med de nye navne. Fortsæt?`)) return;
+      if (!await askUser(`${who} intet navn. De får navnet "${basis.name}" med løbenummer (${basis.name}_1, ${basis.name}_2 … — numre der allerede er brugt, springes over), og tegningen gemmes og udgives med de nye navne. Fortsæt?`)) return;
       const named = ed?.nameElements(unnamed, basis.name) ?? {};
       extra = Object.entries(named).map(([id, name]) => ({ id, name }));
       if (!(await ensurePublished('de valgte kan sættes op', true))) return;
@@ -285,7 +286,7 @@
         return;
       }
       const who = unnamed.length === 1 ? 'Ét valgt element har' : `${unnamed.length} valgte elementer har`;
-      if (!confirm(`${who} intet navn. De får navnet "${src.name}" med løbenummer (${src.name}_1, ${src.name}_2 … — numre der allerede er brugt, springes over) og derefter opsætningen.`
+      if (!await askUser(`${who} intet navn. De får navnet "${src.name}" med løbenummer (${src.name}_1, ${src.name}_2 … — numre der allerede er brugt, springes over) og derefter opsætningen.`
         + `${published ? ' Tegningen gemmes og udgives med de nye navne.' : ' Tegningen gemmes og udgives først (også dine andre ændringer).'} Fortsæt?`)) return;
       named = ed?.nameElements(unnamed, src.name) ?? {};
       targets.push(...Object.keys(named));
@@ -298,7 +299,7 @@
       const byId = new Map(rows.map((r) => [r.element, r]));
       const nameOf = (id: string) => byId.get(id)?.name || named[id] || selection.find((x) => x.id === id)?.name || id;
       const taken = targets.filter((t) => byId.get(t)?.configured);
-      if (taken.length && !confirm(`${taken.length === 1 ? `"${nameOf(taken[0])}" har` : `${taken.length} af de valgte har`} allerede en opsætning. Overskriv med opsætningen fra "${src.name}"?`)) return;
+      if (taken.length && !await askUser(`${taken.length === 1 ? `"${nameOf(taken[0])}" har` : `${taken.length} af de valgte har`} allerede en opsætning. Overskriv med opsætningen fra "${src.name}"?`)) return;
       const res = await post<CopyResponse>(`${base}/symbols/${encodeURIComponent(src.element)}/copy`, { targets, overwrite: taken.length > 0 });
       const rep = pasteReport(res, src.name, nameOf);
       const newNames = Object.values(named);

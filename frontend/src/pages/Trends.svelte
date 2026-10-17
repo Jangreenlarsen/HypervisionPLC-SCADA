@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
+  import { ask as askUser } from '../lib/ask';
   import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
@@ -182,7 +183,7 @@
 
   async function deleteHistory(t: InfoTag): Promise<void> {
     const what = t.description || t.name;
-    if (!confirm(`Slet al gemt historik for "${what}" (${t.samples} værdier)? Det kan ikke fortrydes.` +
+    if (!await askUser(`Slet al gemt historik for "${what}" (${t.samples} værdier)? Det kan ikke fortrydes.` +
       (t.trend ? '\n\nOpsamlingen fortsætter — brug "Stop" hvis der heller ikke skal gemmes mere.' : ''))) return;
     error = '';
     info2 = '';

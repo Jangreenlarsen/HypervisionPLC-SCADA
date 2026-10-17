@@ -2,6 +2,10 @@
 
 ---
 
+## v0.63.2.1 — 2026-10-17 — Spørgsmål virker også i Firefox (debug)
+
+- Spørgsmål som *"Slet …?"*, *"Kassér ændringer?"* og *"… intet navn. Fortsæt?"* vises nu i en dialog på siden i stedet for browserens egen. Firefox kunne blokere browserens dialoger, og så gjorde fx *Indsæt opsætning* ingenting.
+
 ## v0.63.2 — 2026-10-17 — Tegneeditoren holdes opdateret
 
 - Tegneeditoren hentes nu altid i den rigtige version efter en opdatering. Er den alligevel gammel, siger **Tegn** det og beder dig genindlæse med **Ctrl+F5**.

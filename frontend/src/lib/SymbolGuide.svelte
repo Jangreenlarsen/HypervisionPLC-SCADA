@@ -3,6 +3,7 @@
   // Valideringen er serverens (POST …/preview, kaldt løbende) — guiden viser fejl pr. trin og skriveplanen.
   // Reference for opførsel: docs/prototyper/symbolguide.html · teknik: docs/SYMBOLSTANDARD_IMPLEMENTERING.md afsnit 8.
   import { onDestroy, onMount } from 'svelte';
+  import { ask as askUser } from './ask';
   import { api, get, post, put, type LiveValue } from './api';
   import { pasteReport, type CopyResponse } from './symbolCopy';
   import { LiveClient } from './live';
@@ -118,7 +119,7 @@
 
   /** Forslag ud fra symbolets bindinger i dag (Konvertér). */
   async function convert(ask: boolean): Promise<void> {
-    if (ask && !confirm('Erstat guidens indhold med et forslag ud fra symbolets bindinger i dag?')) return;
+    if (ask && !await askUser('Erstat guidens indhold med et forslag ud fra symbolets bindinger i dag?')) return;
     try {
       const s = await get<{ config: SymbolConfig; notes: string[]; convertible: boolean }>(`${base}/suggest`);
       notes = s.notes ?? [];
@@ -220,12 +221,12 @@
     const t = raw.trim().replace(',', '.');
     p.values[j] = t === '' ? null : Number.isFinite(Number(t)) ? Number(t) : p.values[j];
   }
-  function applyTemplate(t: 'A' | 'B' | 'C' | 'D'): void {
-    if (cfg.planes.length && !confirm('Erstat kontaktplanerne med skabelonen?')) return;
+  async function applyTemplate(t: 'A' | 'B' | 'C' | 'D'): Promise<void> {
+    if (cfg.planes.length && !await askUser('Erstat kontaktplanerne med skabelonen?')) return;
     template(cfg, t);
   }
-  function applyPreset(): void {
-    if (!confirm('Indsæt eksemplet "7-trins vælger" (erstatter positioner, signaler og kontaktplaner)?')) return;
+  async function applyPreset(): Promise<void> {
+    if (!await askUser('Indsæt eksemplet "7-trins vælger" (erstatter positioner, signaler og kontaktplaner)?')) return;
     preset(cfg);
     step = 1;
   }
@@ -243,7 +244,7 @@
   // ---- 3-vejs ventil styret af ét til/fra-tag
   let valveTag = $state('');
   let valveMsg = $state('');
-  function applyValve(): void {
+  async function applyValve(): Promise<void> {
     valveMsg = '';
     if (!symbol || !valveTag) return;
     if (tagKindOf(valveTag) === 'num') {
@@ -253,7 +254,7 @@
     // Intet at skrive til endnu (forslaget "Positioner" uden tag): hurtig opsætning er til visning, så skift til "Kun visning"
     const toView = cfg.op === 'positions' && !cfg.signals.some((s) => s.tag);
     const used = cfg.anims.filter((a) => ['port_a', 'port_b', 'port_ab'].includes(symbol!.parts[a.part]?.pid ?? '')).length;
-    if (used && !toView && !confirm(`Erstat de ${used} eksisterende animationer på portene A, B og AB?`)) return;
+    if (used && !toView && !await askUser(`Erstat de ${used} eksisterende animationer på portene A, B og AB?`)) return;
     if (toView) setOp(cfg, 'view');   // fjerner også forslagets positions-animationer
     const k = valveFromTag(cfg, symbol, valveTag);
     valveMsg = k > 0 ? `${k} animationer oprettet: Til = AB → A, Fra = AB → B.${toView ? ' Symbolet er sat til "Kun visning".' : ''}`
@@ -365,7 +366,7 @@
   }
   const close = () => (savedHere ? onsaved() : onclose());
   async function remove(): Promise<void> {
-    if (!confirm(`Fjern symbol-konfigurationen for ${name}? Symbolets gamle bindinger gælder så igen.`)) return;
+    if (!await askUser(`Fjern symbol-konfigurationen for ${name}? Symbolets gamle bindinger gælder så igen.`)) return;
     saving = true;
     error = '';
     try {
@@ -380,7 +381,7 @@
   /** Fjern koden straks (skriv-kun; serveren svarer kun has_pin). */
   async function clearPin(): Promise<void> {
     const msg = locks ? 'Fjern koden? De låste positioner kan så ikke vælges, før en ny kode er sat.' : 'Fjern koden?';
-    if (!confirm(msg)) return;
+    if (!await askUser(msg)) return;
     error = '';
     try {
       const r = await api<{ has_pin: boolean }>('DELETE', `${base}/pin`);

@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.63.2.1 build 0094] — 2026-10-17 — debug: spørgsmål på siden i stedet for browserens confirm/prompt (Firefox)
+
+- `frontend/src/lib/ask.ts` (ny) — `ask()` / `askText()`: spørgsmål i en kø, besvares i siden; `AskDialog.svelte` (ny) viser køens første (Enter/Escape, fokus på OK eller feltet) og sættes ind én gang i `App.svelte`.
+- Alle 21 `confirm()` og den ene `prompt()` er skiftet til `askUser()`/`askText()`: `DrawEditor`, `Editor`, `SymbolGuide`, `SymbolConvert`, `Plcs`, `Schedules`, `Tags`, `Trends`, `Update`, `Users`, `drawingDelete.ts` (slet-knap som farlig handling). Synkrone funktioner der spørger, er gjort asynkrone (`confirmDiscard`, `startNew`, `select`, skabelon-knapperne i guiden).
+- Tests: `ask.test.ts`. **Set i Firefox** (Playwright): kopi af "varme" v36 på serveren — med browserens dialog afvist skete der stille ingenting (genskabt); lokalt med den nye dialog: Annullér lader elementet være uden navn, OK navngiver og indsætter; slet tag og "Kassér ændringer?" i Tegn virker; ingen browserdialoger. Se BUGS.md (åben til Jan bekræfter).
+
 ## [0.63.2 build 0093] — 2026-10-17 — debug: indsæt i symbol uden navn (gammel tegneeditor, skjulte fejl)
 
 - `frontend/scripts/versionHost.mjs` (ny) + `copy-svgedit.mjs` — værtens filer får `?v=<build>` i deres adresser (importer, script, stylesheet), og buildnummeret bygges ind i værten (`window.scada.build`).
