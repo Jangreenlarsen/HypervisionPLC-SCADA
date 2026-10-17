@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.67.0 build 0103] — 2026-10-17 — Løbelys: den indstillede retning har forrang
+
+- `frontend/src/lib/flowChain.ts` — ingen automatisk vending efter flertallet (feltet `flip` er fjernet); `fits()`: to ender kobles kun, når lyset løber ind i samlingen fra den ene del og ud i den anden. Synkroniseringen (fælles koordinat, flertallets lyslængde/fart) er uændret for de dele, der kobles.
+- `frontend/src/lib/animate.ts` — hver lysstreg kører i den indstillede retning; et T-stykkes ben får retningen fra "ud fra/ind mod midten".
+- `frontend/src/manual/05-bindinger-og-animationer.md` — afsnittet om løbelys over flere rør.
+- Tests: `flowChain.test.ts`. **Set i browseren** lokalt: forløb med et lodret rør tegnet nedefra — uden *Vend retning* kører det modsat ved sine to samlinger (som indstillet) og synkroniseres ikke dér; med *Vend retning* passer alle fire samlinger og er synkroniserede.
+
 ## [0.66.1 build 0102] — 2026-10-17 — fix: højreklikmenuen i Tegn lukker efter et valg
 
 - `frontend/svgedit-host/scada-editor.js` — `hookContextMenu()`: SVG-Edits højreklikmenu lukkes, når et punkt er valgt (efter editorens egen håndtering), ved Escape og når vinduet mister fokus. Før stod den åben, og et nyt højreklik oven på den ramte menuen i stedet for tegningen. **Set i browseren** (Chrome og Firefox): 6 runder kopiér/indsæt via menuen på rør, bøjning og rektangel — alle rigtige. Se BUGS.md.

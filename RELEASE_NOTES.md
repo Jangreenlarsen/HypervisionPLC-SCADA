@@ -2,6 +2,11 @@
 
 ---
 
+## v0.67.0 — 2026-10-17 — Løbelys følger din retning
+
+- Den retning, du sætter på løbelyset i animationen, gælder nu altid — systemet vender ikke længere et rør efter naboerne.
+- Rør, bøjninger og T-stykker synkroniseres ved de samlinger, hvor retningerne passer sammen. Kører et rør den forkerte vej, så sæt **Vend retning** på det.
+
 ## v0.66.1 — 2026-10-17 — Rettet: højreklikmenuen i Tegn
 
 - Højreklikmenuen lukker nu, når du har valgt *Kopiér*, *Indsæt* osv. Før blev den stående, og det næste højreklik kunne ramme den gamle menu i stedet for tegningen — så blev det forkerte element kopieret, eller der skete ingenting.

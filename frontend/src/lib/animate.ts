@@ -513,7 +513,9 @@ function computePhases(root: Element): Map<string, Phase> {
           return [m.a * q.x + m.c * q.y + m.e, m.b * q.x + m.d * q.y + m.f];
         };
         const scale = flowScale(d);
-        pieces.push({ key: flowKey(el, i), a: at(0), b: at(L), len: L * scale, group, dir: arm ? 0 : p.reverse ? -1 : 1,
+        // retningen som indstillet: et T-stykkes ben efter "ud fra/ind mod midten", ellers "Vend retning"
+        const dir = arm ? (dashes[i].out ? 1 : -1) : p.reverse ? -1 : 1;
+        pieces.push({ key: flowKey(el, i), a: at(0), b: at(L), len: L * scale, group, dir,
           dash: Number(p.dash ?? 12), speed: Number(p.speed ?? 40) });
         widths.push((parseFloat(d.getAttribute('stroke-width') ?? '1') || 1) * scale);
       });
@@ -578,7 +580,7 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   else el.parentNode?.insertBefore(layer, el.nextSibling);
   flowLayers.set(el, layer);
   dashes.forEach(({ d, out }, i) => {
-    // Sammenhængende forløb: stiplingen fortsætter fra nabodelen, retningen følger forløbet, og hele forløbet har samme
+    // Sammenhængende forløb: stiplingen fortsætter fra nabodelen (kun hvor retningerne passer), og hele forløbet har samme
     // lyslængde og fart (flertallets)
     const ph = phaseFor(el, i);
     const len = ph?.dash ?? dash, pace = ph?.speed ?? speed;
@@ -587,7 +589,7 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
     const unit = len / scale;
     d.setAttribute('stroke-dasharray', `${unit} ${unit}`);
     const off = ph ? dashOffset(ph, len) / scale : 0;
-    const dir = ph?.flip ? !out : out;
+    const dir = out;   // den indstillede retning har forrang (v0.67.0)
     d.setAttribute('stroke-dashoffset', String(off));
     if (!reduce && typeof (d as any).animate === 'function') {
       // Lyset flytter én periode (lys + mørk) pr. omgang; startTime 0 holder alle løbelys i takt
