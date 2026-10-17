@@ -40,6 +40,11 @@ class EntryBody(_Model):
     value: bool | int | float
 
 
+class CopyBody(_Model):
+    targets: list[str] = Field(min_length=1, max_length=500)
+    overwrite: bool = False
+
+
 class PreviewBody(_Model):
     config: dict[str, Any]
 
@@ -55,6 +60,22 @@ def _ops(request: Request) -> SymbolOperateService:
 def _check(request: Request, drawing_id: str) -> None:
     if not request.app.state.scope_service.can_see_drawing(request.state.user, drawing_id):
         raise ServiceError(404, f"Tegningen '{drawing_id}' findes ikke")
+
+
+@router.get("/{drawing_id}/symbols", dependencies=[ENGINEER])
+async def list_symbols(drawing_id: str, request: Request) -> list[dict[str, Any]]:
+    """Symbolerne i tegningen (bibliotekstype eller navn) og om de har en opsætning."""
+    return _svc(request).list_symbols(drawing_id)
+
+
+@router.post("/{drawing_id}/symbols/{element}/copy", dependencies=[ENGINEER])
+async def copy_config(drawing_id: str, element: str, body: CopyBody, request: Request) -> dict[str, Any]:
+    """Kopiér symbolets gemte opsætning (tag og animationer) til andre symboler — hver kopi valideres for sig."""
+    result = _svc(request).copy_to(request.state.user, drawing_id, element, body.targets, body.overwrite)
+    audit(request, "symbol.copy", f"{drawing_id}#{element}",
+          {"ok": result["ok"], "skipped": result["skipped"], "error": result["error"],
+           "targets": [r["element"] for r in result["results"] if r["status"] == "ok"][:100]})
+    return result
 
 
 @router.get("/{drawing_id}/symbols/{element}/config", dependencies=[VIEWER])

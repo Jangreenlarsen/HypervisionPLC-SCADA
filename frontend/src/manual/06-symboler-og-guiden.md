@@ -84,3 +84,13 @@ Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positio
 ## Ret og fjern en opsætning
 
 **Ret symbol** åbner guiden med den gemte opsætning. **Fjern konfiguration** sletter den (symbolets gamle bindinger gælder så igen). Et tag, der bruges af et symbol, kan ikke slettes under **Tags**.
+
+### Samme opsætning på flere symboler
+
+Skal mange symboler have samme opsætning (fx løbelys på alle rør, bøjninger og T-stykker i en kreds), så sæt **ét** af dem op og tryk **Gem og anvend på flere …** nederst i guiden. Opsætningen gemmes først, og derefter vælger du, hvilke symboler den skal kopieres til:
+
+- **Søg** efter navn eller type, eller brug **Alle af samme type**, **Alle rør og fittings** eller **Vælg viste**.
+- Symboler, der allerede er sat op, er mærket *har opsætning* og **springes over**, medmindre du sætter hak i **Overskriv**.
+- Tryk **Kopiér til …**. Resultatet viser for hvert symbol, om det blev kopieret, sprunget over eller gav en fejl (fx løbelys på et symbol uden streger).
+
+Hvert symbol får sin **egen kopi** — du kan bagefter rette det enkelte symbol i guiden uden at røre de andre. Animationer på en bestemt del af symbolet følger kun med, hvis det andet symbol har en del med samme navn; **nøglelåsen** og dens kode kopieres ikke.

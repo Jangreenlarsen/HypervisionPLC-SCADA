@@ -5,6 +5,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { api, get, post, put, type LiveValue } from './api';
   import { LiveClient } from './live';
+  import SymbolCopy from './SymbolCopy.svelte';
   import TagSelect from './TagSelect.svelte';
   import {
     ALARM_TXT, ANIM_TXT, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
@@ -44,6 +45,8 @@
   let previewError = $state('');
   let checking = $state(false);   // en ændring venter på serverens kontrol
   let liveVals = $state<Record<string, LiveValue>>({});
+  let copyOpen = $state(false);   // "Anvend på flere …"
+  let savedHere = false;          // gemt undervejs (før kopiering) — luk guiden som efter et gem
 
   const tagByName = $derived(new Map(tags.map((t) => [t.name, t])));
   const sigKind = (id: string): 'bool' | 'num' | 'unknown' => {
@@ -305,7 +308,8 @@
   const num = (v: string, fallback: number) => (Number.isFinite(Number(v.replace(',', '.'))) && v.trim() !== '' ? Number(v.replace(',', '.')) : fallback);
 
   // ---------------------------------------------------------------- gem / fjern
-  async function save(): Promise<void> {
+  /** Gem opsætningen. → true hvis det lykkedes (fejlen vises i guiden). */
+  async function persist(): Promise<boolean> {
     saving = true;
     error = '';
     try {
@@ -314,13 +318,25 @@
       const r = await put<{ has_pin: boolean }>(`${base}/config`, body);
       hasPin = r.has_pin;
       pin = '';
-      onsaved();
+      exists = true;
+      return true;
     } catch (e) {
       error = (e as Error).message;
+      return false;
     } finally {
       saving = false;
     }
   }
+  async function save(): Promise<void> {
+    if (await persist()) onsaved();
+  }
+  /** "Anvend på flere …": serveren kopierer den GEMTE opsætning, så gem først (samme kontrol som Gem). */
+  async function openCopy(): Promise<void> {
+    if (!(await persist())) return;
+    savedHere = true;
+    copyOpen = true;
+  }
+  const close = () => (savedHere ? onsaved() : onclose());
   async function remove(): Promise<void> {
     if (!confirm(`Fjern symbol-konfigurationen for ${name}? Symbolets gamle bindinger gælder så igen.`)) return;
     saving = true;
@@ -351,13 +367,13 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="backdrop" onclick={() => !saving && onclose()}>
+<div class="backdrop" onclick={() => !saving && !copyOpen && close()}>
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="panel guide" role="dialog" aria-modal="true" aria-label="Opsæt symbol {name}" tabindex="-1" onclick={(e) => e.stopPropagation()}>
     <header class="row head">
       <h2>Opsæt symbol: {name}</h2>
       <span class="muted small">{element}{symbol?.type ? ` · ${symbol.type}` : ''}{exists ? ' · konfigureret' : ''}</span>
-      <button class="close" onclick={onclose} disabled={saving} aria-label="Luk">✕</button>
+      <button class="close" onclick={close} disabled={saving} aria-label="Luk">✕</button>
     </header>
 
     {#if loading}
@@ -652,6 +668,8 @@
 
       <footer class="row">
         {#if exists}<button class="danger" onclick={remove} disabled={saving}>Fjern konfiguration</button>{/if}
+        <button onclick={openCopy} disabled={!canSave}
+          title={canSave ? 'Gem opsætningen og kopiér den til andre symboler på tegningen' : 'Ret fejlene først — opsætningen gemmes, før den kopieres'}>Gem og anvend på flere …</button>
         <span class="spacer"></span>
         <span class="small muted">{checking ? 'Kontrollerer…' : preview ? (preview.errors || needPin ? `${preview.errors + (needPin ? 1 : 0)} fejl` : 'Ingen fejl') : 'Kontrollerer…'}</span>
         <button onclick={() => (step = Math.max(0, step - 1 - (!isPos && step === 3 ? 1 : 0)))} disabled={step === 0}>Tilbage</button>
@@ -664,6 +682,10 @@
     {/if}
   </div>
 </div>
+
+{#if copyOpen}
+  <SymbolCopy {drawingId} {element} {name} type={symbol?.type ?? ''} onclose={() => (copyOpen = false)} />
+{/if}
 
 {#snippet colorInput(obj: Record<string, any>, key: string | number, label: string)}
   <label class="opt small"><input type="color" bind:value={obj[key]} /> {label}</label>

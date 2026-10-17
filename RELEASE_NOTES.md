@@ -2,6 +2,12 @@
 
 ---
 
+## v0.59.0 — 2026-10-17 — Samme opsætning på mange symboler
+
+- I symbolguiden kan du nu trykke **Gem og anvend på flere …** og kopiere opsætningen (tag og animationer) til andre symboler på tegningen — fx alle rør, bøjninger og T-stykker på én gang med **Alle rør og fittings**.
+- Hvert symbol får sin **egen kopi**, som du bagefter kan rette enkeltvis.
+- Symboler, der allerede er sat op, springes over, medmindre du sætter hak i **Overskriv**. Resultatet viser, hvad der blev kopieret, og hvad der ikke kunne.
+
 ## v0.58.0 — 2026-10-17 — Ventiler vender rigtigt efter erstatning
 
 - Når du erstatter en tegnet ventil (to trekanter) med et ventilsymbol, aflæser systemet om ventilen står **vandret eller lodret** og drejer symbolet tilsvarende.

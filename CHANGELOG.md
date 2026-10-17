@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.59.0 build 0087] — 2026-10-17 — Kopiér symbolopsætning til flere symboler
+
+- `backend/app/services/svg_sanitize.py` — `named_symbols()`: tegningens symboler (bibliotekstype eller navn) i dokumentrækkefølge.
+- `backend/app/services/symbols.py` — `map_config()` (ren): oversætter en opsætning til et andet symbol — animationer på hele symbolet følger med, del-animationer oversættes efter `data-hv-pid` og springes ellers over med en note; nøglelåsen nulstilles. `SymbolService.list_symbols()` og `copy_to()`: kilden skal have en gemt opsætning (409), hvert mål valideres som et almindeligt gem (inkl. logikblokke brugt af andre ved overskrivning), mål med opsætning springes over uden `overwrite`, fejl i ét mål stopper ikke de andre.
+- `backend/app/api/symbols.py` — `GET /api/drawings/{id}/symbols` og `POST /api/drawings/{id}/symbols/{element}/copy` (tekniker; højst 500 mål; audit `symbol.copy`).
+- `frontend/src/lib/symbolCopy.ts` + `SymbolCopy.svelte` — dialogen *Anvend opsætningen på flere*: søgning, *Alle af samme type*, *Alle rør og fittings*, *Vælg viste*, *Ryd*, mærket "har opsætning", *Overskriv*-hak og resultattabel (kopieret / sprunget over / fejl med noter).
+- `frontend/src/lib/SymbolGuide.svelte` — knappen *Gem og anvend på flere …* (gemmer først med samme kontrol som *Gem*); lukkes guiden derefter, opdateres siden som efter et gem.
+- Tests: `tests/test_symbol_copy.py` (9), `symbolCopy.test.ts` (3). **Set i browseren** lokalt: rør → 2 rør, 2 bøjninger og et T-stykke; den bøjning der allerede havde en opsætning, blev sprunget over.
+
 ## [0.58.0 build 0086] — 2026-10-17 — Erstat med symbol: ventilens akse og bedre ventilforslag
 
 - `frontend/svgedit-host/snap.js` — `centroid()`, `axisAngle()` (aksen gennem to punkter, 0–180°, uden retning) og `turnAxis()` (korteste drejning så et symbols akse ligger langs målaksen).
