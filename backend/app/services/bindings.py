@@ -201,7 +201,8 @@ class BindingError(ValueError):
 def binding_tags(b: dict[str, Any]) -> list[str]:
     """Alle tags en binding læser: bindingens eget tag og evt. løbelysets retnings-tag. Bruges alle steder
     der samler en tegnings tags (live-data, adgang, sletning, import), så det ekstra tag aldrig glemmes."""
-    tags = [b["tag"]] if b.get("tag") else []
+    # "@on" ("Altid til", symbolguiden) er ikke et tag — det læses aldrig fra PLC'en og kræver ingen adgang
+    tags = [b["tag"]] if b.get("tag") and b["tag"] != "@on" else []
     extra = (b.get("params") or {}).get("dir_tag") if b.get("anim") == "flow" else None
     if extra and extra not in tags:
         tags.append(extra)

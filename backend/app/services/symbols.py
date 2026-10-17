@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 MAX_POSITIONS, MAX_PLANES, MAX_SIGNALS, MAX_ANIMS = 8, 8, 8, 12
 MAX_LOGIC, MAX_LOGIC_INPUTS = 8, 4
 POS = "@pos"
+ON = "@on"   # kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag
 _SIG_ID = re.compile(r"^[A-Za-z0-9_]{1,10}$")
 _LOGIC_ID = re.compile(r"^L[0-9]{1,2}$")
 _PIN = re.compile(r"[0-9]{4}")   # bruges med fullmatch: kun ASCII-cifre, ingen linjeskift
@@ -214,8 +215,8 @@ PSEUDO_KINDS = ("pos", "remote", "state", "locked")
 
 
 def is_logic_ref(src: Any) -> bool:
-    """`@L1` — kilden er en logikblok (`@pos` er positionen)."""
-    return isinstance(src, str) and src.startswith("@") and src != POS
+    """`@L1` — kilden er en logikblok (`@pos` er positionen, `@on` er "Altid til")."""
+    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON)
 
 
 def split_logic_ref(src: str, own: str = "") -> tuple[str, str]:
@@ -771,7 +772,11 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             res.err("4", f"{nm}: vælg hvad der styrer den.")
             continue
         pos_src = a.src == POS
+        on_src = a.src == ON
         logic_src = is_logic_ref(a.src)
+        if on_src and (a.type in NUMERIC_ONLY or a.type == "text"):
+            res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af \"Altid til\" — vælg et tal-tag.")
+            continue
         if pos_src and not P:
             res.err("4", f"{nm}: symbolet har ingen positioner.")
             continue
@@ -784,7 +789,7 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if a.type in NUMERIC_ONLY:
                 res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en logikblok — vælg et tal-tag.")
                 continue
-        elif not pos_src:
+        elif not pos_src and not on_src:
             t = tag_of(a.src)
             if t is None:
                 res.err("4", f"{nm}: tagget '{a.src}' findes ikke.")
@@ -1052,4 +1057,4 @@ class SymbolService:
 
 
 # Bruges af backup-import (tags valideres der mod backuppens tagliste)
-__all__ = ["SymbolService", "SymbolConfig", "validate_config", "config_tags", "POS", "DEFAULT_ON", "DEFAULT_OFF"]
+__all__ = ["SymbolService", "SymbolConfig", "validate_config", "config_tags", "POS", "ON", "DEFAULT_ON", "DEFAULT_OFF"]

@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.71.0 build 0108] — 2026-10-17 — Kilden "Altid til" i symbolguiden
+
+- `backend/app/services/symbols.py` — `ON = "@on"`: gyldig kilde for til/fra-animationer (ikke Niveau, Gennemsigtighed, Værdi); ikke en logikreference; bindingen får tagget `@on`. `bindings.py` — `binding_tags()` udelader `@on` (hentes aldrig live, kræver ingen adgang).
+- `frontend/src/lib/symbolConfig.ts` (`ON`, `isLogicRef`), `SymbolGuide.svelte` ("styres af": *altid til*; vælgeren vises altid), `canvas.ts` (`@on` = altid aktiv; ikke i `bindingTags`).
+- Tests: `test_symbols.py`, `canvas.test.ts`. **Set i browseren** lokalt: fyrets flamme med *altid til* — gemt uden tag; i Overview blafrede den og skiftede farve, mens tagget var slukket.
+
 ## [0.70.1 build 0107] — 2026-10-17 — fix: drejede biblioteksrør vokser ikke længere for meget ved anden strækning
 
 - `frontend/svgedit-host/snap.js` — `rotationCenter()` og `recenterOffset()` (rene, testet i `snap.test.ts`).

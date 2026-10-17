@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addTooltips, bindingTags, byTag, fitSize } from './canvas';
+import { addTooltips, bindingTags, byTag, fitSize, renderBinding } from './canvas';
 import type { Binding } from './api';
 
 describe('fitSize', () => {
@@ -46,5 +46,22 @@ describe('bindingTags / byTag (løbelys med retnings-tag)', () => {
     const map = byTag([flow, text]);
     expect(map.get('Retning')).toEqual([flow]);
     expect(map.get('Pumpe')).toEqual([flow, text]);
+  });
+});
+
+describe('kilden "Altid til" (@on, v0.71.0)', () => {
+  it('er ikke et tag (hentes aldrig live) og er altid aktiv', () => {
+    const b: Binding = { element: 'f', tag: '@on', anim: 'flicker', params: { palette: ['#ff0000', '#00ff00', '#0000ff'] } };
+    expect(bindingTags(b)).toEqual([]);
+    expect(bindingTags({ ...b, anim: 'flow', params: { dir_tag: 'Retning' } })).toEqual(['Retning']);
+    const box = document.createElement('div');
+    box.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"><path id="f" d="M0 0 H10"/></svg>';
+    document.body.appendChild(box);
+    renderBinding(box, b, {}, {});
+    const f = box.querySelector('#f') as SVGElement;
+    expect(f.classList.contains('hv-flicker')).toBe(true);
+    expect(f.getAttribute('data-hv-quality')).toBe('good');
+    renderBinding(box, { ...b, anim: 'flicker', params: {} }, {}, {});
+    box.remove();
   });
 });

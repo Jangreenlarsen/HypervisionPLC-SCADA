@@ -83,6 +83,8 @@ Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positio
 
 ## Ret og fjern en opsætning
 
+En animation kan også styres af **altid til** (i stedet for et tag): så er den altid aktiv — fx en flamme der altid blafrer, eller et løbelys der altid kører. (Ikke for *Niveau*, *Gennemsigtighed* og *Værdi*, som skal have et tal.)
+
 **Gem** står på alle seks trin og kan bruges, så snart opsætningen er uden fejl. **Blafrer** får delen til at blafre som en flamme og skifter tilfældigt mellem tre farver, du vælger (standard rød, orange og gul), mens kilden er aktiv — guiden foreslår den på fyrets flamme.
 
 **Ret symbol** åbner guiden med den gemte opsætning. **Fjern konfiguration** sletter den (symbolets gamle bindinger gælder så igen). Et tag, der bruges af et symbol, kan ikke slettes under **Tags**.

@@ -10,7 +10,7 @@
   import SymbolCopy from './SymbolCopy.svelte';
   import TagSelect from './TagSelect.svelte';
   import {
-    ALARM_TXT, ANIM_TXT, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
+    ALARM_TXT, ANIM_TXT, ON, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, allowedOps, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
@@ -65,7 +65,7 @@
     const v = liveVals[tag]?.value;   // ST-variabel: typen kendes fra live-værdien
     return typeof v === 'boolean' ? 'bool' : typeof v === 'number' ? 'num' : 'unknown';
   }
-  const srcKind = (a: Anim): SrcKind => (a.src === POS ? 'pos' : isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
+  const srcKind = (a: Anim): SrcKind => (a.src === POS ? 'pos' : a.src === ON || isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
   const n = $derived(cfg.positions.length);
   const isPos = $derived(cfg.op === 'positions');
   const partIds = $derived(['all', ...Object.keys(symbol?.parts ?? {})]);
@@ -240,9 +240,9 @@
   const poolLabel = (p: PoolBlock) => `${p.symbol} · ${p.id}${p.name ? ` – ${p.name}` : ''}`;
   const poolRef = (p: PoolBlock) => `@${p.element}:${p.id}`;
   const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
-  const srcMode = (a: Anim): string => (a.src === POS ? POS : isLogicRef(a.src) ? 'logic' : 'tag');
+  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : isLogicRef(a.src) ? 'logic' : 'tag');
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === POS ? POS : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
+    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
     resetParams(a);
   }
   // ---- 3-vejs ventil styret af ét til/fra-tag
@@ -615,12 +615,11 @@
                   {#each typesFor(partInfo(a.part)) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
                 </select>
                 <span class="small muted">styres af</span>
-                {#if isPos || cfg.logic.length || pool.length}
-                  <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
-                    {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
-                    {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
-                  </select>
-                {/if}
+                <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
+                  {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
+                  {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
+                  {#if !['level', 'opacity', 'text'].includes(a.type)}<option value={ON}>altid til</option>{/if}
+                </select>
                 {#if srcMode(a) === 'tag'}<TagSelect bind:value={a.src} {tags} onchange={() => resetParams(a)} />{/if}
                 {#if srcMode(a) === 'logic'}
                   <select bind:value={a.src} onchange={() => resetParams(a)} aria-label="Logikblok">

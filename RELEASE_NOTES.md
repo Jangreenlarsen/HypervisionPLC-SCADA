@@ -2,6 +2,10 @@
 
 ---
 
+## v0.71.0 — 2026-10-17 — "Altid til"
+
+- I symbolguiden kan en animation nu styres af **altid til** i stedet for et tag — fx en flamme der altid blafrer, eller et løbelys der altid kører.
+
 ## v0.70.1 — 2026-10-17 — Rettet: drejede rør i Tegn
 
 - Et drejet rør (fx et lodret rør lavet ved at dreje et vandret) følger nu musen, hver gang du strækker det. Før voksede det for meget anden gang.

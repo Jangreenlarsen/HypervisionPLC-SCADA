@@ -24,6 +24,8 @@ export interface PartInfo { tag: string; line: boolean; pid?: string | null }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }
 
 export const POS = '@pos';
+/** Kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag. */
+export const ON = '@on';
 /** Blafrer: standardfarverne (rød, orange, gul), som flammen skifter tilfældigt imellem (v0.70.0). */
 export const FLICKER_PALETTE = ['#ff3b00', '#ff8c1a', '#ffd21a'];
 /** Paletten for en Blafrer-animation: altid tre farver — fra `palette`, ellers fra v0.69.0's ene `color`, ellers standard. */
@@ -190,7 +192,7 @@ export function newSignal(cfg: SymbolConfig, tag = '', fb = ''): Signal {
 export const CMP_TXT: Record<string, string> = { ge: '≥', le: '≤', eq: '=' };
 
 /** `@L1` — animationens kilde er en logikblok (`@pos` er positionen). */
-export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS;
+export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS && src !== ON;
 
 export function newBlock(cfg: SymbolConfig): LogicBlock {
   let i = 1;

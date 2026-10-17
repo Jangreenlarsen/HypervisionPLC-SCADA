@@ -83,7 +83,7 @@ export function onLayoutChange(fn: () => void, ...elements: (Element | null | un
 
 /** Alle tags en binding læser: dens eget og evt. løbelysets retnings-tag (samme regel som backendens binding_tags). */
 export function bindingTags(b: Pick<Binding, 'tag' | 'anim' | 'params'>): string[] {
-  const tags = b.tag ? [b.tag] : [];
+  const tags = b.tag && b.tag !== '@on' ? [b.tag] : [];   // "Altid til" er ikke et tag
   const extra = [b.anim === 'flow' ? b.params?.dir_tag : '', b.params?.pos_tag];
   for (const x of extra) if (x && !tags.includes(x)) tags.push(x);
   return tags;
@@ -100,11 +100,15 @@ export function findElement(container: HTMLElement, id: string): Element | null 
   return container.querySelector(`#${CSS.escape(id)}`);
 }
 
+const ALWAYS_ON: LiveValue = { value: true, quality: 'good', ts: 0, error: null };
+
 export function renderBinding(
   container: HTMLElement, b: Binding, values: Record<string, LiveValue>, tags: Record<string, TagMeta>,
 ): void {
   const el = findElement(container, b.element);
-  if (el) applyBinding(el, b, values[b.tag], tags[b.tag], b.anim === 'flow' && b.params?.dir_tag ? values[b.params.dir_tag] : undefined,
+  // "Altid til" (symbolguiden): altid aktiv, uden et tag
+  const own = b.tag === '@on' ? ALWAYS_ON : values[b.tag];
+  if (el) applyBinding(el, b, own, tags[b.tag], b.anim === 'flow' && b.params?.dir_tag ? values[b.params.dir_tag] : undefined,
     b.params?.pos_tag ? values[b.params.pos_tag] : undefined);
 }
 

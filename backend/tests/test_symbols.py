@@ -336,3 +336,19 @@ def test_flicker_animation_on_flame(api):
                       element="Lampe"))
     assert any("color" in m for m in body["steps"]["4"]), body
 
+
+def test_always_on_source(api):
+    """Kilden "Altid til" (@on, v0.71.0): ingen tag; bindingen får tagget "@on", der ikke er et rigtigt tag."""
+    r = put(api, {"op": "view", "anims": [{"part": "Lampe_glas", "type": "flicker", "src": "@on", "params": {}},
+                                          {"part": "Lampe_glas", "type": "blink", "src": "@on", "params": {}}]}, element="Lampe")
+    assert r.status_code == 200, r.text
+    view = api.get(f"/api/drawings/{api.did}/view").json()
+    on = [b for b in view["bindings"] if b.get("symbol") == "Lampe"]
+    assert {b["tag"] for b in on} == {"@on"}
+    assert "@on" not in view["tags"]          # ikke et tag: ingen metadata, ingen live-data
+    r = put(api, {"op": "view", "anims": [{"part": "all", "type": "flow", "src": "@on", "params": {}}]}, element="Ror")
+    assert r.status_code == 200, r.text
+    for anim in ({"part": "all", "type": "level", "src": "@on", "params": {}}, {"part": "all", "type": "text", "src": "@on", "params": {}}):
+        body = errors(put(api, {"op": "view", "anims": [anim]}, element="Tank"))
+        assert any("Altid til" in m for m in body["steps"]["4"]), body
+
