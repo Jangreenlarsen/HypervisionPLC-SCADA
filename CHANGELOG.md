@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.73.0 build 0111] — 2026-10-17 — Beregning og enhed i guidens Værdi-animation
+
+- `frontend/src/lib/SymbolGuide.svelte` — Værdi (tal-tag): felterne *Beregning* (fejlbesked straks via `expressionError`) og *Vis enhed*, og "Lige nu: værdi → visning" (`textFor` med tagets enhed). Serveren godtog allerede `expression`/`show_unit` (samme `TextParams` som Bindinger).
+- Manual (06): afsnittet "Værdi: decimaler, tekst før/efter, beregning og enhed". Test: `test_symbols.py`. **Set i browseren** lokalt: tag 128 [bar], *x / 10*, 1 decimal, "Tryk: " → guiden viser "Lige nu: 128 → Tryk: 12.8 bar", en ugyldig beregning "Manglende )"; Overview viser "Tryk: 12.8 bar".
+
 ## [0.72.0 build 0110] — 2026-10-17 — Aktiv/passiv-animationer og standard
 
 - `backend/app/services/symbols.py` — `Anim.when` ("aktiv/passiv"; kun Farve, Stregfarve, Blink, Synlig, Roterer, Blafrer, Løbelys — `WHEN_TYPES`), bliver `params.when` på bindingen.

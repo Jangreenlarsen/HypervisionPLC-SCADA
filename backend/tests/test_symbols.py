@@ -371,3 +371,14 @@ def test_active_passive_animations(api):
                       element="Tank"))
     assert any("aktiv/passiv" in m for m in body["steps"]["4"]), body
 
+
+
+def test_value_animation_expression_and_unit(api):
+    """Værdi-animationen i guiden har beregning og "vis enhed" som på siden Bindinger (v0.73.0)."""
+    anim = {"part": "V1_tekst", "type": "text", "src": "Niveau", "params": {"expression": "x / 10", "decimals": 1, "show_unit": False, "suffix": " bar"}}
+    r = put(api, dec_bin(anims=[anim]))
+    assert r.status_code == 200, r.text
+    p = r.json()["config"]["anims"][0]["params"]
+    assert (p["expression"], p["show_unit"], p["decimals"], p["suffix"]) == ("x / 10", False, 1, " bar")
+    body = errors(put(api, dec_bin(anims=[{**anim, "params": {"expression": "x / (2"}}])))
+    assert any("beregningen er ugyldig" in m for m in body["steps"]["4"]), body

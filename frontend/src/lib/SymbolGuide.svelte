@@ -4,7 +4,9 @@
   // Reference for opførsel: docs/prototyper/symbolguide.html · teknik: docs/SYMBOLSTANDARD_IMPLEMENTERING.md afsnit 8.
   import { onDestroy, onMount } from 'svelte';
   import { ask as askUser } from './ask';
-  import { api, get, post, put, type LiveValue } from './api';
+  import { api, get, post, put, type LiveValue, type TagMeta } from './api';
+  import { textFor } from './animate';
+  import { expressionError } from './expression';
   import { pasteReport, type CopyResponse } from './symbolCopy';
   import { LiveClient } from './live';
   import SymbolCopy from './SymbolCopy.svelte';
@@ -179,6 +181,8 @@
     if (timer) clearTimeout(timer);
   });
   const valueOf = (t: string) => liveVals[t]?.value;
+  /** Tagets enhed til forhåndsvisningen af en Værdi-animation. */
+  const metaOf = (t: string): TagMeta | undefined => { const row = tagByName.get(t); return row ? ({ unit: row.unit } as TagMeta) : undefined; };
   const found = $derived(isPos ? foundPosition(cfg, valueOf) : null);
   const logicNow = $derived(evalLogic(cfg.logic, valueOf, (ref) => { const v = valueOf(pseudoOf(ref)); return typeof v === 'boolean' ? v : null; }));
   const triText = (v: boolean | null | undefined) => (v === true ? 'Til' : v === false ? 'Fra' : 'ukendt');
@@ -811,6 +815,11 @@
       {:else}
         {@render numInput(p, 'decimals', 'Decimaler')}
         <label class="opt small">Før <input class="lbl" bind:value={p.prefix} /></label><label class="opt small">Efter <input class="lbl" bind:value={p.suffix} /></label>
+        <!-- som på siden Bindinger (v0.73.0): beregning på værdien før visning, og tagets enhed efter tallet -->
+        <label class="opt small">Beregning <input class="lbl" bind:value={p.expression} maxlength="80" placeholder="fx x / 10" /></label>
+        <label class="opt small"><input type="checkbox" checked={p.show_unit !== false} onchange={(e) => (p.show_unit = e.currentTarget.checked)} /> Vis enhed</label>
+        {#if expressionError(p.expression ?? '')}<span class="small error">Beregning: {expressionError(p.expression ?? '')}</span>{/if}
+        {#if valueOf(a.src) !== undefined && valueOf(a.src) !== null}<span class="small muted">Lige nu: {fmt(valueOf(a.src))} → <strong>{textFor(valueOf(a.src), metaOf(a.src), p)}</strong></span>{/if}
       {/if}
     {:else if a.type === 'rotate'}
       {#if kind === 'pos'}

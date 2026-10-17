@@ -85,6 +85,17 @@ Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positio
 
 En animation kan også styres af **altid til** (i stedet for et tag): så er den altid aktiv — fx en flamme der altid blafrer, eller et løbelys der altid kører. (Ikke for *Niveau*, *Gennemsigtighed* og *Værdi*, som skal have et tal.)
 
+### Værdi: decimaler, tekst før/efter, beregning og enhed
+
+Animationen **Værdi** skriver taggets værdi i en tekst-del. For et tal-tag har den felterne:
+
+- **Decimaler**: antal decimaler (tallet rundes af). Tom = tagets egen indstilling; 0 = hele tal.
+- **Før** og **Efter**: fast tekst foran og efter tallet, fx *Tryk: * og * liter* (skriv selv mellemrummene).
+- **Beregning**: simpel matematik på værdien, før den vises — fx *x / 10*, så registerværdien 128 vises som 12,8. Samme regler som på siden *Bindinger* (se *Bindinger og animationer › Tekst: decimaler og beregning*). En ugyldig beregning vises med det samme med rødt.
+- **Vis enhed**: tagets enhed (fra *Tags*) efter tallet — før *Efter*-teksten.
+
+Ved siden af står **Lige nu**: taggets aktuelle værdi og hvordan den vil blive vist (fx *128 → Tryk: 12.8 bar*). For et til/fra-tag skriver du i stedet teksten for **Til** og **Fra**.
+
 ### Flere animationer på samme del: aktiv/passiv og standard
 
 Hver animation af typen *Farve, Stregfarve, Blink, Synlig, Roterer, Blafrer* eller *Løbelys* har valget **Når den ikke er aktiv**:

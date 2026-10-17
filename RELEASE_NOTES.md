@@ -2,6 +2,10 @@
 
 ---
 
+## v0.73.0 — 2026-10-17 — Beregning i Værdi-animationen
+
+- Guidens **Værdi** har nu **Beregning** (fx *x / 10*) og **Vis enhed** som på siden Bindinger, og viser hvordan den aktuelle værdi bliver vist (*Lige nu: 128 → 12.8 bar*).
+
 ## v0.72.0 — 2026-10-17 — Flere animationer på samme del
 
 - En animation kan nu være **passiv**: når den ikke er aktiv, rører den ikke delen. Så kan du stable fx flere løbelys på samme rør med hver sin betingelse og hvert sit sæt farver — den **øverste aktive** vinder.
