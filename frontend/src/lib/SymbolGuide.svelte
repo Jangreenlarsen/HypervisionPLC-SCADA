@@ -4,6 +4,7 @@
   // Reference for opførsel: docs/prototyper/symbolguide.html · teknik: docs/SYMBOLSTANDARD_IMPLEMENTERING.md afsnit 8.
   import { onDestroy, onMount } from 'svelte';
   import { api, get, post, put, type LiveValue } from './api';
+  import { pasteReport, type CopyResponse } from './symbolCopy';
   import { LiveClient } from './live';
   import SymbolCopy from './SymbolCopy.svelte';
   import TagSelect from './TagSelect.svelte';
@@ -21,8 +22,10 @@
     plans: { position: number; label: string; writes: Write[] }[];
   }
 
-  let { drawingId, element, name, tags, onclose, onsaved }: {
+  let { drawingId, element, name, tags, group = [], onclose, onsaved }: {
     drawingId: string; element: string; name: string; tags: TagRow[];
+    /** "Opsæt de valgte samlet": de ANDRE valgte symboler — de får opsætningen, når der gemmes. */
+    group?: { id: string; name: string }[];
     onclose: () => void; onsaved: () => void;
   } = $props();
 
@@ -47,6 +50,8 @@
   let liveVals = $state<Record<string, LiveValue>>({});
   let copyOpen = $state(false);   // "Anvend på flere …"
   let savedHere = false;          // gemt undervejs (før kopiering) — luk guiden som efter et gem
+  let groupProblems = $state<string[]>([]);   // det der ikke kunne overføres til de andre valgte
+  let groupInfo = $state('');
 
   const tagByName = $derived(new Map(tags.map((t) => [t.name, t])));
   const sigKind = (id: string): 'bool' | 'num' | 'unknown' => {
@@ -328,7 +333,29 @@
     }
   }
   async function save(): Promise<void> {
-    if (await persist()) onsaved();
+    if (!(await persist())) return;
+    if (group.length && !(await applyGroup())) return;
+    onsaved();
+  }
+  /** Gruppetilstand: kopiér den netop gemte opsætning til de andre valgte (overskriver — det er hele formålet). → alt gik glat? */
+  async function applyGroup(): Promise<boolean> {
+    saving = true;
+    groupProblems = [];
+    groupInfo = '';
+    savedHere = true;
+    try {
+      const res = await post<CopyResponse>(`${base}/copy`, { targets: group.map((g) => g.id), overwrite: true });
+      const names = new Map(group.map((g) => [g.id, g.name]));
+      const rep = pasteReport(res, name, (id) => names.get(id) ?? id);
+      groupInfo = `Gemt i ${name}${res.ok ? ` og ${res.ok} ${res.ok === 1 ? 'andet symbol' : 'andre symboler'}` : ''}.`;
+      groupProblems = rep.problems;
+      return rep.problems.length === 0;
+    } catch (e) {
+      error = `Gemt i ${name}, men kunne ikke overføres til de andre: ${(e as Error).message}`;
+      return false;
+    } finally {
+      saving = false;
+    }
   }
   /** "Anvend på flere …": serveren kopierer den GEMTE opsætning, så gem først (samme kontrol som Gem). */
   async function openCopy(): Promise<void> {
@@ -371,11 +398,25 @@
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="panel guide" role="dialog" aria-modal="true" aria-label="Opsæt symbol {name}" tabindex="-1" onclick={(e) => e.stopPropagation()}>
     <header class="row head">
-      <h2>Opsæt symbol: {name}</h2>
-      <span class="muted small">{element}{symbol?.type ? ` · ${symbol.type}` : ''}{exists ? ' · konfigureret' : ''}</span>
+      {#if group.length}
+        <h2>Opsæt {group.length + 1} symboler samlet</h2>
+        <span class="muted small">redigerer {name}{exists ? ' (konfigureret)' : ''}</span>
+      {:else}
+        <h2>Opsæt symbol: {name}</h2>
+        <span class="muted small">{element}{symbol?.type ? ` · ${symbol.type}` : ''}{exists ? ' · konfigureret' : ''}</span>
+      {/if}
       <button class="close" onclick={close} disabled={saving} aria-label="Luk">✕</button>
     </header>
 
+    {#if group.length}
+      <p class="small group-note">Du redigerer <strong>{name}</strong>. Når du gemmer, får også {group.length <= 4 ? group.map((g) => g.name).join(', ') : `${group.slice(0, 3).map((g) => g.name).join(', ')} og ${group.length - 3} andre`} opsætningen (dele oversættes efter navn; nøglelåsen kopieres ikke).</p>
+    {/if}
+    {#if groupInfo || groupProblems.length}
+      <div class="small group-res">
+        {#if groupInfo}<p>{groupInfo}</p>{/if}
+        {#if groupProblems.length}<div class="error"><strong>Ikke alt kunne overføres</strong> — de øvrige har fået opsætningen:<ul>{#each groupProblems as m}<li>{m}</li>{/each}</ul></div>{/if}
+      </div>
+    {/if}
     {#if loading}
       <p class="muted">Henter…</p>
     {:else if !symbol}
@@ -667,16 +708,18 @@
       </div>
 
       <footer class="row">
-        {#if exists}<button class="danger" onclick={remove} disabled={saving}>Fjern konfiguration</button>{/if}
-        <button onclick={openCopy} disabled={!canSave}
-          title={canSave ? 'Gem opsætningen og kopiér den til andre symboler på tegningen' : 'Ret fejlene først — opsætningen gemmes, før den kopieres'}>Gem og anvend på flere …</button>
+        {#if !group.length}
+          {#if exists}<button class="danger" onclick={remove} disabled={saving}>Fjern konfiguration</button>{/if}
+          <button onclick={openCopy} disabled={!canSave}
+            title={canSave ? 'Gem opsætningen og kopiér den til andre symboler på tegningen' : 'Ret fejlene først — opsætningen gemmes, før den kopieres'}>Gem og anvend på flere …</button>
+        {/if}
         <span class="spacer"></span>
         <span class="small muted">{checking ? 'Kontrollerer…' : preview ? (preview.errors || needPin ? `${preview.errors + (needPin ? 1 : 0)} fejl` : 'Ingen fejl') : 'Kontrollerer…'}</span>
         <button onclick={() => (step = Math.max(0, step - 1 - (!isPos && step === 3 ? 1 : 0)))} disabled={step === 0}>Tilbage</button>
         {#if step < 5}
           <button onclick={() => (step = Math.min(5, step + 1 + (!isPos && step === 1 ? 1 : 0)))}>Næste</button>
         {:else}
-          <button class="primary" onclick={save} disabled={!canSave}>{saving ? 'Gemmer…' : 'Gem'}</button>
+          <button class="primary" onclick={save} disabled={!canSave}>{saving ? 'Gemmer…' : group.length ? `Gem i alle ${group.length + 1}` : 'Gem'}</button>
         {/if}
       </footer>
     {/if}
@@ -779,6 +822,9 @@
 {/snippet}
 
 <style>
+  .group-note { margin: .2rem 0 .4rem; padding: .35rem .6rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); }
+  .group-res { margin: 0 0 .4rem; }
+  .group-res ul { margin: .2rem 0 0; padding-left: 1.2rem; }
   .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px 0; z-index: 20; }
   .guide { width: 100%; max-width: 960px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 8px 30px rgba(0, 0, 0, .25); }
   .head { align-items: baseline; gap: .6rem; }

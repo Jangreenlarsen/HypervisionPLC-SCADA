@@ -85,6 +85,17 @@ Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positio
 
 **Ret symbol** åbner guiden med den gemte opsætning. **Fjern konfiguration** sletter den (symbolets gamle bindinger gælder så igen). Et tag, der bruges af et symbol, kan ikke slettes under **Tags**.
 
+### Opsæt flere symboler samlet
+
+Vil du redigere opsætningen for mange symboler på én gang (fx alle rør i en kreds), så markér dem i **Tegn** (hold **Shift** nede, eller træk en ramme) og tryk **Opsæt de valgte samlet**:
+
+1. Tegningen gemmes og udgives først, hvis den har ændringer.
+2. Har de valgte **forskellige opsætninger**, vælger du, hvilken der er **udgangspunktet** — dialogen viser hver opsætning og hvilke symboler, der har den. Har de samme opsætning (eller ingen), springes spørgsmålet over.
+3. Guiden åbner med udgangspunktet. Ret tag og animationer som for ét symbol.
+4. Tryk **Gem i alle**. Alle de valgte får opsætningen (deres tidligere opsætning erstattes). Kunne et symbol ikke få den (fx løbelys på en pumpe uden streger), står det i guiden, og de andre har fået den.
+
+Markerede elementer **uden navn** får udgangspunktets navn med løbenummer (fx *Rør 1_1*). Nøglelåsen og dens kode kopieres ikke.
+
 ### Samme opsætning på flere symboler
 
 Skal mange symboler have samme opsætning (fx løbelys på alle rør, bøjninger og T-stykker i en kreds), så sæt **ét** af dem op og tryk **Gem og anvend på flere …** nederst i guiden. Opsætningen gemmes først, og derefter vælger du, hvilke symboler den skal kopieres til:

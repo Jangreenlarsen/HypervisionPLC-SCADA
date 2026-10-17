@@ -2,6 +2,12 @@
 
 ---
 
+## v0.63.0 — 2026-10-17 — Opsæt flere symboler samlet
+
+- Markér flere symboler i **Tegn** og tryk **Opsæt de valgte samlet**. Guiden åbner med ét af dem, og når du trykker **Gem i alle**, får alle de valgte den samme opsætning (tag og animationer).
+- Har de valgte **forskellige opsætninger**, spørger systemet først, hvilken der skal være udgangspunktet.
+- Kan et af symbolerne ikke få opsætningen (fx løbelys på en pumpe), står det i guiden — de andre får den alligevel.
+
 ## v0.62.0 — 2026-10-17 — Indsæt opsætning giver navne
 
 - Indsætter du en kopieret opsætning i elementer **uden navn**, får de nu kildens navn med løbenummer — fx *varme pumpe tilgang_1*, *varme pumpe tilgang_2* … (numre der allerede er brugt, springes over) — og derefter opsætningen. Før blev de sprunget over.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { candidates, pasteReport, pasteTargets, pipes, rowLabel, sameType, summary, typeLabel, type SymbolRow } from './symbolCopy';
+import { emptyConfig, type SymbolConfig, type SymbolInfo } from './symbolConfig';
+import { candidates, configGroups, configSignature, describeConfig, memberNames, pasteReport, pasteTargets, pipes, rowLabel, sameType, summary, typeLabel, type SymbolRow } from './symbolCopy';
 
 const rows: SymbolRow[] = [
   { element: 'R1', name: 'Rør 1', type: 'roer_v', configured: true },
@@ -57,5 +58,40 @@ describe('kopiér/indsæt i Tegn', () => {
     expect(mixed.info).toBe('Opsætningen fra "Rør 1" er indsat i 2 symboler.');
     expect(mixed.problems).toEqual(['Bøjning 1: Animation 2 … sprunget over.', 'Lampe: Trin 4: Løbelys kræver streger']);
     expect(pasteReport({ source: 'R1', ok: 0, skipped: 0, error: 1, results: [{ element: 'L', status: 'error', message: 'x', notes: [] }] }, 'Rør 1', name).info).toBe('');
+  });
+});
+
+describe('opsæt flere samlet', () => {
+  const sym = (id: string): SymbolInfo => ({ tag: 'g', line: true, type: 'pumpe', name: id, parts: { [`${id}_hus`]: { tag: 'circle', line: false, pid: 'hus' }, [`${id}_x`]: { tag: 'path', line: true, pid: null } } });
+  const cfg = (part: string, src = 'Drift', over: Partial<SymbolConfig> = {}): SymbolConfig =>
+    ({ ...emptyConfig(), op: 'view', anims: [{ part, type: 'fill', src, params: { on: '#7cc47f' }, only: null }], ...over });
+
+  it('ens opsætning på dele med samme biblioteksnavn tæller som ens; låsen tæller ikke', () => {
+    const a = configSignature(cfg('P1_hus'), sym('P1'));
+    expect(configSignature(cfg('P2_hus'), sym('P2'))).toBe(a);
+    expect(configSignature(cfg('P2_hus', 'Drift', { lock: { positions: [true], leave: true } }), sym('P2'))).toBe(a);
+    expect(configSignature({ ...cfg('P2_hus'), type: 'andet' }, sym('P2'))).toBe(a);   // rør og bøjning med samme opsætning er ens
+    expect(configSignature(cfg('P2_hus', 'Fejl'), sym('P2'))).not.toBe(a);
+    // dele uden biblioteksnavn sammenlignes på id
+    expect(configSignature(cfg('P1_x'), sym('P1'))).not.toBe(configSignature(cfg('P2_x'), sym('P2')));
+  });
+
+  it('grupperer, udelader dem uden opsætning, flest først', () => {
+    const g = configGroups([
+      { element: 'P1', name: 'Pumpe 1', config: cfg('P1_hus', 'Fejl'), symbol: sym('P1') },
+      { element: 'P2', name: 'Pumpe 2', config: cfg('P2_hus'), symbol: sym('P2') },
+      { element: 'P3', name: 'Pumpe 3', config: null, symbol: sym('P3') },
+      { element: 'P4', name: 'Pumpe 4', config: cfg('P4_hus'), symbol: sym('P4') },
+    ]);
+    expect(g.map((x) => x.members.map((m) => m.element))).toEqual([['P2', 'P4'], ['P1']]);
+    expect(g[0].summary).toBe('Kun visning · Farve (Drift)');
+    expect(configGroups([])).toEqual([]);
+  });
+
+  it('beskrivelse og navne', () => {
+    expect(describeConfig({ ...emptyConfig(), op: 'pulse', signals: [{ id: 'S1', tag: 'Start', fb: '', pulse: false } as never], anims: [] })).toBe('Trykknap (puls) · tag Start');
+    expect(memberNames([{ name: 'A' }])).toBe('A');
+    expect(memberNames([{ name: 'A' }, { name: 'B' }])).toBe('A og B');
+    expect(memberNames([{ name: 'A' }, { name: 'B' }, { name: 'C' }, { name: 'D' }, { name: 'E' }])).toBe('A, B, C og 2 andre');
   });
 });

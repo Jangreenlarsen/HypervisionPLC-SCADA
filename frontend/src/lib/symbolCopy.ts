@@ -1,4 +1,5 @@
 // "Kopiér opsætning til flere" (v0.59.0): udvælgelse af målsymboler og opsummering af serverens svar.
+import { ANIM_TXT, OP_TXT, type Op, type SymbolConfig, type SymbolInfo } from './symbolConfig';
 import { PIPE_IDS, SYMBOLS } from './symbols';
 
 /** Et symbol på tegningen, som serveren lister det (GET /api/drawings/{id}/symbols). */
@@ -65,4 +66,49 @@ export function pasteReport(r: CopyResponse, from: string, nameOf: (id: string) 
     ...x.notes.map((n) => `${nameOf(x.element)}: ${n}`),
   ]);
   return { info, problems };
+}
+
+// ---- Opsæt flere symboler samlet (v0.63.0)
+
+/** Et valgt symbol med sin gemte opsætning (null = ingen) og symbolets dele (fra GET …/config). */
+export interface Member { element: string; name: string; config: SymbolConfig | null; symbol: SymbolInfo | null }
+/** Valgte symboler med SAMME opsætning (dele sammenlignet efter biblioteksnavn). */
+export interface ConfigGroup { key: string; members: Member[]; summary: string }
+
+/**
+ * Opsætningens "fingeraftryk" uafhængigt af symbolets egne id'er: en animation på en del sammenlignes efter delens
+ * biblioteksnavn (pid), så to rør med hver sin del-id men samme opsætning tæller som ens. Nøglelåsen tæller ikke med
+ * (den kopieres ikke).
+ */
+export function configSignature(cfg: SymbolConfig, symbol: SymbolInfo | null): string {
+  const part = (id: string) => (id === 'all' ? 'all' : symbol?.parts[id]?.pid ? `pid:${symbol.parts[id].pid}` : `id:${id}`);
+  const { lock: _lock, type: _type, ...rest } = cfg;   // typen er symbolets, ikke opsætningens
+  return JSON.stringify({ ...rest, anims: (cfg.anims ?? []).map((a) => ({ ...a, part: part(a.part) })) });
+}
+
+/** Kort beskrivelse af en opsætning, fx "Kun visning · Løbelys (Lys), Farve (Fejl)". */
+export function describeConfig(cfg: SymbolConfig): string {
+  const anims = (cfg.anims ?? []).map((a) => `${ANIM_TXT[a.type] ?? a.type}${a.src ? ` (${a.src})` : ''}`);
+  const tags = (cfg.signals ?? []).map((s) => s.tag).filter(Boolean);
+  return [OP_TXT[cfg.op as Op] ?? cfg.op, tags.length ? `tag ${tags.join(', ')}` : '', anims.join(', ')].filter(Boolean).join(' · ');
+}
+
+/** De forskellige opsætninger blandt de valgte (dem uden opsætning udeladt), flest medlemmer først. */
+export function configGroups(members: Member[]): ConfigGroup[] {
+  const groups = new Map<string, ConfigGroup>();
+  for (const m of members) {
+    if (!m.config) continue;
+    const key = configSignature(m.config, m.symbol);
+    const g = groups.get(key) ?? { key, members: [], summary: describeConfig(m.config) };
+    g.members.push(m);
+    groups.set(key, g);
+  }
+  return [...groups.values()].sort((a, b) => b.members.length - a.members.length);
+}
+
+/** "Rør 1, Rør 2 og 3 andre" — navnene i en gruppe, forkortet. */
+export function memberNames(ms: { name: string }[], max = 3): string {
+  const names = ms.map((m) => m.name);
+  if (names.length <= max) return names.length > 1 ? `${names.slice(0, -1).join(', ')} og ${names[names.length - 1]}` : names.join('');
+  return `${names.slice(0, max).join(', ')} og ${names.length - max} andre`;
 }

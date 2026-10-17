@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.63.0 build 0091] — 2026-10-17 — Opsæt flere symboler samlet i Tegn
+
+- `frontend/src/lib/symbolCopy.ts` — `configSignature()` (opsætningen uafhængigt af symbolets egne id'er: dele efter biblioteksnavn; type og nøglelås tæller ikke), `describeConfig()`, `configGroups()`, `memberNames()`.
+- `frontend/src/lib/GroupBasis.svelte` (ny) — *Vælg udgangspunkt*: de forskellige opsætninger blandt de valgte med medlemmer; nævner dem uden opsætning og uden navn.
+- `frontend/src/lib/SymbolGuide.svelte` — gruppetilstand (`group`): overskrift "Opsæt N symboler samlet", note om hvem der får opsætningen, *Gem i alle N* gemmer udgangspunktet og kopierer det til de andre (overskriver); det der ikke kunne overføres, vises i guiden, som så bliver åben. *Fjern konfiguration* og *Gem og anvend på flere* skjules i gruppetilstand.
+- `frontend/src/pages/DrawEditor.svelte` — *Opsæt de valgte samlet (N)* ved flervalg: gemmer/udgiver først, henter de valgtes opsætninger, spørger om udgangspunkt når der er flere forskellige, navngiver elementer uden navn efter udgangspunktet, og åbner guiden i gruppetilstand.
+- Tests: `symbolCopy.test.ts`. **Set i browseren** lokalt: 2 rør (opsætning A), bøjning (B), T-stykke (ingen) og et element uden navn → dialogen viste 2 opsætninger, B valgt → alle 5 fik B, elementet uden navn blev "Bøjning 1_1"; med en pumpe i markeringen blev guiden åben med "Pumpe 1: … Løbelys kræver streger", og de 5 andre fik opsætningen.
+
 ## [0.62.0 build 0090] — 2026-10-17 — Indsæt opsætning navngiver elementer uden navn
 
 - `frontend/svgedit-host/names.js` (ny, ren): `numberedNames(base, count, used)` — "<base>_1", "<base>_2" … med ledige numre, basen forkortet så navnet holder sig inden for 60 tegn.

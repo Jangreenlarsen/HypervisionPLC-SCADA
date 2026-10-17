@@ -3,9 +3,11 @@
   import { get, patch, post } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
+  import GroupBasis from '../lib/GroupBasis.svelte';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
-  import { pasteReport, pasteTargets, type ConfigClip, type CopyResponse, type SymbolRow } from '../lib/symbolCopy';
+  import { configGroups, pasteReport, pasteTargets, type ConfigClip, type ConfigGroup, type CopyResponse, type Member, type SymbolRow } from '../lib/symbolCopy';
+  import type { SymbolConfig, SymbolInfo } from '../lib/symbolConfig';
   import type { SelectionInfo } from '../lib/symbolSuggest';
   import { CATEGORIES, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
 
@@ -163,6 +165,65 @@
     if (!asked && !confirm(`Tegningen gemmes og udgives først, så ${why}. Fortsæt?`)) return false;
     await save(true);
     return !error && !dirty && current !== null; // save() har vist en evt. fejl
+  }
+
+  // ---- Opsæt de valgte samlet (v0.63.0): guiden redigerer ét udgangspunkt, og Gem giver alle de valgte opsætningen
+  let groupFor = $state<{ basis: { id: string; name: string }; others: { id: string; name: string }[] } | null>(null);
+  let basisChoice = $state<{ groups: ConfigGroup[]; members: Member[]; unnamed: string[] } | null>(null);
+
+  async function openGroupGuide(): Promise<void> {
+    if (!ed || selection.length < 2) return;
+    error = info = '';
+    const withId = selection.filter((s) => !!s.id);
+    const named = withId.filter((s) => !!s.name?.trim());
+    const unnamed = withId.filter((s) => !s.name?.trim()).map((s) => s.id);
+    if (!named.length) {
+      error = 'Giv mindst ét af de valgte symboler et navn — det bliver udgangspunktet, og de andre navngives efter det.';
+      return;
+    }
+    if (!(await ensurePublished('de valgte kan sættes op'))) return;
+    busy = true;
+    let members: Member[];
+    try {
+      if (!tags.length) tags = await get('/api/tags');
+      const did = encodeURIComponent(current!.id);
+      members = await Promise.all(named.map(async (s) => {
+        const r = await get<{ config: SymbolConfig | null; symbol: SymbolInfo | null }>(`/api/drawings/${did}/symbols/${encodeURIComponent(s.id)}/config`);
+        return { element: s.id, name: s.name!.trim(), config: r.config, symbol: r.symbol };
+      }));
+    } catch (e) {
+      error = (e as Error).message;
+      return;
+    } finally {
+      busy = false;
+    }
+    const gone = members.filter((m) => !m.symbol);
+    if (gone.length) {
+      error = `${gone.map((m) => m.name).join(', ')} findes ikke i den udgivne version af tegningen.`;
+      return;
+    }
+    const groups = configGroups(members);
+    if (groups.length > 1) {
+      basisChoice = { groups, members, unnamed };   // brugeren vælger udgangspunktet i dialogen
+      return;
+    }
+    await startGroup(groups[0]?.members[0] ?? members[0], members, unnamed);
+  }
+
+  async function startGroup(basis: Member, members: Member[], unnamed: string[]): Promise<void> {
+    basisChoice = null;
+    let extra: { id: string; name: string }[] = [];
+    if (unnamed.length) {
+      const who = unnamed.length === 1 ? 'Ét valgt element har' : `${unnamed.length} valgte elementer har`;
+      if (!confirm(`${who} intet navn. De får navnet "${basis.name}" med løbenummer (${basis.name}_1, ${basis.name}_2 … — numre der allerede er brugt, springes over), og tegningen gemmes og udgives med de nye navne. Fortsæt?`)) return;
+      const named = ed?.nameElements(unnamed, basis.name) ?? {};
+      extra = Object.entries(named).map(([id, name]) => ({ id, name }));
+      if (!(await ensurePublished('de valgte kan sættes op', true))) return;
+    }
+    groupFor = {
+      basis: { id: basis.element, name: basis.name },
+      others: [...members.filter((m) => m.element !== basis.element).map((m) => ({ id: m.element, name: m.name })), ...extra],
+    };
   }
 
   // ---- Kopiér/indsæt symbolopsætning (v0.60.0): selve opsætningen ligger på serveren; "udklipsholderen" husker kun kilden
@@ -512,6 +573,7 @@
       {#if !single}
         <p class="muted small">{selection.length > 1 ? `${selection.length} elementer valgt` : 'Vælg et element i tegningen.'}</p>
         {#if selection.length > 1}
+          <div class="row"><button class="primary" onclick={openGroupGuide} disabled={!ready || busy} title="Rediger tag og animationer for alle de valgte på én gang — guiden redigerer ét af dem, og Gem giver alle opsætningen">Opsæt de valgte samlet ({selection.length})</button></div>
           <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat de valgte dele samlet med ét symbol — fx en ventil tegnet af flere løse figurer">Erstat markeringen med symbol …</button></div>
           {@render clipRow(false)}
           {@render colorRow()}
@@ -611,6 +673,19 @@
 
 {#if replaceInfo}
   <SymbolReplace info={replaceInfo} lostBindings={replaceLost} onreplace={doReplace} onclose={() => (replaceInfo = null)} />
+{/if}
+
+{#if basisChoice}
+  {@const bc = basisChoice}
+  <GroupBasis groups={bc.groups} unconfigured={bc.members.filter((m) => !m.config)} unnamed={bc.unnamed.length}
+    onpick={(m) => startGroup(m, bc.members, bc.unnamed)} onclose={() => (basisChoice = null)} />
+{/if}
+
+{#if groupFor && current}
+  {@const gf = groupFor}
+  <SymbolGuide drawingId={current.id} element={gf.basis.id} name={gf.basis.name} {tags} group={gf.others}
+    onclose={() => (groupFor = null)}
+    onsaved={() => { info = `${gf.others.length + 1} symboler er opsat ud fra "${gf.basis.name}".`; groupFor = null; }} />
 {/if}
 
 {#if guideFor && current}
