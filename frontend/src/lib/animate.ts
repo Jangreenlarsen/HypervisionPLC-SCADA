@@ -57,6 +57,42 @@ export function colorFor(value: unknown, params: Record<string, any>): string {
   return isOn(value) ? params.on ?? '#2e7d32' : params.off ?? '#9e9e9e';
 }
 
+/**
+ * Er animationen AKTIV lige nu (v0.72.0 — til "aktiv/passiv" og prioritering)? Ukendt værdi og "gælder ikke i denne
+ * position" er ikke aktiv. Farve: til/fra → Til; tal med grænser → mindst den første grænse nået; pr. position → altid.
+ * Løbelys: kører (frem eller tilbage). Blink, Synlig, Roterer, Blafrer: som deres egen til/fra-regel.
+ */
+export function bindingActive(b: Pick<Binding, 'anim' | 'params'>, live: LiveValue | undefined, dirLive?: LiveValue, posLive?: LiveValue): boolean {
+  const p = b.params ?? {};
+  const pos = posLive ? toNumber(posLive.value) : null;
+  if (Array.isArray(p.only) && pos !== null && !p.only[pos]) return false;
+  if (!live || live.value === null || live.value === undefined) return false;
+  const v = live.value;
+  const k = p.pos ? toNumber(v) : null;
+  switch (b.anim) {
+    case 'flow': {
+      let s: -1 | 0 | 1 = p.pos ? (Number(Array.isArray(p.dirs) && k !== null ? p.dirs[k] ?? 0 : 0) as -1 | 0 | 1) : flowState(v, p);
+      if (p.pos && p.reverse && s) s = -s as -1 | 1;
+      return withDirection(s, p, dirLive) !== 0;
+    }
+    case 'fill':
+    case 'stroke': {
+      if (p.pos) return k !== null && Array.isArray(p.colors) && Boolean(p.colors[k]);
+      const thresholds: { value: number }[] = p.thresholds ?? [];
+      const n = toNumber(v);
+      if (thresholds.length && n !== null && typeof v !== 'boolean') return thresholds.some((t) => n >= Number(t.value));
+      return isOn(v);
+    }
+    case 'blink':
+    case 'visible':
+    case 'spin':
+    case 'flicker':
+      return activeFor(v, p);
+    default:
+      return true;
+  }
+}
+
 export function fraction(value: unknown, min = 0, max = 100): number {
   const n = toNumber(value);
   if (n === null || max <= min) return 0;
@@ -690,7 +726,7 @@ export function activeFor(v: unknown, p: Record<string, any>): boolean {
 }
 
 /** Animationen virker ikke (uden for "gælder i positionerne" eller ukendt position): delen vises som tegnet. */
-function resetAnim(el: Element, anim: string, p: Record<string, any>): void {
+export function resetAnim(el: Element, anim: string, p: Record<string, any>): void {
   const st = (el as SVGElement).style;
   switch (anim) {
     case 'fill':

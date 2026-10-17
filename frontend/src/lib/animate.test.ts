@@ -506,3 +506,22 @@ describe('symbol-animationer (kilde = position, gælder i positionerne, blinkfre
     expect(svg.querySelector('.hv-flow')).toBeNull();
   });
 });
+
+describe('bindingActive (v0.72.0)', () => {
+  const lv = (value: unknown) => ({ value, quality: 'good' as const, ts: 0, error: null });
+  it('løbelys, farve med grænser, til/fra-typer, position og ukendt', async () => {
+    const { bindingActive } = await import('./animate');
+    expect(bindingActive({ anim: 'flow', params: {} }, lv(true))).toBe(true);
+    expect(bindingActive({ anim: 'flow', params: {} }, lv(false))).toBe(false);
+    expect(bindingActive({ anim: 'flow', params: { mode: 'code' } }, lv(2))).toBe(true);
+    expect(bindingActive({ anim: 'flow', params: { mode: 'code' } }, lv(3))).toBe(false);
+    expect(bindingActive({ anim: 'flow', params: { dir_tag: 'R' } }, lv(true), lv(null))).toBe(false);   // ukendt retning: stille
+    expect(bindingActive({ anim: 'fill', params: { thresholds: [{ value: 50, color: '#f00' }] } }, lv(49))).toBe(false);
+    expect(bindingActive({ anim: 'fill', params: { thresholds: [{ value: 50, color: '#f00' }] } }, lv(50))).toBe(true);
+    expect(bindingActive({ anim: 'fill', params: {} }, lv(false))).toBe(false);
+    expect(bindingActive({ anim: 'blink', params: { invert: true } }, lv(false))).toBe(true);
+    expect(bindingActive({ anim: 'spin', params: { at_least: 10 } }, lv(5))).toBe(false);
+    expect(bindingActive({ anim: 'flicker', params: {} }, lv(null))).toBe(false);
+    expect(bindingActive({ anim: 'flow', params: { only: [true, false] } }, lv(true), undefined, lv(1))).toBe(false);
+  });
+});

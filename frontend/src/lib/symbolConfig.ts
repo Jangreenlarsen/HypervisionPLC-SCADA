@@ -8,7 +8,7 @@ export type SrcKind = 'pos' | 'bool' | 'num';
 
 export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null }
 export interface Plane { signal: string; values: (number | null)[] }
-export interface Anim { part: string; type: AnimType; src: string; params: Record<string, any>; only: boolean[] | null }
+export interface Anim { part: string; type: AnimType; src: string; params: Record<string, any>; only: boolean[] | null; when?: boolean }
 export type Cmp = '' | 'ge' | 'le' | 'eq';
 /** Én indgang til en logikblok: et tag (til/fra, eller et tal sammenlignet med en grænse) eller en tidligere blok (`@L1`). */
 export interface LogicInput { src: string; neg: boolean; cmp: Cmp; value: number | null }
@@ -24,6 +24,8 @@ export interface PartInfo { tag: string; line: boolean; pid?: string | null }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }
 
 export const POS = '@pos';
+/** Animationer der kan være "aktiv/passiv" (v0.72.0) — de til/fra-agtige; de andre følger et tal hele tiden. */
+export const WHEN_TYPES: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'flow'];
 /** Kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag. */
 export const ON = '@on';
 /** Blafrer: standardfarverne (rød, orange, gul), som flammen skifter tilfældigt imellem (v0.70.0). */

@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.72.0 build 0110] — 2026-10-17 — Aktiv/passiv-animationer og standard
+
+- `backend/app/services/symbols.py` — `Anim.when` ("aktiv/passiv"; kun Farve, Stregfarve, Blink, Synlig, Roterer, Blafrer, Løbelys — `WHEN_TYPES`), bliver `params.when` på bindingen.
+- `frontend/src/lib/animate.ts` — `bindingActive()` (er animationen aktiv: løbelys kører, farve Til/grænse nået, til/fra-typerne; ukendt værdi og "gælder ikke i positionen" er ikke aktiv); `resetAnim` eksporteret.
+- `frontend/src/lib/canvas.ts` — prioritetsgrupper (`priorityGroups`, `groupWinner`): samme slags animation på samme del med mindst én aktiv/passiv → den øverste aktive vinder (en med "vis fra-tilstand" tæller altid som aktiv); ingen → delen som tegnet; de andre rydder op. Farve og Blafrer er samme slags. Uden aktiv/passiv: som før (den sidste vinder).
+- `frontend/src/lib/SymbolGuide.svelte` — "Når den ikke er aktiv: vis fra-tilstand / gør ingenting (passiv)" og knappen *+ Standard* (altid til, nederst). `api.ts`: `Binding.position`.
+- Manual (06). Tests: `test_symbols.py`, `canvas.test.ts`, `animate.test.ts`. **Set i browseren** lokalt: rør med løbelys rødt (A, passiv), grønt (B, passiv) og standard blåt — A/B fra/fra → blåt, til/fra → rødt, til/til → rødt, fra/til → grønt, fra/fra → blåt; guiden med valget og *+ Standard*.
+
 ## [0.71.0 build 0109] — 2026-10-17 — Manual: løbelysets styring
 
 - `frontend/src/manual/05-bindinger-og-animationer.md` — nyt afsnit "Løbelysets styring": *Til/fra*, *Fortegn (+/−)* og *Kode 0/1/2* (tabel), *Omvendt*, *Retning fra*, ukendt værdi, *altid til* og symbolets position. Afkrydsningsfeltet hedder *Omvendt* i guiden — manualen sagde "Vend retning"; rettet. Kun manualtekst (bygges ind i siden), derfor kun nyt build.
