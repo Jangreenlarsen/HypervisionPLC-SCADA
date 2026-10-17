@@ -208,6 +208,18 @@ function hookContextMenu() {
 function hookEvents() {
   const c = canvas();
   hookContextMenu();
+  // SVG-Edits egne id'er (svg_N — tegneværktøjer, indsæt, dupliker): spring reserverede over. Dupliker henter id'et
+  // direkte fra tegningsobjektet (ikke lærredet), så det er tegningens getNextId — fælles for alle tegninger — der pakkes ind.
+  const proto = Object.getPrototypeOf(c.getCurrentDrawing());
+  if (proto && !proto.__hvReserved) {
+    const nextId = proto.getNextId;
+    proto.getNextId = function getNextIdSkippingReserved() {
+      let id = nextId.call(this);
+      for (let n = 0; reservedIds.has(id) && n < 100000; n++) id = nextId.call(this);
+      return id;
+    };
+    proto.__hvReserved = true;
+  }
   // bind() returnerer editorens egen handler — kald den først, så editoren virker uændret.
   const prevSelected = c.bind('selected', (win, elems) => {
     if (prevSelected) prevSelected(win, elems);
@@ -271,8 +283,14 @@ function currentSelection() {
   }));
 }
 
+/**
+ * Id'er der har en symbolopsætning eller binding på tegningen (også forsvundne) — nye elementer må ikke få dem, ellers
+ * "vågner" en gammel opsætning op på det nye element (BUGS.md v0.68.0). Sættes af Tegn, når en tegning åbnes.
+ */
+let reservedIds = new Set();
+
 function idExists(id) {
-  return !!canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`);
+  return reservedIds.has(id) || !!canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`);
 }
 
 function uniqueId(base) {
@@ -759,6 +777,11 @@ window.scada = {
     if (changeListener) changeListener();
     if (selectionListener) selectionListener(currentSelection());
     return { ok: true, removed, parts };
+  },
+
+  /** Id'er som nye elementer ikke må få (se reservedIds). */
+  setReservedIds(ids) {
+    reservedIds = new Set((ids || []).map(String));
   },
 
   uniqueName(base) {

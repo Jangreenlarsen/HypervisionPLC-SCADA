@@ -438,6 +438,20 @@ describe('symbol-animationer (kilde = position, gælder i positionerne, blinkfre
     applyBinding(r, { element: 'p', tag: 'Drift', anim: 'spin', params: {} }, live(true));
     expect(r.classList.contains('hv-spin')).toBe(true);
   });
+  it('blafrer (v0.69.0): farves og blafrer ved drift; slukket = som tegnet; pr. position og "når ≥"', () => {
+    const f = el('path');
+    const b = { element: 'f', tag: 'Brænder', anim: 'flicker' as const, params: { color: '#ff8c1a' } };
+    applyBinding(f, b, live(true));
+    expect(f.classList.contains('hv-flicker')).toBe(true);
+    expect((f as SVGElement).style.fill).toBe('rgb(255, 140, 26)');
+    applyBinding(f, b, live(false));
+    expect(f.classList.contains('hv-flicker')).toBe(false);
+    expect((f as SVGElement).style.fill).toBe('');
+    applyBinding(f, { ...b, params: { at_least: 50 } }, live(60));
+    expect((f as SVGElement).style.fill).toBe('rgb(255, 140, 26)');   // standardfarven
+    applyBinding(f, { ...b, params: { pos: true, set: [false, true], color: '#ff0000' } }, live(0));
+    expect(f.classList.contains('hv-flicker')).toBe(false);
+  });
   it('Drej/Flyt pr. position glider som CSS-transform; del med egen transform beholder attributten', () => {
     const r = el('rect');
     applyBinding(r, sym('rotate', { angles: [-45, 0, 45] }), live(2));

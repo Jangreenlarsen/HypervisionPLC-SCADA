@@ -309,3 +309,19 @@ def test_view_contains_symbol_bindings_and_summary(api):
     assert summary["op"] == "positions" and summary["labels"][0] == "1" and summary["has_pin"] is True
     assert summary["lock_positions"][6] is True and summary["pseudo"]["state"] == f"sym:{api.did}:V1:state"
     assert "1234" not in str(view) and "scrypt" not in str(view)
+
+
+def test_flicker_animation_on_flame(api):
+    """Blafrer (v0.69.0): til/fra-tag eller ≥ for tal; farven valideres; bindingen får animationen "flicker"."""
+    ok = put(api, {"op": "view", "anims": [{"part": "Lampe_glas", "type": "flicker", "src": "Lys", "params": {"color": "#ff8c1a"}}]},
+             element="Lampe")
+    assert ok.status_code == 200, ok.text
+    view = api.get(f"/api/drawings/{api.did}/view").json()
+    b = next(x for x in view["bindings"] if x.get("symbol") == "Lampe")
+    assert b["anim"] == "flicker" and b["params"]["color"] == "#ff8c1a" and b["tag"] == "Lys"
+    assert put(api, {"op": "view", "anims": [{"part": "all", "type": "flicker", "src": "Niveau", "params": {"at_least": 50}}]},
+               element="Tank").status_code == 200
+    body = errors(put(api, {"op": "view", "anims": [{"part": "Lampe_glas", "type": "flicker", "src": "Lys", "params": {"color": "orange-ish"}}]},
+                      element="Lampe"))
+    assert any("color" in m for m in body["steps"]["4"]), body
+

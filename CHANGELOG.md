@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.69.0 build 0105] — 2026-10-17 — Blafrende flamme, Gem på alle trin, id'er genbruges ikke
+
+- **Animation "Blafrer"** (`flicker`): `backend/app/services/symbols.py` (`AFlicker`: farve + til/fra/≥/pr. position; navn og pr.-position-felt), `frontend/src/lib/symbolConfig.ts` (type, standard, guidens forslag for Kedel/fyr), `SymbolGuide.svelte` (felt "Flammefarve"), `animate.ts` (`flicker()`: inline-fyld + klassen `hv-flicker`), `app.css` (keyframes: skalerer blødt fra bunden, hælder lidt; slået fra ved "reducer bevægelse"). Biblioteket: Kedel/fyr-hint.
+- **Gem på alle trin** i symbolguiden (`SymbolGuide.svelte`): Gem/"Gem i alle N" står ved siden af Næste og er aktiv, så snart opsætningen er uden fejl.
+- **Id'er med opsætning/binding genbruges ikke** (se BUGS.md): `SymbolService.used_ids()` + `GET /api/drawings/{id}/used-ids`; værten `setReservedIds()`, `idExists()` og tegningsobjektets `getNextId` springer dem over; Tegn henter listen ved åbning og efter guide/indsæt.
+- Tests: `test_symbols.py` (Blafrer), `test_symbol_copy.py` (used-ids), `animate.test.ts`, `libraryDefaults.test.ts`. **Set i browseren** lokalt: Kedel indsat → guiden foreslår Blafrer på flammen, Gem på trin 1 (inaktiv uden tag) og på trin 4 (gemt derfra); Overview: flammen orange med skiftende transform; id-test som i BUGS.md.
+
 ## [0.68.0 build 0104] — 2026-10-17 — T-stykke og kryds består af rør (eget løbelys pr. rør)
 
 - `frontend/src/lib/symbols.ts` — `FITTING_LEGS`: T-stykket er *Tilløbsrør 1* (`tilloeb1`), *Tilløbsrør 2* (`tilloeb2`) og *Midterrør* (`midte`, starter ved gennemløbets kant); krydset er *Rør 1–4*. Tegneretning: ind fra venstre, ud til højre og op/ned.

@@ -3,7 +3,7 @@
 // Valideringen er serverens (POST …/preview) — her er kun struktur og forslag.
 
 export type Op = 'positions' | 'pulse' | 'entry' | 'view';
-export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow';
+export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow' | 'flicker';
 export type SrcKind = 'pos' | 'bool' | 'num';
 
 export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null }
@@ -30,7 +30,7 @@ export const STEPS = ['Symbol', 'Signaler', 'Kontakter', 'Visning', 'Betjening',
 export const OP_TXT: Record<Op, string> = { view: 'Kun visning', positions: 'Positioner', pulse: 'Trykknap (puls)', entry: 'Setpunkt (indtastning)' };
 export const ALARM_TXT: Record<string, string> = { '': 'Nej', low: 'Ja — lav', medium: 'Ja — medium', high: 'Ja — høj' };
 export const ANIM_TXT: Record<AnimType, string> = {
-  fill: 'Farve', stroke: 'Stregfarve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', level: 'Niveau',
+  fill: 'Farve', stroke: 'Stregfarve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', flicker: 'Blafrer', level: 'Niveau',
   opacity: 'Gennemsigtighed', text: 'Værdi', rotate: 'Drej', move: 'Flyt', flow: 'Løbelys',
 };
 export const BLINK_TXT: Record<string, string> = { slow: 'Langsom (0,5 Hz)', normal: 'Normal (1 Hz)', fast: 'Hurtig (2 Hz)' };
@@ -70,6 +70,13 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
       if (part) cfg.anims.push({ part, type: 'fill', src: POS, params: { colors: cols }, only: null });
     }
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: to positioner (AB → A og AB → B) med farver pr. port. Vælg tag under trin 2.' };
+  }
+  if (symbol.type === 'kedel') {
+    // Brænderdrift: flammen farves og blafrer (tagget vælges i trin 4)
+    const flamme = partOf('flamme');
+    if (!flamme) return null;
+    cfg.anims.push({ part: flamme, type: 'flicker', src: '', params: animDefaults('flicker', 'bool', 0), only: null });
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: flammen bliver orange og blafrer, når brænderen kører. Vælg drifts-tagget under trin 4.' };
   }
   if (symbol.type === 'varmepumpe') {
     // Drift: rotoren drejer og lampen bliver grøn — begge fra samme drifts-tag (vælges i trin 4)
@@ -232,7 +239,7 @@ export function evalLogic(
 
 /** Hvilke animationer en del kan have — efter delens geometri (samme regel som serveren). */
 export function typesFor(part: PartInfo | undefined): AnimType[] {
-  const t: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'rotate', 'move', 'opacity'];
+  const t: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'rotate', 'move', 'opacity'];
   if (part?.tag === 'rect') t.push('level');
   if (part?.tag === 'text' || part?.tag === 'tspan') t.push('text');
   if (part?.line) t.push('flow');
@@ -250,8 +257,10 @@ export function animDefaults(type: AnimType, kind: SrcKind, n: number): Record<s
       return { off: '#9e9e9e', thresholds: [{ value: 50, color: '#b26a00' }, { value: 80, color: '#c62828' }] };
     case 'blink':
     case 'visible':
-    case 'spin': {
+    case 'spin':
+    case 'flicker': {
       const base = kind === 'pos' ? { set: Array.from({ length: n }, (_, j) => j > 0) } : kind === 'num' ? { at_least: 50 } : { invert: false };
+      if (type === 'flicker') return { ...base, color: '#ff8c1a' };
       return type === 'blink' ? { ...base, speed: 'normal' } : base;
     }
     case 'level':

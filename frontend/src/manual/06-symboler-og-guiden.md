@@ -47,7 +47,7 @@ Er en **tilbagemelding** valgt for et signal, læses PLC'ens position derfra; el
 
 ## Animationer i guiden (trin 4)
 
-Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symbolet* …), en **type** (*Farve, Blink, Synlig, Roterer, Niveau, Gennemsigtighed, Værdi, Drej, Flyt, Løbelys*) og en **kilde**:
+Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symbolet* …), en **type** (*Farve, Blink, Synlig, Roterer, Blafrer, Niveau, Gennemsigtighed, Værdi, Drej, Flyt, Løbelys*) og en **kilde**:
 
 - **symbolets position** — farve, vinkel, forskydning osv. vælges **pr. position**
 - **et tag** — til/fra eller tal
@@ -82,6 +82,8 @@ De to **3-vejs motorventiler** har en **Hurtig opsætning** øverst i trin 4: v�
 Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positioner** i trin 1: guiden foreslår to positioner, **AB → A** og **AB → B**, med farve pr. port.
 
 ## Ret og fjern en opsætning
+
+**Gem** står på alle seks trin og kan bruges, så snart opsætningen er uden fejl. **Blafrer** farver delen og får den til at blafre som en flamme, mens kilden er aktiv (guiden foreslår den på fyrets flamme).
 
 **Ret symbol** åbner guiden med den gemte opsætning. **Fjern konfiguration** sletter den (symbolets gamle bindinger gælder så igen). Et tag, der bruges af et symbol, kan ikke slettes under **Tags**.
 

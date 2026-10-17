@@ -158,3 +158,17 @@ def test_map_config_pure():
     out, notes = map_config(cfg, src, tgt)
     assert [a["part"] for a in out["anims"]] == ["all", "B_x"]
     assert len(notes) == 1 and cfg["anims"][1]["part"] == "A_x"   # originalen er urørt
+
+
+def test_used_ids_include_configs_and_bindings_also_for_missing_elements(api):
+    """Tegn må ikke genbruge et id, der stadig har en opsætning eller binding — også når elementet er væk (v0.69.0)."""
+    assert put(api, FLOW, "R1").status_code == 200
+    assert api.put(f"/api/drawings/{api.did}/bindings/B1", json={"bindings": [{"tag": "Lys", "anim": "fill", "params": {}}]}).status_code == 200
+    # ny version uden R1: opsætningen bevares (forsvundet element), og id'et er stadig reserveret
+    svg = SVG.replace(_pipe(1, 100), "")
+    assert api.post(f"/api/drawings/{api.did}/versions", json={"svg": svg, "activate": True}).status_code in (200, 201)
+    ids = api.get(f"/api/drawings/{api.did}/used-ids").json()
+    assert "R1" in ids and "B1" in ids
+    assert "R2" not in ids
+    assert api.get("/api/drawings/findes-ikke/used-ids").status_code == 404
+

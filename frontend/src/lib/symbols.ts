@@ -318,7 +318,7 @@ export const SYMBOLS: SymbolDef[] = [
       `<circle cx="40" cy="40" r="4" fill="${DARK}"/></g></g>`,
   },
   {
-    id: 'kedel', label: 'Kedel/fyr', category: 'vvs', hint: 'Bind "Fyldfarve" på flammen til brænderdrift',
+    id: 'kedel', label: 'Kedel/fyr', category: 'vvs', hint: 'Sæt "Blafrer" (eller "Farve") på flammen til brænderdrift',
     svg: `<g><rect x="0" y="0" width="90" height="120" rx="6" fill="${PANEL}" stroke="${LINE}" stroke-width="3"/>` +
       `<path id="flamme" d="M45 98 C28 96 26 78 36 66 C36 76 42 78 42 78 C38 64 46 52 52 46 C52 60 64 66 62 82 C60 92 54 98 45 98 Z" fill="${FILL}" stroke="${DARK}" stroke-width="2"/></g>`,
   },

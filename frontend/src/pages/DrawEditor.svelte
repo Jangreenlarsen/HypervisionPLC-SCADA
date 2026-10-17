@@ -39,6 +39,7 @@
     selectionColors(): { color: string; uses: number }[];
     recolorSelection(from: string, to: string): number;
     nameElements(ids: string[], base: string): Record<string, string>;
+    setReservedIds(ids: string[]): void;
     splitFitting(id: string, legs: string): { ok?: boolean; removed?: string[]; parts?: string[]; error?: string };
   }
 
@@ -117,6 +118,7 @@
   async function startNew(force = false): Promise<void> {
     if (!ed || (!force && !(await confirmDiscard()))) return;
     ed.newDrawing(1200, 700);
+    ed.setReservedIds([]);
     current = null;
     loadedVersion = null;
     newName = '';
@@ -139,6 +141,7 @@
       current = detail;
       loadedVersion = v;
       dirty = false;
+      await refreshReservedIds();
       history.replaceState(null, '', `#draw/${id}`);
     } catch (e) {
       error = (e as Error).message;
@@ -161,6 +164,20 @@
       return;
     }
     guideFor = { id: sel.id, name: sel.name };
+  }
+
+  /**
+   * Id'er med opsætning eller binding på tegningen (også forsvundne) må ikke gives til nye elementer — ellers "vågner" en
+   * gammel opsætning op på dem (BUGS.md v0.68.0). Hentes når tegningen åbnes, og når opsætninger ændres.
+   */
+  async function refreshReservedIds(): Promise<void> {
+    if (!ed || !current) return;
+    try {
+      ed.setReservedIds(await get<string[]>(`/api/drawings/${encodeURIComponent(current.id)}/used-ids`));
+    } catch (e) {
+      // uden listen kan et id blive genbrugt — sig det, men lad tegningen kunne bruges
+      error = `Kunne ikke hente tegningens brugte id'er (nye elementer kan arve en gammel opsætning): ${(e as Error).message}`;
+    }
   }
 
   /** Symbolopsætninger hører til tegningens AKTIVE version: gem og udgiv først, hvis tegningen er ny, ændret eller en kladde. → klar? */
@@ -303,6 +320,7 @@
       if (taken.length && !await askUser(`${taken.length === 1 ? `"${nameOf(taken[0])}" har` : `${taken.length} af de valgte har`} allerede en opsætning. Overskriv med opsætningen fra "${src.name}"?`)) return;
       const res = await post<CopyResponse>(`${base}/symbols/${encodeURIComponent(src.element)}/copy`, { targets, overwrite: taken.length > 0 });
       const rep = pasteReport(res, src.name, nameOf);
+      await refreshReservedIds();
       const newNames = Object.values(named);
       info = rep.info
         + (newNames.length ? ` Nye navne: ${newNames.length <= 4 ? newNames.join(', ') : `${newNames[0]} … ${newNames[newNames.length - 1]}`}.` : '')
@@ -732,13 +750,13 @@
   {@const gf = groupFor}
   <SymbolGuide drawingId={current.id} element={gf.basis.id} name={gf.basis.name} {tags} group={gf.others}
     onclose={() => (groupFor = null)}
-    onsaved={() => { info = `${gf.others.length + 1} symboler er opsat ud fra "${gf.basis.name}".`; groupFor = null; }} />
+    onsaved={() => { info = `${gf.others.length + 1} symboler er opsat ud fra "${gf.basis.name}".`; groupFor = null; refreshReservedIds(); }} />
 {/if}
 
 {#if guideFor && current}
   <SymbolGuide drawingId={current.id} element={guideFor.id} name={guideFor.name} {tags}
     onclose={() => (guideFor = null)}
-    onsaved={() => { info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`; guideFor = null; }} />
+    onsaved={() => { info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`; guideFor = null; refreshReservedIds(); }} />
 {/if}
 
 <style>

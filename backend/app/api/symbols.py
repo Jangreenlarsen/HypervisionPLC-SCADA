@@ -62,6 +62,12 @@ def _check(request: Request, drawing_id: str) -> None:
         raise ServiceError(404, f"Tegningen '{drawing_id}' findes ikke")
 
 
+@router.get("/{drawing_id}/used-ids", dependencies=[ENGINEER])
+async def used_ids(drawing_id: str, request: Request) -> list[str]:
+    """Id'er med symbolopsætning eller binding (også forsvundne) — Tegn bruger dem ikke til nye elementer."""
+    return _svc(request).used_ids(drawing_id)
+
+
 @router.get("/{drawing_id}/symbols", dependencies=[ENGINEER])
 async def list_symbols(drawing_id: str, request: Request) -> list[dict[str, Any]]:
     """Symbolerne i tegningen (bibliotekstype eller navn) og om de har en opsætning."""

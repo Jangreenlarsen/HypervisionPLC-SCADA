@@ -113,6 +113,16 @@ class ABlink(AToggle):
     speed: Literal["slow", "normal", "fast"] = "normal"
 
 
+class AFlicker(AToggle):
+    """Blafrer (v0.69.0): delen farves med `color` og blafrer, mens kilden er aktiv (som Roterer: til/fra, ≥, pr. position)."""
+    color: str = "#ff8c1a"
+
+    @field_validator("color")
+    @classmethod
+    def _col(cls, v: str) -> str:
+        return _color(v)
+
+
 class AText(TextParams):
     pass
 
@@ -133,19 +143,20 @@ class AFlow(FlowParams):
 ANIM_PARAMS: dict[str, type[BaseModel]] = {
     "fill": AColor, "stroke": AColor, "blink": ABlink, "visible": AToggle, "spin": AToggle,
     "level": LevelParams, "opacity": RangeParams, "text": AText, "rotate": ARotate, "move": AMove, "flow": AFlow,
+    "flicker": AFlicker,
 }
 ANIM_LABEL = {"fill": "Farve", "stroke": "Stregfarve", "blink": "Blink", "visible": "Synlig", "spin": "Roterer",
               "level": "Niveau", "opacity": "Gennemsigtighed", "text": "Værdi", "rotate": "Drej", "move": "Flyt",
-              "flow": "Løbelys"}
+              "flow": "Løbelys", "flicker": "Blafrer"}
 # Parametre pr. position: (feltnavn(e) der skal have én værdi pr. position) — kun når kilden er @pos
 POS_FIELDS = {"fill": ("colors",), "stroke": ("colors",), "blink": ("set",), "visible": ("set",), "spin": ("set",),
-              "rotate": ("angles",), "move": ("dxs", "dys"), "flow": ("dirs",), "text": ()}
+              "rotate": ("angles",), "move": ("dxs", "dys"), "flow": ("dirs",), "text": (), "flicker": ("set",)}
 NUMERIC_ONLY = {"level", "opacity"}
 
 
 class Anim(_M):
     part: str = Field(max_length=120)
-    type: Literal["fill", "stroke", "blink", "visible", "spin", "level", "opacity", "text", "rotate", "move", "flow"]
+    type: Literal["fill", "stroke", "blink", "visible", "spin", "level", "opacity", "text", "rotate", "move", "flow", "flicker"]
     src: str = Field(default="", max_length=64)
     params: dict[str, Any] = Field(default_factory=dict)
     only: list[bool] | None = None
@@ -878,6 +889,13 @@ class SymbolService:
             self.on_change(drawing_id, element)
         return {"element": element, "config": normalized, "warnings": res.warnings,
                 "has_pin": self.db.get_symbol_pin_hash(drawing_id, element) is not None}
+
+    def used_ids(self, drawing_id: str) -> list[str]:
+        """Element-id'er der har en symbolopsætning eller en binding på tegningen — også dem, der ikke findes i den aktive
+        version. Tegn må ikke give nye elementer disse id'er, ellers "vågner" en gammel opsætning op på det nye element."""
+        self.drawings._require(drawing_id)
+        ids = set(self.configs(drawing_id)) | {b["element"] for b in self.db.list_bindings(drawing_id)}
+        return sorted(ids)
 
     def list_symbols(self, drawing_id: str) -> list[dict[str, Any]]:
         """Symbolerne i tegningens aktive version, med om de har en opsætning — til "kopiér opsætning til flere"."""

@@ -79,6 +79,15 @@ function paint(el: Element, prop: 'fill' | 'stroke', color: string): void {
   for (const t of targets) (t as SVGElement).style[prop] = color;
 }
 
+/**
+ * Blafrer (v0.69.0): delen farves og blafrer (CSS-klassen hv-flicker skalerer blødt fra bunden). Slukket: delen som tegnet.
+ * Farven sættes som inline-fyld på figuren(e), ligesom "Farve".
+ */
+function flicker(el: Element, on: boolean, color: string): void {
+  el.classList.toggle('hv-flicker', on);
+  paint(el, 'fill', on ? color : '');
+}
+
 function level(el: Element, f: number, direction: string): void {
   if (el.tagName !== 'rect') {
     el.setAttribute('data-hv-warning', 'level kræver et <rect>-element');
@@ -662,6 +671,9 @@ function resetAnim(el: Element, anim: string, p: Record<string, any>): void {
     case 'spin':
       el.classList.remove('hv-spin');
       break;
+    case 'flicker':
+      flicker(el, false, '');
+      break;
     case 'opacity':
       st.opacity = '';
       break;
@@ -740,6 +752,9 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
       break;
     case 'spin':
       el.classList.toggle('hv-spin', activeFor(v, p));
+      break;
+    case 'flicker':
+      flicker(el, activeFor(v, p), p.color ?? '#ff8c1a');
       break;
     case 'level':
       level(el, fraction(v, p.min, p.max), p.direction ?? 'up');

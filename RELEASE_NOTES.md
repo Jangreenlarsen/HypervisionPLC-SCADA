@@ -2,6 +2,12 @@
 
 ---
 
+## v0.69.0 — 2026-10-17 — Blafrende flamme og Gem på alle trin
+
+- Ny animation **Blafrer**: delen bliver farvet og blafrer som en flamme, mens fyret kører. Guiden foreslår den på flammen for **Kedel/fyr**.
+- I symbolguiden står **Gem** nu på alle seks trin — du kan gemme, så snart der ikke er fejl.
+- Rettet: et nyt element i Tegn kunne få id'et fra et slettet element og dermed "arve" dets gamle opsætning (fx løbelys på ekspansionsbeholderens streg). Nye elementer får nu aldrig et id, der stadig har en opsætning.
+
 ## v0.68.0 — 2026-10-17 — Løbelys pr. rør i T-stykker
 
 - Et T-stykke består nu af tre rør — **Tilløbsrør 1**, **Tilløbsrør 2** og **Midterrør** (et kryds af fire) — som du kan vælge hver for sig i guiden og give hvert sit løbelys og sin retning.

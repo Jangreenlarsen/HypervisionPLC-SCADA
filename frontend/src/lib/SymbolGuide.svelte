@@ -719,9 +719,10 @@
         <button onclick={() => (step = Math.max(0, step - 1 - (!isPos && step === 3 ? 1 : 0)))} disabled={step === 0}>Tilbage</button>
         {#if step < 5}
           <button onclick={() => (step = Math.min(5, step + 1 + (!isPos && step === 1 ? 1 : 0)))}>Næste</button>
-        {:else}
-          <button class="primary" onclick={save} disabled={!canSave}>{saving ? 'Gemmer…' : group.length ? `Gem i alle ${group.length + 1}` : 'Gem'}</button>
         {/if}
+        <!-- Gem på alle trin (v0.69.0): serveren kontrollerer løbende, så der kan gemmes, så snart der ikke er fejl -->
+        <button class="primary" onclick={save} disabled={!canSave}
+          title={canSave ? '' : 'Ret fejlene først (se trinene markeret med rødt)'}>{saving ? 'Gemmer…' : group.length ? `Gem i alle ${group.length + 1}` : 'Gem'}</button>
       </footer>
     {/if}
   </div>
@@ -755,7 +756,8 @@
           <button class="small" onclick={() => (p.thresholds = [...(p.thresholds ?? []), { value: 0, color: '#b26a00' }])}>+ Grænse</button>
         {/if}
       {/if}
-    {:else if a.type === 'blink' || a.type === 'visible' || a.type === 'spin'}
+    {:else if a.type === 'blink' || a.type === 'visible' || a.type === 'spin' || a.type === 'flicker'}
+      {#if a.type === 'flicker'}{@render colorInput(p, 'color', 'Flammefarve')}{/if}
       {#if kind === 'pos'}
         {#each cfg.positions as pos, j}<label class="opt small"><input type="checkbox" bind:checked={p.set[j]} /> {pos.label}</label>{/each}
       {:else if kind === 'num'}

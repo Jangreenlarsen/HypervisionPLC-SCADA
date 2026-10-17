@@ -56,7 +56,7 @@ Biblioteket har **86 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og
 | **Ekspansionsbeholder** | Kun visning | Bind "Tekst" (tryk) i et værdifelt ved siden af |
 | **Radiator** | Kun visning | Bind "Fyldfarve" til varme til/fra |
 | **Ventilator/blæser** | Kun visning, Positioner, Trykknap (puls) | Bind "Fyldfarve" til drift, evt. "Rotation" på rotoren |
-| **Kedel/fyr** | Kun visning | Bind "Fyldfarve" på flammen til brænderdrift |
+| **Kedel/fyr** | Kun visning | Sæt "Blafrer" (eller "Farve") på flammen til brænderdrift |
 | **Varmepumpe** | Kun visning, Positioner, Trykknap (puls) | Bind "Roterer" på rotoren og "Fyldfarve" på lampen til drift |
 | **Temperatur (TT)** | Kun visning, Positioner, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
 | **Tryk (PT)** | Kun visning, Positioner, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
