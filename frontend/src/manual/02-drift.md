@@ -57,6 +57,8 @@ Alarmer har en **prioritet** (lav, medium, høj). Klokken i toppen er rød ved h
 - **Kommunikationsalarm**: en PLC har ikke svaret i en periode.
 - **Symbolafvigelse**: et symbol, hvor den valgte position ikke svarer til PLC'ens position (vælges i guiden, trin 4).
 
+**Markering i tegningen:** de dele, der **viser værdien** af et tag i alarm (*Værdi* og *Niveau*), får en rød markering — den blinker, til alarmen er kvitteret, og lyser fast, til den er ophørt. Dele, der blot bruger tagget til en animation (fx en flamme, der blafrer, eller pumpens pil, der vokser), markeres ikke. Genvejsknappen **Alarmer** viser antallet og blinker rødt ved ukvitterede alarmer.
+
 Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*) — eller i symbolguidens trin 6 for symbolets tags. Et symbol kan også vise alarmen selv (fx blinke ved en ukvitteret alarm), se *Symboler og guiden › Alarmer i guiden*.
 
 > Øverst på **Alarmer**, **Trends** og **Energi** står knappen **← Tilbage til "…"**, der fører tilbage til den tegning, du sidst så i Overview (fx efter et klik på en genvej i tegningen).

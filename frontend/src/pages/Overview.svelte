@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
+  import { alarmMarks } from '../lib/alarmMark';
   import { applyAlarmBadges, markNavClickable, navTarget, NAV_TARGETS } from '../lib/navSymbols';
   import { get, post, type Binding, type DrawingView, type LiveValue, type PlcSummary } from '../lib/api';
   import { clickFor, parseSetpoint, positionLabel, positions, rangeText, toggleQuestion } from '../lib/actions';
@@ -122,13 +123,14 @@
 
   let alarmTags = new Map<string, 'unack' | 'ack'>();
 
+  /** Rød alarmmarkering på de dele, der viser et tag i alarm som værdi (v0.87.0: kun Værdi/Niveau — se lib/alarmMark). */
   function markAlarms(): void {
     if (!container || !view) return;
-    for (const b of view.bindings) {
-      if (!b.tag) continue;
-      const el = container.querySelector(`#${CSS.escape(b.element)}`);
+    const marks = alarmMarks(view.bindings, alarmTags);
+    for (const element of new Set(view.bindings.map((b) => b.element))) {
+      const el = container.querySelector(`#${CSS.escape(element)}`);
       if (!el) continue;
-      const st = alarmTags.get(b.tag);
+      const st = marks.get(element);
       el.classList.toggle('hv-alarm-unack', st === 'unack');
       el.classList.toggle('hv-alarm-ack', st === 'ack');
     }

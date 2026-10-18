@@ -2,6 +2,10 @@
 
 ---
 
+## v0.87.0 — 2026-10-18 — Alarmmarkering kun på værdier
+
+- Den røde alarmmarkering i tegningen sidder nu kun på de dele, der **viser værdien** af et tag i alarm (fx "kedel: 100,0 °C") — ikke på fx en flamme eller en pumpepil, der blot bruger samme tag.
+
 ## v0.86.0 — 2026-10-18 — Løbehjul i pumpen
 
 - **Pumpen** har nu et **løbehjul** i stedet for trekanten. Det drejer, når pumpen kører (guiden foreslår det), mens pilen står stille og viser retningen. Gamle pumper opdateres med *Erstat med symbol*.

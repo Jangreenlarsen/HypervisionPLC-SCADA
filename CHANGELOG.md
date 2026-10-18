@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.87.0 build 0131] — 2026-10-18 — Alarmmarkering kun på værdivisninger
+
+- `frontend/src/lib/alarmMark.ts` (ny, testet): markering pr. element ud fra bindingerne — kun animationerne `text` (Værdi) og `level` (Niveau); ukvitteret vinder over kvitteret, når et element viser flere tags. `frontend/src/pages/Overview.svelte` — `markAlarms()` bruger den og rydder markeringen på alle andre bundne elementer (før kunne en senere binding på samme element fjerne en tidligere bindings markering).
+- Baggrund (Jan, skærmbillede fra "varme"): ved alarmen *plc1_L2_edit høj (H)* blinkede også kedlens ramme (Blafrer) og Pumpe PS1's pil (Størrelse), fordi de bruger samme tag. Manual (02).
+- **Set i browseren** lokalt: tag i H-alarm brugt af en værditekst, en blafrende ramme og en pumpepil → kun teksten får `hv-alarm-unack`, efter kvittering `hv-alarm-ack`, efter ophør ingen; rammen blafrer uden markering, pilen er umarkeret.
+
 ## [0.86.0 build 0130] — 2026-10-18 — Løbehjul i pumpen
 
 - `frontend/src/lib/symbols.ts` — Pumpe: trekanten er erstattet af et **løbehjul** (del `loebehjul`: fire krumme skovle og et nav, symmetrisk om midten); retningspilen ligger øverst. `symbolConfig.ts`: delnavnet "Løbehjul" og biblioteksforslaget "Roterer på løbehjulet" (ikke for gamle pumper uden løbehjul). Manualens symboltabel (07) regenereret; manual (06).
