@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.79.0 build 0119] — 2026-10-18 — Tegn og Bindinger åbner tegningen fra Overview
+
+- `frontend/src/lib/nav.ts` — `navHref()` (testet i `nav.test.ts`): fra `#overview/<id>` peger menupunkterne Tegn og Bindinger på `#draw/<id>` / `#editor/<id>`; alle andre sider og ruter som før.
+- `frontend/src/App.svelte` — menulinkene bruger `navHref()` med den aktuelle adresse (læst når menuen tegnes: Overview skifter tegning med `replaceState`, som ikke udløser `hashchange`).
+- Manual (04). **Set i browseren** lokalt (Firefox): Overview med start-tegningen og med en anden valgt tegning → Tegn og Bindinger åbner hver gang den samme tegning; fra Tags peger Tegn stadig på `#draw`.
+
 ## [0.78.0 build 0118] — 2026-10-18 — Mine symboler i Tegn
 
 - `backend/app/services/auth.py` — `palette()` / `set_palette()`: brugerens symbol-id'er i valgt rækkefølge, gemt som indstillingen `palette:<bruger>` (id-format kontrolleres, dubletter fjernes, højst 60); slettes sammen med brugeren.

@@ -2,6 +2,10 @@
 
 ---
 
+## v0.79.0 — 2026-10-18 — Fra Overview til Tegn
+
+- Står du på en tegning i **Overview**, åbner **Tegn** og **Bindinger** i menuen nu den samme tegning.
+
 ## v0.78.0 — 2026-10-18 — Mine symboler
 
 - I **Tegn** kan du samle de symboler, du bruger mest, i en egen sektion **Mine symboler** øverst i biblioteket: tryk **☆** på et symbol, og ordn dem med **◀ ▶**. Listen følger din bruger — også på en anden pc.

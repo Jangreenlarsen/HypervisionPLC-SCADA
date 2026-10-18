@@ -25,7 +25,7 @@ Siden **Tegninger** er listen over alle tegninger.
 
 ### Sådan tegner du
 
-1. Vælg en eksisterende tegning (og version) i rullelisterne øverst, eller start en ny (**— Ny tegning —**).
+1. Vælg en eksisterende tegning (og version) i rullelisterne øverst, eller start en ny (**— Ny tegning —**). Står du på en tegning i **Overview**, åbner menupunktet **Tegn** (og **Bindinger**) direkte den tegning.
 2. Tegn med værktøjerne i editoren: linjer, rektangler, cirkler, tekst, farver og lag.
 3. Til højre ser du **Valgt element**. Giv det et **Navn**, hvis det skal være et symbol, der senere kan sættes op med guiden. **Avanceret** viser elementets tekniske **id**.
 4. Tryk **Gem kladde** (gemmer en ny version, men viser den ikke endnu) eller **Gem og udgiv** (gemmer og gør den aktiv). En ny tegning skal have et navn.
