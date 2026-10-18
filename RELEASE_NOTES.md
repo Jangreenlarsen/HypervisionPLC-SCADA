@@ -2,6 +2,10 @@
 
 ---
 
+## v0.77.0 — 2026-10-18 — Bredere statusfelter
+
+- **Statusfelt**, **Værdifelt** og **Auto/Manuel** kan trækkes bredere i Tegn, så der er plads til mere tekst — teksten bliver ikke strakt, og statusfeltet beholder sine runde ender.
+
 ## v0.76.0 — 2026-10-18 — Tilbage til tegningen
 
 - **Alarmer**, **Trends** og **Energi** har en knap **← Tilbage til "…"**, der fører tilbage til den tegning, du kom fra.

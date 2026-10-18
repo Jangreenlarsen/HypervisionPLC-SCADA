@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.77.0 build 0117] — 2026-10-18 — Felt-symboler kan gøres bredere uden at strække teksten
+
+- `frontend/svgedit-host/snap.js` — `fieldResize()` (ren, testet i `snap.test.ts`): fladen får den nye størrelse; teksten flyttes (midterstillet følger midten, venstre/højre beholder afstanden til kanten), skriftstørrelsen er uændret; en pille forbliver en pille.
+- `frontend/svgedit-host/scada-editor.js` — `normalizeFields()` efter en strækning af Statusfelt, Værdifelt og Auto/Manuel (kun ikke-drejede, dele uden egen transform; gruppens matrix læses uden at ændre den); ét ekstra fortryd-trin.
+- Manual (04). **Set i browseren** lokalt: statusfelt trukket ud → flade 76 → 192 bred med runde ender, teksten "STF" stadig 25 bred og i midten; fortryd i to trin tilbage til udgangspunktet.
+
 ## [0.76.0 build 0116] — 2026-10-18 — Tilbage til tegningen fra Alarmer, Trends og Energi
 
 - `frontend/src/lib/BackToDrawing.svelte` + `backToDrawing.ts` (ny): "← Tilbage til "<tegning>"" — den sidst viste tegning i fanen (`overview.last`); findes den ikke (mere), går knappen til Overview. Sat ind øverst i `Alarms.svelte`, `Trends.svelte`, `Energy.svelte`.

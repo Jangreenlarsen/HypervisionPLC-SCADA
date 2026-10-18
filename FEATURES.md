@@ -103,6 +103,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done (v0.75.0) — **Genvejssymboler**: ny kategori "Genveje" med knapperne Alarmer, Trends og Energi; et klik i Overview åbner siden; alarmknappen viser antallet af aktive alarmer (orange når kvitteret, rød og blinkende når ukvitteret)
 - [x] done (v0.75.1) — **Symbolbiblioteket i Tegn ruller for sig selv**: sidepanelet har editorens højde; "Valgt element" efter behov (højst 55 %), symbolerne ruller med søgefeltet stående øverst; smalle skærme som før
 - [x] done (v0.76.0) — **Tilbage til tegningen** på Alarmer, Trends og Energi: knappen går til den sidst viste tegning (ellers Overview)
+- [x] done (v0.77.0) — **Felt-symboler kan gøres bredere uden at strække teksten** (Statusfelt, Værdifelt, Auto/Manuel): efter en strækning får fladen den nye størrelse, teksten beholder sin skriftstørrelse (midterstillet følger midten, venstrestillet sin afstand til kanten), runde ender forbliver runde
 - [ ] planned — Raspberry Pi 4 deployment: Chromium-kiosk på lokal skærm (udskudt efter ønske — testserver 10.1.1.31 bruges indtil videre; install-script og systemd findes allerede)
 - [x] done v0.8.0 — Backup/restore af hele SCADA-projektet (PLC-forbindelser uden adgangskoder, tags, tegninger med alle versioner, bindinger; ikke brugere): download/restore som JSON (admin), fuld validering før noget ændres, automatisk backup før restore, atomisk udskiftning med tilbagerulning, automatiske døgn-backups på serveren (7 gemmes)
 

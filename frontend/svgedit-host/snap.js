@@ -209,3 +209,30 @@ export function recenterOffset(angleDeg, c0, c1) {
   // R⁻¹ = Rᵀ
   return [cos * vx + sin * vy + c1[0] - c0[0], -sin * vx + cos * vy + c1[1] - c0[1]];
 }
+
+// ---------------------------------------------------------------- Felt-symboler efter en strækning (v0.77.0)
+/**
+ * Et felt (flade + tekst, fx Statusfelt) der er strakt sx × sy: fladen får den nye størrelse, men teksten beholder sin
+ * skriftstørrelse. Midterstillet tekst følger fladens midte; venstre-/højrestillet beholder sin afstand til kanten;
+ * lodret følger teksten fladen forholdsmæssigt. En "pille" (rx ≥ halv højde) forbliver en pille.
+ * rects: [{x, y, w, h, rx}], texts: [{x, y, anchor: 'start'|'middle'|'end'}] i gruppens koordinater (før strækningen).
+ */
+export function fieldResize(rects, texts, sx, sy) {
+  const box = rects[0];
+  const R = rects.map((r) => {
+    const pill = r.rx > 0 && r.rx >= r.h / 2 - 0.5;
+    const h = r.h * sy;
+    return { x: r.x * sx, y: r.y * sy, w: r.w * sx, h, rx: pill ? h / 2 : r.rx };
+  });
+  const B = R[0];
+  const T = texts.map((t) => {
+    let x;
+    if (!box) x = t.x * sx;
+    else if (t.anchor === 'middle') x = B.x + (t.x - box.x) * sx;
+    else if (t.anchor === 'end') x = B.x + B.w - (box.x + box.w - t.x);
+    else x = B.x + (t.x - box.x);
+    const y = box ? B.y + (t.y - box.y) * sy : t.y * sy;
+    return { x, y };
+  });
+  return { rects: R, texts: T };
+}
