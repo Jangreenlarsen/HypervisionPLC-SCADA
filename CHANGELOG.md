@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.80.1 build 0121] — 2026-10-18 — fix: Blafrer og Roterer stopper ikke ved ukvitteret alarm
+
+- `frontend/src/app.css` — et element med både Overviews alarmmarkering (`hv-alarm-unack`) og en egen animation (`hv-flicker`, `hv-spin`, `hv-blink`) kører nu begge animationer (før erstattede alarmmarkeringen den anden, da de bruger samme CSS-egenskab); blinkfrekvensen (langsom/hurtig) bevares; "reducér bevægelse" som før. BUGS.md.
+- **Set i browseren** lokalt (Chrome): som kedlen i "varme" — Blafrer på rammen og Roterer på en rotor ved ≥ 50, alarm H 90, baggrund blinker på ukvitteret alarm. Ved 95: rammen `hv-flicker, hv-alarm`, rotoren `hv-spin, hv-alarm` (på serveren før rettelsen: kun `hv-alarm`).
+
 ## [0.80.0 build 0120] — 2026-10-18 — Trends ud fra symbolerne
 
 - `backend/app/services/symbols.py` — `trend_symbols()`: de opsatte symboler i tegningernes aktive version med deres tags (`config_tags`); en opsætning på et element, der ikke er i den aktive version, springes over; en tegning hvis SVG ikke kan læses, logges og springes over.

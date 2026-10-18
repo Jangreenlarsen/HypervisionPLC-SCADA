@@ -2,6 +2,10 @@
 
 ---
 
+## v0.80.1 — 2026-10-18 — Rettet: blafren stoppede ved alarm
+
+- En del, der **blafrer** eller **roterer**, holdt op med at bevæge sig, når dens tag var i ukvitteret alarm (den røde alarmmarkering overtog). Nu kører begge dele.
+
 ## v0.80.0 — 2026-10-18 — Trends ud fra symbolerne
 
 - I **Trends** kan du vælge et **symbol** — så vises alle dets kurver, uden at du skal finde tagsene selv.
