@@ -151,6 +151,7 @@ async def test_listener_ext_events_and_watch_all_coverage(mock_plc):
         mock_plc.state.ext["mbx"] = {"src": "mbx", "board": 1, "ch": 4, "slave": 1, "type": "coil", "addr": 2, "value": 1, "status": "ok"}
         await wait_for(lambda: len(ext) == 2)
         assert [e["src"] for e in ext] == ["rtu", "mbx"] and listener.ext_events == 2
+        assert listener.ext_by_src == {"rtu": 1, "mbx": 1}
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)

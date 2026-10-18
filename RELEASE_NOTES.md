@@ -2,6 +2,10 @@
 
 ---
 
+## v0.90.1 — 2026-10-18 — SSE-status for expansion boards
+
+- **PLC'er** viser nu, hvor mange ændringer der er kommet via SSE fra **RS485-slaver** og fra **expansion boards** hver for sig.
+
 ## v0.90.0 — 2026-10-18 — Eksterne registre via SSE
 
 - Værdier fra **RS485-slaver og expansion boards** opdateres nu straks via PLC'ens SSE-strøm, når de ændrer sig i PLC'ens Modbus-cache — ikke kun ved næste poll.

@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.90.1 build 0135] — 2026-10-18 — SSE-status pr. kilde: RS485 og expansion boards
+
+- `backend/app/plc/sse.py`, `manager.py`, `Plcs.svelte` — `ext`-hændelser tælles pr. kilde (`ext_by_src`: rtu/mbx) og vises under PLC'er ("RS485 N, expansion boards M"), så det kan ses, at også expansion boards leverer via SSE. Test i `test_sse.py`. Manual (03).
+
 ## [0.90.0 build 0134] — 2026-10-18 — SSE for eksterne Modbus-registre
 
 - Analyse (PLC-firmware `sse_events.cpp`, FEAT-447): PLC'en sender eksterne registre fra sin Modbus-cache som SSE-hændelsen `ext` (`{src: rtu|mbx, [board, ch], slave, type, addr, value, status}`), men kun i watch_all (`subscribe=all` uden adresselister). Værdierne er kun så friske som cachen — PLC'en læser et register, når ST læser det, eller når nogen spørger via /api/ext.

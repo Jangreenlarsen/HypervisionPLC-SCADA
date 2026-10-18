@@ -132,6 +132,7 @@ class SseListener:
         self._on_ext = on_ext
         self._external = False      # eksterne tags → watch_all, så PLC'en sender `ext`-hændelser
         self.ext_events = 0
+        self.ext_by_src = {"rtu": 0, "mbx": 0}   # RS485-slaver / expansion boards (v0.90.1)
         self._verify = verify_tls
         self._heartbeat_timeout = heartbeat_timeout_s
         self._retry_s = retry_s
@@ -277,6 +278,7 @@ class SseListener:
         if not ok:
             return
         self.ext_events += 1
+        self.ext_by_src[data["src"]] += 1
         result = self._on_ext(data)
         if asyncio.iscoroutine(result):
             await result

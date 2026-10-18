@@ -17,7 +17,7 @@ Siden **PLC'er** lister de HypervisionPLC-enheder, SCADA'en henter data fra. Try
 
 Statusen (*ok*, *ikke tilgængelig*) vises ud for hver PLC. SCADA'en bruger PLC'ens **REST-API** og **SSE** (en push-strøm med ændringer), så værdier opdateres hurtigt uden at belaste PLC'en.
 
-**Eksterne registre** (RS485-slaver og expansion boards) kommer også via SSE, når PLC'ens firmware understøtter det (FEAT-447): en ny værdi i PLC'ens Modbus-cache vises straks. SCADA'en spørger desuden PLC'en hvert 2. sekund, så PLC'en også læser de registre, ST-programmerne ikke selv læser. Under **PLC'er** står der *eksterne registre via SSE (N)*, hvor N er antallet af modtagne ændringer.
+**Eksterne registre** (RS485-slaver og expansion boards) kommer også via SSE, når PLC'ens firmware understøtter det (FEAT-447): en ny værdi i PLC'ens Modbus-cache vises straks. SCADA'en spørger desuden PLC'en hvert 2. sekund, så PLC'en også læser de registre, ST-programmerne ikke selv læser. Under **PLC'er** står der *eksterne registre via SSE: RS485 N, expansion boards M* — antallet af modtagne ændringer fra hver slags.
 
 ## Tags
 
