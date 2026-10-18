@@ -8,6 +8,7 @@
   import { ancestorsOf, buildElements, defaultExpanded, descendantCount, displayName, relevantElements, showsId, visibleRows, type ElementInfo } from '../lib/elementTree';
   import { bindingTags, findElement, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
+  import { mergeMoved, orphanGroups } from '../lib/orphans';
   import TagSelect from '../lib/TagSelect.svelte';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
 
@@ -100,6 +101,7 @@
       expanded = defaultExpanded(scope.elements);
       if (keepSelection && selected) select(selected, true);
       else clearSelection();
+      await loadOrphans();
     } catch (e) {
       view = null;
       error = `Kunne ikke åbne tegningen: ${(e as Error).message}`;
@@ -214,13 +216,64 @@
     }
   }
 
-  async function removeOrphan(element: string): Promise<void> {
-    if (!view || !await askUser(`Fjern bindingerne til det forsvundne element "${element}"?`)) return;
+  // ---------------------------------------------------------------- forsvundne elementer (v0.83.0)
+  let orphanRows = $state<Record<string, Binding[]>>({});
+  let orphanBusy = $state(false);
+  const animName = (a: string) => ANIMS.find((x) => x.id === a)?.label ?? a;
+  async function loadOrphans(): Promise<void> {
+    orphanRows = {};
+    if (!view?.orphaned_bindings.length) return;
     try {
-      await put(`/api/drawings/${encodeURIComponent(view.id)}/bindings/${encodeURIComponent(element)}`, { bindings: [] });
+      orphanRows = orphanGroups(await get<Binding[]>(`/api/drawings/${encodeURIComponent(view.id)}/bindings`), view.orphaned_bindings);
+    } catch (e) {
+      error = `De forsvundne bindinger kunne ikke hentes: ${(e as Error).message}`;
+    }
+  }
+  /** Er elementet (eller et symbol det ligger i) sat op med symbolguiden? Så bruges bindinger på det ikke. */
+  function underSymbolConfig(id: string): boolean {
+    const roots = new Set((view?.bindings ?? []).filter((b) => b.source === 'symbol').map((b) => (b as Binding & { symbol?: string }).symbol));
+    return [id, ...ancestorsOf(elements, id)].some((x) => roots.has(x));
+  }
+  async function removeOrphans(list: string[]): Promise<void> {
+    if (!view || !list.length) return;
+    const what = list.length === 1 ? `det forsvundne element "${list[0]}"` : `de ${list.length} forsvundne elementer (${list.join(', ')})`;
+    if (!await askUser(`Fjern bindingerne til ${what}? Det kan ikke fortrydes.`, { ok: 'Fjern', danger: true })) return;
+    orphanBusy = true;
+    try {
+      for (const element of list) {
+        await put(`/api/drawings/${encodeURIComponent(view.id)}/bindings/${encodeURIComponent(element)}`, { bindings: [] });
+      }
+    } catch (e) {
+      error = (e as Error).message;   // stop ved første fejl; de fjernede er væk, resten står stadig i listen
+    } finally {
+      orphanBusy = false;
       await load(view.id, true);
+    }
+  }
+  /** Flyt et forsvundet elements bindinger til det valgte element (fx når elementet har fået et nyt id i Tegn). */
+  async function moveOrphan(element: string): Promise<void> {
+    if (!view || !selected) return;
+    const target = selected;
+    error = '';
+    if (dirty) { error = 'Gem eller fortryd ændringerne på det valgte element først.'; return; }
+    if (underSymbolConfig(target)) {
+      error = `"${target}" er sat op med symbolguiden — bindinger på det bruges ikke. Vælg et andet element, eller sæt animationerne op i guiden.`;
+      return;
+    }
+    const merged = mergeMoved(explicitFor(target), orphanRows[element] ?? []);
+    if ('error' in merged) { error = merged.error; return; }
+    if (!await askUser(`Flyt ${orphanRows[element]?.length ?? 0} binding(er) fra det forsvundne "${element}" til "${target}"?`, { ok: 'Flyt' })) return;
+    orphanBusy = true;
+    const base = `/api/drawings/${encodeURIComponent(view.id)}/bindings/`;
+    try {
+      await put(base + encodeURIComponent(target), { bindings: merged.bindings });   // målet først: fejler det, er intet tabt
+      await put(base + encodeURIComponent(element), { bindings: [] });
+      info = `Bindingerne fra "${element}" er flyttet til "${target}".`;
     } catch (e) {
       error = (e as Error).message;
+    } finally {
+      orphanBusy = false;
+      await load(view.id, true);
     }
   }
 
@@ -333,12 +386,28 @@
 
   <aside>
     {#if view?.orphaned_bindings.length}
-      <section class="panel">
-        <h3>Forsvundne elementer</h3>
-        <p class="small muted">Disse elementer har bindinger, men findes ikke i den aktive version af tegningen.</p>
-        {#each view.orphaned_bindings as o}
-          <div class="row"><code>{o}</code><button class="danger" onclick={() => removeOrphan(o)}>Fjern bindinger</button></div>
+      <section class="panel orphans">
+        <h3>Forsvundne elementer ({view.orphaned_bindings.length})</h3>
+        <p class="small muted">Disse elementer har bindinger, men findes ikke i den aktive version af tegningen — typisk fordi
+          elementet er slettet i Tegn eller har fået et nyt id (fx ved <em>Erstat med symbol</em> uden "behold id").
+          Har elementet fået et nyt id, så vælg det nye i tegningen og tryk <strong>Flyt hertil</strong>; ellers <strong>Fjern</strong>.</p>
+        {#each view.orphaned_bindings as o (o)}
+          <div class="orphan">
+            <code>{o}</code>
+            <ul class="small">
+              {#each orphanRows[o] ?? [] as b}<li>{b.tag || '—'} · {animName(b.anim)}</li>{/each}
+            </ul>
+            <div class="row">
+              <button class="small" onclick={() => moveOrphan(o)} disabled={orphanBusy || !selected || !orphanRows[o]?.length}
+                title={selected ? `Flyt bindingerne til "${selected}"` : 'Vælg først det element, bindingerne skal flyttes til'}>
+                {selected ? `Flyt hertil (${selected})` : 'Flyt hertil — vælg et element'}</button>
+              <button class="small danger" onclick={() => removeOrphans([o])} disabled={orphanBusy}>Fjern</button>
+            </div>
+          </div>
         {/each}
+        {#if view.orphaned_bindings.length > 1}
+          <button class="small danger" onclick={() => removeOrphans(view!.orphaned_bindings)} disabled={orphanBusy}>Fjern alle {view.orphaned_bindings.length}</button>
+        {/if}
       </section>
     {/if}
 
@@ -669,4 +738,6 @@
   .symbol-cfg h4 { margin: 0 0 .3rem; }
   .show-all { margin: .4rem 0 0; }
   .link-btn { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }
+  .orphans .orphan { border-top: 1px solid var(--line); padding: .4rem 0; }
+  .orphans ul { margin: .2rem 0 .3rem 1rem; padding: 0; }
 </style>

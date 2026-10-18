@@ -567,7 +567,12 @@
   <div class="notice">Forbindelsen til SCADA-serveren er afbrudt — værdierne er ikke opdaterede. Forsøger igen …</div>
 {/if}
 {#if view && view.orphaned_bindings.length}
-  <div class="notice">Bindinger til elementer der ikke findes i denne version: {view.orphaned_bindings.join(', ')}</div>
+  <div class="notice">
+    Bindinger til elementer der ikke findes i denne version: {view.orphaned_bindings.join(', ')} — elementerne er slettet i Tegn
+    eller har fået et nyt id, så bindingerne virker ikke.
+    {#if canEdit && selected}<a href={`#editor/${selected}`}>Ret under Bindinger → Forsvundne elementer</a> (flyt dem til det nye element, eller fjern dem).
+    {:else}Bed en tekniker om at rette det under Bindinger.{/if}
+  </div>
 {/if}
 
 {#if !drawings.length && !error}

@@ -2,6 +2,11 @@
 
 ---
 
+## v0.83.0 — 2026-10-18 — Ret forsvundne bindinger
+
+- Advarslen *Bindinger til elementer der ikke findes i denne version* forklarer nu årsagen og fører til **Bindinger → Forsvundne elementer**.
+- Dér ser du, hvad bindingerne var, og kan **flytte dem til det nye element** (hvis elementet har fået et nyt id) eller **fjerne** dem — også alle på én gang.
+
 ## v0.82.1 — 2026-10-18 — Pilen inde i pumpen
 
 - Pumpens retningspil sidder nu **inde i** symbolet (i trekanten).

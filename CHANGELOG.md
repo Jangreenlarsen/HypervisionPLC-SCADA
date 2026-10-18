@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.83.0 build 0126] — 2026-10-18 — Løsning på "Bindinger til elementer der ikke findes"
+
+- `frontend/src/lib/orphans.ts` (ny, testet): bindingerne pr. forsvundet element; flet flyttede bindinger ind i målets (dubletter springes over, højst 10 som serveren).
+- `frontend/src/pages/Editor.svelte` — *Forsvundne elementer*: forklaring, hvad hver binding var (tag · animation), **Flyt hertil** (til det valgte element; målet gemmes først, så intet tabes ved en fejl; afvises med forklaring, hvis målet er sat op med symbolguiden, eller hvis der er ugemte ændringer), **Fjern** og **Fjern alle**; serverens fejl vises.
+- `frontend/src/pages/Overview.svelte` — advarslen forklarer årsagen og linker (teknikere) til Bindinger.
+- Manual (05). **Set i browseren** lokalt: version 2 hvor `PLC1_Val` har fået id'et `svg_300` og `svg_190` er slettet → Overview-advarsel med link → panelet viser "OrphVal · Tekst" og "OrphBit · Synlighed"; flyt til et guide-symbol afvist med forklaring; flyt til `svg_300` virker; Fjern `svg_190`; advarslen er væk.
+
 ## [0.82.1 build 0125] — 2026-10-18 — fix: pumpens pil inde i symbolet
 
 - `frontend/src/lib/symbols.ts` — Jan: "pilen skal være inde i pumpesymbolet". Pilen ligger nu inde i trekanten (stadig egen del `pil`), så pumpen har sin runde form. `scada-editor.js`: tilpasningen uden pilen i "Erstat med symbol" (v0.82.0) er fjernet igen — pumpens boks er cirklen. Manualens symboltabel (07) regenereret.

@@ -71,7 +71,12 @@ For symboler fra biblioteket sættes alt op i **guiden** (se næste kapitel). V�
 
 ## Forsvundne elementer
 
-Fjerner en ny version et element, der havde bindinger, vises det under **Forsvundne elementer**, og du kan **Fjerne bindinger** for dem.
+Fjerner en ny version et element, der havde bindinger — fordi det er slettet i Tegn, eller fordi det har fået et nyt id (fx ved *Erstat med symbol* uden "behold id") — vises det under **Forsvundne elementer**. Overview viser samtidig advarslen *Bindinger til elementer der ikke findes i denne version* med et link hertil.
+
+For hvert forsvundet element ser du, hvad bindingerne var (tag · animation). Så kan du:
+
+- **Flyt hertil**: har elementet fået et nyt id, så vælg det nye element i tegningen og tryk *Flyt hertil* — bindingerne flyttes over (dem, elementet har i forvejen, bevares). Et element, der er sat op med symbolguiden, kan ikke modtage bindinger; brug guiden i stedet.
+- **Fjern**: bindingerne slettes. **Fjern alle** rydder alle forsvundne på én gang.
 
 ### Løbelysets styring: Til/fra, Fortegn (+/−) og Kode 0/1/2
 
