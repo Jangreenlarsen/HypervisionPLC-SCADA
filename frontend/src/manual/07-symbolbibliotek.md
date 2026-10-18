@@ -20,7 +20,7 @@ Biblioteket har **89 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
 | **Statusfelt** | Kun visning | Knyt til et register: farven følger værdien (Fyldfarve) — ret teksten i Tegn |
-| **Pumpe** | Kun visning, Positioner, Trykknap (puls) | Bind "Fyldfarve" til drift-signalet |
+| **Pumpe** | Kun visning, Positioner, Trykknap (puls) | Pilen viser pumperetningen — drej symbolet for at vende den. Bind "Fyldfarve" til drift-signalet |
 | **Motor** | Kun visning, Positioner, Trykknap (puls) | Bind "Fyldfarve" til drift-signalet |
 | **Tank** | Kun visning | Bind "Niveau" på det indre rektangel |
 | **Værdifelt** | Kun visning | Bind "Tekst" på teksten |

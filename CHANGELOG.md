@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.82.0 build 0124] — 2026-10-18 — Retningspil på pumpen
+
+- `frontend/src/lib/symbols.ts` — Pumpe: pil på afgangssiden (egen del `pil`, så den kan farves/blinke); tip om at dreje symbolet for at vende retningen. `symbolConfig.ts`: delnavnet "Pil". Manualens symboltabel (07) regenereret.
+- `frontend/svgedit-host/scada-editor.js` — "Erstat med symbol" tilpasser efter symbolet uden pilen (`unionBox` af de øvrige dele), så en erstattet pumpe får den tegnede cirkels størrelse.
+- **Set i browseren** lokalt: tegnet pumpe (cirkel 100 × 100, trekant nedad) erstattet med Pumpe → cirklen 100 × 100 på samme sted, drejet 90° så pilen peger nedad; pilen er delen `tegnet_pil`; pumpen i biblioteket viser pilen.
+
 ## [0.81.1 build 0123] — 2026-10-18 — fix: Roterer og Blafrer på "Hele symbolet" flyttede symbolet
 
 - `frontend/src/lib/animate.ts` — `motionHost()`: har elementet sin egen `transform` (placeret symbol, drejet del), kører Roterer/Blafrer på en gruppe om elementet (oprettes første gang animationen tændes, genbruges), så CSS-animationen ikke erstatter elementets placering; farverne sættes stadig på elementet. Uden transform som før. Test i `animate.test.ts`. BUGS.md.

@@ -172,9 +172,13 @@ export const SYMBOLS: SymbolDef[] = [
       text(40, 21, 'STF', 15, 'font-weight="700" id="tekst"') + '</g>',
   },
   {
-    id: 'pumpe', label: 'Pumpe', category: 'proces', hint: 'Bind "Fyldfarve" til drift-signalet',
+    id: 'pumpe', label: 'Pumpe', category: 'proces',
+    hint: 'Pilen viser pumperetningen — drej symbolet for at vende den. Bind "Fyldfarve" til drift-signalet',
     svg: `<g><circle cx="40" cy="40" r="32" fill="${FILL}" stroke="${LINE}" stroke-width="3"/>` +
-      `<path d="M28 22 L60 40 L28 58 Z" fill="${FILL}" stroke="${DARK}" stroke-width="2"/></g>`,
+      `<path d="M28 22 L60 40 L28 58 Z" fill="${FILL}" stroke="${DARK}" stroke-width="2"/>` +
+      // Retningspil på afgangssiden (v0.82.0) — egen del, så den kan farves/blinke
+      `<g id="pil"><path d="M74 40 H88" fill="none" stroke="${DARK}" stroke-width="3"/>` +
+      `<path d="M86 32 L100 40 L86 48 Z" fill="${DARK}" stroke="${DARK}" stroke-width="1.5" stroke-linejoin="round"/></g></g>`,
   },
   {
     id: 'motor', label: 'Motor', category: 'proces', hint: 'Bind "Fyldfarve" til drift-signalet',

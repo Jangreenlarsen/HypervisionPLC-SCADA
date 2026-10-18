@@ -2,6 +2,10 @@
 
 ---
 
+## v0.82.0 — 2026-10-18 — Pil på pumpen
+
+- **Pumpen** i symbolbiblioteket har en **pil**, der viser pumperetningen — drej symbolet for at vende den. Pilen er en egen del og kan fx farves eller blinke. Pumper, der allerede står i tegningerne, ændres ikke (sæt en ny ind eller brug *Erstat med symbol*).
+
 ## v0.81.1 — 2026-10-18 — Rettet: animation på hele symbolet
 
 - **Roterer** og **Blafrer** på *Hele symbolet* fik symbolet til at hoppe op i hjørnet og skifte størrelse. Nu bliver symbolet på sin plads.
