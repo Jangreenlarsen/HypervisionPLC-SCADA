@@ -126,3 +126,32 @@ async def test_listener_detects_partial_watch(mock_plc, monkeypatch):
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
         await client.close()
+
+
+def test_build_watch_external_needs_watch_all():
+    """Eksterne registre sendes kun i watch_all (PLC FEAT-447) — selv med få interne adresser."""
+    assert build_watch({"hr": {1}}, external=True) == ({"subscribe": "all"}, True)
+    assert build_watch({}, external=True) == ({"subscribe": "all"}, True)
+
+
+@pytest.mark.anyio
+async def test_listener_ext_events_and_watch_all_coverage(mock_plc):
+    """v0.90.0: `ext`-hændelser leveres; i watch_all dækkes IR kun op til 255 (PLC'ens SSE_IR_WATCH_ALL)."""
+    ext: list[dict] = []
+    client = PlcClient(mock_plc.url, "scada", "scada123", rate=50, burst=50)
+    listener = SseListener(client, lambda *a: None, heartbeat_timeout_s=5, on_ext=ext.append)
+    listener.set_addresses({"ir": {10, 300}}, external=True)
+    task = asyncio.create_task(listener.run())
+    try:
+        await wait_for(lambda: listener.status.state == "connected" and listener.covers("ir", 10))
+        assert not listener.covers("ir", 300)   # IR 256-319 sendes ikke i watch_all — polles
+        assert listener.status.extra["watch_all"] and listener.status.extra["external"]
+        mock_plc.state.ext["rtu:90:hr:0"] = {"src": "rtu", "slave": 90, "type": "hr", "addr": 0, "value": 234, "status": "ok", "write": False}
+        mock_plc.state.ext["bad"] = {"src": "rtu", "slave": "x", "type": "hr", "addr": 0, "value": 1, "status": "ok"}   # ufuldstændig
+        mock_plc.state.ext["mbx"] = {"src": "mbx", "board": 1, "ch": 4, "slave": 1, "type": "coil", "addr": 2, "value": 1, "status": "ok"}
+        await wait_for(lambda: len(ext) == 2)
+        assert [e["src"] for e in ext] == ["rtu", "mbx"] and listener.ext_events == 2
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        await client.close()

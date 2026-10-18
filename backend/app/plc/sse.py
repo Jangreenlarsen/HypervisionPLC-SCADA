@@ -33,6 +33,8 @@ SSE_MAX_WATCH = 32
 # Firmware ≥ v7.9.68.124 (PLC BUG-486): HR 0-255, IR 0-319. Ældre firmware ignorerer adresser over 159 —
 # det ses i `connected.watching`, så de polles i stedet (dækning afledes altid af PLC'ens svar).
 SSE_ADDR_MAX = {"hr": 255, "ir": 319, "coil": 255, "di": 255}
+# watch_all (`subscribe=all`) scanner kun HR/coils/DI 0-255 og IR 0-255 (SSE_IR_WATCH_ALL) — BUGS.md v0.90.0
+SSE_WATCH_ALL_MAX = {"hr": 255, "ir": 255, "coil": 255, "di": 255}
 _WATCH_PARAM = {"hr": "hr", "ir": "ir", "coil": "coils", "di": "di"}
 
 
@@ -74,10 +76,11 @@ class SseParser:
         return None
 
 
-def build_watch(addresses: dict[str, set[int]]) -> tuple[dict[str, str], bool]:
-    """Byg query-parametre. Returnerer (params, watch_all)."""
+def build_watch(addresses: dict[str, set[int]], external: bool = False) -> tuple[dict[str, str], bool]:
+    """Byg query-parametre. Returnerer (params, watch_all). `external`: der er eksterne tags (RS485/expansion
+    boards) — deres `ext`-hændelser sendes kun i watch_all-tilstand (PLC FEAT-447), så abonnér på alt."""
     eligible = {k: sorted(a for a in addrs if 0 <= a <= SSE_ADDR_MAX[k]) for k, addrs in addresses.items()}
-    if any(len(v) > SSE_MAX_WATCH for v in eligible.values()):
+    if external or any(len(v) > SSE_MAX_WATCH for v in eligible.values()):
         return {"subscribe": "all"}, True
     params = {"subscribe": "registers,system"}
     for kind, addrs in eligible.items():
@@ -105,6 +108,9 @@ class SseState:
 
 
 RegisterCallback = Callable[[str, int, int], Awaitable[None] | None]
+ExtCallback = Callable[[dict[str, Any]], Awaitable[None] | None]
+_EXT_TYPES = {"hr", "ir", "coil", "di"}
+_EXT_STATES = {"ok", "pending", "error"}
 
 
 class SseListener:
@@ -119,9 +125,13 @@ class SseListener:
         heartbeat_timeout_s: float = 45.0,
         retry_s: float = 5.0,
         full_retry_s: float = 30.0,
+        on_ext: ExtCallback | None = None,
     ):
         self._client = client
         self._on_register = on_register
+        self._on_ext = on_ext
+        self._external = False      # eksterne tags → watch_all, så PLC'en sender `ext`-hændelser
+        self.ext_events = 0
         self._verify = verify_tls
         self._heartbeat_timeout = heartbeat_timeout_s
         self._retry_s = retry_s
@@ -133,9 +143,10 @@ class SseListener:
         self._watch_all = False
         self.covered: dict[str, set[int]] = {}
 
-    def set_addresses(self, addresses: dict[str, set[int]]) -> None:
-        if addresses != self._addresses:
+    def set_addresses(self, addresses: dict[str, set[int]], external: bool = False) -> None:
+        if addresses != self._addresses or external != self._external:
             self._addresses = {k: set(v) for k, v in addresses.items()}
+            self._external = external
             self._addresses_changed.set()
 
     def healthy(self, now: float) -> bool:
@@ -174,7 +185,7 @@ class SseListener:
     async def run(self) -> None:
         loop = asyncio.get_running_loop()
         while True:
-            if not any(self._addresses.values()):
+            if not any(self._addresses.values()) and not self._external:
                 self.status = SseState(state="off", message="Ingen adresser at overvåge")
                 self._addresses_changed.clear()
                 await self._addresses_changed.wait()
@@ -211,9 +222,10 @@ class SseListener:
             return self._full_retry_s
 
         host = urlsplit(self._client.base_url).hostname
-        params, watch_all = build_watch(self._addresses)
+        params, watch_all = build_watch(self._addresses, self._external)
         self._watch_all = watch_all
-        self._requested = {k: {a for a in v if 0 <= a <= SSE_ADDR_MAX[k]} for k, v in self._addresses.items()}
+        limit = SSE_WATCH_ALL_MAX if watch_all else SSE_ADDR_MAX
+        self._requested = {k: {a for a in v if 0 <= a <= limit[k]} for k, v in self._addresses.items()}
         self.covered = {}
         params["token"] = token
         # PLC'ens SSE er altid plain HTTP (SECURITY_INDEX #13); query bygges selv (ukodede kommaer).
@@ -230,7 +242,7 @@ class SseListener:
                     self.status = SseState(state="error", message=f"SSE afvist (HTTP {resp.status_code}): {body}")
                     return self._retry_s
                 self.status = SseState(state="connected", last_event_monotonic=loop.time(),
-                                       extra={"watch_all": watch_all})
+                                       extra={"watch_all": watch_all, "external": self._external})
                 self._addresses_changed.clear()
                 async for line in resp.aiter_lines():
                     if self._addresses_changed.is_set():
@@ -248,9 +260,26 @@ class SseListener:
                         self._on_connected(event.data)
                     elif event.event == "register" and isinstance(event.data, dict):
                         await self._dispatch(event.data)
+                    elif event.event == "ext" and isinstance(event.data, dict):
+                        await self._dispatch_ext(event.data)
         self.covered = {}
         self.status = SseState(state="error", message="SSE-strømmen blev lukket af PLC'en")
         return self._retry_s
+
+    async def _dispatch_ext(self, data: dict[str, Any]) -> None:
+        """Et eksternt register fra PLC'ens Modbus-cache (FEAT-447): {src: rtu|mbx, [board, ch], slave, type, addr,
+        value, status}. Ufuldstændige hændelser springes over (de kommer igen ved næste ændring / næste poll)."""
+        if self._on_ext is None:
+            return
+        ok = (data.get("src") in ("rtu", "mbx") and data.get("type") in _EXT_TYPES and data.get("status") in _EXT_STATES
+              and all(isinstance(data.get(k), int) for k in ("slave", "addr", "value"))
+              and (data.get("src") == "rtu" or all(isinstance(data.get(k), int) for k in ("board", "ch"))))
+        if not ok:
+            return
+        self.ext_events += 1
+        result = self._on_ext(data)
+        if asyncio.iscoroutine(result):
+            await result
 
     async def _dispatch(self, data: dict[str, Any]) -> None:
         kind, addr, value = data.get("type"), data.get("addr"), data.get("value")

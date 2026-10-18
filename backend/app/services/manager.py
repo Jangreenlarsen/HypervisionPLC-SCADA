@@ -124,6 +124,7 @@ class PlcManager:
             "request_count": runtime.client.request_count,
             "plan": st.plan,
             "sse": ({"state": sse.state, "message": sse.message, "events": sse.events,
+                     "external": bool(sse.extra.get("external")), "ext_events": runtime.sse.ext_events,  # type: ignore[union-attr]
                      "covered": sum(len(v) for v in runtime.sse.covered.values())}  # type: ignore[union-attr]
                     if sse else {"state": "off_in_scada"}),
         }

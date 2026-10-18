@@ -213,3 +213,42 @@ async def test_sse_event_for_internal_coil_does_not_touch_external_tag():
     await rt._on_sse_register("coil", 0, 1)  # intern coil 0 går høj
     assert cache.get("DO1").value is True
     assert cache.get("Relae").value is False  # det eksterne relæ er uændret
+
+
+async def test_sse_ext_events_update_external_tags():
+    """v0.90.0: SSE `ext` fra PLC'ens Modbus-cache opdaterer straks de eksterne tags — samme regler som pollingen."""
+    answers = {("/api/ext/rtu/90", "hr", 0): [(100, "ok"), (5, "ok")], ("/api/ext/mbx/1/D/1", "coil", 2): [(False, "ok")]}
+    rt, cache, _ = _rt(answers, ("Temp", "plc1:rtu:90:hr:0", 0.1), ("Dobbelt", "plc1:rtu:90:hr:0:dint", 1),
+                       ("Relae", "plc1:mbx:1:D:1:coil:2", 1), ("HR0", "plc1:hr:0", 1))
+    await rt.poll_once()
+    assert cache.get("Temp").value == pytest.approx(10.0)
+    ev = lambda **kw: {"src": "rtu", "slave": 90, "type": "hr", "addr": 0, "value": 0, "status": "ok", **kw}
+    rt._on_sse_ext(ev(value=234))
+    assert cache.get("Temp").value == pytest.approx(23.4)
+    assert cache.get("Dobbelt").value == (234 << 16) + 5          # 32-bit tag over adresse 0-1 følger med
+    assert cache.get("HR0").value == 0                             # PLC'ens egen HR 0 er uberørt
+    rt._on_sse_ext(ev(value=0, status="pending"))                  # pending beholder sidste kendte værdi
+    assert cache.get("Temp").value == pytest.approx(23.4)
+    rt._on_sse_ext(ev(status="error"))
+    assert cache.get("Temp").quality == "bad" and "RS485-slave 90" in cache.get("Temp").error
+    rt._on_sse_ext({"src": "mbx", "board": 1, "ch": 4, "slave": 1, "type": "coil", "addr": 2, "value": 1, "status": "ok"})
+    assert cache.get("Relae").value is True                        # kanal 4 = D
+    before = dict(rt._ext_raw)
+    rt._on_sse_ext(ev(slave=91))                                   # en slave ingen tags bruger (ST's egen)
+    rt._on_sse_ext({"src": "mbx", "board": 1, "ch": 9, "slave": 1, "type": "coil", "addr": 2, "value": 1, "status": "ok"})
+    assert rt._ext_raw == before
+
+
+async def test_external_tags_switch_sse_to_watch_all():
+    class FakeSse:
+        def __init__(self):
+            self.calls = []
+
+        def set_addresses(self, addrs, external=False):
+            self.calls.append((addrs, external))
+
+    fake = FakeSse()
+    rt = PlcRuntime("plc1", StubClient({}), LiveCache(), sse_listener=fake)  # type: ignore[arg-type]
+    rt.set_tags([RuntimeTag("HR5", parse_source("plc1:hr:5"), 1, 0.0)])
+    rt.set_tags([RuntimeTag("HR5", parse_source("plc1:hr:5"), 1, 0.0), RuntimeTag("Ext", parse_source("plc1:rtu:90:hr:0"), 1, 0.0)])
+    assert [c[1] for c in fake.calls] == [False, True]

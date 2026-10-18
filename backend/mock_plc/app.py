@@ -53,6 +53,9 @@ class MockPlcState:
     sse_port: int = 0  # sættes af den der starter serveren
     sse_check_s: float = 0.1
     sse_heartbeat_s: float = 15.0
+    # Modbus-cachen for eksterne registre (FEAT-447): nøgle → hændelsesdata, fx
+    # {"src": "rtu", "slave": 90, "type": "hr", "addr": 0, "value": 234, "status": "ok"} — sendes som `ext` i watch_all
+    ext: dict[str, dict[str, Any]] = field(default_factory=dict)
     hr: list[int] = field(default_factory=lambda: [0] * HR_SIZE)
     ir: list[int] = field(default_factory=lambda: [0] * IR_SIZE)
     coils: list[bool] = field(default_factory=lambda: [False] * BIT_SIZE)
@@ -349,6 +352,9 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
             return _err(503, "Max SSE clients reached")
         # Som den rigtige PLC: query-strengen URL-afkodes IKKE (sse_get_query_param i sse_events.cpp)
         watch = _parse_watch_raw(request.url.query)
+        # Som sse_events.cpp: eksterne registre sendes kun i watch_all (subscribe=all uden adresselister)
+        watch_all = "all" in (_raw_param(request.url.query, "subscribe") or "all") and not any(
+            _raw_param(request.url.query, p) for p in ("hr", "ir", "coils", "di"))
         st.sse_active += 1
 
         async def stream() -> AsyncIterator[bytes]:
@@ -357,6 +363,7 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
                              "watching": {("coils" if k == "coil" else k): len(v) for k, v in watch.items()}}
                 yield f"event: connected\ndata: {json.dumps(connected)}\n\n".encode()
                 prev = _snapshot(st, watch)
+                prev_ext: dict[str, str] = {}
                 last_hb = time.monotonic()
                 while True:
                     await asyncio.sleep(st.sse_check_s)
@@ -368,6 +375,12 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
                             data = json.dumps({"type": kind, "addr": addr, "value": value})
                             yield f"event: register\ndata: {data}\n\n".encode()
                     prev = cur
+                    if watch_all:
+                        for key, entry in list(st.ext.items()):
+                            data = json.dumps(entry)
+                            if prev_ext.get(key) != data:
+                                prev_ext[key] = data
+                                yield f"event: ext\ndata: {data}\n\n".encode()
                     if time.monotonic() - last_hb >= st.sse_heartbeat_s:
                         last_hb = time.monotonic()
                         yield f"event: heartbeat\ndata: {json.dumps({'uptime_ms': int(last_hb * 1000)})}\n\n".encode()

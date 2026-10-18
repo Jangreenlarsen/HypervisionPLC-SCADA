@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.90.0 build 0134] — 2026-10-18 — SSE for eksterne Modbus-registre
+
+- Analyse (PLC-firmware `sse_events.cpp`, FEAT-447): PLC'en sender eksterne registre fra sin Modbus-cache som SSE-hændelsen `ext` (`{src: rtu|mbx, [board, ch], slave, type, addr, value, status}`), men kun i watch_all (`subscribe=all` uden adresselister). Værdierne er kun så friske som cachen — PLC'en læser et register, når ST læser det, eller når nogen spørger via /api/ext.
+- `backend/app/plc/sse.py` — `build_watch(…, external)`: eksterne tags → watch_all; `ext`-hændelser valideres og sendes til `on_ext`; tæller `ext_events`. Rettet: i watch_all følger dækningen PLC'ens grænser (IR kun 0-255) — BUGS.md.
+- `backend/app/services/plc_runtime.py` — `_on_sse_ext()`: samme lager og regler som pollingen (pending beholder sidst kendte værdi, error markerer tagget, kanal 1-8 → A-H; kun registre som et tag bruger); flerordstags følger med. Pollingen af /api/ext hvert 2. s bevares (den driver PLC'ens læsning).
+- `manager.py` + `Plcs.svelte` — status: "eksterne registre via SSE (N)". Mock-PLC'en sender `ext` i watch_all. Test: `test_sse.py`, `test_ext.py`. Manual (03).
+
 ## [0.89.0 build 0133] — 2026-10-18 — Systemgennemgang F2: symboler med samme navn
 
 - `frontend/svgedit-host/names.js` — `duplicateNames()` og `uniqueRenames()` (det første beholder navnet, de næste får næste ledige nummer). Test i `names.test.ts`. `scada-editor.js` — `duplicateNames()` og `fixDuplicateNames()` (ét fortryd-trin).
