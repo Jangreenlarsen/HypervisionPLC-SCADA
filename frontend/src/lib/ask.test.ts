@@ -33,4 +33,12 @@ describe('spørgsmål på siden (i stedet for confirm/prompt)', () => {
       expect(await p).toBe(want);
     }
   });
+
+  it('tekst med allowEmpty: tom og mellemrum giver "", kun Annullér giver null', async () => {
+    for (const [given, want] of [['  Fremløb ', 'Fremløb'], ['', ''], ['   ', ''], [null, null]] as const) {
+      const p = askText('Navn', { allowEmpty: true });
+      first().resolve(given);
+      expect(await p).toBe(want);
+    }
+  });
 });

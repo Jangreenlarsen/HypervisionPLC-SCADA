@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount, tick, untrack } from 'svelte';
   import BackToDrawing from '../lib/BackToDrawing.svelte';
-  import { ask as askUser } from '../lib/ask';
+  import { ask as askUser, askText } from '../lib/ask';
   import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
@@ -242,6 +242,24 @@
     }
   }
 
+  /** Tekniker/admin: kurvens navn (v0.81.0) = tagets beskrivelse — vises i stedet for tag-navnet; tomt = tag-navnet. */
+  async function rename(t: InfoTag): Promise<void> {
+    const v = await askText(`Navn på "${t.name}" i Trends — vises i stedet for tag-navnet. Tomt = tag-navnet.\n\n` +
+      'Navnet er tagets beskrivelse, så det ses også under Alarmer og Tags.', { value: t.description, placeholder: t.name, allowEmpty: true });
+    if (v === null) return;
+    error = '';
+    info2 = '';
+    enabling = t.name;
+    try {
+      const row = await patch<{ description: string }>(`/api/tags/${encodeURIComponent(t.name)}`, { description: v.trim() });
+      t.description = row.description;
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      enabling = '';
+    }
+  }
+
   async function deleteHistory(t: InfoTag): Promise<void> {
     const what = t.description || t.name;
     if (!await askUser(`Slet al gemt historik for "${what}" (${t.samples} værdier)? Det kan ikke fortrydes.` +
@@ -372,13 +390,15 @@
     <ul bind:this={listEl} style={listMax ? `max-height:${listMax}px` : ''}>
       {#each shown as t (t.name)}
         <li>
-          <label class:off={!t.trend && !t.samples} title={!t.trend ? 'Historik er ikke slået til for dette tag' : ''}>
+          <label class:off={!t.trend && !t.samples} title={!t.trend ? `${t.name} — historik er ikke slået til for dette tag` : t.name}>
             <input type="checkbox" checked={selected.includes(t.name)} disabled={!t.trend && !t.samples} onchange={() => toggle(t.name)} />
             {#if selected.includes(t.name)}<span class="swatch" style="background:{SERIES_COLORS[colors[t.name] ?? 0]}"></span>{/if}
             <span class="name">{t.description || t.name}</span>
             <span class="muted small">{t.unit}</span>
           </label>
           {#if canEdit && manage}
+            <button class="small enable" disabled={enabling === t.name} onclick={() => rename(t)}
+              title="Giv kurven et navn i stedet for tag-navnet">Navn</button>
             {#if t.trend}
               <button class="small enable" disabled={enabling === t.name} onclick={() => stopTrend(t)}
                 title="Stop med at gemme historik — det gemte bevares">Stop</button>
@@ -398,7 +418,7 @@
     {#if info}
       <p class="muted small">
         Historik gemmes i {info.retention_days} dage · {Math.round(info.db_size / 1024 / 1024 * 10) / 10} MB.
-        {#if canEdit}Slå historik til pr. tag under <a href="#tags">Tags</a>.{/if}
+        {#if canEdit}Slå historik til pr. tag under <a href="#tags">Tags</a>; <em>Administrér</em> giver kurverne navne.{/if}
       </p>
     {/if}
   </aside>

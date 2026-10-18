@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.81.0 build 0122] — 2026-10-18 — Forståelige delnavne i guiden; navn på kurverne i Trends
+
+- `frontend/src/lib/symbolConfig.ts` — `partLabel()`: dele uden biblioteksnavn navngives efter formen ("Rektangel", "Cirkel 2", `Tekst "STF"`; et biblioteksymbols første rektangel = "Ramme", de øvrige nummereres uden den) med id'et i parentes. Test i `symbolConfig.test.ts`.
+- `backend/app/services/svg_sanitize.py` — `describe_element()`: tekst-dele får `text` (teksten, højst 24 tegn). Test i `test_symbols.py`.
+- `frontend/src/pages/Trends.svelte` — under *Administrér* knappen **Navn** pr. tag (sætter tagets beskrivelse; tomt = tag-navnet; serverens fejl vises); tag-navnet som tooltip. `frontend/src/lib/ask.ts` — `askText(…, { allowEmpty })`: tom tekst er et svar, kun Annullér giver null (test i `ask.test.ts`).
+- Manual (02, 06). **Set i browseren** lokalt: kedel med ramme, flamme, ekstra rektangel, tekst og cirkel → "Hele symbolet, Ramme (svg_2), Flamme, Rektangel (svg_7), Tekst "STF 1" (svg_8), Cirkel (svg_9)"; i Trends **Navn** → "Fremløbstemperatur" i listen og grafens forklaring, gemt på serveren; tomt navn → tag-navnet igen.
+
 ## [0.80.1 build 0121] — 2026-10-18 — fix: Blafrer og Roterer stopper ikke ved ukvitteret alarm
 
 - `frontend/src/app.css` — et element med både Overviews alarmmarkering (`hv-alarm-unack`) og en egen animation (`hv-flicker`, `hv-spin`, `hv-blink`) kører nu begge animationer (før erstattede alarmmarkeringen den anden, da de bruger samme CSS-egenskab); blinkfrekvensen (langsom/hurtig) bevares; "reducér bevægelse" som før. BUGS.md.

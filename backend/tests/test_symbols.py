@@ -96,6 +96,7 @@ def test_dec_bin_selector_saves_and_reads_back(api):
     got = api.get(f"/api/drawings/{api.did}/symbols/V1/config").json()
     assert got["config"] == cfg and got["has_pin"] is False and got["orphaned"] is False
     assert got["symbol"]["parts"]["V1_greb"]["pid"] == "greb"
+    assert got["symbol"]["parts"]["V1_tekst"]["text"] == "0" and "text" not in got["symbol"]["parts"]["V1_greb"]
     assert api.get("/api/audit?action=symbol.config").json()[0]["target"] == f"{api.did}#V1"
 
 

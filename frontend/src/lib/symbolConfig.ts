@@ -20,7 +20,7 @@ export interface SymbolConfig {
   display: 'remote' | 'local'; validate_s: number; alarm: '' | 'low' | 'medium' | 'high'; confirm: boolean; pulse_ms: number;
   lock: { positions: boolean[]; leave: boolean }; anims: Anim[]; logic: LogicBlock[];
 }
-export interface PartInfo { tag: string; line: boolean; pid?: string | null }
+export interface PartInfo { tag: string; line: boolean; pid?: string | null; text?: string }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }
 
 export const POS = '@pos';
@@ -67,11 +67,36 @@ export const PART_LABEL: Record<string, string> = {
   tilloeb1: 'Tilløbsrør 1', tilloeb2: 'Tilløbsrør 2', midte: 'Midterrør', roer1: 'Rør 1', roer2: 'Rør 2', roer3: 'Rør 3', roer4: 'Rør 4',
 };
 
+/** Danske navne på SVG-figurer — til dele uden biblioteksnavn. */
+const SHAPE_LABEL: Record<string, string> = {
+  rect: 'Rektangel', circle: 'Cirkel', ellipse: 'Ellipse', path: 'Figur', polygon: 'Figur', line: 'Streg', polyline: 'Streg',
+  text: 'Tekst', g: 'Gruppe', image: 'Billede', use: 'Kopi',
+};
+
+/**
+ * Delens navn i guiden. Bibliotekets dele har et navn (data-hv-pid → "Flamme"); andre navngives efter figuren
+ * (v0.81.0): "Rektangel", "Cirkel 2", Tekst "STF" — et biblioteksymbols første rektangel er dets "Ramme".
+ * Id'et (fx svg_2) står i parentes, så delen kan findes igen (fx under Avanceret i Tegn).
+ */
 export function partLabel(id: string, info: SymbolInfo | null): string {
   if (id === 'all') return 'Hele symbolet';
-  const pid = info?.parts[id]?.pid;
-  if (pid) return PART_LABEL[pid] ?? pid;
-  return id;
+  const part = info?.parts[id];
+  if (!part) return id;
+  if (part.pid) return PART_LABEL[part.pid] ?? part.pid;
+  const unnamed = Object.entries(info!.parts).filter(([, p]) => !p.pid);
+  let same = unnamed.filter(([, p]) => p.tag === part.tag).map(([k]) => k);
+  // et biblioteksymbols første rektangel er dets ramme — de øvrige rektangler nummereres uden den
+  const frame = part.tag === 'rect' && info!.type !== 'custom' ? same[0] : undefined;
+  if (frame) same = same.slice(1);
+  let name: string;
+  if (part.tag === 'text' && part.text) name = `Tekst "${part.text}"`;
+  else if (id === frame) name = 'Ramme';
+  else {
+    const base = SHAPE_LABEL[part.tag] ?? 'Del';
+    const n = same.indexOf(id) + 1;
+    name = same.length > 1 ? `${base} ${n}` : base;
+  }
+  return `${name} (${id})`;
 }
 
 /**

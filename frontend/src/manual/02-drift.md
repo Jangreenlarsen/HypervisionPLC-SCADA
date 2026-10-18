@@ -71,6 +71,7 @@ Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*) — eller i
 - Eller vælg et eller flere **tags** i listen selv (søg med feltet **Søg**).
 - Vælg tidsrum: **15 min, 1 time, 8 timer, 24 timer, 7 dage**, eller **Vælg periode** for et selvvalgt interval.
 - Kurverne **opdateres live**. Peg på kurven for at se værdi og tidspunkt. Du kan **hente data som CSV** til regneark.
+- **Navn på kurverne:** sæt flueben i **Administrér** og tryk **Navn** ud for et tag — så vises navnet (fx *Fremløbstemperatur*) i stedet for tag-navnet i listen og graferne. Tomt navn = tag-navnet. Navnet er tagets *beskrivelse*, så det ses også under Alarmer og Tags; peg på et navn for at se tag-navnet.
 - Et tag kan **stoppes** (historikken bevares) eller dets **historik slettes**. Historik, der er ældre end opbevaringstiden (standard 30 dage), slettes automatisk.
 - Hullerne i en kurve betyder, at der ikke var kontakt til PLC'en dengang.
 

@@ -2,6 +2,11 @@
 
 ---
 
+## v0.81.0 — 2026-10-18 — Forståelige navne
+
+- I symbolguiden hedder dele uden navn nu fx **Ramme**, **Rektangel 2**, **Cirkel** eller **Tekst "STF"** i stedet for "svg_2".
+- I **Trends** kan kurverne få et **navn** (under *Administrér* → **Navn**), som vises i stedet for tag-navnet.
+
 ## v0.80.1 — 2026-10-18 — Rettet: blafren stoppede ved alarm
 
 - En del, der **blafrer** eller **roterer**, holdt op med at bevæge sig, når dens tag var i ukvitteret alarm (den røde alarmmarkering overtog). Nu kører begge dele.
