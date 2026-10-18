@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.75.1 build 0115] — 2026-10-18 — Symbolbiblioteket i Tegn ruller for sig selv
+
+- `frontend/src/pages/DrawEditor.svelte` — `fitFrame()` giver sidepanelet editorens højde (ikke på skærme ≤ 900 px); "Valgt element" højst 55 % og ruller selv; "Symboler" fylder resten og ruller selv med overskrift og søgefelt stående øverst. **Set i browseren** (1400×900, 1920×1080, 820×900): panel = editorens højde (756/936 px), rulning i symbolerne flytter kun listen (siden står stille), søgefeltet bliver øverst; med et valgt symbol ruller listen stadig; smal skærm som før.
+
 ## [0.75.0 build 0114] — 2026-10-17 — Genvejssymboler: Alarmer, Trends, Energi
 
 - `frontend/src/lib/symbols.ts` — kategorien *Genveje* med `genvej_alarmer`, `genvej_trends`, `genvej_energi` (`navButton`: roden har `data-hv-nav`; alarmknappen har delene `maerke` og `antal`).

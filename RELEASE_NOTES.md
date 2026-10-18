@@ -2,6 +2,10 @@
 
 ---
 
+## v0.75.1 — 2026-10-18 — Symbolerne ruller for sig selv
+
+- I **Tegn** ruller symbolbiblioteket i højre side for sig selv — tegningen og resten af siden står stille, og søgefeltet bliver stående øverst.
+
 ## v0.75.0 — 2026-10-17 — Genveje i tegningen
 
 - Ny kategori **Genveje** i symbolbiblioteket: **Gå til Alarmer**, **Gå til Trends** og **Gå til Energi**. Et klik i Overview åbner siden.

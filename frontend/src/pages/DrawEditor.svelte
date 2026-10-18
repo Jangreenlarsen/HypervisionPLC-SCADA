@@ -552,8 +552,14 @@
   };
 
   // Tegne-editoren fylder højden ned til sidefoden (mindst 600 px, så hele SVG-Edits værktøjslinje ses — ellers scrolles siden)
+  // Sidepanelet får samme højde som editoren, så symbolbiblioteket ruller for sig selv (v0.75.1); på smalle skærme
+  // ligger panelet under tegningen og har sin naturlige højde.
+  let aside: HTMLElement;
   const fitFrame = () => {
-    if (iframe) iframe.style.height = `${Math.max(600, availableHeight(iframe) - 2)}px`;
+    if (!iframe) return;
+    const h = Math.max(600, availableHeight(iframe) - 2);
+    iframe.style.height = `${h}px`;
+    if (aside) aside.style.height = window.matchMedia('(max-width: 900px)').matches ? '' : `${h}px`;
   };
   let stopLayout: (() => void) | null = null;
 
@@ -629,8 +635,8 @@
 <div class="layout">
   <iframe bind:this={iframe} src="/svgedit/scada-editor.html?v={BUNDLE.build}" title="Tegne-editor" onload={connect}></iframe>
 
-  <aside>
-    <section class="panel">
+  <aside bind:this={aside}>
+    <section class="panel sel-panel">
       <h3>Valgt element</h3>
       {#if !single}
         <p class="muted small">{selection.length > 1 ? `${selection.length} elementer valgt` : 'Vælg et element i tegningen.'}</p>
@@ -672,9 +678,11 @@
       {/if}
     </section>
 
-    <section class="panel">
-      <h3>Symboler</h3>
-      <input bind:value={symbolFilter} placeholder="Søg symbol (fx bøjning, kontaktor)" style="width:100%" />
+    <section class="panel sym-panel">
+      <div class="sym-head">
+        <h3>Symboler</h3>
+        <input bind:value={symbolFilter} placeholder="Søg symbol (fx bøjning, kontaktor)" style="width:100%" />
+      </div>
       {#each CATEGORIES as cat (cat.id)}
         {@const list = symbolsIn(cat.id)}
         {#if list.length}
@@ -780,6 +788,14 @@
     background: #fff;
   }
   aside { min-width: 0; }
+  /* Sidepanelet har editorens højde (fitFrame): "Valgt element" efter behov (højst 55 %), symbolbiblioteket ruller for sig selv */
+  @media (min-width: 901px) {
+    aside { display: flex; flex-direction: column; gap: .8rem; overflow: hidden; }
+    aside > .panel { margin: 0; }
+    .sel-panel { flex: 0 1 auto; max-height: 55%; overflow-y: auto; }
+    .sym-panel { flex: 1 1 0; min-height: 8rem; overflow-y: auto; padding-top: 0; }
+    .sym-head { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: .8rem 0 .4rem; }
+  }
   .field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
   .field :global(select), .field input { width: 100%; }
   /* minmax(0, 1fr): lange navne må ikke gøre en kolonne bredere end panelet */
