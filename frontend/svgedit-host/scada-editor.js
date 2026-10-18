@@ -416,7 +416,10 @@ function buildSymbolNode(fragment, baseId, wantedId) {
   const src = parsed.documentElement.firstElementChild;
   if (!src) return null;
   const node = document.importNode(src, true);
-  node.setAttribute('id', uniqueId(wantedId || baseId));
+  // "Behold id": det erstattede elements eget id må genbruges, selv om det er reserveret (det har jo en opsætning/binding,
+  // som netop skal følge med) — reservationen gælder kun NYE elementer (BUGS.md v0.84.0)
+  const free = (id) => !canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`);
+  node.setAttribute('id', wantedId && free(wantedId) ? wantedId : uniqueId(wantedId || baseId));
   // Bibliotekstypen og delenes egne navne gemmes, så symbol-guiden kender symbolet og dets dele
   // (id'erne nedenfor kan få et løbenummer, så delens navn kan ikke udledes sikkert af id'et)
   node.setAttribute('data-hv-type', String(baseId).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 40));
@@ -549,7 +552,8 @@ function similarTo(el, any = false) {
   const near = (a, b) => Math.abs(a - b) <= Math.max(2, 0.12 * Math.max(a, b));
   return [...parent.children].filter((o) => {
     if (o === el || RESERVED.has(o.tagName.toLowerCase()) || o.tagName.toLowerCase() !== el.tagName.toLowerCase()) return false;
-    if (o.hasAttribute('data-hv-type') || key(countShapes(o)) !== k0) return false;
+    // Et symbol fra biblioteket ligner kun symboler af samme type (fx alle gamle pumper, der skal opdateres); en tegnet del kun tegnede
+    if ((o.getAttribute('data-hv-type') ?? '') !== (el.getAttribute('data-hv-type') ?? '') || key(countShapes(o)) !== k0) return false;
     const g = geometryOf(o);
     if (!g || (o.getAttribute('rx') ?? '') !== (el.getAttribute('rx') ?? '') || (o.getAttribute('fill') ?? '') !== (el.getAttribute('fill') ?? '')) return false;
     if ((o.getAttribute('stroke') ?? '') !== (el.getAttribute('stroke') ?? '') || (o.getAttribute('stroke-width') ?? '') !== (el.getAttribute('stroke-width') ?? '')) return false;
@@ -695,7 +699,7 @@ window.scada = {
       texts: textsWithin(el, g).map((t) => t.text),
       similar: similarTo(el).length,
       similarAny: similarTo(el, true).length,
-      similarGroups: similarTo(el, true).map((o) => affectedIds(o, geometryOf(o))),   // pr. lignende del: de id'er der forsvinder
+      similarGroups: similarTo(el, true).map((o) => affectedIds(o, geometryOf(o))),   // pr. lignende del: de id'er der forsvinder (delens eget først)
     };
   },
 
@@ -721,7 +725,7 @@ window.scada = {
       const g = multi ? unionGeometry(olds) : geometryOf(old);
       if (!g) continue;
       // Lignende dele med bindinger (på dem selv, deres dele eller deres tekster) røres ikke — de erstattes enkeltvis
-      if (index > 0 && affectedIds(old, g).some((id) => protect.has(id))) {
+      if (index > 0 && affectedIds(old, g).some((id) => protect.has(id) && !(opts.keepId && id === old.id))) {
         skipped++;
         continue;
       }
@@ -774,7 +778,9 @@ window.scada = {
       }
       // Det valgte element får det indtastede navn; de øvrige "<symbol> <deres egen tekst>" (ellers løbenumre)
       if (opts.name) {
-        const own = index === 0 ? opts.name : `${opts.namePrefix || opts.name}${texts[0] ? ` ${texts[0].text}` : ''}`;
+        // lignende dele, der allerede har et navn (fx gamle biblioteksymboler, der opdateres), beholder det
+        const kept = index > 0 && !multi ? old.getAttribute('data-hv-name') : null;
+        const own = index === 0 ? opts.name : kept || `${opts.namePrefix || opts.name}${texts[0] ? ` ${texts[0].text}` : ''}`;
         node.setAttribute('data-hv-name', uniqueNameIn(own, node));   // uden selve symbolet, ellers får navnet et falsk " 2"
       }
       batch.addSubCommand(new c.history.InsertElementCommand(node));

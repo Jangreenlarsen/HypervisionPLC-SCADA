@@ -9,7 +9,7 @@
 
   let { info, lostBindings, onreplace, onclose }: {
     info: SelectionInfo;
-    lostBindings: { own: number; similarBound: number };   // bindinger på delens underelementer/tekster, som ikke følger med · lignende dele med bindinger (springes over)
+    lostBindings: { own: number; similarBound: number; similarBoundParts: number };   // bindinger på delens underelementer/tekster, som ikke følger med · lignende dele med bindinger (springes over)
     onreplace: (opts: ReplaceOptions) => void;
     onclose: () => void;
   } = $props();
@@ -33,7 +33,7 @@
     return SYMBOLS.filter((s) => s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q) || s.id.includes(q));
   });
   const lost = $derived(lostBindings.own);
-  const skipped = $derived(similar === 'none' ? 0 : lostBindings.similarBound);
+  const skipped = $derived(similar === 'none' ? 0 : keepId ? lostBindings.similarBoundParts : lostBindings.similarBound);
   const axial = $derived(!!chosen && chosen.id in NATIVE_AXIS && info.axisAngle !== null);
   const directional = $derived(!!chosen && chosen.id in NATIVE_DIRECTION && info.apexAngle !== null);
   const slot = $derived(!!chosen && hasTextSlot(chosen.svg) && info.texts.length > 0);

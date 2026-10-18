@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.84.0 build 0128] — 2026-10-18 — Opdatér gamle biblioteksymboler med "Erstat med symbol"
+
+- `frontend/src/lib/symbolSuggest.ts` — et symbol fra biblioteket får forslaget "den nyeste udgave af samme symbol" (før: ingen forslag). Test.
+- `frontend/svgedit-host/scada-editor.js` — "Behold id": det erstattede elements eget id genbruges, selv om det er reserveret (før fik det et løbenummer, og opsætningen blev forældreløs — BUGS.md); "lignende" for et biblioteksymbol = samme type; med "behold id" springes en lignende del kun over, hvis dens underelementer/tekster er bundne; lignende dele med et navn beholder det. `DrawEditor.svelte`/`SymbolReplace.svelte`: antallet der springes over, følger "behold id".
+- Manual (04). **Set i browseren** lokalt: tre gamle pumper (uden pil, drejet −90°, én med opsætning) → forslaget "Pumpe — den nyeste udgave", "Også de 2 lignende" → alle tre har pilen (peger opad som før), samme størrelse og drejning, id'erne `pumpe`, `pumpe_2`, `pumpe_3` og navnene P1–P3 bevaret, opsætningen på `pumpe` virker efter Gem og udgiv.
+
 ## [0.83.1 build 0127] — 2026-10-18 — fix: nye 3-vejs ventiler arvede løbelys fra et gammelt rør
 
 - `frontend/src/pages/DrawEditor.svelte` — de reserverede id'er (`/used-ids`) hentes og sættes, **før** tegningen indlæses i SVG-Edit (som giver elementer uden id et `svg_N`-id ved indlæsningen); kan listen ikke hentes, ryddes den (ikke den forrige tegnings). BUGS.md.

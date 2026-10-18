@@ -2,6 +2,11 @@
 
 ---
 
+## v0.84.0 — 2026-10-18 — Opdatér gamle symboler
+
+- **Erstat med symbol** på et gammelt symbol fra biblioteket foreslår nu den **nyeste udgave** (fx pumpen med pil). Navn, placering og opsætning bevares, og alle symboler af samme slags kan opdateres på én gang.
+- Rettet: *Behold delens id* virkede ikke for symboler med en opsætning — de fik et nyt id og mistede opsætningen.
+
 ## v0.83.1 — 2026-10-18 — Rettet: løbelys i en ny 3-vejs ventil
 
 - En ny **3-vejs ventil** (og andre symboler med dele uden navn) kunne arve en gammel animation, fx løbelys fra et slettet rør, når tegningen blev åbnet igen i Tegn. Det sker ikke længere.

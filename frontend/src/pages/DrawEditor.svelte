@@ -372,7 +372,7 @@
 
   // ---- Erstat med symbol (tegnet del → bibliotekssymbol)
   let replaceInfo = $state<SelectionInfo | null>(null);
-  let replaceLost = $state({ own: 0, similarBound: 0 });
+  let replaceLost = $state({ own: 0, similarBound: 0, similarBoundParts: 0 });
   let boundIds: string[] = [];        // elementer med bindinger i den gemte version — lignende dele med dem springes over
 
   async function openReplace(): Promise<void> {
@@ -384,7 +384,7 @@
       return;
     }
     // Bindinger på delens underelementer følger ikke med (kun på selve delen, hvis id'et beholdes)
-    let lost = { own: 0, similarBound: 0 };
+    let lost = { own: 0, similarBound: 0, similarBoundParts: 0 };
     boundIds = [];
     if (current) {
       try {
@@ -396,6 +396,8 @@
         lost = {
           own: view.bindings.filter((b) => own.has(b.element) && b.element !== d.id).length,
           similarBound: d.similarGroups.filter((ids) => ids.some((id) => bound.has(id))).length,
+          // med "behold id" følger bindingen på selve delen med — kun dele med bundne underelementer/tekster springes over
+          similarBoundParts: d.similarGroups.filter((ids) => ids.slice(1).some((id) => bound.has(id))).length,
         };
       } catch (e) {
         error = `Bindinger kunne ikke kontrolleres: ${(e as Error).message}`;
