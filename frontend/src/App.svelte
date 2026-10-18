@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { BUNDLE, isStale } from './lib/staleCheck';
   import { ApiError, get, onUnauthorized, post, roleAtLeast, type AlarmSummary, type Me } from './lib/api';
-  import { NAV_ICON, groupOf, navFor, pageFor } from './lib/nav';
+  import { NAV_ICON, groupOf, navFor, navHref, pageFor } from './lib/nav';
   import Overview from './pages/Overview.svelte';
   import Drawings from './pages/Drawings.svelte';
   import Tags from './pages/Tags.svelte';
@@ -150,7 +150,7 @@
           {#if openMenu === g.id}
             <div class="drop" role="menu">
               {#each g.pages as p}
-                <a href={'#' + p.id} role="menuitem" class:active={page === p.id} aria-current={page === p.id ? 'page' : undefined}
+                <a href={navHref(p.id, location.hash.slice(1))} role="menuitem" class:active={page === p.id} aria-current={page === p.id ? 'page' : undefined}
                    onclick={() => (openMenu = null)}>{@render icon(p.icon)}<span>{p.label}</span></a>
               {/each}
             </div>
@@ -209,7 +209,7 @@
   {:else if page === 'energy'}
     <Energy {canEdit} />
   {:else if page === 'trends'}
-    <Trends {canEdit} />
+    <Trends {canEdit} {route} />
   {:else if page === 'alarms'}
     <Alarms canAck={roleAtLeast(me.role, 'operator')} />
   {:else if page === 'draw'}

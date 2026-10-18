@@ -44,6 +44,18 @@ export function pageFor(route: string, role: Role | undefined): NavPage {
   return all.find((p) => p.id === id) ?? NAV[0].pages[0];
 }
 
+/** Sider der kan åbne en bestemt tegning (#draw/<id>, #editor/<id>). */
+const DRAWING_PAGES = new Set(['draw', 'editor']);
+
+/**
+ * Menulinket til en side (v0.79.0): står man på en tegning i Overview (#overview/<id>), åbner Tegn og Bindinger
+ * den samme tegning; ellers den almindelige side.
+ */
+export function navHref(pageId: string, route: string): string {
+  const [here, drawing] = route.split('/');
+  return here === 'overview' && drawing && DRAWING_PAGES.has(pageId) ? `#${pageId}/${drawing}` : `#${pageId}`;
+}
+
 /** Gruppen siden hører til (til brødkrummen i topbjælken). */
 export const groupOf = (pageId: string): NavGroup | undefined =>
   NAV.find((g) => g.pages.some((p) => p.id === pageId)) ?? (USER_PAGES.some((p) => p.id === pageId) ? USER_GROUP : undefined);

@@ -36,9 +36,13 @@ export async function ask(text: string, opts: AskOptions = {}): Promise<boolean>
   return (await enqueue(text, opts, null)) !== null;
 }
 
-/** Spørg efter en tekst. → teksten (trimmet), eller null ved Annullér eller tom tekst. */
-export async function askText(text: string, opts: AskOptions & { value?: string; placeholder?: string } = {}): Promise<string | null> {
+/**
+ * Spørg efter en tekst. → teksten (trimmet), eller null ved Annullér eller tom tekst.
+ * `allowEmpty`: tom tekst er et gyldigt svar ('') — kun Annullér giver null (fx "tomt navn = intet navn").
+ */
+export async function askText(text: string, opts: AskOptions & { value?: string; placeholder?: string; allowEmpty?: boolean } = {}): Promise<string | null> {
   const answer = await enqueue(text, opts, { value: opts.value ?? '', placeholder: opts.placeholder ?? '' });
   const t = answer?.trim() ?? '';
+  if (opts.allowEmpty) return answer === null ? null : t;
   return t ? t : null;
 }

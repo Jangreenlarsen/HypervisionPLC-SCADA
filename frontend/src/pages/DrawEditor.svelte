@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { ask as askUser } from '../lib/ask';
-  import { get, patch, post } from '../lib/api';
+  import { get, patch, post, put } from '../lib/api';
+  import { knownFavorites, moveFavorite, toggleFavorite } from '../lib/palette';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
   import GroupBasis from '../lib/GroupBasis.svelte';
@@ -137,11 +138,14 @@
       const v = version ?? detail.active_version;
       const resp = await fetch(`/api/drawings/${encodeURIComponent(id)}/svg?version=${v}`);
       if (!resp.ok) throw new Error(`Kunne ikke hente SVG (HTTP ${resp.status})`);
-      if (!ed.load(await resp.text())) throw new Error('SVG-Edit kunne ikke læse tegningen');
+      const text = await resp.text();
+      // De reserverede id'er skal kendes FØR indlæsningen: SVG-Edit giver elementer uden id (fx dele af 3-vejs ventilen)
+      // et svg_N-id, når tegningen indlæses — ellers kan de få et id med en gammel opsætning (BUGS.md v0.83.1)
+      await refreshReservedIds(id);
+      if (!ed.load(text)) throw new Error('SVG-Edit kunne ikke læse tegningen');
       current = detail;
       loadedVersion = v;
       dirty = false;
-      await refreshReservedIds();
       history.replaceState(null, '', `#draw/${id}`);
     } catch (e) {
       error = (e as Error).message;
@@ -170,12 +174,13 @@
    * Id'er med opsætning eller binding på tegningen (også forsvundne) må ikke gives til nye elementer — ellers "vågner" en
    * gammel opsætning op på dem (BUGS.md v0.68.0). Hentes når tegningen åbnes, og når opsætninger ændres.
    */
-  async function refreshReservedIds(): Promise<void> {
-    if (!ed || !current) return;
+  async function refreshReservedIds(drawingId = current?.id): Promise<void> {
+    if (!ed || !drawingId) return;
     try {
-      ed.setReservedIds(await get<string[]>(`/api/drawings/${encodeURIComponent(current.id)}/used-ids`));
+      ed.setReservedIds(await get<string[]>(`/api/drawings/${encodeURIComponent(drawingId)}/used-ids`));
     } catch (e) {
       // uden listen kan et id blive genbrugt — sig det, men lad tegningen kunne bruges
+      ed.setReservedIds([]);   // ikke den forrige tegnings liste
       error = `Kunne ikke hente tegningens brugte id'er (nye elementer kan arve en gammel opsætning): ${(e as Error).message}`;
     }
   }
@@ -367,7 +372,7 @@
 
   // ---- Erstat med symbol (tegnet del → bibliotekssymbol)
   let replaceInfo = $state<SelectionInfo | null>(null);
-  let replaceLost = $state({ own: 0, similarBound: 0 });
+  let replaceLost = $state({ own: 0, similarBound: 0, similarBoundParts: 0 });
   let boundIds: string[] = [];        // elementer med bindinger i den gemte version — lignende dele med dem springes over
 
   async function openReplace(): Promise<void> {
@@ -379,7 +384,7 @@
       return;
     }
     // Bindinger på delens underelementer følger ikke med (kun på selve delen, hvis id'et beholdes)
-    let lost = { own: 0, similarBound: 0 };
+    let lost = { own: 0, similarBound: 0, similarBoundParts: 0 };
     boundIds = [];
     if (current) {
       try {
@@ -391,6 +396,8 @@
         lost = {
           own: view.bindings.filter((b) => own.has(b.element) && b.element !== d.id).length,
           similarBound: d.similarGroups.filter((ids) => ids.some((id) => bound.has(id))).length,
+          // med "behold id" følger bindingen på selve delen med — kun dele med bundne underelementer/tekster springes over
+          similarBoundParts: d.similarGroups.filter((ids) => ids.slice(1).some((id) => bound.has(id))).length,
         };
       } catch (e) {
         error = `Bindinger kunne ikke kontrolleres: ${(e as Error).message}`;
@@ -506,6 +513,32 @@
   }
 
   let symbolFilter = $state('');
+  // "Mine symboler" (v0.78.0): brugerens egen sektion øverst, gemt pr. bruger på serveren
+  const KNOWN = new Set(SYMBOLS.map((s) => s.id));
+  let favorites = $state<string[]>([]);
+  let favError = $state('');
+  async function loadFavorites(): Promise<void> {
+    try {
+      favorites = knownFavorites((await get<{ symbols: string[] }>('/api/auth/me/palette')).symbols, KNOWN);
+    } catch (e) {
+      favError = `Mine symboler kunne ikke hentes: ${(e as Error).message}`;
+    }
+  }
+  async function saveFavorites(next: string[]): Promise<void> {
+    const before = favorites;
+    favorites = next;   // vis ændringen med det samme; rul tilbage, hvis serveren afviser
+    favError = '';
+    try {
+      favorites = knownFavorites((await put<{ symbols: string[] }>('/api/auth/me/palette', { symbols: next })).symbols, KNOWN);
+    } catch (e) {
+      favorites = before;
+      favError = `Mine symboler kunne ikke gemmes: ${(e as Error).message}`;
+    }
+  }
+  const mine = (): SymbolDef[] => {
+    const q = symbolFilter.trim().toLowerCase();
+    return favorites.map((id) => SYMBOLS.find((s) => s.id === id)).filter((s): s is SymbolDef => !!s && (!q || s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q)));
+  };
   const symbolsIn = (cat: string): SymbolDef[] => {
     const q = symbolFilter.trim().toLowerCase();
     return SYMBOLS.filter((s) => s.category === cat && (!q || s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q)));
@@ -552,13 +585,20 @@
   };
 
   // Tegne-editoren fylder højden ned til sidefoden (mindst 600 px, så hele SVG-Edits værktøjslinje ses — ellers scrolles siden)
+  // Sidepanelet får samme højde som editoren, så symbolbiblioteket ruller for sig selv (v0.75.1); på smalle skærme
+  // ligger panelet under tegningen og har sin naturlige højde.
+  let aside: HTMLElement;
   const fitFrame = () => {
-    if (iframe) iframe.style.height = `${Math.max(600, availableHeight(iframe) - 2)}px`;
+    if (!iframe) return;
+    const h = Math.max(600, availableHeight(iframe) - 2);
+    iframe.style.height = `${h}px`;
+    if (aside) aside.style.height = window.matchMedia('(max-width: 900px)').matches ? '' : `${h}px`;
   };
   let stopLayout: (() => void) | null = null;
 
   onMount(async () => {
     window.addEventListener('beforeunload', onBeforeUnload);
+    loadFavorites();
     fitFrame();
     stopLayout = onLayoutChange(fitFrame);
     try {
@@ -629,8 +669,8 @@
 <div class="layout">
   <iframe bind:this={iframe} src="/svgedit/scada-editor.html?v={BUNDLE.build}" title="Tegne-editor" onload={connect}></iframe>
 
-  <aside>
-    <section class="panel">
+  <aside bind:this={aside}>
+    <section class="panel sel-panel">
       <h3>Valgt element</h3>
       {#if !single}
         <p class="muted small">{selection.length > 1 ? `${selection.length} elementer valgt` : 'Vælg et element i tegningen.'}</p>
@@ -672,21 +712,29 @@
       {/if}
     </section>
 
-    <section class="panel">
-      <h3>Symboler</h3>
-      <input bind:value={symbolFilter} placeholder="Søg symbol (fx bøjning, kontaktor)" style="width:100%" />
+    <section class="panel sym-panel">
+      <div class="sym-head">
+        <h3>Symboler</h3>
+        <input bind:value={symbolFilter} placeholder="Søg symbol (fx bøjning, kontaktor)" style="width:100%" />
+      </div>
+      {#if favError}<p class="small error">{favError}</p>{/if}
+      <details open>
+        <summary>Mine symboler <span class="muted small">({favorites.length})</span></summary>
+        {#if mine().length}
+          <div class="symbols">
+            {#each mine() as s (s.id)}{@render tile(s, true)}{/each}
+          </div>
+        {:else}
+          <p class="small muted">{favorites.length ? `Ingen af dine symboler matcher "${symbolFilter}".` : 'Tryk ☆ på et symbol for at lægge det her. Ordn dem med ◀ ▶.'}</p>
+        {/if}
+      </details>
       {#each CATEGORIES as cat (cat.id)}
         {@const list = symbolsIn(cat.id)}
         {#if list.length}
           <details open>
             <summary>{cat.label} <span class="muted small">({list.length})</span></summary>
             <div class="symbols">
-              {#each list as s (s.id)}
-                <button onclick={() => insert(s.id)} disabled={!ready} title={s.hint}>
-                  <svg viewBox="-4 -4 168 152" aria-hidden="true" {@attach fitPreview(s.id)}>{@html s.svg}</svg>
-                  <span>{s.label}</span>
-                </button>
-              {/each}
+              {#each list as s (s.id)}{@render tile(s, false)}{/each}
             </div>
             {#if cat.id === 'betjening'}
               <div class="selector-cfg">
@@ -723,6 +771,23 @@
       <p class="small muted">Ctrl+Z fortryder. Animationer (fx farve eller løbelys) kan stadig farve symbolet på Overview.</p>
     </div>
   {/if}
+{/snippet}
+
+{#snippet tile(s: SymbolDef, inMine: boolean)}
+  {@const fav = favorites.includes(s.id)}
+  {@const pos = favorites.indexOf(s.id)}
+  <div class="tile">
+    <button class="ins" onclick={() => insert(s.id)} disabled={!ready} title={s.hint}>
+      <svg viewBox="-4 -4 168 152" aria-hidden="true" {@attach fitPreview(s.id)}>{@html s.svg}</svg>
+      <span>{s.label}</span>
+    </button>
+    <button class="star" class:on={fav} onclick={() => saveFavorites(toggleFavorite(favorites, s.id))}
+      aria-label={fav ? `Fjern ${s.label} fra Mine symboler` : `Læg ${s.label} i Mine symboler`} title={fav ? 'Fjern fra Mine symboler' : 'Læg i Mine symboler'}>{fav ? '★' : '☆'}</button>
+    {#if inMine}
+      <button class="mv left" onclick={() => saveFavorites(moveFavorite(favorites, s.id, -1))} disabled={pos <= 0} aria-label="Flyt {s.label} frem" title="Flyt frem">◀</button>
+      <button class="mv right" onclick={() => saveFavorites(moveFavorite(favorites, s.id, 1))} disabled={pos === favorites.length - 1} aria-label="Flyt {s.label} tilbage" title="Flyt tilbage">▶</button>
+    {/if}
+  </div>
 {/snippet}
 
 {#snippet clipRow(canCopy: boolean)}
@@ -780,13 +845,30 @@
     background: #fff;
   }
   aside { min-width: 0; }
+  /* Sidepanelet har editorens højde (fitFrame): "Valgt element" efter behov (højst 55 %), symbolbiblioteket ruller for sig selv */
+  @media (min-width: 901px) {
+    aside { display: flex; flex-direction: column; gap: .8rem; overflow: hidden; }
+    aside > .panel { margin: 0; }
+    .sel-panel { flex: 0 1 auto; max-height: 55%; overflow-y: auto; }
+    .sym-panel { flex: 1 1 0; min-height: 8rem; overflow-y: auto; padding-top: 0; }
+    .sym-head { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: .8rem 0 .4rem; }
+  }
   .field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
   .field :global(select), .field input { width: 100%; }
   /* minmax(0, 1fr): lange navne må ikke gøre en kolonne bredere end panelet */
   .symbols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
-  .symbols button { min-width: 0; }
+  .symbols .tile { position: relative; min-width: 0; display: flex; }
+  .symbols .ins { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; font-size: .72rem; line-height: 1.15; }
   .symbols span { max-width: 100%; overflow-wrap: anywhere; hyphens: auto; text-align: center; }
-  .symbols button { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; font-size: .72rem; line-height: 1.15; }
+  /* ☆/★ i øverste højre hjørne; ◀ ▶ i de nederste hjørner (kun i Mine symboler) */
+  .symbols .star, .symbols .mv { position: absolute; padding: 0 .25rem; min-width: 0; line-height: 1.2; font-size: .8rem; background: transparent; border: 0; color: var(--muted); }
+  .symbols .star { top: 1px; right: 1px; }
+  .symbols .star.on { color: #c58a00; }
+  .symbols .star:hover, .symbols .mv:hover:not(:disabled) { color: var(--accent); }
+  .symbols .mv { bottom: 1px; font-size: .65rem; }
+  .symbols .mv:disabled { opacity: .3; }
+  .symbols .mv.left { left: 1px; }
+  .symbols .mv.right { right: 1px; }
   details { margin-top: .6rem; }
   .adv { margin-top: .8rem; }
   .clip { margin-top: .4rem; gap: .4rem; }

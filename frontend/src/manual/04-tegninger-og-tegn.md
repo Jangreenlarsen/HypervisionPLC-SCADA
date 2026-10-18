@@ -25,7 +25,7 @@ Siden **Tegninger** er listen over alle tegninger.
 
 ### Sådan tegner du
 
-1. Vælg en eksisterende tegning (og version) i rullelisterne øverst, eller start en ny (**— Ny tegning —**).
+1. Vælg en eksisterende tegning (og version) i rullelisterne øverst, eller start en ny (**— Ny tegning —**). Står du på en tegning i **Overview**, åbner menupunktet **Tegn** (og **Bindinger**) direkte den tegning.
 2. Tegn med værktøjerne i editoren: linjer, rektangler, cirkler, tekst, farver og lag.
 3. Til højre ser du **Valgt element**. Giv det et **Navn**, hvis det skal være et symbol, der senere kan sættes op med guiden. **Avanceret** viser elementets tekniske **id**.
 4. Tryk **Gem kladde** (gemmer en ny version, men viser den ikke endnu) eller **Gem og udgiv** (gemmer og gør den aktiv). En ny tegning skal have et navn.
@@ -66,6 +66,8 @@ Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige 
 7. Tryk **Erstat**. Symbolet får samme **midte, størrelse og drejning** som den gamle del. **Ctrl+Z** fortryder hele erstatningen i ét trin.
 8. Tryk **Gem kladde**. Så er resultatet en ny version, og **Overview viser stadig den gamle**, til du udgiver den nye.
 
+**Opdatér gamle symboler:** er et symbol fra biblioteket kommet i en ny udgave (fx pumpen med retningspil), så vælg et af de gamle og tryk **Erstat med symbol …** — forslaget er den nyeste udgave af samme symbol. Med **Behold delens id** (standard) beholder symbolet sit navn, sin placering, drejning og størrelse og sin opsætning (animationer på *Hele symbolet*; animationer på de gamle dele skal sættes op igen). Vælg **Også de N lignende** for at opdatere alle symboler af samme slags på én gang — hver beholder sit eget navn.
+
 ![Erstat med symbol: forslag ud fra delens form, indstillinger og valg om at erstatte alle lignende](/manual/tegn-erstat.png)
 
 > **Retning og akse:** for en **pumpe** og en **kontraventil** aflæser systemet, hvilken vej den tegnede trekant peger, og drejer symbolet, så det peger samme vej. For en **ventil** tegnet som to trekanter aflæses, om den står **vandret eller lodret**, og ventilsymbolet drejes tilsvarende (valgene *Drej symbolet …* i dialogen). For andre symboler er retningen tegnet ind i den gamle del og kan ikke aflæses sikkert — kontrollér og drej dem efter erstatning (**Shift** giver fri rotation). Bindinger på **underelementer** i den gamle del følger ikke med; dialogen advarer, hvis der er nogen.
@@ -76,7 +78,13 @@ Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige 
 
 Under tegneområdet finder du **symbolbiblioteket**, sorteret i kategorier (*Betjening*, *Proces og visning*, *Rør og VVS*, *Elektrisk*, *Solcelleanlæg*). Søg efter et symbol (fx *bøjning* eller *kontaktor*), og tryk på det for at sætte det ind midt på tegningen; flyt og tilpas det bagefter. Hvert indsat symbol får et **navn** (fx *Pumpe 2*), som du kan ændre.
 
+**Mine symboler**: de symboler du bruger mest, kan du samle i en egen sektion øverst i biblioteket. Tryk **☆** i hjørnet af et symbol for at lægge det i *Mine symboler* (stjernen bliver fyldt **★**); tryk igen for at tage det ud. Inde i *Mine symboler* flytter **◀** og **▶** et symbol frem eller tilbage, så du kan ordne dem som du vil. Listen gemmes på serveren for din bruger, så den følger dig til en anden pc eller browser; søgefeltet gælder også her. Plads til højst 60 symboler.
+
 Et nyindsat symbol skal **sættes op**: vælg symbolet og tryk **Opsæt symbol (6 trin)**. Tegningen gemmes og udgives først (du bliver spurgt), fordi guiden arbejder på den aktive version. Se *Symboler og guiden*.
+
+**Felter med tekst** (*Statusfelt*, *Værdifelt*, *Auto/Manuel*): træk i et sidegreb for at gøre feltet bredere (eller højere), så der er plads til mere tekst — teksten bliver ikke strakt, men beholder sin størrelse (midterstillet tekst følger midten), og et statusfelt beholder sine runde ender. Ret selve teksten ved at dobbeltklikke på den.
+
+**Genveje** (kategorien *Genveje*): knapperne **Gå til Alarmer**, **Gå til Trends** og **Gå til Energi**. Et klik på dem i Overview åbner siden. Alarmknappen viser et mærke med **antallet af aktive alarmer** — orange når de er kvitteret, rødt og blinkende når der er ukvitterede (mærket er skjult uden alarmer). Genvejene skal ikke sættes op. På et driftpanel (kun drifttegningen) åbnes siderne ikke.
 
 **Omskifter med egne positioner**: under *Betjening* kan du skrive positionernes navne (2–8, adskilt med komma, fx *Hånd, 0, Auto*) og indsætte en omskifter med lige det antal positioner.
 

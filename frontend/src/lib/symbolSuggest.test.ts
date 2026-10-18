@@ -85,10 +85,13 @@ describe('forslag til symboler (opbygninger fra "varme"-tegningen)', () => {
     expect(top(pipe(80, 60))).toBe('boejning90');
   });
 
-  it('tynde streger, tekster og et symbol der allerede er et symbol giver ingen forslag', () => {
+  it('tynde streger og tekster giver ingen forslag', () => {
     expect(suggestSymbols(sel({ tag: 'path', counts: { path: 1 }, w: 200, h: 3, stroke: '#000', strokeWidth: 2 }))).toEqual([]);
     expect(suggestSymbols(sel({ tag: 'text', counts: { text: 1 }, w: 40, h: 15 }))).toEqual([]);
-    expect(suggestSymbols(sel({ counts: { g: 2, ellipse: 1, path: 1 }, symbolType: 'pumpe' }))).toEqual([]);
+  });
+
+  it('et symbol fra biblioteket: den nyeste udgave af samme symbol (v0.84.0)', () => {
+    expect(suggestSymbols(sel({ counts: { g: 1, circle: 1, path: 1 }, symbolType: 'pumpe' }))).toEqual([{ id: 'pumpe', score: 100, why: 'Den nyeste udgave af samme symbol fra biblioteket' }]);
   });
 
   it('alle foreslåede symboler findes i biblioteket (ingen stavefejl i id\'erne)', () => {

@@ -47,11 +47,15 @@ Er en **tilbagemelding** valgt for et signal, læses PLC'ens position derfra; el
 
 ## Animationer i guiden (trin 4)
 
-Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symbolet* …), en **type** (*Farve, Blink, Synlig, Roterer, Blafrer, Niveau, Gennemsigtighed, Værdi, Drej, Flyt, Løbelys*) og en **kilde**:
+Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symbolet* …; dele uden et navn fra biblioteket vises efter deres form, fx *Ramme*, *Rektangel 2*, *Cirkel* eller *Tekst "STF"*, med det tekniske id i parentes), en **type** (*Farve, Blink, Synlig, Roterer, Blafrer, Niveau, Gennemsigtighed, Størrelse, Værdi, Drej, Flyt, Løbelys*) og en **kilde**:
 
 - **symbolets position** — farve, vinkel, forskydning osv. vælges **pr. position**
 - **et tag** — til/fra eller tal
 - **en logikblok** — se nedenfor
+
+**Størrelse** (tal-tag) gør delen større eller mindre om sin egen midte efter værdien: ved **Min** har den *Størrelse ved min* (fx 50 %), ved **Max** *ved max* (fx 150 %), og imellem glidende. Fx pumpens **Pil**, så den vokser med flowet. Uden gyldig værdi vises delen i sin tegnede størrelse.
+
+**Pumpen** har et **Løbehjul** og en **Pil**. Guiden foreslår *Roterer* på løbehjulet, så det drejer, når pumpen kører; pilen står stille og viser pumperetningen (også hvis *Roterer* sættes på hele pumpen). Ældre pumper med en trekant opdateres med *Erstat med symbol* — sæt derefter *Roterer* på løbehjulet.
 
 Står flere animationer på samme del, **vinder den nederste** (▲▼ ændrer rækkefølgen). Animationer kan også begrænses til bestemte positioner (**Gælder i**).
 
@@ -90,6 +94,8 @@ En animation kan også styres af **altid til** (i stedet for et tag): så er den
 **Alarm som kilde:** under *styres af* kan en animation styres af **en alarm**: vælg **er aktiv** (alarmen er i gang) eller **er ukvitteret** (ingen har kvitteret den endnu — også efter den er ophørt), og tagget. Fx lader du en lampe **blinke**, så længe en alarm er ukvitteret, og **farve** den rød, så længe den er aktiv. Har tagget ingen alarm endnu, får du en advarsel.
 
 **Alarmer på symbolets tags (trin 6):** en tabel viser hvert tag, symbolet bruger, med dets alarmopsætning (fx *H 80 · HH 90 bar* eller *når Til*) og status lige nu (*Ingen alarm*, *Aktiv — ukvitteret*, *Aktiv — kvitteret*, *Ophørt — ukvitteret*). Med **Ret alarm** sætter du alarmen direkte her: grænser **HH/H/L/LL** og **Dødbånd** for tal-tags, **Alarm når Til / når Fra** for til/fra-tags, og **Forsinkelse**. Alarmen gælder tagget overalt — det er den samme som under *Tags*.
+
+**Historik (Trends) (trin 6):** under alarmerne ser du, om hvert af symbolets tags **gemmer historik**. Sæt flueben ud for et tag, eller tryk **Gem historik for alle** — så gemmer serveren værdierne fra nu af (højst hvert 10. sekund som standard; intervallet ændres under *Tags*). Historikken gælder tagget overalt. **Vis symbolet i Trends** åbner Trends i en ny fane med alle symbolets kurver.
 
 ### Værdi: decimaler, tekst før/efter, beregning og enhed
 

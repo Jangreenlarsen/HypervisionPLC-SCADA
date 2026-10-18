@@ -3,7 +3,7 @@
 // Valideringen er serverens (POST …/preview) — her er kun struktur og forslag.
 
 export type Op = 'positions' | 'pulse' | 'entry' | 'view';
-export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow' | 'flicker';
+export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow' | 'flicker' | 'scale';
 export type SrcKind = 'pos' | 'bool' | 'num';
 
 export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null }
@@ -20,7 +20,7 @@ export interface SymbolConfig {
   display: 'remote' | 'local'; validate_s: number; alarm: '' | 'low' | 'medium' | 'high'; confirm: boolean; pulse_ms: number;
   lock: { positions: boolean[]; leave: boolean }; anims: Anim[]; logic: LogicBlock[];
 }
-export interface PartInfo { tag: string; line: boolean; pid?: string | null }
+export interface PartInfo { tag: string; line: boolean; pid?: string | null; text?: string }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }
 
 export const POS = '@pos';
@@ -55,7 +55,7 @@ export const OP_TXT: Record<Op, string> = { view: 'Kun visning', positions: 'Pos
 export const ALARM_TXT: Record<string, string> = { '': 'Nej', low: 'Ja — lav', medium: 'Ja — medium', high: 'Ja — høj' };
 export const ANIM_TXT: Record<AnimType, string> = {
   fill: 'Farve', stroke: 'Stregfarve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', flicker: 'Blafrer', level: 'Niveau',
-  opacity: 'Gennemsigtighed', text: 'Værdi', rotate: 'Drej', move: 'Flyt', flow: 'Løbelys',
+  opacity: 'Gennemsigtighed', text: 'Værdi', rotate: 'Drej', move: 'Flyt', flow: 'Løbelys', scale: 'Størrelse',
 };
 export const BLINK_TXT: Record<string, string> = { slow: 'Langsom (0,5 Hz)', normal: 'Normal (1 Hz)', fast: 'Hurtig (2 Hz)' };
 
@@ -63,15 +63,40 @@ export const BLINK_TXT: Record<string, string> = { slow: 'Langsom (0,5 Hz)', nor
 export const PART_LABEL: Record<string, string> = {
   greb: 'Greb', vippe: 'Vippe', spor: 'Spor', flade: 'Knap', tekst: 'Tekst', vaerdi: 'Værdi', status: 'Status',
   felt: 'Felt', port_a: 'Port A', port_b: 'Port B', port_ab: 'Port AB', motor: 'Motor',
-  lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive',
+  lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive', pil: 'Pil', loebehjul: 'Løbehjul',
   tilloeb1: 'Tilløbsrør 1', tilloeb2: 'Tilløbsrør 2', midte: 'Midterrør', roer1: 'Rør 1', roer2: 'Rør 2', roer3: 'Rør 3', roer4: 'Rør 4',
 };
 
+/** Danske navne på SVG-figurer — til dele uden biblioteksnavn. */
+const SHAPE_LABEL: Record<string, string> = {
+  rect: 'Rektangel', circle: 'Cirkel', ellipse: 'Ellipse', path: 'Figur', polygon: 'Figur', line: 'Streg', polyline: 'Streg',
+  text: 'Tekst', g: 'Gruppe', image: 'Billede', use: 'Kopi',
+};
+
+/**
+ * Delens navn i guiden. Bibliotekets dele har et navn (data-hv-pid → "Flamme"); andre navngives efter figuren
+ * (v0.81.0): "Rektangel", "Cirkel 2", Tekst "STF" — et biblioteksymbols første rektangel er dets "Ramme".
+ * Id'et (fx svg_2) står i parentes, så delen kan findes igen (fx under Avanceret i Tegn).
+ */
 export function partLabel(id: string, info: SymbolInfo | null): string {
   if (id === 'all') return 'Hele symbolet';
-  const pid = info?.parts[id]?.pid;
-  if (pid) return PART_LABEL[pid] ?? pid;
-  return id;
+  const part = info?.parts[id];
+  if (!part) return id;
+  if (part.pid) return PART_LABEL[part.pid] ?? part.pid;
+  const unnamed = Object.entries(info!.parts).filter(([, p]) => !p.pid);
+  let same = unnamed.filter(([, p]) => p.tag === part.tag).map(([k]) => k);
+  // et biblioteksymbols første rektangel er dets ramme — de øvrige rektangler nummereres uden den
+  const frame = part.tag === 'rect' && info!.type !== 'custom' ? same[0] : undefined;
+  if (frame) same = same.slice(1);
+  let name: string;
+  if (part.tag === 'text' && part.text) name = `Tekst "${part.text}"`;
+  else if (id === frame) name = 'Ramme';
+  else {
+    const base = SHAPE_LABEL[part.tag] ?? 'Del';
+    const n = same.indexOf(id) + 1;
+    name = same.length > 1 ? `${base} ${n}` : base;
+  }
+  return `${name} (${id})`;
 }
 
 /**
@@ -101,6 +126,13 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     if (!flamme) return null;
     cfg.anims.push({ part: flamme, type: 'flicker', src: '', params: animDefaults('flicker', 'bool', 0), only: null });
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: flammen bliver orange og blafrer, når brænderen kører. Vælg drifts-tagget under trin 4.' };
+  }
+  if (symbol.type === 'pumpe') {
+    // Drift (v0.86.0): løbehjulet drejer — pilen står stille og viser retningen
+    const hjul = partOf('loebehjul');
+    if (!hjul) return null;   // en gammel pumpe uden løbehjul (opdatér med "Erstat med symbol")
+    cfg.anims.push({ part: hjul, type: 'spin', src: '', params: animDefaults('spin', 'bool', 0), only: null });
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: løbehjulet drejer, når pumpen kører. Vælg drifts-tagget under trin 4.' };
   }
   if (symbol.type === 'varmepumpe') {
     // Drift: rotoren drejer og lampen bliver grøn — begge fra samme drifts-tag (vælges i trin 4)
@@ -163,6 +195,7 @@ const OPS_BY_TYPE: Record<string, Op[]> = {
   roer_v: VIEW, roer_l: VIEW, boejning90: VIEW, boejning45: VIEW, t_stykke: VIEW, kryds: VIEW, reduktion: VIEW, prop: VIEW,
   flange: VIEW, flowpil: VIEW, filter: VIEW, ekspansion: VIEW, radiator: VIEW, varmeveksler: VIEW, kedel: VIEW,
   varmepumpe: SWITCH,
+  genvej_alarmer: VIEW, genvej_trends: VIEW, genvej_energi: VIEW,
   ledning_v: VIEW, ledning_l: VIEW, forbindelse: VIEW, klemme: VIEW, sikring: VIEW, automatsikring: VIEW, jord: VIEW,
   modstand: VIEW, transformer: VIEW, stroemforsyning: VIEW, foeler: VIEW, plc: VIEW, motor3: VIEW, motorvaern: VIEW,
   solpanel: VIEW, solstreng: VIEW, sol: VIEW, inverter: VIEW, hybridinverter: VIEW, mppt: VIEW, batteri: VIEW, batteribank: VIEW,
@@ -263,7 +296,7 @@ export function evalLogic(
 
 /** Hvilke animationer en del kan have — efter delens geometri (samme regel som serveren). */
 export function typesFor(part: PartInfo | undefined): AnimType[] {
-  const t: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'rotate', 'move', 'opacity'];
+  const t: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'rotate', 'move', 'opacity', 'scale'];
   if (part?.tag === 'rect') t.push('level');
   if (part?.tag === 'text' || part?.tag === 'tspan') t.push('text');
   if (part?.line) t.push('flow');
@@ -291,6 +324,8 @@ export function animDefaults(type: AnimType, kind: SrcKind, n: number): Record<s
       return { min: 0, max: 100, direction: 'up' };
     case 'opacity':
       return { min: 0, max: 100 };
+    case 'scale':
+      return { min: 0, max: 100, size_min: 50, size_max: 150 };
     case 'text':
       return {};
     case 'rotate':

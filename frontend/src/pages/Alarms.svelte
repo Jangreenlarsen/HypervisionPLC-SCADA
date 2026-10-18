@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import BackToDrawing from '../lib/BackToDrawing.svelte';
   import { get, post, type Alarm, type AlarmSummary } from '../lib/api';
   import { LiveClient } from '../lib/live';
 
@@ -65,6 +66,7 @@
 <section class="panel">
   <div class="row" style="justify-content: space-between">
     <div class="row">
+      <BackToDrawing />
       <button class:primary={tab === 'active'} onclick={() => (tab = 'active')}>Aktive ({summary.active})</button>
       <button class:primary={tab === 'history'} onclick={loadHistory}>Historik</button>
     </div>

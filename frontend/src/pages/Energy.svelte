@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import BackToDrawing from '../lib/BackToDrawing.svelte';
   import { get } from '../lib/api';
   import EnergyChart from '../lib/EnergyChart.svelte';
   import { fmtKwh } from '../lib/energyData';
@@ -70,6 +71,7 @@
 </script>
 
 <div class="row toolbar">
+  <BackToDrawing />
   {#each PERIODS as p}
     <button class:primary={period === p.id} title={p.hint} onclick={() => { period = p.id; load(); }}>{p.label}</button>
   {/each}

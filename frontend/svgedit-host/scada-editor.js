@@ -2,7 +2,7 @@
 // Forældresiden (DrawEditor.svelte) bruger `window.scada` nedenfor.
 import Editor from './Editor.js';
 import {
-  axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, multiplyMatrix, pathVertices, recenterOffset, rotationCenter, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox,
+  axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, fieldResize, multiplyMatrix, pathVertices, recenterOffset, rotationCenter, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox,
 } from './snap.js';
 import { collectColors, recolorAttrs } from './colors.js';
 import { nextFreeName, numberedNames } from './names.js';
@@ -170,7 +170,10 @@ function settleAfterMouseUp() {
   if (sel.length && sel.every((el) => lastBoxes.has(el)) && isDrag(before, now)) settleSelection(true);
   else {
     const resized = before && now && (Math.abs(before.w - now.w) > 0.5 || Math.abs(before.h - now.h) > 0.5);
-    if (resized) normalizeRotatedGroups(sel);
+    if (resized) {
+      normalizeRotatedGroups(sel);
+      normalizeFields(sel);
+    }
     rememberBoxes();
   }
 }
@@ -181,6 +184,57 @@ function settleAfterMouseUp() {
  * Ryd op: læg strækningen ned i gruppens dele, og lad gruppen kun dreje om sin (nye) midte. Tegningen ser ens ud;
  * oprydningen er sit eget fortryd-trin efter strækningen.
  */
+/** Felt-symboler (flade + tekst), hvor en strækning skal give mere plads til tekst — ikke strakt tekst (v0.77.0). */
+const FIELD_TYPES = new Set(['statusfelt', 'vaerdi', 'automanuel']);
+
+/**
+ * Efter en strækning af et felt-symbol: læg strækningen ned i fladen (ny bredde/højde) og flyt teksten, men behold dens
+ * skriftstørrelse (fieldResize). Kun for ikke-drejede felter, hvor delene ingen egen transform har. Ét fortryd-trin.
+ */
+function normalizeFields(sel) {
+  const c = canvas();
+  const svg = c.getSvgRoot();
+  const batch = new c.history.BatchCommand('Felt: plads til mere tekst');
+  const r = (v) => +v.toFixed(3);
+  for (const g of sel) {
+    if (g.tagName !== 'g' || !FIELD_TYPES.has(g.getAttribute('data-hv-type') || '')) continue;
+    const kids = [...g.children].filter((k) => !RESERVED.has(k.tagName.toLowerCase()));
+    const rects = kids.filter((k) => k.tagName === 'rect');
+    const texts = kids.filter((k) => k.tagName === 'text');
+    if (!rects.length || rects.length + texts.length !== kids.length || kids.some((k) => k.getAttribute('transform'))) continue;
+    // gruppens samlede matrix — uden at ændre dens transform (consolidate() ville skrive den om, også hvis vi springer over)
+    const tl = g.transform.baseVal;
+    let m = svg.createSVGMatrix();
+    for (let i = 0; i < tl.numberOfItems; i++) m = m.multiply(tl.getItem(i).matrix);
+    if (Math.abs(m.b) > 1e-9 || Math.abs(m.c) > 1e-9) continue;          // drejet/skævt: rør det ikke
+    const sx = m.a, sy = m.d;
+    if (Math.abs(sx - 1) < 1e-6 && Math.abs(sy - 1) < 1e-6) continue;
+    const num = (el, a) => parseFloat(el.getAttribute(a) || '0') || 0;
+    const res = fieldResize(
+      rects.map((el) => ({ x: num(el, 'x'), y: num(el, 'y'), w: num(el, 'width'), h: num(el, 'height'), rx: num(el, 'rx') })),
+      texts.map((el) => ({ x: num(el, 'x'), y: num(el, 'y'), anchor: el.getAttribute('text-anchor') || 'start' })),
+      sx, sy);
+    const oldG = g.getAttribute('transform');
+    const change = (el, attrs) => {
+      const old = {};
+      for (const k of Object.keys(attrs)) { old[k] = el.getAttribute(k); el.setAttribute(k, String(attrs[k])); }
+      batch.addSubCommand(new c.history.ChangeElementCommand(el, old));
+    };
+    rects.forEach((el, i) => {
+      const n = res.rects[i];
+      change(el, { x: r(n.x), y: r(n.y), width: r(n.w), height: r(n.h), ...(el.hasAttribute('rx') ? { rx: r(n.rx) } : {}) });
+    });
+    texts.forEach((el, i) => change(el, { x: r(res.texts[i].x), y: r(res.texts[i].y) }));
+    g.setAttribute('transform', `translate(${r(m.e)} ${r(m.f)})`);
+    batch.addSubCommand(new c.history.ChangeElementCommand(g, { transform: oldG }));
+    c.selectorManager.requestSelector(g).resize();
+  }
+  if (!batch.isEmpty()) {
+    c.undoMgr.addCommandToHistory(batch);
+    if (changeListener) changeListener();
+  }
+}
+
 function normalizeRotatedGroups(sel) {
   const c = canvas();
   const svg = c.getSvgRoot();
@@ -362,7 +416,10 @@ function buildSymbolNode(fragment, baseId, wantedId) {
   const src = parsed.documentElement.firstElementChild;
   if (!src) return null;
   const node = document.importNode(src, true);
-  node.setAttribute('id', uniqueId(wantedId || baseId));
+  // "Behold id": det erstattede elements eget id må genbruges, selv om det er reserveret (det har jo en opsætning/binding,
+  // som netop skal følge med) — reservationen gælder kun NYE elementer (BUGS.md v0.84.0)
+  const free = (id) => !canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`);
+  node.setAttribute('id', wantedId && free(wantedId) ? wantedId : uniqueId(wantedId || baseId));
   // Bibliotekstypen og delenes egne navne gemmes, så symbol-guiden kender symbolet og dets dele
   // (id'erne nedenfor kan få et løbenummer, så delens navn kan ikke udledes sikkert af id'et)
   node.setAttribute('data-hv-type', String(baseId).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 40));
@@ -495,7 +552,8 @@ function similarTo(el, any = false) {
   const near = (a, b) => Math.abs(a - b) <= Math.max(2, 0.12 * Math.max(a, b));
   return [...parent.children].filter((o) => {
     if (o === el || RESERVED.has(o.tagName.toLowerCase()) || o.tagName.toLowerCase() !== el.tagName.toLowerCase()) return false;
-    if (o.hasAttribute('data-hv-type') || key(countShapes(o)) !== k0) return false;
+    // Et symbol fra biblioteket ligner kun symboler af samme type (fx alle gamle pumper, der skal opdateres); en tegnet del kun tegnede
+    if ((o.getAttribute('data-hv-type') ?? '') !== (el.getAttribute('data-hv-type') ?? '') || key(countShapes(o)) !== k0) return false;
     const g = geometryOf(o);
     if (!g || (o.getAttribute('rx') ?? '') !== (el.getAttribute('rx') ?? '') || (o.getAttribute('fill') ?? '') !== (el.getAttribute('fill') ?? '')) return false;
     if ((o.getAttribute('stroke') ?? '') !== (el.getAttribute('stroke') ?? '') || (o.getAttribute('stroke-width') ?? '') !== (el.getAttribute('stroke-width') ?? '')) return false;
@@ -641,7 +699,7 @@ window.scada = {
       texts: textsWithin(el, g).map((t) => t.text),
       similar: similarTo(el).length,
       similarAny: similarTo(el, true).length,
-      similarGroups: similarTo(el, true).map((o) => affectedIds(o, geometryOf(o))),   // pr. lignende del: de id'er der forsvinder
+      similarGroups: similarTo(el, true).map((o) => affectedIds(o, geometryOf(o))),   // pr. lignende del: de id'er der forsvinder (delens eget først)
     };
   },
 
@@ -667,7 +725,7 @@ window.scada = {
       const g = multi ? unionGeometry(olds) : geometryOf(old);
       if (!g) continue;
       // Lignende dele med bindinger (på dem selv, deres dele eller deres tekster) røres ikke — de erstattes enkeltvis
-      if (index > 0 && affectedIds(old, g).some((id) => protect.has(id))) {
+      if (index > 0 && affectedIds(old, g).some((id) => protect.has(id) && !(opts.keepId && id === old.id))) {
         skipped++;
         continue;
       }
@@ -720,7 +778,9 @@ window.scada = {
       }
       // Det valgte element får det indtastede navn; de øvrige "<symbol> <deres egen tekst>" (ellers løbenumre)
       if (opts.name) {
-        const own = index === 0 ? opts.name : `${opts.namePrefix || opts.name}${texts[0] ? ` ${texts[0].text}` : ''}`;
+        // lignende dele, der allerede har et navn (fx gamle biblioteksymboler, der opdateres), beholder det
+        const kept = index > 0 && !multi ? old.getAttribute('data-hv-name') : null;
+        const own = index === 0 ? opts.name : kept || `${opts.namePrefix || opts.name}${texts[0] ? ` ${texts[0].text}` : ''}`;
         node.setAttribute('data-hv-name', uniqueNameIn(own, node));   // uden selve symbolet, ellers får navnet et falsk " 2"
       }
       batch.addSubCommand(new c.history.InsertElementCommand(node));

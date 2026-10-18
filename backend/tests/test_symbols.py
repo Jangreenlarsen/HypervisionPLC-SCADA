@@ -96,6 +96,7 @@ def test_dec_bin_selector_saves_and_reads_back(api):
     got = api.get(f"/api/drawings/{api.did}/symbols/V1/config").json()
     assert got["config"] == cfg and got["has_pin"] is False and got["orphaned"] is False
     assert got["symbol"]["parts"]["V1_greb"]["pid"] == "greb"
+    assert got["symbol"]["parts"]["V1_tekst"]["text"] == "0" and "text" not in got["symbol"]["parts"]["V1_greb"]
     assert api.get("/api/audit?action=symbol.config").json()[0]["target"] == f"{api.did}#V1"
 
 
@@ -423,4 +424,17 @@ def test_alarm_engine_publishes_pseudo_tags(api):
     assert api.patch("/api/tags/Fejl", json={"alarm_on": None}).status_code == 200
     svc.publish()
     assert cache.get("alarm:Fejl:active").value is None   # ingen alarm mere: fjernet fra cachen
+
+
+def test_scale_animation_numeric_only(api):
+    """Størrelse (v0.85.0): kun et tal-tag; procenterne skal være positive."""
+    base = {"op": "view", "anims": []}
+    ok = put(api, {**base, "anims": [{"part": "V1_greb", "type": "scale", "src": "Niveau", "params": {"min": 0, "max": 100, "size_min": 50, "size_max": 200}}]})
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["config"]["anims"][0]["params"]["size_max"] == 200
+    for src, why in [("Lys", "kræver et tal-tag"), ("@on", "kan ikke styres af"), ("@pos", "ingen positioner")]:
+        r = put(api, {**base, "anims": [{"part": "V1_greb", "type": "scale", "src": src, "params": {}}]})
+        assert r.status_code == 400 and why in r.text, (src, r.text)
+    r = put(api, {**base, "anims": [{"part": "V1_greb", "type": "scale", "src": "Niveau", "params": {"size_min": 0}}]})
+    assert r.status_code == 400
 

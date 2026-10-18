@@ -1,7 +1,7 @@
 <!-- GENERERET af src/lib/manualGen.test.ts ud fra symbolbiblioteket — ret ikke i hånden; kør GEN_MANUAL=1 npx vitest run src/lib/manualGen.test.ts -->
 # Symbolbiblioteket
 
-Biblioteket har **86 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
+Biblioteket har **89 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
 
 ## Betjening (skriver til PLC)
 
@@ -20,7 +20,7 @@ Biblioteket har **86 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
 | **Statusfelt** | Kun visning | Knyt til et register: farven følger værdien (Fyldfarve) — ret teksten i Tegn |
-| **Pumpe** | Kun visning, Positioner, Trykknap (puls) | Bind "Fyldfarve" til drift-signalet |
+| **Pumpe** | Kun visning, Positioner, Trykknap (puls) | Løbehjulet drejer, når pumpen kører (Roterer); pilen viser pumperetningen — drej symbolet for at vende den |
 | **Motor** | Kun visning, Positioner, Trykknap (puls) | Bind "Fyldfarve" til drift-signalet |
 | **Tank** | Kun visning | Bind "Niveau" på det indre rektangel |
 | **Værdifelt** | Kun visning | Bind "Tekst" på teksten |
@@ -113,5 +113,13 @@ Biblioteket har **86 symboler** i 5 kategorier. Du sætter dem ind i **Tegn** og
 | **Forbrug/hus** | Kun visning | Husstandens forbrug — vis effekten i et værdifelt |
 | **Elbillader** | Kun visning, Positioner, Trykknap (puls) | Bind "Fyldfarve" til ladning i gang |
 | **Energiflow-pil** | Kun visning | Bind "Synlighed" (fx kun ved eksport) eller "Fyldfarve" |
+
+## Genveje (gå til side)
+
+| Symbol | Kan sættes op som | Bemærkning |
+| --- | --- | --- |
+| **Gå til Alarmer** | Kun visning | Klik i Overview åbner Alarmer; mærket viser antal aktive alarmer (rødt og blinkende når ukvitteret) |
+| **Gå til Trends** | Kun visning | Klik i Overview åbner Trends |
+| **Gå til Energi** | Kun visning | Klik i Overview åbner Energi |
 
 > Symboler uden betjening (rør, tank, målere, lamper, solcelledele) viser kun. Rør og fittings kan få **Løbelys**, der viser strømningsretning.

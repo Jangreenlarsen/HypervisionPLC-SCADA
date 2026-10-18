@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request, Response, WebSocket
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..services.auth import AuthService, CurrentUser, role_at_least
 from ..services.errors import ServiceError
@@ -114,6 +114,22 @@ async def logout(request: Request, response: Response) -> None:
 @router.get("/auth/me")
 async def me(user: CurrentUser = Depends(require("viewer", allow_password_change=True))) -> dict[str, Any]:
     return user.public()
+
+
+class PaletteBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    symbols: list[str] = Field(max_length=100)
+
+
+@router.get("/auth/me/palette")
+async def get_palette(request: Request, user: CurrentUser = Depends(require("engineer"))) -> dict[str, Any]:
+    """"Mine symboler" i Tegn (v0.78.0) — pr. bruger."""
+    return {"symbols": _auth(request).palette(user)}
+
+
+@router.put("/auth/me/palette")
+async def put_palette(body: PaletteBody, request: Request, user: CurrentUser = Depends(require("engineer"))) -> dict[str, Any]:
+    return {"symbols": _auth(request).set_palette(user, body.symbols)}
 
 
 @router.post("/auth/password", status_code=204)

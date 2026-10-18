@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { activeFor, applyBinding, FLICKER_MS, nextFlickerColor, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, lengthScale, segmentsOf, textFor, withDirection } from './animate';
+import { activeFor, applyBinding, FLICKER_MS, motionHost, spinHost, nextFlickerColor, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, lengthScale, segmentsOf, textFor, withDirection } from './animate';
 import { FLICKER_PALETTE, flickerPalette } from './symbolConfig';
 import type { Binding, LiveValue } from './api';
 
@@ -476,6 +476,58 @@ describe('symbol-animationer (kilde = position, gælder i positionerne, blinkfre
     } finally {
       vi.useRealTimers();
     }
+  });
+  it('roterer/blafrer på et element med egen transform: en gruppe om det animeres, placeringen bevares (v0.81.1)', () => {
+    const svg = el('svg');
+    const sym = el('g', { id: 'k', transform: 'matrix(1.2 0 0 1.5 300 200)' });
+    sym.appendChild(el('rect', { id: 'k_r' }));
+    svg.appendChild(sym);
+    expect(motionHost(sym, false)).toBeNull();   // aldrig tændt: ingen gruppe
+    applyBinding(sym, { element: 'k', tag: 'Drift', anim: 'spin', params: {} }, live(true));
+    const host = sym.parentElement!;
+    expect(host).not.toBe(svg);
+    expect(host.classList.contains('hv-motion') && host.classList.contains('hv-spin')).toBe(true);
+    expect(sym.classList.contains('hv-spin')).toBe(false);
+    expect(sym.getAttribute('transform')).toBe('matrix(1.2 0 0 1.5 300 200)');
+    applyBinding(sym, { element: 'k', tag: 'Drift', anim: 'flicker', params: {} }, live(true));
+    expect(sym.parentElement).toBe(host);   // samme gruppe genbruges
+    expect(host.classList.contains('hv-flicker')).toBe(true);
+    expect((sym.querySelector('rect') as SVGElement).style.fill).not.toBe('');   // farven sættes stadig på symbolet
+    applyBinding(sym, { element: 'k', tag: 'Drift', anim: 'spin', params: {} }, live(false));
+    expect(host.classList.contains('hv-spin')).toBe(false);
+    // uden transform: som før, på elementet selv
+    const p = el('path');
+    svg.appendChild(p);
+    applyBinding(p, { element: 'p', tag: 'Drift', anim: 'spin', params: {} }, live(true));
+    expect(p.classList.contains('hv-spin') && p.parentElement === svg).toBe(true);
+  });
+  it('roterer på en pumpe: alt undtagen retningspilen drejer (v0.85.0)', () => {
+    const pumpe = el('g', { id: 'p' });
+    const cirkel = el('circle'), trekant = el('path'), pil = el('g', { 'data-hv-pid': 'pil' });
+    pumpe.append(cirkel, trekant, pil);
+    expect(spinHost(pumpe, false)).toBeNull();
+    applyBinding(pumpe, { element: 'p', tag: 'Drift', anim: 'spin', params: {} }, live(true));
+    const inner = pumpe.firstElementChild!;
+    expect(inner.classList.contains('hv-spin-inner') && inner.classList.contains('hv-spin')).toBe(true);
+    expect([...inner.children]).toEqual([cirkel, trekant]);
+    expect(pil.parentElement).toBe(pumpe);
+    expect(pumpe.lastElementChild).toBe(pil);   // pilen ligger stadig øverst
+    expect(pumpe.classList.contains('hv-spin')).toBe(false);
+    applyBinding(pumpe, { element: 'p', tag: 'Drift', anim: 'spin', params: {} }, live(false));
+    expect(inner.classList.contains('hv-spin')).toBe(false);
+    expect(pumpe.firstElementChild).toBe(inner);   // genbruges
+  });
+  it('størrelse: skaleres efter værdien om delens midte; ukendt værdi = som tegnet (v0.85.0)', () => {
+    const pil = el('g', { transform: 'rotate(90)' });
+    const b = { element: 'pil', tag: 'Flow', anim: 'scale' as const, params: { min: 0, max: 100, size_min: 50, size_max: 150 } };
+    applyBinding(pil, b, live(100));
+    expect(pil.getAttribute('transform')).toBe('rotate(90) translate(0 0) scale(1.5) translate(0 0)');
+    applyBinding(pil, b, live(0));
+    expect(pil.getAttribute('transform')).toBe('rotate(90) translate(0 0) scale(0.5) translate(0 0)');
+    applyBinding(pil, b, live(50));
+    expect(pil.getAttribute('transform')).toBe('rotate(90)');   // 100 %: ingen ekstra transform
+    applyBinding(pil, b, live(null));
+    expect(pil.getAttribute('transform')).toBe('rotate(90)');
   });
   it('næste farve og paletten', () => {
     expect(nextFlickerColor(['#a', '#b', '#c'], '#a', () => 0)).toBe('#b');

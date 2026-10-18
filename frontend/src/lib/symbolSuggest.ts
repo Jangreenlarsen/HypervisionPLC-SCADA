@@ -46,7 +46,9 @@ export function suggestSymbols(s: SelectionInfo): Suggestion[] {
   const size = Math.max(s.w, s.h);
   const small = Math.max(s.w, s.h) <= 40;
 
-  if (s.symbolType) return [];   // et symbol er allerede et symbol
+  // Allerede et symbol fra biblioteket: foreslå den nyeste udgave af samme symbol (v0.84.0) — fx pumpen med retningspil.
+  // Ukendte typer (fjernet fra biblioteket, egne) springes over af dialogen.
+  if (s.symbolType) return [{ id: s.symbolType, score: 100, why: 'Den nyeste udgave af samme symbol fra biblioteket' }];
 
   // ---- etiketter (afrundede, ufyldte rektangler af pillestørrelse)
   if (s.tag === 'rect' && s.rx >= 4 && !filled(s.fill) && s.h <= 45 && s.w >= 40) {

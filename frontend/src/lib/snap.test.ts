@@ -193,3 +193,23 @@ describe('drejede grupper efter en strækning (v0.70.1)', async () => {
     }
   });
 });
+
+describe('felt-symboler efter en strækning (v0.77.0)', async () => {
+  // @ts-expect-error — ren JS-fil i værtsmappen til SVG-Edit (ingen typer)
+  const { fieldResize } = await import('../../svgedit-host/snap.js');
+  it('statusfelt (pille, midterstillet tekst) gjort dobbelt så bredt: fladen 2×, teksten i midten, ender stadig runde', () => {
+    const r = fieldResize([{ x: 2, y: 2, w: 76, h: 26, rx: 13 }], [{ x: 40, y: 21, anchor: 'middle' }], 2, 1);
+    expect(r.rects[0]).toEqual({ x: 4, y: 2, w: 152, h: 26, rx: 13 });
+    expect(r.texts[0]).toEqual({ x: 80, y: 21 });                                   // midten af 4..156
+  });
+  it('værdifelt (venstrestillet tekst) bredere og højere: teksten beholder sin afstand til venstre kant', () => {
+    const r = fieldResize([{ x: 0, y: 0, w: 160, h: 56, rx: 4 }], [{ x: 12, y: 20, anchor: 'start' }, { x: 12, y: 45, anchor: 'start' }], 1.5, 2);
+    expect(r.rects[0]).toEqual({ x: 0, y: 0, w: 240, h: 112, rx: 4 });             // ikke en pille: rx som før
+    expect(r.texts).toEqual([{ x: 12, y: 40 }, { x: 12, y: 90 }]);
+  });
+  it('højrestillet tekst beholder sin afstand til højre kant; en højere pille forbliver en pille', () => {
+    const r = fieldResize([{ x: 0, y: 0, w: 100, h: 20, rx: 10 }], [{ x: 90, y: 15, anchor: 'end' }], 2, 2);
+    expect(r.texts[0].x).toBe(190);
+    expect(r.rects[0].rx).toBe(20);
+  });
+});

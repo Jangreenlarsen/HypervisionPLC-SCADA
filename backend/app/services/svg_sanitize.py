@@ -272,6 +272,8 @@ def describe_element(svg: str, element_id: str) -> dict[str, Any] | None:
             if c is el or not isinstance(c.tag, str) or not c.attrib.get("id"):
                 continue
             parts[c.attrib["id"]] = {**_shape_info(c), "pid": c.attrib.get("data-hv-pid")}
+            if _local(c.tag)[1] == "text":   # teksten giver delen et navn i guiden (v0.81.0)
+                parts[c.attrib["id"]]["text"] = " ".join("".join(c.itertext()).split())[:24]
         return {**_shape_info(el), "type": sym_type if _TYPE_RE.match(sym_type) else "custom",
                 "name": el.attrib.get("data-hv-name"), "parts": parts}
     return None

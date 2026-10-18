@@ -57,7 +57,11 @@ Alarmer har en **prioritet** (lav, medium, høj). Klokken i toppen er rød ved h
 - **Kommunikationsalarm**: en PLC har ikke svaret i en periode.
 - **Symbolafvigelse**: et symbol, hvor den valgte position ikke svarer til PLC'ens position (vælges i guiden, trin 4).
 
+**Markering i tegningen:** de dele, der **viser værdien** af et tag i alarm (*Værdi* og *Niveau*), får en rød markering — den blinker, til alarmen er kvitteret, og lyser fast, til den er ophørt. Dele, der blot bruger tagget til en animation (fx en flamme, der blafrer, eller pumpens pil, der vokser), markeres ikke. Genvejsknappen **Alarmer** viser antallet og blinker rødt ved ukvitterede alarmer.
+
 Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*) — eller i symbolguidens trin 6 for symbolets tags. Et symbol kan også vise alarmen selv (fx blinke ved en ukvitteret alarm), se *Symboler og guiden › Alarmer i guiden*.
+
+> Øverst på **Alarmer**, **Trends** og **Energi** står knappen **← Tilbage til "…"**, der fører tilbage til den tegning, du sidst så i Overview (fx efter et klik på en genvej i tegningen).
 
 ## Trends
 
@@ -65,9 +69,11 @@ Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*) — eller i
 
 **Trends** viser kurver over værdier gennem tiden. Kun tags, hvor **historik** er slået til, har kurver (slås til under **Tags**, eller direkte på Trends-siden med **Begynd at gemme historik**).
 
-- Vælg et eller flere **tags** i listen (søg med feltet **Søg**).
+- **Symbol**: vælg et symbol fra tegningerne, så vises **alle symbolets kurver** på én gang — du skal ikke finde tagsene selv. Har nogle af symbolets tags ikke historik, står de under listen; en tekniker kan slå dem til med **Gem historik for de …**. Historikken kan også slås til i symbolguiden (trin 6), og linket **Vis symbolet i Trends** derfra åbner Trends med symbolet valgt.
+- Eller vælg et eller flere **tags** i listen selv (søg med feltet **Søg**).
 - Vælg tidsrum: **15 min, 1 time, 8 timer, 24 timer, 7 dage**, eller **Vælg periode** for et selvvalgt interval.
 - Kurverne **opdateres live**. Peg på kurven for at se værdi og tidspunkt. Du kan **hente data som CSV** til regneark.
+- **Navn på kurverne:** sæt flueben i **Administrér** og tryk **Navn** ud for et tag — så vises navnet (fx *Fremløbstemperatur*) i stedet for tag-navnet i listen og graferne. Tomt navn = tag-navnet. Navnet er tagets *beskrivelse*, så det ses også under Alarmer og Tags; peg på et navn for at se tag-navnet.
 - Et tag kan **stoppes** (historikken bevares) eller dets **historik slettes**. Historik, der er ældre end opbevaringstiden (standard 30 dage), slettes automatisk.
 - Hullerne i en kurve betyder, at der ikke var kontakt til PLC'en dengang.
 

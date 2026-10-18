@@ -4,6 +4,114 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.87.0 build 0131] — 2026-10-18 — Alarmmarkering kun på værdivisninger
+
+- `frontend/src/lib/alarmMark.ts` (ny, testet): markering pr. element ud fra bindingerne — kun animationerne `text` (Værdi) og `level` (Niveau); ukvitteret vinder over kvitteret, når et element viser flere tags. `frontend/src/pages/Overview.svelte` — `markAlarms()` bruger den og rydder markeringen på alle andre bundne elementer (før kunne en senere binding på samme element fjerne en tidligere bindings markering).
+- Baggrund (Jan, skærmbillede fra "varme"): ved alarmen *plc1_L2_edit høj (H)* blinkede også kedlens ramme (Blafrer) og Pumpe PS1's pil (Størrelse), fordi de bruger samme tag. Manual (02).
+- **Set i browseren** lokalt: tag i H-alarm brugt af en værditekst, en blafrende ramme og en pumpepil → kun teksten får `hv-alarm-unack`, efter kvittering `hv-alarm-ack`, efter ophør ingen; rammen blafrer uden markering, pilen er umarkeret.
+
+## [0.86.0 build 0130] — 2026-10-18 — Løbehjul i pumpen
+
+- `frontend/src/lib/symbols.ts` — Pumpe: trekanten er erstattet af et **løbehjul** (del `loebehjul`: fire krumme skovle og et nav, symmetrisk om midten); retningspilen ligger øverst. `symbolConfig.ts`: delnavnet "Løbehjul" og biblioteksforslaget "Roterer på løbehjulet" (ikke for gamle pumper uden løbehjul). Manualens symboltabel (07) regenereret; manual (06).
+- **Set i browseren** lokalt: pumpe sat ind i Tegn (dele `loebehjul`, `pil`) → guiden foreslår "Løbehjul · Roterer" → på Overview under drift: løbehjulet `hv-spin`, pilen står stille (to skærmbilleder med forskellig skovlstilling, samme pil).
+
+## [0.85.0 build 0129] — 2026-10-18 — Pumpens pil drejer ikke med; ny animation Størrelse
+
+- `backend/app/services/symbols.py` — animationen `scale` ("Størrelse", `AScale`: min/max + size_min/size_max i %, > 0 og ≤ 1000); kun tal-tag (`NUMERIC_ONLY`). Test i `test_symbols.py`.
+- `frontend/src/lib/animate.ts` — `scale`: delen skaleres om sin midte (inderst i transform-listen, efter Drej/Flyt; 100 % og ukendt værdi = ingen ekstra transform). `spinHost()`: Roterer på en gruppe med en retningspil (`data-hv-pid="pil"`) drejer en indre gruppe med resten — pilen står stille og ligger stadig øverst. Test i `animate.test.ts`.
+- `frontend/src/lib/symbolConfig.ts`, `SymbolGuide.svelte`, `api.ts` — typen Størrelse med felterne *Størrelse ved min/max (%)*; ingen alarm/"altid til"-kilde (som Niveau/Gennemsigtighed).
+- Manual (06). **Set i browseren** lokalt: pumpe med Roterer på hele symbolet og Størrelse på pilen → under drift drejer cirkel og trekant, pilen står vandret; pilen 55/110/165 px ved flow 0/50/100 (50/100/150 %); guiden viser Størrelse med felterne.
+
+## [0.84.0 build 0128] — 2026-10-18 — Opdatér gamle biblioteksymboler med "Erstat med symbol"
+
+- `frontend/src/lib/symbolSuggest.ts` — et symbol fra biblioteket får forslaget "den nyeste udgave af samme symbol" (før: ingen forslag). Test.
+- `frontend/svgedit-host/scada-editor.js` — "Behold id": det erstattede elements eget id genbruges, selv om det er reserveret (før fik det et løbenummer, og opsætningen blev forældreløs — BUGS.md); "lignende" for et biblioteksymbol = samme type; med "behold id" springes en lignende del kun over, hvis dens underelementer/tekster er bundne; lignende dele med et navn beholder det. `DrawEditor.svelte`/`SymbolReplace.svelte`: antallet der springes over, følger "behold id".
+- Manual (04). **Set i browseren** lokalt: tre gamle pumper (uden pil, drejet −90°, én med opsætning) → forslaget "Pumpe — den nyeste udgave", "Også de 2 lignende" → alle tre har pilen (peger opad som før), samme størrelse og drejning, id'erne `pumpe`, `pumpe_2`, `pumpe_3` og navnene P1–P3 bevaret, opsætningen på `pumpe` virker efter Gem og udgiv.
+
+## [0.83.1 build 0127] — 2026-10-18 — fix: nye 3-vejs ventiler arvede løbelys fra et gammelt rør
+
+- `frontend/src/pages/DrawEditor.svelte` — de reserverede id'er (`/used-ids`) hentes og sættes, **før** tegningen indlæses i SVG-Edit (som giver elementer uden id et `svg_N`-id ved indlæsningen); kan listen ikke hentes, ryddes den (ikke den forrige tegnings). BUGS.md.
+- **Set i browseren** lokalt: opsætninger på de forsvundne `svg_1`/`svg_2`, ny version med en 3-vejs ventil hvis to dele ikke har id → før rettelsen fik delene `svg_1` og `svg_2` (og dermed løbelyset), efter rettelsen `svg_3` og `svg_4`.
+
+## [0.83.0 build 0126] — 2026-10-18 — Løsning på "Bindinger til elementer der ikke findes"
+
+- `frontend/src/lib/orphans.ts` (ny, testet): bindingerne pr. forsvundet element; flet flyttede bindinger ind i målets (dubletter springes over, højst 10 som serveren).
+- `frontend/src/pages/Editor.svelte` — *Forsvundne elementer*: forklaring, hvad hver binding var (tag · animation), **Flyt hertil** (til det valgte element; målet gemmes først, så intet tabes ved en fejl; afvises med forklaring, hvis målet er sat op med symbolguiden, eller hvis der er ugemte ændringer), **Fjern** og **Fjern alle**; serverens fejl vises.
+- `frontend/src/pages/Overview.svelte` — advarslen forklarer årsagen og linker (teknikere) til Bindinger.
+- Manual (05). **Set i browseren** lokalt: version 2 hvor `PLC1_Val` har fået id'et `svg_300` og `svg_190` er slettet → Overview-advarsel med link → panelet viser "OrphVal · Tekst" og "OrphBit · Synlighed"; flyt til et guide-symbol afvist med forklaring; flyt til `svg_300` virker; Fjern `svg_190`; advarslen er væk.
+
+## [0.82.1 build 0125] — 2026-10-18 — fix: pumpens pil inde i symbolet
+
+- `frontend/src/lib/symbols.ts` — Jan: "pilen skal være inde i pumpesymbolet". Pilen ligger nu inde i trekanten (stadig egen del `pil`), så pumpen har sin runde form. `scada-editor.js`: tilpasningen uden pilen i "Erstat med symbol" (v0.82.0) er fjernet igen — pumpens boks er cirklen. Manualens symboltabel (07) regenereret.
+
+## [0.82.0 build 0124] — 2026-10-18 — Retningspil på pumpen
+
+- `frontend/src/lib/symbols.ts` — Pumpe: pil på afgangssiden (egen del `pil`, så den kan farves/blinke); tip om at dreje symbolet for at vende retningen. `symbolConfig.ts`: delnavnet "Pil". Manualens symboltabel (07) regenereret.
+- `frontend/svgedit-host/scada-editor.js` — "Erstat med symbol" tilpasser efter symbolet uden pilen (`unionBox` af de øvrige dele), så en erstattet pumpe får den tegnede cirkels størrelse.
+- **Set i browseren** lokalt: tegnet pumpe (cirkel 100 × 100, trekant nedad) erstattet med Pumpe → cirklen 100 × 100 på samme sted, drejet 90° så pilen peger nedad; pilen er delen `tegnet_pil`; pumpen i biblioteket viser pilen.
+
+## [0.81.1 build 0123] — 2026-10-18 — fix: Roterer og Blafrer på "Hele symbolet" flyttede symbolet
+
+- `frontend/src/lib/animate.ts` — `motionHost()`: har elementet sin egen `transform` (placeret symbol, drejet del), kører Roterer/Blafrer på en gruppe om elementet (oprettes første gang animationen tændes, genbruges), så CSS-animationen ikke erstatter elementets placering; farverne sættes stadig på elementet. Uden transform som før. Test i `animate.test.ts`. BUGS.md.
+- **Set i browseren** lokalt (Chrome): seks placerede kedler (skaleret 1,2 × 1,5) med Farve, Stregfarve, Blink, Synlig, Roterer og Blafrer på "Hele symbolet" — alle virker; Roterer drejer om symbolets midte på stedet, Blafrer står på stedet i sin størrelse (før: hoppede op i hjørnet og mistede skaleringen).
+
+## [0.81.0 build 0122] — 2026-10-18 — Forståelige delnavne i guiden; navn på kurverne i Trends
+
+- `frontend/src/lib/symbolConfig.ts` — `partLabel()`: dele uden biblioteksnavn navngives efter formen ("Rektangel", "Cirkel 2", `Tekst "STF"`; et biblioteksymbols første rektangel = "Ramme", de øvrige nummereres uden den) med id'et i parentes. Test i `symbolConfig.test.ts`.
+- `backend/app/services/svg_sanitize.py` — `describe_element()`: tekst-dele får `text` (teksten, højst 24 tegn). Test i `test_symbols.py`.
+- `frontend/src/pages/Trends.svelte` — under *Administrér* knappen **Navn** pr. tag (sætter tagets beskrivelse; tomt = tag-navnet; serverens fejl vises); tag-navnet som tooltip. `frontend/src/lib/ask.ts` — `askText(…, { allowEmpty })`: tom tekst er et svar, kun Annullér giver null (test i `ask.test.ts`).
+- Manual (02, 06). **Set i browseren** lokalt: kedel med ramme, flamme, ekstra rektangel, tekst og cirkel → "Hele symbolet, Ramme (svg_2), Flamme, Rektangel (svg_7), Tekst "STF 1" (svg_8), Cirkel (svg_9)"; i Trends **Navn** → "Fremløbstemperatur" i listen og grafens forklaring, gemt på serveren; tomt navn → tag-navnet igen.
+
+## [0.80.1 build 0121] — 2026-10-18 — fix: Blafrer og Roterer stopper ikke ved ukvitteret alarm
+
+- `frontend/src/app.css` — et element med både Overviews alarmmarkering (`hv-alarm-unack`) og en egen animation (`hv-flicker`, `hv-spin`, `hv-blink`) kører nu begge animationer (før erstattede alarmmarkeringen den anden, da de bruger samme CSS-egenskab); blinkfrekvensen (langsom/hurtig) bevares; "reducér bevægelse" som før. BUGS.md.
+- **Set i browseren** lokalt (Chrome): som kedlen i "varme" — Blafrer på rammen og Roterer på en rotor ved ≥ 50, alarm H 90, baggrund blinker på ukvitteret alarm. Ved 95: rammen `hv-flicker, hv-alarm`, rotoren `hv-spin, hv-alarm` (på serveren før rettelsen: kun `hv-alarm`).
+
+## [0.80.0 build 0120] — 2026-10-18 — Trends ud fra symbolerne
+
+- `backend/app/services/symbols.py` — `trend_symbols()`: de opsatte symboler i tegningernes aktive version med deres tags (`config_tags`); en opsætning på et element, der ikke er i den aktive version, springes over; en tegning hvis SVG ikke kan læses, logges og springes over.
+- `backend/app/api/trends.py` — `GET /api/trends/symbols` (viewer): kun tegninger og tags brugeren må se; symboler uden synlige tags udelades. Test: `test_trend_symbols.py`.
+- `frontend/src/lib/trendSymbols.ts` (ny, testet): rute ↔ nøgle (`#trends/<tegning>/<element>`), hvilke tags der kan vises (med historik, højst 8; resten "uden historik"/"ikke plads"), gruppering pr. tegning.
+- `frontend/src/pages/Trends.svelte` — rullelisten **Symbol** (pr. tegning) vælger symbolets kurver; tags uden historik nævnes, og en tekniker kan slå dem til med ét klik (stopper ved første fejl og viser den); vælger man selv et tag, nulstilles symbolvalget; ruten med et symbol vælger det (også hvis adressen ændres, mens siden er åben); ukendt symbol giver en forklaring. `App.svelte` giver Trends ruten.
+- `frontend/src/lib/SymbolGuide.svelte` — trin 6: afsnittet **Historik (Trends)** med flueben pr. tag (PATCH `trend`), **Gem historik for alle** og linket **Vis symbolet i Trends** (ny fane, så en åben guide ikke mistes).
+- Manual (02, 06). **Set i browseren** lokalt: guidens historik-afsnit → "Gem historik for alle" → begge tags slået til på serveren; `#trends/<tegning>/pp` → symbolet valgt og begge kurver vist; et tag uden historik → nævnt, knappen slår det til og kurven kommer med; manuelt tag-valg nulstiller symbolet; ukendt symbol → forklaring.
+
+## [0.79.0 build 0119] — 2026-10-18 — Tegn og Bindinger åbner tegningen fra Overview
+
+- `frontend/src/lib/nav.ts` — `navHref()` (testet i `nav.test.ts`): fra `#overview/<id>` peger menupunkterne Tegn og Bindinger på `#draw/<id>` / `#editor/<id>`; alle andre sider og ruter som før.
+- `frontend/src/App.svelte` — menulinkene bruger `navHref()` med den aktuelle adresse (læst når menuen tegnes: Overview skifter tegning med `replaceState`, som ikke udløser `hashchange`).
+- Manual (04). **Set i browseren** lokalt (Firefox): Overview med start-tegningen og med en anden valgt tegning → Tegn og Bindinger åbner hver gang den samme tegning; fra Tags peger Tegn stadig på `#draw`.
+
+## [0.78.0 build 0118] — 2026-10-18 — Mine symboler i Tegn
+
+- `backend/app/services/auth.py` — `palette()` / `set_palette()`: brugerens symbol-id'er i valgt rækkefølge, gemt som indstillingen `palette:<bruger>` (id-format kontrolleres, dubletter fjernes, højst 60); slettes sammen med brugeren.
+- `backend/app/api/auth.py` — `GET` / `PUT /api/auth/me/palette` (tekniker og op). Test: `test_my_symbols_palette` (pr. bruger, rækkefølge, ugyldige id'er, grænse, sletning).
+- `frontend/src/lib/palette.ts` (ny, testet i `palette.test.ts`): `toggleFavorite`, `moveFavorite`, `knownFavorites` (symboler der ikke findes i biblioteket springes over).
+- `frontend/src/pages/DrawEditor.svelte` — sektionen "Mine symboler" øverst i biblioteket; hver flise har ☆/★ (øverste højre hjørne) og i Mine symboler ◀ ▶ (nederste hjørner); ændringen vises straks og rulles tilbage med serverens fejltekst, hvis den ikke kan gemmes; søgningen gælder også sektionen.
+- Manual (04). **Set i browseren** lokalt (Chrome og Firefox): tre symboler lagt ind, Varmepumpe flyttet frem, indsat fra sektionen, søgning, listen bevaret efter genindlæsning, Kedel/fyr fjernet igen.
+
+## [0.77.0 build 0117] — 2026-10-18 — Felt-symboler kan gøres bredere uden at strække teksten
+
+- `frontend/svgedit-host/snap.js` — `fieldResize()` (ren, testet i `snap.test.ts`): fladen får den nye størrelse; teksten flyttes (midterstillet følger midten, venstre/højre beholder afstanden til kanten), skriftstørrelsen er uændret; en pille forbliver en pille.
+- `frontend/svgedit-host/scada-editor.js` — `normalizeFields()` efter en strækning af Statusfelt, Værdifelt og Auto/Manuel (kun ikke-drejede, dele uden egen transform; gruppens matrix læses uden at ændre den); ét ekstra fortryd-trin.
+- Manual (04). **Set i browseren** lokalt: statusfelt trukket ud → flade 76 → 192 bred med runde ender, teksten "STF" stadig 25 bred og i midten; fortryd i to trin tilbage til udgangspunktet.
+
+## [0.76.0 build 0116] — 2026-10-18 — Tilbage til tegningen fra Alarmer, Trends og Energi
+
+- `frontend/src/lib/BackToDrawing.svelte` + `backToDrawing.ts` (ny): "← Tilbage til "<tegning>"" — den sidst viste tegning i fanen (`overview.last`); findes den ikke (mere), går knappen til Overview. Sat ind øverst i `Alarms.svelte`, `Trends.svelte`, `Energy.svelte`.
+- Manual (02). Test: `backToDrawing.test.ts`. **Set i browseren** lokalt: fra tegningen "Kedelrum test" via genvejene til hver af de tre sider → knappen "← Tilbage til "Kedelrum test"" → tilbage i Overview på tegningen.
+
+## [0.75.1 build 0115] — 2026-10-18 — Symbolbiblioteket i Tegn ruller for sig selv
+
+- `frontend/src/pages/DrawEditor.svelte` — `fitFrame()` giver sidepanelet editorens højde (ikke på skærme ≤ 900 px); "Valgt element" højst 55 % og ruller selv; "Symboler" fylder resten og ruller selv med overskrift og søgefelt stående øverst. **Set i browseren** (1400×900, 1920×1080, 820×900): panel = editorens højde (756/936 px), rulning i symbolerne flytter kun listen (siden står stille), søgefeltet bliver øverst; med et valgt symbol ruller listen stadig; smal skærm som før.
+
+## [0.75.0 build 0114] — 2026-10-17 — Genvejssymboler: Alarmer, Trends, Energi
+
+- `frontend/src/lib/symbols.ts` — kategorien *Genveje* med `genvej_alarmer`, `genvej_trends`, `genvej_energi` (`navButton`: roden har `data-hv-nav`; alarmknappen har delene `maerke` og `antal`).
+- `frontend/src/lib/navSymbols.ts` (ny) — `navTarget()` (kun alarms/trends/energy godtages), `alarmBadge()`, `markNavClickable()`, `applyAlarmBadges()`.
+- `frontend/src/pages/Overview.svelte` — klik på en genvej åbner siden (driftpanel: besked i stedet); alarmmærket opdateres ved hver alarmliste fra serveren og når tegningen monteres. `app.css`: mærkets farver og blink. `symbolConfig.ts`: kun visning.
+- Manual (04, 07). Tests: `navSymbols.test.ts`. **Set i browseren** lokalt: de tre genveje indsat fra paletten; med én aktiv ukvitteret alarm viste mærket "1" rødt; klik åbnede Alarmer, Trends og Energi.
+
 ## [0.74.1 build 0113] — 2026-10-17 — fix: grænser og til/fra-alarm på samme tag afvises; manual om tag-alarmer
 
 - `backend/app/services/tags.py` — et tag kan ikke få både grænser (HH/H/L/LL) og til/fra-alarm (alarmmotoren brugte kun til/fra-alarmen; grænserne blev stille ignoreret for "auto"-tags). Tests: `test_alarms.py` (afvisning; skift tilladt, når den anden ryddes i samme gem).

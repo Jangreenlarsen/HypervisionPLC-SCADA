@@ -2,6 +2,84 @@
 
 ---
 
+## v0.87.0 — 2026-10-18 — Alarmmarkering kun på værdier
+
+- Den røde alarmmarkering i tegningen sidder nu kun på de dele, der **viser værdien** af et tag i alarm (fx "kedel: 100,0 °C") — ikke på fx en flamme eller en pumpepil, der blot bruger samme tag.
+
+## v0.86.0 — 2026-10-18 — Løbehjul i pumpen
+
+- **Pumpen** har nu et **løbehjul** i stedet for trekanten. Det drejer, når pumpen kører (guiden foreslår det), mens pilen står stille og viser retningen. Gamle pumper opdateres med *Erstat med symbol*.
+
+## v0.85.0 — 2026-10-18 — Pumpens pil og ny animation Størrelse
+
+- **Roterer** på en pumpe drejer ikke længere **pilen** med — den viser stadig pumperetningen.
+- Ny animation **Størrelse**: en del (fx pumpens pil) bliver større eller mindre efter en tag-værdi, fx 50 % ved Min og 150 % ved Max.
+
+## v0.84.0 — 2026-10-18 — Opdatér gamle symboler
+
+- **Erstat med symbol** på et gammelt symbol fra biblioteket foreslår nu den **nyeste udgave** (fx pumpen med pil). Navn, placering og opsætning bevares, og alle symboler af samme slags kan opdateres på én gang.
+- Rettet: *Behold delens id* virkede ikke for symboler med en opsætning — de fik et nyt id og mistede opsætningen.
+
+## v0.83.1 — 2026-10-18 — Rettet: løbelys i en ny 3-vejs ventil
+
+- En ny **3-vejs ventil** (og andre symboler med dele uden navn) kunne arve en gammel animation, fx løbelys fra et slettet rør, når tegningen blev åbnet igen i Tegn. Det sker ikke længere.
+
+## v0.83.0 — 2026-10-18 — Ret forsvundne bindinger
+
+- Advarslen *Bindinger til elementer der ikke findes i denne version* forklarer nu årsagen og fører til **Bindinger → Forsvundne elementer**.
+- Dér ser du, hvad bindingerne var, og kan **flytte dem til det nye element** (hvis elementet har fået et nyt id) eller **fjerne** dem — også alle på én gang.
+
+## v0.82.1 — 2026-10-18 — Pilen inde i pumpen
+
+- Pumpens retningspil sidder nu **inde i** symbolet (i trekanten).
+
+## v0.82.0 — 2026-10-18 — Pil på pumpen
+
+- **Pumpen** i symbolbiblioteket har en **pil**, der viser pumperetningen — drej symbolet for at vende den. Pilen er en egen del og kan fx farves eller blinke. Pumper, der allerede står i tegningerne, ændres ikke (sæt en ny ind eller brug *Erstat med symbol*).
+
+## v0.81.1 — 2026-10-18 — Rettet: animation på hele symbolet
+
+- **Roterer** og **Blafrer** på *Hele symbolet* fik symbolet til at hoppe op i hjørnet og skifte størrelse. Nu bliver symbolet på sin plads.
+
+## v0.81.0 — 2026-10-18 — Forståelige navne
+
+- I symbolguiden hedder dele uden navn nu fx **Ramme**, **Rektangel 2**, **Cirkel** eller **Tekst "STF"** i stedet for "svg_2".
+- I **Trends** kan kurverne få et **navn** (under *Administrér* → **Navn**), som vises i stedet for tag-navnet.
+
+## v0.80.1 — 2026-10-18 — Rettet: blafren stoppede ved alarm
+
+- En del, der **blafrer** eller **roterer**, holdt op med at bevæge sig, når dens tag var i ukvitteret alarm (den røde alarmmarkering overtog). Nu kører begge dele.
+
+## v0.80.0 — 2026-10-18 — Trends ud fra symbolerne
+
+- I **Trends** kan du vælge et **symbol** — så vises alle dets kurver, uden at du skal finde tagsene selv.
+- I symbolguiden (trin 6) slår du **historik** til for symbolets tags (ét klik for alle), og **Vis symbolet i Trends** åbner kurverne direkte.
+
+## v0.79.0 — 2026-10-18 — Fra Overview til Tegn
+
+- Står du på en tegning i **Overview**, åbner **Tegn** og **Bindinger** i menuen nu den samme tegning.
+
+## v0.78.0 — 2026-10-18 — Mine symboler
+
+- I **Tegn** kan du samle de symboler, du bruger mest, i en egen sektion **Mine symboler** øverst i biblioteket: tryk **☆** på et symbol, og ordn dem med **◀ ▶**. Listen følger din bruger — også på en anden pc.
+
+## v0.77.0 — 2026-10-18 — Bredere statusfelter
+
+- **Statusfelt**, **Værdifelt** og **Auto/Manuel** kan trækkes bredere i Tegn, så der er plads til mere tekst — teksten bliver ikke strakt, og statusfeltet beholder sine runde ender.
+
+## v0.76.0 — 2026-10-18 — Tilbage til tegningen
+
+- **Alarmer**, **Trends** og **Energi** har en knap **← Tilbage til "…"**, der fører tilbage til den tegning, du kom fra.
+
+## v0.75.1 — 2026-10-18 — Symbolerne ruller for sig selv
+
+- I **Tegn** ruller symbolbiblioteket i højre side for sig selv — tegningen og resten af siden står stille, og søgefeltet bliver stående øverst.
+
+## v0.75.0 — 2026-10-17 — Genveje i tegningen
+
+- Ny kategori **Genveje** i symbolbiblioteket: **Gå til Alarmer**, **Gå til Trends** og **Gå til Energi**. Et klik i Overview åbner siden.
+- Alarmknappen viser **antallet af aktive alarmer** — rødt og blinkende, når der er ukvitterede.
+
 ## v0.74.1 — 2026-10-17 — Tag-alarmer forklaret
 
 - Manualen (*PLC'er og tags › Alarmer på et tag*) forklarer nu HH/H/L/LL, dødbånd, forsinkelse og til/fra-alarm med et eksempel.

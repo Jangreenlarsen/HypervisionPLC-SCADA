@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NAV, NAV_ICON, groupOf, navFor, pageFor } from './nav';
+import { NAV, NAV_ICON, groupOf, navFor, navHref, pageFor } from './nav';
 
 const ids = (role: Parameters<typeof navFor>[0]) => navFor(role).map((g) => `${g.id}:${g.pages.map((p) => p.id).join(',')}`);
 
@@ -30,5 +30,17 @@ describe('hovedmenuen', () => {
     const pages = NAV.flatMap((g) => g.pages);
     expect(new Set(pages.map((p) => p.id)).size).toBe(pages.length);
     for (const p of pages) expect(NAV_ICON[p.icon], p.id).toBeTruthy();
+  });
+});
+
+describe('menulink (v0.79.0)', () => {
+  it('Tegn og Bindinger åbner tegningen man står på i Overview', () => {
+    expect(navHref('draw', 'overview/kedelrum')).toBe('#draw/kedelrum');
+    expect(navHref('editor', 'overview/kedelrum')).toBe('#editor/kedelrum');
+    expect(navHref('tags', 'overview/kedelrum')).toBe('#tags');
+    expect(navHref('draw', 'overview')).toBe('#draw');
+    expect(navHref('draw', 'overview/')).toBe('#draw');
+    expect(navHref('draw', 'trends')).toBe('#draw');
+    expect(navHref('draw', 'draw/kedelrum')).toBe('#draw');
   });
 });

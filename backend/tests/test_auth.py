@@ -168,3 +168,29 @@ def test_cross_origin_write_rejected(admin):
     assert r.status_code == 403 and "origin" in r.json()["error"]
     r = admin.post("/api/tags", json={"name": "X", "source": "plc1:hr:1"}, headers={"origin": "http://testserver"})
     assert r.status_code == 400  # forbi origin-tjekket; fejler på at plc1 ikke findes
+
+
+def test_my_symbols_palette(tmp_path):
+    """"Mine symboler" (v0.78.0): pr. bruger, rækkefølgen bevares, dubletter fjernes, ugyldige id'er afvises; slettes med brugeren."""
+    with TestClient(create_app(_settings(tmp_path, admin_password="Admin-pw-123"))) as c:
+        assert c.post("/api/auth/login", json={"username": "admin", "password": "Admin-pw-123"}).status_code == 200
+        assert c.get("/api/auth/me/palette").json() == {"symbols": []}
+        r = c.put("/api/auth/me/palette", json={"symbols": ["pumpe", "roer_v", "pumpe", "kedel"]})
+        assert r.status_code == 200 and r.json() == {"symbols": ["pumpe", "roer_v", "kedel"]}
+        assert c.get("/api/auth/me/palette").json()["symbols"] == ["pumpe", "roer_v", "kedel"]
+        assert c.put("/api/auth/me/palette", json={"symbols": ["../x"]}).status_code == 400
+        assert c.put("/api/auth/me/palette", json={"symbols": [f"s{i}" for i in range(61)]}).status_code == 400
+        # en anden bruger har sin egen liste
+        assert c.post("/api/users", json={"username": "tek", "password": "Tekniker-pw-1", "role": "engineer"}).status_code == 201
+        c.post("/api/auth/logout")
+        c.post("/api/auth/login", json={"username": "tek", "password": "Tekniker-pw-1"})
+        if c.get("/api/auth/me").json().get("must_change_password"):
+            c.post("/api/auth/password", json={"old_password": "Tekniker-pw-1", "new_password": "Tekniker-pw-2"})
+        assert c.get("/api/auth/me/palette").json() == {"symbols": []}
+        assert c.put("/api/auth/me/palette", json={"symbols": ["ventil"]}).status_code == 200
+        c.post("/api/auth/logout")
+        c.post("/api/auth/login", json={"username": "admin", "password": "Admin-pw-123"})
+        assert c.get("/api/auth/me/palette").json()["symbols"] == ["pumpe", "roer_v", "kedel"]
+        assert c.delete("/api/users/tek").status_code == 204
+        assert c.app.state.auth_service.db.get_setting("palette:tek") is None
+

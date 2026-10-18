@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
+  import { alarmMarks } from '../lib/alarmMark';
+  import { applyAlarmBadges, markNavClickable, navTarget, NAV_TARGETS } from '../lib/navSymbols';
   import { get, post, type Binding, type DrawingView, type LiveValue, type PlcSummary } from '../lib/api';
   import { clickFor, parseSetpoint, positionLabel, positions, rangeText, toggleQuestion } from '../lib/actions';
   import { formatValue } from '../lib/animate';
@@ -121,13 +123,14 @@
 
   let alarmTags = new Map<string, 'unack' | 'ack'>();
 
+  /** Rød alarmmarkering på de dele, der viser et tag i alarm som værdi (v0.87.0: kun Værdi/Niveau — se lib/alarmMark). */
   function markAlarms(): void {
     if (!container || !view) return;
-    for (const b of view.bindings) {
-      if (!b.tag) continue;
-      const el = container.querySelector(`#${CSS.escape(b.element)}`);
+    const marks = alarmMarks(view.bindings, alarmTags);
+    for (const element of new Set(view.bindings.map((b) => b.element))) {
+      const el = container.querySelector(`#${CSS.escape(element)}`);
       if (!el) continue;
-      const st = alarmTags.get(b.tag);
+      const st = marks.get(element);
       el.classList.toggle('hv-alarm-unack', st === 'unack');
       el.classList.toggle('hv-alarm-ack', st === 'ack');
     }
@@ -176,7 +179,10 @@
     },
   );
 
-  live.onAlarms = (_s, active) => {
+  let alarmSummaryNow: { active: number; unacked: number } | null = null;   // til genvejen til Alarmer (v0.75.0)
+  live.onAlarms = (summary, active) => {
+    alarmSummaryNow = summary;
+    applyAlarmBadges(container, summary);
     const next = new Map<string, 'unack' | 'ack'>();
     for (const a of active) {
       if (!a.tag) continue; // PLC-kommunikationsalarmer vises i banneret, ikke på elementer
@@ -213,6 +219,8 @@
       byTag = indexByTag(view.bindings.filter((b) => b.tag));
       renderAll(container, view.bindings, values, view.tags);
       markAlarms();
+      markNavClickable(svgRoot);
+      applyAlarmBadges(svgRoot, alarmSummaryNow);
       clearOverlays(svgRoot);
       pseudoOf = new Map();
       for (const [element, s] of Object.entries(symbolsOf())) {
@@ -261,6 +269,13 @@
   async function onCanvasClick(e: MouseEvent): Promise<void> {
     if (dragged) {
       dragged = false; // afslutningen på et træk/knib er ikke et klik
+      return;
+    }
+    // Genvej (data-hv-nav): åbn Alarmer, Trends eller Energi
+    const nav = navTarget(e.target as Element);
+    if (nav) {
+      if (panel) showToast('error', `${NAV_TARGETS[nav]} kan ikke åbnes på driftpanelet — det viser kun drifttegningen`);
+      else location.hash = `#${nav}`;
       return;
     }
     const element = symbolTarget(e.target as Element);
@@ -554,7 +569,12 @@
   <div class="notice">Forbindelsen til SCADA-serveren er afbrudt — værdierne er ikke opdaterede. Forsøger igen …</div>
 {/if}
 {#if view && view.orphaned_bindings.length}
-  <div class="notice">Bindinger til elementer der ikke findes i denne version: {view.orphaned_bindings.join(', ')}</div>
+  <div class="notice">
+    Bindinger til elementer der ikke findes i denne version: {view.orphaned_bindings.join(', ')} — elementerne er slettet i Tegn
+    eller har fået et nyt id, så bindingerne virker ikke.
+    {#if canEdit && selected}<a href={`#editor/${selected}`}>Ret under Bindinger → Forsvundne elementer</a> (flyt dem til det nye element, eller fjern dem).
+    {:else}Bed en tekniker om at rette det under Bindinger.{/if}
+  </div>
 {/if}
 
 {#if !drawings.length && !error}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeAt, animDefaults, cycleCell, emptyConfig, foundPosition, preset, resize, setOp, tagKind, template, typesFor,
-  type SymbolConfig,
+  activeAt, animDefaults, cycleCell, emptyConfig, foundPosition, partLabel, preset, resize, setOp, tagKind, template, typesFor,
+  type PartInfo, type SymbolConfig, type SymbolInfo,
 } from './symbolConfig';
 
 const positions = (labels: string[]): SymbolConfig => {
@@ -98,5 +98,24 @@ describe('animationer', () => {
     expect(animDefaults('rotate', 'pos', 3)).toEqual({ angles: [-45, 0, 45] });
     expect(animDefaults('blink', 'num', 0)).toEqual({ at_least: 50, speed: 'normal' });
     expect(animDefaults('flow', 'pos', 3).dirs).toEqual([0, 1, 1]);
+  });
+});
+
+describe('delnavne i guiden (v0.81.0)', () => {
+  const info = (type: string, parts: Record<string, PartInfo>): SymbolInfo => ({ tag: 'g', line: false, type, name: 'X', parts });
+  it('biblioteksnavn, ramme, nummererede figurer og tekst', () => {
+    const kedel = info('kedel', { svg_2: { tag: 'rect', line: true }, svg_39_flamme: { tag: 'path', line: true, pid: 'flamme' } });
+    expect(partLabel('all', kedel)).toBe('Hele symbolet');
+    expect(partLabel('svg_39_flamme', kedel)).toBe('Flamme');
+    expect(partLabel('svg_2', kedel)).toBe('Ramme (svg_2)');
+    const kedel2 = info('kedel', { svg_2: { tag: 'rect', line: true }, svg_7: { tag: 'rect', line: true }, svg_8: { tag: 'rect', line: true } });
+    expect(['svg_2', 'svg_7', 'svg_8'].map((k) => partLabel(k, kedel2))).toEqual(['Ramme (svg_2)', 'Rektangel 1 (svg_7)', 'Rektangel 2 (svg_8)']);
+    const egen = info('custom', {
+      a: { tag: 'rect', line: true }, b: { tag: 'rect', line: true }, c: { tag: 'circle', line: false },
+      d: { tag: 'text', line: false, text: 'STF' }, e: { tag: 'text', line: false, text: '' }, f: { tag: 'foo', line: false },
+    });
+    expect(['a', 'b', 'c', 'd', 'e', 'f'].map((k) => partLabel(k, egen)))
+      .toEqual(['Rektangel 1 (a)', 'Rektangel 2 (b)', 'Cirkel (c)', 'Tekst "STF" (d)', 'Tekst 2 (e)', 'Del (f)']);
+    expect(partLabel('ukendt', egen)).toBe('ukendt');
   });
 });
