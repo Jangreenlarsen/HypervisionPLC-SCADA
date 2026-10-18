@@ -138,11 +138,14 @@
       const v = version ?? detail.active_version;
       const resp = await fetch(`/api/drawings/${encodeURIComponent(id)}/svg?version=${v}`);
       if (!resp.ok) throw new Error(`Kunne ikke hente SVG (HTTP ${resp.status})`);
-      if (!ed.load(await resp.text())) throw new Error('SVG-Edit kunne ikke læse tegningen');
+      const text = await resp.text();
+      // De reserverede id'er skal kendes FØR indlæsningen: SVG-Edit giver elementer uden id (fx dele af 3-vejs ventilen)
+      // et svg_N-id, når tegningen indlæses — ellers kan de få et id med en gammel opsætning (BUGS.md v0.83.1)
+      await refreshReservedIds(id);
+      if (!ed.load(text)) throw new Error('SVG-Edit kunne ikke læse tegningen');
       current = detail;
       loadedVersion = v;
       dirty = false;
-      await refreshReservedIds();
       history.replaceState(null, '', `#draw/${id}`);
     } catch (e) {
       error = (e as Error).message;
@@ -171,12 +174,13 @@
    * Id'er med opsætning eller binding på tegningen (også forsvundne) må ikke gives til nye elementer — ellers "vågner" en
    * gammel opsætning op på dem (BUGS.md v0.68.0). Hentes når tegningen åbnes, og når opsætninger ændres.
    */
-  async function refreshReservedIds(): Promise<void> {
-    if (!ed || !current) return;
+  async function refreshReservedIds(drawingId = current?.id): Promise<void> {
+    if (!ed || !drawingId) return;
     try {
-      ed.setReservedIds(await get<string[]>(`/api/drawings/${encodeURIComponent(current.id)}/used-ids`));
+      ed.setReservedIds(await get<string[]>(`/api/drawings/${encodeURIComponent(drawingId)}/used-ids`));
     } catch (e) {
       // uden listen kan et id blive genbrugt — sig det, men lad tegningen kunne bruges
+      ed.setReservedIds([]);   // ikke den forrige tegnings liste
       error = `Kunne ikke hente tegningens brugte id'er (nye elementer kan arve en gammel opsætning): ${(e as Error).message}`;
     }
   }

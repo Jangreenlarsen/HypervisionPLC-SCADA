@@ -2,6 +2,10 @@
 
 ---
 
+## v0.83.1 — 2026-10-18 — Rettet: løbelys i en ny 3-vejs ventil
+
+- En ny **3-vejs ventil** (og andre symboler med dele uden navn) kunne arve en gammel animation, fx løbelys fra et slettet rør, når tegningen blev åbnet igen i Tegn. Det sker ikke længere.
+
 ## v0.83.0 — 2026-10-18 — Ret forsvundne bindinger
 
 - Advarslen *Bindinger til elementer der ikke findes i denne version* forklarer nu årsagen og fører til **Bindinger → Forsvundne elementer**.

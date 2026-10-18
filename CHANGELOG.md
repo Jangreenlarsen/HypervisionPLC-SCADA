@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.83.1 build 0127] — 2026-10-18 — fix: nye 3-vejs ventiler arvede løbelys fra et gammelt rør
+
+- `frontend/src/pages/DrawEditor.svelte` — de reserverede id'er (`/used-ids`) hentes og sættes, **før** tegningen indlæses i SVG-Edit (som giver elementer uden id et `svg_N`-id ved indlæsningen); kan listen ikke hentes, ryddes den (ikke den forrige tegnings). BUGS.md.
+- **Set i browseren** lokalt: opsætninger på de forsvundne `svg_1`/`svg_2`, ny version med en 3-vejs ventil hvis to dele ikke har id → før rettelsen fik delene `svg_1` og `svg_2` (og dermed løbelyset), efter rettelsen `svg_3` og `svg_4`.
+
 ## [0.83.0 build 0126] — 2026-10-18 — Løsning på "Bindinger til elementer der ikke findes"
 
 - `frontend/src/lib/orphans.ts` (ny, testet): bindingerne pr. forsvundet element; flet flyttede bindinger ind i målets (dubletter springes over, højst 10 som serveren).
