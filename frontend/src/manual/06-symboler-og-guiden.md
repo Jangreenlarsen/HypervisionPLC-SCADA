@@ -55,7 +55,7 @@ Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symb
 
 **Størrelse** (tal-tag) gør delen større eller mindre om sin egen midte efter værdien: ved **Min** har den *Størrelse ved min* (fx 50 %), ved **Max** *ved max* (fx 150 %), og imellem glidende. Fx pumpens **Pil**, så den vokser med flowet. Uden gyldig værdi vises delen i sin tegnede størrelse.
 
-**Pumpens pil drejer ikke med:** sættes *Roterer* på hele pumpen, drejer cirklen og trekanten, men retningspilen bliver stående og viser stadig pumperetningen.
+**Pumpen** har et **Løbehjul** og en **Pil**. Guiden foreslår *Roterer* på løbehjulet, så det drejer, når pumpen kører; pilen står stille og viser pumperetningen (også hvis *Roterer* sættes på hele pumpen). Ældre pumper med en trekant opdateres med *Erstat med symbol* — sæt derefter *Roterer* på løbehjulet.
 
 Står flere animationer på samme del, **vinder den nederste** (▲▼ ændrer rækkefølgen). Animationer kan også begrænses til bestemte positioner (**Gælder i**).
 

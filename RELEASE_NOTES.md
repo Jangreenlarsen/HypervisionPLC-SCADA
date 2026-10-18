@@ -2,6 +2,10 @@
 
 ---
 
+## v0.86.0 — 2026-10-18 — Løbehjul i pumpen
+
+- **Pumpen** har nu et **løbehjul** i stedet for trekanten. Det drejer, når pumpen kører (guiden foreslår det), mens pilen står stille og viser retningen. Gamle pumper opdateres med *Erstat med symbol*.
+
 ## v0.85.0 — 2026-10-18 — Pumpens pil og ny animation Størrelse
 
 - **Roterer** på en pumpe drejer ikke længere **pilen** med — den viser stadig pumperetningen.

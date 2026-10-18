@@ -63,7 +63,7 @@ export const BLINK_TXT: Record<string, string> = { slow: 'Langsom (0,5 Hz)', nor
 export const PART_LABEL: Record<string, string> = {
   greb: 'Greb', vippe: 'Vippe', spor: 'Spor', flade: 'Knap', tekst: 'Tekst', vaerdi: 'Værdi', status: 'Status',
   felt: 'Felt', port_a: 'Port A', port_b: 'Port B', port_ab: 'Port AB', motor: 'Motor',
-  lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive', pil: 'Pil',
+  lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive', pil: 'Pil', loebehjul: 'Løbehjul',
   tilloeb1: 'Tilløbsrør 1', tilloeb2: 'Tilløbsrør 2', midte: 'Midterrør', roer1: 'Rør 1', roer2: 'Rør 2', roer3: 'Rør 3', roer4: 'Rør 4',
 };
 
@@ -126,6 +126,13 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     if (!flamme) return null;
     cfg.anims.push({ part: flamme, type: 'flicker', src: '', params: animDefaults('flicker', 'bool', 0), only: null });
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: flammen bliver orange og blafrer, når brænderen kører. Vælg drifts-tagget under trin 4.' };
+  }
+  if (symbol.type === 'pumpe') {
+    // Drift (v0.86.0): løbehjulet drejer — pilen står stille og viser retningen
+    const hjul = partOf('loebehjul');
+    if (!hjul) return null;   // en gammel pumpe uden løbehjul (opdatér med "Erstat med symbol")
+    cfg.anims.push({ part: hjul, type: 'spin', src: '', params: animDefaults('spin', 'bool', 0), only: null });
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: løbehjulet drejer, når pumpen kører. Vælg drifts-tagget under trin 4.' };
   }
   if (symbol.type === 'varmepumpe') {
     // Drift: rotoren drejer og lampen bliver grøn — begge fra samme drifts-tag (vælges i trin 4)

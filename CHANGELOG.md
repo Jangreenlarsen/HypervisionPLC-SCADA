@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.86.0 build 0130] — 2026-10-18 — Løbehjul i pumpen
+
+- `frontend/src/lib/symbols.ts` — Pumpe: trekanten er erstattet af et **løbehjul** (del `loebehjul`: fire krumme skovle og et nav, symmetrisk om midten); retningspilen ligger øverst. `symbolConfig.ts`: delnavnet "Løbehjul" og biblioteksforslaget "Roterer på løbehjulet" (ikke for gamle pumper uden løbehjul). Manualens symboltabel (07) regenereret; manual (06).
+- **Set i browseren** lokalt: pumpe sat ind i Tegn (dele `loebehjul`, `pil`) → guiden foreslår "Løbehjul · Roterer" → på Overview under drift: løbehjulet `hv-spin`, pilen står stille (to skærmbilleder med forskellig skovlstilling, samme pil).
+
 ## [0.85.0 build 0129] — 2026-10-18 — Pumpens pil drejer ikke med; ny animation Størrelse
 
 - `backend/app/services/symbols.py` — animationen `scale` ("Størrelse", `AScale`: min/max + size_min/size_max i %, > 0 og ≤ 1000); kun tal-tag (`NUMERIC_ONLY`). Test i `test_symbols.py`.

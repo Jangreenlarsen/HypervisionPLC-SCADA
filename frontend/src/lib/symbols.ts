@@ -173,12 +173,14 @@ export const SYMBOLS: SymbolDef[] = [
   },
   {
     id: 'pumpe', label: 'Pumpe', category: 'proces',
-    hint: 'Pilen viser pumperetningen — drej symbolet for at vende den. Bind "Fyldfarve" til drift-signalet',
+    hint: 'Løbehjulet drejer, når pumpen kører (Roterer); pilen viser pumperetningen — drej symbolet for at vende den',
     svg: `<g><circle cx="40" cy="40" r="32" fill="${FILL}" stroke="${LINE}" stroke-width="3"/>` +
-      `<path d="M28 22 L60 40 L28 58 Z" fill="${FILL}" stroke="${DARK}" stroke-width="2"/>` +
-      // Retningspil inde i trekanten (v0.82.1) — egen del, så den kan farves/blinke
-      `<g id="pil"><path d="M31 40 H45" fill="none" stroke="${DARK}" stroke-width="3"/>` +
-      `<path d="M43 34.5 L53 40 L43 45.5 Z" fill="${DARK}" stroke="${DARK}" stroke-width="1" stroke-linejoin="round"/></g></g>`,
+      // Løbehjul (v0.86.0): fire krumme skovle om et nav, symmetrisk om midten (40,40), så det drejer på stedet
+      `<g id="loebehjul"><path d="M40 40 C40 31 45 24 54 21 M40 40 C49 40 56 45 59 54 M40 40 C40 49 35 56 26 59 M40 40 C31 40 24 35 21 26" ` +
+      `fill="none" stroke="${PANEL}" stroke-width="4" stroke-linecap="round"/><circle cx="40" cy="40" r="5" fill="${DARK}"/></g>` +
+      // Retningspil øverst (v0.82.0) — egen del; drejer ikke med (Roterer på hele symbolet springer den over)
+      `<g id="pil"><path d="M25 40 H47" fill="none" stroke="${DARK}" stroke-width="3.5"/>` +
+      `<path d="M45 32.5 L59 40 L45 47.5 Z" fill="${DARK}" stroke="${DARK}" stroke-width="1" stroke-linejoin="round"/></g></g>`,
   },
   {
     id: 'motor', label: 'Motor', category: 'proces', hint: 'Bind "Fyldfarve" til drift-signalet',
