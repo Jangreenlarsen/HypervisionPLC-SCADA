@@ -26,7 +26,7 @@ from .bindings import (DEFAULT_OFF, DEFAULT_ON, ColorParams, FlowParams, LevelPa
                        RotateParams, TextParams, ToggleParams, _color)
 from .errors import ServiceError
 from .operate import INT_RANGES, to_raw
-from .svg_sanitize import describe_element, named_symbols
+from .svg_sanitize import describe_element, index_svg, named_symbols
 from .tagsource import TagSourceError, parse_source
 
 log = logging.getLogger(__name__)
@@ -1086,6 +1086,59 @@ class SymbolService:
             raise ServiceError(404, f"'{element}' har ingen symbol-konfiguration")
         if self.on_change is not None:
             self.on_change(drawing_id, element)
+
+    # ------------------------------------------------------------ forsvundne opsætninger (v0.88.0)
+
+    def orphaned(self, drawing_id: str) -> list[dict[str, Any]]:
+        """Opsætninger på elementer, der ikke findes i tegningens aktive version (slettet i Tegn eller fået et nyt id)."""
+        self.drawings._require(drawing_id)
+        present = index_svg(self.drawings.svg(drawing_id))
+        return [{"element": e, "type": cfg.get("type", ""), "op": cfg.get("op", ""),
+                 "anims": [{"part": a.get("part"), "type": a.get("type"), "src": a.get("src", "")} for a in cfg.get("anims", [])],
+                 "has_pin": self.db.get_symbol_pin_hash(drawing_id, e) is not None}
+                for e, cfg in self.configs(drawing_id).items() if e not in present]
+
+    def move(self, actor: CurrentUser, drawing_id: str, source: str, target: str) -> dict[str, Any]:
+        """Flyt en forsvundet opsætning til et andet element. Dele følger id-mønstret `<symbol>_<del>` (fx `pumpe_pil` →
+        `pumpe_4_pil`); animationer på dele, der ikke findes på målet, droppes (med besked). PIN flyttes med."""
+        row = self.db.get_symbol_config(drawing_id, source)
+        if row is None:
+            raise ServiceError(404, f"'{source}' har ingen symbol-opsætning")
+        if source in index_svg(self.drawings.svg(drawing_id)):
+            raise ServiceError(409, f"'{source}' findes stadig i tegningen — kun en forsvundet opsætning kan flyttes")
+        info = self._element(drawing_id, target)
+        if self.db.get_symbol_config(drawing_id, target) is not None:
+            raise ServiceError(409, f"'{target}' har allerede en opsætning — fjern den først, eller vælg et andet element")
+        users = self._logic_users(drawing_id, source, {b["id"] for b in row["config"].get("logic", [])})
+        if users:
+            raise ServiceError(409, f"Symbolets logikblok {users[0][1]} bruges af symbolet '{users[0][0]}' — fjern henvisningen dér først")
+        cfg = dict(row["config"])
+        anims, dropped = [], []
+        for a in cfg.get("anims", []):
+            part = a.get("part", "all")
+            if part != "all":
+                new = target + part[len(source):] if part.startswith(source + "_") else None
+                if new is None or new not in info["parts"]:
+                    dropped.append(part)
+                    continue
+                a = {**a, "part": new}
+            anims.append(a)
+        cfg["anims"] = anims
+        pin_hash = self.db.get_symbol_pin_hash(drawing_id, source)
+        if pin_hash is not None:
+            self.db.set_symbol_pin_hash(drawing_id, target, pin_hash, actor.username)
+        try:
+            result = self.put(actor, drawing_id, target, cfg)
+        except Exception:
+            if pin_hash is not None:
+                self.db.delete_symbol_pin(drawing_id, target)   # målet havde ingen opsætning — ryd op igen
+            raise
+        self.db.delete_symbol_config(drawing_id, source)
+        log.info("Symbolopsætning %s#%s flyttet til %s af %s (%d animationer droppet)", drawing_id, source, target,
+                 actor.username, len(dropped))
+        if self.on_change is not None:
+            self.on_change(drawing_id, source)
+        return {**result, "dropped": dropped}
 
     def trend_symbols(self, drawing_ids: set[str] | None) -> list[dict[str, Any]]:
         """De opsatte symboler med deres tags, tegning for tegning — til "Vælg symbol" i Trends (v0.80.0).

@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.88.0 build 0132] — 2026-10-18 — Systemgennemgang F1: forsvundne symbolopsætninger kan ses, flyttes og fjernes
+
+- Fase 1 (læse-kun gennemgang): lag, roller pr. endpoint, tegningsadgang, session/CSRF/login-låsning, opdateringspakke og backup (størrelser, stier), hemmeligheder i log, PLC-klientens fejlstatusser og npm-afhængigheder var i orden. Data på testserveren: 4 symbolopsætninger på forsvundne elementer (F1) og 3 symboler med samme navn (F2).
+- `backend/app/services/symbols.py` — `orphaned()` og `move()` (dele via id-mønstret `<symbol>_<del>`, ellers droppet med besked; PIN flyttes med og ryddes igen, hvis flytningen afvises; logikblokke brugt af andre symboler blokerer); `backend/app/api/symbols.py` — `GET /api/drawings/{id}/symbols-orphaned`, `POST …/symbols/{element}/move` (audit `symbol.move`). Test: `test_symbol_orphans.py`.
+- `frontend/src/pages/Editor.svelte` — *Forsvundne elementer* viser også symbolopsætninger (type, animationer, kode) med **Flyt hertil** / **Fjern** / **Fjern alle**. Rettet samtidig: beskeden efter "Flyt hertil" (også for bindinger, v0.83.0) blev aldrig vist — den blev ryddet, når elementet blev valgt igen efter genindlæsningen.
+- Manual (05). BUGS.md. **Set i browseren** lokalt: pumpe `P` med opsætning (+ del `P_pil`), ny version hvor den hedder `P_2`, og et slettet rektangel med opsætning → panelet viser begge; *Flyt hertil* på `P_2` → `all` + `P_2_pil` og beskeden vises; *Fjern* det andet → panelet forsvinder.
+
 ## [0.87.0 build 0131] — 2026-10-18 — Alarmmarkering kun på værdivisninger
 
 - `frontend/src/lib/alarmMark.ts` (ny, testet): markering pr. element ud fra bindingerne — kun animationerne `text` (Værdi) og `level` (Niveau); ukvitteret vinder over kvitteret, når et element viser flere tags. `frontend/src/pages/Overview.svelte` — `markAlarms()` bruger den og rydder markeringen på alle andre bundne elementer (før kunne en senere binding på samme element fjerne en tidligere bindings markering).
