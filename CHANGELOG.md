@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.80.0 build 0120] — 2026-10-18 — Trends ud fra symbolerne
+
+- `backend/app/services/symbols.py` — `trend_symbols()`: de opsatte symboler i tegningernes aktive version med deres tags (`config_tags`); en opsætning på et element, der ikke er i den aktive version, springes over; en tegning hvis SVG ikke kan læses, logges og springes over.
+- `backend/app/api/trends.py` — `GET /api/trends/symbols` (viewer): kun tegninger og tags brugeren må se; symboler uden synlige tags udelades. Test: `test_trend_symbols.py`.
+- `frontend/src/lib/trendSymbols.ts` (ny, testet): rute ↔ nøgle (`#trends/<tegning>/<element>`), hvilke tags der kan vises (med historik, højst 8; resten "uden historik"/"ikke plads"), gruppering pr. tegning.
+- `frontend/src/pages/Trends.svelte` — rullelisten **Symbol** (pr. tegning) vælger symbolets kurver; tags uden historik nævnes, og en tekniker kan slå dem til med ét klik (stopper ved første fejl og viser den); vælger man selv et tag, nulstilles symbolvalget; ruten med et symbol vælger det (også hvis adressen ændres, mens siden er åben); ukendt symbol giver en forklaring. `App.svelte` giver Trends ruten.
+- `frontend/src/lib/SymbolGuide.svelte` — trin 6: afsnittet **Historik (Trends)** med flueben pr. tag (PATCH `trend`), **Gem historik for alle** og linket **Vis symbolet i Trends** (ny fane, så en åben guide ikke mistes).
+- Manual (02, 06). **Set i browseren** lokalt: guidens historik-afsnit → "Gem historik for alle" → begge tags slået til på serveren; `#trends/<tegning>/pp` → symbolet valgt og begge kurver vist; et tag uden historik → nævnt, knappen slår det til og kurven kommer med; manuelt tag-valg nulstiller symbolet; ukendt symbol → forklaring.
+
 ## [0.79.0 build 0119] — 2026-10-18 — Tegn og Bindinger åbner tegningen fra Overview
 
 - `frontend/src/lib/nav.ts` — `navHref()` (testet i `nav.test.ts`): fra `#overview/<id>` peger menupunkterne Tegn og Bindinger på `#draw/<id>` / `#editor/<id>`; alle andre sider og ruter som før.

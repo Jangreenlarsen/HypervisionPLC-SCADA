@@ -184,14 +184,32 @@
   const alarmNames = $derived(symbolTags.flatMap((t) => [`alarm:${t}:active`, `alarm:${t}:unack`]));
   $effect(() => { live.subscribe([...usedTags, ...foreignTags, ...alarmNames]); });
   // Tagenes alarmopsætning hentes, når trin 6 åbnes (og opdateres, når en alarm rettes her)
-  let alarmRows = $state<Record<string, TagAlarmRow & { unit?: string; source?: string }>>({});
+  let alarmRows = $state<Record<string, TagAlarmRow & { unit?: string; source?: string; description?: string; trend?: boolean; trend_interval_s?: number }>>({});
   let alarmLoadError = $state('');
   $effect(() => {
     if (step !== 5) return;
-    get<(TagAlarmRow & { name: string; unit?: string; source?: string })[]>('/api/tags')
+    get<(TagAlarmRow & { name: string; unit?: string; source?: string; description?: string; trend?: boolean; trend_interval_s?: number })[]>('/api/tags')
       .then((list) => { alarmRows = Object.fromEntries(list.map((t) => [t.name, t])); alarmLoadError = ''; })
       .catch((e) => { alarmLoadError = (e as Error).message; });
   });
+  // Historik (Trends) for symbolets tags (v0.80.0) — tagets "trend" (gælder tagget overalt, som under Tags)
+  let trendBusy = $state('');
+  let trendError = $state('');
+  const noTrend = $derived(symbolTags.filter((t) => alarmRows[t] && !alarmRows[t].trend));
+  async function setTrend(names: string[], on: boolean): Promise<void> {
+    trendError = '';
+    for (const t of names) {
+      trendBusy = t;
+      try {
+        const row = await api<typeof alarmRows[string]>('PATCH', `/api/tags/${encodeURIComponent(t)}`, { trend: on });
+        alarmRows = { ...alarmRows, [t]: { ...alarmRows[t], ...row } };
+      } catch (e) {
+        trendError = `${t}: ${(e as Error).message}`;
+        break;   // samme fejl rammer typisk de næste — stop
+      }
+    }
+    trendBusy = '';
+  }
   onDestroy(() => {
     live.close();
     if (timer) clearTimeout(timer);
@@ -754,6 +772,28 @@
               </tbody>
             </table>
           {/if}
+          {#if symbolTags.length}
+            <h4>Historik (Trends)</h4>
+            <table class="grid">
+              <thead><tr><th>Tag</th><th>Gem historik</th></tr></thead>
+              <tbody>
+                {#each symbolTags.filter((t) => alarmRows[t]) as t (t)}
+                  <tr>
+                    <td><strong>{t}</strong>{#if alarmRows[t].description}<span class="small muted desc">{alarmRows[t].description}</span>{/if}</td>
+                    <td><label class="small"><input type="checkbox" checked={!!alarmRows[t].trend} disabled={!!trendBusy}
+                      onchange={(e) => setTrend([t], e.currentTarget.checked)} />
+                      {alarmRows[t].trend ? `ja — højst hvert ${alarmRows[t].trend_interval_s ?? 10}. sekund` : 'nej'}</label></td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+            <div class="row">
+              {#if noTrend.length}<button class="small" onclick={() => setTrend(noTrend, true)} disabled={!!trendBusy}>{trendBusy ? 'Slår til …' : 'Gem historik for alle'}</button>{/if}
+              <a class="small" href={`#trends/${drawingId}/${element}`} target="_blank" rel="noopener">Vis symbolet i Trends ↗</a>
+            </div>
+            {#if trendError}<p class="small error">{trendError}</p>{/if}
+            <p class="small muted">Gælder tagget overalt (samme som under <strong>Tags</strong>). Kurverne fyldes op fra nu af; i <strong>Trends</strong> vælger du symbolet, så vises alle dets kurver. Intervallet ændres under Tags.</p>
+          {/if}
           {#if preview?.plans.length}
             <h4>Skriveplan pr. position (fra den aktuelle tilstand)</h4>
             <table class="grid">
@@ -928,6 +968,7 @@
   .grid td.skriv { min-width: 13em; }
   .planes td, .planes th { text-align: center; }
   .n { width: 5.5em; }
+  .desc { margin-left: .4rem; }
   .lbl { width: 7em; }
   .pin { letter-spacing: .3em; }
   .pos { display: inline-flex; gap: .15rem; }

@@ -1,13 +1,14 @@
 <script lang="ts">
-  import { onDestroy, onMount, tick } from 'svelte';
+  import { onDestroy, onMount, tick, untrack } from 'svelte';
   import BackToDrawing from '../lib/BackToDrawing.svelte';
   import { ask as askUser } from '../lib/ask';
   import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
   import { align, assignColors, groupByUnit, MAX_SERIES, RANGES, SERIES_COLORS, type Point } from '../lib/trendData';
+  import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
 
-  let { canEdit = false }: { canEdit?: boolean } = $props();
+  let { canEdit = false, route = 'trends' }: { canEdit?: boolean; route?: string } = $props();
 
   interface InfoTag { name: string; unit: string; description: string; plc: string; trend: boolean;
     trend_interval_s: number; samples: number; oldest: number | null; is_bool: boolean }
@@ -72,6 +73,61 @@
   });
   let stopLayout: (() => void) | null = null;
 
+  // ---------------------------------------------------------------- vælg et symbol (v0.80.0)
+  let symbols = $state<TrendSymbol[]>([]);
+  let symKey = $state('');
+  let symBusy = $state(false);
+  const chosen = $derived(symbols.find((s) => symbolKey(s) === symKey) ?? null);
+  const symSeries = $derived(chosen && info ? symbolSeries(chosen, info.tags, MAX_SERIES) : null);
+  const label = (n: string) => tagInfo.get(n)?.description || n;
+
+  /** Vis symbolets kurver (erstatter det valgte); '' = vælg tags selv. */
+  function chooseSymbol(key: string, reload = true): void {
+    symKey = key;
+    history.replaceState(null, '', key ? `#trends/${key}` : '#trends');
+    const sym = symbols.find((s) => symbolKey(s) === key);
+    if (!sym || !info) return;
+    selected = symbolSeries(sym, info.tags, MAX_SERIES).show;
+    colors = assignColors(selected, {});
+    saveSelection();
+    if (reload) load();
+  }
+
+  const UNKNOWN = 'Symbolet findes ikke (mere), har ingen opsætning, eller du har ikke adgang til det — vælg tags selv.';
+  function routeSymbol(k: string, reload = true): boolean {
+    if (!symbols.some((s) => symbolKey(s) === k)) return false;
+    chooseSymbol(k, reload);
+    return true;
+  }
+  // Adressen ændret, mens siden er åben (fx skrevet i adresselinjen): vis det symbol
+  let mounted = false;
+  $effect(() => {
+    const k = keyFromRoute(route);
+    untrack(() => {
+      if (!mounted || !k || k === symKey) return;
+      error = routeSymbol(k) ? '' : UNKNOWN;
+    });
+  });
+
+  /** Tekniker/admin: slå historik til for symbolets tags uden historik — kurverne fyldes op fra nu af. */
+  async function enableSymbolTags(): Promise<void> {
+    if (!symSeries || !info) return;
+    error = '';
+    symBusy = true;
+    try {
+      for (const name of symSeries.missing) {
+        await patch(`/api/tags/${encodeURIComponent(name)}`, { trend: true });
+        const t = info.tags.find((x) => x.name === name);
+        if (t) t.trend = true;
+      }
+    } catch (e) {
+      error = (e as Error).message;   // stop ved første fejl; dem der nåede at blive slået til, bliver vist
+    } finally {
+      symBusy = false;
+      chooseSymbol(symKey);
+    }
+  }
+
   function loadSelection(): string[] {
     try {
       return JSON.parse(localStorage.getItem('trend.selected') ?? '[]');
@@ -120,6 +176,10 @@
   }
 
   function toggle(name: string): void {
+    if (symKey) {
+      symKey = '';   // valget er ikke længere "symbolets kurver"
+      history.replaceState(null, '', '#trends');
+    }
     if (selected.includes(name)) selected = selected.filter((n) => n !== name);
     else if (selected.length >= MAX_SERIES) {
       error = `Højst ${MAX_SERIES} tags ad gangen — fravælg et først`;
@@ -239,6 +299,16 @@
     } catch (e) {
       error = (e as Error).message;
     }
+    try {
+      symbols = await get<TrendSymbol[]>('/api/trends/symbols');
+      const k = keyFromRoute(route);
+      if (k) {
+        if (!routeSymbol(k, false)) error = UNKNOWN;   // hentes nedenfor
+      }
+    } catch (e) {
+      error = `Symbolerne kunne ikke hentes: ${(e as Error).message}`;
+    }
+    mounted = true;
     restartTimer();
     load();
     measure();
@@ -271,6 +341,25 @@
 
 <div class="layout">
   <aside class="panel">
+    {#if symbols.length}
+      <label class="small symsel">Symbol
+        <select value={symKey} onchange={(e) => chooseSymbol(e.currentTarget.value)} style="width:100%">
+          <option value="">— vælg tags selv —</option>
+          {#each byDrawing(symbols) as [d, list] (d)}
+            <optgroup label={d}>{#each list as s (symbolKey(s))}<option value={symbolKey(s)}>{s.name}</option>{/each}</optgroup>
+          {/each}
+        </select>
+      </label>
+      {#if symSeries}
+        {#if symSeries.missing.length}
+          <p class="small muted">Uden historik: {symSeries.missing.map(label).join(', ')}.</p>
+          {#if canEdit}
+            <button class="small" onclick={enableSymbolTags} disabled={symBusy}>{symBusy ? 'Slår til …' : `Gem historik for ${symSeries.missing.length === 1 ? 'det' : `de ${symSeries.missing.length}`}`}</button>
+          {/if}
+        {/if}
+        {#if symSeries.over.length}<p class="small muted">Højst {MAX_SERIES} kurver ad gangen — ikke vist: {symSeries.over.map(label).join(', ')}.</p>{/if}
+      {/if}
+    {/if}
     <div class="row" style="justify-content: space-between">
       <h3>Tags</h3>
       {#if canEdit}
@@ -348,5 +437,6 @@
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .enable { flex: none; padding: .1rem .45rem; font-size: .75rem; }
   .notice { border-left: 4px solid #2a78d6; }
+  .symsel { display: block; margin-bottom: .5rem; }
   .swatch { width: 12px; height: 4px; border-radius: 2px; flex: none; }
 </style>

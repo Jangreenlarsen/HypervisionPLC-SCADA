@@ -91,6 +91,8 @@ En animation kan også styres af **altid til** (i stedet for et tag): så er den
 
 **Alarmer på symbolets tags (trin 6):** en tabel viser hvert tag, symbolet bruger, med dets alarmopsætning (fx *H 80 · HH 90 bar* eller *når Til*) og status lige nu (*Ingen alarm*, *Aktiv — ukvitteret*, *Aktiv — kvitteret*, *Ophørt — ukvitteret*). Med **Ret alarm** sætter du alarmen direkte her: grænser **HH/H/L/LL** og **Dødbånd** for tal-tags, **Alarm når Til / når Fra** for til/fra-tags, og **Forsinkelse**. Alarmen gælder tagget overalt — det er den samme som under *Tags*.
 
+**Historik (Trends) (trin 6):** under alarmerne ser du, om hvert af symbolets tags **gemmer historik**. Sæt flueben ud for et tag, eller tryk **Gem historik for alle** — så gemmer serveren værdierne fra nu af (højst hvert 10. sekund som standard; intervallet ændres under *Tags*). Historikken gælder tagget overalt. **Vis symbolet i Trends** åbner Trends i en ny fane med alle symbolets kurver.
+
 ### Værdi: decimaler, tekst før/efter, beregning og enhed
 
 Animationen **Værdi** skriver taggets værdi i en tekst-del. For et tal-tag har den felterne:

@@ -103,6 +103,21 @@ async def info(request: Request, user: CurrentUser = Depends(require("viewer")))
             "tags": tags}
 
 
+@router.get("/symbols")
+async def symbols(request: Request, user: CurrentUser = Depends(require("viewer"))) -> list[dict[str, Any]]:
+    """Opsatte symboler og deres tags (v0.80.0) — så Trends kan vise et symbols kurver samlet.
+    Kun tegninger og tags brugeren må se; symboler uden synlige tags udelades."""
+    scope = request.app.state.scope_service
+    visible = scope.visible_tags(user)
+    known = {t["name"] for t in request.app.state.tag_service.list()}
+    out = []
+    for s in request.app.state.symbol_service.trend_symbols(scope.drawing_ids(user)):
+        tags = [t for t in s["tags"] if t in known and (visible is None or t in visible)]
+        if tags:
+            out.append({**s, "tags": tags})
+    return out
+
+
 @router.delete("/history/{name}")
 async def delete_history(name: str, request: Request, user: CurrentUser = Depends(require("engineer"))) -> dict[str, Any]:
     """Slet al gemt historik for ét tag. Opsamlingen slås IKKE fra her (det er tagets "trend"-felt)."""

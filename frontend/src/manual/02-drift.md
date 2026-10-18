@@ -67,7 +67,8 @@ Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*) — eller i
 
 **Trends** viser kurver over værdier gennem tiden. Kun tags, hvor **historik** er slået til, har kurver (slås til under **Tags**, eller direkte på Trends-siden med **Begynd at gemme historik**).
 
-- Vælg et eller flere **tags** i listen (søg med feltet **Søg**).
+- **Symbol**: vælg et symbol fra tegningerne, så vises **alle symbolets kurver** på én gang — du skal ikke finde tagsene selv. Har nogle af symbolets tags ikke historik, står de under listen; en tekniker kan slå dem til med **Gem historik for de …**. Historikken kan også slås til i symbolguiden (trin 6), og linket **Vis symbolet i Trends** derfra åbner Trends med symbolet valgt.
+- Eller vælg et eller flere **tags** i listen selv (søg med feltet **Søg**).
 - Vælg tidsrum: **15 min, 1 time, 8 timer, 24 timer, 7 dage**, eller **Vælg periode** for et selvvalgt interval.
 - Kurverne **opdateres live**. Peg på kurven for at se værdi og tidspunkt. Du kan **hente data som CSV** til regneark.
 - Et tag kan **stoppes** (historikken bevares) eller dets **historik slettes**. Historik, der er ældre end opbevaringstiden (standard 30 dage), slettes automatisk.

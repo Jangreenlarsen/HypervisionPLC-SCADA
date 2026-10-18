@@ -1081,6 +1081,29 @@ class SymbolService:
         if self.on_change is not None:
             self.on_change(drawing_id, element)
 
+    def trend_symbols(self, drawing_ids: set[str] | None) -> list[dict[str, Any]]:
+        """De opsatte symboler med deres tags, tegning for tegning — til "Vælg symbol" i Trends (v0.80.0).
+        Kun symboler i tegningens aktive version (en opsætning på et fjernet element springes over).
+        drawing_ids=None: alle tegninger."""
+        out: list[dict[str, Any]] = []
+        for d in self.db.list_drawings():
+            if drawing_ids is not None and d["id"] not in drawing_ids:
+                continue
+            cfgs = self.configs(d["id"])
+            if not cfgs:
+                continue
+            try:
+                names = {s["id"]: s["name"] for s in named_symbols(self.drawings.svg(d["id"]))}
+            except ServiceError as e:
+                log.warning("Trends: symbolerne i '%s' kunne ikke læses: %s", d["id"], e)
+                continue
+            for element, cfg in cfgs.items():
+                tags = config_tags(cfg)
+                if element in names and tags:
+                    out.append({"drawing": d["id"], "drawing_name": d["name"], "element": element,
+                                "name": names[element] or element, "tags": tags})
+        return out
+
     def configs(self, drawing_id: str) -> dict[str, dict[str, Any]]:
         return {r["element"]: r["config"] for r in self.db.list_symbol_configs(drawing_id)}
 

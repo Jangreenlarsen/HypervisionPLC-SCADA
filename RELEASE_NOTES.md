@@ -2,6 +2,11 @@
 
 ---
 
+## v0.80.0 — 2026-10-18 — Trends ud fra symbolerne
+
+- I **Trends** kan du vælge et **symbol** — så vises alle dets kurver, uden at du skal finde tagsene selv.
+- I symbolguiden (trin 6) slår du **historik** til for symbolets tags (ét klik for alle), og **Vis symbolet i Trends** åbner kurverne direkte.
+
 ## v0.79.0 — 2026-10-18 — Fra Overview til Tegn
 
 - Står du på en tegning i **Overview**, åbner **Tegn** og **Bindinger** i menuen nu den samme tegning.

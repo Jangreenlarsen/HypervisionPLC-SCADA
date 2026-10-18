@@ -209,7 +209,7 @@
   {:else if page === 'energy'}
     <Energy {canEdit} />
   {:else if page === 'trends'}
-    <Trends {canEdit} />
+    <Trends {canEdit} {route} />
   {:else if page === 'alarms'}
     <Alarms canAck={roleAtLeast(me.role, 'operator')} />
   {:else if page === 'draw'}
