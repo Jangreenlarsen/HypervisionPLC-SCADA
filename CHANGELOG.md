@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.81.1 build 0123] — 2026-10-18 — fix: Roterer og Blafrer på "Hele symbolet" flyttede symbolet
+
+- `frontend/src/lib/animate.ts` — `motionHost()`: har elementet sin egen `transform` (placeret symbol, drejet del), kører Roterer/Blafrer på en gruppe om elementet (oprettes første gang animationen tændes, genbruges), så CSS-animationen ikke erstatter elementets placering; farverne sættes stadig på elementet. Uden transform som før. Test i `animate.test.ts`. BUGS.md.
+- **Set i browseren** lokalt (Chrome): seks placerede kedler (skaleret 1,2 × 1,5) med Farve, Stregfarve, Blink, Synlig, Roterer og Blafrer på "Hele symbolet" — alle virker; Roterer drejer om symbolets midte på stedet, Blafrer står på stedet i sin størrelse (før: hoppede op i hjørnet og mistede skaleringen).
+
 ## [0.81.0 build 0122] — 2026-10-18 — Forståelige delnavne i guiden; navn på kurverne i Trends
 
 - `frontend/src/lib/symbolConfig.ts` — `partLabel()`: dele uden biblioteksnavn navngives efter formen ("Rektangel", "Cirkel 2", `Tekst "STF"`; et biblioteksymbols første rektangel = "Ramme", de øvrige nummereres uden den) med id'et i parentes. Test i `symbolConfig.test.ts`.

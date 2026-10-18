@@ -2,6 +2,10 @@
 
 ---
 
+## v0.81.1 — 2026-10-18 — Rettet: animation på hele symbolet
+
+- **Roterer** og **Blafrer** på *Hele symbolet* fik symbolet til at hoppe op i hjørnet og skifte størrelse. Nu bliver symbolet på sin plads.
+
 ## v0.81.0 — 2026-10-18 — Forståelige navne
 
 - I symbolguiden hedder dele uden navn nu fx **Ramme**, **Rektangel 2**, **Cirkel** eller **Tekst "STF"** i stedet for "svg_2".

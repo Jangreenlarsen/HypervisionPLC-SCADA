@@ -142,8 +142,29 @@ function flickerTick(): void {
   if (!flickering.size && flickerTimer) { clearInterval(flickerTimer); flickerTimer = null; }
 }
 
+/**
+ * Roterer og Blafrer er CSS-animationer af `transform` (v0.81.1). Har elementet selv en `transform` — et placeret symbol
+ * (flyttet, skaleret, drejet) eller en drejet del — ville animationen erstatte den, og elementet hopper. Så kører
+ * animationen på en gruppe om elementet (oprettes første gang den tændes), og elementets egen placering bevares.
+ */
+const MOTION_HOST = 'hv-motion';
+export function motionHost(el: Element, create: boolean): Element | null {
+  const parent = el.parentElement;
+  if (parent?.classList.contains(MOTION_HOST)) return parent;
+  if (!el.hasAttribute('transform') || !parent) return el;
+  if (!create) return null;   // aldrig tændt: intet at slukke
+  const g = el.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.classList.add(MOTION_HOST);
+  parent.insertBefore(g, el);
+  g.appendChild(el);
+  return g;
+}
+function motion(el: Element, cls: 'hv-spin' | 'hv-flicker', on: boolean): void {
+  motionHost(el, on)?.classList.toggle(cls, on);
+}
+
 function flicker(el: Element, on: boolean, palette: string[]): void {
-  el.classList.toggle('hv-flicker', on);
+  motion(el, 'hv-flicker', on);
   if (!on) {
     flickering.delete(el);
     el.removeAttribute('data-hv-flicker-color');
@@ -740,7 +761,7 @@ export function resetAnim(el: Element, anim: string, p: Record<string, any>): vo
       setBlink(el, false);
       break;
     case 'spin':
-      el.classList.remove('hv-spin');
+      motion(el, 'hv-spin', false);
       break;
     case 'flicker':
       flicker(el, false, []);
@@ -822,7 +843,7 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
       setBlink(el, activeFor(v, p), p.speed ?? 'normal');
       break;
     case 'spin':
-      el.classList.toggle('hv-spin', activeFor(v, p));
+      motion(el, 'hv-spin', activeFor(v, p));
       break;
     case 'flicker':
       flicker(el, activeFor(v, p), flickerPalette(p));
