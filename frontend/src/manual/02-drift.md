@@ -59,6 +59,8 @@ Alarmer har en **prioritet** (lav, medium, høj). Klokken i toppen er rød ved h
 
 Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*) — eller i symbolguidens trin 6 for symbolets tags. Et symbol kan også vise alarmen selv (fx blinke ved en ukvitteret alarm), se *Symboler og guiden › Alarmer i guiden*.
 
+> Øverst på **Alarmer**, **Trends** og **Energi** står knappen **← Tilbage til "…"**, der fører tilbage til den tegning, du sidst så i Overview (fx efter et klik på en genvej i tegningen).
+
 ## Trends
 
 ![Trends: valgte tags, tidsrum og kurver](/manual/trends.png)

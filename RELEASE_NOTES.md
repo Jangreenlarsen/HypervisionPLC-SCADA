@@ -2,6 +2,10 @@
 
 ---
 
+## v0.76.0 — 2026-10-18 — Tilbage til tegningen
+
+- **Alarmer**, **Trends** og **Energi** har en knap **← Tilbage til "…"**, der fører tilbage til den tegning, du kom fra.
+
 ## v0.75.1 — 2026-10-18 — Symbolerne ruller for sig selv
 
 - I **Tegn** ruller symbolbiblioteket i højre side for sig selv — tegningen og resten af siden står stille, og søgefeltet bliver stående øverst.

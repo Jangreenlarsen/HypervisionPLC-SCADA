@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.76.0 build 0116] — 2026-10-18 — Tilbage til tegningen fra Alarmer, Trends og Energi
+
+- `frontend/src/lib/BackToDrawing.svelte` + `backToDrawing.ts` (ny): "← Tilbage til "<tegning>"" — den sidst viste tegning i fanen (`overview.last`); findes den ikke (mere), går knappen til Overview. Sat ind øverst i `Alarms.svelte`, `Trends.svelte`, `Energy.svelte`.
+- Manual (02). Test: `backToDrawing.test.ts`. **Set i browseren** lokalt: fra tegningen "Kedelrum test" via genvejene til hver af de tre sider → knappen "← Tilbage til "Kedelrum test"" → tilbage i Overview på tegningen.
+
 ## [0.75.1 build 0115] — 2026-10-18 — Symbolbiblioteket i Tegn ruller for sig selv
 
 - `frontend/src/pages/DrawEditor.svelte` — `fitFrame()` giver sidepanelet editorens højde (ikke på skærme ≤ 900 px); "Valgt element" højst 55 % og ruller selv; "Symboler" fylder resten og ruller selv med overskrift og søgefelt stående øverst. **Set i browseren** (1400×900, 1920×1080, 820×900): panel = editorens højde (756/936 px), rulning i symbolerne flytter kun listen (siden står stille), søgefeltet bliver øverst; med et valgt symbol ruller listen stadig; smal skærm som før.

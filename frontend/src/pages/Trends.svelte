@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
+  import BackToDrawing from '../lib/BackToDrawing.svelte';
   import { ask as askUser } from '../lib/ask';
   import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
@@ -250,6 +251,7 @@
 </script>
 
 <div class="row toolbar">
+  <BackToDrawing />
   {#each RANGES as r}
     <button class:primary={range === r.id} onclick={() => setRange(r.id)}>{r.label}</button>
   {/each}
