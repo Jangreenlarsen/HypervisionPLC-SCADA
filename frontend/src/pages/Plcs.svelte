@@ -8,7 +8,7 @@
   interface Status {
     state: string; message: string; last_ok: number | null; cycles?: number; errors?: number;
     requests_per_cycle?: number; plan?: { kind: string; start: number; count: number }[];
-    sse?: { state: string; message?: string; events?: number; covered?: number };
+    sse?: { state: string; message?: string; events?: number; covered?: number; external?: boolean; ext_events?: number; ext_by_src?: { rtu: number; mbx: number } };
   }
   interface Plc {
     key: string; name: string; base_url: string; username: string; enabled: boolean;
@@ -90,7 +90,7 @@
             {#if p.status.plan?.length}<span class="muted small">({p.status.plan.map((r) => `${r.kind} ${r.start}+${r.count}`).join(', ')})</span>{/if}</td></tr>
           <tr><th>SSE</th><td>
             <span class="badge {p.status.sse?.state}">{p.status.sse?.state ?? '-'}</span>
-            <span class="small muted">{p.status.sse?.message ?? ''}{p.status.sse?.covered !== undefined ? ` · dækker ${p.status.sse.covered} adresser` : ''}{p.status.sse?.events ? ` · ${p.status.sse.events} hændelser` : ''}</span>
+            <span class="small muted">{p.status.sse?.message ?? ''}{p.status.sse?.covered !== undefined ? ` · dækker ${p.status.sse.covered} adresser` : ''}{p.status.sse?.events ? ` · ${p.status.sse.events} hændelser` : ''}{p.status.sse?.external ? ` · eksterne registre via SSE: RS485 ${p.status.sse.ext_by_src?.rtu ?? 0}, expansion boards ${p.status.sse.ext_by_src?.mbx ?? 0}` : ''}</span>
           </td></tr>
         </tbody>
       </table>

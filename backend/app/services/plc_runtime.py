@@ -28,7 +28,7 @@ from ..plc.errors import PlcApiError, PlcError, PlcRateLimited
 from ..plc.planner import ExtRange, ReadRange, plan_ext_reads, plan_reads
 from ..plc.sse import SseListener
 from .live_cache import LiveCache, LiveValue
-from .tagsource import ST_TYPE_MAP, TagSource, apply_scaling, decode_words
+from .tagsource import CHANNELS, ST_TYPE_MAP, TagSource, apply_scaling, decode_words
 
 log = logging.getLogger(__name__)
 
@@ -89,7 +89,8 @@ class PlcRuntime:
         self._wake = asyncio.Event()
         self.sse: SseListener | None = None
         if sse_enabled:
-            self.sse = sse_listener or SseListener(client, self._on_sse_register, verify_tls=verify_tls)
+            self.sse = sse_listener or SseListener(client, self._on_sse_register, verify_tls=verify_tls,
+                                                   on_ext=self._on_sse_ext)
 
     # ----------------------------------------------------------- livscyklus
 
@@ -148,7 +149,8 @@ class PlcRuntime:
                             [{"kind": r.kind, "start": r.start, "count": r.count, "ext": ":".join(
                                 str(x) for x in r.group[:4] if x is not None)} for r in self._ext_plan])
         if self.sse is not None:
-            self.sse.set_addresses(sse_addrs)
+            # eksterne tags → watch_all, så PLC'en også sender deres ændringer (`ext`, v0.90.0)
+            self.sse.set_addresses(sse_addrs, external=bool(ext_units))
         self._wake.set()
 
     def poke(self) -> None:
@@ -254,9 +256,36 @@ class PlcRuntime:
                     continue  # behold sidste kendte værdi, til slaven har svaret igen
                 self._ext_raw[key] = (value, state, "")
 
+    def _on_sse_ext(self, data: dict[str, Any]) -> None:
+        """En ny værdi i PLC'ens Modbus-cache (SSE `ext`, v0.90.0) — samme regler som pollingen: "pending" beholder sidst
+        kendte værdi, "error" markerer tagget. Kun registre som et tag bruger; resten af cachen (ST's egne) ignoreres."""
+        if data["src"] == "rtu":
+            group: tuple = ("rtu", None, None, data["slave"], data["type"])
+        elif 1 <= data["ch"] <= len(CHANNELS):
+            group = ("mbx", data["board"], CHANNELS[data["ch"] - 1], data["slave"], data["type"])
+        else:
+            return
+        addr = data["addr"]
+        affected = [t for t in self._tags if t.source.is_external and t.source.ext_group == group
+                    and t.source.addr <= addr < t.source.addr + t.source.words]  # type: ignore[operator]
+        if not affected:
+            return
+        key = (group, addr)
+        old = self._ext_raw.get(key)
+        if data["status"] == "pending":
+            if old is not None and old[1] == "ok":
+                return  # behold sidste kendte værdi, til slaven har svaret igen
+            self._ext_raw[key] = (None, "pending", "")
+        elif data["status"] == "error":
+            self._ext_raw[key] = (None, "error", "")
+        else:
+            self._ext_raw[key] = (data["value"], "ok", "")
+        now = time.time()
+        self.cache.update({t.name: self._ext_value(t, now) for t in affected})
+
     async def _on_sse_register(self, kind: str, addr: int, value: int) -> None:
         self._raw[kind][addr] = value
-        # Kun PLC'ens egne registre — SSE leverer aldrig eksterne værdier, og et eksternt tag med samme
+        # Kun PLC'ens egne registre — eksterne værdier kommer som `ext` (ovenfor), og et eksternt tag med samme
         # type/adresse (fx plc1:mbx:1:D:1:coil:0 vs. plc1:coil:0) må ikke overskrives (v0.25.1)
         affected = [t for t in self._tags if t.source.is_register and t.source.kind == kind
                     and t.source.addr == addr and t.source.words == 1]

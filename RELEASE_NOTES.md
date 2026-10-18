@@ -2,6 +2,15 @@
 
 ---
 
+## v0.90.1 — 2026-10-18 — SSE-status for expansion boards
+
+- **PLC'er** viser nu, hvor mange ændringer der er kommet via SSE fra **RS485-slaver** og fra **expansion boards** hver for sig.
+
+## v0.90.0 — 2026-10-18 — Eksterne registre via SSE
+
+- Værdier fra **RS485-slaver og expansion boards** opdateres nu straks via PLC'ens SSE-strøm, når de ændrer sig i PLC'ens Modbus-cache — ikke kun ved næste poll.
+- Rettet: med mange overvågede adresser blev PLC'ens input-registre 256–319 (fx ST-statistikken) kun opdateret hvert 2. sekund.
+
 ## v0.89.0 — 2026-10-18 — Systemgennemgang (2): symboler med samme navn
 
 - **Tegn** advarer, når flere symboler har samme navn, og giver dem unikke navne med ét klik (**Giv dem unikke navne** — kan fortrydes).
