@@ -38,3 +38,25 @@ export function numberedNames(base, count, used) {
   }
   return out;
 }
+
+/**
+ * Dublet-navne (v0.89.0): for navnene i tegningens rækkefølge — det første af hvert navn beholdes, de næste får det
+ * næste ledige løbenummer ("Bøjning 90° 6" ×3 → 6, 7, 8 eller næste ledige). → nyt navn pr. plads, null = uændret.
+ */
+export function uniqueRenames(names) {
+  const used = new Set(names);
+  const seen = new Set();
+  return names.map((name) => {
+    if (!seen.has(name)) { seen.add(name); return null; }
+    const next = nextFreeName(name, used);
+    used.add(next);
+    return next;
+  });
+}
+
+/** Navne der bruges mere end én gang: [{ name, count }] i rækkefølgen de først optræder. */
+export function duplicateNames(names) {
+  const counts = new Map();
+  for (const n of names) counts.set(n, (counts.get(n) ?? 0) + 1);
+  return [...counts].filter(([, k]) => k > 1).map(([name, count]) => ({ name, count }));
+}

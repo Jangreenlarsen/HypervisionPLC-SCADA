@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.89.0 build 0133] — 2026-10-18 — Systemgennemgang F2: symboler med samme navn
+
+- `frontend/svgedit-host/names.js` — `duplicateNames()` og `uniqueRenames()` (det første beholder navnet, de næste får næste ledige nummer). Test i `names.test.ts`. `scada-editor.js` — `duplicateNames()` og `fixDuplicateNames()` (ét fortryd-trin).
+- `frontend/src/pages/DrawEditor.svelte` — advarsel i Tegn med knappen **Giv dem unikke navne**; følges ved hver ændring (kommer igen efter fortryd), ryddes ved en ny tegning.
+- Baggrund: fase 1 fandt "Bøjning 90° 6" ×3 i "varme" (kopier fra før v0.63.1). Manual (04).
+- **Set i browseren** lokalt: "Bøjning 90° 6" ×3 + "Bøjning 90° 7" → advarsel → knappen giver 6, 8, 7, 9 (det eksisterende 7 springes over) og beskeden vises; Fortryd giver de gamle navne og advarslen igen.
+
 ## [0.88.0 build 0132] — 2026-10-18 — Systemgennemgang F1: forsvundne symbolopsætninger kan ses, flyttes og fjernes
 
 - Fase 1 (læse-kun gennemgang): lag, roller pr. endpoint, tegningsadgang, session/CSRF/login-låsning, opdateringspakke og backup (størrelser, stier), hemmeligheder i log, PLC-klientens fejlstatusser og npm-afhængigheder var i orden. Data på testserveren: 4 symbolopsætninger på forsvundne elementer (F1) og 3 symboler med samme navn (F2).

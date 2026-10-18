@@ -2,6 +2,10 @@
 
 ---
 
+## v0.89.0 — 2026-10-18 — Systemgennemgang (2): symboler med samme navn
+
+- **Tegn** advarer, når flere symboler har samme navn, og giver dem unikke navne med ét klik (**Giv dem unikke navne** — kan fortrydes).
+
 ## v0.88.0 — 2026-10-18 — Systemgennemgang (1): forsvundne symbolopsætninger
 
 - **Bindinger → Forsvundne elementer** viser nu også **symbolopsætninger** på elementer, der er slettet eller har fået et nyt id. De kan **flyttes** til det rigtige element (animationer og kode følger med) eller **fjernes**.
