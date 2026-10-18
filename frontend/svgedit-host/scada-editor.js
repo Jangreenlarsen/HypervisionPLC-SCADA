@@ -5,7 +5,7 @@ import {
   axisAngle, centroid, directionAngle, gridCorrection, identityMatrix, invertMatrix, isDrag, fieldResize, multiplyMatrix, pathVertices, recenterOffset, rotationCenter, snapToObjects, transformBox, triangleApex, turnAxis, turnTo, unionBox,
 } from './snap.js';
 import { collectColors, recolorAttrs } from './colors.js';
-import { nextFreeName, numberedNames } from './names.js';
+import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
 
 const editor = new Editor(document.getElementById('container'));
 editor.setConfig({
@@ -902,6 +902,32 @@ window.scada = {
    * Giv elementerne (id'er) navnene "<base>_1", "<base>_2" … (ledige numre, i tegningens rækkefølge) — ét fortryd-trin. Elementer der allerede
    * har et navn, eller ikke findes, røres ikke. → { id: navn } for de navngivne.
    */
+  /** Navne, som flere symboler i tegningen deler (v0.89.0): [{ name, count }]. */
+  duplicateNames() {
+    return duplicateNames(Array.from(canvas().getSvgContent().querySelectorAll('[data-hv-name]')).map((el) => el.getAttribute('data-hv-name')));
+  },
+
+  /** Giv symboler med samme navn unikke navne (det første beholder sit) — ét fortryd-trin. → [{ id, from, to }] */
+  fixDuplicateNames() {
+    const c = canvas();
+    const els = Array.from(c.getSvgContent().querySelectorAll('[data-hv-name]'));
+    const renames = uniqueRenames(els.map((el) => el.getAttribute('data-hv-name')));
+    const batch = new c.history.BatchCommand('Unikke navne');
+    const out = [];
+    els.forEach((el, i) => {
+      if (renames[i] === null) return;
+      const from = el.getAttribute('data-hv-name');
+      el.setAttribute('data-hv-name', renames[i]);
+      batch.addSubCommand(new c.history.ChangeElementCommand(el, { 'data-hv-name': from }, 'navn'));
+      out.push({ id: el.id, from, to: renames[i] });
+    });
+    if (!out.length) return out;
+    c.undoMgr.addCommandToHistory(batch);
+    if (changeListener) changeListener();
+    if (selectionListener) selectionListener(currentSelection());
+    return out;
+  },
+
   nameElements(ids, base) {
     const c = canvas();
     const root = c.getSvgContent();

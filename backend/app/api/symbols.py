@@ -74,6 +74,24 @@ async def list_symbols(drawing_id: str, request: Request) -> list[dict[str, Any]
     return _svc(request).list_symbols(drawing_id)
 
 
+@router.get("/{drawing_id}/symbols-orphaned", dependencies=[ENGINEER])
+async def orphaned(drawing_id: str, request: Request) -> list[dict[str, Any]]:
+    """Symbolopsætninger på elementer, der ikke findes i den aktive version (v0.88.0)."""
+    return _svc(request).orphaned(drawing_id)
+
+
+class MoveBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    target: str = Field(min_length=1, max_length=120)
+
+
+@router.post("/{drawing_id}/symbols/{element}/move", dependencies=[ENGINEER])
+async def move_config(drawing_id: str, element: str, body: MoveBody, request: Request) -> dict[str, Any]:
+    result = _svc(request).move(request.state.user, drawing_id, element, body.target)
+    audit(request, "symbol.move", f"{drawing_id}#{element}", {"target": body.target, "dropped": result["dropped"]})
+    return result
+
+
 @router.post("/{drawing_id}/symbols/{element}/copy", dependencies=[ENGINEER])
 async def copy_config(drawing_id: str, element: str, body: CopyBody, request: Request) -> dict[str, Any]:
     """Kopiér symbolets gemte opsætning (tag og animationer) til andre symboler — hver kopi valideres for sig."""

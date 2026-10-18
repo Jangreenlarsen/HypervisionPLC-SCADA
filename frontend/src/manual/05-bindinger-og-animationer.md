@@ -78,6 +78,8 @@ For hvert forsvundet element ser du, hvad bindingerne var (tag · animation). S�
 - **Flyt hertil**: har elementet fået et nyt id, så vælg det nye element i tegningen og tryk *Flyt hertil* — bindingerne flyttes over (dem, elementet har i forvejen, bevares). Et element, der er sat op med symbolguiden, kan ikke modtage bindinger; brug guiden i stedet.
 - **Fjern**: bindingerne slettes. **Fjern alle** rydder alle forsvundne på én gang.
 
+Også **symbolopsætninger** (fra symbolguiden) på forsvundne elementer vises her — med symboltype og animationer. **Flyt hertil** flytter hele opsætningen (og en evt. kode til nøglelåsen) til det valgte element; animationer på dele følger med, når delene hedder det samme (fx `pumpe_pil` → `pumpe_4_pil`), ellers droppes de, og du får besked om hvilke. Målet må ikke have en opsætning i forvejen.
+
 ### Løbelysets styring: Til/fra, Fortegn (+/−) og Kode 0/1/2
 
 Løbelyset har tre tilstande: **kører frem**, **kører tilbage** og **står stille** (røret vises i sin rørfarve). *Frem* er den retning, røret er tegnet i (fra stregens start til dens slutning). Under **Styring** vælger du, hvordan tagget bestemmer tilstanden:

@@ -1,7 +1,7 @@
 // Navne til symboler uden navn ved "Indsæt opsætning" (svgedit-host/names.js).
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — ren JS-fil i værtsmappen til SVG-Edit (ingen typer)
-import { MAX_NAME, nextFreeName, numberedNames } from '../../svgedit-host/names.js';
+import { MAX_NAME, duplicateNames, nextFreeName, numberedNames, uniqueRenames } from '../../svgedit-host/names.js';
 
 describe('nummererede navne', () => {
   it('kildens navn + løbenummer, ledige numre', () => {
@@ -39,3 +39,14 @@ describe('ledigt navn til en kopi', () => {
     expect(got.endsWith(' 2')).toBe(true);
   });
 });
+
+describe('dublet-navne (v0.89.0)', () => {
+  it('det første beholdes, de næste får næste ledige nummer', () => {
+    const names = ['Bøjning 90° 6', 'Pumpe', 'Bøjning 90° 6', 'Bøjning 90° 7', 'Bøjning 90° 6', 'Pumpe'];
+    expect(duplicateNames(names)).toEqual([{ name: 'Bøjning 90° 6', count: 3 }, { name: 'Pumpe', count: 2 }]);
+    expect(uniqueRenames(names)).toEqual([null, null, 'Bøjning 90° 8', null, 'Bøjning 90° 9', 'Pumpe 2']);
+    expect(uniqueRenames(['A', 'B'])).toEqual([null, null]);
+    expect(duplicateNames(['A', 'B'])).toEqual([]);
+  });
+});
+

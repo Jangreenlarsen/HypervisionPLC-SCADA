@@ -41,6 +41,8 @@
     recolorSelection(from: string, to: string): number;
     nameElements(ids: string[], base: string): Record<string, string>;
     setReservedIds(ids: string[]): void;
+    duplicateNames(): { name: string; count: number }[];
+    fixDuplicateNames(): { id: string; from: string; to: string }[];
     splitFitting(id: string, legs: string): { ok?: boolean; removed?: string[]; parts?: string[]; error?: string };
   }
 
@@ -105,11 +107,24 @@
       idInput = sel.length === 1 ? sel[0].id : '';
       nameInput = sel.length === 1 ? sel[0].name ?? '' : '';
     });
-    ed.onChange(() => (dirty = true));
+    // dublet-navne følges løbende (fx tilbage efter Ctrl+Z på "Giv dem unikke navne")
+    ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); });
     ready = true;
     const fromRoute = route.split('/')[1];
     if (fromRoute && drawings.some((d) => d.id === fromRoute)) await open(fromRoute);
     else startNew(true);
+  }
+
+  // Symboler med samme navn (v0.89.0) — fx gamle kopier fra før v0.63.1; navnene skal være unikke
+  let dupNames = $state<{ name: string; count: number }[]>([]);
+  async function fixDuplicates(): Promise<void> {
+    if (!ed) return;
+    await guarded('Giv unikke navne', async () => {
+      const done = ed!.fixDuplicateNames();
+      dupNames = ed!.duplicateNames();
+      info = `${done.length} symbol${done.length === 1 ? '' : 'er'} fik nyt navn: ${done.map((d) => `"${d.from}" → "${d.to}"`).join(', ')}. ` +
+        'Tryk Gem kladde eller Gem og udgiv for at gemme (Ctrl+Z fortryder).';
+    });
   }
 
   async function confirmDiscard(): Promise<boolean> {
@@ -120,6 +135,7 @@
     if (!ed || (!force && !(await confirmDiscard()))) return;
     ed.newDrawing(1200, 700);
     ed.setReservedIds([]);
+    dupNames = [];
     current = null;
     loadedVersion = null;
     newName = '';
@@ -146,6 +162,7 @@
       current = detail;
       loadedVersion = v;
       dirty = false;
+      dupNames = ed.duplicateNames();
       history.replaceState(null, '', `#draw/${id}`);
     } catch (e) {
       error = (e as Error).message;
@@ -656,6 +673,12 @@
 </div>
 
 {#if error}<div class="error">{error}</div>{/if}
+{#if dupNames.length}
+  <div class="notice">
+    Flere symboler har samme navn: {dupNames.map((d) => `"${d.name}" (${d.count})`).join(', ')} — navnene skal være unikke (de bruges fx i
+    Trends, ved kopiering af opsætning og i guiden). <button class="small" onclick={fixDuplicates} disabled={!ready}>Giv dem unikke navne</button>
+  </div>
+{/if}
 {#if info}
   <div class="notice">
     {info}

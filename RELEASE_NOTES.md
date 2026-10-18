@@ -2,6 +2,15 @@
 
 ---
 
+## v0.89.0 — 2026-10-18 — Systemgennemgang (2): symboler med samme navn
+
+- **Tegn** advarer, når flere symboler har samme navn, og giver dem unikke navne med ét klik (**Giv dem unikke navne** — kan fortrydes).
+
+## v0.88.0 — 2026-10-18 — Systemgennemgang (1): forsvundne symbolopsætninger
+
+- **Bindinger → Forsvundne elementer** viser nu også **symbolopsætninger** på elementer, der er slettet eller har fået et nyt id. De kan **flyttes** til det rigtige element (animationer og kode følger med) eller **fjernes**.
+- Rettet: beskeden efter *Flyt hertil* blev ikke vist.
+
 ## v0.87.0 — 2026-10-18 — Alarmmarkering kun på værdier
 
 - Den røde alarmmarkering i tegningen sidder nu kun på de dele, der **viser værdien** af et tag i alarm (fx "kedel: 100,0 °C") — ikke på fx en flamme eller en pumpepil, der blot bruger samme tag.

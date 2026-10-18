@@ -80,6 +80,8 @@ Under tegneområdet finder du **symbolbiblioteket**, sorteret i kategorier (*Bet
 
 **Mine symboler**: de symboler du bruger mest, kan du samle i en egen sektion øverst i biblioteket. Tryk **☆** i hjørnet af et symbol for at lægge det i *Mine symboler* (stjernen bliver fyldt **★**); tryk igen for at tage det ud. Inde i *Mine symboler* flytter **◀** og **▶** et symbol frem eller tilbage, så du kan ordne dem som du vil. Listen gemmes på serveren for din bruger, så den følger dig til en anden pc eller browser; søgefeltet gælder også her. Plads til højst 60 symboler.
 
+**Navne skal være unikke.** Har flere symboler samme navn (fx gamle kopier), viser Tegn en advarsel med knappen **Giv dem unikke navne**: det første beholder sit navn, de andre får det næste ledige nummer (fx *Bøjning 90° 6* → *Bøjning 90° 8*). Det kan fortrydes med **Ctrl+Z** og gemmes med *Gem kladde* / *Gem og udgiv*. Opsætninger og bindinger følger elementet, ikke navnet, så de berøres ikke.
+
 Et nyindsat symbol skal **sættes op**: vælg symbolet og tryk **Opsæt symbol (6 trin)**. Tegningen gemmes og udgives først (du bliver spurgt), fordi guiden arbejder på den aktive version. Se *Symboler og guiden*.
 
 **Felter med tekst** (*Statusfelt*, *Værdifelt*, *Auto/Manuel*): træk i et sidegreb for at gøre feltet bredere (eller højere), så der er plads til mere tekst — teksten bliver ikke strakt, men beholder sin størrelse (midterstillet tekst følger midten), og et statusfelt beholder sine runde ender. Ret selve teksten ved at dobbeltklikke på den.
