@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.82.1 build 0125] — 2026-10-18 — fix: pumpens pil inde i symbolet
+
+- `frontend/src/lib/symbols.ts` — Jan: "pilen skal være inde i pumpesymbolet". Pilen ligger nu inde i trekanten (stadig egen del `pil`), så pumpen har sin runde form. `scada-editor.js`: tilpasningen uden pilen i "Erstat med symbol" (v0.82.0) er fjernet igen — pumpens boks er cirklen. Manualens symboltabel (07) regenereret.
+
 ## [0.82.0 build 0124] — 2026-10-18 — Retningspil på pumpen
 
 - `frontend/src/lib/symbols.ts` — Pumpe: pil på afgangssiden (egen del `pil`, så den kan farves/blinke); tip om at dreje symbolet for at vende retningen. `symbolConfig.ts`: delnavnet "Pil". Manualens symboltabel (07) regenereret.

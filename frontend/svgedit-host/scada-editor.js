@@ -748,10 +748,7 @@ window.scada = {
       const node = buildSymbolNode(fragment, baseId, opts.keepId && oldId ? oldId : undefined);
       if (!node) continue;
       layer.insertBefore(node, insertBeforeNode && insertBeforeNode.parentNode === layer ? insertBeforeNode : null);
-      // Pilen (fx pumpens retningspil, v0.82.0) tæller ikke med, når symbolet tilpasses den gamle del — ellers bliver pumpen mindre
-      const box = (el) => { const b = el.getBBox(); return { x: b.x, y: b.y, w: b.width, h: b.height }; };
-      const body = unionBox([...node.children].filter((ch) => ch.getAttribute('data-hv-pid') !== 'pil').map(box)) ?? box(node);
-      const nb = { x: body.x, y: body.y, width: body.w, height: body.h };
+      const nb = node.getBBox();
       const sx0 = nb.width > 0 ? g.w / nb.width : 1;
       const sy0 = nb.height > 0 ? g.h / nb.height : 1;
       const sx = opts.stretch ? sx0 : Math.min(sx0, sy0);
