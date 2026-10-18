@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.78.0 build 0118] — 2026-10-18 — Mine symboler i Tegn
+
+- `backend/app/services/auth.py` — `palette()` / `set_palette()`: brugerens symbol-id'er i valgt rækkefølge, gemt som indstillingen `palette:<bruger>` (id-format kontrolleres, dubletter fjernes, højst 60); slettes sammen med brugeren.
+- `backend/app/api/auth.py` — `GET` / `PUT /api/auth/me/palette` (tekniker og op). Test: `test_my_symbols_palette` (pr. bruger, rækkefølge, ugyldige id'er, grænse, sletning).
+- `frontend/src/lib/palette.ts` (ny, testet i `palette.test.ts`): `toggleFavorite`, `moveFavorite`, `knownFavorites` (symboler der ikke findes i biblioteket springes over).
+- `frontend/src/pages/DrawEditor.svelte` — sektionen "Mine symboler" øverst i biblioteket; hver flise har ☆/★ (øverste højre hjørne) og i Mine symboler ◀ ▶ (nederste hjørner); ændringen vises straks og rulles tilbage med serverens fejltekst, hvis den ikke kan gemmes; søgningen gælder også sektionen.
+- Manual (04). **Set i browseren** lokalt (Chrome og Firefox): tre symboler lagt ind, Varmepumpe flyttet frem, indsat fra sektionen, søgning, listen bevaret efter genindlæsning, Kedel/fyr fjernet igen.
+
 ## [0.77.0 build 0117] — 2026-10-18 — Felt-symboler kan gøres bredere uden at strække teksten
 
 - `frontend/svgedit-host/snap.js` — `fieldResize()` (ren, testet i `snap.test.ts`): fladen får den nye størrelse; teksten flyttes (midterstillet følger midten, venstre/højre beholder afstanden til kanten), skriftstørrelsen er uændret; en pille forbliver en pille.

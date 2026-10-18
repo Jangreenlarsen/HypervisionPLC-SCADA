@@ -2,6 +2,10 @@
 
 ---
 
+## v0.78.0 — 2026-10-18 — Mine symboler
+
+- I **Tegn** kan du samle de symboler, du bruger mest, i en egen sektion **Mine symboler** øverst i biblioteket: tryk **☆** på et symbol, og ordn dem med **◀ ▶**. Listen følger din bruger — også på en anden pc.
+
 ## v0.77.0 — 2026-10-18 — Bredere statusfelter
 
 - **Statusfelt**, **Værdifelt** og **Auto/Manuel** kan trækkes bredere i Tegn, så der er plads til mere tekst — teksten bliver ikke strakt, og statusfeltet beholder sine runde ender.

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { ask as askUser } from '../lib/ask';
-  import { get, patch, post } from '../lib/api';
+  import { get, patch, post, put } from '../lib/api';
+  import { knownFavorites, moveFavorite, toggleFavorite } from '../lib/palette';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
   import GroupBasis from '../lib/GroupBasis.svelte';
@@ -506,6 +507,32 @@
   }
 
   let symbolFilter = $state('');
+  // "Mine symboler" (v0.78.0): brugerens egen sektion øverst, gemt pr. bruger på serveren
+  const KNOWN = new Set(SYMBOLS.map((s) => s.id));
+  let favorites = $state<string[]>([]);
+  let favError = $state('');
+  async function loadFavorites(): Promise<void> {
+    try {
+      favorites = knownFavorites((await get<{ symbols: string[] }>('/api/auth/me/palette')).symbols, KNOWN);
+    } catch (e) {
+      favError = `Mine symboler kunne ikke hentes: ${(e as Error).message}`;
+    }
+  }
+  async function saveFavorites(next: string[]): Promise<void> {
+    const before = favorites;
+    favorites = next;   // vis ændringen med det samme; rul tilbage, hvis serveren afviser
+    favError = '';
+    try {
+      favorites = knownFavorites((await put<{ symbols: string[] }>('/api/auth/me/palette', { symbols: next })).symbols, KNOWN);
+    } catch (e) {
+      favorites = before;
+      favError = `Mine symboler kunne ikke gemmes: ${(e as Error).message}`;
+    }
+  }
+  const mine = (): SymbolDef[] => {
+    const q = symbolFilter.trim().toLowerCase();
+    return favorites.map((id) => SYMBOLS.find((s) => s.id === id)).filter((s): s is SymbolDef => !!s && (!q || s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q)));
+  };
   const symbolsIn = (cat: string): SymbolDef[] => {
     const q = symbolFilter.trim().toLowerCase();
     return SYMBOLS.filter((s) => s.category === cat && (!q || s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q)));
@@ -565,6 +592,7 @@
 
   onMount(async () => {
     window.addEventListener('beforeunload', onBeforeUnload);
+    loadFavorites();
     fitFrame();
     stopLayout = onLayoutChange(fitFrame);
     try {
@@ -683,18 +711,24 @@
         <h3>Symboler</h3>
         <input bind:value={symbolFilter} placeholder="Søg symbol (fx bøjning, kontaktor)" style="width:100%" />
       </div>
+      {#if favError}<p class="small error">{favError}</p>{/if}
+      <details open>
+        <summary>Mine symboler <span class="muted small">({favorites.length})</span></summary>
+        {#if mine().length}
+          <div class="symbols">
+            {#each mine() as s (s.id)}{@render tile(s, true)}{/each}
+          </div>
+        {:else}
+          <p class="small muted">{favorites.length ? `Ingen af dine symboler matcher "${symbolFilter}".` : 'Tryk ☆ på et symbol for at lægge det her. Ordn dem med ◀ ▶.'}</p>
+        {/if}
+      </details>
       {#each CATEGORIES as cat (cat.id)}
         {@const list = symbolsIn(cat.id)}
         {#if list.length}
           <details open>
             <summary>{cat.label} <span class="muted small">({list.length})</span></summary>
             <div class="symbols">
-              {#each list as s (s.id)}
-                <button onclick={() => insert(s.id)} disabled={!ready} title={s.hint}>
-                  <svg viewBox="-4 -4 168 152" aria-hidden="true" {@attach fitPreview(s.id)}>{@html s.svg}</svg>
-                  <span>{s.label}</span>
-                </button>
-              {/each}
+              {#each list as s (s.id)}{@render tile(s, false)}{/each}
             </div>
             {#if cat.id === 'betjening'}
               <div class="selector-cfg">
@@ -731,6 +765,23 @@
       <p class="small muted">Ctrl+Z fortryder. Animationer (fx farve eller løbelys) kan stadig farve symbolet på Overview.</p>
     </div>
   {/if}
+{/snippet}
+
+{#snippet tile(s: SymbolDef, inMine: boolean)}
+  {@const fav = favorites.includes(s.id)}
+  {@const pos = favorites.indexOf(s.id)}
+  <div class="tile">
+    <button class="ins" onclick={() => insert(s.id)} disabled={!ready} title={s.hint}>
+      <svg viewBox="-4 -4 168 152" aria-hidden="true" {@attach fitPreview(s.id)}>{@html s.svg}</svg>
+      <span>{s.label}</span>
+    </button>
+    <button class="star" class:on={fav} onclick={() => saveFavorites(toggleFavorite(favorites, s.id))}
+      aria-label={fav ? `Fjern ${s.label} fra Mine symboler` : `Læg ${s.label} i Mine symboler`} title={fav ? 'Fjern fra Mine symboler' : 'Læg i Mine symboler'}>{fav ? '★' : '☆'}</button>
+    {#if inMine}
+      <button class="mv left" onclick={() => saveFavorites(moveFavorite(favorites, s.id, -1))} disabled={pos <= 0} aria-label="Flyt {s.label} frem" title="Flyt frem">◀</button>
+      <button class="mv right" onclick={() => saveFavorites(moveFavorite(favorites, s.id, 1))} disabled={pos === favorites.length - 1} aria-label="Flyt {s.label} tilbage" title="Flyt tilbage">▶</button>
+    {/if}
+  </div>
 {/snippet}
 
 {#snippet clipRow(canCopy: boolean)}
@@ -800,9 +851,18 @@
   .field :global(select), .field input { width: 100%; }
   /* minmax(0, 1fr): lange navne må ikke gøre en kolonne bredere end panelet */
   .symbols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
-  .symbols button { min-width: 0; }
+  .symbols .tile { position: relative; min-width: 0; display: flex; }
+  .symbols .ins { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; font-size: .72rem; line-height: 1.15; }
   .symbols span { max-width: 100%; overflow-wrap: anywhere; hyphens: auto; text-align: center; }
-  .symbols button { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; font-size: .72rem; line-height: 1.15; }
+  /* ☆/★ i øverste højre hjørne; ◀ ▶ i de nederste hjørner (kun i Mine symboler) */
+  .symbols .star, .symbols .mv { position: absolute; padding: 0 .25rem; min-width: 0; line-height: 1.2; font-size: .8rem; background: transparent; border: 0; color: var(--muted); }
+  .symbols .star { top: 1px; right: 1px; }
+  .symbols .star.on { color: #c58a00; }
+  .symbols .star:hover, .symbols .mv:hover:not(:disabled) { color: var(--accent); }
+  .symbols .mv { bottom: 1px; font-size: .65rem; }
+  .symbols .mv:disabled { opacity: .3; }
+  .symbols .mv.left { left: 1px; }
+  .symbols .mv.right { right: 1px; }
   details { margin-top: .6rem; }
   .adv { margin-top: .8rem; }
   .clip { margin-top: .4rem; gap: .4rem; }

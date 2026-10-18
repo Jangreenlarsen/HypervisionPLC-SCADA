@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import json
 import logging
 import os
 import re
@@ -70,6 +71,15 @@ def role_at_least(role: str, required: str) -> bool:
 
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+MAX_PALETTE = 60
+_SYMBOL_ID = re.compile(r"[a-z0-9_]{1,40}")
+
+
+def palette_key(username: str) -> str:
+    """Indstillingen med brugerens "Mine symboler" (bibliotekets symbol-id'er i den valgte rækkefølge)."""
+    return f"palette:{username}"
 
 
 @dataclass
@@ -275,4 +285,27 @@ class AuthService:
         if result == "last_admin":
             raise ServiceError(409, "Den sidste aktive administrator kan ikke slettes")
         self.db.delete_user_scope(username)
+        self.db.set_setting(palette_key(username), None)   # brugerens "Mine symboler" (v0.78.0)
         log.info("Bruger '%s' slettet af '%s'", username, actor.username)
+
+    # ------------------------------------------------------------ "Mine symboler" i Tegn (v0.78.0)
+
+    def palette(self, user: CurrentUser) -> list[str]:
+        raw = self.db.get_setting(palette_key(user.username))
+        try:
+            data = json.loads(raw) if raw else []
+        except ValueError:
+            return []   # ødelagt værdi: start forfra hellere end at fejle
+        return [s for s in data if isinstance(s, str) and _SYMBOL_ID.fullmatch(s)][:MAX_PALETTE] if isinstance(data, list) else []
+
+    def set_palette(self, user: CurrentUser, symbols: list[str]) -> list[str]:
+        clean: list[str] = []
+        for s in symbols:
+            if not isinstance(s, str) or not _SYMBOL_ID.fullmatch(s):
+                raise ServiceError(400, f"Ugyldigt symbol-id: {s!r}")
+            if s not in clean:
+                clean.append(s)
+        if len(clean) > MAX_PALETTE:
+            raise ServiceError(400, f"Højst {MAX_PALETTE} symboler i Mine symboler")
+        self.db.set_setting(palette_key(user.username), json.dumps(clean) if clean else None)
+        return clean
