@@ -159,8 +159,27 @@ export function motionHost(el: Element, create: boolean): Element | null {
   g.appendChild(el);
   return g;
 }
+/**
+ * Roterer på et symbol med en retningspil (pumpen, v0.85.0): pilen skal blive stående og vise pumperetningen, så resten
+ * af symbolet lægges i en indre gruppe, der drejer om sin midte (oprettes første gang; pilen ligger stadig øverst).
+ */
+const FIXED_PIDS = new Set(['pil']);
+export function spinHost(el: Element, create: boolean): Element | null {
+  const fixed = el.tagName.toLowerCase() === 'g' && [...el.children].some((c) => FIXED_PIDS.has(c.getAttribute('data-hv-pid') ?? ''));
+  if (!fixed) return motionHost(el, create);
+  const inner = [...el.children].find((c) => c.classList.contains('hv-spin-inner')) ?? null;
+  if (inner || !create) return inner;
+  const g = el.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.classList.add('hv-spin-inner');
+  for (const c of [...el.children]) {
+    const tag = c.tagName.toLowerCase();
+    if (!FIXED_PIDS.has(c.getAttribute('data-hv-pid') ?? '') && tag !== 'title' && tag !== 'desc') g.appendChild(c);
+  }
+  el.insertBefore(g, el.firstElementChild);
+  return g;
+}
 function motion(el: Element, cls: 'hv-spin' | 'hv-flicker', on: boolean): void {
-  motionHost(el, on)?.classList.toggle(cls, on);
+  (cls === 'hv-spin' ? spinHost(el, on) : motionHost(el, on))?.classList.toggle(cls, on);
 }
 
 function flicker(el: Element, on: boolean, palette: string[]): void {
@@ -202,10 +221,11 @@ function level(el: Element, f: number, direction: string): void {
  * Flyt og Rotation ændrer begge transform. Hver gemmer sin del, og transform sammensættes som
  * original + flyt + rotation — så de kan kombineres på samme element uden at overskrive hinanden.
  */
-function setTransformPart(el: Element, part: 'move' | 'rotate', value: string): void {
+function setTransformPart(el: Element, part: 'move' | 'rotate' | 'scale', value: string): void {
   const base = remember(el, 'transform');
   el.setAttribute(`data-hv-t-${part}`, value);
-  const parts = [base, el.getAttribute('data-hv-t-move'), el.getAttribute('data-hv-t-rotate')].filter(Boolean);
+  // Størrelse inderst (om delens egen midte), så drej og flyt virker på den skalerede del
+  const parts = [base, el.getAttribute('data-hv-t-move'), el.getAttribute('data-hv-t-rotate'), el.getAttribute('data-hv-t-scale')].filter(Boolean);
   if (parts.length) el.setAttribute('transform', parts.join(' '));
   else el.removeAttribute('transform');
 }
@@ -234,6 +254,21 @@ function moveBy(el: Element, dx: number, dy: number, p: Record<string, any>): vo
 
 function move(el: Element, f: number, dx: number, dy: number): void {
   setTransformPart(el, 'move', `translate(${r2(f * dx)} ${r2(f * dy)})`);
+}
+
+/** Størrelse (v0.85.0): delen skaleres med faktoren `s` om sin egen midte. */
+function scaleAbout(el: Element, s: number): void {
+  let cx = 0;
+  let cy = 0;
+  try {
+    const box = (el as SVGGraphicsElement).getBBox();
+    cx = box.x + box.width / 2;
+    cy = box.y + box.height / 2;
+  } catch {
+    // getBBox findes ikke i alle miljøer (fx jsdom) — skalér om (0,0).
+  }
+  const k = Math.round(s * 1000) / 1000;
+  setTransformPart(el, 'scale', k === 1 ? '' : `translate(${r2(cx)} ${r2(cy)}) scale(${k}) translate(${r2(-cx)} ${r2(-cy)})`);
 }
 
 function rotate(el: Element, angle: number, p: Record<string, any> = {}): void {
@@ -769,6 +804,9 @@ export function resetAnim(el: Element, anim: string, p: Record<string, any>): vo
     case 'opacity':
       st.opacity = '';
       break;
+    case 'scale':
+      if (el.hasAttribute('data-hv-t-scale')) setTransformPart(el, 'scale', '');
+      break;
     case 'rotate':
     case 'move':
       if (el.hasAttribute(`data-hv-c-${anim}`)) setGlide(el, anim, '');
@@ -865,6 +903,13 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
     case 'opacity':
       (el as SVGElement).style.opacity = String(fraction(v, p.min, p.max));
       break;
+    case 'scale': {
+      // ukendt værdi (PLC nede): delen i sin tegnede størrelse
+      if (toNumber(v) === null) { if (el.hasAttribute('data-hv-t-scale')) setTransformPart(el, 'scale', ''); break; }
+      const lo = Number(p.size_min ?? 50), hi = Number(p.size_max ?? 150);
+      scaleAbout(el, Math.max(0.01, (lo + fraction(v, p.min, p.max) * (hi - lo)) / 100));
+      break;
+    }
     case 'move':
       if (p.pos) {
         const dx = at(p.dxs), dy = at(p.dys);

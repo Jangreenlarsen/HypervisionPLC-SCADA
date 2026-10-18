@@ -169,6 +169,12 @@ class AMove(MoveParams):
     dys: list[float] | None = None
 
 
+class AScale(RangeParams):
+    """Størrelse (v0.85.0): delen skaleres om sin midte — size_min % ved min, size_max % ved max."""
+    size_min: float = Field(default=50, gt=0, le=1000)
+    size_max: float = Field(default=150, gt=0, le=1000)
+
+
 class AFlow(FlowParams):
     dirs: list[Literal[-1, 0, 1]] | None = None
 
@@ -176,22 +182,22 @@ class AFlow(FlowParams):
 ANIM_PARAMS: dict[str, type[BaseModel]] = {
     "fill": AColor, "stroke": AColor, "blink": ABlink, "visible": AToggle, "spin": AToggle,
     "level": LevelParams, "opacity": RangeParams, "text": AText, "rotate": ARotate, "move": AMove, "flow": AFlow,
-    "flicker": AFlicker,
+    "flicker": AFlicker, "scale": AScale,
 }
 ANIM_LABEL = {"fill": "Farve", "stroke": "Stregfarve", "blink": "Blink", "visible": "Synlig", "spin": "Roterer",
               "level": "Niveau", "opacity": "Gennemsigtighed", "text": "Værdi", "rotate": "Drej", "move": "Flyt",
-              "flow": "Løbelys", "flicker": "Blafrer"}
+              "flow": "Løbelys", "flicker": "Blafrer", "scale": "Størrelse"}
 # Animationer der kan være "aktiv/passiv" (til/fra-agtige); de andre følger et tal hele tiden
 WHEN_TYPES = {"fill", "stroke", "blink", "visible", "spin", "flicker", "flow"}
 # Parametre pr. position: (feltnavn(e) der skal have én værdi pr. position) — kun når kilden er @pos
 POS_FIELDS = {"fill": ("colors",), "stroke": ("colors",), "blink": ("set",), "visible": ("set",), "spin": ("set",),
               "rotate": ("angles",), "move": ("dxs", "dys"), "flow": ("dirs",), "text": (), "flicker": ("set",)}
-NUMERIC_ONLY = {"level", "opacity"}
+NUMERIC_ONLY = {"level", "opacity", "scale"}
 
 
 class Anim(_M):
     part: str = Field(max_length=120)
-    type: Literal["fill", "stroke", "blink", "visible", "spin", "level", "opacity", "text", "rotate", "move", "flow", "flicker"]
+    type: Literal["fill", "stroke", "blink", "visible", "spin", "level", "opacity", "text", "rotate", "move", "flow", "flicker", "scale"]
     # "aktiv/passiv" (v0.72.0): når animationen ikke er aktiv, rører den ikke delen — så kan en anden (eller standarden)
     # på samme del bestemme. Standard: "aktiv/ikke aktiv" (viser sin fra-tilstand).
     when: bool = False

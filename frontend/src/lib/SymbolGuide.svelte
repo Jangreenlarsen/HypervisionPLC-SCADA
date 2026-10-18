@@ -665,7 +665,7 @@
                 <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
                   {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
-                  {#if !['level', 'opacity', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
+                  {#if !['level', 'opacity', 'scale', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
                 </select>
                 {#if srcMode(a) === 'tag'}<TagSelect bind:value={a.src} {tags} onchange={() => resetParams(a)} />{/if}
                 {#if srcMode(a) === 'alarm'}
@@ -880,8 +880,11 @@
       {#if a.type === 'blink'}
         <select bind:value={p.speed} aria-label="Blinkfrekvens">{#each Object.entries(BLINK_TXT) as [v, t]}<option value={v}>{t}</option>{/each}</select>
       {/if}
-    {:else if a.type === 'level' || a.type === 'opacity'}
+    {:else if a.type === 'level' || a.type === 'opacity' || a.type === 'scale'}
       {@render numInput(p, 'min', 'Min')}{@render numInput(p, 'max', 'Max')}
+      {#if a.type === 'scale'}
+        {@render numInput(p, 'size_min', 'Størrelse ved min (%)')}{@render numInput(p, 'size_max', 'ved max (%)')}
+      {/if}
       {#if a.type === 'level'}
         <select bind:value={p.direction} aria-label="Retning"><option value="up">Op</option><option value="down">Ned</option><option value="left">Venstre</option><option value="right">Højre</option></select>
       {/if}

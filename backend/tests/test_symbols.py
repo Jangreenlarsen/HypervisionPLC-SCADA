@@ -425,3 +425,16 @@ def test_alarm_engine_publishes_pseudo_tags(api):
     svc.publish()
     assert cache.get("alarm:Fejl:active").value is None   # ingen alarm mere: fjernet fra cachen
 
+
+def test_scale_animation_numeric_only(api):
+    """Størrelse (v0.85.0): kun et tal-tag; procenterne skal være positive."""
+    base = {"op": "view", "anims": []}
+    ok = put(api, {**base, "anims": [{"part": "V1_greb", "type": "scale", "src": "Niveau", "params": {"min": 0, "max": 100, "size_min": 50, "size_max": 200}}]})
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["config"]["anims"][0]["params"]["size_max"] == 200
+    for src, why in [("Lys", "kræver et tal-tag"), ("@on", "kan ikke styres af"), ("@pos", "ingen positioner")]:
+        r = put(api, {**base, "anims": [{"part": "V1_greb", "type": "scale", "src": src, "params": {}}]})
+        assert r.status_code == 400 and why in r.text, (src, r.text)
+    r = put(api, {**base, "anims": [{"part": "V1_greb", "type": "scale", "src": "Niveau", "params": {"size_min": 0}}]})
+    assert r.status_code == 400
+

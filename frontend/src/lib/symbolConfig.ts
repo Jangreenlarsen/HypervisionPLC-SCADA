@@ -3,7 +3,7 @@
 // Valideringen er serverens (POST …/preview) — her er kun struktur og forslag.
 
 export type Op = 'positions' | 'pulse' | 'entry' | 'view';
-export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow' | 'flicker';
+export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow' | 'flicker' | 'scale';
 export type SrcKind = 'pos' | 'bool' | 'num';
 
 export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null }
@@ -55,7 +55,7 @@ export const OP_TXT: Record<Op, string> = { view: 'Kun visning', positions: 'Pos
 export const ALARM_TXT: Record<string, string> = { '': 'Nej', low: 'Ja — lav', medium: 'Ja — medium', high: 'Ja — høj' };
 export const ANIM_TXT: Record<AnimType, string> = {
   fill: 'Farve', stroke: 'Stregfarve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', flicker: 'Blafrer', level: 'Niveau',
-  opacity: 'Gennemsigtighed', text: 'Værdi', rotate: 'Drej', move: 'Flyt', flow: 'Løbelys',
+  opacity: 'Gennemsigtighed', text: 'Værdi', rotate: 'Drej', move: 'Flyt', flow: 'Løbelys', scale: 'Størrelse',
 };
 export const BLINK_TXT: Record<string, string> = { slow: 'Langsom (0,5 Hz)', normal: 'Normal (1 Hz)', fast: 'Hurtig (2 Hz)' };
 
@@ -289,7 +289,7 @@ export function evalLogic(
 
 /** Hvilke animationer en del kan have — efter delens geometri (samme regel som serveren). */
 export function typesFor(part: PartInfo | undefined): AnimType[] {
-  const t: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'rotate', 'move', 'opacity'];
+  const t: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'rotate', 'move', 'opacity', 'scale'];
   if (part?.tag === 'rect') t.push('level');
   if (part?.tag === 'text' || part?.tag === 'tspan') t.push('text');
   if (part?.line) t.push('flow');
@@ -317,6 +317,8 @@ export function animDefaults(type: AnimType, kind: SrcKind, n: number): Record<s
       return { min: 0, max: 100, direction: 'up' };
     case 'opacity':
       return { min: 0, max: 100 };
+    case 'scale':
+      return { min: 0, max: 100, size_min: 50, size_max: 150 };
     case 'text':
       return {};
     case 'rotate':

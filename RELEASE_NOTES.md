@@ -2,6 +2,11 @@
 
 ---
 
+## v0.85.0 — 2026-10-18 — Pumpens pil og ny animation Størrelse
+
+- **Roterer** på en pumpe drejer ikke længere **pilen** med — den viser stadig pumperetningen.
+- Ny animation **Størrelse**: en del (fx pumpens pil) bliver større eller mindre efter en tag-værdi, fx 50 % ved Min og 150 % ved Max.
+
 ## v0.84.0 — 2026-10-18 — Opdatér gamle symboler
 
 - **Erstat med symbol** på et gammelt symbol fra biblioteket foreslår nu den **nyeste udgave** (fx pumpen med pil). Navn, placering og opsætning bevares, og alle symboler af samme slags kan opdateres på én gang.

@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.85.0 build 0129] — 2026-10-18 — Pumpens pil drejer ikke med; ny animation Størrelse
+
+- `backend/app/services/symbols.py` — animationen `scale` ("Størrelse", `AScale`: min/max + size_min/size_max i %, > 0 og ≤ 1000); kun tal-tag (`NUMERIC_ONLY`). Test i `test_symbols.py`.
+- `frontend/src/lib/animate.ts` — `scale`: delen skaleres om sin midte (inderst i transform-listen, efter Drej/Flyt; 100 % og ukendt værdi = ingen ekstra transform). `spinHost()`: Roterer på en gruppe med en retningspil (`data-hv-pid="pil"`) drejer en indre gruppe med resten — pilen står stille og ligger stadig øverst. Test i `animate.test.ts`.
+- `frontend/src/lib/symbolConfig.ts`, `SymbolGuide.svelte`, `api.ts` — typen Størrelse med felterne *Størrelse ved min/max (%)*; ingen alarm/"altid til"-kilde (som Niveau/Gennemsigtighed).
+- Manual (06). **Set i browseren** lokalt: pumpe med Roterer på hele symbolet og Størrelse på pilen → under drift drejer cirkel og trekant, pilen står vandret; pilen 55/110/165 px ved flow 0/50/100 (50/100/150 %); guiden viser Størrelse med felterne.
+
 ## [0.84.0 build 0128] — 2026-10-18 — Opdatér gamle biblioteksymboler med "Erstat med symbol"
 
 - `frontend/src/lib/symbolSuggest.ts` — et symbol fra biblioteket får forslaget "den nyeste udgave af samme symbol" (før: ingen forslag). Test.

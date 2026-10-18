@@ -47,11 +47,15 @@ Er en **tilbagemelding** valgt for et signal, læses PLC'ens position derfra; el
 
 ## Animationer i guiden (trin 4)
 
-Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symbolet* …; dele uden et navn fra biblioteket vises efter deres form, fx *Ramme*, *Rektangel 2*, *Cirkel* eller *Tekst "STF"*, med det tekniske id i parentes), en **type** (*Farve, Blink, Synlig, Roterer, Blafrer, Niveau, Gennemsigtighed, Værdi, Drej, Flyt, Løbelys*) og en **kilde**:
+Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symbolet* …; dele uden et navn fra biblioteket vises efter deres form, fx *Ramme*, *Rektangel 2*, *Cirkel* eller *Tekst "STF"*, med det tekniske id i parentes), en **type** (*Farve, Blink, Synlig, Roterer, Blafrer, Niveau, Gennemsigtighed, Størrelse, Værdi, Drej, Flyt, Løbelys*) og en **kilde**:
 
 - **symbolets position** — farve, vinkel, forskydning osv. vælges **pr. position**
 - **et tag** — til/fra eller tal
 - **en logikblok** — se nedenfor
+
+**Størrelse** (tal-tag) gør delen større eller mindre om sin egen midte efter værdien: ved **Min** har den *Størrelse ved min* (fx 50 %), ved **Max** *ved max* (fx 150 %), og imellem glidende. Fx pumpens **Pil**, så den vokser med flowet. Uden gyldig værdi vises delen i sin tegnede størrelse.
+
+**Pumpens pil drejer ikke med:** sættes *Roterer* på hele pumpen, drejer cirklen og trekanten, men retningspilen bliver stående og viser stadig pumperetningen.
 
 Står flere animationer på samme del, **vinder den nederste** (▲▼ ændrer rækkefølgen). Animationer kan også begrænses til bestemte positioner (**Gælder i**).
 
