@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyze, hideSpikes } from './trendAnalysis';
+import { affectedPoints, analyze, formatShare, hideSpikes, irregularShare } from './trendAnalysis';
 import type { Point } from './trendData';
 
 const pts = (vals: (number | null)[], step = 10): Point[] => vals.map((v, i) => [i * step, v, v, v]);
@@ -57,5 +57,25 @@ describe('hideSpikes', () => {
   it('uden spikes returneres serien uændret', () => {
     const p = pts(wave(40));
     expect(hideSpikes(p, analyze(p))).toBe(p);
+  });
+});
+
+describe('andel uregelmæssigheder', () => {
+  it('en fastfrosset række tæller hele rækken, øvrige fund ét punkt', () => {
+    const f = analyze(pts([...wave(20), ...Array(15).fill(25), ...wave(20)]));
+    const frozen = f.find((i) => i.kind === 'frozen')!;
+    expect(frozen.n).toBe(15);
+    expect(affectedPoints([frozen, { t: 1, kind: 'spike', note: '' }])).toBe(16);
+  });
+  it('procenten er i forhold til alle punkter og når aldrig over 100 eller under 0', () => {
+    expect(irregularShare(5, 200)).toBe(2.5);
+    expect(irregularShare(9, 3)).toBe(100);
+    expect(irregularShare(0, 0)).toBe(0);
+  });
+  it('formatering med dansk komma, og små andele bliver ikke til 0', () => {
+    expect(formatShare(2.5)).toBe('2,5 %');
+    expect(formatShare(0)).toBe('0 %');
+    expect(formatShare(0.04)).toBe('< 0,1 %');
+    expect(formatShare(100)).toBe('100 %');
   });
 });

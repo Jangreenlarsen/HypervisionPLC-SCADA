@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.104.0 build 0154] — 2026-10-19 — Trends: andel uregelmæssigheder i procent
+
+- `frontend/src/lib/trendAnalysis.ts` + test — `Issue.n` (punkter ramt), `affectedPoints`, `irregularShare`, `formatShare`.
+- `frontend/src/pages/Trends.svelte` — pr. kurve "x % af punkterne (a af b)" og en samlet linje "I alt" over alle tal-kurver.
+- Kun frontend. **Kun bygget og testet** (ikke set i browseren).
+
 ## [0.103.0 build 0153] — 2026-10-19 — Symboltest: positioner, løbelys og guidens opsætning
 
 - `frontend/src/lib/symbolTest.ts` — `testInfo` (del-info inkl. streger som serveren), `types` pr. del via `typesFor` (nu også Løbelys), `testBinding` med kilden *Position*, `librarySetup`/`runSetup` (bibliotekets `libraryDefault` som bindinger).

@@ -2,6 +2,10 @@
 
 ---
 
+## v0.104.0 — 2026-10-19 — Trends: procent uregelmæssigheder
+
+- **Analysér data** viser nu, hvor mange **procent af punkterne** der har uregelmæssigheder, for hver kurve og samlet for alle tal-kurver.
+
 ## v0.103.0 — 2026-10-19 — Symboltest kan mere
 
 - **Positioner**: vælg *Position* under "Tag er" og afprøv farve, drejning, flytning, synlighed m.m. pr. position (2–8).

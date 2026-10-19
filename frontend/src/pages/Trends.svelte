@@ -6,7 +6,7 @@
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
   import { align, assignColors, colorOf, dashOf, groupByUnit, MAX_SERIES, RANGES, type Point } from '../lib/trendData';
-  import { analyze, hideSpikes, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
+  import { affectedPoints, analyze, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
   import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
 
   let { canEdit = false, route = 'trends' }: { canEdit?: boolean; route?: string } = $props();
@@ -331,8 +331,24 @@
   const issueTotals = $derived(Object.entries(issues).map(([n, list]) => {
     const counts: Partial<Record<IssueKind, number>> = {};
     for (const i of list) counts[i.kind] = (counts[i.kind] ?? 0) + 1;
-    return { name: n, text: (Object.entries(counts) as [IssueKind, number][]).map(([k, c]) => `${c} × ${ISSUE_LABEL[k].toLowerCase()}`).join(', ') };
+    const total = resp?.series[n]?.length ?? 0, affected = Math.min(total, affectedPoints(list));
+    return {
+      name: n, affected, total,
+      text: (Object.entries(counts) as [IssueKind, number][]).map(([k, c]) => `${c} × ${ISSUE_LABEL[k].toLowerCase()}`).join(', '),
+      share: formatShare(irregularShare(affected, total)),
+    };
   }));
+  /** Samlet andel over alle analyserede kurver (kun tal-kurver; en kurve uden fund tæller med i nævneren). */
+  const overall = $derived.by(() => {
+    if (!analyse || !resp) return null;
+    let affected = 0, total = 0;
+    for (const n of selected) {
+      if (tagInfo.get(n)?.is_bool) continue;
+      total += resp.series[n]?.length ?? 0;
+      affected += Math.min(resp.series[n]?.length ?? 0, affectedPoints(issues[n] ?? []));
+    }
+    return total ? { affected, total, share: formatShare(irregularShare(affected, total)) } : null;
+  });
 
   function chartFor(names: { name: string; isBool?: boolean }[]): { series: ChartSeries[]; data: ReturnType<typeof align> } {
     const series = names.map((t) => ({
@@ -490,7 +506,8 @@
         <div class="panel small">
           {#if issueTotals.length}
             <strong>Uregelmæssigheder (ring om punktet):</strong>
-            <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text}</li>{/each}</ul>
+            <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text} — <strong>{f.share}</strong> af punkterne ({f.affected} af {f.total})</li>{/each}</ul>
+            {#if overall}<div>I alt: <strong>{overall.share}</strong> af alle punkter ({overall.affected} af {overall.total}) har uregelmæssigheder.</div>{/if}
             <span class="muted">{hide ? 'Spikes er udfyldt ved interpolation. ' : ''}Spring, fastfrosne værdier og huller markeres kun. Rådata er uændrede (CSV indeholder alt).</span>
           {:else}
             <span class="muted">Ingen uregelmæssigheder fundet i den viste periode.</span>

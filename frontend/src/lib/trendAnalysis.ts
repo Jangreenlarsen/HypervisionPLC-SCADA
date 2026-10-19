@@ -3,7 +3,8 @@
 import type { Point } from './trendData';
 
 export type IssueKind = 'spike' | 'jump' | 'frozen' | 'gap';
-export interface Issue { t: number; kind: IssueKind; note: string }
+/** `n`: antal punkter fundet rammer (standard 1; en fastfrosset række rammer hele rækken). */
+export interface Issue { t: number; kind: IssueKind; note: string; n?: number }
 
 export const ISSUE_LABEL: Record<IssueKind, string> = {
   spike: 'Spike', jump: 'Urealistisk spring', frozen: 'Fastfrosset værdi', gap: 'Hul i data',
@@ -70,11 +71,22 @@ export function analyze(points: Point[]): Issue[] {
   let run = 1;
   for (let i = 1; i <= vs.length; i++) {
     if (i < vs.length && vs[i] === vs[i - 1]) { run++; continue; }
-    if (run >= FROZEN_RUN) issues.push({ t: valid[i - run][0], kind: 'frozen', note: `Uændret ${vs[i - 1]} i ${run} punkter` });
+    if (run >= FROZEN_RUN) issues.push({ t: valid[i - run][0], kind: 'frozen', note: `Uændret ${vs[i - 1]} i ${run} punkter`, n: run });
     run = 1;
   }
 
   return issues.sort((a, b) => a.t - b.t);
+}
+
+/** Andelen af punkter der er ramt af uregelmæssigheder (0–100 %), i forhold til alle punkter i serien. */
+export function irregularShare(affected: number, total: number): number {
+  return total > 0 ? Math.min(100, (affected / total) * 100) : 0;
+}
+export const affectedPoints = (issues: Issue[]): number => issues.reduce((sum, i) => sum + (i.n ?? 1), 0);
+/** Procent med ét decimal og dansk komma; små andele vises som "< 0,1 %" i stedet for 0. */
+export function formatShare(pct: number): string {
+  if (pct > 0 && pct < 0.1) return '< 0,1 %';
+  return `${(Math.round(pct * 10) / 10).toString().replace('.', ',')} %`;
 }
 
 /** Kopi af serien hvor spikes er erstattet med lineært interpolerede værdier mellem nærmeste gode naboer — rådata er uændrede. */
