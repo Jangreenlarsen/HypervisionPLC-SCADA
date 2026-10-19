@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.106.0 build 0156] — 2026-10-19 — Trends: fastfrosset efter tid
+
+- `frontend/src/lib/trendAnalysis.ts` + test — `analyze(points, { frozenMinS })`: fastfrosset kræver samme værdi i mindst den valgte tid (og 3 punkter) i stedet for 12 punkter; `formatSpan`; noten viser varigheden. Standard 6 timer; `null` slår fra.
+- `frontend/src/pages/Trends.svelte` — valget *Fastfrosset efter* (1 time … 7 døgn, Aldrig), husket pr. browser.
+- Kun frontend. **Kun bygget og testet** (ikke set i browseren).
+
 ## [0.105.0 build 0155] — 2026-10-19 — Driftpanel: Trends og kvittering af alarmer
 
 - `frontend/src/App.svelte` — driftpanelet viser Alarmer (kvittér) og Trends, når genvejene i tegningen åbner dem.
