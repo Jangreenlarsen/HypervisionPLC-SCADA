@@ -61,7 +61,7 @@ const bubble = (letters: string) =>
  * bindingerne — klik-handlinger kun hvis tagget er skrivbart.
  */
 const auto = (items: object[]) => `data-hv-auto='${JSON.stringify(items)}'`;
-const part = (item: object) => `data-hv-part='${JSON.stringify(item)}'`;
+const part = (item: object | object[]) => `data-hv-part='${JSON.stringify(item)}'`;   // én eller flere animationer
 const ON = '#7cc47f';   // tændt/aktiv i betjeningssymboler (lys, så sort tekst kan læses)
 const OFF = '#d6d6d6';
 
@@ -129,6 +129,16 @@ export const SYMBOLS: SymbolDef[] = [
     get svg() { return selectorSymbol(['Hånd', '0', 'Auto']); },
   },
   {
+    id: 'vippe_onoff', label: 'Vippekontakt ON/OFF (klassisk)', category: 'betjening',
+    hint: 'Klassisk vippekontakt — vælg position i en dialog (OFF = 0, ON = 1); grebet vipper op (ON) eller ned (OFF)',
+    get svg() { return toggleSwitchSymbol(false); },
+  },
+  {
+    id: 'vippe_onoffon', label: 'Vippekontakt ON/OFF/ON (klassisk)', category: 'betjening',
+    hint: 'Klassisk vippekontakt med midterstilling — OFF = 0 (midt), ON 1 = 1 (op), ON 2 = 2 (ned)',
+    get svg() { return toggleSwitchSymbol(true); },
+  },
+  {
     id: 'drejeomskifter', label: 'Drejeomskifter 0/1', category: 'betjening',
     hint: 'Til/fra med bekræftelse — grebet drejer mellem 0 og 1',
     svg: `<g ${auto([{ anim: 'click:toggle', params: { confirm: true } }])}>` +
@@ -175,9 +185,9 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'pumpe', label: 'Pumpe', category: 'proces',
     hint: 'Løbehjulet drejer, når pumpen kører (Roterer); pilen viser pumperetningen — drej symbolet for at vende den',
     svg: `<g><circle cx="40" cy="40" r="32" fill="${FILL}" stroke="${LINE}" stroke-width="3"/>` +
-      // Løbehjul (v0.86.0): fire krumme skovle om et nav, symmetrisk om midten (40,40), så det drejer på stedet
+      // Løbehjul (v0.86.0): fire krumme skovle, symmetrisk om midten (40,40), så det drejer på stedet (uden nav siden v0.95.1)
       `<g id="loebehjul"><path d="M40 40 C40 31 45 24 54 21 M40 40 C49 40 56 45 59 54 M40 40 C40 49 35 56 26 59 M40 40 C31 40 24 35 21 26" ` +
-      `fill="none" stroke="${PANEL}" stroke-width="4" stroke-linecap="round"/><circle cx="40" cy="40" r="5" fill="${DARK}"/></g>` +
+      `fill="none" stroke="${PANEL}" stroke-width="4" stroke-linecap="round"/></g>` +
       // Retningspil øverst (v0.82.0) — egen del; drejer ikke med (Roterer på hele symbolet springer den over)
       `<g id="pil"><path d="M25 40 H47" fill="none" stroke="${DARK}" stroke-width="3.5"/>` +
       `<path d="M45 32.5 L59 40 L45 47.5 Z" fill="${DARK}" stroke="${DARK}" stroke-width="1" stroke-linejoin="round"/></g></g>`,
@@ -441,6 +451,14 @@ export const SYMBOLS: SymbolDef[] = [
       `${wire('M14 33 H76', ' stroke-dasharray="4 3"')}${text(98, 40, 'K1', 13, '', 'start')}</g>`,
   },
   {
+    id: 'kontakt2', label: 'Kontakt 2-polet', category: 'el', hint: 'Knivene lukker, når tagget er Til (guiden foreslår "Drej" på hver kniv)',
+    svg: contactSymbol(2),
+  },
+  {
+    id: 'kontakt3', label: 'Kontakt 3-polet', category: 'el', hint: 'Knivene lukker, når tagget er Til (guiden foreslår "Drej" på hver kniv)',
+    svg: contactSymbol(3),
+  },
+  {
     id: 'spole', label: 'Relæ-/kontaktorspole', category: 'el', hint: 'Bind "Fyldfarve" til spolen er aktiv',
     svg: `<g>${wire('M30 0 V14 M30 46 V60')}<rect x="10" y="14" width="40" height="32" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
       `${text(30, 35, 'K1', 14)}</g>`,
@@ -597,6 +615,21 @@ export const SYMBOLS: SymbolDef[] = [
   },
 ];
 
+/**
+ * Kontakt med n poler (v0.94.0), tegnet ÅBEN (sluttekontakt). Hver pols kniv (`kniv1`…) er hængslet forneden i (x, 52) og
+ * peger skråt op til venstre (længde 30); drejet KNIV_LUKKET grader med uret står den lodret mod den faste kontakt (x, 22).
+ * Kniven har en usynlig modsat halvdel, så dens boks har midten i hængslet — "Drej" drejer om boksens midte.
+ */
+export const KNIV_LUKKET = 32;
+export function contactSymbol(n: number): string {
+  const xs = Array.from({ length: n }, (_, i) => 16 + i * 30);
+  const poles = xs.map((x, i) =>
+    wire(`M${x} 0 V22 M${x - 5} 22 H${x + 5} M${x} 52 V74`) +
+    `<g id="kniv${i + 1}">${wire(`M${x} 52 L${x - 16} 26.6`)}<path d="M${x} 52 L${x + 16} 77.4" fill="none" stroke="none"/></g>`).join('');
+  const link = wire(`M${xs[0] - 8} 39 H${xs[n - 1] - 8}`, ' stroke-dasharray="4 3"');
+  return `<g>${poles}${link}${text(xs[n - 1] + 14, 43, 'Q1', 13, '', 'start')}</g>`;
+}
+
 /** Vinkler (grader, 0 = op, med uret) for n positioner — fordelt symmetrisk om lodret. */
 export function selectorAngles(n: number): number[] {
   const span = Math.max(60, Math.min(270, 45 * (n - 1)));
@@ -632,6 +665,41 @@ export function selectorSymbol(labels: string[]): string {
     `<g id="greb" ${part({ anim: 'rotate', params: { min: 0, max: n - 1, angle_min: angles[0], angle_max: angles[n - 1] } })}>` +
     `<rect x="${cx - 6}" y="${cy - 26}" width="12" height="52" rx="4" fill="${FILL}" stroke="${DARK}" stroke-width="1.5"/>` +
     `<rect x="${cx - 3}" y="${cy - 24}" width="6" height="14" rx="2" fill="${DARK}"/></g></g>`;
+}
+
+/**
+ * Klassisk vippekontakt (v0.96.0, op/ned siden v0.96.1) set forfra: monteringsplade, sekskantmøtrik og et greb, der
+ * vipper OP eller NED. `mid`: med midterstilling (ON/OFF/ON) — i midten peger grebet lige ud mod beskueren og ses kun som
+ * en knop. Værdierne: ON/OFF → OFF = 0 (ned), ON = 1 (op); ON/OFF/ON → OFF = 0 (knop), ON 1 = 1 (op), ON 2 = 2 (ned).
+ * Grebet har en usynlig modsat halvdel, så "Drej" vipper det om møtrikkens midte. Tegningen viser OFF.
+ */
+export function toggleSwitchSymbol(mid: boolean): string {
+  const cx = 70, cy = 74;
+  const label = (x: number, y: number, t: string, anchor = 'middle') =>
+    `<text x="${x}" y="${y}" font-size="13" font-weight="600" text-anchor="${anchor}" fill="${DARK}" ${FONT}>${t}</text>`;
+  const tick = (x1: number, y1: number, x2: number, y2: number) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${DARK}" stroke-width="2"/>`;
+  const names = mid ? ['ON 1', 'OFF', 'ON 2'] : ['OFF', 'ON'];
+  const values = mid ? [1, 0, 2] : [0, 1];
+  const labels = mid
+    ? label(cx, cy - 46, 'ON 1') + label(cx, cy + 56, 'ON 2') + label(cx + 46, cy + 5, 'OFF', 'start') + tick(cx + 38, cy, cx + 43, cy)
+    : label(cx, cy - 46, 'ON') + label(cx, cy + 56, 'OFF');
+  const hex = Array.from({ length: 6 }, (_, k) => { const a = ((30 + k * 60) * Math.PI) / 180; return `${Math.round(cx + 20 * Math.sin(a))},${Math.round(cy - 20 * Math.cos(a))}`; }).join(' ');
+  const params = { positions: names.map((l, i) => ({ value: values[i], label: l })), confirm: true };
+  // Grebet peger NED i tegningen (OFF på ON/OFF); "Drej" 180° = OP
+  const grebAnims = mid
+    ? [{ anim: 'rotate', params: { min: 1, max: 2, angle_min: 180, angle_max: 0 } }, { anim: 'visible', params: { invert: false } }]
+    : [{ anim: 'rotate', params: { min: 0, max: 1, angle_min: 0, angle_max: 180 } }];
+  const greb = `<g id="greb" ${part(grebAnims)}${mid ? ' style="display:none"' : ''}>` +
+    `<path d="M${cx - 3} ${cy} L${cx - 6} ${cy + 30} A6 6 0 0 0 ${cx + 6} ${cy + 30} L${cx + 3} ${cy} Z" fill="#b8b8b8" stroke="${DARK}" stroke-width="1.5" stroke-linejoin="round"/>` +
+    `<path d="M${cx} ${cy} V${cy - 36}" fill="none" stroke="none"/></g>`;
+  // Knoppen: grebet set for enden (midterstillingen)
+  const knop = mid ? `<g id="knop" ${part([{ anim: 'visible', params: { invert: true } }])}>` +
+    `<circle cx="${cx}" cy="${cy}" r="8" fill="#b8b8b8" stroke="${DARK}" stroke-width="1.5"/><circle cx="${cx - 2}" cy="${cy - 2}" r="2.5" fill="#e8e8e8"/></g>` : '';
+  return `<g ${auto([{ anim: 'click:select', params }])}>` +
+    `<rect x="${cx - 36}" y="${cy - 36}" width="72" height="72" rx="10" fill="#e3e3e3" stroke="${LINE}" stroke-width="2.5"/>` +
+    `<polygon points="${hex}" fill="${FILL}" stroke="${DARK}" stroke-width="2"/>` +
+    `<circle cx="${cx}" cy="${cy}" r="11" fill="#cfcfcf" stroke="${DARK}" stroke-width="1.5"/>` +
+    tick(cx, cy - 38, cx, cy - 43) + tick(cx, cy + 38, cx, cy + 43) + labels + greb + knop + '</g>';
 }
 
 /** Giv symbolets rod-<g> et navn (data-hv-name), så det kan kendes i Bindinger og Overview. */

@@ -4,6 +4,52 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.96.2 build 0145] — 2026-10-19 — fix: symboltesten accepterer flere animationer pr. del
+
+- `frontend/src/lib/symbols.test.ts` — testen af betjeningssymbolernes `data-hv-part` antog én animation pr. del; vippekontaktens greb har to (Drej + Synlig, v0.96.1), som serveren læser som en liste. v0.96.1 blev committet med denne ene fejlende test (min kommandokæde stoppede ikke ved fejlen); kun testen er rettet — koden var korrekt (bekræftet: serveren danner bindingerne `rotate` + `visible` på grebet og `visible` på knoppen).
+
+## [0.96.1 build 0144] — 2026-10-19 — Vippekontakterne vipper op og ned
+
+- Jan: "kontakten skal ikke vippe fra side til side, men op og ned for ON/OFF og op/midt/ned for ON/OFF/ON".
+- `frontend/src/lib/symbols.ts` — `toggleSwitchSymbol(mid)`: set forfra; grebet tegnes NED og drejes 180° = OP. ON/OFF: OFF = 0 (ned), ON = 1 (op). ON/OFF/ON: OFF = 0 — grebet skjult og kun en **knop** (grebet set for enden) — ON 1 = 1 (op), ON 2 = 2 (ned). Tegningen viser OFF; ON over, OFF/ON 2 under, OFF til højre for midten. `part()` tager nu en liste af animationer (grebet både drejer og skjules).
+- `symbolConfig.ts` — biblioteksforslag for begge (positioner, kontaktplan 0/1 hhv. 1/0/2, Drej og Synlig pr. position på greb og knop — kun tagget skal vælges i trin 2); delnavnet "Knop (midterstilling)". Manualens symboltabel (07) regenereret.
+- **Set i browseren** lokalt: begge opsat gennem guiden (forslaget + tag) og gemt med de forventede positioner/animationer; på Overview: ON/OFF ned ved 0 og op ved 1 (bekræftet); ON/OFF/ON knop ved 0, greb op ved 1, greb ned ved 2. (Test-PLC'en var overbelastet, så visningen skiftede ind imellem til "ukendt position".)
+
+## [0.96.0 build 0143] — 2026-10-19 — Klassiske vippekontakter ON/OFF og ON/OFF/ON
+
+- `frontend/src/lib/symbols.ts` — `toggleSwitchSymbol(labels)`: monteringsplade, sekskantmøtrik og et greb (usynlig modsat halvdel → vipper om møtrikkens midte), positionernes navne og streger rundt om (vinkler som omskifteren, `selectorAngles`); klik vælger position (`click:select`), så guiden opsætter dem som omskifteren. Nye symboler *Vippekontakt ON/OFF (klassisk)* og *Vippekontakt ON/OFF/ON (klassisk)* (ON 1 / OFF / ON 2 = 0 / 1 / 2). `symbolConfig.ts` — positioner som opsætningsform; tilbyder vælger-eksemplet. Manualens symboltabel (07) regenereret.
+- **Set i browseren** lokalt: begge sat ind i Tegn; ON/OFF/ON opsat med positioner på et HR-tag → klik på Overview giver dialogen med ON 1 / OFF / ON 2; værdien 2 → grebet vipper til ON 2 (`rotate(45deg)`) og positionen er bekræftet.
+
+## [0.95.1 build 0142] — 2026-10-19 — Pumpen uden prik i midten
+
+- `frontend/src/lib/symbols.ts` — Pumpe: navet (den mørke prik midt i løbehjulet) er fjernet (Jan). Løbehjulet er stadig symmetrisk om midten, så det drejer på stedet. Manualens symboltabel (07) regenereret.
+- **Set i browseren** lokalt: pumpen uden prik; under drift drejer løbehjulet (`hv-spin`), pilen står stille.
+
+## [0.95.0 build 0141] — 2026-10-19 — Trendgraf: opløsning følger størrelsen, diagramlinjer, tekst på to linjer
+
+- Jan: "når man skalerer trendsymboler skal opløsningen blive større eller mindre, vi mangler diagramlinjer, og teksten skal være i to linjer, så den ikke kommer ud over boksen".
+- `frontend/src/lib/chartGraphic.ts` — `chartFont()` (vokser langsommere end grafen), `chartPoints(cfg, bredde)` (60–600 punkter efter plottets bredde), `niceTicks()` (runde værdier), `timeTicks()` (runde tider i lokal tid), `wrapLegend()` (højst to linjer inden for bredden, ellers mindre skrift ned til 6), `chartLayout(…, forklaring)` med `yTicks`, `xTicks`, `legendLines` og venstremargen efter tallenes bredde. Tests omskrevet/udvidet.
+- `frontend/src/lib/chartRender.ts` — grafen tegnes i tegningens (rodens) koordinater ud fra rammens boks inkl. symbolets transform (ikke inde i symbolet, så den ikke strækkes); diagramlinjer med tekst; forklaringen på flere linjer; grafen fjernes igen, når tegningen skiftes. Manual (06).
+- **Set i browseren** lokalt: symbol skaleret 2× og uskaleret med to lange tagnavne → teksten på to linjer inden for rammen (ingen tekst uden for), vandrette linjer ved 30/40/50 og lodrette hvert 10. min (stor) / 15. min (lille), teksten ikke strakt.
+
+## [0.94.0 build 0140] — 2026-10-19 — Kontakt 2-polet og 3-polet
+
+- `frontend/src/lib/symbols.ts` — `contactSymbol(n)`: *Kontakt 2-polet* og *Kontakt 3-polet* (El), tegnet åbne; hver kniv (`kniv1…`) har en usynlig modsat halvdel, så "Drej" drejer om hængslet; `KNIV_LUKKET` = 32°. `symbolConfig.ts` — delnavnene "Kniv 1-3", biblioteksforslaget (Drej på hver kniv ved Til) og `keepSuggestion()` (testet). `SymbolGuide.svelte` — valget af det første tag beholder forslagets indstillinger (BUGS.md). Manualens symboltabel (07) regenereret.
+- **Set i browseren** lokalt: begge sat ind i Tegn; 3-polet opsat i guiden (forslaget + samme tag på alle knive), 2-polet via API; på Overview er knivene åbne ved Fra og står lodret mod den faste kontakt ved Til (drejet om hængslet: `rotate(32 16 52)`).
+
+## [0.93.0 build 0139] — 2026-10-19 — Trendgrafens tekst kan sættes op; tags fjernes med ✕
+
+- `backend/app/services/symbols.py` — `Chart`: `legend` (top/bottom/none), `font_scale` (0,5–3), `bold`, `values`. Test i `test_trend_symbols.py`.
+- `frontend/src/lib/chartGraphic.ts` — `legendOf()` (standardværdier, også for grafer gemt før), plot-området flyttes efter forklaringens placering og størrelse; `LEGEND_PLACES`, `FONT_SCALES`. Test. `chartRender.ts` — forklaringen over/under/skjult, størrelse, fed, med/uden værdi.
+- `SymbolGuide.svelte` — *Tekst med tagene* (Placering, Størrelse, Fed, Vis seneste værdi) og **✕** ud for hvert valgt tag (Jan: "hvordan sletter man tags sat på" — før kun via *— ingen —* i listen). Manual (06).
+- **Set i browseren** lokalt: ✕ på det midterste af tre tags → de to andre gemmes; forklaringen under grafen, stor, fed, uden værdier på Overview.
+
+## [0.92.0 build 0138] — 2026-10-19 — Tegningens størrelse og mere intuitive tegneværktøjer
+
+- **Størrelse:** `frontend/svgedit-host/scada-editor.js` — `getSize()`, `setSize(w, h, fit, margin)` (ét fortryd-trin; en baggrund der fyldte tegningen følger med; "tilpas" flytter indholdet op i hjørnet og ser bort fra baggrunden), `syncContentSize()` efter hver ændring (rettelse af SVG-Edits fortryd for størrelsen). `frontend/src/lib/drawingSize.ts` (ny, testet): faste valg og kontrol af bredde/højde. `DrawEditor.svelte` — knappen **Størrelse: B × H** med panel (fast valg, bredde/højde, Tilpas til indholdet med margen).
+- **Værktøjerne:** `frontend/svgedit-host/locale-da.js` (ny) — danske tekster for værktøjer, felter, lag og udvidelser lagt oven på SVG-Edits engelske; `localize()` skifter sproget og oversætter knapper/felter igen; udvidelsernes knapper, farvefelterne og genvejsteksterne sættes direkte. `frontend/src/lib/toolHints.ts` (ny, testet) + `onMode()` i værten: hjælpelinjen over tegneområdet. Forbindelsesværktøjet (ext-connector) fjernet; "untitled.svg" skjult (`scada-editor.css`). BUGS.md. Manual (04).
+- **Set i browseren** lokalt: Full HD → 1920 × 1080 (baggrunden følger med); bredde 50 → fejlbesked; Tilpas til indholdet → 240 × 150 med indholdet i 20,20; Fortryd → 1920 × 1080 igen (også knappen); gemt version har 240 × 150. Værktøjerne viser "Vælg og flyt", "Rektangel / kvadrat", "Fortryd [ctrl+Z]", "Fyldfarve — klik for at vælge", felterne "Bredde [b]", "Slet [Delete/Backspace]", fanen "Lag"; hjælpelinjen skifter med værktøjet; forbindelsesværktøjet er væk.
+
 ## [0.91.1 build 0137] — 2026-10-19 — fix: omskifterens tegning følger opsætningens positioner
 
 - `frontend/src/lib/selectorRedraw.ts` (ny, testet): `selectorMismatch()` (antal/navne), `withSelectorAngles()` (grebets vinkler pr. position efter den nye tegning; animationen flyttes til det nye greb).

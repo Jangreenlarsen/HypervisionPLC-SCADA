@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeAt, animDefaults, cycleCell, emptyConfig, foundPosition, partLabel, preset, resize, setOp, tagKind, template, typesFor,
+  activeAt, animDefaults, cycleCell, keepSuggestion, emptyConfig, foundPosition, partLabel, preset, resize, setOp, tagKind, template, typesFor,
   type PartInfo, type SymbolConfig, type SymbolInfo,
 } from './symbolConfig';
 
@@ -119,3 +119,15 @@ describe('delnavne i guiden (v0.81.0)', () => {
     expect(partLabel('ukendt', egen)).toBe('ukendt');
   });
 });
+
+describe('biblioteksforslag bevares, når det første tag vælges (v0.94.0)', () => {
+  const fresh = { min: 0, max: 1, angle_min: 0, angle_max: 90 };
+  it('kun fra tom kilde og med samme felter', () => {
+    expect(keepSuggestion('', { min: 0, max: 1, angle_min: 0, angle_max: 32 }, fresh)).toBe(true);
+    expect(keepSuggestion('Andet', { min: 0, max: 1, angle_min: 0, angle_max: 32 }, fresh)).toBe(false);   // skift af tag
+    expect(keepSuggestion(undefined, { min: 0, max: 1, angle_min: 0, angle_max: 32 }, fresh)).toBe(false); // skift af del/type
+    expect(keepSuggestion('', { angles: [0, 32] }, fresh)).toBe(false);                                      // andre felter
+    expect(keepSuggestion('', {}, fresh)).toBe(false);
+  });
+});
+

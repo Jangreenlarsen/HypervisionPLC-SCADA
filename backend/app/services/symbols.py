@@ -221,6 +221,11 @@ class Chart(_M):
     y_min: float | None = None
     y_max: float | None = None
     title: str = Field(default="", max_length=60)
+    # forklaringen med tagenes navne og værdier (v0.93.0)
+    legend: Literal["top", "bottom", "none"] = "top"
+    font_scale: float = Field(default=1.0, ge=0.5, le=3.0)
+    bold: bool = True
+    values: bool = True
 
     @field_validator("range_s")
     @classmethod

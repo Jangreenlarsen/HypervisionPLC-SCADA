@@ -2,6 +2,40 @@
 
 ---
 
+## v0.96.1 — 2026-10-19 — Vippekontakter op og ned
+
+- De klassiske **vippekontakter** vipper nu **op og ned**: ON/OFF er op ved ON og ned ved OFF; ON/OFF/ON er op ved ON 1, ned ved ON 2 og står lige ud (en knop) ved OFF. Guiden foreslår hele opsætningen — vælg blot tagget.
+
+## v0.96.0 — 2026-10-19 — Klassiske vippekontakter
+
+- Nye symboler **Vippekontakt ON/OFF** og **Vippekontakt ON/OFF/ON** (klassisk model med greb og møtrik) under *Betjening*. De virker som omskifteren: klik for at vælge position, og grebet vipper til den aktive.
+
+## v0.95.1 — 2026-10-19 — Pumpen uden prik
+
+- Prikken midt i **pumpens** løbehjul er fjernet. Pumper, der allerede står i tegningerne, opdateres med *Erstat med symbol*.
+
+## v0.95.0 — 2026-10-19 — Bedre trendgraf
+
+- **Trendgrafen** følger symbolets størrelse: en større graf får finere kurver og flere diagramlinjer — teksten bliver ikke strakt.
+- **Diagramlinjer** ved runde værdier og tider, med tal og klokkeslæt.
+- Teksten med tagene deles på **to linjer**, så den aldrig går uden for rammen.
+
+## v0.94.0 — 2026-10-19 — Kontakter med 2 og 3 poler
+
+- Nye symboler **Kontakt 2-polet** og **Kontakt 3-polet** (El): knivene lukker synligt, når tagget er Til. Guiden foreslår animationen — vælg blot tagget.
+- Rettet: når man valgte tagget til et forslag fra symbolbiblioteket, blev forslagets indstillinger nulstillet.
+
+## v0.93.0 — 2026-10-19 — Trendgrafens tekst
+
+- Teksten med tagenes navne i **Trendgraf** kan nu placeres **over** eller **under** grafen eller skjules, og have større/mindre skrift, fed og med/uden seneste værdi.
+- Et tag fjernes fra grafen med **✕** i guiden.
+
+## v0.92.0 — 2026-10-19 — Tegningens størrelse og danske tegneværktøjer
+
+- **Tegningens størrelse** kan ændres i Tegn (knappen **Størrelse** øverst): faste valg som Full HD, egen bredde/højde, eller **Tilpas til indholdet**.
+- **Tegne-editoren er nu på dansk** — værktøjer, felter og genveje — og en **hjælpelinje** over tegningen fortæller, hvordan det valgte værktøj bruges.
+- Forbindelsesværktøjet er fjernet (dets forbindelser holdt ikke, når tegningen blev gemt).
+
 ## v0.91.1 — 2026-10-19 — Rettet: omskifter med flere positioner
 
 - Får en omskifter flere positioner i guiden, end tegningen viser, kan **Tegn** nu tegne den igen med de rigtige positioner (knappen **Tegn omskifteren med N positioner**) — og grebet peger på dem.

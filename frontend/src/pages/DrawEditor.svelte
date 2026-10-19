@@ -3,6 +3,8 @@
   import { ask as askUser } from '../lib/ask';
   import { get, patch, post, put } from '../lib/api';
   import { SELECTOR_TYPES, selectorMismatch, withSelectorAngles } from '../lib/selectorRedraw';
+  import { parseSize, presetFor, SIZE_PRESETS, sizeText } from '../lib/drawingSize';
+  import { toolHint } from '../lib/toolHints';
   import { knownFavorites, moveFavorite, toggleFavorite } from '../lib/palette';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
@@ -43,6 +45,9 @@
     nameElements(ids: string[], base: string): Record<string, string>;
     setReservedIds(ids: string[]): void;
     duplicateNames(): { name: string; count: number }[];
+    onMode(fn: (mode: string) => void): void;
+    getSize(): { w: number; h: number };
+    setSize(w: number, h: number, fit?: boolean, margin?: number): { w?: number; h?: number; error?: string };
     selectorLabels(id: string): string[];
     partIdByPid(id: string, pid: string): string | null;
     fixDuplicateNames(): { id: string; from: string; to: string }[];
@@ -111,8 +116,9 @@
       nameInput = sel.length === 1 ? sel[0].name ?? '' : '';
       void checkSelector();
     });
+    ed.onMode((m) => (mode = m));   // hjælpelinjen under tegneområdet (v0.92.0)
     // dublet-navne følges løbende (fx tilbage efter Ctrl+Z på "Giv dem unikke navne")
-    ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); });
+    ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); readSize(); });
     ready = true;
     const fromRoute = route.split('/')[1];
     if (fromRoute && drawings.some((d) => d.id === fromRoute)) await open(fromRoute);
@@ -159,6 +165,40 @@
     selectorFix = null;
   }
 
+  // Det valgte værktøj → hjælpelinjen (v0.92.0)
+  let mode = $state('select');
+  const hint = $derived(toolHint(mode));
+
+  // Tegningens størrelse (v0.92.0)
+  let size = $state({ w: 1200, h: 700 });
+  let sizeOpen = $state(false);
+  let sizeForm = $state({ w: '', h: '', margin: '20' });
+  let sizeError = $state('');
+  const readSize = () => { if (ed) size = ed.getSize(); };
+  function openSize(): void {
+    readSize();
+    sizeForm = { w: String(size.w), h: String(size.h), margin: sizeForm.margin };
+    sizeError = '';
+    sizeOpen = !sizeOpen;
+  }
+  function applySize(fit: boolean): void {
+    if (!ed) return;
+    sizeError = '';
+    let w = 0, h = 0;
+    if (!fit) {
+      const r = parseSize(sizeForm.w, sizeForm.h);
+      if ('error' in r) { sizeError = r.error; return; }
+      ({ w, h } = r);
+    }
+    const margin = Math.max(0, Math.min(500, Math.round(Number(sizeForm.margin.replace(',', '.')) || 0)));
+    const res = ed.setSize(w, h, fit, margin);
+    if (res.error) { sizeError = res.error; return; }
+    readSize();
+    sizeForm = { ...sizeForm, w: String(size.w), h: String(size.h) };
+    dirty = true;
+    info = `Tegningen er nu ${sizeText(size.w, size.h)}${fit ? ` (tilpasset indholdet med ${margin} i margen)` : ''}. Ctrl+Z fortryder; tryk Gem kladde eller Gem og udgiv for at gemme.`;
+  }
+
   // Symboler med samme navn (v0.89.0) — fx gamle kopier fra før v0.63.1; navnene skal være unikke
   let dupNames = $state<{ name: string; count: number }[]>([]);
   async function fixDuplicates(): Promise<void> {
@@ -180,6 +220,7 @@
     ed.newDrawing(1200, 700);
     ed.setReservedIds([]);
     dupNames = [];
+    size = { w: 1200, h: 700 };
     current = null;
     loadedVersion = null;
     newName = '';
@@ -207,6 +248,7 @@
       loadedVersion = v;
       dirty = false;
       dupNames = ed.duplicateNames();
+      readSize();
       history.replaceState(null, '', `#draw/${id}`);
     } catch (e) {
       error = (e as Error).message;
@@ -702,8 +744,31 @@
   {:else}
     <button class="primary" onclick={() => save(true)} disabled={busy || !ready}>Opret tegning</button>
   {/if}
+  <button onclick={openSize} disabled={!ready} aria-expanded={sizeOpen} title="Tegningens bredde og højde">Størrelse: {sizeText(size.w, size.h)}</button>
   {#if dirty}<span class="badge">ikke gemt</span>{/if}
 </div>
+{#if sizeOpen}
+  <div class="panel size-panel" role="group" aria-label="Tegningens størrelse">
+    <strong>Tegningens størrelse</strong>
+    <div class="row wrap">
+      <label class="opt">Fast valg
+        <select value={presetFor(Number(sizeForm.w), Number(sizeForm.h))?.label ?? ''} onchange={(e) => { const p = SIZE_PRESETS.find((x) => x.label === e.currentTarget.value); if (p) sizeForm = { ...sizeForm, w: String(p.w), h: String(p.h) }; }}>
+          <option value="">— egen størrelse —</option>
+          {#each SIZE_PRESETS as p (p.label)}<option value={p.label}>{p.label}</option>{/each}
+        </select>
+      </label>
+      <label class="opt">Bredde <input class="num" bind:value={sizeForm.w} inputmode="numeric" /></label>
+      <label class="opt">Højde <input class="num" bind:value={sizeForm.h} inputmode="numeric" /></label>
+      <button class="primary" onclick={() => applySize(false)}>Brug størrelsen</button>
+    </div>
+    <div class="row wrap">
+      <button onclick={() => applySize(true)}>Tilpas til indholdet</button>
+      <label class="opt small">med margen <input class="num" bind:value={sizeForm.margin} inputmode="numeric" /></label>
+      <span class="small muted">Flytter tegningen op i hjørnet og gør den præcis stor nok. Overview skalerer altid tegningen til skærmen.</span>
+    </div>
+    {#if sizeError}<p class="small error">{sizeError}</p>{/if}
+  </div>
+{/if}
 
 <div class="row guides small" role="group" aria-label="Tegnehjælp">
   <strong>Tegnehjælp</strong>
@@ -733,6 +798,7 @@
   </div>
 {/if}
 
+<p class="tool-hint small" aria-live="polite"><strong>{hint.name}:</strong> {hint.how}</p>
 <div class="layout">
   <iframe bind:this={iframe} src="/svgedit/scada-editor.html?v={BUNDLE.build}" title="Tegne-editor" onload={connect}></iframe>
 
@@ -953,4 +1019,7 @@
   .selector-cfg input { flex: 1; min-width: 0; }
   summary { cursor: pointer; font-weight: 600; font-size: .9rem; margin-bottom: .4rem; }
   .symbols svg { width: 44px; height: 40px; }
+  .size-panel { margin: .25rem 0 .5rem; display: grid; gap: .4rem; }
+  .size-panel .num { width: 5.5rem; }
+  .tool-hint { margin: 0 0 .35rem; padding: .25rem .6rem; background: var(--panel-2); border-left: 3px solid var(--accent); border-radius: 3px; }
 </style>

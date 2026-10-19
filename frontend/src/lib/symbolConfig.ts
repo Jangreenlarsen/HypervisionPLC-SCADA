@@ -16,6 +16,7 @@ export interface LogicInput { src: string; neg: boolean; cmp: Cmp; value: number
 export interface PoolBlock { element: string; symbol: string; id: string; name: string }
 export interface LogicBlock { id: string; name: string; op: 'and' | 'or'; inputs: LogicInput[]; invert: boolean }
 import { defaultChart, type ChartCfg } from './chartGraphic';
+import { KNIV_LUKKET } from './symbols';
 
 export interface SymbolConfig {
   type: string; op: Op; positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
@@ -67,7 +68,7 @@ export const BLINK_TXT: Record<string, string> = { slow: 'Langsom (0,5 Hz)', nor
 export const PART_LABEL: Record<string, string> = {
   greb: 'Greb', vippe: 'Vippe', spor: 'Spor', flade: 'Knap', tekst: 'Tekst', vaerdi: 'Værdi', status: 'Status',
   felt: 'Felt', port_a: 'Port A', port_b: 'Port B', port_ab: 'Port AB', motor: 'Motor',
-  lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive', pil: 'Pil', loebehjul: 'Løbehjul',
+  lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive', pil: 'Pil', loebehjul: 'Løbehjul', kniv1: 'Kniv 1', kniv2: 'Kniv 2', kniv3: 'Kniv 3', knop: 'Knop (midterstilling)',
   tilloeb1: 'Tilløbsrør 1', tilloeb2: 'Tilløbsrør 2', midte: 'Midterrør', roer1: 'Rør 1', roer2: 'Rør 2', roer3: 'Rør 3', roer4: 'Rør 4',
 };
 
@@ -124,12 +125,35 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     }
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: to positioner (AB → A og AB → B) med farver pr. port. Vælg tag under trin 2.' };
   }
+  if (symbol.type === 'vippe_onoff' || symbol.type === 'vippe_onoffon') {
+    // Klassisk vippekontakt (v0.96.1): grebet vipper op/ned; med midterstilling ses kun knoppen i OFF
+    const mid = symbol.type === 'vippe_onoffon';
+    cfg.positions = (mid ? ['ON 1', 'OFF', 'ON 2'] : ['OFF', 'ON']).map((label) => ({ label }));
+    setOp(cfg, 'positions');
+    cfg.planes = [{ signal: cfg.signals[0].id, values: mid ? [1, 0, 2] : [0, 1] }];
+    cfg.display = 'remote';
+    const greb = partOf('greb'), knop = partOf('knop');
+    // tegnet peger grebet NED; 180° = OP
+    if (greb) cfg.anims.push({ part: greb, type: 'rotate', src: POS, params: { angles: mid ? [180, 180, 0] : [0, 180] }, only: null });
+    if (greb && mid) cfg.anims.push({ part: greb, type: 'visible', src: POS, params: { set: [true, false, true] }, only: null });
+    if (knop) cfg.anims.push({ part: knop, type: 'visible', src: POS, params: { set: [false, true, false] }, only: null });
+    return { config: cfg, note: `Forslag fra symbolbiblioteket: ${mid ? 'ON 1 (op), OFF (midt) og ON 2 (ned) — skriver 1, 0 og 2' : 'OFF (ned) og ON (op) — skriver 0 og 1'}. Vælg tagget under trin 2.` };
+  }
   if (symbol.type === 'kedel') {
     // Brænderdrift: flammen farves og blafrer (tagget vælges i trin 4)
     const flamme = partOf('flamme');
     if (!flamme) return null;
     cfg.anims.push({ part: flamme, type: 'flicker', src: '', params: animDefaults('flicker', 'bool', 0), only: null });
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: flammen bliver orange og blafrer, når brænderen kører. Vælg drifts-tagget under trin 4.' };
+  }
+  if (symbol.type === 'kontakt2' || symbol.type === 'kontakt3') {
+    // Lukket ved Til (v0.94.0): hver kniv drejer KNIV_LUKKET° om sit hængsel — vælg samme tag for alle knive i trin 4
+    for (const pid of ['kniv1', 'kniv2', 'kniv3']) {
+      const part = partOf(pid);
+      if (part) cfg.anims.push({ part, type: 'rotate', src: '', params: { min: 0, max: 1, angle_min: 0, angle_max: KNIV_LUKKET }, only: null });
+    }
+    if (!cfg.anims.length) return null;
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: knivene lukker, når tagget er Til. Vælg samme tag (fx kontaktens tilbagemelding) for alle knive under trin 4.' };
   }
   if (symbol.type === 'trendgraf') {
     cfg.chart = defaultChart();
@@ -190,13 +214,13 @@ const SWITCH: Op[] = ['view', 'positions', 'pulse'];       // tænd/sluk, åbn/l
 const OPS_BY_TYPE: Record<string, Op[]> = {
   // betjeningssymboler: har deres egen form
   trykknap_puls: ['pulse', 'positions'], startstop: ['positions', 'pulse'], vippekontakt: ['positions', 'pulse'],
-  omskifter3: ['positions'], omskifter: ['positions'], drejeomskifter: ['positions'], automanuel: ['positions'], setpunkt: ['entry'],
+  omskifter3: ['positions'], omskifter: ['positions'], drejeomskifter: ['positions'], vippe_onoff: ['positions'], vippe_onoffon: ['positions'], automanuel: ['positions'], setpunkt: ['entry'],
   // ventiler: den manuelle betjenes ikke; reguleringsventilen sættes til en åbning; 3-vejs har kun to positioner (AB → A / AB → B)
   ventil: VIEW, trevejsventil: VIEW, kontraventil: VIEW, sikkerhedsventil: VIEW,
   kugleventil: SWITCH, motorventil: SWITCH, magnetventil: SWITCH, regventil: ['view', 'entry'],
   trevejs_motorventil: ['view', 'positions'], trevejs_motorventil_ab: ['view', 'positions'],
   // maskiner og kontakter: start/stop (frekvensomformer også en hastighed)
-  trendgraf: VIEW,
+  trendgraf: VIEW, kontakt2: SWITCH, kontakt3: SWITCH,
   pumpe: SWITCH, motor: SWITCH, ventilator: SWITCH, kontaktor: SWITCH, hovedafbryder: SWITCH, dc_afbryder: SWITCH, ac_afbryder: SWITCH,
   elbillader: SWITCH, frekvensomformer: [...SWITCH, 'entry'],
   // kun visning: rør, fittings, beholdere, målere, lamper og statusfelter, passive el- og solcelledele
@@ -220,7 +244,7 @@ export function allowedOps(type: string, current?: Op): Op[] {
 }
 
 /** Eksemplet "7-trins vælger" giver kun mening for vælgere og egne tegninger — ikke for fx en ventil eller en pumpe. */
-export const offersSelectorExample = (type: string): boolean => type === 'custom' || type.startsWith('omskifter') || type === 'drejeomskifter';
+export const offersSelectorExample = (type: string): boolean => type === 'custom' || type.startsWith('omskifter') || type === 'drejeomskifter' || type.startsWith('vippe_');
 
 /** Til/fra, tal eller ukendt (ST-variabler kendes først fra live-værdien) ud fra tagets kilde `plc:type:adr[:datatype]`. */
 export function tagKind(source: string | undefined): 'bool' | 'num' | 'unknown' {
@@ -310,6 +334,16 @@ export function typesFor(part: PartInfo | undefined): AnimType[] {
   if (part?.tag === 'text' || part?.tag === 'tspan') t.push('text');
   if (part?.line) t.push('flow');
   return t;
+}
+
+/**
+ * Behold et biblioteksforslags indstillinger, når det FØRSTE tag vælges (kilden var tom), og indstillingerne har samme
+ * felter som standarden for den nye kilde (v0.94.0). Ellers ville valget af tag nulstille forslaget (fx 32° → 90°).
+ */
+export function keepSuggestion(wasSrc: string | undefined, params: Record<string, any>, fresh: Record<string, any>): boolean {
+  if (wasSrc !== '') return false;
+  const a = Object.keys(params ?? {}).sort(), b = Object.keys(fresh).sort();
+  return a.length > 0 && a.length === b.length && a.every((k, i) => k === b[i]);
 }
 
 /** Standardparametre for en animation ud fra kilden (prototypens animDefaults). */
