@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.105.0 build 0155] — 2026-10-19 — Driftpanel: Trends og kvittering af alarmer
+
+- `frontend/src/App.svelte` — driftpanelet viser Alarmer (kvittér) og Trends, når genvejene i tegningen åbner dem.
+- `frontend/src/pages/Overview.svelte` — genvejene Alarmer/Trends virker på panelet; kun Energi afvises.
+- Manual opdateret. Ingen backend-ændring: panel har allerede operatørens rettigheder (kvittering) og tegningsadgang filtrerer tags.
+- **Kun bygget og testet** (ikke set i browseren).
+
 ## [0.104.0 build 0154] — 2026-10-19 — Trends: andel uregelmæssigheder i procent
 
 - `frontend/src/lib/trendAnalysis.ts` + test — `Issue.n` (punkter ramt), `affectedPoints`, `irregularShare`, `formatShare`.

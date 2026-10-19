@@ -278,7 +278,8 @@
     // Genvej (data-hv-nav): åbn Alarmer, Trends eller Energi
     const nav = navTarget(e.target as Element);
     if (nav) {
-      if (panel) showToast('error', `${NAV_TARGETS[nav]} kan ikke åbnes på driftpanelet — det viser kun drifttegningen`);
+      // Driftpanelet må åbne Alarmer og Trends (v0.105.0); Energi hører ikke til driftbilledet
+      if (panel && nav === 'energy') showToast('error', `${NAV_TARGETS[nav]} kan ikke åbnes på driftpanelet`);
       else location.hash = `#${nav}`;
       return;
     }

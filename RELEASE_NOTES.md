@@ -2,6 +2,10 @@
 
 ---
 
+## v0.105.0 — 2026-10-19 — Driftpanel: Trends og alarmer
+
+- På et **driftpanel** åbner knapperne *Gå til Alarmer* og *Gå til Trends* i tegningen nu siderne (uden menu, med Tilbage). Panelet kan **kvittere alarmer** og se trends for de tags, tegningen indeholder.
+
 ## v0.104.0 — 2026-10-19 — Trends: procent uregelmæssigheder
 
 - **Analysér data** viser nu, hvor mange **procent af punkterne** der har uregelmæssigheder, for hver kurve og samlet for alle tal-kurver.
