@@ -55,6 +55,8 @@ Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symb
 - **et tag** — til/fra eller tal
 - **en logikblok** — se nedenfor
 
+**Vippekontakter** (ON/OFF og ON/OFF/ON) har øverst i trin 4 tabellen **Grebets stilling pr. position**: vælg **Op**, **Midt (knop)** eller **Ned** for hver position. *Midt* er den klassiske midterstilling set forfra — grebet peger lige ud mod dig, så kun knoppen ses. Guiden laver selv grebets og knoppens animationer (Drej og Synlig) ud fra tabellen; dine øvrige animationer og en valgt hastighed bevares. Er grebets animationer sat op på en anden måde, står der en note — et valg i tabellen erstatter dem.
+
 **Drej** har en **Hastighed**: *Med det samme*, *Hurtig (0,2 s)*, *Normal (0,4 s)*, *Langsom (1 s)*, *Meget langsom (2 s)* eller *Ekstra langsom (5 s)* — hvor hurtigt delen drejer til den nye vinkel (fx en kontaktkniv eller en vippekontakt). Uden valg drejer den glidende, når den følger positionen, og med det samme, når den følger et tag. Glidende kræver, at delen ikke selv er drejet eller flyttet i tegningen — ellers drejer den med det samme.
 
 **Størrelse** (tal-tag) gør delen større eller mindre om sin egen midte efter værdien: ved **Min** har den *Størrelse ved min* (fx 50 %), ved **Max** *ved max* (fx 150 %), og imellem glidende. Fx pumpens **Pil**, så den vokser med flowet. Uden gyldig værdi vises delen i sin tegnede størrelse.

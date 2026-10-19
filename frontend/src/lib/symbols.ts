@@ -671,7 +671,8 @@ export function selectorSymbol(labels: string[]): string {
  * Klassisk vippekontakt (v0.96.0, op/ned siden v0.96.1) set forfra: monteringsplade, sekskantmøtrik og et greb, der
  * vipper OP eller NED. `mid`: med midterstilling (ON/OFF/ON) — i midten peger grebet lige ud mod beskueren og ses kun som
  * en knop. Værdierne: ON/OFF → OFF = 0 (ned), ON = 1 (op); ON/OFF/ON → OFF = 0 (knop), ON 1 = 1 (op), ON 2 = 2 (ned).
- * Grebet har en usynlig modsat halvdel, så "Drej" vipper det om møtrikkens midte. Tegningen viser OFF.
+ * Grebet har en usynlig modsat halvdel, så "Drej" vipper det om møtrikkens midte. Tegningen viser OFF. Begge har de samme
+ * dele (greb og knop, v0.98.0), så guidens Op / Midt / Ned pr. position virker ens.
  */
 export function toggleSwitchSymbol(mid: boolean): string {
   const cx = 70, cy = 74;
@@ -692,9 +693,10 @@ export function toggleSwitchSymbol(mid: boolean): string {
   const greb = `<g id="greb" ${part(grebAnims)}${mid ? ' style="display:none"' : ''}>` +
     `<path d="M${cx - 3} ${cy} L${cx - 6} ${cy + 30} A6 6 0 0 0 ${cx + 6} ${cy + 30} L${cx + 3} ${cy} Z" fill="#b8b8b8" stroke="${DARK}" stroke-width="1.5" stroke-linejoin="round"/>` +
     `<path d="M${cx} ${cy} V${cy - 36}" fill="none" stroke="none"/></g>`;
-  // Knoppen: grebet set for enden (midterstillingen)
-  const knop = mid ? `<g id="knop" ${part([{ anim: 'visible', params: { invert: true } }])}>` +
-    `<circle cx="${cx}" cy="${cy}" r="8" fill="#b8b8b8" stroke="${DARK}" stroke-width="1.5"/><circle cx="${cx - 2}" cy="${cy - 2}" r="2.5" fill="#e8e8e8"/></g>` : '';
+  // Knoppen: grebet set for enden (midterstillingen). Begge kontakter har den (v0.98.0, samme opbygning) — på ON/OFF er
+  // den skjult, indtil guidens "Grebets stilling pr. position" sætter en position til Midt.
+  const knop = `<g id="knop"${mid ? ` ${part([{ anim: 'visible', params: { invert: true } }])}` : ' style="display:none"'}>` +
+    `<circle cx="${cx}" cy="${cy}" r="8" fill="#b8b8b8" stroke="${DARK}" stroke-width="1.5"/><circle cx="${cx - 2}" cy="${cy - 2}" r="2.5" fill="#e8e8e8"/></g>`;
   return `<g ${auto([{ anim: 'click:select', params }])}>` +
     `<rect x="${cx - 36}" y="${cy - 36}" width="72" height="72" rx="10" fill="#e3e3e3" stroke="${LINE}" stroke-width="2.5"/>` +
     `<polygon points="${hex}" fill="${FILL}" stroke="${DARK}" stroke-width="2"/>` +
