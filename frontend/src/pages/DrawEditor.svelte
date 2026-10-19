@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { ask as askUser } from '../lib/ask';
   import { get, patch, post, put } from '../lib/api';
+  import { SELECTOR_TYPES, selectorMismatch, withSelectorAngles } from '../lib/selectorRedraw';
   import { knownFavorites, moveFavorite, toggleFavorite } from '../lib/palette';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
@@ -42,6 +43,8 @@
     nameElements(ids: string[], base: string): Record<string, string>;
     setReservedIds(ids: string[]): void;
     duplicateNames(): { name: string; count: number }[];
+    selectorLabels(id: string): string[];
+    partIdByPid(id: string, pid: string): string | null;
     fixDuplicateNames(): { id: string; from: string; to: string }[];
     splitFitting(id: string, legs: string): { ok?: boolean; removed?: string[]; parts?: string[]; error?: string };
   }
@@ -106,6 +109,7 @@
       colors = sel.length && ed ? ed.selectionColors() : [];
       idInput = sel.length === 1 ? sel[0].id : '';
       nameInput = sel.length === 1 ? sel[0].name ?? '' : '';
+      void checkSelector();
     });
     // dublet-navne følges løbende (fx tilbage efter Ctrl+Z på "Giv dem unikke navne")
     ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); });
@@ -113,6 +117,46 @@
     const fromRoute = route.split('/')[1];
     if (fromRoute && drawings.some((d) => d.id === fromRoute)) await open(fromRoute);
     else startNew(true);
+  }
+
+  // Omskifter (v0.91.1): tegningens positioner skal følge opsætningens — ellers tilbyd at tegne den igen
+  let selectorFix = $state<{ id: string; drawn: string[]; labels: string[] } | null>(null);
+  async function checkSelector(): Promise<void> {
+    const sel = selection.length === 1 ? selection[0] : null;
+    if (!ed || !current || !sel || !SELECTOR_TYPES.has(sel.type ?? '')) { selectorFix = null; return; }
+    try {
+      const r = await get<{ config: SymbolConfig | null }>(`/api/drawings/${encodeURIComponent(current.id)}/symbols/${encodeURIComponent(sel.id)}/config`);
+      if (selection[0]?.id !== sel.id) return;   // et andet element er valgt imens
+      const labels = r.config?.op === 'positions' ? r.config.positions.map((p) => p.label) : [];
+      const drawn = ed.selectorLabels(sel.id);
+      selectorFix = selectorMismatch(drawn, labels) ? { id: sel.id, drawn, labels } : null;
+    } catch {
+      selectorFix = null;   // ingen opsætning (fx et ikke-udgivet symbol) — intet at sammenligne med
+    }
+  }
+  async function redrawSelector(): Promise<void> {
+    const fix = selectorFix, sel = selection[0];
+    if (!ed || !fix || !sel || sel.id !== fix.id || !current) return;
+    error = '';
+    const oldGreb = ed.partIdByPid(fix.id, 'greb');
+    const res = ed.replaceSelected(withName(selectorSymbol(fix.labels), sel.name || 'Omskifter'), sel.type || 'omskifter',
+      { name: sel.name || undefined, keepId: true, stretch: false, useText: false, similar: false, protectIds: [] });
+    if (res.error) { error = res.error; return; }
+    dirty = true;
+    const grebId = ed.partIdByPid(fix.id, 'greb');
+    if (!(await ensurePublished('omskifterens nye tegning kan bruges'))) {
+      info = 'Omskifteren er tegnet med de nye positioner. Gem og udgiv tegningen, og tryk så knappen igen for at rette grebets vinkler.';
+      return;
+    }
+    const base = `/api/drawings/${encodeURIComponent(current.id)}/symbols/${encodeURIComponent(fix.id)}/config`;
+    try {
+      const r = await get<{ config: SymbolConfig }>(base);
+      await put(base, { config: withSelectorAngles(r.config, grebId, oldGreb) });
+      info = `Omskifteren viser nu ${fix.labels.length} positioner (${fix.labels.join(', ')}), og grebet peger på dem.`;
+    } catch (e) {
+      error = `Tegningen er gemt, men grebets vinkler kunne ikke rettes: ${(e as Error).message} — ret dem i guiden (trin 4, Drej).`;
+    }
+    selectorFix = null;
   }
 
   // Symboler med samme navn (v0.89.0) — fx gamle kopier fra før v0.63.1; navnene skal være unikke
@@ -711,6 +755,12 @@
         </label>
         {#if single.name}
           <div class="row"><button class="primary" onclick={openGuide} disabled={busy || !ready}>Opsæt symbol (6 trin)</button></div>
+          {#if selectorFix}
+            <div class="notice small">
+              Tegningen viser {selectorFix.drawn.length} positioner ({selectorFix.drawn.join(', ')}), men opsætningen har {selectorFix.labels.length} ({selectorFix.labels.join(', ')}).
+              <button class="small" onclick={() => guarded('Tegn omskifteren', redrawSelector)} disabled={busy || !ready}>Tegn omskifteren med {selectorFix.labels.length} positioner</button>
+            </div>
+          {/if}
           {@render clipRow(true)}
           <p class="small muted">Tag, positioner, animationer og nøglelås sættes i guiden — samme guide findes under <strong>Bindinger</strong>.{!current || dirty ? ' Tegningen gemmes og udgives først.' : ''}</p>
         {:else}

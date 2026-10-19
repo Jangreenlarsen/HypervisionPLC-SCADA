@@ -4,6 +4,19 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.91.1 build 0137] — 2026-10-19 — fix: omskifterens tegning følger opsætningens positioner
+
+- `frontend/src/lib/selectorRedraw.ts` (ny, testet): `selectorMismatch()` (antal/navne), `withSelectorAngles()` (grebets vinkler pr. position efter den nye tegning; animationen flyttes til det nye greb).
+- `frontend/svgedit-host/scada-editor.js` — `selectorLabels()`, `partIdByPid()`. `frontend/src/pages/DrawEditor.svelte` — besked + **Tegn omskifteren med N positioner** (tegner med `selectorSymbol` via "Erstat med symbol" med behold id, gemmer og udgiver, retter vinklerne i opsætningen; serverens fejl vises). `SymbolGuide.svelte` — besked i trin 3. BUGS.md. Manual (06).
+- **Set i browseren** lokalt: Omskifter Hånd/0/Auto + opsætning med 5 positioner → beskeden i Tegn → knappen → tegningen viser Hånd, 0, Auto, Service, Test, navnet er bevaret, opsætningen sidder stadig på omskifteren med vinklerne −90/−45/0/45/90 på grebet.
+
+## [0.91.0 build 0136] — 2026-10-19 — Trendgraf i tegningen (kurve eller søjler)
+
+- `backend/app/services/symbols.py` — `Chart` i symbolopsætningen (1-4 tags, periode 15 min-7 dage, kurve/søjler, antal søjler 4-60, Y-akse, titel): tags valideres, advarsel når et tag ikke gemmer historik; grafens tags tæller som symbolets tags (adgang for begrænsede brugere, sletbeskyttelse, Trends-symbollisten); Overview får grafen via `symbol_config` og tagenes metadata. Test i `test_trend_symbols.py`.
+- `frontend/src/lib/chartGraphic.ts` (ny, testet): Y-akse (valgt/automatisk, søjler med 0), kurver med huller, søjler pr. tidsspand og serie, akse-tekster, opdateringsinterval. `chartRender.ts` (ny): tegner grafen i symbolets ramme på Overview fra `/api/trends/data`, opdaterer løbende, viser serverens fejltekst i grafen.
+- `symbols.ts` — symbolet *Trendgraf*; `symbolConfig.ts` — biblioteksforslag; `SymbolGuide.svelte` — sektionen **Graf** i trin 4 (grafens tags også i trin 6 *Historik*). Manual (06, 07).
+- **Set i browseren** lokalt: Trendgraf sat ind i Tegn → guiden (to tags) → gemt → Overview viser to kurver med forklaring, Y-akse og tider; som søjler (15 min, 12 søjler) to søjler side om side.
+
 ## [0.90.1 build 0135] — 2026-10-18 — SSE-status pr. kilde: RS485 og expansion boards
 
 - `backend/app/plc/sse.py`, `manager.py`, `Plcs.svelte` — `ext`-hændelser tælles pr. kilde (`ext_by_src`: rtu/mbx) og vises under PLC'er ("RS485 N, expansion boards M"), så det kan ses, at også expansion boards leverer via SSE. Test i `test_sse.py`. Manual (03).

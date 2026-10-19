@@ -59,3 +59,26 @@ def test_config_on_element_missing_from_active_version_is_skipped(api):
     r = api.post(f"/api/drawings/{api.did}/versions", json={"svg": svg2, "activate": True})
     assert r.status_code in (200, 201), r.text
     assert api.get("/api/trends/symbols").json() == []
+
+
+def test_trend_chart_config(api):
+    """Trendgraf (v0.91.0): tags valideres, advarsel uden historik, Y-akse, og Overview får grafen og tagenes metadata."""
+    base = f"/api/drawings/{api.did}/symbols/L1/config"
+    chart = {"tags": ["Tryk", "Tryk", "Drift"], "range_s": 3600, "style": "bar", "bars": 12}
+    r = api.put(base, json={"config": {"op": "view", "chart": chart}})
+    assert r.status_code == 200, r.text
+    assert r.json()["config"]["chart"]["tags"] == ["Tryk", "Drift"]          # dubletter fjernet
+    assert any("gemmer ikke historik" in w for w in r.json()["warnings"])
+    for bad, why in [({"tags": []}, "mindst ét tag"), ({"tags": ["Findes"]}, "findes ikke"),
+                     ({"tags": ["Tryk"], "y_min": 10, "y_max": 5}, "min skal være mindre"),
+                     ({"tags": ["Tryk"], "range_s": 1234}, "perioden"),
+                     ({"tags": ["Tryk", "Drift", "Start", "Lys", "Tryk"]}, "")]:
+        r = api.put(base, json={"config": {"op": "view", "chart": bad}})
+        assert r.status_code == 400 and why in r.text, (bad, r.text)
+    view = api.get(f"/api/drawings/{api.did}/view").json()
+    assert view["symbol_config"]["L1"]["chart"]["style"] == "bar"
+    assert {"Tryk", "Drift"} <= set(view["tags"])
+    # grafens tags er symbolets tags: Trends-symbollisten og sletbeskyttelse
+    assert [s["tags"] for s in api.get("/api/trends/symbols").json() if s["element"] == "L1"] == [["Tryk", "Drift"]]
+    assert api.delete("/api/tags/Drift").status_code == 409
+

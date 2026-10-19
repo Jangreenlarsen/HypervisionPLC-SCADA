@@ -13,6 +13,8 @@ export interface SymbolView {
   pulse_ms?: number;
   tag?: string;
   pseudo?: { pos: string; remote: string; state: string; locked: string };
+  /** Trendgraf (v0.91.0). */
+  chart?: import('./chartGraphic').ChartCfg | null;
 }
 
 export type SymbolState = 'confirmed' | 'pending' | 'mismatch' | 'unknown';

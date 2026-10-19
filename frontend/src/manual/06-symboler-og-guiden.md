@@ -36,6 +36,8 @@ Alle symboler i biblioteket sættes op på samme måde: med **guiden i 6 trin**.
 
 ## Positioner og kontaktplaner
 
+**Omskifterens tegning følger positionerne:** giver du en omskifter fra biblioteket flere positioner (eller andre navne) i guiden, end der står rundt om grebet i tegningen, så vælg omskifteren i **Tegn** — der står *Tegningen viser 3 positioner …* med knappen **Tegn omskifteren med N positioner**. Den tegner omskifteren igen med guidens navne (samme navn, placering og opsætning), gemmer og udgiver tegningen (du bliver spurgt), og retter grebets vinkel pr. position, så det peger på navnene.
+
 Et symbol med positioner skal vide, hvilken position PLC'en **står i** (tilbagemelding), og hvad der skal **skrives** for at skifte. Det beskrives i kontaktdiagrammet:
 
 - **Rækker** er *planer*; hver styrer ét signal. **Kolonner** er positioner.
@@ -54,6 +56,8 @@ Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symb
 - **en logikblok** — se nedenfor
 
 **Størrelse** (tal-tag) gør delen større eller mindre om sin egen midte efter værdien: ved **Min** har den *Størrelse ved min* (fx 50 %), ved **Max** *ved max* (fx 150 %), og imellem glidende. Fx pumpens **Pil**, så den vokser med flowet. Uden gyldig værdi vises delen i sin tegnede størrelse.
+
+**Trendgraf** (symbolet *Trendgraf* under *Proces og visning*): viser historikken for **1–4 tags** inde i symbolets ramme på Overview. I trin 4, sektionen **Graf**, vælger du tagsene, **perioden** (15 min, 1 time, 8 timer, 24 timer eller 7 dage), **Kurve** eller **Søjler** (og antal søjler — hver søjle er gennemsnittet i sit tidsrum), og evt. en fast **Y-akse** (tomt = automatisk) og en **titel**. Øverst i grafen står hvert tag i sin farve med den seneste værdi. Grafen opdateres løbende. Tagsene skal **gemme historik** — slå det til i trin 6 (afsnittet *Historik*); ellers står der *Ingen historik i perioden*. Gør symbolet større i Tegn for en større graf.
 
 **Pumpen** har et **Løbehjul** og en **Pil**. Guiden foreslår *Roterer* på løbehjulet, så det drejer, når pumpen kører; pilen står stille og viser pumperetningen (også hvis *Roterer* sættes på hele pumpen). Ældre pumper med en trekant opdateres med *Erstat med symbol* — sæt derefter *Roterer* på løbehjulet.
 

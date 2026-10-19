@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
   import { alarmMarks } from '../lib/alarmMark';
+  import { mountCharts } from '../lib/chartRender';
   import { applyAlarmBadges, markNavClickable, navTarget, NAV_TARGETS } from '../lib/navSymbols';
   import { get, post, type Binding, type DrawingView, type LiveValue, type PlcSummary } from '../lib/api';
   import { clickFor, parseSetpoint, positionLabel, positions, rangeText, toggleQuestion } from '../lib/actions';
@@ -140,6 +141,7 @@
   let pseudoOf = new Map<string, string>();
 
   const symbolsOf = (): Record<string, SymbolView> => view?.symbol_config ?? {};
+  let stopCharts: () => void = () => {};
   const shownPos = (element: string): number | null => {
     const v = values[symbolsOf()[element]?.pseudo?.pos ?? '']?.value;
     return typeof v === 'number' ? v : null;
@@ -230,6 +232,8 @@
         overlay(element);
       }
       live.subscribe([...new Set([...byTag.keys(), ...pseudoOf.keys(), ...Object.values(symbolsOf()).map((s) => s.tag ?? '').filter(Boolean)])]);
+      stopCharts();
+      stopCharts = mountCharts(svgRoot, symbolsOf(), view.tags);   // trendgrafer (v0.91.0)
     } catch (e) {
       view = null;
       error = `Kunne ikke vise tegningen: ${(e as Error).message}`;
@@ -504,6 +508,7 @@
   });
 
   onDestroy(() => {
+    stopCharts();
     stopLayout?.();
     container?.removeEventListener('wheel', onWheel);
     live.close();

@@ -183,6 +183,14 @@ export const SYMBOLS: SymbolDef[] = [
       `<path d="M45 32.5 L59 40 L45 47.5 Z" fill="${DARK}" stroke="${DARK}" stroke-width="1" stroke-linejoin="round"/></g></g>`,
   },
   {
+    // Trendgraf (v0.91.0): Overview tegner historikken i rammen; "eksempel" og "titel" er kun til Tegn og skjules
+    id: 'trendgraf', label: 'Trendgraf', category: 'proces', hint: 'Kurve eller søjler med historikken for 1–4 tags — opsæt i guiden (sektionen Graf)',
+    svg: `<g><rect id="ramme" x="0" y="0" width="240" height="130" rx="6" fill="${PANEL}" stroke="${LINE}" stroke-width="2"/>` +
+      `<g id="eksempel"><path d="M32 22 V110 H232" fill="none" stroke="#b0b0b0" stroke-width="1.5"/>` +
+      `<path d="M34 96 L70 80 L104 88 L140 58 L176 66 L212 40 L230 46" fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linejoin="round"/></g>` +
+      text(120, 15, 'Trend', 11, 'id="titel" font-weight="600"') + '</g>',
+  },
+  {
     id: 'motor', label: 'Motor', category: 'proces', hint: 'Bind "Fyldfarve" til drift-signalet',
     svg: `<g><circle cx="40" cy="40" r="32" fill="${FILL}" stroke="${LINE}" stroke-width="3"/>` +
       text(40, 49, 'M', 26, 'font-weight="600"') + '</g>',

@@ -208,6 +208,38 @@ class Anim(_M):
     _s = field_validator("src", "part")(lambda cls, v: (v or "").strip())
 
 
+CHART_RANGES = (900, 3600, 8 * 3600, 86400, 7 * 86400)
+MAX_CHART_TAGS = 4
+
+
+class Chart(_M):
+    """Trendgraf (v0.91.0): historikken for 1-4 tags som kurve eller søjler over en periode."""
+    tags: list[str] = Field(default_factory=list, max_length=MAX_CHART_TAGS)
+    range_s: int = 3600
+    style: Literal["line", "bar"] = "line"
+    bars: int = Field(default=24, ge=4, le=60)
+    y_min: float | None = None
+    y_max: float | None = None
+    title: str = Field(default="", max_length=60)
+
+    @field_validator("range_s")
+    @classmethod
+    def _range(cls, v: int) -> int:
+        if v not in CHART_RANGES:
+            raise ValueError(f"perioden skal være en af {', '.join(str(r) for r in CHART_RANGES)} sekunder")
+        return v
+
+    @field_validator("tags")
+    @classmethod
+    def _tags(cls, v: list[str]) -> list[str]:
+        out: list[str] = []
+        for t in v:
+            t = (t or "").strip()
+            if t and t not in out:
+                out.append(t)
+        return out
+
+
 class SymbolConfig(_M):
     type: str = "custom"
     op: Literal["positions", "pulse", "entry", "view"] = "view"
@@ -223,6 +255,7 @@ class SymbolConfig(_M):
     lock: Lock = Field(default_factory=Lock)
     anims: list[Anim] = Field(default_factory=list, max_length=MAX_ANIMS)
     logic: list[LogicBlock] = Field(default_factory=list, max_length=MAX_LOGIC)
+    chart: Chart | None = None
 
     _f = field_validator("fault")(lambda cls, v: (v or "").strip())
 
@@ -287,6 +320,8 @@ def config_tags(config: dict[str, Any]) -> list[str]:
     for b in config.get("logic", []):
         for i in b.get("inputs", []):
             add(i.get("src"))
+    for t in (config.get("chart") or {}).get("tags", []):   # trendgrafens tags (adgang, sletning, Trends)
+        add(t)
     for a in config.get("anims", []):
         if (alarm := parse_alarm_ref(a.get("src"))) is not None:
             add(alarm[1])
@@ -451,6 +486,8 @@ def symbol_view(drawing_id: str, element: str, cfg: dict[str, Any], has_pin: boo
         view["pseudo"] = {k: pseudo_tag(drawing_id, element, k) for k in PSEUDO_KINDS}
     if cfg.get("op") in ("pulse", "entry") and cfg.get("signals"):
         view["tag"] = cfg["signals"][0].get("tag")
+    if cfg.get("chart"):
+        view["chart"] = cfg["chart"]
     return view
 
 
@@ -887,7 +924,19 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 res.warnings.append(f"{nm} gælder ikke i nogen position.")
             elif all(a.only):
                 a.only = None    # gælder i alle = ingen begrænsning
-    if cfg.op == "view" and not cfg.anims and not cfg.logic:
+    # -- trendgraf (v0.91.0)
+    if cfg.chart is not None:
+        if not cfg.chart.tags:
+            res.err("4", "Graf: vælg mindst ét tag.")
+        for t in cfg.chart.tags:
+            ti = tag_of(t)
+            if ti is None:
+                res.err("4", f"Graf: tagget '{t}' findes ikke.")
+            elif not ti.row.get("trend"):
+                res.warnings.append(f"Graf: tagget '{t}' gemmer ikke historik — slå det til i trin 6, ellers er grafen tom.")
+        if cfg.chart.y_min is not None and cfg.chart.y_max is not None and not cfg.chart.y_min < cfg.chart.y_max:
+            res.err("4", "Graf: Y-aksens min skal være mindre end max.")
+    if cfg.op == "view" and not cfg.anims and not cfg.logic and cfg.chart is None:
         res.err("4", "Et visningssymbol skal have mindst én animation (eller en logikblok til andre symboler).")
 
     # -- nøglelås (trin 5)
