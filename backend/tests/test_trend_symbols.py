@@ -90,3 +90,22 @@ def test_trend_chart_config(api):
     assert [s["tags"] for s in api.get("/api/trends/symbols").json() if s["element"] == "L1"] == [["Tryk", "Drift"]]
     assert api.delete("/api/tags/Drift").status_code == 409
 
+
+
+def test_non_engineers_only_trend_tags_configured_in_their_drawings(api):
+    """Viewer/operatør/driftpanel kan ikke vælge tags frit i Trends: kun tags i opsatte symboler/trendgrafer (håndhævet i backend)."""
+    _put(api, api.did, "P1", {"op": "view", "anims": [{"part": "all", "type": "fill", "src": "Drift", "params": {}}]})
+    _put(api, api.did, "L1", {"op": "view", "chart": {"tags": ["Tryk"], "range_s": 3600, "style": "line"}})
+    assert {t["name"] for t in api.get("/api/trends/info").json()["tags"]} >= {"Drift", "Tryk", "Start", "Lys"}   # tekniker/admin: alle
+    for role in ("operator", "panel", "viewer"):
+        assert api.post("/api/users", json={"username": f"u_{role}", "role": role, "password": "Hemmelig-123",
+                                            "drawings": [api.did]}).status_code == 201
+    admin = {"username": "admin", "password": ADMIN_PW}
+    for role in ("operator", "panel", "viewer"):
+        api.post("/api/auth/login", json={"username": f"u_{role}", "password": "Hemmelig-123"})
+        api.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})
+        assert {t["name"] for t in api.get("/api/trends/info").json()["tags"]} == {"Drift", "Tryk"}, role
+        data = api.get("/api/trends/data?tags=Drift,Tryk,Start,Lys").json()
+        assert set(data["series"]) == {"Drift", "Tryk"}, role
+        assert "Start" not in api.get("/api/trends/export?tags=Start,Lys").text   # intet tilladt tag tilbage: kun overskriften
+        api.post("/api/auth/login", json=admin)

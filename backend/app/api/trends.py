@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 
-from ..services.auth import CurrentUser
+from ..services.auth import CurrentUser, role_at_least
 from ..services.errors import ServiceError
 from ..services.schedule_engine import TZ
 from ..services.tagsource import TagSourceError, parse_source
@@ -29,15 +29,26 @@ def _is_bool(source: str) -> bool:
         return False
 
 
+def _allowed(request: Request, user: CurrentUser) -> set[str] | None:
+    """Tags brugeren må trende. Tekniker/admin: alle synlige tags (None = ingen yderligere begrænsning). Viewer, operatør og
+    driftpanel: kun tags i de trends der er sat op i deres tegninger (symboler og trendgrafer) — ikke frit valg af tags."""
+    visible = request.app.state.scope_service.visible_tags(user)
+    if role_at_least(user.role, "engineer"):
+        return visible
+    scope = request.app.state.scope_service
+    configured = {t for s in request.app.state.symbol_service.trend_symbols(scope.drawing_ids(user)) for t in s["tags"]}
+    return configured if visible is None else configured & visible
+
+
 def _names(request: Request, user: CurrentUser, tags: str) -> list[str]:
     names = [t.strip() for t in tags.split(",") if t.strip()]
     if not names:
         raise ServiceError(400, "Vælg mindst ét tag")
     if len(names) > 20:
         raise ServiceError(400, "Højst 20 tags ad gangen")
-    visible = request.app.state.scope_service.visible_tags(user)
-    if visible is not None:
-        names = [n for n in names if n in visible]
+    allowed = _allowed(request, user)
+    if allowed is not None:
+        names = [n for n in names if n in allowed]
     return names
 
 
@@ -87,7 +98,7 @@ async def export(request: Request, tags: str, start: float | None = None, end: f
 
 @router.get("/info")
 async def info(request: Request, user: CurrentUser = Depends(require("viewer"))) -> dict[str, Any]:
-    visible = request.app.state.scope_service.visible_tags(user)
+    visible = _allowed(request, user)
     stats = request.app.state.trend_db.stats()
     tags = []
     for t in request.app.state.tag_service.list():

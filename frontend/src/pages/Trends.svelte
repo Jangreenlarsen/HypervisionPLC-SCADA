@@ -403,6 +403,8 @@
       if (k) {
         if (!routeSymbol(k, false)) error = UNKNOWN;   // hentes nedenfor
       }
+      // Uden tekniker-rettighed vælges tags ikke frit: start med det første opsatte symbol
+      if (!canEdit && !symKey && symbols.length) chooseSymbol(symbolKey(symbols[0]), false);
     } catch (e) {
       error = `Symbolerne kunne ikke hentes: ${(e as Error).message}`;
     }
@@ -450,7 +452,7 @@
     {#if symbols.length}
       <label class="small symsel">Symbol
         <select value={symKey} onchange={(e) => chooseSymbol(e.currentTarget.value)} style="width:100%">
-          <option value="">— vælg tags selv —</option>
+          {#if canEdit}<option value="">— vælg tags selv —</option>{/if}
           {#each byDrawing(symbols) as [d, list] (d)}
             <optgroup label={d}>{#each list as s (symbolKey(s))}<option value={symbolKey(s)}>{s.name}</option>{/each}</optgroup>
           {/each}
@@ -466,6 +468,7 @@
         {#if symSeries.over.length}<p class="small muted">Højst {MAX_SERIES} kurver ad gangen — ikke vist: {symSeries.over.map(label).join(', ')}.</p>{/if}
       {/if}
     {/if}
+    {#if canEdit}
     <div class="row" style="justify-content: space-between">
       <h3>Tags</h3>
       {#if canEdit}
@@ -503,6 +506,9 @@
         </li>
       {/each}
     </ul>
+    {:else if !symbols.length}
+      <p class="muted small">Der er ikke sat nogen trends op i dine tegninger. En tekniker opretter dem under Tegn (symbolets opsætning eller en trendgraf).</p>
+    {/if}
     {#if info}
       <p class="muted small">
         Historik gemmes i {info.retention_days} dage · {Math.round(info.db_size / 1024 / 1024 * 10) / 10} MB.
