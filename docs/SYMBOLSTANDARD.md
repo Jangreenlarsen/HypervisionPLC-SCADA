@@ -136,3 +136,8 @@ Prototypen har alle fire med. Trin 1 har for importerede symboler et valg
 gøres betjenbart.
 
 Under testen viste Elmåler (kWh) sig at være for smal til 5 cifre; symbolet er rettet i v0.27.1 (hus 130, display 110).
+
+## 8. Symbolfarver og navngivne dele (vedtaget 2026-10-19)
+
+- **Palette**: biblioteket bruger kun farverne i `SYMBOL_COLORS` (`frontend/src/lib/symbols.ts`). Grå og hvide flader er standard (ISA-101: ingen farver der konkurrerer med alarmer). Fem dæmpede farver er undtagelser, hver bundet til én ting og aldrig brugt til alarm eller tilstand: **medie** (tank-fyld, blå), **kurve** (trendgraf, blå), **solcelle** (panel og gitter, blågrå) og **ladning** (batteri, grøn). En test afviser enhver anden farve; en ny farve kræver, at den lægges i paletten og her.
+- **Navngivne dele**: et symbol der kan have mere end én synlig tilstand, har sine dele som `id` (hus, spindel, håndhjul, glas, spole, rotor, løbehjul …), så animationer kan virke på dem hver for sig. Rene formsymboler (jord, modstand, sikring …) animeres som helhed. Nye delnavne får et dansk navn i `PART_LABEL`; en test sikrer, at komponenterne beholder deres dele.

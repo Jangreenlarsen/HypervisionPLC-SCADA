@@ -2,6 +2,11 @@
 
 ---
 
+## v0.99.0 — 2026-10-19 — Symbolkvalitet
+
+- **Ventiler, motorer, lamper, varmeveksler, filter og radiator har nu navngivne dele** (fx hus, spindel, håndhjul, glas, spole), så guiden kan animere dem hver for sig. Udseendet er uændret. Symboler der allerede står i en tegning får delene ved *Erstat med symbol …*.
+- Alle symbolfarver er samlet i én palette, så nye symboler holder samme stil.
+
 ## v0.98.0 — 2026-10-19 — Vippekontaktens greb pr. position
 
 - Guidens trin 4 har nu **Grebets stilling pr. position** for vippekontakterne: vælg **Op**, **Midt (knop)** eller **Ned** for hver position, og guiden laver selv animationerne. Det virker uanset antal positioner og signaler.
