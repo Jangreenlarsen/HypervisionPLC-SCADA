@@ -12,6 +12,7 @@
   import SymbolCopy from './SymbolCopy.svelte';
   import TagAlarm from './TagAlarm.svelte';
   import TagSelect from './TagSelect.svelte';
+  import { CHART_RANGES, MAX_CHART_TAGS, defaultChart } from './chartGraphic';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
     ALARM_TXT, ANIM_TXT, ON, WHEN_TYPES, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
@@ -169,8 +170,17 @@
   const live = new LiveClient((changes) => { liveVals = { ...liveVals, ...changes }; });
   const usedTags = $derived([...new Set([
     ...cfg.signals.flatMap((s) => [s.tag, s.fb]), cfg.fault, ...cfg.anims.map((a) => a.src), ...cfg.anims.map((a) => a.params.dir_tag ?? ''),
-    ...cfg.logic.flatMap((b) => b.inputs.map((i) => i.src)),
+    ...cfg.logic.flatMap((b) => b.inputs.map((i) => i.src)), ...(cfg.chart?.tags ?? []),
   ].filter((t) => t && t !== POS && !isLogicRef(t) && tagByName.has(t)))].sort());
+  /** Graf (v0.91.0): sæt tag nr. i; tomt fjerner det (de øvrige rykker op). */
+  function setChartTag(i: number, v: string): void {
+    if (!cfg.chart) return;
+    const list = [...cfg.chart.tags];
+    if (v) list[i] = v; else list.splice(i, 1);
+    cfg.chart.tags = [...new Set(list.filter(Boolean))].slice(0, MAX_CHART_TAGS);
+  }
+  /** Y-aksens grænse: tomt = automatisk (null); komma eller punktum. */
+  const yLimit = (v: string): number | null => { const n = Number(v.trim().replace(',', '.')); return v.trim() && Number.isFinite(n) ? n : null; };
   /** Pseudo-tags for blokke i andre symboler som denne konfiguration bruger (til live-værdierne i trin 6). */
   const foreignTags = $derived([...new Set([
     ...cfg.logic.flatMap((b) => b.inputs.map((i) => i.src)), ...cfg.anims.map((a) => a.src), ...cfg.anims.map((a) => a.params.dir_tag ?? ''),
@@ -604,6 +614,27 @@
                 <button class="small" onclick={applyValve} disabled={!valveTag}>Opret animationer</button></div>
               {#if valveMsg}<span class="small">{valveMsg}</span>{/if}
             </div>
+          {/if}
+          {#if cfg.chart}
+            {@const ch = cfg.chart}
+            <h4>Graf</h4>
+            <p class="small muted">Historikken for 1–{MAX_CHART_TAGS} tags vises i symbolets ramme på Overview — som kurve eller søjler — og opdateres løbende. Tagsene skal gemme historik (slå det til i trin 6).</p>
+            <div class="row wrap">
+              {#each Array.from({ length: Math.min(MAX_CHART_TAGS, ch.tags.length + 1) }, (_, k) => k) as i (i)}
+                <label class="opt small">Tag {i + 1} <TagSelect value={ch.tags[i] ?? ''} {tags} placeholder={i === 0 ? '— vælg tag —' : '— ingen —'} onchange={(v) => setChartTag(i, v)} /></label>
+              {/each}
+            </div>
+            <div class="row wrap">
+              <label class="opt small">Periode <select bind:value={ch.range_s}>{#each CHART_RANGES as r (r.s)}<option value={r.s}>{r.label}</option>{/each}</select></label>
+              <label class="opt small"><input type="radio" bind:group={ch.style} value="line" /> Kurve</label>
+              <label class="opt small"><input type="radio" bind:group={ch.style} value="bar" /> Søjler</label>
+              {#if ch.style === 'bar'}{@render numInput(ch, 'bars', 'Antal søjler (4–60)')}{/if}
+              <label class="opt small">Y-akse fra <input class="n" value={ch.y_min ?? ''} placeholder="auto" onchange={(e) => (ch.y_min = yLimit(e.currentTarget.value))} /></label>
+              <label class="opt small">til <input class="n" value={ch.y_max ?? ''} placeholder="auto" onchange={(e) => (ch.y_max = yLimit(e.currentTarget.value))} /></label>
+              <label class="opt small">Titel <input class="lbl" bind:value={ch.title} maxlength="60" placeholder="tagenes navne" /></label>
+            </div>
+          {:else if symbol?.type === 'trendgraf'}
+            <p class="small"><button class="small" onclick={() => (cfg.chart = defaultChart())}>+ Graf</button> <span class="muted">Symbolet kan vise en graf over tagenes historik.</span></p>
           {/if}
           <h4>Logik ({cfg.logic.length}/{MAX_LOGIC})</h4>
           <p class="small muted">Saml flere tags i én betingelse (fx pumpe kører OG ventil åben), og brug den som kilde til en animation. En blok kan også bruge blokkene over sig og blokke i andre symboler på tegningen (og omvendt — dine blokke kan bruges dér).</p>

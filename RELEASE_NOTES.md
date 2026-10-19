@@ -2,6 +2,10 @@
 
 ---
 
+## v0.91.0 — 2026-10-19 — Trendgraf i tegningen
+
+- Nyt symbol **Trendgraf**: viser historikken for 1–4 tags direkte i tegningen — som **kurve** eller **søjlediagram** — over 15 minutter til 7 dage. Opsættes i symbolguiden (trin 4, *Graf*) og opdateres løbende.
+
 ## v0.90.1 — 2026-10-18 — SSE-status for expansion boards
 
 - **PLC'er** viser nu, hvor mange ændringer der er kommet via SSE fra **RS485-slaver** og fra **expansion boards** hver for sig.

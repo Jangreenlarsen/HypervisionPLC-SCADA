@@ -258,7 +258,7 @@ class DrawingService:
         configured = {r["element"]: symbol_view(drawing_id, r["element"], r["config"], (drawing_id, r["element"]) in pins)
                       for r in self.db.list_symbol_configs(drawing_id) if r["element"] in index}
         for v in configured.values():
-            for name in [v.get("fault"), v.get("tag")]:
+            for name in [v.get("fault"), v.get("tag"), *((v.get("chart") or {}).get("tags") or [])]:
                 if name and name in tags and name not in meta:
                     meta[name] = self._meta(tags[name])
         return {"id": drawing["id"], "name": drawing["name"], "version": drawing["active_version"],

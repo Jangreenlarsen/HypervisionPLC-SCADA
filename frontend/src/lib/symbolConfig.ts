@@ -15,10 +15,14 @@ export interface LogicInput { src: string; neg: boolean; cmp: Cmp; value: number
 /** En logikblok i et ANDET symbol på tegningen, som kan bruges som kilde: `@<symbol>:<blok>`. */
 export interface PoolBlock { element: string; symbol: string; id: string; name: string }
 export interface LogicBlock { id: string; name: string; op: 'and' | 'or'; inputs: LogicInput[]; invert: boolean }
+import { defaultChart, type ChartCfg } from './chartGraphic';
+
 export interface SymbolConfig {
   type: string; op: Op; positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
   display: 'remote' | 'local'; validate_s: number; alarm: '' | 'low' | 'medium' | 'high'; confirm: boolean; pulse_ms: number;
   lock: { positions: boolean[]; leave: boolean }; anims: Anim[]; logic: LogicBlock[];
+  /** Trendgraf (v0.91.0) — kun for symboler, der viser en graf. */
+  chart?: ChartCfg | null;
 }
 export interface PartInfo { tag: string; line: boolean; pid?: string | null; text?: string }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }
@@ -127,6 +131,10 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     cfg.anims.push({ part: flamme, type: 'flicker', src: '', params: animDefaults('flicker', 'bool', 0), only: null });
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: flammen bliver orange og blafrer, når brænderen kører. Vælg drifts-tagget under trin 4.' };
   }
+  if (symbol.type === 'trendgraf') {
+    cfg.chart = defaultChart();
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: en graf over den seneste time. Vælg 1–4 tags under trin 4 (Graf), og slå historik til for dem i trin 6.' };
+  }
   if (symbol.type === 'pumpe') {
     // Drift (v0.86.0): løbehjulet drejer — pilen står stille og viser retningen
     const hjul = partOf('loebehjul');
@@ -188,6 +196,7 @@ const OPS_BY_TYPE: Record<string, Op[]> = {
   kugleventil: SWITCH, motorventil: SWITCH, magnetventil: SWITCH, regventil: ['view', 'entry'],
   trevejs_motorventil: ['view', 'positions'], trevejs_motorventil_ab: ['view', 'positions'],
   // maskiner og kontakter: start/stop (frekvensomformer også en hastighed)
+  trendgraf: VIEW,
   pumpe: SWITCH, motor: SWITCH, ventilator: SWITCH, kontaktor: SWITCH, hovedafbryder: SWITCH, dc_afbryder: SWITCH, ac_afbryder: SWITCH,
   elbillader: SWITCH, frekvensomformer: [...SWITCH, 'entry'],
   // kun visning: rør, fittings, beholdere, målere, lamper og statusfelter, passive el- og solcelledele
