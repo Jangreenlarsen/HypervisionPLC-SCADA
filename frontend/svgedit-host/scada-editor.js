@@ -6,6 +6,7 @@ import {
 } from './snap.js';
 import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
+import { DA, DA_EXT, merge } from './locale-da.js';
 
 const editor = new Editor(document.getElementById('container'));
 editor.setConfig({
@@ -14,7 +15,9 @@ editor.setConfig({
   extPath: './extensions',
   noDefaultExtensions: true,
   // Kun udvidelser der arbejder lokalt — ingen browser-lagring eller filåbning udenom SCADA'en
-  extensions: ['ext-connector', 'ext-eyedropper', 'ext-markers', 'ext-panning', 'ext-polystar', 'ext-shapes'],
+  // (ikke ext-connector: dens forbindelser bygger på SVG-Edits egne attributter, som serveren renser væk ved gem — så de
+  // holder op med at følge symbolerne; v0.92.0)
+  extensions: ['ext-eyedropper', 'ext-markers', 'ext-panning', 'ext-polystar', 'ext-shapes'],
   noStorageOnLoad: true,
   forceStorage: false,
   emptyStorageOnDecline: true,
@@ -70,6 +73,22 @@ const selectedEls = () => (canvas().getSelectedElements() || []).filter(Boolean)
 
 function rememberBoxes() {
   lastBoxes = new Map(selectedEls().map((el) => [el, boxOf(el)]));
+}
+
+/**
+ * Tegningens størrelse efter fortryd/gentag (v0.92.0): SVG-Edit opdaterer kun sin interne størrelse (contentW/H), når
+ * trinnet er én ændring af rod-elementet — ikke i et samlet trin (fx "Tilpas til indholdet", eller SVG-Edits egen
+ * størrelsesændring). Så sætter vi den ud fra viewBox, ellers springer tegningen tilbage til den nye størrelse.
+ */
+function syncContentSize() {
+  const c = canvas();
+  const vb = (c?.getSvgContent?.()?.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+  if (vb.length !== 4 || !(vb[2] > 0) || !(vb[3] > 0)) return;
+  if (vb[2] === c.contentW && vb[3] === c.contentH) return;
+  c.contentW = vb[2];
+  c.contentH = vb[3];
+  editor.updateCanvas?.();
+  drawGrid();
 }
 
 function drawGrid() {
@@ -309,8 +328,77 @@ function hookContextMenu() {
   window.addEventListener('blur', hide);
 }
 
+/**
+ * Dansk i editoren (v0.92.0): SVG-Edit kender ikke "da" og kører på engelsk. De danske tekster lægges oven på de engelske,
+ * sproget skiftes, og knapper/felter oversættes igen (komponenterne oversætter deres title/label, når attributten sættes).
+ */
+function localize() {
+  const i = editor.i18next ?? window.svgEditor?.i18next;
+  if (!i?.addResourceBundle) return;
+  i.addResourceBundle('da', 'translation', merge(i.getResourceBundle('en', 'translation') || {}, DA), true, true);
+  for (const [ns, texts] of Object.entries(DA_EXT)) i.addResourceBundle('da', ns, merge(i.getResourceBundle('en', ns) || {}, texts), true, true);
+  i.changeLanguage('da');
+  const isKey = (v) => /^[\w-]+(?:[.:][\w-]+)+$/.test(v || '');
+  const walk = (root) => {
+    for (const el of root.querySelectorAll('[title],[label],[text]')) {
+      for (const a of ['title', 'label', 'text']) {
+        const v = el.getAttribute(a);
+        if (!isKey(v)) continue;
+        if (el.tagName.includes('-')) {
+          // komponenten oversætter kun, når værdien ÆNDRES — sæt en anden værdi og så nøglen igen
+          el.setAttribute(a, `${v} `);
+          el.setAttribute(a, v);
+        }
+        else el.setAttribute(a, i.t(v));                             // almindeligt element: oversæt direkte
+      }
+    }
+  };
+  walk(document);
+  localizeExtras();
+  setTimeout(localizeExtras, 1500);   // udvidelserne kan først være klar lidt efter
+}
+
+/**
+ * Det, der ikke går gennem oversættelsen: udvidelsernes knapper (de sætter engelsk tekst direkte), farvefelterne og
+ * genvejsteksterne. Teksterne må ikke indeholde "." eller ":" (editoren slår titlen op som en nøgle).
+ */
+const EXTRA_TITLES = {
+  tool_shapelib: ['Former (pile, stjerner, talebobler …)', null],
+  tools_polygon: ['Stjerne / polygon', undefined],
+  tool_star: ['Stjerne', undefined],
+  tool_polygon: ['Polygon (mangekant)', undefined],
+  tool_eyedropper: ['Pipette — kopiér farverne fra ét element til et andet', 'I'],
+  'ext-panning': ['Flyt udsnittet (tegningen ændres ikke)', 'mellemrum + træk'],
+  tool_zoom: [null, 'Z / Alt + musehjul'],
+};
+function localizeExtras() {
+  for (const [id, [title, shortcut]] of Object.entries(EXTRA_TITLES)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    if (shortcut === null) el.removeAttribute('shortcut');
+    else if (shortcut !== undefined) el.setAttribute('shortcut', shortcut);
+    const t = title ?? el.getAttribute('title');
+    if (t) { el.setAttribute('title', `${t} `); el.setAttribute('title', t); }
+  }
+  for (const [id, text] of [['fill_color', 'Fyldfarve — klik for at vælge'], ['stroke_color', 'Stregfarve — klik for at vælge']]) {
+    document.getElementById(id)?.shadowRoot?.querySelectorAll('[title]').forEach((n) => n.setAttribute('title', text));
+  }
+  document.getElementById('zoom')?.setAttribute('title', 'Zoom — vælg et niveau, eller Ctrl + musehjul');
+  // Formbiblioteket viser altid "[genvej]" — også uden genvej ("[null]"): sæt den indre tekst direkte
+  document.getElementById('tool_shapelib')?.shadowRoot?.querySelectorAll('[title]').forEach((n) => n.setAttribute('title', EXTRA_TITLES.tool_shapelib[0]));
+}
+
+/** Det aktive værktøj (SVG-Edits "mode") til hjælpelinjen i Tegn (v0.92.0). */
+let modeListener = null;
+
 function hookEvents() {
   const c = canvas();
+  localize();
+  if (typeof c.setMode === 'function' && !c.__hvMode) {
+    const setMode = c.setMode.bind(c);
+    c.setMode = (mode) => { const r = setMode(mode); if (modeListener) modeListener(String(mode)); return r; };
+    c.__hvMode = true;
+  }
   hookContextMenu();
   // SVG-Edits egne id'er (svg_N — tegneværktøjer, indsæt, dupliker): spring reserverede over. Dupliker henter id'et
   // direkte fra tegningsobjektet (ikke lærredet), så det er tegningens getNextId — fælles for alle tegninger — der pakkes ind.
@@ -331,6 +419,8 @@ function hookEvents() {
     if (selectionListener) selectionListener(currentSelection());
   });
   const prevChanged = c.bind('changed', (win, elems) => {
+    // før editorens egen håndtering: den skriver contentW/H tilbage i viewBox (updateCanvas)
+    syncContentSize();
     if (prevChanged) prevChanged(win, elems);
     if (changeListener) changeListener();
     if (selectionListener) selectionListener(currentSelection());
@@ -902,6 +992,72 @@ window.scada = {
    * Giv elementerne (id'er) navnene "<base>_1", "<base>_2" … (ledige numre, i tegningens rækkefølge) — ét fortryd-trin. Elementer der allerede
    * har et navn, eller ikke findes, røres ikke. → { id: navn } for de navngivne.
    */
+  /** Kaldes med værktøjets navn, når et andet værktøj vælges (v0.92.0). */
+  onMode(fn) {
+    modeListener = fn;
+    fn(String(canvas()?.getMode?.() ?? 'select'));
+  },
+
+  /** Tegningens størrelse (v0.92.0) i tegningens egne enheder. */
+  getSize() {
+    const r = canvas().getResolution();
+    return { w: Math.round(r.w), h: Math.round(r.h) };
+  },
+
+  /**
+   * Ny størrelse — ét fortryd-trin. Et baggrundsrektangel, der fyldte hele tegningen (som nye tegninger har), følger med.
+   * `fit`: flyt indholdet op i hjørnet og gør tegningen præcis stor nok + `margin` (baggrunden tæller ikke med).
+   * → { w, h } eller { error }.
+   */
+  setSize(w, h, fit = false, margin = 20) {
+    const c = canvas();
+    const content = c.getSvgContent();
+    const old = c.getResolution();
+    const oldW = Math.round(old.w), oldH = Math.round(old.h);
+    const bg = content.querySelector('#baggrund');
+    const fillsAll = (el) => el && Number(el.getAttribute('x') || 0) === 0 && Number(el.getAttribute('y') || 0) === 0 &&
+      Math.round(Number(el.getAttribute('width'))) === oldW && Math.round(Number(el.getAttribute('height'))) === oldH && !el.getAttribute('transform');
+    const background = fillsAll(bg) ? bg : null;
+    const batch = new c.history.BatchCommand(fit ? 'Tilpas til indholdet' : 'Tegningens størrelse');
+    if (fit) {
+      const els = Array.from(content.querySelectorAll('g.layer > *')).filter((el) =>
+        el !== background && !RESERVED.has(el.tagName.toLowerCase()) && el.getAttribute('display') !== 'none');
+      const box = unionBox(els.map((el) => { try { return boxOf(el); } catch { return null; } }).filter((b) => b && (b.w > 0 || b.h > 0)));
+      if (!box) return { error: 'Tegningen er tom — der er intet at tilpasse til' };
+      const dx = Math.round(margin - box.x), dy = Math.round(margin - box.y);
+      if (dx || dy) {
+        c.clearSelection();
+        c.addToSelection(els);
+        const cmd = c.moveSelectedElements(els.map(() => dx), els.map(() => dy), false);
+        if (cmd) batch.addSubCommand(cmd);
+        c.clearSelection();
+      }
+      w = Math.ceil(box.w + 2 * margin);
+      h = Math.ceil(box.h + 2 * margin);
+    }
+    w = Math.max(100, Math.min(10000, Math.round(w)));
+    h = Math.max(100, Math.min(10000, Math.round(h)));
+    if (w === oldW && h === oldH && batch.isEmpty()) return { w, h };
+    const oldViewBox = content.getAttribute('viewBox');
+    content.setAttribute('width', w);
+    content.setAttribute('height', h);
+    content.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    c.contentW = w;
+    c.contentH = h;
+    batch.addSubCommand(new c.history.ChangeElementCommand(content, { width: oldW, height: oldH, viewBox: oldViewBox }));
+    if (background) {
+      background.setAttribute('width', w);
+      background.setAttribute('height', h);
+      batch.addSubCommand(new c.history.ChangeElementCommand(background, { width: oldW, height: oldH }));
+    }
+    c.undoMgr.addCommandToHistory(batch);
+    c.call('changed', [content]);
+    editor.updateCanvas?.();
+    drawGrid();
+    if (changeListener) changeListener();
+    return { w, h };
+  },
+
   /** Omskifterens positionsnavne, som de står i tegningen (teksterne uden for grebet), i rækkefølge (v0.91.1). */
   selectorLabels(id) {
     const el = canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`);

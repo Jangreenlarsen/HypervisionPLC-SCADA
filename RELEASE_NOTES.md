@@ -2,6 +2,12 @@
 
 ---
 
+## v0.92.0 — 2026-10-19 — Tegningens størrelse og danske tegneværktøjer
+
+- **Tegningens størrelse** kan ændres i Tegn (knappen **Størrelse** øverst): faste valg som Full HD, egen bredde/højde, eller **Tilpas til indholdet**.
+- **Tegne-editoren er nu på dansk** — værktøjer, felter og genveje — og en **hjælpelinje** over tegningen fortæller, hvordan det valgte værktøj bruges.
+- Forbindelsesværktøjet er fjernet (dets forbindelser holdt ikke, når tegningen blev gemt).
+
 ## v0.91.1 — 2026-10-19 — Rettet: omskifter med flere positioner
 
 - Får en omskifter flere positioner i guiden, end tegningen viser, kan **Tegn** nu tegne den igen med de rigtige positioner (knappen **Tegn omskifteren med N positioner**) — og grebet peger på dem.

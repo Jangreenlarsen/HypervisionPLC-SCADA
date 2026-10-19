@@ -26,13 +26,15 @@ Siden **Tegninger** er listen over alle tegninger.
 ### Sådan tegner du
 
 1. Vælg en eksisterende tegning (og version) i rullelisterne øverst, eller start en ny (**— Ny tegning —**). Står du på en tegning i **Overview**, åbner menupunktet **Tegn** (og **Bindinger**) direkte den tegning.
-2. Tegn med værktøjerne i editoren: linjer, rektangler, cirkler, tekst, farver og lag.
+2. Tegn med værktøjerne i editoren: linjer, rektangler, cirkler, tekst, farver og lag. Peg på et værktøj for at se, hvad det hedder (og dets genvejstast); **linjen over tegneområdet** fortæller, hvordan det valgte værktøj bruges (fx *Rektangel: træk for at tegne · Shift = kvadrat · Esc = tilbage til Vælg*).
 3. Til højre ser du **Valgt element**. Giv det et **Navn**, hvis det skal være et symbol, der senere kan sættes op med guiden. **Avanceret** viser elementets tekniske **id**.
 4. Tryk **Gem kladde** (gemmer en ny version, men viser den ikke endnu) eller **Gem og udgiv** (gemmer og gør den aktiv). En ny tegning skal have et navn.
 5. **Slet tegning** fjerner hele tegningen (med samme oversigt over, hvad det rammer).
 6. **Bindinger** åbner bindingsiden for tegningen.
 
 Er der ændringer, du ikke har gemt, spørger systemet, før de kasseres.
+
+**Tegningens størrelse:** knappen **Størrelse: 1200 × 700** øverst viser og ændrer tegningens bredde og højde. Vælg et **fast valg** (fx *Full HD-skærm 1920 × 1080* eller *Panel 1280 × 800*) eller skriv bredde og højde (100–10000), og tryk **Brug størrelsen**. **Tilpas til indholdet** flytter tegningen op i hjørnet og gør den præcis stor nok med den valgte margen. En baggrund, der fyldte hele tegningen, følger med. **Ctrl+Z** fortryder; gem med *Gem kladde* / *Gem og udgiv*. Nye tegninger starter på 1200 × 700, og Overview skalerer altid tegningen til skærmen.
 
 ### Tegnehjælp: gitter, fang og rotation
 

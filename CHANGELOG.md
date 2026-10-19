@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.92.0 build 0138] — 2026-10-19 — Tegningens størrelse og mere intuitive tegneværktøjer
+
+- **Størrelse:** `frontend/svgedit-host/scada-editor.js` — `getSize()`, `setSize(w, h, fit, margin)` (ét fortryd-trin; en baggrund der fyldte tegningen følger med; "tilpas" flytter indholdet op i hjørnet og ser bort fra baggrunden), `syncContentSize()` efter hver ændring (rettelse af SVG-Edits fortryd for størrelsen). `frontend/src/lib/drawingSize.ts` (ny, testet): faste valg og kontrol af bredde/højde. `DrawEditor.svelte` — knappen **Størrelse: B × H** med panel (fast valg, bredde/højde, Tilpas til indholdet med margen).
+- **Værktøjerne:** `frontend/svgedit-host/locale-da.js` (ny) — danske tekster for værktøjer, felter, lag og udvidelser lagt oven på SVG-Edits engelske; `localize()` skifter sproget og oversætter knapper/felter igen; udvidelsernes knapper, farvefelterne og genvejsteksterne sættes direkte. `frontend/src/lib/toolHints.ts` (ny, testet) + `onMode()` i værten: hjælpelinjen over tegneområdet. Forbindelsesværktøjet (ext-connector) fjernet; "untitled.svg" skjult (`scada-editor.css`). BUGS.md. Manual (04).
+- **Set i browseren** lokalt: Full HD → 1920 × 1080 (baggrunden følger med); bredde 50 → fejlbesked; Tilpas til indholdet → 240 × 150 med indholdet i 20,20; Fortryd → 1920 × 1080 igen (også knappen); gemt version har 240 × 150. Værktøjerne viser "Vælg og flyt", "Rektangel / kvadrat", "Fortryd [ctrl+Z]", "Fyldfarve — klik for at vælge", felterne "Bredde [b]", "Slet [Delete/Backspace]", fanen "Lag"; hjælpelinjen skifter med værktøjet; forbindelsesværktøjet er væk.
+
 ## [0.91.1 build 0137] — 2026-10-19 — fix: omskifterens tegning følger opsætningens positioner
 
 - `frontend/src/lib/selectorRedraw.ts` (ny, testet): `selectorMismatch()` (antal/navne), `withSelectorAngles()` (grebets vinkler pr. position efter den nye tegning; animationen flyttes til det nye greb).
