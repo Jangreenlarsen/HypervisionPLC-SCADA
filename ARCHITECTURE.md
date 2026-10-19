@@ -48,12 +48,12 @@ Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.m
 ## Lag-beskrivelse
 
 ### Lag 1 — Frontend
-- **Ansvar**: Overview-board (viser tegning + live-animationer), tegne-editor (SVG-Edit + binding-panel + tag-browser + symbolbibliotek), admin (PLC'er, tags, brugere).
+- **Ansvar**: Overview-board (viser tegning + live-animationer), tegne-editor (SVG-Edit + binding-panel + tag-browser + symbolbibliotek), admin (PLC'er, tags, brugere), Trends (analyse af uregelmæssigheder, rene funktioner i `lib/trendAnalysis.ts`), Symboltest (afprøvning af biblioteksymboler uden PLC, `lib/symbolTest.ts`) og driftpanel (kun drifttegning; Alarmer og Trends via genveje).
 - **Filer**: `frontend/src/`
 - **Regler**: Kalder kun SCADA-serverens `/api/*` og `/ws/live`. Kender ikke PLC-adresser i tegningen (kun tag-navne). Indsætter aldrig SVG i DOM uden DOMPurify. Viser altid backendens specifikke fejlbesked.
 
 ### Lag 2 — API-lag
-- **Ansvar**: HTTP/WebSocket-endpoints, request-validering (pydantic), auth/rolle-tjek, oversættelse af service-fejl til `{"error": "..."}`.
+- **Ansvar**: HTTP/WebSocket-endpoints, request-validering (pydantic), auth/rolle-tjek, oversættelse af service-fejl til `{"error": "..."}`. Trends-adgang: tekniker/admin ser alle synlige tags; viewer, operatør og driftpanel kun tags i trends opsat i deres tegninger (`api/trends.py::_allowed`).
 - **Filer**: `backend/app/api/`
 - **Regler**: Ingen forretningslogik og ingen direkte DB- eller PLC-kald — alt går gennem service-laget.
 
