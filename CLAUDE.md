@@ -1,104 +1,68 @@
 # Projekt: HypervisionPLC SCADA
 
-Dette er Claudes system-prompt for dette projekt. Den læses altid først og følges uden undtagelser.
+Claudes system-prompt for projektet. Læses først, følges uden undtagelser.
+
+## Projekt
+Web-baseret SCADA/HMI til en eller flere **HypervisionPLC**-enheder (`C:\Projekter\HypervisionPLC`), kører på en **Raspberry Pi 4**. Brugeren uploader en SVG-tegning af anlægget; elementer bindes til PLC-tags og opdateres live på et Overview-board, redigeres i en indbygget tegne-editor (SVG-Edit), og operatører kan skrive setpunkter/kommandoer tilbage. Brugere: operatører (betjening), teknikere (tegninger/tags), admin.
+
+**Fast ramme**: al kommunikation med PLC'en foregår **udelukkende via PLC'ens REST API** (plus SSE-strømmen `/api/events` som push-supplement). Kun SCADA-serveren taler med PLC'en — browsere taler kun med SCADA-serveren. PLC-API: `C:\Projekter\HypervisionPLC\docs\manual\B_REST_API_Reference.md`. Research/design: `docs/RESEARCH_OG_DESIGN.md`.
+
+**Licens**: AGPL-3.0-or-later. Nye afhængigheder kræver AGPL-kompatibel licens (MIT, BSD, Apache-2.0, LGPL, MPL-2.0, GPL-3.0/AGPL-3.0) — tjek før de tilføjes, og spørg først. Web-UI'et viser link til kildekoden (AGPL §13).
+
+Stack: Backend: Python 3.11, FastAPI + uvicorn, httpx (PLC-klient), SQLite (WAL), pytest | Frontend: Vite + TypeScript + Svelte, SVG-Edit 7 (`@svgedit/svgcanvas`), DOMPurify | Live-data: WebSocket fra SCADA-serveren | Test-PLC: mock-PLC (FastAPI) | Deploy: Raspberry Pi OS Lite 64-bit, én systemd-service (uvicorn) som ikke-privilegeret bruger; frontend bygges på udviklingsmaskinen og serveres statisk af FastAPI; valgfri Chromium-kiosk
+Kommandoer: test backend `cd backend && .venv/Scripts/python.exe -m pytest` · frontend `cd frontend && npm test` | build `cd frontend && npm run build` | dev `cd frontend && npm run dev`
+Struktur og lag: se `ARCHITECTURE.md` (læs kun når opgaven rører arkitektur).
 
 ---
 
-## Projektbeskrivelse
+## Modeller og agenter
 
-Web-baseret SCADA/HMI til en eller flere **HypervisionPLC**-enheder (`C:\Projekter\HypervisionPLC`). Kører på en **Raspberry Pi 4**. Brugeren uploader en SVG-tegning af anlægget/styringen; elementer i tegningen bindes til PLC-tags og opdateres live på et Overview-board. Tegninger kan redigeres i en indbygget tegne-editor (SVG-Edit), og operatører kan skrive setpunkter/kommandoer tilbage til PLC'en. Brugere: operatører (betjening), teknikere (tegninger/tags), admin.
+Standardmodel er `opusplan` (i `.claude/settings.local.json`): Opus i plan mode, Sonnet ved implementering.
 
-**Fast ramme**: al kommunikation med PLC'en foregår **udelukkende via PLC'ens REST API** (plus PLC'ens SSE-strøm `/api/events` som push-supplement). Kun SCADA-serveren taler med PLC'en — browsere taler kun med SCADA-serveren. PLC-API-reference: `C:\Projekter\HypervisionPLC\docs\manual\B_REST_API_Reference.md`. Research og design: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md).
+- **Plan/design/analyse (Opus)**: Større opgaver planlægges først i plan mode. Gem planen i `PLAN.md` (mål, trin, berørte filer, risici), så en ny session kan fortsætte uden at gentage kontekst. Ved arkitekturvalg: 2-3 alternativer med kompromiser, vælg ét og noter beslutningen kort.
+- **Implementering (Sonnet)**: Små og mellemstore opgaver løses direkte. Afgrænsede opgaver ud fra en godkendt plan kan delegeres til agenten `implementer`.
+- **Søgning (Haiku)**: Agenten `Explore` søger i kodebasen og svarer kort. Brug den ved bred søgning, ikke ved opslag i 1-2 filer.
+- **Review (Opus)**: Agenten `reviewer` kontrollerer kritiske ændringer (auth, permissions, PLC-skrivninger, API'er, data-integritet, sikkerhed) før commit. Ikke til trivielle ændringer.
+- Agenter starter uden samtalekontekst og koster tokens. Giv dem en præcis opgave og bed om kort svar. Én session pr. opgave; `/clear` mellem uafhængige opgaver.
 
-**Licens**: AGPL-3.0-or-later (som HypervisionPLC). Nye afhængigheder skal have en AGPL-kompatibel licens (MIT, BSD, Apache-2.0, LGPL, MPL-2.0, GPL-3.0/AGPL-3.0) — tjek før de tilføjes. Web-UI'et skal vise et link til kildekoden (AGPL §13).
+---
 
-**Reference-stack**:
-- **Backend**: Python 3.11, FastAPI + uvicorn, httpx (PLC-klient), SQLite (WAL), pytest
-- **Frontend**: Vite + TypeScript + Svelte, SVG-Edit 7 (`@svgedit/svgcanvas`) som tegne-editor, DOMPurify
-- **Live-data til browser**: WebSocket fra SCADA-serveren
-- **Test-PLC**: mock-PLC (FastAPI) der efterligner det relevante subset af HypervisionPLC-API'et
-- **Deployment**: Raspberry Pi OS Lite 64-bit, én systemd-service (uvicorn) som ikke-privilegeret bruger; frontend bygges på udviklingsmaskinen og serveres statisk af FastAPI; valgfri Chromium-kiosk på lokal skærm
+## Arbejdsstil (token-økonomi)
+
+- Svar kort. Ingen indledning, ingen opsummering af hvad du lige gjorde. Slut med 1-2 sætninger: resultat + evt. næste skridt.
+- Vis kun ændrede dele (diff/relevante linjer), aldrig hele filer i svaret.
+- Grep/Glob først, læs derefter kun de nødvendige linjeintervaller. Læs ikke en fil igen, du allerede har i kontekst.
+- Kør uafhængige værktøjskald parallelt.
+- Uklart krav eller flere rimelige tolkninger: stil ét kort spørgsmål før du bygger. Gæt aldrig på noget dyrt at rette.
+- Større eller tværgående opgaver (nyt lag, migration, >3 filer): lav først en kort plan (plan mode) og vent på OK. Små rettelser: gå direkte til implementering.
+- Fejlsøgning: find rodårsag med bevis (log/kode) før du retter. Ret hele fejlklassen, ikke kun den rapporterede instans.
+- Ingen nye afhængigheder uden at spørge.
 
 ---
 
 ## Faste regler
 
-1. **Versionering (UFRAVIGELIG)**: Projektet versioneres via [version.json](version.json). Denne fil er den **eneste** kilde til versionsnumre — alle andre steder (backend, frontend, changelog) læser herfra.
-   - Normalt format: `{ "version": "MAJOR.MINOR.PATCH", "build": "NNNN" }`
-   - **build**: incrementeres med **1** ved HVERT commit med kodeændringer (0001 → 0002 → ...).
-   - **PATCH**: incrementeres ved bug fixes (afsluttede). Build nulstilles IKKE.
-   - **MINOR**: incrementeres ved nye features. PATCH sættes til 0.
-   - **MAJOR**: incrementeres ved breaking changes (fx skema-ændringer der kræver migration) eller store milepæle. MINOR og PATCH sættes til 0.
-   - **Debugging-format (4 decimaler)**: Under aktiv fejlsøgning bruges `MAJOR.MINOR.PATCH.D` hvor D starter på 1 og incrementeres for hvert debug-commit: `v0.1.0.1`, `v0.1.0.2`, osv. Commit-beskeder præfikses `vX.X.X.D-bNNNN: debug: beskrivelse`.
-   - **Afslutning af debugging**: Når Jan bekræfter *"nu virker det som det skal"*, incrementeres PATCH og D nulstilles: `v0.1.0.3` → `v0.1.1.0`. Commit markeres som `fix:` og afslutter debug-serien.
-   - **Kun-dokumentations-commits** (RELEASE_NOTES.md, CHANGELOG.md, BUGS.md, FEATURES.md uden kodeændringer): bump IKKE version — lav commit uden versionsbump.
-   - **RELEASE_NOTES.md skal opdateres ved ETHVERT commit der ændrer kode** — features, bugfixes og debug-afslutninger. Dokumentations-commits er undtaget. Glem aldrig dette.
-   - Changelog-entries tagges med versionsnummer: `## [0.1.0 build 0001] — YYYY-MM-DD — beskrivelse`.
-   - Claude **skal** opdatere `version.json` og vise den nye version i commit-beskeden.
-
-2. **Ny funktionalitet (features)** skal ALTID registreres i [FEATURES.md](FEATURES.md) *før* implementering påbegyndes. Opdatér status når den er færdig.
-
-3. **Bugs** skal ALTID registreres i [BUGS.md](BUGS.md) så snart de opdages. Opdatér med løsning når de er fikset.
-
-4. **Alle kodeændringer** skal logges i [CHANGELOG.md](CHANGELOG.md) med version, dato, berørte filer og kort beskrivelse. Nyeste øverst.
-
-5. **Lag-arkitekturen** beskrevet i [ARCHITECTURE.md](ARCHITECTURE.md) skal respekteres til enhver tid. Intet lag må springe et lag over eller kaldes "baglæns". Specielt: **kun PLC-klient-laget (`backend/app/plc/`) må lave HTTP-kald til en PLC.**
-
-6. **Hemmeligheder og eksterne nøgler (UFRAVIGELIG)**: API-nøgler, adgangskoder og andre hemmeligheder må ALDRIG committes, logges i klartekst eller sendes tilbage til en klient. Opbevar dem i git-ignorerede `.env`-filer (eller en tilsvarende secret-store). Ethvert endpoint der eksponerer nøgle-*status* til en frontend må kun returnere om en nøgle er sat og hvorfra — aldrig selve værdien; sætning af en ny værdi er en skriv-kun handling. Konkret: PLC-adgangskoder/tokens og SCADA-serverens session-nøgle ligger i git-ignoreret `data/secrets.json` / `.env` på Pi'en. PLC-API'er returnerer kun `has_password`. PLC-tokens og -adgangskoder må aldrig nå browseren.
-
-7. **Read/write rettigheder**: Claude har forhåndsgodkendelse (via [.claude/settings.local.json](.claude/settings.local.json)) til at læse, skrive og redigere filer i projektmappen. Samme forhåndsgodkendelse dækker **alle kommandoer der er relevante for at køre og teste projektet** — uden at spørge først (fx `pytest`, `npm test`/`npm run lint`/`npm run build`, samt at starte/stoppe dev-servere lokalt til visuel verifikation). Kun ægte destruktive handlinger (force-push, `git reset --hard`, sletning af andet end egne midlertidige testdata) kræver stadig eksplicit accept, jf. `deny`-listen.
-
-8. **Versionskontrol**: Projektet er et git-repo. Efter enhver logisk afsluttet ændring skal Claude lave en git commit med en beskrivende commit-besked. Aldrig bulk-commits af urelaterede ændringer.
-
-9. **GitHub branch-strategi (UFRAVIGELIG)**:
-   - `dev` — aktiv udviklingsbranch. **Al ny kode commites hertil.** Claude arbejder altid på `dev`.
-   - `main` — stabil release-branch. Kun opdateret via PR/merge fra `dev` når en release er klar. Produktion følger `main`.
-   - Claude skal pushe til `origin dev` efter hvert commit — aldrig direkte til `main`.
-   - Merge `dev` → `main` gøres manuelt af Jan når en release er godkendt.
-
-10. **Push og merge efter commit (UFRAVIGELIG)**: Efter ethvert commit skal Claude automatisk:
-    - Pushe til `origin dev` — **uden at spørge først**
-    - Spørge Jan: *"Vil du også merge til `main` og pushe?"*
-    - Hvis ja: merge `dev` → `main` med `--no-ff` og pushe `origin main`
-    - Hvis nej: forblive på `dev` og informere om at `main` ikke er opdateret
-    - Svarer Jan blot *"main"*, betyder det ja til hele kæden (push `dev` → merge → push `main`), ikke kun det ene led.
-
-11. **Runtime-logging**: Kritiske handlinger og fejl skal logges med struktureret kontekst via projektets logging-mekanisme. Log-niveau konfigureres via miljøvariabel (`LOG_LEVEL`). Backend bruger Pythons `logging` med struktureret kontekst (plc, tag, bruger). Alle skrivninger til PLC logges desuden i audit-loggen.
-
-12. **Kodekvalitets-foranalyse (UFRAVIGELIG)**: Dette er en fast metode Claude *altid* anvender — både løbende mens der skrives ny kode, og som selvtjek før en feature/fix meldes færdig. Punkterne er generaliserede lektioner fra reelle fejl i tidligere projekter:
-    - **Null/fejl-propagering**: ethvert kald der kan returnere `None`/`null` eller kaste en fejl, skal have sit resultat tjekket *før* det bruges. Antag aldrig succes.
-    - **Fejlbeskeder til brugeren**: frontend skal *altid* vise den specifikke fejlbesked fra backend, aldrig kun en generisk besked når en specifik findes. Enhver `catch`-blok skal enten vise fejlen eller have en eksplicit, begrundet kommentar om hvorfor den bevidst undertrykkes.
-    - **Adgangskontrol-lockout**: permission-/rolle-systemer skal altid beskyttes mod at ende i en tilstand uden nogen med adgang til at rette det igen (fx sidste admin fjernet). Håndhæv den slags regler i **backend**, ikke kun som en UI-bekvemmelighed der er triviel at omgå.
-    - **Eksterne API'er og "tomhed"**: brug `is not None` — aldrig ren truthiness — for tal-/valgfri-felter der lovligt kan være `0`/tomme. Håndtér altid et catch-all for uventede fejlstatusser fra eksterne API'er (ikke kun de statuskoder man tilfældigvis har tænkt på).
-    - **"Tomhed"-repræsentationer generelt**: når en bug rettes for én repræsentation af "tom" (fx `null`), tjek samtidig alle andre ækvivalente (tom streng, whitespace-only) for samme klasse fejl — ret hele klassen, ikke kun den rapporterede instans.
-    - **Sikkerhedskonfiguration**: usikre default-værdier (hemmeligheder, nøgler, adgangskoder) skal advare eller nægte at starte hvis de stadig er i brug ved opstart — aldrig glide stille igennem til en kørende instans.
-    - **Samtidige delvise opdateringer ("last write wins")**: en funktion der opdaterer et dokument må aldrig læse hele dokumentet, ændre ét felt i hukommelsen og skrive det hele tilbage ("read-modify-write") hvis flere sådanne kald kan ske i hurtig rækkefølge. Brug i stedet punkt-sti-`$set` (kun de faktisk ændrede felter), så to samtidige kald der rører *forskellige* felter ikke overskriver hinanden.
-    - **Bulk-operationer mod eksterne API'er**: fejl der rammer *hele batchen* (manglende/ugyldig nøgle, rate-limit) skal håndteres adskilt fra fejl der kun rammer ét element. Tjek forudsætninger *før* løkken, og stop batchen straks ved et rate-limit i stedet for at hamre en allerede-blokeret API.
-    - **Test i den faktiske runtime-kontekst, ikke kun logikken**: skal koden køre under en bestemt sandkasse/isolation (systemd-service, container, begrænset bruger), er det ikke nok at teste logikken i et privilegeret shell — verificér i den kontekst koden rent faktisk kører i produktion, *før* funktionen meldes færdig.
-    - **Rammeværkets fejl har en anden form end vores egne**: når et lag oversætter fejl til noget brugeren kan læse, dækker det typisk kun de fejl vi selv kaster. Rammeværket kaster sine egne, i sit eget format (fx en valideringsfejl som en *liste* af objekter frem for en streng). Tjek eksplicit *begge* former.
-    - **Regler der kun gælder én gren**: når en regel indføres for ét tilfælde (kun ved oprettelse, kun for den ene ressource), så gennemgå de øvrige grene *med det samme* — opdatering, den anden ressource, import-vejen. En regel der kun holder halvvejs opdages typisk først som en fejlmelding fra Jan.
-    - Ved større funktioner (auth, permissions, betalinger, data-integritet) skal Claude proaktivt overveje disse punkter under implementering, ikke først vente på at Jan beder om en fejl-gennemgang.
-
-13. **Visuel verifikation af layout-ændringer (UFRAVIGELIG)**: en ændring af *placering* — absolut positionering, flex/grid-containere, hjørne-grupper, z-index, ombrydning — skal ses i browseren/på skærmen før den meldes færdig. `build` og `lint` kan ikke fange den slags: markup og styling er hver for sig gyldige, og det er kun kombinationen der er forkert. Browseren *er* runtime-konteksten for layout. Sig eksplicit i afrapporteringen om ændringen er *set* eller kun *bygget*.
-
-14. **Tests**: Ny logik der kan gå galt uden at nogen opdager det — fejlbesked-oversættelse, formatering, fallback, tilstands-skift — skal have en test. Rene visuelle ændringer skal ikke; til dem gælder regel 13. Kør **alle** relevante testsuiter før noget meldes færdigt. Kommandoer: backend `cd backend && .venv/Scripts/python.exe -m pytest` · frontend `cd frontend && npm test` og `npm run build`.
+1. **Versionering (UFRAVIGELIG)**: `version.json` er eneste versionskilde (backend, frontend, changelog læser herfra). Format `{ "version": "MAJOR.MINOR.PATCH", "build": "NNNN" }`.
+   - build +1 ved hvert commit med kodeændring. PATCH ved bugfix (build nulstilles ikke). MINOR ved feature (PATCH=0). MAJOR ved breaking change, fx skema-migration (MINOR og PATCH=0).
+   - Debug-serie: `MAJOR.MINOR.PATCH.D` (D starter på 1, +1 pr. debug-commit). Commit: `vX.X.X.D-bNNNN: debug: beskrivelse`.
+   - Når Jan bekræfter *"nu virker det som det skal"*: PATCH+1, D nulstilles, commit som `fix:`.
+   - Kun-dokumentations-commits: ingen versionsbump.
+   - Vis ny version i commit-beskeden.
+2. **Dokumentation (saml i ét trin pr. ændring)**:
+   - Feature: registrér i `FEATURES.md` FØR implementering, opdatér status bagefter.
+   - Bug: registrér i `BUGS.md` straks, opdatér med løsning.
+   - Kodeændring: entry i `CHANGELOG.md` (`## [version build NNNN] — YYYY-MM-DD — beskrivelse`, nyeste øverst, berørte filer) og opdatering af `RELEASE_NOTES.md`. Doku-only commits er undtaget fra RELEASE_NOTES.
+3. **Hemmeligheder (UFRAVIGELIG)**: Nøgler/adgangskoder aldrig i git, logs eller svar til klient. PLC-adgangskoder/tokens og session-nøglen ligger i git-ignoreret `data/secrets.json` / `.env` på Pi'en. Endpoints returnerer kun *om* en nøgle er sat (og hvorfra), aldrig værdien; sætning er skriv-kun. PLC-API'er returnerer kun `has_password`. PLC-tokens og -adgangskoder må aldrig nå browseren.
+4. **Rettigheder**: Forhåndsgodkendt via `.claude/settings.local.json`: læs/skriv/rediger, kør tests, lint, build og lokale dev-servere uden at spørge. Destruktive handlinger (force-push, `reset --hard`, sletning af andet end egne testdata) kræver eksplicit accept.
+5. **Git (UFRAVIGELIG)**: Arbejd altid på `dev`. Commit efter hver logisk afsluttet ændring (aldrig bulk af urelaterede ting). Efter commit: push `origin dev` uden at spørge, og spørg derefter: *"Vil du også merge til `main`?"*. Ja (eller blot *"main"*) = merge `dev` → `main` med `--no-ff` og push `origin main`. Nej = bliv på `dev` og sig at `main` ikke er opdateret. Aldrig direkte commit/push til `main`.
+6. **Lag-arkitektur**: Respektér `ARCHITECTURE.md`. Intet lag springes over eller kaldes baglæns. Specielt: **kun PLC-klient-laget (`backend/app/plc/`) må lave HTTP-kald til en PLC.**
+7. **Logging**: Kritiske handlinger og fejl logges struktureret via Pythons `logging` med kontekst (plc, tag, bruger), niveau via `LOG_LEVEL`. Alle skrivninger til PLC logges desuden i audit-loggen.
+8. **Kodekvalitet (UFRAVIGELIG)**: Før en feature/fix meldes færdig, kør tjeklisten i `docs/QUALITY_CHECKLIST.md`. For auth, permissions, PLC-skrivninger, data-integritet, eksterne API'er og bulk-operationer læses den FØR implementering. Kernen: tjek null/fejl før brug, vis specifik backend-fejl til brugeren, undgå lockout i adgangskontrol (håndhæv i backend), brug `is not None` for tal der kan være 0, ingen read-modify-write ved samtidige opdateringer, test i den faktiske runtime-kontekst (systemd-service på Pi'en), og gennemgå alle grene når en regel indføres.
+9. **Visuel verifikation (UFRAVIGELIG)**: Layout-ændringer (positionering, flex/grid, hjørne-grupper, z-index, ombrydning) skal ses i browseren før de meldes færdige. Skriv eksplicit om ændringen er *set* eller kun *bygget*.
+10. **Tests**: Ny logik der kan fejle uset (fejloversættelse, formatering, fallback, tilstandsskift) skal have en test. Rene visuelle ændringer skal ikke. Kør alle relevante suiter før noget meldes færdigt: backend `cd backend && .venv/Scripts/python.exe -m pytest` · frontend `cd frontend && npm test` og `npm run build`.
 
 ---
 
-## Workflow for enhver opgave
+## Workflow
 
-1. Tilføj entry i `FEATURES.md` (feature) eller `BUGS.md` (bug).
-2. Implementer ændringen i det korrekte lag jf. `ARCHITECTURE.md`.
-3. Opdater `version.json`: bump build (altid), bump version (hvis feature/bugfix/breaking).
-4. Tilføj entry i `CHANGELOG.md` med `[version build NNNN]` prefix.
-5. Opdater `RELEASE_NOTES.md` hvis kode er ændret.
-6. Kør testsuiter/verifikation før noget meldes færdigt. Rører ændringen layout, gælder desuden regel 13.
-7. `git add` + `git commit` med besked der inkluderer version: `v0.1.0-b0001: beskrivelse`.
-8. `git push origin dev` til GitHub.
-9. Spørg Jan: *"Vil du også merge til `main`?"* — merge og push `origin main` hvis ja.
-
----
-
-## Projektstruktur
-
-Se [ARCHITECTURE.md](ARCHITECTURE.md#projektstruktur).
+1. Registrér i FEATURES.md/BUGS.md → 2. implementér i korrekt lag → 3. kør tests/verifikation → 4. opdatér version.json, CHANGELOG.md, RELEASE_NOTES.md → 5. commit `vX.X.X-bNNNN: beskrivelse` → 6. push `origin dev` → 7. spørg om merge til `main`.
