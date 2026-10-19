@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.97.0 build 0146] — 2026-10-19 — Hastighed på Drej
+
+- `backend/app/services/symbols.py` — `ARotate.glide_s` (0–10 s; ingen = som før). Test i `test_symbols.py`.
+- `frontend/src/lib/animate.ts` — Drej glider med den valgte varighed (CSS-overgang) — også når den følger et tag — når delen ikke har sin egen transform; 0 = med det samme. `symbolConfig.ts` — `GLIDE_SPEEDS`, `glideSeconds()`. `SymbolGuide.svelte` — **Hastighed** på Drej (Med det samme … Ekstra langsom 5 s). Test i `animate.test.ts`. Manual (06).
+- **Set i browseren** lokalt: kontaktkniv med "Meget langsom (2 s)" → efter Til drejer den 0° → 4° (0,5 s) → 17° (1,1 s) → 29° (1,6 s) → 32° (2,1 s); guiden viser valget.
+
 ## [0.96.2 build 0145] — 2026-10-19 — fix: symboltesten accepterer flere animationer pr. del
 
 - `frontend/src/lib/symbols.test.ts` — testen af betjeningssymbolernes `data-hv-part` antog én animation pr. del; vippekontaktens greb har to (Drej + Synlig, v0.96.1), som serveren læser som en liste. v0.96.1 blev committet med denne ene fejlende test (min kommandokæde stoppede ikke ved fejlen); kun testen er rettet — koden var korrekt (bekræftet: serveren danner bindingerne `rotate` + `visible` på grebet og `visible` på knoppen).

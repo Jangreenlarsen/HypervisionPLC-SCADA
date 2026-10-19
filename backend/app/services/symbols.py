@@ -162,6 +162,8 @@ class AText(TextParams):
 
 class ARotate(RotateParams):
     angles: list[float] | None = None
+    # Hastighed (v0.97.0): sekunder om drejet; 0 = med det samme; None = som før (glidende pr. position, ellers straks)
+    glide_s: float | None = Field(default=None, ge=0, le=10)
 
 
 class AMove(MoveParams):

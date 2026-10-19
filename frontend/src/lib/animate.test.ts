@@ -529,6 +529,19 @@ describe('symbol-animationer (kilde = position, gælder i positionerne, blinkfre
     applyBinding(pil, b, live(null));
     expect(pil.getAttribute('transform')).toBe('rotate(90)');
   });
+  it('Drej med hastighed: glidende med den valgte varighed, også efter et tag; 0 = med det samme (v0.97.0)', () => {
+    const kniv = el('g');
+    applyBinding(kniv, { element: 'k', tag: 'T', anim: 'rotate', params: { min: 0, max: 1, angle_min: 0, angle_max: 32, glide_s: 2 } }, live(1));
+    expect((kniv as SVGElement).style.transform).toBe('rotate(32deg)');
+    expect((kniv as SVGElement).style.transitionDuration).toBe('2s');
+    const straks = el('g');
+    applyBinding(straks, { element: 'k', tag: 'T', anim: 'rotate', params: { min: 0, max: 1, angle_min: 0, angle_max: 32, glide_s: 0 } }, live(1));
+    expect(straks.getAttribute('transform')).toContain('rotate(32');      // som før: med det samme (ingen CSS-glid)
+    const drejet = el('g', { transform: 'translate(5 5)' });               // egen transform: kan ikke glide
+    applyBinding(drejet, { element: 'k', tag: 'T', anim: 'rotate', params: { min: 0, max: 1, angle_min: 0, angle_max: 32, glide_s: 2 } }, live(1));
+    expect(drejet.getAttribute('transform')).toContain('translate(5 5)');
+    expect(drejet.getAttribute('transform')).toContain('rotate(32');
+  });
   it('næste farve og paletten', () => {
     expect(nextFlickerColor(['#a', '#b', '#c'], '#a', () => 0)).toBe('#b');
     expect(nextFlickerColor(['#a', '#b', '#c'], '#A', () => 0.99)).toBe('#c');
