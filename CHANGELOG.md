@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.101.0 build 0151] — 2026-10-19 — Trends: 12 kurver og dataanalyse
+
+- `frontend/src/lib/trendData.ts` — `MAX_SERIES` 7 → 12; `colorOf`/`dashOf`: farver genbruges, kurve 8-12 er stiplet; `assignColors` har max-parameter (Energy bruger stadig 7).
+- `frontend/src/lib/trendAnalysis.ts` (ny) + test — `analyze` (spike, spring, fastfrosset, hul) og `hideSpikes`; rådata ændres aldrig.
+- `frontend/src/lib/TrendChart.svelte`, `frontend/src/pages/Trends.svelte` — tilvalg *Analysér data* / *Skjul spikes* (huskes pr. browser), ring om fundne punkter og oversigt.
+- Kun frontend. **Kun bygget og testet** (ikke set i browseren).
+
 ## [0.100.0 build 0150] — 2026-10-19 — Symboltest
 
 - `frontend/src/pages/SymbolTest.svelte` (ny) — gitter med alle 94 biblioteksymboler (kategori, søg), stor visning med lys/mørk/skak baggrund og størrelse; vælg del + animation + til/fra eller tal og simulér værdien; symbolets egne animationer kan køres; delene og paletten vises. Ingen PLC, intet gemmes.

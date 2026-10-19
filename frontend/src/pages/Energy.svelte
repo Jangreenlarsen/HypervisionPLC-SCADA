@@ -48,7 +48,7 @@
 
   function toggle(name: string): void {
     selected = selected.includes(name) ? selected.filter((n) => n !== name) : [...selected, name];
-    colors = assignColors(selected, colors);
+    colors = assignColors(selected, colors, SERIES_COLORS.length);
     load();
   }
 
@@ -58,7 +58,7 @@
       tags = r.tags;
       energyDays = r.energy_days;
       selected = tags.slice(0, 7).map((t) => t.name);
-      colors = assignColors(selected, {});
+      colors = assignColors(selected, {}, SERIES_COLORS.length);
       await load();
     } catch (e) {
       error = (e as Error).message;

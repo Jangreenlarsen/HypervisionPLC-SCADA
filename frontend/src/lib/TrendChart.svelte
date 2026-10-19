@@ -3,9 +3,11 @@
   import { onDestroy, onMount } from 'svelte';
   import uPlot from 'uplot';
   import 'uplot/dist/uPlot.min.css';
-  import { isolatedPoints, SERIES_COLORS } from './trendData';
+  import { colorOf, dashOf, isolatedPoints } from './trendData';
+  import type { Issue } from './trendAnalysis';
 
-  export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null }
+  export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null;
+    /** Fundne uregelmæssigheder (tilvalg) — tegnes som ring om punktet. */ issues?: Issue[] }
 
   let { title, unit, series, data, xRange, height = 260 }: {
     title: string;
@@ -56,6 +58,32 @@
     return (s.decimals !== null ? v.toFixed(s.decimals) : String(Math.round(v * 1000) / 1000)) + (unit ? ` ${unit}` : '');
   }
 
+  /** Ring om punkter med uregelmæssigheder (spike, spring, fastfrosset, hul) — mørk ring, så den ses på alle farver. */
+  function drawIssues(u: uPlot): void {
+    const xs = u.data[0] as number[];
+    const ctx = u.ctx;
+    ctx.save();
+    ctx.strokeStyle = '#1f1f1d';
+    ctx.lineWidth = 2 * devicePixelRatio;
+    series.forEach((s, k) => {
+      const ys = u.data[k + 1] as (number | null | undefined)[];
+      for (const issue of s.issues ?? []) {
+        const i = xs.indexOf(issue.t);
+        if (i < 0) continue;
+        const x = Math.round(u.valToPos(issue.t, 'x', true));
+        const v = ys[i];
+        // Skjulte spikes har ingen værdi (hul) og tegnes ikke
+        if (v === null || v === undefined) continue;
+        const y = Math.round(u.valToPos(v, u.series[k + 1].scale ?? 'y', true));
+        ctx.beginPath();
+        if (issue.kind === 'gap') { ctx.moveTo(x, y - 9 * devicePixelRatio); ctx.lineTo(x, y + 9 * devicePixelRatio); }
+        else ctx.arc(x, y, 7 * devicePixelRatio, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
+    });
+    ctx.restore();
+  }
+
   function options(width: number): uPlot.Options {
     const isBool = series.every((s) => s.isBool);
     return {
@@ -68,6 +96,7 @@
         bind: { dblclick: () => () => { showFull(); return null; } },
       },
       hooks: {
+        draw: [drawIssues],
         setScale: [(u: uPlot, key: string) => {
           if (key === 'x') zoomed = Math.abs((u.scales.x.min ?? 0) - full[0]) > 0.5 || Math.abs((u.scales.x.max ?? 0) - full[1]) > 0.5;
         }],
@@ -88,11 +117,12 @@
         { label: 'Tid', value: (_u, v) => (v === null ? '—' : fmtTooltip(new Date(v * 1000))) },
         ...series.map((s) => ({
           label: s.label,
-          stroke: SERIES_COLORS[s.colorIndex],
+          stroke: colorOf(s.colorIndex),
           width: 2,
+          dash: dashOf(s.colorIndex),
           spanGaps: false, // null = rigtigt hul → brud i linjen
           // Kun prikker hvor en linje ikke kan tegnes (enkeltstående værdier)
-          points: { show: true, size: 8, fill: SERIES_COLORS[s.colorIndex],
+          points: { show: true, size: 8, fill: colorOf(s.colorIndex),
             filter: (u: uPlot, si: number) => isolatedPoints(u.data[si] as (number | null | undefined)[]) },
           paths: s.isBool ? uPlot.paths.stepped!({ align: 1 }) : undefined,
           value: (_u: uPlot, v: number | null) => format(v, s),

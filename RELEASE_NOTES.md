@@ -2,6 +2,11 @@
 
 ---
 
+## v0.101.0 — 2026-10-19 — Trends: flere kurver og dataanalyse
+
+- Du kan nu vise **op til 12 kurver** ad gangen i Trends (før 7). Kurve 8-12 har samme farver som de første, men stiplet linje.
+- Nyt tilvalg **Analysér data**: finder spikes, urealistiske spring, fastfrosne værdier og huller og sætter en ring om dem. **Skjul spikes** fjerner enkeltstående spikes fra visningen; de gemte data og CSV ændres ikke.
+
 ## v0.100.0 — 2026-10-19 — Symboltest
 
 - Ny side **Symboltest** (tekniker, under Opsætning): afprøv ethvert biblioteksymbol uden PLC. Vælg en del og en animation, og skift mellem Til/Fra eller en skyder for at se farve, blink, drejning, flytning og niveau. Vælg lys, mørk eller skak baggrund. Intet gemmes.
