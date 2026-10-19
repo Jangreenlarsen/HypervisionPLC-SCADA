@@ -2,6 +2,10 @@
 
 ---
 
+## v0.100.0 — 2026-10-19 — Symboltest
+
+- Ny side **Symboltest** (tekniker, under Opsætning): afprøv ethvert biblioteksymbol uden PLC. Vælg en del og en animation, og skift mellem Til/Fra eller en skyder for at se farve, blink, drejning, flytning og niveau. Vælg lys, mørk eller skak baggrund. Intet gemmes.
+
 ## v0.99.0 — 2026-10-19 — Symbolkvalitet
 
 - **Ventiler, motorer, lamper, varmeveksler, filter og radiator har nu navngivne dele** (fx hus, spindel, håndhjul, glas, spole), så guiden kan animere dem hver for sig. Udseendet er uændret. Symboler der allerede står i en tegning får delene ved *Erstat med symbol …*.
