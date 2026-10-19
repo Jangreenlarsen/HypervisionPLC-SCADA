@@ -2,6 +2,10 @@
 
 ---
 
+## v0.95.1 — 2026-10-19 — Pumpen uden prik
+
+- Prikken midt i **pumpens** løbehjul er fjernet. Pumper, der allerede står i tegningerne, opdateres med *Erstat med symbol*.
+
 ## v0.95.0 — 2026-10-19 — Bedre trendgraf
 
 - **Trendgrafen** følger symbolets størrelse: en større graf får finere kurver og flere diagramlinjer — teksten bliver ikke strakt.

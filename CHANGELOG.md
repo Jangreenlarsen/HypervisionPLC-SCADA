@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.95.1 build 0142] — 2026-10-19 — Pumpen uden prik i midten
+
+- `frontend/src/lib/symbols.ts` — Pumpe: navet (den mørke prik midt i løbehjulet) er fjernet (Jan). Løbehjulet er stadig symmetrisk om midten, så det drejer på stedet. Manualens symboltabel (07) regenereret.
+- **Set i browseren** lokalt: pumpen uden prik; under drift drejer løbehjulet (`hv-spin`), pilen står stille.
+
 ## [0.95.0 build 0141] — 2026-10-19 — Trendgraf: opløsning følger størrelsen, diagramlinjer, tekst på to linjer
 
 - Jan: "når man skalerer trendsymboler skal opløsningen blive større eller mindre, vi mangler diagramlinjer, og teksten skal være i to linjer, så den ikke kommer ud over boksen".

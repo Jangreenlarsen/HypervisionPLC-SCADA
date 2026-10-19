@@ -175,9 +175,9 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'pumpe', label: 'Pumpe', category: 'proces',
     hint: 'Løbehjulet drejer, når pumpen kører (Roterer); pilen viser pumperetningen — drej symbolet for at vende den',
     svg: `<g><circle cx="40" cy="40" r="32" fill="${FILL}" stroke="${LINE}" stroke-width="3"/>` +
-      // Løbehjul (v0.86.0): fire krumme skovle om et nav, symmetrisk om midten (40,40), så det drejer på stedet
+      // Løbehjul (v0.86.0): fire krumme skovle, symmetrisk om midten (40,40), så det drejer på stedet (uden nav siden v0.95.1)
       `<g id="loebehjul"><path d="M40 40 C40 31 45 24 54 21 M40 40 C49 40 56 45 59 54 M40 40 C40 49 35 56 26 59 M40 40 C31 40 24 35 21 26" ` +
-      `fill="none" stroke="${PANEL}" stroke-width="4" stroke-linecap="round"/><circle cx="40" cy="40" r="5" fill="${DARK}"/></g>` +
+      `fill="none" stroke="${PANEL}" stroke-width="4" stroke-linecap="round"/></g>` +
       // Retningspil øverst (v0.82.0) — egen del; drejer ikke med (Roterer på hele symbolet springer den over)
       `<g id="pil"><path d="M25 40 H47" fill="none" stroke="${DARK}" stroke-width="3.5"/>` +
       `<path d="M45 32.5 L59 40 L45 47.5 Z" fill="${DARK}" stroke="${DARK}" stroke-width="1" stroke-linejoin="round"/></g></g>`,
