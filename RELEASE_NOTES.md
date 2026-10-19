@@ -2,6 +2,10 @@
 
 ---
 
+## v0.102.0 — 2026-10-19 — Trends: spikes udfyldes
+
+- **Skjul spikes** i Trends udfylder nu spikes med interpolerede værdier, så kurven er sammenhængende i stedet for at få huller. Gemte data og CSV ændres ikke.
+
 ## v0.101.0 — 2026-10-19 — Trends: flere kurver og dataanalyse
 
 - Du kan nu vise **op til 12 kurver** ad gangen i Trends (før 7). Kurve 8-12 har samme farver som de første, men stiplet linje.

@@ -42,12 +42,15 @@ describe('analyze', () => {
 });
 
 describe('hideSpikes', () => {
-  it('gør kun spikes til huller og lader rådata være', () => {
+  it('udfylder kun spikes ved lineær interpolation og lader rådata være', () => {
     const v = wave(40);
     v[20] = 500;
     const p = pts(v);
     const out = hideSpikes(p, analyze(p));
-    expect(out[20]).toEqual([200, null, null, null]);
+    const mid = (v[19] + v[21]) / 2;
+    expect(out[20][0]).toBe(200);
+    expect(out[20][1]).toBeCloseTo(mid);
+    expect(out[20][2]).toBeCloseTo(mid);
     expect(out[19]).toBe(p[19]);
     expect(p[20][1]).toBe(500);
   });

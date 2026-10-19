@@ -1,5 +1,5 @@
 // Analyse af trend-data (tilvalg): finder uregelmæssigheder i en tal-serie. Rene funktioner — testet i trendAnalysis.test.ts.
-// Rådata ændres aldrig; `hideSpikes` returnerer en kopi hvor spikes er blevet til huller.
+// Rådata ændres aldrig; `hideSpikes` returnerer en kopi hvor spikes er udfyldt ved interpolation.
 import type { Point } from './trendData';
 
 export type IssueKind = 'spike' | 'jump' | 'frozen' | 'gap';
@@ -77,9 +77,23 @@ export function analyze(points: Point[]): Issue[] {
   return issues.sort((a, b) => a.t - b.t);
 }
 
-/** Kopi af serien hvor de angivne tidspunkter (spikes) er gjort til huller (null) — rådata er uændrede. */
+/** Kopi af serien hvor spikes er erstattet med lineært interpolerede værdier mellem nærmeste gode naboer — rådata er uændrede. */
 export function hideSpikes(points: Point[], issues: Issue[]): Point[] {
   const bad = new Set(issues.filter((i) => HIDEABLE.includes(i.kind)).map((i) => i.t));
   if (!bad.size) return points;
-  return points.map((p): Point => (bad.has(p[0]) ? [p[0], null, null, null] : p));
+  const good = (i: number): boolean => i >= 0 && i < points.length && !bad.has(points[i][0]) && points[i][1] !== null;
+  return points.map((p, i): Point => {
+    if (!bad.has(p[0])) return p;
+    let a = i - 1; while (a >= 0 && !good(a)) a--;
+    let b = i + 1; while (b < points.length && !good(b)) b++;
+    const ga = good(a), gb = good(b);
+    let v: number;
+    if (ga && gb) {
+      const pa = points[a], pb = points[b];
+      v = (pa[1] as number) + ((pb[1] as number) - (pa[1] as number)) * ((p[0] - pa[0]) / (pb[0] - pa[0]));
+    } else if (ga) v = points[a][1] as number;
+    else if (gb) v = points[b][1] as number;
+    else return [p[0], null, null, null];
+    return [p[0], v, v, v];
+  });
 }
