@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.103.0 build 0153] — 2026-10-19 — Symboltest: positioner, løbelys og guidens opsætning
+
+- `frontend/src/lib/symbolTest.ts` — `testInfo` (del-info inkl. streger som serveren), `types` pr. del via `typesFor` (nu også Løbelys), `testBinding` med kilden *Position*, `librarySetup`/`runSetup` (bibliotekets `libraryDefault` som bindinger).
+- `frontend/src/pages/SymbolTest.svelte` — animationslisten følger delen, "Tag er" får *Position* med antal positioner, ny sektion *Som i guiden* med knap pr. position.
+- `frontend/src/lib/symbolTest.test.ts` — 9 nye tests (position, løbelys, typer pr. del, opsætning af ventil/vippekontakt/kontakt/pumpe/statusfelt, grebets stilling pr. position, alle biblioteksdele).
+- `frontend/src/manual/06-symboler-og-guiden.md` — afsnittet Symboltest.
+- Kun frontend. **Kun bygget og testet** (ikke set i browseren).
+
 ## [0.102.0 build 0152] — 2026-10-19 — Trends: Skjul spikes udfylder med interpolation
 
 - `frontend/src/lib/trendAnalysis.ts` + test — `hideSpikes` erstatter spikes med lineær interpolation mellem nærmeste gode naboer (hold værdi ved kanten) i stedet for huller; rådata uændrede.

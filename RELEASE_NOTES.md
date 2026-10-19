@@ -2,6 +2,13 @@
 
 ---
 
+## v0.103.0 — 2026-10-19 — Symboltest kan mere
+
+- **Positioner**: vælg *Position* under "Tag er" og afprøv farve, drejning, flytning, synlighed m.m. pr. position (2–8).
+- **Løbelys** kan afprøves på rør og streger.
+- Listen over animationer viser kun dem, den valgte del kan have.
+- Ny sektion **Som i guiden**: symbolets egen opsætning fra biblioteket (fx vippekontaktens greb i Op/Midt/Ned, 3-vejs ventilens porte) med en knap pr. position.
+
 ## v0.102.0 — 2026-10-19 — Trends: spikes udfyldes
 
 - **Skjul spikes** i Trends udfylder nu spikes med interpolerede værdier, så kurven er sammenhængende i stedet for at få huller. Gemte data og CSV ændres ikke.
