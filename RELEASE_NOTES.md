@@ -2,6 +2,10 @@
 
 ---
 
+## v0.91.1 — 2026-10-19 — Rettet: omskifter med flere positioner
+
+- Får en omskifter flere positioner i guiden, end tegningen viser, kan **Tegn** nu tegne den igen med de rigtige positioner (knappen **Tegn omskifteren med N positioner**) — og grebet peger på dem.
+
 ## v0.91.0 — 2026-10-19 — Trendgraf i tegningen
 
 - Nyt symbol **Trendgraf**: viser historikken for 1–4 tags direkte i tegningen — som **kurve** eller **søjlediagram** — over 15 minutter til 7 dage. Opsættes i symbolguiden (trin 4, *Graf*) og opdateres løbende.

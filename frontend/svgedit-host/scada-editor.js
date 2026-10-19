@@ -902,6 +902,19 @@ window.scada = {
    * Giv elementerne (id'er) navnene "<base>_1", "<base>_2" … (ledige numre, i tegningens rækkefølge) — ét fortryd-trin. Elementer der allerede
    * har et navn, eller ikke findes, røres ikke. → { id: navn } for de navngivne.
    */
+  /** Omskifterens positionsnavne, som de står i tegningen (teksterne uden for grebet), i rækkefølge (v0.91.1). */
+  selectorLabels(id) {
+    const el = canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`);
+    if (!el) return [];
+    return [...el.querySelectorAll('text')].filter((t) => !t.closest('[data-hv-pid="greb"]')).map((t) => (t.textContent || '').trim());
+  },
+
+  /** Id'et på symbolets del med bibliotekets navn `pid` (fx "greb"), eller null. */
+  partIdByPid(id, pid) {
+    const el = canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`);
+    return el?.querySelector(`[data-hv-pid="${CSS.escape(pid)}"]`)?.id ?? null;
+  },
+
   /** Navne, som flere symboler i tegningen deler (v0.89.0): [{ name, count }]. */
   duplicateNames() {
     return duplicateNames(Array.from(canvas().getSvgContent().querySelectorAll('[data-hv-name]')).map((el) => el.getAttribute('data-hv-name')));

@@ -13,6 +13,7 @@
   import TagAlarm from './TagAlarm.svelte';
   import TagSelect from './TagSelect.svelte';
   import { CHART_RANGES, MAX_CHART_TAGS, defaultChart } from './chartGraphic';
+  import { SELECTOR_TYPES, selectorMismatch } from './selectorRedraw';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
     ALARM_TXT, ANIM_TXT, ON, WHEN_TYPES, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
@@ -557,6 +558,12 @@
             {/each}
             <button class="small" onclick={addPosition} disabled={n >= MAX_POSITIONS}>+ Position</button>
           </div>
+          {#if symbol && SELECTOR_TYPES.has(symbol.type)}
+            {@const drawn = Object.values(symbol.parts).filter((p) => p.tag === 'text' && !p.pid).map((p) => p.text ?? '')}
+            {#if selectorMismatch(drawn, cfg.positions.map((p) => p.label))}
+              <p class="small notice">Omskifterens tegning viser {drawn.length} positioner ({drawn.join(', ')}). Efter Gem: vælg omskifteren i <strong>Tegn</strong> og tryk <strong>Tegn omskifteren med {n} positioner</strong>, så tegningen og grebets vinkler følger med.</p>
+            {/if}
+          {/if}
           <div class="row wrap">
             <span class="small muted">Skabelon:</span>
             <button class="small" onclick={() => applyTemplate('A')} title="Ét register med positionens nummer">A · ét register</button>

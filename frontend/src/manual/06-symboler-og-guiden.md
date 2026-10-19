@@ -36,6 +36,8 @@ Alle symboler i biblioteket sættes op på samme måde: med **guiden i 6 trin**.
 
 ## Positioner og kontaktplaner
 
+**Omskifterens tegning følger positionerne:** giver du en omskifter fra biblioteket flere positioner (eller andre navne) i guiden, end der står rundt om grebet i tegningen, så vælg omskifteren i **Tegn** — der står *Tegningen viser 3 positioner …* med knappen **Tegn omskifteren med N positioner**. Den tegner omskifteren igen med guidens navne (samme navn, placering og opsætning), gemmer og udgiver tegningen (du bliver spurgt), og retter grebets vinkel pr. position, så det peger på navnene.
+
 Et symbol med positioner skal vide, hvilken position PLC'en **står i** (tilbagemelding), og hvad der skal **skrives** for at skifte. Det beskrives i kontaktdiagrammet:
 
 - **Rækker** er *planer*; hver styrer ét signal. **Kolonner** er positioner.
