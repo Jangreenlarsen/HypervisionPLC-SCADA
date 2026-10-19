@@ -339,11 +339,16 @@ export function typesFor(part: PartInfo | undefined): AnimType[] {
 /**
  * Behold et biblioteksforslags indstillinger, når det FØRSTE tag vælges (kilden var tom), og indstillingerne har samme
  * felter som standarden for den nye kilde (v0.94.0). Ellers ville valget af tag nulstille forslaget (fx 32° → 90°).
+ * `before`: standarden for den forrige (tomme) kilde — er indstillingerne præcis den, er de ikke et forslag.
  */
-export function keepSuggestion(wasSrc: string | undefined, params: Record<string, any>, fresh: Record<string, any>): boolean {
+export function keepSuggestion(wasSrc: string | undefined, params: Record<string, any>, fresh: Record<string, any>,
+  before?: Record<string, any>): boolean {
   if (wasSrc !== '') return false;
   const a = Object.keys(params ?? {}).sort(), b = Object.keys(fresh).sort();
-  return a.length > 0 && a.length === b.length && a.every((k, i) => k === b[i]);
+  if (!(a.length > 0 && a.length === b.length && a.every((k, i) => k === b[i]))) return false;
+  // Kun et RIGTIGT forslag (eller noget man selv har skrevet): er indstillingerne blot standarden for den forrige kilde
+  // (fx Drej valgt før tagget → tal-standard), skal de skifte til den nye kildes standard (v0.97.1)
+  return before === undefined || JSON.stringify(params) !== JSON.stringify(before);
 }
 
 /** Hastighed på Drej (v0.97.0): sekunder om drejet. `null` = standard (glidende pr. position, ellers med det samme). */

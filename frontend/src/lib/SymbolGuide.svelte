@@ -363,7 +363,8 @@
   function resetParams(a: Anim, wasSrc?: string): void {
     if (!typesFor(partInfo(a.part)).includes(a.type)) a.type = 'fill';
     const fresh = animDefaults(a.type, srcKind(a), n);
-    if (!keepSuggestion(wasSrc, a.params, fresh)) a.params = fresh;
+    const before = wasSrc === undefined ? undefined : animDefaults(a.type, srcKind({ ...a, src: wasSrc }), n);
+    if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
     if (a.src !== POS) a.only = isPos ? a.only : null;
   }
   function moveAnim(i: number, d: -1 | 1): void {

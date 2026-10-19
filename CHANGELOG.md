@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.97.1 build 0147] — 2026-10-19 — fix: Drej og Flyt fik forkerte indstillinger med et til/fra-tag
+
+- `frontend/src/lib/symbolConfig.ts` — `keepSuggestion(…, before)`: et forslag beholdes kun, når det afviger fra standarden for den forrige (tomme) kilde. `SymbolGuide.svelte` — giver standarden for den forrige kilde med. Test i `symbolConfig.test.ts`. BUGS.md.
+- **Set i browseren** lokalt: matrix over 11 animationstyper × 4 kilder (til/fra-tag, tal-tag, alarm, altid til) i begge rækkefølger → 0 forskelle (med den gamle kode: 2 — Drej og Flyt med til/fra-tag); Drej med til/fra-tag får nu Min 0, Max 1, 0°–90°.
+
 ## [0.97.0 build 0146] — 2026-10-19 — Hastighed på Drej
 
 - `backend/app/services/symbols.py` — `ARotate.glide_s` (0–10 s; ingen = som før). Test i `test_symbols.py`.

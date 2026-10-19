@@ -128,6 +128,10 @@ describe('biblioteksforslag bevares, når det første tag vælges (v0.94.0)', ()
     expect(keepSuggestion(undefined, { min: 0, max: 1, angle_min: 0, angle_max: 32 }, fresh)).toBe(false); // skift af del/type
     expect(keepSuggestion('', { angles: [0, 32] }, fresh)).toBe(false);                                      // andre felter
     expect(keepSuggestion('', {}, fresh)).toBe(false);
+    // v0.97.1: Drej valgt FØR tagget har tal-standarden — et til/fra-tag skal give til/fra-standarden
+    const numDefault = { min: 0, max: 100, angle_min: -120, angle_max: 120 };
+    expect(keepSuggestion('', { ...numDefault }, fresh, numDefault)).toBe(false);
+    expect(keepSuggestion('', { min: 0, max: 1, angle_min: 0, angle_max: 32 }, fresh, numDefault)).toBe(true);   // forslaget
   });
 });
 

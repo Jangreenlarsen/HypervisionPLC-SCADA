@@ -2,6 +2,10 @@
 
 ---
 
+## v0.97.1 — 2026-10-19 — Rettet: Drej og Flyt med til/fra-tag
+
+- Valgte man **Drej** eller **Flyt** før tagget, og var tagget til/fra, fik animationen tal-indstillinger, så delen ikke nåede sin slutstilling. Nu får den de rigtige indstillinger uanset rækkefølgen.
+
 ## v0.97.0 — 2026-10-19 — Hastighed på Drej
 
 - Animationen **Drej** har nu en **hastighed** — fra *Med det samme* til *Ekstra langsom (5 s)* — fx for kontaktknive og vippekontakter.
