@@ -17,7 +17,7 @@
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
     ALARM_TXT, ANIM_TXT, ON, WHEN_TYPES, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
-    activeAt, animDefaults, keepSuggestion, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
+    activeAt, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, allowedOps, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
@@ -960,6 +960,10 @@
       {:else}
         {@render numInput(p, 'min', 'Min')}{@render numInput(p, 'max', 'Max')}{@render numInput(p, 'angle_min', '° ved min')}{@render numInput(p, 'angle_max', '° ved max')}
       {/if}
+      <label class="opt small" title="Hvor hurtigt delen drejer til den nye vinkel (glidende kræver, at delen ikke selv er drejet/flyttet i tegningen)">Hastighed
+        <select value={String(glideSeconds(p.glide_s, kind === 'pos'))} onchange={(e) => (p.glide_s = Number(e.currentTarget.value))}>
+          {#each GLIDE_SPEEDS as g (g.s)}<option value={String(g.s)}>{g.label}</option>{/each}
+        </select></label>
     {:else if a.type === 'move'}
       {#if kind === 'pos'}
         {#each cfg.positions as pos, j}<span class="opt small">{pos.label} {@render numInput(p.dxs, j, 'x')}{@render numInput(p.dys, j, 'y')}</span>{/each}

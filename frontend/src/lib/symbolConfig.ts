@@ -346,6 +346,15 @@ export function keepSuggestion(wasSrc: string | undefined, params: Record<string
   return a.length > 0 && a.length === b.length && a.every((k, i) => k === b[i]);
 }
 
+/** Hastighed på Drej (v0.97.0): sekunder om drejet. `null` = standard (glidende pr. position, ellers med det samme). */
+export const GLIDE_SPEEDS: { s: number; label: string }[] = [
+  { s: 0, label: 'Med det samme' }, { s: 0.2, label: 'Hurtig (0,2 s)' }, { s: 0.4, label: 'Normal (0,4 s)' },
+  { s: 1, label: 'Langsom (1 s)' }, { s: 2, label: 'Meget langsom (2 s)' }, { s: 5, label: 'Ekstra langsom (5 s)' },
+];
+/** Den hastighed, der gælder nu (også for animationer gemt før v0.97.0). */
+export const glideSeconds = (glide: number | null | undefined, byPosition: boolean): number =>
+  typeof glide === 'number' ? glide : byPosition ? 0.4 : 0;
+
 /** Standardparametre for en animation ud fra kilden (prototypens animDefaults). */
 export function animDefaults(type: AnimType, kind: SrcKind, n: number): Record<string, any> {
   const spread = (lo: number, hi: number) => Array.from({ length: n }, (_, j) => (n > 1 ? Math.round(lo + ((hi - lo) * j) / (n - 1)) : 0));

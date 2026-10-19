@@ -438,3 +438,13 @@ def test_scale_animation_numeric_only(api):
     r = put(api, {**base, "anims": [{"part": "V1_greb", "type": "scale", "src": "Niveau", "params": {"size_min": 0}}]})
     assert r.status_code == 400
 
+
+def test_rotate_speed(api):
+    """Hastighed på Drej (v0.97.0): 0-10 s eller ingen (som før)."""
+    for glide, code in [(0, 200), (2.5, 200), (None, 200), (11, 400), (-1, 400)]:
+        params = {"angles": [-90 + 30 * j for j in range(7)]} | ({"glide_s": glide} if glide is not None else {})
+        r = put(api, dec_bin(anims=[{"part": "V1_greb", "type": "rotate", "src": "@pos", "params": params}]))
+        assert r.status_code == code, (glide, r.text)
+        if code == 200:
+            assert r.json()["config"]["anims"][0]["params"]["glide_s"] == glide
+

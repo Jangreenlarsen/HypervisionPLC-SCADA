@@ -2,6 +2,10 @@
 
 ---
 
+## v0.97.0 — 2026-10-19 — Hastighed på Drej
+
+- Animationen **Drej** har nu en **hastighed** — fra *Med det samme* til *Ekstra langsom (5 s)* — fx for kontaktknive og vippekontakter.
+
 ## v0.96.1 — 2026-10-19 — Vippekontakter op og ned
 
 - De klassiske **vippekontakter** vipper nu **op og ned**: ON/OFF er op ved ON og ned ved OFF; ON/OFF/ON er op ved ON 1, ned ved ON 2 og står lige ud (en knop) ved OFF. Guiden foreslår hele opsætningen — vælg blot tagget.

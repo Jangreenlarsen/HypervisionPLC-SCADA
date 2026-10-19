@@ -235,16 +235,22 @@ function setTransformPart(el: Element, part: 'move' | 'rotate' | 'scale', value:
  * .hv-glide) i stedet for at hoppe. Kun på dele uden egen transform-attribut — en CSS-transform ville ellers
  * erstatte den.
  */
-function setGlide(el: Element, part: 'move' | 'rotate', value: string): void {
+function setGlide(el: Element, part: 'move' | 'rotate', value: string, seconds: number | null = null): void {
   el.setAttribute(`data-hv-c-${part}`, value);
   const st = (el as SVGElement).style;
+  // Hastighed (v0.97.0): sekunder; null = standarden (.hv-glide, 0,4 s)
+  st.transitionDuration = seconds === null ? '' : `${seconds}s`;
   st.transform = [el.getAttribute('data-hv-c-move'), el.getAttribute('data-hv-c-rotate')].filter(Boolean).join(' ');
   st.transformBox = 'fill-box';
   st.transformOrigin = 'center';
   el.classList.add('hv-glide');
 }
 
-const canGlide = (el: Element, p: Record<string, any>) => Boolean(p.pos) && remember(el, 'transform') === null;
+/** Kan delen dreje/flytte glidende (CSS)? Ved positionen, eller når en hastighed er valgt — og kun uden egen transform. */
+const canGlide = (el: Element, p: Record<string, any>) =>
+  (Boolean(p.pos) || (typeof p.glide_s === 'number' && p.glide_s > 0)) && remember(el, 'transform') === null;
+/** Den valgte hastighed i sekunder (v0.97.0), eller null = standard. */
+const glideOf = (p: Record<string, any>): number | null => (typeof p.glide_s === 'number' ? p.glide_s : null);
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 function moveBy(el: Element, dx: number, dy: number, p: Record<string, any>): void {
@@ -273,7 +279,7 @@ function scaleAbout(el: Element, s: number): void {
 
 function rotate(el: Element, angle: number, p: Record<string, any> = {}): void {
   if (canGlide(el, p)) {
-    setGlide(el, 'rotate', `rotate(${r2(angle)}deg)`);
+    setGlide(el, 'rotate', `rotate(${r2(angle)}deg)`, glideOf(p));
     return;
   }
   const g = el as SVGGraphicsElement;
