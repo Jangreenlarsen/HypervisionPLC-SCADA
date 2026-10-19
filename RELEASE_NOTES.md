@@ -2,6 +2,12 @@
 
 ---
 
+## v0.95.0 — 2026-10-19 — Bedre trendgraf
+
+- **Trendgrafen** følger symbolets størrelse: en større graf får finere kurver og flere diagramlinjer — teksten bliver ikke strakt.
+- **Diagramlinjer** ved runde værdier og tider, med tal og klokkeslæt.
+- Teksten med tagene deles på **to linjer**, så den aldrig går uden for rammen.
+
 ## v0.94.0 — 2026-10-19 — Kontakter med 2 og 3 poler
 
 - Nye symboler **Kontakt 2-polet** og **Kontakt 3-polet** (El): knivene lukker synligt, når tagget er Til. Guiden foreslår animationen — vælg blot tagget.

@@ -37,12 +37,16 @@ export const MAX_CHART_TAGS = 4;
 export const defaultChart = (): ChartCfg => ({ tags: [], range_s: 3600, style: 'line', bars: 24, y_min: null, y_max: null, title: '',
   legend: 'top', font_scale: 1, bold: true, values: true });
 
-/** Antal punkter at hente: én pr. søjle, ellers nok til en jævn kurve. */
-export const chartPoints = (c: Pick<ChartCfg, 'style' | 'bars'>): number => (c.style === 'bar' ? c.bars : 120);
+/**
+ * Antal punkter at hente: én pr. søjle; en kurve får ét punkt pr. 2 enheder af plottets bredde (60–600) — en større
+ * graf i tegningen får dermed en finere kurve (v0.95.0).
+ */
+export const chartPoints = (c: Pick<ChartCfg, 'style' | 'bars'>, plotW = 240): number =>
+  c.style === 'bar' ? c.bars : Math.max(60, Math.min(600, Math.round(plotW / 2)));
 
 /** Hvor ofte grafen hentes igen (sekunder): ét nyt punkt ad gangen, men mellem 5 og 60 s. */
-export const refreshSeconds = (c: Pick<ChartCfg, 'style' | 'bars' | 'range_s'>): number =>
-  Math.max(5, Math.min(60, Math.round(c.range_s / chartPoints(c))));
+export const refreshSeconds = (c: Pick<ChartCfg, 'style' | 'bars' | 'range_s'>, plotW = 240): number =>
+  Math.max(5, Math.min(60, Math.round(c.range_s / chartPoints(c, plotW))));
 
 export interface Box { x: number; y: number; w: number; h: number }
 /** Et punkt fra /api/trends/data: [tid, gennemsnit, min, max] — gennemsnittet er null i et hul. */
@@ -56,13 +60,70 @@ export interface ChartLayout {
   lines: string[][];
   /** Søjler: serie-nummer og rektangel. */
   bars: { series: number; x: number; y: number; w: number; h: number }[];
+  /** Skriftstørrelsen til akserne. */
   font: number;
-  /** Forklaringens skriftstørrelse og grundlinje (null = skjult). */
+  /** Forklaringen: skriftstørrelse og linjer (grundlinje + hvilke tags) — tom liste = skjult. */
   legendFont: number;
-  legendY: number | null;
+  legendLines: { y: number; items: number[] }[];
+  /** Diagramlinjer med tekst: vandrette (værdier) og lodrette (tider). */
+  yTicks: { y: number; label: string }[];
+  xTicks: { x: number; label: string }[];
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
+
+/** Skriftstørrelse efter grafens højde: vokser langsommere end grafen, så en større graf får mere plads til kurven. */
+export const chartFont = (h: number): number => r1(Math.max(7, Math.min(28, 6 + 0.035 * h)));
+
+/** Omtrentlig bredde af en tekst (proportional skrift, ~0,56 × skriftstørrelsen pr. tegn). */
+export const textWidth = (s: string, font: number): number => s.length * font * 0.56;
+
+/** Runde værdier til Y-aksen (1, 2, 2,5 eller 5 × 10^n), højst `max` stk., inden for [lo, hi]. */
+export function niceTicks(lo: number, hi: number, max = 5): number[] {
+  if (!(hi > lo)) return [lo];
+  const raw = (hi - lo) / Math.max(1, max - 1);
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => (hi - lo) / s <= max - 1 + 1e-9) ?? 10 * p;
+  const out: number[] = [];
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) out.push(Math.round(v / step) * step);
+  return out.map((v) => Math.round(v * 1e6) / 1e6 || 0);   // || 0: aldrig "-0"
+}
+
+/** Tidsinddelinger (sekunder) — runde tider i dansk tid (minutter, timer, døgn). */
+const TIME_STEPS = [60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400, 2 * 86400];
+
+/** Runde tidspunkter i [start, end] i lokal tid, højst `max` stk. `tzOffsetS`: lokal tid minus UTC (sekunder). */
+export function timeTicks(start: number, end: number, max = 5, tzOffsetS = -new Date(start * 1000).getTimezoneOffset() * 60): number[] {
+  const span = end - start;
+  const step = TIME_STEPS.find((s) => span / s <= max) ?? TIME_STEPS[TIME_STEPS.length - 1];
+  const out: number[] = [];
+  for (let t = Math.ceil((start + tzOffsetS) / step) * step - tzOffsetS; t <= end; t += step) out.push(t);
+  return out;
+}
+
+/**
+ * Forklaringen fordelt på højst `maxLines` linjer inden for bredden; er det ikke nok, gøres skriften mindre (ned til 6) —
+ * ved den mindste skrift må der blive flere linjer, men hver linje holder sig stadig inden for bredden.
+ * → skriftstørrelse og linjerne som lister af tag-numre.
+ */
+export function wrapLegend(items: string[], font: number, maxW: number, maxLines = 2): { font: number; lines: number[][] } {
+  let f = font;
+  for (;;) {
+    const gap = f * 0.9;
+    const lines: number[][] = [];
+    let cur: number[] = [], w = 0;
+    items.forEach((s, i) => {
+      const iw = textWidth(s, f);
+      if (cur.length && w + gap + iw > maxW) { lines.push(cur); cur = []; w = 0; }
+      w += (cur.length ? gap : 0) + iw;
+      cur.push(i);
+    });
+    if (cur.length) lines.push(cur);
+    const widest = Math.max(0, ...items.map((s) => textWidth(s, f)));
+    if ((lines.length <= maxLines && widest <= maxW) || f <= 6) return { font: r1(f), lines };
+    f = Math.max(6, f * 0.9);
+  }
+}
 
 /** Y-aksen: den valgte, ellers fra data (søjler altid med 0); et fladt forløb får lidt luft. */
 export function yRange(series: Point[][], cfg: Pick<ChartCfg, 'style' | 'y_min' | 'y_max'>): [number, number] {
@@ -85,21 +146,32 @@ export function yRange(series: Point[][], cfg: Pick<ChartCfg, 'style' | 'y_min' 
   return [lo, hi];
 }
 
-/** Geometrien inde i rammen `box` for tidsrummet [start, end]. */
-export function chartLayout(box: Box, series: Point[][], start: number, end: number, cfg: ChartCfg): ChartLayout {
-  const font = Math.max(6, Math.min(11, box.h / 11));
-  // plads til forklaringen (over eller under), tal til venstre og tider forneden
+/** Geometrien inde i rammen `box` for tidsrummet [start, end]. `legend`: forklaringens tekst pr. tag. */
+export function chartLayout(box: Box, series: Point[][], start: number, end: number, cfg: ChartCfg, legend: string[] = []): ChartLayout {
+  const font = chartFont(box.h);
   const lg = legendOf(cfg);
-  const lf = r1(font * lg.scale);
-  const legendH = lg.place === 'none' ? 0 : lf * 1.6;
-  const top = lg.place === 'top' ? legendH + font * 0.3 : font * 0.8;
-  const bottom = font * 1.7 + (lg.place === 'bottom' ? legendH : 0);
-  const plot: Box = { x: box.x + font * 3.2, y: box.y + top, w: Math.max(10, box.w - font * 3.8), h: Math.max(10, box.h - top - bottom) };
-  const legendY = lg.place === 'top' ? r1(box.y + lf * 1.3) : lg.place === 'bottom' ? r1(box.y + box.h - lf * 0.45) : null;
+  const pad = font * 0.5;
+  const wrapped = lg.place === 'none' || !legend.length ? { font: r1(font * lg.scale), lines: [] as number[][] }
+    : wrapLegend(legend, font * lg.scale, box.w - 2 * pad);
+  const lf = wrapped.font;
+  const legendH = wrapped.lines.length ? wrapped.lines.length * lf * 1.25 + lf * 0.35 : 0;
   const [yMin, yMax] = yRange(series, cfg);
+  const yVals = niceTicks(yMin, yMax, Math.max(2, Math.min(8, Math.floor(box.h / (font * 3)))));
+  const yLabels = yVals.map(axisNumber);
+  const left = Math.max(...yLabels.map((s) => textWidth(s, font * 0.85)), font) + font * 0.7;
+  const top = lg.place === 'top' ? legendH + font * 0.4 : font * 0.8;
+  const bottom = font * 1.7 + (lg.place === 'bottom' ? legendH : 0);
+  const plot: Box = { x: r1(box.x + left), y: r1(box.y + top), w: r1(Math.max(10, box.w - left - pad)), h: r1(Math.max(10, box.h - top - bottom)) };
+  const legendTop = lg.place === 'top' ? box.y + lf * 1.05 : box.y + box.h - legendH + lf * 0.95;
+  const legendLines = wrapped.lines.map((items, i) => ({ y: r1(legendTop + i * lf * 1.25), items }));
   const span = Math.max(1e-9, end - start);
   const X = (t: number) => r1(plot.x + ((Math.min(end, Math.max(start, t)) - start) / span) * plot.w);
   const Y = (v: number) => r1(plot.y + plot.h - ((Math.min(yMax, Math.max(yMin, v)) - yMin) / (yMax - yMin)) * plot.h);
+  const yTicks = yVals.map((v, i) => ({ v, label: yLabels[i] })).filter((t) => t.v >= yMin && t.v <= yMax).map((t) => ({ y: Y(t.v), label: t.label }));
+  // tider: så mange som der er plads til (en tekst er ca. 5-11 tegn bred)
+  const room = Math.max(2, Math.min(8, Math.floor(plot.w / textWidth(cfg.range_s > 86400 ? '00/00 00:00' : '00:00', font * 0.85) / 1.6)));
+  const xTicks = timeTicks(start, end, room).filter((t) => X(t) > plot.x + font && X(t) < plot.x + plot.w - font * 1.5)
+    .map((t) => ({ x: X(t), label: axisTime(t, cfg.range_s) }));
   const lines: string[][] = [];
   const bars: ChartLayout['bars'] = [];
   if (cfg.style === 'line') {
@@ -128,7 +200,7 @@ export function chartLayout(box: Box, series: Point[][], start: number, end: num
       }
     });
   }
-  return { plot, yMin, yMax, lines, bars, font: r1(font), legendFont: lf, legendY };
+  return { plot, yMin, yMax, lines, bars, font, legendFont: lf, legendLines, yTicks, xTicks };
 }
 
 /** Tal på Y-aksen: højst 3 betydende cifre efter kommaet, dansk komma. */

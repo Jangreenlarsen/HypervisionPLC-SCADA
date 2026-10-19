@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.95.0 build 0141] — 2026-10-19 — Trendgraf: opløsning følger størrelsen, diagramlinjer, tekst på to linjer
+
+- Jan: "når man skalerer trendsymboler skal opløsningen blive større eller mindre, vi mangler diagramlinjer, og teksten skal være i to linjer, så den ikke kommer ud over boksen".
+- `frontend/src/lib/chartGraphic.ts` — `chartFont()` (vokser langsommere end grafen), `chartPoints(cfg, bredde)` (60–600 punkter efter plottets bredde), `niceTicks()` (runde værdier), `timeTicks()` (runde tider i lokal tid), `wrapLegend()` (højst to linjer inden for bredden, ellers mindre skrift ned til 6), `chartLayout(…, forklaring)` med `yTicks`, `xTicks`, `legendLines` og venstremargen efter tallenes bredde. Tests omskrevet/udvidet.
+- `frontend/src/lib/chartRender.ts` — grafen tegnes i tegningens (rodens) koordinater ud fra rammens boks inkl. symbolets transform (ikke inde i symbolet, så den ikke strækkes); diagramlinjer med tekst; forklaringen på flere linjer; grafen fjernes igen, når tegningen skiftes. Manual (06).
+- **Set i browseren** lokalt: symbol skaleret 2× og uskaleret med to lange tagnavne → teksten på to linjer inden for rammen (ingen tekst uden for), vandrette linjer ved 30/40/50 og lodrette hvert 10. min (stor) / 15. min (lille), teksten ikke strakt.
+
 ## [0.94.0 build 0140] — 2026-10-19 — Kontakt 2-polet og 3-polet
 
 - `frontend/src/lib/symbols.ts` — `contactSymbol(n)`: *Kontakt 2-polet* og *Kontakt 3-polet* (El), tegnet åbne; hver kniv (`kniv1…`) har en usynlig modsat halvdel, så "Drej" drejer om hængslet; `KNIV_LUKKET` = 32°. `symbolConfig.ts` — delnavnene "Kniv 1-3", biblioteksforslaget (Drej på hver kniv ved Til) og `keepSuggestion()` (testet). `SymbolGuide.svelte` — valget af det første tag beholder forslagets indstillinger (BUGS.md). Manualens symboltabel (07) regenereret.
