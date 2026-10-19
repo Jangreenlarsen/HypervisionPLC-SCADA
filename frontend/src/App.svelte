@@ -122,6 +122,8 @@
   // Driftpanel (fx en skærm i produktionen): kun drifttegningen. Først når adgangskoden er skiftet — før det vises
   // det almindelige skift-adgangskode-billede.
   const isPanel = $derived(me?.role === 'panel' && !me.must_change_password && !changingPassword);
+  // Driftpanelet må åbne Alarmer (kvittering) og Trends fra genvejene i tegningen; rettighederne håndhæves i backend
+  const panelPage = $derived(isPanel && (page === 'alarms' || page === 'trends') ? page : null);
 </script>
 
 <svelte:window onkeydown={onKey} onclick={onWindowClick} />
@@ -138,7 +140,13 @@
   <main class="panel-mode">
     {#if stale}{@render staleBanner()}{/if}
     {#if error}<div class="error">{error}</div>{/if}
-    <Overview {route} canOperate={true} panel sourceUrl={info?.source_url ?? ''} onlogout={logout} />
+    {#if panelPage === 'alarms'}
+      <Alarms canAck={true} />
+    {:else if panelPage === 'trends'}
+      <Trends canEdit={false} {route} />
+    {:else}
+      <Overview {route} canOperate={true} panel sourceUrl={info?.source_url ?? ''} onlogout={logout} />
+    {/if}
   </main>
 {:else}
 <header>

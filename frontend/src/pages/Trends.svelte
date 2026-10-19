@@ -6,7 +6,7 @@
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
   import { align, assignColors, colorOf, dashOf, groupByUnit, MAX_SERIES, RANGES, type Point } from '../lib/trendData';
-  import { analyze, hideSpikes, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
+  import { FROZEN_DEFAULT_S, affectedPoints, analyze, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
   import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
 
   let { canEdit = false, route = 'trends' }: { canEdit?: boolean; route?: string } = $props();
@@ -33,6 +33,28 @@
   // Analyse (tilvalg): find uregelmæssigheder i tal-kurverne; "skjul spikes" gør dem til huller i visningen (rådata uændret)
   let analyse = $state(loadFlag('trend.analyse'));
   let hide = $state(loadFlag('trend.hideSpikes'));
+  let rings = $state(loadFlag('trend.rings', true));   // ring om uregelmæssige punkter i graferne
+  /** Hvor længe samme værdi skal stå før den er "fastfrosset" (sekunder; 0 = undersøges ikke). Langsomme følere står stille længe. */
+  const FROZEN_CHOICES: { s: number; label: string }[] = [
+    { s: 3600, label: '1 time' }, { s: 6 * 3600, label: '6 timer' }, { s: 24 * 3600, label: '1 døgn' }, { s: 3 * 86400, label: '3 døgn' },
+    { s: 7 * 86400, label: '7 døgn' }, { s: 0, label: 'Aldrig' },
+  ];
+  let frozenS = $state(loadFrozen());
+  function loadFrozen(): number {
+    try {
+      const v = Number(localStorage.getItem('trend.frozenS'));
+      return FROZEN_CHOICES.some((c) => c.s === v) && localStorage.getItem('trend.frozenS') !== null ? v : FROZEN_DEFAULT_S;
+    } catch {
+      return FROZEN_DEFAULT_S;
+    }
+  }
+  function saveFrozen(): void {
+    try {
+      localStorage.setItem('trend.frozenS', String(frozenS));
+    } catch {
+      // Valget huskes bare ikke.
+    }
+  }
   let manage = $state(false); // "Administrér historik": slå til/fra og slet pr. tag (tekniker/admin)
   let info2 = $state('');
   let chartsEl = $state<HTMLElement>();
@@ -132,11 +154,12 @@
     }
   }
 
-  function loadFlag(key: string): boolean {
+  function loadFlag(key: string, fallback = false): boolean {
     try {
-      return localStorage.getItem(key) === '1';
+      const v = localStorage.getItem(key);
+      return v === null ? fallback : v === '1';
     } catch {
-      return false;
+      return fallback;
     }
   }
   function saveFlag(key: string, on: boolean): void {
@@ -323,7 +346,7 @@
     if (!analyse || !resp) return out;
     for (const n of selected) {
       if (tagInfo.get(n)?.is_bool) continue;
-      const found = analyze(resp.series[n] ?? []);
+      const found = analyze(resp.series[n] ?? [], { frozenMinS: frozenS > 0 ? frozenS : null });
       if (found.length) out[n] = found;
     }
     return out;
@@ -331,8 +354,24 @@
   const issueTotals = $derived(Object.entries(issues).map(([n, list]) => {
     const counts: Partial<Record<IssueKind, number>> = {};
     for (const i of list) counts[i.kind] = (counts[i.kind] ?? 0) + 1;
-    return { name: n, text: (Object.entries(counts) as [IssueKind, number][]).map(([k, c]) => `${c} × ${ISSUE_LABEL[k].toLowerCase()}`).join(', ') };
+    const total = resp?.series[n]?.length ?? 0, affected = Math.min(total, affectedPoints(list));
+    return {
+      name: n, affected, total,
+      text: (Object.entries(counts) as [IssueKind, number][]).map(([k, c]) => `${c} × ${ISSUE_LABEL[k].toLowerCase()}`).join(', '),
+      share: formatShare(irregularShare(affected, total)),
+    };
   }));
+  /** Samlet andel over alle analyserede kurver (kun tal-kurver; en kurve uden fund tæller med i nævneren). */
+  const overall = $derived.by(() => {
+    if (!analyse || !resp) return null;
+    let affected = 0, total = 0;
+    for (const n of selected) {
+      if (tagInfo.get(n)?.is_bool) continue;
+      total += resp.series[n]?.length ?? 0;
+      affected += Math.min(resp.series[n]?.length ?? 0, affectedPoints(issues[n] ?? []));
+    }
+    return total ? { affected, total, share: formatShare(irregularShare(affected, total)) } : null;
+  });
 
   function chartFor(names: { name: string; isBool?: boolean }[]): { series: ChartSeries[]; data: ReturnType<typeof align> } {
     const series = names.map((t) => ({
@@ -341,7 +380,7 @@
       colorIndex: colors[t.name] ?? 0,
       isBool: Boolean(t.isBool),
       decimals: resp?.meta[t.name]?.decimals ?? null,
-      issues: issues[t.name],
+      issues: rings ? issues[t.name] : undefined,
     }));
     const pts = names.map((t) => {
       const raw = resp?.series[t.name] ?? [];
@@ -394,6 +433,10 @@
   {#if selected.length && exportUrl}<a class="btn" href={exportUrl} download>CSV</a>{/if}
   <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>
   {#if analyse}
+    <label class="row small" title="Skjul ringene i graferne — fundene står stadig i listen under graferne"><input type="checkbox" bind:checked={rings} onchange={() => saveFlag('trend.rings', rings)} /> Vis ringe</label>
+    <label class="row small" title="Samme værdi så længe markeres som fastfrosset. Langsomme følere (fx temperatur) står stille længe, så vælg en lang tid for dem">Fastfrosset efter
+      <select bind:value={frozenS} onchange={saveFrozen} aria-label="Fastfrosset efter">{#each FROZEN_CHOICES as c}<option value={c.s}>{c.label}</option>{/each}</select>
+    </label>
     <label class="row small" title="Udfylder enkeltstående spikes med interpolerede værdier i visningen — de gemte data ændres ikke"><input type="checkbox" bind:checked={hide} onchange={() => saveFlag('trend.hideSpikes', hide)} /> Skjul spikes</label>
   {/if}
   {#if loading}<span class="muted small">Henter …</span>{/if}
@@ -489,8 +532,9 @@
       {#if analyse}
         <div class="panel small">
           {#if issueTotals.length}
-            <strong>Uregelmæssigheder (ring om punktet):</strong>
-            <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text}</li>{/each}</ul>
+            <strong>Uregelmæssigheder{rings ? ' (ring om punktet)' : ''}:</strong>
+            <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text} — <strong>{f.share}</strong> af punkterne ({f.affected} af {f.total})</li>{/each}</ul>
+            {#if overall}<div>I alt: <strong>{overall.share}</strong> af alle punkter ({overall.affected} af {overall.total}) har uregelmæssigheder.</div>{/if}
             <span class="muted">{hide ? 'Spikes er udfyldt ved interpolation. ' : ''}Spring, fastfrosne værdier og huller markeres kun. Rådata er uændrede (CSV indeholder alt).</span>
           {:else}
             <span class="muted">Ingen uregelmæssigheder fundet i den viste periode.</span>

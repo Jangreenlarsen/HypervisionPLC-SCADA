@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyze, hideSpikes } from './trendAnalysis';
+import { FROZEN_DEFAULT_S, affectedPoints, analyze, formatSpan, formatShare, hideSpikes, irregularShare } from './trendAnalysis';
 import type { Point } from './trendData';
 
 const pts = (vals: (number | null)[], step = 10): Point[] => vals.map((v, i) => [i * step, v, v, v]);
@@ -25,7 +25,7 @@ describe('analyze', () => {
   });
   it('fastfrosset værdi', () => {
     const v = [...wave(15), ...Array(15).fill(21.5), ...wave(10)];
-    const found = analyze(pts(v));
+    const found = analyze(pts(v), { frozenMinS: 100 });
     expect(found.filter((i) => i.kind === 'frozen')).toHaveLength(1);
   });
   it('hul i data', () => {
@@ -57,5 +57,53 @@ describe('hideSpikes', () => {
   it('uden spikes returneres serien uændret', () => {
     const p = pts(wave(40));
     expect(hideSpikes(p, analyze(p))).toBe(p);
+  });
+});
+
+describe('andel uregelmæssigheder', () => {
+  it('en fastfrosset række tæller hele rækken, øvrige fund ét punkt', () => {
+    const f = analyze(pts([...wave(20), ...Array(15).fill(25), ...wave(20)]), { frozenMinS: 100 });
+    const frozen = f.find((i) => i.kind === 'frozen')!;
+    expect(frozen.n).toBe(15);
+    expect(affectedPoints([frozen, { t: 1, kind: 'spike', note: '' }])).toBe(16);
+  });
+  it('procenten er i forhold til alle punkter og når aldrig over 100 eller under 0', () => {
+    expect(irregularShare(5, 200)).toBe(2.5);
+    expect(irregularShare(9, 3)).toBe(100);
+    expect(irregularShare(0, 0)).toBe(0);
+  });
+  it('formatering med dansk komma, og små andele bliver ikke til 0', () => {
+    expect(formatShare(2.5)).toBe('2,5 %');
+    expect(formatShare(0)).toBe('0 %');
+    expect(formatShare(0.04)).toBe('< 0,1 %');
+    expect(formatShare(100)).toBe('100 %');
+  });
+});
+
+describe('fastfrosset i tid', () => {
+  // en rolig temperaturføler: samme værdi i 8 timer (punkt hvert 10. minut) midt i en ellers varierende serie
+  const calm = pts([...wave(30), ...Array(48).fill(21.5), ...wave(30)], 600);
+  it('en lang, rolig periode under tærsklen ringes ikke om', () => {
+    expect(analyze(calm, { frozenMinS: 12 * 3600 }).filter((i) => i.kind === 'frozen')).toHaveLength(0);
+  });
+  it('samme periode ringes om, når den er længere end tærsklen — med varighed i noten', () => {
+    const f = analyze(calm, { frozenMinS: 6 * 3600 }).filter((i) => i.kind === 'frozen');
+    expect(f).toHaveLength(1);
+    expect(f[0].note).toContain('7 t 50 min');
+  });
+  it('standarden er 6 timer, og null slår fastfrosset fra', () => {
+    expect(FROZEN_DEFAULT_S).toBe(6 * 3600);
+    expect(analyze(calm).filter((i) => i.kind === 'frozen')).toHaveLength(1);
+    expect(analyze(calm, { frozenMinS: null }).filter((i) => i.kind === 'frozen')).toHaveLength(0);
+  });
+  it('varigheder skrives læseligt', () => {
+    expect(formatSpan(1500)).toBe('25 min');
+    expect(formatSpan(3 * 3600)).toBe('3 t');
+    expect(formatSpan(8.5 * 3600)).toBe('8 t 30 min');
+    expect(formatSpan(51 * 3600)).toBe('2 døgn 3 t');
+  });
+  it('et hul i data over lang tid findes stadig', () => {
+    const p = pts(wave(40), 3600).map((x, i): Point => (i >= 20 ? [x[0] + 3 * 86400, x[1], x[2], x[3]] : x));
+    expect(analyze(p, { frozenMinS: null }).filter((i) => i.kind === 'gap')).toHaveLength(1);
   });
 });

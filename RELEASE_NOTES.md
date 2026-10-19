@@ -2,6 +2,29 @@
 
 ---
 
+## v0.107.0 — 2026-10-19 — Trends: skjul ringene
+
+- Under **Analysér data** kan du fjerne fluebenet ved **Vis ringe**, så cirklerne og stregerne i graferne skjules. Listen med fund og procenterne vises stadig.
+
+## v0.106.0 — 2026-10-19 — Trends: fastfrosset efter tid
+
+- **Analysér data** har valget **Fastfrosset efter** (1 time til 7 døgn, eller Aldrig). En værdi regnes først for fastfrosset, når den har stået uændret så længe — fx 6 timer som standard. En rolig temperaturføler ringes dermed ikke om over lange perioder, mens huller i data stadig markeres.
+
+## v0.105.0 — 2026-10-19 — Driftpanel: Trends og alarmer
+
+- På et **driftpanel** åbner knapperne *Gå til Alarmer* og *Gå til Trends* i tegningen nu siderne (uden menu, med Tilbage). Panelet kan **kvittere alarmer** og se trends for de tags, tegningen indeholder.
+
+## v0.104.0 — 2026-10-19 — Trends: procent uregelmæssigheder
+
+- **Analysér data** viser nu, hvor mange **procent af punkterne** der har uregelmæssigheder, for hver kurve og samlet for alle tal-kurver.
+
+## v0.103.0 — 2026-10-19 — Symboltest kan mere
+
+- **Positioner**: vælg *Position* under "Tag er" og afprøv farve, drejning, flytning, synlighed m.m. pr. position (2–8).
+- **Løbelys** kan afprøves på rør og streger.
+- Listen over animationer viser kun dem, den valgte del kan have.
+- Ny sektion **Som i guiden**: symbolets egen opsætning fra biblioteket (fx vippekontaktens greb i Op/Midt/Ned, 3-vejs ventilens porte) med en knap pr. position.
+
 ## v0.102.0 — 2026-10-19 — Trends: spikes udfyldes
 
 - **Skjul spikes** i Trends udfylder nu spikes med interpolerede værdier, så kurven er sammenhængende i stedet for at få huller. Gemte data og CSV ændres ikke.

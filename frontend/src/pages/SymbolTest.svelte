@@ -2,7 +2,7 @@
   import { CATEGORIES, SYMBOLS, SYMBOL_COLORS, type SymbolCategory } from '../lib/symbols';
   import { ANIM_TXT, type AnimType, type SrcKind } from '../lib/symbolConfig';
   import type { Binding } from '../lib/api';
-  import { ROOT, TEST_ANIMS, applyTest, resetTest, testBinding, testParts, valueRange } from '../lib/symbolTest';
+  import { MAX_POSITIONS, MIN_POSITIONS, ROOT, animsFor, applyTest, librarySetup, resetTest, runSetup, testBinding, testParts, valueRange } from '../lib/symbolTest';
 
   let category = $state<SymbolCategory | 'alle'>('alle');
   let search = $state('');
@@ -13,6 +13,7 @@
   let anim = $state<AnimType>('fill');
   let kind = $state<SrcKind>('bool');
   let value = $state(1);
+  let count = $state(3);   // antal positioner i den frie afprøvning
   let host = $state<HTMLElement>();
   let error = $state('');
   /** viewBox efter symbolets egen størrelse (getBBox medregner ikke stregen, derfor lidt luft). */
@@ -34,7 +35,16 @@
   const def = $derived(SYMBOLS.find((s) => s.id === selected) ?? SYMBOLS[0]);
   const parts = $derived(testParts(def.svg, def.id));
   const current = $derived(parts.find((p) => p.id === part) ?? parts[0]);
-  const range = $derived(kind === 'bool' ? { min: 0, max: 1 } : valueRange(testBinding(part, anim, kind).params));
+  const n = $derived(Math.min(MAX_POSITIONS, Math.max(MIN_POSITIONS, Math.round(Number(count)) || MIN_POSITIONS)));
+  const animList = $derived(animsFor(current.types, kind));
+  const setup = $derived(librarySetup(def.svg, def.id));
+  const range = $derived(kind === 'bool' ? { min: 0, max: 1 } : kind === 'pos' ? { min: 0, max: n - 1 }
+    : valueRange(testBinding(part, anim, kind).params));
+  const whole = $derived(kind !== 'num');   // til/fra og position: hele tal
+
+  // delen eller kilden er skiftet: vælg en animation der findes for den
+  $effect(() => { if (!animList.includes(anim)) anim = animList[0]; });
+  $effect(() => { if (value > range.max) value = range.max; });
 
   function select(id: string): void {
     selected = id;
@@ -42,6 +52,14 @@
     value = 1;
     applied = [];
     error = '';
+  }
+
+  /** Bibliotekets opsætning afprøves med én værdi (positionens nummer, til/fra eller tal). */
+  function runLibrary(v: number): void {
+    if (!host || !setup) return;
+    const missing = runSetup(host, setup, v);
+    error = missing.length ? `Delen "${missing[0]}" findes ikke i symbolet.` : '';
+    for (const b of setup.bindings) if (!applied.some((a) => a.element === b.element && a.anim === b.anim)) applied.push(b);
   }
 
   function run(b: Binding, v: number): void {
@@ -55,7 +73,7 @@
   }
 
   function test(): void {
-    run(testBinding(part, anim, kind), value);
+    run(testBinding(part, anim, kind, n), value);
   }
 
   /** Symbolets egne animationer (data-hv-part) afprøves med samme værdi. */
@@ -112,22 +130,39 @@
       <div class="stage bg-{background}" style="width:{zoom * 80}px;height:{zoom * 80}px" bind:this={host}></div>
       {#if error}<div class="error">{error}</div>{/if}
 
+      {#if setup}
+        <h4>Som i guiden</h4>
+        <p class="muted small">{setup.note}</p>
+        <div class="row">
+          {#if setup.positions.length}
+            {#each setup.positions as label, j}<button onclick={() => runLibrary(j)}>{j}: {label}</button>{/each}
+          {:else if setup.kind === 'num'}
+            <input type="range" min="0" max="100" value="0" oninput={(e) => runLibrary(Number(e.currentTarget.value))} aria-label="Værdi" />
+          {:else}
+            <button onclick={() => runLibrary(0)}>Fra</button><button onclick={() => runLibrary(1)}>Til</button>
+          {/if}
+        </div>
+      {/if}
+
       <h4>Afprøv en animation</h4>
       <div class="row">
         <label>Del
           <select bind:value={part}>{#each parts as p}<option value={p.id}>{p.label}{p.id === ROOT ? '' : ` (${p.id})`}</option>{/each}</select>
         </label>
         <label>Animation
-          <select bind:value={anim}>{#each TEST_ANIMS as a}<option value={a}>{ANIM_TXT[a]}</option>{/each}</select>
+          <select bind:value={anim}>{#each animList as a}<option value={a}>{ANIM_TXT[a]}</option>{/each}</select>
         </label>
         <label>Tag er
-          <select bind:value={kind}><option value="bool">Til/fra</option><option value="num">Tal</option></select>
+          <select bind:value={kind}><option value="bool">Til/fra</option><option value="num">Tal</option><option value="pos">Position</option></select>
         </label>
+        {#if kind === 'pos'}
+          <label>Positioner <input type="number" min={MIN_POSITIONS} max={MAX_POSITIONS} bind:value={count} style="width:4em" /></label>
+        {/if}
       </div>
       <div class="row">
         <button onclick={() => { value = range.min; test(); }}>Fra</button>
         <button onclick={() => { value = range.max; test(); }}>Til</button>
-        <input type="range" min={range.min} max={range.max} step={kind === 'bool' ? 1 : (range.max - range.min) / 100} bind:value oninput={test} />
+        <input type="range" min={range.min} max={range.max} step={whole ? 1 : (range.max - range.min) / 100} bind:value oninput={test} />
         <output>{value}</output>
       </div>
 

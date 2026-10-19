@@ -4,6 +4,38 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.107.0 build 0157] — 2026-10-19 — Trends: Vis ringe
+
+- `frontend/src/pages/Trends.svelte` — valget *Vis ringe* (standard til, huskes pr. browser) skjuler markeringerne i graferne uden at slå analysen fra.
+- Kun frontend. **Kun bygget og testet** (ikke set i browseren).
+
+## [0.106.0 build 0156] — 2026-10-19 — Trends: fastfrosset efter tid
+
+- `frontend/src/lib/trendAnalysis.ts` + test — `analyze(points, { frozenMinS })`: fastfrosset kræver samme værdi i mindst den valgte tid (og 3 punkter) i stedet for 12 punkter; `formatSpan`; noten viser varigheden. Standard 6 timer; `null` slår fra.
+- `frontend/src/pages/Trends.svelte` — valget *Fastfrosset efter* (1 time … 7 døgn, Aldrig), husket pr. browser.
+- Kun frontend. **Kun bygget og testet** (ikke set i browseren).
+
+## [0.105.0 build 0155] — 2026-10-19 — Driftpanel: Trends og kvittering af alarmer
+
+- `frontend/src/App.svelte` — driftpanelet viser Alarmer (kvittér) og Trends, når genvejene i tegningen åbner dem.
+- `frontend/src/pages/Overview.svelte` — genvejene Alarmer/Trends virker på panelet; kun Energi afvises.
+- Manual opdateret. Ingen backend-ændring: panel har allerede operatørens rettigheder (kvittering) og tegningsadgang filtrerer tags.
+- **Kun bygget og testet** (ikke set i browseren).
+
+## [0.104.0 build 0154] — 2026-10-19 — Trends: andel uregelmæssigheder i procent
+
+- `frontend/src/lib/trendAnalysis.ts` + test — `Issue.n` (punkter ramt), `affectedPoints`, `irregularShare`, `formatShare`.
+- `frontend/src/pages/Trends.svelte` — pr. kurve "x % af punkterne (a af b)" og en samlet linje "I alt" over alle tal-kurver.
+- Kun frontend. **Kun bygget og testet** (ikke set i browseren).
+
+## [0.103.0 build 0153] — 2026-10-19 — Symboltest: positioner, løbelys og guidens opsætning
+
+- `frontend/src/lib/symbolTest.ts` — `testInfo` (del-info inkl. streger som serveren), `types` pr. del via `typesFor` (nu også Løbelys), `testBinding` med kilden *Position*, `librarySetup`/`runSetup` (bibliotekets `libraryDefault` som bindinger).
+- `frontend/src/pages/SymbolTest.svelte` — animationslisten følger delen, "Tag er" får *Position* med antal positioner, ny sektion *Som i guiden* med knap pr. position.
+- `frontend/src/lib/symbolTest.test.ts` — 9 nye tests (position, løbelys, typer pr. del, opsætning af ventil/vippekontakt/kontakt/pumpe/statusfelt, grebets stilling pr. position, alle biblioteksdele).
+- `frontend/src/manual/06-symboler-og-guiden.md` — afsnittet Symboltest.
+- Kun frontend. **Kun bygget og testet** (ikke set i browseren).
+
 ## [0.102.0 build 0152] — 2026-10-19 — Trends: Skjul spikes udfylder med interpolation
 
 - `frontend/src/lib/trendAnalysis.ts` + test — `hideSpikes` erstatter spikes med lineær interpolation mellem nærmeste gode naboer (hold værdi ved kanten) i stedet for huller; rådata uændrede.

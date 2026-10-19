@@ -40,7 +40,7 @@ Ud for menuerne står hvor du er (**Drift › Overview**), og til højre en **al
 | --- | --- | --- |
 | **Viewer** | Se Overview, alarmer, trends og energi på de tegninger, der er givet adgang til | Betjene noget |
 | **Operatør** | Alt viewer kan, samt betjene det, der er sat op til betjening (skifte positioner, trykknapper, indtaste setpunkter) og kvittere alarmer | Ændre opsætning |
-| **Driftpanel** | Kun drifttegningen i fuld skærm uden menu — til en skærm i produktionen. Kan betjene | Alt andet |
+| **Driftpanel** | Drifttegningen i fuld skærm uden menu — til en skærm i produktionen. Kan betjene og via genvejsknapperne i tegningen åbne **Alarmer** (kvittere) og **Trends** | Alt andet |
 | **Tekniker** | Alt operatøren kan, samt Tegninger, Tegn, Bindinger, Tags, Ugeprogrammer, PLC'er, Symboltest og Log | Brugere, Backup, Opdatering |
 | **Admin** | Alt, også Brugere, Backup og Opdatering | — |
 
