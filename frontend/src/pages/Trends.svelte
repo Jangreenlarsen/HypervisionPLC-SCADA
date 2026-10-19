@@ -5,7 +5,8 @@
   import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
-  import { align, assignColors, groupByUnit, MAX_SERIES, RANGES, SERIES_COLORS, type Point } from '../lib/trendData';
+  import { align, assignColors, colorOf, dashOf, groupByUnit, MAX_SERIES, RANGES, type Point } from '../lib/trendData';
+  import { analyze, hideSpikes, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
   import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
 
   let { canEdit = false, route = 'trends' }: { canEdit?: boolean; route?: string } = $props();
@@ -29,6 +30,9 @@
   let resp = $state<DataResp | null>(null);
   let timer: ReturnType<typeof setInterval> | null = null;
   let enabling = $state('');
+  // Analyse (tilvalg): find uregelmæssigheder i tal-kurverne; "skjul spikes" gør dem til huller i visningen (rådata uændret)
+  let analyse = $state(loadFlag('trend.analyse'));
+  let hide = $state(loadFlag('trend.hideSpikes'));
   let manage = $state(false); // "Administrér historik": slå til/fra og slet pr. tag (tekniker/admin)
   let info2 = $state('');
   let chartsEl = $state<HTMLElement>();
@@ -125,6 +129,21 @@
     } finally {
       symBusy = false;
       chooseSymbol(symKey);
+    }
+  }
+
+  function loadFlag(key: string): boolean {
+    try {
+      return localStorage.getItem(key) === '1';
+    } catch {
+      return false;
+    }
+  }
+  function saveFlag(key: string, on: boolean): void {
+    try {
+      localStorage.setItem(key, on ? '1' : '0');
+    } catch {
+      // Valget huskes bare ikke.
     }
   }
 
@@ -298,6 +317,23 @@
   }))));
   const shown = $derived((info?.tags ?? []).filter((t) => !filter || `${t.name} ${t.description}`.toLowerCase().includes(filter.toLowerCase())));
 
+  /** Fund pr. tag (kun tal-kurver; til/fra analyseres ikke). Tom når analysen er slået fra. */
+  const issues = $derived.by(() => {
+    const out: Record<string, Issue[]> = {};
+    if (!analyse || !resp) return out;
+    for (const n of selected) {
+      if (tagInfo.get(n)?.is_bool) continue;
+      const found = analyze(resp.series[n] ?? []);
+      if (found.length) out[n] = found;
+    }
+    return out;
+  });
+  const issueTotals = $derived(Object.entries(issues).map(([n, list]) => {
+    const counts: Partial<Record<IssueKind, number>> = {};
+    for (const i of list) counts[i.kind] = (counts[i.kind] ?? 0) + 1;
+    return { name: n, text: (Object.entries(counts) as [IssueKind, number][]).map(([k, c]) => `${c} × ${ISSUE_LABEL[k].toLowerCase()}`).join(', ') };
+  }));
+
   function chartFor(names: { name: string; isBool?: boolean }[]): { series: ChartSeries[]; data: ReturnType<typeof align> } {
     const series = names.map((t) => ({
       name: t.name,
@@ -305,8 +341,13 @@
       colorIndex: colors[t.name] ?? 0,
       isBool: Boolean(t.isBool),
       decimals: resp?.meta[t.name]?.decimals ?? null,
+      issues: issues[t.name],
     }));
-    return { series, data: align(names.map((t) => resp?.series[t.name] ?? []), names.map((t) => Boolean(t.isBool))) };
+    const pts = names.map((t) => {
+      const raw = resp?.series[t.name] ?? [];
+      return hide && issues[t.name] ? hideSpikes(raw, issues[t.name]) : raw;
+    });
+    return { series, data: align(pts, names.map((t) => Boolean(t.isBool))) };
   }
 
   onMount(async () => {
@@ -351,6 +392,10 @@
     <label class="row small"><input type="checkbox" bind:checked={live} onchange={restartTimer} /> Live</label>
   {/if}
   {#if selected.length && exportUrl}<a class="btn" href={exportUrl} download>CSV</a>{/if}
+  <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>
+  {#if analyse}
+    <label class="row small" title="Gør enkeltstående spikes til huller i visningen — de gemte data ændres ikke"><input type="checkbox" bind:checked={hide} onchange={() => saveFlag('trend.hideSpikes', hide)} /> Skjul spikes</label>
+  {/if}
   {#if loading}<span class="muted small">Henter …</span>{/if}
 </div>
 
@@ -392,7 +437,7 @@
         <li>
           <label class:off={!t.trend && !t.samples} title={!t.trend ? `${t.name} — historik er ikke slået til for dette tag` : t.name}>
             <input type="checkbox" checked={selected.includes(t.name)} disabled={!t.trend && !t.samples} onchange={() => toggle(t.name)} />
-            {#if selected.includes(t.name)}<span class="swatch" style="background:{SERIES_COLORS[colors[t.name] ?? 0]}"></span>{/if}
+            {#if selected.includes(t.name)}<span class="swatch" class:dashed={dashOf(colors[t.name] ?? 0)} style="--c:{colorOf(colors[t.name] ?? 0)}"></span>{/if}
             <span class="name">{t.description || t.name}</span>
             <span class="muted small">{t.unit}</span>
           </label>
@@ -441,6 +486,17 @@
         {@const c = chartFor(tags)}
         <TrendChart title={unit} unit={unit === 'Til/fra' || unit === 'Uden enhed' ? '' : unit} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} />
       {/each}
+      {#if analyse}
+        <div class="panel small">
+          {#if issueTotals.length}
+            <strong>Uregelmæssigheder (ring om punktet):</strong>
+            <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text}</li>{/each}</ul>
+            <span class="muted">{hide ? 'Spikes er skjult som huller. ' : ''}Spring, fastfrosne værdier og huller markeres kun. Rådata er uændrede (CSV indeholder alt).</span>
+          {:else}
+            <span class="muted">Ingen uregelmæssigheder fundet i den viste periode.</span>
+          {/if}
+        </div>
+      {/if}
       <p class="muted small">Træk vandret i en graf for at zoome; dobbeltklik for at zoome ud. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
     {/if}
   </section>
@@ -458,5 +514,8 @@
   .enable { flex: none; padding: .1rem .45rem; font-size: .75rem; }
   .notice { border-left: 4px solid #2a78d6; }
   .symsel { display: block; margin-bottom: .5rem; }
-  .swatch { width: 12px; height: 4px; border-radius: 2px; flex: none; }
+  .swatch { width: 12px; height: 4px; border-radius: 2px; flex: none; background: var(--c); }
+  .swatch.dashed { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 6px); }
+  ul.found { max-height: none; margin: .25rem 0; padding-left: 1.1rem; list-style: disc; display: block; }
+  ul.found li { display: list-item; }
 </style>

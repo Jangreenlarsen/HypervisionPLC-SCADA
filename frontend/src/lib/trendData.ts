@@ -2,7 +2,12 @@
 
 /** Kategoriske farver i fast rækkefølge (validerede mod lys flade). Rød er udeladt — den er reserveret til alarmer. */
 export const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7'];
-export const MAX_SERIES = SERIES_COLORS.length;
+/** Højst så mange kurver ad gangen. Ud over farverne (7) skelnes kurverne på stregtype (stiplet). */
+export const MAX_SERIES = 12;
+
+/** Farve for kurve nr. i (farverne genbruges efter nr. 7 — så er linjen stiplet, se `dashOf`). */
+export const colorOf = (i: number): string => SERIES_COLORS[i % SERIES_COLORS.length];
+export const dashOf = (i: number): number[] | undefined => (i >= SERIES_COLORS.length ? [7, 4] : undefined);
 
 /** [t, gennemsnit, min, max] — som backend leverer. */
 export type Point = [number, number | null, number | null, number | null];
@@ -44,14 +49,15 @@ export function isolatedPoints(ys: (number | null | undefined)[]): number[] {
  * Tildel farver så et tag BEHOLDER sin farve, mens det er valgt (farve følger tagget, ikke
  * rækkefølgen). Nye tags får første ledige plads. Returnerer null-pladser hvis der er fyldt op.
  */
-export function assignColors(selected: string[], previous: Record<string, number>): Record<string, number> {
+export function assignColors(selected: string[], previous: Record<string, number>, max: number = MAX_SERIES): Record<string, number> {
   const next: Record<string, number> = {};
   for (const name of selected) if (name in previous) next[name] = previous[name];
   const used = new Set(Object.values(next));
   for (const name of selected) {
     if (name in next) continue;
-    const free = SERIES_COLORS.findIndex((_, i) => !used.has(i));
-    if (free < 0) continue;
+    let free = 0;
+    while (free < max && used.has(free)) free++;
+    if (free >= max) continue;
     next[name] = free;
     used.add(free);
   }
