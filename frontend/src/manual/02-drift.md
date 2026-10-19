@@ -43,7 +43,7 @@ Et symbol kan vise tre tilstande efter en positionsændring: **bekræftet** (PLC
 
 ![Alarmer — fanen Historik med tidligere alarmer og kvitteringer](/manual/alarmer-historik.png)
 
-Alarmklokken i topbjælken åbner siden **Alarmer**. Den har to faner:
+Alarmklokken i topbjælken åbner siden **Alarmer**. Et **driftpanel** (uden topbjælke) åbner den med knappen *Gå til Alarmer* i tegningen og kan kvittere derfra. Siden har to faner:
 
 - **Aktive** — alarmer, der er i gang lige nu. Tryk **Kvittér** på en alarm for at sige, at du har set den, eller **Kvittér alle**. En kvitteret alarm er stadig aktiv, indtil årsagen er væk.
 - **Historik** — alle tidligere alarmer med tidspunkter for udløsning, kvittering og ophør.
@@ -69,13 +69,24 @@ Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*) — eller i
 
 **Trends** viser kurver over værdier gennem tiden. Kun tags, hvor **historik** er slået til, har kurver (slås til under **Tags**, eller direkte på Trends-siden med **Begynd at gemme historik**).
 
+- **Rettigheder**: viewer, operatør og driftpanel kan ikke søge efter eller vælge tags frit — de ser kun de trends, der er sat op i deres tegninger (symboler og trendgrafer), og vælger mellem dem under *Symbol*. Tekniker og admin kan vælge alle tags. Serveren håndhæver det.
 - **Symbol**: vælg et symbol fra tegningerne, så vises **alle symbolets kurver** på én gang — du skal ikke finde tagsene selv. Har nogle af symbolets tags ikke historik, står de under listen; en tekniker kan slå dem til med **Gem historik for de …**. Historikken kan også slås til i symbolguiden (trin 6), og linket **Vis symbolet i Trends** derfra åbner Trends med symbolet valgt.
-- Eller vælg et eller flere **tags** i listen selv (søg med feltet **Søg**).
+- Tekniker og admin kan i stedet vælge et eller flere **tags** i listen selv (søg med feltet **Søg**). Højst **12 kurver** vises ad gangen; kurve 8–12 har samme farver som de første, men stiplet linje.
 - Vælg tidsrum: **15 min, 1 time, 8 timer, 24 timer, 7 dage**, eller **Vælg periode** for et selvvalgt interval.
 - Kurverne **opdateres live**. Peg på kurven for at se værdi og tidspunkt. Du kan **hente data som CSV** til regneark.
 - **Navn på kurverne:** sæt flueben i **Administrér** og tryk **Navn** ud for et tag — så vises navnet (fx *Fremløbstemperatur*) i stedet for tag-navnet i listen og graferne. Tomt navn = tag-navnet. Navnet er tagets *beskrivelse*, så det ses også under Alarmer og Tags; peg på et navn for at se tag-navnet.
 - Et tag kan **stoppes** (historikken bevares) eller dets **historik slettes**. Historik, der er ældre end opbevaringstiden (standard 30 dage), slettes automatisk.
 - Hullerne i en kurve betyder, at der ikke var kontakt til PLC'en dengang.
+
+### Analysér data
+
+Sæt flueben i **Analysér data** for at lade siden finde uregelmæssigheder i tal-kurverne (til/fra-kurver analyseres ikke). Rådata ændres aldrig, og CSV indeholder altid alt.
+
+- **Spike**: ét punkt langt fra sine naboer. **Urealistisk spring**: et stort trin, hvor niveauet ændrer sig. **Fastfrosset værdi**: præcis samme værdi i lang tid. **Hul i data**: usædvanlig lang tid mellem to punkter.
+- Fundene får en **ring om punktet** (huller en lodret streg). Fjern fluebenet ved **Vis ringe** for at skjule ringene; listen under graferne står stadig.
+- **Fastfrosset efter** bestemmer, hvor længe samme værdi skal stå, før den tæller som fastfrosset: *1 time, 6 timer* (standard), *1 døgn, 3 døgn, 7 døgn* eller *Aldrig*. En rolig føler, fx en temperatur, står stille længe — vælg en lang tid, så den ikke ringes om, men en død føler stadig opdages. Valget huskes i browseren.
+- **Skjul spikes** udfylder enkeltstående spikes ved interpolation i visningen. Spring, fastfrosne værdier og huller markeres kun.
+- Under graferne står, hvor mange **procent af punkterne** der er ramt, for hver kurve og samlet (*I alt*). En fastfrosset række tæller alle sine punkter.
 
 ## Energi
 

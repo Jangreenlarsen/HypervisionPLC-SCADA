@@ -2,6 +2,10 @@
 
 ---
 
+## v0.108.0 — 2026-10-19 — Trends: kun opsatte trends for operatører
+
+- **Viewer, operatør og driftpanel** kan ikke længere søge efter eller vælge tags frit i Trends. De ser kun de trends, der er sat op i deres tegninger (symboler og trendgrafer), og vælger mellem dem under *Symbol*. Tekniker og admin kan stadig vælge alle tags.
+
 ## v0.107.0 — 2026-10-19 — Trends: skjul ringene
 
 - Under **Analysér data** kan du fjerne fluebenet ved **Vis ringe**, så cirklerne og stregerne i graferne skjules. Listen med fund og procenterne vises stadig.

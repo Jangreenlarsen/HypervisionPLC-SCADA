@@ -217,8 +217,11 @@ def test_delete_history_api(api, mock_plc):
 
 
 def test_scoped_user_only_gets_own_tags(api):
-    svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><text id="Motor">-</text></svg>'
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><g id="M1" data-hv-type="lampe"><circle id="M1_c" r="3"/></g></svg>'
     did = api.post("/api/drawings", json={"name": "M", "svg": svg}).json()["drawing"]["id"]
+    # Motor er trendet i tegningen (symbolets animation) — Niveau er ikke; kun opsatte trends er tilladt for en viewer
+    cfg = {"op": "view", "anims": [{"part": "all", "type": "fill", "src": "Motor", "params": {}}]}
+    assert api.put(f"/api/drawings/{did}/symbols/M1/config", json={"config": cfg}).status_code == 200
     api.post("/api/users", json={"username": "vagt", "role": "viewer", "password": "Hemmelig-123", "drawings": [did]})
     api.post("/api/auth/login", json={"username": "vagt", "password": "Hemmelig-123"})
     api.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})

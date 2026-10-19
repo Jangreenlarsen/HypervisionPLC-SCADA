@@ -38,10 +38,10 @@ Ud for menuerne står hvor du er (**Drift › Overview**), og til højre en **al
 
 | Rolle | Kan | Kan ikke |
 | --- | --- | --- |
-| **Viewer** | Se Overview, alarmer, trends og energi på de tegninger, der er givet adgang til | Betjene noget |
-| **Operatør** | Alt viewer kan, samt betjene det, der er sat op til betjening (skifte positioner, trykknapper, indtaste setpunkter) og kvittere alarmer | Ændre opsætning |
-| **Driftpanel** | Drifttegningen i fuld skærm uden menu — til en skærm i produktionen. Kan betjene og via genvejsknapperne i tegningen åbne **Alarmer** (kvittere) og **Trends** | Alt andet |
-| **Tekniker** | Alt operatøren kan, samt Tegninger, Tegn, Bindinger, Tags, Ugeprogrammer, PLC'er, Symboltest og Log | Brugere, Backup, Opdatering |
+| **Viewer** | Se Overview, alarmer, de trends der er sat op i tegningerne, og energi på de tegninger, der er givet adgang til | Betjene noget, vælge tags frit i Trends |
+| **Operatør** | Alt viewer kan, samt betjene det, der er sat op til betjening (skifte positioner, trykknapper, indtaste setpunkter) og kvittere alarmer | Ændre opsætning, vælge tags frit i Trends |
+| **Driftpanel** | Drifttegningen i fuld skærm uden menu — til en skærm i produktionen. Kan betjene og via genvejsknapperne i tegningen åbne **Alarmer** (kvittere) og **Trends** (kun de trends, der er sat op i tegningen) | Alt andet |
+| **Tekniker** | Alt operatøren kan, samt vælge alle tags i Trends og Tegninger, Tegn, Bindinger, Tags, Ugeprogrammer, PLC'er, Symboltest og Log | Brugere, Backup, Opdatering |
 | **Admin** | Alt, også Brugere, Backup og Opdatering | — |
 
 En administrator kan begrænse viewer, operatør og driftpanel til udvalgte tegninger (se *System*). Reglerne håndhæves af serveren — de er ikke bare skjult i menuen.

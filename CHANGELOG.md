@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.108.0 build 0158] — 2026-10-19 — Trends: kun opsatte trends for ikke-teknikere
+
+- `backend/app/api/trends.py` — `_allowed`: viewer/operatør/panel får kun tags fra de trend-symboler/trendgrafer, der er sat op i deres tegninger (data, CSV og info); tekniker/admin uændret.
+- `frontend/src/pages/Trends.svelte` — ingen tagliste/søgning/"vælg tags selv" uden tekniker-rettighed; første symbol vælges som start; besked hvis ingen trends er sat op.
+- `backend/tests/test_trend_symbols.py`, `test_trends.py` — ny test for de tre roller; eksisterende test fik et opsat symbol.
+- Manual opdateret. **Adfærdsændring**: en viewer, der før kunne trende alle tags i sine tegninger, ser nu kun opsatte trends. Frontend **kun bygget og testet** (ikke set i browseren).
+
 ## [0.107.0 build 0157] — 2026-10-19 — Trends: Vis ringe
 
 - `frontend/src/pages/Trends.svelte` — valget *Vis ringe* (standard til, huskes pr. browser) skjuler markeringerne i graferne uden at slå analysen fra.
