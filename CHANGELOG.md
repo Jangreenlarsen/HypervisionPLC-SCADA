@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.107.0 build 0157] — 2026-10-19 — Trends: Vis ringe
+
+- `frontend/src/pages/Trends.svelte` — valget *Vis ringe* (standard til, huskes pr. browser) skjuler markeringerne i graferne uden at slå analysen fra.
+- Kun frontend. **Kun bygget og testet** (ikke set i browseren).
+
 ## [0.106.0 build 0156] — 2026-10-19 — Trends: fastfrosset efter tid
 
 - `frontend/src/lib/trendAnalysis.ts` + test — `analyze(points, { frozenMinS })`: fastfrosset kræver samme værdi i mindst den valgte tid (og 3 punkter) i stedet for 12 punkter; `formatSpan`; noten viser varigheden. Standard 6 timer; `null` slår fra.

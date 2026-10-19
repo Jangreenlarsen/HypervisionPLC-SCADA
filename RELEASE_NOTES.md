@@ -2,6 +2,10 @@
 
 ---
 
+## v0.107.0 — 2026-10-19 — Trends: skjul ringene
+
+- Under **Analysér data** kan du fjerne fluebenet ved **Vis ringe**, så cirklerne og stregerne i graferne skjules. Listen med fund og procenterne vises stadig.
+
 ## v0.106.0 — 2026-10-19 — Trends: fastfrosset efter tid
 
 - **Analysér data** har valget **Fastfrosset efter** (1 time til 7 døgn, eller Aldrig). En værdi regnes først for fastfrosset, når den har stået uændret så længe — fx 6 timer som standard. En rolig temperaturføler ringes dermed ikke om over lange perioder, mens huller i data stadig markeres.

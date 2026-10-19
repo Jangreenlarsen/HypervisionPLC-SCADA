@@ -33,6 +33,7 @@
   // Analyse (tilvalg): find uregelmæssigheder i tal-kurverne; "skjul spikes" gør dem til huller i visningen (rådata uændret)
   let analyse = $state(loadFlag('trend.analyse'));
   let hide = $state(loadFlag('trend.hideSpikes'));
+  let rings = $state(loadFlag('trend.rings', true));   // ring om uregelmæssige punkter i graferne
   /** Hvor længe samme værdi skal stå før den er "fastfrosset" (sekunder; 0 = undersøges ikke). Langsomme følere står stille længe. */
   const FROZEN_CHOICES: { s: number; label: string }[] = [
     { s: 3600, label: '1 time' }, { s: 6 * 3600, label: '6 timer' }, { s: 24 * 3600, label: '1 døgn' }, { s: 3 * 86400, label: '3 døgn' },
@@ -153,11 +154,12 @@
     }
   }
 
-  function loadFlag(key: string): boolean {
+  function loadFlag(key: string, fallback = false): boolean {
     try {
-      return localStorage.getItem(key) === '1';
+      const v = localStorage.getItem(key);
+      return v === null ? fallback : v === '1';
     } catch {
-      return false;
+      return fallback;
     }
   }
   function saveFlag(key: string, on: boolean): void {
@@ -378,7 +380,7 @@
       colorIndex: colors[t.name] ?? 0,
       isBool: Boolean(t.isBool),
       decimals: resp?.meta[t.name]?.decimals ?? null,
-      issues: issues[t.name],
+      issues: rings ? issues[t.name] : undefined,
     }));
     const pts = names.map((t) => {
       const raw = resp?.series[t.name] ?? [];
@@ -431,6 +433,7 @@
   {#if selected.length && exportUrl}<a class="btn" href={exportUrl} download>CSV</a>{/if}
   <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>
   {#if analyse}
+    <label class="row small" title="Skjul ringene i graferne — fundene står stadig i listen under graferne"><input type="checkbox" bind:checked={rings} onchange={() => saveFlag('trend.rings', rings)} /> Vis ringe</label>
     <label class="row small" title="Samme værdi så længe markeres som fastfrosset. Langsomme følere (fx temperatur) står stille længe, så vælg en lang tid for dem">Fastfrosset efter
       <select bind:value={frozenS} onchange={saveFrozen} aria-label="Fastfrosset efter">{#each FROZEN_CHOICES as c}<option value={c.s}>{c.label}</option>{/each}</select>
     </label>
@@ -529,7 +532,7 @@
       {#if analyse}
         <div class="panel small">
           {#if issueTotals.length}
-            <strong>Uregelmæssigheder (ring om punktet):</strong>
+            <strong>Uregelmæssigheder{rings ? ' (ring om punktet)' : ''}:</strong>
             <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text} — <strong>{f.share}</strong> af punkterne ({f.affected} af {f.total})</li>{/each}</ul>
             {#if overall}<div>I alt: <strong>{overall.share}</strong> af alle punkter ({overall.affected} af {overall.total}) har uregelmæssigheder.</div>{/if}
             <span class="muted">{hide ? 'Spikes er udfyldt ved interpolation. ' : ''}Spring, fastfrosne værdier og huller markeres kun. Rådata er uændrede (CSV indeholder alt).</span>
