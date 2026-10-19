@@ -66,3 +66,5 @@ Standardmodel er `opusplan` (i `.claude/settings.local.json`): Opus i plan mode,
 ## Workflow
 
 1. Registrér i FEATURES.md/BUGS.md → 2. implementér i korrekt lag → 3. kør tests/verifikation → 4. opdatér version.json, CHANGELOG.md, RELEASE_NOTES.md → 5. commit `vX.X.X-bNNNN: beskrivelse` → 6. push `origin dev` → 7. spørg om merge til `main`.
+
+**OTA-pakke (hver gang)**: Efter hver commit med kodeændring bygges en ny OTA-pakke med `sh deploy/make-package.sh` (giver `scada-<version>-b<build>.tar` i projektets rod). Meld filnavn, størrelse og SHA256 til Jan sammen med resultatet. Doku-only commits er undtaget.
