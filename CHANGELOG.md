@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.96.2 build 0145] — 2026-10-19 — fix: symboltesten accepterer flere animationer pr. del
+
+- `frontend/src/lib/symbols.test.ts` — testen af betjeningssymbolernes `data-hv-part` antog én animation pr. del; vippekontaktens greb har to (Drej + Synlig, v0.96.1), som serveren læser som en liste. v0.96.1 blev committet med denne ene fejlende test (min kommandokæde stoppede ikke ved fejlen); kun testen er rettet — koden var korrekt (bekræftet: serveren danner bindingerne `rotate` + `visible` på grebet og `visible` på knoppen).
+
 ## [0.96.1 build 0144] — 2026-10-19 — Vippekontakterne vipper op og ned
 
 - Jan: "kontakten skal ikke vippe fra side til side, men op og ned for ON/OFF og op/midt/ned for ON/OFF/ON".

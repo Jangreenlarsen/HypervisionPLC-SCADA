@@ -46,7 +46,8 @@ describe('betjeningssymboler', () => {
       for (const a of autos) expect(ANIMS.has(a.anim), `${s.id}: ${a.anim}`).toBe(true);
       for (const p of g.querySelectorAll('[data-hv-part]')) {
         expect(p.id, `${s.id}: del uden id`).not.toBe('');
-        expect(ANIMS.has(JSON.parse(p.getAttribute('data-hv-part')!).anim), s.id).toBe(true);
+        // én animation eller en liste (fx vippekontaktens greb: Drej + Synlig, v0.96.1) — serveren læser begge
+        for (const item of [JSON.parse(p.getAttribute('data-hv-part')!)].flat()) expect(ANIMS.has(item.anim), `${s.id}: ${item.anim}`).toBe(true);
       }
     }
   });
