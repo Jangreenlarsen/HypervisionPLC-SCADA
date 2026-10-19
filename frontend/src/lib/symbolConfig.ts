@@ -200,7 +200,7 @@ const SWITCH: Op[] = ['view', 'positions', 'pulse'];       // tænd/sluk, åbn/l
 const OPS_BY_TYPE: Record<string, Op[]> = {
   // betjeningssymboler: har deres egen form
   trykknap_puls: ['pulse', 'positions'], startstop: ['positions', 'pulse'], vippekontakt: ['positions', 'pulse'],
-  omskifter3: ['positions'], omskifter: ['positions'], drejeomskifter: ['positions'], automanuel: ['positions'], setpunkt: ['entry'],
+  omskifter3: ['positions'], omskifter: ['positions'], drejeomskifter: ['positions'], vippe_onoff: ['positions'], vippe_onoffon: ['positions'], automanuel: ['positions'], setpunkt: ['entry'],
   // ventiler: den manuelle betjenes ikke; reguleringsventilen sættes til en åbning; 3-vejs har kun to positioner (AB → A / AB → B)
   ventil: VIEW, trevejsventil: VIEW, kontraventil: VIEW, sikkerhedsventil: VIEW,
   kugleventil: SWITCH, motorventil: SWITCH, magnetventil: SWITCH, regventil: ['view', 'entry'],
@@ -230,7 +230,7 @@ export function allowedOps(type: string, current?: Op): Op[] {
 }
 
 /** Eksemplet "7-trins vælger" giver kun mening for vælgere og egne tegninger — ikke for fx en ventil eller en pumpe. */
-export const offersSelectorExample = (type: string): boolean => type === 'custom' || type.startsWith('omskifter') || type === 'drejeomskifter';
+export const offersSelectorExample = (type: string): boolean => type === 'custom' || type.startsWith('omskifter') || type === 'drejeomskifter' || type.startsWith('vippe_');
 
 /** Til/fra, tal eller ukendt (ST-variabler kendes først fra live-værdien) ud fra tagets kilde `plc:type:adr[:datatype]`. */
 export function tagKind(source: string | undefined): 'bool' | 'num' | 'unknown' {

@@ -129,6 +129,16 @@ export const SYMBOLS: SymbolDef[] = [
     get svg() { return selectorSymbol(['Hånd', '0', 'Auto']); },
   },
   {
+    id: 'vippe_onoff', label: 'Vippekontakt ON/OFF (klassisk)', category: 'betjening',
+    hint: 'Klassisk vippekontakt — vælg position i en dialog (OFF = 0, ON = 1); grebet vipper til den aktive position',
+    get svg() { return toggleSwitchSymbol(['OFF', 'ON']); },
+  },
+  {
+    id: 'vippe_onoffon', label: 'Vippekontakt ON/OFF/ON (klassisk)', category: 'betjening',
+    hint: 'Klassisk vippekontakt med midterstilling — ON 1 = 0, OFF = 1, ON 2 = 2; grebet vipper til den aktive position',
+    get svg() { return toggleSwitchSymbol(['ON 1', 'OFF', 'ON 2']); },
+  },
+  {
     id: 'drejeomskifter', label: 'Drejeomskifter 0/1', category: 'betjening',
     hint: 'Til/fra med bekræftelse — grebet drejer mellem 0 og 1',
     svg: `<g ${auto([{ anim: 'click:toggle', params: { confirm: true } }])}>` +
@@ -655,6 +665,38 @@ export function selectorSymbol(labels: string[]): string {
     `<g id="greb" ${part({ anim: 'rotate', params: { min: 0, max: n - 1, angle_min: angles[0], angle_max: angles[n - 1] } })}>` +
     `<rect x="${cx - 6}" y="${cy - 26}" width="12" height="52" rx="4" fill="${FILL}" stroke="${DARK}" stroke-width="1.5"/>` +
     `<rect x="${cx - 3}" y="${cy - 24}" width="6" height="14" rx="2" fill="${DARK}"/></g></g>`;
+}
+
+/**
+ * Klassisk vippekontakt (v0.96.0) i samme stil som omskifteren: monteringsplade, sekskantmøtrik og et greb ("bat"), der
+ * vipper til den aktive position; positionernes navne står rundt om (værdierne 0, 1, 2 … i rækkefølge). Grebet har en
+ * usynlig modsat halvdel, så "Drej" vipper det om møtrikkens midte.
+ */
+export function toggleSwitchSymbol(labels: string[]): string {
+  const names = labels.map((l) => l.trim()).filter(Boolean);
+  const n = names.length;
+  const angles = selectorAngles(n);
+  const cx = 70, cy = 74, R = 58;
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const at = (deg: number, r: number) => { const a = (deg * Math.PI) / 180; return [Math.round(cx + r * Math.sin(a)), Math.round(cy - r * Math.cos(a))]; };
+  const labelSvg = names.map((l, i) => {
+    const [x, y] = at(angles[i], R);
+    return `<text x="${x}" y="${y + 5}" font-size="13" font-weight="600" text-anchor="middle" fill="${DARK}" ${FONT}>${esc(l)}</text>`;
+  }).join('');
+  const ticks = angles.map((deg) => {
+    const [x1, y1] = at(deg, 40), [x2, y2] = at(deg, 46);
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${DARK}" stroke-width="2"/>`;
+  }).join('');
+  const hex = Array.from({ length: 6 }, (_, k) => at(30 + k * 60, 20).join(',')).join(' ');
+  const params = { positions: names.map((label, value) => ({ value, label })), confirm: true };
+  return `<g ${auto([{ anim: 'click:select', params }])}>` +
+    `<rect x="${cx - 36}" y="${cy - 36}" width="72" height="72" rx="10" fill="#e3e3e3" stroke="${LINE}" stroke-width="2.5"/>` +
+    `<polygon points="${hex}" fill="${FILL}" stroke="${DARK}" stroke-width="2"/>` +
+    `<circle cx="${cx}" cy="${cy}" r="11" fill="#cfcfcf" stroke="${DARK}" stroke-width="1.5"/>${ticks}${labelSvg}` +
+    // Grebet: smalt ved møtrikken, bredere og rundt i toppen; usynlig modsat halvdel → boksens midte = drejepunktet
+    `<g id="greb" ${part({ anim: 'rotate', params: { min: 0, max: n - 1, angle_min: angles[0], angle_max: angles[n - 1] } })}>` +
+    `<path d="M${cx - 3} ${cy} L${cx - 6} ${cy - 30} A6 6 0 0 1 ${cx + 6} ${cy - 30} L${cx + 3} ${cy} Z" fill="#b8b8b8" stroke="${DARK}" stroke-width="1.5" stroke-linejoin="round"/>` +
+    `<path d="M${cx} ${cy} V${cy + 36}" fill="none" stroke="none"/></g></g>`;
 }
 
 /** Giv symbolets rod-<g> et navn (data-hv-name), så det kan kendes i Bindinger og Overview. */

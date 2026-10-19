@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.96.0 build 0143] — 2026-10-19 — Klassiske vippekontakter ON/OFF og ON/OFF/ON
+
+- `frontend/src/lib/symbols.ts` — `toggleSwitchSymbol(labels)`: monteringsplade, sekskantmøtrik og et greb (usynlig modsat halvdel → vipper om møtrikkens midte), positionernes navne og streger rundt om (vinkler som omskifteren, `selectorAngles`); klik vælger position (`click:select`), så guiden opsætter dem som omskifteren. Nye symboler *Vippekontakt ON/OFF (klassisk)* og *Vippekontakt ON/OFF/ON (klassisk)* (ON 1 / OFF / ON 2 = 0 / 1 / 2). `symbolConfig.ts` — positioner som opsætningsform; tilbyder vælger-eksemplet. Manualens symboltabel (07) regenereret.
+- **Set i browseren** lokalt: begge sat ind i Tegn; ON/OFF/ON opsat med positioner på et HR-tag → klik på Overview giver dialogen med ON 1 / OFF / ON 2; værdien 2 → grebet vipper til ON 2 (`rotate(45deg)`) og positionen er bekræftet.
+
 ## [0.95.1 build 0142] — 2026-10-19 — Pumpen uden prik i midten
 
 - `frontend/src/lib/symbols.ts` — Pumpe: navet (den mørke prik midt i løbehjulet) er fjernet (Jan). Løbehjulet er stadig symmetrisk om midten, så det drejer på stedet. Manualens symboltabel (07) regenereret.

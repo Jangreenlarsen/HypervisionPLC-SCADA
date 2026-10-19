@@ -1,7 +1,7 @@
 <!-- GENERERET af src/lib/manualGen.test.ts ud fra symbolbiblioteket — ret ikke i hånden; kør GEN_MANUAL=1 npx vitest run src/lib/manualGen.test.ts -->
 # Symbolbiblioteket
 
-Biblioteket har **92 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
+Biblioteket har **94 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
 
 ## Betjening (skriver til PLC)
 
@@ -11,6 +11,8 @@ Biblioteket har **92 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 | **Start/stop (til/fra)** | Positioner, Trykknap (puls) | Skifter tagget til/fra med bekræftelse; lampen og teksten viser tilstanden |
 | **Vippekontakt** | Positioner, Trykknap (puls) | Til/fra uden bekræftelse — vippen flytter sig og skifter farve |
 | **Omskifter Hånd/0/Auto** | Positioner | Vælg position i en dialog (værdi 0/1/2). Andre positioner: brug "Omskifter med egne positioner" nedenfor |
+| **Vippekontakt ON/OFF (klassisk)** | Positioner | Klassisk vippekontakt — vælg position i en dialog (OFF = 0, ON = 1); grebet vipper til den aktive position |
+| **Vippekontakt ON/OFF/ON (klassisk)** | Positioner | Klassisk vippekontakt med midterstilling — ON 1 = 0, OFF = 1, ON 2 = 2; grebet vipper til den aktive position |
 | **Drejeomskifter 0/1** | Positioner | Til/fra med bekræftelse — grebet drejer mellem 0 og 1 |
 | **Auto/Manuel** | Positioner | Skifter driftsform (til = AUTO) med bekræftelse |
 | **Setpunkt-felt** | Setpunkt (indtastning) | Klik for at indtaste en ny værdi (min/max fra tagget) — viser den aktuelle værdi |

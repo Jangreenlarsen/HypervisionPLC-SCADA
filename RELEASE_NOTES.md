@@ -2,6 +2,10 @@
 
 ---
 
+## v0.96.0 — 2026-10-19 — Klassiske vippekontakter
+
+- Nye symboler **Vippekontakt ON/OFF** og **Vippekontakt ON/OFF/ON** (klassisk model med greb og møtrik) under *Betjening*. De virker som omskifteren: klik for at vælge position, og grebet vipper til den aktive.
+
 ## v0.95.1 — 2026-10-19 — Pumpen uden prik
 
 - Prikken midt i **pumpens** løbehjul er fjernet. Pumper, der allerede står i tegningerne, opdateres med *Erstat med symbol*.
