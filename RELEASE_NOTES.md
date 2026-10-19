@@ -2,6 +2,15 @@
 
 ---
 
+## v0.98.0 — 2026-10-19 — Vippekontaktens greb pr. position
+
+- Guidens trin 4 har nu **Grebets stilling pr. position** for vippekontakterne: vælg **Op**, **Midt (knop)** eller **Ned** for hver position, og guiden laver selv animationerne. Det virker uanset antal positioner og signaler.
+- **ON/OFF** og **ON/OFF/ON** er nu bygget ens (greb og knop). Nyindsatte ON/OFF-kontakter har knoppen; ældre kan opgraderes med *Erstat med symbol …*.
+
+## v0.97.1 — 2026-10-19 — Rettet: Drej og Flyt med til/fra-tag
+
+- Valgte man **Drej** eller **Flyt** før tagget, og var tagget til/fra, fik animationen tal-indstillinger, så delen ikke nåede sin slutstilling. Nu får den de rigtige indstillinger uanset rækkefølgen.
+
 ## v0.97.0 — 2026-10-19 — Hastighed på Drej
 
 - Animationen **Drej** har nu en **hastighed** — fra *Med det samme* til *Ekstra langsom (5 s)* — fx for kontaktknive og vippekontakter.

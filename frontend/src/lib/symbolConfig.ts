@@ -17,6 +17,7 @@ export interface PoolBlock { element: string; symbol: string; id: string; name: 
 export interface LogicBlock { id: string; name: string; op: 'and' | 'or'; inputs: LogicInput[]; invert: boolean }
 import { defaultChart, type ChartCfg } from './chartGraphic';
 import { KNIV_LUKKET } from './symbols';
+import { defaultDirs, leverAnims } from './toggleSwitch';
 
 export interface SymbolConfig {
   type: string; op: Op; positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
@@ -132,11 +133,9 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     setOp(cfg, 'positions');
     cfg.planes = [{ signal: cfg.signals[0].id, values: mid ? [1, 0, 2] : [0, 1] }];
     cfg.display = 'remote';
-    const greb = partOf('greb'), knop = partOf('knop');
-    // tegnet peger grebet NED; 180° = OP
-    if (greb) cfg.anims.push({ part: greb, type: 'rotate', src: POS, params: { angles: mid ? [180, 180, 0] : [0, 180] }, only: null });
-    if (greb && mid) cfg.anims.push({ part: greb, type: 'visible', src: POS, params: { set: [true, false, true] }, only: null });
-    if (knop) cfg.anims.push({ part: knop, type: 'visible', src: POS, params: { set: [false, true, false] }, only: null });
+    const greb = partOf('greb'), knop = partOf('knop') ?? null;
+    // Grebets stilling pr. position (v0.98.0) — samme opbygning for begge: ON/OFF = Ned, Op; ON/OFF/ON = Op, Midt, Ned
+    if (greb) cfg.anims.push(...leverAnims(greb, knop, defaultDirs(cfg.positions.length, knop !== null && mid)));
     return { config: cfg, note: `Forslag fra symbolbiblioteket: ${mid ? 'ON 1 (op), OFF (midt) og ON 2 (ned) — skriver 1, 0 og 2' : 'OFF (ned) og ON (op) — skriver 0 og 1'}. Vælg tagget under trin 2.` };
   }
   if (symbol.type === 'kedel') {
@@ -339,11 +338,16 @@ export function typesFor(part: PartInfo | undefined): AnimType[] {
 /**
  * Behold et biblioteksforslags indstillinger, når det FØRSTE tag vælges (kilden var tom), og indstillingerne har samme
  * felter som standarden for den nye kilde (v0.94.0). Ellers ville valget af tag nulstille forslaget (fx 32° → 90°).
+ * `before`: standarden for den forrige (tomme) kilde — er indstillingerne præcis den, er de ikke et forslag.
  */
-export function keepSuggestion(wasSrc: string | undefined, params: Record<string, any>, fresh: Record<string, any>): boolean {
+export function keepSuggestion(wasSrc: string | undefined, params: Record<string, any>, fresh: Record<string, any>,
+  before?: Record<string, any>): boolean {
   if (wasSrc !== '') return false;
   const a = Object.keys(params ?? {}).sort(), b = Object.keys(fresh).sort();
-  return a.length > 0 && a.length === b.length && a.every((k, i) => k === b[i]);
+  if (!(a.length > 0 && a.length === b.length && a.every((k, i) => k === b[i]))) return false;
+  // Kun et RIGTIGT forslag (eller noget man selv har skrevet): er indstillingerne blot standarden for den forrige kilde
+  // (fx Drej valgt før tagget → tal-standard), skal de skifte til den nye kildes standard (v0.97.1)
+  return before === undefined || JSON.stringify(params) !== JSON.stringify(before);
 }
 
 /** Hastighed på Drej (v0.97.0): sekunder om drejet. `null` = standard (glidende pr. position, ellers med det samme). */

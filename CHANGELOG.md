@@ -4,6 +4,18 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.98.0 build 0148] — 2026-10-19 — Vippekontaktens greb pr. position
+
+- `frontend/src/lib/toggleSwitch.ts` (ny) — stilling pr. position (Op / Midt / Ned) ↔ animationer: Drej @pos (Ned 0°, Op 180°), grebet skjult og knoppen vist i Midt; læser også håndlavede opsætninger (fx 180/90/0°) tilbage; bevarer andre animationer og en valgt hastighed. Test i `toggleSwitch.test.ts`.
+- `frontend/src/lib/SymbolGuide.svelte` — trin 4: tabellen *Grebets stilling pr. position* for `vippe_*`-symboler med positioner, og en note når grebets animationer er sat op på en anden måde.
+- `frontend/src/lib/symbols.ts` — ON/OFF har nu også knoppen (skjult), så begge vippekontakter har samme dele. `symbolConfig.ts` — biblioteksforslaget bruger `leverAnims`. Manualens symboltabel genereret.
+- **Set i browseren** lokalt: tabellen viser ON 1 = Op, OFF = Midt, ON 2 = Ned (ON/OFF: OFF = Ned, ON = Op); et skift ændrer animationerne; på Overview står grebet op ved 1, kun knoppen ved 0 og grebet ned ved 2.
+
+## [0.97.1 build 0147] — 2026-10-19 — fix: Drej og Flyt fik forkerte indstillinger med et til/fra-tag
+
+- `frontend/src/lib/symbolConfig.ts` — `keepSuggestion(…, before)`: et forslag beholdes kun, når det afviger fra standarden for den forrige (tomme) kilde. `SymbolGuide.svelte` — giver standarden for den forrige kilde med. Test i `symbolConfig.test.ts`. BUGS.md.
+- **Set i browseren** lokalt: matrix over 11 animationstyper × 4 kilder (til/fra-tag, tal-tag, alarm, altid til) i begge rækkefølger → 0 forskelle (med den gamle kode: 2 — Drej og Flyt med til/fra-tag); Drej med til/fra-tag får nu Min 0, Max 1, 0°–90°.
+
 ## [0.97.0 build 0146] — 2026-10-19 — Hastighed på Drej
 
 - `backend/app/services/symbols.py` — `ARotate.glide_s` (0–10 s; ingen = som før). Test i `test_symbols.py`.

@@ -14,6 +14,7 @@
   import TagSelect from './TagSelect.svelte';
   import { CHART_RANGES, FONT_SCALES, LEGEND_PLACES, MAX_CHART_TAGS, defaultChart, legendOf } from './chartGraphic';
   import { SELECTOR_TYPES, selectorMismatch } from './selectorRedraw';
+  import { DIR_TXT, applyLever, leverDirs, leverInSync, type LeverDir } from './toggleSwitch';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
     ALARM_TXT, ANIM_TXT, ON, WHEN_TYPES, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
@@ -295,6 +296,18 @@
     resetParams(a);
   }
   // ---- 3-vejs ventil styret af ét til/fra-tag
+  // Vippekontakten (v0.98.0): grebets stilling pr. position — Op / Midt (kun knoppen) / Ned
+  const leverPart = (pid: string) => (symbol ? Object.entries(symbol.parts).find(([, p]) => p.pid === pid)?.[0] ?? null : null);
+  const greb = $derived(symbol?.type?.startsWith('vippe_') ? leverPart('greb') : null);
+  const knop = $derived(greb ? leverPart('knop') : null);
+  const dirs = $derived(greb ? leverDirs(cfg.anims, greb, knop, cfg.positions.length) : []);
+  const leverSync = $derived(greb ? leverInSync(cfg.anims, greb, knop, cfg.positions.length) : true);
+  function setDir(i: number, d: LeverDir): void {
+    if (!greb) return;
+    const next = [...dirs]; next[i] = d;
+    cfg.anims = applyLever(cfg.anims, greb, knop, next);
+  }
+
   let valveTag = $state('');
   let valveMsg = $state('');
   async function applyValve(): Promise<void> {
@@ -363,7 +376,8 @@
   function resetParams(a: Anim, wasSrc?: string): void {
     if (!typesFor(partInfo(a.part)).includes(a.type)) a.type = 'fill';
     const fresh = animDefaults(a.type, srcKind(a), n);
-    if (!keepSuggestion(wasSrc, a.params, fresh)) a.params = fresh;
+    const before = wasSrc === undefined ? undefined : animDefaults(a.type, srcKind({ ...a, src: wasSrc }), n);
+    if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
     if (a.src !== POS) a.only = isPos ? a.only : null;
   }
   function moveAnim(i: number, d: -1 | 1): void {
@@ -624,6 +638,21 @@
                 <button class="small" onclick={applyValve} disabled={!valveTag}>Opret animationer</button></div>
               {#if valveMsg}<span class="small">{valveMsg}</span>{/if}
             </div>
+          {/if}
+          {#if greb && isPos}
+            <h4>Grebets stilling pr. position</h4>
+            <p class="small muted">Hvordan står vippekontaktens greb i hver position? <em>Midt</em> = grebet peger lige ud mod dig, så kun knoppen ses. Guiden laver selv animationerne på grebet og knoppen.</p>
+            <table class="lever">
+              <tbody>
+                {#each cfg.positions as pos, i (i)}
+                  <tr><td>{pos.label || `Position ${i + 1}`}</td>
+                    <td><select aria-label="Grebet i {pos.label || `position ${i + 1}`}" value={dirs[i]} onchange={(e) => setDir(i, e.currentTarget.value as LeverDir)}>
+                      {#each Object.entries(DIR_TXT) as [d, t] (d)}{#if d !== 'mid' || knop}<option value={d}>{t}</option>{/if}{/each}
+                    </select></td></tr>
+                {/each}
+              </tbody>
+            </table>
+            {#if !leverSync}<p class="small notice">Grebets animationer nedenfor er sat op på en anden måde. Vælg en stilling ovenfor for at erstatte dem med Op / Midt / Ned.</p>{/if}
           {/if}
           {#if cfg.chart}
             {@const ch = cfg.chart}
@@ -1001,6 +1030,8 @@
 {/snippet}
 
 <style>
+  table.lever { width: auto; margin-bottom: 6px; }
+  table.lever td { padding: 3px 14px 3px 0; }
   .group-note { margin: .2rem 0 .4rem; padding: .35rem .6rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); }
   .group-res { margin: 0 0 .4rem; }
   .group-res ul { margin: .2rem 0 0; padding-left: 1.2rem; }
