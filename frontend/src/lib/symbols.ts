@@ -61,7 +61,7 @@ const bubble = (letters: string) =>
  * bindingerne — klik-handlinger kun hvis tagget er skrivbart.
  */
 const auto = (items: object[]) => `data-hv-auto='${JSON.stringify(items)}'`;
-const part = (item: object) => `data-hv-part='${JSON.stringify(item)}'`;
+const part = (item: object | object[]) => `data-hv-part='${JSON.stringify(item)}'`;   // én eller flere animationer
 const ON = '#7cc47f';   // tændt/aktiv i betjeningssymboler (lys, så sort tekst kan læses)
 const OFF = '#d6d6d6';
 
@@ -130,13 +130,13 @@ export const SYMBOLS: SymbolDef[] = [
   },
   {
     id: 'vippe_onoff', label: 'Vippekontakt ON/OFF (klassisk)', category: 'betjening',
-    hint: 'Klassisk vippekontakt — vælg position i en dialog (OFF = 0, ON = 1); grebet vipper til den aktive position',
-    get svg() { return toggleSwitchSymbol(['OFF', 'ON']); },
+    hint: 'Klassisk vippekontakt — vælg position i en dialog (OFF = 0, ON = 1); grebet vipper op (ON) eller ned (OFF)',
+    get svg() { return toggleSwitchSymbol(false); },
   },
   {
     id: 'vippe_onoffon', label: 'Vippekontakt ON/OFF/ON (klassisk)', category: 'betjening',
-    hint: 'Klassisk vippekontakt med midterstilling — ON 1 = 0, OFF = 1, ON 2 = 2; grebet vipper til den aktive position',
-    get svg() { return toggleSwitchSymbol(['ON 1', 'OFF', 'ON 2']); },
+    hint: 'Klassisk vippekontakt med midterstilling — OFF = 0 (midt), ON 1 = 1 (op), ON 2 = 2 (ned)',
+    get svg() { return toggleSwitchSymbol(true); },
   },
   {
     id: 'drejeomskifter', label: 'Drejeomskifter 0/1', category: 'betjening',
@@ -668,35 +668,38 @@ export function selectorSymbol(labels: string[]): string {
 }
 
 /**
- * Klassisk vippekontakt (v0.96.0) i samme stil som omskifteren: monteringsplade, sekskantmøtrik og et greb ("bat"), der
- * vipper til den aktive position; positionernes navne står rundt om (værdierne 0, 1, 2 … i rækkefølge). Grebet har en
- * usynlig modsat halvdel, så "Drej" vipper det om møtrikkens midte.
+ * Klassisk vippekontakt (v0.96.0, op/ned siden v0.96.1) set forfra: monteringsplade, sekskantmøtrik og et greb, der
+ * vipper OP eller NED. `mid`: med midterstilling (ON/OFF/ON) — i midten peger grebet lige ud mod beskueren og ses kun som
+ * en knop. Værdierne: ON/OFF → OFF = 0 (ned), ON = 1 (op); ON/OFF/ON → OFF = 0 (knop), ON 1 = 1 (op), ON 2 = 2 (ned).
+ * Grebet har en usynlig modsat halvdel, så "Drej" vipper det om møtrikkens midte. Tegningen viser OFF.
  */
-export function toggleSwitchSymbol(labels: string[]): string {
-  const names = labels.map((l) => l.trim()).filter(Boolean);
-  const n = names.length;
-  const angles = selectorAngles(n);
-  const cx = 70, cy = 74, R = 58;
-  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const at = (deg: number, r: number) => { const a = (deg * Math.PI) / 180; return [Math.round(cx + r * Math.sin(a)), Math.round(cy - r * Math.cos(a))]; };
-  const labelSvg = names.map((l, i) => {
-    const [x, y] = at(angles[i], R);
-    return `<text x="${x}" y="${y + 5}" font-size="13" font-weight="600" text-anchor="middle" fill="${DARK}" ${FONT}>${esc(l)}</text>`;
-  }).join('');
-  const ticks = angles.map((deg) => {
-    const [x1, y1] = at(deg, 40), [x2, y2] = at(deg, 46);
-    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${DARK}" stroke-width="2"/>`;
-  }).join('');
-  const hex = Array.from({ length: 6 }, (_, k) => at(30 + k * 60, 20).join(',')).join(' ');
-  const params = { positions: names.map((label, value) => ({ value, label })), confirm: true };
+export function toggleSwitchSymbol(mid: boolean): string {
+  const cx = 70, cy = 74;
+  const label = (x: number, y: number, t: string, anchor = 'middle') =>
+    `<text x="${x}" y="${y}" font-size="13" font-weight="600" text-anchor="${anchor}" fill="${DARK}" ${FONT}>${t}</text>`;
+  const tick = (x1: number, y1: number, x2: number, y2: number) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${DARK}" stroke-width="2"/>`;
+  const names = mid ? ['ON 1', 'OFF', 'ON 2'] : ['OFF', 'ON'];
+  const values = mid ? [1, 0, 2] : [0, 1];
+  const labels = mid
+    ? label(cx, cy - 46, 'ON 1') + label(cx, cy + 56, 'ON 2') + label(cx + 46, cy + 5, 'OFF', 'start') + tick(cx + 38, cy, cx + 43, cy)
+    : label(cx, cy - 46, 'ON') + label(cx, cy + 56, 'OFF');
+  const hex = Array.from({ length: 6 }, (_, k) => { const a = ((30 + k * 60) * Math.PI) / 180; return `${Math.round(cx + 20 * Math.sin(a))},${Math.round(cy - 20 * Math.cos(a))}`; }).join(' ');
+  const params = { positions: names.map((l, i) => ({ value: values[i], label: l })), confirm: true };
+  // Grebet peger NED i tegningen (OFF på ON/OFF); "Drej" 180° = OP
+  const grebAnims = mid
+    ? [{ anim: 'rotate', params: { min: 1, max: 2, angle_min: 180, angle_max: 0 } }, { anim: 'visible', params: { invert: false } }]
+    : [{ anim: 'rotate', params: { min: 0, max: 1, angle_min: 0, angle_max: 180 } }];
+  const greb = `<g id="greb" ${part(grebAnims)}${mid ? ' style="display:none"' : ''}>` +
+    `<path d="M${cx - 3} ${cy} L${cx - 6} ${cy + 30} A6 6 0 0 0 ${cx + 6} ${cy + 30} L${cx + 3} ${cy} Z" fill="#b8b8b8" stroke="${DARK}" stroke-width="1.5" stroke-linejoin="round"/>` +
+    `<path d="M${cx} ${cy} V${cy - 36}" fill="none" stroke="none"/></g>`;
+  // Knoppen: grebet set for enden (midterstillingen)
+  const knop = mid ? `<g id="knop" ${part([{ anim: 'visible', params: { invert: true } }])}>` +
+    `<circle cx="${cx}" cy="${cy}" r="8" fill="#b8b8b8" stroke="${DARK}" stroke-width="1.5"/><circle cx="${cx - 2}" cy="${cy - 2}" r="2.5" fill="#e8e8e8"/></g>` : '';
   return `<g ${auto([{ anim: 'click:select', params }])}>` +
     `<rect x="${cx - 36}" y="${cy - 36}" width="72" height="72" rx="10" fill="#e3e3e3" stroke="${LINE}" stroke-width="2.5"/>` +
     `<polygon points="${hex}" fill="${FILL}" stroke="${DARK}" stroke-width="2"/>` +
-    `<circle cx="${cx}" cy="${cy}" r="11" fill="#cfcfcf" stroke="${DARK}" stroke-width="1.5"/>${ticks}${labelSvg}` +
-    // Grebet: smalt ved møtrikken, bredere og rundt i toppen; usynlig modsat halvdel → boksens midte = drejepunktet
-    `<g id="greb" ${part({ anim: 'rotate', params: { min: 0, max: n - 1, angle_min: angles[0], angle_max: angles[n - 1] } })}>` +
-    `<path d="M${cx - 3} ${cy} L${cx - 6} ${cy - 30} A6 6 0 0 1 ${cx + 6} ${cy - 30} L${cx + 3} ${cy} Z" fill="#b8b8b8" stroke="${DARK}" stroke-width="1.5" stroke-linejoin="round"/>` +
-    `<path d="M${cx} ${cy} V${cy + 36}" fill="none" stroke="none"/></g></g>`;
+    `<circle cx="${cx}" cy="${cy}" r="11" fill="#cfcfcf" stroke="${DARK}" stroke-width="1.5"/>` +
+    tick(cx, cy - 38, cx, cy - 43) + tick(cx, cy + 38, cx, cy + 43) + labels + greb + knop + '</g>';
 }
 
 /** Giv symbolets rod-<g> et navn (data-hv-name), så det kan kendes i Bindinger og Overview. */

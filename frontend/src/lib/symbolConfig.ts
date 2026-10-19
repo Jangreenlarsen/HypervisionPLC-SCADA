@@ -68,7 +68,7 @@ export const BLINK_TXT: Record<string, string> = { slow: 'Langsom (0,5 Hz)', nor
 export const PART_LABEL: Record<string, string> = {
   greb: 'Greb', vippe: 'Vippe', spor: 'Spor', flade: 'Knap', tekst: 'Tekst', vaerdi: 'Værdi', status: 'Status',
   felt: 'Felt', port_a: 'Port A', port_b: 'Port B', port_ab: 'Port AB', motor: 'Motor',
-  lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive', pil: 'Pil', loebehjul: 'Løbehjul', kniv1: 'Kniv 1', kniv2: 'Kniv 2', kniv3: 'Kniv 3',
+  lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive', pil: 'Pil', loebehjul: 'Løbehjul', kniv1: 'Kniv 1', kniv2: 'Kniv 2', kniv3: 'Kniv 3', knop: 'Knop (midterstilling)',
   tilloeb1: 'Tilløbsrør 1', tilloeb2: 'Tilløbsrør 2', midte: 'Midterrør', roer1: 'Rør 1', roer2: 'Rør 2', roer3: 'Rør 3', roer4: 'Rør 4',
 };
 
@@ -124,6 +124,20 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
       if (part) cfg.anims.push({ part, type: 'fill', src: POS, params: { colors: cols }, only: null });
     }
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: to positioner (AB → A og AB → B) med farver pr. port. Vælg tag under trin 2.' };
+  }
+  if (symbol.type === 'vippe_onoff' || symbol.type === 'vippe_onoffon') {
+    // Klassisk vippekontakt (v0.96.1): grebet vipper op/ned; med midterstilling ses kun knoppen i OFF
+    const mid = symbol.type === 'vippe_onoffon';
+    cfg.positions = (mid ? ['ON 1', 'OFF', 'ON 2'] : ['OFF', 'ON']).map((label) => ({ label }));
+    setOp(cfg, 'positions');
+    cfg.planes = [{ signal: cfg.signals[0].id, values: mid ? [1, 0, 2] : [0, 1] }];
+    cfg.display = 'remote';
+    const greb = partOf('greb'), knop = partOf('knop');
+    // tegnet peger grebet NED; 180° = OP
+    if (greb) cfg.anims.push({ part: greb, type: 'rotate', src: POS, params: { angles: mid ? [180, 180, 0] : [0, 180] }, only: null });
+    if (greb && mid) cfg.anims.push({ part: greb, type: 'visible', src: POS, params: { set: [true, false, true] }, only: null });
+    if (knop) cfg.anims.push({ part: knop, type: 'visible', src: POS, params: { set: [false, true, false] }, only: null });
+    return { config: cfg, note: `Forslag fra symbolbiblioteket: ${mid ? 'ON 1 (op), OFF (midt) og ON 2 (ned) — skriver 1, 0 og 2' : 'OFF (ned) og ON (op) — skriver 0 og 1'}. Vælg tagget under trin 2.` };
   }
   if (symbol.type === 'kedel') {
     // Brænderdrift: flammen farves og blafrer (tagget vælges i trin 4)

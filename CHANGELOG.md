@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.96.1 build 0144] — 2026-10-19 — Vippekontakterne vipper op og ned
+
+- Jan: "kontakten skal ikke vippe fra side til side, men op og ned for ON/OFF og op/midt/ned for ON/OFF/ON".
+- `frontend/src/lib/symbols.ts` — `toggleSwitchSymbol(mid)`: set forfra; grebet tegnes NED og drejes 180° = OP. ON/OFF: OFF = 0 (ned), ON = 1 (op). ON/OFF/ON: OFF = 0 — grebet skjult og kun en **knop** (grebet set for enden) — ON 1 = 1 (op), ON 2 = 2 (ned). Tegningen viser OFF; ON over, OFF/ON 2 under, OFF til højre for midten. `part()` tager nu en liste af animationer (grebet både drejer og skjules).
+- `symbolConfig.ts` — biblioteksforslag for begge (positioner, kontaktplan 0/1 hhv. 1/0/2, Drej og Synlig pr. position på greb og knop — kun tagget skal vælges i trin 2); delnavnet "Knop (midterstilling)". Manualens symboltabel (07) regenereret.
+- **Set i browseren** lokalt: begge opsat gennem guiden (forslaget + tag) og gemt med de forventede positioner/animationer; på Overview: ON/OFF ned ved 0 og op ved 1 (bekræftet); ON/OFF/ON knop ved 0, greb op ved 1, greb ned ved 2. (Test-PLC'en var overbelastet, så visningen skiftede ind imellem til "ukendt position".)
+
 ## [0.96.0 build 0143] — 2026-10-19 — Klassiske vippekontakter ON/OFF og ON/OFF/ON
 
 - `frontend/src/lib/symbols.ts` — `toggleSwitchSymbol(labels)`: monteringsplade, sekskantmøtrik og et greb (usynlig modsat halvdel → vipper om møtrikkens midte), positionernes navne og streger rundt om (vinkler som omskifteren, `selectorAngles`); klik vælger position (`click:select`), så guiden opsætter dem som omskifteren. Nye symboler *Vippekontakt ON/OFF (klassisk)* og *Vippekontakt ON/OFF/ON (klassisk)* (ON 1 / OFF / ON 2 = 0 / 1 / 2). `symbolConfig.ts` — positioner som opsætningsform; tilbyder vælger-eksemplet. Manualens symboltabel (07) regenereret.

@@ -2,6 +2,10 @@
 
 ---
 
+## v0.96.1 — 2026-10-19 — Vippekontakter op og ned
+
+- De klassiske **vippekontakter** vipper nu **op og ned**: ON/OFF er op ved ON og ned ved OFF; ON/OFF/ON er op ved ON 1, ned ved ON 2 og står lige ud (en knop) ved OFF. Guiden foreslår hele opsætningen — vælg blot tagget.
+
 ## v0.96.0 — 2026-10-19 — Klassiske vippekontakter
 
 - Nye symboler **Vippekontakt ON/OFF** og **Vippekontakt ON/OFF/ON** (klassisk model med greb og møtrik) under *Betjening*. De virker som omskifteren: klik for at vælge position, og grebet vipper til den aktive.
