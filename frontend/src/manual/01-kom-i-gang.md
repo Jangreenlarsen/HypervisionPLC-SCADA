@@ -28,7 +28,7 @@ Skriv brugernavn og adgangskode. Er det første gang, eller har en administrator
 | Punkt | Indhold | Hvem |
 | --- | --- | --- |
 | **Drift** | Overview, Alarmer, Trends, Energi | alle |
-| **Opsætning** | Tegninger, Tegn, Bindinger, Tags, Ugeprogrammer, PLC'er | se *Roller* |
+| **Opsætning** | Tegninger, Tegn, Bindinger, Tags, Ugeprogrammer, PLC'er, Symboltest | se *Roller* |
 | **System** | Log, Brugere, Backup, Opdatering | tekniker og admin |
 | **Bruger** | Dit navn og din rolle, Skift adgangskode, Log ud, Manual, version | alle |
 
@@ -41,7 +41,7 @@ Ud for menuerne står hvor du er (**Drift › Overview**), og til højre en **al
 | **Viewer** | Se Overview, alarmer, trends og energi på de tegninger, der er givet adgang til | Betjene noget |
 | **Operatør** | Alt viewer kan, samt betjene det, der er sat op til betjening (skifte positioner, trykknapper, indtaste setpunkter) og kvittere alarmer | Ændre opsætning |
 | **Driftpanel** | Kun drifttegningen i fuld skærm uden menu — til en skærm i produktionen. Kan betjene | Alt andet |
-| **Tekniker** | Alt operatøren kan, samt Tegninger, Tegn, Bindinger, Tags, Ugeprogrammer, PLC'er og Log | Brugere, Backup, Opdatering |
+| **Tekniker** | Alt operatøren kan, samt Tegninger, Tegn, Bindinger, Tags, Ugeprogrammer, PLC'er, Symboltest og Log | Brugere, Backup, Opdatering |
 | **Admin** | Alt, også Brugere, Backup og Opdatering | — |
 
 En administrator kan begrænse viewer, operatør og driftpanel til udvalgte tegninger (se *System*). Reglerne håndhæves af serveren — de er ikke bare skjult i menuen.

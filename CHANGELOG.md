@@ -4,6 +4,21 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.100.0 build 0150] — 2026-10-19 — Symboltest
+
+- `frontend/src/pages/SymbolTest.svelte` (ny) — gitter med alle 94 biblioteksymboler (kategori, søg), stor visning med lys/mørk/skak baggrund og størrelse; vælg del + animation + til/fra eller tal og simulér værdien; symbolets egne animationer kan køres; delene og paletten vises. Ingen PLC, intet gemmes.
+- `frontend/src/lib/symbolTest.ts` (ny) — delene, de erklærede animationer, simulerede bindinger (`applyBinding`) og nulstilling. Test i `symbolTest.test.ts`.
+- `frontend/src/lib/nav.ts`, `App.svelte` — menupunktet Symboltest (Opsætning, tekniker); `nav.test.ts`. Manual (06) og rolleoversigten (01).
+- **Set i browseren** lokalt (API mocket): lampens glas bliver grøn ved Til; motorventilens spindel flytter sig med Flyt på mørk baggrund; symbolerne fylder deres felter. Backend er uændret og ikke kørt.
+
+## [0.99.0 build 0149] — 2026-10-19 — Symbolkvalitet: palette og navngivne dele
+
+- `frontend/src/lib/symbols.ts` — alle hårdkodede farver er erstattet af navngivne konstanter; `SYMBOL_COLORS` er den tilladte palette. Navngivne dele på ventiler (`hus`, `spindel`, `haandhjul`, `haandtag`, `kugle`, `kegle`, `spole`, `membran`, `fjeder`), motor/motor3 (`hus`), lampe/signallampe (`glas`), varmeveksler (`hus`, `veksler`), filter (`hus`, `si`), radiator (`hus`, `finner`).
+- `frontend/src/lib/symbolConfig.ts` — danske navne på de nye dele (`PART_LABEL`).
+- `frontend/src/lib/symbols.test.ts` — test: kun paletfarver i fyld/streg; komponenterne har de navngivne dele og navne.
+- `docs/SYMBOLSTANDARD.md` — nyt afsnit 8 (symbolfarver og navngivne dele). FEATURES.md.
+- Ingen ændring af udseende. Symboler der allerede står i tegninger er uændrede; *Erstat med symbol …* henter den nye udgave med delene. **Kun bygget og testet** (ikke set i browseren — ingen placeringsændring).
+
 ## [0.98.0 build 0148] — 2026-10-19 — Vippekontaktens greb pr. position
 
 - `frontend/src/lib/toggleSwitch.ts` (ny) — stilling pr. position (Op / Midt / Ned) ↔ animationer: Drej @pos (Ned 0°, Op 180°), grebet skjult og knoppen vist i Midt; læser også håndlavede opsætninger (fx 180/90/0°) tilbage; bevarer andre animationer og en valgt hastighed. Test i `toggleSwitch.test.ts`.

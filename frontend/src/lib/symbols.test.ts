@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PART_LABEL } from './symbolConfig';
-import { CATEGORIES, FITTING_LEGS, PIPE_IDS, PIPE_PREVIEW, previewViewBox, selectorAngles, selectorSymbol, SYMBOLS, withName } from './symbols';
+import { CATEGORIES, FITTING_LEGS, PIPE_IDS, PIPE_PREVIEW, previewViewBox, selectorAngles, selectorSymbol, SYMBOL_COLORS, SYMBOLS, withName } from './symbols';
 
 const parse = (fragment: string) =>
   new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${fragment}</svg>`, 'image/svg+xml');
@@ -163,3 +163,34 @@ describe('T-stykke og kryds består af rør (v0.68.0)', () => {
   });
 });
 
+describe('symbolkvalitet (SYMBOLSTANDARD §8)', () => {
+  const hex = (c: string) => (/^#[0-9a-f]{3}$/i.test(c) ? '#' + [...c.slice(1)].map((d) => d + d).join('') : c).toLowerCase();
+  it('kun farver fra symbolpaletten bruges i fyld og streg', () => {
+    const allowed = new Set(SYMBOL_COLORS.map(hex));
+    for (const s of SYMBOLS) {
+      for (const e of parse(s.svg).querySelectorAll('*')) {
+        for (const a of ['fill', 'stroke']) {
+          const v = e.getAttribute(a);
+          if (v && v !== 'none' && v !== 'currentColor') expect(allowed.has(hex(v)), `${s.id}: ${a}="${v}"`).toBe(true);
+        }
+      }
+    }
+  });
+  it('komponenter har navngivne dele, så de kan animeres hver for sig', () => {
+    const must: Record<string, string[]> = {
+      motor: ['hus'], motor3: ['hus'], lampe: ['glas'], signallampe: ['glas'],
+      ventil: ['hus', 'spindel', 'haandhjul'], kugleventil: ['hus', 'kugle', 'haandtag'], kontraventil: ['hus', 'kegle'],
+      trevejsventil: ['hus', 'spindel'], motorventil: ['hus', 'spindel', 'motor'], magnetventil: ['hus', 'spindel', 'spole'],
+      regventil: ['hus', 'spindel', 'membran'], sikkerhedsventil: ['hus', 'fjeder'],
+      varmeveksler: ['hus', 'veksler'], filter: ['hus', 'si'], radiator: ['hus', 'finner'],
+    };
+    for (const [id, parts] of Object.entries(must)) {
+      const def = SYMBOLS.find((s) => s.id === id)!;
+      const ids = [...parse(def.svg).querySelectorAll('[id]')].map((e) => e.id);
+      for (const p of parts) {
+        expect(ids, `${id} mangler delen ${p}`).toContain(p);
+        expect(PART_LABEL[p], `${id}: delen ${p} mangler dansk navn`).toBeTruthy();
+      }
+    }
+  });
+});

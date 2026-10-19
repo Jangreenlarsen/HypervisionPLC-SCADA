@@ -18,6 +18,7 @@
   import Energy from './pages/Energy.svelte';
   import Schedules from './pages/Schedules.svelte';
   import Trends from './pages/Trends.svelte';
+  import SymbolTest from './pages/SymbolTest.svelte';
   import { LiveClient } from './lib/live';
   import Login from './pages/Login.svelte';
   import ChangePassword from './pages/ChangePassword.svelte';
@@ -220,6 +221,8 @@
     <Drawings {canEdit} />
   {:else if page === 'tags'}
     <Tags {canEdit} />
+  {:else if page === 'symboltest'}
+    <SymbolTest />
   {:else if page === 'plcs'}
     <Plcs isAdmin={me.role === 'admin'} />
   {:else if page === 'audit'}

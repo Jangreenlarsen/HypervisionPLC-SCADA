@@ -155,3 +155,8 @@ Skal mange symboler have samme opsætning (fx løbelys på alle rør, bøjninger
 **Kopiér og indsæt i Tegn:** du kan også gøre det direkte på tegningen. Vælg det symbol, der er sat op, og tryk **Kopiér opsætning** i panelet *Valgt element*. Vælg derefter et eller flere andre symboler (hold **Shift** nede, eller træk en ramme) og tryk **Indsæt opsætning**. Har et af dem allerede en opsætning, spørger systemet, før den overskrives. Har tegningen ændringer, der ikke er gemt, gemmes og udgives den først. Har nogle af de valgte elementer **intet navn**, får de kildens navn med løbenummer — fx *varme pumpe tilgang_1*, *varme pumpe tilgang_2* … i tegningens rækkefølge (numre der allerede er brugt, springes over) — og derefter opsætningen. Du kan omdøbe dem bagefter.
 
 Hvert symbol får sin **egen kopi** — du kan bagefter rette det enkelte symbol i guiden uden at røre de andre. Animationer på en bestemt del af symbolet følger kun med, hvis det andet symbol har en del med samme navn; **nøglelåsen** og dens kode kopieres ikke.
+
+
+## Symboltest
+
+Siden **Symboltest** (rollen tekniker, under **Opsætning**) afprøver et biblioteksymbol uden PLC. Vælg symbolet i gitteret, og vælg derefter en **del**, en **animation** og om tagget er til/fra eller et tal. Knapperne *Fra* og *Til* og skyderen simulerer værdien, så du kan se farve, blink, drejning, flytning og niveau med det samme. *Symbolets egne animationer* kører dem, symbolet selv har (fx vippekontaktens greb). Skift baggrund (lys, mørk, skak) for at se kontrasten, og brug størrelsen til at se detaljer. *Nulstil* sætter symbolet tilbage. Intet gemmes.

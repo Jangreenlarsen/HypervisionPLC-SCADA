@@ -8,7 +8,7 @@ describe('hovedmenuen', () => {
     expect(ids('viewer')).toEqual(['drift:overview,alarms,trends,energy', 'setup:drawings,tags']);
     expect(ids('operator')).toEqual(ids('viewer'));
     expect(ids('engineer')).toEqual([
-      'drift:overview,alarms,trends,energy', 'setup:drawings,draw,editor,tags,schedules,plcs', 'system:audit']);
+      'drift:overview,alarms,trends,energy', 'setup:drawings,draw,editor,tags,schedules,plcs,symboltest', 'system:audit']);
     expect(ids('admin').at(-1)).toBe('system:audit,users,backup,update');
     expect(ids(undefined)).toEqual([]);
   });

@@ -19,6 +19,7 @@ export const NAV: NavGroup[] = [
     { id: 'tags', label: 'Tags', role: 'viewer', icon: 'tags' },
     { id: 'schedules', label: 'Ugeprogrammer', role: 'engineer', icon: 'schedules' },
     { id: 'plcs', label: "PLC'er", role: 'engineer', icon: 'plcs' },
+    { id: 'symboltest', label: 'Symboltest', role: 'engineer', icon: 'symboltest' },
   ] },
   { id: 'system', label: 'System', pages: [
     { id: 'audit', label: 'Log', role: 'engineer', icon: 'audit' },
@@ -77,6 +78,7 @@ export const NAV_ICON: Record<string, string> = {
   backup: '<path d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z"/><path d="M4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   update: '<path d="M12 3v12"/><path d="M7 10l5-5 5 5"/><path d="M4 15v4h16v-4"/>',
   manual: '<path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M8 4v13a3 3 0 0 0-3 3"/><path d="M10 8h5M10 12h5"/>',
+  symboltest: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/><path d="M8 15h8"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>',
