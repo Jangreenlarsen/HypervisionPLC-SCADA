@@ -1,7 +1,7 @@
 // Trendgraf i tegningen (v0.91.0): tegner grafen inde i symbolets ramme på Overview og henter historikken igen løbende.
 // Geometrien kommer fra chartGraphic.ts (ren og testet); her er kun DOM og hentning.
 import { get } from './api';
-import { axisNumber, axisTime, chartLayout, chartPoints, refreshSeconds, type ChartCfg, type Point } from './chartGraphic';
+import { axisNumber, axisTime, chartLayout, chartPoints, legendOf, refreshSeconds, type ChartCfg, type Point } from './chartGraphic';
 import { SERIES_COLORS } from './trendData';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -56,17 +56,23 @@ export function mountCharts(root: SVGSVGElement | null, symbols: Record<string, 
       const start = data?.start ?? Date.now() / 1000 - cfg.range_s, end = data?.end ?? Date.now() / 1000;
       const l = chartLayout(box, series, start, end, cfg);
       const f = l.font, p = l.plot;
-      // titel / forklaring: hvert tag i sin farve med seneste værdi
-      const title = el('text', { x: box.x + box.w / 2, y: box.y + f * 1.3, 'text-anchor': 'middle', 'font-size': f, 'font-weight': 600, fill: '#333' });
-      if (cfg.title) title.appendChild(el('tspan', {}, cfg.title));
-      cfg.tags.forEach((t, i) => {
-        const v = latest(series[i]);
-        const unit = meta[t]?.unit ? ` ${meta[t]!.unit}` : '';
-        // mellemrum med dx — SVG slår flere mellemrum sammen til ét
-        title.appendChild(el('tspan', { fill: SERIES_COLORS[i % SERIES_COLORS.length], ...(i || cfg.title ? { dx: f * 0.9 } : {}) },
-          `${cfg.title && cfg.tags.length === 1 ? '' : `${label(t)} `}${v === null ? '—' : axisNumber(v) + unit}`));
-      });
-      g.appendChild(title);
+      // titel / forklaring: hvert tag i sin farve (evt. med seneste værdi) — over, under eller skjult (v0.93.0)
+      const lg = legendOf(cfg);
+      if (l.legendY !== null) {
+        const lf = l.legendFont;
+        const title = el('text', { x: box.x + box.w / 2, y: l.legendY, 'text-anchor': 'middle', 'font-size': lf, 'font-weight': lg.bold ? 600 : 400, fill: '#333' });
+        if (cfg.title) title.appendChild(el('tspan', {}, cfg.title));
+        cfg.tags.forEach((t, i) => {
+          const v = latest(series[i]);
+          const unit = meta[t]?.unit ? ` ${meta[t]!.unit}` : '';
+          const name = cfg.title && cfg.tags.length === 1 ? '' : label(t);
+          const value = lg.values ? (v === null ? '—' : axisNumber(v) + unit) : '';
+          // mellemrum med dx — SVG slår flere mellemrum sammen til ét
+          title.appendChild(el('tspan', { fill: SERIES_COLORS[i % SERIES_COLORS.length], ...(i || cfg.title ? { dx: lf * 0.9 } : {}) },
+            [name, value].filter(Boolean).join(' ') || label(t)));
+        });
+        g.appendChild(title);
+      }
       // akser
       g.appendChild(el('path', { d: `M${p.x} ${p.y} V${p.y + p.h} H${p.x + p.w}`, fill: 'none', stroke: '#9a9a9a', 'stroke-width': 1 }));
       const small = { 'font-size': f * 0.85, fill: '#555' };

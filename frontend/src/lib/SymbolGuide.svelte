@@ -12,7 +12,7 @@
   import SymbolCopy from './SymbolCopy.svelte';
   import TagAlarm from './TagAlarm.svelte';
   import TagSelect from './TagSelect.svelte';
-  import { CHART_RANGES, MAX_CHART_TAGS, defaultChart } from './chartGraphic';
+  import { CHART_RANGES, FONT_SCALES, LEGEND_PLACES, MAX_CHART_TAGS, defaultChart, legendOf } from './chartGraphic';
   import { SELECTOR_TYPES, selectorMismatch } from './selectorRedraw';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
@@ -628,7 +628,8 @@
             <p class="small muted">Historikken for 1–{MAX_CHART_TAGS} tags vises i symbolets ramme på Overview — som kurve eller søjler — og opdateres løbende. Tagsene skal gemme historik (slå det til i trin 6).</p>
             <div class="row wrap">
               {#each Array.from({ length: Math.min(MAX_CHART_TAGS, ch.tags.length + 1) }, (_, k) => k) as i (i)}
-                <label class="opt small">Tag {i + 1} <TagSelect value={ch.tags[i] ?? ''} {tags} placeholder={i === 0 ? '— vælg tag —' : '— ingen —'} onchange={(v) => setChartTag(i, v)} /></label>
+                <span class="opt small"><label class="opt small">Tag {i + 1} <TagSelect value={ch.tags[i] ?? ''} {tags} placeholder={i === 0 ? '— vælg tag —' : '— ingen —'} onchange={(v) => setChartTag(i, v)} /></label>
+                  {#if ch.tags[i]}<button class="small" onclick={() => setChartTag(i, '')} aria-label="Fjern {ch.tags[i]} fra grafen" title="Fjern tagget fra grafen">✕</button>{/if}</span>
               {/each}
             </div>
             <div class="row wrap">
@@ -639,6 +640,16 @@
               <label class="opt small">Y-akse fra <input class="n" value={ch.y_min ?? ''} placeholder="auto" onchange={(e) => (ch.y_min = yLimit(e.currentTarget.value))} /></label>
               <label class="opt small">til <input class="n" value={ch.y_max ?? ''} placeholder="auto" onchange={(e) => (ch.y_max = yLimit(e.currentTarget.value))} /></label>
               <label class="opt small">Titel <input class="lbl" bind:value={ch.title} maxlength="60" placeholder="tagenes navne" /></label>
+            </div>
+            {@const lg = legendOf(ch)}
+            <div class="row wrap">
+              <span class="small muted">Tekst med tagene:</span>
+              <label class="opt small">Placering <select value={lg.place} onchange={(e) => (ch.legend = e.currentTarget.value as 'top' | 'bottom' | 'none')}>{#each LEGEND_PLACES as pl (pl.id)}<option value={pl.id}>{pl.label}</option>{/each}</select></label>
+              {#if lg.place !== 'none'}
+                <label class="opt small">Størrelse <select value={String(lg.scale)} onchange={(e) => (ch.font_scale = Number(e.currentTarget.value))}>{#each FONT_SCALES as f (f.v)}<option value={String(f.v)}>{f.label}</option>{/each}</select></label>
+                <label class="opt small"><input type="checkbox" checked={lg.bold} onchange={(e) => (ch.bold = e.currentTarget.checked)} /> Fed</label>
+                <label class="opt small"><input type="checkbox" checked={lg.values} onchange={(e) => (ch.values = e.currentTarget.checked)} /> Vis seneste værdi</label>
+              {/if}
             </div>
           {:else if symbol?.type === 'trendgraf'}
             <p class="small"><button class="small" onclick={() => (cfg.chart = defaultChart())}>+ Graf</button> <span class="muted">Symbolet kan vise en graf over tagenes historik.</span></p>

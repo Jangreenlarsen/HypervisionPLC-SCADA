@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { axisNumber, axisTime, chartLayout, chartPoints, defaultChart, refreshSeconds, yRange, type Point } from './chartGraphic';
+import { axisNumber, axisTime, chartLayout, chartPoints, defaultChart, legendOf, refreshSeconds, yRange, type Point } from './chartGraphic';
 
 const box = { x: 0, y: 0, w: 220, h: 110 };   // font 10 → plot x 32, y 19, w 182, h 74
 
@@ -42,5 +42,21 @@ describe('trendgraf i tegningen (v0.91.0)', () => {
     const t = new Date(2026, 9, 18, 7, 5).getTime() / 1000;
     expect(axisTime(t, 3600)).toBe('07:05');
     expect(axisTime(t, 7 * 86400)).toBe('18/10 07:05');
+  });
+});
+
+describe('forklaringen i trendgrafen (v0.93.0)', () => {
+  const base = { ...defaultChart(), y_min: 0, y_max: 100 };
+  it('over (standard — også for grafer gemt før), under og skjult flytter plot-området', () => {
+    const { legend: _l, font_scale: _f, bold: _b, values: _v, ...old } = base;   // gemt før v0.93.0: ingen af felterne
+    expect(chartLayout(box, [], 0, 100, old as typeof base)).toMatchObject({ plot: { x: 32, y: 19, w: 182, h: 74 }, legendY: 13 });
+    expect(chartLayout(box, [], 0, 100, { ...base, legend: 'bottom' })).toMatchObject({ plot: { y: 8, h: 69 }, legendY: 105.5 });
+    expect(chartLayout(box, [], 0, 100, { ...base, legend: 'none' })).toMatchObject({ plot: { y: 8, h: 85 }, legendY: null });
+  });
+  it('større tekst giver mere plads til forklaringen', () => {
+    const l = chartLayout(box, [], 0, 100, { ...base, font_scale: 1.7 });
+    expect(l.legendFont).toBe(17);
+    expect(l.plot.y).toBeCloseTo(30.2, 1);
+    expect(legendOf({})).toEqual({ place: 'top', scale: 1, bold: true, values: true });
   });
 });

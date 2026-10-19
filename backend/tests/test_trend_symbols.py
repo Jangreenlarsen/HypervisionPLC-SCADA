@@ -75,6 +75,14 @@ def test_trend_chart_config(api):
                      ({"tags": ["Tryk", "Drift", "Start", "Lys", "Tryk"]}, "")]:
         r = api.put(base, json={"config": {"op": "view", "chart": bad}})
         assert r.status_code == 400 and why in r.text, (bad, r.text)
+    # forklaringens opsætning (v0.93.0): standard + grænser
+    r = api.put(base, json={"config": {"op": "view", "chart": {**chart, "legend": "bottom", "font_scale": 1.5, "bold": False, "values": False}}})
+    assert r.status_code == 200 and r.json()["config"]["chart"]["legend"] == "bottom"
+    for bad in ({"legend": "venstre"}, {"font_scale": 5}):
+        assert api.put(base, json={"config": {"op": "view", "chart": {**chart, **bad}}}).status_code == 400
+    r = api.put(base, json={"config": {"op": "view", "chart": chart}})
+    got = r.json()["config"]["chart"]
+    assert {k: got[k] for k in ("legend", "font_scale", "bold", "values")} == {"legend": "top", "font_scale": 1.0, "bold": True, "values": True}
     view = api.get(f"/api/drawings/{api.did}/view").json()
     assert view["symbol_config"]["L1"]["chart"]["style"] == "bar"
     assert {"Tryk", "Drift"} <= set(view["tags"])

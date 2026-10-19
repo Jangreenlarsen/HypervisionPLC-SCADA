@@ -9,7 +9,24 @@ export interface ChartCfg {
   y_min: number | null;
   y_max: number | null;
   title: string;
+  /** Forklaringen med tagenes navne og værdier (v0.93.0) — mangler i grafer gemt før. */
+  legend?: 'top' | 'bottom' | 'none';
+  font_scale?: number;
+  bold?: boolean;
+  values?: boolean;
 }
+
+export const LEGEND_PLACES: { id: 'top' | 'bottom' | 'none'; label: string }[] = [
+  { id: 'top', label: 'over grafen' }, { id: 'bottom', label: 'under grafen' }, { id: 'none', label: 'skjult' },
+];
+export const FONT_SCALES: { v: number; label: string }[] = [
+  { v: 0.8, label: 'lille' }, { v: 1, label: 'normal' }, { v: 1.3, label: 'stor' }, { v: 1.7, label: 'meget stor' },
+];
+
+/** Forklaringens opsætning med standardværdier (også for grafer gemt før v0.93.0). */
+export const legendOf = (c: Partial<ChartCfg>) => ({
+  place: c.legend ?? 'top', scale: c.font_scale ?? 1, bold: c.bold ?? true, values: c.values ?? true,
+});
 
 export const CHART_RANGES: { s: number; label: string }[] = [
   { s: 900, label: '15 min' }, { s: 3600, label: '1 time' }, { s: 8 * 3600, label: '8 timer' },
@@ -17,7 +34,8 @@ export const CHART_RANGES: { s: number; label: string }[] = [
 ];
 export const MAX_CHART_TAGS = 4;
 
-export const defaultChart = (): ChartCfg => ({ tags: [], range_s: 3600, style: 'line', bars: 24, y_min: null, y_max: null, title: '' });
+export const defaultChart = (): ChartCfg => ({ tags: [], range_s: 3600, style: 'line', bars: 24, y_min: null, y_max: null, title: '',
+  legend: 'top', font_scale: 1, bold: true, values: true });
 
 /** Antal punkter at hente: én pr. søjle, ellers nok til en jævn kurve. */
 export const chartPoints = (c: Pick<ChartCfg, 'style' | 'bars'>): number => (c.style === 'bar' ? c.bars : 120);
@@ -39,6 +57,9 @@ export interface ChartLayout {
   /** Søjler: serie-nummer og rektangel. */
   bars: { series: number; x: number; y: number; w: number; h: number }[];
   font: number;
+  /** Forklaringens skriftstørrelse og grundlinje (null = skjult). */
+  legendFont: number;
+  legendY: number | null;
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -67,8 +88,14 @@ export function yRange(series: Point[][], cfg: Pick<ChartCfg, 'style' | 'y_min' 
 /** Geometrien inde i rammen `box` for tidsrummet [start, end]. */
 export function chartLayout(box: Box, series: Point[][], start: number, end: number, cfg: ChartCfg): ChartLayout {
   const font = Math.max(6, Math.min(11, box.h / 11));
-  // plads til titel/forklaring foroven, tal til venstre og tider forneden
-  const plot: Box = { x: box.x + font * 3.2, y: box.y + font * 1.9, w: Math.max(10, box.w - font * 3.8), h: Math.max(10, box.h - font * 3.6) };
+  // plads til forklaringen (over eller under), tal til venstre og tider forneden
+  const lg = legendOf(cfg);
+  const lf = r1(font * lg.scale);
+  const legendH = lg.place === 'none' ? 0 : lf * 1.6;
+  const top = lg.place === 'top' ? legendH + font * 0.3 : font * 0.8;
+  const bottom = font * 1.7 + (lg.place === 'bottom' ? legendH : 0);
+  const plot: Box = { x: box.x + font * 3.2, y: box.y + top, w: Math.max(10, box.w - font * 3.8), h: Math.max(10, box.h - top - bottom) };
+  const legendY = lg.place === 'top' ? r1(box.y + lf * 1.3) : lg.place === 'bottom' ? r1(box.y + box.h - lf * 0.45) : null;
   const [yMin, yMax] = yRange(series, cfg);
   const span = Math.max(1e-9, end - start);
   const X = (t: number) => r1(plot.x + ((Math.min(end, Math.max(start, t)) - start) / span) * plot.w);
@@ -101,7 +128,7 @@ export function chartLayout(box: Box, series: Point[][], start: number, end: num
       }
     });
   }
-  return { plot, yMin, yMax, lines, bars, font: r1(font) };
+  return { plot, yMin, yMax, lines, bars, font: r1(font), legendFont: lf, legendY };
 }
 
 /** Tal på Y-aksen: højst 3 betydende cifre efter kommaet, dansk komma. */

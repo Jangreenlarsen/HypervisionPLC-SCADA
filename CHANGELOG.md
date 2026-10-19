@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.93.0 build 0139] — 2026-10-19 — Trendgrafens tekst kan sættes op; tags fjernes med ✕
+
+- `backend/app/services/symbols.py` — `Chart`: `legend` (top/bottom/none), `font_scale` (0,5–3), `bold`, `values`. Test i `test_trend_symbols.py`.
+- `frontend/src/lib/chartGraphic.ts` — `legendOf()` (standardværdier, også for grafer gemt før), plot-området flyttes efter forklaringens placering og størrelse; `LEGEND_PLACES`, `FONT_SCALES`. Test. `chartRender.ts` — forklaringen over/under/skjult, størrelse, fed, med/uden værdi.
+- `SymbolGuide.svelte` — *Tekst med tagene* (Placering, Størrelse, Fed, Vis seneste værdi) og **✕** ud for hvert valgt tag (Jan: "hvordan sletter man tags sat på" — før kun via *— ingen —* i listen). Manual (06).
+- **Set i browseren** lokalt: ✕ på det midterste af tre tags → de to andre gemmes; forklaringen under grafen, stor, fed, uden værdier på Overview.
+
 ## [0.92.0 build 0138] — 2026-10-19 — Tegningens størrelse og mere intuitive tegneværktøjer
 
 - **Størrelse:** `frontend/svgedit-host/scada-editor.js` — `getSize()`, `setSize(w, h, fit, margin)` (ét fortryd-trin; en baggrund der fyldte tegningen følger med; "tilpas" flytter indholdet op i hjørnet og ser bort fra baggrunden), `syncContentSize()` efter hver ændring (rettelse af SVG-Edits fortryd for størrelsen). `frontend/src/lib/drawingSize.ts` (ny, testet): faste valg og kontrol af bredde/højde. `DrawEditor.svelte` — knappen **Størrelse: B × H** med panel (fast valg, bredde/højde, Tilpas til indholdet med margen).

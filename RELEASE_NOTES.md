@@ -2,6 +2,11 @@
 
 ---
 
+## v0.93.0 — 2026-10-19 — Trendgrafens tekst
+
+- Teksten med tagenes navne i **Trendgraf** kan nu placeres **over** eller **under** grafen eller skjules, og have større/mindre skrift, fed og med/uden seneste værdi.
+- Et tag fjernes fra grafen med **✕** i guiden.
+
 ## v0.92.0 — 2026-10-19 — Tegningens størrelse og danske tegneværktøjer
 
 - **Tegningens størrelse** kan ændres i Tegn (knappen **Størrelse** øverst): faste valg som Full HD, egen bredde/højde, eller **Tilpas til indholdet**.
