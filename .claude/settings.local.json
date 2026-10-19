@@ -1,5 +1,6 @@
 {
   "model": "opusplan",
+  "effortLevel": "medium",
   "permissions": {
     "defaultMode": "bypassPermissions",
     "deny": [
