@@ -17,7 +17,7 @@
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
     ALARM_TXT, ANIM_TXT, ON, WHEN_TYPES, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
-    activeAt, animDefaults, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
+    activeAt, animDefaults, keepSuggestion, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, allowedOps, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
@@ -358,9 +358,12 @@
     a.params = animDefaults(type, 'bool', n);
     cfg.anims.push(a);
   }
-  function resetParams(a: Anim): void {
+  /** Nye standardindstillinger efter skift af del/type/kilde. `wasSrc`: kilden før skiftet — vælges det første tag til et
+   *  forslag fra biblioteket (fx kontaktens knive: 32°), beholdes forslagets indstillinger, når de passer (v0.94.0). */
+  function resetParams(a: Anim, wasSrc?: string): void {
     if (!typesFor(partInfo(a.part)).includes(a.type)) a.type = 'fill';
-    a.params = animDefaults(a.type, srcKind(a), n);
+    const fresh = animDefaults(a.type, srcKind(a), n);
+    if (!keepSuggestion(wasSrc, a.params, fresh)) a.params = fresh;
     if (a.src !== POS) a.only = isPos ? a.only : null;
   }
   function moveAnim(i: number, d: -1 | 1): void {
@@ -716,7 +719,7 @@
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
                   {#if !['level', 'opacity', 'scale', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
                 </select>
-                {#if srcMode(a) === 'tag'}<TagSelect bind:value={a.src} {tags} onchange={() => resetParams(a)} />{/if}
+                {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
                 {#if srcMode(a) === 'alarm'}
                   {@const al = parseAlarmRef(a.src)!}
                   <select value={al.kind} onchange={(e) => (a.src = alarmRef(e.currentTarget.value as 'active' | 'unack', al.tag))} aria-label="Alarmtilstand">

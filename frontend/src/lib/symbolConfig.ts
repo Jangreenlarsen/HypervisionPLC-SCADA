@@ -16,6 +16,7 @@ export interface LogicInput { src: string; neg: boolean; cmp: Cmp; value: number
 export interface PoolBlock { element: string; symbol: string; id: string; name: string }
 export interface LogicBlock { id: string; name: string; op: 'and' | 'or'; inputs: LogicInput[]; invert: boolean }
 import { defaultChart, type ChartCfg } from './chartGraphic';
+import { KNIV_LUKKET } from './symbols';
 
 export interface SymbolConfig {
   type: string; op: Op; positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
@@ -67,7 +68,7 @@ export const BLINK_TXT: Record<string, string> = { slow: 'Langsom (0,5 Hz)', nor
 export const PART_LABEL: Record<string, string> = {
   greb: 'Greb', vippe: 'Vippe', spor: 'Spor', flade: 'Knap', tekst: 'Tekst', vaerdi: 'Værdi', status: 'Status',
   felt: 'Felt', port_a: 'Port A', port_b: 'Port B', port_ab: 'Port AB', motor: 'Motor',
-  lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive', pil: 'Pil', loebehjul: 'Løbehjul',
+  lampe: 'Lampe', fyld: 'Fyld', soejle: 'Søjle', rotor: 'Rotor', flamme: 'Flamme', viser: 'Viser', skive: 'Skive', pil: 'Pil', loebehjul: 'Løbehjul', kniv1: 'Kniv 1', kniv2: 'Kniv 2', kniv3: 'Kniv 3',
   tilloeb1: 'Tilløbsrør 1', tilloeb2: 'Tilløbsrør 2', midte: 'Midterrør', roer1: 'Rør 1', roer2: 'Rør 2', roer3: 'Rør 3', roer4: 'Rør 4',
 };
 
@@ -130,6 +131,15 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     if (!flamme) return null;
     cfg.anims.push({ part: flamme, type: 'flicker', src: '', params: animDefaults('flicker', 'bool', 0), only: null });
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: flammen bliver orange og blafrer, når brænderen kører. Vælg drifts-tagget under trin 4.' };
+  }
+  if (symbol.type === 'kontakt2' || symbol.type === 'kontakt3') {
+    // Lukket ved Til (v0.94.0): hver kniv drejer KNIV_LUKKET° om sit hængsel — vælg samme tag for alle knive i trin 4
+    for (const pid of ['kniv1', 'kniv2', 'kniv3']) {
+      const part = partOf(pid);
+      if (part) cfg.anims.push({ part, type: 'rotate', src: '', params: { min: 0, max: 1, angle_min: 0, angle_max: KNIV_LUKKET }, only: null });
+    }
+    if (!cfg.anims.length) return null;
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: knivene lukker, når tagget er Til. Vælg samme tag (fx kontaktens tilbagemelding) for alle knive under trin 4.' };
   }
   if (symbol.type === 'trendgraf') {
     cfg.chart = defaultChart();
@@ -196,7 +206,7 @@ const OPS_BY_TYPE: Record<string, Op[]> = {
   kugleventil: SWITCH, motorventil: SWITCH, magnetventil: SWITCH, regventil: ['view', 'entry'],
   trevejs_motorventil: ['view', 'positions'], trevejs_motorventil_ab: ['view', 'positions'],
   // maskiner og kontakter: start/stop (frekvensomformer også en hastighed)
-  trendgraf: VIEW,
+  trendgraf: VIEW, kontakt2: SWITCH, kontakt3: SWITCH,
   pumpe: SWITCH, motor: SWITCH, ventilator: SWITCH, kontaktor: SWITCH, hovedafbryder: SWITCH, dc_afbryder: SWITCH, ac_afbryder: SWITCH,
   elbillader: SWITCH, frekvensomformer: [...SWITCH, 'entry'],
   // kun visning: rør, fittings, beholdere, målere, lamper og statusfelter, passive el- og solcelledele
@@ -310,6 +320,16 @@ export function typesFor(part: PartInfo | undefined): AnimType[] {
   if (part?.tag === 'text' || part?.tag === 'tspan') t.push('text');
   if (part?.line) t.push('flow');
   return t;
+}
+
+/**
+ * Behold et biblioteksforslags indstillinger, når det FØRSTE tag vælges (kilden var tom), og indstillingerne har samme
+ * felter som standarden for den nye kilde (v0.94.0). Ellers ville valget af tag nulstille forslaget (fx 32° → 90°).
+ */
+export function keepSuggestion(wasSrc: string | undefined, params: Record<string, any>, fresh: Record<string, any>): boolean {
+  if (wasSrc !== '') return false;
+  const a = Object.keys(params ?? {}).sort(), b = Object.keys(fresh).sort();
+  return a.length > 0 && a.length === b.length && a.every((k, i) => k === b[i]);
 }
 
 /** Standardparametre for en animation ud fra kilden (prototypens animDefaults). */

@@ -2,6 +2,11 @@
 
 ---
 
+## v0.94.0 — 2026-10-19 — Kontakter med 2 og 3 poler
+
+- Nye symboler **Kontakt 2-polet** og **Kontakt 3-polet** (El): knivene lukker synligt, når tagget er Til. Guiden foreslår animationen — vælg blot tagget.
+- Rettet: når man valgte tagget til et forslag fra symbolbiblioteket, blev forslagets indstillinger nulstillet.
+
 ## v0.93.0 — 2026-10-19 — Trendgrafens tekst
 
 - Teksten med tagenes navne i **Trendgraf** kan nu placeres **over** eller **under** grafen eller skjules, og have større/mindre skrift, fed og med/uden seneste værdi.

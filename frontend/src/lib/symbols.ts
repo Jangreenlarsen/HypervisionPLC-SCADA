@@ -441,6 +441,14 @@ export const SYMBOLS: SymbolDef[] = [
       `${wire('M14 33 H76', ' stroke-dasharray="4 3"')}${text(98, 40, 'K1', 13, '', 'start')}</g>`,
   },
   {
+    id: 'kontakt2', label: 'Kontakt 2-polet', category: 'el', hint: 'Knivene lukker, når tagget er Til (guiden foreslår "Drej" på hver kniv)',
+    svg: contactSymbol(2),
+  },
+  {
+    id: 'kontakt3', label: 'Kontakt 3-polet', category: 'el', hint: 'Knivene lukker, når tagget er Til (guiden foreslår "Drej" på hver kniv)',
+    svg: contactSymbol(3),
+  },
+  {
     id: 'spole', label: 'Relæ-/kontaktorspole', category: 'el', hint: 'Bind "Fyldfarve" til spolen er aktiv',
     svg: `<g>${wire('M30 0 V14 M30 46 V60')}<rect x="10" y="14" width="40" height="32" fill="${PANEL}" stroke="${DARK}" stroke-width="2.5"/>` +
       `${text(30, 35, 'K1', 14)}</g>`,
@@ -596,6 +604,21 @@ export const SYMBOLS: SymbolDef[] = [
     svg: `<g><path d="M0 18 H70 V4 L100 30 L70 56 V42 H0 Z" fill="${FILL}" stroke="${LINE}" stroke-width="2.5" stroke-linejoin="round"/></g>`,
   },
 ];
+
+/**
+ * Kontakt med n poler (v0.94.0), tegnet ÅBEN (sluttekontakt). Hver pols kniv (`kniv1`…) er hængslet forneden i (x, 52) og
+ * peger skråt op til venstre (længde 30); drejet KNIV_LUKKET grader med uret står den lodret mod den faste kontakt (x, 22).
+ * Kniven har en usynlig modsat halvdel, så dens boks har midten i hængslet — "Drej" drejer om boksens midte.
+ */
+export const KNIV_LUKKET = 32;
+export function contactSymbol(n: number): string {
+  const xs = Array.from({ length: n }, (_, i) => 16 + i * 30);
+  const poles = xs.map((x, i) =>
+    wire(`M${x} 0 V22 M${x - 5} 22 H${x + 5} M${x} 52 V74`) +
+    `<g id="kniv${i + 1}">${wire(`M${x} 52 L${x - 16} 26.6`)}<path d="M${x} 52 L${x + 16} 77.4" fill="none" stroke="none"/></g>`).join('');
+  const link = wire(`M${xs[0] - 8} 39 H${xs[n - 1] - 8}`, ' stroke-dasharray="4 3"');
+  return `<g>${poles}${link}${text(xs[n - 1] + 14, 43, 'Q1', 13, '', 'start')}</g>`;
+}
 
 /** Vinkler (grader, 0 = op, med uret) for n positioner — fordelt symmetrisk om lodret. */
 export function selectorAngles(n: number): number[] {

@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.94.0 build 0140] — 2026-10-19 — Kontakt 2-polet og 3-polet
+
+- `frontend/src/lib/symbols.ts` — `contactSymbol(n)`: *Kontakt 2-polet* og *Kontakt 3-polet* (El), tegnet åbne; hver kniv (`kniv1…`) har en usynlig modsat halvdel, så "Drej" drejer om hængslet; `KNIV_LUKKET` = 32°. `symbolConfig.ts` — delnavnene "Kniv 1-3", biblioteksforslaget (Drej på hver kniv ved Til) og `keepSuggestion()` (testet). `SymbolGuide.svelte` — valget af det første tag beholder forslagets indstillinger (BUGS.md). Manualens symboltabel (07) regenereret.
+- **Set i browseren** lokalt: begge sat ind i Tegn; 3-polet opsat i guiden (forslaget + samme tag på alle knive), 2-polet via API; på Overview er knivene åbne ved Fra og står lodret mod den faste kontakt ved Til (drejet om hængslet: `rotate(32 16 52)`).
+
 ## [0.93.0 build 0139] — 2026-10-19 — Trendgrafens tekst kan sættes op; tags fjernes med ✕
 
 - `backend/app/services/symbols.py` — `Chart`: `legend` (top/bottom/none), `font_scale` (0,5–3), `bold`, `values`. Test i `test_trend_symbols.py`.
