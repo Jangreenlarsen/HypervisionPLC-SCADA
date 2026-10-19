@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.102.0 build 0152] — 2026-10-19 — Trends: Skjul spikes udfylder med interpolation
+
+- `frontend/src/lib/trendAnalysis.ts` + test — `hideSpikes` erstatter spikes med lineær interpolation mellem nærmeste gode naboer (hold værdi ved kanten) i stedet for huller; rådata uændrede.
+- `frontend/src/pages/Trends.svelte` — tekster opdateret.
+- Kun frontend. **Kun bygget og testet** (ikke set i browseren).
+
 ## [0.101.0 build 0151] — 2026-10-19 — Trends: 12 kurver og dataanalyse
 
 - `frontend/src/lib/trendData.ts` — `MAX_SERIES` 7 → 12; `colorOf`/`dashOf`: farver genbruges, kurve 8-12 er stiplet; `assignColors` har max-parameter (Energy bruger stadig 7).

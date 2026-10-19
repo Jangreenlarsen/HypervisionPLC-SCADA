@@ -3,6 +3,7 @@ name: implementer
 description: Implementerer en afgrænset opgave ud fra en færdig plan (fx PLAN.md). Brug når planen er godkendt og opgaven er klart beskrevet.
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: sonnet
+effort: medium
 ---
 
 Du implementerer præcis det, opgaven beskriver, og intet andet.

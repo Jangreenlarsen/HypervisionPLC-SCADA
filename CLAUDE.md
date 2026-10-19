@@ -17,7 +17,7 @@ Struktur og lag: se `ARCHITECTURE.md` (læs kun når opgaven rører arkitektur).
 
 ## Modeller og agenter
 
-Standardmodel er `opusplan` (i `.claude/settings.local.json`): Opus i plan mode, Sonnet ved implementering.
+Standardmodel er `opusplan` (i `.claude/settings.local.json`): Opus i plan mode, Sonnet ved implementering. Tænkeniveau (effort) er **medium** (`effortLevel` i settings; agenten `implementer` har `effort: medium`) — aldrig low.
 
 - **Plan/design/analyse (Opus)**: Større opgaver planlægges først i plan mode. Gem planen i `PLAN.md` (mål, trin, berørte filer, risici), så en ny session kan fortsætte uden at gentage kontekst. Ved arkitekturvalg: 2-3 alternativer med kompromiser, vælg ét og noter beslutningen kort.
 - **Implementering (Sonnet)**: Små og mellemstore opgaver løses direkte. Afgrænsede opgaver ud fra en godkendt plan kan delegeres til agenten `implementer`.

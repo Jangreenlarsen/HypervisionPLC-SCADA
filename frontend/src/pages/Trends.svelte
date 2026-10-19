@@ -394,7 +394,7 @@
   {#if selected.length && exportUrl}<a class="btn" href={exportUrl} download>CSV</a>{/if}
   <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>
   {#if analyse}
-    <label class="row small" title="Gør enkeltstående spikes til huller i visningen — de gemte data ændres ikke"><input type="checkbox" bind:checked={hide} onchange={() => saveFlag('trend.hideSpikes', hide)} /> Skjul spikes</label>
+    <label class="row small" title="Udfylder enkeltstående spikes med interpolerede værdier i visningen — de gemte data ændres ikke"><input type="checkbox" bind:checked={hide} onchange={() => saveFlag('trend.hideSpikes', hide)} /> Skjul spikes</label>
   {/if}
   {#if loading}<span class="muted small">Henter …</span>{/if}
 </div>
@@ -491,7 +491,7 @@
           {#if issueTotals.length}
             <strong>Uregelmæssigheder (ring om punktet):</strong>
             <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text}</li>{/each}</ul>
-            <span class="muted">{hide ? 'Spikes er skjult som huller. ' : ''}Spring, fastfrosne værdier og huller markeres kun. Rådata er uændrede (CSV indeholder alt).</span>
+            <span class="muted">{hide ? 'Spikes er udfyldt ved interpolation. ' : ''}Spring, fastfrosne værdier og huller markeres kun. Rådata er uændrede (CSV indeholder alt).</span>
           {:else}
             <span class="muted">Ingen uregelmæssigheder fundet i den viste periode.</span>
           {/if}
