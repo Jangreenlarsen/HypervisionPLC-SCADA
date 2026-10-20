@@ -6,7 +6,7 @@ import { applyBinding, resetAnim } from './animate';
 import { alarmMarks, type MarkState } from './alarmMark';
 import { SYMBOL_COLORS } from './symbols';
 import { MAX_POSITIONS, MIN_POSITIONS, POS_ANIMS, ROOT, testBinding, type LibrarySetup, type TestPart } from './symbolTest';
-import type { AnimType, SrcKind } from './symbolConfig';
+import { ANIM_TXT, type AnimType, type SrcKind } from './symbolConfig';
 
 export type Quality = LiveValue['quality'];
 export type AlarmState = '' | MarkState;
@@ -370,4 +370,32 @@ export function toHex6(c: string): string {
   if (/^#[0-9a-f]{6}$/.test(s)) return s;
   const m = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/.exec(s);
   return m ? `#${m[1]}${m[1]}${m[2]}${m[2]}${m[3]}${m[3]}` : '#000000';
+}
+
+/** Er teksten en farve browseren forstår (#rgb, #rrggbb, #rrggbbaa eller et farvenavn som red)? */
+export function isColor(c: unknown): boolean {
+  const v = typeof c === 'string' ? c.trim() : '';
+  if (!v) return false;
+  if (/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)) return true;
+  if (v.startsWith('#') || typeof document === 'undefined') return false;
+  const st = document.createElement('span').style;
+  st.color = v;
+  return st.color !== '';
+}
+
+/**
+ * Animationer af samme type der rammer samme del (eller hele symbolet) — den nederste i listen vinder, så en ændring i en
+ * af dem kan se ud til ikke at virke. Returnerer en besked pr. par.
+ */
+export function conflicts(anims: SimAnim[], label: (part: string) => string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < anims.length; i++) {
+    for (let j = i + 1; j < anims.length; j++) {
+      const a = anims[i], b = anims[j];
+      if (a.anim !== b.anim) continue;
+      if (!(a.part === b.part || a.part === ROOT || b.part === ROOT)) continue;
+      out.push(`${ANIM_TXT[a.anim]} ligger både på ${label(a.part)} og ${label(b.part)} — den nederste i listen vinder.`);
+    }
+  }
+  return out;
 }

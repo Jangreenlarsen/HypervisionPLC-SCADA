@@ -2,6 +2,12 @@
 
 ---
 
+## v0.111.2 — 2026-10-20 — Symboltest: gennemgang
+
+- Hele Symboltest er gennemgået automatisk (alle symboler, dele, animationer og tag-arter) — ingen fejl fundet i motoren.
+- En **ugyldig farvekode** afvises nu (feltet bliver rødt og viser den gældende farve); farvenavne som `red` virker.
+- **Advarsel**, hvis to animationer af samme type ligger på samme del (den nederste vinder).
+
 ## v0.111.1 — 2026-10-20 — Symboltest: rettelser
 
 - **Tekst** viser nu *Tekst ved Til/Fra* i stedet for 0/1.

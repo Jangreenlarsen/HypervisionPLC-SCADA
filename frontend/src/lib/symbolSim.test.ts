@@ -3,7 +3,7 @@ import { SYMBOLS } from './symbols';
 import { ROOT, librarySetup, testParts, type LibrarySetup } from './symbolTest';
 import type { AnimType, SrcKind } from './symbolConfig';
 import {
-  PALETTE, addThreshold, clampPeriod, playValue, applyAlarmMarks, clampCount, clampValue, clearSim, defaultParams, fromOwn, fromSetup, kindFor, liveOfTag, newAnim, newTag,
+  PALETTE, addThreshold, conflicts, isColor, clampPeriod, playValue, applyAlarmMarks, clampCount, clampValue, clearSim, defaultParams, fromOwn, fromSetup, kindFor, liveOfTag, newAnim, newTag,
   paramFields, removeThreshold, retune, setItem, setParam, setThreshold, syncSim, tagRange, toHex6, type Applied, type SimAnim, type SimTag,
 } from './symbolSim';
 
@@ -255,5 +255,21 @@ describe('kvalitet', () => {
     t.quality = 'good';
     syncSim(h, [newAnim(t, 'glas', 'fill')], [t], new Map());
     expect(h.querySelector('#glas')!.getAttribute('data-hv-quality')).toBe('good');
+  });
+});
+
+describe('farver og overlap', () => {
+  it('gyldige og ugyldige farver', () => {
+    for (const ok of ['#fff', '#FFFFFF', '#2e7d32', '#2e7d32cc', 'red', 'rebeccapurple']) expect(isColor(ok), ok).toBe(true);
+    for (const bad of ['', '  ', '#12', '#12345', '#xyz', 'rød', 'blaa', null, 5]) expect(isColor(bad), String(bad)).toBe(false);
+  });
+  it('to animationer af samme type på samme del, eller på delen og hele symbolet, giver en advarsel', () => {
+    const t = newTag([], 'bool');
+    const label = (id: string) => id;
+    expect(conflicts([newAnim(t, 'glas', 'fill'), newAnim(t, 'glas', 'fill')], label)).toHaveLength(1);
+    expect(conflicts([newAnim(t, 'all', 'fill'), newAnim(t, 'glas', 'fill')], label)).toHaveLength(1);
+    expect(conflicts([newAnim(t, 'glas', 'fill'), newAnim(t, 'glas', 'stroke')], label)).toEqual([]);
+    expect(conflicts([newAnim(t, 'glas', 'fill'), newAnim(t, 'ring', 'fill')], label)).toEqual([]);
+    expect(conflicts([], label)).toEqual([]);
   });
 });
