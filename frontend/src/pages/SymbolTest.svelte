@@ -27,10 +27,11 @@
   let renderToken = $state<object>({});   // symbolet er tegnet forfra → animationerne skal anvendes igen
 
   /** viewBox efter symbolets egen størrelse (getBBox medregner ikke stregen, derfor lidt luft). */
-  function fit(svg: SVGSVGElement): void {
+  function fit(svg: SVGSVGElement, headroom = 1): void {
     try {
       const b = (svg.firstElementChild as SVGGraphicsElement).getBBox();
-      const pad = Math.max(b.width, b.height) * 0.08 + 4, size = Math.max(b.width, b.height) + 2 * pad;
+      // headroom: en Størrelse-animation kan gøre symbolet større — vinduet får plads til det største
+      const pad = Math.max(b.width, b.height) * 0.08 + 4, size = (Math.max(b.width, b.height) + 2 * pad) * headroom;
       const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
       svg.setAttribute('viewBox', `${cx - size / 2} ${cy - size / 2} ${size} ${size}`);
     } catch {
@@ -46,6 +47,8 @@
   const setup = $derived(librarySetup(def.svg, def.id));
   const ownCount = $derived(parts.reduce((n, p) => n + p.own.length, 0));
   const clashes = $derived(conflicts(anims, (id) => parts.find((p) => p.id === id)?.label ?? id));
+  /** Hvor mange gange større symbolet kan blive (Størrelse-animationer), så det ikke vokser ud af billedet. */
+  const headroom = $derived(Math.max(1, ...anims.filter((a) => a.anim === 'scale').map((a) => Math.max(Number(a.params.size_min) || 0, Number(a.params.size_max) || 0) / 100)));
   const tagOf = (id: string): SimTag => tags.find((t) => t.id === id) ?? tags[0];
 
   /** Et nyt symbol: bibliotekets opsætning hvis den findes, ellers ét til/fra-tag med en farveanimation på hele symbolet. */
@@ -162,6 +165,11 @@
   });
   $effect(() => {
     void renderToken;
+    const svg = host?.firstElementChild;
+    if (svg) fit(svg as SVGSVGElement, headroom);
+  });
+  $effect(() => {
+    void renderToken;
     const a = $state.snapshot(anims), t = $state.snapshot(tags);
     const svg = host?.firstElementChild;   // symbolets omslag: "Hele symbolet" er dets første barn, som i en tegning
     if (!svg) return;
@@ -216,7 +224,7 @@
       </div>
 
       <h4>Tags <small class="muted">(simulerede værdier)</small></h4>
-      <p class="muted small">Kvalitet og <em>Værdi mangler</em> viser, hvordan symbolet ser ud ved kommunikationsfejl. Alarm markerer (som i Overview) kun dele, der viser tagget som tekst eller niveau.</p>
+      <p class="muted small"><em>Kvalitet</em> viser, hvordan symbolet ser ud, når PLC'en ikke leverer en frisk værdi: <em>Kommunikationsfejl</em> beholder den sidste værdi, <em>Dårlig</em> og <em>Ukendt</em> har ingen værdi (som i driften); alle tre tones ned. Alarm markerer (som i Overview) kun dele, der viser tagget som tekst eller niveau.</p>
       {#each tags as t (t.id)}
         <div class="card">
           <div class="row">
@@ -340,7 +348,7 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; margin-top: 8px; max-height: 70vh; overflow: auto; }
   .tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; font-size: 11px; }
   .tile.on { border-color: var(--accent); background: var(--panel-2); }
-  .stage { border: 1px solid var(--line); margin: 8px 0; max-width: 100%; }
+  .stage { border: 1px solid var(--line); margin: 8px 0; max-width: 100%; overflow: hidden; }
   .bg-lys { background: #ffffff; }
   .bg-moerk { background: #1f1f1f; }
   .bg-skak { background: repeating-conic-gradient(#d6d6d6 0 25%, #ffffff 0 50%) 0 0 / 16px 16px; }

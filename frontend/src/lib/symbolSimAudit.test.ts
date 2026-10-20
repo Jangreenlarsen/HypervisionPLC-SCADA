@@ -71,3 +71,36 @@ describe('tekst', () => {
     expect(h.querySelector('#t')!.textContent).toBe('Til');
   });
 });
+
+describe('til/fra på tal-animationer giver en tydelig forskel', () => {
+  const run = (anim: AnimType, part: string, value: number) => {
+    const h = host();
+    const tag: SimTag = { ...newTag([], 'bool'), value };
+    syncSim(h, [newAnim(tag, part, anim)], [tag], new Map());
+    return h.querySelector(`#${part}`) as SVGElement;
+  };
+  it('størrelse: Fra er 50 % og Til er 150 %', () => {
+    expect(run('scale', 'r', 0).getAttribute('transform')).toContain('scale(0.5)');
+    expect(run('scale', 'r', 1).getAttribute('transform')).toContain('scale(1.5)');
+  });
+  it('gennemsigtighed: Fra er usynlig og Til er fuldt synlig', () => {
+    expect(run('opacity', 'r', 0).style.opacity).toBe('0');
+    expect(run('opacity', 'r', 1).style.opacity).toBe('1');
+  });
+  it('niveau: Fra er tom og Til er fuld', () => {
+    expect(run('level', 'r', 0).getAttribute('height')).toBe('0');
+    expect(run('level', 'r', 1).getAttribute('height')).toBe('10');
+  });
+  it('tal og positioner: området følger tagget, så hele skyderen virker', () => {
+    const h = host();
+    const num: SimTag = { ...newTag([], 'num'), min: 0, max: 40, value: 40 };
+    syncSim(h, [newAnim(num, 'r', 'scale')], [num], new Map());
+    expect((h.querySelector('#r') as SVGElement).getAttribute('transform')).toContain('scale(1.5)');
+    const pos: SimTag = { ...newTag([], 'pos'), count: 3, value: 2 };
+    syncSim(h, [newAnim(pos, 'r', 'opacity')], [pos], new Map());
+    expect((h.querySelector('#r') as SVGElement).style.opacity).toBe('1');
+    pos.value = 1;
+    syncSim(h, [newAnim(pos, 'r', 'opacity')], [pos], new Map());
+    expect((h.querySelector('#r') as SVGElement).style.opacity).toBe('0.5');
+  });
+});

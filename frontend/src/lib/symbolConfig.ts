@@ -376,12 +376,13 @@ export function animDefaults(type: AnimType, kind: SrcKind, n: number): Record<s
       if (type === 'flicker') return { ...base, palette: [...FLICKER_PALETTE] };
       return type === 'blink' ? { ...base, speed: 'normal' } : base;
     }
+    // Et til/fra-tag er 0 eller 1 — standardområdet 0–100 ville gøre Til til 1 % (uset forskel). Tal bruger 0–100.
     case 'level':
-      return { min: 0, max: 100, direction: 'up' };
+      return { min: 0, max: kind === 'bool' ? 1 : 100, direction: 'up' };
     case 'opacity':
-      return { min: 0, max: 100 };
+      return { min: 0, max: kind === 'bool' ? 1 : 100 };
     case 'scale':
-      return { min: 0, max: 100, size_min: 50, size_max: 150 };
+      return { min: 0, max: kind === 'bool' ? 1 : 100, size_min: 50, size_max: 150 };
     case 'text':
       return {};
     case 'rotate':
