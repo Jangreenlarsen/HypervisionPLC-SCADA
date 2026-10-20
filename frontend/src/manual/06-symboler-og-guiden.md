@@ -159,4 +159,11 @@ Hvert symbol får sin **egen kopi** — du kan bagefter rette det enkelte symbol
 
 ## Symboltest
 
-Siden **Symboltest** (rollen tekniker, under **Opsætning**) afprøver et biblioteksymbol uden PLC. Vælg symbolet i gitteret, og vælg derefter en **del**, en **animation** og om tagget er til/fra eller et tal. Knapperne *Fra* og *Til* og skyderen simulerer værdien, så du kan se farve, blink, drejning, flytning og niveau med det samme. *Symbolets egne animationer* kører dem, symbolet selv har (fx vippekontaktens greb). Skift baggrund (lys, mørk, skak) for at se kontrasten, og brug størrelsen til at se detaljer. Under *Tag er* kan du vælge **Position** (2–8 positioner), og listen over animationer viser kun dem, delen kan have (også *Løbelys* på rør). **Som i guiden** viser symbolets egen opsætning fra biblioteket (fx vippekontaktens greb eller 3-vejs ventilens porte) med en knap pr. position. *Nulstil* sætter symbolet tilbage. Intet gemmes.
+Siden **Symboltest** (rollen tekniker, under **Opsætning**) afprøver et biblioteksymbol uden PLC — med samme animationskode som Overview, så det du ser her, er det du får i tegningen. Intet gemmes.
+
+1. **Vælg symbolet** i gitteret. Findes der en opsætning i biblioteket (fx vippekontakt, 3-vejs ventil, pumpe), er den lagt ind som udgangspunkt.
+2. **Tags** (simulerede værdier): opret tags af arten *Til/fra*, *Tal* (med område og enhed) eller *Position* (2–8 positioner, evt. med navne). Skift værdi med knapperne eller skyderen. Flere tags kan bruges samtidig.
+3. **Animationer**: tryk *Tilføj animation*, og vælg **del**, **animation** (kun dem delen kan have, også *Løbelys* på rør) og hvilket **tag** den følger. Flere animationer kan ligge på samme symbol, hver med sit tag — fx en pumpe med roterende hjul og en lampe fra to forskellige tags.
+4. **Indstillinger**: under hver animation kan du rette parametrene live — farver (til/fra, pr. position eller efter grænser), blinkhastighed, flammens farver, vinkler, flytning, niveau, tekster, retnings-tag til løbelys og *Gælder kun i positioner*. Farvefelterne har **bibliotekets palette**: tryk på farveprøven for at vælge en palettefarve, eller brug farvevælgeren/koden.
+5. **Hent bibliotekets opsætning** lægger symbolets guide-opsætning ind (fx vippekontaktens greb pr. position); **Hent symbolets egne** lægger de animationer ind, symbolet selv erklærer. *Nulstil* fjerner animationerne.
+6. Skift **baggrund** (lys, mørk, skak) for kontrasten, og brug **størrelsen** til at se detaljer. Under **Farver** kan du klikke på en palettefarve for at se og kopiere koden.
