@@ -2,6 +2,10 @@
 
 ---
 
+## v0.109.0 — 2026-10-20 — Trends: navne på kurverne
+
+- Hver kurve i Trends-graferne har nu sit **navn ved højre kant**. Ligger flere kurver tæt sammen, spredes navnene, så de kan læses, og en **pil** peger fra navnet til den rigtige kurve.
+
 ## v0.108.0 — 2026-10-19 — Trends: kun opsatte trends for operatører
 
 - **Viewer, operatør og driftpanel** kan ikke længere søge efter eller vælge tags frit i Trends. De ser kun de trends, der er sat op i deres tegninger (symboler og trendgrafer), og vælger mellem dem under *Symbol*. Tekniker og admin kan stadig vælge alle tags.
