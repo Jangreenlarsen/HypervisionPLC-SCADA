@@ -73,6 +73,7 @@ Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*) — eller i
 - **Symbol**: vælg et symbol fra tegningerne, så vises **alle symbolets kurver** på én gang — du skal ikke finde tagsene selv. Har nogle af symbolets tags ikke historik, står de under listen; en tekniker kan slå dem til med **Gem historik for de …**. Historikken kan også slås til i symbolguiden (trin 6), og linket **Vis symbolet i Trends** derfra åbner Trends med symbolet valgt.
 - Tekniker og admin kan i stedet vælge et eller flere **tags** i listen selv (søg med feltet **Søg**). Højst **12 kurver** vises ad gangen; kurve 8–12 har samme farver som de første, men stiplet linje.
 - Vælg tidsrum: **15 min, 1 time, 8 timer, 24 timer, 7 dage**, eller **Vælg periode** for et selvvalgt interval.
+- Hver kurve har sit **navn ved højre kant** ud for sidste punkt. Ligger kurverne tæt, spredes navnene, og en **pil** peger fra navnet til kurven. Zoomer du, følger navnene det viste udsnit.
 - Kurverne **opdateres live**. Peg på kurven for at se værdi og tidspunkt. Du kan **hente data som CSV** til regneark.
 - **Navn på kurverne:** sæt flueben i **Administrér** og tryk **Navn** ud for et tag — så vises navnet (fx *Fremløbstemperatur*) i stedet for tag-navnet i listen og graferne. Tomt navn = tag-navnet. Navnet er tagets *beskrivelse*, så det ses også under Alarmer og Tags; peg på et navn for at se tag-navnet.
 - Et tag kan **stoppes** (historikken bevares) eller dets **historik slettes**. Historik, der er ældre end opbevaringstiden (standard 30 dage), slettes automatisk.

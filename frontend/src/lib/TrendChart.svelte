@@ -5,6 +5,7 @@
   import 'uplot/dist/uPlot.min.css';
   import { colorOf, dashOf, isolatedPoints } from './trendData';
   import type { Issue } from './trendAnalysis';
+  import { lastVisible, needsArrow, spreadLabels } from './lineLabels';
 
   export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null;
     /** Fundne uregelmæssigheder (tilvalg) — tegnes som ring om punktet. */ issues?: Issue[] }
@@ -84,11 +85,81 @@
     ctx.restore();
   }
 
+  const LABEL_MAX = 150;   // px (CSS)
+  let column = 0;          // bredden af navnekolonnen, sat når grafen bygges
+
+  /** Pladsen til kurvenavnene ved højre kant: det længste navn, højst LABEL_MAX og en tredjedel af grafens bredde. */
+  function labelColumn(width: number): number {
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return 0;
+    ctx.font = '12px system-ui, sans-serif';
+    const longest = Math.max(0, ...series.map((s) => ctx.measureText(s.label).width));
+    return Math.ceil(Math.min(LABEL_MAX, width / 3, longest + 22));
+  }
+
+  /** Kort tekst med "…" hvis den er for lang til kolonnen. */
+  function fit(ctx: CanvasRenderingContext2D, text: string, maxW: number): string {
+    if (ctx.measureText(text).width <= maxW) return text;
+    let t = text;
+    while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+    return t + '…';
+  }
+
+  /**
+   * Kurvenes navne ved højre kant, ud for kurvens sidste synlige punkt. Ligger kurverne så tæt, at navnene ville
+   * overlappe, spredes de, og et navn der er flyttet væk fra sin kurve får en pil til kurvens punkt.
+   */
+  function drawLabels(u: uPlot): void {
+    const xs = u.data[0] as number[];
+    const dpr = devicePixelRatio;
+    const { left, top, width, height: h } = u.bbox;
+    const min = u.scales.x.min ?? -Infinity, max = u.scales.x.max ?? Infinity;
+    const items: { s: ChartSeries; x: number; y: number }[] = [];
+    series.forEach((s, k) => {
+      const ys = u.data[k + 1] as (number | null | undefined)[];
+      const i = lastVisible(xs, ys, min, max);
+      if (i < 0) return;
+      const y = u.valToPos(ys[i] as number, u.series[k + 1].scale ?? 'y', true);
+      items.push({ s, x: u.valToPos(xs[i], 'x', true), y: Math.min(top + h, Math.max(top, y)) });
+    });
+    if (!items.length) return;
+    const labelX = left + width + 10 * dpr;
+    const textW = Math.max(20, column - 22) * dpr;
+    const ly = spreadLabels(items.map((it) => it.y), top + 6 * dpr, top + h - 6 * dpr, 14 * dpr);
+    const ctx = u.ctx;
+    ctx.save();
+    ctx.font = `${12 * dpr}px system-ui, sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';   // uPlot lader aksernes højrejustering stå
+    items.forEach((it, n) => {
+      const color = colorOf(it.s.colorIndex), y = ly[n];
+      if (needsArrow(it.y / dpr, y / dpr)) {
+        // pil fra navnet til kurvens punkt (pilespidsen ved kurven)
+        const fromX = labelX - 3 * dpr;
+        ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 1.25 * dpr;
+        ctx.beginPath(); ctx.moveTo(fromX, y); ctx.lineTo(it.x, it.y); ctx.stroke();
+        const a = Math.atan2(it.y - y, it.x - fromX), sz = 6 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(it.x, it.y);
+        ctx.lineTo(it.x - sz * Math.cos(a - 0.45), it.y - sz * Math.sin(a - 0.45));
+        ctx.lineTo(it.x - sz * Math.cos(a + 0.45), it.y - sz * Math.sin(a + 0.45));
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.fillStyle = color;
+      ctx.fillRect(labelX, y - 1.5 * dpr, 8 * dpr, 3 * dpr);   // farveprik, så navnet hører til kurven
+      ctx.fillStyle = '#1f1f1d';
+      ctx.fillText(fit(ctx, it.s.label, textW), labelX + 12 * dpr, y);
+    });
+    ctx.restore();
+  }
+
   function options(width: number): uPlot.Options {
     const isBool = series.every((s) => s.isBool);
     return {
       width,
       height: isBool ? 160 : height,
+      padding: [null, (column = labelColumn(width)), null, null],   // plads til kurvenavnene ved højre kant
       cursor: {
         sync: { key: 'trend' },
         drag: { x: true, y: false },
@@ -96,7 +167,7 @@
         bind: { dblclick: () => () => { showFull(); return null; } },
       },
       hooks: {
-        draw: [drawIssues],
+        draw: [drawIssues, drawLabels],
         setScale: [(u: uPlot, key: string) => {
           if (key === 'x') zoomed = Math.abs((u.scales.x.min ?? 0) - full[0]) > 0.5 || Math.abs((u.scales.x.max ?? 0) - full[1]) > 0.5;
         }],

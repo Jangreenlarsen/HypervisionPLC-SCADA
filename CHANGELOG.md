@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.109.0 build 0159] — 2026-10-20 — Trends: kurvenavne med pile
+
+- `frontend/src/lib/lineLabels.ts` + test — `spreadLabels` (spreder navne med mindste mellemrum), `lastVisible`, `needsArrow`.
+- `frontend/src/lib/TrendChart.svelte` — navnekolonne ved højre kant (højst 150 px, lange navne forkortes), farveprik og pil til kurvens punkt, når navnet er flyttet.
+- `frontend/src/manual/02-drift.md` — afsnit om kurvenavne.
+- Kun frontend. **Set** i Edge (headless) på en testside med 5 kurver, hvoraf tre lå næsten oven i hinanden; ikke set i selve appen.
+
 ## [0.108.0 build 0158] — 2026-10-19 — Trends: kun opsatte trends for ikke-teknikere
 
 - `backend/app/api/trends.py` — `_allowed`: viewer/operatør/panel får kun tags fra de trend-symboler/trendgrafer, der er sat op i deres tegninger (data, CSV og info); tekniker/admin uændret.
