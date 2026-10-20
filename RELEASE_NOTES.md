@@ -2,6 +2,12 @@
 
 ---
 
+## v0.111.1 — 2026-10-20 — Symboltest: rettelser
+
+- **Tekst** viser nu *Tekst ved Til/Fra* i stedet for 0/1.
+- **Farve pr. position** giver hver position sin egen farve fra start, så ændringen kan ses.
+- Indstillingerne slår igennem **mens du skriver**, og siden viser *✓ Anvendt* med tidspunkt og antal animationer. *Anvend igen* nulstiller og anvender alt forfra.
+
 ## v0.111.0 — 2026-10-20 — Symboltest: afspilning og fejltilstande
 
 - **Afspil**: lad et tag løbe selv gennem sit område — til/fra skifter, et tal løber op og ned, en position går gennem alle positioner — så du kan se blink, glidning og løbelys i bevægelse. Rundetiden vælges (1–60 s).

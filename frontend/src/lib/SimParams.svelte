@@ -24,13 +24,13 @@
     <div class="field">
       <span class="lbl">{f.label}</span>
       {#if f.type === 'number'}
-        <input type="number" step={f.step ?? 'any'} value={p[f.key] ?? ''} placeholder={f.optional ? 'standard' : ''} onchange={(e) => set(f, e.currentTarget.value)} />
+        <input type="number" step={f.step ?? 'any'} value={p[f.key] ?? ''} placeholder={f.optional ? 'standard' : ''} oninput={(e) => set(f, e.currentTarget.value)} />
       {:else if f.type === 'color'}
         <ColorField value={p[f.key] ?? ''} label={f.label} onchange={(c) => set(f, c)} />
       {:else if f.type === 'bool'}
         <input type="checkbox" checked={f.defaultOn ? p[f.key] !== false : Boolean(p[f.key])} onchange={(e) => set(f, e.currentTarget.checked)} />
       {:else if f.type === 'text'}
-        <input type="text" value={p[f.key] ?? ''} onchange={(e) => set(f, e.currentTarget.value)} />
+        <input type="text" value={p[f.key] ?? ''} oninput={(e) => set(f, e.currentTarget.value)} />
       {:else if f.type === 'select'}
         <select value={String(p[f.key] ?? '')} onchange={(e) => set(f, e.currentTarget.value)}>
           {#each f.options as o}<option value={o.v}>{o.label}</option>{/each}
@@ -50,7 +50,7 @@
         <div class="list">
           {#each Array.from({ length: f.n }, (_, j) => j) as j}
             <label class="item"><small>{label(f.n, j)}</small>
-              <input type="number" step={f.step ?? 'any'} value={p[f.key]?.[j] ?? 0} onchange={(e) => onparams(setItem(p, f.key, j, Number(e.currentTarget.value) || 0, f.n))} />
+              <input type="number" step={f.step ?? 'any'} value={p[f.key]?.[j] ?? 0} oninput={(e) => onparams(setItem(p, f.key, j, Number(e.currentTarget.value) || 0, f.n))} />
             </label>
           {/each}
         </div>
@@ -66,7 +66,7 @@
         <div class="list">
           {#each Array.from({ length: f.n }, (_, j) => j) as j}
             <label class="item"><small>{label(f.n, j)}</small>
-              <input type="text" value={p[f.key]?.[j] ?? ''} onchange={(e) => onparams(setItem(p, f.key, j, e.currentTarget.value, f.n))} />
+              <input type="text" value={p[f.key]?.[j] ?? ''} oninput={(e) => onparams(setItem(p, f.key, j, e.currentTarget.value, f.n))} />
             </label>
           {/each}
         </div>
@@ -82,7 +82,7 @@
           {#each p.thresholds ?? [] as t, i}
             <div class="item row">
               <span>fra</span>
-              <input type="number" step="any" value={t.value} onchange={(e) => onparams(setThreshold(p, i, { value: Number(e.currentTarget.value) || 0 }))} />
+              <input type="number" step="any" value={t.value} oninput={(e) => onparams(setThreshold(p, i, { value: Number(e.currentTarget.value) || 0 }))} />
               <ColorField value={t.color} label="Grænse {i + 1}" onchange={(c) => onparams(setThreshold(p, i, { color: c }))} />
               <button type="button" class="small" onclick={() => onparams(removeThreshold(p, i))} aria-label="Fjern grænse {i + 1}">✕</button>
             </div>

@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.111.1 build 0162] — 2026-10-20 — Symboltest: tekst, positionsfarver og tilbagemelding
+
+- `frontend/src/lib/symbolSim.ts` — et til/fra-tag giver sand/falsk (som en coil), så Tekst bruger *Tekst ved Til/Fra*; Farve/Streg pr. position får en egen farve pr. position som standard.
+- `frontend/src/lib/SimParams.svelte`, `ColorField.svelte` — felterne virker mens man skriver (`oninput`).
+- `frontend/src/pages/SymbolTest.svelte` — *✓ Anvendt kl. … — N animationer* og knappen *Anvend igen*.
+- `frontend/src/lib/symbolSimAudit.test.ts` (ny, 41 tests) — alle 13 animationstyper × til/fra, tal og position ændrer udseendet; tekst-test.
+- BUGS.md. Kun frontend. **Set** i Edge (headless): tekst opdateres mens man skriver, løbelys, statuslinjen.
+
 ## [0.111.0 build 0161] — 2026-10-20 — Symboltest: afspilning og fejltilstande
 
 - `frontend/src/lib/symbolSim.ts` + test (6 nye) — `playValue` (til/fra, tal op og ned, positioner), `clampPeriod`, tagfelterne `play`/`period`.

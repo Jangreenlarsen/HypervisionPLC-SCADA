@@ -11,6 +11,7 @@
           aria-label="Palette for {label || 'farve'}" aria-expanded={open} onclick={() => (open = !open)}></button>
   <input type="color" value={toHex6(value)} oninput={(e) => onchange(e.currentTarget.value)} aria-label="Vælg {label || 'farve'}" />
   <input type="text" class="hex" value={value} maxlength="9" spellcheck="false" aria-label="Farvekode for {label || 'farve'}"
+         oninput={(e) => { const v = e.currentTarget.value.trim(); if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) onchange(v); }}
          onchange={(e) => onchange(e.currentTarget.value.trim())} />
   {#if open}
     <span class="pal" role="listbox" aria-label="Palette">

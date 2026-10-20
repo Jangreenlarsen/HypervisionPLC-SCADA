@@ -103,9 +103,13 @@ export const kindFor = (anim: AnimType, tag: Pick<SimTag, 'kind'>): SrcKind =>
 /** Standardparametre for animationen på tagget (som guiden ville foreslå dem). */
 export function defaultParams(anim: AnimType, tag: Pick<SimTag, 'kind' | 'count' | 'labels'>): Record<string, any> {
   const params = testBinding('', anim, kindFor(anim, tag), clampCount(tag.count)).params;
+  // guidens standard giver alle positioner samme farve ved ≠ 2 positioner — i testen får hver position sin egen, så ændringen kan ses
+  if (params.pos && (anim === 'fill' || anim === 'stroke') && tag.count !== 2) params.colors = Array.from({ length: clampCount(tag.count) }, (_, j) => POSITION_COLORS[j % POSITION_COLORS.length]);
   if (params.pos && anim === 'text' && tag.labels.length) params.labels = Array.from({ length: clampCount(tag.count) }, (_, j) => tag.labels[j] || `Position ${j + 1}`);
   return params;
 }
+
+const POSITION_COLORS = ['#d6d6d6', '#7cc47f', '#ffd21a', '#c62828', '#7aa7c7', '#ff8c1a', '#555555', '#8fc8ea'];
 
 export function newAnim(tag: SimTag, part: string, anim: AnimType): SimAnim {
   return { id: uid('a'), part, anim, tag: tag.id, params: defaultParams(anim, tag) };
@@ -142,9 +146,13 @@ export function fromOwn(parts: TestPart[]): { tags: SimTag[]; anims: SimAnim[] }
 
 // ------------------------------------------------------------------------------------------------ anvendelse
 
-/** Live-værdien tagget giver (ukendt = værdi mangler). */
+/**
+ * Live-værdien tagget giver (ukendt = værdi mangler). Et til/fra-tag giver sand/falsk, som en coil fra PLC'en — så
+ * tekst-animationen bruger sine Til/Fra-tekster; tal og positioner er tal.
+ */
 export function liveOfTag(t: SimTag): LiveValue {
-  return { value: t.missing ? null : t.value, quality: t.quality, ts: Date.now() / 1000, error: t.quality === 'good' ? null : 'simuleret' };
+  const value = t.kind === 'bool' ? Boolean(t.value) : t.value;
+  return { value: t.missing ? null : value, quality: t.quality, ts: Date.now() / 1000, error: t.quality === 'good' ? null : 'simuleret' };
 }
 
 export const metaOf = (t: SimTag): TagMeta => ({ unit: t.unit, decimals: null, description: t.name, plc: 'test' });
