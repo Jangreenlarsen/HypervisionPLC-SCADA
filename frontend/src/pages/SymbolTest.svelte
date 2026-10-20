@@ -4,7 +4,7 @@
   import { ANIM_TXT, type AnimType, type SrcKind } from '../lib/symbolConfig';
   import { ROOT, librarySetup, testParts } from '../lib/symbolTest';
   import {
-    MAX_ANIMS, MAX_PERIOD, MAX_TAGS, MIN_PERIOD, applyAlarmMarks, clampCount, clampPeriod, clampValue, defaultParams, fromOwn, fromSetup, newAnim, newTag, playValue,
+    MAX_ANIMS, MAX_PERIOD, MAX_TAGS, MIN_PERIOD, applyAlarmMarks, clampCount, clampPeriod, clampValue, clearSim, defaultParams, fromOwn, fromSetup, newAnim, newTag, playValue,
     retune, syncSim,
     tagRange, type Applied, type SimAnim, type SimTag,
   } from '../lib/symbolSim';
@@ -21,6 +21,8 @@
   let picked = $state('');   // farve valgt i paletten nederst
   let copied = $state('');
   let missing = $state<string[]>([]);
+  /** hvornår og hvad der sidst blev anvendt på symbolet — så man kan se, at en ændring er slået igennem */
+  let lastApplied = $state<{ time: string; count: number } | null>(null);
   const applied = new Map<string, Applied>();
   let renderToken = $state<object>({});   // symbolet er tegnet forfra → animationerne skal anvendes igen
 
@@ -116,6 +118,13 @@
     for (const t of tags) { t.play = 'off'; t.value = t.kind === 'bool' ? 1 : 0; t.missing = false; t.quality = 'good'; t.alarm = ''; }
   }
 
+  /** Nulstil delene som tegnet og anvend alle animationer forfra (fx hvis noget ser forkert ud). */
+  function reapply(): void {
+    const svg = host?.firstElementChild;
+    if (svg) clearSim(svg, applied);
+    renderToken = {};
+  }
+
   async function copy(c: string): Promise<void> {
     picked = c;
     try {
@@ -158,6 +167,7 @@
     untrack(() => {
       missing = syncSim(svg, a, t, applied);
       applyAlarmMarks(svg, a, t);
+      lastApplied = { time: new Date().toLocaleTimeString('da-DK'), count: a.length - missing.length };
     });
   });
 </script>
@@ -195,7 +205,14 @@
         <label>Størrelse <input type="range" min="1" max="6" step="0.5" bind:value={zoom} /></label>
       </div>
       <div class="stage bg-{background}" style="width:{zoom * 80}px;height:{zoom * 80}px" bind:this={host}></div>
-      {#if missing.length}<div class="error">Delen "{missing[0]}" findes ikke i symbolet.</div>{/if}
+      <div class="row status" role="status" aria-live="polite">
+        {#if missing.length}
+          <span class="error">Delen "{missing[0]}" findes ikke i symbolet.</span>
+        {:else if lastApplied}
+          <span class="ok">✓ Anvendt {lastApplied.time} — {lastApplied.count} {lastApplied.count === 1 ? 'animation' : 'animationer'}</span>
+        {/if}
+        <button class="small" onclick={reapply} title="Nulstil delene og anvend alle animationer forfra">Anvend igen</button>
+      </div>
 
       <h4>Tags <small class="muted">(simulerede værdier)</small></h4>
       <p class="muted small">Kvalitet og <em>Værdi mangler</em> viser, hvordan symbolet ser ud ved kommunikationsfejl. Alarm markerer (som i Overview) kun dele, der viser tagget som tekst eller niveau.</p>
@@ -329,6 +346,8 @@
   .card { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin: 6px 0; background: var(--panel); }
   .card summary { cursor: pointer; font-weight: 600; font-size: .9em; }
   .name { width: 7em; font-weight: 600; }
+  .status { align-items: center; }
+  .ok { color: var(--ok, #2e7d32); font-size: .9em; }
   label.inline { display: inline-flex; align-items: center; gap: 4px; }
   .sw { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); display: inline-block; cursor: pointer; }
   .sw.on { outline: 2px solid var(--accent); outline-offset: 1px; }
