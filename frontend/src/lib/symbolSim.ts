@@ -10,6 +10,7 @@ import type { AnimType, SrcKind } from './symbolConfig';
 
 export type Quality = LiveValue['quality'];
 export type AlarmState = '' | MarkState;
+export type PlayMode = 'off' | 'loop';
 
 export interface SimTag {
   id: string;
@@ -28,6 +29,10 @@ export interface SimTag {
   /** værdien mangler (PLC nede) — som en binding uden live-værdi */
   missing: boolean;
   alarm: AlarmState;
+  /** afspilning: værdien løber automatisk gennem sit område */
+  play: PlayMode;
+  /** sekunder for én hel runde */
+  period: number;
 }
 
 export interface SimAnim {
@@ -42,6 +47,7 @@ export interface SimAnim {
 }
 
 export const MAX_TAGS = 8, MAX_ANIMS = 12;
+export const DEFAULT_PERIOD = 6, MIN_PERIOD = 1, MAX_PERIOD = 60;
 
 let counter = 0;
 const uid = (prefix: string): string => `${prefix}${++counter}`;
@@ -50,7 +56,7 @@ export function newTag(existing: SimTag[], kind: SrcKind = 'bool'): SimTag {
   let n = existing.length + 1;
   while (existing.some((t) => t.name === `T${n}`)) n++;
   return { id: uid('t'), name: `T${n}`, kind, count: kind === 'pos' ? 3 : MIN_POSITIONS, labels: [], min: 0, max: 100,
-    value: kind === 'bool' ? 1 : 0, unit: '', quality: 'good', missing: false, alarm: '' };
+    value: kind === 'bool' ? 1 : 0, unit: '', quality: 'good', missing: false, alarm: '', play: 'off', period: DEFAULT_PERIOD };
 }
 
 export const clampCount = (n: unknown): number => Math.min(MAX_POSITIONS, Math.max(MIN_POSITIONS, Math.round(Number(n)) || MIN_POSITIONS));
@@ -68,6 +74,26 @@ export function clampValue(t: SimTag): number {
   const v = Number.isFinite(t.value) ? t.value : min;
   const c = Math.min(max, Math.max(min, v));
   return t.kind === 'num' ? c : Math.round(c);
+}
+
+/** Perioden holdt inden for grænserne (tomt/ugyldigt giver standarden). */
+export const clampPeriod = (p: unknown): number => {
+  const n = Number(p);
+  return Number.isFinite(n) && n > 0 ? Math.min(MAX_PERIOD, Math.max(MIN_PERIOD, n)) : DEFAULT_PERIOD;
+};
+
+/**
+ * Værdien et afspillet tag har `seconds` sekunder inde i afspilningen: til/fra er Til første halvdel af runden og
+ * Fra anden; et tal løber op og ned mellem sit min og max; en position går gennem alle positionerne i runden.
+ */
+export function playValue(t: Pick<SimTag, 'kind' | 'count' | 'min' | 'max' | 'period'>, seconds: number): number {
+  const period = clampPeriod(t.period);
+  const frac = (((seconds % period) + period) % period) / period;
+  if (t.kind === 'bool') return frac < 0.5 ? 1 : 0;
+  if (t.kind === 'pos') return Math.min(clampCount(t.count) - 1, Math.floor(frac * clampCount(t.count)));
+  const { min, max } = tagRange(t);
+  const tri = 1 - Math.abs(2 * frac - 1);   // 0 → 1 → 0
+  return Math.round((min + tri * (max - min)) * 100) / 100;
 }
 
 /** Hvilken art parametrene har for animationen på tagget: en position gælder kun de typer der har værdi pr. position. */

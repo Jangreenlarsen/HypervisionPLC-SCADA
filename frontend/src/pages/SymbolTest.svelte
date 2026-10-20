@@ -4,7 +4,8 @@
   import { ANIM_TXT, type AnimType, type SrcKind } from '../lib/symbolConfig';
   import { ROOT, librarySetup, testParts } from '../lib/symbolTest';
   import {
-    MAX_ANIMS, MAX_TAGS, applyAlarmMarks, clampCount, clampValue, defaultParams, fromOwn, fromSetup, newAnim, newTag, retune, syncSim,
+    MAX_ANIMS, MAX_PERIOD, MAX_TAGS, MIN_PERIOD, applyAlarmMarks, clampCount, clampPeriod, clampValue, defaultParams, fromOwn, fromSetup, newAnim, newTag, playValue,
+    retune, syncSim,
     tagRange, type Applied, type SimAnim, type SimTag,
   } from '../lib/symbolSim';
   import SimParams from '../lib/SimParams.svelte';
@@ -112,7 +113,7 @@
   }
   function reset(): void {
     anims = [];
-    for (const t of tags) { t.value = t.kind === 'bool' ? 1 : 0; t.missing = false; t.quality = 'good'; t.alarm = ''; }
+    for (const t of tags) { t.play = 'off'; t.value = t.kind === 'bool' ? 1 : 0; t.missing = false; t.quality = 'good'; t.alarm = ''; }
   }
 
   async function copy(c: string): Promise<void> {
@@ -123,6 +124,21 @@
     } catch {
       copied = '';   // udklipsholderen er ikke tilgængelig (fx http): farven vises stadig og kan skrives af
     }
+  }
+
+  // ---- afspilning: tags med afspilning løber selv gennem deres område
+  const playing = $derived(tags.some((t) => t.play === 'loop'));
+  $effect(() => {
+    if (!playing) return;
+    const t0 = performance.now();
+    const id = setInterval(() => {
+      const s = (performance.now() - t0) / 1000;
+      for (const t of tags) if (t.play === 'loop') t.value = playValue(t, s);
+    }, 50);
+    return () => clearInterval(id);
+  });
+  function stopAll(): void {
+    for (const t of tags) t.play = 'off';
   }
 
   // ---- tegning og anvendelse
@@ -182,6 +198,7 @@
       {#if missing.length}<div class="error">Delen "{missing[0]}" findes ikke i symbolet.</div>{/if}
 
       <h4>Tags <small class="muted">(simulerede værdier)</small></h4>
+      <p class="muted small">Kvalitet og <em>Værdi mangler</em> viser, hvordan symbolet ser ud ved kommunikationsfejl. Alarm markerer (som i Overview) kun dele, der viser tagget som tekst eller niveau.</p>
       {#each tags as t (t.id)}
         <div class="card">
           <div class="row">
@@ -213,8 +230,26 @@
               <input type="number" bind:value={t.value} style="width:6em" aria-label="Værdi for {t.name}" />
             {/if}
           </div>
+          <div class="row">
+            <label>Afspil
+              <select bind:value={t.play} aria-label="Afspil {t.name}"><option value="off">Fra</option><option value="loop">Løbende</option></select>
+            </label>
+            {#if t.play === 'loop'}
+              <label>Runde (s) <input type="number" min={MIN_PERIOD} max={MAX_PERIOD} step="1" bind:value={t.period} onchange={() => (t.period = clampPeriod(t.period))} style="width:4.5em" /></label>
+            {/if}
+            <label>Kvalitet
+              <select bind:value={t.quality}>
+                <option value="good">God</option><option value="bad">Dårlig</option><option value="unknown">Ukendt</option><option value="comm_error">Kommunikationsfejl</option>
+              </select>
+            </label>
+            <label class="inline"><input type="checkbox" bind:checked={t.missing} /> Værdi mangler</label>
+            <label>Alarm
+              <select bind:value={t.alarm}><option value="">Ingen</option><option value="unack">Ukvitteret</option><option value="ack">Kvitteret</option></select>
+            </label>
+          </div>
         </div>
       {/each}
+      {#if playing}<div class="row"><button class="danger" onclick={stopAll}>Stop afspilning</button></div>{/if}
       <div class="row">
         <button onclick={() => addTag('bool')} disabled={tags.length >= MAX_TAGS}>+ Til/fra</button>
         <button onclick={() => addTag('num')} disabled={tags.length >= MAX_TAGS}>+ Tal</button>
@@ -294,6 +329,7 @@
   .card { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin: 6px 0; background: var(--panel); }
   .card summary { cursor: pointer; font-weight: 600; font-size: .9em; }
   .name { width: 7em; font-weight: 600; }
+  label.inline { display: inline-flex; align-items: center; gap: 4px; }
   .sw { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); display: inline-block; cursor: pointer; }
   .sw.on { outline: 2px solid var(--accent); outline-offset: 1px; }
   .sw.big { width: 28px; height: 28px; vertical-align: middle; cursor: default; }

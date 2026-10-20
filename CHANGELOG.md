@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.111.0 build 0161] — 2026-10-20 — Symboltest: afspilning og fejltilstande
+
+- `frontend/src/lib/symbolSim.ts` + test (6 nye) — `playValue` (til/fra, tal op og ned, positioner), `clampPeriod`, tagfelterne `play`/`period`.
+- `frontend/src/pages/SymbolTest.svelte` — pr. tag: *Afspil*, *Runde (s)*, *Kvalitet*, *Værdi mangler*, *Alarm*; *Stop afspilning*; forklaring af alarmmarkeringen.
+- Manual (Symboltest) opdateret. Kun frontend. **Set** i Edge (headless): dårlig kvalitet dæmper symbolet, afspilning kører (Stop-knap og skiftende værdi); alarmmarkeringen er kun testet i enhedstests (den vises kun på tekst/niveau-dele).
+
 ## [0.110.0 build 0160] — 2026-10-20 — Symboltest: flere tags og animationer, parametre og palette
 
 - `frontend/src/lib/symbolSim.ts` + test (19) — simulerede tags og animationer, `syncSim` (nulstiller ændret/fjernet, anvender alle med samme `applyBinding` som Overview), parameter-felter pr. type og art (`paramFields`), `setParam`/`setItem`/grænser, palette, alarmmarkering.

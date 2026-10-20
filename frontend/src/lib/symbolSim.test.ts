@@ -3,7 +3,7 @@ import { SYMBOLS } from './symbols';
 import { ROOT, librarySetup, testParts, type LibrarySetup } from './symbolTest';
 import type { AnimType, SrcKind } from './symbolConfig';
 import {
-  PALETTE, addThreshold, applyAlarmMarks, clampCount, clampValue, clearSim, defaultParams, fromOwn, fromSetup, kindFor, liveOfTag, newAnim, newTag,
+  PALETTE, addThreshold, clampPeriod, playValue, applyAlarmMarks, clampCount, clampValue, clearSim, defaultParams, fromOwn, fromSetup, kindFor, liveOfTag, newAnim, newTag,
   paramFields, removeThreshold, retune, setItem, setParam, setThreshold, syncSim, tagRange, toHex6, type Applied, type SimAnim, type SimTag,
 } from './symbolSim';
 
@@ -212,5 +212,48 @@ describe('fra biblioteket', () => {
     expect(tags[0].kind).toBe('bool');
     expect(anims.some((a) => a.anim === 'move')).toBe(true);
     expect(syncSim(host(def('vippekontakt').svg), anims, tags, new Map())).toEqual([]);
+  });
+});
+
+describe('afspilning', () => {
+  const num = { ...newTag([], 'num'), min: 0, max: 100, period: 10 };
+  it('et tal løber op og ned gennem området i én runde', () => {
+    expect(playValue(num, 0)).toBe(0);
+    expect(playValue(num, 2.5)).toBe(50);
+    expect(playValue(num, 5)).toBe(100);
+    expect(playValue(num, 7.5)).toBe(50);
+    expect(playValue(num, 10)).toBe(0);   // næste runde
+  });
+  it('området med negativ minimumsværdi og tidspunkter før start giver gyldige værdier', () => {
+    const t = { ...num, min: -50, max: 50 };
+    expect(playValue(t, 0)).toBe(-50);
+    expect(playValue(t, 5)).toBe(50);
+    expect(playValue(t, -2.5)).toBe(0);
+  });
+  it('til/fra er Til første halvdel og Fra anden', () => {
+    const t = { ...newTag([], 'bool'), period: 4 };
+    expect([0, 1.9, 2, 3.9].map((s) => playValue(t, s))).toEqual([1, 1, 0, 0]);
+  });
+  it('en position går gennem alle positionerne og aldrig uden for dem', () => {
+    const t = { ...newTag([], 'pos'), count: 3, period: 6 };
+    expect([0, 1.9, 2, 3.9, 4, 5.99].map((s) => playValue(t, s))).toEqual([0, 0, 1, 1, 2, 2]);
+  });
+  it('ugyldig periode falder tilbage til standarden, og for lang/kort holdes i grænserne', () => {
+    expect(clampPeriod('x')).toBe(6);
+    expect(clampPeriod(0)).toBe(6);
+    expect(clampPeriod(500)).toBe(60);
+    expect(clampPeriod(0.2)).toBe(1);
+  });
+});
+
+describe('kvalitet', () => {
+  it('kvaliteten sættes på delen', () => {
+    const h = host(def('lampe').svg);
+    const t: SimTag = { ...newTag([], 'bool'), quality: 'bad' };
+    syncSim(h, [newAnim(t, 'glas', 'fill')], [t], new Map());
+    expect(h.querySelector('#glas')!.getAttribute('data-hv-quality')).toBe('bad');
+    t.quality = 'good';
+    syncSim(h, [newAnim(t, 'glas', 'fill')], [t], new Map());
+    expect(h.querySelector('#glas')!.getAttribute('data-hv-quality')).toBe('good');
   });
 });

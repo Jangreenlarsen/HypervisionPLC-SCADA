@@ -2,6 +2,11 @@
 
 ---
 
+## v0.111.0 — 2026-10-20 — Symboltest: afspilning og fejltilstande
+
+- **Afspil**: lad et tag løbe selv gennem sit område — til/fra skifter, et tal løber op og ned, en position går gennem alle positioner — så du kan se blink, glidning og løbelys i bevægelse. Rundetiden vælges (1–60 s).
+- **Fejltilstande**: sæt et tags *kvalitet* (dårlig, ukendt, kommunikationsfejl), *værdi mangler* eller *alarm* (ukvitteret/kvitteret) og se, hvordan symbolet opfører sig.
+
 ## v0.110.0 — 2026-10-20 — Symboltest: avanceret
 
 - **Flere tags og flere animationer på én gang**: opret simulerede tags (til/fra, tal, position) og læg animationer på delene — hver animation følger sit tag. Se fx en pumpe med roterende hjul og grøn lampe fra forskellige tags.
