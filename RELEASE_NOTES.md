@@ -2,6 +2,19 @@
 
 ---
 
+## v0.111.0 — 2026-10-20 — Symboltest: afspilning og fejltilstande
+
+- **Afspil**: lad et tag løbe selv gennem sit område — til/fra skifter, et tal løber op og ned, en position går gennem alle positioner — så du kan se blink, glidning og løbelys i bevægelse. Rundetiden vælges (1–60 s).
+- **Fejltilstande**: sæt et tags *kvalitet* (dårlig, ukendt, kommunikationsfejl), *værdi mangler* eller *alarm* (ukvitteret/kvitteret) og se, hvordan symbolet opfører sig.
+
+## v0.110.0 — 2026-10-20 — Symboltest: avanceret
+
+- **Flere tags og flere animationer på én gang**: opret simulerede tags (til/fra, tal, position) og læg animationer på delene — hver animation følger sit tag. Se fx en pumpe med roterende hjul og grøn lampe fra forskellige tags.
+- **Ret indstillingerne live**: farver, grænser, vinkler, afstande, hastighed, tekster og *gælder i positionerne*.
+- **Farvepaletten kan nu bruges**: i alle farvefelter vælger du direkte i bibliotekets palette, og i *Farver* kan koden kopieres.
+- *Hent bibliotekets opsætning* og *Hent symbolets egne* lægger symbolets egne animationer ind som udgangspunkt.
+- Rettet: *Hele symbolet* animerer nu symbolet selv (før kunne fx en farve ikke ses).
+
 ## v0.109.0 — 2026-10-20 — Trends: navne på kurverne
 
 - Hver kurve i Trends-graferne har nu sit **navn ved højre kant**. Ligger flere kurver tæt sammen, spredes navnene, så de kan læses, og en **pil** peger fra navnet til den rigtige kurve.

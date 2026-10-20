@@ -4,6 +4,20 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.111.0 build 0161] — 2026-10-20 — Symboltest: afspilning og fejltilstande
+
+- `frontend/src/lib/symbolSim.ts` + test (6 nye) — `playValue` (til/fra, tal op og ned, positioner), `clampPeriod`, tagfelterne `play`/`period`.
+- `frontend/src/pages/SymbolTest.svelte` — pr. tag: *Afspil*, *Runde (s)*, *Kvalitet*, *Værdi mangler*, *Alarm*; *Stop afspilning*; forklaring af alarmmarkeringen.
+- Manual (Symboltest) opdateret. Kun frontend. **Set** i Edge (headless): dårlig kvalitet dæmper symbolet, afspilning kører (Stop-knap og skiftende værdi); alarmmarkeringen er kun testet i enhedstests (den vises kun på tekst/niveau-dele).
+
+## [0.110.0 build 0160] — 2026-10-20 — Symboltest: flere tags og animationer, parametre og palette
+
+- `frontend/src/lib/symbolSim.ts` + test (19) — simulerede tags og animationer, `syncSim` (nulstiller ændret/fjernet, anvender alle med samme `applyBinding` som Overview), parameter-felter pr. type og art (`paramFields`), `setParam`/`setItem`/grænser, palette, alarmmarkering.
+- `frontend/src/lib/SimParams.svelte`, `ColorField.svelte` (ny) — parameter-editor og farvefelt med bibliotekets palette.
+- `frontend/src/pages/SymbolTest.svelte` — ny opbygning: tags, animationer (kort pr. animation), *Hent bibliotekets opsætning*/*Hent symbolets egne*, klikbar palette med kopiering af farvekode.
+- **Rettet**: *Hele symbolet* animerede omslaget (`svg`) i stedet for symbolets egen gruppe, så fx en farve ikke kunne ses; nu som i en tegning. Farvepaletten var kun en visning og kunne ikke bruges — nu vælges farver direkte i paletten.
+- Manual (Symboltest) opdateret. Kun frontend. **Set** i Edge (headless) på en testside: vippekontakt ON/OFF/ON (greb i position 2), pumpe og trykknap; ikke set i selve appen.
+
 ## [0.109.0 build 0159] — 2026-10-20 — Trends: kurvenavne med pile
 
 - `frontend/src/lib/lineLabels.ts` + test — `spreadLabels` (spreder navne med mindste mellemrum), `lastVisible`, `needsArrow`.

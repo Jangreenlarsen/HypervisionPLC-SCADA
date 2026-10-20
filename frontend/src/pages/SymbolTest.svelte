@@ -1,21 +1,29 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { CATEGORIES, SYMBOLS, SYMBOL_COLORS, type SymbolCategory } from '../lib/symbols';
   import { ANIM_TXT, type AnimType, type SrcKind } from '../lib/symbolConfig';
-  import type { Binding } from '../lib/api';
-  import { MAX_POSITIONS, MIN_POSITIONS, ROOT, animsFor, applyTest, librarySetup, resetTest, runSetup, testBinding, testParts, valueRange } from '../lib/symbolTest';
+  import { ROOT, librarySetup, testParts } from '../lib/symbolTest';
+  import {
+    MAX_ANIMS, MAX_PERIOD, MAX_TAGS, MIN_PERIOD, applyAlarmMarks, clampCount, clampPeriod, clampValue, defaultParams, fromOwn, fromSetup, newAnim, newTag, playValue,
+    retune, syncSim,
+    tagRange, type Applied, type SimAnim, type SimTag,
+  } from '../lib/symbolSim';
+  import SimParams from '../lib/SimParams.svelte';
 
   let category = $state<SymbolCategory | 'alle'>('alle');
   let search = $state('');
   let selected = $state(SYMBOLS[0].id);
   let background = $state<'lys' | 'moerk' | 'skak'>('lys');
   let zoom = $state(3);
-  let part = $state(ROOT);
-  let anim = $state<AnimType>('fill');
-  let kind = $state<SrcKind>('bool');
-  let value = $state(1);
-  let count = $state(3);   // antal positioner i den frie afprøvning
   let host = $state<HTMLElement>();
-  let error = $state('');
+  let tags = $state<SimTag[]>([]);
+  let anims = $state<SimAnim[]>([]);
+  let picked = $state('');   // farve valgt i paletten nederst
+  let copied = $state('');
+  let missing = $state<string[]>([]);
+  const applied = new Map<string, Applied>();
+  let renderToken = $state<object>({});   // symbolet er tegnet forfra → animationerne skal anvendes igen
+
   /** viewBox efter symbolets egen størrelse (getBBox medregner ikke stregen, derfor lidt luft). */
   function fit(svg: SVGSVGElement): void {
     try {
@@ -28,76 +36,135 @@
     }
   }
   const fitting = (node: SVGSVGElement) => fit(node);
-  let applied: Binding[] = [];   // det der er sat på symbolet nu, så Nulstil kan rydde det
 
   const shown = $derived(SYMBOLS.filter((s) => (category === 'alle' || s.category === category)
     && (!search.trim() || `${s.label} ${s.id}`.toLowerCase().includes(search.trim().toLowerCase()))));
   const def = $derived(SYMBOLS.find((s) => s.id === selected) ?? SYMBOLS[0]);
   const parts = $derived(testParts(def.svg, def.id));
-  const current = $derived(parts.find((p) => p.id === part) ?? parts[0]);
-  const n = $derived(Math.min(MAX_POSITIONS, Math.max(MIN_POSITIONS, Math.round(Number(count)) || MIN_POSITIONS)));
-  const animList = $derived(animsFor(current.types, kind));
   const setup = $derived(librarySetup(def.svg, def.id));
-  const range = $derived(kind === 'bool' ? { min: 0, max: 1 } : kind === 'pos' ? { min: 0, max: n - 1 }
-    : valueRange(testBinding(part, anim, kind).params));
-  const whole = $derived(kind !== 'num');   // til/fra og position: hele tal
+  const ownCount = $derived(parts.reduce((n, p) => n + p.own.length, 0));
+  const tagOf = (id: string): SimTag => tags.find((t) => t.id === id) ?? tags[0];
 
-  // delen eller kilden er skiftet: vælg en animation der findes for den
-  $effect(() => { if (!animList.includes(anim)) anim = animList[0]; });
-  $effect(() => { if (value > range.max) value = range.max; });
+  /** Et nyt symbol: bibliotekets opsætning hvis den findes, ellers ét til/fra-tag med en farveanimation på hele symbolet. */
+  function initial(symbolId: string): { tags: SimTag[]; anims: SimAnim[] } {
+    const s = SYMBOLS.find((x) => x.id === symbolId) ?? SYMBOLS[0];
+    const su = librarySetup(s.svg, s.id);
+    if (su) return fromSetup(su);
+    const t = newTag([], 'bool');
+    return { tags: [t], anims: [newAnim(t, ROOT, 'fill')] };
+  }
 
   function select(id: string): void {
     selected = id;
-    part = ROOT;
-    value = 1;
-    applied = [];
-    error = '';
+    applied.clear();   // delene tegnes forfra
+    const l = initial(id);
+    tags = l.tags;
+    anims = l.anims;
   }
 
-  /** Bibliotekets opsætning afprøves med én værdi (positionens nummer, til/fra eller tal). */
-  function runLibrary(v: number): void {
-    if (!host || !setup) return;
-    const missing = runSetup(host, setup, v);
-    error = missing.length ? `Delen "${missing[0]}" findes ikke i symbolet.` : '';
-    for (const b of setup.bindings) if (!applied.some((a) => a.element === b.element && a.anim === b.anim)) applied.push(b);
+  // ---- tags
+  function addTag(kind: SrcKind = 'bool'): void {
+    if (tags.length >= MAX_TAGS) return;
+    tags.push(newTag(tags, kind));
   }
-
-  function run(b: Binding, v: number): void {
-    if (!host) return;
-    if (!applyTest(host, b.element, b, v)) {
-      error = `Delen "${b.element}" findes ikke i symbolet.`;
-      return;
-    }
-    error = '';
-    if (!applied.some((a) => a.element === b.element && a.anim === b.anim)) applied.push(b);
+  function removeTag(id: string): void {
+    anims = anims.filter((a) => a.tag !== id);
+    tags = tags.filter((t) => t.id !== id);
+    if (!tags.length) addTag();
   }
-
-  function test(): void {
-    run(testBinding(part, anim, kind, n), value);
+  /** Art eller antal positioner ændret: værdien holdes inden for tagget, og animationerne får nye standardparametre. */
+  function retag(t: SimTag): void {
+    t.count = clampCount(t.count);
+    t.value = clampValue(t);
+    retune(anims, t);
   }
+  const setValue = (t: SimTag, v: number) => { t.value = v; };
 
-  /** Symbolets egne animationer (data-hv-part) afprøves med samme værdi. */
-  function runOwn(): void {
-    for (const p of parts) for (const o of p.own) run({ element: p.id, tag: 'test', anim: o.anim, params: o.params }, value);
+  // ---- animationer
+  function addAnim(): void {
+    if (anims.length >= MAX_ANIMS) return;
+    anims.push(newAnim(tags[0], ROOT, 'fill'));
   }
-
+  function setPart(a: SimAnim, part: string): void {
+    a.part = part;
+    const types = parts.find((p) => p.id === part)?.types ?? [];
+    if (!types.includes(a.anim) && types.length) setType(a, types[0]);
+  }
+  function setType(a: SimAnim, type: AnimType): void {
+    a.anim = type;
+    a.params = defaultParams(type, tagOf(a.tag));
+    a.posTag = undefined;
+  }
+  function setTag(a: SimAnim, id: string): void {
+    a.tag = id;
+    a.params = defaultParams(a.anim, tagOf(id));
+    a.posTag = undefined;
+  }
+  function loadSetup(): void {
+    if (!setup) return;
+    const l = fromSetup(setup);
+    tags = l.tags;
+    anims = l.anims;
+  }
+  function loadOwn(): void {
+    const l = fromOwn(parts);
+    tags = l.tags;
+    anims = l.anims;
+  }
   function reset(): void {
-    if (host) resetTest(host, applied);
-    applied = [];
-    value = 1;
+    anims = [];
+    for (const t of tags) { t.play = 'off'; t.value = t.kind === 'bool' ? 1 : 0; t.missing = false; t.quality = 'good'; t.alarm = ''; }
   }
 
-  // et nyt symbol tegnes forfra — så ryddes tidligere animationer af sig selv
+  async function copy(c: string): Promise<void> {
+    picked = c;
+    try {
+      await navigator.clipboard.writeText(c);
+      copied = c;
+    } catch {
+      copied = '';   // udklipsholderen er ikke tilgængelig (fx http): farven vises stadig og kan skrives af
+    }
+  }
+
+  // ---- afspilning: tags med afspilning løber selv gennem deres område
+  const playing = $derived(tags.some((t) => t.play === 'loop'));
+  $effect(() => {
+    if (!playing) return;
+    const t0 = performance.now();
+    const id = setInterval(() => {
+      const s = (performance.now() - t0) / 1000;
+      for (const t of tags) if (t.play === 'loop') t.value = playValue(t, s);
+    }, 50);
+    return () => clearInterval(id);
+  });
+  function stopAll(): void {
+    for (const t of tags) t.play = 'off';
+  }
+
+  // ---- tegning og anvendelse
+  { const l = initial(SYMBOLS[0].id); tags = l.tags; anims = l.anims; }
   $effect(() => {
     if (!host) return;
     host.innerHTML = `<svg viewBox="-10 -10 260 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;overflow:visible">${def.svg}</svg>`;
     fit(host.firstElementChild as SVGSVGElement);
+    applied.clear();
+    renderToken = {};
+  });
+  $effect(() => {
+    void renderToken;
+    const a = $state.snapshot(anims), t = $state.snapshot(tags);
+    const svg = host?.firstElementChild;   // symbolets omslag: "Hele symbolet" er dets første barn, som i en tegning
+    if (!svg) return;
+    untrack(() => {
+      missing = syncSim(svg, a, t, applied);
+      applyAlarmMarks(svg, a, t);
+    });
   });
 </script>
 
 <section class="panel">
   <h2>Symboltest</h2>
-  <p class="muted">Afprøv et symbol uden PLC: vælg en del, en animation og en værdi. Intet gemmes.</p>
+  <p class="muted">Afprøv et symbol uden PLC: simulér tags, læg animationer på delene og ret deres indstillinger. Intet gemmes.</p>
   <div class="layout">
     <div class="list">
       <div class="row">
@@ -128,72 +195,128 @@
         <label>Størrelse <input type="range" min="1" max="6" step="0.5" bind:value={zoom} /></label>
       </div>
       <div class="stage bg-{background}" style="width:{zoom * 80}px;height:{zoom * 80}px" bind:this={host}></div>
-      {#if error}<div class="error">{error}</div>{/if}
+      {#if missing.length}<div class="error">Delen "{missing[0]}" findes ikke i symbolet.</div>{/if}
 
-      {#if setup}
-        <h4>Som i guiden</h4>
-        <p class="muted small">{setup.note}</p>
-        <div class="row">
-          {#if setup.positions.length}
-            {#each setup.positions as label, j}<button onclick={() => runLibrary(j)}>{j}: {label}</button>{/each}
-          {:else if setup.kind === 'num'}
-            <input type="range" min="0" max="100" value="0" oninput={(e) => runLibrary(Number(e.currentTarget.value))} aria-label="Værdi" />
-          {:else}
-            <button onclick={() => runLibrary(0)}>Fra</button><button onclick={() => runLibrary(1)}>Til</button>
-          {/if}
+      <h4>Tags <small class="muted">(simulerede værdier)</small></h4>
+      <p class="muted small">Kvalitet og <em>Værdi mangler</em> viser, hvordan symbolet ser ud ved kommunikationsfejl. Alarm markerer (som i Overview) kun dele, der viser tagget som tekst eller niveau.</p>
+      {#each tags as t (t.id)}
+        <div class="card">
+          <div class="row">
+            <input class="name" bind:value={t.name} aria-label="Navn på tag" />
+            <label>Art
+              <select bind:value={t.kind} onchange={() => retag(t)}>
+                <option value="bool">Til/fra</option><option value="num">Tal</option><option value="pos">Position</option>
+              </select>
+            </label>
+            {#if t.kind === 'pos'}
+              <label>Positioner <input type="number" min="2" max="8" bind:value={t.count} onchange={() => retag(t)} style="width:4em" /></label>
+            {:else if t.kind === 'num'}
+              <label>Fra <input type="number" bind:value={t.min} onchange={() => retag(t)} style="width:5em" /></label>
+              <label>Til <input type="number" bind:value={t.max} onchange={() => retag(t)} style="width:5em" /></label>
+              <label>Enhed <input bind:value={t.unit} style="width:4em" /></label>
+            {/if}
+            <button class="small" onclick={() => removeTag(t.id)} aria-label="Fjern tag {t.name}">Fjern</button>
+          </div>
+          <div class="row">
+            {#if t.kind === 'bool'}
+              <button class:primary={t.value === 0} onclick={() => setValue(t, 0)}>Fra</button>
+              <button class:primary={t.value === 1} onclick={() => setValue(t, 1)}>Til</button>
+            {:else if t.kind === 'pos'}
+              {#each Array.from({ length: clampCount(t.count) }, (_, j) => j) as j}
+                <button class:primary={t.value === j} onclick={() => setValue(t, j)}>{t.labels[j] ? `${j}: ${t.labels[j]}` : j}</button>
+              {/each}
+            {:else}
+              <input type="range" min={tagRange(t).min} max={tagRange(t).max} step={(tagRange(t).max - tagRange(t).min) / 100} bind:value={t.value} aria-label="Værdi for {t.name}" />
+              <input type="number" bind:value={t.value} style="width:6em" aria-label="Værdi for {t.name}" />
+            {/if}
+          </div>
+          <div class="row">
+            <label>Afspil
+              <select bind:value={t.play} aria-label="Afspil {t.name}"><option value="off">Fra</option><option value="loop">Løbende</option></select>
+            </label>
+            {#if t.play === 'loop'}
+              <label>Runde (s) <input type="number" min={MIN_PERIOD} max={MAX_PERIOD} step="1" bind:value={t.period} onchange={() => (t.period = clampPeriod(t.period))} style="width:4.5em" /></label>
+            {/if}
+            <label>Kvalitet
+              <select bind:value={t.quality}>
+                <option value="good">God</option><option value="bad">Dårlig</option><option value="unknown">Ukendt</option><option value="comm_error">Kommunikationsfejl</option>
+              </select>
+            </label>
+            <label class="inline"><input type="checkbox" bind:checked={t.missing} /> Værdi mangler</label>
+            <label>Alarm
+              <select bind:value={t.alarm}><option value="">Ingen</option><option value="unack">Ukvitteret</option><option value="ack">Kvitteret</option></select>
+            </label>
+          </div>
         </div>
-      {/if}
-
-      <h4>Afprøv en animation</h4>
+      {/each}
+      {#if playing}<div class="row"><button class="danger" onclick={stopAll}>Stop afspilning</button></div>{/if}
       <div class="row">
-        <label>Del
-          <select bind:value={part}>{#each parts as p}<option value={p.id}>{p.label}{p.id === ROOT ? '' : ` (${p.id})`}</option>{/each}</select>
-        </label>
-        <label>Animation
-          <select bind:value={anim}>{#each animList as a}<option value={a}>{ANIM_TXT[a]}</option>{/each}</select>
-        </label>
-        <label>Tag er
-          <select bind:value={kind}><option value="bool">Til/fra</option><option value="num">Tal</option><option value="pos">Position</option></select>
-        </label>
-        {#if kind === 'pos'}
-          <label>Positioner <input type="number" min={MIN_POSITIONS} max={MAX_POSITIONS} bind:value={count} style="width:4em" /></label>
-        {/if}
-      </div>
-      <div class="row">
-        <button onclick={() => { value = range.min; test(); }}>Fra</button>
-        <button onclick={() => { value = range.max; test(); }}>Til</button>
-        <input type="range" min={range.min} max={range.max} step={whole ? 1 : (range.max - range.min) / 100} bind:value oninput={test} />
-        <output>{value}</output>
+        <button onclick={() => addTag('bool')} disabled={tags.length >= MAX_TAGS}>+ Til/fra</button>
+        <button onclick={() => addTag('num')} disabled={tags.length >= MAX_TAGS}>+ Tal</button>
+        <button onclick={() => addTag('pos')} disabled={tags.length >= MAX_TAGS}>+ Position</button>
       </div>
 
-      {#if parts.some((p) => p.own.length)}
-        <h4>Symbolets egne animationer</h4>
-        <ul class="small">
-          {#each parts.filter((p) => p.own.length) as p}
-            <li>{p.label}: {p.own.map((o) => ANIM_TXT[o.anim as AnimType] ?? o.anim).join(', ')}</li>
-          {/each}
-        </ul>
-        <button onclick={runOwn}>Kør med værdien ovenfor</button>
-      {/if}
-      <div class="row"><button class="danger" onclick={reset}>Nulstil</button></div>
+      <h4>Animationer</h4>
+      {#each anims as a (a.id)}
+        {@const tag = tagOf(a.tag)}
+        {@const types = parts.find((p) => p.id === a.part)?.types ?? []}
+        <details class="card" open>
+          <summary>
+            {parts.find((p) => p.id === a.part)?.label ?? a.part} — {ANIM_TXT[a.anim]} — {tag.name}
+          </summary>
+          <div class="row">
+            <label>Del
+              <select value={a.part} onchange={(e) => setPart(a, e.currentTarget.value)}>
+                {#each parts as p}<option value={p.id}>{p.label}{p.id === ROOT ? '' : ` (${p.id})`}</option>{/each}
+              </select>
+            </label>
+            <label>Animation
+              <select value={a.anim} onchange={(e) => setType(a, e.currentTarget.value as AnimType)}>
+                {#each types as ty}<option value={ty}>{ANIM_TXT[ty]}</option>{/each}
+              </select>
+            </label>
+            <label>Følger
+              <select value={a.tag} onchange={(e) => setTag(a, e.currentTarget.value)}>
+                {#each tags as t}<option value={t.id}>{t.name}</option>{/each}
+              </select>
+            </label>
+            <button class="small" onclick={() => (anims = anims.filter((x) => x.id !== a.id))} aria-label="Fjern animation">Fjern</button>
+          </div>
+          <SimParams anim={a} {tag} {tags}
+            onparams={(params) => { a.params = params; }}
+            onpos={(id) => { a.posTag = id; }} />
+        </details>
+      {/each}
+      {#if !anims.length}<p class="muted small">Ingen animationer endnu — tilføj en, eller hent symbolets opsætning.</p>{/if}
+      <div class="row">
+        <button class="primary" onclick={addAnim} disabled={anims.length >= MAX_ANIMS}>+ Tilføj animation</button>
+        {#if setup}<button onclick={loadSetup} title="Som guiden foreslår den">Hent bibliotekets opsætning</button>{/if}
+        {#if ownCount}<button onclick={loadOwn} title="data-hv-part i symbolet">Hent symbolets egne ({ownCount})</button>{/if}
+        <button class="danger" onclick={reset}>Nulstil</button>
+      </div>
+      {#if setup}<p class="muted small">{setup.note}</p>{/if}
 
       <h4>Dele</h4>
       <table class="small">
         <thead><tr><th>Navn</th><th>Id</th><th>Figur</th></tr></thead>
-        <tbody>{#each parts as p}<tr class:cur={p.id === current.id}><td>{p.label}</td><td>{p.id === ROOT ? '' : p.id}</td><td>{p.tag}</td></tr>{/each}</tbody>
+        <tbody>{#each parts as p}<tr><td>{p.label}</td><td>{p.id === ROOT ? '' : p.id}</td><td>{p.tag}</td></tr>{/each}</tbody>
       </table>
       {#if parts.length === 1}<p class="muted">Ingen navngivne dele — kun hele symbolet kan animeres (SYMBOLSTANDARD §8).</p>{/if}
 
       <h4>Farver</h4>
+      <p class="muted small">Bibliotekets palette. Klik en farve for at se og kopiere koden; i animationernes farvefelter vælger du den direkte i paletten.</p>
       <div class="row">
-        {#each SYMBOL_COLORS as c}<span class="sw" style="background:{c}" title={c}></span>{/each}
+        {#each SYMBOL_COLORS as c}
+          <button type="button" class="sw" class:on={picked === c} style="background:{c}" title={c} aria-label={c} onclick={() => copy(c)}></button>
+        {/each}
       </div>
+      {#if picked}<p class="small"><span class="sw big" style="background:{picked}"></span> <code>{picked}</code>{copied === picked ? ' — kopieret' : ''}</p>{/if}
     </div>
   </div>
 </section>
 
 <style>
-  .layout { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.4fr); gap: 16px; }
+  .layout { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.6fr); gap: 16px; }
   @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; margin-top: 8px; max-height: 70vh; overflow: auto; }
   .tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; font-size: 11px; }
@@ -203,6 +326,11 @@
   .bg-moerk { background: #1f1f1f; }
   .bg-skak { background: repeating-conic-gradient(#d6d6d6 0 25%, #ffffff 0 50%) 0 0 / 16px 16px; }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin: 6px 0; }
-  .sw { width: 18px; height: 18px; border: 1px solid var(--line); display: inline-block; }
-  tr.cur td { background: var(--panel-2); }
+  .card { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin: 6px 0; background: var(--panel); }
+  .card summary { cursor: pointer; font-weight: 600; font-size: .9em; }
+  .name { width: 7em; font-weight: 600; }
+  label.inline { display: inline-flex; align-items: center; gap: 4px; }
+  .sw { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); display: inline-block; cursor: pointer; }
+  .sw.on { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .sw.big { width: 28px; height: 28px; vertical-align: middle; cursor: default; }
 </style>
