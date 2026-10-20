@@ -101,10 +101,16 @@ export const kindFor = (anim: AnimType, tag: Pick<SimTag, 'kind'>): SrcKind =>
   tag.kind === 'pos' && !POS_ANIMS.includes(anim) ? 'num' : tag.kind;
 
 /** Standardparametre for animationen på tagget (som guiden ville foreslå dem). */
-export function defaultParams(anim: AnimType, tag: Pick<SimTag, 'kind' | 'count' | 'labels'>): Record<string, any> {
+export function defaultParams(anim: AnimType, tag: Pick<SimTag, 'kind' | 'count' | 'labels'> & Partial<Pick<SimTag, 'min' | 'max'>>): Record<string, any> {
   const params = testBinding('', anim, kindFor(anim, tag), clampCount(tag.count)).params;
   // guidens standard giver alle positioner samme farve ved ≠ 2 positioner — i testen får hver position sin egen, så ændringen kan ses
   if (params.pos && (anim === 'fill' || anim === 'stroke') && tag.count !== 2) params.colors = Array.from({ length: clampCount(tag.count) }, (_, j) => POSITION_COLORS[j % POSITION_COLORS.length]);
+  // tal og positioner: området følger tagget (en position er 0 … antal−1), så skyderen dækker hele animationens område
+  if (!params.pos && 'min' in params && 'max' in params && tag.kind !== 'bool') {
+    const r = tagRange({ kind: tag.kind, count: tag.count, min: tag.min ?? 0, max: tag.max ?? 100 });
+    params.min = r.min;
+    params.max = r.max;
+  }
   if (params.pos && anim === 'text' && tag.labels.length) params.labels = Array.from({ length: clampCount(tag.count) }, (_, j) => tag.labels[j] || `Position ${j + 1}`);
   return params;
 }

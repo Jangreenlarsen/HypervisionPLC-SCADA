@@ -27,10 +27,11 @@
   let renderToken = $state<object>({});   // symbolet er tegnet forfra → animationerne skal anvendes igen
 
   /** viewBox efter symbolets egen størrelse (getBBox medregner ikke stregen, derfor lidt luft). */
-  function fit(svg: SVGSVGElement): void {
+  function fit(svg: SVGSVGElement, headroom = 1): void {
     try {
       const b = (svg.firstElementChild as SVGGraphicsElement).getBBox();
-      const pad = Math.max(b.width, b.height) * 0.08 + 4, size = Math.max(b.width, b.height) + 2 * pad;
+      // headroom: en Størrelse-animation kan gøre symbolet større — vinduet får plads til det største
+      const pad = Math.max(b.width, b.height) * 0.08 + 4, size = (Math.max(b.width, b.height) + 2 * pad) * headroom;
       const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
       svg.setAttribute('viewBox', `${cx - size / 2} ${cy - size / 2} ${size} ${size}`);
     } catch {
@@ -46,6 +47,8 @@
   const setup = $derived(librarySetup(def.svg, def.id));
   const ownCount = $derived(parts.reduce((n, p) => n + p.own.length, 0));
   const clashes = $derived(conflicts(anims, (id) => parts.find((p) => p.id === id)?.label ?? id));
+  /** Hvor mange gange større symbolet kan blive (Størrelse-animationer), så det ikke vokser ud af billedet. */
+  const headroom = $derived(Math.max(1, ...anims.filter((a) => a.anim === 'scale').map((a) => Math.max(Number(a.params.size_min) || 0, Number(a.params.size_max) || 0) / 100)));
   const tagOf = (id: string): SimTag => tags.find((t) => t.id === id) ?? tags[0];
 
   /** Et nyt symbol: bibliotekets opsætning hvis den findes, ellers ét til/fra-tag med en farveanimation på hele symbolet. */
@@ -159,6 +162,11 @@
     fit(host.firstElementChild as SVGSVGElement);
     applied.clear();
     renderToken = {};
+  });
+  $effect(() => {
+    void renderToken;
+    const svg = host?.firstElementChild;
+    if (svg) fit(svg as SVGSVGElement, headroom);
   });
   $effect(() => {
     void renderToken;
@@ -340,7 +348,7 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; margin-top: 8px; max-height: 70vh; overflow: auto; }
   .tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; font-size: 11px; }
   .tile.on { border-color: var(--accent); background: var(--panel-2); }
-  .stage { border: 1px solid var(--line); margin: 8px 0; max-width: 100%; }
+  .stage { border: 1px solid var(--line); margin: 8px 0; max-width: 100%; overflow: hidden; }
   .bg-lys { background: #ffffff; }
   .bg-moerk { background: #1f1f1f; }
   .bg-skak { background: repeating-conic-gradient(#d6d6d6 0 25%, #ffffff 0 50%) 0 0 / 16px 16px; }

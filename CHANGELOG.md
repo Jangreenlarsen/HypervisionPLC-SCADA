@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.111.3 build 0164] — 2026-10-20 — Størrelse/Gennemsigtighed/Niveau på til/fra-tags
+
+- `frontend/src/lib/symbolConfig.ts` — `animDefaults`: Niveau, Gennemsigtighed og Størrelse får området 0–1 for et til/fra-tag (før 0–100, så Til kun gav 1 %). Gælder også symbolguiden for nye animationer; gemte opsætninger er uændrede.
+- `frontend/src/lib/symbolSim.ts` — i Symboltest følger området tagget (tal: min–max, position: 0 … antal−1).
+- `frontend/src/pages/SymbolTest.svelte` — plads til symbolet, når en Størrelse-animation gør det større, og billedet klipper (før voksede det ud over siden).
+- Tests: `symbolConfig.test.ts`, `symbolSimAudit.test.ts` (størrelse 50/150 %, gennemsigtighed 0/1, niveau tom/fuld, område følger tagget).
+- Kun frontend. **Set** i Edge: Størrelse i Symboltest (0 og 100) og i en tegning med translate/rotate.
+
 ## [0.111.2 build 0163] — 2026-10-20 — Symboltest: gennemgang, farvevalidering og overlap-advarsel
 
 - `frontend/src/pages/SymbolTest.test.ts`, `SymbolTestSweep.test.ts` (nye, 10 tests) — siden som bruger (jsdom): Fra/Til-farver via hex, vælger og palette; alle 94 symboler; alle valg i alle menuer; alle tag-arter; afspilning; tilføj/fjern/nulstil.

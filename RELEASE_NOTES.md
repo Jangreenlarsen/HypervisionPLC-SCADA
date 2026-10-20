@@ -2,6 +2,11 @@
 
 ---
 
+## v0.111.3 — 2026-10-20 — Størrelse, Gennemsigtighed og Niveau på til/fra
+
+- En ny animation af typen **Størrelse**, **Gennemsigtighed** eller **Niveau** på et til/fra-signal gør nu noget synligt: Fra = mindst, Til = størst (før kunne forskellen ikke ses). Gælder symbolguiden og Symboltest. Allerede gemte opsætninger ændres ikke.
+- I Symboltest følger området tagget, og et symbol der bliver større, vokser ikke længere ud af billedet.
+
 ## v0.111.2 — 2026-10-20 — Symboltest: gennemgang
 
 - Hele Symboltest er gennemgået automatisk (alle symboler, dele, animationer og tag-arter) — ingen fejl fundet i motoren.
