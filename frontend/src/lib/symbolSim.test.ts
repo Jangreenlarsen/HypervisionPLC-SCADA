@@ -38,7 +38,15 @@ describe('tags', () => {
     const t = { ...newTag([], 'num'), value: 42, missing: true, quality: 'bad' as const };
     expect(liveOfTag(t).value).toBeNull();
     expect(liveOfTag(t).quality).toBe('bad');
-    expect(liveOfTag({ ...t, missing: false }).value).toBe(42);
+    expect(liveOfTag({ ...t, missing: false }).value).toBeNull();   // Dårlig har aldrig en værdi
+    expect(liveOfTag({ ...t, missing: false, quality: 'good' }).value).toBe(42);
+  });
+  it('som i driften: kun God og Kommunikationsfejl har en værdi — Dårlig og Ukendt har ingen', () => {
+    const t = { ...newTag([], 'num'), value: 42 };
+    expect(liveOfTag({ ...t, quality: 'good' }).value).toBe(42);
+    expect(liveOfTag({ ...t, quality: 'comm_error' }).value).toBe(42);   // sidst kendte værdi
+    expect(liveOfTag({ ...t, quality: 'bad' }).value).toBeNull();
+    expect(liveOfTag({ ...t, quality: 'unknown' }).value).toBeNull();
   });
 });
 

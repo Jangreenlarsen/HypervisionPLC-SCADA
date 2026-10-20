@@ -15,6 +15,19 @@ Overview viser en tegning af anlægget med live-værdier. Øverst vælger du **t
 - **Statuschips** øverst viser, om forbindelsen til serveren er **Live**, og om hver PLC svarer (*HypervisionPLC 10.1.1.30: ok · SSE*). Er forbindelsen væk, vises det tydeligt, og værdierne er ikke friske.
 - Værdier uden kontakt til PLC'en vises som **—** eller som tegnet, så du aldrig ser en gammel værdi som om den var ny.
 
+### Når værdien ikke er frisk (datakvalitet)
+
+Hver værdi har en **kvalitet**. Er den ikke *god*, tones symbolet **ned** (kun ca. en tredjedel synligt og gråt), så en gammel eller manglende værdi aldrig ligner en gyldig.
+
+| Kvalitet | Hvad der er sket | Værdien |
+| --- | --- | --- |
+| **God** | Frisk værdi læst fra PLC'en | Vises normalt |
+| **Kommunikationsfejl** | Forbindelsen til PLC'en fejlede (netværk, PLC slukket) | Den **sidst kendte** værdi — den er ikke ny |
+| **Dårlig** | PLC'en svarer, men tagget kan ikke læses: en ST-variabel findes ikke eller programmet er ikke kompileret, eller en ekstern enhed (RS485-slave, expansion board) svarer ikke | Ingen værdi — vises som **—** eller som tegnet |
+| **Ukendt** | Der er endnu ikke modtaget nogen værdi (lige efter opstart, eller der ventes på første svar) | Ingen værdi |
+
+Så længe kvaliteten ikke er god, gælder desuden: **alarmer for tagget fastholdes uændret** (en kommunikationsfejl udløser eller rydder ikke tagets alarmer), **betjening afvises** med *Ingen forbindelse … intet er skrevet*, og **Trends** får et hul i kurven. Teknikere kan se symbolet i hver tilstand i *Symboltest*.
+
 ### Zoom og flyt
 
 Brug **musehjulet**, **knib** på en touch-skærm eller knapperne **−**, **+** og **Tilpas** (tilpasser tegningen til vinduet). Træk i tegningen for at flytte rundt. Zoomniveauet vises som procent.

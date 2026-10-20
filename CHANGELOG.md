@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.111.4 build 0165] — 2026-10-20 — Datakvalitet: forklaring og Symboltest som i driften
+
+- `frontend/src/lib/symbolSim.ts` + test — *Dårlig* og *Ukendt* giver ingen værdi (som `plc_runtime`); *Kommunikationsfejl* beholder den sidst kendte.
+- `frontend/src/pages/SymbolTest.svelte` — forklaring ved Kvalitet.
+- Manual: nyt afsnit *Drift › Datakvalitet* (tabel over de fire kvaliteter, nedtoning, alarmer/betjening/Trends), Symboltest-trin 5, fejlfinding og ordliste.
+- Kun frontend og dokumentation. Kun bygget og testet.
+
 ## [0.111.3 build 0164] — 2026-10-20 — Størrelse/Gennemsigtighed/Niveau på til/fra-tags
 
 - `frontend/src/lib/symbolConfig.ts` — `animDefaults`: Niveau, Gennemsigtighed og Størrelse får området 0–1 for et til/fra-tag (før 0–100, så Til kun gav 1 %). Gælder også symbolguiden for nye animationer; gemte opsætninger er uændrede.

@@ -158,7 +158,10 @@ export function fromOwn(parts: TestPart[]): { tags: SimTag[]; anims: SimAnim[] }
  */
 export function liveOfTag(t: SimTag): LiveValue {
   const value = t.kind === 'bool' ? Boolean(t.value) : t.value;
-  return { value: t.missing ? null : value, quality: t.quality, ts: Date.now() / 1000, error: t.quality === 'good' ? null : 'simuleret' };
+  // Som i driften: kun God og Kommunikationsfejl har en værdi (den sidst kendte ved kommunikationsfejl) — Dårlig og
+  // Ukendt har ingen
+  const none = t.missing || t.quality === 'bad' || t.quality === 'unknown';
+  return { value: none ? null : value, quality: t.quality, ts: Date.now() / 1000, error: t.quality === 'good' ? null : 'simuleret' };
 }
 
 export const metaOf = (t: SimTag): TagMeta => ({ unit: t.unit, decimals: null, description: t.name, plc: 'test' });

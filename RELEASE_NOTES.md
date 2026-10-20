@@ -2,6 +2,11 @@
 
 ---
 
+## v0.111.4 — 2026-10-20 — Datakvalitet forklaret
+
+- Manualen forklarer nu **datakvalitet**: *God*, *Kommunikationsfejl* (sidst kendte værdi), *Dårlig* (kan ikke læses) og *Ukendt* (endnu ikke modtaget), at symbolet tones ned, og at alarmer fastholdes, betjening afvises og Trends får et hul.
+- I Symboltest har *Dårlig* og *Ukendt* nu ingen værdi, som i driften.
+
 ## v0.111.3 — 2026-10-20 — Størrelse, Gennemsigtighed og Niveau på til/fra
 
 - En ny animation af typen **Størrelse**, **Gennemsigtighed** eller **Niveau** på et til/fra-signal gør nu noget synligt: Fra = mindst, Til = størst (før kunne forskellen ikke ses). Gælder symbolguiden og Symboltest. Allerede gemte opsætninger ændres ikke.

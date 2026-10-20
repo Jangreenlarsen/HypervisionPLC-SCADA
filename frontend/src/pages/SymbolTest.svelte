@@ -224,7 +224,7 @@
       </div>
 
       <h4>Tags <small class="muted">(simulerede værdier)</small></h4>
-      <p class="muted small">Kvalitet og <em>Værdi mangler</em> viser, hvordan symbolet ser ud ved kommunikationsfejl. Alarm markerer (som i Overview) kun dele, der viser tagget som tekst eller niveau.</p>
+      <p class="muted small"><em>Kvalitet</em> viser, hvordan symbolet ser ud, når PLC'en ikke leverer en frisk værdi: <em>Kommunikationsfejl</em> beholder den sidste værdi, <em>Dårlig</em> og <em>Ukendt</em> har ingen værdi (som i driften); alle tre tones ned. Alarm markerer (som i Overview) kun dele, der viser tagget som tekst eller niveau.</p>
       {#each tags as t (t.id)}
         <div class="card">
           <div class="row">

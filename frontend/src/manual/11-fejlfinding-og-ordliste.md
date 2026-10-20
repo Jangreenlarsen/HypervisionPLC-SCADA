@@ -15,6 +15,7 @@
 | Opdateringen blev rullet tilbage | Den nye version startede ikke | Se loggen nederst på **Opdatering**; ret og prøv igen |
 | Ugeprogram skriver ikke | Tagget er ikke skrivbart, PLC'en er utilgængelig, eller værdien er allerede sat | Se programmets status og **Log** |
 | Trends viser ingen tags at vælge, eller et tag mangler | Viewer, operatør og driftpanel ser kun de trends, der er sat op i deres tegninger | En tekniker sætter trendgrafen eller symbolets tags op i tegningen (eller giver dig rollen tekniker) |
+| Et symbol er **nedtonet og gråt** | Tagget har ikke god kvalitet: kommunikationsfejl, ikke læsbart eller endnu ikke modtaget | Se *Drift › Datakvalitet*; tjek PLC'ens status under **PLC'er** og tagget under **Tags** |
 | Tegningen viser ikke min nye version | Versionen er kun gemt som kladde | **Tegninger › Versioner › Gør aktiv** eller **Gem og udgiv** i Tegn |
 
 ## Ordliste
@@ -41,6 +42,7 @@
 | **SSE** | Push-strøm fra PLC'en med ændringer |
 | **Dødbånd** | Hvor langt værdien skal bevæge sig tilbage, før en grænsealarm går |
 | **Nøglelås** | Kode (4 cifre) der kræves for udvalgte positioner |
+| **Kvalitet** | Om en værdi er frisk: *god*, *kommunikationsfejl* (sidst kendte værdi), *dårlig* (kan ikke læses) eller *ukendt* (endnu ikke modtaget). Symboler med ikke-god kvalitet tones ned (se *Drift › Datakvalitet*) |
 | **Fastfrosset** | En værdi der har stået uændret så længe, at føleren mistænkes for at være gået død (se *Analysér data*) |
 | **Spike** | Et enkelt punkt, der ligger langt fra sine naboer |
 | **OTA** | Opdatering af SCADA'en fra websiden |
