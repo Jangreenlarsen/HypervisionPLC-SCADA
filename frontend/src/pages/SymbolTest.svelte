@@ -4,7 +4,7 @@
   import { ANIM_TXT, type AnimType, type SrcKind } from '../lib/symbolConfig';
   import { ROOT, librarySetup, testParts } from '../lib/symbolTest';
   import {
-    MAX_ANIMS, MAX_PERIOD, MAX_TAGS, MIN_PERIOD, applyAlarmMarks, clampCount, clampPeriod, clampValue, clearSim, defaultParams, fromOwn, fromSetup, newAnim, newTag, playValue,
+    MAX_ANIMS, MAX_PERIOD, MAX_TAGS, MIN_PERIOD, applyAlarmMarks, conflicts, clampCount, clampPeriod, clampValue, clearSim, defaultParams, fromOwn, fromSetup, newAnim, newTag, playValue,
     retune, syncSim,
     tagRange, type Applied, type SimAnim, type SimTag,
   } from '../lib/symbolSim';
@@ -45,6 +45,7 @@
   const parts = $derived(testParts(def.svg, def.id));
   const setup = $derived(librarySetup(def.svg, def.id));
   const ownCount = $derived(parts.reduce((n, p) => n + p.own.length, 0));
+  const clashes = $derived(conflicts(anims, (id) => parts.find((p) => p.id === id)?.label ?? id));
   const tagOf = (id: string): SimTag => tags.find((t) => t.id === id) ?? tags[0];
 
   /** Et nyt symbol: bibliotekets opsætning hvis den findes, ellers ét til/fra-tag med en farveanimation på hele symbolet. */
@@ -274,6 +275,7 @@
       </div>
 
       <h4>Animationer</h4>
+      {#each clashes as c}<p class="warn small" role="alert">⚠ {c}</p>{/each}
       {#each anims as a (a.id)}
         {@const tag = tagOf(a.tag)}
         {@const types = parts.find((p) => p.id === a.part)?.types ?? []}
@@ -347,6 +349,7 @@
   .card summary { cursor: pointer; font-weight: 600; font-size: .9em; }
   .name { width: 7em; font-weight: 600; }
   .status { align-items: center; }
+  .warn { color: var(--warn, #b26a00); margin: 4px 0; }
   .ok { color: var(--ok, #2e7d32); font-size: .9em; }
   label.inline { display: inline-flex; align-items: center; gap: 4px; }
   .sw { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); display: inline-block; cursor: pointer; }

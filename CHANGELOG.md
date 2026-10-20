@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.111.2 build 0163] — 2026-10-20 — Symboltest: gennemgang, farvevalidering og overlap-advarsel
+
+- `frontend/src/pages/SymbolTest.test.ts`, `SymbolTestSweep.test.ts` (nye, 10 tests) — siden som bruger (jsdom): Fra/Til-farver via hex, vælger og palette; alle 94 symboler; alle valg i alle menuer; alle tag-arter; afspilning; tilføj/fjern/nulstil.
+- `frontend/src/lib/symbolSimLibrary.test.ts` (ny, 95 tests) — hele biblioteket: hver del × hver animation × til/fra, tal og position ændrer udseendet.
+- `frontend/vite.config.ts` — komponenttests bruger Svelte-browserudgaven.
+- `frontend/src/lib/ColorField.svelte`, `symbolSim.ts` — ugyldig farvekode afvises (feltet markeres og viser den gældende farve); farvenavne er gyldige (`isColor`).
+- `frontend/src/pages/SymbolTest.svelte`, `symbolSim.ts` — advarsel, når to animationer af samme type rammer samme del (`conflicts`).
+- BUGS.md (investigating: off-farven kunne ikke genskabes). Kun frontend. **Set** i Edge: Fra-farven på lampen.
+
 ## [0.111.1 build 0162] — 2026-10-20 — Symboltest: tekst, positionsfarver og tilbagemelding
 
 - `frontend/src/lib/symbolSim.ts` — et til/fra-tag giver sand/falsk (som en coil), så Tekst bruger *Tekst ved Til/Fra*; Farve/Streg pr. position får en egen farve pr. position som standard.
