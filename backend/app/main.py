@@ -32,6 +32,7 @@ from .api.system_config import router as system_config_router
 from .api.routes import router
 from .config import Settings, read_version
 from .services.alarms import AlarmService
+from .services import sysconfig
 from .services.audit import AuditService
 from .services.auth import AuthService
 from .services.backup import BackupService
@@ -58,6 +59,7 @@ log = logging.getLogger("scada")
 
 def create_app(settings: Settings | None = None, transport_factory: TransportFactory | None = None) -> FastAPI:
     settings = settings or Settings()
+    sysconfig.apply_overrides(settings)   # gemte trend-indstillinger (System › Konfiguration) overstyrer miljøvariablerne
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:

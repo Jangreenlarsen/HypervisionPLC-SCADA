@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.120.0 build 0179] — 2026-10-22 — System › Konfiguration (trin 2: trend-indstillinger)
+
+- `backend/app/services/sysconfig.py`, `backend/app/api/system_config.py`, `backend/app/main.py` — `PUT /api/system/config/trends` (admin): opbevaring, skriveinterval, energi-opbevaring; valideres (grænser, energi ≥ historik), gemmes atomisk i `<data>/config/settings.json` (andre afsnit bevares), gælder straks og ved opstart (overstyrer `SCADA_TREND_*`), auditlogges.
+- `frontend/src/pages/SystemConfig.svelte` — formular med Gem/Fortryd; manual (System).
+- `backend/tests/test_system_config.py` — validering, gem/indlæs/ødelagt fil, bevarelse af andre afsnit, rettigheder, live-effekt og efter genstart.
+- Kun bygget og testet, ikke set i browser.
+
 ## [0.119.0 build 0178] — 2026-10-22 — System › Konfiguration (trin 1: visning)
 
 - `backend/app/services/sysconfig.py`, `backend/app/api/system_config.py` (nye), `backend/app/main.py` — `GET /api/system/config` (kun admin): datasti, filstørrelser, ledig plads, trend-indstillinger, netværksstatus (`ip -j`, DNS fra resolv.conf). Kun læsning.

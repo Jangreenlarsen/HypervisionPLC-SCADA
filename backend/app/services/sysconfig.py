@@ -9,11 +9,16 @@ from __future__ import annotations
 
 import json
 import logging
+import math
+import os
 import shutil
 import socket
 import subprocess
+import threading
 from pathlib import Path
 from typing import Any
+
+from .errors import ServiceError
 
 log = logging.getLogger(__name__)
 
@@ -106,3 +111,77 @@ def network_status() -> dict[str, Any]:
     except OSError:
         pass
     return status
+
+
+# ---------------------------------------------------------------- trend-indstillinger (overstyrer miljøvariablerne)
+# Gemmes i <data>/config/settings.json; miljøvariablerne (SCADA_TREND_DAYS …) er standarden, når intet er gemt.
+TREND_LIMITS: dict[str, tuple[float, float, str]] = {
+    "retention_days": (1.0, 365.0, "Opbevaring"),
+    "flush_s": (1.0, 300.0, "Skriveinterval"),
+    "energy_days": (30.0, 3650.0, "Opbevaring af energi"),
+}
+_SETTINGS_ATTR = {"retention_days": "trend_days", "flush_s": "trend_flush_s", "energy_days": "energy_days"}
+_write_lock = threading.Lock()
+
+
+def _settings_path(data_dir: Path) -> Path:
+    return data_dir / "config" / "settings.json"
+
+
+def load_overrides(data_dir: Path) -> dict[str, float]:
+    """De gemte overstyringer (kun kendte, gyldige felter — en ødelagt fil ignoreres med en advarsel)."""
+    path = _settings_path(data_dir)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        log.warning("Konfigurationsfilen %s kunne ikke læses (ignoreres): %s", path, exc)
+        return {}
+    trends = raw.get("trends") if isinstance(raw, dict) else None
+    out: dict[str, float] = {}
+    for key, (lo, hi, _label) in TREND_LIMITS.items():
+        v = trends.get(key) if isinstance(trends, dict) else None
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and lo <= v <= hi:
+            out[key] = float(v)
+    return out
+
+
+def apply_overrides(settings: Any) -> dict[str, float]:
+    """Læg de gemte overstyringer ind i Settings (ved opstart)."""
+    ov = load_overrides(settings.data_dir)
+    for key, value in ov.items():
+        setattr(settings, _SETTINGS_ATTR[key], value)
+    return ov
+
+
+def validate_trend_settings(values: dict[str, Any]) -> dict[str, float]:
+    """Kontrollér alle tre felter. Afviser med en specifik besked (400)."""
+    out: dict[str, float] = {}
+    for key, (lo, hi, label) in TREND_LIMITS.items():
+        v = values.get(key)
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+            raise ServiceError(400, f"{label}: skriv et tal")
+        if not lo <= v <= hi:
+            raise ServiceError(400, f"{label}: skal være mellem {lo:g} og {hi:g}")
+        out[key] = float(v)
+    if out["energy_days"] < out["retention_days"]:
+        raise ServiceError(400, "Opbevaring af energi må ikke være kortere end opbevaring af anden historik")
+    return out
+
+
+def save_trend_settings(data_dir: Path, values: dict[str, float]) -> None:
+    """Skriv hele filen atomisk (midlertidig fil + omdøbning), så en strømafbrydelse ikke giver en halv fil."""
+    path = _settings_path(data_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with _write_lock:
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(doc, dict):
+                doc = {}
+        except (OSError, ValueError):
+            doc = {}
+        doc["trends"] = values   # andre afsnit i filen (senere trin) bevares
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+        os.replace(tmp, path)

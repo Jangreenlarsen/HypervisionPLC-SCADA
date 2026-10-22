@@ -62,7 +62,17 @@ Under **System** ligger Log, Brugere, Backup, Opdatering og Konfiguration. **Log
 - **Trend-historik og skrivning**: antal gemte værdier, hvor længe de opbevares, og hvor mange rækker og skrivninger der er sket siden tjenesten startede (med et overslag pr. døgn efter 10 minutters drift). Det er nyttigt, hvis datamappen ligger på et SD-kort.
 - **Netværk**: værtsnavn, netkort med link, MAC og IPv4-adresser, gateway og DNS.
 
-Siden kun viser; indstilling af netværk og flytning af datamappen kommer i senere versioner.
+Under trend-historikken kan du ændre tre **indstillinger**; de gemmes og gælder **straks**, uden genstart:
+
+| Indstilling | Betydning | Grænser |
+| --- | --- | --- |
+| **Opbevaring af historik** | Hvor mange dage trend-værdier gemmes; ældre slettes hver time | 1–365 dage |
+| **Skriveinterval** | Hvor ofte nye værdier skrives samlet til disken. Længere interval = færre skrivninger (skåner SD-kortet), men ved strømsvigt kan op til så mange sekunder gå tabt | 1–300 s |
+| **Opbevaring af energi** | Hvor længe energi-tags gemmes (til måneds- og årsrapporter); må ikke være kortere end historikken | 30–3650 dage |
+
+Forkerte værdier afvises med en besked. Ændringen skrives i auditloggen.
+
+Indstilling af netværk og flytning af datamappen kommer i senere versioner.
 
 ## Bruger
 

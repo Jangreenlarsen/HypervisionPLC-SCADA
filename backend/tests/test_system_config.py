@@ -88,3 +88,64 @@ def test_kun_admin_kan_laese_konfigurationen(tmp_path):
         assert body["trends"]["write"]["rows"] == 0
         assert "interfaces" in body["network"]
         assert "password" not in json.dumps(body).lower()
+
+
+# ---------------------------------------------------------------- trend-indstillinger
+import pytest
+
+from app.services.errors import ServiceError
+
+GOOD = {"retention_days": 60, "flush_s": 30, "energy_days": 400}
+
+
+def test_validate_afviser_forkerte_vaerdier_med_specifik_besked():
+    assert sysconfig.validate_trend_settings(GOOD)["flush_s"] == 30.0
+    for key, bad in (("retention_days", 0), ("retention_days", 4000), ("flush_s", 0.5), ("flush_s", 9999), ("energy_days", 5)):
+        with pytest.raises(ServiceError) as e:
+            sysconfig.validate_trend_settings({**GOOD, key: bad})
+        assert e.value.status == 400 and "mellem" in e.value.message
+    with pytest.raises(ServiceError, match="kortere"):
+        sysconfig.validate_trend_settings({**GOOD, "retention_days": 200, "energy_days": 100})
+    with pytest.raises(ServiceError, match="tal"):
+        sysconfig.validate_trend_settings({**GOOD, "flush_s": True})
+    with pytest.raises(ServiceError, match="tal"):
+        sysconfig.validate_trend_settings({**GOOD, "flush_s": None})
+
+
+def test_gem_og_indlaes_og_ignorer_oedelagt_fil(tmp_path):
+    assert sysconfig.load_overrides(tmp_path) == {}
+    sysconfig.save_trend_settings(tmp_path, {"retention_days": 60.0, "flush_s": 30.0, "energy_days": 400.0})
+    assert sysconfig.load_overrides(tmp_path)["flush_s"] == 30.0
+    (tmp_path / "config" / "settings.json").write_text("{ikke json", encoding="utf-8")
+    assert sysconfig.load_overrides(tmp_path) == {}
+    (tmp_path / "config" / "settings.json").write_text(json.dumps({"trends": {"flush_s": 99999, "retention_days": 10}}), encoding="utf-8")
+    assert sysconfig.load_overrides(tmp_path) == {"retention_days": 10.0}   # udenfor grænserne ignoreres
+
+
+def test_andre_afsnit_i_filen_bevares(tmp_path):
+    p = tmp_path / "config"
+    p.mkdir()
+    (p / "settings.json").write_text(json.dumps({"network": {"mode": "dhcp"}}), encoding="utf-8")
+    sysconfig.save_trend_settings(tmp_path, {"retention_days": 60.0, "flush_s": 30.0, "energy_days": 400.0})
+    doc = json.loads((p / "settings.json").read_text(encoding="utf-8"))
+    assert doc["network"] == {"mode": "dhcp"} and doc["trends"]["retention_days"] == 60.0
+
+
+def test_put_trends_gaelder_straks_gemmes_og_huskes_efter_genstart(tmp_path):
+    def settings():
+        return Settings(data_dir=tmp_path, poll_fast_s=0.05, poll_slow_s=0.2, plc_rate=9,
+                        frontend_dir=tmp_path / "nope", admin_password=ADMIN_PW, backup_hours=0)
+
+    with TestClient(create_app(settings())) as c:
+        assert c.put("/api/system/config/trends", json=GOOD).status_code in (401, 403)
+        assert c.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW}).status_code == 200
+        bad = c.put("/api/system/config/trends", json={**GOOD, "flush_s": 0})
+        assert bad.status_code == 400 and "Skriveinterval" in bad.json()["error"]
+        assert c.put("/api/system/config/trends", json={**GOOD, "ekstra": 1}).status_code == 422
+        r = c.put("/api/system/config/trends", json=GOOD)
+        assert r.status_code == 200 and r.json()["flush_s"] == 30.0 and r.json()["overridden"] is True
+        assert c.app.state.trend_recorder.flush_s == 30.0 and c.app.state.trend_recorder.retention_days == 60.0
+        log = c.get("/api/audit").json()
+        assert any(e["action"] == "system.config.trends" for e in (log["entries"] if isinstance(log, dict) else log))
+    with TestClient(create_app(settings())) as c2:   # ny opstart: indstillingerne er gemt
+        assert c2.app.state.trend_recorder.flush_s == 30.0

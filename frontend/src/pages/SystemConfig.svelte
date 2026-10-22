@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { get } from '../lib/api';
+  import { api, get } from '../lib/api';
 
   interface Nic { name: string; mac: string; state: string; addresses: { ip: string; prefix: number | null }[] }
   interface Config {
     storage: { path: string; files: { name: string; size: number }[]; folders: { name: string; size: number }[];
       disk: { total: number; used: number; free: number } | null };
-    trends: { retention_days: number; flush_s: number; energy_days: number; tags: number; samples: number;
+    trends: { retention_days: number; flush_s: number; energy_days: number; overridden: boolean;
+      limits: Record<string, { min: number; max: number }>; tags: number; samples: number;
       write: { since: number; uptime_s: number; rows: number; flushes: number; rows_per_day: number | null; flushes_per_day: number | null } };
     network: { available: boolean; hostname: string; interfaces: Nic[]; gateway: string; dns: string[]; error: string };
   }
@@ -14,6 +15,13 @@
   let cfg = $state<Config | null>(null);
   let error = $state('');
   let busy = $state(false);
+  // Trend-indstillinger (redigeres her, gemmes med knappen)
+  let retention = $state(30);
+  let flush = $state(5);
+  let energy = $state(400);
+  let saving = $state(false);
+  let saved = $state('');
+  let saveError = $state('');
 
   const fmtBytes = (b: number): string =>
     b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(1)} GB` : b >= 1024 ** 2 ? `${(b / 1024 ** 2).toFixed(1)} MB` : `${Math.round(b / 1024)} kB`;
@@ -25,10 +33,35 @@
     error = '';
     try {
       cfg = await get<Config>('/api/system/config');
+      fillForm(cfg.trends);
     } catch (e) {
       error = (e as Error).message;
     } finally {
       busy = false;
+    }
+  }
+  function fillForm(t: Config['trends']): void {
+    retention = t.retention_days;
+    flush = t.flush_s;
+    energy = t.energy_days;
+  }
+
+  const dirty = $derived(!!cfg && (retention !== cfg.trends.retention_days || flush !== cfg.trends.flush_s || energy !== cfg.trends.energy_days));
+
+  async function saveTrends(): Promise<void> {
+    saving = true;
+    saveError = '';
+    saved = '';
+    try {
+      const t = await api<Config['trends']>('PUT', '/api/system/config/trends',
+        { retention_days: Number(retention), flush_s: Number(flush), energy_days: Number(energy) });
+      if (cfg) cfg.trends = t;
+      fillForm(t);
+      saved = 'Gemt — gælder straks.';
+    } catch (e) {
+      saveError = (e as Error).message;
+    } finally {
+      saving = false;
     }
   }
   onMount(refresh);
@@ -69,6 +102,26 @@
       {#if w.rows_per_day !== null}Overslag: <strong>ca. {fmtNum(w.rows_per_day)} rækker</strong> og {fmtNum(w.flushes_per_day ?? 0)} skrivninger pr. døgn.
       {:else}<span class="muted">Overslag pr. døgn vises efter 10 minutters drift.</span>{/if}</p>
     {/if}
+    <h4>Indstillinger</h4>
+    <form class="settings" onsubmit={(e) => { e.preventDefault(); saveTrends(); }}>
+      <label>Opbevaring af historik (dage)
+        <input type="number" bind:value={retention} min={cfg.trends.limits.retention_days.min} max={cfg.trends.limits.retention_days.max} step="1" />
+      </label>
+      <label>Skriveinterval (sekunder)
+        <input type="number" bind:value={flush} min={cfg.trends.limits.flush_s.min} max={cfg.trends.limits.flush_s.max} step="1" />
+      </label>
+      <label>Opbevaring af energi (dage)
+        <input type="number" bind:value={energy} min={cfg.trends.limits.energy_days.min} max={cfg.trends.limits.energy_days.max} step="1" />
+      </label>
+      <div class="row">
+        <button class="primary" type="submit" disabled={saving || !dirty}>{saving ? 'Gemmer …' : 'Gem'}</button>
+        {#if dirty}<button type="button" onclick={() => cfg && fillForm(cfg.trends)}>Fortryd</button>{/if}
+        {#if saved && !dirty}<span class="muted small">{saved}</span>{/if}
+        {#if cfg.trends.overridden && !dirty && !saved}<span class="muted small">Værdierne er sat her (overstyrer standarden fra serverens opsætning).</span>{/if}
+      </div>
+      {#if saveError}<div class="error">{saveError}</div>{/if}
+      <p class="muted small">Et længere skriveinterval giver færre skrivninger til disken, men ved strømsvigt kan op til så mange sekunder af de nyeste værdier gå tabt. Ældre historik end opbevaringstiden slettes hver time.</p>
+    </form>
     <p class="muted small">Rækkerne er ca. 20–40 byte hver; SQLite skriver desuden journal (WAL), så den faktiske skrivning til flash er et par gange større. Er datamappen på et SD-kort, så flyt den til en USB-SSD ved mange tags.</p>
   </section>
 
@@ -97,6 +150,8 @@
 {/if}
 
 <style>
+  .settings { display: grid; gap: .5rem; max-width: 24rem; margin: .5rem 0; }
+  .settings label { display: grid; gap: .15rem; font-size: .9rem; }
   .num { text-align: right; white-space: nowrap; }
   code { word-break: break-all; }
   table.grid { border-collapse: collapse; width: 100%; max-width: 48rem; }

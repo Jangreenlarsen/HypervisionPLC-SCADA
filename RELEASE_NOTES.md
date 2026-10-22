@@ -2,6 +2,10 @@
 
 ---
 
+## v0.120.0 — 2026-10-22 — Konfiguration: trend-indstillinger
+
+- Under **System › Konfiguration** kan du nu ændre **opbevaring af historik**, **skriveinterval** (skån SD-kortet med et længere interval) og **opbevaring af energi**. Ændringerne gælder straks og huskes efter genstart.
+
 ## v0.119.0 — 2026-10-22 — System › Konfiguration
 
 - Ny side **System › Konfiguration** (admin): hvor data ligger, filstørrelser og ledig plads, **hvor meget der skrives til disken** (rækker og skrivninger, overslag pr. døgn) og netværksstatus (IP, gateway, DNS). Siden viser kun; indstilling af netværk og flytning af data kommer senere.
