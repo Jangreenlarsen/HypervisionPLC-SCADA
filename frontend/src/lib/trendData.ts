@@ -74,6 +74,23 @@ export function groupByUnit<T extends { name: string; unit: string; isBool?: boo
   return [...groups.entries()];
 }
 
+/**
+ * Gruppér tags i grafer. Et tag uden valg (Auto) kommer i grafen for sin enhed; et tag med et grafnummer lægges i
+ * "Graf N" sammen med de andre tags med samme nummer (brugerens valg — blandede enheder deler y-akse).
+ * Automatiske grafer står først, derefter de valgte i nummerorden.
+ */
+export function groupTags<T extends { name: string; unit: string; isBool?: boolean }>(
+  tags: T[], assign: Record<string, number>,
+): [string, T[]][] {
+  const auto = groupByUnit(tags.filter((t) => !(assign[t.name] > 0)));
+  const manual = new Map<number, T[]>();
+  for (const t of tags) {
+    const n = assign[t.name];
+    if (n > 0) manual.set(n, [...(manual.get(n) ?? []), t]);
+  }
+  return [...auto, ...[...manual.entries()].sort((a, b) => a[0] - b[0]).map(([n, ts]): [string, T[]] => [`Graf ${n}`, ts])];
+}
+
 export const RANGES: { id: string; label: string; seconds: number }[] = [
   { id: '15m', label: '15 min', seconds: 900 },
   { id: '1h', label: '1 time', seconds: 3600 },

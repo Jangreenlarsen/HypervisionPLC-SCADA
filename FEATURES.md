@@ -150,5 +150,6 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.3.0 — Kildekode-link i web-UI'et (AGPL-3.0 §13), konfigurerbar URL til forks (`SCADA_SOURCE_URL`)
 - [x] done v0.112.0 — Trends: scroll i tid (musehjul / Shift+træk) når der er zoomet ind
 - [x] done v0.113.0 — Trends: lås graferne sammen (fælles zoom/scroll) og Nulstil visning
+- [x] done v0.114.0 — Trends: vælg selv graf (Auto / Graf 1–8) pr. tag
 - [x] done v0.102.0 — Trends: *Skjul spikes* udfylder nu spikes med lineært interpolerede værdier i stedet for huller
 - [x] done v0.101.0 — Trends: op til 12 kurver ad gangen (farver genbruges med stiplet linje fra nr. 8) og tilvalget *Analysér data* (spikes, urealistiske spring, fastfrosne værdier, huller; markeres, spikes kan skjules)

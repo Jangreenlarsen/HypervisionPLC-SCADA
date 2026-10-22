@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { align, assignColors, groupByUnit, isolatedPoints, MAX_SERIES, type Point } from './trendData';
+import { align, assignColors, groupByUnit, groupTags, isolatedPoints, MAX_SERIES, type Point } from './trendData';
 
 describe('align', () => {
   it('fletter tidspunkter, og skelner hul (null) fra manglende punkt (undefined)', () => {
@@ -50,5 +50,21 @@ describe('groupByUnit', () => {
     expect(groups.map(([k, v]) => [k, v.map((t) => t.name)])).toEqual([
       ['°C', ['A', 'C']], ['%', ['B']], ['Til/fra', ['D']], ['Uden enhed', ['E']],
     ]);
+  });
+});
+
+describe('groupTags', () => {
+  const tags = [
+    { name: 'a', unit: '°C' }, { name: 'b', unit: 'bar' }, { name: 'c', unit: '°C' }, { name: 'd', unit: '', isBool: true },
+  ];
+  it('uden valg er det som pr. enhed', () => {
+    expect(groupTags(tags, {})).toEqual(groupByUnit(tags));
+  });
+  it('valgte tags samles i "Graf N" uanset enhed, de øvrige forbliver pr. enhed', () => {
+    const g = groupTags(tags, { a: 2, b: 2, d: 1 });
+    expect(g.map(([k, ts]) => [k, ts.map((t) => t.name)])).toEqual([['°C', ['c']], ['Graf 1', ['d']], ['Graf 2', ['a', 'b']]]);
+  });
+  it('0 eller ukendt nummer betyder Auto', () => {
+    expect(groupTags(tags, { a: 0 })).toEqual(groupByUnit(tags));
   });
 });

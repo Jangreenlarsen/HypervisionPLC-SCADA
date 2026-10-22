@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.114.0 build 0169] — 2026-10-22 — Trends: vælg selv hvilken graf et tag vises i
+
+- `frontend/src/lib/trendData.ts` + test — `groupTags`: tags uden valg grupperes pr. enhed (som før), tags med grafnummer samles i *Graf N*.
+- `frontend/src/pages/Trends.svelte` — vælger *Auto / Graf 1–8* ud for hvert valgt tag (huskes i browseren), fælles y-enhed kun hvis alle kurver i grafen har samme.
+- Kun frontend. Kun bygget og testet (644 tests), ikke set i browser.
+
 ## [0.113.1 build 0168] — 2026-10-22 — fix: Trends-legend hopper ikke ved musebevægelse
 
 - `frontend/src/lib/TrendChart.svelte` — legend-aflæsningerne har fast bredde (tabulære tal, ingen ombrydning), så de ikke skifter størrelse når markøren glider hen over grafen.

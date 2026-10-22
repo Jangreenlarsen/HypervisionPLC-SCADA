@@ -5,7 +5,7 @@
   import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
-  import { align, assignColors, colorOf, dashOf, groupByUnit, MAX_SERIES, RANGES, type Point } from '../lib/trendData';
+  import { align, assignColors, colorOf, dashOf, groupTags, MAX_SERIES, RANGES, type Point } from '../lib/trendData';
   import { FROZEN_DEFAULT_S, affectedPoints, analyze, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
   import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
 
@@ -187,6 +187,24 @@
     }
   }
 
+  // Brugerens valg af graf pr. tag (Auto = ingen post) — huskes i browseren
+  const MAX_CHARTS = 8;   // højst 8 selvvalgte grafer
+  let assign = $state<Record<string, number>>(loadAssign());
+  function loadAssign(): Record<string, number> {
+    try {
+      const v = JSON.parse(localStorage.getItem('trend.assign') ?? '{}');
+      return v && typeof v === 'object' ? v : {};
+    } catch {
+      return {};
+    }
+  }
+  function setAssign(name: string, n: number): void {
+    const next = { ...assign };
+    if (n > 0) next[name] = n; else delete next[name];
+    assign = next;
+    try { localStorage.setItem('trend.assign', JSON.stringify(assign)); } catch { /* huskes bare ikke */ }
+  }
+
   function saveSelection(): void {
     try {
       localStorage.setItem('trend.selected', JSON.stringify(selected));
@@ -344,9 +362,15 @@
   });
 
   const tagInfo = $derived(new Map((info?.tags ?? []).map((t) => [t.name, t])));
-  const groups = $derived(groupByUnit(selected.filter((n) => tagInfo.has(n)).map((n) => ({
+  const groups = $derived(groupTags(selected.filter((n) => tagInfo.has(n)).map((n) => ({
     name: n, unit: tagInfo.get(n)!.unit, isBool: tagInfo.get(n)!.is_bool,
-  }))));
+  })), assign));
+  /** Y-aksens enhed: den fælles enhed for tal-kurverne i grafen (blandede enheder → ingen). */
+  function chartUnit(tags: { name: string; isBool?: boolean }[]): string {
+    if (tags.every((t) => t.isBool)) return '';
+    const units = new Set(tags.filter((t) => !t.isBool).map((t) => tagInfo.get(t.name)?.unit ?? ''));
+    return units.size === 1 ? [...units][0] : '';
+  }
   const shown = $derived((info?.tags ?? []).filter((t) => !filter || `${t.name} ${t.description}`.toLowerCase().includes(filter.toLowerCase())));
 
   /** Fund pr. tag (kun tal-kurver; til/fra analyseres ikke). Tom når analysen er slået fra. */
@@ -500,6 +524,13 @@
             <span class="name">{t.description || t.name}</span>
             <span class="muted small">{t.unit}</span>
           </label>
+          {#if selected.includes(t.name)}
+            <select class="graphsel" value={assign[t.name] ?? 0} onchange={(e) => setAssign(t.name, Number(e.currentTarget.value))}
+              title="Vælg hvilken graf kurven vises i. Auto = graf pr. enhed" aria-label="Graf for {t.description || t.name}">
+              <option value={0}>Auto</option>
+              {#each Array.from({ length: MAX_CHARTS }, (_, i) => i + 1) as n}<option value={n}>Graf {n}</option>{/each}
+            </select>
+          {/if}
           {#if canEdit && manage}
             <button class="small enable" disabled={enabling === t.name} onclick={() => rename(t)}
               title="Giv kurven et navn i stedet for tag-navnet">Navn</button>
@@ -546,7 +577,7 @@
     {:else if resp}
       {#each groups as [unit, tags] (unit + tags.map((t) => t.name).join(','))}
         {@const c = chartFor(tags)}
-        <TrendChart title={unit} unit={unit === 'Til/fra' || unit === 'Uden enhed' ? '' : unit} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} {linked} {view} onview={setView} {resetTick} />
+        <TrendChart title={unit.startsWith('Graf ') ? `${unit} — ${[...new Set(tags.map((t) => tagInfo.get(t.name)?.unit || (t.isBool ? 'Til/fra' : '')).filter(Boolean))].join(', ') || 'Uden enhed'}` : unit} unit={chartUnit(tags)} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} {linked} {view} onview={setView} {resetTick} />
       {/each}
       {#if analyse}
         <div class="panel small">
@@ -560,7 +591,7 @@
           {/if}
         </div>
       {/if}
-      <p class="muted small">Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); dobbeltklik eller <em>Nulstil visning</em> for at zoome ud. <em>Lås graferne sammen</em> får alle grafer til at zoome og scrolle sammen. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
+      <p class="muted small">Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); dobbeltklik eller <em>Nulstil visning</em> for at zoome ud. Med vælgeren <em>Graf</em> ud for et valgt tag bestemmer du selv, hvilken graf kurven vises i. <em>Lås graferne sammen</em> får alle grafer til at zoome og scrolle sammen. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
     {/if}
   </section>
 </div>
@@ -573,6 +604,7 @@
   li { display: flex; align-items: center; gap: .4rem; }
   li label { flex: 1; min-width: 0; display: flex; align-items: center; gap: .4rem; padding: .2rem 0; cursor: pointer; }
   li label.off { opacity: .5; cursor: default; }
+  .graphsel { width: auto; flex: none; font-size: .75rem; padding: .1rem .2rem; }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .enable { flex: none; padding: .1rem .45rem; font-size: .75rem; }
   .notice { border-left: 4px solid #2a78d6; }
