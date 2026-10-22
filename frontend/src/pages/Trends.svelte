@@ -5,7 +5,7 @@
   import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
-  import { align, assignColors, colorOf, dashOf, groupTags, MAX_SERIES, RANGES, type Point } from '../lib/trendData';
+  import { align, assignColors, colorOf, dashOf, groupTags, MAX_SERIES, type Divider, RANGES, type Point } from '../lib/trendData';
   import { FROZEN_DEFAULT_S, affectedPoints, analyze, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
   import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
 
@@ -40,6 +40,19 @@
   let timer: ReturnType<typeof setInterval> | null = null;
   let enabling = $state('');
   // Analyse (tilvalg): find uregelmæssigheder i tal-kurverne; "skjul spikes" gør dem til huller i visningen (rådata uændret)
+  // Stiplede skillelinjer ved hele timer/dage i graferne (til/fra)
+  let divider = $state<Divider>(loadDivider());
+  function loadDivider(): Divider {
+    try {
+      const v = localStorage.getItem('trend.divider');
+      return v === 'hour' || v === 'day' ? v : 'none';
+    } catch {
+      return 'none';
+    }
+  }
+  function saveDivider(): void {
+    try { localStorage.setItem('trend.divider', divider); } catch { /* huskes bare ikke */ }
+  }
   let analyse = $state(loadFlag('trend.analyse'));
   let hide = $state(loadFlag('trend.hideSpikes'));
   let rings = $state(loadFlag('trend.rings', true));   // ring om uregelmæssige punkter i graferne
@@ -466,6 +479,11 @@
     <label class="row small"><input type="checkbox" bind:checked={live} onchange={restartTimer} /> Live</label>
   {/if}
   {#if selected.length && exportUrl}<a class="btn" href={exportUrl} download>CSV</a>{/if}
+  <label class="row small" title="Stiplede lodrette linjer ved hele timer eller dage i graferne">Skillelinjer
+    <select bind:value={divider} onchange={saveDivider} aria-label="Skillelinjer">
+      <option value="none">Fra</option><option value="hour">Pr. time</option><option value="day">Pr. dag</option>
+    </select>
+  </label>
   <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>
   {#if analyse}
     <label class="row small" title="Skjul ringene i graferne — fundene står stadig i listen under graferne"><input type="checkbox" bind:checked={rings} onchange={() => saveFlag('trend.rings', rings)} /> Vis ringe</label>
@@ -589,7 +607,7 @@
     {:else if resp}
       {#each groups as [unit, tags] (unit + tags.map((t) => t.name).join(','))}
         {@const c = chartFor(tags)}
-        <TrendChart title={unit.startsWith('Graf ') ? `${unit} — ${[...new Set(tags.map((t) => tagInfo.get(t.name)?.unit || (t.isBool ? 'Til/fra' : '')).filter(Boolean))].join(', ') || 'Uden enhed'}` : unit} unit={chartUnit(tags)} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} {linked} {view} onview={setView} {resetTick} />
+        <TrendChart title={unit.startsWith('Graf ') ? `${unit} — ${[...new Set(tags.map((t) => tagInfo.get(t.name)?.unit || (t.isBool ? 'Til/fra' : '')).filter(Boolean))].join(', ') || 'Uden enhed'}` : unit} unit={chartUnit(tags)} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} {divider} {linked} {view} onview={setView} {resetTick} />
       {/each}
       <p class="muted small">Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); dobbeltklik eller <em>Nulstil visning</em> for at zoome ud. Med vælgeren <em>Graf</em> ud for et valgt tag bestemmer du selv, hvilken graf kurven vises i. <em>Lås graferne sammen</em> får alle grafer til at zoome og scrolle sammen. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
     {/if}

@@ -91,6 +91,27 @@ export function groupTags<T extends { name: string; unit: string; isBool?: boole
   return [...auto, ...[...manual.entries()].sort((a, b) => a[0] - b[0]).map(([n, ts]): [string, T[]] => [`Graf ${n}`, ts])];
 }
 
+export type Divider = 'none' | 'hour' | 'day';
+
+/**
+ * Tidspunkter (sekunder) for hele timer eller dage (lokal tid) i [min, max] — til de stiplede skillelinjer i graferne.
+ * Er der over MAX_DIVIDERS, tegnes ingen (linjerne ville blot blive en grå flade).
+ */
+export const MAX_DIVIDERS = 400;
+export function dividerTimes(min: number, max: number, mode: Divider): number[] {
+  if (mode === 'none' || !(max > min)) return [];
+  const out: number[] = [];
+  const d = new Date(min * 1000);
+  if (mode === 'hour') d.setMinutes(0, 0, 0); else d.setHours(0, 0, 0, 0);
+  while (d.getTime() / 1000 <= max) {
+    const t = d.getTime() / 1000;
+    if (t >= min) out.push(t);
+    if (out.length > MAX_DIVIDERS) return [];
+    if (mode === 'hour') d.setTime(d.getTime() + 3600_000); else d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+
 export const RANGES: { id: string; label: string; seconds: number }[] = [
   { id: '15m', label: '15 min', seconds: 900 },
   { id: '1h', label: '1 time', seconds: 3600 },

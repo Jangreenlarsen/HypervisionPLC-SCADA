@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.115.0 build 0171] — 2026-10-22 — Trends: skillelinjer pr. time/dag
+
+- `frontend/src/lib/trendData.ts` + test — `dividerTimes` (hele timer/dage i lokal tid; ingen linjer ved over 400).
+- `frontend/src/lib/TrendChart.svelte` — stiplede lodrette linjer bag kurverne (prop `divider`).
+- `frontend/src/pages/Trends.svelte` — vælger *Skillelinjer: Fra / Pr. time / Pr. dag* i værktøjslinjen (huskes).
+- Kun frontend. Kun bygget og testet (647 tests), ikke set i browser.
+
 ## [0.114.1 build 0170] — 2026-10-22 — Trends: uregelmæssigheder i venstre side
 
 - `frontend/src/pages/Trends.svelte` — oversigten *Uregelmæssigheder* flyttet fra under graferne til panelet i venstre side (under tag-listen), så graferne får mere plads.

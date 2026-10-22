@@ -3,14 +3,14 @@
   import { onDestroy, onMount } from 'svelte';
   import uPlot from 'uplot';
   import 'uplot/dist/uPlot.min.css';
-  import { colorOf, dashOf, isolatedPoints } from './trendData';
+  import { colorOf, dashOf, dividerTimes, isolatedPoints, type Divider } from './trendData';
   import type { Issue } from './trendAnalysis';
   import { lastVisible, needsArrow, spreadLabels } from './lineLabels';
 
   export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null;
     /** Fundne uregelmæssigheder (tilvalg) — tegnes som ring om punktet. */ issues?: Issue[] }
 
-  let { title, unit, series, data, xRange, height = 260, linked = false, view = null, onview, resetTick = 0 }: {
+  let { title, unit, series, data, xRange, height = 260, divider = 'none', linked = false, view = null, onview, resetTick = 0 }: {
     title: string;
     unit: string;
     series: ChartSeries[];
@@ -19,6 +19,8 @@
     xRange: [number, number];
     /** Plot-højde i px for tal-grafer (til/fra-grafer er altid lave) — sættes af siden ud fra skærmen. */
     height?: number;
+    /** Stiplede skillelinjer ved hele timer eller dage. */
+    divider?: Divider;
     /** Låst sammen: zoom/scroll i én graf flytter alle grafer til samme tidsudsnit. */
     linked?: boolean;
     /** Det fælles udsnit (når linked) — sættes af siden ud fra den graf brugeren sidst flyttede. */
@@ -64,6 +66,26 @@
     if (v === null || v === undefined) return '—';
     if (s.isBool) return v >= 0.5 ? 'Til' : 'Fra';
     return (s.decimals !== null ? v.toFixed(s.decimals) : String(Math.round(v * 1000) / 1000)) + (unit ? ` ${unit}` : '');
+  }
+
+  /** Stiplede lodrette linjer ved hele timer/dage — tegnes bag kurverne. */
+  function drawDividers(u: uPlot): void {
+    if (divider === 'none') return;
+    const min = u.scales.x.min, max = u.scales.x.max;
+    if (min == null || max == null) return;
+    const { top, height: h } = u.bbox;
+    const ctx = u.ctx, dpr = devicePixelRatio;
+    ctx.save();
+    ctx.strokeStyle = divider === 'day' ? '#6b6a66' : '#9a9993';
+    ctx.lineWidth = (divider === 'day' ? 1.5 : 1) * dpr;
+    ctx.setLineDash([5 * dpr, 4 * dpr]);
+    ctx.beginPath();
+    for (const t of dividerTimes(min, max, divider)) {
+      const x = Math.round(u.valToPos(t, 'x', true)) + 0.5;
+      ctx.moveTo(x, top); ctx.lineTo(x, top + h);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   /** Ring om punkter med uregelmæssigheder (spike, spring, fastfrosset, hul) — mørk ring, så den ses på alle farver. */
@@ -174,6 +196,7 @@
         bind: { dblclick: () => () => { showFull(); return null; } },
       },
       hooks: {
+        drawAxes: [drawDividers],
         draw: [drawIssues, drawLabels],
         setScale: [(u: uPlot, key: string) => {
           if (key !== 'x') return;
@@ -293,6 +316,12 @@
     if (!chart || !linked || !v) return;
     const cur = chart.scales.x;
     if (Math.abs((cur.min ?? 0) - v[0]) > 0.5 || Math.abs((cur.max ?? 0) - v[1]) > 0.5) chart.setScale('x', { min: v[0], max: v[1] });
+  });
+
+  // Skift af skillelinjer: tegn om
+  $effect(() => {
+    void divider;
+    chart?.redraw();
   });
 
   // Nulstil visning: hele den valgte periode

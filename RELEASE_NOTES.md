@@ -2,6 +2,10 @@
 
 ---
 
+## v0.115.0 — 2026-10-22 — Trends: skillelinjer
+
+- Ny vælger **Skillelinjer** i Trends: *Fra*, *Pr. time* eller *Pr. dag* viser stiplede lodrette linjer ved hele timer eller dage i alle grafer. Ved meget lange perioder vises timelinjer ikke (for mange). Valget huskes.
+
 ## v0.114.1 — 2026-10-22 — Trends: mere plads til graferne
 
 - Oversigten over **uregelmæssigheder** står nu i venstre side under tag-listen i stedet for under graferne, så graferne kan blive højere.
