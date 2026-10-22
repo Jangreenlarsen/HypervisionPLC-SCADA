@@ -547,7 +547,7 @@
           {/if}
         </div>
       {/if}
-      <p class="muted small">Træk vandret i en graf for at zoome; dobbeltklik for at zoome ud. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
+      <p class="muted small">Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); dobbeltklik for at zoome ud. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
     {/if}
   </section>
 </div>

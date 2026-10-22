@@ -148,5 +148,6 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.5.0 — TLS trin 1: nginx (TLS + WebSocket) foran uvicorn på 127.0.0.1 med selvsigneret certifikat (CN/SAN scada.laces.dk + IP), Secure-cookie, sikkerheds-headere; certifikat-stier klar til Let's Encrypt
 - [ ] planned — TLS trin 2: Let's Encrypt-certifikat for scada.laces.dk med automatisk fornyelse — DNS hos one.com (intet API) → `_acme-challenge` CNAME til deSEC; værktøj (certbot-dns-desec / acme.sh / lego) afklares ift. CNAME-delegering
 - [x] done v0.3.0 — Kildekode-link i web-UI'et (AGPL-3.0 §13), konfigurerbar URL til forks (`SCADA_SOURCE_URL`)
+- [x] done v0.112.0 — Trends: scroll i tid (musehjul / Shift+træk) når der er zoomet ind
 - [x] done v0.102.0 — Trends: *Skjul spikes* udfylder nu spikes med lineært interpolerede værdier i stedet for huller
 - [x] done v0.101.0 — Trends: op til 12 kurver ad gangen (farver genbruges med stiplet linje fra nr. 8) og tilvalget *Analysér data* (spikes, urealistiske spring, fastfrosne værdier, huller; markeres, spikes kan skjules)

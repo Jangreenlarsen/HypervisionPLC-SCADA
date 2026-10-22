@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.112.0 build 0166] — 2026-10-22 — Trends: scroll i tid når der er zoomet
+
+- `frontend/src/lib/TrendChart.svelte` — når en graf er zoomet ind, flytter musehjulet (eller Shift+træk) udsnittet i tid, begrænset til den valgte periode.
+- `frontend/src/pages/Trends.svelte` — hjælpetekst.
+- Kun frontend. Kun bygget, ikke set i browser.
+
 ## [0.111.4 build 0165] — 2026-10-20 — Datakvalitet: forklaring og Symboltest som i driften
 
 - `frontend/src/lib/symbolSim.ts` + test — *Dårlig* og *Ukendt* giver ingen værdi (som `plc_runtime`); *Kommunikationsfejl* beholder den sidst kendte.

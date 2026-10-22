@@ -2,6 +2,10 @@
 
 ---
 
+## v0.112.0 — 2026-10-22 — Trends: scroll i tid
+
+- I Trends kan du nu **scrolle i tid**, når du har zoomet ind: brug musehjulet over grafen, eller træk med Shift nede. Dobbeltklik zoomer ud.
+
 ## v0.111.4 — 2026-10-20 — Datakvalitet forklaret
 
 - Manualen forklarer nu **datakvalitet**: *God*, *Kommunikationsfejl* (sidst kendte værdi), *Dårlig* (kan ikke læses) og *Ukendt* (endnu ikke modtaget), at symbolet tones ned, og at alarmer fastholdes, betjening afvises og Trends får et hul.
