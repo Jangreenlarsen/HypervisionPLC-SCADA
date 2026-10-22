@@ -2,6 +2,10 @@
 
 ---
 
+## v0.125.1 — 2026-10-22 — Netværk: opdaterer sig selv
+
+- Netværkssystemet og DHCP-klienten registreres nu løbende (hvert halve minut). Installerer du fx `dhcpcd-base` på maskinen, kan DHCP vælges på siden kort efter — uden at køre nogen installation.
+
 ## v0.125.0 — 2026-10-22 — Netværksopsætning virker også på Debian/Ubuntu-servere og ESXi-VM'er
 
 - Netværk kan nu sættes fra **System › Konfiguration** også på maskiner med **ifupdown** (`/etc/network/interfaces`) — typisk Debian/Ubuntu-servere og virtuelle maskiner — ikke kun med NetworkManager.

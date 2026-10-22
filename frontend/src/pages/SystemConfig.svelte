@@ -310,13 +310,13 @@
           (<code>/etc/network/interfaces</code>, Debian/Ubuntu-servere og VM'er). Tjek med <code>systemctl is-active NetworkManager</code> og <code>ls /etc/network/interfaces</code>;
           <code>cat /var/lib/hypervisionplc-scada-net/capabilities</code> viser, hvad installationen fandt.
         {:else}
-          <strong>Netværkshjælperen er ikke installeret.</strong> Kør <code>sudo sh deploy/install.sh --update</code> på maskinen (en OTA-opdatering gør det automatisk). Tjek derefter
+          <strong>Netværkshjælperen er ikke installeret.</strong> Installér en opdatering via <em>System › Opdatering</em> (den kører installationen), eller kør <code>install.sh</code> fra opdateringspakken som root. Tjek derefter
           <code>ls /var/lib/hypervisionplc-scada-net</code> — filen <code>enabled</code> skal findes.
         {/if}
       </div>
     {:else}
       <p class="muted small">Netværkssystem: <strong>{net.backend === 'ifupdown' ? 'ifupdown (/etc/network/interfaces)' : 'NetworkManager'}</strong>
-        {#if net.dhcp_available === false} · <strong>ingen DHCP-klient installeret</strong> — kun Fast IP kan vælges (installér fx <code>dhcpcd-base</code> for DHCP){/if}</p>
+        {#if net.dhcp_available === false} · <strong>ingen DHCP-klient installeret</strong> — kun Fast IP kan vælges (installér <code>dhcpcd-base</code> for DHCP — siden opdateres selv inden for et halvt minut){/if}</p>
       {#if net.watchdog && !net.watchdog.stale && net.watchdog.mode !== 'static'}
         <p class="small">DHCP-vagt: <strong>{net.watchdog.message}</strong>
           {#if net.watchdog.state === 'searching'} ({net.watchdog.fails}{net.watchdog.mode === 'dhcp_fallback' ? ` af ${net.watchdog.threshold}` : ''} kontroller uden svar){/if}</p>

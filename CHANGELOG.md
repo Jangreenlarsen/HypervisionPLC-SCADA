@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.125.1 build 0185] — 2026-10-22 — fix: netværkssystem og DHCP-klient registreres løbende
+
+- Fund ved test på serveren: `install.sh` ligger kun i opdateringspakken (ikke på serveren), så vejledningen "kør install.sh --update" kunne ikke følges, og en `apt install dhcpcd-base` bagefter slog ikke igennem før næste opdatering.
+- `deploy/net-detect.sh` (ny, root) — finder netværkssystem (`nm` / `ifupdown` / `none`) og DHCP-klient og skriver `capabilities` + markører. Køres af `install.sh` og nu også af DHCP-vagtens timer (`ExecStartPre`, hvert 30. s), så siden opdaterer sig selv, og timeren altid er slået til.
+- Tekster i siden/vejledningerne rettet (ingen henvisning til `install.sh` på serveren).
+- `backend/tests/test_netdetect.py` (ny, 5 tests).
+
 ## [0.125.0 build 0184] — 2026-10-22 — Netværk: ifupdown-understøttelse (Debian/Ubuntu-servere, ESXi-VM'er)
 
 - Baggrund: testserveren er en Debian 13-VM med `ifupdown` (ingen NetworkManager, ingen sudo, ingen DHCP-klient) — netværksopsætning via web var derfor slået fra (`no-nmcli`).

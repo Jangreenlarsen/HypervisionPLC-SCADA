@@ -117,28 +117,12 @@ install -m 0644 "$SRC/deploy/hypervisionplc-scada-config.service" "$SRC/deploy/h
 install -d -o scada -g scada -m 0750 "$DATA/config"
 # Status og log ejes af ROOT (tjenesten kun læser) — så kan tjenesten ikke narre root-hjælperen med symlinks i sin egen mappe
 install -d -o root -g root -m 0755 /var/lib/hypervisionplc-scada-net
-# Hvilket netværkssystem kører maskinen? NetworkManager (Raspberry Pi OS Bookworm, desktop-Linux) eller ifupdown
-# (Debian/Ubuntu-servere og VM'er, /etc/network/interfaces). Ingen af dem → netværk kan ikke ændres fra web.
-# (siden viser årsagen: filen 'no-backend' = intet understøttet netværkssystem; ingen filer = install.sh er ikke kørt)
-NETBACKEND=none
-if command -v nmcli >/dev/null 2>&1 && systemctl is-active --quiet NetworkManager 2>/dev/null; then
-    NETBACKEND=nm
-elif [ -f /etc/network/interfaces ] && command -v ifup >/dev/null 2>&1 && command -v ifdown >/dev/null 2>&1; then
-    NETBACKEND=ifupdown
-fi
-# DHCP: NetworkManager har sin egen klient. Med ifupdown kræves dhcpcd (prøver uden ende og giver adresserne en levetid, som DHCP-vagten
-# kan se); dhclient kører med -1 (én gang) og udhcpc giver ingen levetid — begge ville få DHCP-vagten til at tage fejl.
-DHCPCLIENT=0
-if [ "$NETBACKEND" = nm ]; then DHCPCLIENT=1; elif command -v dhcpcd >/dev/null 2>&1; then DHCPCLIENT=1; fi
-printf 'backend=%s\ndhcp=%s\n' "$NETBACKEND" "$DHCPCLIENT" > /var/lib/hypervisionplc-scada-net/capabilities
-chmod 0644 /var/lib/hypervisionplc-scada-net/capabilities
-if [ "$NETBACKEND" != none ]; then
-    : > /var/lib/hypervisionplc-scada-net/enabled; rm -f /var/lib/hypervisionplc-scada-net/no-backend /var/lib/hypervisionplc-scada-net/no-nmcli
-else
-    rm -f /var/lib/hypervisionplc-scada-net/enabled; : > /var/lib/hypervisionplc-scada-net/no-backend
-    echo "ADVARSEL: hverken NetworkManager eller ifupdown findes — netværk kan ikke ændres fra web" >&2
-fi
-echo "Netværkssystem: $NETBACKEND (DHCP-klient: $DHCPCLIENT)"
+# Hvilket netværkssystem kører maskinen, og er der en brugbar DHCP-klient? (NetworkManager eller ifupdown; ingen af dem → netværk kan ikke ændres fra web)
+# net-detect.sh skriver capabilities + markørfiler, og køres igen af DHCP-vagtens timer, så en senere "apt install dhcpcd-base" slår igennem af sig selv.
+install -m 0755 "$SRC/deploy/net-detect.sh" /usr/local/lib/hypervisionplc-scada/net-detect.sh
+/usr/local/lib/hypervisionplc-scada/net-detect.sh || true
+NETBACKEND=$(sed -n 's/^backend=//p' /var/lib/hypervisionplc-scada-net/capabilities 2>/dev/null | head -n 1)
+[ "$NETBACKEND" = none ] && echo "ADVARSEL: hverken NetworkManager eller ifupdown findes — netværk kan ikke ændres fra web" >&2
 
 echo "== systemd"
 install -m 0644 "$SRC/deploy/hypervisionplc-scada.service" /etc/systemd/system/
@@ -152,7 +136,7 @@ systemctl enable -q hypervisionplc-scada-update.path
 systemctl restart hypervisionplc-scada-update.path
 systemctl enable -q hypervisionplc-scada-config.path
 systemctl restart hypervisionplc-scada-config.path
-if [ "$NETBACKEND" != none ]; then systemctl enable -q hypervisionplc-scada-netwatch.timer; systemctl restart hypervisionplc-scada-netwatch.timer; fi
+systemctl enable -q hypervisionplc-scada-netwatch.timer; systemctl restart hypervisionplc-scada-netwatch.timer   # kører også net-detect.sh (hold capabilities opdateret)
 if [ "$WITH_MOCK" -eq 1 ]; then
     systemctl enable -q hypervisionplc-mock-plc
     systemctl restart hypervisionplc-mock-plc

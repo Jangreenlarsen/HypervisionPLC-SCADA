@@ -203,7 +203,7 @@ class NetworkService:
             raise ServiceError(409, "Netværksændring via web er ikke aktiveret på denne server — kør 'sh deploy/install.sh' som root én gang")
         caps = self.capabilities()
         if cfg["mode"] != "static" and not caps["dhcp_available"]:
-            raise ServiceError(400, "Maskinen har ingen (understøttet) DHCP-klient — på ifupdown kræves dhcpcd (apt install dhcpcd-base). Vælg Fast IP, eller installér klienten og kør install.sh --update")
+            raise ServiceError(400, "Maskinen har ingen (understøttet) DHCP-klient — på ifupdown kræves dhcpcd (apt install dhcpcd-base). Vælg Fast IP, eller installér klienten (siden opdateres selv inden for et halvt minut)")
         if self.status()["busy"]:
             raise ServiceError(409, "En netværksændring er allerede i gang")
         req_id = str(int(time.time()))

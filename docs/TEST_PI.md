@@ -23,9 +23,9 @@ Brug en Pi med **fysisk adgang** (skærm + tastatur eller seriel), og helst en t
 Testserveren (`10.1.1.31`) er en Debian 13-VM: netværk via `ifupdown` (`/etc/network/interfaces`, kortet hedder `ens3`), **ingen** NetworkManager, **ingen** `sudo` og **ingen DHCP-klient**. Derfor:
 
 1. Kør alt "som root" med `su -` (rod-adgangskoden), eller installér sudo én gang: `su -c 'apt install sudo && usermod -aG sudo jgl'` (log ud og ind igen).
-2. `cat /var/lib/hypervisionplc-scada-net/capabilities` skal vise `backend=ifupdown` (og `dhcp=0`, indtil en DHCP-klient er installeret). Hvis den viser `backend=none` eller filen mangler: `su -c 'sh /opt/hypervisionplc-scada/deploy/install.sh --update'` er ikke kørt med den nyeste pakke — installér fra **System › Opdatering**.
+2. `cat /var/lib/hypervisionplc-scada-net/capabilities` skal vise `backend=ifupdown` (og `dhcp=0`, indtil `dhcpcd` er installeret). Hvis den viser `backend=none` eller filen mangler: den nyeste pakke er ikke installeret — installér den fra **System › Opdatering** (`install.sh` ligger kun i opdateringspakken, ikke på serveren). Filen opdateres selv hvert halve minut (DHCP-vagtens timer).
 3. **Fast IP** kan prøves med det samme (4.1 – 4.5 nedenfor, men med `ip -4 addr` og `cat /etc/network/interfaces` i stedet for `nmcli`). Brug **en adresse i samme net**, og hav ESXi-konsollen åben (VM'ens skærm i vSphere/ESXi), hvis SSH/web falder ud.
-4. For at prøve **DHCP** på VM'en: `su -c 'apt install dhcpcd-base'` (kun **dhcpcd** godkendes — `dhclient` kører med `-1` og `udhcpc` giver ingen levetid), kør `install.sh --update` igen (så `dhcp=1` i `capabilities`), og sørg for at ESXi-netværket har DHCP. Netkortet bør også have `iface ens3 inet dhcp`-blokken efter en bekræftet ændring, og `ip -4 addr show dev ens3` skal vise flaget `dynamic` på DHCP-adressen.
+4. For at prøve **DHCP** på VM'en: `su -c 'apt install dhcpcd-base'` (kun **dhcpcd** godkendes — `dhclient` kører med `-1` og `udhcpc` giver ingen levetid), vent et halvt minut (så står der `dhcp=1` i `capabilities`), og sørg for at ESXi-netværket har DHCP. Netkortet bør også have `iface ens3 inet dhcp`-blokken efter en bekræftet ændring, og `ip -4 addr show dev ens3` skal vise flaget `dynamic` på DHCP-adressen.
 5. Kontroller efter en bekræftet ændring: `cat /etc/network/interfaces` (den nye blok + `# Sat af HypervisionPLC SCADA`), `ls /etc/network/interfaces.hypervision-bak-*` (sikkerhedskopi), `cat /etc/resolv.conf` (nameserver er ændret, `domain`/`search` er bevaret).
 6. **Nødplan på VM'en:** ESXi-konsollen → log ind → `cp /etc/network/interfaces.hypervision-bak-<nyeste> /etc/network/interfaces && ifdown --force ens3; ifup ens3`. Under en afprøvning (før Bekræft) er filen urørt, så en genstart af VM'en giver den gamle opsætning.
 7. VM-hensyn: kortets navn er `ens3`/`ens192` (ikke `eth0`), MAC kan skifte ved kloning, og en VM har ingen USB-SSD — til flytning af trend-databasen (punkt 6) bruges i stedet en **ekstra virtuel disk** monteret på fx `/mnt/data` (`mkfs.ext4`, `mount`, `install -d -o scada -g scada`).
@@ -43,7 +43,7 @@ Testserveren (`10.1.1.31`) er en Debian 13-VM: netværk via `ifupdown` (`/etc/ne
 
 **Forventet:** siden åbner; **Netværksopsætning** viser en formular (ikke en gul besked).
 - Ser du *"Maskinens netværkssystem understøttes ikke"* → hverken NetworkManager eller ifupdown blev fundet (`cat /var/lib/hypervisionplc-scada-net/capabilities`).
-- Ser du *"Netværkshjælperen er ikke installeret"* → `install.sh` er ikke kørt som root (`sudo sh deploy/install.sh --update`).
+- Ser du *"Netværkshjælperen er ikke installeret"* → den nyeste pakke er ikke installeret (installér den fra System › Opdatering; `install.sh` ligger kun i pakken).
 
 ## 2. Visning (v0.119.0)
 
