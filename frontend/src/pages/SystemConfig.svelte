@@ -8,7 +8,8 @@
     storage: { path: string; files: { name: string; size: number }[]; folders: { name: string; size: number }[];
       disk: { total: number; used: number; free: number } | null };
     trends: { retention_days: number; flush_s: number; energy_days: number; overridden: boolean;
-      limits: Record<string, { min: number; max: number }>; tags: number; samples: number;
+      limits: Record<string, { min: number; max: number }>;
+      storage: { path: string; configured: string; warning: string; roots: string[] }; tags: number; samples: number;
       write: { since: number; uptime_s: number; rows: number; flushes: number; rows_per_day: number | null; flushes_per_day: number | null } };
     network_config: NetState;
     network: { available: boolean; hostname: string; interfaces: Nic[]; gateway: string; dns: string[]; error: string };
@@ -56,6 +57,32 @@
   }
 
   const dirty = $derived(!!cfg && (retention !== cfg.trends.retention_days || flush !== cfg.trends.flush_s || energy !== cfg.trends.energy_days));
+
+  // ---- Placering af trend-databasen
+  let moveDir = $state('');
+  let moving = $state(false);
+  let moveError = $state('');
+  let moveDone = $state('');
+
+  async function moveDb(dir: string): Promise<void> {
+    moveError = moveDone = '';
+    const text = dir === ''
+      ? 'Flyt trend-databasen tilbage til datamappen?\n\nHistorikken kopieres, kontrolleres og tages i brug. Den gamle fil gemmes som trends.db.moved.'
+      : `Flyt trend-databasen til ${dir}?\n\nHistorikken kopieres, kontrolleres og tages i brug mens SCADA'en kører (trends står stille et øjeblik). Den gamle fil gemmes som trends.db.moved, til du selv sletter den.`;
+    if (!await ask(text)) return;
+    moving = true;
+    try {
+      const t = await api<Config['trends']>('PUT', '/api/system/config/storage', { trend_dir: dir });
+      if (cfg) cfg.trends = t;
+      moveDone = `Databasen ligger nu i ${t.storage.path}`;
+      moveDir = '';
+      await refresh();
+    } catch (e) {
+      moveError = (e as Error).message;
+    } finally {
+      moving = false;
+    }
+  }
 
   // ---- Netværk: formular, anvend, bekræft
   let nIface = $state('');
@@ -225,6 +252,23 @@
       </div>
       {#if saveError}<div class="error">{saveError}</div>{/if}
       <p class="muted small">Et længere skriveinterval giver færre skrivninger til disken, men ved strømsvigt kan op til så mange sekunder af de nyeste værdier gå tabt. Ældre historik end opbevaringstiden slettes hver time.</p>
+    </form>
+    <h4>Placering af trend-databasen</h4>
+    <p>Ligger i: <code>{cfg.trends.storage.path}</code></p>
+    {#if cfg.trends.storage.warning}<div class="notice warn">{cfg.trends.storage.warning}</div>{/if}
+    <form class="settings" onsubmit={(e) => { e.preventDefault(); moveDb(moveDir.trim()); }}>
+      <label>Flyt til mappe (under {cfg.trends.storage.roots.join(' eller ')})
+        <input bind:value={moveDir} placeholder="/mnt/ssd/scada" disabled={moving} />
+      </label>
+      <div class="row">
+        <button class="primary" type="submit" disabled={moving || !moveDir.trim()}>{moving ? 'Flytter …' : 'Flyt databasen'}</button>
+        {#if cfg.trends.storage.configured}<button type="button" onclick={() => moveDb('')} disabled={moving}>Tilbage til datamappen</button>{/if}
+      </div>
+      {#if moveDone}<span class="muted small">{moveDone}</span>{/if}
+      {#if moveError}<div class="error">{moveError}</div>{/if}
+      <p class="muted small">Brug en USB-SSD i stedet for SD-kortet til historikken. Monter disken først, og opret mappen én gang på maskinen med
+        <code>sudo install -d -o scada -g scada -m 0750 /mnt/ssd/scada</code>. Historikken kopieres og kontrolleres, før den tages i brug;
+        den gamle fil bliver liggende som <code>trends.db.moved</code>. Mangler disken ved en genstart, starter SCADA'en alligevel med en tom database i datamappen og viser en advarsel her.</p>
     </form>
     <p class="muted small">Rækkerne er ca. 20–40 byte hver; SQLite skriver desuden journal (WAL), så den faktiske skrivning til flash er et par gange større. Er datamappen på et SD-kort, så flyt den til en USB-SSD ved mange tags.</p>
   </section>

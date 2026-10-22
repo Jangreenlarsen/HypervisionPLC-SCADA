@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict
 
 from ..services import netconfig, sysconfig
+from ..services.errors import ServiceError
 from ..services.auth import CurrentUser
 from .auth import ADMIN, audit, require
 
@@ -22,6 +23,20 @@ class TrendSettingsBody(BaseModel):
     energy_days: float
 
 
+class StorageBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    trend_dir: str
+
+
+_move_lock = asyncio.Lock()
+
+
+def _trend_storage(request: Request) -> dict[str, Any]:
+    db = request.app.state.trend_db
+    return {"path": str(db.path), "configured": sysconfig.load_trend_dir(request.app.state.settings.data_dir),
+            "warning": request.app.state.trend_storage_warning, "roots": [r.as_posix() for r in sysconfig.TREND_DIR_ROOTS]}
+
+
 def _trend_view(request: Request) -> dict[str, Any]:
     settings = request.app.state.settings
     trend_stats = request.app.state.trend_db.stats()
@@ -30,7 +45,7 @@ def _trend_view(request: Request) -> dict[str, Any]:
         "overridden": bool(sysconfig.load_overrides(settings.data_dir)),
         "limits": {k: {"min": lo, "max": hi} for k, (lo, hi, _l) in sysconfig.TREND_LIMITS.items()},
         "tags": len(trend_stats), "samples": sum(s["samples"] for s in trend_stats.values()),
-        "write": request.app.state.trend_recorder.write_stats(),
+        "write": request.app.state.trend_recorder.write_stats(), "storage": _trend_storage(request),
     }
 
 
@@ -107,3 +122,24 @@ async def revert_network(request: Request) -> dict[str, Any]:
     result = _net(request).revert()
     audit(request, "system.config.network.revert", "", {})
     return result
+
+
+@router.put("/storage", dependencies=[ADMIN])
+async def put_storage(body: StorageBody, request: Request) -> dict[str, Any]:
+    """Flyt trend-databasen til en anden disk (eller tilbage til datamappen). Kører online; den gamle fil bevares som `.moved`."""
+    settings = request.app.state.settings
+    db = request.app.state.trend_db
+    if _move_lock.locked():
+        raise ServiceError(409, "En flytning er allerede i gang")
+    async with _move_lock:
+        target = sysconfig.validate_trend_dir(body.trend_dir, settings.data_dir, db.path)
+        old = str(db.path)
+        try:
+            moved = await asyncio.to_thread(db.relocate, target)
+        except (OSError, FileExistsError) as exc:
+            raise ServiceError(500, f"Flytningen mislykkedes — databasen er uændret: {exc}") from exc
+        stored = "" if target.parent.resolve() == settings.data_dir.resolve() else str(target.parent)
+        await asyncio.to_thread(sysconfig.save_section, settings.data_dir, "storage", {"trend_dir": stored})
+        request.app.state.trend_storage_warning = ""
+        audit(request, "system.config.storage", "trends.db", {"from": old, "to": str(target), "kept_as": str(moved)})
+        return _trend_view(request)

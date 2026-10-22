@@ -171,7 +171,11 @@ def validate_trend_settings(values: dict[str, Any]) -> dict[str, float]:
 
 
 def save_trend_settings(data_dir: Path, values: dict[str, float]) -> None:
-    """Skriv hele filen atomisk (midlertidig fil + omdøbning), så en strømafbrydelse ikke giver en halv fil."""
+    save_section(data_dir, "trends", values)
+
+
+def save_section(data_dir: Path, section: str, values: dict[str, Any]) -> None:
+    """Skriv ét afsnit i filen; resten bevares. Atomisk (midlertidig fil + omdøbning), så en strømafbrydelse ikke giver en halv fil."""
     path = _settings_path(data_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
     with _write_lock:
@@ -181,7 +185,83 @@ def save_trend_settings(data_dir: Path, values: dict[str, float]) -> None:
                 doc = {}
         except (OSError, ValueError):
             doc = {}
-        doc["trends"] = values   # andre afsnit i filen (senere trin) bevares
+        doc[section] = values   # de øvrige afsnit i filen bevares
         tmp = path.with_suffix(".tmp")
         tmp.write_text(json.dumps(doc, indent=2), encoding="utf-8")
         os.replace(tmp, path)
+
+
+# ---------------------------------------------------------------- placering af trend-databasen
+# Kun montérbare diske (USB-SSD) under /mnt eller /media er tilladt: servicen må kun skrive dér (se deploy/*.service), og et
+# vilkårligt sted i filsystemet ville kunne ramme systemfiler. Mappen skal ejes af brugeren 'scada' (oprettes én gang som root).
+TREND_DIR_ROOTS = (Path("/mnt"), Path("/media"))
+TREND_DB_NAME = "trends.db"
+
+
+def load_trend_dir(data_dir: Path) -> str:
+    """Den gemte placering ('' = datamappen)."""
+    try:
+        raw = json.loads(_settings_path(data_dir).read_text(encoding="utf-8"))
+        v = raw.get("storage", {}).get("trend_dir") if isinstance(raw, dict) else None
+        return v if isinstance(v, str) else ""
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def _writable(directory: Path) -> bool:
+    probe = directory / f".skriv-test-{os.getpid()}"
+    try:
+        probe.write_bytes(b"x")
+        probe.unlink()
+        return True
+    except OSError:
+        return False
+
+
+def resolve_trend_db_path(data_dir: Path) -> tuple[Path, str]:
+    """Opstart: hvor ligger databasen? Er den gemte disk ikke til stede/skrivbar, bruges datamappen (tom historik) og
+    der returneres en advarsel — SCADA'en starter altid; historikken på den manglende disk er urørt."""
+    configured = load_trend_dir(data_dir)
+    if not configured:
+        return data_dir / TREND_DB_NAME, ""
+    target = Path(configured)
+    if target.is_dir() and _writable(target):
+        return target / TREND_DB_NAME, ""
+    log.error("Trend-databasens placering %s mangler eller er ikke skrivbar — bruger datamappen", configured)
+    return data_dir / TREND_DB_NAME, (f"Trend-databasens disk ({configured}) mangler eller er ikke skrivbar — historikken er "
+                                       f"urørt dér, men der bruges midlertidigt en tom database i datamappen")
+
+
+def validate_trend_dir(raw: Any, data_dir: Path, current_db: Path, roots: tuple[Path, ...] = TREND_DIR_ROOTS,
+                       require_other_device: bool = True) -> Path:
+    """Kontrollér en ny placering og returnér målfilen. Afviser med en specifik besked (400). '' = tilbage til datamappen."""
+    if not isinstance(raw, str):
+        raise ServiceError(400, "Mappe: skriv en sti, fx /mnt/ssd/scada")
+    text = raw.strip()
+    if "\x00" in text:
+        raise ServiceError(400, "Mappe: ugyldig sti")
+    if text == "":
+        directory = data_dir
+    else:
+        if not Path(text).is_absolute():
+            raise ServiceError(400, "Mappe: skriv en fuld sti, der starter med /  (fx /mnt/ssd/scada)")
+        directory = Path(text).resolve()
+        if not any(directory == r or r in directory.parents for r in (p.resolve() for p in roots)):
+            raise ServiceError(400, "Mappe: skal ligge under /mnt eller /media (monteringspunkt for en USB-disk)")
+    if not directory.is_dir():
+        raise ServiceError(400, f"Mappe: {directory} findes ikke — monter disken og opret mappen først")
+    if not _writable(directory):
+        raise ServiceError(400, f"Mappe: {directory} er ikke skrivbar for SCADA-tjenesten. Kør én gang på maskinen: "
+                                f"sudo install -d -o scada -g scada -m 0750 {directory}")
+    target = directory / TREND_DB_NAME
+    if target.resolve() == current_db.resolve():
+        raise ServiceError(400, "Mappe: databasen ligger allerede dér")
+    if target.exists():
+        raise ServiceError(409, f"Mappe: der ligger allerede en {TREND_DB_NAME} i {directory} — omdøb eller fjern den først")
+    if text and require_other_device and directory.stat().st_dev == current_db.parent.stat().st_dev:
+        raise ServiceError(400, "Mappe: ligger på samme disk som den nuværende database — vælg en anden disk (USB-SSD)")
+    needed = int(sum(p.stat().st_size for p in (current_db, Path(str(current_db) + "-wal")) if p.exists()) * 1.3) + 50 * 1024 * 1024
+    free = shutil.disk_usage(directory).free
+    if free < needed:
+        raise ServiceError(400, f"Mappe: for lidt ledig plads ({free // 1024 // 1024} MB; der skal bruges ca. {needed // 1024 // 1024} MB)")
+    return target

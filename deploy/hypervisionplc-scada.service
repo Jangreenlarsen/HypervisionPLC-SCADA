@@ -23,7 +23,8 @@ ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
-ReadWritePaths=/var/lib/hypervisionplc-scada
+# /mnt og /media: en flyttet trend-database (System › Konfiguration). '-' = ignorér hvis mappen ikke findes
+ReadWritePaths=/var/lib/hypervisionplc-scada -/mnt -/media
 
 [Install]
 WantedBy=multi-user.target

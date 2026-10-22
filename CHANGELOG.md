@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.122.0 build 0181] — 2026-10-22 — System › Konfiguration (trin 5: flyt trend-databasen)
+
+- `backend/app/storage/trends_db.py` — `relocate()`: konsistent kopi (backup-API) under låsen, kontrol (quick_check + antal rækker), skift af forbindelse; den gamle fil gemmes som `.moved`; fejl efterlader den gamle database uændret.
+- `backend/app/services/sysconfig.py` — `validate_trend_dir` (kun under /mnt eller /media, anden disk, skrivbar, plads, ingen eksisterende trends.db), `resolve_trend_db_path` (opstart: manglende disk → tom database i datamappen + advarsel), `save_section`.
+- `backend/app/api/system_config.py`, `backend/app/main.py` — `PUT /api/system/config/storage` (admin, auditlogget, én flytning ad gangen); placering og advarsel i `GET`.
+- `deploy/hypervisionplc-scada.service` — `ReadWritePaths` udvidet med `-/mnt -/media`.
+- `frontend/src/pages/SystemConfig.svelte`, manual (System); `PLAN.md` (ændret afgrænsning af trin 5).
+- `backend/tests/test_trend_storage.py` — flytning frem/tilbage, afvisning, validering, opstart uden disk.
+- Kun testet; **ikke afprøvet med en rigtig USB-disk** og ikke set i browser.
+
 ## [0.121.0 build 0180] — 2026-10-22 — System › Konfiguration (trin 3: netværk)
 
 - `deploy/apply-config.sh` (ny, root) + `hypervisionplc-scada-config.{path,service}` + `install.sh` — anvender en netværksændring med NetworkManager: validerer igen, anvender **midlertidigt** (`--temporary`), venter 90 s på bekræftelse og gør den først varig ved bekræftelse; ellers (eller ved fejl, *Fortryd nu*, genstart, dødt script via `ExecStopPost --recover`) vender den gamle opsætning tilbage. Efter reviewer-gennemgang: root skriver kun i sin egen mappe `/var/lib/hypervisionplc-scada-net` (status/log), anmodningen tages ind med `mv` og symlinks afvises, nmcli-kald har tidsgrænse, `CONFIRM_S` begrænses 20–180, værtsnavn sættes først efter bekræftelse, hærdet service-enhed.

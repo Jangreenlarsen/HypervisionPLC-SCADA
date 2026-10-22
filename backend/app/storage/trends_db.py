@@ -5,6 +5,7 @@ samples: (tag_id, ts, value) — value NULL markerer et hul (ingen gyldig værdi
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import threading
 from pathlib import Path
@@ -34,6 +35,53 @@ class TrendDatabase:
             self._conn.executescript(_SCHEMA)
             for row in self._conn.execute("SELECT id, name FROM trend_tags"):
                 self._ids[row[1]] = row[0]
+
+    def relocate(self, new_path: Path) -> Path:
+        """Flyt databasen til en anden fil/disk mens den kører: konsistent kopi (SQLites backup-API) under låsen, kontrol af
+        kopien (quick_check + samme antal rækker), derefter skiftes forbindelsen. Den gamle fil omdøbes til `<navn>.moved`
+        (og returneres), så intet slettes. Fejler noget, er den gamle database uændret i brug."""
+        new_path = Path(new_path)
+        if new_path.exists():
+            raise FileExistsError(f"{new_path} findes allerede")
+        tmp = new_path.with_name(new_path.name + ".tmp")
+        for suffix in ("", "-wal", "-shm"):
+            Path(str(tmp) + suffix).unlink(missing_ok=True)
+        with self._lock:
+            try:
+                dest = sqlite3.connect(str(tmp))
+                try:
+                    self._conn.backup(dest)
+                finally:
+                    dest.close()
+                check = sqlite3.connect(str(tmp))
+                try:
+                    if check.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                        raise OSError("Kontrol af kopien fejlede (quick_check)")
+                    copied = check.execute("SELECT COUNT(*) FROM samples").fetchone()[0]
+                finally:
+                    check.close()
+                original = self._conn.execute("SELECT COUNT(*) FROM samples").fetchone()[0]
+                if copied != original:
+                    raise OSError(f"Kopien har {copied} rækker, originalen {original}")
+                os.replace(tmp, new_path)
+                conn = sqlite3.connect(str(new_path), check_same_thread=False, isolation_level=None)
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA synchronous=NORMAL")
+                conn.executescript(_SCHEMA)
+            except Exception:
+                for suffix in ("", "-wal", "-shm"):
+                    Path(str(tmp) + suffix).unlink(missing_ok=True)
+                raise
+            old, old_path = self._conn, self.path
+            self._conn, self.path = conn, new_path
+            self._ids = {row[1]: row[0] for row in conn.execute("SELECT id, name FROM trend_tags")}
+            old.close()
+        moved = old_path.with_name(old_path.name + ".moved")
+        moved.unlink(missing_ok=True)
+        os.replace(old_path, moved)
+        for suffix in ("-wal", "-shm"):
+            Path(str(old_path) + suffix).unlink(missing_ok=True)
+        return moved
 
     def snapshot(self, dest: Path) -> None:
         """Konsistent kopi via SQLites backup-API på en SEPARAT forbindelse (WAL: læsning blokerer ikke

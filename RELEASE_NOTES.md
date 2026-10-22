@@ -2,6 +2,12 @@
 
 ---
 
+## v0.122.0 — 2026-10-22 — Konfiguration: flyt trend-databasen
+
+- Under **System › Konfiguration** kan trend-historikken nu flyttes til en **anden disk** (fx en USB-SSD) for at skåne SD-kortet — mens SCADA'en kører. Historikken kopieres og kontrolleres, før den nye database tages i brug; den gamle fil bliver liggende (`trends.db.moved`).
+- Mangler disken ved en genstart, starter SCADA'en alligevel (tom database i datamappen) og viser en advarsel.
+- Kræver, at mappen på disken oprettes én gang med `sudo install -d -o scada -g scada -m 0750 /mnt/ssd/scada`, og at `sh deploy/install.sh` er kørt (opdaterer tjenestens skriverettigheder).
+
 ## v0.121.0 — 2026-10-22 — Konfiguration: netværk
 
 - Under **System › Konfiguration** kan netværket nu sættes: **DHCP**, **fast IP** (IP, subnet, gateway, DNS) eller **DHCP + fast IP som sekundær**, samt værtsnavn.

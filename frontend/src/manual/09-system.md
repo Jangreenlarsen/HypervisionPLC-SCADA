@@ -72,6 +72,17 @@ Under trend-historikken kan du ændre tre **indstillinger**; de gemmes og gælde
 
 Forkerte værdier afvises med en besked. Ændringen skrives i auditloggen.
 
+#### Flyt trend-databasen til en anden disk
+
+For at skåne SD-kortet kan historikken ligge på en **USB-SSD**:
+
+1. Monter disken (fx på `/mnt/ssd`) og opret en mappe til SCADA'en **én gang på maskinen**: `sudo install -d -o scada -g scada -m 0750 /mnt/ssd/scada`.
+2. Skriv mappen i feltet **Flyt til mappe** og tryk **Flyt databasen**. Kun mapper under `/mnt` eller `/media` på en **anden disk** end den nuværende kan vælges.
+3. Historikken kopieres og **kontrolleres** (samme antal værdier), og først derefter tages den nye database i brug — mens SCADA'en kører. Trends står stille et øjeblik. Fejler noget, er den gamle database uændret.
+4. Den gamle fil bliver liggende som `trends.db.moved`, til du selv sletter den.
+
+**Tilbage til datamappen** flytter den den anden vej. Mangler disken ved en genstart, starter SCADA'en alligevel — med en tom database i datamappen og en advarsel på siden; historikken på disken er urørt og kommer tilbage, når disken er monteret og du flytter databasen dertil igen.
+
 ### Netværksopsætning
 
 Nederst på siden kan du sætte maskinens netværk. Vælg **netkort** og **tilstand**:
@@ -88,7 +99,7 @@ Alle felter kontrolleres (gyldig adresse, gateway i samme subnet, højst 3 DNS-s
 
 > Kræver NetworkManager (standard på Raspberry Pi OS Bookworm) og at `sh deploy/install.sh` er kørt som administrator på serveren én gang. Mangler det, viser siden en besked i stedet for formularen.
 
-Flytning af datamappen kommer i en senere version.
+Flytning af hele datamappen (databasen med tags, tegninger og brugere) understøttes ikke; det er trend-databasen, der fylder og skriver mest.
 
 ## Bruger
 
