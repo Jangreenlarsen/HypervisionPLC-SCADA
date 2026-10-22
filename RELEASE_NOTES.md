@@ -2,6 +2,12 @@
 
 ---
 
+## v0.123.0 — 2026-10-22 — Konfiguration: DHCP-vagt, reserve-IP og testvejledning
+
+- Ny netværkstilstand **DHCP, fast IP først efter N fejl**: DHCP forsøges hele tiden; svarer routeren ikke i N kontroller (à 30 s), tager maskinen en fast reserve-IP i brug, og slipper den igen, når DHCP svarer. Siden viser vagtens status.
+- Siden fortæller nu præcist, **hvorfor** netværksændring ikke er aktiveret (NetworkManager mangler, eller `install.sh` er ikke kørt).
+- Ny testvejledning til første prøve på en rigtig Pi: `docs/TEST_PI.md`.
+
 ## v0.122.0 — 2026-10-22 — Konfiguration: flyt trend-databasen
 
 - Under **System › Konfiguration** kan trend-historikken nu flyttes til en **anden disk** (fx en USB-SSD) for at skåne SD-kortet — mens SCADA'en kører. Historikken kopieres og kontrolleres, før den nye database tages i brug; den gamle fil bliver liggende (`trends.db.moved`).

@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.123.0 build 0182] — 2026-10-22 — System › Konfiguration (trin 4: DHCP-vagt og reserve-IP) + testvejledning
+
+- `deploy/net-watchdog.sh` (ny, root) + `hypervisionplc-scada-netwatch.{service,timer}` + `install.sh` — tæller kontroller uden DHCP-svar; i tilstanden *DHCP, fast IP efter N fejl* lægges reserve-IP'en på midlertidigt (`--temporary` + `device reapply`) efter N og fjernes igen ved lease; tæller ikke når kablet er ude; rører ikke netværket under en ændring; status i `watchdog.json`.
+- `deploy/apply-config.sh` — tilstanden `dhcp_fallback` (profilen er ren DHCP), `FALLBACK_AFTER`, og skriver `watchdog.conf` først efter bekræftelse.
+- `backend/app/services/netconfig.py` — ny tilstand + `fallback_after` (1–20), `disabled_reason` (`no_nmcli` / `not_installed`), vagtens status i `GET /network`.
+- `frontend/src/pages/SystemConfig.svelte` — ny tilstand, N-felt, vagtens status, og en præcis besked om hvorfor netværksændring ikke er aktiveret (NetworkManager mangler / install.sh ikke kørt).
+- `docs/TEST_PI.md` (ny) — samlet testvejledning for trin 1–5 på en rigtig Pi; `.gitattributes`, manual (System), `PLAN.md`.
+- `backend/tests/test_netwatch.py` + udvidede `test_netconfig.py` — vagten med falsk nmcli (tælling, reserve-IP, fjernelse, kabel ude, ændring i gang, ugyldig konfiguration).
+- Kun testet mod falsk nmcli — **ikke afprøvet på en rigtig Pi**.
+
 ## [0.122.0 build 0181] — 2026-10-22 — System › Konfiguration (trin 5: flyt trend-databasen)
 
 - `backend/app/storage/trends_db.py` — `relocate()`: konsistent kopi (backup-API) under låsen, kontrol (quick_check + antal rækker), skift af forbindelse; den gamle fil gemmes som `.moved`; fejl efterlader den gamle database uændret.

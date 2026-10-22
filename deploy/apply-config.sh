@@ -16,6 +16,7 @@
 # ExecStopPost kører desuden `--recover`.
 #
 # Til test kan kommandoer og mapper overstyres: NMCLI, HOSTNAMECTL, DATA, STATE, TIMEOUT_CMD.
+# Efter en bekræftet ændring skrives <state>/watchdog.conf til DHCP-vagten (deploy/net-watchdog.sh).
 set -u
 set -f   # ingen glob-udvidelse af uquotede variabler
 export PATH="/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin"
@@ -82,7 +83,7 @@ fail() { log "FEJL: $1"; status failed "$1"; rm -f "$WORKREQ"; exit 1; }
 field() { sed -n "s/^$1=//p" "$WORKREQ" | head -n 1; }
 BY=$(field BY | tr -cd 'A-Za-z0-9_.@-' | cut -c1-64); BY=${BY:-ukendt}
 CONFIRM_S=$(field CONFIRM_S)
-IFACE=$(field IFACE); MODE=$(field MODE); IP=$(field IP); PREFIX=$(field PREFIX)
+FALLBACK_AFTER=$(field FALLBACK_AFTER); IFACE=$(field IFACE); MODE=$(field MODE); IP=$(field IP); PREFIX=$(field PREFIX)
 GATEWAY=$(field GATEWAY); DNS=$(field DNS); HOSTNAME_NEW=$(field HOSTNAME)
 rm -f "$WORKREQ" "$CONFIRM" "$REVERT"
 
@@ -92,7 +93,9 @@ is_ipv4() {
     printf '%s' "$1" | awk -F. 'NF==4 { for (i=1;i<=4;i++) { if ($i !~ /^[0-9]+$/ || length($i) > 3 || $i+0 > 255) exit 1 } exit 0 } { exit 1 }'
 }
 printf '%s' "$IFACE" | grep -Eq '^[A-Za-z0-9_.-]{1,15}$' || fail "Ugyldigt netkort"
-case "$MODE" in dhcp|static|dhcp_static) ;; *) fail "Ugyldig tilstand" ;; esac
+case "$MODE" in dhcp|static|dhcp_static|dhcp_fallback) ;; *) fail "Ugyldig tilstand" ;; esac
+printf '%s' "$FALLBACK_AFTER" | grep -Eq '^[1-9][0-9]?$' || FALLBACK_AFTER=5
+[ "$FALLBACK_AFTER" -le 20 ] || FALLBACK_AFTER=5
 # 1–999 uden foranstillet 0 (ellers læser shellen det som oktal), derefter 20–180 s
 printf '%s' "$CONFIRM_S" | grep -Eq '^[1-9][0-9]{0,2}$' || CONFIRM_S=90
 [ "$CONFIRM_S" -ge 20 ] || CONFIRM_S=20
@@ -119,7 +122,8 @@ log "Anmodet af $BY: $MODE ip=$IP/$PREFIX gw=$GATEWAY dns=$DNS host=$HOSTNAME_NE
 
 # ---------------------------------------------------------------- argumenter til nmcli
 case "$MODE" in
-    dhcp)
+    dhcp|dhcp_fallback)
+        # dhcp_fallback: profilen er ren DHCP; reserve-IP'en lægges på af net-watchdog.sh efter N kontroller uden svar
         set -- ipv4.method auto ipv4.addresses "" ipv4.gateway "" ipv4.may-fail yes ipv4.dhcp-timeout 2147483647 ;;
     static)
         set -- ipv4.method manual ipv4.addresses "$IP/$PREFIX" ipv4.gateway "$GATEWAY" ipv4.may-fail no ipv4.dhcp-timeout 0 ;;
@@ -155,6 +159,11 @@ while [ "$(date +%s)" -lt "$DEADLINE" ]; do
             reload_saved; status failed "Ændringen kunne ikke gemmes varigt — den gamle opsætning er gendannet"; exit 1
         fi
         if [ -n "$HOSTNAME_NEW" ]; then $TIMEOUT_CMD "$NM_T" $HOSTNAMECTL set-hostname "$HOSTNAME_NEW" >> "$LOG" 2>&1 || log "Værtsnavn kunne ikke sættes"; fi
+        # DHCP-vagten (net-watchdog.sh) læser tilstanden her; skrevet atomisk i root-mappen
+        {
+            printf 'MODE=%s\nIFACE=%s\nUUID=%s\nIP=%s\nPREFIX=%s\nGATEWAY=%s\nFALLBACK_AFTER=%s\n' "$MODE" "$IFACE" "$UUID" "$IP" "$PREFIX" "$GATEWAY" "$FALLBACK_AFTER"
+        } > "$W/watchdog.conf.tmp" && mv "$W/watchdog.conf.tmp" "$W/watchdog.conf"
+        rm -f "$W/watchdog.state"
         log "Bekræftet og gemt"
         status confirmed "Netværksopsætningen er bekræftet og gemt"
         exit 0

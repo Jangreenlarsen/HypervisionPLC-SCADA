@@ -15,8 +15,9 @@
     network: { available: boolean; hostname: string; interfaces: Nic[]; gateway: string; dns: string[]; error: string };
   }
 
-  interface NetTarget { interface: string; mode: string; ip: string; prefix: number; gateway: string; dns: string[]; hostname: string }
-  interface NetState { enabled: boolean; state: string; message: string; deadline: number | null; confirm_s: number; busy: boolean;
+  interface NetTarget { interface: string; mode: string; ip: string; prefix: number; gateway: string; dns: string[]; hostname: string; fallback_after?: number }
+  interface Watchdog { state: string; message: string; mode: string; fails: number; threshold: number; fallback_active: boolean; ts: number; stale?: boolean }
+  interface NetState { enabled: boolean; disabled_reason?: string; watchdog?: Watchdog | null; state: string; message: string; deadline: number | null; confirm_s: number; busy: boolean;
     target: NetTarget | null; saved: NetTarget | null }
 
   let cfg = $state<Config | null>(null);
@@ -92,6 +93,7 @@
   let nGateway = $state('');
   let nDns = $state('');
   let nHost = $state('');
+  let nFallback = $state(5);
   let net = $state<NetState | null>(null);
   let netBusy = $state(false);
   let netError = $state('');
@@ -99,7 +101,7 @@
   let poll: ReturnType<typeof setInterval> | null = null;
   let netFilled = false;
 
-  const MODE_TEXT: Record<string, string> = { dhcp: 'DHCP', static: 'Fast IP', dhcp_static: 'DHCP + fast IP som sekundær' };
+  const MODE_TEXT: Record<string, string> = { dhcp: 'DHCP', static: 'Fast IP', dhcp_static: 'DHCP + fast IP som sekundær', dhcp_fallback: 'DHCP, fast IP efter N fejl' };
   const STATE_TEXT: Record<string, string> = {
     idle: '', queued: 'Anmodning sendt …', applying: 'Anvender …', waiting_confirm: 'Venter på din bekræftelse',
     confirmed: 'Bekræftet', reverted: 'Gendannet', failed: 'Mislykkedes', stalled: 'Hjælperen svarer ikke',
@@ -117,6 +119,7 @@
     nGateway = t?.gateway ?? cfg?.network.gateway ?? '';
     nDns = (t?.dns ?? cfg?.network.dns ?? []).join(', ');
     nHost = t?.hostname || cfg?.network.hostname || '';
+    nFallback = t?.fallback_after || 5;
   }
 
   async function refreshNet(): Promise<void> {
@@ -145,7 +148,8 @@
     try {
       net = await api<NetState>('PUT', '/api/system/config/network', {
         interface: nIface, mode: nMode, ip: nMode === 'dhcp' ? '' : nIp, prefix: nMode === 'dhcp' ? 0 : Number(nPrefix),
-        gateway: nMode === 'static' ? nGateway : '', dns: dnsList(), hostname: nHost,
+        gateway: nMode === 'static' || nMode === 'dhcp_fallback' ? nGateway : '', dns: dnsList(), hostname: nHost,
+        fallback_after: Number(nFallback),
       });
       startPolling();
     } catch (e) {
@@ -296,8 +300,20 @@
     {/if}
     <h4>Netværksopsætning</h4>
     {#if !net?.enabled}
-      <div class="notice">Netværksændring via web er ikke aktiveret på denne server (kræver NetworkManager og at <code>sh deploy/install.sh</code> er kørt som root).</div>
+      <div class="notice">
+        {#if net?.disabled_reason === 'no_nmcli'}
+          <strong>NetworkManager (<code>nmcli</code>) findes ikke på denne maskine</strong>, så netværket kan ikke ændres fra web. Raspberry Pi OS Bookworm har det som standard;
+          ældre systemer bruger <code>dhcpcd</code>/<code>ifupdown</code>. Tjek med <code>command -v nmcli</code> og <code>nmcli general status</code>.
+        {:else}
+          <strong>Netværkshjælperen er ikke installeret.</strong> Kør <code>sudo sh deploy/install.sh --update</code> på maskinen (en OTA-opdatering gør det automatisk). Tjek derefter
+          <code>ls /var/lib/hypervisionplc-scada-net</code> — filen <code>enabled</code> skal findes.
+        {/if}
+      </div>
     {:else}
+      {#if net.watchdog && !net.watchdog.stale && net.watchdog.mode !== 'static'}
+        <p class="small">DHCP-vagt: <strong>{net.watchdog.message}</strong>
+          {#if net.watchdog.state === 'searching'} ({net.watchdog.fails}{net.watchdog.mode === 'dhcp_fallback' ? ` af ${net.watchdog.threshold}` : ''} kontroller uden svar){/if}</p>
+      {/if}
       {#if net.busy || ['confirmed', 'reverted', 'failed', 'stalled'].includes(net.state)}
         <div class="notice" class:warn={net.state === 'waiting_confirm'}>
           <strong>{STATE_TEXT[net.state] ?? net.state}</strong>{net.message ? ` — ${net.message}` : ''}
@@ -322,13 +338,19 @@
             <option value="dhcp">DHCP (adresse fra routeren)</option>
             <option value="static">Fast IP</option>
             <option value="dhcp_static">DHCP + fast IP som sekundær adresse</option>
+            <option value="dhcp_fallback">DHCP, fast IP først efter N fejl</option>
           </select>
         </label>
         {#if nMode !== 'dhcp'}
           <label>IP-adresse <input bind:value={nIp} placeholder="192.168.1.50" disabled={net.busy} /></label>
           <label>Subnet-præfiks (24 = 255.255.255.0) <input type="number" min="8" max="30" bind:value={nPrefix} disabled={net.busy} /></label>
         {/if}
-        {#if nMode === 'static'}
+        {#if nMode === 'dhcp_fallback'}
+          <label>Tag reserve-IP'en efter så mange kontroller uden DHCP-svar (à 30 sekunder)
+            <input type="number" min="1" max="20" bind:value={nFallback} disabled={net.busy} />
+          </label>
+        {/if}
+        {#if nMode === 'static' || nMode === 'dhcp_fallback'}
           <label>Gateway (valgfri) <input bind:value={nGateway} placeholder="192.168.1.1" disabled={net.busy} /></label>
         {/if}
         <label>DNS-servere (kommasepareret, højst 3){nMode === 'static' ? '' : ' — tom = fra DHCP'}

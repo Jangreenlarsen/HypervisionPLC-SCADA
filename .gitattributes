@@ -5,3 +5,4 @@
 *.conf     text eol=lf
 *.path     text eol=lf
 *.path    text eol=lf
+*.timer   text eol=lf
