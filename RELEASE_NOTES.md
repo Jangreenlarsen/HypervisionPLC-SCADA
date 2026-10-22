@@ -2,6 +2,10 @@
 
 ---
 
+## v0.115.1 — 2026-10-22 — Trends: uregelmæssigheder som overlay
+
+- Når **Analysér data** er slået til, er der en knap **Uregelmæssigheder** i værktøjslinjen, som viser oversigten som et vindue oven på skærmen. Det tager ikke plads fra graferne og lukkes med ×.
+
 ## v0.115.0 — 2026-10-22 — Trends: skillelinjer
 
 - Ny vælger **Skillelinjer** i Trends: *Fra*, *Pr. time* eller *Pr. dag* viser stiplede lodrette linjer ved hele timer eller dage i alle grafer. Ved meget lange perioder vises timelinjer ikke (for mange). Valget huskes.

@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.115.1 build 0172] — 2026-10-22 — Trends: uregelmæssigheder som overlay
+
+- `frontend/src/pages/Trends.svelte` — oversigten *Uregelmæssigheder* er flyttet ud af venstre panel og vises nu som et overlay oven på skærmen (knap i værktøjslinjen, vises med *Analysér data*; lukkes med ×).
+- Kun frontend. Kun bygget og testet (647 tests), ikke set i browser.
+
 ## [0.115.0 build 0171] — 2026-10-22 — Trends: skillelinjer pr. time/dag
 
 - `frontend/src/lib/trendData.ts` + test — `dividerTimes` (hele timer/dage i lokal tid; ingen linjer ved over 400).

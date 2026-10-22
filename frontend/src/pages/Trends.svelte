@@ -54,6 +54,7 @@
     try { localStorage.setItem('trend.divider', divider); } catch { /* huskes bare ikke */ }
   }
   let analyse = $state(loadFlag('trend.analyse'));
+  let showIssues = $state(false);   // oversigten over uregelmæssigheder som overlay
   let hide = $state(loadFlag('trend.hideSpikes'));
   let rings = $state(loadFlag('trend.rings', true));   // ring om uregelmæssige punkter i graferne
   /** Hvor længe samme værdi skal stå før den er "fastfrosset" (sekunder; 0 = undersøges ikke). Langsomme følere står stille længe. */
@@ -485,6 +486,9 @@
     </select>
   </label>
   <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>
+  {#if analyse && resp && selected.length}
+    <button class:primary={showIssues} onclick={() => (showIssues = !showIssues)} aria-pressed={showIssues} title="Vis oversigten over fundne uregelmæssigheder oven på skærmen">Uregelmæssigheder{issueTotals.length ? ` (${issueTotals.length})` : ''}</button>
+  {/if}
   {#if analyse}
     <label class="row small" title="Skjul ringene i graferne — fundene står stadig i listen under graferne"><input type="checkbox" bind:checked={rings} onchange={() => saveFlag('trend.rings', rings)} /> Vis ringe</label>
     <label class="row small" title="Samme værdi så længe markeres som fastfrosset. Langsomme følere (fx temperatur) står stille længe, så vælg en lang tid for dem">Fastfrosset efter
@@ -571,18 +575,6 @@
     {:else if !symbols.length}
       <p class="muted small">Der er ikke sat nogen trends op i dine tegninger. En tekniker opretter dem under Tegn (symbolets opsætning eller en trendgraf).</p>
     {/if}
-    {#if analyse && resp && selected.length}
-      <div class="found-box small">
-          {#if issueTotals.length}
-            <strong>Uregelmæssigheder{rings ? ' (ring om punktet)' : ''}:</strong>
-            <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text} — <strong>{f.share}</strong> af punkterne ({f.affected} af {f.total})</li>{/each}</ul>
-            {#if overall}<div>I alt: <strong>{overall.share}</strong> af alle punkter ({overall.affected} af {overall.total}) har uregelmæssigheder.</div>{/if}
-            <span class="muted">{hide ? 'Spikes er udfyldt ved interpolation. ' : ''}Spring, fastfrosne værdier og huller markeres kun. Rådata er uændrede (CSV indeholder alt).</span>
-          {:else}
-            <span class="muted">Ingen uregelmæssigheder fundet i den viste periode.</span>
-          {/if}
-      </div>
-    {/if}
     {#if info}
       <p class="muted small">
         Historik gemmes i {info.retention_days} dage · {Math.round(info.db_size / 1024 / 1024 * 10) / 10} MB.
@@ -614,6 +606,20 @@
   </section>
 </div>
 
+{#if showIssues && analyse && resp && selected.length}
+  <div class="issues-overlay panel small" role="dialog" aria-label="Uregelmæssigheder">
+    <button class="close" onclick={() => (showIssues = false)} aria-label="Luk" title="Luk">×</button>
+          {#if issueTotals.length}
+            <strong>Uregelmæssigheder{rings ? ' (ring om punktet)' : ''}:</strong>
+            <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text} — <strong>{f.share}</strong> af punkterne ({f.affected} af {f.total})</li>{/each}</ul>
+            {#if overall}<div>I alt: <strong>{overall.share}</strong> af alle punkter ({overall.affected} af {overall.total}) har uregelmæssigheder.</div>{/if}
+            <span class="muted">{hide ? 'Spikes er udfyldt ved interpolation. ' : ''}Spring, fastfrosne værdier og huller markeres kun. Rådata er uændrede (CSV indeholder alt).</span>
+          {:else}
+            <span class="muted">Ingen uregelmæssigheder fundet i den viste periode.</span>
+          {/if}
+  </div>
+{/if}
+
 <style>
   .toolbar { margin-bottom: .75rem; }
   .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 1rem; align-items: start; }
@@ -622,8 +628,9 @@
   li { display: flex; align-items: center; gap: .4rem; }
   li label { flex: 1; min-width: 0; display: flex; align-items: center; gap: .4rem; padding: .2rem 0; cursor: pointer; }
   li label.off { opacity: .5; cursor: default; }
-  .found-box { margin-top: .75rem; padding-top: .6rem; border-top: 1px solid var(--line); }
-  .found-box ul.found { margin: .25rem 0; padding-left: 1.1rem; }
+  .issues-overlay { position: fixed; top: 5rem; right: 1rem; width: min(26rem, calc(100vw - 2rem)); max-height: 70vh; overflow: auto; z-index: 40; box-shadow: 0 6px 24px rgba(0,0,0,.25); }
+  .issues-overlay .close { position: absolute; top: .25rem; right: .4rem; border: 0; background: none; font-size: 1.3rem; line-height: 1; cursor: pointer; }
+  .issues-overlay ul.found { margin: .25rem 0; }
   .graphsel { width: auto; flex: none; font-size: .75rem; padding: .1rem .2rem; }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .enable { flex: none; padding: .1rem .45rem; font-size: .75rem; }
