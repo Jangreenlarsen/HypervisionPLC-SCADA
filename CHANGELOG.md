@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.114.1 build 0170] — 2026-10-22 — Trends: uregelmæssigheder i venstre side
+
+- `frontend/src/pages/Trends.svelte` — oversigten *Uregelmæssigheder* flyttet fra under graferne til panelet i venstre side (under tag-listen), så graferne får mere plads.
+- Kun frontend. Kun bygget og testet (644 tests), ikke set i browser.
+
 ## [0.114.0 build 0169] — 2026-10-22 — Trends: vælg selv hvilken graf et tag vises i
 
 - `frontend/src/lib/trendData.ts` + test — `groupTags`: tags uden valg grupperes pr. enhed (som før), tags med grafnummer samles i *Graf N*.

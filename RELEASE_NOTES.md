@@ -2,6 +2,10 @@
 
 ---
 
+## v0.114.1 — 2026-10-22 — Trends: mere plads til graferne
+
+- Oversigten over **uregelmæssigheder** står nu i venstre side under tag-listen i stedet for under graferne, så graferne kan blive højere.
+
 ## v0.114.0 — 2026-10-22 — Trends: vælg graf pr. tag
 
 - Ud for hvert valgt tag i Trends kan du vælge **Graf 1–8**, så du selv bestemmer, hvilke kurver der vises sammen. **Auto** giver som før én graf pr. enhed. Valget huskes.

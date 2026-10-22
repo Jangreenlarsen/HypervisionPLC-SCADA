@@ -553,6 +553,18 @@
     {:else if !symbols.length}
       <p class="muted small">Der er ikke sat nogen trends op i dine tegninger. En tekniker opretter dem under Tegn (symbolets opsætning eller en trendgraf).</p>
     {/if}
+    {#if analyse && resp && selected.length}
+      <div class="found-box small">
+          {#if issueTotals.length}
+            <strong>Uregelmæssigheder{rings ? ' (ring om punktet)' : ''}:</strong>
+            <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text} — <strong>{f.share}</strong> af punkterne ({f.affected} af {f.total})</li>{/each}</ul>
+            {#if overall}<div>I alt: <strong>{overall.share}</strong> af alle punkter ({overall.affected} af {overall.total}) har uregelmæssigheder.</div>{/if}
+            <span class="muted">{hide ? 'Spikes er udfyldt ved interpolation. ' : ''}Spring, fastfrosne værdier og huller markeres kun. Rådata er uændrede (CSV indeholder alt).</span>
+          {:else}
+            <span class="muted">Ingen uregelmæssigheder fundet i den viste periode.</span>
+          {/if}
+      </div>
+    {/if}
     {#if info}
       <p class="muted small">
         Historik gemmes i {info.retention_days} dage · {Math.round(info.db_size / 1024 / 1024 * 10) / 10} MB.
@@ -579,18 +591,6 @@
         {@const c = chartFor(tags)}
         <TrendChart title={unit.startsWith('Graf ') ? `${unit} — ${[...new Set(tags.map((t) => tagInfo.get(t.name)?.unit || (t.isBool ? 'Til/fra' : '')).filter(Boolean))].join(', ') || 'Uden enhed'}` : unit} unit={chartUnit(tags)} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} {linked} {view} onview={setView} {resetTick} />
       {/each}
-      {#if analyse}
-        <div class="panel small">
-          {#if issueTotals.length}
-            <strong>Uregelmæssigheder{rings ? ' (ring om punktet)' : ''}:</strong>
-            <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text} — <strong>{f.share}</strong> af punkterne ({f.affected} af {f.total})</li>{/each}</ul>
-            {#if overall}<div>I alt: <strong>{overall.share}</strong> af alle punkter ({overall.affected} af {overall.total}) har uregelmæssigheder.</div>{/if}
-            <span class="muted">{hide ? 'Spikes er udfyldt ved interpolation. ' : ''}Spring, fastfrosne værdier og huller markeres kun. Rådata er uændrede (CSV indeholder alt).</span>
-          {:else}
-            <span class="muted">Ingen uregelmæssigheder fundet i den viste periode.</span>
-          {/if}
-        </div>
-      {/if}
       <p class="muted small">Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); dobbeltklik eller <em>Nulstil visning</em> for at zoome ud. Med vælgeren <em>Graf</em> ud for et valgt tag bestemmer du selv, hvilken graf kurven vises i. <em>Lås graferne sammen</em> får alle grafer til at zoome og scrolle sammen. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
     {/if}
   </section>
@@ -604,6 +604,8 @@
   li { display: flex; align-items: center; gap: .4rem; }
   li label { flex: 1; min-width: 0; display: flex; align-items: center; gap: .4rem; padding: .2rem 0; cursor: pointer; }
   li label.off { opacity: .5; cursor: default; }
+  .found-box { margin-top: .75rem; padding-top: .6rem; border-top: 1px solid var(--line); }
+  .found-box ul.found { margin: .25rem 0; padding-left: 1.1rem; }
   .graphsel { width: auto; flex: none; font-size: .75rem; padding: .1rem .2rem; }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .enable { flex: none; padding: .1rem .45rem; font-size: .75rem; }
