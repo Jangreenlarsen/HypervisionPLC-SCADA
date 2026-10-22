@@ -2,6 +2,11 @@
 
 ---
 
+## v0.124.0 — 2026-10-22 — Oprydning ved fuld disk
+
+- Nyt kommandolinjeværktøj **`scada-maint`** (på maskinen, som root) til at rydde logfiler, gamle backups og gammel historik, når disken er ved at blive fuld — også uden at websiden kan åbnes. Det viser som standard kun, hvad der ville ske (**tørkørsel**); `--yes` udfører. `scada-maint emergency` går trin for trin og stopper, når der er plads nok. Tags, brugere og tegninger røres aldrig.
+- Konfiguration-siden advarer, når der er lidt ledig plads.
+
 ## v0.123.0 — 2026-10-22 — Konfiguration: DHCP-vagt, reserve-IP og testvejledning
 
 - Ny netværkstilstand **DHCP, fast IP først efter N fejl**: DHCP forsøges hele tiden; svarer routeren ikke i N kontroller (à 30 s), tager maskinen en fast reserve-IP i brug, og slipper den igen, når DHCP svarer. Siden viser vagtens status.

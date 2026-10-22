@@ -218,6 +218,10 @@
     {#if cfg.storage.disk}
       {@const d = cfg.storage.disk}
       <p>Disk: <strong>{fmtBytes(d.free)}</strong> ledig af {fmtBytes(d.total)} ({Math.round((d.used / d.total) * 100)} % brugt)</p>
+      {#if d.free < 200 * 1024 * 1024 || d.free / d.total < 0.05}
+        <div class="notice warn"><strong>Lav ledig plads.</strong> Kør på maskinen som root: <code>scada-maint status</code> og derefter
+          <code>scada-maint emergency</code> (tørkørsel) / <code>scada-maint emergency --yes</code>. Se Manual › System.</div>
+      {/if}
     {/if}
     <table class="grid">
       <thead><tr><th>Fil / mappe</th><th class="num">Størrelse</th></tr></thead>

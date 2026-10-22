@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.124.0 build 0183] — 2026-10-22 — scada-maint: oprydning ved fuld disk
+
+- `backend/app/maint.py` (ny) + `deploy/scada-maint.sh` (installeres som `/usr/local/sbin/scada-maint`) — kommandolinjeværktøj: `status`, `logs`, `backups`, `trends`, `history`, `trends-reset`, `emergency`. Tørkørsel som standard (`--yes` for at udføre), kræver root, logger til systemloggen, rører aldrig tags/brugere/tegninger/bindinger. `--shrink` (VACUUM) afvises uden nok plads; `emergency` stopper, når der er plads nok.
+- `frontend/src/pages/SystemConfig.svelte` — advarsel ved lav ledig plads (< 5 % eller < 200 MB) med henvisning til værktøjet; manual (System), `docs/TEST_PI.md` (6b).
+- `backend/tests/test_maint.py` (ny); `backend/tests/test_netconfig.py` — API-testen er nu uafhængig af maskinens netkort (fejl fundet ved kørsel på Linux).
+- Hele backend-suiten (568 tests) er kørt på testserveren (Debian 13, dash, Python 3.13) og består.
+
 ## [0.123.0 build 0182] — 2026-10-22 — System › Konfiguration (trin 4: DHCP-vagt og reserve-IP) + testvejledning
 
 - `deploy/net-watchdog.sh` (ny, root) + `hypervisionplc-scada-netwatch.{service,timer}` + `install.sh` — tæller kontroller uden DHCP-svar; i tilstanden *DHCP, fast IP efter N fejl* lægges reserve-IP'en på midlertidigt (`--temporary` + `device reapply`) efter N og fjernes igen ved lease; tæller ikke når kablet er ude; rører ikke netværket under en ændring; status i `watchdog.json`.

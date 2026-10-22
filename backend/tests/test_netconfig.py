@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_app
 from app.services import netconfig
+from app.services import sysconfig as netconfig_sys
 from app.services.errors import ServiceError
 
 ADMIN_PW = "test-admin-pw-1"
@@ -126,7 +127,10 @@ def test_haengt_anmodning_giver_stalled(tmp_path):
     assert svc.status()["state"] == "stalled"
 
 
-def test_api_kun_admin_og_validering(tmp_path):
+def test_api_kun_admin_og_validering(tmp_path, monkeypatch):
+    # Uafhængig af maskinen: netkortene er altid eth0 (på Linux ville `ip` ellers give maskinens rigtige netkort)
+    monkeypatch.setattr(netconfig_sys, "network_status", lambda: {"available": True, "hostname": "t", "gateway": "", "dns": [],
+                                                                  "error": "", "interfaces": [{"name": "eth0", "mac": "", "state": "up", "addresses": []}]})
     settings = Settings(data_dir=tmp_path, poll_fast_s=0.05, poll_slow_s=0.2, plc_rate=9,
                         frontend_dir=tmp_path / "nope", admin_password=ADMIN_PW, backup_hours=0,
                         net_state_dir=tmp_path / "state")

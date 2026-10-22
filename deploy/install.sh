@@ -104,6 +104,9 @@ install -m 0644 "$SRC/deploy/hypervisionplc-scada-update.service" "$SRC/deploy/h
 install -d -o scada -g scada -m 0750 "$DATA/updates"
 : > "$DATA/updates/enabled"
 
+echo "== Vedligeholdelse ved fuld disk (scada-maint)"
+install -m 0755 "$SRC/deploy/scada-maint.sh" /usr/local/sbin/scada-maint
+
 echo "== Netværksopsætning via web (System › Konfiguration)"
 install -m 0755 "$SRC/deploy/apply-config.sh" /usr/local/lib/hypervisionplc-scada/apply-config.sh.new
 mv /usr/local/lib/hypervisionplc-scada/apply-config.sh.new /usr/local/lib/hypervisionplc-scada/apply-config.sh

@@ -104,6 +104,24 @@ Alle felter kontrolleres (gyldig adresse, gateway i samme subnet, højst 3 DNS-s
 
 Flytning af hele datamappen (databasen med tags, tegninger og brugere) understøttes ikke; det er trend-databasen, der fylder og skriver mest.
 
+### Fuld disk: `scada-maint`
+
+Er disken ved at blive fuld, kan du rydde op **på maskinen** — også selv om websiden ikke kan åbnes. Kør som root (`su -c '…'` eller `sudo`):
+
+| Kommando | Hvad den gør |
+| --- | --- |
+| `scada-maint status` | Viser ledig plads og hvad der fylder (databaser, backups, logfiler, systemjournal) |
+| `scada-maint logs` | Tømmer SCADA'ens logfiler og begrænser systemjournalen (`--journal-size 100M`) |
+| `scada-maint backups --keep 2 [--moved]` | Sletter gamle backups (beholder de 2 nyeste af hver slags) og evt. `trends.db.moved` |
+| `scada-maint trends --keep-days 14 [--shrink]` | Sletter trend-værdier ældre end 14 dage (energi-tags beholdes længere). `--shrink` gør filen mindre (kræver plads) |
+| `scada-maint history --audit-days 90 --alarm-days 90` | Trimmer auditloggen og alarmhistorikken |
+| `scada-maint trends-reset [--archive MAPPE]` | Nødløsning: sletter **hele** trend-historikken (evt. først en komprimeret kopi) |
+| `scada-maint emergency` | Går trin for trin gennem ovenstående, fra det mindst til det mest indgribende, og **stopper, så snart der er plads nok** |
+
+**Alle kommandoer er tørkørsel** (viser hvad der ville ske og hvor meget plads det giver), indtil du tilføjer **`--yes`**. Tags, brugere, tegninger, bindinger og opsætning slettes **aldrig** — kun logfiler, gamle backups og historik. Hvert skridt skrives i systemloggen.
+
+> Er disken *helt* fuld, kan databasen ikke skrive selv en sletning. Start da med `scada-maint logs --yes` og `scada-maint backups --keep 1 --yes` (de frigør plads uden at skrive i databasen), eller gå direkte til `trends-reset`.
+
 ## Bruger
 
 Under **Bruger** i topmenuen ser du dit navn og din rolle, kan **Skifte adgangskode**, åbne **Manual** og **Logge ud**. Versionen af programmet står nederst i menuen.

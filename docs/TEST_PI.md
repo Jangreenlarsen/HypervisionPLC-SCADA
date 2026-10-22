@@ -85,6 +85,16 @@ Log under prøverne: `sudo tail -f /var/lib/hypervisionplc-scada-net/network.log
 6. **Disk mangler**: sluk, tag SSD'en ud, start. **Forventet:** SCADA'en starter alligevel; siden viser en gul advarsel; Trends er tomme. Sæt SSD'en i igen, monter, skriv stien og flyt — historikken er tilbage (hvis `trends.db` i datamappen er den tomme, skal den først omdøbes; siden skriver det).
 7. **Tilbage til datamappen**-knappen virker.
 
+## 6b. Fuld disk: `scada-maint`
+
+På testserveren (som root; `su -` hvis `sudo` mangler):
+1. `scada-maint status` — viser størrelser; tallene stemmer med `du -sh /var/lib/hypervisionplc-scada/*`.
+2. `scada-maint emergency` (tørkørsel) — viser trinnene; intet ændres (`ls -l` før/efter).
+3. `scada-maint logs --yes` og `scada-maint backups --keep 1 --yes` — logfilerne er tomme, kun den nyeste backup er tilbage; websiden virker stadig.
+4. `scada-maint trends --keep-days 7 --yes` — Trends viser kun de seneste 7 dage; energi-tags (Energi-siden) er urørt.
+5. **Fuld disk-prøve** (kun testserver): fyld en lille partition/loop-fil, eller `fallocate -l <næsten alt> /var/lib/fyld.bin`, kør `scada-maint emergency --yes` og se at den stopper, når der er plads nok. Slet `fyld.bin` bagefter.
+6. `scada-maint trends-reset --archive /root/arkiv --yes` — tjenesten stoppes og startes igen, og der ligger en `.db.gz` i arkivet.
+
 ## 7. Uafklarede punkter — find svar på disse
 
 1. Virker `nmcli connection modify --temporary` rent på standardprofilen "Wired connection 1" (kan ligge kun i hukommelsen)? → prøve 4.1 og 4.9.
