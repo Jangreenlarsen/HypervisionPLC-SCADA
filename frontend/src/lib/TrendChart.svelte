@@ -325,4 +325,15 @@
   }
   figcaption { font-weight: 600; font-size: .9rem; margin: 0 0 .25rem .25rem; }
   :global(.u-legend) { font-size: .85rem; }
+  /* Fast udtryk: aflæsningerne må ikke skifte bredde/højde, når markøren flyttes (ellers hopper legend og graf) */
+  :global(.u-legend .u-series) { white-space: nowrap; }
+  :global(.u-legend .u-series > th) { white-space: nowrap; }
+  :global(.u-legend .u-value) {
+    display: inline-block;
+    min-width: 11ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  :global(.u-legend .u-series:first-child .u-value) { min-width: 19ch; }   /* tidsstempel: DD.MM.ÅÅÅÅ TT:mm:ss */
 </style>

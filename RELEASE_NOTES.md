@@ -2,6 +2,10 @@
 
 ---
 
+## v0.113.1 — 2026-10-22 — Trends: roligere visning
+
+- Aflæsningerne under graferne (tid og værdier) hopper ikke længere rundt, når musen flyttes hen over en graf.
+
 ## v0.113.0 — 2026-10-22 — Trends: lås graferne sammen
 
 - Ny knap **Lås graferne sammen** i Trends: zoom og scroll i én graf flytter alle graferne til samme tidsudsnit.

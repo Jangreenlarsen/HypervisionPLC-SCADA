@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.113.1 build 0168] — 2026-10-22 — fix: Trends-legend hopper ikke ved musebevægelse
+
+- `frontend/src/lib/TrendChart.svelte` — legend-aflæsningerne har fast bredde (tabulære tal, ingen ombrydning), så de ikke skifter størrelse når markøren glider hen over grafen.
+- Kun frontend. Kun bygget, ikke set i browser.
+
 ## [0.113.0 build 0167] — 2026-10-22 — Trends: lås graferne sammen og nulstil visning
 
 - `frontend/src/lib/TrendChart.svelte` — nye props `linked`/`view`/`onview`/`resetTick`: når grafer er låst sammen, følger alle det udsnit, brugeren zoomer/scroller til i én graf; `resetTick` zoomer ud til hele perioden.
