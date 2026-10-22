@@ -28,9 +28,12 @@ from .api.live_ws import router as live_router
 from .api.operate import router as operate_router
 from .api.symbols import router as symbols_router
 from .api.system import router as system_router
+from .api.system_config import router as system_config_router
 from .api.routes import router
 from .config import Settings, read_version
 from .services.alarms import AlarmService
+from .services import sysconfig
+from .services.netconfig import NetworkService
 from .services.audit import AuditService
 from .services.auth import AuthService
 from .services.backup import BackupService
@@ -57,6 +60,7 @@ log = logging.getLogger("scada")
 
 def create_app(settings: Settings | None = None, transport_factory: TransportFactory | None = None) -> FastAPI:
     settings = settings or Settings()
+    sysconfig.apply_overrides(settings)   # gemte trend-indstillinger (System › Konfiguration) overstyrer miljøvariablerne
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -83,6 +87,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                                                  keep=max(1, settings.backup_keep),
                                                  trend_keep=max(0, settings.trend_backup_keep))
         app.state.update_service = UpdateService(settings.data_dir, app.state.backup_service)
+        app.state.network_service = NetworkService(settings.data_dir, settings.net_state_dir)
         await manager.start_all()
         app.state.alarm_service = AlarmService(manager, db, tick_s=settings.alarm_tick_s,
                                                comm_delay_s=settings.alarm_comm_delay_s)
@@ -147,6 +152,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(auth_router)
     app.include_router(backup_router)
     app.include_router(system_router)
+    app.include_router(system_config_router)
     app.include_router(alarms_router)
     app.include_router(trends_router)
     app.include_router(energy_router)

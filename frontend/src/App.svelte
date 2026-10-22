@@ -13,6 +13,7 @@
   import Audit from './pages/Audit.svelte';
   import Backup from './pages/Backup.svelte';
   import Update from './pages/Update.svelte';
+  import SystemConfig from './pages/SystemConfig.svelte';
   import Manual from './pages/Manual.svelte';
   import Alarms from './pages/Alarms.svelte';
   import Energy from './pages/Energy.svelte';
@@ -239,6 +240,8 @@
     <Backup />
   {:else if page === 'update'}
     <Update />
+  {:else if page === 'config'}
+    <SystemConfig />
   {:else if page === 'manual'}
     <Manual {route} />
   {:else if page === 'users'}

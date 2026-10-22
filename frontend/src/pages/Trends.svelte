@@ -5,8 +5,8 @@
   import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
-  import { align, assignColors, colorOf, dashOf, groupByUnit, MAX_SERIES, RANGES, type Point } from '../lib/trendData';
-  import { FROZEN_DEFAULT_S, affectedPoints, analyze, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
+  import { align, assignColors, colorOf, dashOf, groupTags, MAX_SERIES, type Divider, RANGES, type Point } from '../lib/trendData';
+  import { FROZEN_DEFAULT_S, affectedPoints, analyze, fillGaps, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
   import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
 
   let { canEdit = false, route = 'trends' }: { canEdit?: boolean; route?: string } = $props();
@@ -28,11 +28,35 @@
   let error = $state('');
   let loading = $state(false);
   let resp = $state<DataResp | null>(null);
+  // Låst sammen: zoom/scroll i én graf flytter alle grafer
+  let linked = $state(false);
+  let view = $state<[number, number] | null>(null);
+  let resetTick = $state(0);
+  function setView(r: [number, number]): void {
+    if (!view || Math.abs(view[0] - r[0]) > 0.5 || Math.abs(view[1] - r[1]) > 0.5) view = r;
+  }
+  function toggleLinked(): void { linked = !linked; view = null; }
+  function resetView(): void { view = null; resetTick++; }
   let timer: ReturnType<typeof setInterval> | null = null;
   let enabling = $state('');
   // Analyse (tilvalg): find uregelmæssigheder i tal-kurverne; "skjul spikes" gør dem til huller i visningen (rådata uændret)
+  // Stiplede skillelinjer ved hele timer/dage i graferne (til/fra)
+  let divider = $state<Divider>(loadDivider());
+  function loadDivider(): Divider {
+    try {
+      const v = localStorage.getItem('trend.divider');
+      return v === 'hour' || v === 'day' ? v : 'none';
+    } catch {
+      return 'none';
+    }
+  }
+  function saveDivider(): void {
+    try { localStorage.setItem('trend.divider', divider); } catch { /* huskes bare ikke */ }
+  }
   let analyse = $state(loadFlag('trend.analyse'));
+  let showIssues = $state(false);   // oversigten over uregelmæssigheder som overlay
   let hide = $state(loadFlag('trend.hideSpikes'));
+  let fill = $state(loadFlag('trend.fillGaps'));   // kunstige, blinkende punkter i huller
   let rings = $state(loadFlag('trend.rings', true));   // ring om uregelmæssige punkter i graferne
   /** Hvor længe samme værdi skal stå før den er "fastfrosset" (sekunder; 0 = undersøges ikke). Langsomme følere står stille længe. */
   const FROZEN_CHOICES: { s: number; label: string }[] = [
@@ -66,6 +90,20 @@
   // Titel, legend, kant og mellemrum pr. graf + hjælpeteksten — måles på de tegnede grafer (afhænger af skrift/zoom)
   let overhead = $state(90);
   let noteH = $state(30);
+  // Dobbeltklik på en graf: vis kun den, i fuld størrelse (dobbeltklik igen eller Esc: tilbage)
+  let expandedKey = $state<string | null>(null);
+  const keyOf = (unit: string, tags: { name: string }[]) => unit + tags.map((t) => t.name).join(',');
+  const expanded = $derived(expandedKey && groups.some(([u, t]) => keyOf(u, t) === expandedKey) ? expandedKey : null);
+  const fullHeight = $derived(Math.max(260, room - noteH - overhead));
+  /** Fjern en graf fra visningen: dens tags fravælges (de kan vælges igen i listen). */
+  function removeGroup(tags: { name: string }[]): void {
+    const gone = new Set(tags.map((t) => t.name));
+    selected = selected.filter((n) => !gone.has(n));
+    colors = assignColors(selected, colors);
+    saveSelection();
+    load();
+  }
+  function toggleExpand(key: string): void { expandedKey = expanded === key ? null : key; tick().then(measure); }
   const plotHeight = $derived.by(() => {
     const bools = groups.filter(([, t]) => t.every((x) => x.isBool)).length;
     const numbers = groups.length - bools;
@@ -176,6 +214,24 @@
     } catch {
       return []; // privat vindue / blokeret lager — start blot uden valg
     }
+  }
+
+  // Brugerens valg af graf pr. tag (Auto = ingen post) — huskes i browseren
+  const MAX_CHARTS = 8;   // højst 8 selvvalgte grafer
+  let assign = $state<Record<string, number>>(loadAssign());
+  function loadAssign(): Record<string, number> {
+    try {
+      const v = JSON.parse(localStorage.getItem('trend.assign') ?? '{}');
+      return v && typeof v === 'object' ? v : {};
+    } catch {
+      return {};
+    }
+  }
+  function setAssign(name: string, n: number): void {
+    const next = { ...assign };
+    if (n > 0) next[name] = n; else delete next[name];
+    assign = next;
+    try { localStorage.setItem('trend.assign', JSON.stringify(assign)); } catch { /* huskes bare ikke */ }
   }
 
   function saveSelection(): void {
@@ -335,9 +391,21 @@
   });
 
   const tagInfo = $derived(new Map((info?.tags ?? []).map((t) => [t.name, t])));
-  const groups = $derived(groupByUnit(selected.filter((n) => tagInfo.has(n)).map((n) => ({
+  const groups = $derived(groupTags(selected.filter((n) => tagInfo.has(n)).map((n) => ({
     name: n, unit: tagInfo.get(n)!.unit, isBool: tagInfo.get(n)!.is_bool,
-  }))));
+  })), assign));
+  /** Grafens titel: kurvernes navne (tagget "navn"-parameter, ellers tag-navnet) og enheden. */
+  function chartTitle(tags: { name: string }[]): string {
+    const names = tags.map((t) => label(t.name)).join(', ');
+    const unit = chartUnit(tags);
+    return unit ? `${names} (${unit})` : names;
+  }
+  /** Y-aksens enhed: den fælles enhed for tal-kurverne i grafen (blandede enheder → ingen). */
+  function chartUnit(tags: { name: string; isBool?: boolean }[]): string {
+    if (tags.every((t) => t.isBool)) return '';
+    const units = new Set(tags.filter((t) => !t.isBool).map((t) => tagInfo.get(t.name)?.unit ?? ''));
+    return units.size === 1 ? [...units][0] : '';
+  }
   const shown = $derived((info?.tags ?? []).filter((t) => !filter || `${t.name} ${t.description}`.toLowerCase().includes(filter.toLowerCase())));
 
   /** Fund pr. tag (kun tal-kurver; til/fra analyseres ikke). Tom når analysen er slået fra. */
@@ -374,7 +442,13 @@
   });
 
   function chartFor(names: { name: string; isBool?: boolean }[]): { series: ChartSeries[]; data: ReturnType<typeof align> } {
-    const series = names.map((t) => ({
+    const filled = names.map((t) => {
+      const raw = resp?.series[t.name] ?? [];
+      const base = hide && issues[t.name] ? hideSpikes(raw, issues[t.name]) : raw;
+      return fill && !t.isBool ? fillGaps(base) : { points: base, synthetic: undefined };
+    });
+    const series = names.map((t, i) => ({
+      synthetic: filled[i].synthetic,
       name: t.name,
       label: tagInfo.get(t.name)?.description || t.name,
       colorIndex: colors[t.name] ?? 0,
@@ -382,10 +456,7 @@
       decimals: resp?.meta[t.name]?.decimals ?? null,
       issues: rings ? issues[t.name] : undefined,
     }));
-    const pts = names.map((t) => {
-      const raw = resp?.series[t.name] ?? [];
-      return hide && issues[t.name] ? hideSpikes(raw, issues[t.name]) : raw;
-    });
+    const pts = filled.map((f) => f.points);
     return { series, data: align(pts, names.map((t) => Boolean(t.isBool))) };
   }
 
@@ -420,6 +491,8 @@
   });
 </script>
 
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && expanded) expandedKey = null; }} />
+
 <div class="row toolbar">
   <BackToDrawing />
   {#each RANGES as r}
@@ -433,13 +506,26 @@
     <label class="row small"><input type="checkbox" bind:checked={live} onchange={restartTimer} /> Live</label>
   {/if}
   {#if selected.length && exportUrl}<a class="btn" href={exportUrl} download>CSV</a>{/if}
+  <label class="row small" title="Stiplede lodrette linjer ved hele timer eller dage i graferne">Skillelinjer
+    <select bind:value={divider} onchange={saveDivider} aria-label="Skillelinjer">
+      <option value="none">Fra</option><option value="hour">Pr. time</option><option value="day">Pr. dag</option>
+    </select>
+  </label>
+  <label class="row small" title="Udfylder huller (ingen data) med kunstige, interpolerede punkter, der blinker, så de kan kendes fra målte data. Kun visning — de gemte data ændres ikke"><input type="checkbox" bind:checked={fill} onchange={() => saveFlag('trend.fillGaps', fill)} /> Udfyld huller (blinker)</label>
   <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>
+  {#if analyse && resp && selected.length}
+    <button class:primary={showIssues} onclick={() => (showIssues = !showIssues)} aria-pressed={showIssues} title="Vis oversigten over fundne uregelmæssigheder oven på skærmen">Uregelmæssigheder{issueTotals.length ? ` (${issueTotals.length})` : ''}</button>
+  {/if}
   {#if analyse}
     <label class="row small" title="Skjul ringene i graferne — fundene står stadig i listen under graferne"><input type="checkbox" bind:checked={rings} onchange={() => saveFlag('trend.rings', rings)} /> Vis ringe</label>
     <label class="row small" title="Samme værdi så længe markeres som fastfrosset. Langsomme følere (fx temperatur) står stille længe, så vælg en lang tid for dem">Fastfrosset efter
       <select bind:value={frozenS} onchange={saveFrozen} aria-label="Fastfrosset efter">{#each FROZEN_CHOICES as c}<option value={c.s}>{c.label}</option>{/each}</select>
     </label>
     <label class="row small" title="Udfylder enkeltstående spikes med interpolerede værdier i visningen — de gemte data ændres ikke"><input type="checkbox" bind:checked={hide} onchange={() => saveFlag('trend.hideSpikes', hide)} /> Skjul spikes</label>
+  {/if}
+  {#if selected.length}
+    <button class:primary={linked} onclick={toggleLinked} aria-pressed={linked} title="Når grafernes tid er låst sammen, flytter zoom og scroll i én graf alle grafer til samme tidsudsnit">{linked ? '🔒 Grafer låst sammen' : 'Lås graferne sammen'}</button>
+    <button onclick={resetView} title="Zoom ud til hele den valgte periode i alle grafer">Nulstil visning</button>
   {/if}
   {#if loading}<span class="muted small">Henter …</span>{/if}
 </div>
@@ -487,6 +573,13 @@
             <span class="name">{t.description || t.name}</span>
             <span class="muted small">{t.unit}</span>
           </label>
+          {#if selected.includes(t.name)}
+            <select class="graphsel" value={assign[t.name] ?? 0} onchange={(e) => setAssign(t.name, Number(e.currentTarget.value))}
+              title="Vælg hvilken graf kurven vises i. Auto = graf pr. enhed" aria-label="Graf for {t.description || t.name}">
+              <option value={0}>Auto</option>
+              {#each Array.from({ length: MAX_CHARTS }, (_, i) => i + 1) as n}<option value={n}>Graf {n}</option>{/each}
+            </select>
+          {/if}
           {#if canEdit && manage}
             <button class="small enable" disabled={enabling === t.name} onclick={() => rename(t)}
               title="Giv kurven et navn i stedet for tag-navnet">Navn</button>
@@ -531,12 +624,20 @@
     {:else if !selected.length}
       <div class="panel muted">Vælg et eller flere tags til venstre.</div>
     {:else if resp}
-      {#each groups as [unit, tags] (unit + tags.map((t) => t.name).join(','))}
+      {#each groups as [unit, tags] (keyOf(unit, tags))}
+        {#if !expanded || expanded === keyOf(unit, tags)}
         {@const c = chartFor(tags)}
-        <TrendChart title={unit} unit={unit === 'Til/fra' || unit === 'Uden enhed' ? '' : unit} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} />
+        <TrendChart title={chartTitle(tags)} unit={chartUnit(tags)} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={expanded ? fullHeight : plotHeight} expanded={expanded !== null} ondblclick={() => toggleExpand(keyOf(unit, tags))} onclose={() => removeGroup(tags)} {divider} {linked} {view} onview={setView} {resetTick} />
+        {/if}
       {/each}
-      {#if analyse}
-        <div class="panel small">
+      <p class="muted small">Dobbeltklik på en graf for at se den i fuld størrelse (dobbeltklik igen eller Esc for at gå tilbage). Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); <em>Nulstil visning</em> zoomer ud. Med vælgeren <em>Graf</em> ud for et valgt tag bestemmer du selv, hvilken graf kurven vises i. <em>Lås graferne sammen</em> får alle grafer til at zoome og scrolle sammen. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
+    {/if}
+  </section>
+</div>
+
+{#if showIssues && analyse && resp && selected.length}
+  <div class="issues-overlay panel small" role="dialog" aria-label="Uregelmæssigheder">
+    <button class="close" onclick={() => (showIssues = false)} aria-label="Luk" title="Luk">×</button>
           {#if issueTotals.length}
             <strong>Uregelmæssigheder{rings ? ' (ring om punktet)' : ''}:</strong>
             <ul class="found">{#each issueTotals as f (f.name)}<li>{label(f.name)}: {f.text} — <strong>{f.share}</strong> af punkterne ({f.affected} af {f.total})</li>{/each}</ul>
@@ -545,12 +646,8 @@
           {:else}
             <span class="muted">Ingen uregelmæssigheder fundet i den viste periode.</span>
           {/if}
-        </div>
-      {/if}
-      <p class="muted small">Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); dobbeltklik for at zoome ud. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
-    {/if}
-  </section>
-</div>
+  </div>
+{/if}
 
 <style>
   .toolbar { margin-bottom: .75rem; }
@@ -560,6 +657,10 @@
   li { display: flex; align-items: center; gap: .4rem; }
   li label { flex: 1; min-width: 0; display: flex; align-items: center; gap: .4rem; padding: .2rem 0; cursor: pointer; }
   li label.off { opacity: .5; cursor: default; }
+  .issues-overlay { position: fixed; top: 5rem; right: 1rem; width: min(26rem, calc(100vw - 2rem)); max-height: 70vh; overflow: auto; z-index: 40; box-shadow: 0 6px 24px rgba(0,0,0,.25); }
+  .issues-overlay .close { position: absolute; top: .25rem; right: .4rem; border: 0; background: none; font-size: 1.3rem; line-height: 1; cursor: pointer; }
+  .issues-overlay ul.found { margin: .25rem 0; }
+  .graphsel { width: auto; flex: none; font-size: .75rem; padding: .1rem .2rem; }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .enable { flex: none; padding: .1rem .45rem; font-size: .75rem; }
   .notice { border-left: 4px solid #2a78d6; }

@@ -2,6 +2,67 @@
 
 ---
 
+## v0.121.0 — 2026-10-22 — Konfiguration: netværk
+
+- Under **System › Konfiguration** kan netværket nu sættes: **DHCP**, **fast IP** (IP, subnet, gateway, DNS) eller **DHCP + fast IP som sekundær**, samt værtsnavn.
+- Efter **Anvend** har du 90 sekunder til at åbne siden på den nye adresse og trykke **Bekræft** — ellers gendannes den gamle opsætning automatisk, så du ikke låser dig ude.
+- Kræver at `sh deploy/install.sh` køres som administrator én gang (installerer hjælperen) og NetworkManager på maskinen.
+
+## v0.120.0 — 2026-10-22 — Konfiguration: trend-indstillinger
+
+- Under **System › Konfiguration** kan du nu ændre **opbevaring af historik**, **skriveinterval** (skån SD-kortet med et længere interval) og **opbevaring af energi**. Ændringerne gælder straks og huskes efter genstart.
+
+## v0.119.0 — 2026-10-22 — System › Konfiguration
+
+- Ny side **System › Konfiguration** (admin): hvor data ligger, filstørrelser og ledig plads, **hvor meget der skrives til disken** (rækker og skrivninger, overslag pr. døgn) og netværksstatus (IP, gateway, DNS). Siden viser kun; indstilling af netværk og flytning af data kommer senere.
+
+## v0.118.1 — 2026-10-22 — Trends: færre falske huller
+
+- *Udfyld huller* og *Hul i data* udfyldte/markerede normale pauser (en stabil værdi gemmes kun hvert 5. minut). Nu tæller kun pauser over 15 minutter som huller; perioder hvor PLC'en ikke havde forbindelse udfyldes stadig.
+
+## v0.118.0 — 2026-10-22 — Trends: fjern graf
+
+- Hver graf i Trends har et **kryds** i øverste højre hjørne, som fjerner grafen fra visningen (tagsene fravælges og kan vælges igen i listen).
+
+## v0.117.0 — 2026-10-22 — Trends: graf i fuld størrelse
+
+- **Dobbeltklik** på en graf i Trends viser den alene i fuld størrelse. Dobbeltklik igen eller tryk Esc for at gå tilbage. Dobbeltklik zoomer ikke længere ud; brug **Nulstil visning**.
+
+## v0.116.0 — 2026-10-22 — Trends: udfyld huller og datoer
+
+- Nyt tilvalg **Udfyld huller (blinker)**: hvor data mangler (fx PLC uden forbindelse), tegnes en kunstig, interpoleret linje, som **blinker**, så den ikke forveksles med målte værdier. Det er kun visning — de gemte data og CSV ændres ikke. Før første og efter sidste måling udfyldes intet.
+- Grafen viser nu **datoen** ved hvert døgnskift.
+
+## v0.115.2 — 2026-10-22 — Trends: grafer med navn
+
+- Graferne i Trends hedder nu det samme som kurverne i dem (tagnavn, fx "Kedel temp, Kedel tryk (°C)") i stedet for kun enheden.
+
+## v0.115.1 — 2026-10-22 — Trends: uregelmæssigheder som overlay
+
+- Når **Analysér data** er slået til, er der en knap **Uregelmæssigheder** i værktøjslinjen, som viser oversigten som et vindue oven på skærmen. Det tager ikke plads fra graferne og lukkes med ×.
+
+## v0.115.0 — 2026-10-22 — Trends: skillelinjer
+
+- Ny vælger **Skillelinjer** i Trends: *Fra*, *Pr. time* eller *Pr. dag* viser stiplede lodrette linjer ved hele timer eller dage i alle grafer. Ved meget lange perioder vises timelinjer ikke (for mange). Valget huskes.
+
+## v0.114.1 — 2026-10-22 — Trends: mere plads til graferne
+
+- Oversigten over **uregelmæssigheder** står nu i venstre side under tag-listen i stedet for under graferne, så graferne kan blive højere.
+
+## v0.114.0 — 2026-10-22 — Trends: vælg graf pr. tag
+
+- Ud for hvert valgt tag i Trends kan du vælge **Graf 1–8**, så du selv bestemmer, hvilke kurver der vises sammen. **Auto** giver som før én graf pr. enhed. Valget huskes.
+- Kurver med forskellige enheder i samme graf deler y-akse.
+
+## v0.113.1 — 2026-10-22 — Trends: roligere visning
+
+- Aflæsningerne under graferne (tid og værdier) hopper ikke længere rundt, når musen flyttes hen over en graf.
+
+## v0.113.0 — 2026-10-22 — Trends: lås graferne sammen
+
+- Ny knap **Lås graferne sammen** i Trends: zoom og scroll i én graf flytter alle graferne til samme tidsudsnit.
+- Ny knap **Nulstil visning**: zoomer alle grafer ud til hele den valgte periode.
+
 ## v0.112.0 — 2026-10-22 — Trends: scroll i tid
 
 - I Trends kan du nu **scrolle i tid**, når du har zoomet ind: brug musehjulet over grafen, eller træk med Shift nede. Dobbeltklik zoomer ud.

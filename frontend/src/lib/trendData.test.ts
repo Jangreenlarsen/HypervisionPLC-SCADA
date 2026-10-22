@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { align, assignColors, groupByUnit, isolatedPoints, MAX_SERIES, type Point } from './trendData';
+import { align, assignColors, groupByUnit, dividerTimes, groupTags, isolatedPoints, MAX_SERIES, type Point } from './trendData';
 
 describe('align', () => {
   it('fletter tidspunkter, og skelner hul (null) fra manglende punkt (undefined)', () => {
@@ -50,5 +50,40 @@ describe('groupByUnit', () => {
     expect(groups.map(([k, v]) => [k, v.map((t) => t.name)])).toEqual([
       ['°C', ['A', 'C']], ['%', ['B']], ['Til/fra', ['D']], ['Uden enhed', ['E']],
     ]);
+  });
+});
+
+describe('groupTags', () => {
+  const tags = [
+    { name: 'a', unit: '°C' }, { name: 'b', unit: 'bar' }, { name: 'c', unit: '°C' }, { name: 'd', unit: '', isBool: true },
+  ];
+  it('uden valg er det som pr. enhed', () => {
+    expect(groupTags(tags, {})).toEqual(groupByUnit(tags));
+  });
+  it('valgte tags samles i "Graf N" uanset enhed, de øvrige forbliver pr. enhed', () => {
+    const g = groupTags(tags, { a: 2, b: 2, d: 1 });
+    expect(g.map(([k, ts]) => [k, ts.map((t) => t.name)])).toEqual([['°C', ['c']], ['Graf 1', ['d']], ['Graf 2', ['a', 'b']]]);
+  });
+  it('0 eller ukendt nummer betyder Auto', () => {
+    expect(groupTags(tags, { a: 0 })).toEqual(groupByUnit(tags));
+  });
+});
+
+describe('dividerTimes', () => {
+  const base = new Date(2026, 9, 20, 10, 30).getTime() / 1000;   // 20.10.2026 10:30 lokal
+  it('hele timer i perioden', () => {
+    const h = dividerTimes(base, base + 3 * 3600, 'hour');
+    expect(h.map((t) => new Date(t * 1000).getHours())).toEqual([11, 12, 13]);
+    expect(h.every((t) => new Date(t * 1000).getMinutes() === 0)).toBe(true);
+  });
+  it('hele dage (midnat) i perioden', () => {
+    const d = dividerTimes(base, base + 3 * 86400, 'day');
+    expect(d).toHaveLength(3);
+    expect(d.every((t) => new Date(t * 1000).getHours() === 0)).toBe(true);
+  });
+  it('ingen linjer når fra, ugyldig periode eller for mange', () => {
+    expect(dividerTimes(base, base + 3600, 'none')).toEqual([]);
+    expect(dividerTimes(base + 10, base, 'hour')).toEqual([]);
+    expect(dividerTimes(base, base + 30 * 86400, 'hour')).toEqual([]);
   });
 });

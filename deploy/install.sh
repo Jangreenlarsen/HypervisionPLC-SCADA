@@ -104,6 +104,16 @@ install -m 0644 "$SRC/deploy/hypervisionplc-scada-update.service" "$SRC/deploy/h
 install -d -o scada -g scada -m 0750 "$DATA/updates"
 : > "$DATA/updates/enabled"
 
+echo "== Netværksopsætning via web (System › Konfiguration)"
+install -m 0755 "$SRC/deploy/apply-config.sh" /usr/local/lib/hypervisionplc-scada/apply-config.sh.new
+mv /usr/local/lib/hypervisionplc-scada/apply-config.sh.new /usr/local/lib/hypervisionplc-scada/apply-config.sh
+install -m 0644 "$SRC/deploy/hypervisionplc-scada-config.service" "$SRC/deploy/hypervisionplc-scada-config.path" /etc/systemd/system/
+install -d -o scada -g scada -m 0750 "$DATA/config"
+# Status og log ejes af ROOT (tjenesten kun læser) — så kan tjenesten ikke narre root-hjælperen med symlinks i sin egen mappe
+install -d -o root -g root -m 0755 /var/lib/hypervisionplc-scada-net
+# Kun hvis NetworkManager findes (Raspberry Pi OS Bookworm) — ellers er netværk ikke ændrbart fra web
+if command -v nmcli >/dev/null 2>&1; then : > /var/lib/hypervisionplc-scada-net/enabled; else rm -f /var/lib/hypervisionplc-scada-net/enabled; fi
+
 echo "== systemd"
 install -m 0644 "$SRC/deploy/hypervisionplc-scada.service" /etc/systemd/system/
 if [ "$WITH_MOCK" -eq 1 ]; then
@@ -114,6 +124,8 @@ systemctl enable -q hypervisionplc-scada
 systemctl restart hypervisionplc-scada
 systemctl enable -q hypervisionplc-scada-update.path
 systemctl restart hypervisionplc-scada-update.path
+systemctl enable -q hypervisionplc-scada-config.path
+systemctl restart hypervisionplc-scada-config.path
 if [ "$WITH_MOCK" -eq 1 ]; then
     systemctl enable -q hypervisionplc-mock-plc
     systemctl restart hypervisionplc-mock-plc

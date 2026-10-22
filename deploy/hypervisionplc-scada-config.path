@@ -1,0 +1,9 @@
+[Unit]
+Description=Venter på en netværksændring fra HypervisionPLC SCADA
+
+[Path]
+PathExists=/var/lib/hypervisionplc-scada/config/network.request
+Unit=hypervisionplc-scada-config.service
+
+[Install]
+WantedBy=multi-user.target

@@ -3,14 +3,15 @@
   import { onDestroy, onMount } from 'svelte';
   import uPlot from 'uplot';
   import 'uplot/dist/uPlot.min.css';
-  import { colorOf, dashOf, isolatedPoints } from './trendData';
+  import { colorOf, dashOf, dividerTimes, isolatedPoints, type Divider } from './trendData';
   import type { Issue } from './trendAnalysis';
   import { lastVisible, needsArrow, spreadLabels } from './lineLabels';
 
   export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null;
+    /** Kunstige (interpolerede) tidspunkter — tegnes blinkende, så de ikke forveksles med målte data. */ synthetic?: Set<number>;
     /** Fundne uregelmæssigheder (tilvalg) — tegnes som ring om punktet. */ issues?: Issue[] }
 
-  let { title, unit, series, data, xRange, height = 260 }: {
+  let { title, unit, series, data, xRange, height = 260, expanded = false, ondblclick, onclose, divider = 'none', linked = false, view = null, onview, resetTick = 0 }: {
     title: string;
     unit: string;
     series: ChartSeries[];
@@ -19,6 +20,21 @@
     xRange: [number, number];
     /** Plot-højde i px for tal-grafer (til/fra-grafer er altid lave) — sættes af siden ud fra skærmen. */
     height?: number;
+    /** Fuld størrelse: også til/fra-grafer bruger `height`. */
+    expanded?: boolean;
+    /** Dobbeltklik på grafen (i stedet for at zoome ud — det gør *Nulstil visning*). */
+    ondblclick?: () => void;
+    /** Kryds i hjørnet: fjern grafen fra visningen. */
+    onclose?: () => void;
+    /** Stiplede skillelinjer ved hele timer eller dage. */
+    divider?: Divider;
+    /** Låst sammen: zoom/scroll i én graf flytter alle grafer til samme tidsudsnit. */
+    linked?: boolean;
+    /** Det fælles udsnit (når linked) — sættes af siden ud fra den graf brugeren sidst flyttede. */
+    view?: [number, number] | null;
+    onview?: (range: [number, number]) => void;
+    /** Tælles op af siden for at nulstille visningen til hele perioden. */
+    resetTick?: number;
   } = $props();
 
   let el: HTMLDivElement;
@@ -37,6 +53,7 @@
   };
   const fmtTooltip = uPlot.fmtDate('{DD}.{MM}.{YYYY} {HH}:{mm}:{ss}', DA);
   const fmtDay = uPlot.fmtDate('{DD}.{MM}', DA);
+  const fmtDayYear = uPlot.fmtDate('{DD}.{MM}.{YYYY}', DA);
   const fmtMin = uPlot.fmtDate('{HH}:{mm}', DA);
   const fmtSec = uPlot.fmtDate('{HH}:{mm}:{ss}', DA);
 
@@ -57,6 +74,103 @@
     if (v === null || v === undefined) return '—';
     if (s.isBool) return v >= 0.5 ? 'Til' : 'Fra';
     return (s.decimals !== null ? v.toFixed(s.decimals) : String(Math.round(v * 1000) / 1000)) + (unit ? ` ${unit}` : '');
+  }
+
+  /** Stiplede lodrette linjer ved hele timer/dage — tegnes bag kurverne. */
+  function drawDividers(u: uPlot): void {
+    if (divider === 'none') return;
+    const min = u.scales.x.min, max = u.scales.x.max;
+    if (min == null || max == null) return;
+    const { top, height: h } = u.bbox;
+    const ctx = u.ctx, dpr = devicePixelRatio;
+    ctx.save();
+    ctx.strokeStyle = divider === 'day' ? '#6b6a66' : '#9a9993';
+    ctx.lineWidth = (divider === 'day' ? 1.5 : 1) * dpr;
+    ctx.setLineDash([5 * dpr, 4 * dpr]);
+    ctx.beginPath();
+    for (const t of dividerTimes(min, max, divider)) {
+      const x = Math.round(u.valToPos(t, 'x', true)) + 0.5;
+      ctx.moveTo(x, top); ctx.lineTo(x, top + h);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Dato ved hvert døgnskift (midnat) i det viste udsnit — altid, også uden skillelinjer. */
+  function drawDayLabels(u: uPlot): void {
+    const min = u.scales.x.min, max = u.scales.x.max;
+    if (min == null || max == null) return;
+    const days = dividerTimes(min, max, 'day');
+    if (!days.length) return;
+    const { left, top, width } = u.bbox;
+    const ctx = u.ctx, dpr = devicePixelRatio;
+    ctx.save();
+    ctx.font = `600 ${11 * dpr}px system-ui, sans-serif`;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#3b3a37';
+    ctx.strokeStyle = '#3b3a37';
+    ctx.lineWidth = 1.5 * dpr;
+    let lastRight = -Infinity;
+    for (const t of days) {
+      const x = Math.round(u.valToPos(t, 'x', true));
+      if (x < left || x > left + width) continue;
+      const text = fmtDayYear(new Date(t * 1000));
+      const w = ctx.measureText(text).width;
+      if (x + 4 * dpr < lastRight) continue;   // ikke oven i forrige dato
+      ctx.beginPath(); ctx.moveTo(x + 0.5, top); ctx.lineTo(x + 0.5, top + 14 * dpr); ctx.stroke();
+      ctx.fillText(text, Math.min(x + 4 * dpr, left + width - w - 2 * dpr), top + 2 * dpr);
+      lastRight = x + 4 * dpr + w + 6 * dpr;
+    }
+    ctx.restore();
+  }
+
+  // Blink: kunstige punkter skifter mellem synlige og skjulte
+  let blinkOn = true;
+  let blinkTimer: ReturnType<typeof setInterval> | null = null;
+  const hasSynthetic = () => series.some((s) => s.synthetic && s.synthetic.size > 0);
+
+  /** De interpolerede strækninger tegnes tykke og stiplede og blinker — det ses tydeligt, at de ikke er målt. */
+  function drawFilled(u: uPlot): void {
+    if (!hasSynthetic()) return;
+    const xs = u.data[0] as number[];
+    const ctx = u.ctx, dpr = devicePixelRatio;
+    const { left, top, width, height: h } = u.bbox;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(left, top, width, h); ctx.clip();
+    ctx.lineCap = 'round';
+    series.forEach((s, k) => {
+      const syn = s.synthetic;
+      if (!syn || !syn.size || s.isBool) return;
+      const ys = u.data[k + 1] as (number | null | undefined)[];
+      const scale = u.series[k + 1].scale ?? 'y';
+      ctx.beginPath();
+      let prev = -1;
+      for (let i = 0; i < xs.length; i++) {
+        const v = ys[i];
+        if (v === undefined) continue;
+        if (v !== null && prev >= 0 && ys[prev] !== null && (syn.has(xs[prev]) || syn.has(xs[i]))) {
+          ctx.moveTo(u.valToPos(xs[prev], 'x', true), u.valToPos(ys[prev] as number, scale, true));
+          ctx.lineTo(u.valToPos(xs[i], 'x', true), u.valToPos(v, scale, true));
+        }
+        prev = i;
+      }
+      if (blinkOn) {
+        ctx.strokeStyle = colorOf(s.colorIndex); ctx.lineWidth = 3.5 * dpr; ctx.setLineDash([6 * dpr, 5 * dpr]);
+      } else {
+        ctx.strokeStyle = '#fcfcfb'; ctx.lineWidth = 5 * dpr; ctx.setLineDash([]);   // dækker linjen: strækningen forsvinder
+      }
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function syncBlink(): void {
+    if (hasSynthetic() && !blinkTimer) {
+      blinkTimer = setInterval(() => { blinkOn = !blinkOn; chart?.redraw(false); }, 700);
+    } else if (!hasSynthetic() && blinkTimer) {
+      clearInterval(blinkTimer); blinkTimer = null; blinkOn = true;
+    }
   }
 
   /** Ring om punkter med uregelmæssigheder (spike, spring, fastfrosset, hul) — mørk ring, så den ses på alle farver. */
@@ -158,18 +272,22 @@
     const isBool = series.every((s) => s.isBool);
     return {
       width,
-      height: isBool ? 160 : height,
+      height: isBool && !expanded ? 160 : height,
       padding: [null, (column = labelColumn(width)), null, null],   // plads til kurvenavnene ved højre kant
       cursor: {
         sync: { key: 'trend' },
         drag: { x: true, y: false },
-        // Dobbeltklik: tilbage til hele den valgte periode (uPlots egen udzoom går kun til dataenes yderpunkter)
-        bind: { dblclick: () => () => { showFull(); return null; } },
+        // Dobbeltklik: åbn/luk fuld størrelse (siden afgør det); udzoom til hele perioden sker med *Nulstil visning*
+        bind: { dblclick: () => () => { if (ondblclick) ondblclick(); else showFull(); return null; } },
       },
       hooks: {
-        draw: [drawIssues, drawLabels],
+        drawAxes: [drawDividers],
+        draw: [drawFilled, drawDayLabels, drawIssues, drawLabels],
         setScale: [(u: uPlot, key: string) => {
-          if (key === 'x') zoomed = Math.abs((u.scales.x.min ?? 0) - full[0]) > 0.5 || Math.abs((u.scales.x.max ?? 0) - full[1]) > 0.5;
+          if (key !== 'x') return;
+          const lo = u.scales.x.min ?? 0, hi = u.scales.x.max ?? 0;
+          zoomed = Math.abs(lo - full[0]) > 0.5 || Math.abs(hi - full[1]) > 0.5;
+          if (linked) onview?.([lo, hi]);
         }],
       },
       legend: { live: true },
@@ -262,9 +380,11 @@
   let span = 0;
   $effect(() => {
     const sig = series.map((s) => `${s.name}:${s.colorIndex}`).join('|') + unit;
+    void series.map((s) => s.synthetic?.size);   // udfyldning slået til/fra → tegn om og start/stop blink
+    syncBlink();
     void xRange; // ny periode → effekten skal også køre
     if (!chart) return;
-    const wanted = series.every((s) => s.isBool) ? 160 : height;
+    const wanted = series.every((s) => s.isBool) && !expanded ? 160 : height;
     if (chart.height !== wanted) chart.setSize({ width: el.clientWidth, height: wanted });
     if (sig !== signature) {
       signature = sig;
@@ -277,14 +397,39 @@
     span = xRange[1] - xRange[0];
   });
 
+  // Låst sammen: følg det fælles udsnit fra den graf brugeren flyttede
+  $effect(() => {
+    const v = view;
+    if (!chart || !linked || !v) return;
+    const cur = chart.scales.x;
+    if (Math.abs((cur.min ?? 0) - v[0]) > 0.5 || Math.abs((cur.max ?? 0) - v[1]) > 0.5) chart.setScale('x', { min: v[0], max: v[1] });
+  });
+
+  // Skift af skillelinjer: tegn om
+  $effect(() => {
+    void divider;
+    chart?.redraw();
+  });
+
+  // Nulstil visning: hele den valgte periode
+  let seenReset = 0;
+  $effect(() => {
+    const n = resetTick;
+    if (!chart || n === seenReset) return;
+    seenReset = n;
+    showFull();
+  });
+
   onDestroy(() => {
+    if (blinkTimer) clearInterval(blinkTimer);
     observer?.disconnect();
     chart?.destroy();
   });
 </script>
 
 <figure class="chart">
-  <figcaption>{title}</figcaption>
+  <figcaption {title}>{title}</figcaption>
+  {#if onclose}<button class="x" onclick={onclose} title="Fjern grafen fra visningen" aria-label="Fjern grafen: {title}">×</button>{/if}
   <div bind:this={el}></div>
 </figure>
 
@@ -296,6 +441,20 @@
     border-radius: var(--radius);
     padding: .5rem .5rem .25rem;
   }
-  figcaption { font-weight: 600; font-size: .9rem; margin: 0 0 .25rem .25rem; }
+  .chart { position: relative; }
+  .x { position: absolute; top: .2rem; right: .35rem; z-index: 5; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; background: transparent; font-size: 1.3rem; line-height: 1; color: #52514e; cursor: pointer; border-radius: 4px; }
+  .x:hover { background: #e5e4e0; color: #1f1f1d; }
+  figcaption { padding-right: 2rem; font-weight: 600; font-size: .9rem; margin: 0 0 .25rem .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   :global(.u-legend) { font-size: .85rem; }
+  /* Fast udtryk: aflæsningerne må ikke skifte bredde/højde, når markøren flyttes (ellers hopper legend og graf) */
+  :global(.u-legend .u-series) { white-space: nowrap; }
+  :global(.u-legend .u-series > th) { white-space: nowrap; }
+  :global(.u-legend .u-value) {
+    display: inline-block;
+    min-width: 11ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  :global(.u-legend .u-series:first-child .u-value) { min-width: 19ch; }   /* tidsstempel: DD.MM.ÅÅÅÅ TT:mm:ss */
 </style>

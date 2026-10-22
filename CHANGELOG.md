@@ -4,6 +4,94 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.121.0 build 0180] — 2026-10-22 — System › Konfiguration (trin 3: netværk)
+
+- `deploy/apply-config.sh` (ny, root) + `hypervisionplc-scada-config.{path,service}` + `install.sh` — anvender en netværksændring med NetworkManager: validerer igen, anvender **midlertidigt** (`--temporary`), venter 90 s på bekræftelse og gør den først varig ved bekræftelse; ellers (eller ved fejl, *Fortryd nu*, genstart, dødt script via `ExecStopPost --recover`) vender den gamle opsætning tilbage. Efter reviewer-gennemgang: root skriver kun i sin egen mappe `/var/lib/hypervisionplc-scada-net` (status/log), anmodningen tages ind med `mv` og symlinks afvises, nmcli-kald har tidsgrænse, `CONFIRM_S` begrænses 20–180, værtsnavn sættes først efter bekræftelse, hærdet service-enhed.
+- `backend/app/services/netconfig.py` (ny), `backend/app/api/system_config.py`, `backend/app/main.py`, `backend/app/config.py` (`SCADA_NET_STATE_DIR`) — validering (IP, subnet, gateway i subnettet, DNS, værtsnavn, netkort), `network.request` til hjælperen, tilstandsmaskine (bekræft/fortryd kun når der venter en ændring), endpoints `GET/PUT /network`, `POST /network/confirm|revert` (admin, auditlogget).
+- `frontend/src/pages/SystemConfig.svelte` — formular, nedtælling, Bekræft / Fortryd nu; manual (System); `.gitattributes` (LF for .path).
+- `backend/tests/test_netconfig.py` — validering, tilstandsmaskine, API-rettigheder og hjælpescriptet med en falsk `nmcli` (bekræftet, fortrudt, afvist, ugyldigt input, manglende profil).
+- Kun testet mod en falsk nmcli — **ikke afprøvet på en rigtig Pi** og ikke set i browser.
+
+## [0.120.0 build 0179] — 2026-10-22 — System › Konfiguration (trin 2: trend-indstillinger)
+
+- `backend/app/services/sysconfig.py`, `backend/app/api/system_config.py`, `backend/app/main.py` — `PUT /api/system/config/trends` (admin): opbevaring, skriveinterval, energi-opbevaring; valideres (grænser, energi ≥ historik), gemmes atomisk i `<data>/config/settings.json` (andre afsnit bevares), gælder straks og ved opstart (overstyrer `SCADA_TREND_*`), auditlogges.
+- `frontend/src/pages/SystemConfig.svelte` — formular med Gem/Fortryd; manual (System).
+- `backend/tests/test_system_config.py` — validering, gem/indlæs/ødelagt fil, bevarelse af andre afsnit, rettigheder, live-effekt og efter genstart.
+- Kun bygget og testet, ikke set i browser.
+
+## [0.119.0 build 0178] — 2026-10-22 — System › Konfiguration (trin 1: visning)
+
+- `backend/app/services/sysconfig.py`, `backend/app/api/system_config.py` (nye), `backend/app/main.py` — `GET /api/system/config` (kun admin): datasti, filstørrelser, ledig plads, trend-indstillinger, netværksstatus (`ip -j`, DNS fra resolv.conf). Kun læsning.
+- `backend/app/services/trends.py` — skrivemåling: rækker/skrivninger siden start og overslag pr. døgn (`write_stats`).
+- `frontend/src/pages/SystemConfig.svelte`, `lib/nav.ts`, `App.svelte` — ny side *System › Konfiguration*.
+- `backend/tests/test_system_config.py`, `nav.test.ts`; manual (System), `PLAN.md`, `FEATURES.md`.
+- Kun visning — intet ændres på systemet. Kun bygget og testet, ikke set i browser.
+
+## [0.118.1 build 0177] — 2026-10-22 — fix: falske huller i Trends (stabile værdier)
+
+- `frontend/src/lib/trendAnalysis.ts` + test — `DATA_STALE_S` (900 s): et tidshul er først et hul efter 3 × "jeg lever"-intervallet; gælder både *Udfyld huller* og analysens *Hul i data*. Serveren gemmer kun ved ændring, så pauser på op til 5 min er normale.
+- `BUGS.md` — rodårsag og hvad der ikke er afgjort.
+- Kun frontend. Kun bygget og testet (653 tests).
+
+## [0.118.0 build 0176] — 2026-10-22 — Trends: fjern graf med kryds
+
+- `frontend/src/lib/TrendChart.svelte` — kryds (×) i grafens øverste højre hjørne (prop `onclose`).
+- `frontend/src/pages/Trends.svelte` — `removeGroup`: fravælger grafens tags, så grafen forsvinder.
+- Kun frontend. Kun bygget og testet (651 tests), ikke set i browser.
+
+## [0.117.0 build 0175] — 2026-10-22 — Trends: dobbeltklik giver graf i fuld størrelse
+
+- `frontend/src/pages/Trends.svelte` — dobbeltklik på en graf viser kun den, i fuld højde (dobbeltklik igen eller Esc: tilbage). Hjælpeteksten er opdateret.
+- `frontend/src/lib/TrendChart.svelte` — props `expanded` og `ondblclick`; dobbeltklik zoomer ikke længere ud (det gør *Nulstil visning*).
+- Kun frontend. Kun bygget og testet (651 tests), ikke set i browser.
+
+## [0.116.0 build 0174] — 2026-10-22 — Trends: udfyld huller (blinker) og dato ved døgnskift
+
+- `frontend/src/lib/trendAnalysis.ts` + test — `fillGaps`: null-rækker mellem gyldige værdier og tidshuller (> 4 × typisk afstand, højst 200 punkter pr. hul) udfyldes lineært med kunstige punkter; ingen ekstrapolation; rådata uændrede.
+- `frontend/src/lib/TrendChart.svelte` — kunstige strækninger tegnes tykke og stiplede og blinker (700 ms); dato (DD.MM.ÅÅÅÅ) står ved hvert døgnskift i grafen, uafhængigt af skillelinjer.
+- `frontend/src/pages/Trends.svelte` — tilvalg *Udfyld huller (blinker)* (huskes).
+- Kun frontend. Kun bygget og testet (651 tests), ikke set i browser.
+
+## [0.115.2 build 0173] — 2026-10-22 — fix: Trends-grafer får tagnavne som titel
+
+- `frontend/src/pages/Trends.svelte` — grafens titel er nu kurvernes navne (tagget's navn-parameter, ellers tag-navnet) plus enheden, i stedet for kun enheden / "Graf N".
+- `frontend/src/lib/TrendChart.svelte` — titlen på én linje med "…" ved overlængde (fuld tekst ved hover).
+- Kun frontend. Kun bygget og testet (647 tests), ikke set i browser.
+
+## [0.115.1 build 0172] — 2026-10-22 — Trends: uregelmæssigheder som overlay
+
+- `frontend/src/pages/Trends.svelte` — oversigten *Uregelmæssigheder* er flyttet ud af venstre panel og vises nu som et overlay oven på skærmen (knap i værktøjslinjen, vises med *Analysér data*; lukkes med ×).
+- Kun frontend. Kun bygget og testet (647 tests), ikke set i browser.
+
+## [0.115.0 build 0171] — 2026-10-22 — Trends: skillelinjer pr. time/dag
+
+- `frontend/src/lib/trendData.ts` + test — `dividerTimes` (hele timer/dage i lokal tid; ingen linjer ved over 400).
+- `frontend/src/lib/TrendChart.svelte` — stiplede lodrette linjer bag kurverne (prop `divider`).
+- `frontend/src/pages/Trends.svelte` — vælger *Skillelinjer: Fra / Pr. time / Pr. dag* i værktøjslinjen (huskes).
+- Kun frontend. Kun bygget og testet (647 tests), ikke set i browser.
+
+## [0.114.1 build 0170] — 2026-10-22 — Trends: uregelmæssigheder i venstre side
+
+- `frontend/src/pages/Trends.svelte` — oversigten *Uregelmæssigheder* flyttet fra under graferne til panelet i venstre side (under tag-listen), så graferne får mere plads.
+- Kun frontend. Kun bygget og testet (644 tests), ikke set i browser.
+
+## [0.114.0 build 0169] — 2026-10-22 — Trends: vælg selv hvilken graf et tag vises i
+
+- `frontend/src/lib/trendData.ts` + test — `groupTags`: tags uden valg grupperes pr. enhed (som før), tags med grafnummer samles i *Graf N*.
+- `frontend/src/pages/Trends.svelte` — vælger *Auto / Graf 1–8* ud for hvert valgt tag (huskes i browseren), fælles y-enhed kun hvis alle kurver i grafen har samme.
+- Kun frontend. Kun bygget og testet (644 tests), ikke set i browser.
+
+## [0.113.1 build 0168] — 2026-10-22 — fix: Trends-legend hopper ikke ved musebevægelse
+
+- `frontend/src/lib/TrendChart.svelte` — legend-aflæsningerne har fast bredde (tabulære tal, ingen ombrydning), så de ikke skifter størrelse når markøren glider hen over grafen.
+- Kun frontend. Kun bygget, ikke set i browser.
+
+## [0.113.0 build 0167] — 2026-10-22 — Trends: lås graferne sammen og nulstil visning
+
+- `frontend/src/lib/TrendChart.svelte` — nye props `linked`/`view`/`onview`/`resetTick`: når grafer er låst sammen, følger alle det udsnit, brugeren zoomer/scroller til i én graf; `resetTick` zoomer ud til hele perioden.
+- `frontend/src/pages/Trends.svelte` — knapperne *Lås graferne sammen* og *Nulstil visning* + hjælpetekst.
+- Kun frontend. Kun bygget og testet (641 tests), ikke set i browser.
+
 ## [0.112.0 build 0166] — 2026-10-22 — Trends: scroll i tid når der er zoomet
 
 - `frontend/src/lib/TrendChart.svelte` — når en graf er zoomet ind, flytter musehjulet (eller Shift+træk) udsnittet i tid, begrænset til den valgte periode.

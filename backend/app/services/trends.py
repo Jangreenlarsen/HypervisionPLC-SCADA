@@ -45,6 +45,9 @@ class TrendRecorder:
         self._buffer: list[tuple[str, float, float | None]] = []
         self._config: dict[str, tuple[float, bool]] = {}  # navn → (interval, er til/fra)
         self._last_purge = 0.0
+        self._started = time.time()
+        self.rows_written = 0   # rækker skrevet til disken siden start (skrivemåling)
+        self.flushes = 0        # antal skrivninger med mindst én række
 
     def _refresh_config(self) -> None:
         from .tagsource import TagSourceError, parse_source
@@ -77,6 +80,15 @@ class TrendRecorder:
             else:
                 self._pending[name] = (ts, value)
 
+    def write_stats(self, now: float | None = None) -> dict[str, float | int | None]:
+        """Skrivemåling: rækker og skrivninger siden start, og et overslag pr. døgn (først efter 10 min, ellers for usikkert)."""
+        now = time.time() if now is None else now
+        up = max(0.0, now - self._started)
+        per_day = round(self.rows_written / up * 86400) if up >= 600 else None
+        flushes_per_day = round(self.flushes / up * 86400) if up >= 600 else None
+        return {"since": self._started, "uptime_s": round(up), "rows": self.rows_written, "flushes": self.flushes,
+                "rows_per_day": per_day, "flushes_per_day": flushes_per_day}
+
     def forget(self, name: str) -> int:
         """Slet al historik for tagget — også værdier der endnu ikke er skrevet (ellers dukker de op igen).
         Returnerer antal slettede samples."""
@@ -108,6 +120,9 @@ class TrendRecorder:
                     self._store(name, now, value)
         rows, self._buffer = self._buffer, []
         self.tdb.insert_many(rows)
+        if rows:
+            self.rows_written += len(rows)
+            self.flushes += 1
         if now - self._last_purge >= 3600:
             self._last_purge = now
             energy_cut = now - max(self.energy_days, self.retention_days) * 86400

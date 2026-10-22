@@ -1,35 +1,36 @@
-# Plan: Symboltest på avanceret niveau (v0.110.0 →)
+# Plan: System › Konfiguration (lagring, netværk, første-gangs-adgang)
 
-## Analyse af Symboltest i dag (v0.109.0)
-**Dækker:** 12 animationstyper pr. del (filtreret efter delens geometri), kilderne til/fra, tal og position (2–8), løbelys, symbolets egne `data-hv-part`, bibliotekets guide-opsætning pr. position, baggrund/zoom, delelisten.
+Beslutninger (Jan, 2026-10-22): omfang **lagring + netværk + status**; første gang uden seriel via **fast fallback-IP når DHCP mangler**; datamappen flyttes **guidet med genstart**.
 
-**Mangler (svagheder):**
-1. **Kun én animation ad gangen**, én fælles værdi. Kan ikke afprøve samspil (fx pumpe: hjul drejer + lampe grøn + status-tekst fra *samme* eller *forskellige* tags).
-2. **Ingen simulerede tags.** Alt styres af én skyder. Logikblokke, *gælder i positionerne* (`only`), `when`, retnings-tag til løbelys og alarm-kilder (`@alarm:`) kan ikke afprøves.
-3. **Parametre kan ikke ændres.** Farver, grænser, vinkler, afstande, blink-hastighed, flicker-palet, tekster, `glide_s` står som standard — man kan ikke se, hvordan en *opsætning* ser ud, før den gemmes i guiden.
-4. **Ingen tidsforløb.** Man trækker i en skyder i hånden; ingen automatisk sweep/afspilning, så blink, glidning og løbelys vurderes dårligt.
-5. **Kvalitet og fejltilstande kan ikke simuleres:** ukendt værdi (PLC nede), dårlig kvalitet, alarm ukvitteret/kvitteret (`hv-alarm-*`).
-6. **Ingen kontrol på tværs af biblioteket.** Kvalitetsreglerne (SYMBOLSTANDARD §8: palette, navngivne dele) tjekkes kun i enhedstests, ikke synligt for teknikeren.
-7. **Intet kan tages med videre.** Resultatet kan ikke gemmes/deles eller overføres til guiden.
-8. **Visning:** kun én størrelse ad gangen; ingen side-om-side lys/mørk, og ingen "som i tegningen" (faktisk størrelse).
+## Mål
+Ny admin-side **System › Konfiguration** (ved siden af Backup/Opdatering) hvor man kan:
+1. **Lagring**: se hvor data ligger (`SCADA_DATA_DIR`, `trends.db`, `scada.db`), størrelse, ledig plads og skrivemængde pr. døgn; **flytte datamappen** til en anden monteret disk (fx USB-SSD).
+2. **Trend-indstillinger**: opbevaring (`SCADA_TREND_DAYS`), flush-interval (`SCADA_TREND_FLUSH_S`) — kræver genstart af tjenesten.
+3. **Netværk**: DHCP eller fast IP (adresse/præfiks, gateway, DNS), værtsnavn; vis aktuel adresse, MAC, link.
+4. **Netværkstilstande** (Jans præcisering 2026-10-22): **DHCP forsøges hele tiden**; en fast IP er enten **sekundær** (ligger altid ved siden af DHCP-adressen, så siden altid kan nås) eller **reserve** (tages først efter N mislykkede DHCP-forsøg, standard 5, og slippes igen når DHCP lykkes). Valg: *Kun DHCP* · *DHCP + fast IP som sekundær (anbefalet, også første gang uden seriel)* · *DHCP, fast IP efter N fejl* · *Kun fast IP*. Forslag til fast nødadresse `192.168.100.10/24`. Siden viser hvilken adresse der er aktiv og om DHCP lige nu virker.
 
-## Forslag til pakker (vælges af Jan)
-- **A. Flere animationer og simulerede tags** *(kerne)*: en liste af testanimationer (del + type + kilde + parametre) og en tag-liste (navn, til/fra/tal/position, værdi). Hver animation vælger sit tag. Genbruger `applyBinding` — samme kode som Overview.
-- **B. Parameter-editor**: redigér den valgte animations parametre live (farver, grænser, vinkler, afstand, hastighed, palet, tekster).
-- **C. Afspilning**: sweep (op/ned/loop) med hastighed på et tag; viser blink/glidning/løbelys i bevægelse.
-- **D. Fejltilstande**: kvalitet (god/dårlig/ukendt), værdi mangler, alarm ukvitteret/kvitteret.
-- **E. Biblioteks-selvtest**: tabel over alle symboler — har navngivne dele, farver i paletten, egne animationer gyldige, guide-opsætning kan køres uden manglende dele; rød/grøn pr. symbol.
-- **F. Gem/del**: eksportér/importér testopsætning som JSON; "kopiér til guide" (ud fra bibliotekets format).
-- **G. Visning**: lys/mørk side om side, faktisk størrelse.
+**Præcisering (Jan, 2026-10-22):** *alle* indstillinger — IP, subnet, gateway, DNS, værtsnavn, datamappe — sættes fra websiden. Netværk indtastes **færdigt i en formular** (alle parametre), valideres, og anvendes først ved et eksplicit tryk på **Anvend/Deploy** (med 60 s fortryd). Ingen indstillinger via kommandolinjen/install.sh kræves (install.sh opretter blot grund-profilen med nødadressen).
 
-## Trin (rækkefølge)
-1. A (logik i `symbolTest.ts`, ren og testet; UI) → 2. B → 3. D → 4. C → 5. E → 6. F/G.
-Hver pakke er en egen commit/version (MINOR), så den kan afprøves og rulles tilbage hver for sig.
+## Fast ramme / sikkerhed
+- Tjenesten kører som ikke-privilegeret `scada` med `ProtectSystem=strict`; den **må ikke selv ændre netværk eller flytte filer uden for datamappen**. Samme mønster som OTA: tjenesten skriver en **anmodningsfil** (`<data>/config/apply.request`, kun tegn der er sikre), en root-ejet **systemd .path-enhed** udløser `deploy/apply-config.sh`, som validerer, udfører, skriver `status.json` og logger. Intet shell-input fra browseren; alle værdier valideres (IPv4/præfiks/gateway/DNS/værtsnavn, sti findes og er monteret, ligger ikke under `/`-systemmapper).
+- **Ingen lockout** (QUALITY_CHECKLIST): netværksændring anvendes med **60 s fortryd** — den gamle opsætning gendannes automatisk, hvis browseren ikke bekræfter fra den nye adresse. Håndhæves i scriptet (ikke kun i UI).
+- Kun **admin**; alle ændringer i **audit-loggen** (hvem, hvad, gammelt/nyt — aldrig hemmeligheder).
+- Flytning af data: stop tjenesten → `rsync` til ny sti → `PRAGMA quick_check` på kopierne → opdatér `SCADA_DATA_DIR` i `/etc/hypervisionplc-scada.env` og `ReadWritePaths` (drop-in) → start → `/api/health`. Fejl = rul tilbage til gammel sti. Den gamle mappe **bevares** til admin sletter den.
+- Ingen nye afhængigheder (NetworkManager/`nmcli` findes på Raspberry Pi OS Bookworm; scriptet falder tilbage til en fejlmelding, hvis det ikke findes).
+
+## Trin (hver en egen commit/version)
+1. **Skrivemåling + visning (kun læsning)**: backend `GET /api/system/config` (datasti, størrelser, ledig plads, skrevne rækker/bytes pr. døgn, aktuel netværksstatus). Side med visning. *(MINOR)*
+2. **Trend-indstillinger** (opbevaring/flush) gemt i `<data>/config/settings.json` som overstyring af env, + genstart-knap. *(MINOR)*
+3. **Root-hjælper `apply-config.sh` + .path/.service + install.sh**, kun netværk: DHCP/fast IP, værtsnavn, 60 s fortryd. Test: shell-tests af validering + backend-tests af anmodningen. *(MINOR)*
+4. **DHCP + fast IP**: NetworkManager-profil med `ipv4.method=auto` + `ipv4.addresses` (sekundær adresse, `may-fail=yes`) oprettes af install.sh. En lille root-**watchdog** (systemd-timer, 30 s) tæller mislykkede DHCP-forsøg, gentager DHCP uden ende (`nmcli device reapply`) og styrer *reserve*-tilstanden (fast IP først efter N fejl, væk igen ved lease). Tæller og tilstand vises på siden. **Åbent teknisk punkt:** hvor længe NetworkManager selv gentager DHCP med `may-fail` skal verificeres på en Pi — watchdog'en gør det uafhængigt. *(MINOR)*
+5. **Guidet datamappe-flytning** i `apply-config.sh` med rollback. *(MINOR)*
+6. Manual (nyt afsnit under System) + QUALITY_CHECKLIST gennemgang + reviewer-agent (auth, root-hjælper, input).
 
 ## Berørte filer
-`frontend/src/lib/symbolTest.ts` (+ evt. `symbolTestScenario.ts`), `symbolTest.test.ts`, `frontend/src/pages/SymbolTest.svelte` (deles op i komponenter), manual `06-symboler-og-guiden.md`, doku.
+`backend/app/api/system_config.py` (ny), `backend/app/services/sysconfig.py` (ny), `backend/app/config.py`, `backend/app/main.py`, `deploy/apply-config.sh` + `hypervisionplc-scada-config.{path,service}` (nye), `deploy/install.sh`, `frontend/src/pages/SystemConfig.svelte` (ny), `frontend/src/lib/nav.ts` (+ test), `frontend/src/manual/`, tests, FEATURES/CHANGELOG/RELEASE_NOTES, `ARCHITECTURE.md` (root-hjælper-lag).
 
-## Risici
-- Layout kræver visuel kontrol (headless Edge-testside som sidst).
-- Siden vokser: opdel i komponenter; ingen backend- eller PLC-berøring (alt lokalt i browseren, intet gemmes undtagen valgfri JSON-eksport).
-- Ingen nye afhængigheder.
+## Risici / åbne punkter
+- **Netværk kan låse en ude**: afbødet med 60 s fortryd + nødadresse; skal testes på en rigtig Pi (ikke kun testserveren 10.1.1.31 — fejl her kan afskære SSH). Jeg foreslår at teste netværkstrin på Pi'en med fysisk adgang.
+- **Nødadressen** skal vælges så den ikke støder ind i kundens net (forslag `192.168.100.10/24`, kan ændres).
+- **Skrivemåling**: rækker/bytes pr. døgn tælles i optageren (tæller i hukommelsen + daglig værdi i `trends.db`).
+- Windows-dev kan ikke afprøve root-hjælperen; den testes som shell-script med mock-`nmcli` og på testserveren/Pi.

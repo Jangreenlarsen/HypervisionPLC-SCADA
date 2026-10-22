@@ -1,6 +1,6 @@
 # System
 
-Under **System** ligger Log, Brugere, Backup og Opdatering. **Log** kræver rollen tekniker; de øvrige kræver **admin**.
+Under **System** ligger Log, Brugere, Backup, Opdatering og Konfiguration. **Log** kræver rollen tekniker; de øvrige kræver **admin**.
 
 ## Log
 
@@ -53,6 +53,42 @@ Under **System** ligger Log, Brugere, Backup og Opdatering. **Log** kræver roll
 **Kassér pakken** fjerner en klargjort pakke. Under en opdatering kan intet andet ændres. Loggen fra den seneste opdatering ligger nederst på siden. Kontrolsummen beskytter mod beskadigelse, men en administrator kan via en opdatering i praksis køre kode på serveren — kun betroede personer bør være admin.
 
 > Første gang skal serveren have installationen kørt som administrator på serveren (`sh deploy/install.sh`); derefter kan alle nye versioner komme via siden.
+
+## Konfiguration
+
+**Konfiguration** (admin) viser, hvor data ligger, hvor meget plads de fylder, og hvor meget der skrives til disken.
+
+- **Lagring**: datamappens placering, størrelsen på databaserne og mapperne, og ledig plads på disken.
+- **Trend-historik og skrivning**: antal gemte værdier, hvor længe de opbevares, og hvor mange rækker og skrivninger der er sket siden tjenesten startede (med et overslag pr. døgn efter 10 minutters drift). Det er nyttigt, hvis datamappen ligger på et SD-kort.
+- **Netværk**: værtsnavn, netkort med link, MAC og IPv4-adresser, gateway og DNS.
+
+Under trend-historikken kan du ændre tre **indstillinger**; de gemmes og gælder **straks**, uden genstart:
+
+| Indstilling | Betydning | Grænser |
+| --- | --- | --- |
+| **Opbevaring af historik** | Hvor mange dage trend-værdier gemmes; ældre slettes hver time | 1–365 dage |
+| **Skriveinterval** | Hvor ofte nye værdier skrives samlet til disken. Længere interval = færre skrivninger (skåner SD-kortet), men ved strømsvigt kan op til så mange sekunder gå tabt | 1–300 s |
+| **Opbevaring af energi** | Hvor længe energi-tags gemmes (til måneds- og årsrapporter); må ikke være kortere end historikken | 30–3650 dage |
+
+Forkerte værdier afvises med en besked. Ændringen skrives i auditloggen.
+
+### Netværksopsætning
+
+Nederst på siden kan du sætte maskinens netværk. Vælg **netkort** og **tilstand**:
+
+| Tilstand | Betydning |
+| --- | --- |
+| **DHCP** | Adressen kommer fra routeren (kan ændre sig) |
+| **Fast IP** | Du angiver **IP-adresse**, **subnet** (præfiks, fx 24 = 255.255.255.0), evt. **gateway**, **DNS** og **værtsnavn** |
+| **DHCP + fast IP som sekundær** | Maskinen får en adresse fra routeren **og** altid den faste adresse ved siden af — så kan siden altid nås på den faste adresse |
+
+Alle felter kontrolleres (gyldig adresse, gateway i samme subnet, højst 3 DNS-servere …), og en forkert værdi afvises med en besked, før noget ændres.
+
+**Sådan undgår du at låse dig ude:** Tryk **Anvend**, og bekræft i dialogen. Opsætningen sættes i kraft med det samme, og du har derefter **90 sekunder** til at åbne siden på den **nye adresse** og trykke **Bekræft**. Gør du ikke det — eller trykker du **Fortryd nu** — gendannes den gamle opsætning automatisk. Hele forløbet står i auditloggen.
+
+> Kræver NetworkManager (standard på Raspberry Pi OS Bookworm) og at `sh deploy/install.sh` er kørt som administrator på serveren én gang. Mangler det, viser siden en besked i stedet for formularen.
+
+Flytning af datamappen kommer i en senere version.
 
 ## Bruger
 
