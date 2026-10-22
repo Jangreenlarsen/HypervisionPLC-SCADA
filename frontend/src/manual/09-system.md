@@ -72,6 +72,17 @@ Under trend-historikken kan du ændre tre **indstillinger**; de gemmes og gælde
 
 Forkerte værdier afvises med en besked. Ændringen skrives i auditloggen.
 
+#### Flyt trend-databasen til en anden disk
+
+For at skåne SD-kortet kan historikken ligge på en **USB-SSD**:
+
+1. Monter disken (fx på `/mnt/ssd`) og opret en mappe til SCADA'en **én gang på maskinen**: `sudo install -d -o scada -g scada -m 0750 /mnt/ssd/scada`.
+2. Skriv mappen i feltet **Flyt til mappe** og tryk **Flyt databasen**. Kun mapper under `/mnt` eller `/media` på en **anden disk** end den nuværende kan vælges.
+3. Historikken kopieres og **kontrolleres** (samme antal værdier), og først derefter tages den nye database i brug — mens SCADA'en kører. Trends står stille et øjeblik. Fejler noget, er den gamle database uændret.
+4. Den gamle fil bliver liggende som `trends.db.moved`, til du selv sletter den.
+
+**Tilbage til datamappen** flytter den den anden vej. Mangler disken ved en genstart, starter SCADA'en alligevel — med en tom database i datamappen og en advarsel på siden; historikken på disken er urørt og kommer tilbage, når disken er monteret og du flytter databasen dertil igen.
+
 ### Netværksopsætning
 
 Nederst på siden kan du sætte maskinens netværk. Vælg **netkort** og **tilstand**:
@@ -81,14 +92,37 @@ Nederst på siden kan du sætte maskinens netværk. Vælg **netkort** og **tilst
 | **DHCP** | Adressen kommer fra routeren (kan ændre sig) |
 | **Fast IP** | Du angiver **IP-adresse**, **subnet** (præfiks, fx 24 = 255.255.255.0), evt. **gateway**, **DNS** og **værtsnavn** |
 | **DHCP + fast IP som sekundær** | Maskinen får en adresse fra routeren **og** altid den faste adresse ved siden af — så kan siden altid nås på den faste adresse |
+| **DHCP, fast IP først efter N fejl** | DHCP forsøges hele tiden. Svarer routeren ikke i **N kontroller** (à 30 sekunder, standard 5), tager maskinen den faste **reserve-IP** i brug, og slipper den igen, så snart DHCP svarer. Reserve-IP'en er midlertidig: efter en genstart starter maskinen forfra med ren DHCP |
+
+I tilstandene med DHCP viser siden **DHCP-vagtens** status (*DHCP svarer*, *ingen DHCP-svar — 2 af 5 kontroller*, *kører på reserve-IP*). Er kablet ude, tælles det ikke som en DHCP-fejl.
 
 Alle felter kontrolleres (gyldig adresse, gateway i samme subnet, højst 3 DNS-servere …), og en forkert værdi afvises med en besked, før noget ændres.
 
 **Sådan undgår du at låse dig ude:** Tryk **Anvend**, og bekræft i dialogen. Opsætningen sættes i kraft med det samme, og du har derefter **90 sekunder** til at åbne siden på den **nye adresse** og trykke **Bekræft**. Gør du ikke det — eller trykker du **Fortryd nu** — gendannes den gamle opsætning automatisk. Hele forløbet står i auditloggen.
 
-> Kræver NetworkManager (standard på Raspberry Pi OS Bookworm) og at `sh deploy/install.sh` er kørt som administrator på serveren én gang. Mangler det, viser siden en besked i stedet for formularen.
+> **Understøttede netværkssystemer:** *NetworkManager* (Raspberry Pi OS) og *ifupdown* (`/etc/network/interfaces` — Debian/Ubuntu-servere og VM'er, fx på en ESXi-server). Installationen (`sh deploy/install.sh`, som en OTA-opdatering også kører) finder selv ud af hvilket, og siden viser det. Mangler begge, eller er installationen ikke kørt, viser siden en besked, der siger **hvad** der mangler, i stedet for formularen.
+>
+> **ifupdown:** ændringen prøves uden at røre `/etc/network/interfaces`, og filen skrives først, når du har bekræftet (der laves en sikkerhedskopi `interfaces.hypervision-bak-…`; de 3 nyeste beholdes). Kun netkortets egen `iface`-blok i hovedfilen ændres — står den i `interfaces.d`, afvises ændringen. **DHCP** kræver DHCP-klienten **dhcpcd** (`apt install dhcpcd-base`): den prøver uden ende og giver adresserne en levetid, som DHCP-vagten bruger. Mangler den, er kun *Fast IP* valgbar. Egen DNS i DHCP-tilstandene kan blive overskrevet af DHCP-klienten ved næste fornyelse — brug *Fast IP*, hvis DNS skal ligge fast. DNS skrives i `/etc/resolv.conf`, hvis den er en almindelig fil (er den et symlink, styrer systemet den selv, og den røres ikke).
 
-Flytning af datamappen kommer i en senere version.
+Flytning af hele datamappen (databasen med tags, tegninger og brugere) understøttes ikke; det er trend-databasen, der fylder og skriver mest.
+
+### Fuld disk: `scada-maint`
+
+Er disken ved at blive fuld, kan du rydde op **på maskinen** — også selv om websiden ikke kan åbnes. Kør som root (`su -c '…'` eller `sudo`):
+
+| Kommando | Hvad den gør |
+| --- | --- |
+| `scada-maint status` | Viser ledig plads og hvad der fylder (databaser, backups, logfiler, systemjournal) |
+| `scada-maint logs` | Tømmer SCADA'ens logfiler og begrænser systemjournalen (`--journal-size 100M`) |
+| `scada-maint backups --keep 2 [--moved]` | Sletter gamle backups (beholder de 2 nyeste af hver slags) og evt. `trends.db.moved` |
+| `scada-maint trends --keep-days 14 [--shrink]` | Sletter trend-værdier ældre end 14 dage (energi-tags beholdes længere). `--shrink` gør filen mindre (kræver plads) |
+| `scada-maint history --audit-days 90 --alarm-days 90` | Trimmer auditloggen og alarmhistorikken |
+| `scada-maint trends-reset [--archive MAPPE]` | Nødløsning: sletter **hele** trend-historikken (evt. først en komprimeret kopi) |
+| `scada-maint emergency` | Går trin for trin gennem ovenstående, fra det mindst til det mest indgribende, og **stopper, så snart der er plads nok** |
+
+**Alle kommandoer er tørkørsel** (viser hvad der ville ske og hvor meget plads det giver), indtil du tilføjer **`--yes`**. Tags, brugere, tegninger, bindinger og opsætning slettes **aldrig** — kun logfiler, gamle backups og historik. Hvert skridt skrives i systemloggen.
+
+> Er disken *helt* fuld, kan databasen ikke skrive selv en sletning. Start da med `scada-maint logs --yes` og `scada-maint backups --keep 1 --yes` (de frigør plads uden at skrive i databasen), eller gå direkte til `trends-reset`.
 
 ## Bruger
 

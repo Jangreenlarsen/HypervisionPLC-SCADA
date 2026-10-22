@@ -13,4 +13,5 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/lib/hypervisionplc-scada-net /var/lib/hypervisionplc-scada/config /etc/NetworkManager/system-connections /run/NetworkManager
+# /etc/network (ifupdown), resolv.conf og hosts (ifupdown-delen), /run/network (ifup/ifdown-tilstand), /run/NetworkManager (nmcli)
+ReadWritePaths=-/var/lib/hypervisionplc-scada-net -/var/lib/hypervisionplc-scada/config -/etc/NetworkManager/system-connections -/run/NetworkManager -/etc/network -/etc/resolv.conf -/etc/hosts -/etc/hostname -/run/network -/run/resolvconf -/run/dhclient -/var/lib/dhcp -/var/lib/dhcpcd

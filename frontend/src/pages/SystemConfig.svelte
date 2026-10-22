@@ -8,14 +8,16 @@
     storage: { path: string; files: { name: string; size: number }[]; folders: { name: string; size: number }[];
       disk: { total: number; used: number; free: number } | null };
     trends: { retention_days: number; flush_s: number; energy_days: number; overridden: boolean;
-      limits: Record<string, { min: number; max: number }>; tags: number; samples: number;
+      limits: Record<string, { min: number; max: number }>;
+      storage: { path: string; configured: string; warning: string; roots: string[] }; tags: number; samples: number;
       write: { since: number; uptime_s: number; rows: number; flushes: number; rows_per_day: number | null; flushes_per_day: number | null } };
     network_config: NetState;
     network: { available: boolean; hostname: string; interfaces: Nic[]; gateway: string; dns: string[]; error: string };
   }
 
-  interface NetTarget { interface: string; mode: string; ip: string; prefix: number; gateway: string; dns: string[]; hostname: string }
-  interface NetState { enabled: boolean; state: string; message: string; deadline: number | null; confirm_s: number; busy: boolean;
+  interface NetTarget { interface: string; mode: string; ip: string; prefix: number; gateway: string; dns: string[]; hostname: string; fallback_after?: number }
+  interface Watchdog { state: string; message: string; mode: string; fails: number; threshold: number; fallback_active: boolean; ts: number; stale?: boolean }
+  interface NetState { enabled: boolean; disabled_reason?: string; backend?: string; dhcp_available?: boolean; watchdog?: Watchdog | null; state: string; message: string; deadline: number | null; confirm_s: number; busy: boolean;
     target: NetTarget | null; saved: NetTarget | null }
 
   let cfg = $state<Config | null>(null);
@@ -57,6 +59,32 @@
 
   const dirty = $derived(!!cfg && (retention !== cfg.trends.retention_days || flush !== cfg.trends.flush_s || energy !== cfg.trends.energy_days));
 
+  // ---- Placering af trend-databasen
+  let moveDir = $state('');
+  let moving = $state(false);
+  let moveError = $state('');
+  let moveDone = $state('');
+
+  async function moveDb(dir: string): Promise<void> {
+    moveError = moveDone = '';
+    const text = dir === ''
+      ? 'Flyt trend-databasen tilbage til datamappen?\n\nHistorikken kopieres, kontrolleres og tages i brug. Den gamle fil gemmes som trends.db.moved.'
+      : `Flyt trend-databasen til ${dir}?\n\nHistorikken kopieres, kontrolleres og tages i brug mens SCADA'en kører (trends står stille et øjeblik). Den gamle fil gemmes som trends.db.moved, til du selv sletter den.`;
+    if (!await ask(text)) return;
+    moving = true;
+    try {
+      const t = await api<Config['trends']>('PUT', '/api/system/config/storage', { trend_dir: dir });
+      if (cfg) cfg.trends = t;
+      moveDone = `Databasen ligger nu i ${t.storage.path}`;
+      moveDir = '';
+      await refresh();
+    } catch (e) {
+      moveError = (e as Error).message;
+    } finally {
+      moving = false;
+    }
+  }
+
   // ---- Netværk: formular, anvend, bekræft
   let nIface = $state('');
   let nMode = $state('dhcp');
@@ -65,6 +93,7 @@
   let nGateway = $state('');
   let nDns = $state('');
   let nHost = $state('');
+  let nFallback = $state(5);
   let net = $state<NetState | null>(null);
   let netBusy = $state(false);
   let netError = $state('');
@@ -72,7 +101,7 @@
   let poll: ReturnType<typeof setInterval> | null = null;
   let netFilled = false;
 
-  const MODE_TEXT: Record<string, string> = { dhcp: 'DHCP', static: 'Fast IP', dhcp_static: 'DHCP + fast IP som sekundær' };
+  const MODE_TEXT: Record<string, string> = { dhcp: 'DHCP', static: 'Fast IP', dhcp_static: 'DHCP + fast IP som sekundær', dhcp_fallback: 'DHCP, fast IP efter N fejl' };
   const STATE_TEXT: Record<string, string> = {
     idle: '', queued: 'Anmodning sendt …', applying: 'Anvender …', waiting_confirm: 'Venter på din bekræftelse',
     confirmed: 'Bekræftet', reverted: 'Gendannet', failed: 'Mislykkedes', stalled: 'Hjælperen svarer ikke',
@@ -90,6 +119,7 @@
     nGateway = t?.gateway ?? cfg?.network.gateway ?? '';
     nDns = (t?.dns ?? cfg?.network.dns ?? []).join(', ');
     nHost = t?.hostname || cfg?.network.hostname || '';
+    nFallback = t?.fallback_after || 5;
   }
 
   async function refreshNet(): Promise<void> {
@@ -118,7 +148,8 @@
     try {
       net = await api<NetState>('PUT', '/api/system/config/network', {
         interface: nIface, mode: nMode, ip: nMode === 'dhcp' ? '' : nIp, prefix: nMode === 'dhcp' ? 0 : Number(nPrefix),
-        gateway: nMode === 'static' ? nGateway : '', dns: dnsList(), hostname: nHost,
+        gateway: nMode === 'static' || nMode === 'dhcp_fallback' ? nGateway : '', dns: dnsList(), hostname: nHost,
+        fallback_after: Number(nFallback),
       });
       startPolling();
     } catch (e) {
@@ -187,6 +218,10 @@
     {#if cfg.storage.disk}
       {@const d = cfg.storage.disk}
       <p>Disk: <strong>{fmtBytes(d.free)}</strong> ledig af {fmtBytes(d.total)} ({Math.round((d.used / d.total) * 100)} % brugt)</p>
+      {#if d.free < 200 * 1024 * 1024 || d.free / d.total < 0.05}
+        <div class="notice warn"><strong>Lav ledig plads.</strong> Kør på maskinen som root: <code>scada-maint status</code> og derefter
+          <code>scada-maint emergency</code> (tørkørsel) / <code>scada-maint emergency --yes</code>. Se Manual › System.</div>
+      {/if}
     {/if}
     <table class="grid">
       <thead><tr><th>Fil / mappe</th><th class="num">Størrelse</th></tr></thead>
@@ -226,6 +261,23 @@
       {#if saveError}<div class="error">{saveError}</div>{/if}
       <p class="muted small">Et længere skriveinterval giver færre skrivninger til disken, men ved strømsvigt kan op til så mange sekunder af de nyeste værdier gå tabt. Ældre historik end opbevaringstiden slettes hver time.</p>
     </form>
+    <h4>Placering af trend-databasen</h4>
+    <p>Ligger i: <code>{cfg.trends.storage.path}</code></p>
+    {#if cfg.trends.storage.warning}<div class="notice warn">{cfg.trends.storage.warning}</div>{/if}
+    <form class="settings" onsubmit={(e) => { e.preventDefault(); moveDb(moveDir.trim()); }}>
+      <label>Flyt til mappe (under {cfg.trends.storage.roots.join(' eller ')})
+        <input bind:value={moveDir} placeholder="/mnt/ssd/scada" disabled={moving} />
+      </label>
+      <div class="row">
+        <button class="primary" type="submit" disabled={moving || !moveDir.trim()}>{moving ? 'Flytter …' : 'Flyt databasen'}</button>
+        {#if cfg.trends.storage.configured}<button type="button" onclick={() => moveDb('')} disabled={moving}>Tilbage til datamappen</button>{/if}
+      </div>
+      {#if moveDone}<span class="muted small">{moveDone}</span>{/if}
+      {#if moveError}<div class="error">{moveError}</div>{/if}
+      <p class="muted small">Brug en USB-SSD i stedet for SD-kortet til historikken. Monter disken først, og opret mappen én gang på maskinen med
+        <code>sudo install -d -o scada -g scada -m 0750 /mnt/ssd/scada</code>. Historikken kopieres og kontrolleres, før den tages i brug;
+        den gamle fil bliver liggende som <code>trends.db.moved</code>. Mangler disken ved en genstart, starter SCADA'en alligevel med en tom database i datamappen og viser en advarsel her.</p>
+    </form>
     <p class="muted small">Rækkerne er ca. 20–40 byte hver; SQLite skriver desuden journal (WAL), så den faktiske skrivning til flash er et par gange større. Er datamappen på et SD-kort, så flyt den til en USB-SSD ved mange tags.</p>
   </section>
 
@@ -252,8 +304,23 @@
     {/if}
     <h4>Netværksopsætning</h4>
     {#if !net?.enabled}
-      <div class="notice">Netværksændring via web er ikke aktiveret på denne server (kræver NetworkManager og at <code>sh deploy/install.sh</code> er kørt som root).</div>
+      <div class="notice">
+        {#if net?.disabled_reason === 'no_backend'}
+          <strong>Maskinens netværkssystem understøttes ikke.</strong> Understøttet: <strong>NetworkManager</strong> (Raspberry Pi OS) og <strong>ifupdown</strong>
+          (<code>/etc/network/interfaces</code>, Debian/Ubuntu-servere og VM'er). Tjek med <code>systemctl is-active NetworkManager</code> og <code>ls /etc/network/interfaces</code>;
+          <code>cat /var/lib/hypervisionplc-scada-net/capabilities</code> viser, hvad installationen fandt.
+        {:else}
+          <strong>Netværkshjælperen er ikke installeret.</strong> Installér en opdatering via <em>System › Opdatering</em> (den kører installationen), eller kør <code>install.sh</code> fra opdateringspakken som root. Tjek derefter
+          <code>ls /var/lib/hypervisionplc-scada-net</code> — filen <code>enabled</code> skal findes.
+        {/if}
+      </div>
     {:else}
+      <p class="muted small">Netværkssystem: <strong>{net.backend === 'ifupdown' ? 'ifupdown (/etc/network/interfaces)' : 'NetworkManager'}</strong>
+        {#if net.dhcp_available === false} · <strong>ingen DHCP-klient installeret</strong> — kun Fast IP kan vælges (installér <code>dhcpcd-base</code> for DHCP — siden opdateres selv inden for et halvt minut){/if}</p>
+      {#if net.watchdog && !net.watchdog.stale && net.watchdog.mode !== 'static'}
+        <p class="small">DHCP-vagt: <strong>{net.watchdog.message}</strong>
+          {#if net.watchdog.state === 'searching'} ({net.watchdog.fails}{net.watchdog.mode === 'dhcp_fallback' ? ` af ${net.watchdog.threshold}` : ''} kontroller uden svar){/if}</p>
+      {/if}
       {#if net.busy || ['confirmed', 'reverted', 'failed', 'stalled'].includes(net.state)}
         <div class="notice" class:warn={net.state === 'waiting_confirm'}>
           <strong>{STATE_TEXT[net.state] ?? net.state}</strong>{net.message ? ` — ${net.message}` : ''}
@@ -275,16 +342,22 @@
         </label>
         <label>Tilstand
           <select bind:value={nMode} disabled={net.busy}>
-            <option value="dhcp">DHCP (adresse fra routeren)</option>
+            <option value="dhcp" disabled={net.dhcp_available === false}>DHCP (adresse fra routeren)</option>
             <option value="static">Fast IP</option>
-            <option value="dhcp_static">DHCP + fast IP som sekundær adresse</option>
+            <option value="dhcp_static" disabled={net.dhcp_available === false}>DHCP + fast IP som sekundær adresse</option>
+            <option value="dhcp_fallback" disabled={net.dhcp_available === false}>DHCP, fast IP først efter N fejl</option>
           </select>
         </label>
         {#if nMode !== 'dhcp'}
           <label>IP-adresse <input bind:value={nIp} placeholder="192.168.1.50" disabled={net.busy} /></label>
           <label>Subnet-præfiks (24 = 255.255.255.0) <input type="number" min="8" max="30" bind:value={nPrefix} disabled={net.busy} /></label>
         {/if}
-        {#if nMode === 'static'}
+        {#if nMode === 'dhcp_fallback'}
+          <label>Tag reserve-IP'en efter så mange kontroller uden DHCP-svar (à 30 sekunder)
+            <input type="number" min="1" max="20" bind:value={nFallback} disabled={net.busy} />
+          </label>
+        {/if}
+        {#if nMode === 'static' || nMode === 'dhcp_fallback'}
           <label>Gateway (valgfri) <input bind:value={nGateway} placeholder="192.168.1.1" disabled={net.busy} /></label>
         {/if}
         <label>DNS-servere (kommasepareret, højst 3){nMode === 'static' ? '' : ' — tom = fra DHCP'}

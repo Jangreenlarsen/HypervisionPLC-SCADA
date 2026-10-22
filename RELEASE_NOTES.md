@@ -2,6 +2,34 @@
 
 ---
 
+## v0.125.1 — 2026-10-22 — Netværk: opdaterer sig selv
+
+- Netværkssystemet og DHCP-klienten registreres nu løbende (hvert halve minut). Installerer du fx `dhcpcd-base` på maskinen, kan DHCP vælges på siden kort efter — uden at køre nogen installation.
+
+## v0.125.0 — 2026-10-22 — Netværksopsætning virker også på Debian/Ubuntu-servere og ESXi-VM'er
+
+- Netværk kan nu sættes fra **System › Konfiguration** også på maskiner med **ifupdown** (`/etc/network/interfaces`) — typisk Debian/Ubuntu-servere og virtuelle maskiner — ikke kun med NetworkManager.
+- Samme sikkerhed: ændringen prøves først uden at røre filen, du bekræfter inden for 90 sekunder, og ellers vender den gamle opsætning tilbage. Filen får en sikkerhedskopi.
+- Mangler maskinen en DHCP-klient, er kun *Fast IP* valgbar (siden siger det). Siden viser nu præcist, hvorfor netværksændring ikke er aktiveret.
+- Efter opdateringen kører installationen automatisk og finder netværkssystemet.
+
+## v0.124.0 — 2026-10-22 — Oprydning ved fuld disk
+
+- Nyt kommandolinjeværktøj **`scada-maint`** (på maskinen, som root) til at rydde logfiler, gamle backups og gammel historik, når disken er ved at blive fuld — også uden at websiden kan åbnes. Det viser som standard kun, hvad der ville ske (**tørkørsel**); `--yes` udfører. `scada-maint emergency` går trin for trin og stopper, når der er plads nok. Tags, brugere og tegninger røres aldrig.
+- Konfiguration-siden advarer, når der er lidt ledig plads.
+
+## v0.123.0 — 2026-10-22 — Konfiguration: DHCP-vagt, reserve-IP og testvejledning
+
+- Ny netværkstilstand **DHCP, fast IP først efter N fejl**: DHCP forsøges hele tiden; svarer routeren ikke i N kontroller (à 30 s), tager maskinen en fast reserve-IP i brug, og slipper den igen, når DHCP svarer. Siden viser vagtens status.
+- Siden fortæller nu præcist, **hvorfor** netværksændring ikke er aktiveret (NetworkManager mangler, eller `install.sh` er ikke kørt).
+- Ny testvejledning til første prøve på en rigtig Pi: `docs/TEST_PI.md`.
+
+## v0.122.0 — 2026-10-22 — Konfiguration: flyt trend-databasen
+
+- Under **System › Konfiguration** kan trend-historikken nu flyttes til en **anden disk** (fx en USB-SSD) for at skåne SD-kortet — mens SCADA'en kører. Historikken kopieres og kontrolleres, før den nye database tages i brug; den gamle fil bliver liggende (`trends.db.moved`).
+- Mangler disken ved en genstart, starter SCADA'en alligevel (tom database i datamappen) og viser en advarsel.
+- Kræver, at mappen på disken oprettes én gang med `sudo install -d -o scada -g scada -m 0750 /mnt/ssd/scada`, og at `sh deploy/install.sh` er kørt (opdaterer tjenestens skriverettigheder).
+
 ## v0.121.0 — 2026-10-22 — Konfiguration: netværk
 
 - Under **System › Konfiguration** kan netværket nu sættes: **DHCP**, **fast IP** (IP, subnet, gateway, DNS) eller **DHCP + fast IP som sekundær**, samt værtsnavn.

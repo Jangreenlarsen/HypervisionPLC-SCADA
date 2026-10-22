@@ -1,0 +1,14 @@
+[Unit]
+Description=DHCP-vagt for HypervisionPLC SCADA (root)
+
+[Service]
+Type=oneshot
+# Hold <state>/capabilities opdateret (fx efter en senere "apt install dhcpcd-base"); en fejl her må ikke stoppe vagten
+ExecStartPre=-/usr/local/lib/hypervisionplc-scada/net-detect.sh
+ExecStart=/usr/local/lib/hypervisionplc-scada/net-watchdog.sh
+TimeoutStartSec=120
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=-/var/lib/hypervisionplc-scada-net -/run/NetworkManager

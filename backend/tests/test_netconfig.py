@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_app
 from app.services import netconfig
+from app.services import sysconfig as netconfig_sys
 from app.services.errors import ServiceError
 
 ADMIN_PW = "test-admin-pw-1"
@@ -126,7 +127,10 @@ def test_haengt_anmodning_giver_stalled(tmp_path):
     assert svc.status()["state"] == "stalled"
 
 
-def test_api_kun_admin_og_validering(tmp_path):
+def test_api_kun_admin_og_validering(tmp_path, monkeypatch):
+    # Uafhængig af maskinen: netkortene er altid eth0 (på Linux ville `ip` ellers give maskinens rigtige netkort)
+    monkeypatch.setattr(netconfig_sys, "network_status", lambda: {"available": True, "hostname": "t", "gateway": "", "dns": [],
+                                                                  "error": "", "interfaces": [{"name": "eth0", "mac": "", "state": "up", "addresses": []}]})
     settings = Settings(data_dir=tmp_path, poll_fast_s=0.05, poll_slow_s=0.2, plc_rate=9,
                         frontend_dir=tmp_path / "nope", admin_password=ADMIN_PW, backup_hours=0,
                         net_state_dir=tmp_path / "state")
@@ -347,3 +351,30 @@ def test_script_recover_gendanner_efter_afbrudt_aendring(sandbox):
     (tmp / "state" / "status.json").write_text(json.dumps({"state": "confirmed", "ts": 1}))
     subprocess.run([SH, str(SCRIPT), "--recover"], env=env, check=False, timeout=30)
     assert status(tmp)["state"] == "confirmed" and calls(tmp) == []     # rører ikke en afsluttet ændring
+
+
+@needs_sh
+def test_script_skriver_vagtens_konfiguration_foerst_efter_bekraeftelse(sandbox):
+    tmp, env = sandbox
+    request(tmp, MODE="dhcp_fallback", FALLBACK_AFTER="7", IP="192.168.100.10", GATEWAY="192.168.100.1")
+    p = subprocess.Popen([SH, str(SCRIPT)], env=env)
+    wait_for_state(tmp, "waiting_confirm")
+    assert not (tmp / "state" / "watchdog.conf").exists()
+    mod = [c for c in calls(tmp) if "connection modify" in c][0]
+    assert "ipv4.method auto" in mod and 'ipv4.addresses ' in mod and "192.168.100.10" not in mod   # profilen er ren DHCP
+    (tmp / "config" / "network.confirm").write_text("ok")
+    p.wait(timeout=30)
+    conf = (tmp / "state" / "watchdog.conf").read_text()
+    assert "MODE=dhcp_fallback" in conf and "FALLBACK_AFTER=7" in conf and "IP=192.168.100.10" in conf and "UUID=1111-2222" in conf
+
+
+@needs_sh
+def test_script_afvist_aendring_roerer_ikke_vagtens_konfiguration(sandbox):
+    tmp, env = sandbox
+    (tmp / "state" / "watchdog.conf").write_text("MODE=dhcp\n")
+    request(tmp)
+    p = subprocess.Popen([SH, str(SCRIPT)], env=env)
+    wait_for_state(tmp, "waiting_confirm")
+    (tmp / "config" / "network.revert").write_text("ok")
+    p.wait(timeout=30)
+    assert (tmp / "state" / "watchdog.conf").read_text() == "MODE=dhcp\n"

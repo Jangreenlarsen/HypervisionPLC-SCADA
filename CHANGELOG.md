@@ -4,6 +4,52 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.125.1 build 0185] — 2026-10-22 — fix: netværkssystem og DHCP-klient registreres løbende
+
+- Fund ved test på serveren: `install.sh` ligger kun i opdateringspakken (ikke på serveren), så vejledningen "kør install.sh --update" kunne ikke følges, og en `apt install dhcpcd-base` bagefter slog ikke igennem før næste opdatering.
+- `deploy/net-detect.sh` (ny, root) — finder netværkssystem (`nm` / `ifupdown` / `none`) og DHCP-klient og skriver `capabilities` + markører. Køres af `install.sh` og nu også af DHCP-vagtens timer (`ExecStartPre`, hvert 30. s), så siden opdaterer sig selv, og timeren altid er slået til.
+- Tekster i siden/vejledningerne rettet (ingen henvisning til `install.sh` på serveren).
+- `backend/tests/test_netdetect.py` (ny, 5 tests).
+
+## [0.125.0 build 0184] — 2026-10-22 — Netværk: ifupdown-understøttelse (Debian/Ubuntu-servere, ESXi-VM'er)
+
+- Baggrund: testserveren er en Debian 13-VM med `ifupdown` (ingen NetworkManager, ingen sudo, ingen DHCP-klient) — netværksopsætning via web var derfor slået fra (`no-nmcli`).
+- `deploy/apply-config.sh` — ny ifupdown-gren: anvender via `ifdown --force -i <gammel>` + `ifup -i <ny fil>` UDEN at røre `/etc/network/interfaces`; skriver filen varigt (atomisk, sikkerhedskopi, 3 beholdes) + DNS i en almindelig `resolv.conf` + værtsnavn (inkl. `/etc/hosts`) først ved bekræftelse; fortryd/timeout/død proces → den gamle fil gælder (`ifup -i`/`--recover`). Kun netkortets `iface`-blok i hovedfilen omskrives (awk); står den andetsteds, afvises ændringen. Afviser DHCP uden DHCP-klient.
+- `deploy/net-watchdog.sh` — ifupdown-gren med iproute2 (lease = adresse med flaget `dynamic`; reserve-IP via `ip addr add/del`, standardrute kun hvis ingen).
+- `deploy/install.sh` — finder netværkssystem (`nm` / `ifupdown` / `none`) og DHCP-klient → `capabilities`; `no-backend` i stedet for `no-nmcli`. `hypervisionplc-scada-config.service` — skriverettigheder til `/etc/network` m.m.
+- `backend/app/services/netconfig.py`, `frontend/src/pages/SystemConfig.svelte` — `capabilities` (backend, dhcp_available), afvisning af DHCP uden klient, DHCP-valg slået fra i UI, præcis besked ved ikke-understøttet system.
+- **Efter review (agent):** `ifup`/`ifdown` køres via `systemd-run` i en egen enhed (`KillMode=process`), så DHCP-klienten ikke dræbes og ikke ligger i tjenestens sandkasse; DNS og `/etc/hosts` skrives uden temp-filer i `/etc` (ProtectSystem=strict) og uden sed-regex (ingen injektion via det gamle værtsnavn); netværksfiler med CRLF, indrykkede nøgleord eller ukendte linjer afvises i stedet for at blive ødelagt; relative `source`-stier gøres absolutte; præcis netkort-sammenligning (ikke regex) og navnet må ikke starte med `-`; sikkerhedskopi-oprydning virker (find i stedet for glob under `set -f`); `ifupdown.state` fjernes straks efter varig skrivning; DHCP-vagten ignorerer en gammel status fra en død ændring, nulstiller sin tilstand efter genstart (boot_id) og er idempotent over for en manglende reserve-adresse; ifupdown kræver **dhcpcd** (dhclient kører med `-1`, udhcpc giver ingen levetid).
+- `backend/tests/test_ifupdown.py` (ny, 24 tests) — stanzaer pr. tilstand, omskrivning bevarer øvrige netkort/kommentarer/source, urørt under ventetid, varig skrivning + DNS + værtsnavn, fortryd, ifup-fejl, DHCP uden klient, symlink-resolv.conf, recover, vagten.
+- Hele backend-suiten (593 tests) er kørt på testserveren (Debian 13, dash) og består; ifupdown-forløbet er desuden kørt mod serverens rigtige `/etc/network/interfaces` med falske ifup/ifdown.
+- Manual (System), `docs/TEST_PI.md` (ESXi-/ifupdown-afsnit).
+
+## [0.124.0 build 0183] — 2026-10-22 — scada-maint: oprydning ved fuld disk
+
+- `backend/app/maint.py` (ny) + `deploy/scada-maint.sh` (installeres som `/usr/local/sbin/scada-maint`) — kommandolinjeværktøj: `status`, `logs`, `backups`, `trends`, `history`, `trends-reset`, `emergency`. Tørkørsel som standard (`--yes` for at udføre), kræver root, logger til systemloggen, rører aldrig tags/brugere/tegninger/bindinger. `--shrink` (VACUUM) afvises uden nok plads; `emergency` stopper, når der er plads nok.
+- `frontend/src/pages/SystemConfig.svelte` — advarsel ved lav ledig plads (< 5 % eller < 200 MB) med henvisning til værktøjet; manual (System), `docs/TEST_PI.md` (6b).
+- `backend/tests/test_maint.py` (ny); `backend/tests/test_netconfig.py` — API-testen er nu uafhængig af maskinens netkort (fejl fundet ved kørsel på Linux).
+- Hele backend-suiten (568 tests) er kørt på testserveren (Debian 13, dash, Python 3.13) og består.
+
+## [0.123.0 build 0182] — 2026-10-22 — System › Konfiguration (trin 4: DHCP-vagt og reserve-IP) + testvejledning
+
+- `deploy/net-watchdog.sh` (ny, root) + `hypervisionplc-scada-netwatch.{service,timer}` + `install.sh` — tæller kontroller uden DHCP-svar; i tilstanden *DHCP, fast IP efter N fejl* lægges reserve-IP'en på midlertidigt (`--temporary` + `device reapply`) efter N og fjernes igen ved lease; tæller ikke når kablet er ude; rører ikke netværket under en ændring; status i `watchdog.json`.
+- `deploy/apply-config.sh` — tilstanden `dhcp_fallback` (profilen er ren DHCP), `FALLBACK_AFTER`, og skriver `watchdog.conf` først efter bekræftelse.
+- `backend/app/services/netconfig.py` — ny tilstand + `fallback_after` (1–20), `disabled_reason` (`no_nmcli` / `not_installed`), vagtens status i `GET /network`.
+- `frontend/src/pages/SystemConfig.svelte` — ny tilstand, N-felt, vagtens status, og en præcis besked om hvorfor netværksændring ikke er aktiveret (NetworkManager mangler / install.sh ikke kørt).
+- `docs/TEST_PI.md` (ny) — samlet testvejledning for trin 1–5 på en rigtig Pi; `.gitattributes`, manual (System), `PLAN.md`.
+- `backend/tests/test_netwatch.py` + udvidede `test_netconfig.py` — vagten med falsk nmcli (tælling, reserve-IP, fjernelse, kabel ude, ændring i gang, ugyldig konfiguration).
+- Kun testet mod falsk nmcli — **ikke afprøvet på en rigtig Pi**.
+
+## [0.122.0 build 0181] — 2026-10-22 — System › Konfiguration (trin 5: flyt trend-databasen)
+
+- `backend/app/storage/trends_db.py` — `relocate()`: konsistent kopi (backup-API) under låsen, kontrol (quick_check + antal rækker), skift af forbindelse; den gamle fil gemmes som `.moved`; fejl efterlader den gamle database uændret.
+- `backend/app/services/sysconfig.py` — `validate_trend_dir` (kun under /mnt eller /media, anden disk, skrivbar, plads, ingen eksisterende trends.db), `resolve_trend_db_path` (opstart: manglende disk → tom database i datamappen + advarsel), `save_section`.
+- `backend/app/api/system_config.py`, `backend/app/main.py` — `PUT /api/system/config/storage` (admin, auditlogget, én flytning ad gangen); placering og advarsel i `GET`.
+- `deploy/hypervisionplc-scada.service` — `ReadWritePaths` udvidet med `-/mnt -/media`.
+- `frontend/src/pages/SystemConfig.svelte`, manual (System); `PLAN.md` (ændret afgrænsning af trin 5).
+- `backend/tests/test_trend_storage.py` — flytning frem/tilbage, afvisning, validering, opstart uden disk.
+- Kun testet; **ikke afprøvet med en rigtig USB-disk** og ikke set i browser.
+
 ## [0.121.0 build 0180] — 2026-10-22 — System › Konfiguration (trin 3: netværk)
 
 - `deploy/apply-config.sh` (ny, root) + `hypervisionplc-scada-config.{path,service}` + `install.sh` — anvender en netværksændring med NetworkManager: validerer igen, anvender **midlertidigt** (`--temporary`), venter 90 s på bekræftelse og gør den først varig ved bekræftelse; ellers (eller ved fejl, *Fortryd nu*, genstart, dødt script via `ExecStopPost --recover`) vender den gamle opsætning tilbage. Efter reviewer-gennemgang: root skriver kun i sin egen mappe `/var/lib/hypervisionplc-scada-net` (status/log), anmodningen tages ind med `mv` og symlinks afvises, nmcli-kald har tidsgrænse, `CONFIRM_S` begrænses 20–180, værtsnavn sættes først efter bekræftelse, hærdet service-enhed.

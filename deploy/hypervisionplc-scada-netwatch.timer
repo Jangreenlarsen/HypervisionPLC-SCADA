@@ -1,0 +1,10 @@
+[Unit]
+Description=Kør DHCP-vagten for HypervisionPLC SCADA hvert 30. sekund
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=30
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

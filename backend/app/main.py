@@ -100,7 +100,9 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                                                                 app.state.audit_service)
         symbol_task = asyncio.create_task(app.state.symbol_runtime.run(), name="symbols")
         alarm_task = asyncio.create_task(app.state.alarm_service.run(), name="alarms")
-        trend_db = TrendDatabase(settings.data_dir / "trends.db")
+        trend_path, trend_warning = sysconfig.resolve_trend_db_path(settings.data_dir)
+        app.state.trend_storage_warning = trend_warning
+        trend_db = TrendDatabase(trend_path)
         app.state.trend_db = trend_db
         app.state.backup_service.trend_db = trend_db
         app.state.trend_recorder = TrendRecorder(manager, trend_db, flush_s=settings.trend_flush_s,
