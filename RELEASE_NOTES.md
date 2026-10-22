@@ -2,6 +2,10 @@
 
 ---
 
+## v0.115.2 — 2026-10-22 — Trends: grafer med navn
+
+- Graferne i Trends hedder nu det samme som kurverne i dem (tagnavn, fx "Kedel temp, Kedel tryk (°C)") i stedet for kun enheden.
+
 ## v0.115.1 — 2026-10-22 — Trends: uregelmæssigheder som overlay
 
 - Når **Analysér data** er slået til, er der en knap **Uregelmæssigheder** i værktøjslinjen, som viser oversigten som et vindue oven på skærmen. Det tager ikke plads fra graferne og lukkes med ×.

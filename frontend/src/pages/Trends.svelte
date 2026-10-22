@@ -379,6 +379,12 @@
   const groups = $derived(groupTags(selected.filter((n) => tagInfo.has(n)).map((n) => ({
     name: n, unit: tagInfo.get(n)!.unit, isBool: tagInfo.get(n)!.is_bool,
   })), assign));
+  /** Grafens titel: kurvernes navne (tagget "navn"-parameter, ellers tag-navnet) og enheden. */
+  function chartTitle(tags: { name: string }[]): string {
+    const names = tags.map((t) => label(t.name)).join(', ');
+    const unit = chartUnit(tags);
+    return unit ? `${names} (${unit})` : names;
+  }
   /** Y-aksens enhed: den fælles enhed for tal-kurverne i grafen (blandede enheder → ingen). */
   function chartUnit(tags: { name: string; isBool?: boolean }[]): string {
     if (tags.every((t) => t.isBool)) return '';
@@ -599,7 +605,7 @@
     {:else if resp}
       {#each groups as [unit, tags] (unit + tags.map((t) => t.name).join(','))}
         {@const c = chartFor(tags)}
-        <TrendChart title={unit.startsWith('Graf ') ? `${unit} — ${[...new Set(tags.map((t) => tagInfo.get(t.name)?.unit || (t.isBool ? 'Til/fra' : '')).filter(Boolean))].join(', ') || 'Uden enhed'}` : unit} unit={chartUnit(tags)} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} {divider} {linked} {view} onview={setView} {resetTick} />
+        <TrendChart title={chartTitle(tags)} unit={chartUnit(tags)} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} {divider} {linked} {view} onview={setView} {resetTick} />
       {/each}
       <p class="muted small">Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); dobbeltklik eller <em>Nulstil visning</em> for at zoome ud. Med vælgeren <em>Graf</em> ud for et valgt tag bestemmer du selv, hvilken graf kurven vises i. <em>Lås graferne sammen</em> får alle grafer til at zoome og scrolle sammen. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
     {/if}

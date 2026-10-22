@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.115.2 build 0173] — 2026-10-22 — fix: Trends-grafer får tagnavne som titel
+
+- `frontend/src/pages/Trends.svelte` — grafens titel er nu kurvernes navne (tagget's navn-parameter, ellers tag-navnet) plus enheden, i stedet for kun enheden / "Graf N".
+- `frontend/src/lib/TrendChart.svelte` — titlen på én linje med "…" ved overlængde (fuld tekst ved hover).
+- Kun frontend. Kun bygget og testet (647 tests), ikke set i browser.
+
 ## [0.115.1 build 0172] — 2026-10-22 — Trends: uregelmæssigheder som overlay
 
 - `frontend/src/pages/Trends.svelte` — oversigten *Uregelmæssigheder* er flyttet ud af venstre panel og vises nu som et overlay oven på skærmen (knap i værktøjslinjen, vises med *Analysér data*; lukkes med ×).

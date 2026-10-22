@@ -340,7 +340,7 @@
 </script>
 
 <figure class="chart">
-  <figcaption>{title}</figcaption>
+  <figcaption {title}>{title}</figcaption>
   <div bind:this={el}></div>
 </figure>
 
@@ -352,7 +352,7 @@
     border-radius: var(--radius);
     padding: .5rem .5rem .25rem;
   }
-  figcaption { font-weight: 600; font-size: .9rem; margin: 0 0 .25rem .25rem; }
+  figcaption { font-weight: 600; font-size: .9rem; margin: 0 0 .25rem .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   :global(.u-legend) { font-size: .85rem; }
   /* Fast udtryk: aflæsningerne må ikke skifte bredde/højde, når markøren flyttes (ellers hopper legend og graf) */
   :global(.u-legend .u-series) { white-space: nowrap; }
