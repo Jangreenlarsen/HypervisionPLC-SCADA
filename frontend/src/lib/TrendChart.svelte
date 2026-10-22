@@ -209,9 +209,43 @@
     chart.setScale('x', { min: full[0], max: full[1] });
   }
 
+  /** Flyt det zoomede udsnit (sekunder) uden at forlade den valgte periode. */
+  function panBy(dt: number): void {
+    if (!chart) return;
+    const min = chart.scales.x.min ?? full[0], max = chart.scales.x.max ?? full[1];
+    const span = max - min;
+    const lo = Math.min(Math.max(min + dt, xRange[0]), Math.max(xRange[0], xRange[1] - span));
+    chart.setScale('x', { min: lo, max: lo + span });
+  }
+
+  /** Scroll (hjul, eller træk med Shift nede) når der er zoomet ind. */
+  function bindPan(over: HTMLElement): void {
+    const secPerPx = () => {
+      const u = chart!;
+      return ((u.scales.x.max ?? 0) - (u.scales.x.min ?? 0)) / Math.max(1, over.clientWidth);
+    };
+    over.addEventListener('wheel', (e) => {
+      if (!zoomed || !chart) return;
+      e.preventDefault();
+      const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      panBy(Math.sign(d) * Math.min(Math.abs(d), 200) * secPerPx());
+    }, { passive: false });
+    over.addEventListener('mousedown', (e) => {
+      if (!e.shiftKey || !zoomed || !chart) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();   // ingen zoom-markering
+      let lastX = e.clientX;
+      const move = (m: MouseEvent) => { panBy(-(m.clientX - lastX) * secPerPx()); lastX = m.clientX; };
+      const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    }, true);
+  }
+
   function build(): void {
     chart?.destroy();
     chart = new uPlot(options(el.clientWidth || 600), data as uPlot.AlignedData, el);
+    bindPan(chart.over);
     showFull();
   }
 
