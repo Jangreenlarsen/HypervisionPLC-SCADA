@@ -153,5 +153,6 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.114.0 — Trends: vælg selv graf (Auto / Graf 1–8) pr. tag
 - [x] done v0.115.0 — Trends: stiplede skillelinjer pr. time/dag (til/fra)
 - [x] done v0.116.0 — Trends: udfyld huller med kunstige blinkende punkter; dato ved døgnskift
+- [x] done v0.117.0 — Trends: dobbeltklik viser graf i fuld størrelse
 - [x] done v0.102.0 — Trends: *Skjul spikes* udfylder nu spikes med lineært interpolerede værdier i stedet for huller
 - [x] done v0.101.0 — Trends: op til 12 kurver ad gangen (farver genbruges med stiplet linje fra nr. 8) og tilvalget *Analysér data* (spikes, urealistiske spring, fastfrosne værdier, huller; markeres, spikes kan skjules)

@@ -2,6 +2,10 @@
 
 ---
 
+## v0.117.0 — 2026-10-22 — Trends: graf i fuld størrelse
+
+- **Dobbeltklik** på en graf i Trends viser den alene i fuld størrelse. Dobbeltklik igen eller tryk Esc for at gå tilbage. Dobbeltklik zoomer ikke længere ud; brug **Nulstil visning**.
+
 ## v0.116.0 — 2026-10-22 — Trends: udfyld huller og datoer
 
 - Nyt tilvalg **Udfyld huller (blinker)**: hvor data mangler (fx PLC uden forbindelse), tegnes en kunstig, interpoleret linje, som **blinker**, så den ikke forveksles med målte værdier. Det er kun visning — de gemte data og CSV ændres ikke. Før første og efter sidste måling udfyldes intet.

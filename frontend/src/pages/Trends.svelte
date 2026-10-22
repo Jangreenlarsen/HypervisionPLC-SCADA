@@ -90,6 +90,12 @@
   // Titel, legend, kant og mellemrum pr. graf + hjælpeteksten — måles på de tegnede grafer (afhænger af skrift/zoom)
   let overhead = $state(90);
   let noteH = $state(30);
+  // Dobbeltklik på en graf: vis kun den, i fuld størrelse (dobbeltklik igen eller Esc: tilbage)
+  let expandedKey = $state<string | null>(null);
+  const keyOf = (unit: string, tags: { name: string }[]) => unit + tags.map((t) => t.name).join(',');
+  const expanded = $derived(expandedKey && groups.some(([u, t]) => keyOf(u, t) === expandedKey) ? expandedKey : null);
+  const fullHeight = $derived(Math.max(260, room - noteH - overhead));
+  function toggleExpand(key: string): void { expandedKey = expanded === key ? null : key; tick().then(measure); }
   const plotHeight = $derived.by(() => {
     const bools = groups.filter(([, t]) => t.every((x) => x.isBool)).length;
     const numbers = groups.length - bools;
@@ -477,6 +483,8 @@
   });
 </script>
 
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && expanded) expandedKey = null; }} />
+
 <div class="row toolbar">
   <BackToDrawing />
   {#each RANGES as r}
@@ -608,11 +616,13 @@
     {:else if !selected.length}
       <div class="panel muted">Vælg et eller flere tags til venstre.</div>
     {:else if resp}
-      {#each groups as [unit, tags] (unit + tags.map((t) => t.name).join(','))}
+      {#each groups as [unit, tags] (keyOf(unit, tags))}
+        {#if !expanded || expanded === keyOf(unit, tags)}
         {@const c = chartFor(tags)}
-        <TrendChart title={chartTitle(tags)} unit={chartUnit(tags)} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} {divider} {linked} {view} onview={setView} {resetTick} />
+        <TrendChart title={chartTitle(tags)} unit={chartUnit(tags)} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={expanded ? fullHeight : plotHeight} expanded={expanded !== null} ondblclick={() => toggleExpand(keyOf(unit, tags))} {divider} {linked} {view} onview={setView} {resetTick} />
+        {/if}
       {/each}
-      <p class="muted small">Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); dobbeltklik eller <em>Nulstil visning</em> for at zoome ud. Med vælgeren <em>Graf</em> ud for et valgt tag bestemmer du selv, hvilken graf kurven vises i. <em>Lås graferne sammen</em> får alle grafer til at zoome og scrolle sammen. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
+      <p class="muted small">Dobbeltklik på en graf for at se den i fuld størrelse (dobbeltklik igen eller Esc for at gå tilbage). Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); <em>Nulstil visning</em> zoomer ud. Med vælgeren <em>Graf</em> ud for et valgt tag bestemmer du selv, hvilken graf kurven vises i. <em>Lås graferne sammen</em> får alle grafer til at zoome og scrolle sammen. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
     {/if}
   </section>
 </div>

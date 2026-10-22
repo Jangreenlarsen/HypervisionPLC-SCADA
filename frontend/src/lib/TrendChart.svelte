@@ -11,7 +11,7 @@
     /** Kunstige (interpolerede) tidspunkter — tegnes blinkende, så de ikke forveksles med målte data. */ synthetic?: Set<number>;
     /** Fundne uregelmæssigheder (tilvalg) — tegnes som ring om punktet. */ issues?: Issue[] }
 
-  let { title, unit, series, data, xRange, height = 260, divider = 'none', linked = false, view = null, onview, resetTick = 0 }: {
+  let { title, unit, series, data, xRange, height = 260, expanded = false, ondblclick, divider = 'none', linked = false, view = null, onview, resetTick = 0 }: {
     title: string;
     unit: string;
     series: ChartSeries[];
@@ -20,6 +20,10 @@
     xRange: [number, number];
     /** Plot-højde i px for tal-grafer (til/fra-grafer er altid lave) — sættes af siden ud fra skærmen. */
     height?: number;
+    /** Fuld størrelse: også til/fra-grafer bruger `height`. */
+    expanded?: boolean;
+    /** Dobbeltklik på grafen (i stedet for at zoome ud — det gør *Nulstil visning*). */
+    ondblclick?: () => void;
     /** Stiplede skillelinjer ved hele timer eller dage. */
     divider?: Divider;
     /** Låst sammen: zoom/scroll i én graf flytter alle grafer til samme tidsudsnit. */
@@ -266,13 +270,13 @@
     const isBool = series.every((s) => s.isBool);
     return {
       width,
-      height: isBool ? 160 : height,
+      height: isBool && !expanded ? 160 : height,
       padding: [null, (column = labelColumn(width)), null, null],   // plads til kurvenavnene ved højre kant
       cursor: {
         sync: { key: 'trend' },
         drag: { x: true, y: false },
-        // Dobbeltklik: tilbage til hele den valgte periode (uPlots egen udzoom går kun til dataenes yderpunkter)
-        bind: { dblclick: () => () => { showFull(); return null; } },
+        // Dobbeltklik: åbn/luk fuld størrelse (siden afgør det); udzoom til hele perioden sker med *Nulstil visning*
+        bind: { dblclick: () => () => { if (ondblclick) ondblclick(); else showFull(); return null; } },
       },
       hooks: {
         drawAxes: [drawDividers],
@@ -378,7 +382,7 @@
     syncBlink();
     void xRange; // ny periode → effekten skal også køre
     if (!chart) return;
-    const wanted = series.every((s) => s.isBool) ? 160 : height;
+    const wanted = series.every((s) => s.isBool) && !expanded ? 160 : height;
     if (chart.height !== wanted) chart.setSize({ width: el.clientWidth, height: wanted });
     if (sig !== signature) {
       signature = sig;
