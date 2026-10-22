@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.113.0 build 0167] — 2026-10-22 — Trends: lås graferne sammen og nulstil visning
+
+- `frontend/src/lib/TrendChart.svelte` — nye props `linked`/`view`/`onview`/`resetTick`: når grafer er låst sammen, følger alle det udsnit, brugeren zoomer/scroller til i én graf; `resetTick` zoomer ud til hele perioden.
+- `frontend/src/pages/Trends.svelte` — knapperne *Lås graferne sammen* og *Nulstil visning* + hjælpetekst.
+- Kun frontend. Kun bygget og testet (641 tests), ikke set i browser.
+
 ## [0.112.0 build 0166] — 2026-10-22 — Trends: scroll i tid når der er zoomet
 
 - `frontend/src/lib/TrendChart.svelte` — når en graf er zoomet ind, flytter musehjulet (eller Shift+træk) udsnittet i tid, begrænset til den valgte periode.

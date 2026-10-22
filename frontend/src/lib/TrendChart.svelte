@@ -10,7 +10,7 @@
   export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null;
     /** Fundne uregelmæssigheder (tilvalg) — tegnes som ring om punktet. */ issues?: Issue[] }
 
-  let { title, unit, series, data, xRange, height = 260 }: {
+  let { title, unit, series, data, xRange, height = 260, linked = false, view = null, onview, resetTick = 0 }: {
     title: string;
     unit: string;
     series: ChartSeries[];
@@ -19,6 +19,13 @@
     xRange: [number, number];
     /** Plot-højde i px for tal-grafer (til/fra-grafer er altid lave) — sættes af siden ud fra skærmen. */
     height?: number;
+    /** Låst sammen: zoom/scroll i én graf flytter alle grafer til samme tidsudsnit. */
+    linked?: boolean;
+    /** Det fælles udsnit (når linked) — sættes af siden ud fra den graf brugeren sidst flyttede. */
+    view?: [number, number] | null;
+    onview?: (range: [number, number]) => void;
+    /** Tælles op af siden for at nulstille visningen til hele perioden. */
+    resetTick?: number;
   } = $props();
 
   let el: HTMLDivElement;
@@ -169,7 +176,10 @@
       hooks: {
         draw: [drawIssues, drawLabels],
         setScale: [(u: uPlot, key: string) => {
-          if (key === 'x') zoomed = Math.abs((u.scales.x.min ?? 0) - full[0]) > 0.5 || Math.abs((u.scales.x.max ?? 0) - full[1]) > 0.5;
+          if (key !== 'x') return;
+          const lo = u.scales.x.min ?? 0, hi = u.scales.x.max ?? 0;
+          zoomed = Math.abs(lo - full[0]) > 0.5 || Math.abs(hi - full[1]) > 0.5;
+          if (linked) onview?.([lo, hi]);
         }],
       },
       legend: { live: true },
@@ -275,6 +285,23 @@
       if (!zoomed || Math.abs(xRange[1] - xRange[0] - span) > 1) showFull();
     }
     span = xRange[1] - xRange[0];
+  });
+
+  // Låst sammen: følg det fælles udsnit fra den graf brugeren flyttede
+  $effect(() => {
+    const v = view;
+    if (!chart || !linked || !v) return;
+    const cur = chart.scales.x;
+    if (Math.abs((cur.min ?? 0) - v[0]) > 0.5 || Math.abs((cur.max ?? 0) - v[1]) > 0.5) chart.setScale('x', { min: v[0], max: v[1] });
+  });
+
+  // Nulstil visning: hele den valgte periode
+  let seenReset = 0;
+  $effect(() => {
+    const n = resetTick;
+    if (!chart || n === seenReset) return;
+    seenReset = n;
+    showFull();
   });
 
   onDestroy(() => {

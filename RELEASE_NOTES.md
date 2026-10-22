@@ -2,6 +2,11 @@
 
 ---
 
+## v0.113.0 — 2026-10-22 — Trends: lås graferne sammen
+
+- Ny knap **Lås graferne sammen** i Trends: zoom og scroll i én graf flytter alle graferne til samme tidsudsnit.
+- Ny knap **Nulstil visning**: zoomer alle grafer ud til hele den valgte periode.
+
 ## v0.112.0 — 2026-10-22 — Trends: scroll i tid
 
 - I Trends kan du nu **scrolle i tid**, når du har zoomet ind: brug musehjulet over grafen, eller træk med Shift nede. Dobbeltklik zoomer ud.

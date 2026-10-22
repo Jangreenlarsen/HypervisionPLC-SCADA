@@ -28,6 +28,15 @@
   let error = $state('');
   let loading = $state(false);
   let resp = $state<DataResp | null>(null);
+  // Låst sammen: zoom/scroll i én graf flytter alle grafer
+  let linked = $state(false);
+  let view = $state<[number, number] | null>(null);
+  let resetTick = $state(0);
+  function setView(r: [number, number]): void {
+    if (!view || Math.abs(view[0] - r[0]) > 0.5 || Math.abs(view[1] - r[1]) > 0.5) view = r;
+  }
+  function toggleLinked(): void { linked = !linked; view = null; }
+  function resetView(): void { view = null; resetTick++; }
   let timer: ReturnType<typeof setInterval> | null = null;
   let enabling = $state('');
   // Analyse (tilvalg): find uregelmæssigheder i tal-kurverne; "skjul spikes" gør dem til huller i visningen (rådata uændret)
@@ -441,6 +450,10 @@
     </label>
     <label class="row small" title="Udfylder enkeltstående spikes med interpolerede værdier i visningen — de gemte data ændres ikke"><input type="checkbox" bind:checked={hide} onchange={() => saveFlag('trend.hideSpikes', hide)} /> Skjul spikes</label>
   {/if}
+  {#if selected.length}
+    <button class:primary={linked} onclick={toggleLinked} aria-pressed={linked} title="Når grafernes tid er låst sammen, flytter zoom og scroll i én graf alle grafer til samme tidsudsnit">{linked ? '🔒 Grafer låst sammen' : 'Lås graferne sammen'}</button>
+    <button onclick={resetView} title="Zoom ud til hele den valgte periode i alle grafer">Nulstil visning</button>
+  {/if}
   {#if loading}<span class="muted small">Henter …</span>{/if}
 </div>
 
@@ -533,7 +546,7 @@
     {:else if resp}
       {#each groups as [unit, tags] (unit + tags.map((t) => t.name).join(','))}
         {@const c = chartFor(tags)}
-        <TrendChart title={unit} unit={unit === 'Til/fra' || unit === 'Uden enhed' ? '' : unit} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} />
+        <TrendChart title={unit} unit={unit === 'Til/fra' || unit === 'Uden enhed' ? '' : unit} series={c.series} data={c.data} xRange={[resp.start, resp.end]} height={plotHeight} {linked} {view} onview={setView} {resetTick} />
       {/each}
       {#if analyse}
         <div class="panel small">
@@ -547,7 +560,7 @@
           {/if}
         </div>
       {/if}
-      <p class="muted small">Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); dobbeltklik for at zoome ud. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
+      <p class="muted small">Træk vandret i en graf for at zoome; når der er zoomet ind, scroller du i tid med musehjulet (eller træk med Shift nede); dobbeltklik eller <em>Nulstil visning</em> for at zoome ud. <em>Lås graferne sammen</em> får alle grafer til at zoome og scrolle sammen. Brud i linjen = ingen gyldig værdi (fx PLC uden forbindelse).</p>
     {/if}
   </section>
 </div>
