@@ -100,7 +100,9 @@ Alle felter kontrolleres (gyldig adresse, gateway i samme subnet, højst 3 DNS-s
 
 **Sådan undgår du at låse dig ude:** Tryk **Anvend**, og bekræft i dialogen. Opsætningen sættes i kraft med det samme, og du har derefter **90 sekunder** til at åbne siden på den **nye adresse** og trykke **Bekræft**. Gør du ikke det — eller trykker du **Fortryd nu** — gendannes den gamle opsætning automatisk. Hele forløbet står i auditloggen.
 
-> Kræver NetworkManager (standard på Raspberry Pi OS Bookworm) og at `sh deploy/install.sh` er kørt som administrator på serveren (en OTA-opdatering gør det automatisk). Mangler det, viser siden en besked, der siger **hvilket** af de to der mangler, i stedet for formularen.
+> **Understøttede netværkssystemer:** *NetworkManager* (Raspberry Pi OS) og *ifupdown* (`/etc/network/interfaces` — Debian/Ubuntu-servere og VM'er, fx på en ESXi-server). Installationen (`sh deploy/install.sh`, som en OTA-opdatering også kører) finder selv ud af hvilket, og siden viser det. Mangler begge, eller er installationen ikke kørt, viser siden en besked, der siger **hvad** der mangler, i stedet for formularen.
+>
+> **ifupdown:** ændringen prøves uden at røre `/etc/network/interfaces`, og filen skrives først, når du har bekræftet (der laves en sikkerhedskopi `interfaces.hypervision-bak-…`; de 3 nyeste beholdes). Kun netkortets egen `iface`-blok i hovedfilen ændres — står den i `interfaces.d`, afvises ændringen. **DHCP** kræver DHCP-klienten **dhcpcd** (`apt install dhcpcd-base`): den prøver uden ende og giver adresserne en levetid, som DHCP-vagten bruger. Mangler den, er kun *Fast IP* valgbar. Egen DNS i DHCP-tilstandene kan blive overskrevet af DHCP-klienten ved næste fornyelse — brug *Fast IP*, hvis DNS skal ligge fast. DNS skrives i `/etc/resolv.conf`, hvis den er en almindelig fil (er den et symlink, styrer systemet den selv, og den røres ikke).
 
 Flytning af hele datamappen (databasen med tags, tegninger og brugere) understøttes ikke; det er trend-databasen, der fylder og skriver mest.
 

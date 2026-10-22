@@ -1,6 +1,8 @@
 # Testvejledning: System › Konfiguration på en rigtig Pi
 
-Gælder v0.119.0 – v0.123.0 (visning, trend-indstillinger, netværk med DHCP-vagt, flyt af trend-databasen).
+Gælder v0.119.0 – v0.125.0 (visning, trend-indstillinger, netværk med DHCP-vagt — både NetworkManager og ifupdown, flyt af trend-databasen, scada-maint).
+
+**Status 2026-10-22:** hele backend-suiten (593 tests) er kørt på testserveren (Debian 13 VM på ESXi, `dash`, Python 3.13) og består, og `ifupdown`-forløbet er kørt mod serverens egen `/etc/network/interfaces` med falske `ifup`/`ifdown` (intet ændret på serverens netværk). Det der **ikke** er prøvet, er de rigtige `ifup`/`ifdown`/`nmcli`-kommandoer.
 Alt er testet automatisk mod falske `nmcli`/diske — **intet er afprøvet på en rigtig Pi**. Denne vejledning dækker det, der kun kan ses dér.
 
 Brug en Pi med **fysisk adgang** (skærm + tastatur eller seriel), og helst en testserver — ikke en maskine i drift. Tag et skærmbillede / notér resultatet ved hvert punkt (skema nederst).
@@ -16,6 +18,18 @@ Brug en Pi med **fysisk adgang** (skærm + tastatur eller seriel), og helst en t
 | **Noter først** | `nmcli -t connection show`, `ip -4 addr`, `ip route` — så du kan gendanne ved et uheld |
 | **Nødplan hvis du låser dig ude** | **Genstart Pi'en** (træk strømmen): ændringer under en afprøvning er midlertidige og forsvinder ved genstart. Står en ændring som *bekræftet* (varig), så ret med tastatur/seriel: `sudo nmcli connection modify "<profil>" ipv4.method auto ipv4.addresses "" ipv4.gateway "" && sudo nmcli connection up "<profil>"` |
 
+## 0b. ESXi-/Debian-VM (ifupdown) — testserveren
+
+Testserveren (`10.1.1.31`) er en Debian 13-VM: netværk via `ifupdown` (`/etc/network/interfaces`, kortet hedder `ens3`), **ingen** NetworkManager, **ingen** `sudo` og **ingen DHCP-klient**. Derfor:
+
+1. Kør alt "som root" med `su -` (rod-adgangskoden), eller installér sudo én gang: `su -c 'apt install sudo && usermod -aG sudo jgl'` (log ud og ind igen).
+2. `cat /var/lib/hypervisionplc-scada-net/capabilities` skal vise `backend=ifupdown` (og `dhcp=0`, indtil en DHCP-klient er installeret). Hvis den viser `backend=none` eller filen mangler: `su -c 'sh /opt/hypervisionplc-scada/deploy/install.sh --update'` er ikke kørt med den nyeste pakke — installér fra **System › Opdatering**.
+3. **Fast IP** kan prøves med det samme (4.1 – 4.5 nedenfor, men med `ip -4 addr` og `cat /etc/network/interfaces` i stedet for `nmcli`). Brug **en adresse i samme net**, og hav ESXi-konsollen åben (VM'ens skærm i vSphere/ESXi), hvis SSH/web falder ud.
+4. For at prøve **DHCP** på VM'en: `su -c 'apt install dhcpcd-base'` (kun **dhcpcd** godkendes — `dhclient` kører med `-1` og `udhcpc` giver ingen levetid), kør `install.sh --update` igen (så `dhcp=1` i `capabilities`), og sørg for at ESXi-netværket har DHCP. Netkortet bør også have `iface ens3 inet dhcp`-blokken efter en bekræftet ændring, og `ip -4 addr show dev ens3` skal vise flaget `dynamic` på DHCP-adressen.
+5. Kontroller efter en bekræftet ændring: `cat /etc/network/interfaces` (den nye blok + `# Sat af HypervisionPLC SCADA`), `ls /etc/network/interfaces.hypervision-bak-*` (sikkerhedskopi), `cat /etc/resolv.conf` (nameserver er ændret, `domain`/`search` er bevaret).
+6. **Nødplan på VM'en:** ESXi-konsollen → log ind → `cp /etc/network/interfaces.hypervision-bak-<nyeste> /etc/network/interfaces && ifdown --force ens3; ifup ens3`. Under en afprøvning (før Bekræft) er filen urørt, så en genstart af VM'en giver den gamle opsætning.
+7. VM-hensyn: kortets navn er `ens3`/`ens192` (ikke `eth0`), MAC kan skifte ved kloning, og en VM har ingen USB-SSD — til flytning af trend-databasen (punkt 6) bruges i stedet en **ekstra virtuel disk** monteret på fx `/mnt/data` (`mkfs.ext4`, `mount`, `install -d -o scada -g scada`).
+
 ## 1. Installation og kontrol
 
 1. Byg pakken (`sh deploy/make-package.sh`) og installér via **System › Opdatering** — eller første gang som root: `sudo sh deploy/install.sh`.
@@ -28,7 +42,7 @@ Brug en Pi med **fysisk adgang** (skærm + tastatur eller seriel), og helst en t
 3. Åbn **System › Konfiguration** som admin.
 
 **Forventet:** siden åbner; **Netværksopsætning** viser en formular (ikke en gul besked).
-- Ser du *"NetworkManager findes ikke"* → `command -v nmcli` fejler på maskinen.
+- Ser du *"Maskinens netværkssystem understøttes ikke"* → hverken NetworkManager eller ifupdown blev fundet (`cat /var/lib/hypervisionplc-scada-net/capabilities`).
 - Ser du *"Netværkshjælperen er ikke installeret"* → `install.sh` er ikke kørt som root (`sudo sh deploy/install.sh --update`).
 
 ## 2. Visning (v0.119.0)
@@ -97,7 +111,8 @@ På testserveren (som root; `su -` hvis `sudo` mangler):
 
 ## 7. Uafklarede punkter — find svar på disse
 
-1. Virker `nmcli connection modify --temporary` rent på standardprofilen "Wired connection 1" (kan ligge kun i hukommelsen)? → prøve 4.1 og 4.9.
+1. Virker `nmcli connection modify --temporary` rent på standardprofilen "Wired connection 1" (kan ligge kun i hukommelsen)? → prøve 4.1 og 4.9. (kun NetworkManager)
+1b. **ifupdown:** kører `ifup`/`ifdown` via `systemd-run` (egen transient enhed, så DHCP-klienten overlever scriptet)? Efter en bekræftet DHCP-ændring: `pgrep -a dhcpcd` viser stadig klienten, når `apply-config`-tjenesten er færdig (`systemctl status hypervisionplc-scada-config`). Virker `ifdown --force -i <fil> ens3` + `ifup -i <ny fil> ens3` rent (tilstanden i `/run/network/ifstate`), og kommer kortet op igen med den gamle fil ved Fortryd? Opfører ifup sig ens med `dhcpcd-base` og `isc-dhcp-client`? Viser iproute2 flaget `dynamic` på DHCP-adressen (vagtens lease-test)?
 2. Kommer netkortet op i tilstand *DHCP + fast IP* uden en DHCP-server (`connection up --wait 30`)? → 4.7. Mislykkes det, skal tilstanden ændres (fx aktiveres uden at vente på DHCP).
 3. Gendanner `connection reload` + `up` virkelig den gemte profil efter en midlertidig ændring? → 4.2 – 4.4.
 4. Tager reserve-IP'en (`--temporary` + `device reapply`) effekt uden at slippe DHCP-klienten? → 5.3.

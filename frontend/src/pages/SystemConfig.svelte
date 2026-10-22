@@ -17,7 +17,7 @@
 
   interface NetTarget { interface: string; mode: string; ip: string; prefix: number; gateway: string; dns: string[]; hostname: string; fallback_after?: number }
   interface Watchdog { state: string; message: string; mode: string; fails: number; threshold: number; fallback_active: boolean; ts: number; stale?: boolean }
-  interface NetState { enabled: boolean; disabled_reason?: string; watchdog?: Watchdog | null; state: string; message: string; deadline: number | null; confirm_s: number; busy: boolean;
+  interface NetState { enabled: boolean; disabled_reason?: string; backend?: string; dhcp_available?: boolean; watchdog?: Watchdog | null; state: string; message: string; deadline: number | null; confirm_s: number; busy: boolean;
     target: NetTarget | null; saved: NetTarget | null }
 
   let cfg = $state<Config | null>(null);
@@ -305,15 +305,18 @@
     <h4>Netværksopsætning</h4>
     {#if !net?.enabled}
       <div class="notice">
-        {#if net?.disabled_reason === 'no_nmcli'}
-          <strong>NetworkManager (<code>nmcli</code>) findes ikke på denne maskine</strong>, så netværket kan ikke ændres fra web. Raspberry Pi OS Bookworm har det som standard;
-          ældre systemer bruger <code>dhcpcd</code>/<code>ifupdown</code>. Tjek med <code>command -v nmcli</code> og <code>nmcli general status</code>.
+        {#if net?.disabled_reason === 'no_backend'}
+          <strong>Maskinens netværkssystem understøttes ikke.</strong> Understøttet: <strong>NetworkManager</strong> (Raspberry Pi OS) og <strong>ifupdown</strong>
+          (<code>/etc/network/interfaces</code>, Debian/Ubuntu-servere og VM'er). Tjek med <code>systemctl is-active NetworkManager</code> og <code>ls /etc/network/interfaces</code>;
+          <code>cat /var/lib/hypervisionplc-scada-net/capabilities</code> viser, hvad installationen fandt.
         {:else}
           <strong>Netværkshjælperen er ikke installeret.</strong> Kør <code>sudo sh deploy/install.sh --update</code> på maskinen (en OTA-opdatering gør det automatisk). Tjek derefter
           <code>ls /var/lib/hypervisionplc-scada-net</code> — filen <code>enabled</code> skal findes.
         {/if}
       </div>
     {:else}
+      <p class="muted small">Netværkssystem: <strong>{net.backend === 'ifupdown' ? 'ifupdown (/etc/network/interfaces)' : 'NetworkManager'}</strong>
+        {#if net.dhcp_available === false} · <strong>ingen DHCP-klient installeret</strong> — kun Fast IP kan vælges (installér fx <code>dhcpcd-base</code> for DHCP){/if}</p>
       {#if net.watchdog && !net.watchdog.stale && net.watchdog.mode !== 'static'}
         <p class="small">DHCP-vagt: <strong>{net.watchdog.message}</strong>
           {#if net.watchdog.state === 'searching'} ({net.watchdog.fails}{net.watchdog.mode === 'dhcp_fallback' ? ` af ${net.watchdog.threshold}` : ''} kontroller uden svar){/if}</p>
@@ -339,10 +342,10 @@
         </label>
         <label>Tilstand
           <select bind:value={nMode} disabled={net.busy}>
-            <option value="dhcp">DHCP (adresse fra routeren)</option>
+            <option value="dhcp" disabled={net.dhcp_available === false}>DHCP (adresse fra routeren)</option>
             <option value="static">Fast IP</option>
-            <option value="dhcp_static">DHCP + fast IP som sekundær adresse</option>
-            <option value="dhcp_fallback">DHCP, fast IP først efter N fejl</option>
+            <option value="dhcp_static" disabled={net.dhcp_available === false}>DHCP + fast IP som sekundær adresse</option>
+            <option value="dhcp_fallback" disabled={net.dhcp_available === false}>DHCP, fast IP først efter N fejl</option>
           </select>
         </label>
         {#if nMode !== 'dhcp'}

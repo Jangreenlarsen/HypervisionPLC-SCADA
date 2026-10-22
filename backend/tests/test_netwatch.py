@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -138,7 +139,7 @@ def test_taeller_ikke_naar_kablet_er_ude(box):
 def test_roerer_ikke_netvaerket_mens_en_aendring_er_i_gang(box):
     tmp, env = box
     conf(tmp, n=1)
-    (tmp / "state" / "status.json").write_text(json.dumps({"state": "waiting_confirm", "ts": 1}))
+    (tmp / "state" / "status.json").write_text(json.dumps({"state": "waiting_confirm", "ts": int(time.time())}))
     tick(env)
     assert not (tmp / "nmcli.log").exists()
 
@@ -176,8 +177,8 @@ def test_aarsag_til_at_netvaerk_ikke_er_aktiveret(tmp_path):
     svc = netconfig.NetworkService(tmp_path, tmp_path / "state")
     assert svc.disabled_reason() == "not_installed" and svc.status()["disabled_reason"] == "not_installed"
     (tmp_path / "state").mkdir()
-    (tmp_path / "state" / "no-nmcli").write_text("")
-    assert svc.disabled_reason() == "no_nmcli"
+    (tmp_path / "state" / "no-backend").write_text("")
+    assert svc.disabled_reason() == "no_backend"
     (tmp_path / "state" / "enabled").write_text("")
     assert svc.disabled_reason() == "" and svc.status()["enabled"] is True
 

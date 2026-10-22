@@ -159,6 +159,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.120.0 — System › Konfiguration trin 2: trend-indstillinger (opbevaring, skriveinterval, energi) gemmes og gælder straks
 - [x] done v0.121.0 — System › Konfiguration trin 3: netværk (DHCP / fast IP / DHCP + fast IP som sekundær, værtsnavn, DNS) med root-hjælper, 90 s bekræftelse og automatisk gendannelse
 - [x] done v0.122.0 — System › Konfiguration trin 5: flyt trend-databasen til en anden disk (USB-SSD) online, med kontrol og automatisk advarsel hvis disken mangler
+- [x] done v0.125.0 — Netværksopsætning virker også på **ifupdown** (Debian/Ubuntu-servere og ESXi-VM'er): midlertidig prøve uden at røre /etc/network/interfaces, varig skrivning først ved bekræftelse, DHCP-vagt via iproute2; præcis besked om manglende DHCP-klient / netværkssystem
 - [x] done v0.124.0 — `scada-maint`: kommandolinje-værktøj til fuld disk (ryd logfiler, gamle backups, trend-/audit-/alarmhistorik; tørkørsel som standard; nødprogram), plus advarsel på Konfiguration-siden ved lav plads
 - [x] done v0.123.0 — System › Konfiguration trin 4: DHCP-vagt og *fast IP efter N fejl* (reserve-IP), præcis besked om hvorfor netværksændring ikke er aktiveret; testvejledning `docs/TEST_PI.md`
 - [ ] planned — (afventer test på rigtig Pi, se docs/TEST_PI.md): (DHCP/fast IP/sekundær/reserve med 60 s fortryd), fallback-IP, flytning af datamappen — se PLAN.md

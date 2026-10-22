@@ -2,6 +2,13 @@
 
 ---
 
+## v0.125.0 — 2026-10-22 — Netværksopsætning virker også på Debian/Ubuntu-servere og ESXi-VM'er
+
+- Netværk kan nu sættes fra **System › Konfiguration** også på maskiner med **ifupdown** (`/etc/network/interfaces`) — typisk Debian/Ubuntu-servere og virtuelle maskiner — ikke kun med NetworkManager.
+- Samme sikkerhed: ændringen prøves først uden at røre filen, du bekræfter inden for 90 sekunder, og ellers vender den gamle opsætning tilbage. Filen får en sikkerhedskopi.
+- Mangler maskinen en DHCP-klient, er kun *Fast IP* valgbar (siden siger det). Siden viser nu præcist, hvorfor netværksændring ikke er aktiveret.
+- Efter opdateringen kører installationen automatisk og finder netværkssystemet.
+
 ## v0.124.0 — 2026-10-22 — Oprydning ved fuld disk
 
 - Nyt kommandolinjeværktøj **`scada-maint`** (på maskinen, som root) til at rydde logfiler, gamle backups og gammel historik, når disken er ved at blive fuld — også uden at websiden kan åbnes. Det viser som standard kun, hvad der ville ske (**tørkørsel**); `--yes` udfører. `scada-maint emergency` går trin for trin og stopper, når der er plads nok. Tags, brugere og tegninger røres aldrig.

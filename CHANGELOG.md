@@ -4,6 +4,18 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.125.0 build 0184] — 2026-10-22 — Netværk: ifupdown-understøttelse (Debian/Ubuntu-servere, ESXi-VM'er)
+
+- Baggrund: testserveren er en Debian 13-VM med `ifupdown` (ingen NetworkManager, ingen sudo, ingen DHCP-klient) — netværksopsætning via web var derfor slået fra (`no-nmcli`).
+- `deploy/apply-config.sh` — ny ifupdown-gren: anvender via `ifdown --force -i <gammel>` + `ifup -i <ny fil>` UDEN at røre `/etc/network/interfaces`; skriver filen varigt (atomisk, sikkerhedskopi, 3 beholdes) + DNS i en almindelig `resolv.conf` + værtsnavn (inkl. `/etc/hosts`) først ved bekræftelse; fortryd/timeout/død proces → den gamle fil gælder (`ifup -i`/`--recover`). Kun netkortets `iface`-blok i hovedfilen omskrives (awk); står den andetsteds, afvises ændringen. Afviser DHCP uden DHCP-klient.
+- `deploy/net-watchdog.sh` — ifupdown-gren med iproute2 (lease = adresse med flaget `dynamic`; reserve-IP via `ip addr add/del`, standardrute kun hvis ingen).
+- `deploy/install.sh` — finder netværkssystem (`nm` / `ifupdown` / `none`) og DHCP-klient → `capabilities`; `no-backend` i stedet for `no-nmcli`. `hypervisionplc-scada-config.service` — skriverettigheder til `/etc/network` m.m.
+- `backend/app/services/netconfig.py`, `frontend/src/pages/SystemConfig.svelte` — `capabilities` (backend, dhcp_available), afvisning af DHCP uden klient, DHCP-valg slået fra i UI, præcis besked ved ikke-understøttet system.
+- **Efter review (agent):** `ifup`/`ifdown` køres via `systemd-run` i en egen enhed (`KillMode=process`), så DHCP-klienten ikke dræbes og ikke ligger i tjenestens sandkasse; DNS og `/etc/hosts` skrives uden temp-filer i `/etc` (ProtectSystem=strict) og uden sed-regex (ingen injektion via det gamle værtsnavn); netværksfiler med CRLF, indrykkede nøgleord eller ukendte linjer afvises i stedet for at blive ødelagt; relative `source`-stier gøres absolutte; præcis netkort-sammenligning (ikke regex) og navnet må ikke starte med `-`; sikkerhedskopi-oprydning virker (find i stedet for glob under `set -f`); `ifupdown.state` fjernes straks efter varig skrivning; DHCP-vagten ignorerer en gammel status fra en død ændring, nulstiller sin tilstand efter genstart (boot_id) og er idempotent over for en manglende reserve-adresse; ifupdown kræver **dhcpcd** (dhclient kører med `-1`, udhcpc giver ingen levetid).
+- `backend/tests/test_ifupdown.py` (ny, 24 tests) — stanzaer pr. tilstand, omskrivning bevarer øvrige netkort/kommentarer/source, urørt under ventetid, varig skrivning + DNS + værtsnavn, fortryd, ifup-fejl, DHCP uden klient, symlink-resolv.conf, recover, vagten.
+- Hele backend-suiten (593 tests) er kørt på testserveren (Debian 13, dash) og består; ifupdown-forløbet er desuden kørt mod serverens rigtige `/etc/network/interfaces` med falske ifup/ifdown.
+- Manual (System), `docs/TEST_PI.md` (ESXi-/ifupdown-afsnit).
+
 ## [0.124.0 build 0183] — 2026-10-22 — scada-maint: oprydning ved fuld disk
 
 - `backend/app/maint.py` (ny) + `deploy/scada-maint.sh` (installeres som `/usr/local/sbin/scada-maint`) — kommandolinjeværktøj: `status`, `logs`, `backups`, `trends`, `history`, `trends-reset`, `emergency`. Tørkørsel som standard (`--yes` for at udføre), kræver root, logger til systemloggen, rører aldrig tags/brugere/tegninger/bindinger. `--shrink` (VACUUM) afvises uden nok plads; `emergency` stopper, når der er plads nok.

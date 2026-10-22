@@ -9,4 +9,4 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/lib/hypervisionplc-scada-net /run/NetworkManager
+ReadWritePaths=-/var/lib/hypervisionplc-scada-net -/run/NetworkManager
