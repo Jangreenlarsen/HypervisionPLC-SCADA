@@ -2,6 +2,12 @@
 
 ---
 
+## v0.121.0 — 2026-10-22 — Konfiguration: netværk
+
+- Under **System › Konfiguration** kan netværket nu sættes: **DHCP**, **fast IP** (IP, subnet, gateway, DNS) eller **DHCP + fast IP som sekundær**, samt værtsnavn.
+- Efter **Anvend** har du 90 sekunder til at åbne siden på den nye adresse og trykke **Bekræft** — ellers gendannes den gamle opsætning automatisk, så du ikke låser dig ude.
+- Kræver at `sh deploy/install.sh` køres som administrator én gang (installerer hjælperen) og NetworkManager på maskinen.
+
 ## v0.120.0 — 2026-10-22 — Konfiguration: trend-indstillinger
 
 - Under **System › Konfiguration** kan du nu ændre **opbevaring af historik**, **skriveinterval** (skån SD-kortet med et længere interval) og **opbevaring af energi**. Ændringerne gælder straks og huskes efter genstart.

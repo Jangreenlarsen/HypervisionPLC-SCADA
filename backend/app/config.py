@@ -62,6 +62,8 @@ class Settings:
     trend_flush_s: float = field(default_factory=lambda: _env_float("SCADA_TREND_FLUSH_S", 5.0))
     # Energi-tags gemmes længere end anden historik, så måneds-/årsrapporter er mulige.
     energy_days: float = field(default_factory=lambda: _env_float("SCADA_ENERGY_DAYS", 400.0))
+    # Root-ejet mappe med status/log for netværksændringer (deploy/apply-config.sh); tjenesten kun læser den
+    net_state_dir: Path = field(default_factory=lambda: Path(os.environ.get("SCADA_NET_STATE_DIR", "/var/lib/hypervisionplc-scada-net")))
     start_runtimes: bool = True
 
     def __post_init__(self) -> None:

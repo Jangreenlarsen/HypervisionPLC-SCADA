@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
+  import { ask } from '../lib/ask';
   import { api, get } from '../lib/api';
 
   interface Nic { name: string; mac: string; state: string; addresses: { ip: string; prefix: number | null }[] }
@@ -9,8 +10,13 @@
     trends: { retention_days: number; flush_s: number; energy_days: number; overridden: boolean;
       limits: Record<string, { min: number; max: number }>; tags: number; samples: number;
       write: { since: number; uptime_s: number; rows: number; flushes: number; rows_per_day: number | null; flushes_per_day: number | null } };
+    network_config: NetState;
     network: { available: boolean; hostname: string; interfaces: Nic[]; gateway: string; dns: string[]; error: string };
   }
+
+  interface NetTarget { interface: string; mode: string; ip: string; prefix: number; gateway: string; dns: string[]; hostname: string }
+  interface NetState { enabled: boolean; state: string; message: string; deadline: number | null; confirm_s: number; busy: boolean;
+    target: NetTarget | null; saved: NetTarget | null }
 
   let cfg = $state<Config | null>(null);
   let error = $state('');
@@ -34,6 +40,9 @@
     try {
       cfg = await get<Config>('/api/system/config');
       fillForm(cfg.trends);
+      net = cfg.network_config;
+      if (!netFilled) { fillNet(net.saved); netFilled = true; }
+      if (net.busy) startPolling();
     } catch (e) {
       error = (e as Error).message;
     } finally {
@@ -47,6 +56,101 @@
   }
 
   const dirty = $derived(!!cfg && (retention !== cfg.trends.retention_days || flush !== cfg.trends.flush_s || energy !== cfg.trends.energy_days));
+
+  // ---- Netværk: formular, anvend, bekræft
+  let nIface = $state('');
+  let nMode = $state('dhcp');
+  let nIp = $state('');
+  let nPrefix = $state(24);
+  let nGateway = $state('');
+  let nDns = $state('');
+  let nHost = $state('');
+  let net = $state<NetState | null>(null);
+  let netBusy = $state(false);
+  let netError = $state('');
+  let now = $state(Date.now() / 1000);
+  let poll: ReturnType<typeof setInterval> | null = null;
+  let netFilled = false;
+
+  const MODE_TEXT: Record<string, string> = { dhcp: 'DHCP', static: 'Fast IP', dhcp_static: 'DHCP + fast IP som sekundær' };
+  const STATE_TEXT: Record<string, string> = {
+    idle: '', queued: 'Anmodning sendt …', applying: 'Anvender …', waiting_confirm: 'Venter på din bekræftelse',
+    confirmed: 'Bekræftet', reverted: 'Gendannet', failed: 'Mislykkedes', stalled: 'Hjælperen svarer ikke',
+  };
+  const dnsList = (): string[] => nDns.split(/[\s,;]+/).filter(Boolean);
+  const left = $derived(net?.deadline ? Math.max(0, Math.ceil(net.deadline - now)) : 0);
+
+  function fillNet(t: NetTarget | null): void {
+    const nic = cfg?.network.interfaces ?? [];
+    nIface = t?.interface && nic.some((n) => n.name === t.interface) ? t.interface : (nic[0]?.name ?? '');
+    const first = nic.find((n) => n.name === nIface)?.addresses[0];
+    nMode = t?.mode ?? 'dhcp';
+    nIp = t?.ip || first?.ip || '';
+    nPrefix = t?.prefix || first?.prefix || 24;
+    nGateway = t?.gateway ?? cfg?.network.gateway ?? '';
+    nDns = (t?.dns ?? cfg?.network.dns ?? []).join(', ');
+    nHost = t?.hostname || cfg?.network.hostname || '';
+  }
+
+  async function refreshNet(): Promise<void> {
+    try {
+      net = await get<NetState>('/api/system/config/network');
+      netError = '';
+    } catch (e) {
+      // Under en ændring kan forbindelsen forsvinde et øjeblik (ny adresse) — det er en del af forløbet
+      if (net?.busy) netError = 'Forbindelsen til serveren er afbrudt — hvis adressen er ændret, så åbn siden på den nye adresse og tryk Bekræft.';
+      else netError = (e as Error).message;
+    }
+    now = Date.now() / 1000;
+    if (net && !net.busy && poll) { clearInterval(poll); poll = null; }
+  }
+  function startPolling(): void {
+    if (!poll) poll = setInterval(refreshNet, 2000);
+  }
+
+  async function applyNet(): Promise<void> {
+    netError = '';
+    const msg = nMode === 'dhcp'
+      ? 'Skift til DHCP?\n\nAdressen bestemmes af routeren og kan ændre sig. Du får 90 sekunder til at åbne siden på den nye adresse og trykke Bekræft — ellers gendannes den gamle opsætning.'
+      : `Skift til ${MODE_TEXT[nMode]} med ${nIp}/${nPrefix}?\n\nDu får 90 sekunder til at åbne siden på ${nIp} og trykke Bekræft — ellers gendannes den gamle opsætning automatisk.`;
+    if (!await ask(msg, { danger: true })) return;
+    netBusy = true;
+    try {
+      net = await api<NetState>('PUT', '/api/system/config/network', {
+        interface: nIface, mode: nMode, ip: nMode === 'dhcp' ? '' : nIp, prefix: nMode === 'dhcp' ? 0 : Number(nPrefix),
+        gateway: nMode === 'static' ? nGateway : '', dns: dnsList(), hostname: nHost,
+      });
+      startPolling();
+    } catch (e) {
+      netError = (e as Error).message;
+    } finally {
+      netBusy = false;
+    }
+  }
+  async function confirmNet(): Promise<void> {
+    netBusy = true;
+    try {
+      net = await api<NetState>('POST', '/api/system/config/network/confirm');
+      netError = '';
+      await refresh();
+    } catch (e) {
+      netError = (e as Error).message;
+    } finally {
+      netBusy = false;
+    }
+  }
+  async function revertNet(): Promise<void> {
+    netBusy = true;
+    try {
+      net = await api<NetState>('POST', '/api/system/config/network/revert');
+      startPolling();
+    } catch (e) {
+      netError = (e as Error).message;
+    } finally {
+      netBusy = false;
+    }
+  }
+  onDestroy(() => { if (poll) clearInterval(poll); });
 
   async function saveTrends(): Promise<void> {
     saving = true;
@@ -146,10 +250,56 @@
         </tbody>
       </table>
     {/if}
+    <h4>Netværksopsætning</h4>
+    {#if !net?.enabled}
+      <div class="notice">Netværksændring via web er ikke aktiveret på denne server (kræver NetworkManager og at <code>sh deploy/install.sh</code> er kørt som root).</div>
+    {:else}
+      {#if net.busy || ['confirmed', 'reverted', 'failed', 'stalled'].includes(net.state)}
+        <div class="notice" class:warn={net.state === 'waiting_confirm'}>
+          <strong>{STATE_TEXT[net.state] ?? net.state}</strong>{net.message ? ` — ${net.message}` : ''}
+          {#if net.state === 'waiting_confirm'}
+            <p>Du har <strong>{left} sekunder</strong>.
+              {#if net.target && net.target.mode !== 'dhcp'}Åbn siden på <a href="http://{net.target.ip}/">http://{net.target.ip}/</a> og tryk <em>Bekræft</em>.{:else}Find maskinens nye adresse (routerens liste) og tryk <em>Bekræft</em> derfra.{/if}
+              Trykker du ikke, gendannes den gamle opsætning.</p>
+            <div class="row">
+              <button class="primary" onclick={confirmNet} disabled={netBusy}>Bekræft</button>
+              <button onclick={revertNet} disabled={netBusy}>Fortryd nu</button>
+            </div>
+          {/if}
+        </div>
+      {/if}
+      {#if netError}<div class="error">{netError}</div>{/if}
+      <form class="settings" onsubmit={(e) => { e.preventDefault(); applyNet(); }}>
+        <label>Netkort
+          <select bind:value={nIface} disabled={net.busy}>{#each cfg.network.interfaces as n (n.name)}<option value={n.name}>{n.name}</option>{/each}</select>
+        </label>
+        <label>Tilstand
+          <select bind:value={nMode} disabled={net.busy}>
+            <option value="dhcp">DHCP (adresse fra routeren)</option>
+            <option value="static">Fast IP</option>
+            <option value="dhcp_static">DHCP + fast IP som sekundær adresse</option>
+          </select>
+        </label>
+        {#if nMode !== 'dhcp'}
+          <label>IP-adresse <input bind:value={nIp} placeholder="192.168.1.50" disabled={net.busy} /></label>
+          <label>Subnet-præfiks (24 = 255.255.255.0) <input type="number" min="8" max="30" bind:value={nPrefix} disabled={net.busy} /></label>
+        {/if}
+        {#if nMode === 'static'}
+          <label>Gateway (valgfri) <input bind:value={nGateway} placeholder="192.168.1.1" disabled={net.busy} /></label>
+        {/if}
+        <label>DNS-servere (kommasepareret, højst 3){nMode === 'static' ? '' : ' — tom = fra DHCP'}
+          <input bind:value={nDns} placeholder="192.168.1.1, 8.8.8.8" disabled={net.busy} />
+        </label>
+        <label>Værtsnavn <input bind:value={nHost} placeholder="scada" disabled={net.busy} /></label>
+        <div class="row"><button class="primary" type="submit" disabled={netBusy || net.busy || !nIface}>Anvend netværksopsætning</button></div>
+        <p class="muted small">Opsætningen anvendes med det samme. Du har derefter {net.confirm_s} sekunder til at bekræfte fra den nye adresse — ellers gendannes den gamle automatisk, så du ikke låser dig ude.</p>
+      </form>
+    {/if}
   </section>
 {/if}
 
 <style>
+  .notice.warn { border-left-color: #d9822b; }
   .settings { display: grid; gap: .5rem; max-width: 24rem; margin: .5rem 0; }
   .settings label { display: grid; gap: .15rem; font-size: .9rem; }
   .num { text-align: right; white-space: nowrap; }

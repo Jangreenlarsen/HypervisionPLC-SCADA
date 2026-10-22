@@ -1,0 +1,16 @@
+[Unit]
+Description=Anvend en netværksændring fra HypervisionPLC SCADA (root)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/hypervisionplc-scada/apply-config.sh
+# Dør scriptet midt i en ændring (timeout, SIGKILL), gendanner --recover den gamle opsætning
+ExecStopPost=/usr/local/lib/hypervisionplc-scada/apply-config.sh --recover
+# Anvendelse (nmcli med tidsgrænse) + op til 180 s bekræftelse + gendannelse
+TimeoutStartSec=600
+# Hærdning: kun det scriptet skal bruge er skrivbart
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/hypervisionplc-scada-net /var/lib/hypervisionplc-scada/config /etc/NetworkManager/system-connections /run/NetworkManager

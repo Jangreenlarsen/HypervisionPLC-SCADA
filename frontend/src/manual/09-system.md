@@ -72,7 +72,23 @@ Under trend-historikken kan du ændre tre **indstillinger**; de gemmes og gælde
 
 Forkerte værdier afvises med en besked. Ændringen skrives i auditloggen.
 
-Indstilling af netværk og flytning af datamappen kommer i senere versioner.
+### Netværksopsætning
+
+Nederst på siden kan du sætte maskinens netværk. Vælg **netkort** og **tilstand**:
+
+| Tilstand | Betydning |
+| --- | --- |
+| **DHCP** | Adressen kommer fra routeren (kan ændre sig) |
+| **Fast IP** | Du angiver **IP-adresse**, **subnet** (præfiks, fx 24 = 255.255.255.0), evt. **gateway**, **DNS** og **værtsnavn** |
+| **DHCP + fast IP som sekundær** | Maskinen får en adresse fra routeren **og** altid den faste adresse ved siden af — så kan siden altid nås på den faste adresse |
+
+Alle felter kontrolleres (gyldig adresse, gateway i samme subnet, højst 3 DNS-servere …), og en forkert værdi afvises med en besked, før noget ændres.
+
+**Sådan undgår du at låse dig ude:** Tryk **Anvend**, og bekræft i dialogen. Opsætningen sættes i kraft med det samme, og du har derefter **90 sekunder** til at åbne siden på den **nye adresse** og trykke **Bekræft**. Gør du ikke det — eller trykker du **Fortryd nu** — gendannes den gamle opsætning automatisk. Hele forløbet står i auditloggen.
+
+> Kræver NetworkManager (standard på Raspberry Pi OS Bookworm) og at `sh deploy/install.sh` er kørt som administrator på serveren én gang. Mangler det, viser siden en besked i stedet for formularen.
+
+Flytning af datamappen kommer i en senere version.
 
 ## Bruger
 

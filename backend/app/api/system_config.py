@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict
 
-from ..services import sysconfig
-from .auth import ADMIN, audit
+from ..services import netconfig, sysconfig
+from ..services.auth import CurrentUser
+from .auth import ADMIN, audit, require
 
 router = APIRouter(prefix="/api/system/config")
 
@@ -42,6 +43,7 @@ async def get_config(request: Request) -> dict[str, Any]:
         "storage": storage,
         "trends": _trend_view(request),
         "network": network,
+        "network_config": _net(request).status(),
     }
 
 
@@ -59,3 +61,49 @@ async def put_trends(body: TrendSettingsBody, request: Request) -> dict[str, Any
         values["retention_days"], values["flush_s"], values["energy_days"])
     audit(request, "system.config.trends", "", {"old": old, "new": values})
     return _trend_view(request)
+
+
+# ---------------------------------------------------------------- netværk
+class NetworkBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    interface: str
+    mode: str
+    ip: str = ""
+    prefix: int = 0
+    gateway: str = ""
+    dns: list[str] = []
+    hostname: str = ""
+
+
+def _net(request: Request) -> netconfig.NetworkService:
+    return request.app.state.network_service
+
+
+@router.get("/network", dependencies=[ADMIN])
+async def get_network(request: Request) -> dict[str, Any]:
+    return _net(request).status()
+
+
+@router.put("/network")
+async def put_network(body: NetworkBody, request: Request, user: CurrentUser = Depends(require("admin"))) -> dict[str, Any]:
+    """Valider og anmod om en netværksændring. Hjælperen anvender den og venter på bekræftelse (ellers gendannes den gamle)."""
+    status = await asyncio.to_thread(sysconfig.network_status)
+    names = [n["name"] for n in status["interfaces"]] if status["available"] else None
+    cfg = netconfig.validate_network(body.model_dump(), names)
+    result = _net(request).request_apply(cfg, user.username)
+    audit(request, "system.config.network", cfg["interface"], {"new": cfg})
+    return result
+
+
+@router.post("/network/confirm", dependencies=[ADMIN])
+async def confirm_network(request: Request) -> dict[str, Any]:
+    result = _net(request).confirm()
+    audit(request, "system.config.network.confirm", "", {})
+    return result
+
+
+@router.post("/network/revert", dependencies=[ADMIN])
+async def revert_network(request: Request) -> dict[str, Any]:
+    result = _net(request).revert()
+    audit(request, "system.config.network.revert", "", {})
+    return result

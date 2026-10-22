@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.121.0 build 0180] — 2026-10-22 — System › Konfiguration (trin 3: netværk)
+
+- `deploy/apply-config.sh` (ny, root) + `hypervisionplc-scada-config.{path,service}` + `install.sh` — anvender en netværksændring med NetworkManager: validerer igen, anvender **midlertidigt** (`--temporary`), venter 90 s på bekræftelse og gør den først varig ved bekræftelse; ellers (eller ved fejl, *Fortryd nu*, genstart, dødt script via `ExecStopPost --recover`) vender den gamle opsætning tilbage. Efter reviewer-gennemgang: root skriver kun i sin egen mappe `/var/lib/hypervisionplc-scada-net` (status/log), anmodningen tages ind med `mv` og symlinks afvises, nmcli-kald har tidsgrænse, `CONFIRM_S` begrænses 20–180, værtsnavn sættes først efter bekræftelse, hærdet service-enhed.
+- `backend/app/services/netconfig.py` (ny), `backend/app/api/system_config.py`, `backend/app/main.py`, `backend/app/config.py` (`SCADA_NET_STATE_DIR`) — validering (IP, subnet, gateway i subnettet, DNS, værtsnavn, netkort), `network.request` til hjælperen, tilstandsmaskine (bekræft/fortryd kun når der venter en ændring), endpoints `GET/PUT /network`, `POST /network/confirm|revert` (admin, auditlogget).
+- `frontend/src/pages/SystemConfig.svelte` — formular, nedtælling, Bekræft / Fortryd nu; manual (System); `.gitattributes` (LF for .path).
+- `backend/tests/test_netconfig.py` — validering, tilstandsmaskine, API-rettigheder og hjælpescriptet med en falsk `nmcli` (bekræftet, fortrudt, afvist, ugyldigt input, manglende profil).
+- Kun testet mod en falsk nmcli — **ikke afprøvet på en rigtig Pi** og ikke set i browser.
+
 ## [0.120.0 build 0179] — 2026-10-22 — System › Konfiguration (trin 2: trend-indstillinger)
 
 - `backend/app/services/sysconfig.py`, `backend/app/api/system_config.py`, `backend/app/main.py` — `PUT /api/system/config/trends` (admin): opbevaring, skriveinterval, energi-opbevaring; valideres (grænser, energi ≥ historik), gemmes atomisk i `<data>/config/settings.json` (andre afsnit bevares), gælder straks og ved opstart (overstyrer `SCADA_TREND_*`), auditlogges.

@@ -157,6 +157,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.118.0 — Trends: fjern en graf fra visningen med kryds
 - [x] done v0.119.0 — System › Konfiguration trin 1: visning af datasti, størrelser, ledig plads, skrivemåling og netværksstatus (kun læsning)
 - [x] done v0.120.0 — System › Konfiguration trin 2: trend-indstillinger (opbevaring, skriveinterval, energi) gemmes og gælder straks
-- [ ] planned — System › Konfiguration trin 3–5: netværk (DHCP/fast IP/sekundær/reserve med 60 s fortryd), fallback-IP, flytning af datamappen — se PLAN.md
+- [x] done v0.121.0 — System › Konfiguration trin 3: netværk (DHCP / fast IP / DHCP + fast IP som sekundær, værtsnavn, DNS) med root-hjælper, 90 s bekræftelse og automatisk gendannelse
+- [ ] planned — System › Konfiguration trin 4–5: (DHCP-watchdog og reserve-IP efter N fejl), (DHCP/fast IP/sekundær/reserve med 60 s fortryd), fallback-IP, flytning af datamappen — se PLAN.md
 - [x] done v0.102.0 — Trends: *Skjul spikes* udfylder nu spikes med lineært interpolerede værdier i stedet for huller
 - [x] done v0.101.0 — Trends: op til 12 kurver ad gangen (farver genbruges med stiplet linje fra nr. 8) og tilvalget *Analysér data* (spikes, urealistiske spring, fastfrosne værdier, huller; markeres, spikes kan skjules)
