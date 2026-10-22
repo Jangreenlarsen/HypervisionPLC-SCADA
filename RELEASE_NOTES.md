@@ -2,6 +2,10 @@
 
 ---
 
+## v0.118.0 — 2026-10-22 — Trends: fjern graf
+
+- Hver graf i Trends har et **kryds** i øverste højre hjørne, som fjerner grafen fra visningen (tagsene fravælges og kan vælges igen i listen).
+
 ## v0.117.0 — 2026-10-22 — Trends: graf i fuld størrelse
 
 - **Dobbeltklik** på en graf i Trends viser den alene i fuld størrelse. Dobbeltklik igen eller tryk Esc for at gå tilbage. Dobbeltklik zoomer ikke længere ud; brug **Nulstil visning**.

@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.118.0 build 0176] — 2026-10-22 — Trends: fjern graf med kryds
+
+- `frontend/src/lib/TrendChart.svelte` — kryds (×) i grafens øverste højre hjørne (prop `onclose`).
+- `frontend/src/pages/Trends.svelte` — `removeGroup`: fravælger grafens tags, så grafen forsvinder.
+- Kun frontend. Kun bygget og testet (651 tests), ikke set i browser.
+
 ## [0.117.0 build 0175] — 2026-10-22 — Trends: dobbeltklik giver graf i fuld størrelse
 
 - `frontend/src/pages/Trends.svelte` — dobbeltklik på en graf viser kun den, i fuld højde (dobbeltklik igen eller Esc: tilbage). Hjælpeteksten er opdateret.

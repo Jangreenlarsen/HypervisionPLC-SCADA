@@ -11,7 +11,7 @@
     /** Kunstige (interpolerede) tidspunkter — tegnes blinkende, så de ikke forveksles med målte data. */ synthetic?: Set<number>;
     /** Fundne uregelmæssigheder (tilvalg) — tegnes som ring om punktet. */ issues?: Issue[] }
 
-  let { title, unit, series, data, xRange, height = 260, expanded = false, ondblclick, divider = 'none', linked = false, view = null, onview, resetTick = 0 }: {
+  let { title, unit, series, data, xRange, height = 260, expanded = false, ondblclick, onclose, divider = 'none', linked = false, view = null, onview, resetTick = 0 }: {
     title: string;
     unit: string;
     series: ChartSeries[];
@@ -24,6 +24,8 @@
     expanded?: boolean;
     /** Dobbeltklik på grafen (i stedet for at zoome ud — det gør *Nulstil visning*). */
     ondblclick?: () => void;
+    /** Kryds i hjørnet: fjern grafen fra visningen. */
+    onclose?: () => void;
     /** Stiplede skillelinjer ved hele timer eller dage. */
     divider?: Divider;
     /** Låst sammen: zoom/scroll i én graf flytter alle grafer til samme tidsudsnit. */
@@ -427,6 +429,7 @@
 
 <figure class="chart">
   <figcaption {title}>{title}</figcaption>
+  {#if onclose}<button class="x" onclick={onclose} title="Fjern grafen fra visningen" aria-label="Fjern grafen: {title}">×</button>{/if}
   <div bind:this={el}></div>
 </figure>
 
@@ -438,7 +441,10 @@
     border-radius: var(--radius);
     padding: .5rem .5rem .25rem;
   }
-  figcaption { font-weight: 600; font-size: .9rem; margin: 0 0 .25rem .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chart { position: relative; }
+  .x { position: absolute; top: .2rem; right: .35rem; z-index: 5; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; background: transparent; font-size: 1.3rem; line-height: 1; color: #52514e; cursor: pointer; border-radius: 4px; }
+  .x:hover { background: #e5e4e0; color: #1f1f1d; }
+  figcaption { padding-right: 2rem; font-weight: 600; font-size: .9rem; margin: 0 0 .25rem .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   :global(.u-legend) { font-size: .85rem; }
   /* Fast udtryk: aflæsningerne må ikke skifte bredde/højde, når markøren flyttes (ellers hopper legend og graf) */
   :global(.u-legend .u-series) { white-space: nowrap; }
