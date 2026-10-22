@@ -30,8 +30,13 @@ describe('analyze', () => {
   });
   it('hul i data', () => {
     const p = pts(wave(30));
-    const shifted = p.map((x, i): Point => (i >= 15 ? [x[0] + 500, x[1], x[2], x[3]] : x));
+    const shifted = p.map((x, i): Point => (i >= 15 ? [x[0] + 2000, x[1], x[2], x[3]] : x));
     expect(analyze(shifted).filter((i) => i.kind === 'gap')).toHaveLength(1);
+  });
+  it('en pause på op til "jeg lever"-intervallet (stabil værdi) er ikke et hul', () => {
+    const p = pts(wave(30));
+    const shifted = p.map((x, i): Point => (i >= 15 ? [x[0] + 300, x[1], x[2], x[3]] : x));
+    expect(analyze(shifted).filter((i) => i.kind === 'gap')).toHaveLength(0);
   });
   it('null-værdier (huller) giver ikke fejl', () => {
     const v: (number | null)[] = wave(30);
@@ -122,10 +127,15 @@ describe('fillGaps', () => {
   });
   it('indsætter kunstige punkter i et tidshul', () => {
     const base = [0, 10, 20, 30, 40].map((t) => pt(t, t));
-    const r = fillGaps([...base, pt(140, 140)]);
+    const r = fillGaps([...base, pt(2040, 2040)]);
     expect(r.synthetic.size).toBeGreaterThan(5);
     for (const p of r.points) expect(p[1]).toBeCloseTo(p[0]);
-    expect(r.points.some((p) => p[0] === 90 && r.synthetic.has(90))).toBe(true);
+  });
+  it('udfylder ikke en normal pause (stabil værdi gemmes kun hvert 300. s)', () => {
+    const base = [0, 10, 20, 30, 40].map((t) => pt(t, 5));
+    const r = fillGaps([...base, pt(340, 5), pt(350, 6), pt(360, 6)]);
+    expect(r.synthetic.size).toBe(0);
+    expect(r.points).toHaveLength(8);
   });
   it('ændrer ikke en serie uden huller og rører ikke originalen', () => {
     const src = [0, 10, 20, 30].map((t) => pt(t, t));

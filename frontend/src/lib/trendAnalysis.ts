@@ -12,6 +12,13 @@ export const ISSUE_LABEL: Record<IssueKind, string> = {
 /** Kun enkeltstående spikes er sikre at fjerne; spring, fastfrosne værdier og huller markeres blot. */
 export const HIDEABLE: IssueKind[] = ['spike'];
 
+/**
+ * Serveren gemmer kun en værdi når den ÆNDRER sig (plus en "jeg lever"-værdi hvert 300. s, se services/trends.py) — en stabil
+ * værdi giver altså naturligt lange pauser mellem punkterne. Et tidshul er først et rigtigt hul, når pausen er længere end
+ * det: 3 × "jeg lever"-intervallet.
+ */
+export const DATA_STALE_S = 900;
+
 const MIN_POINTS = 8;
 const FROZEN_MIN_POINTS = 3;
 /** Hvor længe samme værdi skal stå, før den regnes for fastfrosset (en rolig føler, fx temperatur, står stille længe). */
@@ -51,7 +58,7 @@ export function analyze(points: Point[], opts: AnalyzeOptions = {}): Issue[] {
     if (typical > 0) {
       for (let i = 1; i < points.length; i++) {
         const dt = points[i][0] - points[i - 1][0];
-        if (dt > 4 * typical) issues.push({ t: points[i][0], kind: 'gap', note: `${Math.round(dt)} s uden data` });
+        if (dt > 4 * typical && dt > DATA_STALE_S) issues.push({ t: points[i][0], kind: 'gap', note: `${Math.round(dt)} s uden data` });
       }
     }
   }
@@ -137,7 +144,7 @@ const FILL_MAX_PER_GAP = 200;
 
 /**
  * Kopi af serien hvor huller er udfyldt med lineært interpolerede, KUNSTIGE punkter — kun til visning, rådata er uændrede.
- * Udfyldt: (1) rækker uden gyldig værdi (null) mellem to gyldige værdier, (2) tidshuller (> 4 × den typiske afstand).
+ * Udfyldt: (1) rækker uden gyldig værdi (null) mellem to gyldige værdier, (2) tidshuller (> 4 × den typiske afstand og > DATA_STALE_S).
  * Intet udfyldes før første eller efter sidste gyldige værdi (ingen ekstrapolation). `synthetic` er de kunstige tidspunkter.
  */
 export function fillGaps(points: Point[]): { points: Point[]; synthetic: Set<number> } {
@@ -168,7 +175,7 @@ export function fillGaps(points: Point[]): { points: Point[]; synthetic: Set<num
     const next = step1[i + 1];
     if (!next || !valid(step1[i]) || !valid(next)) continue;
     const dt = next[0] - step1[i][0];
-    if (dt <= 4 * typical) continue;
+    if (dt <= 4 * typical || dt <= DATA_STALE_S) continue;
     const stepS = Math.max(typical, dt / FILL_MAX_PER_GAP);
     for (let t = step1[i][0] + stepS; t < next[0] - stepS / 2; t += stepS) {
       const v = lerp(step1[i], next, t);

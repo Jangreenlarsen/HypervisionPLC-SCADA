@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.118.1 build 0177] — 2026-10-22 — fix: falske huller i Trends (stabile værdier)
+
+- `frontend/src/lib/trendAnalysis.ts` + test — `DATA_STALE_S` (900 s): et tidshul er først et hul efter 3 × "jeg lever"-intervallet; gælder både *Udfyld huller* og analysens *Hul i data*. Serveren gemmer kun ved ændring, så pauser på op til 5 min er normale.
+- `BUGS.md` — rodårsag og hvad der ikke er afgjort.
+- Kun frontend. Kun bygget og testet (653 tests).
+
 ## [0.118.0 build 0176] — 2026-10-22 — Trends: fjern graf med kryds
 
 - `frontend/src/lib/TrendChart.svelte` — kryds (×) i grafens øverste højre hjørne (prop `onclose`).
