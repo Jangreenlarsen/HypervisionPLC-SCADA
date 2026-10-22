@@ -131,3 +131,50 @@ export function hideSpikes(points: Point[], issues: Issue[]): Point[] {
     return [p[0], v, v, v];
   });
 }
+
+/** Højst så mange kunstige punkter i ét tidshul (store huller får færre, men længere, trin). */
+const FILL_MAX_PER_GAP = 200;
+
+/**
+ * Kopi af serien hvor huller er udfyldt med lineært interpolerede, KUNSTIGE punkter — kun til visning, rådata er uændrede.
+ * Udfyldt: (1) rækker uden gyldig værdi (null) mellem to gyldige værdier, (2) tidshuller (> 4 × den typiske afstand).
+ * Intet udfyldes før første eller efter sidste gyldige værdi (ingen ekstrapolation). `synthetic` er de kunstige tidspunkter.
+ */
+export function fillGaps(points: Point[]): { points: Point[]; synthetic: Set<number> } {
+  const synthetic = new Set<number>();
+  const valid = (p: Point | undefined): p is [number, number, number | null, number | null] => !!p && p[1] !== null && Number.isFinite(p[1]);
+  const lerp = (a: Point, b: Point, t: number): number => (a[1] as number) + ((b[1] as number) - (a[1] as number)) * ((t - a[0]) / (b[0] - a[0]));
+
+  // 1) null-rækker mellem to gyldige punkter
+  const step1: Point[] = points.slice();
+  for (let i = 0; i < points.length; i++) {
+    if (valid(points[i])) continue;
+    let a = i - 1; while (a >= 0 && !valid(points[a])) a--;
+    let b = i + 1; while (b < points.length && !valid(points[b])) b++;
+    if (a < 0 || b >= points.length) continue;
+    const v = lerp(points[a], points[b], points[i][0]);
+    step1[i] = [points[i][0], v, v, v];
+    synthetic.add(points[i][0]);
+  }
+
+  // 2) tidshuller mellem to nabopunkter med gyldig værdi
+  const dts: number[] = [];
+  for (let i = 1; i < step1.length; i++) dts.push(step1[i][0] - step1[i - 1][0]);
+  const typical = dts.length >= 3 ? median(dts) : 0;
+  if (typical <= 0) return { points: step1, synthetic };
+  const out: Point[] = [];
+  for (let i = 0; i < step1.length; i++) {
+    out.push(step1[i]);
+    const next = step1[i + 1];
+    if (!next || !valid(step1[i]) || !valid(next)) continue;
+    const dt = next[0] - step1[i][0];
+    if (dt <= 4 * typical) continue;
+    const stepS = Math.max(typical, dt / FILL_MAX_PER_GAP);
+    for (let t = step1[i][0] + stepS; t < next[0] - stepS / 2; t += stepS) {
+      const v = lerp(step1[i], next, t);
+      out.push([t, v, v, v]);
+      synthetic.add(t);
+    }
+  }
+  return { points: out, synthetic };
+}

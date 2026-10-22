@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FROZEN_DEFAULT_S, affectedPoints, analyze, formatSpan, formatShare, hideSpikes, irregularShare } from './trendAnalysis';
+import { FROZEN_DEFAULT_S, affectedPoints, analyze, formatSpan, formatShare, fillGaps, hideSpikes, irregularShare } from './trendAnalysis';
 import type { Point } from './trendData';
 
 const pts = (vals: (number | null)[], step = 10): Point[] => vals.map((v, i) => [i * step, v, v, v]);
@@ -105,5 +105,32 @@ describe('fastfrosset i tid', () => {
   it('et hul i data over lang tid findes stadig', () => {
     const p = pts(wave(40), 3600).map((x, i): Point => (i >= 20 ? [x[0] + 3 * 86400, x[1], x[2], x[3]] : x));
     expect(analyze(p, { frozenMinS: null }).filter((i) => i.kind === 'gap')).toHaveLength(1);
+  });
+});
+
+describe('fillGaps', () => {
+  const pt = (t: number, v: number | null): Point => [t, v, v, v];
+  it('udfylder null-rækker mellem to gyldige værdier lineært og markerer dem kunstige', () => {
+    const r = fillGaps([pt(0, 0), pt(10, null), pt(20, null), pt(30, 30)]);
+    expect(r.points.map((p) => p[1])).toEqual([0, 10, 20, 30]);
+    expect([...r.synthetic]).toEqual([10, 20]);
+  });
+  it('udfylder ikke før første eller efter sidste gyldige værdi', () => {
+    const r = fillGaps([pt(0, null), pt(10, 1), pt(20, 2), pt(30, null)]);
+    expect(r.points.map((p) => p[1])).toEqual([null, 1, 2, null]);
+    expect(r.synthetic.size).toBe(0);
+  });
+  it('indsætter kunstige punkter i et tidshul', () => {
+    const base = [0, 10, 20, 30, 40].map((t) => pt(t, t));
+    const r = fillGaps([...base, pt(140, 140)]);
+    expect(r.synthetic.size).toBeGreaterThan(5);
+    for (const p of r.points) expect(p[1]).toBeCloseTo(p[0]);
+    expect(r.points.some((p) => p[0] === 90 && r.synthetic.has(90))).toBe(true);
+  });
+  it('ændrer ikke en serie uden huller og rører ikke originalen', () => {
+    const src = [0, 10, 20, 30].map((t) => pt(t, t));
+    const r = fillGaps(src);
+    expect(r.points).toEqual(src);
+    expect(r.synthetic.size).toBe(0);
   });
 });

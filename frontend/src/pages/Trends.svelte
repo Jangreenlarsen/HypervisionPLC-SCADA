@@ -6,7 +6,7 @@
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
   import { align, assignColors, colorOf, dashOf, groupTags, MAX_SERIES, type Divider, RANGES, type Point } from '../lib/trendData';
-  import { FROZEN_DEFAULT_S, affectedPoints, analyze, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
+  import { FROZEN_DEFAULT_S, affectedPoints, analyze, fillGaps, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
   import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
 
   let { canEdit = false, route = 'trends' }: { canEdit?: boolean; route?: string } = $props();
@@ -56,6 +56,7 @@
   let analyse = $state(loadFlag('trend.analyse'));
   let showIssues = $state(false);   // oversigten over uregelmæssigheder som overlay
   let hide = $state(loadFlag('trend.hideSpikes'));
+  let fill = $state(loadFlag('trend.fillGaps'));   // kunstige, blinkende punkter i huller
   let rings = $state(loadFlag('trend.rings', true));   // ring om uregelmæssige punkter i graferne
   /** Hvor længe samme værdi skal stå før den er "fastfrosset" (sekunder; 0 = undersøges ikke). Langsomme følere står stille længe. */
   const FROZEN_CHOICES: { s: number; label: string }[] = [
@@ -427,7 +428,13 @@
   });
 
   function chartFor(names: { name: string; isBool?: boolean }[]): { series: ChartSeries[]; data: ReturnType<typeof align> } {
-    const series = names.map((t) => ({
+    const filled = names.map((t) => {
+      const raw = resp?.series[t.name] ?? [];
+      const base = hide && issues[t.name] ? hideSpikes(raw, issues[t.name]) : raw;
+      return fill && !t.isBool ? fillGaps(base) : { points: base, synthetic: undefined };
+    });
+    const series = names.map((t, i) => ({
+      synthetic: filled[i].synthetic,
       name: t.name,
       label: tagInfo.get(t.name)?.description || t.name,
       colorIndex: colors[t.name] ?? 0,
@@ -435,10 +442,7 @@
       decimals: resp?.meta[t.name]?.decimals ?? null,
       issues: rings ? issues[t.name] : undefined,
     }));
-    const pts = names.map((t) => {
-      const raw = resp?.series[t.name] ?? [];
-      return hide && issues[t.name] ? hideSpikes(raw, issues[t.name]) : raw;
-    });
+    const pts = filled.map((f) => f.points);
     return { series, data: align(pts, names.map((t) => Boolean(t.isBool))) };
   }
 
@@ -491,6 +495,7 @@
       <option value="none">Fra</option><option value="hour">Pr. time</option><option value="day">Pr. dag</option>
     </select>
   </label>
+  <label class="row small" title="Udfylder huller (ingen data) med kunstige, interpolerede punkter, der blinker, så de kan kendes fra målte data. Kun visning — de gemte data ændres ikke"><input type="checkbox" bind:checked={fill} onchange={() => saveFlag('trend.fillGaps', fill)} /> Udfyld huller (blinker)</label>
   <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>
   {#if analyse && resp && selected.length}
     <button class:primary={showIssues} onclick={() => (showIssues = !showIssues)} aria-pressed={showIssues} title="Vis oversigten over fundne uregelmæssigheder oven på skærmen">Uregelmæssigheder{issueTotals.length ? ` (${issueTotals.length})` : ''}</button>

@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.116.0 build 0174] — 2026-10-22 — Trends: udfyld huller (blinker) og dato ved døgnskift
+
+- `frontend/src/lib/trendAnalysis.ts` + test — `fillGaps`: null-rækker mellem gyldige værdier og tidshuller (> 4 × typisk afstand, højst 200 punkter pr. hul) udfyldes lineært med kunstige punkter; ingen ekstrapolation; rådata uændrede.
+- `frontend/src/lib/TrendChart.svelte` — kunstige strækninger tegnes tykke og stiplede og blinker (700 ms); dato (DD.MM.ÅÅÅÅ) står ved hvert døgnskift i grafen, uafhængigt af skillelinjer.
+- `frontend/src/pages/Trends.svelte` — tilvalg *Udfyld huller (blinker)* (huskes).
+- Kun frontend. Kun bygget og testet (651 tests), ikke set i browser.
+
 ## [0.115.2 build 0173] — 2026-10-22 — fix: Trends-grafer får tagnavne som titel
 
 - `frontend/src/pages/Trends.svelte` — grafens titel er nu kurvernes navne (tagget's navn-parameter, ellers tag-navnet) plus enheden, i stedet for kun enheden / "Graf N".

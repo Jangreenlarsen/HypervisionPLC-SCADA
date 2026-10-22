@@ -2,6 +2,11 @@
 
 ---
 
+## v0.116.0 — 2026-10-22 — Trends: udfyld huller og datoer
+
+- Nyt tilvalg **Udfyld huller (blinker)**: hvor data mangler (fx PLC uden forbindelse), tegnes en kunstig, interpoleret linje, som **blinker**, så den ikke forveksles med målte værdier. Det er kun visning — de gemte data og CSV ændres ikke. Før første og efter sidste måling udfyldes intet.
+- Grafen viser nu **datoen** ved hvert døgnskift.
+
 ## v0.115.2 — 2026-10-22 — Trends: grafer med navn
 
 - Graferne i Trends hedder nu det samme som kurverne i dem (tagnavn, fx "Kedel temp, Kedel tryk (°C)") i stedet for kun enheden.

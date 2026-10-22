@@ -8,6 +8,7 @@
   import { lastVisible, needsArrow, spreadLabels } from './lineLabels';
 
   export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null;
+    /** Kunstige (interpolerede) tidspunkter — tegnes blinkende, så de ikke forveksles med målte data. */ synthetic?: Set<number>;
     /** Fundne uregelmæssigheder (tilvalg) — tegnes som ring om punktet. */ issues?: Issue[] }
 
   let { title, unit, series, data, xRange, height = 260, divider = 'none', linked = false, view = null, onview, resetTick = 0 }: {
@@ -46,6 +47,7 @@
   };
   const fmtTooltip = uPlot.fmtDate('{DD}.{MM}.{YYYY} {HH}:{mm}:{ss}', DA);
   const fmtDay = uPlot.fmtDate('{DD}.{MM}', DA);
+  const fmtDayYear = uPlot.fmtDate('{DD}.{MM}.{YYYY}', DA);
   const fmtMin = uPlot.fmtDate('{HH}:{mm}', DA);
   const fmtSec = uPlot.fmtDate('{HH}:{mm}:{ss}', DA);
 
@@ -86,6 +88,83 @@
     }
     ctx.stroke();
     ctx.restore();
+  }
+
+  /** Dato ved hvert døgnskift (midnat) i det viste udsnit — altid, også uden skillelinjer. */
+  function drawDayLabels(u: uPlot): void {
+    const min = u.scales.x.min, max = u.scales.x.max;
+    if (min == null || max == null) return;
+    const days = dividerTimes(min, max, 'day');
+    if (!days.length) return;
+    const { left, top, width } = u.bbox;
+    const ctx = u.ctx, dpr = devicePixelRatio;
+    ctx.save();
+    ctx.font = `600 ${11 * dpr}px system-ui, sans-serif`;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#3b3a37';
+    ctx.strokeStyle = '#3b3a37';
+    ctx.lineWidth = 1.5 * dpr;
+    let lastRight = -Infinity;
+    for (const t of days) {
+      const x = Math.round(u.valToPos(t, 'x', true));
+      if (x < left || x > left + width) continue;
+      const text = fmtDayYear(new Date(t * 1000));
+      const w = ctx.measureText(text).width;
+      if (x + 4 * dpr < lastRight) continue;   // ikke oven i forrige dato
+      ctx.beginPath(); ctx.moveTo(x + 0.5, top); ctx.lineTo(x + 0.5, top + 14 * dpr); ctx.stroke();
+      ctx.fillText(text, Math.min(x + 4 * dpr, left + width - w - 2 * dpr), top + 2 * dpr);
+      lastRight = x + 4 * dpr + w + 6 * dpr;
+    }
+    ctx.restore();
+  }
+
+  // Blink: kunstige punkter skifter mellem synlige og skjulte
+  let blinkOn = true;
+  let blinkTimer: ReturnType<typeof setInterval> | null = null;
+  const hasSynthetic = () => series.some((s) => s.synthetic && s.synthetic.size > 0);
+
+  /** De interpolerede strækninger tegnes tykke og stiplede og blinker — det ses tydeligt, at de ikke er målt. */
+  function drawFilled(u: uPlot): void {
+    if (!hasSynthetic()) return;
+    const xs = u.data[0] as number[];
+    const ctx = u.ctx, dpr = devicePixelRatio;
+    const { left, top, width, height: h } = u.bbox;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(left, top, width, h); ctx.clip();
+    ctx.lineCap = 'round';
+    series.forEach((s, k) => {
+      const syn = s.synthetic;
+      if (!syn || !syn.size || s.isBool) return;
+      const ys = u.data[k + 1] as (number | null | undefined)[];
+      const scale = u.series[k + 1].scale ?? 'y';
+      ctx.beginPath();
+      let prev = -1;
+      for (let i = 0; i < xs.length; i++) {
+        const v = ys[i];
+        if (v === undefined) continue;
+        if (v !== null && prev >= 0 && ys[prev] !== null && (syn.has(xs[prev]) || syn.has(xs[i]))) {
+          ctx.moveTo(u.valToPos(xs[prev], 'x', true), u.valToPos(ys[prev] as number, scale, true));
+          ctx.lineTo(u.valToPos(xs[i], 'x', true), u.valToPos(v, scale, true));
+        }
+        prev = i;
+      }
+      if (blinkOn) {
+        ctx.strokeStyle = colorOf(s.colorIndex); ctx.lineWidth = 3.5 * dpr; ctx.setLineDash([6 * dpr, 5 * dpr]);
+      } else {
+        ctx.strokeStyle = '#fcfcfb'; ctx.lineWidth = 5 * dpr; ctx.setLineDash([]);   // dækker linjen: strækningen forsvinder
+      }
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function syncBlink(): void {
+    if (hasSynthetic() && !blinkTimer) {
+      blinkTimer = setInterval(() => { blinkOn = !blinkOn; chart?.redraw(false); }, 700);
+    } else if (!hasSynthetic() && blinkTimer) {
+      clearInterval(blinkTimer); blinkTimer = null; blinkOn = true;
+    }
   }
 
   /** Ring om punkter med uregelmæssigheder (spike, spring, fastfrosset, hul) — mørk ring, så den ses på alle farver. */
@@ -197,7 +276,7 @@
       },
       hooks: {
         drawAxes: [drawDividers],
-        draw: [drawIssues, drawLabels],
+        draw: [drawFilled, drawDayLabels, drawIssues, drawLabels],
         setScale: [(u: uPlot, key: string) => {
           if (key !== 'x') return;
           const lo = u.scales.x.min ?? 0, hi = u.scales.x.max ?? 0;
@@ -295,6 +374,8 @@
   let span = 0;
   $effect(() => {
     const sig = series.map((s) => `${s.name}:${s.colorIndex}`).join('|') + unit;
+    void series.map((s) => s.synthetic?.size);   // udfyldning slået til/fra → tegn om og start/stop blink
+    syncBlink();
     void xRange; // ny periode → effekten skal også køre
     if (!chart) return;
     const wanted = series.every((s) => s.isBool) ? 160 : height;
@@ -334,6 +415,7 @@
   });
 
   onDestroy(() => {
+    if (blinkTimer) clearInterval(blinkTimer);
     observer?.disconnect();
     chart?.destroy();
   });
