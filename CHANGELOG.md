@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.119.0 build 0178] — 2026-10-22 — System › Konfiguration (trin 1: visning)
+
+- `backend/app/services/sysconfig.py`, `backend/app/api/system_config.py` (nye), `backend/app/main.py` — `GET /api/system/config` (kun admin): datasti, filstørrelser, ledig plads, trend-indstillinger, netværksstatus (`ip -j`, DNS fra resolv.conf). Kun læsning.
+- `backend/app/services/trends.py` — skrivemåling: rækker/skrivninger siden start og overslag pr. døgn (`write_stats`).
+- `frontend/src/pages/SystemConfig.svelte`, `lib/nav.ts`, `App.svelte` — ny side *System › Konfiguration*.
+- `backend/tests/test_system_config.py`, `nav.test.ts`; manual (System), `PLAN.md`, `FEATURES.md`.
+- Kun visning — intet ændres på systemet. Kun bygget og testet, ikke set i browser.
+
 ## [0.118.1 build 0177] — 2026-10-22 — fix: falske huller i Trends (stabile værdier)
 
 - `frontend/src/lib/trendAnalysis.ts` + test — `DATA_STALE_S` (900 s): et tidshul er først et hul efter 3 × "jeg lever"-intervallet; gælder både *Udfyld huller* og analysens *Hul i data*. Serveren gemmer kun ved ændring, så pauser på op til 5 min er normale.

@@ -2,6 +2,10 @@
 
 ---
 
+## v0.119.0 — 2026-10-22 — System › Konfiguration
+
+- Ny side **System › Konfiguration** (admin): hvor data ligger, filstørrelser og ledig plads, **hvor meget der skrives til disken** (rækker og skrivninger, overslag pr. døgn) og netværksstatus (IP, gateway, DNS). Siden viser kun; indstilling af netværk og flytning af data kommer senere.
+
 ## v0.118.1 — 2026-10-22 — Trends: færre falske huller
 
 - *Udfyld huller* og *Hul i data* udfyldte/markerede normale pauser (en stabil værdi gemmes kun hvert 5. minut). Nu tæller kun pauser over 15 minutter som huller; perioder hvor PLC'en ikke havde forbindelse udfyldes stadig.

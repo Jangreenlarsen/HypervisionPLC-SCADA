@@ -26,6 +26,7 @@ export const NAV: NavGroup[] = [
     { id: 'users', label: 'Brugere', role: 'admin', icon: 'users' },
     { id: 'backup', label: 'Backup', role: 'admin', icon: 'backup' },
     { id: 'update', label: 'Opdatering', role: 'admin', icon: 'update' },
+    { id: 'config', label: 'Konfiguration', role: 'admin', icon: 'config' },
   ] },
 ];
 
@@ -76,6 +77,7 @@ export const NAV_ICON: Record<string, string> = {
   audit: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
   users: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M21 20c0-2.6-1.6-4.8-4-5.6"/>',
   backup: '<path d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z"/><path d="M4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  config: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
   update: '<path d="M12 3v12"/><path d="M7 10l5-5 5 5"/><path d="M4 15v4h16v-4"/>',
   manual: '<path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M8 4v13a3 3 0 0 0-3 3"/><path d="M10 8h5M10 12h5"/>',
   symboltest: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/><path d="M8 15h8"/>',

@@ -28,6 +28,7 @@ from .api.live_ws import router as live_router
 from .api.operate import router as operate_router
 from .api.symbols import router as symbols_router
 from .api.system import router as system_router
+from .api.system_config import router as system_config_router
 from .api.routes import router
 from .config import Settings, read_version
 from .services.alarms import AlarmService
@@ -147,6 +148,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(auth_router)
     app.include_router(backup_router)
     app.include_router(system_router)
+    app.include_router(system_config_router)
     app.include_router(alarms_router)
     app.include_router(trends_router)
     app.include_router(energy_router)

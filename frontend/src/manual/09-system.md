@@ -1,6 +1,6 @@
 # System
 
-Under **System** ligger Log, Brugere, Backup og Opdatering. **Log** kræver rollen tekniker; de øvrige kræver **admin**.
+Under **System** ligger Log, Brugere, Backup, Opdatering og Konfiguration. **Log** kræver rollen tekniker; de øvrige kræver **admin**.
 
 ## Log
 
@@ -53,6 +53,16 @@ Under **System** ligger Log, Brugere, Backup og Opdatering. **Log** kræver roll
 **Kassér pakken** fjerner en klargjort pakke. Under en opdatering kan intet andet ændres. Loggen fra den seneste opdatering ligger nederst på siden. Kontrolsummen beskytter mod beskadigelse, men en administrator kan via en opdatering i praksis køre kode på serveren — kun betroede personer bør være admin.
 
 > Første gang skal serveren have installationen kørt som administrator på serveren (`sh deploy/install.sh`); derefter kan alle nye versioner komme via siden.
+
+## Konfiguration
+
+**Konfiguration** (admin) viser, hvor data ligger, hvor meget plads de fylder, og hvor meget der skrives til disken.
+
+- **Lagring**: datamappens placering, størrelsen på databaserne og mapperne, og ledig plads på disken.
+- **Trend-historik og skrivning**: antal gemte værdier, hvor længe de opbevares, og hvor mange rækker og skrivninger der er sket siden tjenesten startede (med et overslag pr. døgn efter 10 minutters drift). Det er nyttigt, hvis datamappen ligger på et SD-kort.
+- **Netværk**: værtsnavn, netkort med link, MAC og IPv4-adresser, gateway og DNS.
+
+Siden kun viser; indstilling af netværk og flytning af datamappen kommer i senere versioner.
 
 ## Bruger
 

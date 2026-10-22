@@ -29,7 +29,7 @@ Skriv brugernavn og adgangskode. Er det første gang, eller har en administrator
 | --- | --- | --- |
 | **Drift** | Overview, Alarmer, Trends, Energi | alle |
 | **Opsætning** | Tegninger, Tegn, Bindinger, Tags, Ugeprogrammer, PLC'er, Symboltest | se *Roller* |
-| **System** | Log, Brugere, Backup, Opdatering | tekniker og admin |
+| **System** | Log, Brugere, Backup, Opdatering, Konfiguration | tekniker og admin |
 | **Bruger** | Dit navn og din rolle, Skift adgangskode, Log ud, Manual, version | alle |
 
 Ud for menuerne står hvor du er (**Drift › Overview**), og til højre en **alarmklokke** med antal aktive alarme. Den blinker, når der er alarmer, du endnu ikke har kvitteret. Linket **AGPL · kildekode** peger på programmets kildekode (programmet er fri software under AGPL-3.0).

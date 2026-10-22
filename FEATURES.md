@@ -155,5 +155,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.116.0 — Trends: udfyld huller med kunstige blinkende punkter; dato ved døgnskift
 - [x] done v0.117.0 — Trends: dobbeltklik viser graf i fuld størrelse
 - [x] done v0.118.0 — Trends: fjern en graf fra visningen med kryds
+- [x] done v0.119.0 — System › Konfiguration trin 1: visning af datasti, størrelser, ledig plads, skrivemåling og netværksstatus (kun læsning)
+- [ ] planned — System › Konfiguration trin 2–5: trend-indstillinger, netværk (DHCP/fast IP/sekundær/reserve med 60 s fortryd), fallback-IP, flytning af datamappen — se PLAN.md
 - [x] done v0.102.0 — Trends: *Skjul spikes* udfylder nu spikes med lineært interpolerede værdier i stedet for huller
 - [x] done v0.101.0 — Trends: op til 12 kurver ad gangen (farver genbruges med stiplet linje fra nr. 8) og tilvalget *Analysér data* (spikes, urealistiske spring, fastfrosne værdier, huller; markeres, spikes kan skjules)
