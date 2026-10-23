@@ -524,22 +524,20 @@
 
 <svelte:window onkeydown={onKey} />
 
+<div class="panel-main" class:is-panel={panel}>
 {#if panel}
-  <nav class="rail" aria-label="Driftpanel">
+  <nav class="float-bar" aria-label="Driftpanel">
     <button class="logout" onclick={() => onlogout?.()}>Log ud</button>
     {#if drawings.length > 1}
       {#each drawings as d}
         <button class="drawing" class:active={selected === d.id} onclick={() => load(d.id)}>{d.name}</button>
       {/each}
     {/if}
-    <span class="spacer"></span>
     {#if !connected}<span class="badge error" title="Forbindelsen til SCADA-serveren er afbrudt">Ingen forbindelse</span>{/if}
-    <!-- AGPL-3.0 §13: link til kildekoden skal altid være synligt -->
-    <a class="src" href={sourceUrl || 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener">AGPL · kildekode</a>
   </nav>
+  <!-- AGPL-3.0 §13: link til kildekoden skal altid være synligt -->
+  <a class="src-float" href={sourceUrl || 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener">AGPL · kildekode</a>
 {/if}
-
-<div class="panel-main" class:is-panel={panel}>
 {#if !panel}
 <div class="toolbar row">
   <select bind:value={selected} onchange={() => load(selected)} aria-label="Vælg tegning">
@@ -712,19 +710,17 @@
 
 <style>
   .toolbar { margin-bottom: .75rem; }
-  /* Driftpanel: smal kolonne fast i venstre side; tegningen fylder resten */
-  .rail {
-    position: fixed; left: 0; top: 0; bottom: 0; width: 8.5rem; z-index: 5;
-    display: flex; flex-direction: column; gap: .5rem; padding: .75rem .5rem;
-    background: #3a3a3a; color: #ddd; box-sizing: border-box; overflow-y: auto;
+  /* Driftpanel: tegningen fylder hele skærmen; knapperne flyder som overlay øverst til venstre */
+  .float-bar {
+    position: absolute; left: .75rem; top: .75rem; z-index: 5;
+    display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; max-width: calc(100% - 1.5rem);
   }
-  .rail button { width: 100%; text-align: left; white-space: normal; overflow-wrap: break-word; hyphens: auto; padding: .4rem .5rem; font-size: .9rem; }
-  .rail .logout { font-weight: 600; background: #eeeeee; color: #1f1f1f; border-color: #bbbbbb; }
-  .rail .drawing { background: #4a4a4a; color: #eee; border-color: #5a5a5a; }
-  .rail .drawing.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .rail .spacer { flex: 1; }
-  .rail .src { color: #bbb; font-size: .72rem; }
-  .panel-main.is-panel { margin-left: 8.5rem; position: relative; }
+  .float-bar button { padding: .35rem .6rem; font-size: .85rem; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+  .float-bar .logout { font-weight: 600; background: #eeeeee; color: #1f1f1f; border-color: #bbbbbb; }
+  .float-bar .drawing { background: #4a4a4a; color: #eee; border-color: #5a5a5a; }
+  .float-bar .drawing.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .src-float { position: absolute; left: .75rem; bottom: .5rem; z-index: 5; color: #888; font-size: .7rem; }
+  .panel-main.is-panel { position: relative; }
   .fit-btn { position: absolute; right: 1rem; bottom: 1rem; z-index: 4; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
   .positions { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 .8rem; }
   .positions button { min-width: 4.5rem; padding: .6rem .9rem; font-size: 1rem; }

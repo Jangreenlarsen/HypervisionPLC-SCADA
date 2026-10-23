@@ -2,6 +2,10 @@
 
 ---
 
+## v0.126.0 — 2026-10-23 — Driftpanel: tegningen fylder hele skærmen
+
+- Driftpanelet har ikke længere en bred menu i siden. **Log ud** (og evt. valg af tegning) ligger som små knapper øverst til venstre oven på tegningen, så tegningen får hele skærmen.
+
 ## v0.125.1 — 2026-10-22 — Netværk: opdaterer sig selv
 
 - Netværkssystemet og DHCP-klienten registreres nu løbende (hvert halve minut). Installerer du fx `dhcpcd-base` på maskinen, kan DHCP vælges på siden kort efter — uden at køre nogen installation.
