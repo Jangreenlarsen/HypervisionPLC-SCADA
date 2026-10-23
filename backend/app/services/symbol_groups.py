@@ -51,8 +51,11 @@ class SymbolGroupService:
              members: list[str] | None) -> dict[str, Any]:
         name = self._check_name(name, kind)
         clean = clean_members(members) if members is not None else None
-        if group_id is None and len(self.db.list_symbol_groups(drawing_id)) >= MAX_GROUPS:
+        existing = self.db.list_symbol_groups(drawing_id)
+        if group_id is None and len(existing) >= MAX_GROUPS:
             raise ServiceError(400, f"Der kan højst være {MAX_GROUPS} grupper pr. tegning")
+        if any(g["id"] != group_id and g["name"].casefold() == name.casefold() for g in existing):
+            raise ServiceError(409, f"Der findes allerede en gruppe med navnet '{name}' på tegningen (store/små bogstaver tæller ikke)")
         try:
             gid = self.db.save_symbol_group(drawing_id, group_id, name, kind, clean, user)
         except sqlite3.IntegrityError:
@@ -158,7 +161,8 @@ class SymbolGroupService:
         if res.count:
             raise ServiceError(400, f"Animationerne kan ikke gemmes ({res.count} fejl) — {res.first()}",
                                {"steps": res.steps, "warnings": res.warnings})
-        self.db.set_group_anims(group_id, element, normalized["anims"], user)
+        if not self.db.set_group_anims(group_id, element, normalized["anims"], user):
+            raise ServiceError(409, f"'{element}' er ikke længere medlem af gruppen '{group['name']}' — genindlæs og prøv igen")
         warnings = self._overlaps(drawing_id, group, element, normalized["anims"], others)
         log.info("Gruppe-animationer gemt: tegning=%s gruppe=%s element=%s antal=%d bruger=%s", drawing_id, group["name"],
                  element, len(normalized["anims"]), user)

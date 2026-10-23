@@ -233,6 +233,8 @@ def test_move_missing_member_keeps_group_anims(gapi):
 
 
 def test_reorder_groups_changes_who_wins(gapi):
+    # funktionsgrupper tæller altid før udvalg — rækkefølgen kan kun ændres mellem grupper af samme art
+    gapi.put(url(gapi, f"/{gapi.g1}"), json={"name": "Fyr", "kind": "selection"})
     gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Fyr")]})
     gapi.put(anims_url(gapi, gapi.g2, "A"), json={"anims": [fill("Pumpe")]})
     r = gapi.post(url(gapi, "/order"), json={"ids": [gapi.g2, gapi.g1]})
@@ -298,3 +300,38 @@ def test_move_translates_parts_and_reports_dropped_and_discarded(gapi):
     r = gapi.post(url(gapi, f"/{gapi.g2}/members/move"), json={"old": "A", "new": "A2"})
     assert r.status_code == 200 and r.json()["members"] == ["A2"]
     assert gapi.get(url(gapi, f"/{gapi.g2}/anims")).json()["A2"][0]["src"] == "Pumpe"   # det nye medlems egne bevares
+
+
+# ------------------------------------------------------------ design-review 2 (v0.131.4)
+
+def test_put_anims_refuses_when_member_removed_meanwhile(gapi):
+    # simulér at en kollega fjerner medlemmet mellem tjek og skrivning: selve skrivningen kræver medlemskab
+    assert gapi.app.state.symbol_group_service.db.set_group_anims(gapi.g2, "B", [fill("Fyr")], "t") is False   # B er ikke medlem af g2
+    assert gapi.get(url(gapi, f"/{gapi.g2}/anims")).json() == {}
+
+
+def test_group_names_unique_ignoring_case_and_kind_order(gapi):
+    r = gapi.post(url(gapi), json={"name": "FYR", "members": []})
+    assert r.status_code == 409 and "store/små" in r.json()["error"]
+    r = gapi.put(url(gapi, f"/{gapi.g2}"), json={"name": "fyr", "kind": "selection"})
+    assert r.status_code == 409
+    assert gapi.put(url(gapi, f"/{gapi.g2}"), json={"name": "PUMPEGRUPPE", "kind": "selection"}).status_code == 200   # eget navn i andre bogstaver
+    # funktionsgrupper tæller altid før udvalg, uanset oprettelsesrækkefølge
+    gapi.post(url(gapi), json={"name": "Sidst", "kind": "function", "members": ["A"]})
+    kinds = [g["kind"] for g in gapi.get(url(gapi)).json()]
+    assert kinds == sorted(kinds, key=lambda k: 0 if k == "function" else 1)
+
+
+def test_group_anim_cannot_reference_own_blocks(gapi):
+    # henvisning til elementets egne logikblokke afvises (derfor kan en gruppe-animation ikke pege på blokke der forsvinder med elementet)
+    block = {"id": "L1", "name": "", "op": "and", "inputs": [{"src": "Fyr"}], "invert": False}
+    assert gapi.put(f"/api/drawings/{gapi.did}/symbols/A/config", json={"config": {"op": "view", "anims": [fill("Pumpe")], "logic": [block]}}).status_code == 200
+    for src in ("@A:L1", "@L1"):
+        assert gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [{**fill("Fyr"), "src": src}]}).status_code == 400
+
+
+def test_restore_enforces_group_limits_and_case_duplicates(gapi):
+    backup = gapi.get("/api/backup").json()
+    backup["symbol_groups"].append({"drawing_id": gapi.did, "name": "fyr", "kind": "selection", "members": [], "anims": {}})
+    r = gapi.post("/api/backup/restore", json=backup)
+    assert r.status_code == 400 and "to gange" in r.json()["error"]

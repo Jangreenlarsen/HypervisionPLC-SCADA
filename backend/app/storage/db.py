@@ -461,7 +461,7 @@ class Database:
         """Grupper med deres medlemmer (i rækkefølge) — for én tegning, eller alle (til backup)."""
         where, args = ("WHERE g.drawing_id = ?", (drawing_id,)) if drawing_id is not None else ("", ())
         groups = self._query(f"SELECT g.id, g.drawing_id, g.name, g.kind, g.sort FROM symbol_groups g {where} "
-                             "ORDER BY g.drawing_id, g.sort, g.id", args)
+                             "ORDER BY g.drawing_id, CASE g.kind WHEN 'function' THEN 0 ELSE 1 END, g.sort, g.id", args)
         members = self._query("SELECT m.group_id, m.element FROM symbol_group_members m "
                               f"JOIN symbol_groups g ON g.id = m.group_id {where} ORDER BY m.group_id, m.sort", args)
         by_group: dict[int, list[str]] = {}
@@ -605,18 +605,21 @@ class Database:
         rows = self._query("SELECT a.group_id, g.name AS group_name, g.drawing_id, a.element, a.anims FROM symbol_group_anims a "
                            "JOIN symbol_groups g ON g.id = a.group_id "
                            + ("WHERE " + " AND ".join(where) + " " if where else "")
-                           + "ORDER BY g.drawing_id, g.sort, g.id, a.element", tuple(args))
+                           + "ORDER BY g.drawing_id, CASE g.kind WHEN 'function' THEN 0 ELSE 1 END, g.sort, g.id, a.element", tuple(args))
         return [{**r, "anims": json.loads(r["anims"])} for r in rows]
 
-    def set_group_anims(self, group_id: int, element: str, anims: list[dict[str, Any]], user: str) -> None:
-        """Tom liste fjerner rækken. Én række pr. (gruppe, element) — andre røres ikke."""
+    def set_group_anims(self, group_id: int, element: str, anims: list[dict[str, Any]], user: str) -> bool:
+        """Tom liste fjerner rækken. Én række pr. (gruppe, element) — andre røres ikke. Skrivningen sker kun, hvis elementet
+        STADIG er medlem (tjekket i selve skrivningen — en kollega kan have fjernet det imens); ellers False og intet skrives."""
         if not anims:
             self._execute("DELETE FROM symbol_group_anims WHERE group_id = ? AND element = ?", (group_id, element))
-            return
-        self._execute("INSERT INTO symbol_group_anims(group_id, element, anims, updated_at, updated_by) VALUES (?,?,?,?,?) "
-                      "ON CONFLICT(group_id, element) DO UPDATE SET anims = excluded.anims, updated_at = excluded.updated_at, "
-                      "updated_by = excluded.updated_by",
-                      (group_id, element, json.dumps(anims, ensure_ascii=False), time.time(), user))
+            return True
+        return self._execute(
+            "INSERT INTO symbol_group_anims(group_id, element, anims, updated_at, updated_by) "
+            "SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM symbol_group_members WHERE group_id = ? AND element = ?) "
+            "ON CONFLICT(group_id, element) DO UPDATE SET anims = excluded.anims, updated_at = excluded.updated_at, "
+            "updated_by = excluded.updated_by",
+            (group_id, element, json.dumps(anims, ensure_ascii=False), time.time(), user, group_id, element)) > 0
 
     def delete_symbol_group(self, drawing_id: str, group_id: int) -> bool:
         return self._execute("DELETE FROM symbol_groups WHERE id = ? AND drawing_id = ?", (group_id, drawing_id)) > 0

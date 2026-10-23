@@ -42,13 +42,16 @@
   const nameOf = (id: string) => id;
   const missingParts = $derived(symbol ? mine.filter((a) => a.part !== 'all' && !(a.part in symbol!.parts)).map((a) => a.part) : []);
 
+  let loadToken = 0;   // kun det seneste svar må lande — ellers kan et langsomt svar for B overskrive C's animationer
   async function loadElement(el: string): Promise<void> {
+    const token = ++loadToken;
     loading = true; error = info = ''; warnings = [];
     try {
       const [cfg, owners] = await Promise.all([
         get<{ config: { anims?: GroupAnim[] } | null; symbol: SymbolInfo | null }>(`/api/drawings/${enc(drawingId)}/symbols/${enc(el)}/config`),
         groupAnimsOn(drawingId, el),
       ]);
+      if (token !== loadToken) return;
       symbol = cfg.symbol;
       ownAnims = cfg.config?.anims ?? [];
       const own = owners.find((o) => o.group_id === group.id);
@@ -57,9 +60,9 @@
       others = owners.filter((o) => o.group_id !== group.id)
         .map((o) => ({ key: `g${o.group_id}`, label: `Gruppen ${o.group_name}`, color: groupColor(o.group_id), anims: o.anims }));
     } catch (e) {
-      error = `Kunne ikke hente ${el}: ${(e as Error).message}`;
+      if (token === loadToken) error = `Kunne ikke hente ${el}: ${(e as Error).message}`;
     } finally {
-      loading = false;
+      if (token === loadToken) loading = false;
     }
   }
 
@@ -71,7 +74,7 @@
     element = group.members[0] ?? ''; void loadMarks(); if (element) void loadElement(element); });
 
   async function pick(el: string): Promise<void> {
-    if (el === element) return;
+    if (el === element || loading) return;   // faner er spærret under indlæsning
     if (dirty && !(await ask('Du har ændringer der ikke er gemt. Kassér dem?', { ok: 'Kassér', danger: true }))) return;
     element = el;
     await loadElement(el);
@@ -132,6 +135,8 @@
   }
 </script>
 
+<svelte:window onkeydown={(e) => e.key === 'Escape' && close()} />
+
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="backdrop" onclick={close}>
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -144,9 +149,9 @@
     <p class="small muted">Gruppens animationer gælder <strong>ud over</strong> symbolets egne og andre gruppers. Vælg et symbol i gruppen og sæt dets animationer op.
       Symbolets egne og andre gruppers vises nedenfor, så du kan se hvad der allerede findes.</p>
 
-    <div class="members" role="tablist" aria-label="Gruppens symboler">
+    <div class="members" role="group" aria-label="Gruppens symboler">
       {#each group.members as m}
-        <button role="tab" aria-selected={m === element} class:active={m === element} onclick={() => pick(m)}>
+        <button aria-pressed={m === element} class:active={m === element} disabled={loading && m !== element} onclick={() => pick(m)}>
           {nameOf(m)}{#if withAnims.has(m)} <span class="dot" title="Har animationer fra denne gruppe"></span>{/if}
         </button>
       {/each}
