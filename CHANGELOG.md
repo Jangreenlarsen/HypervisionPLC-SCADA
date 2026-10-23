@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.0.0 build 0199] — 2026-10-23 — MAJOR-bump: skema-migration (symbolgrupper)
+
+- Ingen kodeændring ud over versionsnummeret. Efter Jans afgørelse regnes databaseudvidelsen fra symbolgrupperne (skema 11 → 13, tre nye tabeller i 0.130.0 og 0.131.0) som skema-migration, og CLAUDE.md kræver MAJOR ved skema-migration. De to tidligere udgivelser fik fejlagtigt kun MINOR-bump; historikken omskrives ikke, men fra nu gælder 1.0.0.
+- Opdatering fra ≤ 0.129.x opretter tabellerne automatisk (`CREATE TABLE IF NOT EXISTS`); tag en backup først (database kan ikke rulles tilbage til en ældre version uden backup).
+- `version.json`.
+
 ## [0.131.4 build 0198] — 2026-10-23 — Symbolgrupper: resten af design-review 2
 - Dialogen for gruppe-animationer: ingen race mellem symboler (token + spærrede faner), Escape lukker, almindelige knapper med `aria-pressed`.
 - Gem af gruppe-animationer kræver medlemskab i selve skrivningen (409 hvis medlemmet er fjernet imens).
