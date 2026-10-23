@@ -136,7 +136,15 @@ const posOf = (b: Binding, values: Record<string, LiveValue>) => (b.params?.pos_
 
 /** Den animation i gruppen, der skal vises nu (null = ingen — delen som tegnet). */
 export function groupWinner(members: Binding[], values: Record<string, LiveValue>): Binding | null {
-  if (!members.some((m) => m.params?.when)) return members[members.length - 1] ?? null;   // uden "passiv": den sidste vinder
+  if (!members.some((m) => m.params?.when)) {
+    // Uden "passiv": den sidste AKTIVE vinder (som et "eller" mellem kilderne — fx et rør med løbelys fra to pumper);
+    // er ingen aktive, vises den sidstes fra-tilstand
+    for (let i = members.length - 1; i >= 0; i--) {
+      const m = members[i];
+      if (bindingActive(m, liveOf(m, values), dirOf(m, values), posOf(m, values))) return m;
+    }
+    return members[members.length - 1] ?? null;
+  }
   for (const m of members) {
     if (!m.params?.when || bindingActive(m, liveOf(m, values), dirOf(m, values), posOf(m, values))) return m;
   }

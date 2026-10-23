@@ -74,3 +74,4 @@ Status: `open` | `investigating` | `fixed`
 - [x] løst v0.129.1 — Rullepaneler ikke synlige i Tegn-editoren: #workarea overflow: scroll + synlige rullepaneler
 - [x] løst v0.131.1 — Symbolgrupper: gamle id'er kunne vågne op (used_ids) og gruppe-animationers logik-henvisninger var ubeskyttede (design-review)
 - [x] løst v0.131.2 — Symbolgrupper: samtidig redigering, ydelse, vinder ved overlap, forsvundne medlemmer (design-review)
+- [x] løst v0.131.3 — Regression i vinderreglen for flere kilder på samme del (v0.131.2) + dele ved flyt af gruppemedlemmer

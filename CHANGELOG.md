@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.131.3 build 0197] — 2026-10-23 — fix: regression i vinderreglen + dele ved flyt af gruppemedlemmer
+
+- **Regression (v0.131.2):** uden "passiv" vandt altid den sidste binding, uanset værdier — også i eksisterende tegninger (fx fælles rør med løbelys fra to pumper stod stille, når kun den første kørte). Nu vinder den sidste *aktive* (som et "eller" mellem kilderne); er ingen aktive, vises den sidstes fra-tilstand. Test for første-aktiv/sidste-inaktiv.
+- Flyt af forsvundne gruppemedlemmer (og symbol-flyt) oversætter nu delene (`kilde_del` → `mål_del`), dropper animationer på dele der ikke findes og melder det; kasserede animationer ved sammenfald (målet var allerede medlem) meldes også. Tests.
+- `frontend/src/lib/canvas.ts`, `backend/app/storage/db.py`, `services/{symbols,symbol_groups}.py`, `frontend/src/pages/Editor.svelte`, `symbolGroups.ts`, tests.
+
 ## [0.131.2 build 0196] — 2026-10-23 — Symbolgrupper: resten af design-reviewet
 
 - **Samtidig redigering:** tilføj/fjern medlemmer sender kun de valgte (`POST …/groups/{id}/members`, atomart) — et forældet faneblad kan ikke længere overskrive en kollegas medlemmer og animationer.

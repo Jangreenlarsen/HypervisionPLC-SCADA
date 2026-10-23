@@ -74,20 +74,23 @@ class SymbolGroupService:
         log.info("Symbolgruppe %s/%s: +%d −%d medlemmer af %s", drawing_id, group["name"], len(add), len(remove), user)
         return self.db.get_symbol_group(drawing_id, group_id)  # type: ignore[return-value]
 
-    def move_member(self, user: str, drawing_id: str, group_id: int, old: str, new: str) -> dict[str, Any]:
+    def move_member(self, user: str, drawing_id: str, group_id: int, old: str, new: str) -> dict[str, Any]:  # → gruppen + dropped/discarded
         """Et medlem der ikke findes mere (nyt id) flyttes til det nye element; gruppe-animationerne følger med."""
         group = self.db.get_symbol_group(drawing_id, group_id)
         if group is None:
             raise ServiceError(404, "Gruppen findes ikke")
         if old not in group["members"]:
             raise ServiceError(404, f"'{old}' er ikke medlem af gruppen")
+        parts: set[str] | None = None
         if self.symbols is not None:
-            self.symbols._element(drawing_id, new)   # 404 hvis målet ikke findes i tegningen
+            info = self.symbols._element(drawing_id, new)   # 404 hvis målet ikke findes i tegningen
+            parts = set(info["parts"])
             if old in {s["id"] for s in self.symbols.list_symbols_ids(drawing_id)}:
                 raise ServiceError(409, f"'{old}' findes stadig i tegningen — kun et forsvundet medlem kan flyttes")
-        self.db.rename_element_in_groups(drawing_id, old, new, group_id)
-        log.info("Symbolgruppe %s/%s: medlem %s flyttet til %s af %s", drawing_id, group["name"], old, new, user)
-        return self.db.get_symbol_group(drawing_id, group_id)  # type: ignore[return-value]
+        moved = self.db.rename_element_in_groups(drawing_id, old, new, group_id, valid_parts=parts)
+        log.info("Symbolgruppe %s/%s: medlem %s flyttet til %s af %s (%d dele droppet, %d animationer kasseret)", drawing_id,
+                 group["name"], old, new, user, len(moved["dropped"]), moved["discarded"])
+        return {**self.db.get_symbol_group(drawing_id, group_id), "dropped": moved["dropped"], "discarded": moved["discarded"]}  # type: ignore[dict-item]
 
     def reorder(self, user: str, drawing_id: str, ids: list[int]) -> list[dict[str, Any]]:
         if not self.db.reorder_symbol_groups(drawing_id, ids):

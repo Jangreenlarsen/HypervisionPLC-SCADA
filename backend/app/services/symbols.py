@@ -1204,12 +1204,13 @@ class SymbolService:
                 self.db.delete_symbol_pin(drawing_id, target)   # målet havde ingen opsætning — ryd op igen
             raise
         self.db.delete_symbol_config(drawing_id, source)
-        self.db.rename_element_in_groups(drawing_id, source, target)   # gruppernes medlemskab og animationer følger med (v0.131.2)
+        # gruppernes medlemskab og animationer følger med (v0.131.2); deres dele oversættes som symbolets egne
+        moved = self.db.rename_element_in_groups(drawing_id, source, target, valid_parts=set(info["parts"]))
         log.info("Symbolopsætning %s#%s flyttet til %s af %s (%d animationer droppet)", drawing_id, source, target,
                  actor.username, len(dropped))
         if self.on_change is not None:
             self.on_change(drawing_id, source)
-        return {**result, "dropped": dropped}
+        return {**result, "dropped": dropped, "group_dropped": moved["dropped"], "group_discarded": moved["discarded"]}
 
     def trend_symbols(self, drawing_ids: set[str] | None) -> list[dict[str, Any]]:
         """De opsatte symboler med deres tags, tegning for tegning — til "Vælg symbol" i Trends (v0.80.0).

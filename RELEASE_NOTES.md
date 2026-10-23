@@ -2,6 +2,11 @@
 
 ---
 
+## v0.131.3 — 2026-10-23 — Rettelse: flere kilder på samme del
+
+- Rettet en fejl fra v0.131.2: når flere tags (fx to pumper) styrer samme del, vinder nu den sidste *aktive* igen, så et fælles rør med løbelys fra to pumper kører, så snart én af dem kører.
+- Flytter du et forsvundet gruppemedlem til et nyt element, følger animationer på dets dele med, og du får besked om det, der ikke kunne flyttes.
+
 ## v0.131.2 — 2026-10-23 — Sikrere og tydeligere symbolgrupper
 
 - Flere kan redigere grupper uden at overskrive hinandens ændringer.

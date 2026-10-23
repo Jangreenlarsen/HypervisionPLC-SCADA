@@ -279,3 +279,22 @@ def test_symbol_move_carries_group_membership(gapi):
     groups = {g["name"]: g["members"] for g in gapi.get(url(gapi)).json()}
     assert groups == {"Fyr": ["A2", "B"], "Pumpegruppe": ["A2"]}
     assert list(gapi.get(url(gapi, f"/{gapi.g1}/anims")).json()) == ["A2"]
+
+
+def test_move_translates_parts_and_reports_dropped_and_discarded(gapi):
+    # gruppe-animation på en del (A_r) og en på en del der forsvinder (A_x findes ikke i det nye element)
+    gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [{**fill("Fyr"), "part": "A_r"}]})
+    svg2 = PIPE.replace('id="A"', 'id="A2"').replace('id="A_r"', 'id="A2_r"')
+    assert gapi.post(f"/api/drawings/{gapi.did}/versions", json={"svg": svg2, "activate": True}).status_code == 201
+    r = gapi.post(url(gapi, f"/{gapi.g1}/members/move"), json={"old": "A", "new": "A2"})
+    assert r.status_code == 200 and r.json()["dropped"] == [] and r.json()["discarded"] == 0, r.text
+    assert gapi.get(url(gapi, f"/{gapi.g1}/anims")).json()["A2"][0]["part"] == "A2_r"
+    # sammenfald: g2 har både det gamle (A) og det nye (A2) medlem — det gamles animationer kasseres, og det meldes
+    gapi.post(url(gapi, f"/{gapi.g2}/members"), json={"add": ["A2"]})
+    gapi.post(url(gapi, f"/{gapi.g2}/members"), json={"remove": ["A"]})   # A er væk fra g2 (g2 har kun A2)
+    r = gapi.post(url(gapi, f"/{gapi.g2}/members"), json={"add": ["A"]})   # genindsæt det forsvundne A som forældreløst medlem
+    assert "A" in r.json()["members"]
+    gapi.put(anims_url(gapi, gapi.g2, "A2"), json={"anims": [fill("Pumpe")]})
+    r = gapi.post(url(gapi, f"/{gapi.g2}/members/move"), json={"old": "A", "new": "A2"})
+    assert r.status_code == 200 and r.json()["members"] == ["A2"]
+    assert gapi.get(url(gapi, f"/{gapi.g2}/anims")).json()["A2"][0]["src"] == "Pumpe"   # det nye medlems egne bevares
