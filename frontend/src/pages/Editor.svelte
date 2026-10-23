@@ -12,6 +12,7 @@
   import { mergeMoved, orphanGroups } from '../lib/orphans';
   import TagSelect from '../lib/TagSelect.svelte';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
+  import { listGroups, ofKind, type SymbolGroup } from '../lib/symbolGroups';
 
   let { route = 'editor' }: { route?: string } = $props();
 
@@ -26,6 +27,9 @@
   let error = $state('');
   let info = $state('');
   let filter = $state('');
+  // Symbolgrupper (v0.130.0): vælg en gruppe for kun at se dens symboler i listen — bindinger sættes som ellers pr. symbol
+  let groups = $state<SymbolGroup[]>([]);
+  let groupId = $state('');
   let expanded = $state<Set<string>>(new Set()); // standard: rene grupper udfoldet, symboler sammenfoldet
   let showAll = $state(false);                   // standard: kun symboler (navngivne) og bundne elementer
   let descDraft = $state('');
@@ -103,6 +107,8 @@
       if (keepSelection && selected) select(selected, true);
       else clearSelection();
       await loadOrphans();
+      groupId = '';
+      listGroups(id).then((g) => (groups = g)).catch((e) => { groups = []; console.error('Symbolgrupper kunne ikke hentes:', e); });
     } catch (e) {
       view = null;
       error = `Kunne ikke åbne tegningen: ${(e as Error).message}`;
@@ -327,7 +333,19 @@
 
   const boundElements = $derived(new Set((view?.bindings ?? []).map((b) => b.element)));
   const scope = $derived(showAll ? { elements, direct: new Set(elements.map((e) => e.id)) } : relevantElements(elements, boundElements));
-  const rows = $derived(visibleRows(scope.elements, expanded, filter).map((r) => ({ ...r, context: r.context || !scope.direct.has(r.id) })));
+  const activeGroup = $derived(groups.find((g) => String(g.id) === groupId) ?? null);
+  const rows = $derived.by(() => {
+    if (activeGroup) {
+      // Gruppens medlemmer i gruppens rækkefølge, flat; medlemmer der ikke findes længere springes over
+      const byId = new Map(elements.map((e) => [e.id, e]));
+      const q = filter.trim().toLowerCase();
+      return activeGroup.members.flatMap((m) => byId.get(m) ?? [])
+        .filter((e) => !q || [e.id, e.label, e.name, e.desc].some((v) => v?.toLowerCase().includes(q)))
+        .map((e) => ({ ...e, depth: 0, context: false }));
+    }
+    return visibleRows(scope.elements, expanded, filter).map((r) => ({ ...r, context: r.context || !scope.direct.has(r.id) }));
+  });
+  const missingInGroup = $derived(activeGroup ? activeGroup.members.filter((m) => !elements.some((e) => e.id === m)) : []);
   /** Symbolets forklaring: den der er sat her (gemt ved bindingerne), ellers en evt. ældre i selve tegningen. */
   const descFor = (e: ElementInfo | null) => (e ? view?.symbols?.[e.id] ?? e.desc ?? '' : '');
   const enc = encodeURIComponent;
@@ -695,7 +713,7 @@
     <section class="panel">
       <div class="row" style="justify-content: space-between">
         <h3>Symboler og bundne ({scope.direct.size})</h3>
-        {#if !filter && scope.elements.some((e) => e.children)}
+        {#if !filter && !activeGroup && scope.elements.some((e) => e.children)}
           <span class="row small">
             <button class="link-btn" onclick={() => (expanded = new Set(scope.elements.filter((e) => e.children).map((e) => e.id)))}>Fold alle ud</button>
             <button class="link-btn" onclick={() => (expanded = new Set())}>Fold alle sammen</button>
@@ -703,6 +721,18 @@
           </span>
         {/if}
       </div>
+      {#if groups.length}
+        <label class="small group-pick">Gruppe
+          <select bind:value={groupId} aria-label="Vis kun en gruppe">
+            <option value="">Alle symboler</option>
+            {#each ofKind(groups, 'function') as g}<option value={String(g.id)}>{g.name} ({g.members.length})</option>{/each}
+            {#each ofKind(groups, 'selection') as g}<option value={String(g.id)}>{g.name} ({g.members.length}) · udvalg</option>{/each}
+          </select>
+        </label>
+        {#if activeGroup && missingInGroup.length}
+          <p class="small notice">{missingInGroup.length} af gruppens symboler findes ikke længere på tegningen: {missingInGroup.join(', ')}</p>
+        {/if}
+      {/if}
       <input bind:value={filter} placeholder="Søg navn, id, label eller forklaring" style="width:100%" />
       <label class="check small show-all" title="Standard: kun navngivne symboler og elementer med bindinger — navne sættes i Tegn">
         <input type="checkbox" bind:checked={showAll} onchange={() => (expanded = defaultExpanded(scope.elements))} />

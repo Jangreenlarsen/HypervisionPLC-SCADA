@@ -2,6 +2,13 @@
 
 ---
 
+## v0.130.0 — 2026-10-23 — Grupper af symboler
+
+- I **Tegn** kan du gemme de valgte symboler som en navngiven gruppe (fx *Fyr uden akku-tank*) og markere dem alle igen med ét klik. Et symbol kan være med i flere grupper.
+- På **Bindinger** kan du vælge en gruppe for kun at se dens symboler.
+- Grupperne er med i backup.
+- Opdateringen opretter to nye tabeller i databasen; ældre backups kan stadig gendannes.
+
 ## v0.129.1 — 2026-10-23 — Rullepaneler i Tegn
 
 - Rullepanelerne på tegnefladen i Tegn er nu altid synlige.

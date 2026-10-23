@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.130.0 build 0193] — 2026-10-23 — Navngivne symbolgrupper (del 1: grupper som valg og markering)
+
+- Ny sektion **Grupper** i Tegn: gem de valgte symboler som en navngiven gruppe (art: funktionsgruppe eller udvalg), markér alle dens symboler med ét klik, tilføj/fjern/sæt til valgte, omdøb, skift art, slet. Samme symbol kan være med i flere grupper (overlap).
+- Bindinger: vælg en gruppe over symbollisten for kun at se dens symboler (viser hvis medlemmer er forsvundet).
+- Backend: nye tabeller `symbol_groups` og `symbol_group_members` (skema 12), REST `/api/drawings/{id}/groups` (læs viewer, skriv engineer, audit-log), med i backup/gendannelse (ældre backups uden grupper virker). Grupper følger tegningen ved sletning.
+- Del 2 (animationer ejet af gruppen + farvemarkering i symbolguiden) er planlagt, se PLAN.md.
+- `backend/app/storage/db.py`, `backend/app/services/symbol_groups.py` (ny), `backend/app/services/backup.py`, `backend/app/api/symbol_groups.py` (ny), `backend/app/main.py`, `frontend/src/lib/symbolGroups.ts` (ny), `frontend/src/lib/SymbolGroups.svelte` (ny), `frontend/src/pages/DrawEditor.svelte`, `frontend/src/pages/Editor.svelte`, manualen, tests.
+
 ## [0.129.1 build 0191, rettet i 0192] — 2026-10-23 — fix: rullepaneler altid synlige i Tegn
 
 - Tegnefladen (`#workarea`) har nu `overflow: scroll` og tydelige rullepaneler (14 px, mørk grib på lys bane), så de ikke skjules af systemets auto-skjulte rullepaneler.
