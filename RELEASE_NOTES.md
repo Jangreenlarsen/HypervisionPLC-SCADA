@@ -2,6 +2,11 @@
 
 ---
 
+## v0.131.1 — 2026-10-23 — Rettelser til symbolgrupper
+
+- Et nyt element i tegningen kan ikke længere overtage et slettet gruppemedlems id og dets animationer.
+- En logikblok, som en gruppe bruger, kan ikke fjernes ved en fejl — du får besked om hvilken gruppe der bruger den.
+
 ## v0.131.0 — 2026-10-23 — Animationer på grupper
 
 - En gruppe af symboler (fx *Fyr uden akku-tank*) kan nu få **egne animationer** på sine symboler. De gælder ud over symbolernes egne, og et rør kan være med i flere grupper med hver sin opsætning.
