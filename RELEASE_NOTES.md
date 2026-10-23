@@ -2,6 +2,10 @@
 
 ---
 
+## v0.129.0 — 2026-10-23 — Coil på animationer der krævede et register
+
+- I **Opsæt symbol › Animationer** kan du nu vælge et coil (til/fra-tag) som kilde til Niveau, Gennemsigtighed og Størrelse. Coil'et står som 0 (Fra) og 100 (Til).
+
 ## v0.128.0 — 2026-10-23 — Flyt Opsæt symbol-dialogen
 
 - I **Opsæt symbol** kan du trække i dialogens overskrift for at flytte den rundt, fx så du kan se tegningen bagved.

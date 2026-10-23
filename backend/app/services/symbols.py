@@ -888,8 +888,7 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if t is None:
                 res.err("4", f"{nm}: tagget '{a.src}' findes ikke.")
                 continue
-            if a.type in NUMERIC_ONLY and t.known and t.is_bool:
-                res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kræver et tal-tag.")
+            # Et coil/til-fra-tag kan også styre Niveau/Gennemsigtighed/Størrelse: Fra = 0, Til = 100 (se fraction i animate.ts)
         elif a.type in NUMERIC_ONLY:
             res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af positionen — vælg et tal-tag.")
             continue

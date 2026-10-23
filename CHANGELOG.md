@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.129.0 build 0190] — 2026-10-23 — Animationer: coil kan bruges hvor der krævedes et register
+
+- Niveau, Gennemsigtighed og Størrelse (og Drej/Flyt) kan nu styres af et coil/til-fra-tag: Fra = 0, Til = 100. Serveren afviser det ikke længere; standardområdet for coil er 0–100 (før 0–1).
+- Ændring: i `fraction` (animate.ts) tæller et boolsk tag som 0/100. Eksisterende opsætninger med max 1 virker uændret (værdien klippes til 100 %); en bruger-sat max over 1 på et coil giver nu fuld udslag ved Til.
+- `backend/app/services/symbols.py`, `frontend/src/lib/animate.ts`, `frontend/src/lib/symbolConfig.ts`, tests.
+
 ## [0.128.0 build 0189] — 2026-10-23 — Opsæt symbol: dialogen kan flyttes
 
 - Symbolguidens dialog kan trækkes rundt på skærmen i overskriften (mus og touch), holdt inden for skærmen.

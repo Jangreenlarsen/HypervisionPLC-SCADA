@@ -105,6 +105,15 @@ describe('applyBinding', () => {
     expect((c as SVGElement).style.fill).toBe('green');
   });
 
+  it('coil (Til/Fra) giver 100/0 på niveau, så det kan bruges hvor der ellers kræves et register', () => {
+    const r = el('rect', { x: '10', y: '0', width: '20', height: '100' });
+    const lb = b('level', { min: 0, max: 100, direction: 'up' });
+    applyBinding(r, lb, good(true));
+    expect(r.getAttribute('height')).toBe('100');
+    applyBinding(r, lb, good(false));
+    expect(r.getAttribute('height')).toBe('0');
+  });
+
   it('level opad på rect bevarer originalmål', () => {
     const r = el('rect', { x: '10', y: '0', width: '20', height: '100' });
     const lb = b('level', { min: 0, max: 100, direction: 'up' });
