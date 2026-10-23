@@ -120,7 +120,13 @@ export function priorityGroups(bindings: Binding[]): Map<string, Binding[]> {
     all.set(k, [...(all.get(k) ?? []), b]);
   }
   const out = new Map<string, Binding[]>();
-  for (const [k, list] of all) if (list.some((b) => b.params?.when)) out.set(k, [...list].sort((x, y) => (x.position ?? 0) - (y.position ?? 0)));
+  // Også uden "passiv", når flere tags styrer samme del og slags (symbolets egen + grupper): ellers vinder den, hvis tag
+  // sidst ændrede sig, fordi kun den ændrede binding tegnes om — nu vinder altid den sidste i rækkefølgen
+  for (const [k, list] of all) {
+    if (list.some((b) => b.params?.when) || new Set(list.map((b) => b.tag)).size > 1) {
+      out.set(k, [...list].sort((x, y) => (x.position ?? 0) - (y.position ?? 0)));
+    }
+  }
   return out;
 }
 
@@ -130,6 +136,7 @@ const posOf = (b: Binding, values: Record<string, LiveValue>) => (b.params?.pos_
 
 /** Den animation i gruppen, der skal vises nu (null = ingen — delen som tegnet). */
 export function groupWinner(members: Binding[], values: Record<string, LiveValue>): Binding | null {
+  if (!members.some((m) => m.params?.when)) return members[members.length - 1] ?? null;   // uden "passiv": den sidste vinder
   for (const m of members) {
     if (!m.params?.when || bindingActive(m, liveOf(m, values), dirOf(m, values), posOf(m, values))) return m;
   }

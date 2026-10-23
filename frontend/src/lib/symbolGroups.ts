@@ -18,6 +18,26 @@ export const updateGroup = (drawingId: string, g: { id: number; name: string; ki
   put<SymbolGroup>(`${base(drawingId)}/${g.id}`, { name: g.name, kind: g.kind, ...(members ? { members } : {}) });
 export const deleteGroup = (drawingId: string, id: number) => del(`${base(drawingId)}/${id}`);
 
+/** Tilføj/fjern enkelte medlemmer på serveren — rører ikke de andre, så en forældet skærm ikke overskriver en kollegas ændringer. */
+export const changeMembers = (drawingId: string, groupId: number, add: string[], remove: string[]) =>
+  post<SymbolGroup>(`${base(drawingId)}/${groupId}/members`, { add, remove });
+/** Flyt et forsvundet medlem (og dets gruppe-animationer) til det element, der har fået dets plads. */
+export const moveMember = (drawingId: string, groupId: number, old: string, to: string) =>
+  post<SymbolGroup>(`${base(drawingId)}/${groupId}/members/move`, { old, new: to });
+/** Gruppernes rækkefølge (afgør hvem der vinder ved overlap). */
+export const reorderGroups = (drawingId: string, ids: number[]) => post<SymbolGroup[]>(`${base(drawingId)}/order`, { ids });
+/** Byt en gruppe med sin nabo af samme art; giver den nye samlede rækkefølge af id'er (eller null hvis den ikke kan flyttes). */
+export function movedOrder(groups: SymbolGroup[], id: number, dir: -1 | 1): number[] | null {
+  const i = groups.findIndex((g) => g.id === id);
+  if (i < 0) return null;
+  let j = i + dir;
+  while (j >= 0 && j < groups.length && groups[j].kind !== groups[i].kind) j += dir;
+  if (j < 0 || j >= groups.length) return null;
+  const ids = groups.map((g) => g.id);
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  return ids;
+}
+
 /** Tilføj ids (uden dubletter, rækkefølgen bevares). */
 export const withMembers = (members: string[], add: string[]): string[] => [...new Set([...members, ...add])];
 /** Fjern ids. */
@@ -36,7 +56,7 @@ export interface OwnerBlock { key: string; label: string; color: string | null; 
 export const getGroupAnims = (drawingId: string, groupId: number) =>
   get<Record<string, GroupAnim[]>>(`${base(drawingId)}/${groupId}/anims`);
 export const putGroupAnims = (drawingId: string, groupId: number, element: string, anims: GroupAnim[]) =>
-  put<{ element: string; anims: GroupAnim[] }>(`${base(drawingId)}/${groupId}/anims/${encodeURIComponent(element)}`, { anims });
+  put<{ element: string; anims: GroupAnim[]; warnings: string[] }>(`${base(drawingId)}/${groupId}/anims/${encodeURIComponent(element)}`, { anims });
 /** Alle gruppers animationer på ét element (til oversigten over, hvem der ejer hvad). */
 export const groupAnimsOn = (drawingId: string, element: string) =>
   get<GroupOwner[]>(`/api/drawings/${encodeURIComponent(drawingId)}/symbols/${encodeURIComponent(element)}/group-anims`);

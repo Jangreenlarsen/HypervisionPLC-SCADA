@@ -63,6 +63,38 @@ class SymbolGroupService:
                  len(clean) if clean is not None else "uændret", user)
         return self.db.get_symbol_group(drawing_id, gid)  # type: ignore[return-value]
 
+    def change_members(self, user: str, drawing_id: str, group_id: int, add: list[str], remove: list[str]) -> dict[str, Any]:
+        add, remove = clean_members(add), clean_members(remove)
+        group = self.db.get_symbol_group(drawing_id, group_id)
+        if group is None:
+            raise ServiceError(404, "Gruppen findes ikke")
+        if len(set(group["members"]) | set(add)) > MAX_GROUP_MEMBERS:
+            raise ServiceError(400, f"En gruppe kan højst have {MAX_GROUP_MEMBERS} elementer")
+        self.db.change_group_members(drawing_id, group_id, add, remove, user)
+        log.info("Symbolgruppe %s/%s: +%d −%d medlemmer af %s", drawing_id, group["name"], len(add), len(remove), user)
+        return self.db.get_symbol_group(drawing_id, group_id)  # type: ignore[return-value]
+
+    def move_member(self, user: str, drawing_id: str, group_id: int, old: str, new: str) -> dict[str, Any]:
+        """Et medlem der ikke findes mere (nyt id) flyttes til det nye element; gruppe-animationerne følger med."""
+        group = self.db.get_symbol_group(drawing_id, group_id)
+        if group is None:
+            raise ServiceError(404, "Gruppen findes ikke")
+        if old not in group["members"]:
+            raise ServiceError(404, f"'{old}' er ikke medlem af gruppen")
+        if self.symbols is not None:
+            self.symbols._element(drawing_id, new)   # 404 hvis målet ikke findes i tegningen
+            if old in {s["id"] for s in self.symbols.list_symbols_ids(drawing_id)}:
+                raise ServiceError(409, f"'{old}' findes stadig i tegningen — kun et forsvundet medlem kan flyttes")
+        self.db.rename_element_in_groups(drawing_id, old, new, group_id)
+        log.info("Symbolgruppe %s/%s: medlem %s flyttet til %s af %s", drawing_id, group["name"], old, new, user)
+        return self.db.get_symbol_group(drawing_id, group_id)  # type: ignore[return-value]
+
+    def reorder(self, user: str, drawing_id: str, ids: list[int]) -> list[dict[str, Any]]:
+        if not self.db.reorder_symbol_groups(drawing_id, ids):
+            raise ServiceError(400, "Rækkefølgen skal indeholde præcis tegningens grupper")
+        log.info("Symbolgrupper omordnet på %s af %s", drawing_id, user)
+        return self.db.list_symbol_groups(drawing_id)
+
     def delete(self, user: str, drawing_id: str, group_id: int) -> str:
         group = self.db.get_symbol_group(drawing_id, group_id)
         if group is None:
@@ -78,13 +110,35 @@ class SymbolGroupService:
             raise ServiceError(404, "Gruppen findes ikke")
         return {r["element"]: r["anims"] for r in self.db.list_group_anims(drawing_id, group_id)}
 
+    @staticmethod
+    def _channel(anim_type: str) -> str:
+        return "fill" if anim_type == "flicker" else anim_type   # samme kanal som canvas.ts
+
+    def _overlaps(self, drawing_id: str, group: dict[str, Any], element: str, anims: list[dict[str, Any]],
+                  configs: dict[str, dict[str, Any]]) -> list[str]:
+        """Advarsler: samme del og slags animation fra flere ejere (symbolet selv eller andre grupper). Vinderen afgøres af
+        ejernes rækkefølge — symbolets egne først, så grupperne i deres rækkefølge — og af "passiv"."""
+        mine = {(a["part"], self._channel(a["type"])) for a in anims}
+        out: list[str] = []
+        for a in (configs.get(element) or {}).get("anims", []):
+            if (a["part"], self._channel(a["type"])) in mine:
+                out.append(f"{a['part']}/{a['type']}: symbolets egen animation gælder også — gruppens kommer efter")
+        for row in self.db.list_group_anims(drawing_id):
+            if row["element"] != element or row["group_id"] == group["id"]:
+                continue
+            for a in row["anims"]:
+                if (a["part"], self._channel(a["type"])) in mine:
+                    out.append(f"{a['part']}/{a['type']}: gruppen {row['group_name']} har også en animation her")
+        return list(dict.fromkeys(out))
+
     def anims_on(self, drawing_id: str, element: str) -> list[dict[str, Any]]:
         """Alle gruppers animationer på ét element (til oversigten over, hvem der ejer hvad): [{group_id, group_name, kind, anims}]."""
         kinds = {g["id"]: g["kind"] for g in self.db.list_symbol_groups(drawing_id)}
         return [{"group_id": r["group_id"], "group_name": r["group_name"], "kind": kinds.get(r["group_id"], "selection"),
                  "anims": r["anims"]} for r in self.db.list_group_anims(drawing_id) if r["element"] == element]
 
-    def put_anims(self, user: str, drawing_id: str, group_id: int, element: str, anims: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def put_anims(self, user: str, drawing_id: str, group_id: int, element: str, anims: list[dict[str, Any]]) -> dict[str, Any]:
+        """→ {anims: normaliserede animationer, warnings: overlap med andre ejere}."""
         group = self.db.get_symbol_group(drawing_id, group_id)
         if group is None:
             raise ServiceError(404, "Gruppen findes ikke")
@@ -92,7 +146,7 @@ class SymbolGroupService:
             raise ServiceError(400, f"'{element}' er ikke medlem af gruppen '{group['name']}'")
         if not anims:   # tom liste = fjern gruppens animationer på elementet (kræver ingen validering)
             self.db.set_group_anims(group_id, element, [], user)
-            return []
+            return {"anims": [], "warnings": []}
         svc = self.symbols
         info = svc._element(drawing_id, element)
         # Samme regler som symbolets egne animationer (visning uden positioner): tags, dele, parametre
@@ -102,6 +156,7 @@ class SymbolGroupService:
             raise ServiceError(400, f"Animationerne kan ikke gemmes ({res.count} fejl) — {res.first()}",
                                {"steps": res.steps, "warnings": res.warnings})
         self.db.set_group_anims(group_id, element, normalized["anims"], user)
+        warnings = self._overlaps(drawing_id, group, element, normalized["anims"], others)
         log.info("Gruppe-animationer gemt: tegning=%s gruppe=%s element=%s antal=%d bruger=%s", drawing_id, group["name"],
                  element, len(normalized["anims"]), user)
-        return normalized["anims"]
+        return {"anims": normalized["anims"], "warnings": warnings}

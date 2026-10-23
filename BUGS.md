@@ -73,3 +73,4 @@ Status: `open` | `investigating` | `fixed`
 - [x] done v0.126.1 — Bug: animationer vistes ikke på iOS (Reducer bevægelse) — løst
 - [x] løst v0.129.1 — Rullepaneler ikke synlige i Tegn-editoren: #workarea overflow: scroll + synlige rullepaneler
 - [x] løst v0.131.1 — Symbolgrupper: gamle id'er kunne vågne op (used_ids) og gruppe-animationers logik-henvisninger var ubeskyttede (design-review)
+- [x] løst v0.131.2 — Symbolgrupper: samtidig redigering, ydelse, vinder ved overlap, forsvundne medlemmer (design-review)

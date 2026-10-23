@@ -5,7 +5,7 @@
   import GroupAnims from './GroupAnims.svelte';
   import { ask, askText } from './ask';
   import {
-    KIND_HINT, KIND_TXT, createGroup, deleteGroup, groupColor, groupsOf, listGroups, ofKind, updateGroup, withMembers, withoutMembers,
+    KIND_HINT, KIND_TXT, changeMembers, createGroup, deleteGroup, groupColor, groupsOf, listGroups, movedOrder, ofKind, reorderGroups, updateGroup,
     type GroupKind, type SymbolGroup,
   } from './symbolGroups';
 
@@ -59,8 +59,13 @@
       : `${found} af ${g.members.length} symboler findes på tegningen (resten er slettet eller har fået nyt id).`;
   }
 
-  const addSelected = (g: SymbolGroup) => run('Tilføj', async () => { await updateGroup(drawingId!, g, withMembers(g.members, selectedIds)); });
-  const removeSelected = (g: SymbolGroup) => run('Fjern', async () => { await updateGroup(drawingId!, g, withoutMembers(g.members, selectedIds)); });
+  // Tilføj/fjern sender kun de valgte (serveren ændrer enkelte medlemmer) — en forældet skærm kan ikke overskrive andres ændringer
+  const addSelected = (g: SymbolGroup) => run('Tilføj', async () => { await changeMembers(drawingId!, g.id, selectedIds, []); });
+  const removeSelected = (g: SymbolGroup) => run('Fjern', async () => { await changeMembers(drawingId!, g.id, [], selectedIds); });
+  const move = (g: SymbolGroup, dir: -1 | 1) => {
+    const ids = movedOrder(groups, g.id, dir);
+    if (ids) void run('Flyt', async () => { await reorderGroups(drawingId!, ids); });
+  };
   const replaceWithSelected = (g: SymbolGroup) => run('Opdatér', async () => { await updateGroup(drawingId!, g, selectedIds); });
   async function rename(g: SymbolGroup): Promise<void> {
     const name = await askText('Nyt navn på gruppen:', { value: g.name, ok: 'Omdøb' });
@@ -97,6 +102,10 @@
           <div class="grp" class:active={active === g.id}>
             <span class="chip" style:background={groupColor(g.id)} title="Gruppens farve i animationsoversigten"></span>
             <button class="pick" onclick={() => pick(g)} title="Markér gruppens symboler på tegningen">{g.name} <span class="muted small">({g.members.length})</span></button>
+            <span class="order">
+              <button class="small" onclick={() => move(g, -1)} disabled={busy || !movedOrder(groups, g.id, -1)} aria-label="Flyt op" title="Rækkefølgen afgør hvem der vinder, når flere grupper har samme slags animation på samme del (nederste vinder)">▲</button>
+              <button class="small" onclick={() => move(g, 1)} disabled={busy || !movedOrder(groups, g.id, 1)} aria-label="Flyt ned">▼</button>
+            </span>
             <details class="more">
               <summary class="small" aria-label="Redigér gruppen {g.name}">⋯</summary>
               <div class="row wrap small">
@@ -130,6 +139,7 @@
   .grp.active { border-color: #5ccf6e; background: rgba(92, 207, 110, .15); }
   .pick { flex: 1; text-align: left; background: none; border: none; padding: .2rem .3rem; cursor: pointer; overflow-wrap: anywhere; }
   .chip { flex: 0 0 auto; width: .7rem; height: .7rem; border-radius: 3px; margin-top: .45rem; }
+  .order { flex: 0 0 auto; display: inline-flex; gap: .1rem; }
   .more { flex: 0 0 auto; }
   .more[open] { flex: 1 1 100%; }
   .more summary { cursor: pointer; padding: .2rem .4rem; }

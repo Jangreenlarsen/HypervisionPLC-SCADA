@@ -14,6 +14,23 @@ from .auth import ENGINEER, VIEWER, audit
 router = APIRouter(prefix="/api/drawings")
 
 
+class MembersBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    add: list[str] = Field(default_factory=list, max_length=MAX_GROUP_MEMBERS)
+    remove: list[str] = Field(default_factory=list, max_length=MAX_GROUP_MEMBERS)
+
+
+class MoveMemberBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    old: str = Field(min_length=1, max_length=120)
+    new: str = Field(min_length=1, max_length=120)
+
+
+class OrderBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    ids: list[int] = Field(max_length=200)
+
+
 class AnimsBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     anims: list[dict[str, Any]] = Field(max_length=12)   # tom liste fjerner gruppens animationer på elementet
@@ -51,6 +68,33 @@ async def create_group(drawing_id: str, body: GroupBody, request: Request) -> di
     return group
 
 
+@router.post("/{drawing_id}/groups/order", dependencies=[ENGINEER])
+async def reorder_groups(drawing_id: str, body: OrderBody, request: Request) -> list[dict[str, Any]]:
+    """Gruppernes rækkefølge — afgør hvem der vinder, når flere grupper har samme slags animation på samme del."""
+    _check(request, drawing_id)
+    groups = _svc(request).reorder(request.state.user.username, drawing_id, body.ids)
+    audit(request, "symbol_group.order", drawing_id, {"ids": body.ids})
+    return groups
+
+
+@router.post("/{drawing_id}/groups/{group_id}/members", dependencies=[ENGINEER])
+async def change_members(drawing_id: str, group_id: int, body: MembersBody, request: Request) -> dict[str, Any]:
+    """Tilføj/fjern enkelte medlemmer uden at overskrive en kollegas ændringer."""
+    _check(request, drawing_id)
+    group = _svc(request).change_members(request.state.user.username, drawing_id, group_id, body.add, body.remove)
+    audit(request, "symbol_group.members", f"{drawing_id}#{group['name']}", {"add": len(body.add), "remove": len(body.remove)})
+    return group
+
+
+@router.post("/{drawing_id}/groups/{group_id}/members/move", dependencies=[ENGINEER])
+async def move_member(drawing_id: str, group_id: int, body: MoveMemberBody, request: Request) -> dict[str, Any]:
+    """Flyt et forsvundet medlem (og dets gruppe-animationer) til det element, der har fået dets plads."""
+    _check(request, drawing_id)
+    group = _svc(request).move_member(request.state.user.username, drawing_id, group_id, body.old, body.new)
+    audit(request, "symbol_group.move", f"{drawing_id}#{group['name']}", {"old": body.old, "new": body.new})
+    return group
+
+
 @router.put("/{drawing_id}/groups/{group_id}", dependencies=[ENGINEER])
 async def update_group(drawing_id: str, group_id: int, body: GroupBody, request: Request) -> dict[str, Any]:
     _check(request, drawing_id)
@@ -77,9 +121,9 @@ async def get_anims(drawing_id: str, group_id: int, request: Request) -> dict[st
 @router.put("/{drawing_id}/groups/{group_id}/anims/{element}", dependencies=[ENGINEER])
 async def put_anims(drawing_id: str, group_id: int, element: str, body: AnimsBody, request: Request) -> dict[str, Any]:
     _check(request, drawing_id)
-    anims = _svc(request).put_anims(request.state.user.username, drawing_id, group_id, element, body.anims)
-    audit(request, "symbol_group.anims", f"{drawing_id}#{element}", {"group": group_id, "anims": len(anims)})
-    return {"element": element, "anims": anims}
+    result = _svc(request).put_anims(request.state.user.username, drawing_id, group_id, element, body.anims)
+    audit(request, "symbol_group.anims", f"{drawing_id}#{element}", {"group": group_id, "anims": len(result["anims"])})
+    return {"element": element, **result}
 
 
 @router.get("/{drawing_id}/symbols/{element}/group-anims", dependencies=[VIEWER])

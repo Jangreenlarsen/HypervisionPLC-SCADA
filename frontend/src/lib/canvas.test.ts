@@ -98,9 +98,12 @@ describe('aktiv/passiv og prioritering (v0.72.0)', () => {
     box.remove();
   });
 
-  it('kun grupper med en aktiv/passiv bliver prioriteret; Farve og Blafrer er samme slags', () => {
+  it('grupper med en aktiv/passiv eller flere tags bliver prioriteret; Farve og Blafrer er samme slags', () => {
     const plain = [flowB('A', '#f00', 1, false), flowB('B', '#0f0', 2, false)];
-    expect(priorityGroups(plain).size).toBe(0);         // som før: den sidste vinder
+    const pg = priorityGroups(plain);                   // flere tags på samme del og slags: den sidste i rækkefølgen vinder, uanset hvilket tag der ændrede sig sidst
+    expect(pg.size).toBe(1);
+    expect(groupWinner([...pg.values()][0], {})).toBe(plain[1]);
+    expect(priorityGroups([flowB('A', '#f00', 1, false), flowB('A', '#0f0', 2, false)]).size).toBe(0);   // samme tag: som før
     const fillW: Binding = { element: 'r', tag: 'A', anim: 'fill', params: { when: true, on: '#f00' }, position: 1 };
     const flick: Binding = { element: 'r', tag: '@on', anim: 'flicker', params: {}, position: 2 };
     const g = priorityGroups([fillW, flick]);
@@ -108,5 +111,26 @@ describe('aktiv/passiv og prioritering (v0.72.0)', () => {
     expect(groupWinner([fillW, flick], { A: lv(false) })).toBe(flick);
     expect(groupWinner([fillW, flick], { A: lv(true) })).toBe(fillW);
     expect(groupWinner([fillW], { A: lv(null) })).toBeNull();   // ukendt værdi er ikke aktiv
+  });
+});
+
+describe('flere ejere på samme del (symbol + grupper)', () => {
+  const live = (value: unknown) => ({ value, quality: 'good', ts: 0, error: null }) as never;
+
+  it('den sidste i rækkefølgen vinder, også når kun den første ændrer sig', () => {
+    const box = document.createElement('div');
+    box.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"><rect id="r"/></svg>';
+    const own: Binding = { element: 'r', tag: 'A', anim: 'fill', params: { on: '#ff0000', off: '#aaaaaa' }, position: 1000 };
+    const grp: Binding = { element: 'r', tag: 'B', anim: 'fill', params: { on: '#00ff00', off: '#0000ff' }, position: 2000 };
+    const values = { A: live(true), B: live(false) };
+    renderAll(box, [own, grp], values, {});
+    const fill = () => (box.querySelector('#r') as SVGElement).style.fill;
+    const before = fill();
+    values.A = live(false);
+    renderBinding(box, own, values, {});               // kun symbolets tag ændrer sig …
+    expect(fill()).toBe(before);                        // … gruppens animation (den sidste) vinder stadig
+    values.B = live(true);
+    renderBinding(box, grp, values, {});
+    expect(fill()).not.toBe(before);
   });
 });

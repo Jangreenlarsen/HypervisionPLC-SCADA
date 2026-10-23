@@ -12,7 +12,7 @@
   import { mergeMoved, orphanGroups } from '../lib/orphans';
   import TagSelect from '../lib/TagSelect.svelte';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
-  import { listGroups, ofKind, type SymbolGroup } from '../lib/symbolGroups';
+  import { changeMembers, listGroups, moveMember, ofKind, type SymbolGroup } from '../lib/symbolGroups';
   import GroupAnims from '../lib/GroupAnims.svelte';
 
   let { route = 'editor' }: { route?: string } = $props();
@@ -347,6 +347,19 @@
     }
     return visibleRows(scope.elements, expanded, filter).map((r) => ({ ...r, context: r.context || !scope.direct.has(r.id) }));
   });
+  async function groupMemberFix(member: string, what: 'move' | 'remove'): Promise<void> {
+    if (!view || !activeGroup) return;
+    try {
+      if (what === 'move') await moveMember(view.id, activeGroup.id, member, selected!);
+      else await changeMembers(view.id, activeGroup.id, [], [member]);
+      const keep = groupId;
+      groups = await listGroups(view.id);
+      groupId = keep;
+      await load(view.id, true);
+    } catch (e) {
+      error = `Kunne ikke ${what === 'move' ? 'flytte' : 'fjerne'} gruppemedlemmet: ${(e as Error).message}`;
+    }
+  }
   const missingInGroup = $derived(activeGroup ? activeGroup.members.filter((m) => !elements.some((e) => e.id === m)) : []);
   /** Symbolets forklaring: den der er sat her (gemt ved bindingerne), ellers en evt. ældre i selve tegningen. */
   const descFor = (e: ElementInfo | null) => (e ? view?.symbols?.[e.id] ?? e.desc ?? '' : '');
@@ -736,7 +749,14 @@
             title="Sæt animationer op på alle gruppens symboler (gælder ud over deres egne)">Animationer for gruppen …</button></div>
         {/if}
         {#if activeGroup && missingInGroup.length}
-          <p class="small notice">{missingInGroup.length} af gruppens symboler findes ikke længere på tegningen: {missingInGroup.join(', ')}</p>
+          <div class="small notice">
+            {missingInGroup.length} af gruppens symboler findes ikke længere på tegningen (slettet eller nyt id). Vælg elementet, der har overtaget pladsen, og tryk <strong>Flyt hertil</strong> — gruppens animationer følger med — eller <strong>Fjern</strong>.
+            {#each missingInGroup as m (m)}
+              <div class="row"><code>{m}</code>
+                <button class="small" onclick={() => groupMemberFix(m, 'move')} disabled={!selected} title={selected ? `Flyt til "${selected}"` : 'Vælg først elementet i listen'}>Flyt hertil</button>
+                <button class="small" onclick={() => groupMemberFix(m, 'remove')}>Fjern</button></div>
+            {/each}
+          </div>
         {/if}
       {/if}
       <input bind:value={filter} placeholder="Søg navn, id, label eller forklaring" style="width:100%" />

@@ -2,6 +2,13 @@
 
 ---
 
+## v0.131.2 — 2026-10-23 — Sikrere og tydeligere symbolgrupper
+
+- Flere kan redigere grupper uden at overskrive hinandens ændringer.
+- Gruppernes rækkefølge kan ses og ændres med ▲▼; den afgør hvem der vinder, når flere animationer rammer samme del. Når to animationer fra forskellige tags rammer samme del, vinder nu altid den sidste — ikke den, hvis tag sidst ændrede sig.
+- Du får en advarsel, når en gruppes animation overlapper med symbolets egen eller en anden gruppes.
+- Forsvundne gruppemedlemmer kan flyttes til det nye element (med animationerne) eller fjernes direkte i Bindinger.
+
 ## v0.131.1 — 2026-10-23 — Rettelser til symbolgrupper
 
 - Et nyt element i tegningen kan ikke længere overtage et slettet gruppemedlems id og dets animationer.

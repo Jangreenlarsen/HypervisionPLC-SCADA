@@ -1032,6 +1032,10 @@ class SymbolService:
         return [{"element": s["id"], "name": s["name"], "type": s["type"], "configured": s["id"] in configured}
                 for s in named_symbols(self.drawings.svg(drawing_id))]
 
+    def list_symbols_ids(self, drawing_id: str) -> list[dict[str, str]]:
+        """Alle elementer med id i tegningens aktive version (til at afgøre, om et gruppemedlem er forsvundet)."""
+        return [{"id": e} for e in index_svg(self.drawings.svg(drawing_id))]
+
     def copy_to(self, actor: CurrentUser, drawing_id: str, source: str, targets: list[str], overwrite: bool) -> dict[str, Any]:
         """Kopiér et symbols GEMTE opsætning til andre symboler på tegningen. Hver kopi oversættes (dele efter navn) og
         valideres som et almindeligt gem; et mål der fejler, påvirker ikke de andre. Symboler der allerede har en opsætning,
@@ -1200,6 +1204,7 @@ class SymbolService:
                 self.db.delete_symbol_pin(drawing_id, target)   # målet havde ingen opsætning — ryd op igen
             raise
         self.db.delete_symbol_config(drawing_id, source)
+        self.db.rename_element_in_groups(drawing_id, source, target)   # gruppernes medlemskab og animationer følger med (v0.131.2)
         log.info("Symbolopsætning %s#%s flyttet til %s af %s (%d animationer droppet)", drawing_id, source, target,
                  actor.username, len(dropped))
         if self.on_change is not None:

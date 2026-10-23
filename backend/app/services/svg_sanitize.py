@@ -302,6 +302,19 @@ def symbol_roots(svg: str) -> list[str]:
             and ("data-hv-type" in el.attrib or "data-hv-auto" in el.attrib)]
 
 
+def subtree_map(svg: str, roots: set[str]) -> dict[str, set[str]]:
+    """{rod: id'er i roden og dens efterkommere} — én gennemgang af tegningen uanset antal rødder."""
+    out: dict[str, set[str]] = {}
+    if not roots:
+        return out
+    root = fromstring(svg.encode("utf-8"), forbid_dtd=True)
+    for el in root.iter():
+        rid = el.attrib.get("id") if isinstance(el.tag, str) else None
+        if rid in roots:
+            out.setdefault(rid, set()).update(c.attrib["id"] for c in el.iter() if isinstance(c.tag, str) and c.attrib.get("id"))
+    return out
+
+
 def subtree_ids(svg: str, roots: set[str]) -> set[str]:
     """Alle id'er i de givne elementer og deres efterkommere (én gennemgang af tegningen)."""
     if not roots:
