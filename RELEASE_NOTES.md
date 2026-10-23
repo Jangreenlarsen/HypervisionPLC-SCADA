@@ -2,6 +2,10 @@
 
 ---
 
+## v1.1.0 — 2026-10-23 — Se symbolets grupper i Opsæt symbol
+
+- I **Opsæt symbol** kan du nu se, hvilke grupper symbolet er medlem af, lige under overskriften.
+
 ## v1.0.1 — 2026-10-23 — Intern oprydning
 
 - Ingen synlige ændringer: en intern typefejl i Trends er rettet.

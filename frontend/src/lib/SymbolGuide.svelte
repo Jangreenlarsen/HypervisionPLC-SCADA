@@ -14,7 +14,7 @@
   import TagSelect from './TagSelect.svelte';
   import AnimParams from './AnimParams.svelte';
   import OwnerAnims from './OwnerAnims.svelte';
-  import { groupAnimsOn, groupColor, type OwnerBlock } from './symbolGroups';
+  import { KIND_TXT, groupAnimsOn, groupColor, groupsOf, listGroups, type OwnerBlock, type SymbolGroup } from './symbolGroups';
   import { CHART_RANGES, FONT_SCALES, LEGEND_PLACES, MAX_CHART_TAGS, defaultChart, legendOf } from './chartGraphic';
   import { SELECTOR_TYPES, selectorMismatch } from './selectorRedraw';
   import { DIR_TXT, applyLever, leverDirs, leverInSync, type LeverDir } from './toggleSwitch';
@@ -90,7 +90,11 @@
   // ---------------------------------------------------------------- indlæsning
   // Animationer som grupper har lagt på symbolet (v0.131.0): vises skrivebeskyttet under symbolets egne
   let groupOwners = $state<OwnerBlock[]>([]);
+  let memberOf = $state<SymbolGroup[] | null>(null);   // grupperne symbolet er medlem af (null = ikke hentet endnu)
   onMount(() => {
+    listGroups(drawingId)
+      .then((all) => (memberOf = groupsOf(all, element)))
+      .catch((e) => { memberOf = []; console.error('Grupperne kunne ikke hentes:', e); });
     groupAnimsOn(drawingId, element)
       .then((o) => (groupOwners = o.map((g) => ({ key: `g${g.group_id}`, label: `Gruppen ${g.group_name}`, color: groupColor(g.group_id), anims: g.anims }))))
       .catch((e) => console.error('Gruppernes animationer kunne ikke hentes:', e));
@@ -515,6 +519,15 @@
       {/if}
       <button class="close" onclick={close} disabled={saving} aria-label="Luk">✕</button>
     </header>
+    {#if memberOf}
+      <p class="small members-note">
+        {#if memberOf.length}
+          Medlem af {memberOf.length === 1 ? 'gruppen' : 'grupperne'}:
+          {#each memberOf as g (g.id)}<span class="gchip" style:--c={groupColor(g.id)} title={KIND_TXT[g.kind]}>{g.name}</span>{/each}
+          <span class="muted">— deres animationer vises under Visning (trin 4)</span>
+        {:else}<span class="muted">Ikke medlem af nogen gruppe.</span>{/if}
+      </p>
+    {/if}
 
     {#if group.length}
       <p class="small group-note">Du redigerer <strong>{name}</strong>. Når du gemmer, får også {group.length <= 4 ? group.map((g) => g.name).join(', ') : `${group.slice(0, 3).map((g) => g.name).join(', ')} og ${group.length - 3} andre`} opsætningen (dele oversættes efter navn; nøglelåsen kopieres ikke).</p>
@@ -961,6 +974,8 @@
 <style>
   table.lever { width: auto; margin-bottom: 6px; }
   table.lever td { padding: 3px 14px 3px 0; }
+  .members-note { margin: .2rem 0 .4rem; }
+  .gchip { display: inline-block; margin: 0 .25rem; padding: 0 .5rem; border: 1px solid var(--c); border-left-width: 5px; border-radius: var(--radius); background: color-mix(in srgb, var(--c) 10%, transparent); }
   .group-note { margin: .2rem 0 .4rem; padding: .35rem .6rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); }
   .group-res { margin: 0 0 .4rem; }
   .group-res ul { margin: .2rem 0 0; padding-left: 1.2rem; }

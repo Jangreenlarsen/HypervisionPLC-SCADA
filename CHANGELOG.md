@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.1.0 build 0201] — 2026-10-23 — Opsæt symbol viser symbolets grupper
+
+- Under overskriften i symbolguiden står de grupper, symbolet er medlem af (i gruppens farve, med art som tooltip), eller "Ikke medlem af nogen gruppe".
+- `frontend/src/lib/SymbolGuide.svelte`.
+
 ## [1.0.1 build 0200] — 2026-10-23 — fix: typetjek (svelte-check) er rent
 
 - `expanded` i Trends flyttet efter `groups`, som den bruger (2 typefejl fra v0.117.0). Ingen ændring i opførsel.
