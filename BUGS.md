@@ -5,6 +5,8 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v1.0.1 — `svelte-check` fejlede (2 fejl) i `Trends.svelte`: `expanded` (`$derived`) brugte `groups` før dens erklæring. Rodårsag: erklæringsrækkefølgen (v0.117.0, dobbeltklik på graf); gik godt ved kørsel, fordi `$derived` evalueres senere, men typetjekket bestod ikke. **Løsning:** `expanded` flyttet efter `groups`. svelte-check er nu helt ren (0 fejl, 0 advarsler).
+
 - [fixed] v0.131.4 — Symbolgrupper (design-review 2): **race i GroupAnims-dialogen** — svarene var ikke knyttet til det element, de blev hentet for; klikkede man hurtigt B og så C, kunne B's svar lande sidst, så `mine` viste B's animationer mens `element` var C, og *Gem* skrev dem på C (part `all` er gyldig overalt). **Løsning:** forespørgsels-token (kun det seneste svar lander) og faner spærret under indlæsning.
 - [fixed] v0.131.4 — Symbolgrupper (design-review 2): **TOCTOU i `put_anims`** — medlemskab blev tjekket før skrivningen, ikke i den; fjernede en kollega medlemmet imellem, blev en animationsrække uden medlem tilbage (kunne give IntegrityError/500 i rename). **Løsning:** `set_group_anims` skriver med `INSERT … SELECT … WHERE EXISTS(medlem)` og melder 409, hvis medlemmet er væk. Test.
 - [fixed] v0.131.4 — Symbolgrupper (design-review 2): **rækkefølgen var uklar** — ▲▼ byttede kun inden for samme art, mens den globale rækkefølge blandede funktionsgrupper og udvalg, så man ikke kunne se hvem der vandt. **Løsning:** funktionsgrupper tæller altid før udvalg (sorteret i SQL), hver art oppefra og ned; tooltip forklarer hele kæden (symbolets egne → funktionsgrupper → udvalg; uden *passiv* sidste aktive, med *passiv* øverste aktive). Test.

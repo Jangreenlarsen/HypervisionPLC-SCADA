@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.0.1 build 0200] — 2026-10-23 — fix: typetjek (svelte-check) er rent
+
+- `expanded` i Trends flyttet efter `groups`, som den bruger (2 typefejl fra v0.117.0). Ingen ændring i opførsel.
+- `frontend/src/pages/Trends.svelte`.
+
 ## [1.0.0 build 0199] — 2026-10-23 — MAJOR-bump: skema-migration (symbolgrupper)
 
 - Ingen kodeændring ud over versionsnummeret. Efter Jans afgørelse regnes databaseudvidelsen fra symbolgrupperne (skema 11 → 13, tre nye tabeller i 0.130.0 og 0.131.0) som skema-migration, og CLAUDE.md kræver MAJOR ved skema-migration. De to tidligere udgivelser fik fejlagtigt kun MINOR-bump; historikken omskrives ikke, men fra nu gælder 1.0.0.

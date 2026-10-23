@@ -93,7 +93,6 @@
   // Dobbeltklik på en graf: vis kun den, i fuld størrelse (dobbeltklik igen eller Esc: tilbage)
   let expandedKey = $state<string | null>(null);
   const keyOf = (unit: string, tags: { name: string }[]) => unit + tags.map((t) => t.name).join(',');
-  const expanded = $derived(expandedKey && groups.some(([u, t]) => keyOf(u, t) === expandedKey) ? expandedKey : null);
   const fullHeight = $derived(Math.max(260, room - noteH - overhead));
   /** Fjern en graf fra visningen: dens tags fravælges (de kan vælges igen i listen). */
   function removeGroup(tags: { name: string }[]): void {
@@ -407,6 +406,7 @@
     return units.size === 1 ? [...units][0] : '';
   }
   const shown = $derived((info?.tags ?? []).filter((t) => !filter || `${t.name} ${t.description}`.toLowerCase().includes(filter.toLowerCase())));
+  const expanded = $derived(expandedKey && groups.some(([u, t]) => keyOf(u, t) === expandedKey) ? expandedKey : null);
 
   /** Fund pr. tag (kun tal-kurver; til/fra analyseres ikke). Tom når analysen er slået fra. */
   const issues = $derived.by(() => {
