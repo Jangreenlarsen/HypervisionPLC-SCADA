@@ -72,3 +72,4 @@ Status: `open` | `investigating` | `fixed`
 - [fixed] v0.3.0 — `/ws/live` gav 404 under rigtig uvicorn: `uvicorn` uden `[standard]` har intet WebSocket-bibliotek og afviser upgrade-forespørgsler ("Unsupported upgrade request"). FastAPI's TestClient fangede det ikke. Fundet ved visuel verifikation før release. **Løsning:** `websockets` tilføjet til `requirements.txt` + regressionstest der kører WebSocket mod en rigtig uvicorn-server (`test_websocket_works_under_real_uvicorn`).
 - [x] done v0.126.1 — Bug: animationer vistes ikke på iOS (Reducer bevægelse) — løst
 - [x] løst v0.129.1 — Rullepaneler ikke synlige i Tegn-editoren: #workarea overflow: scroll + synlige rullepaneler
+- [x] løst v0.131.1 — Symbolgrupper: gamle id'er kunne vågne op (used_ids) og gruppe-animationers logik-henvisninger var ubeskyttede (design-review)

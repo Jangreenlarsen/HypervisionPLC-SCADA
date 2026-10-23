@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.131.1 build 0195] — 2026-10-23 — fix: symbolgrupper efter design-review
+
+- `used_ids` reserverer nu også gruppemedlemmer, så et nyt element ikke kan få et gammelt medlems id og arve gruppens medlemskab og animationer.
+- En logikblok, som en gruppe-animation på et andet symbol henviser til, kan ikke længere fjernes/overskrives uden besked (fejlen nævner gruppen).
+- Resten af reviewets punkter står i PLAN.md.
+- `backend/app/services/symbols.py`, `backend/tests/test_symbol_groups.py`.
+
 ## [0.131.0 build 0194] — 2026-10-23 — Symbolgrupper del 2: animationer ejet af gruppen + farvemarkering
 
 - En gruppe kan få egne animationer på hvert af sine symboler (**⋯ › Animationer …** i Tegn, eller **Animationer for gruppen …** i Bindinger). De gælder ud over symbolets egne og andre gruppers (rør i flere grupper = egen opsætning + én pr. gruppe). Rækkefølge: symbolets egne, derefter grupperne i deres rækkefølge; den eksisterende prioritetsregel afgør samme slags på samme del.

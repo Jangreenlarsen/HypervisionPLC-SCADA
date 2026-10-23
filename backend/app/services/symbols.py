@@ -1022,6 +1022,7 @@ class SymbolService:
         version. Tegn må ikke give nye elementer disse id'er, ellers "vågner" en gammel opsætning op på det nye element."""
         self.drawings._require(drawing_id)
         ids = set(self.configs(drawing_id)) | {b["element"] for b in self.db.list_bindings(drawing_id)}
+        ids |= {m for g in self.db.list_symbol_groups(drawing_id) for m in g["members"]}   # gruppemedlemmer (v0.131.1)
         return sorted(ids)
 
     def list_symbols(self, drawing_id: str) -> list[dict[str, Any]]:
@@ -1114,6 +1115,16 @@ class SymbolService:
                     owner, bid = split_logic_ref(s)
                     if owner == element and bid in block_ids and (other, bid) not in out:
                         out.append((other, bid))
+        # gruppe-animationer på andre symboler der henviser til blokkene (v0.131.1)
+        for row in self.db.list_group_anims(drawing_id):
+            if row["element"] == element:
+                continue
+            for s in cfg_refs({"anims": row["anims"]}):
+                if ":" in s:
+                    owner, bid = split_logic_ref(s)
+                    label = f"{row['element']} (gruppen {row['group_name']})"
+                    if owner == element and bid in block_ids and (label, bid) not in out:
+                        out.append((label, bid))
         return out
 
     def logic_pool(self, drawing_id: str, element: str) -> list[dict[str, Any]]:

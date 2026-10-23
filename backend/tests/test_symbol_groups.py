@@ -183,3 +183,23 @@ def test_group_anims_on_element(gapi):
     assert [(o["group_name"], o["kind"], o["anims"][0]["src"]) for o in r] == [("Fyr", "function", "Fyr"), ("Pumpegruppe", "selection", "Pumpe")]
     gapi.put(anims_url(gapi, gapi.g1, "B"), json={"anims": [fill("Fyr")]})
     assert gapi.get(f"/api/drawings/{gapi.did}/symbols/B/group-anims").json()[0]["group_name"] == "Fyr"
+
+
+# ------------------------------------------------------------ rettelser efter design-review (v0.131.1)
+
+def test_used_ids_reserves_group_members(gapi):
+    assert set(gapi.get(f"/api/drawings/{gapi.did}/used-ids").json()) >= {"A", "B"}
+
+
+def test_logic_block_used_by_group_anim_cannot_be_removed(gapi):
+    block = {"id": "L1", "name": "", "op": "and", "inputs": [{"src": "Fyr"}], "invert": False}
+    own = [fill("Pumpe")]   # et visningssymbol skal have mindst én animation
+    cfg = {"op": "view", "anims": own, "logic": [block]}
+    assert gapi.put(f"/api/drawings/{gapi.did}/symbols/A/config", json={"config": cfg}).status_code == 200
+    r = gapi.put(anims_url(gapi, gapi.g1, "B"), json={"anims": [{**fill("Fyr"), "src": "@A:L1"}]})
+    assert r.status_code == 200, r.text
+    r = gapi.put(f"/api/drawings/{gapi.did}/symbols/A/config", json={"config": {"op": "view", "anims": own, "logic": []}})
+    assert r.status_code == 400 and "gruppen Fyr" in r.text and "L1" in r.text
+    # fjernes gruppens henvisning først, kan blokken fjernes
+    assert gapi.put(anims_url(gapi, gapi.g1, "B"), json={"anims": []}).status_code == 200
+    assert gapi.put(f"/api/drawings/{gapi.did}/symbols/A/config", json={"config": {"op": "view", "anims": own, "logic": []}}).status_code == 200
