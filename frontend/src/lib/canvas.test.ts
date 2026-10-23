@@ -117,20 +117,32 @@ describe('aktiv/passiv og prioritering (v0.72.0)', () => {
 describe('flere ejere på samme del (symbol + grupper)', () => {
   const live = (value: unknown) => ({ value, quality: 'good', ts: 0, error: null }) as never;
 
-  it('den sidste i rækkefølgen vinder, også når kun den første ændrer sig', () => {
+  it('uden passiv vinder den sidste AKTIVE (eller mellem kilderne): første aktiv, sidste inaktiv → første', () => {
+    const p1: Binding = { element: 'r', tag: 'P1', anim: 'visible', params: {}, position: 1 };
+    const p2: Binding = { element: 'r', tag: 'P2', anim: 'visible', params: {}, position: 2 };
+    expect(groupWinner([p1, p2], { P1: live(true), P2: live(false) })).toBe(p1);
+    expect(groupWinner([p1, p2], { P1: live(true), P2: live(true) })).toBe(p2);
+    expect(groupWinner([p1, p2], { P1: live(false), P2: live(false) })).toBe(p2);   // ingen aktive: den sidstes fra-tilstand
+  });
+
+  it('delvis gentegning giver samme vinder som en samlet: aktive vinder, den sidste af dem', () => {
     const box = document.createElement('div');
     box.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"><rect id="r"/></svg>';
     const own: Binding = { element: 'r', tag: 'A', anim: 'fill', params: { on: '#ff0000', off: '#aaaaaa' }, position: 1000 };
     const grp: Binding = { element: 'r', tag: 'B', anim: 'fill', params: { on: '#00ff00', off: '#0000ff' }, position: 2000 };
     const values = { A: live(true), B: live(false) };
-    renderAll(box, [own, grp], values, {});
     const fill = () => (box.querySelector('#r') as SVGElement).style.fill;
-    const before = fill();
+    renderAll(box, [own, grp], values, {});
+    const ownOn = fill();                               // kun symbolets egen er aktiv → den vinder
     values.A = live(false);
-    renderBinding(box, own, values, {});               // kun symbolets tag ændrer sig …
-    expect(fill()).toBe(before);                        // … gruppens animation (den sidste) vinder stadig
+    renderBinding(box, own, values, {});                // ingen aktive → den sidstes (gruppens) fra-tilstand
+    const grpOff = fill();
     values.B = live(true);
-    renderBinding(box, grp, values, {});
-    expect(fill()).not.toBe(before);
+    renderBinding(box, grp, values, {});                // kun gruppens er aktiv
+    const grpOn = fill();
+    values.A = live(true);
+    renderBinding(box, own, values, {});                // begge aktive → den sidste (gruppens)
+    expect(new Set([ownOn, grpOff, grpOn]).size).toBe(3);
+    expect(fill()).toBe(grpOn);
   });
 });

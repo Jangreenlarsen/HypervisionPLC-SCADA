@@ -531,9 +531,12 @@ class Database:
                 cur.execute("ROLLBACK")
                 raise
 
-    def rename_element_in_groups(self, drawing_id: str, old: str, new: str, group_id: int | None = None) -> int:
+    def rename_element_in_groups(self, drawing_id: str, old: str, new: str, group_id: int | None = None,
+                                 valid_parts: set[str] | None = None) -> dict[str, Any]:
         """Flyt et elements medlemskab (og dets gruppe-animationer) fra et id til et andet — fx når et symbol har fået nyt id.
-        Er `new` allerede medlem af gruppen, fjernes `old` blot (nye id'ets animationer bevares). Returnerer antal grupper."""
+        Delene følger id-mønstret `<gammelt>_<del>` → `<nyt>_<del>`; er `valid_parts` givet, droppes animationer på dele der ikke
+        findes på målet. Er `new` allerede medlem af gruppen, fjernes `old` og dets animationer (nye id'ets bevares).
+        Returnerer {groups, dropped: [dele], discarded: antal animationer kasseret ved sammenfald}."""
         with self._lock:
             cur = self._conn.cursor()
             cur.execute("BEGIN IMMEDIATE")
@@ -544,17 +547,32 @@ class Database:
                 if group_id is not None:
                     sql += " AND g.id = ?"
                     args.append(group_id)
-                moved = 0
+                moved, dropped, discarded = 0, [], 0
                 for (gid,) in cur.execute(sql, args).fetchall():
+                    row = cur.execute("SELECT anims FROM symbol_group_anims WHERE group_id = ? AND element = ?", (gid, old)).fetchone()
+                    old_anims: list[dict[str, Any]] = json.loads(row[0]) if row else []
                     if cur.execute("SELECT 1 FROM symbol_group_members WHERE group_id = ? AND element = ?", (gid, new)).fetchone():
                         cur.execute("DELETE FROM symbol_group_members WHERE group_id = ? AND element = ?", (gid, old))
                         cur.execute("DELETE FROM symbol_group_anims WHERE group_id = ? AND element = ?", (gid, old))
+                        discarded += len(old_anims)
                     else:
                         cur.execute("UPDATE symbol_group_members SET element = ? WHERE group_id = ? AND element = ?", (new, gid, old))
-                        cur.execute("UPDATE symbol_group_anims SET element = ? WHERE group_id = ? AND element = ?", (new, gid, old))
+                        kept: list[dict[str, Any]] = []
+                        for a in old_anims:
+                            part = a.get("part", "all")
+                            if part != "all":
+                                part = new + part[len(old):] if part.startswith(old + "_") else part
+                                if valid_parts is not None and part not in valid_parts:
+                                    dropped.append(a.get("part", ""))
+                                    continue
+                            kept.append({**a, "part": part})
+                        cur.execute("DELETE FROM symbol_group_anims WHERE group_id = ? AND element = ?", (gid, old))
+                        if kept:
+                            cur.execute("INSERT INTO symbol_group_anims(group_id, element, anims, updated_at, updated_by) VALUES (?,?,?,?,?)",
+                                        (gid, new, json.dumps(kept, ensure_ascii=False), time.time(), "flyt"))
                     moved += 1
                 cur.execute("COMMIT")
-                return moved
+                return {"groups": moved, "dropped": list(dict.fromkeys(dropped)), "discarded": discarded}
             except Exception:
                 cur.execute("ROLLBACK")
                 raise

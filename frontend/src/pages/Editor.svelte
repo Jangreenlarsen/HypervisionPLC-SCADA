@@ -350,12 +350,17 @@
   async function groupMemberFix(member: string, what: 'move' | 'remove'): Promise<void> {
     if (!view || !activeGroup) return;
     try {
-      if (what === 'move') await moveMember(view.id, activeGroup.id, member, selected!);
-      else await changeMembers(view.id, activeGroup.id, [], [member]);
+      let note = '';
+      if (what === 'move') {
+        const r = await moveMember(view.id, activeGroup.id, member, selected!);
+        if (r.dropped.length) note += ` Animationer på dele der ikke findes på det nye element er droppet: ${r.dropped.join(', ')}.`;
+        if (r.discarded) note += ` ${r.discarded} animationer på det gamle medlem er kasseret, fordi det nye allerede var medlem.`;
+      } else await changeMembers(view.id, activeGroup.id, [], [member]);
       const keep = groupId;
       groups = await listGroups(view.id);
       groupId = keep;
       await load(view.id, true);
+      if (note) error = `Medlemmet er flyttet.${note}`;
     } catch (e) {
       error = `Kunne ikke ${what === 'move' ? 'flytte' : 'fjerne'} gruppemedlemmet: ${(e as Error).message}`;
     }

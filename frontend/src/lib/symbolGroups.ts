@@ -23,7 +23,7 @@ export const changeMembers = (drawingId: string, groupId: number, add: string[],
   post<SymbolGroup>(`${base(drawingId)}/${groupId}/members`, { add, remove });
 /** Flyt et forsvundet medlem (og dets gruppe-animationer) til det element, der har fået dets plads. */
 export const moveMember = (drawingId: string, groupId: number, old: string, to: string) =>
-  post<SymbolGroup>(`${base(drawingId)}/${groupId}/members/move`, { old, new: to });
+  post<SymbolGroup & { dropped: string[]; discarded: number }>(`${base(drawingId)}/${groupId}/members/move`, { old, new: to });
 /** Gruppernes rækkefølge (afgør hvem der vinder ved overlap). */
 export const reorderGroups = (drawingId: string, ids: number[]) => post<SymbolGroup[]>(`${base(drawingId)}/order`, { ids });
 /** Byt en gruppe med sin nabo af samme art; giver den nye samlede rækkefølge af id'er (eller null hvis den ikke kan flyttes). */
