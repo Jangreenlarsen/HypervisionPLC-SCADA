@@ -28,11 +28,5 @@ A) nye tabeller `symbol_groups`, `symbol_group_members`, `group_anims` (en rækk
 - "Erstat med symbol" uden "behold id" giver nyt id → medlem forsvinder (vises som forsvundet, kan flyttes).
 - Omfanget er stort — foreslår at levere i to trin: (a) grupper som valg/markering (Tegn + Bindinger), derefter (b) gruppe-ejede animationer + farvemarkering.
 
-## Efter design-review (2026-10-23) — v0.131.1 rettet, resten venter på Jans OK
-Rettet i v0.131.1: (1) `used_ids` reserverer gruppemedlemmer; (2) en logikblok, som en gruppe-animation henviser til, kan ikke fjernes.
-Åbne punkter, i prioriteret rækkefølge:
-3. **Samtidig redigering**: medlemsændringer sender hele listen fra skærmens kopi → forældet fane kan slette andres medlemmer + deres animationer. Løsning: delta-endpoints (tilføj/fjern) eller `updated_at` som If-Match (409).
-4. **Ydelse**: `_group_bindings` kalder `subtree_ids` (parser hele SVG) pr. række; `_compute` kører også ved hver operatørskrivning (`scope.operable_tags`). Løsning: én id→efterkommere-tabel pr. kald og/eller cache af `_compute` pr. (tegning, version, ændringstæller). Mål på Pi.
-5. **Vinder ved overlap**: uden `when` vinder den binding, hvis tag sidst ændrede sig (Overview/Editor gentegner kun ændrede bindinger) — ikke "den sidste". Løsning: tegn altid hele `element+kanal`-gruppen om; advarsel ved overlap af samme del+type på tværs af ejere; ret teksten i `GroupAnims.svelte`; lad gruppernes rækkefølge kunne ses/ændres.
-6. **Forældreløse medlemmer**: ingen "flyt" som for symbolopsætninger; gruppe-animationer på forsvundne dele advarer ikke; backup validerer ikke dele/logik-henvisninger.
-7. Manglende tests: `visible_tags` for begrænset bruger med kun gruppe-tags; operatør får ikke skriveret via gruppe; `priorityGroups` på tværs af symbol og grupper.
+## Efter design-review (2026-10-23) — afsluttet i v0.131.1 og v0.131.2
+Alle punkter fra reviewet er rettet, bortset fra to bevidste fravalg: backup validerer ikke dele/logik-henvisninger i gruppe-animationer, og `_compute` er ikke cachet (kun den dyreste gentagelse er fjernet — mål på Pi'en, før mere gøres).

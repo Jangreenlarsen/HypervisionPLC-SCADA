@@ -504,6 +504,79 @@ class Database:
                 cur.execute("ROLLBACK")
                 raise
 
+    def change_group_members(self, drawing_id: str, group_id: int, add: list[str], remove: list[str], user: str) -> bool:
+        """Tilføj/fjern enkelte medlemmer i ÉN transaktion — rører ikke de andre (ingen overskrivning af en kollegas ændringer).
+        Fjernede medlemmers animationer fjernes med. False hvis gruppen ikke findes."""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                if cur.execute("SELECT 1 FROM symbol_groups WHERE id = ? AND drawing_id = ?", (group_id, drawing_id)).fetchone() is None:
+                    cur.execute("ROLLBACK")
+                    return False
+                nxt = cur.execute("SELECT COALESCE(MAX(sort), -1) + 1 FROM symbol_group_members WHERE group_id = ?", (group_id,)).fetchone()[0]
+                for el in add:
+                    if el in remove:
+                        continue
+                    n = cur.execute("INSERT OR IGNORE INTO symbol_group_members(group_id, element, sort) VALUES (?,?,?)",
+                                    (group_id, el, nxt)).rowcount
+                    nxt += n
+                for el in remove:
+                    cur.execute("DELETE FROM symbol_group_members WHERE group_id = ? AND element = ?", (group_id, el))
+                    cur.execute("DELETE FROM symbol_group_anims WHERE group_id = ? AND element = ?", (group_id, el))
+                cur.execute("UPDATE symbol_groups SET updated_at = ?, updated_by = ? WHERE id = ?", (time.time(), user, group_id))
+                cur.execute("COMMIT")
+                return True
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
+    def rename_element_in_groups(self, drawing_id: str, old: str, new: str, group_id: int | None = None) -> int:
+        """Flyt et elements medlemskab (og dets gruppe-animationer) fra et id til et andet — fx når et symbol har fået nyt id.
+        Er `new` allerede medlem af gruppen, fjernes `old` blot (nye id'ets animationer bevares). Returnerer antal grupper."""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                sql = ("SELECT m.group_id FROM symbol_group_members m JOIN symbol_groups g ON g.id = m.group_id "
+                       "WHERE g.drawing_id = ? AND m.element = ?")
+                args: list[Any] = [drawing_id, old]
+                if group_id is not None:
+                    sql += " AND g.id = ?"
+                    args.append(group_id)
+                moved = 0
+                for (gid,) in cur.execute(sql, args).fetchall():
+                    if cur.execute("SELECT 1 FROM symbol_group_members WHERE group_id = ? AND element = ?", (gid, new)).fetchone():
+                        cur.execute("DELETE FROM symbol_group_members WHERE group_id = ? AND element = ?", (gid, old))
+                        cur.execute("DELETE FROM symbol_group_anims WHERE group_id = ? AND element = ?", (gid, old))
+                    else:
+                        cur.execute("UPDATE symbol_group_members SET element = ? WHERE group_id = ? AND element = ?", (new, gid, old))
+                        cur.execute("UPDATE symbol_group_anims SET element = ? WHERE group_id = ? AND element = ?", (new, gid, old))
+                    moved += 1
+                cur.execute("COMMIT")
+                return moved
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
+    def reorder_symbol_groups(self, drawing_id: str, ids: list[int]) -> bool:
+        """Gruppernes rækkefølge (afgør hvem der vinder ved overlap). `ids` skal være præcis tegningens grupper."""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                have = {r[0] for r in cur.execute("SELECT id FROM symbol_groups WHERE drawing_id = ?", (drawing_id,)).fetchall()}
+                if set(ids) != have or len(ids) != len(have):
+                    cur.execute("ROLLBACK")
+                    return False
+                for i, gid in enumerate(ids):
+                    cur.execute("UPDATE symbol_groups SET sort = ? WHERE id = ?", (i, gid))
+                cur.execute("COMMIT")
+                return True
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
     def list_group_anims(self, drawing_id: str | None = None, group_id: int | None = None) -> list[dict[str, Any]]:
         """Gruppe-animationer i gruppens rækkefølge: [{group_id, group_name, drawing_id, element, anims}]."""
         where, args = [], []

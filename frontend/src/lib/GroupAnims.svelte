@@ -31,6 +31,7 @@
   let busy = $state(false);
   let error = $state('');
   let info = $state('');
+  let warnings = $state<string[]>([]);
   let withAnims = $state<Set<string>>(new Set());   // medlemmer der allerede har gruppe-animationer
 
   const color = $derived(groupColor(group.id));
@@ -39,9 +40,10 @@
   const partIds = $derived(['all', ...Object.keys(symbol?.parts ?? {})]);
   const partInfo = (id: string) => (id === 'all' ? symbol ?? undefined : symbol?.parts[id]);
   const nameOf = (id: string) => id;
+  const missingParts = $derived(symbol ? mine.filter((a) => a.part !== 'all' && !(a.part in symbol!.parts)).map((a) => a.part) : []);
 
   async function loadElement(el: string): Promise<void> {
-    loading = true; error = info = '';
+    loading = true; error = info = ''; warnings = [];
     try {
       const [cfg, owners] = await Promise.all([
         get<{ config: { anims?: GroupAnim[] } | null; symbol: SymbolInfo | null }>(`/api/drawings/${enc(drawingId)}/symbols/${enc(el)}/config`),
@@ -112,6 +114,7 @@
       const r = await putGroupAnims(drawingId, group.id, element, structuredClone($state.snapshot(mine)) as GroupAnim[]);
       mine = structuredClone(r.anims) as Anim[];
       saved = JSON.stringify(mine);
+      warnings = r.warnings ?? [];
       info = mine.length ? `Gemt (${mine.length} animationer).` : 'Gruppens animationer på symbolet er fjernet.';
       if (mine.length) withAnims.add(element); else withAnims.delete(element);
       withAnims = new Set(withAnims);
@@ -200,7 +203,12 @@
           <p class="small muted">Ingen animationer fra gruppen på dette symbol endnu.</p>
         {/each}
         <button class="small" onclick={addAnim} disabled={mine.length >= MAX_ANIMS}>+ Animation</button>
-        <p class="small muted">Flere animationer af samme slags på samme del: den <strong>øverste aktive</strong> vinder. Symbolets egne og gruppernes ligger i kæde — gruppernes kommer efter symbolets egne, så uden "passiv" vinder den sidste af samme slags.</p>
+        <p class="small muted">Flere animationer af samme slags på samme del: den <strong>øverste aktive</strong> vinder. Symbolets egne og gruppernes ligger i kæde — gruppernes kommer efter symbolets egne, så uden "passiv" vinder den sidste af samme slags — også hvis det er et andet tag, der ændrer sig.</p>
+      {/if}
+      {#if missingParts.length}<p class="small notice">Disse animationer er på dele, der ikke findes på symbolet (længere), og vises derfor ikke: {missingParts.join(', ')}. Ret eller fjern dem.</p>{/if}
+      {#if warnings.length}
+        <div class="small notice">Overlap med andre ejere — rækkefølgen afgør, hvem der vinder (symbolets egne først, så grupperne i deres rækkefølge; ▲▼ i gruppelisten):
+          <ul>{#each warnings as w}<li>{w}</li>{/each}</ul></div>
       {/if}
       {#if error}<p class="error">{error}</p>{/if}
       {#if info}<p class="small muted">{info}</p>{/if}
@@ -233,5 +241,7 @@
   .spacer { flex: 1; }
   footer { gap: .5rem; align-items: center; border-top: 1px solid var(--line); padding-top: .5rem; margin-top: .5rem; }
   .error { color: var(--alarm); }
+  .notice { background: #fff8e1; border: 1px solid #ffe082; padding: .4rem .6rem; border-radius: var(--radius); margin: .4rem 0; }
+  .notice ul { margin: .2rem 0 0 1rem; padding: 0; }
   .anim :global(select) { width: auto; max-width: 15em; }
 </style>

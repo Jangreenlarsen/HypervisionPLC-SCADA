@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.131.2 build 0196] — 2026-10-23 — Symbolgrupper: resten af design-reviewet
+
+- **Samtidig redigering:** tilføj/fjern medlemmer sender kun de valgte (`POST …/groups/{id}/members`, atomart) — et forældet faneblad kan ikke længere overskrive en kollegas medlemmer og animationer.
+- **Ydelse:** `_group_bindings` læser tegningen én gang (`subtree_map`) i stedet for én gang pr. række.
+- **Vinder ved overlap:** Overview/Bindinger tegner nu hele del+slags-gruppen om, når flere tags styrer samme del, så den sidste i rækkefølgen altid vinder (før: det tag der sidst ændrede sig). Gruppernes rækkefølge kan ses og ændres (▲▼, `POST …/groups/order`). Gem af gruppe-animationer giver advarsler om overlap med symbolets egne og andre gruppers.
+- **Forsvundne medlemmer:** Bindinger kan flytte et forsvundet medlem til det element, der overtog pladsen (gruppe-animationer følger med) eller fjerne det; flytning af en symbolopsætning (`/symbols/{id}/move`) tager gruppernes medlemskab med. Dialogen advarer om animationer på dele, der ikke findes.
+- Tests: delta-medlemmer, flyt, rækkefølge, overlap-advarsler, operatør kan ikke redigere, begrænset bruger ser gruppe-tags, symbol-flyt, vinder ved delvis gentegning.
+- Ikke gjort (bevidst): backup validerer fortsat ikke dele/logik-henvisninger i gruppe-animationer; `_compute` er ikke cachet (kun den dyreste gentagelse er fjernet).
+- `backend/app/storage/db.py`, `services/{symbol_groups,symbols,drawings,svg_sanitize}.py`, `api/symbol_groups.py`, `frontend/src/lib/{canvas,symbolGroups,SymbolGroups,GroupAnims}`, `pages/Editor.svelte`, tests.
+
 ## [0.131.1 build 0195] — 2026-10-23 — fix: symbolgrupper efter design-review
 
 - `used_ids` reserverer nu også gruppemedlemmer, så et nyt element ikke kan få et gammelt medlems id og arve gruppens medlemskab og animationer.

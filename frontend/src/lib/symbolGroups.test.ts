@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GROUP_COLORS, groupColor, groupsOf, ofKind, withMembers, withoutMembers, type SymbolGroup } from './symbolGroups';
+import { GROUP_COLORS, groupColor, groupsOf, movedOrder, ofKind, withMembers, withoutMembers, type SymbolGroup } from './symbolGroups';
 
 const g = (id: number, kind: SymbolGroup['kind'], members: string[]): SymbolGroup => ({ id, name: 'G' + id, kind, members });
 
@@ -27,5 +27,18 @@ describe('gruppefarver', () => {
     expect(groupColor(3)).toBe(groupColor(3));
     expect(groupColor(1)).not.toBe(groupColor(2));
     expect(groupColor(GROUP_COLORS.length + 2)).toBe(groupColor(2));
+  });
+});
+
+describe('rækkefølge', () => {
+  const groups = [g(1, 'function', []), g(2, 'selection', []), g(3, 'function', []), g(4, 'selection', [])];
+  it('bytter med nærmeste nabo af samme art', () => {
+    expect(movedOrder(groups, 3, -1)).toEqual([3, 2, 1, 4]);
+    expect(movedOrder(groups, 2, 1)).toEqual([1, 4, 3, 2]);
+  });
+  it('kan ikke flyttes ud over enderne', () => {
+    expect(movedOrder(groups, 1, -1)).toBeNull();
+    expect(movedOrder(groups, 4, 1)).toBeNull();
+    expect(movedOrder(groups, 99, 1)).toBeNull();
   });
 });

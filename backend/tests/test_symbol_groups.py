@@ -203,3 +203,79 @@ def test_logic_block_used_by_group_anim_cannot_be_removed(gapi):
     # fjernes gruppens henvisning først, kan blokken fjernes
     assert gapi.put(anims_url(gapi, gapi.g1, "B"), json={"anims": []}).status_code == 200
     assert gapi.put(f"/api/drawings/{gapi.did}/symbols/A/config", json={"config": {"op": "view", "anims": own, "logic": []}}).status_code == 200
+
+
+# ------------------------------------------------------------ rettelser efter review del 2 (v0.131.2)
+
+def test_member_deltas_do_not_overwrite_each_other(gapi):
+    # to "faner" med samme (forældede) kopi tilføjer hver sit medlem: ingen af dem mister den andens
+    gapi.post("/api/drawings", json={"name": "x", "svg": PIPE})
+    g = gapi.post(url(gapi), json={"name": "Tom", "members": []}).json()
+    assert gapi.post(url(gapi, f"/{g['id']}/members"), json={"add": ["A"]}).json()["members"] == ["A"]
+    assert gapi.post(url(gapi, f"/{g['id']}/members"), json={"add": ["B", "A"]}).json()["members"] == ["A", "B"]
+    gapi.put(anims_url(gapi, g["id"], "A"), json={"anims": [fill("Fyr")]})
+    r = gapi.post(url(gapi, f"/{g['id']}/members"), json={"remove": ["A"]}).json()
+    assert r["members"] == ["B"] and gapi.get(url(gapi, f"/{g['id']}/anims")).json() == {}
+    assert gapi.post(url(gapi, "/999/members"), json={"add": ["A"]}).status_code == 404
+
+
+def test_move_missing_member_keeps_group_anims(gapi):
+    svg2 = PIPE.replace('id="A"', 'id="A2"').replace('id="A_r"', 'id="A2_r"')
+    gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Fyr")]})
+    assert gapi.post(f"/api/drawings/{gapi.did}/versions", json={"svg": svg2, "activate": True}).status_code == 201
+    # A findes ikke mere; A2 har fået dets plads
+    r = gapi.post(url(gapi, f"/{gapi.g1}/members/move"), json={"old": "A", "new": "A2"})
+    assert r.status_code == 200, r.text
+    assert r.json()["members"] == ["A2", "B"]
+    assert list(gapi.get(url(gapi, f"/{gapi.g1}/anims")).json()) == ["A2"]
+    # et element der stadig findes kan ikke "flyttes"
+    assert gapi.post(url(gapi, f"/{gapi.g1}/members/move"), json={"old": "B", "new": "A2"}).status_code == 409
+
+
+def test_reorder_groups_changes_who_wins(gapi):
+    gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Fyr")]})
+    gapi.put(anims_url(gapi, gapi.g2, "A"), json={"anims": [fill("Pumpe")]})
+    r = gapi.post(url(gapi, "/order"), json={"ids": [gapi.g2, gapi.g1]})
+    assert r.status_code == 200 and [g["id"] for g in r.json()] == [gapi.g2, gapi.g1]
+    on_a = [b for b in gapi.get(f"/api/drawings/{gapi.did}/view").json()["bindings"] if b["source"] == "group" and b["element"] == "A"]
+    assert [b["group_name"] for b in on_a] == ["Pumpegruppe", "Fyr"]
+    assert gapi.post(url(gapi, "/order"), json={"ids": [gapi.g1]}).status_code == 400   # skal være alle grupper
+
+
+def test_overlap_warnings(gapi):
+    gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Fyr")]})
+    r = gapi.put(anims_url(gapi, gapi.g2, "A"), json={"anims": [fill("Pumpe")]})
+    assert r.status_code == 200 and any("gruppen Fyr" in w for w in r.json()["warnings"]), r.json()
+    r = gapi.put(anims_url(gapi, gapi.g1, "B"), json={"anims": [fill("Fyr")]})
+    assert r.json()["warnings"] == []
+
+
+def test_operator_cannot_edit_groups_and_scoped_viewer_sees_group_tags(gapi):
+    gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Fyr")]})
+    for name, role, extra in (("op1", "operator", {}), ("v1", "viewer", {"drawings": [gapi.did]})):
+        assert gapi.post("/api/users", json={"username": name, "role": role, "password": "Hemmelig-123", **extra}).status_code == 201
+    def login(c, name):   # nye brugere skal skifte adgangskode, før de kan bruge API'et
+        c.post("/api/auth/login", json={"username": name, "password": "Hemmelig-123"})
+        assert c.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"}).status_code == 204
+
+    with TestClient(gapi.app) as op:
+        login(op, "op1")
+        assert op.post(url(gapi), json={"name": "X", "members": []}).status_code == 403
+        assert op.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Pumpe")]}).status_code == 403
+        assert op.post(url(gapi, f"/{gapi.g1}/members"), json={"add": ["B"]}).status_code == 403
+    with TestClient(gapi.app) as v:
+        login(v, "v1")
+        assert "Fyr" in {t["name"] for t in v.get("/api/tags").json()}   # tagget kommer kun fra gruppe-animationen
+
+
+def test_symbol_move_carries_group_membership(gapi):
+    own = [fill("Pumpe")]
+    assert gapi.put(f"/api/drawings/{gapi.did}/symbols/A/config", json={"config": {"op": "view", "anims": own}}).status_code == 200
+    gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Fyr")]})
+    svg2 = PIPE.replace('id="A"', 'id="A2"').replace('id="A_r"', 'id="A2_r"')
+    assert gapi.post(f"/api/drawings/{gapi.did}/versions", json={"svg": svg2, "activate": True}).status_code == 201
+    r = gapi.post(f"/api/drawings/{gapi.did}/symbols/A/move", json={"target": "A2"})
+    assert r.status_code == 200, r.text
+    groups = {g["name"]: g["members"] for g in gapi.get(url(gapi)).json()}
+    assert groups == {"Fyr": ["A2", "B"], "Pumpegruppe": ["A2"]}
+    assert list(gapi.get(url(gapi, f"/{gapi.g1}/anims")).json()) == ["A2"]

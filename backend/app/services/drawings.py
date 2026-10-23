@@ -11,7 +11,7 @@ from ..storage.files import DrawingFiles
 from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, _spec_list, auto_binding, binding_tags, symbol_bindings, validate_binding
 from .errors import ServiceError
 from .live_cache import LiveCache
-from .svg_sanitize import SvgError, index_svg, sanitize_svg, subtree_ids, symbol_specs
+from .svg_sanitize import SvgError, index_svg, sanitize_svg, subtree_ids, subtree_map, symbol_specs
 from .symbols import config_bindings, symbol_view
 from .tagsource import TagSourceError, parse_source
 
@@ -322,11 +322,11 @@ class DrawingService:
         samtidig; flere af samme slags på samme del afgøres af den eksisterende prioritetsregel (canvas.ts)."""
         out: list[dict[str, Any]] = []
         order: dict[int, int] = {}
-        for row in self.db.list_group_anims(drawing_id):
-            if row["element"] not in index:
-                continue
+        rows = [r for r in self.db.list_group_anims(drawing_id) if r["element"] in index]
+        subtrees = subtree_map(svg, {r["element"] for r in rows})   # ÉN gennemgang af tegningen (ikke én pr. række)
+        for row in rows:
             gi = order.setdefault(row["group_id"], len(order))
-            parts = subtree_ids(svg, {row["element"]})
+            parts = subtrees.get(row["element"], set())
             for b in config_bindings(drawing_id, row["element"], {"anims": row["anims"]}, parts):
                 out.append({**b, "position": 2000 + gi * 100 + (b["position"] - 1000), "source": "group",
                             "group": row["group_id"], "group_name": row["group_name"]})
