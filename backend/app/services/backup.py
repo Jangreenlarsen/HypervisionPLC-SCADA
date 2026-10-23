@@ -31,7 +31,7 @@ from ..config import read_version
 from ..storage.files import DrawingFiles
 from .bindings import BindingError, binding_tags, validate_binding
 from .schedules import validate_schedule
-from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME
+from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
 from .symbols import SymbolConfig, config_tags
 from .errors import ServiceError
 from .manager import PlcManager
@@ -431,10 +431,13 @@ class BackupService:
             if not ok:
                 err(f"Symbolgruppe #{i + 1}: ugyldig (kendt tegning, navn, art og medlemmer kræves)")
                 continue
-            if (g["drawing_id"], g["name"]) in seen_groups:
+            if (g["drawing_id"], g["name"].casefold()) in seen_groups:
                 err(f"Symbolgruppe '{g['name']}' på {g['drawing_id']}: navnet findes to gange")
                 continue
-            seen_groups.add((g["drawing_id"], g["name"]))
+            if sum(1 for d, _ in seen_groups if d == g["drawing_id"]) >= MAX_GROUPS:
+                err(f"Tegningen {g['drawing_id']} har flere end {MAX_GROUPS} symbolgrupper")
+                continue
+            seen_groups.add((g["drawing_id"], g["name"].casefold()))
             members = list(dict.fromkeys(g["members"]))
             anims: dict[str, list[dict[str, Any]]] = {}
             raw_anims = g.get("anims") or {}   # backups fra før v0.131.0 har ingen gruppe-animationer

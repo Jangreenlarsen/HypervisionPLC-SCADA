@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.131.4 build 0198] — 2026-10-23 — Symbolgrupper: resten af design-review 2
+- Dialogen for gruppe-animationer: ingen race mellem symboler (token + spærrede faner), Escape lukker, almindelige knapper med `aria-pressed`.
+- Gem af gruppe-animationer kræver medlemskab i selve skrivningen (409 hvis medlemmet er fjernet imens).
+- Rækkefølge: funktionsgrupper tæller før udvalg (SQL), tooltip forklarer kæden.
+- Gruppenavne unikke uden hensyn til store/små bogstaver; backup tjekker `MAX_GROUPS` og dublet-navne.
+- Tests: atomar skrivning, navne/rækkefølge, egne logikblokke afvises, restore-grænser. BUGS.md opdateret (se også åben rest: versionering, cache, backup-validering).
+- `backend/app/storage/db.py`, `services/{symbol_groups,backup}.py`, `frontend/src/lib/{GroupAnims,SymbolGroups}.svelte`, tests.
+
 ## [0.131.3 build 0197] — 2026-10-23 — fix: regression i vinderreglen + dele ved flyt af gruppemedlemmer
 
 - **Regression (v0.131.2):** uden "passiv" vandt altid den sidste binding, uanset værdier — også i eksisterende tegninger (fx fælles rør med løbelys fra to pumper stod stille, når kun den første kørte). Nu vinder den sidste *aktive* (som et "eller" mellem kilderne); er ingen aktive, vises den sidstes fra-tilstand. Test for første-aktiv/sidste-inaktiv.

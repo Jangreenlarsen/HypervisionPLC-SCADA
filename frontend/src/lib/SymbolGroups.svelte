@@ -103,7 +103,7 @@
             <span class="chip" style:background={groupColor(g.id)} title="Gruppens farve i animationsoversigten"></span>
             <button class="pick" onclick={() => pick(g)} title="Markér gruppens symboler på tegningen">{g.name} <span class="muted small">({g.members.length})</span></button>
             <span class="order">
-              <button class="small" onclick={() => move(g, -1)} disabled={busy || !movedOrder(groups, g.id, -1)} aria-label="Flyt op" title="Rækkefølgen afgør hvem der vinder, når flere grupper har samme slags animation på samme del (nederste vinder)">▲</button>
+              <button class="small" onclick={() => move(g, -1)} disabled={busy || !movedOrder(groups, g.id, -1)} aria-label="Flyt op" title="Rækkefølge: symbolets egne animationer først, derefter funktionsgrupper, så udvalg — hver art oppefra og ned. Uden passiv vinder den sidste aktive; med passiv den øverste aktive.">▲</button>
               <button class="small" onclick={() => move(g, 1)} disabled={busy || !movedOrder(groups, g.id, 1)} aria-label="Flyt ned">▼</button>
             </span>
             <details class="more">
