@@ -26,6 +26,7 @@ from .api.trends import router as trends_router
 from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
 from .api.operate import router as operate_router
+from .api.symbol_groups import router as symbol_groups_router
 from .api.symbols import router as symbols_router
 from .api.system import router as system_router
 from .api.system_config import router as system_config_router
@@ -40,6 +41,7 @@ from .services.backup import BackupService
 from .services.operate import OperateService
 from .services.drawings import DrawingService
 from .services.scope import ScopeService
+from .services.symbol_groups import SymbolGroupService
 from .services.symbols import SymbolService
 from .services.symbol_runtime import SymbolRuntime
 from .services.symbol_operate import SymbolOperateService
@@ -81,6 +83,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         drawing_files = DrawingFiles(settings.data_dir / "drawings")
         app.state.drawing_service = DrawingService(db, drawing_files, manager.cache)
         app.state.symbol_service = SymbolService(db, app.state.drawing_service)
+        app.state.symbol_group_service = SymbolGroupService(db)
         app.state.tag_service.symbol_usage = app.state.symbol_service.usage
         app.state.scope_service = ScopeService(app.state.drawing_service, app.state.symbol_service)
         app.state.backup_service = BackupService(manager, drawing_files, settings.data_dir / "backups",
@@ -162,6 +165,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(router)
     app.include_router(drawings_router)
     app.include_router(symbols_router)
+    app.include_router(symbol_groups_router)
     app.include_router(live_router)
     app.include_router(operate_router)
     if settings.frontend_dir.is_dir():

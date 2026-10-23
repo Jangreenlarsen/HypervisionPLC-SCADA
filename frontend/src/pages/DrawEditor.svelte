@@ -11,6 +11,7 @@
   import GroupBasis from '../lib/GroupBasis.svelte';
   import { BUNDLE } from '../lib/staleCheck';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
+  import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
   import { configGroups, pasteReport, pasteTargets, type ConfigClip, type ConfigGroup, type CopyResponse, type Member, type SymbolRow } from '../lib/symbolCopy';
   import type { SymbolConfig, SymbolInfo } from '../lib/symbolConfig';
@@ -32,6 +33,7 @@
     onSelection(fn: (sel: Sel[]) => void): void;
     onChange(fn: () => void): void;
     setSelectedId(id: string): string;
+    selectByIds(ids: string[]): number;
     setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
     uniqueName(base: string): string;
     insertSymbol(fragment: string, baseId: string): string;
@@ -857,6 +859,11 @@
         <input bind:value={symbolFilter} placeholder="Søg symbol (fx bøjning, kontaktor)" style="width:100%" />
       </div>
       {#if favError}<p class="small error">{favError}</p>{/if}
+      <details open>
+        <summary>Grupper</summary>
+        <SymbolGroups drawingId={current?.id ?? null} selectedIds={selection.filter((x) => !!x.id).map((x) => x.id)}
+          select={(ids) => ed?.selectByIds(ids) ?? 0} />
+      </details>
       <details open>
         <summary>Mine symboler <span class="muted small">({favorites.length})</span></summary>
         {#if mine().length}

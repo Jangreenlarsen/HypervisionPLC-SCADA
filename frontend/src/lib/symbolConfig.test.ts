@@ -96,9 +96,9 @@ describe('animationer', () => {
   it('standardparametre efter kilden', () => {
     expect(animDefaults('fill', 'pos', 2)).toEqual({ colors: ['#d6d6d6', '#7cc47f'] });
     expect(animDefaults('rotate', 'pos', 3)).toEqual({ angles: [-45, 0, 45] });
-    // til/fra er 0 eller 1: niveau, gennemsigtighed og størrelse bruger 0–1 (ellers ville Til kun give 1 %)
+    // coil (Til/Fra) står som 0 og 100: niveau, gennemsigtighed og størrelse bruger 0–100 for både coil og tal
     for (const t of ['level', 'opacity', 'scale'] as const) {
-      expect(animDefaults(t, 'bool', 0).max, t).toBe(1);
+      expect(animDefaults(t, 'bool', 0).max, t).toBe(100);
       expect(animDefaults(t, 'num', 0).max, t).toBe(100);
     }
     expect(animDefaults('blink', 'num', 0)).toEqual({ at_least: 50, speed: 'normal' });

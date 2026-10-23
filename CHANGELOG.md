@@ -4,6 +4,25 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.130.0 build 0193] — 2026-10-23 — Navngivne symbolgrupper (del 1: grupper som valg og markering)
+
+- Ny sektion **Grupper** i Tegn: gem de valgte symboler som en navngiven gruppe (art: funktionsgruppe eller udvalg), markér alle dens symboler med ét klik, tilføj/fjern/sæt til valgte, omdøb, skift art, slet. Samme symbol kan være med i flere grupper (overlap).
+- Bindinger: vælg en gruppe over symbollisten for kun at se dens symboler (viser hvis medlemmer er forsvundet).
+- Backend: nye tabeller `symbol_groups` og `symbol_group_members` (skema 12), REST `/api/drawings/{id}/groups` (læs viewer, skriv engineer, audit-log), med i backup/gendannelse (ældre backups uden grupper virker). Grupper følger tegningen ved sletning.
+- Del 2 (animationer ejet af gruppen + farvemarkering i symbolguiden) er planlagt, se PLAN.md.
+- `backend/app/storage/db.py`, `backend/app/services/symbol_groups.py` (ny), `backend/app/services/backup.py`, `backend/app/api/symbol_groups.py` (ny), `backend/app/main.py`, `frontend/src/lib/symbolGroups.ts` (ny), `frontend/src/lib/SymbolGroups.svelte` (ny), `frontend/src/pages/DrawEditor.svelte`, `frontend/src/pages/Editor.svelte`, manualen, tests.
+
+## [0.129.1 build 0191, rettet i 0192] — 2026-10-23 — fix: rullepaneler altid synlige i Tegn
+
+- Tegnefladen (`#workarea`) har nu `overflow: scroll` og tydelige rullepaneler (14 px, mørk grib på lys bane), så de ikke skjules af systemets auto-skjulte rullepaneler.
+- `frontend/svgedit-host/scada-editor.css`.
+
+## [0.129.0 build 0190] — 2026-10-23 — Animationer: coil kan bruges hvor der krævedes et register
+
+- Niveau, Gennemsigtighed og Størrelse (og Drej/Flyt) kan nu styres af et coil/til-fra-tag: Fra = 0, Til = 100. Serveren afviser det ikke længere; standardområdet for coil er 0–100 (før 0–1).
+- Ændring: i `fraction` (animate.ts) tæller et boolsk tag som 0/100. Eksisterende opsætninger med max 1 virker uændret (værdien klippes til 100 %); en bruger-sat max over 1 på et coil giver nu fuld udslag ved Til.
+- `backend/app/services/symbols.py`, `frontend/src/lib/animate.ts`, `frontend/src/lib/symbolConfig.ts`, tests.
+
 ## [0.128.0 build 0189] — 2026-10-23 — Opsæt symbol: dialogen kan flyttes
 
 - Symbolguidens dialog kan trækkes rundt på skærmen i overskriften (mus og touch), holdt inden for skærmen.

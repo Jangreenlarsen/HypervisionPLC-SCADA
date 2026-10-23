@@ -55,6 +55,12 @@ Vælg et eller flere symboler (hold **Shift** nede, eller træk en ramme), så v
 
 > Farven her er symbolets **grundfarve** i tegningen. Har symbolet en animation (fx *Farve* eller *Løbelys*), bestemmer animationen farven på Overview, når den er aktiv.
 
+### Grupper af symboler
+
+Vælg flere symboler i tegningen og tryk **Gem markering som gruppe** i sektionen **Grupper** (symbollisten til højre). Giv gruppen et navn og en art: **Funktionsgrupper** er en del af anlægget med en funktion, fx *Fyr uden akku-tank*; **Udvalg** er et frit udvalg, fx 3-vejs ventil, rør og akkutank. Tryk på gruppens navn for at markere alle dens symboler igen. Under **⋯** kan du tilføje eller fjerne de valgte, sætte gruppen til de valgte, omdøbe, flytte den mellem de to arter eller slette den (symbolerne slettes ikke).
+
+Samme symbol må gerne være med i flere grupper. Er det valgte symbol med i grupper, står de nævnt under listen. Gem tegningen før du laver grupper. På siden **Bindinger** kan du vælge en gruppe over symbollisten for kun at se dens symboler.
+
 ### Erstat tegnede dele med symboler
 
 Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige figurer, kan du **erstatte dem med symboler fra biblioteket**, så de kan sættes op med guiden:

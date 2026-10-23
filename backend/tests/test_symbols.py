@@ -199,7 +199,6 @@ def test_only_pulse_planes_cannot_be_read(api):
     ("V1", {"part": "V1_greb", "type": "fill", "src": "@pos", "params": {"colors": ["#fff"]}}, "en værdi pr. position"),
     ("V1", {"part": "V1_greb", "type": "opacity", "src": "@pos"}, "kan ikke styres af positionen"),
     ("V1", {"part": "V1_tekst", "type": "level", "src": "Niveau"}, "rektangel-del"),
-    ("Tank", {"part": "all", "type": "level", "src": "Lys"}, "kræver et tal-tag"),
     ("V1", {"part": "V1_greb", "type": "blink", "src": "Lys", "params": {"speed": "lynhurtig"}}, "speed"),
     ("Ror", {"part": "all", "type": "flow", "src": "Lys", "params": {"base": "#111", "light": "#111"}}, "forskellige"),
     ("Ror", {"part": "all", "type": "flow", "src": "Lys", "params": {"dir_tag": "Lys"}}, "et andet tag"),
@@ -426,13 +425,20 @@ def test_alarm_engine_publishes_pseudo_tags(api):
     assert cache.get("alarm:Fejl:active").value is None   # ingen alarm mere: fjernet fra cachen
 
 
+def test_coil_allowed_on_numeric_animations(api):
+    """Et coil/til-fra-tag (Fra = 0, Til = 100) kan styre Niveau, Gennemsigtighed og Størrelse."""
+    for typ in ("opacity", "scale"):
+        r = put(api, {"op": "view", "anims": [{"part": "V1_greb", "type": typ, "src": "Lys", "params": {"min": 0, "max": 100}}]})
+        assert r.status_code == 200, (typ, r.text)
+
+
 def test_scale_animation_numeric_only(api):
     """Størrelse (v0.85.0): kun et tal-tag; procenterne skal være positive."""
     base = {"op": "view", "anims": []}
     ok = put(api, {**base, "anims": [{"part": "V1_greb", "type": "scale", "src": "Niveau", "params": {"min": 0, "max": 100, "size_min": 50, "size_max": 200}}]})
     assert ok.status_code == 200, ok.text
     assert ok.json()["config"]["anims"][0]["params"]["size_max"] == 200
-    for src, why in [("Lys", "kræver et tal-tag"), ("@on", "kan ikke styres af"), ("@pos", "ingen positioner")]:
+    for src, why in [("@on", "kan ikke styres af"), ("@pos", "ingen positioner")]:
         r = put(api, {**base, "anims": [{"part": "V1_greb", "type": "scale", "src": src, "params": {}}]})
         assert r.status_code == 400 and why in r.text, (src, r.text)
     r = put(api, {**base, "anims": [{"part": "V1_greb", "type": "scale", "src": "Niveau", "params": {"size_min": 0}}]})

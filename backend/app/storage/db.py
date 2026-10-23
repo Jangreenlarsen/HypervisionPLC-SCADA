@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -170,6 +170,23 @@ CREATE TABLE IF NOT EXISTS symbol_state (
     chosen_at   REAL NOT NULL,
     chosen_by   TEXT NOT NULL,
     PRIMARY KEY (drawing_id, element)
+);
+-- Navngivne symbolgrupper (v0.130.0): et udvalg af elementer på en tegning; samme element må være i flere grupper.
+CREATE TABLE IF NOT EXISTS symbol_groups (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    sort        INTEGER NOT NULL DEFAULT 0,
+    updated_at  REAL NOT NULL,
+    updated_by  TEXT NOT NULL,
+    UNIQUE (drawing_id, name)
+);
+CREATE TABLE IF NOT EXISTS symbol_group_members (
+    group_id    INTEGER NOT NULL REFERENCES symbol_groups(id) ON DELETE CASCADE,
+    element     TEXT NOT NULL,
+    sort        INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (group_id, element)
 );
 CREATE TABLE IF NOT EXISTS user_drawings (
     username    TEXT NOT NULL,
@@ -428,6 +445,56 @@ class Database:
             self._execute("INSERT INTO symbol_meta(drawing_id, element, description) VALUES (?,?,?) "
                           "ON CONFLICT(drawing_id, element) DO UPDATE SET description = excluded.description",
                           (drawing_id, element, description))
+
+    # ------------------------------------------------------------ symbolgrupper
+
+    def list_symbol_groups(self, drawing_id: str | None = None) -> list[dict[str, Any]]:
+        """Grupper med deres medlemmer (i rækkefølge) — for én tegning, eller alle (til backup)."""
+        where, args = ("WHERE g.drawing_id = ?", (drawing_id,)) if drawing_id is not None else ("", ())
+        groups = self._query(f"SELECT g.id, g.drawing_id, g.name, g.kind, g.sort FROM symbol_groups g {where} "
+                             "ORDER BY g.drawing_id, g.sort, g.id", args)
+        members = self._query("SELECT m.group_id, m.element FROM symbol_group_members m "
+                              f"JOIN symbol_groups g ON g.id = m.group_id {where} ORDER BY m.group_id, m.sort", args)
+        by_group: dict[int, list[str]] = {}
+        for m in members:
+            by_group.setdefault(m["group_id"], []).append(m["element"])
+        return [{**g, "members": by_group.get(g["id"], [])} for g in groups]
+
+    def get_symbol_group(self, drawing_id: str, group_id: int) -> dict[str, Any] | None:
+        return next((g for g in self.list_symbol_groups(drawing_id) if g["id"] == group_id), None)
+
+    def save_symbol_group(self, drawing_id: str, group_id: int | None, name: str, kind: str,
+                          members: list[str] | None, user: str) -> int | None:
+        """Opret (group_id None) eller ret én gruppe i ÉN transaktion. members None = medlemmerne røres ikke.
+        Returnerer id, eller None hvis gruppen ikke findes. Kaster sqlite3.IntegrityError ved dublet-navn."""
+        now = time.time()
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                if group_id is None:
+                    nxt = cur.execute("SELECT COALESCE(MAX(sort), 0) + 1 FROM symbol_groups WHERE drawing_id = ?",
+                                      (drawing_id,)).fetchone()[0]
+                    group_id = cur.execute("INSERT INTO symbol_groups(drawing_id, name, kind, sort, updated_at, updated_by) "
+                                           "VALUES (?,?,?,?,?,?)", (drawing_id, name, kind, nxt, now, user)).lastrowid
+                else:
+                    n = cur.execute("UPDATE symbol_groups SET name = ?, kind = ?, updated_at = ?, updated_by = ? "
+                                    "WHERE id = ? AND drawing_id = ?", (name, kind, now, user, group_id, drawing_id)).rowcount
+                    if not n:
+                        cur.execute("ROLLBACK")
+                        return None
+                if members is not None:
+                    cur.execute("DELETE FROM symbol_group_members WHERE group_id = ?", (group_id,))
+                    cur.executemany("INSERT INTO symbol_group_members(group_id, element, sort) VALUES (?,?,?)",
+                                    [(group_id, el, i) for i, el in enumerate(members)])
+                cur.execute("COMMIT")
+                return group_id
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
+    def delete_symbol_group(self, drawing_id: str, group_id: int) -> bool:
+        return self._execute("DELETE FROM symbol_groups WHERE id = ? AND drawing_id = ?", (group_id, drawing_id)) > 0
 
     # ------------------------------------------------------------ symbolstandard
 
@@ -699,6 +766,7 @@ class Database:
             # Symbol-konfigurationer — men aldrig PIN-hashes eller driftstilstand (symbol_pins/symbol_state)
             "symbol_config": [{"drawing_id": r["drawing_id"], "element": r["element"], "config": r["config"]}
                               for r in self.list_symbol_configs()],
+            "symbol_groups": [{k: g[k] for k in ("drawing_id", "name", "kind", "members")} for g in self.list_symbol_groups()],
             "settings": {"start_drawing": self.get_setting("start_drawing")},
             "schedules": [{k: s[k] for k in ("name", "tag", "enabled", "default_value", "entries", "exceptions")}
                           for s in self.list_schedules()],
@@ -811,6 +879,11 @@ class Database:
                     cur.execute("INSERT INTO symbol_config(drawing_id, element, config, updated_at, updated_by) "
                                 "VALUES (?,?,?,?,?)",
                                 (c["drawing_id"], c["element"], json.dumps(c["config"], ensure_ascii=False), now, "restore"))
+                for i, g in enumerate(data.get("symbol_groups", [])):
+                    gid = cur.execute("INSERT INTO symbol_groups(drawing_id, name, kind, sort, updated_at, updated_by) "
+                                      "VALUES (?,?,?,?,?,?)", (g["drawing_id"], g["name"], g["kind"], i, now, "restore")).lastrowid
+                    cur.executemany("INSERT INTO symbol_group_members(group_id, element, sort) VALUES (?,?,?)",
+                                    [(gid, el, j) for j, el in enumerate(g["members"])])
                 for b in data["bindings"]:
                     cur.execute("INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
                                 (b["drawing_id"], b["element"], b["position"], b["tag"], b["anim"],

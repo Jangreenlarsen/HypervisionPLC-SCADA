@@ -31,6 +31,7 @@ from ..config import read_version
 from ..storage.files import DrawingFiles
 from .bindings import BindingError, binding_tags, validate_binding
 from .schedules import validate_schedule
+from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME
 from .symbols import SymbolConfig, config_tags
 from .errors import ServiceError
 from .manager import PlcManager
@@ -144,6 +145,7 @@ class BackupService:
             "schedules": data["schedules"],
             "symbol_meta": data["symbol_meta"],
             "symbol_config": data["symbol_config"],
+            "symbol_groups": data["symbol_groups"],
         }
 
     def save_to_server(self, kind: str, created_by: str) -> str:
@@ -415,6 +417,27 @@ class BackupService:
                 continue
             symbol_config.append({"drawing_id": c["drawing_id"], "element": c["element"], "config": cfg})
 
+        symbol_groups = []
+        raw_groups = backup.get("symbol_groups", [])  # ældre backups har ingen symbolgrupper
+        if not isinstance(raw_groups, list):
+            err("symbol_groups skal være en liste")
+            raw_groups = []
+        seen_groups: set[tuple[str, str]] = set()
+        for i, g in enumerate(raw_groups):
+            ok = (isinstance(g, dict) and g.get("drawing_id") in drawing_ids and isinstance(g.get("name"), str)
+                  and 0 < len(g["name"]) <= MAX_GROUP_NAME and g.get("kind") in GROUP_KINDS
+                  and isinstance(g.get("members"), list) and len(g["members"]) <= MAX_GROUP_MEMBERS
+                  and all(isinstance(m, str) and 0 < len(m) <= 120 for m in g["members"]))
+            if not ok:
+                err(f"Symbolgruppe #{i + 1}: ugyldig (kendt tegning, navn, art og medlemmer kræves)")
+                continue
+            if (g["drawing_id"], g["name"]) in seen_groups:
+                err(f"Symbolgruppe '{g['name']}' på {g['drawing_id']}: navnet findes to gange")
+                continue
+            seen_groups.add((g["drawing_id"], g["name"]))
+            symbol_groups.append({"drawing_id": g["drawing_id"], "name": g["name"], "kind": g["kind"],
+                                  "members": list(dict.fromkeys(g["members"]))})
+
         schedules = []
         raw_schedules = backup.get("schedules", [])  # ældre backups har ingen ugeprogrammer
         if not isinstance(raw_schedules, list):
@@ -442,7 +465,8 @@ class BackupService:
         # En start-tegning der ikke findes i backuppen ignoreres (ikke en fejl — Overview viser så den første)
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
                 "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
-                "schedules": schedules, "symbol_meta": symbol_meta, "symbol_config": symbol_config}
+                "schedules": schedules, "symbol_meta": symbol_meta, "symbol_config": symbol_config,
+                "symbol_groups": symbol_groups}
 
     # ---------------------------------------------------------------- restore
 

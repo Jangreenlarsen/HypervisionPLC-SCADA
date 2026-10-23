@@ -94,7 +94,8 @@ export function bindingActive(b: Pick<Binding, 'anim' | 'params'>, live: LiveVal
 }
 
 export function fraction(value: unknown, min = 0, max = 100): number {
-  const n = toNumber(value);
+  // Et coil/til-fra-tag står som 0 (Fra) og 100 (Til), så det kan bruges på de animationer, der ellers kræver et register
+  const n = typeof value === 'boolean' ? (value ? 100 : 0) : toNumber(value);
   if (n === null || max <= min) return 0;
   return Math.min(1, Math.max(0, (n - min) / (max - min)));
 }
