@@ -2,6 +2,10 @@
 
 ---
 
+## v0.128.0 — 2026-10-23 — Flyt Opsæt symbol-dialogen
+
+- I **Opsæt symbol** kan du trække i dialogens overskrift for at flytte den rundt, fx så du kan se tegningen bagved.
+
 ## v0.127.0 — 2026-10-23 — Tydeligere markering i Bindinger
 
 - Vælger du et symbol eller bundet element i listen, markeres det på tegningen med en lysegrøn, gennemsigtig boks.

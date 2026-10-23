@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.128.0 build 0189] — 2026-10-23 — Opsæt symbol: dialogen kan flyttes
+
+- Symbolguidens dialog kan trækkes rundt på skærmen i overskriften (mus og touch), holdt inden for skærmen.
+- `frontend/src/lib/SymbolGuide.svelte`.
+
 ## [0.127.0 build 0188] — 2026-10-23 — Bindinger: valgt element markeres lysegrønt og gennemsigtigt
 
 - Det valgte symbol/element i Bindinger markeres på tegningen med lysegrøn kant og gennemsigtig grøn fyld (før blå).

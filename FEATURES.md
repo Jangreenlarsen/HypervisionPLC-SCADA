@@ -167,3 +167,4 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.101.0 — Trends: op til 12 kurver ad gangen (farver genbruges med stiplet linje fra nr. 8) og tilvalget *Analysér data* (spikes, urealistiske spring, fastfrosne værdier, huller; markeres, spikes kan skjules)
 - [x] done v0.126.0 — Driftpanel: ingen sidekolonne; tegningen fylder hele skærmen, Log ud/tegningsvalg flyder som små knapper øverst til venstre
 - [x] done v0.127.0 — Bindinger: valgt element markeres lysegrønt med gennemsigtig fyld
+- [x] done v0.128.0 — Opsæt symbol: dialogen kan flyttes ved at trække i overskriften

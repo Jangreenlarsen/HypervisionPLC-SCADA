@@ -471,13 +471,31 @@
     }
   }
   const writeText = (w: Write) => `${w.tag} := ${fmt(w.value)}${w.kind === 'pulse' ? ' (puls)' : ''}`;
+
+  // Dialogen kan flyttes rundt ved at trække i overskriften (fx for at se tegningen bagved)
+  let dx = $state(0), dy = $state(0);
+  let drag: { x: number; y: number; dx: number; dy: number } | null = null;
+  function dragStart(e: PointerEvent): void {
+    if ((e.target as HTMLElement).closest('button')) return;
+    drag = { x: e.clientX, y: e.clientY, dx, dy };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function dragMove(e: PointerEvent): void {
+    if (!drag) return;
+    // Overskriften holdes inden for skærmen, så dialogen aldrig kan tabes helt
+    dx = Math.max(-innerWidth + 80, Math.min(innerWidth - 80, drag.dx + e.clientX - drag.x));
+    dy = Math.max(-40, Math.min(innerHeight - 60, drag.dy + e.clientY - drag.y));
+  }
+  const dragEnd = () => { drag = null; };
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="backdrop" onclick={() => !saving && !copyOpen && close()}>
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="panel guide" role="dialog" aria-modal="true" aria-label="Opsæt symbol {name}" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-    <header class="row head">
+  <div class="panel guide" role="dialog" aria-modal="true" aria-label="Opsæt symbol {name}" tabindex="-1" onclick={(e) => e.stopPropagation()}
+    style="transform: translate({dx}px, {dy}px)">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <header class="row head" title="Træk i overskriften for at flytte dialogen" onpointerdown={dragStart} onpointermove={dragMove} onpointerup={dragEnd} onpointercancel={dragEnd}>
       {#if group.length}
         <h2>Opsæt {group.length + 1} symboler samlet</h2>
         <span class="muted small">redigerer {name}{exists ? ' (konfigureret)' : ''}</span>
@@ -1037,7 +1055,7 @@
   .group-res ul { margin: .2rem 0 0; padding-left: 1.2rem; }
   .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px 0; z-index: 20; }
   .guide { width: 100%; max-width: 960px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 8px 30px rgba(0, 0, 0, .25); }
-  .head { align-items: baseline; gap: .6rem; }
+  .head { align-items: baseline; gap: .6rem; cursor: move; touch-action: none; user-select: none; }
   .head h2 { margin: 0; font-size: 1.15rem; }
   .close { margin-left: auto; }
   .steps { display: flex; flex-wrap: wrap; gap: .25rem; margin: .6rem 0; border-bottom: 1px solid var(--line); padding-bottom: .4rem; }
