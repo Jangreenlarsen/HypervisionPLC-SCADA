@@ -90,7 +90,7 @@ export interface Binding {
   anim: 'text' | 'fill' | 'stroke' | 'visible' | 'blink' | 'level' | 'rotate' | 'opacity' | 'move' | 'flow' | 'spin' | 'flicker' | 'scale'
     | 'click:write' | 'click:toggle' | 'click:pulse' | 'click:select' | 'click:goto';
   params: Record<string, any>;
-  source?: 'explicit' | 'auto' | 'symbol';
+  source?: 'explicit' | 'auto' | 'symbol' | 'group';
   /** Bindinger dannet af en symbol-konfiguration: symbolets element-id */
   symbol?: string;
   /** Rækkefølgen (symbolets animationer: 1000 + nummer) — bruges til prioriteringen af aktiv/passiv-animationer */

@@ -2,6 +2,12 @@
 
 ---
 
+## v0.131.0 — 2026-10-23 — Animationer på grupper
+
+- En gruppe af symboler (fx *Fyr uden akku-tank*) kan nu få **egne animationer** på sine symboler. De gælder ud over symbolernes egne, og et rør kan være med i flere grupper med hver sin opsætning.
+- Hver gruppe har en farve. Når du redigerer et symbol, vises animationer fra grupper skrivebeskyttet i gruppens farve, så du kan se, hvad du ikke skal røre.
+- Opdateringen opretter en ny tabel i databasen (skema 13); ældre backups kan stadig gendannes.
+
 ## v0.130.0 — 2026-10-23 — Grupper af symboler
 
 - I **Tegn** kan du gemme de valgte symboler som en navngiven gruppe (fx *Fyr uden akku-tank*) og markere dem alle igen med ét klik. Et symbol kan være med i flere grupper.

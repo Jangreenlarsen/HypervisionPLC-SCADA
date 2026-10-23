@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.131.0 build 0194] — 2026-10-23 — Symbolgrupper del 2: animationer ejet af gruppen + farvemarkering
+
+- En gruppe kan få egne animationer på hvert af sine symboler (**⋯ › Animationer …** i Tegn, eller **Animationer for gruppen …** i Bindinger). De gælder ud over symbolets egne og andre gruppers (rør i flere grupper = egen opsætning + én pr. gruppe). Rækkefølge: symbolets egne, derefter grupperne i deres rækkefølge; den eksisterende prioritetsregel afgør samme slags på samme del.
+- Farvemarkering: hver gruppe har en farve; dialogen og symbolguiden (trin 4) viser andre ejeres animationer skrivebeskyttet i deres farve med gruppens navn, symbolets egne neutralt.
+- Backend: ny tabel `symbol_group_anims` (skema 13); `PUT/GET /api/drawings/{id}/groups/{gid}/anims[/{element}]`, `GET …/symbols/{element}/group-anims`; samme validering som symbolets egne animationer (visning uden positioner); fjernes et medlem, fjernes dets animationer; tags i gruppe-animationer tæller med i tag-sletning (409), adgang pr. tegning og backup/gendannelse (valideres).
+- Visningen (`/view`) får bindinger med `source: "group"`, `group`, `group_name`.
+- Frontend: `AnimParams.svelte` udtrukket fra symbolguiden (ingen funktionsændring), `GroupAnims.svelte`, `OwnerAnims.svelte`.
+- `backend/app/storage/db.py`, `services/symbol_groups.py`, `services/symbols.py`, `services/drawings.py`, `services/backup.py`, `api/symbol_groups.py`, `main.py`, `frontend/src/lib/{AnimParams,GroupAnims,OwnerAnims,SymbolGroups,SymbolGuide}.svelte`, `symbolGroups.ts`, `api.ts`, `pages/Editor.svelte`, manualen, tests.
+
 ## [0.130.0 build 0193] — 2026-10-23 — Navngivne symbolgrupper (del 1: grupper som valg og markering)
 
 - Ny sektion **Grupper** i Tegn: gem de valgte symboler som en navngiven gruppe (art: funktionsgruppe eller udvalg), markér alle dens symboler med ét klik, tilføj/fjern/sæt til valgte, omdøb, skift art, slet. Samme symbol kan være med i flere grupper (overlap).

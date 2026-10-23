@@ -2,14 +2,16 @@
   // Sektionen "Grupper" i Tegns symbolliste (v0.130.0): gem markeringen som en navngiven gruppe, markér en gruppes symboler,
   // tilføj/fjern de markerede, omdøb, skift art og slet. Samme symbol må være med i flere grupper.
   import { onMount } from 'svelte';
+  import GroupAnims from './GroupAnims.svelte';
   import { ask, askText } from './ask';
   import {
-    KIND_HINT, KIND_TXT, createGroup, deleteGroup, groupsOf, listGroups, ofKind, updateGroup, withMembers, withoutMembers,
+    KIND_HINT, KIND_TXT, createGroup, deleteGroup, groupColor, groupsOf, listGroups, ofKind, updateGroup, withMembers, withoutMembers,
     type GroupKind, type SymbolGroup,
   } from './symbolGroups';
 
-  let { drawingId, selectedIds, select, onchange }: {
+  let { drawingId, selectedIds, select, onchange, tags = [] }: {
     drawingId: string | null;
+    tags?: { name: string; source: string; unit: string; writable: boolean; plc: string }[];
     selectedIds: string[];
     /** Markér elementerne på tegningen; returnerer hvor mange der blev fundet */
     select: (ids: string[]) => number;
@@ -22,6 +24,7 @@
   let busy = $state(false);
   let active = $state<number | null>(null);   // gruppen der sidst blev markeret
   let newKind = $state<GroupKind>('selection');
+  let animsFor = $state<SymbolGroup | null>(null);   // gruppen hvis animationer redigeres
 
   async function refresh(): Promise<void> {
     if (!drawingId) { groups = []; return; }
@@ -92,6 +95,7 @@
         <h4 class="kind" title={KIND_HINT[kind]}>{KIND_TXT[kind]} <span class="muted small">({list.length})</span></h4>
         {#each list as g (g.id)}
           <div class="grp" class:active={active === g.id}>
+            <span class="chip" style:background={groupColor(g.id)} title="Gruppens farve i animationsoversigten"></span>
             <button class="pick" onclick={() => pick(g)} title="Markér gruppens symboler på tegningen">{g.name} <span class="muted small">({g.members.length})</span></button>
             <details class="more">
               <summary class="small" aria-label="Redigér gruppen {g.name}">⋯</summary>
@@ -99,6 +103,7 @@
                 <button class="small" onclick={() => addSelected(g)} disabled={busy || !selectedIds.length}>Tilføj valgte</button>
                 <button class="small" onclick={() => removeSelected(g)} disabled={busy || !selectedIds.length}>Fjern valgte</button>
                 <button class="small" onclick={() => replaceWithSelected(g)} disabled={busy || !selectedIds.length} title="Gruppen får præcis de valgte symboler">Sæt til valgte</button>
+                <button class="small" onclick={() => (animsFor = g)} disabled={busy || !g.members.length} title="Sæt animationer op, som gælder alle gruppens symboler ud over deres egne">Animationer …</button>
                 <button class="small" onclick={() => rename(g)} disabled={busy}>Omdøb</button>
                 <button class="small" onclick={() => toggleKind(g)} disabled={busy}>Flyt til {KIND_TXT[g.kind === 'function' ? 'selection' : 'function']}</button>
                 <button class="small danger" onclick={() => remove(g)} disabled={busy}>Slet</button>
@@ -113,6 +118,10 @@
   {/if}
 </div>
 
+{#if animsFor && drawingId}
+  <GroupAnims {drawingId} group={animsFor} {tags} onclose={() => (animsFor = null)} />
+{/if}
+
 <style>
   .groups { display: flex; flex-direction: column; gap: .3rem; }
   .new { gap: .4rem; flex-wrap: wrap; }
@@ -120,6 +129,7 @@
   .grp { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .3rem; border: 1px solid var(--line); border-radius: var(--radius); padding: .15rem .3rem; }
   .grp.active { border-color: #5ccf6e; background: rgba(92, 207, 110, .15); }
   .pick { flex: 1; text-align: left; background: none; border: none; padding: .2rem .3rem; cursor: pointer; overflow-wrap: anywhere; }
+  .chip { flex: 0 0 auto; width: .7rem; height: .7rem; border-radius: 3px; margin-top: .45rem; }
   .more { flex: 0 0 auto; }
   .more[open] { flex: 1 1 100%; }
   .more summary { cursor: pointer; padding: .2rem .4rem; }

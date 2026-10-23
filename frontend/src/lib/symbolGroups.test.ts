@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupsOf, ofKind, withMembers, withoutMembers, type SymbolGroup } from './symbolGroups';
+import { GROUP_COLORS, groupColor, groupsOf, ofKind, withMembers, withoutMembers, type SymbolGroup } from './symbolGroups';
 
 const g = (id: number, kind: SymbolGroup['kind'], members: string[]): SymbolGroup => ({ id, name: 'G' + id, kind, members });
 
@@ -19,5 +19,13 @@ describe('symbolgrupper', () => {
     const groups = [g(1, 'function', []), g(2, 'selection', []), g(3, 'function', [])];
     expect(ofKind(groups, 'function').map((x) => x.id)).toEqual([1, 3]);
     expect(ofKind(groups, 'selection').map((x) => x.id)).toEqual([2]);
+  });
+});
+
+describe('gruppefarver', () => {
+  it('samme gruppe får altid samme farve, og farverne går rundt', () => {
+    expect(groupColor(3)).toBe(groupColor(3));
+    expect(groupColor(1)).not.toBe(groupColor(2));
+    expect(groupColor(GROUP_COLORS.length + 2)).toBe(groupColor(2));
   });
 });

@@ -1224,6 +1224,8 @@ class SymbolService:
     def tags_for_drawing(self, drawing_id: str) -> set[str]:
         """Tags + pseudo-tags som tegningens symboler læser/viser (til adgang pr. tegning)."""
         out: set[str] = set()
+        for row in self.db.list_group_anims(drawing_id):   # animationer ejet af grupper (v0.131.0)
+            out.update(config_tags({"anims": row["anims"]}))
         for element, cfg in self.configs(drawing_id).items():
             out.update(config_tags(cfg))
             if cfg.get("op") == "positions":
@@ -1233,8 +1235,11 @@ class SymbolService:
 
     def usage(self, tag: str) -> list[str]:
         """Symboler der bruger tagget — så det ikke kan slettes imens (som bindinger og ugeprogrammer)."""
-        return [f"{r['drawing_id']}#{r['element']}" for r in self.db.list_symbol_configs()
+        used = [f"{r['drawing_id']}#{r['element']}" for r in self.db.list_symbol_configs()
                 if tag in config_tags(r["config"])]
+        used += [f"{r['drawing_id']}#{r['element']} (gruppen {r['group_name']})" for r in self.db.list_group_anims()
+                 if tag in config_tags({"anims": r["anims"]})]
+        return used
 
 
 # Bruges af backup-import (tags valideres der mod backuppens tagliste)
