@@ -759,7 +759,7 @@
   }
   .canvas :global(svg) { display: block; width: 100%; height: auto; margin: 0 auto; } /* størrelse sættes af fitSvg */
   .box { position: absolute; pointer-events: none; border-radius: 2px; }
-  .box.sel { outline: 2px solid var(--accent); outline-offset: 2px; background: rgba(31, 95, 153, .08); }
+  .box.sel { outline: 2px solid #5ccf6e; outline-offset: 2px; background: rgba(92, 207, 110, .3); }
   .box.hover { outline: 1px dashed var(--accent); outline-offset: 2px; }
   aside { display: flex; flex-direction: column; gap: 0; min-width: 0; }
   .binding { border-top: 1px solid var(--line); padding-top: .6rem; margin-top: .6rem; }

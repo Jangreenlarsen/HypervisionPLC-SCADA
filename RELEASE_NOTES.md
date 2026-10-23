@@ -2,6 +2,10 @@
 
 ---
 
+## v0.127.0 — 2026-10-23 — Tydeligere markering i Bindinger
+
+- Vælger du et symbol eller bundet element i listen, markeres det på tegningen med en lysegrøn, gennemsigtig boks.
+
 ## v0.126.1 — 2026-10-23 — Animationer virker på iPad/iPhone
 
 - Animationerne (rotation, blink, løbelys, flamme, alarmer) vises nu også, når enheden har *Reducer bevægelse* slået til.
