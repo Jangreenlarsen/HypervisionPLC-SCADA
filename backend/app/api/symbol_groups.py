@@ -14,6 +14,11 @@ from .auth import ENGINEER, VIEWER, audit
 router = APIRouter(prefix="/api/drawings")
 
 
+class AnimsBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    anims: list[dict[str, Any]] = Field(max_length=12)   # tom liste fjerner gruppens animationer på elementet
+
+
 class GroupBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1, max_length=MAX_GROUP_NAME)
@@ -60,3 +65,25 @@ async def delete_group(drawing_id: str, group_id: int, request: Request) -> Resp
     name = _svc(request).delete(request.state.user.username, drawing_id, group_id)
     audit(request, "symbol_group.delete", f"{drawing_id}#{name}")
     return Response(status_code=204)
+
+
+@router.get("/{drawing_id}/groups/{group_id}/anims", dependencies=[VIEWER])
+async def get_anims(drawing_id: str, group_id: int, request: Request) -> dict[str, list[dict[str, Any]]]:
+    """Gruppens egne animationer pr. medlem: {element: [animation, …]}."""
+    _check(request, drawing_id)
+    return _svc(request).get_anims(drawing_id, group_id)
+
+
+@router.put("/{drawing_id}/groups/{group_id}/anims/{element}", dependencies=[ENGINEER])
+async def put_anims(drawing_id: str, group_id: int, element: str, body: AnimsBody, request: Request) -> dict[str, Any]:
+    _check(request, drawing_id)
+    anims = _svc(request).put_anims(request.state.user.username, drawing_id, group_id, element, body.anims)
+    audit(request, "symbol_group.anims", f"{drawing_id}#{element}", {"group": group_id, "anims": len(anims)})
+    return {"element": element, "anims": anims}
+
+
+@router.get("/{drawing_id}/symbols/{element}/group-anims", dependencies=[VIEWER])
+async def group_anims_on(drawing_id: str, element: str, request: Request) -> list[dict[str, Any]]:
+    """Animationer som grupper har lagt på elementet — så symbolguiden kan vise, hvad der ikke er symbolets egne."""
+    _check(request, drawing_id)
+    return _svc(request).anims_on(drawing_id, element)

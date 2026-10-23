@@ -313,7 +313,24 @@ class DrawingService:
                 effective.append({"element": element, "position": 0, **auto, "source": "auto"})
         for element, cfg in configs.items():
             effective.extend(config_bindings(drawing_id, element, cfg, covered))
+        if not legacy:
+            effective.extend(self._group_bindings(drawing_id, svg, index))
         return drawing, svg, effective, orphans, tags
+
+    def _group_bindings(self, drawing_id: str, svg: str, index: dict[str, Any]) -> list[dict[str, Any]]:
+        """Animationer ejet af symbolgrupper (v0.131.0): lægges efter symbolets egne, i gruppernes rækkefølge, så de gælder
+        samtidig; flere af samme slags på samme del afgøres af den eksisterende prioritetsregel (canvas.ts)."""
+        out: list[dict[str, Any]] = []
+        order: dict[int, int] = {}
+        for row in self.db.list_group_anims(drawing_id):
+            if row["element"] not in index:
+                continue
+            gi = order.setdefault(row["group_id"], len(order))
+            parts = subtree_ids(svg, {row["element"]})
+            for b in config_bindings(drawing_id, row["element"], {"anims": row["anims"]}, parts):
+                out.append({**b, "position": 2000 + gi * 100 + (b["position"] - 1000), "source": "group",
+                            "group": row["group_id"], "group_name": row["group_name"]})
+        return out
 
     def _meta(self, tag: dict[str, Any]) -> dict[str, Any]:
         """Det Overview behøver om et tag — også til setpunkt-dialogen."""

@@ -91,3 +91,95 @@ def test_restore_rejects_bad_groups(api):
     backup["symbol_groups"] = [{"drawing_id": api.did, "name": "G", "kind": "x", "members": []}]
     r = api.post("/api/backup/restore", json=backup)
     assert r.status_code == 400 and "Symbolgruppe" in r.json()["error"]
+
+
+# ------------------------------------------------------------ animationer ejet af grupper (v0.131.0)
+
+PIPE = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">'
+        '<g id="A" data-hv-type="pumpe" data-hv-name="Rør A"><rect id="A_r" x="10" y="10" width="40" height="10"/></g>'
+        '<g id="B" data-hv-type="pumpe" data-hv-name="Rør B"><rect id="B_r" x="110" y="10" width="40" height="10"/></g></svg>')
+
+
+@pytest.fixture
+def gapi(tmp_path, mock_plc):
+    settings = Settings(data_dir=tmp_path, poll_fast_s=0.05, poll_slow_s=0.2, plc_rate=9,
+                        frontend_dir=tmp_path / "nope", admin_password=ADMIN_PW, backup_hours=0)
+    with TestClient(create_app(settings)) as c:
+        c.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
+        c.post("/api/plcs", json={"key": "plc1", "base_url": mock_plc.url, "username": "scada",
+                                  "password": "scada123", "sse_enabled": False})
+        for n, a in (("Fyr", 10), ("Pumpe", 11)):
+            assert c.post("/api/tags", json={"name": n, "source": f"plc1:coil:{a}"}).status_code == 201
+        c.did = c.post("/api/drawings", json={"name": "Anlæg", "svg": PIPE}).json()["drawing"]["id"]
+        c.g1 = c.post(url(c), json={"name": "Fyr", "kind": "function", "members": ["A", "B"]}).json()["id"]
+        c.g2 = c.post(url(c), json={"name": "Pumpegruppe", "members": ["A"]}).json()["id"]
+        yield c
+
+
+def fill(tag, on="#d32f2f"):
+    return {"part": "all", "type": "fill", "src": tag, "params": {"on": on, "off": "#9e9e9e"}}
+
+
+def anims_url(api, gid, el):
+    return url(api, f"/{gid}/anims/{el}")
+
+
+def test_group_anims_overlap_and_view(gapi):
+    assert gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Fyr")]}).status_code == 200
+    assert gapi.put(anims_url(gapi, gapi.g2, "A"), json={"anims": [fill("Pumpe", "#2e7d32")]}).status_code == 200
+    assert gapi.put(anims_url(gapi, gapi.g1, "B"), json={"anims": [fill("Fyr")]}).status_code == 200
+    assert list(gapi.get(url(gapi, f"/{gapi.g1}/anims")).json()) == ["A", "B"]
+    bindings = [b for b in gapi.get(f"/api/drawings/{gapi.did}/view").json()["bindings"] if b["source"] == "group"]
+    on_a = [b for b in bindings if b["element"] == "A"]
+    # begge gruppers animationer på A gælder samtidig, i gruppernes rækkefølge, og rør ikke symbolets egen opsætning
+    assert [b["group_name"] for b in on_a] == ["Fyr", "Pumpegruppe"]
+    assert [b["tag"] for b in on_a] == ["Fyr", "Pumpe"]
+    assert on_a[0]["position"] < on_a[1]["position"]
+    assert gapi.get(f"/api/drawings/{gapi.did}/symbols/A/config").json()["config"] is None
+
+
+def test_group_anims_validation(gapi):
+    r = gapi.put(anims_url(gapi, gapi.g2, "B"), json={"anims": [fill("Fyr")]})
+    assert r.status_code == 400 and "ikke medlem" in r.json()["error"]
+    r = gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Findes-ikke")]})
+    assert r.status_code == 400 and "findes ikke" in r.json()["error"]
+    r = gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [{**fill("Fyr"), "src": "@pos"}]})
+    assert r.status_code == 400
+    assert gapi.get(url(gapi, f"/{gapi.g1}/anims")).json() == {}
+
+
+def test_group_anims_follow_membership_and_block_tag_delete(gapi):
+    gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Fyr")]})
+    r = gapi.delete("/api/tags/Fyr")
+    assert r.status_code == 409 and "Fyr" in r.json()["error"]
+    # medlem fjernet -> dets animationer fjernes med
+    gapi.put(url(gapi, f"/{gapi.g1}"), json={"name": "Fyr", "kind": "function", "members": ["B"]})
+    assert gapi.get(url(gapi, f"/{gapi.g1}/anims")).json() == {}
+    assert gapi.delete("/api/tags/Fyr").status_code in (200, 204)
+
+
+def test_group_anims_empty_list_removes_and_backup_roundtrip(gapi):
+    gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Fyr")]})
+    gapi.put(anims_url(gapi, gapi.g2, "A"), json={"anims": [fill("Pumpe")]})
+    backup = gapi.get("/api/backup").json()
+    assert {g["name"]: list(g["anims"]) for g in backup["symbol_groups"]} == {"Fyr": ["A"], "Pumpegruppe": ["A"]}
+    r = gapi.post("/api/backup/restore", json=backup)
+    assert r.status_code == 200, r.text
+    ids = {g["name"]: g["id"] for g in gapi.get(url(gapi)).json()}
+    assert gapi.get(url(gapi, f"/{ids['Fyr']}/anims")).json()["A"][0]["src"] == "Fyr"
+    assert gapi.put(anims_url(gapi, ids["Fyr"], "A"), json={"anims": []}).status_code == 200
+    assert gapi.get(url(gapi, f"/{ids['Fyr']}/anims")).json() == {}
+    assert gapi.get(url(gapi, f"/{ids['Pumpegruppe']}/anims")).json()["A"][0]["src"] == "Pumpe"
+    bad = gapi.get("/api/backup").json()
+    bad["symbol_groups"][0]["anims"] = {"A": [{"part": "all", "type": "fill", "src": "Findes-ikke", "params": {}}]}
+    r = gapi.post("/api/backup/restore", json=bad)
+    assert r.status_code == 400 and "Findes-ikke" in r.json()["error"]
+
+
+def test_group_anims_on_element(gapi):
+    gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Fyr")]})
+    gapi.put(anims_url(gapi, gapi.g2, "A"), json={"anims": [fill("Pumpe")]})
+    r = gapi.get(f"/api/drawings/{gapi.did}/symbols/A/group-anims").json()
+    assert [(o["group_name"], o["kind"], o["anims"][0]["src"]) for o in r] == [("Fyr", "function", "Fyr"), ("Pumpegruppe", "selection", "Pumpe")]
+    gapi.put(anims_url(gapi, gapi.g1, "B"), json={"anims": [fill("Fyr")]})
+    assert gapi.get(f"/api/drawings/{gapi.did}/symbols/B/group-anims").json()[0]["group_name"] == "Fyr"

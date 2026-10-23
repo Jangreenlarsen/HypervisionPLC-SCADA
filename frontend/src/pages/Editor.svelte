@@ -13,6 +13,7 @@
   import TagSelect from '../lib/TagSelect.svelte';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import { listGroups, ofKind, type SymbolGroup } from '../lib/symbolGroups';
+  import GroupAnims from '../lib/GroupAnims.svelte';
 
   let { route = 'editor' }: { route?: string } = $props();
 
@@ -30,6 +31,7 @@
   // Symbolgrupper (v0.130.0): vælg en gruppe for kun at se dens symboler i listen — bindinger sættes som ellers pr. symbol
   let groups = $state<SymbolGroup[]>([]);
   let groupId = $state('');
+  let groupAnimsOpen = $state(false);
   let expanded = $state<Set<string>>(new Set()); // standard: rene grupper udfoldet, symboler sammenfoldet
   let showAll = $state(false);                   // standard: kun symboler (navngivne) og bundne elementer
   let descDraft = $state('');
@@ -729,6 +731,10 @@
             {#each ofKind(groups, 'selection') as g}<option value={String(g.id)}>{g.name} ({g.members.length}) · udvalg</option>{/each}
           </select>
         </label>
+        {#if activeGroup}
+          <div class="row"><button class="small" onclick={() => (groupAnimsOpen = true)} disabled={!activeGroup.members.length}
+            title="Sæt animationer op på alle gruppens symboler (gælder ud over deres egne)">Animationer for gruppen …</button></div>
+        {/if}
         {#if activeGroup && missingInGroup.length}
           <p class="small notice">{missingInGroup.length} af gruppens symboler findes ikke længere på tegningen: {missingInGroup.join(', ')}</p>
         {/if}
@@ -759,6 +765,10 @@
     </section>
   </aside>
 </div>
+
+{#if groupAnimsOpen && activeGroup && view}
+  <GroupAnims drawingId={view.id} group={activeGroup} {tags} onclose={() => (groupAnimsOpen = false)} />
+{/if}
 
 {#if guideFor && view}
   <SymbolGuide drawingId={view.id} element={guideFor.id} name={guideFor.name} {tags}

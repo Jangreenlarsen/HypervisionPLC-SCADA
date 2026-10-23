@@ -59,7 +59,9 @@ Vælg et eller flere symboler (hold **Shift** nede, eller træk en ramme), så v
 
 Vælg flere symboler i tegningen og tryk **Gem markering som gruppe** i sektionen **Grupper** (symbollisten til højre). Giv gruppen et navn og en art: **Funktionsgrupper** er en del af anlægget med en funktion, fx *Fyr uden akku-tank*; **Udvalg** er et frit udvalg, fx 3-vejs ventil, rør og akkutank. Tryk på gruppens navn for at markere alle dens symboler igen. Under **⋯** kan du tilføje eller fjerne de valgte, sætte gruppen til de valgte, omdøbe, flytte den mellem de to arter eller slette den (symbolerne slettes ikke).
 
-Samme symbol må gerne være med i flere grupper. Er det valgte symbol med i grupper, står de nævnt under listen. Gem tegningen før du laver grupper. På siden **Bindinger** kan du vælge en gruppe over symbollisten for kun at se dens symboler.
+Samme symbol må gerne være med i flere grupper. Er det valgte symbol med i grupper, står de nævnt under listen. Gem tegningen før du laver grupper.
+
+**Animationer på en gruppe:** under **⋯ › Animationer …** (eller på siden Bindinger, når du har valgt en gruppe) sætter du animationer op for hvert symbol i gruppen — fx farver alle gruppens rør, når *Fyr kører*. Gruppens animationer gælder **ud over** symbolets egne og andre gruppers; er et rør med i flere grupper, har det altså sine egne animationer plus én opsætning pr. gruppe. Hver gruppe har sin egen farve. I dialogen (og i symbolguiden, trin 4) vises de andre ejeres animationer skrivebeskyttet i deres farver, så du kan se, hvad du ikke skal ændre. Flere animationer af samme slags på samme del: den øverste *aktive* vinder; uden "passiv" vinder den sidste, og gruppernes kommer efter symbolets egne. Fjerner du et symbol fra gruppen, fjernes gruppens animationer på det også. Tags, der bruges af en gruppe, kan ikke slettes. På siden **Bindinger** kan du vælge en gruppe over symbollisten for kun at se dens symboler.
 
 ### Erstat tegnede dele med symboler
 

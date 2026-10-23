@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -186,6 +186,15 @@ CREATE TABLE IF NOT EXISTS symbol_group_members (
     group_id    INTEGER NOT NULL REFERENCES symbol_groups(id) ON DELETE CASCADE,
     element     TEXT NOT NULL,
     sort        INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (group_id, element)
+);
+-- Animationer ejet af en gruppe (v0.131.0): pr. gruppe og medlem en liste af animationer (samme form som symbolets egne)
+CREATE TABLE IF NOT EXISTS symbol_group_anims (
+    group_id    INTEGER NOT NULL REFERENCES symbol_groups(id) ON DELETE CASCADE,
+    element     TEXT NOT NULL,
+    anims       TEXT NOT NULL,
+    updated_at  REAL NOT NULL,
+    updated_by  TEXT NOT NULL,
     PRIMARY KEY (group_id, element)
 );
 CREATE TABLE IF NOT EXISTS user_drawings (
@@ -487,11 +496,36 @@ class Database:
                     cur.execute("DELETE FROM symbol_group_members WHERE group_id = ?", (group_id,))
                     cur.executemany("INSERT INTO symbol_group_members(group_id, element, sort) VALUES (?,?,?)",
                                     [(group_id, el, i) for i, el in enumerate(members)])
+                    cur.execute("DELETE FROM symbol_group_anims WHERE group_id = ? AND element NOT IN "
+                                "(SELECT element FROM symbol_group_members WHERE group_id = ?)", (group_id, group_id))
                 cur.execute("COMMIT")
                 return group_id
             except Exception:
                 cur.execute("ROLLBACK")
                 raise
+
+    def list_group_anims(self, drawing_id: str | None = None, group_id: int | None = None) -> list[dict[str, Any]]:
+        """Gruppe-animationer i gruppens rækkefølge: [{group_id, group_name, drawing_id, element, anims}]."""
+        where, args = [], []
+        if drawing_id is not None:
+            where.append("g.drawing_id = ?"); args.append(drawing_id)
+        if group_id is not None:
+            where.append("g.id = ?"); args.append(group_id)
+        rows = self._query("SELECT a.group_id, g.name AS group_name, g.drawing_id, a.element, a.anims FROM symbol_group_anims a "
+                           "JOIN symbol_groups g ON g.id = a.group_id "
+                           + ("WHERE " + " AND ".join(where) + " " if where else "")
+                           + "ORDER BY g.drawing_id, g.sort, g.id, a.element", tuple(args))
+        return [{**r, "anims": json.loads(r["anims"])} for r in rows]
+
+    def set_group_anims(self, group_id: int, element: str, anims: list[dict[str, Any]], user: str) -> None:
+        """Tom liste fjerner rækken. Én række pr. (gruppe, element) — andre røres ikke."""
+        if not anims:
+            self._execute("DELETE FROM symbol_group_anims WHERE group_id = ? AND element = ?", (group_id, element))
+            return
+        self._execute("INSERT INTO symbol_group_anims(group_id, element, anims, updated_at, updated_by) VALUES (?,?,?,?,?) "
+                      "ON CONFLICT(group_id, element) DO UPDATE SET anims = excluded.anims, updated_at = excluded.updated_at, "
+                      "updated_by = excluded.updated_by",
+                      (group_id, element, json.dumps(anims, ensure_ascii=False), time.time(), user))
 
     def delete_symbol_group(self, drawing_id: str, group_id: int) -> bool:
         return self._execute("DELETE FROM symbol_groups WHERE id = ? AND drawing_id = ?", (group_id, drawing_id)) > 0
@@ -766,7 +800,7 @@ class Database:
             # Symbol-konfigurationer — men aldrig PIN-hashes eller driftstilstand (symbol_pins/symbol_state)
             "symbol_config": [{"drawing_id": r["drawing_id"], "element": r["element"], "config": r["config"]}
                               for r in self.list_symbol_configs()],
-            "symbol_groups": [{k: g[k] for k in ("drawing_id", "name", "kind", "members")} for g in self.list_symbol_groups()],
+            "symbol_groups": self._export_groups(),
             "settings": {"start_drawing": self.get_setting("start_drawing")},
             "schedules": [{k: s[k] for k in ("name", "tag", "enabled", "default_value", "entries", "exceptions")}
                           for s in self.list_schedules()],
@@ -884,6 +918,9 @@ class Database:
                                       "VALUES (?,?,?,?,?,?)", (g["drawing_id"], g["name"], g["kind"], i, now, "restore")).lastrowid
                     cur.executemany("INSERT INTO symbol_group_members(group_id, element, sort) VALUES (?,?,?)",
                                     [(gid, el, j) for j, el in enumerate(g["members"])])
+                    for el, anims in (g.get("anims") or {}).items():
+                        cur.execute("INSERT INTO symbol_group_anims(group_id, element, anims, updated_at, updated_by) "
+                                    "VALUES (?,?,?,?,?)", (gid, el, json.dumps(anims, ensure_ascii=False), now, "restore"))
                 for b in data["bindings"]:
                     cur.execute("INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
                                 (b["drawing_id"], b["element"], b["position"], b["tag"], b["anim"],
@@ -892,6 +929,13 @@ class Database:
             except Exception:
                 cur.execute("ROLLBACK")
                 raise
+
+    def _export_groups(self) -> list[dict[str, Any]]:
+        anims: dict[int, dict[str, list[dict[str, Any]]]] = {}
+        for a in self.list_group_anims():
+            anims.setdefault(a["group_id"], {})[a["element"]] = a["anims"]
+        return [{**{k: g[k] for k in ("drawing_id", "name", "kind", "members")}, "anims": anims.get(g["id"], {})}
+                for g in self.list_symbol_groups()]
 
     def _update(self, table: str, pk: str, key: str, changes: dict[str, Any], allowed: tuple[str, ...]) -> bool:
         fields = [f for f in changes if f in allowed]

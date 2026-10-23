@@ -861,7 +861,7 @@
       {#if favError}<p class="small error">{favError}</p>{/if}
       <details open>
         <summary>Grupper</summary>
-        <SymbolGroups drawingId={current?.id ?? null} selectedIds={selection.filter((x) => !!x.id).map((x) => x.id)}
+        <SymbolGroups drawingId={current?.id ?? null} {tags} selectedIds={selection.filter((x) => !!x.id).map((x) => x.id)}
           select={(ids) => ed?.selectByIds(ids) ?? 0} />
       </details>
       <details open>

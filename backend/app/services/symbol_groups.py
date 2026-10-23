@@ -9,6 +9,7 @@ from typing import Any
 
 from ..storage.db import Database
 from .errors import ServiceError
+from .symbols import validate_config
 
 log = logging.getLogger("scada.symbol_groups")
 
@@ -29,8 +30,9 @@ def clean_members(members: list[str]) -> list[str]:
 
 
 class SymbolGroupService:
-    def __init__(self, db: Database):
+    def __init__(self, db: Database, symbols: Any = None):
         self.db = db
+        self.symbols = symbols   # SymbolService — bruges til at validere gruppe-animationer som symbolets egne
 
     def list(self, drawing_id: str) -> list[dict[str, Any]]:
         return self.db.list_symbol_groups(drawing_id)
@@ -68,3 +70,38 @@ class SymbolGroupService:
         self.db.delete_symbol_group(drawing_id, group_id)
         log.info("Symbolgruppe slettet: tegning=%s gruppe=%s bruger=%s", drawing_id, group["name"], user)
         return group["name"]
+
+    # ------------------------------------------------------------ animationer ejet af gruppen (v0.131.0)
+
+    def get_anims(self, drawing_id: str, group_id: int) -> dict[str, list[dict[str, Any]]]:
+        if self.db.get_symbol_group(drawing_id, group_id) is None:
+            raise ServiceError(404, "Gruppen findes ikke")
+        return {r["element"]: r["anims"] for r in self.db.list_group_anims(drawing_id, group_id)}
+
+    def anims_on(self, drawing_id: str, element: str) -> list[dict[str, Any]]:
+        """Alle gruppers animationer på ét element (til oversigten over, hvem der ejer hvad): [{group_id, group_name, kind, anims}]."""
+        kinds = {g["id"]: g["kind"] for g in self.db.list_symbol_groups(drawing_id)}
+        return [{"group_id": r["group_id"], "group_name": r["group_name"], "kind": kinds.get(r["group_id"], "selection"),
+                 "anims": r["anims"]} for r in self.db.list_group_anims(drawing_id) if r["element"] == element]
+
+    def put_anims(self, user: str, drawing_id: str, group_id: int, element: str, anims: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        group = self.db.get_symbol_group(drawing_id, group_id)
+        if group is None:
+            raise ServiceError(404, "Gruppen findes ikke")
+        if element not in group["members"]:
+            raise ServiceError(400, f"'{element}' er ikke medlem af gruppen '{group['name']}'")
+        if not anims:   # tom liste = fjern gruppens animationer på elementet (kræver ingen validering)
+            self.db.set_group_anims(group_id, element, [], user)
+            return []
+        svc = self.symbols
+        info = svc._element(drawing_id, element)
+        # Samme regler som symbolets egne animationer (visning uden positioner): tags, dele, parametre
+        others = svc.configs(drawing_id)
+        normalized, res = validate_config({"op": "view", "anims": anims}, info, svc._tags(), False, element, others)
+        if res.count:
+            raise ServiceError(400, f"Animationerne kan ikke gemmes ({res.count} fejl) — {res.first()}",
+                               {"steps": res.steps, "warnings": res.warnings})
+        self.db.set_group_anims(group_id, element, normalized["anims"], user)
+        log.info("Gruppe-animationer gemt: tegning=%s gruppe=%s element=%s antal=%d bruger=%s", drawing_id, group["name"],
+                 element, len(normalized["anims"]), user)
+        return normalized["anims"]

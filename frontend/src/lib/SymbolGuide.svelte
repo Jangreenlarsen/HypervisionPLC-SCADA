@@ -12,6 +12,9 @@
   import SymbolCopy from './SymbolCopy.svelte';
   import TagAlarm from './TagAlarm.svelte';
   import TagSelect from './TagSelect.svelte';
+  import AnimParams from './AnimParams.svelte';
+  import OwnerAnims from './OwnerAnims.svelte';
+  import { groupAnimsOn, groupColor, type OwnerBlock } from './symbolGroups';
   import { CHART_RANGES, FONT_SCALES, LEGEND_PLACES, MAX_CHART_TAGS, defaultChart, legendOf } from './chartGraphic';
   import { SELECTOR_TYPES, selectorMismatch } from './selectorRedraw';
   import { DIR_TXT, applyLever, leverDirs, leverInSync, type LeverDir } from './toggleSwitch';
@@ -85,6 +88,13 @@
   const canSave = $derived(!!preview && !checking && preview.errors === 0 && !needPin && pinOk && !saving && !previewError);
 
   // ---------------------------------------------------------------- indlæsning
+  // Animationer som grupper har lagt på symbolet (v0.131.0): vises skrivebeskyttet under symbolets egne
+  let groupOwners = $state<OwnerBlock[]>([]);
+  onMount(() => {
+    groupAnimsOn(drawingId, element)
+      .then((o) => (groupOwners = o.map((g) => ({ key: `g${g.group_id}`, label: `Gruppen ${g.group_name}`, color: groupColor(g.group_id), anims: g.anims }))))
+      .catch((e) => console.error('Gruppernes animationer kunne ikke hentes:', e));
+  });
   onMount(async () => {
     try {
       const r = await get<{ config: SymbolConfig | null; has_pin: boolean; symbol: SymbolInfo | null; orphaned: boolean; warnings: string[]; logic_pool?: PoolBlock[] }>(`${base}/config`);
@@ -786,7 +796,7 @@
                 <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
                 <button class="small" onclick={() => cfg.anims.splice(i, 1)} aria-label="Fjern animation">✕</button>
               </div>
-              {@render params(a, kind)}
+              <AnimParams {a} {kind} positions={cfg.positions} logic={cfg.logic} {pool} {tags} {valueOf} {metaOf} />
               {#if WHEN_TYPES.includes(a.type)}
                 <label class="opt small">Når den ikke er aktiv:
                   <select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">
@@ -807,6 +817,7 @@
             <button class="small" onclick={addDefault} disabled={cfg.anims.length >= MAX_ANIMS}
               title="Tilføj en animation med 'altid til' nederst — den gælder, når ingen af de aktiv/passive over den er aktive">+ Standard</button>
           </div>
+          <OwnerAnims owners={groupOwners} {symbol} title="Animationer fra grupper (ændres under Grupper — gælder ud over symbolets egne)" />
           {#if cfg.anims.some((x) => x.when)}
             <p class="small muted">Flere animationer af samme slags på samme del: den <strong>øverste aktive</strong> vinder (en med "vis fra-tilstand" tæller altid som aktiv). Er ingen aktive, vises delen som tegnet. Brug ▲▼ til at ordne dem.</p>
           {/if}
@@ -947,106 +958,6 @@
 {#snippet numInput(obj: Record<string, any>, key: string | number, label: string)}
   <label class="opt small">{label} <input class="n" value={obj[key] ?? ''} onchange={(e) => (obj[key] = num(e.currentTarget.value, obj[key] ?? 0))} /></label>
 {/snippet}
-
-{#snippet params(a: Anim, kind: SrcKind)}
-  {@const p = a.params}
-  <div class="row wrap params">
-    {#if (a.type === 'fill' || a.type === 'stroke')}
-      {#if kind === 'pos'}
-        {#each cfg.positions as pos, j}{@render colorInput(p.colors, j, pos.label)}{/each}
-      {:else}
-        {@render colorInput(p, 'on', kind === 'bool' ? 'Til' : 'Over 0')}{@render colorInput(p, 'off', kind === 'bool' ? 'Fra' : '0')}
-        {#if kind === 'num'}
-          {#each p.thresholds ?? [] as th, ti}
-            <span class="opt small">≥ <input class="n" value={th.value} onchange={(e) => (th.value = num(e.currentTarget.value, th.value))} />
-              <input type="color" bind:value={th.color} /><button class="small" onclick={() => p.thresholds.splice(ti, 1)} aria-label="Fjern grænse">✕</button></span>
-          {/each}
-          <button class="small" onclick={() => (p.thresholds = [...(p.thresholds ?? []), { value: 0, color: '#b26a00' }])}>+ Grænse</button>
-        {/if}
-      {/if}
-    {:else if a.type === 'blink' || a.type === 'visible' || a.type === 'spin' || a.type === 'flicker'}
-      {#if a.type === 'flicker'}
-        <span class="small muted">Skifter tilfældigt mellem:</span>
-        {#if Array.isArray(p.palette)}{#each [0, 1, 2] as i}{@render colorInput(p.palette, i, `Farve ${i + 1}`)}{/each}{/if}
-      {/if}
-      {#if kind === 'pos'}
-        {#each cfg.positions as pos, j}<label class="opt small"><input type="checkbox" bind:checked={p.set[j]} /> {pos.label}</label>{/each}
-      {:else if kind === 'num'}
-        {@render numInput(p, 'at_least', 'Når ≥')}
-      {:else}
-        <label class="opt small"><input type="checkbox" bind:checked={p.invert} /> Omvendt (når Fra)</label>
-      {/if}
-      {#if a.type === 'blink'}
-        <select bind:value={p.speed} aria-label="Blinkfrekvens">{#each Object.entries(BLINK_TXT) as [v, t]}<option value={v}>{t}</option>{/each}</select>
-      {/if}
-    {:else if a.type === 'level' || a.type === 'opacity' || a.type === 'scale'}
-      {@render numInput(p, 'min', 'Min')}{@render numInput(p, 'max', 'Max')}
-      {#if a.type === 'scale'}
-        {@render numInput(p, 'size_min', 'Størrelse ved min (%)')}{@render numInput(p, 'size_max', 'ved max (%)')}
-      {/if}
-      {#if a.type === 'level'}
-        <select bind:value={p.direction} aria-label="Retning"><option value="up">Op</option><option value="down">Ned</option><option value="left">Venstre</option><option value="right">Højre</option></select>
-      {/if}
-    {:else if a.type === 'text'}
-      {#if kind === 'pos'}
-        <span class="small muted">Viser positionens navn.</span>
-      {:else if kind === 'bool'}
-        <label class="opt small">Til <input class="lbl" bind:value={p.true_text} /></label><label class="opt small">Fra <input class="lbl" bind:value={p.false_text} /></label>
-      {:else}
-        {@render numInput(p, 'decimals', 'Decimaler')}
-        <label class="opt small">Før <input class="lbl" bind:value={p.prefix} /></label><label class="opt small">Efter <input class="lbl" bind:value={p.suffix} /></label>
-        <!-- som på siden Bindinger (v0.73.0): beregning på værdien før visning, og tagets enhed efter tallet -->
-        <label class="opt small">Beregning <input class="lbl" bind:value={p.expression} maxlength="80" placeholder="fx x / 10" /></label>
-        <label class="opt small"><input type="checkbox" checked={p.show_unit !== false} onchange={(e) => (p.show_unit = e.currentTarget.checked)} /> Vis enhed</label>
-        {#if expressionError(p.expression ?? '')}<span class="small error">Beregning: {expressionError(p.expression ?? '')}</span>{/if}
-        {#if valueOf(a.src) !== undefined && valueOf(a.src) !== null}<span class="small muted">Lige nu: {fmt(valueOf(a.src))} → <strong>{textFor(valueOf(a.src), metaOf(a.src), p)}</strong></span>{/if}
-      {/if}
-    {:else if a.type === 'rotate'}
-      {#if kind === 'pos'}
-        {#each cfg.positions as pos, j}{@render numInput(p.angles, j, `${pos.label} °`)}{/each}
-      {:else}
-        {@render numInput(p, 'min', 'Min')}{@render numInput(p, 'max', 'Max')}{@render numInput(p, 'angle_min', '° ved min')}{@render numInput(p, 'angle_max', '° ved max')}
-      {/if}
-      <label class="opt small" title="Hvor hurtigt delen drejer til den nye vinkel (glidende kræver, at delen ikke selv er drejet/flyttet i tegningen)">Hastighed
-        <select value={String(glideSeconds(p.glide_s, kind === 'pos'))} onchange={(e) => (p.glide_s = Number(e.currentTarget.value))}>
-          {#each GLIDE_SPEEDS as g (g.s)}<option value={String(g.s)}>{g.label}</option>{/each}
-        </select></label>
-    {:else if a.type === 'move'}
-      {#if kind === 'pos'}
-        {#each cfg.positions as pos, j}<span class="opt small">{pos.label} {@render numInput(p.dxs, j, 'x')}{@render numInput(p.dys, j, 'y')}</span>{/each}
-      {:else}
-        {@render numInput(p, 'min', 'Min')}{@render numInput(p, 'max', 'Max')}{@render numInput(p, 'dx', 'x ved max')}{@render numInput(p, 'dy', 'y ved max')}
-      {/if}
-    {:else if a.type === 'flow'}
-      {#if kind === 'pos'}
-        {#each cfg.positions as pos, j}
-          <label class="opt small">{pos.label} <select bind:value={p.dirs[j]}><option value={0}>stop</option><option value={1}>frem</option><option value={-1}>tilbage</option></select></label>
-        {/each}
-      {:else}
-        <select bind:value={p.mode} aria-label="Styring"><option value="onoff">Til/fra</option><option value="signed">Fortegn (+/−)</option><option value="code">Kode 0/1/2</option></select>
-        <label class="opt small">Retning fra
-          {#if cfg.logic.length || pool.length}
-            <select value={isLogicRef(p.dir_tag ?? '') ? 'logic' : 'tag'} onchange={(e) => (p.dir_tag = e.currentTarget.value === 'logic' ? firstBlockRef(cfg.logic) : '')} aria-label="Retningens kilde">
-              <option value="tag">et tag</option><option value="logic">en logikblok</option>
-            </select>
-          {/if}
-          {#if isLogicRef(p.dir_tag ?? '')}
-            <select bind:value={p.dir_tag} aria-label="Retningens logikblok">
-              {#if cfg.logic.length}<optgroup label="Dette symbol">{#each cfg.logic as b}<option value={'@' + b.id}>{blockLabel(b)}</option>{/each}</optgroup>{/if}
-              {#if pool.length}<optgroup label="Andre symboler">{#each pool as q}<option value={poolRef(q)}>{poolLabel(q)}</option>{/each}</optgroup>{/if}
-            </select>
-          {:else}
-            <TagSelect value={p.dir_tag ?? ''} {tags} placeholder="— ingen —" onchange={(v) => (p.dir_tag = v)} />
-          {/if}
-        </label>
-      {/if}
-      <label class="opt small"><input type="checkbox" bind:checked={p.reverse} /> Omvendt</label>
-      {@render colorInput(p, 'base', 'Rør')}{@render colorInput(p, 'light', 'Lys')}
-      {@render numInput(p, 'speed', 'Fart')}{@render numInput(p, 'dash', 'Streg')}
-    {/if}
-  </div>
-{/snippet}
-
 <style>
   table.lever { width: auto; margin-bottom: 6px; }
   table.lever td { padding: 3px 14px 3px 0; }
@@ -1087,7 +998,6 @@
   .name { min-width: 14em; }
   .logic .input { margin: .15rem 0 .15rem 1rem; }
   .anim { border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem; margin: .35rem 0; background: var(--panel-2); }
-  .params { margin-top: .3rem; }
   .errors { color: var(--alarm); margin: .5rem 0; }
   .warnings { color: var(--warn); }
   .notice { background: #fff8e1; border: 1px solid #ffe082; padding: .4rem .6rem; border-radius: var(--radius); }

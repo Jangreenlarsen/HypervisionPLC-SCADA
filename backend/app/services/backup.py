@@ -435,8 +435,26 @@ class BackupService:
                 err(f"Symbolgruppe '{g['name']}' på {g['drawing_id']}: navnet findes to gange")
                 continue
             seen_groups.add((g["drawing_id"], g["name"]))
+            members = list(dict.fromkeys(g["members"]))
+            anims: dict[str, list[dict[str, Any]]] = {}
+            raw_anims = g.get("anims") or {}   # backups fra før v0.131.0 har ingen gruppe-animationer
+            bad = not isinstance(raw_anims, dict)
+            for el, lst in ({} if bad else raw_anims).items():
+                try:
+                    cfg = SymbolConfig.model_validate({"op": "view", "anims": lst}).model_dump()
+                except ValidationError as exc:
+                    err(f"Symbolgruppe '{g['name']}', {el}: ugyldige animationer ({exc.errors()[0].get('msg', 'fejl')})")
+                    continue
+                if el not in members:
+                    err(f"Symbolgruppe '{g['name']}': animationer på '{el}', som ikke er medlem")
+                elif missing := [t for t in config_tags(cfg) if t not in tag_names_all]:
+                    err(f"Symbolgruppe '{g['name']}', {el}: tagget '{missing[0]}' findes ikke i backuppen")
+                else:
+                    anims[el] = cfg["anims"]
+            if bad:
+                err(f"Symbolgruppe '{g['name']}': anims skal være et objekt")
             symbol_groups.append({"drawing_id": g["drawing_id"], "name": g["name"], "kind": g["kind"],
-                                  "members": list(dict.fromkeys(g["members"]))})
+                                  "members": members, "anims": anims})
 
         schedules = []
         raw_schedules = backup.get("schedules", [])  # ældre backups har ingen ugeprogrammer

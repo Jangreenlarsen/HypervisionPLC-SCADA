@@ -169,4 +169,5 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.127.0 — Bindinger: valgt element markeres lysegrønt med gennemsigtig fyld
 - [x] done v0.128.0 — Opsæt symbol: dialogen kan flyttes ved at trække i overskriften
 - [x] done v0.129.0 — Animationer: coil (0/100) kan bruges hvor der krævedes et register (Niveau, Gennemsigtighed, Størrelse)
-- [~] in-progress v0.130.0 — Navngivne symbolgrupper: del 1 (grupper som valg/markering i Tegn + Bindinger) færdig; del 2 (gruppe-ejede animationer + farvemarkering i guiden) planlagt, se PLAN.md
+- [x] done v0.130.0 — Navngivne symbolgrupper del 1: grupper som valg/markering i Tegn + Bindinger (overlap tilladt)
+- [x] done v0.131.0 — Symbolgrupper del 2: animationer ejet af gruppen + farvemarkering af ejere i dialog og symbolguide
