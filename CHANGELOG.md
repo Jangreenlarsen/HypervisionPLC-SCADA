@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.126.1 build 0187] — 2026-10-23 — fix: animationer virker også med "Reducer bevægelse" (iOS)
+
+- Rod­årsag: `prefers-reduced-motion` slog rotation, blafren, blink, løbelys og alarmblink fra på enheder med tilgængelighedsindstillingen slået til (iOS). Procesanimationerne viser anlæggets tilstand og kører nu altid.
+- `frontend/src/app.css`, `frontend/src/App.svelte`, `frontend/src/lib/animate.ts`.
+
+## [0.126.0 build 0186] — 2026-10-23 — Driftpanel: tegningen fylder hele skærmen
+
+- Den smalle sidekolonne (8,5 rem) er fjernet. Log ud, tegningsvalg og "Ingen forbindelse" flyder som små knapper øverst til venstre over tegningen; AGPL-kildelinket står nederst til venstre.
+- `frontend/src/pages/Overview.svelte`.
+
 ## [0.125.1 build 0185] — 2026-10-22 — fix: netværkssystem og DHCP-klient registreres løbende
 
 - Fund ved test på serveren: `install.sh` ligger kun i opdateringspakken (ikke på serveren), så vejledningen "kør install.sh --update" kunne ikke følges, og en `apt install dhcpcd-base` bagefter slog ikke igennem før næste opdatering.
