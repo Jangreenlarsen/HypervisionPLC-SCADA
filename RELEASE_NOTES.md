@@ -2,6 +2,10 @@
 
 ---
 
+## v1.0.1 — 2026-10-23 — Intern oprydning
+
+- Ingen synlige ændringer: en intern typefejl i Trends er rettet.
+
 ## v1.0.0 — 2026-10-23 — Version 1.0.0 (databaseudvidelse til symbolgrupper)
 
 - Samme funktioner som 0.131.4. Versionsnummeret er hævet, fordi opdateringen udvider databasen (nye tabeller til symbolgrupper) — tag en backup, før du opdaterer fra en ældre version.
