@@ -4,10 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
-## [0.129.1 build 0191] — 2026-10-23 — fix: rullepaneler altid synlige i Tegn
+## [0.129.1 build 0191, rettet i 0192] — 2026-10-23 — fix: rullepaneler altid synlige i Tegn
 
 - Tegnefladen (`#workarea`) har nu `overflow: scroll` og tydelige rullepaneler (14 px, mørk grib på lys bane), så de ikke skjules af systemets auto-skjulte rullepaneler.
-- `frontend/public/svgedit/scada-editor.css`.
+- `frontend/svgedit-host/scada-editor.css`.
 
 ## [0.129.0 build 0190] — 2026-10-23 — Animationer: coil kan bruges hvor der krævedes et register
 
