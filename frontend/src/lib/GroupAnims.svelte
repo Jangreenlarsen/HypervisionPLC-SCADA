@@ -9,9 +9,9 @@
   import OwnerAnims from './OwnerAnims.svelte';
   import {
     ANIM_TXT, MAX_ANIMS, ON, WHEN_TYPES, alarmRef, animDefaults, keepSuggestion, parseAlarmRef, partLabel, tagKind, typesFor,
-    type Anim, type SrcKind, type SymbolInfo,
+    type Anim, type AnimType, type SrcKind, type SymbolInfo,
   } from './symbolConfig';
-  import { getGroupAnims, groupAnimsOn, groupColor, putGroupAnims, type GroupAnim, type OwnerBlock, type SymbolGroup } from './symbolGroups';
+  import { getGroupAnims, groupAnimsOn, groupColor, putGroupAnims, putGroupAnimsAll, type AllResult, type GroupAnim, type OwnerBlock, type SymbolGroup } from './symbolGroups';
 
   interface TagRow { name: string; source: string; unit: string; writable: boolean; plc: string }
   let { drawingId, group, tags: tagsProp = [], onclose, onsaved }: {
@@ -21,6 +21,10 @@
   const tags = $derived(tagsProp.length ? tagsProp : fetchedTags);
 
   const enc = encodeURIComponent;
+  const ALL = '*';   // fanen "Alle medlemmer": samme animationer på alle gruppens symboler (kun "Hele symbolet")
+  let applyMode = $state<'add' | 'replace'>('add');
+  let skipInvalid = $state(true);
+  let allResult = $state<AllResult | null>(null);
   let element = $state('');
   let symbol = $state<SymbolInfo | null>(null);
   let ownAnims = $state<GroupAnim[]>([]);
@@ -38,6 +42,8 @@
   const dirty = $derived(JSON.stringify(mine) !== saved);
   const tagByName = $derived(new Map(tags.map((t) => [t.name, t])));
   const partIds = $derived(['all', ...Object.keys(symbol?.parts ?? {})]);
+  // Alle typer tilbydes i "Alle medlemmer" — serveren afgør pr. medlem, om den passer (fx Niveau kræver en rektangel-del)
+  const typesList = (a: { part: string }): AnimType[] => (element === ALL ? (Object.keys(ANIM_TXT) as AnimType[]) : typesFor(partInfo(a.part)));
   const partInfo = (id: string) => (id === 'all' ? symbol ?? undefined : symbol?.parts[id]);
   const nameOf = (id: string) => id;
   const missingParts = $derived(symbol ? mine.filter((a) => a.part !== 'all' && !(a.part in symbol!.parts)).map((a) => a.part) : []);
@@ -45,7 +51,11 @@
   let loadToken = 0;   // kun det seneste svar må lande — ellers kan et langsomt svar for B overskrive C's animationer
   async function loadElement(el: string): Promise<void> {
     const token = ++loadToken;
-    loading = true; error = info = ''; warnings = [];
+    loading = true; error = info = ''; warnings = []; allResult = null;
+    if (el === ALL) {   // ingen hentning: en tom skabelon, der anvendes på alle medlemmer
+      symbol = null; ownAnims = []; others = []; mine = []; saved = '[]'; loading = false;
+      return;
+    }
     try {
       const [cfg, owners] = await Promise.all([
         get<{ config: { anims?: GroupAnim[] } | null; symbol: SymbolInfo | null }>(`/api/drawings/${enc(drawingId)}/symbols/${enc(el)}/config`),
@@ -92,7 +102,7 @@
   }
   const srcMode = (a: Anim): string => (a.src === ON ? ON : parseAlarmRef(a.src) ? 'alarm' : 'tag');
   function resetParams(a: Anim, wasSrc?: string): void {
-    if (!typesFor(partInfo(a.part)).includes(a.type)) a.type = 'fill';
+    if (!typesList(a).includes(a.type)) a.type = 'fill';
     const fresh = animDefaults(a.type, kindOf(a), 0);
     const before = wasSrc === undefined ? undefined : animDefaults(a.type, kindOf({ src: wasSrc }), 0);
     if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
@@ -129,6 +139,23 @@
     }
   }
 
+  async function applyAll(): Promise<void> {
+    const verb = applyMode === 'add' ? 'lægges oven i' : 'erstatter';
+    if (!(await ask(`${mine.length} animationer ${verb} gruppe-animationerne på alle ${group.members.length} symboler. Fortsæt?`, { ok: 'Anvend', danger: applyMode === 'replace' }))) return;
+    busy = true; error = info = ''; allResult = null;
+    try {
+      allResult = await putGroupAnimsAll(drawingId, group.id, structuredClone($state.snapshot(mine)) as GroupAnim[], applyMode, skipInvalid);
+      info = `Gemt på ${allResult.applied} symboler.`;
+      mine = []; saved = '[]';
+      await loadMarks();
+      onsaved?.();
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
+
   async function close(): Promise<void> {
     if (dirty && !(await ask('Du har ændringer der ikke er gemt. Luk alligevel?', { ok: 'Luk', danger: true }))) return;
     onclose();
@@ -150,6 +177,10 @@
       Symbolets egne og andre gruppers vises nedenfor, så du kan se hvad der allerede findes.</p>
 
     <div class="members" role="group" aria-label="Gruppens symboler">
+      {#if group.members.length > 1}
+        <button class="all-tab" aria-pressed={element === ALL} class:active={element === ALL} disabled={loading && element !== ALL}
+          onclick={() => pick(ALL)} title="Sæt samme animationer op på alle gruppens symboler i ét hug">Alle medlemmer ({group.members.length})</button>
+      {/if}
       {#each group.members as m}
         <button aria-pressed={m === element} class:active={m === element} disabled={loading && m !== element} onclick={() => pick(m)}>
           {nameOf(m)}{#if withAnims.has(m)} <span class="dot" title="Har animationer fra denne gruppe"></span>{/if}
@@ -163,17 +194,29 @@
       {:else if loading}
         <p class="muted">Henter …</p>
       {:else}
-        <OwnerAnims {owners} {symbol} />
-        <h4 style:color={color}>Gruppens animationer på {element} ({mine.length}/{MAX_ANIMS})</h4>
+        {#if element === ALL}
+          <p class="small notice">Vælg de animationer, der skal gælde <strong>alle {group.members.length} symboler</strong> i gruppen — de anvendes på hvert symbols <strong>Hele symbolet</strong> (dele hedder forskelligt fra symbol til symbol, så dem sætter du op pr. symbol). Hvert symbol tjekkes for sig.</p>
+          <div class="row wrap small">
+            <label class="opt"><input type="radio" bind:group={applyMode} value="add" /> Tilføj til symbolernes egne gruppe-animationer</label>
+            <label class="opt"><input type="radio" bind:group={applyMode} value="replace" /> Erstat symbolernes gruppe-animationer</label>
+            <label class="opt"><input type="checkbox" bind:checked={skipInvalid} /> Spring over symboler, hvor det ikke kan bruges</label>
+          </div>
+          <h4 style:color={color}>Animationer til alle ({mine.length}/{MAX_ANIMS})</h4>
+        {:else}
+          <OwnerAnims {owners} {symbol} />
+          <h4 style:color={color}>Gruppens animationer på {element} ({mine.length}/{MAX_ANIMS})</h4>
+        {/if}
         {#each mine as a, i}
           {@const kind = kindOf(a)}
           <div class="anim">
             <div class="row wrap">
-              <select bind:value={a.part} onchange={() => resetParams(a)} aria-label="Del">
-                {#each partIds as p}<option value={p}>{partLabel(p, symbol)}</option>{/each}
-              </select>
+              {#if element !== ALL}
+                <select bind:value={a.part} onchange={() => resetParams(a)} aria-label="Del">
+                  {#each partIds as p}<option value={p}>{partLabel(p, symbol)}</option>{/each}
+                </select>
+              {:else}<span class="small muted">Hele symbolet</span>{/if}
               <select bind:value={a.type} onchange={() => resetParams(a)} aria-label="Animation">
-                {#each typesFor(partInfo(a.part)) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
+                {#each typesList(a) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
               </select>
               <span class="small muted">styres af</span>
               <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
@@ -210,6 +253,12 @@
         <button class="small" onclick={addAnim} disabled={mine.length >= MAX_ANIMS}>+ Animation</button>
         <p class="small muted">Flere animationer af samme slags på samme del: den <strong>øverste aktive</strong> vinder. Symbolets egne og gruppernes ligger i kæde — gruppernes kommer efter symbolets egne, så uden "passiv" vinder den sidste af samme slags — også hvis det er et andet tag, der ændrer sig.</p>
       {/if}
+      {#if allResult}
+        <div class="small notice">Anvendt på {allResult.applied} af {allResult.applied + allResult.skipped} symboler.
+          {#if allResult.skipped}Sprunget over:
+            <ul>{#each allResult.results.filter((r) => !r.ok) as r}<li><code>{r.element}</code>: {r.error}</li>{/each}</ul>{/if}
+        </div>
+      {/if}
       {#if missingParts.length}<p class="small notice">Disse animationer er på dele, der ikke findes på symbolet (længere), og vises derfor ikke: {missingParts.join(', ')}. Ret eller fjern dem.</p>{/if}
       {#if warnings.length}
         <div class="small notice">Overlap med andre ejere — rækkefølgen afgør, hvem der vinder (symbolets egne først, så grupperne i deres rækkefølge; ▲▼ i gruppelisten):
@@ -222,7 +271,11 @@
     <footer class="row">
       <span class="spacer"></span>
       <button onclick={close}>Luk</button>
-      <button class="primary" onclick={save} disabled={busy || loading || !dirty || !group.members.length}>Gem for {element}</button>
+      {#if element === ALL}
+        <button class="primary" onclick={applyAll} disabled={busy || loading || !mine.length}>Anvend på alle ({group.members.length})</button>
+      {:else}
+        <button class="primary" onclick={save} disabled={busy || loading || !dirty || !group.members.length}>Gem for {element}</button>
+      {/if}
     </footer>
   </div>
 </div>
@@ -236,6 +289,7 @@
   .close { margin-left: auto; }
   .members { display: flex; flex-wrap: wrap; gap: .25rem; margin: .4rem 0; border-bottom: 1px solid var(--line); padding-bottom: .4rem; }
   .members button.active { background: var(--c); color: #fff; border-color: var(--c); }
+  .members .all-tab { font-weight: 600; }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-left: .25rem; }
   .members button.active .dot { background: #fff; }
   .body { overflow: auto; flex: 1; min-height: 200px; padding-right: .3rem; }

@@ -57,6 +57,10 @@ export const getGroupAnims = (drawingId: string, groupId: number) =>
   get<Record<string, GroupAnim[]>>(`${base(drawingId)}/${groupId}/anims`);
 export const putGroupAnims = (drawingId: string, groupId: number, element: string, anims: GroupAnim[]) =>
   put<{ element: string; anims: GroupAnim[]; warnings: string[] }>(`${base(drawingId)}/${groupId}/anims/${encodeURIComponent(element)}`, { anims });
+export interface AllResult { results: { element: string; ok: boolean; count: number; error?: string }[]; applied: number; skipped: number }
+/** Samme animationer ("Hele symbolet") til alle gruppens medlemmer — tilføjet til eller erstattet de eksisterende. */
+export const putGroupAnimsAll = (drawingId: string, groupId: number, anims: GroupAnim[], mode: 'add' | 'replace', skipInvalid: boolean) =>
+  post<AllResult>(`${base(drawingId)}/${groupId}/anims`, { anims, mode, skip_invalid: skipInvalid });
 /** Alle gruppers animationer på ét element (til oversigten over, hvem der ejer hvad). */
 export const groupAnimsOn = (drawingId: string, element: string) =>
   get<GroupOwner[]>(`/api/drawings/${encodeURIComponent(drawingId)}/symbols/${encodeURIComponent(element)}/group-anims`);

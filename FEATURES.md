@@ -172,3 +172,4 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v0.130.0 — Navngivne symbolgrupper del 1: grupper som valg/markering i Tegn + Bindinger (overlap tilladt)
 - [x] done v0.131.0 — Symbolgrupper del 2: animationer ejet af gruppen + farvemarkering af ejere i dialog og symbolguide
 - [x] done v1.1.0 — Opsæt symbol viser de grupper, symbolet er medlem af
+- [x] done v1.2.0 — Animationer for gruppen: samme animationer på alle medlemmer (fanen Alle medlemmer)

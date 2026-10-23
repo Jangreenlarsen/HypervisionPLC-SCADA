@@ -36,6 +36,13 @@ class AnimsBody(BaseModel):
     anims: list[dict[str, Any]] = Field(max_length=12)   # tom liste fjerner gruppens animationer på elementet
 
 
+class AnimsAllBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    anims: list[dict[str, Any]] = Field(min_length=1, max_length=12)
+    mode: str = Field(default="add", pattern="^(add|replace)$")
+    skip_invalid: bool = True
+
+
 class GroupBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1, max_length=MAX_GROUP_NAME)
@@ -109,6 +116,16 @@ async def delete_group(drawing_id: str, group_id: int, request: Request) -> Resp
     name = _svc(request).delete(request.state.user.username, drawing_id, group_id)
     audit(request, "symbol_group.delete", f"{drawing_id}#{name}")
     return Response(status_code=204)
+
+
+@router.post("/{drawing_id}/groups/{group_id}/anims", dependencies=[ENGINEER])
+async def put_anims_all(drawing_id: str, group_id: int, body: AnimsAllBody, request: Request) -> dict[str, Any]:
+    """Samme animationer (på "Hele symbolet") til alle gruppens medlemmer — tilføjet eller erstattet."""
+    _check(request, drawing_id)
+    result = _svc(request).put_anims_all(request.state.user.username, drawing_id, group_id, body.anims, body.mode, body.skip_invalid)
+    audit(request, "symbol_group.anims_all", f"{drawing_id}#{group_id}",
+          {"mode": body.mode, "anims": len(body.anims), "applied": result["applied"], "skipped": result["skipped"]})
+    return result
 
 
 @router.get("/{drawing_id}/groups/{group_id}/anims", dependencies=[VIEWER])

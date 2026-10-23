@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.2.0 build 0202] — 2026-10-23 — Animationer for gruppen: samme animation på alle medlemmer
+
+- I **Animationer for gruppen** er der en ny fane **Alle medlemmer**: vælg animationerne én gang og anvend dem på alle gruppens symboler — tilføjet til symbolernes egne gruppe-animationer eller som erstatning. Anvendes på *Hele symbolet* (dele hedder forskelligt fra symbol til symbol, så dem sættes op pr. symbol). Hvert symbol valideres for sig; valgfrit springes symboler over, hvor animationen ikke kan bruges (fx Niveau på et symbol uden rektangel), og de meldes. Uden "spring over" gemmes intet, hvis ét fejler.
+- Backend: `POST /api/drawings/{id}/groups/{gid}/anims` (ENGINEER, audit-log); loft på 12 animationer pr. symbol gælder.
+- `backend/app/services/symbol_groups.py`, `api/symbol_groups.py`, `frontend/src/lib/{GroupAnims.svelte,symbolGroups.ts}`, manualen, tests (3 nye).
+
 ## [1.1.0 build 0201] — 2026-10-23 — Opsæt symbol viser symbolets grupper
 
 - Under overskriften i symbolguiden står de grupper, symbolet er medlem af (i gruppens farve, med art som tooltip), eller "Ikke medlem af nogen gruppe".

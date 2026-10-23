@@ -335,3 +335,51 @@ def test_restore_enforces_group_limits_and_case_duplicates(gapi):
     backup["symbol_groups"].append({"drawing_id": gapi.did, "name": "fyr", "kind": "selection", "members": [], "anims": {}})
     r = gapi.post("/api/backup/restore", json=backup)
     assert r.status_code == 400 and "to gange" in r.json()["error"]
+
+
+# ------------------------------------------------------------ samme animationer til alle medlemmer (v1.2.0)
+
+def all_url(api, gid):
+    return url(api, f"/{gid}/anims")
+
+
+def test_apply_to_all_members_add_and_replace(gapi):
+    gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Pumpe")]})        # A har allerede en
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [fill("Fyr")], "mode": "add"})
+    assert r.status_code == 200 and r.json()["applied"] == 2 and r.json()["skipped"] == 0, r.text
+    on = gapi.get(url(gapi, f"/{gapi.g1}/anims")).json()
+    assert [a["src"] for a in on["A"]] == ["Pumpe", "Fyr"] and [a["src"] for a in on["B"]] == ["Fyr"]
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [fill("Pumpe", "#2e7d32")], "mode": "replace"})
+    assert r.json()["applied"] == 2
+    on = gapi.get(url(gapi, f"/{gapi.g1}/anims")).json()
+    assert [a["src"] for a in on["A"]] == ["Pumpe"] and [a["src"] for a in on["B"]] == ["Pumpe"]
+    # og de andre gruppers animationer røres ikke
+    assert gapi.get(url(gapi, f"/{gapi.g2}/anims")).json() == {}
+
+
+def test_apply_to_all_validation_and_skip_invalid(gapi):
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [{**fill("Fyr"), "part": "A_r"}], "mode": "add"})
+    assert r.status_code == 400 and "Hele symbolet" in r.json()["error"]
+    # level kræver en rect-del: "Hele symbolet" er en gruppe (<g>) → fejler på hvert medlem; uden skip_invalid gemmes intet
+    bad = {"part": "all", "type": "level", "src": "Fyr", "params": {}}
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [bad], "mode": "add", "skip_invalid": False})
+    assert r.status_code == 400 and "intet er gemt" in r.json()["error"] and len(r.json()["results"]) == 2
+    assert gapi.get(url(gapi, f"/{gapi.g1}/anims")).json() == {}
+    # med skip_invalid springes de over og meldes
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [bad], "mode": "add", "skip_invalid": True})
+    assert r.status_code == 200 and r.json()["applied"] == 0 and r.json()["skipped"] == 2
+    assert gapi.post(all_url(gapi, gapi.g1), json={"anims": [fill("Findes-ikke")], "mode": "add", "skip_invalid": False}).status_code == 400
+    assert gapi.post(all_url(gapi, 999), json={"anims": [fill("Fyr")], "mode": "add"}).status_code == 404
+
+
+def test_apply_to_all_limit_and_permissions(gapi):
+    many = [fill("Fyr", f"#00{n:02x}00") for n in range(11)]   # A fyldes op til 11 af højst 12 animationer
+    assert gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": many}).status_code == 200
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [fill("Pumpe"), fill("Fyr")], "mode": "add"})
+    assert r.status_code == 200 and {x["element"]: x["ok"] for x in r.json()["results"]} == {"A": False, "B": True}
+    assert "over 12" in [x for x in r.json()["results"] if x["element"] == "A"][0]["error"]
+    assert gapi.post("/api/users", json={"username": "op2", "role": "operator", "password": "Hemmelig-123"}).status_code == 201
+    with TestClient(gapi.app) as op:
+        op.post("/api/auth/login", json={"username": "op2", "password": "Hemmelig-123"})
+        op.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})
+        assert op.post(all_url(gapi, gapi.g1), json={"anims": [fill("Fyr")], "mode": "add"}).status_code == 403

@@ -2,6 +2,10 @@
 
 ---
 
+## v1.2.0 — 2026-10-23 — Animation til alle i gruppen på én gang
+
+- I **Animationer for gruppen** kan du nu vælge fanen **Alle medlemmer** og sætte samme animation op på alle gruppens symboler i ét hug (tilføje eller erstatte). Symboler, hvor animationen ikke kan bruges, kan springes over, og du får en liste over dem.
+
 ## v1.1.0 — 2026-10-23 — Se symbolets grupper i Opsæt symbol
 
 - I **Opsæt symbol** kan du nu se, hvilke grupper symbolet er medlem af, lige under overskriften.
