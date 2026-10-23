@@ -307,7 +307,6 @@
   .bell.high { background: #c62828; color: #fff; border-color: #c62828; }
   .bell.unacked { animation: bell 1s steps(2, start) infinite; }
   @keyframes bell { to { opacity: .55; } }
-  @media (prefers-reduced-motion: reduce) { .bell.unacked { animation: none; } }
   .src { color: #bbb; font-size: .75rem; white-space: nowrap; }
 
   /* Ingen breddegrænse: SCADA bruges også på store kontrolrumsskærme */

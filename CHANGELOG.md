@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [0.126.1 build 0187] — 2026-10-23 — fix: animationer virker også med "Reducer bevægelse" (iOS)
+
+- Rod­årsag: `prefers-reduced-motion` slog rotation, blafren, blink, løbelys og alarmblink fra på enheder med tilgængelighedsindstillingen slået til (iOS). Procesanimationerne viser anlæggets tilstand og kører nu altid.
+- `frontend/src/app.css`, `frontend/src/App.svelte`, `frontend/src/lib/animate.ts`.
+
 ## [0.126.0 build 0186] — 2026-10-23 — Driftpanel: tegningen fylder hele skærmen
 
 - Den smalle sidekolonne (8,5 rem) er fjernet. Log ud, tegningsvalg og "Ingen forbindelse" flyder som små knapper øverst til venstre over tegningen; AGPL-kildelinket står nederst til venstre.

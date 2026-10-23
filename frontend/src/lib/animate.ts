@@ -195,8 +195,7 @@ function flicker(el: Element, on: boolean, palette: string[]): void {
   flickering.set(el, palette);
   el.setAttribute('data-hv-flicker-color', first);
   paint(el, 'fill', first);
-  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!reduce && !flickerTimer) flickerTimer = setInterval(flickerTick, FLICKER_MS);
+  if (!flickerTimer) flickerTimer = setInterval(flickerTick, FLICKER_MS);
 }
 
 function level(el: Element, f: number, direction: string): void {
@@ -706,7 +705,6 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   layer.setAttribute('class', 'hv-flow');
   layer.setAttribute('data-hv-flow', key);
   layer.setAttribute('pointer-events', 'none');
-  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   for (const { d, out } of dashes) {
     d.setAttribute('stroke', light);
     d.setAttribute('stroke-linecap', 'butt');
@@ -733,7 +731,7 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
     const off = ph ? dashOffset(ph, len) / scale : 0;
     const dir = out;   // den indstillede retning har forrang (v0.67.0)
     d.setAttribute('stroke-dashoffset', String(off));
-    if (!reduce && typeof (d as any).animate === 'function') {
+    if (typeof (d as any).animate === 'function') {
       // Lyset flytter én periode (lys + mørk) pr. omgang; startTime 0 holder alle løbelys i takt
       const a = d.animate([{ strokeDashoffset: off }, { strokeDashoffset: off - 2 * unit }],
         { duration: (2 * len / pace) * 1000, iterations: Infinity, direction: dir ? 'normal' : 'reverse' });
