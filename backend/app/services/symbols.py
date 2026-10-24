@@ -1157,6 +1157,24 @@ class SymbolService:
         if self.on_change is not None:
             self.on_change(drawing_id, element)
 
+    def delete_many(self, drawing_id: str, elements: list[str]) -> dict[str, list[str]]:
+        """Fjern opsætningen på flere symboler på én gang (v1.2.1). Alt eller intet: bruger et symbol, der IKKE fjernes, en
+        logikblok i et af dem (eller en gruppe-animation gør), afvises hele fjernelsen. Blokke, som kun de fjernede symboler
+        bruger indbyrdes, er ikke et problem. Elementer uden opsætning springes over."""
+        self.drawings._require(drawing_id)
+        targets = list(dict.fromkeys(e for e in elements if e))
+        have = {e: self.db.get_symbol_config(drawing_id, e) for e in targets}
+        doomed = {e for e, row in have.items() if row is not None}
+        for e in sorted(doomed):
+            blocks = {b["id"] for b in have[e]["config"].get("logic", [])}
+            if remaining := [u for u in self._logic_users(drawing_id, e, blocks) if u[0] not in doomed]:
+                raise ServiceError(409, f"Symbolets logikblok {remaining[0][1]} i '{e}' bruges af '{remaining[0][0]}' — fjern henvisningen dér først (intet er fjernet)")
+        for e in sorted(doomed):
+            self.db.delete_symbol_config(drawing_id, e)
+            if self.on_change is not None:
+                self.on_change(drawing_id, e)
+        return {"removed": sorted(doomed), "skipped": [e for e in targets if e not in doomed]}
+
     # ------------------------------------------------------------ forsvundne opsætninger (v0.88.0)
 
     def orphaned(self, drawing_id: str) -> list[dict[str, Any]]:

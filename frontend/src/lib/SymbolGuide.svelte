@@ -33,11 +33,13 @@
     plans: { position: number; label: string; writes: Write[] }[];
   }
 
-  let { drawingId, element, name, tags, group = [], onclose, onsaved }: {
+  let { drawingId, element, name, tags, group = [], onclose, onsaved, onremoved }: {
     drawingId: string; element: string; name: string; tags: TagRow[];
     /** "Opsæt de valgte samlet": de ANDRE valgte symboler — de får opsætningen, når der gemmes. */
     group?: { id: string; name: string }[];
     onclose: () => void; onsaved: () => void;
+    /** Opsætningen er fjernet fra alle de valgte ("Opsæt de valgte samlet"); antal fjernede */
+    onremoved?: (removed: number, skipped: number) => void;
   } = $props();
 
   const enc = encodeURIComponent;
@@ -465,6 +467,23 @@
     try {
       await api('DELETE', `${base}/config`);
       onsaved();
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      saving = false;
+    }
+  }
+  /** "Opsæt de valgte samlet": fjern opsætningen på ALLE de valgte på én gang (alt eller intet). */
+  async function removeAll(): Promise<void> {
+    const ids = [element, ...group.map((g) => g.id)];
+    if (!await askUser(`Fjern symbol-konfigurationen for alle ${ids.length} valgte symboler (${name} m.fl.)? Symbolernes gamle bindinger gælder så igen. Symboler uden opsætning røres ikke.`,
+      { ok: 'Fjern fra alle', danger: true })) return;
+    saving = true;
+    error = '';
+    try {
+      const r = await post<{ removed: string[]; skipped: string[] }>(`/api/drawings/${encodeURIComponent(drawingId)}/symbols/delete-configs`, { elements: ids });
+      if (onremoved) onremoved(r.removed.length, r.skipped.length);
+      else onsaved();
     } catch (e) {
       error = (e as Error).message;
     } finally {
@@ -941,6 +960,10 @@
       </div>
 
       <footer class="row">
+        {#if group.length}
+          <button class="danger" onclick={removeAll} disabled={saving}
+            title="Fjern opsætningen fra alle de valgte symboler på én gang">Fjern konfiguration fra alle ({group.length + 1})</button>
+        {/if}
         {#if !group.length}
           {#if exists}<button class="danger" onclick={remove} disabled={saving}>Fjern konfiguration</button>{/if}
           <button onclick={openCopy} disabled={!canSave}

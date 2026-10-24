@@ -383,3 +383,24 @@ def test_apply_to_all_limit_and_permissions(gapi):
         op.post("/api/auth/login", json={"username": "op2", "password": "Hemmelig-123"})
         op.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})
         assert op.post(all_url(gapi, gapi.g1), json={"anims": [fill("Fyr")], "mode": "add"}).status_code == 403
+
+
+# ------------------------------------------------------------ fjern opsætning fra flere symboler (v1.2.1)
+
+def test_delete_configs_for_several_symbols(gapi):
+    block = {"id": "L1", "name": "", "op": "and", "inputs": [{"src": "Fyr"}], "invert": False}
+    cfg_a = {"op": "view", "anims": [fill("Pumpe")], "logic": [block]}
+    cfg_b = {"op": "view", "anims": [{**fill("Fyr"), "src": "@A:L1"}]}   # B bruger A's logikblok
+    for el, cfg in (("A", cfg_a), ("B", cfg_b)):
+        assert gapi.put(f"/api/drawings/{gapi.did}/symbols/{el}/config", json={"config": cfg}).status_code == 200
+    endpoint = f"/api/drawings/{gapi.did}/symbols/delete-configs"
+    # B bruger A's blok og bliver ikke fjernet → alt eller intet
+    r = gapi.post(endpoint, json={"elements": ["A"]})
+    assert r.status_code == 409 and "intet er fjernet" in r.json()["error"]
+    assert gapi.get(f"/api/drawings/{gapi.did}/symbols/A/config").json()["config"] is not None
+    # begge fjernes samlet (indbyrdes henvisning er ikke et problem); et element uden opsætning springes over
+    r = gapi.post(endpoint, json={"elements": ["A", "B", "Findes-ikke"]})
+    assert r.status_code == 200 and r.json() == {"removed": ["A", "B"], "skipped": ["Findes-ikke"]}
+    assert gapi.get(f"/api/drawings/{gapi.did}/symbols/A/config").json()["config"] is None
+    assert gapi.post(endpoint, json={"elements": []}).status_code == 422
+    assert gapi.post("/api/drawings/findes-ikke/symbols/delete-configs", json={"elements": ["A"]}).status_code == 404

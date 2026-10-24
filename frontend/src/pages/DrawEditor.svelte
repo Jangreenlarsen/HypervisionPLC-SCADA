@@ -961,6 +961,7 @@
   {@const gf = groupFor}
   <SymbolGuide drawingId={current.id} element={gf.basis.id} name={gf.basis.name} {tags} group={gf.others}
     onclose={() => (groupFor = null)}
+    onremoved={(n, skipped) => { info = `Opsætningen er fjernet fra ${n} symboler${skipped ? ` (${skipped} havde ingen)` : ''}.`; groupFor = null; refreshReservedIds(); }}
     onsaved={() => { info = `${gf.others.length + 1} symboler er opsat ud fra "${gf.basis.name}".`; groupFor = null; refreshReservedIds(); }} />
 {/if}
 

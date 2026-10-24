@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.3.0 build 0203] — 2026-10-24 — Opsæt de valgte samlet: fjern konfiguration fra alle
+
+- Når flere symboler er valgt til **Opsæt de valgte samlet**, kan opsætningen nu fjernes fra alle på én gang (knappen **Fjern konfiguration fra alle**), ligesom for ét symbol. Alt eller intet: bruger et symbol, der ikke fjernes, en logikblok i et af de valgte (eller en gruppe-animation), afvises hele fjernelsen med besked. Symboler uden opsætning springes over.
+- Backend: `POST /api/drawings/{id}/symbols/delete-configs` (ENGINEER, audit-log).
+- `backend/app/services/symbols.py`, `api/symbols.py`, `frontend/src/lib/SymbolGuide.svelte`, `pages/DrawEditor.svelte`, test.
+
 ## [1.2.0 build 0202] — 2026-10-23 — Animationer for gruppen: samme animation på alle medlemmer
 
 - I **Animationer for gruppen** er der en ny fane **Alle medlemmer**: vælg animationerne én gang og anvend dem på alle gruppens symboler — tilføjet til symbolernes egne gruppe-animationer eller som erstatning. Anvendes på *Hele symbolet* (dele hedder forskelligt fra symbol til symbol, så dem sættes op pr. symbol). Hvert symbol valideres for sig; valgfrit springes symboler over, hvor animationen ikke kan bruges (fx Niveau på et symbol uden rektangel), og de meldes. Uden "spring over" gemmes intet, hvis ét fejler.

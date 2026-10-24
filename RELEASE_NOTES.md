@@ -2,6 +2,10 @@
 
 ---
 
+## v1.3.0 — 2026-10-24 — Fjern opsætning fra flere symboler
+
+- I **Opsæt de valgte samlet** er der nu en knap, der fjerner opsætningen fra alle de valgte symboler på én gang.
+
 ## v1.2.0 — 2026-10-23 — Animation til alle i gruppen på én gang
 
 - I **Animationer for gruppen** kan du nu vælge fanen **Alle medlemmer** og sætte samme animation op på alle gruppens symboler i ét hug (tilføje eller erstatte). Symboler, hvor animationen ikke kan bruges, kan springes over, og du får en liste over dem.

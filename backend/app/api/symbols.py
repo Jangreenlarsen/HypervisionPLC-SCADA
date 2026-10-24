@@ -141,6 +141,19 @@ async def clear_pin(drawing_id: str, element: str, request: Request) -> dict[str
     return result
 
 
+class DeleteManyBody(_Model):
+    elements: list[str] = Field(min_length=1, max_length=500)
+
+
+@router.post("/{drawing_id}/symbols/delete-configs", dependencies=[ENGINEER])
+async def delete_configs(drawing_id: str, body: DeleteManyBody, request: Request) -> dict[str, Any]:
+    """Fjern opsætningen på flere symboler samtidigt (alt eller intet)."""
+    _check(request, drawing_id)
+    result = _svc(request).delete_many(drawing_id, body.elements)
+    audit(request, "symbol.configs_deleted", drawing_id, {"removed": result["removed"][:100], "skipped": len(result["skipped"])})
+    return result
+
+
 @router.delete("/{drawing_id}/symbols/{element}/config", status_code=204, dependencies=[ENGINEER])
 async def delete_config(drawing_id: str, element: str, request: Request) -> None:
     _svc(request).delete(drawing_id, element)
