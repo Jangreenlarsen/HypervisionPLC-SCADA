@@ -1,32 +1,25 @@
-# Plan: Navngivne symbolgrupper (Tegn + Bindinger)
+# Plan: Skriv ST-variabler via REST (PLC-firmware + SCADA)
 
-Ønske (Jan, 2026-10-23): i Tegn skal man kunne samle symboler i navngivne grupper i en ny sektion i symbollisten. Samme symbol må være med i flere grupper (overlap). To slags: (1) gruppe efter funktion (rør, vinkelrør, T-stykker, bøjninger …), (2) gruppe af det man har valgt på tegningen (fx 3-vejs ventil, rør, akkutank). Skal kunne bruges i både Tegn og Bindinger.
+Ønske (Jan, 2026-10-24): SCADA skal kunne skrive til ST-variabler (`plcN:logic:<prog>:<var>` og GLOBAL_VAR), ikke kun hr/coil. Valgt løsning: ret PLC-firmwaren (HypervisionPLC-projektet), så REST API'et kan skrive en variabel direkte, og variabelnavne over 15 tegn virker i API'et.
 
-## Beslutninger (Jan, 2026-10-23)
-- En **gruppe** = navngivet udvalg af placerede symboler/elementer på tegningen (pr. tegning), fx "Fyr uden akku-tank" (funktion) eller et frit udvalg (3-vejs ventil, rør, akkutank). Teknisk samme mekanisme; `kind` = `function` | `selection` bruges kun til at sortere listen i to underafsnit.
-- **Overlap**: et symbol må være med i flere grupper.
-- **Bindinger på gruppen = animationer ejet af gruppen**: gruppen kan få egne animationer/tags på sine symboler (fx "fyr kører" farver alle rør i gruppen). Et rør i to grupper har sin egen opsætning + én pr. gruppe, og de gælder samtidig. Symbolets egen opsætning ændres ikke.
-- **Farver i symbolguiden**: hver animation mærkes med sin ejer — symbolets egne neutralt, hver gruppes i gruppens farve + gruppenavn. I den kontekst man åbnede fra kan kun ejerens egne rækker redigeres; andre ejeres rækker vises låst (så man ser, hvad man ikke skal røre).
-- Rører IKKE SVG-tegningen (ingen `<g>`). Vises i Tegn (sektion "Grupper" i symbollisten) og i Bindinger.
+Fund: PLC'ens API har intet kald, der sætter en ST-variabel (kun upload/bind/debug), og navne gemmes i `char var_names[64][16]` (`include/st_types.h:694`) → højst 15 tegn (`system_styre_mode` → `system_styre_mo`).
 
-## Lagring (alternativer)
-A) nye tabeller `symbol_groups`, `symbol_group_members`, `group_anims` (en række pr. animation, ejer = gruppe + element + del) · B) JSON-blob pr. gruppe · C) kun browser. Valg **A**: delt, med i backup, ingen read-modify-write af hele listen. C afvist.
+## Del A — PLC-firmware (C:\Projekter\HypervisionPLC, følger dets egen CLAUDE.md/workflow, ny FEAT i BUGS_INDEX)
+1. `POST /api/logic/{id}/var` — body `{"name":"…","value":…}` (CHECK_AUTH_WRITE). Finder variablen på navn, konverterer efter `var_types` (BOOL/INT/DINT/REAL …), afviser STRING (400), ukendt navn (404 + liste), ikke-kompileret program (409) og en variabel der er **bundet som input** fra et register (409: "skriv til HR N i stedet" — ellers overskrives den hver cyklus).
+2. `POST /api/logic/globals/var` — samme for GLOBAL_VAR.
+3. **Ingen race med ST-tasken:** skrivningen lægges i en lille kø pr. program (fx 8 pladser, beskyttet af mutex/spinlock) og anvendes af ST-tasken i starten af næste cyklus (`st_logic_execute_program`), før VM'en kører. Svar `{"status":"queued"}` (evt. `?wait=ms` til den er anvendt). Skrivningen logges i hændelsesloggen (som `/api/ext`-skrivninger).
+4. **Navne > 15 tegn:** `var_names[...][16]` → `[32]` (+4 KB RAM for 4 programmer — tjekkes i build-output), bytecode-cachens format (16 → 32 byte pr. navn) og `ST_BYTECODE_VERSION` bumpes, så gamle `.bc` genkompileres ved boot.
+5. Manual (B_REST_API_Reference + kap. 7/8), BUGS_INDEX, version efter projektets regler, `pio run` + `test/st_host/run.sh`.
+6. Hardwaretest: kræver Jans OK + adgang til test-PLC'en (OTA via `POST /api/system/ota`) — eller Jan flasher selv.
 
-## Trin
-1. FEATURES.md (planned).
-2. Backend: tabeller + migration (`storage/db.py`, MINOR); `services/symbol_groups.py` (CRUD, medlemmer, gruppe-animationer med samme validering som symbolets egne via `symbols.py`); API i `api/symbols.py` (ENGINEER skriv / VIEWER læs; audit-log; unikt navn, grænser). Medlemmer der ikke findes længere vises som forsvundne.
-3. Live-visning: gruppe-animationer flettes ind i drawing-viewets bindinger efter symbolets egne (eksisterende prioritetsregel "øverste aktive vinder" pr. del og type gælder; rækkefølge: symbolets egne, derefter grupper efter gruppens rækkefølge). Skal måles på Pi (antal bindinger).
-4. Backup: grupper + gruppe-animationer med i eksport/import.
-5. Tegn (`DrawEditor.svelte`): sektionen "Grupper" (to underafsnit), "Gem markering som gruppe …", klik markerer alle, omdøb/slet, tilføj/fjern medlem. Opsæt-gruppe-animationer åbner `SymbolGuide` i gruppe-kontekst.
-6. `SymbolGuide.svelte`: ejer-markering med farve/navn og låste rækker for andre ejere.
-7. Bindinger (`Editor.svelte`): grupper som valg/filter i "Symboler og bundne".
-8. Tests (backend CRUD/overlap/rettigheder/backup/live-fletning; frontend gruppelogik) + visuel kontrol i browser.
-9. Version 0.130.0, CHANGELOG, RELEASE_NOTES, OTA-pakke. Evt. delt i flere commits: (a) grupper + liste, (b) gruppe-animationer + farvemarkering.
+## Del B — SCADA
+7. `PlcClient.write_logic_var(program, name, value)` og `write_global(name, value)` (kun i `backend/app/plc/`).
+8. `tags.py`: `logic` og `global` kan være skrivbare; `operate.write` får en gren for dem (skalering omvendt, bool/tal). Ældre firmware (404 på endpointet) giver en klar fejl: "PLC-firmwaren understøtter ikke skrivning til ST-variabler (kræver vX)".
+9. Setpunkt, trykknap, positioner, ugeprogrammer bruger alle `operate.write` → virker automatisk; audit-log som før.
+10. Mock-PLC: de to nye endpoints; tests (skriv, afvisninger, gammel firmware).
 
-## Risici
-- Samme type animation (fx Farve) på samme del fra symbol og to grupper: rækkefølge/prioritet skal være forudsigelig og vises i guiden.
-- "Erstat med symbol" uden "behold id" giver nyt id → medlem forsvinder (vises som forsvundet, kan flyttes).
-- Omfanget er stort — foreslår at levere i to trin: (a) grupper som valg/markering (Tegn + Bindinger), derefter (b) gruppe-ejede animationer + farvemarkering.
-
-## Efter design-review (2026-10-23) — afsluttet i v0.131.1 og v0.131.2
-Alle punkter fra reviewet er rettet, bortset fra to bevidste fravalg: backup validerer ikke dele/logik-henvisninger i gruppe-animationer, og `_compute` er ikke cachet (kun den dyreste gentagelse er fjernet — mål på Pi'en, før mere gøres).
+## Risici / bemærkninger
+- En variabel, som programmet selv tildeler hver cyklus, kan ikke "holdes" udefra — skrivningen overskrives straks. Typisk brug er indstillings-/kommandovariabler (fx `system_styre_mode`), som programmet kun læser.
+- Værdien er ikke persistent: efter genstart af PLC'en starter variablen igen på sin startværdi (som i dag).
+- RAM på ESP32: +4 KB for navnene; skal holdes under budget (build viser forbrug).
+- Firmware og SCADA versioneres hver for sig; SCADA skal tåle ældre firmware.

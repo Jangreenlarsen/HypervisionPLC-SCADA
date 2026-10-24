@@ -525,7 +525,7 @@ class _TagInfo:
         self.is_bool = bool(src and (src.kind in ("coil", "di") or src.datatype == "bool"))
         # ST-variabler kendes først fra live-værdien — så kan typen ikke afgøres her
         self.known = bool(src and src.kind not in ("logic", "global"))
-        self.writable = bool(row["writable"]) and bool(src and src.kind in ("hr", "coil"))
+        self.writable = bool(row["writable"]) and bool(src and src.kind in ("hr", "coil", "logic", "global"))
 
     def range(self) -> tuple[float, float] | None:
         """Tilladt område i tekniske enheder: tagets min/max hvis sat, ellers datatypens område (skaleret)."""

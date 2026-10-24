@@ -177,3 +177,4 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v1.4.0 — Fast værdi (@val:N) som kilde til Niveau/Gennemsigtighed/Størrelse/Drej/Flyt (symbol + grupper)
 - [x] done v1.5.0 — Opsæt symbol: brugte farver som hurtigvalg ved farvefelterne
 - [x] done v1.6.0 — Tegning kan deaktiveres (offline): ingen live-data/betjening, tags kun den bruger pollas ikke (alarm/trend/energi/ugeprogram-tags pollas stadig)
+- [x] done v1.7.0 — ST-variabler og GLOBAL_VAR kan skrives (kræver PLC-firmware v7.9.68.141, FEAT-503)

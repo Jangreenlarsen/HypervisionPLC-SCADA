@@ -2,6 +2,11 @@
 
 ---
 
+## v1.7.0 — 2026-10-24 — Skriv til ST-variabler
+
+- Tags på ST-variabler og GLOBAL_VAR kan nu gøres **skrivbare** og betjenes fra Overview (setpunkt, knapper, positioner, ugeprogrammer). Kræver at PLC'en er opdateret til firmware **v7.9.68.141** eller nyere — ellers får du en tydelig besked.
+- PLC'en viser nu også variabelnavne op til 31 tegn (før 15).
+
 ## v1.6.1 — 2026-10-24 — Fulde tag-navne
 
 - Tag-navne skæres ikke længere over i tag-valget i Opsæt symbol og gruppernes animationer.

@@ -16,7 +16,7 @@ LIMIT_FIELDS = ("alarm_ll", "alarm_l", "alarm_h", "alarm_hh")  # stigende række
 ALARM_DEFAULTS = {"alarm_hh": None, "alarm_h": None, "alarm_l": None, "alarm_ll": None,
                   "alarm_deadband": 0.0, "alarm_delay_s": 0.0, "alarm_on": None,
                   "trend": False, "trend_interval_s": 10.0, "energy": None, "energy_factor": 1.0}
-WRITABLE_KINDS = ("hr", "coil")
+WRITABLE_KINDS = ("hr", "coil", "logic", "global")   # logic/global: ST-variabler via PLC-firmware v7.9.68.141+
 
 
 def _number(value: Any, field: str) -> float:
@@ -98,8 +98,8 @@ class TagService:
         if current is not None and not final_writable and (names := self._schedules_using(current["name"])):
             raise ServiceError(400, f"Tagget bruges i ugeprogram: {', '.join(names)} — det skal være skrivbart")
         if final_writable and final_source.kind not in WRITABLE_KINDS:
-            raise ServiceError(400, f"Kun hr- og coil-tags kan være skrivbare — '{final_source}' er kun-læs "
-                                    "(ir/di er input, og PLC'ens REST API kan ikke skrive ST-variabler)")
+            raise ServiceError(400, f"Kun hr-, coil- og ST-variabel-tags (logic/global) kan være skrivbare — "
+                                    f"'{final_source}' er kun-læs (ir/di er indgange)")
         return out
 
     def _validate_energy(self, data: dict[str, Any], current: dict[str, Any] | None, out: dict[str, Any]) -> None:

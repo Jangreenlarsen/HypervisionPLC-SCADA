@@ -258,6 +258,25 @@ class PlcClient:
         items = body.get("globals") if isinstance(body, dict) else None
         return items if isinstance(items, list) else []
 
+    async def write_logic_var(self, program: int, name: str, value: Any) -> Any:
+        """Skriv en ST-variabel på navn (PLC-firmware v7.9.68.141+, FEAT-503)."""
+        return await self._write_var(f"/api/logic/{program}/var", name, value)
+
+    async def write_global(self, name: str, value: Any) -> Any:
+        """Skriv en GLOBAL_VAR på navn (PLC-firmware v7.9.68.141+, FEAT-503)."""
+        return await self._write_var("/api/logic/globals/var", name, value)
+
+    async def _write_var(self, path: str, name: str, value: Any) -> Any:
+        try:
+            return await self.request("POST", path, json={"name": name, "value": value})
+        except PlcApiError as exc:
+            # Ældre firmware kender ikke endpointet: 404/405 uden firmwarens egen "not found"-tekst for variablen
+            text = exc.message.lower()
+            if exc.status in (404, 405) and "not found." not in text and "global_var" not in text:
+                raise PlcApiError("PLC-firmwaren kan ikke skrive ST-variabler — opdatér PLC'en til v7.9.68.141 eller nyere "
+                                  "(eller bind variablen til et register og skriv registret)", status=exc.status) from exc
+            raise
+
     async def write_hr(self, addr: int, value: int | float, datatype: str = "uint") -> Any:
         return await self.request("POST", f"/api/registers/hr/{addr}", json={"value": value, "type": datatype})
 

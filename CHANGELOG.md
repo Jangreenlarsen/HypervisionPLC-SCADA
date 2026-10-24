@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.7.0 build 0209] — 2026-10-24 — ST-variabler kan skrives (kræver PLC-firmware v7.9.68.141)
+
+- Tags på ST-variabler (`plcN:logic:<prog>:<var>`) og GLOBAL_VAR (`plcN:global:<var>`) kan nu være skrivbare. Setpunkt, trykknap, til/fra-skift, symbolpositioner og ugeprogrammer bruger dem som almindelige tags. Skrivningen går via PLC'ens nye `POST /api/logic/{id}/var` og `POST /api/logic/globals/var` (HypervisionPLC FEAT-503, v7.9.68.141), og tilbagelæsning sker fra variabellisten.
+- PLC'en konverterer og tjekker værdien efter variablens type; dens afvisninger (område, STRING, variabel bundet som INPUT, ukendt navn) vises ordret. Ældre firmware (endpointet findes ikke) giver beskeden "PLC-firmwaren kan ikke skrive ST-variabler — opdatér PLC'en til v7.9.68.141 eller nyere".
+- Mock-PLC'en har de to nye endpoints (og kan efterligne ældre firmware og INPUT-bundne variabler).
+- `backend/app/plc/client.py`, `services/{operate,tags,symbols}.py`, `mock_plc/app.py`, `frontend/src/pages/Tags.svelte`, manualen, tests (3 nye).
+
 ## [1.6.1 build 0208] — 2026-10-24 — fix: tag-navne skæres ikke over i tag-dropdownen
 
 - `TagSelect`: det valgte tag vises med fuldt navn (uden kilde/enhed) i det lukkede felt; detaljer i tooltip og den åbne liste. Maks-bredden i symbolguiden, gruppernes animationer og animationsparametre hævet fra 15em til 24em.
