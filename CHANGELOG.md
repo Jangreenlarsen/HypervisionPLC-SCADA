@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.6.1 build 0208] — 2026-10-24 — fix: tag-navne skæres ikke over i tag-dropdownen
+
+- `TagSelect`: det valgte tag vises med fuldt navn (uden kilde/enhed) i det lukkede felt; detaljer i tooltip og den åbne liste. Maks-bredden i symbolguiden, gruppernes animationer og animationsparametre hævet fra 15em til 24em.
+- `frontend/src/lib/{TagSelect,AnimParams,GroupAnims,SymbolGuide}.svelte`.
+
 ## [1.6.0 build 0207] — 2026-10-24 — Tegninger kan deaktiveres (offline)
 
 - Under **Tegninger** kan en tegning sættes i **deaktiveret** tilstand (knappen *Deaktivér* / *Aktivér*, teknikere og admin): den er offline — Overview viser den grå med beskeden *Tegningen er deaktiveret*, uden live-data, bindinger, genveje og betjening. Bevares i backup.

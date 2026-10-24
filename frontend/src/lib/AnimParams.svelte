@@ -145,5 +145,5 @@
   .colorfield { gap: .15rem; }
   .sw { width: 1rem; height: 1rem; padding: 0; margin: 0 0 0 .1rem; border: 1px solid var(--line); border-radius: 3px; cursor: pointer; }
   .sw.cur { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .params :global(select) { width: auto; max-width: 15em; }
+  .params :global(select) { width: auto; max-width: 24em; }
 </style>

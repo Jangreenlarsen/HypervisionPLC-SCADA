@@ -1035,7 +1035,7 @@
   .grid { border-collapse: collapse; margin: .3rem 0; }
   .grid th, .grid td { border: 1px solid var(--line); padding: .2rem .35rem; text-align: left; }
   /* En tag-dropdown er ellers lige så bred som sin længste valgmulighed ("navn · kilde (type) [enhed]") og presser nabokolonnerne */
-  .grid :global(select), .anim :global(select) { width: auto; max-width: 15em; }   /* :global — TagSelect er en underkomponent */
+  .grid :global(select), .anim :global(select) { width: auto; max-width: 24em; }   /* :global — TagSelect er en underkomponent */
   .grid td.skriv { min-width: 13em; }
   .planes td, .planes th { text-align: center; }
   .n { width: 5.5em; }

@@ -315,5 +315,5 @@
   .n { width: 5.5em; }
   .notice { background: #fff8e1; border: 1px solid #ffe082; padding: .4rem .6rem; border-radius: var(--radius); margin: .4rem 0; }
   .notice ul { margin: .2rem 0 0 1rem; padding: 0; }
-  .anim :global(select) { width: auto; max-width: 15em; }
+  .anim :global(select) { width: auto; max-width: 24em; }
 </style>

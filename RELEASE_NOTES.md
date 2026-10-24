@@ -2,6 +2,10 @@
 
 ---
 
+## v1.6.1 — 2026-10-24 — Fulde tag-navne
+
+- Tag-navne skæres ikke længere over i tag-valget i Opsæt symbol og gruppernes animationer.
+
 ## v1.6.0 — 2026-10-24 — Deaktivér en tegning
 
 - På siden **Tegninger** kan du **deaktivere** en tegning: den bliver offline — grå på Overview, uden live-værdier og uden betjening. Tags, som kun den bruger, holder op med at blive pollet. **Alarmer, trend, energi og ugeprogrammer påvirkes ikke** (tags med dem pollas stadig). *Aktivér* henter tegningen online igen.
