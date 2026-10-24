@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.4.0 build 0204] — 2026-10-24 — Fast værdi som kilde til tal-animationer
+
+- Ny kilde **en fast værdi** (`@val:75`) ved siden af *et tag*, *en alarm*, *altid til* og *en logikblok*: tal-animationerne **Niveau, Gennemsigtighed, Størrelse, Drej og Flyt** kan styres af et tal, der indtastes direkte, og som animationen bruger som om et tag havde værdien. Virker i symbolguiden og i gruppernes animationer (også fanen *Alle medlemmer*).
+- En fast værdi er ikke et tag: ingen live-abonnement, ingen tag-meta, ingen adgangs-/slettekontrol, ingen kommunikationsfejl. Serveren validerer: kun tal (ikke NaN/uendelig), og kun for de fem tal-typer (Farve/Blink/Synlig/Roterer/Blafrer/Løbelys har allerede *altid til*; *Værdi* vises ikke med fast værdi).
+- Skifter man animationstype til en, der ikke kan bruge en fast værdi, nulstilles kilden.
+- Ikke med (bevidst): Bindinger-siden (gamle pr.-element-bindinger) og *Værdi*-teksten.
+- `backend/app/services/symbols.py`, `bindings.py`, `frontend/src/lib/{symbolConfig.ts,canvas.ts,SymbolGuide,GroupAnims,OwnerAnims}`, manualen, tests (4 nye backend/frontend).
+
 ## [1.3.0 build 0203] — 2026-10-24 — Opsæt de valgte samlet: fjern konfiguration fra alle
 
 - Når flere symboler er valgt til **Opsæt de valgte samlet**, kan opsætningen nu fjernes fra alle på én gang (knappen **Fjern konfiguration fra alle**), ligesom for ét symbol. Alt eller intet: bruger et symbol, der ikke fjernes, en logikblok i et af de valgte (eller en gruppe-animation), afvises hele fjernelsen med besked. Symboler uden opsætning springes over.

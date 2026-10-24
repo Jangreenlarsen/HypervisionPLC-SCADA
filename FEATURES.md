@@ -174,3 +174,4 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v1.1.0 — Opsæt symbol viser de grupper, symbolet er medlem af
 - [x] done v1.2.0 — Animationer for gruppen: samme animationer på alle medlemmer (fanen Alle medlemmer)
 - [x] done v1.3.0 — Opsæt de valgte samlet: fjern konfiguration fra alle valgte på én gang
+- [x] done v1.4.0 — Fast værdi (@val:N) som kilde til Niveau/Gennemsigtighed/Størrelse/Drej/Flyt (symbol + grupper)

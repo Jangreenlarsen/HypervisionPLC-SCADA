@@ -95,7 +95,9 @@ Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positio
 
 ## Ret og fjern en opsætning
 
-En animation kan også styres af **altid til** (i stedet for et tag): så er den altid aktiv — fx en flamme der altid blafrer, eller et løbelys der altid kører. (Ikke for *Niveau*, *Gennemsigtighed* og *Værdi*, som skal have et tal.)
+En animation kan også styres af **altid til** (i stedet for et tag): så er den altid aktiv — fx en flamme der altid blafrer, eller et løbelys der altid kører. (Ikke for *Niveau*, *Gennemsigtighed*, *Størrelse*, *Drej*, *Flyt* og *Værdi*, som skal have et tal.)
+
+Tal-animationerne — *Niveau*, *Gennemsigtighed*, *Størrelse*, *Drej* og *Flyt* — kan i stedet styres af **en fast værdi**: skriv et tal, og animationen bruger det, som om et tag havde den værdi (området er stadig *Min–Max* i parametrene). Fx *Størrelse* 50 med Min 0 / Max 100 giver halv størrelse mellem de to yderværdier. Det virker både på symbolet og på gruppernes animationer (fx lad alle rør i en gruppe være halvt gennemsigtige). En fast værdi er ikke et tag: den læses ikke fra PLC'en og kan ikke give kommunikationsfejl.
 
 ### Alarmer i guiden
 

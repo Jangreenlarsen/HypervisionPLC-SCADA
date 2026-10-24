@@ -8,7 +8,7 @@
   import AnimParams from './AnimParams.svelte';
   import OwnerAnims from './OwnerAnims.svelte';
   import {
-    ANIM_TXT, MAX_ANIMS, ON, WHEN_TYPES, alarmRef, animDefaults, keepSuggestion, parseAlarmRef, partLabel, tagKind, typesFor,
+    ANIM_TXT, MAX_ANIMS, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, animDefaults, keepSuggestion, parseAlarmRef, partLabel, tagKind, typesFor,
     type Anim, type AnimType, type SrcKind, type SymbolInfo,
   } from './symbolConfig';
   import { getGroupAnims, groupAnimsOn, groupColor, putGroupAnims, putGroupAnimsAll, type AllResult, type GroupAnim, type OwnerBlock, type SymbolGroup } from './symbolGroups';
@@ -100,16 +100,17 @@
     if (a.src === ON || parseAlarmRef(a.src)) return 'bool';
     return tagKind(tagByName.get(a.src)?.source) === 'bool' ? 'bool' : 'num';
   }
-  const srcMode = (a: Anim): string => (a.src === ON ? ON : parseAlarmRef(a.src) ? 'alarm' : 'tag');
+  const srcMode = (a: Anim): string => (a.src === ON ? ON : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : 'tag');
   function resetParams(a: Anim, wasSrc?: string): void {
     if (!typesList(a).includes(a.type)) a.type = 'fill';
+    if (parseValRef(a.src) !== null && !VAL_TYPES.includes(a.type)) a.src = '';   // en fast værdi passer kun til tal-animationer
     const fresh = animDefaults(a.type, kindOf(a), 0);
     const before = wasSrc === undefined ? undefined : animDefaults(a.type, kindOf({ src: wasSrc }), 0);
     if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
     a.only = null;
   }
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === ON ? ON : mode === 'alarm' ? alarmRef('active', '') : '';
+    a.src = mode === ON ? ON : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : '';
     resetParams(a);
   }
   function addAnim(): void {
@@ -221,9 +222,14 @@
               <span class="small muted">styres af</span>
               <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
                 <option value="tag">et tag</option>
+                {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                 {#if !['level', 'opacity', 'scale', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
               </select>
               {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
+              {#if srcMode(a) === 'val'}
+                <input class="n" value={parseValRef(a.src) ?? ''} aria-label="Fast værdi" title="Værdien bruges som om et tag havde den (område: Min–Max nedenfor)"
+                  onchange={(e) => (a.src = valRef(Number.isFinite(Number(e.currentTarget.value.replace(',', '.'))) && e.currentTarget.value.trim() !== '' ? Number(e.currentTarget.value.replace(',', '.')) : (parseValRef(a.src) ?? 0)))} />
+              {/if}
               {#if srcMode(a) === 'alarm'}
                 {@const al = parseAlarmRef(a.src)!}
                 <select value={al.kind} onchange={(e) => (a.src = alarmRef(e.currentTarget.value as 'active' | 'unack', al.tag))} aria-label="Alarmtilstand">
@@ -300,6 +306,7 @@
   .spacer { flex: 1; }
   footer { gap: .5rem; align-items: center; border-top: 1px solid var(--line); padding-top: .5rem; margin-top: .5rem; }
   .error { color: var(--alarm); }
+  .n { width: 5.5em; }
   .notice { background: #fff8e1; border: 1px solid #ffe082; padding: .4rem .6rem; border-radius: var(--radius); margin: .4rem 0; }
   .notice ul { margin: .2rem 0 0 1rem; padding: 0; }
   .anim :global(select) { width: auto; max-width: 15em; }

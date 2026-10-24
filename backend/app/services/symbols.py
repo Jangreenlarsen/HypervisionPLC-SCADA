@@ -35,6 +35,19 @@ MAX_POSITIONS, MAX_PLANES, MAX_SIGNALS, MAX_ANIMS = 8, 8, 8, 12
 MAX_LOGIC, MAX_LOGIC_INPUTS = 8, 4
 POS = "@pos"
 ON = "@on"   # kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag
+VAL = "@val:"   # kilden "fast værdi" (v1.4.0): `@val:75` — et tal i stedet for et tag; kun for tal-animationer
+VAL_TYPES = {"level", "opacity", "scale", "rotate", "move"}   # tal-animationer der kan styres af en fast værdi
+
+
+def parse_val_ref(src: Any) -> float | None:
+    """Tallet i en fast værdi (`@val:75` → 75.0); None hvis det ikke er en fast værdi eller tallet er ugyldigt/uendeligt."""
+    if not isinstance(src, str) or not src.startswith(VAL):
+        return None
+    try:
+        v = float(src[len(VAL):])
+    except ValueError:
+        return None
+    return v if v == v and abs(v) != float("inf") else None
 ALARM_REF = "@alarm:"   # kilden "alarm på et tag" (v0.74.0): @alarm:active:<tag> eller @alarm:unack:<tag>
 ALARM_KINDS = ("active", "unack")
 
@@ -282,7 +295,7 @@ PSEUDO_KINDS = ("pos", "remote", "state", "locked")
 
 def is_logic_ref(src: Any) -> bool:
     """`@L1` — kilden er en logikblok (`@pos` er positionen, `@on` er "Altid til")."""
-    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON) and not src.startswith(ALARM_REF)
+    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON) and not src.startswith((ALARM_REF, VAL))
 
 
 def split_logic_ref(src: str, own: str = "") -> tuple[str, str]:
@@ -852,6 +865,14 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             continue
         pos_src = a.src == POS
         on_src = a.src == ON
+        val_src = a.src.startswith(VAL)
+        if val_src:
+            if parse_val_ref(a.src) is None:
+                res.err("4", f"{nm}: ugyldig fast værdi '{a.src[len(VAL):]}' — angiv et tal.")
+                continue
+            if a.type not in VAL_TYPES:
+                res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en fast værdi — vælg et tag (eller \"Altid til\").")
+                continue
         logic_src = is_logic_ref(a.src)
         alarm_src = a.src.startswith(ALARM_REF)
         if alarm_src:
@@ -883,12 +904,14 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if a.type in NUMERIC_ONLY:
                 res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en logikblok — vælg et tal-tag.")
                 continue
-        elif not pos_src and not on_src and not alarm_src:
+        elif not pos_src and not on_src and not alarm_src and not val_src:
             t = tag_of(a.src)
             if t is None:
                 res.err("4", f"{nm}: tagget '{a.src}' findes ikke.")
                 continue
             # Et coil/til-fra-tag kan også styre Niveau/Gennemsigtighed/Størrelse: Fra = 0, Til = 100 (se fraction i animate.ts)
+        elif val_src:
+            pass   # fast værdi: intet tag at slå op
         elif a.type in NUMERIC_ONLY:
             res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af positionen — vælg et tal-tag.")
             continue

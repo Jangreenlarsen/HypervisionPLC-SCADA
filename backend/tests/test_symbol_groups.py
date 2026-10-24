@@ -404,3 +404,36 @@ def test_delete_configs_for_several_symbols(gapi):
     assert gapi.get(f"/api/drawings/{gapi.did}/symbols/A/config").json()["config"] is None
     assert gapi.post(endpoint, json={"elements": []}).status_code == 422
     assert gapi.post("/api/drawings/findes-ikke/symbols/delete-configs", json={"elements": ["A"]}).status_code == 404
+
+
+# ------------------------------------------------------------ fast værdi som kilde (v1.4.0)
+
+def test_static_value_source_on_symbol_and_group(gapi):
+    scale = lambda src, typ="scale": {"part": "all", "type": typ, "src": src, "params": {"min": 0, "max": 100}}   # noqa: E731
+    r = gapi.put(f"/api/drawings/{gapi.did}/symbols/A/config", json={"config": {"op": "view", "anims": [scale("@val:75"), fill("Fyr")]}})
+    assert r.status_code == 200, r.text
+    assert r.json()["config"]["anims"][0]["src"] == "@val:75"
+    view = gapi.get(f"/api/drawings/{gapi.did}/view").json()
+    b = [x for x in view["bindings"] if x["element"] == "A" and x["anim"] == "scale"][0]
+    assert b["tag"] == "@val:75" and "@val:75" not in view["tags"]          # ikke et tag: ingen tag-meta, ingen live-abonnement
+    # gruppe-animation med fast værdi
+    r = gapi.put(anims_url(gapi, gapi.g1, "B"), json={"anims": [{**scale("@val:40", "opacity")}]})
+    assert r.status_code == 200 and r.json()["anims"][0]["src"] == "@val:40"
+
+
+def test_static_value_validation(gapi):
+    def put(src, typ):
+        return gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [{"part": "all", "type": typ, "src": src, "params": {}}]})
+    assert put("@val:abc", "scale").status_code == 400                     # ikke et tal
+    assert put("@val:", "scale").status_code == 400
+    assert put("@val:nan", "scale").status_code == 400
+    assert put("@val:inf", "scale").status_code == 400
+    r = put("@val:5", "fill")                                              # kun tal-animationer
+    assert r.status_code == 400 and "fast værdi" in r.json()["error"]
+    assert put("@val:5", "blink").status_code == 400
+    assert put("@val:5", "opacity").status_code == 200
+    # en fast værdi tæller ikke som tag: sletning af tags/adgang påvirkes ikke, og backup-rundtur bevarer den
+    backup = gapi.get("/api/backup").json()
+    assert gapi.post("/api/backup/restore", json=backup).status_code == 200
+    ids = {g["name"]: g["id"] for g in gapi.get(url(gapi)).json()}
+    assert gapi.get(url(gapi, f"/{ids['Fyr']}/anims")).json()["A"][0]["src"] == "@val:5"

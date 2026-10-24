@@ -20,7 +20,7 @@
   import { DIR_TXT, applyLever, leverDirs, leverInSync, type LeverDir } from './toggleSwitch';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
-    ALARM_TXT, ANIM_TXT, ON, WHEN_TYPES, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
+    ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, allowedOps, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
@@ -306,9 +306,9 @@
   const poolLabel = (p: PoolBlock) => `${p.symbol} · ${p.id}${p.name ? ` – ${p.name}` : ''}`;
   const poolRef = (p: PoolBlock) => `@${p.element}:${p.id}`;
   const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
-  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : 'tag');
+  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : 'tag');
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
+    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
     resetParams(a);
   }
   // ---- 3-vejs ventil styret af ét til/fra-tag
@@ -391,6 +391,7 @@
    *  forslag fra biblioteket (fx kontaktens knive: 32°), beholdes forslagets indstillinger, når de passer (v0.94.0). */
   function resetParams(a: Anim, wasSrc?: string): void {
     if (!typesFor(partInfo(a.part)).includes(a.type)) a.type = 'fill';
+    if (parseValRef(a.src) !== null && !VAL_TYPES.includes(a.type)) a.src = '';   // en fast værdi passer kun til tal-animationer
     const fresh = animDefaults(a.type, srcKind(a), n);
     const before = wasSrc === undefined ? undefined : animDefaults(a.type, srcKind({ ...a, src: wasSrc }), n);
     if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
@@ -805,10 +806,15 @@
                 <span class="small muted">styres af</span>
                 <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
                   {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
+                  {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
                   {#if !['level', 'opacity', 'scale', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
                 </select>
                 {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
+                {#if srcMode(a) === 'val'}
+                  <input class="n" value={parseValRef(a.src) ?? ''} aria-label="Fast værdi" title="Værdien bruges som om et tag havde den (område: Min–Max nedenfor)"
+                    onchange={(e) => (a.src = valRef(num(e.currentTarget.value, parseValRef(a.src) ?? 0)))} />
+                {/if}
                 {#if srcMode(a) === 'alarm'}
                   {@const al = parseAlarmRef(a.src)!}
                   <select value={al.kind} onchange={(e) => (a.src = alarmRef(e.currentTarget.value as 'active' | 'unack', al.tag))} aria-label="Alarmtilstand">

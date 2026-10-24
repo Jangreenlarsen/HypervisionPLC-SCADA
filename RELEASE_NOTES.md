@@ -2,6 +2,10 @@
 
 ---
 
+## v1.4.0 — 2026-10-24 — Fast værdi som kilde
+
+- *Niveau*, *Gennemsigtighed*, *Størrelse*, *Drej* og *Flyt* kan nu styres af **en fast værdi** i stedet for et tag — skriv bare et tal. Virker på symboler og på gruppernes animationer.
+
 ## v1.3.0 — 2026-10-24 — Fjern opsætning fra flere symboler
 
 - I **Opsæt de valgte samlet** er der nu en knap, der fjerner opsætningen fra alle de valgte symboler på én gang.

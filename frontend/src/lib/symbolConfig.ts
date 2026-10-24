@@ -34,6 +34,16 @@ export const POS = '@pos';
 export const WHEN_TYPES: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'flow'];
 /** Kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag. */
 export const ON = '@on';
+/** Kilden "en fast værdi" (v1.4.0): `@val:75` — et tal i stedet for et tag. Kun for tal-animationerne (som serverens VAL_TYPES). */
+export const VAL_REF = '@val:';
+export const VAL_TYPES: AnimType[] = ['level', 'opacity', 'scale', 'rotate', 'move'];
+export const valRef = (n: number): string => `${VAL_REF}${n}`;
+export function parseValRef(src: string | undefined | null): number | null {
+  if (typeof src !== 'string' || !src.startsWith(VAL_REF)) return null;
+  const raw = src.slice(VAL_REF.length);
+  const n = Number(raw);
+  return raw.trim() !== '' && Number.isFinite(n) ? n : null;
+}
 /** Kilden "alarm på et tag" (v0.74.0): @alarm:active:<tag> (en alarm er aktiv) eller @alarm:unack:<tag> (ukvitteret). */
 export const ALARM_REF = '@alarm:';
 export type AlarmKind = 'active' | 'unack';
@@ -271,7 +281,7 @@ export function newSignal(cfg: SymbolConfig, tag = '', fb = ''): Signal {
 export const CMP_TXT: Record<string, string> = { ge: '≥', le: '≤', eq: '=' };
 
 /** `@L1` — animationens kilde er en logikblok (`@pos` er positionen). */
-export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS && src !== ON && !src.startsWith(ALARM_REF);
+export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS && src !== ON && !src.startsWith(ALARM_REF) && !src.startsWith(VAL_REF);
 
 export function newBlock(cfg: SymbolConfig): LogicBlock {
   let i = 1;
