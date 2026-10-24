@@ -7,8 +7,10 @@
   import type { TagMeta } from './api';
   import { BLINK_TXT, GLIDE_SPEEDS, glideSeconds, isLogicRef, type Anim, type LogicBlock, type PoolBlock, type SrcKind } from './symbolConfig';
 
-  let { a, kind, positions = [], logic = [], pool = [], tags, valueOf, metaOf }: {
+  let { a, kind, positions = [], logic = [], pool = [], tags, valueOf, metaOf, palette = [] }: {
     a: Anim; kind: SrcKind;
+    /** Brugte farver (#rrggbb) som hurtigvalg ved farvefelterne: animationernes egne, symbolets tegnede, tegningens */
+    palette?: string[];
     positions?: { label: string }[]; logic?: LogicBlock[]; pool?: PoolBlock[];
     tags: { name: string; source: string; unit: string; writable: boolean; plc: string }[];
     valueOf: (tag: string) => unknown; metaOf: (tag: string) => TagMeta | undefined;
@@ -23,8 +25,15 @@
   const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
 </script>
 
+{#snippet swatches(obj: Record<string, any>, key: string | number)}
+  {#each palette as c (c)}
+    <button type="button" class="sw" class:cur={String(obj[key] ?? '').toLowerCase() === c} style:background={c} title={`Brug ${c}`} aria-label={`Brug farven ${c}`}
+      onclick={() => (obj[key] = c)}></button>
+  {/each}
+{/snippet}
+
 {#snippet colorInput(obj: Record<string, any>, key: string | number, label: string)}
-  <label class="opt small"><input type="color" bind:value={obj[key]} /> {label}</label>
+  <span class="opt small colorfield"><label class="opt"><input type="color" bind:value={obj[key]} /> {label}</label>{@render swatches(obj, key)}</span>
 {/snippet}
 
 {#snippet numInput(obj: Record<string, any>, key: string | number, label: string)}
@@ -40,7 +49,7 @@
         {#if kind === 'num'}
           {#each p.thresholds ?? [] as th, ti}
             <span class="opt small">≥ <input class="n" value={th.value} onchange={(e) => (th.value = num(e.currentTarget.value, th.value))} />
-              <input type="color" bind:value={th.color} /><button class="small" onclick={() => p.thresholds.splice(ti, 1)} aria-label="Fjern grænse">✕</button></span>
+              <input type="color" bind:value={th.color} />{@render swatches(th, 'color')}<button class="small" onclick={() => p.thresholds.splice(ti, 1)} aria-label="Fjern grænse">✕</button></span>
           {/each}
           <button class="small" onclick={() => (p.thresholds = [...(p.thresholds ?? []), { value: 0, color: '#b26a00' }])}>+ Grænse</button>
         {/if}
@@ -133,5 +142,8 @@
   .opt { display: inline-flex; align-items: center; gap: .3rem; }
   .n { width: 5.5em; }
   .lbl { width: 7em; }
+  .colorfield { gap: .15rem; }
+  .sw { width: 1rem; height: 1rem; padding: 0; margin: 0 0 0 .1rem; border: 1px solid var(--line); border-radius: 3px; cursor: pointer; }
+  .sw.cur { outline: 2px solid var(--accent); outline-offset: 1px; }
   .params :global(select) { width: auto; max-width: 15em; }
 </style>

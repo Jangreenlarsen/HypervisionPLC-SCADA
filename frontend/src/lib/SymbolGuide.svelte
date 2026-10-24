@@ -14,6 +14,7 @@
   import TagSelect from './TagSelect.svelte';
   import AnimParams from './AnimParams.svelte';
   import OwnerAnims from './OwnerAnims.svelte';
+  import { mergePalette, paramColors, svgColors } from './usedColors';
   import { KIND_TXT, groupAnimsOn, groupColor, groupsOf, listGroups, type OwnerBlock, type SymbolGroup } from './symbolGroups';
   import { CHART_RANGES, FONT_SCALES, LEGEND_PLACES, MAX_CHART_TAGS, defaultChart, legendOf } from './chartGraphic';
   import { SELECTOR_TYPES, selectorMismatch } from './selectorRedraw';
@@ -92,8 +93,15 @@
   // ---------------------------------------------------------------- indlæsning
   // Animationer som grupper har lagt på symbolet (v0.131.0): vises skrivebeskyttet under symbolets egne
   let groupOwners = $state<OwnerBlock[]>([]);
+  // Hurtigvalg af brugte farver ved farvefelterne: animationernes egne, så symbolets tegnede, så tegningens øvrige
+  let drawnOwn = $state<string[]>([]), drawnAll = $state<string[]>([]);
+  const palette = $derived(mergePalette([paramColors(cfg.anims), drawnOwn, drawnAll]));
   let memberOf = $state<SymbolGroup[] | null>(null);   // grupperne symbolet er medlem af (null = ikke hentet endnu)
   onMount(() => {
+    fetch(`/api/drawings/${encodeURIComponent(drawingId)}/svg`, { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.text() : ''))
+      .then((svg) => { drawnOwn = svgColors(svg, element); drawnAll = svgColors(svg); })
+      .catch((e) => console.error('Tegningens farver kunne ikke hentes:', e));
     listGroups(drawingId)
       .then((all) => (memberOf = groupsOf(all, element)))
       .catch((e) => { memberOf = []; console.error('Grupperne kunne ikke hentes:', e); });
@@ -834,7 +842,7 @@
                 <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
                 <button class="small" onclick={() => cfg.anims.splice(i, 1)} aria-label="Fjern animation">✕</button>
               </div>
-              <AnimParams {a} {kind} positions={cfg.positions} logic={cfg.logic} {pool} {tags} {valueOf} {metaOf} />
+              <AnimParams {a} {kind} positions={cfg.positions} logic={cfg.logic} {pool} {tags} {valueOf} {metaOf} {palette} />
               {#if WHEN_TYPES.includes(a.type)}
                 <label class="opt small">Når den ikke er aktiv:
                   <select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">

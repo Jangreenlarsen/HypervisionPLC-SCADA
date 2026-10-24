@@ -7,6 +7,7 @@
   import TagSelect from './TagSelect.svelte';
   import AnimParams from './AnimParams.svelte';
   import OwnerAnims from './OwnerAnims.svelte';
+  import { mergePalette, paramColors, svgColors } from './usedColors';
   import {
     ANIM_TXT, MAX_ANIMS, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, animDefaults, keepSuggestion, parseAlarmRef, partLabel, tagKind, typesFor,
     type Anim, type AnimType, type SrcKind, type SymbolInfo,
@@ -48,6 +49,9 @@
   const nameOf = (id: string) => id;
   const missingParts = $derived(symbol ? mine.filter((a) => a.part !== 'all' && !(a.part in symbol!.parts)).map((a) => a.part) : []);
 
+  // Hurtigvalg af brugte farver (som i symbolguiden): gruppens egne, så det valgte symbols tegnede, så tegningens øvrige
+  let drawingSvg = $state('');
+  const palette = $derived(mergePalette([paramColors(mine), element && element !== ALL ? svgColors(drawingSvg, element) : [], svgColors(drawingSvg)]));
   let loadToken = 0;   // kun det seneste svar må lande — ellers kan et langsomt svar for B overskrive C's animationer
   async function loadElement(el: string): Promise<void> {
     const token = ++loadToken;
@@ -80,6 +84,8 @@
     try { withAnims = new Set(Object.keys(await getGroupAnims(drawingId, group.id))); } catch { /* kun en markering i listen */ }
   }
   onMount(() => {
+    fetch(`/api/drawings/${enc(drawingId)}/svg`, { credentials: 'same-origin' }).then((r) => (r.ok ? r.text() : ''))
+      .then((svg) => (drawingSvg = svg)).catch((e) => console.error('Tegningens farver kunne ikke hentes:', e));
     if (!tagsProp.length) get<TagRow[]>('/api/tags').then((t) => (fetchedTags = t)).catch((e) => (error = `Tags kunne ikke hentes: ${(e as Error).message}`));
     element = group.members[0] ?? ''; void loadMarks(); if (element) void loadElement(element); });
 
@@ -243,7 +249,7 @@
               <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === mine.length - 1} aria-label="Ned">▼</button>
               <button class="small" onclick={() => mine.splice(i, 1)} aria-label="Fjern animation">✕</button>
             </div>
-            <AnimParams {a} {kind} {tags} valueOf={() => undefined} metaOf={(t) => { const r = tagByName.get(t); return r ? ({ unit: r.unit } as never) : undefined; }} />
+            <AnimParams {a} {kind} {tags} {palette} valueOf={() => undefined} metaOf={(t) => { const r = tagByName.get(t); return r ? ({ unit: r.unit } as never) : undefined; }} />
             {#if WHEN_TYPES.includes(a.type)}
               <label class="opt small">Når den ikke er aktiv:
                 <select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">

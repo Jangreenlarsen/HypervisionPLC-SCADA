@@ -2,6 +2,10 @@
 
 ---
 
+## v1.5.0 — 2026-10-24 — Hurtigvalg af brugte farver
+
+- Ved farvefelterne i **Opsæt symbol** kan du nu vælge blandt de farver, symbolet og tegningen allerede bruger, med ét klik — så farverne holdes ens.
+
 ## v1.4.1 — 2026-10-24 — Stabilere PLC-kommunikation
 
 - Rammes ét enkelt kald til PLC'en af en timeout, mister kun de tags, kaldet dækker, forbindelsen — resten af PLC'ens værdier bliver ved med at opdatere. Tidligere blev alle tags markeret som "kommunikation tabt".

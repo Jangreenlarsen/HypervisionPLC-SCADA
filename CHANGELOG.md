@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.5.0 build 0206] — 2026-10-24 — Brugte farver som hurtigvalg ved farvefelterne
+
+- Ved hvert farvefelt i **Opsæt symbol** (Til/Fra, grænser, blafrer, løbelys …) og i gruppernes animationer vises nu små farveknapper med de farver, der allerede bruges: først animationernes egne, så symbolets tegnede farver (mest brugte først), så tegningens øvrige (højst 10). Ét klik vælger farven; den almindelige farvevælger er der stadig, og den aktuelle farve er markeret.
+- Farverne hentes fra tegningens SVG (`GET /api/drawings/{id}/svg`) og fra animationernes parametre. Genbruger `svgedit-host/colors.js` (normalisering af farver).
+- `frontend/src/lib/{usedColors.ts (ny),AnimParams,SymbolGuide,GroupAnims}`, test.
+
 ## [1.4.1 build 0205] — 2026-10-24 — fix: ét langsomt PLC-kald tager ikke længere hele PLC'en ned
 
 - `plc_runtime.poll_once`: hvert kald (register-område, ST-program, GLOBAL_VAR, ekstern slave) kører isoleret (`_guarded`). Fejler ét, får kun dets tags `comm_error`; resten opdateres normalt. Fejlende kald hviler 2→20 s (`COOL_STEP_S`/`COOL_MAX_S`) i stedet for at blive gentaget hver cyklus. Login-/rettigheds-/rate-fejl (401/403/429) rammer fortsat alt. Fejler *alle* kald, er det en fuld kommunikationsfejl som før.
