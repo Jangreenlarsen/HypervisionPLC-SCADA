@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.4.1 build 0205] — 2026-10-24 — fix: ét langsomt PLC-kald tager ikke længere hele PLC'en ned
+
+- `plc_runtime.poll_once`: hvert kald (register-område, ST-program, GLOBAL_VAR, ekstern slave) kører isoleret (`_guarded`). Fejler ét, får kun dets tags `comm_error`; resten opdateres normalt. Fejlende kald hviler 2→20 s (`COOL_STEP_S`/`COOL_MAX_S`) i stedet for at blive gentaget hver cyklus. Login-/rettigheds-/rate-fejl (401/403/429) rammer fortsat alt. Fejler *alle* kald, er det en fuld kommunikationsfejl som før.
+- Status: `partial` (kald der fejlede i cyklussen) og `slowest` (største svartider) i `/api/plcs`; PLC-siden viser *Delvis kommunikationsfejl* og *Langsomste kald*.
+- `backend/app/services/{plc_runtime,manager}.py`, `frontend/src/pages/Plcs.svelte`, tests (3 nye).
+
 ## [1.4.0 build 0204] — 2026-10-24 — Fast værdi som kilde til tal-animationer
 
 - Ny kilde **en fast værdi** (`@val:75`) ved siden af *et tag*, *en alarm*, *altid til* og *en logikblok*: tal-animationerne **Niveau, Gennemsigtighed, Størrelse, Drej og Flyt** kan styres af et tal, der indtastes direkte, og som animationen bruger som om et tag havde værdien. Virker i symbolguiden og i gruppernes animationer (også fanen *Alle medlemmer*).

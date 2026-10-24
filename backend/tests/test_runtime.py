@@ -124,3 +124,77 @@ async def test_uncovered_tags_poll_fast_while_sse_is_healthy(mock_plc):
         await wait_for(lambda: cache.get("Var").value == 99 and cache.get("Hoej").value == 1234, timeout=3)
     finally:
         await rt.stop()
+
+
+async def test_one_failing_call_only_marks_its_own_tags(mock_plc, monkeypatch):
+    """Et langsomt/fejlende kald (her ST-program 1) tager ikke hele PLC'en ned: kun dets tags får kommunikationsfejl."""
+    from app.plc.errors import PlcUnreachable
+    import app.services.plc_runtime as mod
+    monkeypatch.setattr(mod, "COOL_STEP_S", 0.05)
+    mock_plc.state.hr[1] = 9
+    rt, cache = await _runtime(mock_plc)
+    rt.set_tags(_tags(("A", "plc1:hr:1", 1.0, 0.0), ("ST", "plc1:logic:1:Niveau", 1.0, 0.0)))
+    real, calls = rt.client.logic_program, {"n": 0}
+    broken = {"on": True}
+
+    async def flaky(program_id):
+        calls["n"] += 1
+        if broken["on"]:
+            raise PlcUnreachable("PLC'en svarede ikke inden for tidsgrænsen (test)")
+        return await real(program_id)
+
+    rt.client.logic_program = flaky  # type: ignore[method-assign]
+    rt.start()
+    try:
+        await wait_for(lambda: cache.get("A").quality == "good" and cache.get("ST").quality == "comm_error")
+        assert rt.status.state == "ok" and "Delvis kommunikationsfejl" in rt.status.message and "ST-program 1" in rt.status.message
+        assert rt.status.partial == [{"what": "ST-program 1", "message": "PLC'en svarede ikke inden for tidsgrænsen (test)", "tags": 1}]
+        mock_plc.state.hr[1] = 11
+        await wait_for(lambda: cache.get("A").value == 11)          # resten af PLC'en opdateres stadig
+        broken["on"] = False
+        await wait_for(lambda: cache.get("ST").quality == "good")   # og det fejlende kald genoptages af sig selv
+        await wait_for(lambda: rt.status.message == "" and rt.status.partial == [])
+    finally:
+        await rt.stop()
+
+
+async def test_failing_call_rests_instead_of_hammering_the_plc(mock_plc, monkeypatch):
+    from app.plc.errors import PlcUnreachable
+    import app.services.plc_runtime as mod
+    monkeypatch.setattr(mod, "COOL_STEP_S", 0.4)
+    mock_plc.state.hr[1] = 9
+    rt, cache = await _runtime(mock_plc)
+    rt.set_tags(_tags(("A", "plc1:hr:1", 1.0, 0.0), ("ST", "plc1:logic:1:Niveau", 1.0, 0.0)))
+    calls = {"n": 0}
+
+    async def always_down(program_id):
+        calls["n"] += 1
+        raise PlcUnreachable("nede")
+
+    rt.client.logic_program = always_down  # type: ignore[method-assign]
+    rt.start()
+    try:
+        await wait_for(lambda: cache.get("ST").quality == "comm_error")
+        await asyncio.sleep(0.6)   # ~12 poll-cyklusser à 50 ms
+    finally:
+        await rt.stop()
+    assert calls["n"] <= 3, calls   # nedkølingen holder kaldet fra PLC'en mellem forsøgene
+    assert rt.slowest() == [] or isinstance(rt.slowest(), list)
+
+
+async def test_all_calls_failing_is_still_a_full_comm_error(mock_plc):
+    from app.plc.errors import PlcUnreachable
+    mock_plc.state.hr[1] = 9
+    rt, cache = await _runtime(mock_plc)
+    rt.set_tags(_tags(("A", "plc1:hr:1", 1.0, 0.0), ("B", "plc1:coil:0", 1.0, 0.0)))
+    rt.start()
+    try:
+        await wait_for(lambda: cache.get("A").quality == "good")
+
+        async def down(*_a, **_k):
+            raise PlcUnreachable("nede")
+
+        rt.client.read_bulk = down  # type: ignore[method-assign]
+        await wait_for(lambda: rt.status.state == "error" and cache.get("A").quality == "comm_error" and cache.get("B").quality == "comm_error")
+    finally:
+        await rt.stop()

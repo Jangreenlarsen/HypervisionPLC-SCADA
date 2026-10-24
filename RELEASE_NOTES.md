@@ -2,6 +2,11 @@
 
 ---
 
+## v1.4.1 — 2026-10-24 — Stabilere PLC-kommunikation
+
+- Rammes ét enkelt kald til PLC'en af en timeout, mister kun de tags, kaldet dækker, forbindelsen — resten af PLC'ens værdier bliver ved med at opdatere. Tidligere blev alle tags markeret som "kommunikation tabt".
+- PLC-siden viser nu hvilket kald der fejler, og hvilke kald der er langsomst, så en vedvarende årsag kan findes.
+
 ## v1.4.0 — 2026-10-24 — Fast værdi som kilde
 
 - *Niveau*, *Gennemsigtighed*, *Størrelse*, *Drej* og *Flyt* kan nu styres af **en fast værdi** i stedet for et tag — skriv bare et tal. Virker på symboler og på gruppernes animationer.

@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..plc.client import PlcClient, ext_base
-from ..plc.errors import PlcApiError, PlcError, PlcRateLimited
+from ..plc.errors import PlcApiError, PlcAuthError, PlcError, PlcForbidden, PlcRateLimited
 from ..plc.planner import ExtRange, ReadRange, plan_ext_reads, plan_reads
 from ..plc.sse import SseListener
 from .live_cache import LiveCache, LiveValue
@@ -42,6 +42,19 @@ class RuntimeTag:
 
 
 @dataclass
+class _Failure:
+    """Ét kald i en cyklus, der fejlede — isoleret til de tags, kaldet dækker."""
+    what: str
+    exc: PlcError
+    names: list[str]
+
+
+# Efter en fejl spørger vi ikke igen med det samme om det samme (skåner en presset PLC): 2 s, 4 s … højst 20 s
+COOL_STEP_S = 2.0
+COOL_MAX_S = 20.0
+
+
+@dataclass
 class RuntimeStatus:
     state: str = "stopped"  # stopped | connecting | ok | error
     message: str = ""
@@ -49,6 +62,7 @@ class RuntimeStatus:
     cycles: int = 0
     errors: int = 0
     plan: list[dict[str, Any]] = field(default_factory=list)
+    partial: list[dict[str, Any]] = field(default_factory=list)   # kald der fejlede i den seneste cyklus, mens resten virkede
 
 
 class PlcRuntime:
@@ -86,6 +100,9 @@ class PlcRuntime:
         # (gruppe, adresse) → (værdi, status, fejltekst); status ok | pending | error
         self._ext_raw: dict[tuple[tuple, int], tuple[Any, str, str]] = {}
         self._tasks: list[asyncio.Task[None]] = []
+        self._cool: dict[str, tuple[float, PlcError]] = {}      # kald → (spørg ikke før, sidste fejl)
+        self._fails: dict[str, int] = {}                        # kald → antal fejl i træk
+        self._timing: dict[str, list[float]] = {}               # kald → [sidste, største] svartid i sekunder
         self._wake = asyncio.Event()
         self.sse: SseListener | None = None
         if sse_enabled:
@@ -218,36 +235,111 @@ class PlcRuntime:
 
     async def poll_once(self, full: bool = True) -> None:
         """Én cyklus (`full=False`: kun det SSE ikke leverer). Kaster PlcError ved kommunikationsfejl."""
+        failures: list[_Failure] = []
+        attempts = [0]
         for rng in self._plan_for(full):
-            values = await self.client.read_bulk(rng.kind, rng.start, rng.count)
-            self._raw[rng.kind].update(values)
+            values = await self._guarded(f"{rng.kind} {rng.start}–{rng.end}", self._names_in(rng.kind, rng.start, rng.end),
+                                         lambda rng=rng: self.client.read_bulk(rng.kind, rng.start, rng.count), failures, attempts)
+            if values is not None:
+                self._raw[rng.kind].update(values)
         logic: dict[int, dict[str, Any]] = {}
         for program_id in sorted(self._programs):
-            logic[program_id] = await self.client.logic_program(program_id)
+            body = await self._guarded(f"ST-program {program_id}",
+                                       [t.name for t in self._tags if t.source.kind == "logic" and t.source.program == program_id],
+                                       lambda p=program_id: self.client.logic_program(p), failures, attempts)
+            if body is not None:
+                logic[program_id] = body
         globals_: list[dict[str, Any]] | None = None
         if self._need_globals:
-            globals_ = await self.client.logic_globals()
+            globals_ = await self._guarded("GLOBAL_VAR", [t.name for t in self._tags if t.source.kind == "global"],
+                                           self.client.logic_globals, failures, attempts)
         now = time.monotonic()
         if self._ext_plan and (now - self._ext_last >= self.ext_interval or self._ext_last == 0.0):
             self._ext_last = now
-            await self._poll_ext()
-        self._publish(logic, globals_)
+            await self._poll_ext(failures, attempts)
+        if failures and len(failures) >= attempts[0]:
+            raise failures[0].exc   # intet virkede: hele PLC'en er tabt (som før)
+        failed = {n for f in failures for n in f.names}
+        self._publish(logic, globals_, skip=failed)
+        for f in failures:   # kun de tags, det fejlede kald dækker, mister forbindelsen — resten viser friske værdier
+            self.cache.mark_comm_error(f.names, f.exc.message)
+        self.status.partial = [{"what": f.what, "message": f.exc.message, "tags": len(f.names)} for f in failures]
         self.status.state = "ok"
         self.status.message = ""
+        if failures:
+            first = failures[0]
+            more = f" (+{len(failures) - 1} andre)" if len(failures) > 1 else ""
+            self.status.message = f"Delvis kommunikationsfejl: {first.what} — {first.exc.message}{more}"
+            self.status.errors += 1
         self.status.last_ok = time.time()
         self.status.cycles += 1
 
-    async def _poll_ext(self) -> None:
+    def _names_in(self, kind: str, first: int, last: int, group: tuple | None = None) -> list[str]:
+        """Tags der læser (en del af) adresseområdet — PLC'ens egne registre, eller en ekstern slaves (`group`)."""
+        out = []
+        for t in self._tags:
+            s = t.source
+            if group is not None:
+                hit = s.is_external and s.ext_group == group
+            else:
+                hit = s.is_register and not s.is_external and s.kind == kind
+            if hit and s.addr is not None and s.addr <= last and s.addr + s.words > first:
+                out.append(t.name)
+        return out
+
+    async def _guarded(self, what: str, names: list[str], call: Any, failures: list[_Failure], attempts: list[int]) -> Any:
+        """Kør ét kald. En fejl isoleres til kaldets tags (og kaldet hvile et øjeblik), så ét langsomt register eller én
+        ST-variabel ikke tager hele PLC'en ned. Login-, rettigheds- og rate-fejl rammer alt og kastes videre.
+        Returnerer None, hvis kaldet fejlede."""
+        attempts[0] += 1
+        until, last = self._cool.get(what, (0.0, None))
+        if last is not None and time.monotonic() < until:
+            failures.append(_Failure(what, last, names))
+            return None
+        t0 = time.monotonic()
+        try:
+            result = await call()
+        except (PlcAuthError, PlcForbidden, PlcRateLimited):
+            raise
+        except PlcError as exc:
+            n = self._fails.get(what, 0) + 1
+            self._fails[what] = n
+            self._cool[what] = (time.monotonic() + min(COOL_STEP_S * n, COOL_MAX_S), exc)
+            log.warning("PLC %s: %s fejlede (%d i træk): %s", self.key, what, n, exc.message)
+            failures.append(_Failure(what, exc, names))
+            return None
+        dt = time.monotonic() - t0
+        self._fails.pop(what, None)
+        self._cool.pop(what, None)
+        t = self._timing.setdefault(what, [0.0, 0.0])
+        t[0], t[1] = dt, max(t[1], dt)
+        return result
+
+    def slowest(self, n: int = 5) -> list[dict[str, Any]]:
+        """De langsomste kald siden start (største svartid) — til fejlfinding af kommunikationsfejl."""
+        top = sorted(self._timing.items(), key=lambda kv: kv[1][1], reverse=True)[:n]
+        return [{"what": k, "last_s": round(v[0], 3), "max_s": round(v[1], 3)} for k, v in top]
+
+    async def _poll_ext(self, failures: list[_Failure], attempts: list[int]) -> None:
         """Eksterne slaver. Svarer PLC'en med en fejl for ét område (fx 404 board ikke konfigureret, 409 Modbus
         Master slået fra, 502), markeres kun det områdes tags; forbindelsesfejl til PLC'en kastes videre."""
         max_age = int(self.ext_interval * 1000)
         for rng in self._ext_plan:
             src = _group_source(rng.group)
-            try:
-                items = await self.client.read_ext(ext_base(src), rng.kind, rng.start, rng.count, max_age_ms=max_age)
-            except PlcApiError as exc:
+
+            async def call(rng: ExtRange = rng, src: TagSource = src) -> Any:
+                try:
+                    return await self.client.read_ext(ext_base(src), rng.kind, rng.start, rng.count, max_age_ms=max_age)
+                except PlcApiError as exc:
+                    return exc   # PLC'en svarede med en fejl for netop dette område: markeres nedenfor
+            names = self._names_in(rng.kind, rng.start, rng.start + rng.count - 1, group=rng.group)
+            items = await self._guarded(f"ekstern {':'.join(str(x) for x in rng.group[:4] if x is not None)} {rng.start}–{rng.start + rng.count - 1}",
+                                        names, call, failures, attempts)
+            if items is None:
+                continue
+            if isinstance(items, PlcApiError):
                 for i in range(rng.count):
-                    self._ext_raw[(rng.group, rng.start + i)] = (None, "error", exc.message)
+                    self._ext_raw[(rng.group, rng.start + i)] = (None, "error", items.message)
                 continue
             for i, (value, state) in enumerate(items):
                 key = (rng.group, rng.start + i)
@@ -295,10 +387,13 @@ class PlcRuntime:
 
     # ------------------------------------------------------------- afkodning
 
-    def _publish(self, logic: dict[int, dict[str, Any]], globals_: list[dict[str, Any]] | None) -> None:
+    def _publish(self, logic: dict[int, dict[str, Any]], globals_: list[dict[str, Any]] | None,
+                 skip: set[str] | frozenset[str] = frozenset()) -> None:
         now = time.time()
         changes: dict[str, LiveValue] = {}
         for tag in self._tags:
+            if tag.name in skip:
+                continue   # kaldet der dækker tagget fejlede: markeres som kommunikationsfejl af kalderen
             src = tag.source
             if src.is_external:
                 changes[tag.name] = self._ext_value(tag, now)
