@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.6.0 build 0207] — 2026-10-24 — Tegninger kan deaktiveres (offline)
+
+- Under **Tegninger** kan en tegning sættes i **deaktiveret** tilstand (knappen *Deaktivér* / *Aktivér*, teknikere og admin): den er offline — Overview viser den grå med beskeden *Tegningen er deaktiveret*, uden live-data, bindinger, genveje og betjening. Bevares i backup.
+- Server: operatører (og panel) kan ikke længere betjene via en deaktiveret tegning (`scope._operator_bindings`), symbolpositioner kan ikke betjenes (`symbol_operate`), og symbol-runtime springer deaktiverede tegninger over (ingen positioner, ingen afvigelsesalarmer).
+- Polling: tags, som KUN deaktiverede tegninger bruger, pollas ikke (`services/drawing_activity.suspended_tags`, `manager.reload_tags`); deres live-værdi står som *ukendt*. Tags med alarm, trend, energi eller ugeprogram pollas som før — alarmer slås bevidst aldrig fra bare fordi en tegning er skjult (afvigelse fra den første beskrivelse: "alarmer slås fra").
+- Database: ny kolonne `drawings.disabled` (tilføjes automatisk, `ALTER TABLE`); backup/gendannelse bærer flaget.
+- `backend/app/storage/db.py`, `services/{drawings,drawing_activity (ny),manager,scope,symbol_operate,symbol_runtime,backup}.py`, `api/drawings.py`, `main.py`, `frontend/src/pages/{Drawings,Overview}.svelte`, `lib/api.ts`, manualen, tests (4 nye).
+
 ## [1.5.0 build 0206] — 2026-10-24 — Brugte farver som hurtigvalg ved farvefelterne
 
 - Ved hvert farvefelt i **Opsæt symbol** (Til/Fra, grænser, blafrer, løbelys …) og i gruppernes animationer vises nu små farveknapper med de farver, der allerede bruges: først animationernes egne, så symbolets tegnede farver (mest brugte først), så tegningens øvrige (højst 10). Ét klik vælger farven; den almindelige farvevælger er der stadig, og den aktuelle farve er markeret.

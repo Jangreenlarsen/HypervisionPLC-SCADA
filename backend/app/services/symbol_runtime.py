@@ -142,8 +142,10 @@ class SymbolRuntime:
         symbols: dict[tuple[str, str], dict[str, Any]] = {}
         names: dict[tuple[str, str], str] = {}
         by_drawing: dict[str, list[dict[str, Any]]] = {}
+        off = self.drawings.disabled_ids()   # deaktiverede tegninger er offline: ingen positioner, ingen afvigelsesalarmer
         for row in self.db.list_symbol_configs():
-            by_drawing.setdefault(row["drawing_id"], []).append(row)
+            if row["drawing_id"] not in off:
+                by_drawing.setdefault(row["drawing_id"], []).append(row)
         for did, rows in by_drawing.items():
             try:
                 svg = self.drawings.svg(did)

@@ -41,6 +41,7 @@ from .services.backup import BackupService
 from .services.operate import OperateService
 from .services.drawings import DrawingService
 from .services.scope import ScopeService
+from .services.drawing_activity import suspended_tags
 from .services.symbol_groups import SymbolGroupService
 from .services.symbols import SymbolService
 from .services.symbol_runtime import SymbolRuntime
@@ -84,6 +85,8 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.drawing_service = DrawingService(db, drawing_files, manager.cache)
         app.state.symbol_service = SymbolService(db, app.state.drawing_service)
         app.state.symbol_group_service = SymbolGroupService(db, app.state.symbol_service)
+        # Tags kun deaktiverede tegninger bruger pollas ikke (v1.6.0)
+        manager.suspended_tags = lambda: suspended_tags(db, app.state.drawing_service, app.state.symbol_service)
         app.state.tag_service.symbol_usage = app.state.symbol_service.usage
         app.state.scope_service = ScopeService(app.state.drawing_service, app.state.symbol_service)
         app.state.backup_service = BackupService(manager, drawing_files, settings.data_dir / "backups",

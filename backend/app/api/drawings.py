@@ -35,6 +35,7 @@ class VersionCreate(_Model):
 class DrawingUpdate(_Model):
     name: str | None = None
     active_version: int | None = None
+    disabled: bool | None = None   # True = offline (ingen live-data/betjening/polling), False = aktiv igen
 
 
 class StartDrawing(_Model):
@@ -99,6 +100,11 @@ async def update_drawing(drawing_id: str, body: DrawingUpdate, request: Request)
         svc.rename(drawing_id, body.name)
     if body.active_version is not None:
         svc.activate(drawing_id, body.active_version)
+    if body.disabled is not None:
+        svc.set_disabled(drawing_id, body.disabled)
+        # Tags kun denne tegning bruger holder op med/starter igen at blive pollet; symbol-runtime springer den over
+        request.app.state.manager.reload_tags()
+        request.app.state.symbol_runtime.reload()
     audit(request, "drawing.update", drawing_id, body.model_dump(exclude_unset=True))
     return svc.get(drawing_id)
 

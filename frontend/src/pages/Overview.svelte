@@ -26,7 +26,7 @@
     writes: { tag: string; value: number; pulse: boolean }[] | null; error: string; busy: boolean;
   }
 
-  let drawings = $state<{ id: string; name: string; start?: boolean }[]>([]);
+  let drawings = $state<{ id: string; name: string; start?: boolean; disabled?: boolean }[]>([]);
   let selected = $state('');
   let view = $state<DrawingView | null>(null);
   let error = $state('');
@@ -218,6 +218,14 @@
       } catch {
         // Huskes bare ikke — ingen funktion afhænger af det
       }
+      if (view.disabled) {
+        // Deaktiveret tegning (v1.6.0): offline — tegningen vises som tegnet, uden live-data, bindinger og betjening
+        byTag = indexByTag([]);
+        pseudoOf = new Map();
+        live.subscribe([]);
+        stopCharts();
+        return;
+      }
       byTag = indexByTag(view.bindings.filter((b) => b.tag));
       renderAll(container, view.bindings, values, view.tags);
       markAlarms();
@@ -271,6 +279,7 @@
   }
 
   async function onCanvasClick(e: MouseEvent): Promise<void> {
+    if (view?.disabled) return;   // offline: ingen betjening, ingen genveje
     if (dragged) {
       dragged = false; // afslutningen på et træk/knib er ikke et klik
       return;
@@ -493,7 +502,7 @@
     stopLayout = onLayoutChange(fit, container);
     container.addEventListener('wheel', onWheel, { passive: false }); // passive:false — ellers kan siden ikke forhindres i at scrolle
     try {
-      drawings = await get<{ id: string; name: string }[]>('/api/drawings');
+      drawings = await get<{ id: string; name: string; disabled?: boolean }[]>('/api/drawings');
     } catch (e) {
       error = (e as Error).message;
       return;
@@ -541,7 +550,7 @@
 {#if !panel}
 <div class="toolbar row">
   <select bind:value={selected} onchange={() => load(selected)} aria-label="Vælg tegning">
-    {#each drawings as d}<option value={d.id}>{d.name}</option>{/each}
+    {#each drawings as d}<option value={d.id}>{d.name}{d.disabled ? ' (deaktiveret)' : ''}</option>{/each}
   </select>
   {#if canEdit && selected}<a href={'#editor/' + selected}>Redigér bindinger</a>{/if}
   {#if view}
@@ -566,6 +575,9 @@
   </div>
 {/if}
 {#if error}<div class="error">{error}</div>{/if}
+{#if view?.disabled}
+  <div class="notice" role="status"><strong>Tegningen er deaktiveret</strong> — den er offline: ingen live-værdier og ingen betjening. En tekniker kan aktivere den igen under Tegninger.</div>
+{/if}
 {#each problems as [key, p]}
   <div class="error">PLC {p.name || key}: {p.message}</div>
 {/each}
@@ -586,7 +598,7 @@
 {/if}
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="canvas" class:zoomed={zoom > 1.0001} bind:this={container} onclick={onCanvasClick}
+<div class="canvas" class:zoomed={zoom > 1.0001} class:off={view?.disabled} bind:this={container} onclick={onCanvasClick}
   onpointerdown={onPointerDown} onpointermove={onPointerMove} onpointerup={onPointerUp} onpointercancel={onPointerUp}
   onpointerleave={onPointerUp}></div>
 {#if panel && zoom > 1.0001}
@@ -737,6 +749,7 @@
     min-height: 200px;
   }
   .canvas { touch-action: none; } /* knib/træk styres af os, ikke browserens side-zoom */
+  .canvas.off { filter: grayscale(1); opacity: .55; }
   .canvas.zoomed { cursor: grab; }
   .canvas.zoomed:active { cursor: grabbing; }
   .zoom { gap: .25rem; align-items: center; }

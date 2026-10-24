@@ -2,6 +2,10 @@
 
 ---
 
+## v1.6.0 — 2026-10-24 — Deaktivér en tegning
+
+- På siden **Tegninger** kan du **deaktivere** en tegning: den bliver offline — grå på Overview, uden live-værdier og uden betjening. Tags, som kun den bruger, holder op med at blive pollet. **Alarmer, trend, energi og ugeprogrammer påvirkes ikke** (tags med dem pollas stadig). *Aktivér* henter tegningen online igen.
+
 ## v1.5.0 — 2026-10-24 — Hurtigvalg af brugte farver
 
 - Ved farvefelterne i **Opsæt symbol** kan du nu vælge blandt de farver, symbolet og tegningen allerede bruger, med ét klik — så farverne holdes ens.

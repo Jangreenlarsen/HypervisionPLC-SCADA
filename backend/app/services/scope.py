@@ -49,7 +49,8 @@ class ScopeService:
 
     def _operator_bindings(self, user: CurrentUser) -> list[dict[str, Any]]:
         # Effektive bindinger: også de automatiske fra betjeningssymboler (dannes kun for skrivbare tags)
-        return [b for did in self._ids(user) for b in self.drawings.effective_bindings(did) if b["anim"] in WRITE_CLICKS]
+        off = self.drawings.disabled_ids()   # en deaktiveret tegning kan ikke betjenes (v1.6.0)
+        return [b for did in self._ids(user) if did not in off for b in self.drawings.effective_bindings(did) if b["anim"] in WRITE_CLICKS]
 
     def operable_tags(self, user: CurrentUser, action: str | None = None) -> set[str] | None:
         """Tags operatøren må betjene — med `action` kun dem hvor netop den handling findes i en tegning

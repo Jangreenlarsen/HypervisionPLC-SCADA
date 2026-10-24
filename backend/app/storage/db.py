@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS drawings (
     name           TEXT NOT NULL,
     active_version INTEGER NOT NULL,
     created_at     REAL NOT NULL,
-    updated_at     REAL NOT NULL
+    updated_at     REAL NOT NULL,
+    disabled       INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS drawing_versions (
     drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
@@ -245,6 +246,10 @@ class Database:
         if "scoped" not in cols:
             # 0 = adgang til alle tegninger (som før) — eksisterende brugere bevarer deres adgang
             self._conn.execute("ALTER TABLE users ADD COLUMN scoped INTEGER NOT NULL DEFAULT 0")
+        drawing_cols = {r[1] for r in self._conn.execute("PRAGMA table_info(drawings)").fetchall()}
+        if "disabled" not in drawing_cols:
+            # v1.6.0: en deaktiveret tegning er offline (ingen live-data, ingen betjening). 0 = aktiv som før.
+            self._conn.execute("ALTER TABLE drawings ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0")
         tag_cols = {r[1] for r in self._conn.execute("PRAGMA table_info(tags)").fetchall()}
         for col, ddl in {**ALARM_COLUMNS, **TREND_COLUMNS, **ENERGY_COLUMNS}.items():
             if col not in tag_cols:
@@ -384,6 +389,10 @@ class Database:
     def set_active_version(self, drawing_id: str, version: int) -> bool:
         return self._execute("UPDATE drawings SET active_version = ?, updated_at = ? WHERE id = ?",
                              (version, time.time(), drawing_id)) > 0
+
+    def set_drawing_disabled(self, drawing_id: str, disabled: bool) -> bool:
+        return self._execute("UPDATE drawings SET disabled = ?, updated_at = ? WHERE id = ?",
+                             (1 if disabled else 0, time.time(), drawing_id)) > 0
 
     def rename_drawing(self, drawing_id: str, name: str) -> bool:
         return self._execute("UPDATE drawings SET name = ?, updated_at = ? WHERE id = ?",
@@ -886,7 +895,7 @@ class Database:
             "plcs": self._query("SELECT key, name, base_url, username, enabled, sse_enabled, verify_tls FROM plcs ORDER BY key"),
             "tags": self._query('SELECT name, source, description, unit, scale, "offset", decimals, writable, min, max, '
                                 "confirm_write, " + ", ".join(ALARM_FIELDS + TREND_FIELDS + ENERGY_FIELDS) + " FROM tags ORDER BY name"),
-            "drawings": self._query("SELECT id, name, active_version FROM drawings ORDER BY id"),
+            "drawings": self._query("SELECT id, name, active_version, disabled FROM drawings ORDER BY id"),
             "versions": self._query("SELECT drawing_id, version, comment, size, width, height, created_at "
                                     "FROM drawing_versions ORDER BY drawing_id, version"),
             "bindings": self.list_all_bindings(),
@@ -979,8 +988,8 @@ class Database:
                          t.get("energy"), t.get("energy_factor", 1.0),
                          now, now))
                 for d in data["drawings"]:
-                    cur.execute("INSERT INTO drawings(id, name, active_version, created_at, updated_at) VALUES (?,?,?,?,?)",
-                                (d["id"], d["name"], d["active_version"], now, now))
+                    cur.execute("INSERT INTO drawings(id, name, active_version, created_at, updated_at, disabled) VALUES (?,?,?,?,?,?)",
+                                (d["id"], d["name"], d["active_version"], now, now, 1 if d.get("disabled") else 0))
                 for s in data.get("schedules", []):
                     cur.execute(
                         "INSERT INTO schedules(name, tag, enabled, default_value, entries, exceptions, created_at, updated_at) "

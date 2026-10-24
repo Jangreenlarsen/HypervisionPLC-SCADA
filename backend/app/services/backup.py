@@ -354,7 +354,8 @@ class BackupService:
                 ok = False
             if ok:
                 drawing_ids.add(did)
-                drawings.append({"id": did, "name": str(d.get("name") or did)[:80], "active_version": active})
+                drawings.append({"id": did, "name": str(d.get("name") or did)[:80], "active_version": active,
+                                 "disabled": d.get("disabled") is True})   # ældre backups har ingen deaktivering
 
         bindings, seen = [], set()
         for i, b in enumerate(backup["bindings"]):

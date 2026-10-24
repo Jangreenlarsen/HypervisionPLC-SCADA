@@ -7,6 +7,7 @@ i åbne tegninger (+ alarm-tags).
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Callable
 
 import httpx
@@ -15,7 +16,7 @@ from ..config import Settings
 from ..plc.client import PlcClient
 from ..storage.db import Database
 from ..storage.secrets import SecretStore
-from .live_cache import LiveCache
+from .live_cache import LiveCache, LiveValue
 from .plc_runtime import PlcRuntime, RuntimeTag
 from .tagsource import TagSourceError, parse_source
 
@@ -78,21 +79,40 @@ class PlcManager:
             fast_interval=self.settings.poll_fast_s, slow_interval=self.settings.poll_slow_s,
             ext_interval=self.settings.poll_ext_s,
         )
-        runtime.set_tags(self._runtime_tags(key))
+        runtime.set_tags(self._runtime_tags(key, self._suspended()))
         self._not_started.pop(key, None)
         self.runtimes[key] = runtime
         runtime.start()
         log.info("Startede runtime for PLC %s (%s)", key, plc["base_url"])
 
+    # Tags kun deaktiverede tegninger bruger (v1.6.0): sættes af main.py til `drawing_activity.suspended_tags`
+    suspended_tags: Any = None
+
     def reload_tags(self, removed: list[str] | None = None) -> None:
         if removed:
             self.cache.remove(removed)
+        suspended = self._suspended()
         for key, runtime in self.runtimes.items():
-            runtime.set_tags(self._runtime_tags(key))
+            runtime.set_tags(self._runtime_tags(key, suspended))
+        if suspended:
+            now = time.time()
+            self.cache.update({n: LiveValue(quality="unknown", ts=now, error="Pollas ikke — kun deaktiverede tegninger bruger tagget")
+                               for n in suspended})
 
-    def _runtime_tags(self, key: str) -> list[RuntimeTag]:
+    def _suspended(self) -> set[str]:
+        if self.suspended_tags is None:
+            return set()
+        try:
+            return set(self.suspended_tags())
+        except Exception:
+            log.exception("Kunne ikke afgøre hvilke tags der er suspenderet — alle tags pollas")
+            return set()
+
+    def _runtime_tags(self, key: str, suspended: set[str] | frozenset[str] = frozenset()) -> list[RuntimeTag]:
         tags = []
         for row in self.db.list_tags(plc=key):
+            if row["name"] in suspended:
+                continue
             try:
                 source = parse_source(row["source"])
             except TagSourceError as exc:
