@@ -2,6 +2,14 @@
 
 ---
 
+## v1.9.0 — 2026-10-25 — Kvittér PLC-fejl på Overview
+
+- PLC-fejl øverst på Overview kan **kvitteres**, så de ikke fylder hele tiden. Er PLC'en i orden igen og fejler senere, vises den nye fejl. Kvitteringen gælder kun din browser.
+
+## v1.8.3 — 2026-10-25 — Smallere Opsæt symbol
+
+- Opsæt symbol-guiden er gjort smallere, så den passer i visningen uden at man skal rulle sidelæns.
+
 ## v1.8.2 — 2026-10-25 — Rettelse: skift af IP-adresse fra web
 
 - Rettet en fejl, der gjorde, at **ingen** netværksændring (fast IP, DHCP …) kunne anvendes under System › Konfiguration — siden viste "Ugyldigt input — fallback_after: ukendt felt". Det virker nu igen.

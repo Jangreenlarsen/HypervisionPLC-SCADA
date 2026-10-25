@@ -3,6 +3,7 @@
   import { alarmMarks } from '../lib/alarmMark';
   import { mountCharts } from '../lib/chartRender';
   import { applyAlarmBadges, markNavClickable, navTarget, NAV_TARGETS } from '../lib/navSymbols';
+  import { loadAcked, pruneAcked, saveAcked, splitProblems } from '../lib/plcAck';
   import { get, post, type Binding, type DrawingView, type LiveValue, type PlcSummary } from '../lib/api';
   import { clickFor, parseSetpoint, positionLabel, positions, rangeText, toggleQuestion } from '../lib/actions';
   import { formatValue } from '../lib/animate';
@@ -31,6 +32,10 @@
   let view = $state<DrawingView | null>(null);
   let error = $state('');
   let plcs = $state<Record<string, PlcSummary>>({});
+  // Kvitterede PLC-fejl (v1.9.0): skjules som banner, til PLC'en har været i orden igen
+  let acked = $state<Set<string>>(loadAcked());
+  function ackPlc(key: string): void { acked = new Set([...acked, key]); saveAcked(acked); }
+  function unackAll(): void { acked = new Set(); saveAcked(acked); }
   let connected = $state(false);
   let dialog = $state<Dialog | null>(null);
   let symDialog = $state<SymDialog | null>(null);
@@ -178,6 +183,8 @@
     (p, c) => {
       plcs = p;
       connected = c;
+      const kept = pruneAcked(acked, p);   // en PLC der er i orden igen: ny fejl vises igen
+      if (kept.size !== acked.size) { acked = kept; saveAcked(acked); }
     },
   );
 
@@ -525,7 +532,7 @@
     clearTimeout(toastTimer);
   });
 
-  const problems = $derived(Object.entries(plcs).filter(([, p]) => p.state === 'error'));
+  const problems = $derived(splitProblems(plcs, acked));
   const dMeta = $derived(dialog && view ? view.tags[dialog.binding.tag] : undefined);
   const dName = $derived(dialog ? dialog.binding.params.title || dMeta?.description || dialog.binding.tag : '');
   const dLive = $derived(dialog ? values[dialog.binding.tag] : undefined);
@@ -578,9 +585,16 @@
 {#if view?.disabled}
   <div class="notice" role="status"><strong>Tegningen er deaktiveret</strong> — den er offline: ingen live-værdier og ingen betjening. En tekniker kan aktivere den igen under Tegninger.</div>
 {/if}
-{#each problems as [key, p]}
-  <div class="error">PLC {p.name || key}: {p.message}</div>
+{#each problems.open as [key, p] (key)}
+  <div class="error row" style="justify-content: space-between">
+    <span>PLC {p.name || key}: {p.message}</span>
+    <button class="small" onclick={() => ackPlc(key)} title="Skjul fejlen her, til PLC'en har været i orden igen (gælder kun denne browser)">Kvittér</button>
+  </div>
 {/each}
+{#if problems.acked.length}
+  <div class="small muted">Kvitterede PLC-fejl: {problems.acked.map(([k, p]) => p.name || k).join(', ')} —
+    <button class="link-btn" onclick={unackAll}>vis igen</button></div>
+{/if}
 {#if !connected}
   <div class="notice">Forbindelsen til SCADA-serveren er afbrudt — værdierne er ikke opdaterede. Forsøger igen …</div>
 {/if}
@@ -722,6 +736,7 @@
 
 <style>
   .toolbar { margin-bottom: .75rem; }
+  .link-btn { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }
   /* Driftpanel: tegningen fylder hele skærmen; knapperne flyder som overlay øverst til venstre */
   .float-bar {
     position: absolute; left: .75rem; top: .75rem; z-index: 5;

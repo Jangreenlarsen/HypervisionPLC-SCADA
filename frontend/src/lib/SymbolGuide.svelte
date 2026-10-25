@@ -611,7 +611,8 @@
             </label>
           {:else}
             <p class="muted small">Signalerne symbolet skriver. Tilbagemelding (valgfri) bruges til at finde PLC'ens position; ellers bruges kommandoen.</p>
-            <table class="grid">
+            <table class="grid sig">
+              <colgroup><col style="width: 3.2em" /><col style="width: 30%" /><col style="width: 30%" /><col /><col style="width: 2.6em" /></colgroup>
               <thead><tr><th>Id</th><th>Kommando</th><th>Tilbagemelding</th><th>Skrives som</th><th></th></tr></thead>
               <tbody>
                 {#each cfg.signals as s, i (s.id)}
@@ -1024,7 +1025,7 @@
   .group-res { margin: 0 0 .4rem; }
   .group-res ul { margin: .2rem 0 0; padding-left: 1.2rem; }
   .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px 0; z-index: 20; }
-  .guide { width: 100%; max-width: 960px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 8px 30px rgba(0, 0, 0, .25); }
+  .guide { width: 100%; max-width: 780px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 8px 30px rgba(0, 0, 0, .25); }
   .head { align-items: baseline; gap: .6rem; cursor: move; touch-action: none; user-select: none; }
   .head h2 { margin: 0; font-size: 1.15rem; }
   .close { margin-left: auto; }
@@ -1032,7 +1033,7 @@
   .steps button { position: relative; }
   .steps button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--alarm); margin-left: .35rem; vertical-align: middle; }
-  .body { overflow: auto; flex: 1; min-height: 240px; padding-right: .3rem; }
+  .body { overflow: auto; flex: 1; min-height: 240px; min-width: 0; padding-right: .3rem; }
   .body h4 { margin: .8rem 0 .3rem; }
   footer { gap: .5rem; align-items: center; border-top: 1px solid var(--line); padding-top: .5rem; margin-top: .5rem; }
   .spacer { flex: 1; }
@@ -1044,6 +1045,12 @@
   /* En tag-dropdown er ellers lige så bred som sin længste valgmulighed ("navn · kilde (type) [enhed]") og presser nabokolonnerne */
   .grid :global(select), .anim :global(select) { width: auto; max-width: 24em; }   /* :global — TagSelect er en underkomponent */
   .grid td.skriv { min-width: 13em; }
+  /* Signal-tabellen i trin 2 skal passe i den smalle guide uden vandret rulning: faste kolonner, tag-valget fylder sin kolonne */
+  .grid.sig { width: 100%; table-layout: fixed; }
+  .grid.sig td { overflow-wrap: anywhere; }
+  .grid.sig td :global(select) { width: 100%; max-width: 100%; min-width: 0; }
+  .grid.sig td.skriv { min-width: 0; }
+  .grid.sig td.skriv :global(select) { width: auto; }
   .planes td, .planes th { text-align: center; }
   .n { width: 5.5em; }
   .desc { margin-left: .4rem; }

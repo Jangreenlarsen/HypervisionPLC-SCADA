@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.9.0 build 0214] — 2026-10-25 — Overview: PLC-fejl kan kvitteres
+
+- Røde PLC-bannere på Overview (fx *PLC …: kommunikation tabt*) har nu en knap **Kvittér**, så fejlen ikke står på hovedsiden hele tiden. En kvitteret fejl skjules, og der står en lille linje *Kvitterede PLC-fejl: … — vis igen*. Kvitteringen bortfalder, når PLC'en har været i orden igen, så en NY fejl vises igen.
+- Gælder kun denne browserfane (sessionStorage) og ændrer intet på serveren — PLC-status, alarmer og badges i værktøjslinjen er uændrede.
+- `frontend/src/lib/plcAck.ts` (ny), `frontend/src/pages/Overview.svelte`, test (3 nye).
+
+## [1.8.3 build 0213] — 2026-10-25 — fix: Opsæt symbol-guiden er smallere og kræver ikke vandret rulning
+
+- Guiden max 780 px (før 960); signal-tabellen i trin 2 med faste kolonner. `frontend/src/lib/SymbolGuide.svelte`.
+
 ## [1.8.2 build 0212] — 2026-10-25 — fix: netværksskift fra web afvistes ("fallback_after: ukendt felt")
 
 - `NetworkBody` kender nu `fallback_after` (siden sender det altid). Regression siden v0.123.0: ingen netværksændring kunne anvendes fra System › Konfiguration.
