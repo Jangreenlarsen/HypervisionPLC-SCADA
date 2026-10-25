@@ -4,6 +4,8 @@
   import { mountCharts } from '../lib/chartRender';
   import { applyAlarmBadges, markNavClickable, navTarget, NAV_TARGETS } from '../lib/navSymbols';
   import { loadAcked, pruneAcked, saveAcked, splitProblems } from '../lib/plcAck';
+  import MessageSlot from '../lib/MessageSlot.svelte';
+  import type { Msg } from '../lib/messages';
   import { get, post, type Binding, type DrawingView, type LiveValue, type PlcSummary } from '../lib/api';
   import { clickFor, parseSetpoint, positionLabel, positions, rangeText, toggleQuestion } from '../lib/actions';
   import { formatValue } from '../lib/animate';
@@ -533,6 +535,36 @@
   });
 
   const problems = $derived(splitProblems(plcs, acked));
+  // Alle beskeder samles ét sted og vises i MessageSlot (fast plads i værktøjslinjen) — aldrig som bannere, der skubber tegningen
+  const messages = $derived.by((): Msg[] => {
+    const out: Msg[] = [];
+    if (toast) {
+      out.push({ id: 'toast', kind: toast.kind === 'error' ? 'error' : toast.kind === 'warn' ? 'warn' : 'ok', text: toast.text,
+        action: toast.kind !== 'ok' ? { label: 'OK', run: () => (toast = null) } : undefined });
+    }
+    if (error) out.push({ id: 'error', kind: 'error', text: error, action: { label: 'OK', run: () => (error = '') } });
+    for (const [key, p] of problems.open) {
+      out.push({ id: `plc:${key}`, kind: 'error', text: `PLC ${p.name || key}: ${p.message}`,
+        action: { label: 'Kvittér', run: () => ackPlc(key), title: "Skjul fejlen her, til PLC'en har været i orden igen (gælder kun denne browser)" } });
+    }
+    if (!connected) out.push({ id: 'offline', kind: 'warn', text: 'Forbindelsen til SCADA-serveren er afbrudt — værdierne er ikke opdaterede. Forsøger igen …' });
+    if (view?.disabled) {
+      out.push({ id: 'disabled', kind: 'warn', text: 'Tegningen er deaktiveret — den er offline: ingen live-værdier og ingen betjening. En tekniker kan aktivere den igen under Tegninger.' });
+    }
+    if (view && view.orphaned_bindings.length) {
+      const o = view.orphaned_bindings;
+      const list = o.length > 4 ? `${o.slice(0, 4).join(', ')} og ${o.length - 4} flere` : o.join(', ');
+      const fixable = !!(canEdit && selected);
+      out.push({ id: 'orphans', kind: 'warn',
+        text: `Bindinger til elementer der ikke findes i denne version: ${list} — elementerne er slettet i Tegn eller har fået et nyt id, så bindingerne virker ikke.${fixable ? '' : ' Bed en tekniker om at rette det under Bindinger.'}`,
+        link: fixable ? { href: `#editor/${selected}`, label: 'Ret under Bindinger → Forsvundne elementer' } : undefined });
+    }
+    if (problems.acked.length) {
+      out.push({ id: 'acked', kind: 'info', text: `Kvitterede PLC-fejl: ${problems.acked.map(([k, p]) => p.name || k).join(', ')}`,
+        action: { label: 'Vis igen', run: unackAll } });
+    }
+    return out;
+  });
   const dMeta = $derived(dialog && view ? view.tags[dialog.binding.tag] : undefined);
   const dName = $derived(dialog ? dialog.binding.params.title || dMeta?.description || dialog.binding.tag : '');
   const dLive = $derived(dialog ? values[dialog.binding.tag] : undefined);
@@ -572,39 +604,10 @@
   {#each Object.entries(plcs) as [key, p]}
     <span class="badge {p.state}" title={p.message || p.state}>{p.name || key}: {p.state}{p.sse === 'connected' ? ' · SSE' : ''}</span>
   {/each}
+  <MessageSlot {messages} />
 </div>
-{/if}
-
-{#if toast}
-  <div class={toast.kind === 'error' ? 'error' : toast.kind === 'warn' ? 'notice' : 'notice ok-toast'} role="status">
-    {toast.text}
-    {#if toast.kind !== 'ok'}<button class="small" onclick={() => (toast = null)}>OK</button>{/if}
-  </div>
-{/if}
-{#if error}<div class="error">{error}</div>{/if}
-{#if view?.disabled}
-  <div class="notice" role="status"><strong>Tegningen er deaktiveret</strong> — den er offline: ingen live-værdier og ingen betjening. En tekniker kan aktivere den igen under Tegninger.</div>
-{/if}
-{#each problems.open as [key, p] (key)}
-  <div class="error row" style="justify-content: space-between">
-    <span>PLC {p.name || key}: {p.message}</span>
-    <button class="small" onclick={() => ackPlc(key)} title="Skjul fejlen her, til PLC'en har været i orden igen (gælder kun denne browser)">Kvittér</button>
-  </div>
-{/each}
-{#if problems.acked.length}
-  <div class="small muted">Kvitterede PLC-fejl: {problems.acked.map(([k, p]) => p.name || k).join(', ')} —
-    <button class="link-btn" onclick={unackAll}>vis igen</button></div>
-{/if}
-{#if !connected}
-  <div class="notice">Forbindelsen til SCADA-serveren er afbrudt — værdierne er ikke opdaterede. Forsøger igen …</div>
-{/if}
-{#if view && view.orphaned_bindings.length}
-  <div class="notice">
-    Bindinger til elementer der ikke findes i denne version: {view.orphaned_bindings.join(', ')} — elementerne er slettet i Tegn
-    eller har fået et nyt id, så bindingerne virker ikke.
-    {#if canEdit && selected}<a href={`#editor/${selected}`}>Ret under Bindinger → Forsvundne elementer</a> (flyt dem til det nye element, eller fjern dem).
-    {:else}Bed en tekniker om at rette det under Bindinger.{/if}
-  </div>
+{:else}
+  <div class="panel-msg"><MessageSlot {messages} /></div>
 {/if}
 
 {#if !drawings.length && !error}
@@ -736,6 +739,8 @@
 
 <style>
   .toolbar { margin-bottom: .75rem; }
+  /* Driftpanel (ingen værktøjslinje): beskeder øverst til højre OVER tegningen, så den ikke flytter sig */
+  .panel-msg { position: absolute; top: .75rem; right: .75rem; z-index: 6; max-width: 60%; }
   .link-btn { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }
   /* Driftpanel: tegningen fylder hele skærmen; knapperne flyder som overlay øverst til venstre */
   .float-bar {

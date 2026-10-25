@@ -28,7 +28,7 @@ Hver værdi har en **kvalitet**. Er den ikke *god*, tones symbolet **ned** (kun 
 
 Så længe kvaliteten ikke er god, gælder desuden: **alarmer for tagget fastholdes uændret** (en kommunikationsfejl udløser eller rydder ikke tagets alarmer), **betjening afvises** med *Ingen forbindelse … intet er skrevet*, og **Trends** får et hul i kurven. Teknikere kan se symbolet i hver tilstand i *Symboltest*.
 
-**PLC-fejl øverst på siden:** går kommunikationen til en PLC tabt, står der et rødt banner (*PLC … : kommunikation tabt*) over tegningen. Tryk **Kvittér** for at skjule det — der står så en lille linje *Kvitterede PLC-fejl* med *vis igen*. Fejlen kommer først frem igen, når PLC'en har været i orden og fejler på ny. Kvitteringen gælder kun din browser; PLC'ens status i værktøjslinjen og alarmerne ændres ikke.
+**Beskeder og PLC-fejl:** fejl, advarsler og beskeder (fx *PLC … : kommunikation tabt*, *Tegningen er deaktiveret*, forsvundne bindinger) står i en fast plads yderst til højre i værktøjslinjen over tegningen — som en lille pille med den alvorligste besked og et tal, hvis der er flere (*+2*). Tegningen flytter sig derfor aldrig, når en besked kommer og går. Tryk på pillen for at se alle beskederne; en PLC-fejl kan **kvitteres** (knappen *Kvittér*), og kommer så først frem igen, når PLC'en har været i orden og fejler på ny. Kvitteringen gælder kun din browser; PLC'ens status i værktøjslinjen og alarmerne ændres ikke. På driftpanelet (uden værktøjslinje) ligger pillen øverst til højre oven på tegningen.
 
 ### Zoom og flyt
 

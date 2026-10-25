@@ -2,6 +2,10 @@
 
 ---
 
+## v1.10.0 — 2026-10-25 — Beskeder hopper ikke længere rundt
+
+- Beskeder på Overview (PLC-fejl, forbindelse, deaktiveret tegning m.m.) står nu i en lille pille til højre i værktøjslinjen i stedet for over tegningen. Tegningen står stille, når beskeder kommer og går. Tryk på pillen for at se dem alle.
+
 ## v1.9.2 — 2026-10-25 — Betjening af ST-variabler bundet til registre
 
 - Symboler og tags på ST-variabler, der i PLC'en er bundet til et register (input/begge), kan nu betjenes: SCADA skriver automatisk registret, variablen læser fra. Før fik du fejlen "bound as INPUT from HR …".
