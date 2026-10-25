@@ -491,3 +491,19 @@ def test_by_value_tag_gives_one_value_per_position(api):
     # uden positioner giver "pr. værdi" ingen mening
     r = put(api, {"op": "view", "anims": [rot]})
     assert r.status_code == 400 and "kræver, at symbolet har positioner" in r.text
+
+
+def test_by_value_with_value_ranges_per_position(api):
+    """v1.13.0: fra-værdi pr. position (stigende) — tagets værdi afgør positionen, så knappen aldrig står midt imellem."""
+    rot = {"part": "V1_greb", "type": "rotate", "src": "Niveau", "by_value": True,
+           "pos_values": [0, 10, 20, 30, 40, 50, 60], "params": {"angles": [-90 + 30 * j for j in range(7)]}}
+    r = put(api, dec_bin(anims=[rot]))
+    assert r.status_code == 200, r.text
+    b = [x for x in api.get(f"/api/drawings/{api.did}/view").json()["bindings"] if x["anim"] == "rotate"][0]
+    assert b["params"]["pos_values"] == [0, 10, 20, 30, 40, 50, 60] and b["params"]["pos"] is True
+    for bad in ([0, 10, 20], [0, 10, 10, 30, 40, 50, 60], [0, 20, 10, 30, 40, 50, 60]):
+        r = put(api, dec_bin(anims=[{**rot, "pos_values": bad}]))
+        assert r.status_code == 400 and ("fra-værdi" in r.text), (bad, r.text)
+    # uden "pr. værdi" ryddes fra-værdierne
+    r = put(api, dec_bin(anims=[{**rot, "by_value": False, "params": {"min": 0, "max": 100}}]))
+    assert r.status_code == 200 and r.json()["config"]["anims"][0]["pos_values"] is None

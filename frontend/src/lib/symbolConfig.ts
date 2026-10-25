@@ -10,7 +10,9 @@ export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'p
 export interface Plane { signal: string; values: (number | null)[] }
 export interface Anim { part: string; type: AnimType; src: string; params: Record<string, any>; only: boolean[] | null; when?: boolean;
   /** v1.12.0: tagets værdi ER positionsnummeret (0, 1, 2 …) — én værdi pr. position, som med kilden "symbolets position" */
-  by_value?: boolean }
+  by_value?: boolean;
+  /** v1.13.0: tag-værdien der hører til hver position ("fra-værdi", stigende); tom = værdien er positionsnummeret */
+  pos_values?: number[] | null }
 /** Animationer der kan have én værdi pr. position (og dermed "pr. værdi" fra et tag) */
 export const BY_VALUE_TYPES: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'rotate', 'move', 'flow'];
 export type Cmp = '' | 'ge' | 'le' | 'eq';
@@ -435,6 +437,10 @@ export function resize(cfg: SymbolConfig, kindOf: (signalId: string) => 'bool' |
   cfg.lock.positions = fit(cfg.lock.positions, () => false);
   for (const a of cfg.anims) {
     if (a.only) a.only = fit(a.only, () => true);
+    if (Array.isArray(a.pos_values)) {   // nye positioner får fra-værdien én over den forrige
+      const pv = a.pos_values;
+      a.pos_values = fit(pv, (j) => (pv.length ? pv[pv.length - 1] + (j - pv.length + 1) : j));
+    }
     const p = a.params;
     if (Array.isArray(p.colors)) p.colors = fit(p.colors, () => '#e4e4e4');
     if (Array.isArray(p.set)) p.set = fit(p.set, () => false);

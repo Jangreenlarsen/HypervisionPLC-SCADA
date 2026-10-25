@@ -2,6 +2,10 @@
 
 ---
 
+## v1.13.0 — 2026-10-25 — Faste positioner fra et tag
+
+- Med *Pr. værdi* kan du nu angive, hvilke tag-værdier der hører til hver position (fx Fra ≥ 0, Hånd ≥ 50, Auto ≥ 100). En omskifter står derfor altid i en af sine positioner — aldrig midt imellem — uanset tagets værdi.
+
 ## v1.12.1 — 2026-10-25 — Tydeligere ved afvist PLC-login
 
 - Afviser PLC'en SCADA's bruger (forkert adgangskode, eller brugeren findes ikke på PLC'en), siger beskeden nu præcis det og hvad du skal gøre. SCADA prøver kun at logge ind igen hvert minut, så PLC'en ikke fyldes med login-fejl.

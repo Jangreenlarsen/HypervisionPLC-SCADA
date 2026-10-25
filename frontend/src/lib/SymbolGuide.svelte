@@ -144,7 +144,7 @@
       anims: (c.anims ?? []).map((a) => {
         const params = a.params ?? {};
         // Blafrer gemt med v0.69.0 (én farve) eller uden palette: altid tre farver at vælge (v0.70.0)
-        return { ...a, src: a.src ?? '', only: a.only ?? null, when: Boolean(a.when), by_value: Boolean(a.by_value), params: a.type === 'flicker' ? { ...params, palette: flickerPalette(params) } : params };
+        return { ...a, src: a.src ?? '', only: a.only ?? null, when: Boolean(a.when), by_value: Boolean(a.by_value), pos_values: a.pos_values ?? null, params: a.type === 'flicker' ? { ...params, palette: flickerPalette(params) } : params };
       }),
       logic: (c.logic ?? []).map((b) => ({
         id: b.id, name: b.name ?? '', op: b.op ?? 'and', invert: Boolean(b.invert),
@@ -834,7 +834,7 @@
                 {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
                 {#if srcMode(a) === 'tag' && isPos && BY_VALUE_TYPES.includes(a.type)}
                   <label class="opt small" title={`Tagets værdi er positionens nummer: ${cfg.positions.map((p, j) => `${j} = ${p.label}`).join(', ')}`}>
-                    <input type="checkbox" checked={!!a.by_value} onchange={(e) => { a.by_value = e.currentTarget.checked; resetParams(a); }} />
+                    <input type="checkbox" checked={!!a.by_value} onchange={(e) => { a.by_value = e.currentTarget.checked; a.pos_values = a.by_value ? cfg.positions.map((_, j) => j) : null; resetParams(a); }} />
                     Pr. værdi (0 = {cfg.positions[0]?.label ?? '1. position'}, 1 = {cfg.positions[1]?.label ?? '2. position'} …)</label>
                 {/if}
                 {#if srcMode(a) === 'val'}
@@ -860,6 +860,15 @@
                 <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
                 <button class="small" onclick={() => cfg.anims.splice(i, 1)} aria-label="Fjern animation">✕</button>
               </div>
+              {#if byValue(a)}
+                <div class="row wrap small posvals">
+                  <span class="muted" title="Positionen er den sidste, hvis fra-værdi tagget har nået. Under den første fra-værdi: ingen position (delen vises som tegnet). Knappen står derfor aldrig midt imellem to positioner.">Tagets værdi → position:</span>
+                  {#each cfg.positions as pos, j}
+                    <label class="opt">{pos.label} ≥ <input class="n" value={a.pos_values?.[j] ?? j}
+                      onchange={(e) => { const pv = cfg.positions.map((_, i) => a.pos_values?.[i] ?? i); pv[j] = num(e.currentTarget.value, pv[j]); a.pos_values = pv; }} /></label>
+                  {/each}
+                </div>
+              {/if}
               <AnimParams {a} {kind} positions={cfg.positions} logic={cfg.logic} {pool} {tags} {valueOf} {metaOf} {palette} />
               {#if WHEN_TYPES.includes(a.type)}
                 <label class="opt small">Når den ikke er aktiv:

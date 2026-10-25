@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.13.0 build 0222] — 2026-10-25 — Pr. værdi: afgræns hvilke tag-værdier der hører til hver position
+
+- Jan: en omskifter har faste positioner, så knappen må ikke kunne stå midt imellem, hvis tagget har en uventet værdi. Med *Pr. værdi* angives nu en **fra-værdi pr. position** (stigende, standard 0, 1, 2 …): positionen er den sidste, hvis fra-værdi er nået; under den første: ingen position (delen som tegnet).
+- Backend: `Anim.pos_values` (valideres: én pr. position, stigende, endelige tal; ryddes uden *pr. værdi*), sendes som `params.pos_values`. Frontend: `posIndex()` i animate.ts bruges både til visning og til aktiv/passiv; ny linje *Tagets værdi → position* i trin 4; nye positioner forlænger fra-værdierne.
+- `backend/app/services/symbols.py`, `frontend/src/lib/{animate.ts,symbolConfig.ts,SymbolGuide.svelte}`, manualen, tests (backend 1, frontend 3).
+
 ## [1.12.1 build 0221] — 2026-10-25 — PLC-login: tydelig besked og sjældnere genforsøg ved afvist login
 
 - "Login afvist af PLC" forklarer nu, at PLC'en ikke godkender brugeren med den gemte adgangskode, og hvad man gør (tjek brugeren på PLC'en / sæt adgangskoden igen under PLC'er).

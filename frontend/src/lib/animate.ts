@@ -68,7 +68,7 @@ export function bindingActive(b: Pick<Binding, 'anim' | 'params'>, live: LiveVal
   if (Array.isArray(p.only) && pos !== null && !p.only[pos]) return false;
   if (!live || live.value === null || live.value === undefined) return false;
   const v = live.value;
-  const k = p.pos ? toNumber(v) : null;
+  const k = p.pos ? posIndex(v, p) : null;
   switch (b.anim) {
     case 'flow': {
       let s: -1 | 0 | 1 = p.pos ? (Number(Array.isArray(p.dirs) && k !== null ? p.dirs[k] ?? 0 : 0) as -1 | 0 | 1) : flowState(v, p);
@@ -91,6 +91,21 @@ export function bindingActive(b: Pick<Binding, 'anim' | 'params'>, live: LiveVal
     default:
       return true;
   }
+}
+
+/**
+ * Positionens indeks for en animation med én værdi pr. position (`params.pos`). Kilden "symbolets position" og et tag med
+ * positionsnummeret giver indekset direkte; med `pos_values` (v1.13.0) afgøres positionen af tagets værdi: den sidste position, hvis
+ * fra-værdi er nået. Under den første fra-værdi (eller ukendt værdi): ingen position (null) — aldrig "midt imellem".
+ */
+export function posIndex(value: unknown, p: Record<string, any>): number | null {
+  const n = toNumber(value);
+  if (n === null) return null;
+  const pv = p.pos_values;
+  if (!Array.isArray(pv) || !pv.length) return n;
+  let k: number | null = null;
+  for (let j = 0; j < pv.length; j++) if (n >= Number(pv[j])) k = j;
+  return k;
 }
 
 export function fraction(value: unknown, min = 0, max = 100): number {
@@ -866,7 +881,7 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
     return;
   }
   const v = live.value;
-  const k = p.pos ? toNumber(v) : null;   // positionens indeks når kilden er symbolets position
+  const k = p.pos ? posIndex(v, p) : null;   // positionens indeks (symbolets position, eller tagets værdi efter fra-værdierne)
   const at = (list: unknown): any => (Array.isArray(list) && k !== null ? list[k] : undefined);
   switch (b.anim) {
     case 'text':

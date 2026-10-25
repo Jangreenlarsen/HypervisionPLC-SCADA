@@ -221,6 +221,9 @@ class Anim(_M):
     only: list[bool] | None = None
     # v1.12.0: et tag hvis værdi ER positionsnummeret (0, 1, 2 …) — animationen får én værdi pr. position, som med kilden "position"
     by_value: bool = False
+    # v1.13.0: hvilke tag-værdier hører til hvilken position — "fra-værdi" pr. position (stigende). Position j gælder for værdier
+    # fra pos_values[j] op til næste positions fra-værdi; under den første: ingen position. None = værdien ER positionsnummeret.
+    pos_values: list[float] | None = Field(default=None, max_length=MAX_POSITIONS)
 
     _s = field_validator("src", "part")(lambda cls, v: (v or "").strip())
 
@@ -475,6 +478,8 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
         params = {k: v for k, v in (a.get("params") or {}).items() if v is not None}
         if a["src"] == POS or a.get("by_value"):
             params["pos"] = True   # tagets/positionens værdi (0, 1, 2 …) vælger værdien i listen
+            if a.get("by_value") and a.get("pos_values"):
+                params["pos_values"] = a["pos_values"]   # tagets værdi → position efter fra-værdierne (aldrig midt imellem)
             if a["type"] == "text":
                 params["labels"] = labels
         dir_ref = params.get("dir_tag")
@@ -933,6 +938,16 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             res.err("4", f"{nm}: \"pr. værdi\" kræver, at symbolet har positioner (vælg Positioner i trin 1).")
             continue
         a.by_value = by_value
+        if not by_value:
+            a.pos_values = None
+        elif a.pos_values is not None:
+            pv = a.pos_values
+            if len(pv) != n:
+                res.err("4", f"{nm}: angiv en fra-værdi pr. position ({n}).")
+                continue
+            if any(v != v or abs(v) == float("inf") for v in pv) or any(b <= a_ for a_, b in zip(pv, pv[1:])):
+                res.err("4", f"{nm}: positionernes fra-værdier skal være tal i stigende rækkefølge (fx 0, 1, 2).")
+                continue
         if pos_src or by_value:
             for f in fields:
                 if params.get(f) is None or len(params[f]) != n:
