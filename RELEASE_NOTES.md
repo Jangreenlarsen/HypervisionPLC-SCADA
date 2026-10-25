@@ -2,6 +2,10 @@
 
 ---
 
+## v1.8.1 — 2026-10-25 — Fjern signaler i Opsæt symbol
+
+- I trin 2 kan alle signaler nu fjernes, også det sidste. Har signalet en kontaktplan med indhold, bliver du spurgt først.
+
 ## v1.8.0 — 2026-10-25 — Genstart fra web
 
 - Under **System › Konfiguration › Genstart** kan admin genstarte SCADA-tjenesten eller hele maskinen — fx efter et skift til fast IP-adresse. Siden venter og genindlæser sig selv, når serveren er tilbage.

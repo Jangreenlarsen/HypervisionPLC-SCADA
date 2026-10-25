@@ -284,8 +284,12 @@
     if (cfg.signals.length >= 8) return;
     cfg.signals.push(newSignal(cfg));
   }
-  function removeSignal(i: number): void {
+  async function removeSignal(i: number): Promise<void> {
     const id = cfg.signals[i].id;
+    const plane = cfg.planes.find((p) => p.signal === id);
+    // Signalets kontaktplan (trin 3) fjernes med — spørg, hvis den allerede har indhold
+    if (plane?.values.some((v) => v !== null && v !== undefined) &&
+        !(await askUser(`${id} bruges af en kontaktplan (trin 3). Fjern signalet og dets plan?`, { ok: 'Fjern', danger: true }))) return;
     cfg.signals.splice(i, 1);
     cfg.planes = cfg.planes.filter((p) => p.signal !== id);
   }
@@ -623,11 +627,14 @@
                           onchange={(e) => { const t = e.currentTarget.value.trim(); s.rest = t === '' ? null : num(t, 0); }} />
                       {/if}
                     </td>
-                    <td><button class="small" onclick={() => removeSignal(i)} disabled={cfg.signals.length <= 1} aria-label="Fjern {s.id}">✕</button></td>
+                    <td><button class="small" onclick={() => removeSignal(i)} aria-label="Fjern {s.id}" title="Fjern signalet {s.id} (og dets kontaktplan)">✕</button></td>
                   </tr>
                 {/each}
               </tbody>
             </table>
+            {#if !cfg.signals.length}
+              <p class="small notice">Ingen signaler. Et symbol med positioner skal have mindst ét — tilføj et med <strong>+ Signal</strong>, eller vælg <em>Kun visning</em> i trin 1, hvis symbolet ikke skal betjenes.</p>
+            {/if}
             <button class="small" onclick={addSignal} disabled={cfg.signals.length >= 8}>+ Signal</button>
           {/if}
           {#if cfg.op !== 'view'}

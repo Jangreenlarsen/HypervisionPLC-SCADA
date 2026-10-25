@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.8.1 build 0211] — 2026-10-25 — fix: signaler kan altid fjernes i Opsæt symbol
+
+- Trin 2 (Signaler): ✕ er ikke længere slået fra ved det sidste signal; forklarende besked når der ingen er; bekræftelse hvis signalets kontaktplan har indhold.
+- `frontend/src/lib/SymbolGuide.svelte`.
+
 ## [1.8.0 build 0210] — 2026-10-25 — Genstart fra web (SCADA-tjenesten eller maskinen)
 
 - Ny sektion **Genstart** i System › Konfiguration (admin): *Genstart SCADA-tjenesten* og *Genstart maskinen* (fx efter skift til fast IP-adresse), med bekræftelse. Siden venter på serveren og genindlæser, når den svarer igen (op til 6 min.).
