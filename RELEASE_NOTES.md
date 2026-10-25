@@ -2,6 +2,10 @@
 
 ---
 
+## v1.11.1 — 2026-10-25 — Skift frem og tilbage mellem betjeningsformer
+
+- I Opsæt symbol kan du nu skifte tilbage, fx fra *Positioner* til *Kun visning* — før forsvandt valget fra listen.
+
 ## v1.11.0 — 2026-10-25 — Skift position med venstre/højre-tryk
 
 - Symboler med positioner (fx en omskifter) kan nu sættes op til at blive betjent **direkte på tegningen**: tryk på venstre side for forrige position og højre side for næste. Vælges under *Betjening* i Opsæt symbol; dialogen er stadig standard.

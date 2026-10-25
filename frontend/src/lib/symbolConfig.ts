@@ -254,6 +254,15 @@ export function allowedOps(type: string, current?: Op): Op[] {
   return out.length ? out : ALL_OPS;
 }
 
+/**
+ * Betjeningsformerne i trin 1 (v1.11.1): de der giver mening for symboltypen, plus ALLE former symbolet har haft, mens guiden har været
+ * åben (`visited`). Ellers forsvandt fx *Kun visning*, så snart man havde valgt *Positioner* på en omskifter — og man kunne ikke vælge tilbage.
+ */
+export function opChoices(type: string, current: Op, visited: readonly Op[]): Op[] {
+  const allowed = allowedOps(type, current);
+  return ALL_OPS.filter((op) => allowed.includes(op) || visited.includes(op));
+}
+
 /** Eksemplet "7-trins vælger" giver kun mening for vælgere og egne tegninger — ikke for fx en ventil eller en pumpe. */
 export const offersSelectorExample = (type: string): boolean => type === 'custom' || type.startsWith('omskifter') || type === 'drejeomskifter' || type.startsWith('vippe_');
 

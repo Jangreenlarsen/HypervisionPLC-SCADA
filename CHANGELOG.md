@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.11.1 build 0219] — 2026-10-25 — fix: betjeningsform kan vælges tilbage i Opsæt symbol
+
+- Trin 1: en betjeningsform man har haft valgt, bliver stående i listen (`opChoices`), så man kan skifte frem og tilbage mellem fx *Kun visning* og *Positioner*. `frontend/src/lib/{symbolConfig.ts,SymbolGuide.svelte}`, test.
+
 ## [1.11.0 build 0218] — 2026-10-25 — Symboler med positioner: venstre/højre-betjening på tegningen
 
 - Ny indstilling i Opsæt symbol › trin 5 (*Betjening*) for symboler med positioner: **Dialog** (som hidtil) eller **Interaktiv** — tryk på symbolets venstre side for forrige position og højre side for næste. Stopper i enderne (besked). Bekræftelse og nøglelås gælder uændret (dialogen åbnes med den valgte position); hurtige tryk tæller videre fra den sidst bestilte position; ukendt vist position åbner dialogen. Musemarkøren bliver en venstre/højre-pil (`hv-step`).

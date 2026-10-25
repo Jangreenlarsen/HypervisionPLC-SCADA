@@ -23,7 +23,7 @@
   import {
     ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
-    ALL_OPS, allowedOps, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
+    ALL_OPS, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
 
@@ -260,7 +260,10 @@
 
   // ---------------------------------------------------------------- redigering
   let showAllOps = $state(false);
-  const opList = $derived(showAllOps ? ALL_OPS : allowedOps(symbol?.type ?? 'custom', cfg.op));
+  // Former symbolet har haft, mens guiden er åben — de bliver stående i listen, så man altid kan vælge tilbage
+  let visitedOps = $state<Op[]>([]);
+  $effect(() => { const op = cfg.op; if (!visitedOps.includes(op)) visitedOps = [...visitedOps, op]; });
+  const opList = $derived(showAllOps ? ALL_OPS : opChoices(symbol?.type ?? 'custom', cfg.op, visitedOps));
   const opsRestricted = $derived(opList.length < ALL_OPS.length);
   function changeOp(op: Op): void {
     setOp(cfg, op);
