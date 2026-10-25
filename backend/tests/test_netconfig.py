@@ -146,6 +146,34 @@ def test_api_kun_admin_og_validering(tmp_path, monkeypatch):
         assert "network_config" in c.get("/api/system/config").json()
 
 
+
+def test_api_accepts_exactly_what_the_frontend_sends_in_every_mode(tmp_path, monkeypatch):
+    """Regression (v1.8.2): siden sender altid `fallback_after`; API-modellen kendte det ikke ("fallback_after: ukendt felt"), så INTET
+    skift (fx til fast IP) kunne anvendes fra web siden v0.123.0. Testen bruger hjælperen som installeret og frontendens fulde body."""
+    monkeypatch.setattr(netconfig_sys, "network_status", lambda: {"available": True, "hostname": "t", "gateway": "", "dns": [],
+                                                                  "error": "", "interfaces": [{"name": "eth0", "mac": "", "state": "up", "addresses": []}]})
+    state = tmp_path / "state"
+    state.mkdir()
+    (state / "enabled").write_text("")
+    settings = Settings(data_dir=tmp_path, poll_fast_s=0.05, poll_slow_s=0.2, plc_rate=9,
+                        frontend_dir=tmp_path / "nope", admin_password=ADMIN_PW, backup_hours=0, net_state_dir=state)
+    base = {"interface": "eth0", "mode": "static", "ip": "10.1.1.31", "prefix": 24, "gateway": "10.1.1.1", "dns": ["10.1.1.17"],
+            "hostname": "HypervisionSCADA", "fallback_after": 5}
+    req = tmp_path / "config" / "network.request"
+    with TestClient(create_app(settings)) as c:
+        assert c.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW}).status_code == 200
+        for body in (base, {**base, "mode": "dhcp", "ip": "", "prefix": 0, "gateway": ""},
+                     {**base, "mode": "dhcp_static", "gateway": ""}, {**base, "mode": "dhcp_fallback", "fallback_after": 8}):
+            req.unlink(missing_ok=True)
+            (state / "status.json").unlink(missing_ok=True)
+            r = c.put("/api/system/config/network", json=body)
+            assert r.status_code == 200, (body["mode"], r.text)
+            assert req.exists() and f"MODE={body['mode']}" in req.read_text(encoding="utf-8")
+        assert "FALLBACK_AFTER=8" in req.read_text(encoding="utf-8")
+        # ukendte felter afvises stadig
+        assert c.put("/api/system/config/network", json={**base, "uventet": 1}).status_code == 422
+
+
 # ---------------------------------------------------------------- hjælpescriptet med en falsk nmcli
 SH = shutil.which("sh")
 SCRIPT = Path(__file__).resolve().parents[2] / "deploy" / "apply-config.sh"

@@ -2,6 +2,10 @@
 
 ---
 
+## v1.8.2 — 2026-10-25 — Rettelse: skift af IP-adresse fra web
+
+- Rettet en fejl, der gjorde, at **ingen** netværksændring (fast IP, DHCP …) kunne anvendes under System › Konfiguration — siden viste "Ugyldigt input — fallback_after: ukendt felt". Det virker nu igen.
+
 ## v1.8.1 — 2026-10-25 — Fjern signaler i Opsæt symbol
 
 - I trin 2 kan alle signaler nu fjernes, også det sidste. Har signalet en kontaktplan med indhold, bliver du spurgt først.

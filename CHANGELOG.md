@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.8.2 build 0212] — 2026-10-25 — fix: netværksskift fra web afvistes ("fallback_after: ukendt felt")
+
+- `NetworkBody` kender nu `fallback_after` (siden sender det altid). Regression siden v0.123.0: ingen netværksændring kunne anvendes fra System › Konfiguration.
+- Ny API-test med frontendens fulde body i alle fire tilstande (fejler uden rettelsen).
+- `backend/app/api/system_config.py`, `backend/tests/test_netconfig.py`.
+
 ## [1.8.1 build 0211] — 2026-10-25 — fix: signaler kan altid fjernes i Opsæt symbol
 
 - Trin 2 (Signaler): ✕ er ikke længere slået fra ved det sidste signal; forklarende besked når der ingen er; bekræftelse hvis signalets kontaktplan har indhold.
