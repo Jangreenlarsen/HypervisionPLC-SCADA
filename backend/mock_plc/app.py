@@ -64,6 +64,7 @@ class MockPlcState:
     globals: list[dict[str, Any]] = field(default_factory=list)
     var_write: bool = True              # firmware med FEAT-503 (skriv ST-variabler); False = ældre firmware (404)
     input_bound: set[tuple[int, str]] = field(default_factory=set)   # (program, variabel) bundet som INPUT → 409
+    bindings: list[dict[str, Any]] = field(default_factory=list)     # GET /api/bindings (input-bindinger skriver registeret → variablen)
     sessions: dict[str, float] = field(default_factory=dict)  # token → udløb
     sse_tokens: dict[str, float] = field(default_factory=dict)
     sse_active: int = 0
@@ -87,6 +88,27 @@ class MockPlcState:
                 self.hr[addr] = value
             elif kind == "coil":
                 self.coils[addr] = bool(value)
+
+    def apply_bindings(self) -> None:
+        """Som PLC'ens input-bindinger ved starten af en ST-cyklus: register → ST-variabel (lav ord først for 32 bit)."""
+        for b in self.bindings:
+            if b["direction"] != "input" or b["register_type"] == "DI":
+                continue
+            prog = self.programs.get(b["program"])
+            var = next((v for v in (prog or {}).get("variables", []) if v["name"] == b["name"]), None)
+            if var is None:
+                continue
+            a, t = b["register_addr"], str(b["type"]).upper()
+            if b["register_type"] == "Coil":
+                var["value"] = bool(self.coils[a])
+            elif t == "BOOL":
+                var["value"] = bool(self.hr[a])
+            elif t == "INT":
+                var["value"] = struct.unpack(">h", struct.pack(">H", self.hr[a]))[0]
+            else:
+                bits = (self.hr[a + 1] << 16) | self.hr[a]
+                fmt = {"REAL": ">f", "DWORD": ">I"}.get(t, ">i")
+                var["value"] = struct.unpack(fmt, struct.pack(">I", bits))[0]
 
     # ---- testhjælpere
     def revoke_all_sessions(self) -> None:
@@ -281,6 +303,7 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
             return _err(400, "Invalid type (use: uint, int, dint, dword, real)")
         st.writes.append(("hr", addr, value))
         st.apply_locks()
+        st.apply_bindings()
         await _maybe_slow()
         return JSONResponse({"status": 200, "address": addr, "value": value, "type": dtype})
 
@@ -298,6 +321,7 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
         st.coils[addr] = bool(body.get("value"))
         st.writes.append(("coil", addr, st.coils[addr]))
         st.apply_locks()
+        st.apply_bindings()
         await _maybe_slow()
         return JSONResponse({"status": 200, "address": addr, "value": st.coils[addr]})
 
@@ -383,14 +407,22 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
         var = next((v for v in prog["variables"] if v["name"] == name), None)
         if var is None:
             return _err(404, f"Variable '{name}' not found. Available: " + ", ".join(v["name"] for v in prog["variables"]))
-        if (pid, name) in st.input_bound:
-            return _err(409, f"Variable '{name}' is bound as INPUT from HR 100 - write that register instead")
+        bound = next((b for b in st.bindings if b["direction"] == "input" and b["program"] == pid and b["name"] == name), None)
+        if bound is not None or (pid, name) in st.input_bound:
+            where = f"{bound['register_type']} {bound['register_addr']}" if bound else "HR 100"
+            return _err(409, f"Variable '{name}' is bound as INPUT from {where} - write that register instead")
         val, bad = _st_value(var, value)
         if bad is not None:
             return bad
         var["value"] = val
         st.writes.append(("logic", f"{pid}:{name}", val))
         return JSONResponse({"status": "ok", "program": pid, "name": name, "value": val})
+
+    @app.get("/api/bindings")
+    async def bindings_list(request: Request) -> Response:
+        if (denied := _auth(request)) is not None:
+            return denied
+        return JSONResponse({"count": len(st.bindings), "bindings": st.bindings})
 
     @app.get("/api/logic/{pid}")
     async def logic_single(pid: int, request: Request) -> Response:

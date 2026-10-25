@@ -701,6 +701,12 @@ class Database:
                       "chosen_at = excluded.chosen_at, chosen_by = excluded.chosen_by",
                       (drawing_id, element, chosen, chosen_at, chosen_by))
 
+    def drawings_using_tag(self, tag: str) -> list[tuple[str, int]]:
+        """[(tegningens navn, antal bindinger)] der bruger tagget (også som løbelysets retnings-tag) — til beskeden ved sletning."""
+        return [(r["name"], r["n"]) for r in self._query(
+            "SELECT d.name AS name, COUNT(*) AS n FROM bindings b JOIN drawings d ON d.id = b.drawing_id "
+            "WHERE b.tag = ? OR (b.anim = 'flow' AND json_extract(b.params, '$.dir_tag') = ?) GROUP BY d.id ORDER BY d.name", (tag, tag))]
+
     def count_bindings_for_tag(self, tag: str) -> int:
         with self._lock:
             # Også løbelys der bruger tagget som retnings-tag (params.dir_tag)

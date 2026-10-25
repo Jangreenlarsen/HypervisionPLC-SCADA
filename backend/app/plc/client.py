@@ -258,6 +258,12 @@ class PlcClient:
         items = body.get("globals") if isinstance(body, dict) else None
         return items if isinstance(items, list) else []
 
+    async def bindings(self) -> list[dict[str, Any]]:
+        """ST-variabel↔register-bindinger (program, name, type, direction, register_type HR/DI/Coil, register_addr)."""
+        body = await self.request("GET", "/api/bindings")
+        items = body.get("bindings") if isinstance(body, dict) else None
+        return [b for b in items if isinstance(b, dict)] if isinstance(items, list) else []
+
     async def write_logic_var(self, program: int, name: str, value: Any) -> Any:
         """Skriv en ST-variabel på navn (PLC-firmware v7.9.68.141+, FEAT-503)."""
         return await self._write_var(f"/api/logic/{program}/var", name, value)
