@@ -198,3 +198,22 @@ async def test_all_calls_failing_is_still_a_full_comm_error(mock_plc):
         await wait_for(lambda: rt.status.state == "error" and cache.get("A").quality == "comm_error" and cache.get("B").quality == "comm_error")
     finally:
         await rt.stop()
+
+
+async def test_rejected_login_is_retried_rarely(mock_plc):
+    """v1.12.1: et afvist login gentages kun hvert `auth_retry_s` (ikke hvert sekund) — hvert forsøg er en auth-fejl på PLC'en."""
+    client = PlcClient(mock_plc.url, "scada", "forkert", rate=50, burst=50)
+    cache = LiveCache()
+    rt = PlcRuntime("plc1", client, cache, sse_enabled=False, fast_interval=0.05, slow_interval=0.2, error_retry_max=0.05,
+                    auth_retry_s=5.0)
+    rt.set_tags(_tags(("A", "plc1:hr:1", 1.0, 0.0)))
+    before = mock_plc.state.login_attempts
+    rt.start()
+    try:
+        await wait_for(lambda: rt.status.state == "error")
+        await asyncio.sleep(2.0)
+    finally:
+        await rt.stop()
+    tries = mock_plc.state.login_attempts - before
+    assert 1 <= tries <= 2, tries   # uden ventetiden ville det være mange forsøg på 2 s
+    assert "API" not in rt.status.message and "'scada'" in rt.status.message and "PLC'er" in rt.status.message

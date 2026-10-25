@@ -81,6 +81,7 @@ class MockPlcState:
     locks: dict[tuple[str, int], int] = field(default_factory=dict)
     writes: list[tuple[str, int, object]] = field(default_factory=list)
     logins: int = 0
+    login_attempts: int = 0   # også afviste (til test af hvor tit der forsøges)
 
     def apply_locks(self) -> None:
         for (kind, addr), value in self.locks.items():
@@ -215,6 +216,7 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
 
     @app.post("/api/login")
     async def login(request: Request) -> Response:
+        st.login_attempts += 1
         header = request.headers.get("authorization", "")
         try:
             user, _, pw = base64.b64decode(header[6:]).decode().partition(":") if header.lower().startswith("basic ") else ("", "", "")

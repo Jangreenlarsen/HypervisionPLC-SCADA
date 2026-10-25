@@ -2,6 +2,22 @@
 
 ---
 
+## v1.13.0 — 2026-10-25 — Faste positioner fra et tag
+
+- Med *Pr. værdi* kan du nu angive, hvilke tag-værdier der hører til hver position (fx Fra ≥ 0, Hånd ≥ 50, Auto ≥ 100). En omskifter står derfor altid i en af sine positioner — aldrig midt imellem — uanset tagets værdi.
+
+## v1.12.1 — 2026-10-25 — Tydeligere ved afvist PLC-login
+
+- Afviser PLC'en SCADA's bruger (forkert adgangskode, eller brugeren findes ikke på PLC'en), siger beskeden nu præcis det og hvad du skal gøre. SCADA prøver kun at logge ind igen hvert minut, så PLC'en ikke fyldes med login-fejl.
+
+## v1.12.0 — 2026-10-25 — Animation pr. værdi fra et tag
+
+- Styres en animation af et tag, hvis værdi er positionens nummer (0, 1, 2 …), kan du nu sætte hak i **Pr. værdi** — så får hver position sin egen vinkel/farve osv., ligesom med *symbolets position*.
+
+## v1.11.1 — 2026-10-25 — Skift frem og tilbage mellem betjeningsformer
+
+- I Opsæt symbol kan du nu skifte tilbage, fx fra *Positioner* til *Kun visning* — før forsvandt valget fra listen.
+
 ## v1.11.0 — 2026-10-25 — Skift position med venstre/højre-tryk
 
 - Symboler med positioner (fx en omskifter) kan nu sættes op til at blive betjent **direkte på tegningen**: tryk på venstre side for forrige position og højre side for næste. Vælges under *Betjening* i Opsæt symbol; dialogen er stadig standard.

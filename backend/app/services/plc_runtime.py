@@ -78,6 +78,7 @@ class PlcRuntime:
         slow_interval: float = 2.0,
         ext_interval: float = 2.0,
         error_retry_max: float = 10.0,
+        auth_retry_s: float = 60.0,
         sse_listener: SseListener | None = None,
     ):
         self.key = key
@@ -87,6 +88,7 @@ class PlcRuntime:
         self.slow_interval = slow_interval
         self.ext_interval = ext_interval
         self.error_retry_max = error_retry_max
+        self.auth_retry_s = auth_retry_s
         self.status = RuntimeStatus()
         self._tags: list[RuntimeTag] = []
         self._plan: list[ReadRange] = []
@@ -206,6 +208,10 @@ class PlcRuntime:
                 retry = min(retry * 2, self.error_retry_max)
                 if isinstance(exc, PlcRateLimited):
                     interval = max(interval, 2.0)
+                if isinstance(exc, PlcAuthError):
+                    # Afvist login: prøv sjældnere — hvert forsøg tæller som en auth-fejl og kan udløse PLC'ens alarm for
+                    # stigende login-fejl. Rettes adgangskoden i SCADA, genstartes forbindelsen alligevel straks.
+                    interval = max(interval, self.auth_retry_s)
             except Exception as exc:  # sidste værn: løkken må ikke dø stille
                 log.exception("Uventet fejl i poll-løkke for %s", self.key)
                 self._on_error(f"Intern fejl: {exc}")

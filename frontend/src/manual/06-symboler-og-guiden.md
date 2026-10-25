@@ -106,6 +106,10 @@ Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positio
 
 **Hurtigvalg af farver:** ved hvert farvefelt står små farveknapper med de farver, der allerede bruges — først animationernes egne, så symbolets tegnede farver og tegningens øvrige. Klik på en for at bruge den; den almindelige farvevælger ved siden af kan stadig bruges til nye farver.
 
+**Et tag med positionens nummer (pr. værdi):** har symbolet positioner, og styres en animation af *et tag*, kan du sætte hak i **Pr. værdi**. Så læses tagets værdi som positionens nummer (0 = første position, 1 = anden …), og animationen får én værdi pr. position — præcis som med *symbolets position* (fx greb-vinkel −45° / 0° / 45° på en 3-trins omskifter). Brug det, når PLC'en selv har et register med den aktuelle tilstand. Uden hak bruges tagets værdi som et tal mellem Min og Max.
+
+Med hak i *Pr. værdi* vises linjen **Tagets værdi → position**, hvor du afgrænser, hvilke værdier der hører til hver position: en *fra-værdi* pr. position (stigende, standard 0, 1, 2 …). Positionen er den sidste, hvis fra-værdi tagget har nået — fx *Fra ≥ 0, Hånd ≥ 50, Auto ≥ 100*: 0–49 giver Fra, 50–99 Hånd og 100 og derover Auto. Ligger værdien under den første fra-værdi, er der ingen position (delen vises som tegnet). Knappen står derfor aldrig midt imellem to positioner, uanset hvilken værdi tagget har.
+
 En animation kan også styres af **altid til** (i stedet for et tag): så er den altid aktiv — fx en flamme der altid blafrer, eller et løbelys der altid kører. (Ikke for *Niveau*, *Gennemsigtighed*, *Størrelse*, *Drej*, *Flyt* og *Værdi*, som skal have et tal.)
 
 Tal-animationerne — *Niveau*, *Gennemsigtighed*, *Størrelse*, *Drej* og *Flyt* — kan i stedet styres af **en fast værdi**: skriv et tal, og animationen bruger det, som om et tag havde den værdi (området er stadig *Min–Max* i parametrene). Fx *Størrelse* 50 med Min 0 / Max 100 giver halv størrelse mellem de to yderværdier. Det virker både på symbolet og på gruppernes animationer (fx lad alle rør i en gruppe være halvt gennemsigtige). En fast værdi er ikke et tag: den læses ikke fra PLC'en og kan ikke give kommunikationsfejl.

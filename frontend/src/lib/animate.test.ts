@@ -599,3 +599,34 @@ describe('bindingActive (v0.72.0)', () => {
     expect(bindingActive({ anim: 'flow', params: { only: [true, false] } }, lv(true), undefined, lv(1))).toBe(false);
   });
 });
+
+describe('tagets værdi → position (v1.13.0)', () => {
+  it('uden fra-værdier er værdien positionsnummeret', async () => {
+    const { posIndex } = await import('./animate');
+    expect(posIndex(2, {})).toBe(2);
+    expect(posIndex(true, {})).toBe(1);
+    expect(posIndex(null, {})).toBeNull();
+  });
+  it('med fra-værdier: den sidste nåede position — aldrig midt imellem', async () => {
+    const { posIndex } = await import('./animate');
+    const p = { pos_values: [0, 50, 100] };
+    expect(posIndex(0, p)).toBe(0);
+    expect(posIndex(49.9, p)).toBe(0);
+    expect(posIndex(50, p)).toBe(1);
+    expect(posIndex(75, p)).toBe(1);
+    expect(posIndex(100, p)).toBe(2);
+    expect(posIndex(250, p)).toBe(2);
+    expect(posIndex(-1, p)).toBeNull();          // under første fra-værdi: ingen position
+    expect(posIndex('x', p)).toBeNull();
+  });
+  it('drej følger positionens vinkel', async () => {
+    const { applyBinding } = await import('./animate');
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    document.createElementNS('http://www.w3.org/2000/svg', 'svg').appendChild(el);
+    const b = { element: 'r', tag: 'T', anim: 'rotate' as const, params: { pos: true, pos_values: [0, 10, 20], angles: [-45, 10, 45], glide_s: 0 } };
+    applyBinding(el, b, { value: 15, quality: 'good', ts: 0, error: null });
+    expect(`${el.getAttribute('transform') ?? ''} ${(el as SVGElement).style.transform}`).toMatch(/rotate\(10(deg| )/);
+    applyBinding(el, b, { value: 20, quality: 'good', ts: 0, error: null });
+    expect(`${el.getAttribute('transform') ?? ''} ${(el as SVGElement).style.transform}`).toMatch(/rotate\(45(deg| )/);
+  });
+});

@@ -8,7 +8,13 @@ export type SrcKind = 'pos' | 'bool' | 'num';
 
 export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null }
 export interface Plane { signal: string; values: (number | null)[] }
-export interface Anim { part: string; type: AnimType; src: string; params: Record<string, any>; only: boolean[] | null; when?: boolean }
+export interface Anim { part: string; type: AnimType; src: string; params: Record<string, any>; only: boolean[] | null; when?: boolean;
+  /** v1.12.0: tagets værdi ER positionsnummeret (0, 1, 2 …) — én værdi pr. position, som med kilden "symbolets position" */
+  by_value?: boolean;
+  /** v1.13.0: tag-værdien der hører til hver position ("fra-værdi", stigende); tom = værdien er positionsnummeret */
+  pos_values?: number[] | null }
+/** Animationer der kan have én værdi pr. position (og dermed "pr. værdi" fra et tag) */
+export const BY_VALUE_TYPES: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'rotate', 'move', 'flow'];
 export type Cmp = '' | 'ge' | 'le' | 'eq';
 /** Én indgang til en logikblok: et tag (til/fra, eller et tal sammenlignet med en grænse) eller en tidligere blok (`@L1`). */
 export interface LogicInput { src: string; neg: boolean; cmp: Cmp; value: number | null }
@@ -254,6 +260,15 @@ export function allowedOps(type: string, current?: Op): Op[] {
   return out.length ? out : ALL_OPS;
 }
 
+/**
+ * Betjeningsformerne i trin 1 (v1.11.1): de der giver mening for symboltypen, plus ALLE former symbolet har haft, mens guiden har været
+ * åben (`visited`). Ellers forsvandt fx *Kun visning*, så snart man havde valgt *Positioner* på en omskifter — og man kunne ikke vælge tilbage.
+ */
+export function opChoices(type: string, current: Op, visited: readonly Op[]): Op[] {
+  const allowed = allowedOps(type, current);
+  return ALL_OPS.filter((op) => allowed.includes(op) || visited.includes(op));
+}
+
 /** Eksemplet "7-trins vælger" giver kun mening for vælgere og egne tegninger — ikke for fx en ventil eller en pumpe. */
 export const offersSelectorExample = (type: string): boolean => type === 'custom' || type.startsWith('omskifter') || type === 'drejeomskifter' || type.startsWith('vippe_');
 
@@ -422,6 +437,10 @@ export function resize(cfg: SymbolConfig, kindOf: (signalId: string) => 'bool' |
   cfg.lock.positions = fit(cfg.lock.positions, () => false);
   for (const a of cfg.anims) {
     if (a.only) a.only = fit(a.only, () => true);
+    if (Array.isArray(a.pos_values)) {   // nye positioner får fra-værdien én over den forrige
+      const pv = a.pos_values;
+      a.pos_values = fit(pv, (j) => (pv.length ? pv[pv.length - 1] + (j - pv.length + 1) : j));
+    }
     const p = a.params;
     if (Array.isArray(p.colors)) p.colors = fit(p.colors, () => '#e4e4e4');
     if (Array.isArray(p.set)) p.set = fit(p.set, () => false);

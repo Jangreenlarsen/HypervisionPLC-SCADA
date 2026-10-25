@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeAt, animDefaults, cycleCell, isLogicRef, keepSuggestion, emptyConfig, foundPosition, parseValRef, partLabel, preset, resize, setOp, tagKind, template, typesFor, valRef,
+  activeAt, animDefaults, opChoices, cycleCell, isLogicRef, keepSuggestion, emptyConfig, foundPosition, parseValRef, partLabel, preset, resize, setOp, tagKind, template, typesFor, valRef,
   type PartInfo, type SymbolConfig, type SymbolInfo,
 } from './symbolConfig';
 
@@ -151,5 +151,17 @@ describe('fast værdi (@val:)', () => {
   it('er ikke en logikblok-henvisning', () => {
     expect(isLogicRef('@val:5')).toBe(false);
     expect(isLogicRef('@L1')).toBe(true);
+  });
+});
+
+describe('betjeningsformer i trin 1 (v1.11.1)', () => {
+  it('en form man har valgt fra, kan vælges igen', () => {
+    // ny omskifter: starter som "Kun visning" → både visning og positioner tilbydes
+    expect(opChoices('omskifter3', 'view', ['view'])).toEqual(['view', 'positions']);
+    // efter valg af Positioner står "Kun visning" der stadig (før forsvandt den)
+    expect(opChoices('omskifter3', 'positions', ['view', 'positions'])).toEqual(['view', 'positions']);
+    // uden historik: kun de former, der giver mening for typen (+ den aktuelle)
+    expect(opChoices('omskifter3', 'positions', ['positions'])).toEqual(['positions']);
+    expect(opChoices('tank', 'view', ['view'])).toEqual(['view']);
   });
 });

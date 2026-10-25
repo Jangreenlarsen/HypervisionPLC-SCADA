@@ -127,7 +127,10 @@ class PlcClient:
         if resp.status_code == 401:
             body, text = _parse(resp)
             raise PlcAuthError(
-                "Login afvist af PLC: " + extract_error_message(401, body, text), status=401
+                "Login afvist af PLC: " + extract_error_message(401, body, text)
+                + f" — PLC'en godkender ikke brugeren '{self._username}' med den gemte adgangskode. Tjek brugeren på PLC'en "
+                  "(er den slettet, eller er adgangskoden ændret, fx efter en flash med sletning?), eller sæt adgangskoden igen under PLC'er",
+                status=401,
             )
         body = self._handle(resp)
         token = body.get("token") if isinstance(body, dict) else None

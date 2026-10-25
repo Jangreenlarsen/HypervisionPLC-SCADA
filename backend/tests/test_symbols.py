@@ -470,3 +470,40 @@ def test_click_step_mode_is_stored_for_positions_and_shown_in_the_view(api):
     assert r.status_code == 200 and r.json()["config"]["click"] == "dialog"
     # kopieret opsætning bevarer valget
     put(api, dec_bin(click="step"))
+
+
+def test_by_value_tag_gives_one_value_per_position(api):
+    """v1.12.0: et tag hvis værdi er positionsnummeret (0, 1, 2 …) kan styre en animation med én værdi pr. position (som "symbolets
+    position") — fx greb-drej på en omskifter ud fra PLC'ens tilstands-register."""
+    rot = {"part": "V1_greb", "type": "rotate", "src": "Niveau", "by_value": True, "params": {"angles": [-90 + 30 * j for j in range(7)]}}
+    r = put(api, dec_bin(anims=[rot]))
+    assert r.status_code == 200, r.text
+    a = r.json()["config"]["anims"][0]
+    assert a["by_value"] is True and a["params"]["angles"] == [-90 + 30 * j for j in range(7)]
+    b = [x for x in api.get(f"/api/drawings/{api.did}/view").json()["bindings"] if x["anim"] == "rotate"][0]
+    assert b["tag"] == "Niveau" and b["params"]["pos"] is True and b["params"]["angles"][2] == -30
+    # forkert antal værdier afvises som ved "position"
+    r = put(api, dec_bin(anims=[{**rot, "params": {"angles": [0, 10]}}]))
+    assert r.status_code == 400 and "værdi pr. position" in r.text
+    # uden flaget: almindelig min/max-drejning (vinklerne pr. position ryddes)
+    r = put(api, dec_bin(anims=[{**rot, "by_value": False, "params": {"min": 0, "max": 100, "angle_min": 0, "angle_max": 90}}]))
+    assert r.status_code == 200 and r.json()["config"]["anims"][0]["params"]["angles"] is None
+    # uden positioner giver "pr. værdi" ingen mening
+    r = put(api, {"op": "view", "anims": [rot]})
+    assert r.status_code == 400 and "kræver, at symbolet har positioner" in r.text
+
+
+def test_by_value_with_value_ranges_per_position(api):
+    """v1.13.0: fra-værdi pr. position (stigende) — tagets værdi afgør positionen, så knappen aldrig står midt imellem."""
+    rot = {"part": "V1_greb", "type": "rotate", "src": "Niveau", "by_value": True,
+           "pos_values": [0, 10, 20, 30, 40, 50, 60], "params": {"angles": [-90 + 30 * j for j in range(7)]}}
+    r = put(api, dec_bin(anims=[rot]))
+    assert r.status_code == 200, r.text
+    b = [x for x in api.get(f"/api/drawings/{api.did}/view").json()["bindings"] if x["anim"] == "rotate"][0]
+    assert b["params"]["pos_values"] == [0, 10, 20, 30, 40, 50, 60] and b["params"]["pos"] is True
+    for bad in ([0, 10, 20], [0, 10, 10, 30, 40, 50, 60], [0, 20, 10, 30, 40, 50, 60]):
+        r = put(api, dec_bin(anims=[{**rot, "pos_values": bad}]))
+        assert r.status_code == 400 and ("fra-værdi" in r.text), (bad, r.text)
+    # uden "pr. værdi" ryddes fra-værdierne
+    r = put(api, dec_bin(anims=[{**rot, "by_value": False, "params": {"min": 0, "max": 100}}]))
+    assert r.status_code == 200 and r.json()["config"]["anims"][0]["pos_values"] is None

@@ -4,6 +4,28 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.13.0 build 0222] — 2026-10-25 — Pr. værdi: afgræns hvilke tag-værdier der hører til hver position
+
+- Jan: en omskifter har faste positioner, så knappen må ikke kunne stå midt imellem, hvis tagget har en uventet værdi. Med *Pr. værdi* angives nu en **fra-værdi pr. position** (stigende, standard 0, 1, 2 …): positionen er den sidste, hvis fra-værdi er nået; under den første: ingen position (delen som tegnet).
+- Backend: `Anim.pos_values` (valideres: én pr. position, stigende, endelige tal; ryddes uden *pr. værdi*), sendes som `params.pos_values`. Frontend: `posIndex()` i animate.ts bruges både til visning og til aktiv/passiv; ny linje *Tagets værdi → position* i trin 4; nye positioner forlænger fra-værdierne.
+- `backend/app/services/symbols.py`, `frontend/src/lib/{animate.ts,symbolConfig.ts,SymbolGuide.svelte}`, manualen, tests (backend 1, frontend 3).
+
+## [1.12.1 build 0221] — 2026-10-25 — PLC-login: tydelig besked og sjældnere genforsøg ved afvist login
+
+- "Login afvist af PLC" forklarer nu, at PLC'en ikke godkender brugeren med den gemte adgangskode, og hvad man gør (tjek brugeren på PLC'en / sæt adgangskoden igen under PLC'er).
+- Afvist login gentages kun hvert `auth_retry_s` (60 s) i stedet for hvert 1–10 s, så PLC'ens log og alarm for login-fejl ikke fyldes. Rettes adgangskoden, genstartes forbindelsen straks som før.
+- `backend/app/plc/client.py`, `services/plc_runtime.py`, `mock_plc/app.py` (tæller også afviste login), test.
+
+## [1.12.0 build 0220] — 2026-10-25 — Animationer: tag med positionens nummer ("pr. værdi")
+
+- Jan: ved en 3-trins knap gav *symbolets position* de rigtige tre vinkler, men *et tag* kun min/max-drejning. Nyt: for symboler med positioner kan en animation styret af et tag sættes til **Pr. værdi** — tagets værdi (0, 1, 2 …) vælger da værdien pr. position (vinkel, farve, synlig, blink, flyt, løbelys …) som med kilden *symbolets position*.
+- Backend: `Anim.by_value` (valideres som `@pos`: én værdi pr. position; kræver positioner; kun almindelige tags; ikke Værdi-teksten); bindingen får `params.pos`. Frontend: afkrydsning ved tag-valget i trin 4.
+- `backend/app/services/symbols.py`, `frontend/src/lib/{symbolConfig.ts,SymbolGuide.svelte}`, manualen, test.
+
+## [1.11.1 build 0219] — 2026-10-25 — fix: betjeningsform kan vælges tilbage i Opsæt symbol
+
+- Trin 1: en betjeningsform man har haft valgt, bliver stående i listen (`opChoices`), så man kan skifte frem og tilbage mellem fx *Kun visning* og *Positioner*. `frontend/src/lib/{symbolConfig.ts,SymbolGuide.svelte}`, test.
+
 ## [1.11.0 build 0218] — 2026-10-25 — Symboler med positioner: venstre/højre-betjening på tegningen
 
 - Ny indstilling i Opsæt symbol › trin 5 (*Betjening*) for symboler med positioner: **Dialog** (som hidtil) eller **Interaktiv** — tryk på symbolets venstre side for forrige position og højre side for næste. Stopper i enderne (besked). Bekræftelse og nøglelås gælder uændret (dialogen åbnes med den valgte position); hurtige tryk tæller videre fra den sidst bestilte position; ukendt vist position åbner dialogen. Musemarkøren bliver en venstre/højre-pil (`hv-step`).
