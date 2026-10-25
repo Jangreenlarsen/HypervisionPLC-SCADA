@@ -11,6 +11,8 @@ export interface SymbolView {
   has_pin: boolean;
   fault: string;
   pulse_ms?: number;
+  /** 'step' = tryk venstre/højre side af symbolet for at skifte position (v1.11.0) */
+  click?: 'dialog' | 'step';
   tag?: string;
   pseudo?: { pos: string; remote: string; state: string; locked: string };
   /** Trendgraf (v0.91.0). */
@@ -31,6 +33,26 @@ export function needsPin(s: SymbolView, shown: number | null, to: number): boole
 }
 
 export const lockedPosition = isLocked;
+
+export type StepResult =
+  | { kind: 'to'; to: number }
+  | { kind: 'limit'; end: 'first' | 'last' }   // allerede i første/sidste position
+  | { kind: 'dialog' };                        // den viste position kendes ikke: lad operatøren vælge
+
+/**
+ * Venstre/højre-betjening (v1.11.0): `side` −1 = venstre (forrige), +1 = højre (næste). `base` er positionen der regnes fra: den
+ * viste, eller — ved hurtige tryk, før PLC'en har svaret — den position der netop blev bestilt. Stopper i enderne (ingen rundt-om).
+ */
+export function stepTarget(s: SymbolView, base: number | null, side: -1 | 1): StepResult {
+  if (base === null || base < 0 || base >= s.labels.length) return { kind: 'dialog' };
+  const to = base + side;
+  if (to < 0) return { kind: 'limit', end: 'first' };
+  if (to >= s.labels.length) return { kind: 'limit', end: 'last' };
+  return { kind: 'to', to };
+}
+
+/** Hvilken side af symbolets billede (på skærmen) et klik rammer: −1 venstre halvdel, +1 højre. */
+export const clickSide = (clientX: number, rect: { left: number; width: number }): -1 | 1 => (clientX < rect.left + rect.width / 2 ? -1 : 1);
 
 export type ClickAction =
   | { kind: 'none' }

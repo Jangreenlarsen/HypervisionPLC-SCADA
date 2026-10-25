@@ -4,6 +4,18 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.11.0 build 0218] — 2026-10-25 — Symboler med positioner: venstre/højre-betjening på tegningen
+
+- Ny indstilling i Opsæt symbol › trin 5 (*Betjening*) for symboler med positioner: **Dialog** (som hidtil) eller **Interaktiv** — tryk på symbolets venstre side for forrige position og højre side for næste. Stopper i enderne (besked). Bekræftelse og nøglelås gælder uændret (dialogen åbnes med den valgte position); hurtige tryk tæller videre fra den sidst bestilte position; ukendt vist position åbner dialogen. Musemarkøren bliver en venstre/højre-pil (`hv-step`).
+- Backend: nyt felt `click` (`dialog`|`step`) i symbolopsætningen (standard `dialog`; nulstilles for symboler uden positioner), med i visningen og i backup. Ingen skemaændring (opsætningen er JSON).
+- `backend/app/services/symbols.py`, `frontend/src/lib/{symbolConfig.ts,symbolUi.ts,SymbolGuide.svelte}`, `pages/Overview.svelte`, `app.css`, manualen, tests (backend 1, frontend 5). Ikke set i browser.
+
+## [1.10.0 build 0217] — 2026-10-25 — Overview: beskeder i en fast plads, så tegningen ikke hopper
+
+- Alle beskeder på Overview (PLC-fejl med Kvittér, serverforbindelse, deaktiveret tegning, forsvundne bindinger, fejl og bekræftelser) vises nu i en fast **pille** yderst til højre i værktøjslinjen i stedet for som bannere over tegningen. Pillen viser den alvorligste besked (+ antal); et tryk åbner en liste over alle oven på tegningen (lukkes med klik udenfor/Esc). Tegningen flytter sig derfor aldrig, når en besked kommer og går (før: den hoppede ned og op).
+- Driftpanelet (uden værktøjslinje): pillen ligger øverst til højre over tegningen.
+- `frontend/src/lib/{messages.ts,MessageSlot.svelte}` (nye), `pages/Overview.svelte`, manualen, test (3 nye). Ikke set i browser. Den globale mørke topbjælke er ikke brugt (den ejes af App-rammen) — kan flyttes dertil, hvis ønsket.
+
 ## [1.9.2 build 0216] — 2026-10-25 — fix: ST-variabel bundet som INPUT skrives via sit register
 
 - Hører en ST-variabel til en input-binding (↔ Begge / Input) i PLC'en, skriver SCADA nu det bundne register (HR eller coil) i stedet for at vise PLC'ens afvisning. 32-bit skrives lav ord først. DI afvises tydeligt. Tilbagelæsning venter op til ca. 1,5 s på næste ST-cyklus; audit nævner registret.

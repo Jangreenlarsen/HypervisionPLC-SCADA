@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clickAction, needsPin, operateLabel, pickAction, type SymbolView } from './symbolUi';
+import { clickAction, clickSide, needsPin, operateLabel, pickAction, stepTarget, type SymbolView } from './symbolUi';
 
 const sym = (over: Partial<SymbolView> = {}): SymbolView => ({
   op: 'positions', labels: ['Stop', 'Start'], display: 'remote', confirm: true, lock_positions: [false, false],
@@ -45,5 +45,36 @@ describe('nøglelås', () => {
     expect(pickAction({ ...s, confirm: false }, 1, 2)).toBe('operate');
     expect(pickAction({ ...s, confirm: false }, 1, 0)).toBe('pick');
     expect(pickAction(s, 1, 2)).toBe('pick');
+  });
+});
+
+describe('venstre/højre-betjening (v1.11.0)', () => {
+  const sw = { op: 'positions', labels: ['0', '1', '2', '3', '4'], display: 'remote', confirm: false, lock_positions: [], lock_leave: false,
+    has_pin: false, fault: '', click: 'step' } as SymbolView;
+  it('venstre = forrige, højre = næste', () => {
+    expect(stepTarget(sw, 2, -1)).toEqual({ kind: 'to', to: 1 });
+    expect(stepTarget(sw, 2, 1)).toEqual({ kind: 'to', to: 3 });
+  });
+  it('stopper i enderne i stedet for at gå rundt', () => {
+    expect(stepTarget(sw, 0, -1)).toEqual({ kind: 'limit', end: 'first' });
+    expect(stepTarget(sw, 4, 1)).toEqual({ kind: 'limit', end: 'last' });
+    expect(stepTarget(sw, 4, -1)).toEqual({ kind: 'to', to: 3 });
+  });
+  it('ukendt eller ugyldig position giver dialogen', () => {
+    expect(stepTarget(sw, null, 1)).toEqual({ kind: 'dialog' });
+    expect(stepTarget(sw, 9, 1)).toEqual({ kind: 'dialog' });
+    expect(stepTarget(sw, -1, 1)).toEqual({ kind: 'dialog' });
+  });
+  it('klik på venstre eller højre halvdel af symbolet', () => {
+    const rect = { left: 100, width: 80 };
+    expect(clickSide(120, rect)).toBe(-1);
+    expect(clickSide(139, rect)).toBe(-1);
+    expect(clickSide(140, rect)).toBe(1);   // præcis midt = højre
+    expect(clickSide(179, rect)).toBe(1);
+  });
+  it('bekræftelse eller kode åbner stadig dialogen med den valgte position', () => {
+    expect(pickAction(sw, 2, 3)).toBe('operate');
+    expect(pickAction({ ...sw, confirm: true }, 2, 3)).toBe('pick');
+    expect(pickAction({ ...sw, lock_positions: [false, false, false, true, false], has_pin: true }, 2, 3)).toBe('pick');
   });
 });

@@ -81,6 +81,15 @@ Vil du have en animation, der kun er aktiv, når **flere ting er sande** — fx 
 - Vælg blokken som **kilde** i en animation (*en logikblok*), eller som **Retning fra** for et løbelys.
 - Trin 6 viser hver blok og dens værdi lige nu.
 
+## Betjening på tegningen: dialog eller venstre/højre
+
+Har symbolet **positioner**, vælger du i trin 5 (*Betjening*), hvordan operatøren skifter position:
+
+- **Dialog** (standard): et tryk åbner en boks, hvor positionen vælges.
+- **Interaktiv**: tryk på symbolets **venstre side** for at gå til forrige position og på **højre side** for næste — praktisk til en omskifter med mange positioner. Der er ingen dialog; musemarkøren bliver til en venstre/højre-pil over symbolet. I første/sidste position får operatøren besked om, at der ikke er flere (der gås ikke rundt).
+
+Bekræftelse og nøglelås gælder uændret: kræver positionen bekræftelse eller kode, åbnes dialogen med den valgte position, så den kan bekræftes eller låses op. Hurtige tryk, før PLC'en har svaret, tæller videre fra den position, der sidst blev bestilt. Kendes den viste position ikke endnu (ingen tilbagemelding), åbnes dialogen i stedet.
+
 ## Nøglelås
 
 I trin 5 kan du vælge de **positioner**, der kræver en **kode** (4 cifre). Operatøren skal indtaste koden, før den position kan vælges; **Koden kræves også for at forlade en låst position** er valgfrit. Koden gemmes kun som hash på serveren, vises aldrig igen og kommer ikke med i backup — efter en gendannelse skal den sættes igen. **Fjern kode** sletter den.

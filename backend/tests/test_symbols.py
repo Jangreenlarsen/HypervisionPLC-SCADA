@@ -454,3 +454,19 @@ def test_rotate_speed(api):
         if code == 200:
             assert r.json()["config"]["anims"][0]["params"]["glide_s"] == glide
 
+
+
+def test_click_step_mode_is_stored_for_positions_and_shown_in_the_view(api):
+    """v1.11.0: "step" = tryk venstre/højre side af symbolet for at skifte position. Standard er dialog."""
+    r = put(api, dec_bin())
+    assert r.status_code == 200 and r.json()["config"]["click"] == "dialog"
+    r = put(api, dec_bin(click="step"))
+    assert r.status_code == 200 and r.json()["config"]["click"] == "step"
+    assert api.get(f"/api/drawings/{api.did}/view").json()["symbol_config"]["V1"]["click"] == "step"
+    assert api.get(f"/api/drawings/{api.did}/symbols/V1/config").json()["config"]["click"] == "step"
+    # ugyldig værdi afvises; og for symboler uden positioner nulstilles den (har ingen betydning)
+    assert put(api, dec_bin(click="swipe")).status_code == 400
+    r = put(api, {"op": "view", "click": "step", "anims": [{"part": "V1_greb", "type": "fill", "src": "Bit0", "params": {}}]})
+    assert r.status_code == 200 and r.json()["config"]["click"] == "dialog"
+    # kopieret opsætning bevarer valget
+    put(api, dec_bin(click="step"))
