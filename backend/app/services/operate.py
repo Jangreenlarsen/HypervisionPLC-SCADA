@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import struct
 from typing import Any
 
 from ..plc.client import ext_base
@@ -77,6 +78,7 @@ class OperateService:
         self.db = manager.db
         self.audit = audit
         self._locks: dict[str, asyncio.Lock] = {}
+        self._via: dict[str, str] = {}   # kilde → register der blev skrevet i stedet for en input-bundet ST-variabel
 
     def _prepare(self, tag_name: str, allowed: set[str] | None = None) -> tuple[dict[str, Any], TagSource, Any]:
         if allowed is not None and tag_name not in allowed:
@@ -101,7 +103,14 @@ class OperateService:
             # Med `wait`: PLC'en svarer når slaven har bekræftet, fejlet eller ikke nået at svare
             return await runtime.client.write_ext(ext_base(source), source.kind, source.addr, raw, source.datatype)
         if source.kind == "logic":
-            await runtime.client.write_logic_var(source.program, source.var, raw)
+            try:
+                await runtime.client.write_logic_var(source.program, source.var, raw)
+            except PlcApiError as exc:
+                # PLC'en afviser en variabel, der er bundet som INPUT fra et register (den ville blive overskrevet hver cyklus).
+                # Så skriver vi i stedet det register, variablen læser fra — det er det, bindingen er til for.
+                if exc.status != 409 or "bound as input" not in exc.message.lower():
+                    raise
+                self._via[str(source)] = await self._write_via_input_binding(runtime, source, raw)
             return "ok"
         if source.kind == "global":
             await runtime.client.write_global(source.var, raw)
@@ -112,6 +121,39 @@ class OperateService:
         else:
             await runtime.client.write_hr(source.addr, raw, source.datatype)
             return "ok"
+
+    async def _write_via_input_binding(self, runtime: Any, source: TagSource, raw: Any) -> str:
+        """Skriv det register, som ST-variablen er bundet til som INPUT (HR eller coil). → "HR 18" (til audit og besked).
+        32-bit-typer skrives som to registre, lav ord først (som PLC'ens input-binding læser dem)."""
+        items = await runtime.client.bindings()
+        mine = [b for b in items if b.get("direction") == "input" and b.get("program") == source.program
+                and b.get("name") == source.var]
+        if not mine:
+            raise ServiceError(409, f"PLC'en siger, at '{source.var}' er bundet som input, men bindingen kunne ikke findes — "
+                                    "kontrollér bindingen på PLC'en")
+        b = mine[0]
+        rtype, addr, vtype = str(b.get("register_type")), int(b.get("register_addr", -1)), str(b.get("type", "INT")).upper()
+        if rtype == "DI":
+            raise ServiceError(409, f"'{source.var}' er bundet som input fra et digitalt input (DI {addr}) — det kan kun læses, "
+                                    "ikke skrives")
+        if rtype == "Coil":
+            await runtime.client.write_coil(addr, bool(raw))
+            return f"coil {addr}"
+        if vtype == "BOOL":
+            words = [1 if raw else 0]
+        elif vtype == "INT":
+            words = [int(raw) & 0xFFFF]
+        elif vtype in ("DINT", "DWORD", "TIME"):
+            v = int(raw) & 0xFFFFFFFF
+            words = [v & 0xFFFF, v >> 16]
+        elif vtype == "REAL":
+            bits = struct.unpack("<I", struct.pack("<f", float(raw)))[0]
+            words = [bits & 0xFFFF, bits >> 16]
+        else:
+            raise ServiceError(409, f"'{source.var}' ({vtype}) kan ikke skrives via sit input-register")
+        for i, w in enumerate(words):
+            await runtime.client.write_hr(addr + i, w, "uint")
+        return f"HR {addr}" + (f"–{addr + len(words) - 1}" if len(words) > 1 else "")
 
     async def _readback(self, runtime: Any, source: TagSource, tag: dict[str, Any]) -> Any:
         if source.kind in ("logic", "global"):
@@ -193,7 +235,15 @@ class OperateService:
                     detail.update(raw=raw, written=actual)
                 try:
                     confirmed = await self._write_raw(runtime, source, raw)
+                    via = self._via.pop(str(source), None)
                     readback = await self._readback(runtime, source, tag)
+                    if via:   # variablen får værdien fra registret ved næste ST-cyklus — giv den et øjeblik
+                        detail["via_register"] = via
+                        for _ in range(6):
+                            if readback is not None and self._same(readback, actual):
+                                break
+                            await asyncio.sleep(0.25)
+                            readback = await self._readback(runtime, source, tag)
                 except PlcError as exc:
                     raise _plc_error(exc, "Skrivning fejlede") from exc
             runtime.poke()

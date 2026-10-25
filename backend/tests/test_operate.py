@@ -345,10 +345,11 @@ def test_write_st_variable_errors_are_specific(api, mock_plc):
     api.post("/api/tags", json={"name": "ST_Ukendt", "source": "plc1:logic:1:FindesIkke", "writable": True})
     r = api.post("/api/tags/ST_Ukendt/write", json={"value": 1})
     assert "not found" in r.json()["error"] and "firmwaren" not in r.json()["error"]
-    mock_plc.state.input_bound.add((1, "Starter"))
+    mock_plc.state.bindings = [{"program": 1, "name": "Starter", "type": "INT", "direction": "input", "word_count": 1,
+                                "register_type": "DI", "register_addr": 3}]
     r = api.post("/api/tags/ST_Start/write", json={"value": 1})
-    assert "INPUT" in r.json()["error"]
-    mock_plc.state.input_bound.clear()
+    assert r.status_code == 409 and "digitalt input" in r.json()["error"], r.text   # DI kan kun læses
+    mock_plc.state.bindings = []
     mock_plc.state.var_write = False   # ældre firmware uden endpointet
     r = api.post("/api/tags/ST_Start/write", json={"value": 1})
     assert r.status_code >= 400 and "v7.9.68.141" in r.json()["error"], r.text
@@ -362,3 +363,33 @@ def test_to_raw_for_st_variables_scales_and_keeps_type():
     assert to_raw(50, src, 0.1, 0.0) == (500, 50)
     with pytest.raises(ServiceError):
         to_raw("x", src, 1.0, 0.0)
+
+
+def test_st_variable_bound_as_input_is_written_through_its_register(api, mock_plc):
+    """Regression (v1.9.2): en ST-variabel bundet som INPUT (↔ Begge) afvises af PLC'en ("bound as INPUT from HR 18") — SCADA skriver
+    så det register, bindingen læser fra, i stedet for at give en fejl."""
+    st = mock_plc.state
+    bind = lambda name, typ, kind, addr: {"program": 1, "name": name, "type": typ, "direction": "input", "word_count": 1,   # noqa: E731
+                                          "register_type": kind, "register_addr": addr}
+    st.programs[1]["variables"] += [{"index": 3, "name": "Mode", "type": "INT", "value": 0},
+                                    {"index": 4, "name": "Stor", "type": "DINT", "value": 0},
+                                    {"index": 5, "name": "Maal", "type": "REAL", "value": 0.0},
+                                    {"index": 6, "name": "Flag", "type": "BOOL", "value": False}]
+    st.bindings = [bind("Mode", "INT", "HR", 18), bind("Stor", "DINT", "HR", 40), bind("Maal", "REAL", "HR", 50),
+                   bind("Flag", "BOOL", "Coil", 7)]
+    for name, src in (("T_Mode", "Mode"), ("T_Stor", "Stor"), ("T_Maal", "Maal"), ("T_Flag", "Flag")):
+        assert api.post("/api/tags", json={"name": name, "source": f"plc1:logic:1:{src}", "writable": True}).status_code == 201
+    var = lambda n: next(v for v in st.programs[1]["variables"] if v["name"] == n)["value"]   # noqa: E731
+    r = api.post("/api/tags/T_Mode/write", json={"value": 2})
+    assert r.status_code == 200 and r.json()["matches"] is True, r.text
+    assert st.hr[18] == 2 and var("Mode") == 2
+    r = api.post("/api/tags/T_Mode/write", json={"value": -3})
+    assert st.hr[18] == 65533 and var("Mode") == -3 and r.json()["matches"] is True      # INT: to's komplement
+    assert api.post("/api/tags/T_Stor/write", json={"value": -70000}).json()["matches"] is True
+    assert var("Stor") == -70000 and st.hr[40] == (-70000 & 0xFFFF) and st.hr[41] == ((-70000 & 0xFFFFFFFF) >> 16)   # lav ord først
+    assert api.post("/api/tags/T_Maal/write", json={"value": 12.5}).json()["matches"] is True and var("Maal") == 12.5
+    assert api.post("/api/tags/T_Flag/write", json={"value": True}).json()["matches"] is True
+    assert st.coils[7] is True and var("Flag") is True
+    # audit nævner registret
+    api_audit = [e for e in api.get("/api/audit?limit=20").json() if e["target"] == "T_Mode"]
+    assert api_audit and api_audit[0]["detail"].get("via_register") == "HR 18"

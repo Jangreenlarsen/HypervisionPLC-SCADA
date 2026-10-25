@@ -2,6 +2,10 @@
 
 ---
 
+## v1.9.2 — 2026-10-25 — Betjening af ST-variabler bundet til registre
+
+- Symboler og tags på ST-variabler, der i PLC'en er bundet til et register (input/begge), kan nu betjenes: SCADA skriver automatisk registret, variablen læser fra. Før fik du fejlen "bound as INPUT from HR …".
+
 ## v1.9.1 — 2026-10-25 — Tydelig fejl når et tag i brug ikke kan slettes
 
 - Prøver du at slette et tag, der er i brug, står fejlen nu lige under tagget og nævner hvilke tegninger der bruger det.
