@@ -2,6 +2,10 @@
 
 ---
 
+## v1.14.0 — 2026-10-25 — Gradtal for omskifterens positioner
+
+- Når du sætter grebets drejning op pr. position på en omskifter, står tegningens gradtal nu under felterne (og er udfyldt som standard), så du ikke skal gætte inddelingen.
+
 ## v1.13.1 — 2026-10-25 — Enklere opsætning ved Pr. værdi
 
 - Feltet *Gælder i* vises ikke længere, når en animation styres af et tag med *Pr. værdi* — det gjaldt symbolets egen position og var forvirrende dér.

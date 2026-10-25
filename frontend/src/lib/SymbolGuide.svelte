@@ -17,7 +17,7 @@
   import { mergePalette, paramColors, svgColors } from './usedColors';
   import { KIND_TXT, groupAnimsOn, groupColor, groupsOf, listGroups, type OwnerBlock, type SymbolGroup } from './symbolGroups';
   import { CHART_RANGES, FONT_SCALES, LEGEND_PLACES, MAX_CHART_TAGS, defaultChart, legendOf } from './chartGraphic';
-  import { SELECTOR_TYPES, selectorMismatch } from './selectorRedraw';
+  import { SELECTOR_TYPES, drawnSelectorAngles, drawnSelectorLabels, selectorMismatch } from './selectorRedraw';
   import { DIR_TXT, applyLever, leverDirs, leverInSync, type LeverDir } from './toggleSwitch';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
@@ -78,6 +78,10 @@
     const v = liveVals[tag]?.value;   // ST-variabel: typen kendes fra live-værdien
     return typeof v === 'boolean' ? 'bool' : typeof v === 'number' ? 'num' : 'unknown';
   }
+  // Omskifter fra biblioteket: grebets vinkler i tegningen, så Drej pr. position ikke skal gættes (v1.14.0)
+  const isSelector = $derived(!!symbol && SELECTOR_TYPES.has(symbol.type));
+  const drawnLabels = $derived(isSelector && symbol ? drawnSelectorLabels(symbol.parts) : []);
+  const selectorAnglesNow = $derived(isSelector ? drawnSelectorAngles(drawnLabels.length, cfg.positions.length) : null);
   const byValue = (a: Anim): boolean => !!a.by_value && isPos && !!a.src && !a.src.startsWith('@') && BY_VALUE_TYPES.includes(a.type);
   const srcKind = (a: Anim): SrcKind => (a.src === POS || byValue(a) ? 'pos' : a.src === ON || parseAlarmRef(a.src) || isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
   const n = $derived(cfg.positions.length);
@@ -411,6 +415,8 @@
     if (parseValRef(a.src) !== null && !VAL_TYPES.includes(a.type)) a.src = '';   // en fast værdi passer kun til tal-animationer
     const fresh = animDefaults(a.type, srcKind(a), n);
     const before = wasSrc === undefined ? undefined : animDefaults(a.type, srcKind({ ...a, src: wasSrc }), n);
+    // Drej pr. position på en omskifter: start med tegningens vinkler i stedet for et gæt
+    if (a.type === 'rotate' && srcKind(a) === 'pos' && selectorAnglesNow) fresh.angles = [...selectorAnglesNow];
     if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
     if (a.src !== POS) a.only = isPos ? a.only : null;
   }
@@ -870,6 +876,19 @@
                 </div>
               {/if}
               <AnimParams {a} {kind} positions={cfg.positions} logic={cfg.logic} {pool} {tags} {valueOf} {metaOf} {palette} />
+              {#if isSelector && a.type === 'rotate' && kind === 'pos'}
+                <div class="row wrap small selector-angles">
+                  {#if selectorAnglesNow}
+                    <span class="muted">Tegningens vinkler:</span>
+                    {#each cfg.positions as pos, j}<span><strong>{pos.label}</strong> {selectorAnglesNow[j]}°</span>{/each}
+                    {#if (a.params.angles ?? []).some((v: number, j: number) => Number(v) !== selectorAnglesNow[j])}
+                      <button class="small" onclick={() => (a.params.angles = [...selectorAnglesNow!])}>Brug tegningens vinkler</button>
+                    {:else}<span class="muted">✓ passer med tegningen</span>{/if}
+                  {:else}
+                    <span class="muted">Tegningen viser {drawnLabels.length} positioner og opsætningen {cfg.positions.length} — tegn omskifteren igen i Tegn, så vinklerne passer (se trin 3).</span>
+                  {/if}
+                </div>
+              {/if}
               {#if WHEN_TYPES.includes(a.type)}
                 <label class="opt small">Når den ikke er aktiv:
                   <select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">
@@ -1090,6 +1109,7 @@
   .active-row td { background: var(--panel-2); }
   .name { min-width: 14em; }
   .logic .input { margin: .15rem 0 .15rem 1rem; }
+  .selector-angles { gap: .3rem .8rem; margin: .2rem 0 .1rem; }
   .anim { border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem; margin: .35rem 0; background: var(--panel-2); }
   .errors { color: var(--alarm); margin: .5rem 0; }
   .warnings { color: var(--warn); }

@@ -28,3 +28,19 @@ describe('omskifterens tegning følger opsætningen (v0.91.1)', () => {
     expect(cfg.anims[0].params.angles).toEqual([-45, 0, 45, 0, 0]);   // originalen er uændret
   });
 });
+
+describe('tegningens vinkler for omskifterens greb (v1.14.0)', () => {
+  it('giver vinklerne for det tegnede antal positioner, når det passer med opsætningen', async () => {
+    const { drawnSelectorAngles } = await import('./selectorRedraw');
+    expect(drawnSelectorAngles(3, 3)).toEqual([-45, 0, 45]);
+    expect(drawnSelectorAngles(4, 4)).toEqual([-67.5, -22.5, 22.5, 67.5]);
+    expect(drawnSelectorAngles(2, 2)).toEqual([-30, 30]);
+    expect(drawnSelectorAngles(3, 4)).toBeNull();     // tegning og opsætning har ikke samme antal
+    expect(drawnSelectorAngles(0, 3)).toBeNull();
+  });
+  it('finder navnene i tegningen (tekst-dele uden pid)', async () => {
+    const { drawnSelectorLabels } = await import('./selectorRedraw');
+    expect(drawnSelectorLabels({ a: { tag: 'text', text: 'Hånd' }, b: { tag: 'text', pid: 'titel', text: 'X' }, c: { tag: 'path' }, d: { tag: 'text', text: 'Auto' } }))
+      .toEqual(['Hånd', 'Auto']);
+  });
+});

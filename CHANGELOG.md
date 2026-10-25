@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.14.0 build 0224] — 2026-10-25 — Omskifter: tegningens gradtal ved Drej pr. position
+
+- Opsæt symbol › Animationer: for bibliotekets omskiftere (omskifter, omskifter3, drejeomskifter) vises **Tegningens vinkler** under *Drej* pr. position (kilde *symbolets position* eller *pr. værdi*), med knappen *Brug tegningens vinkler*. Nye/ændrede Drej-animationer starter med tegningens vinkler i stedet for et gæt (−45…45). Har tegningen et andet antal positioner end opsætningen, vises en besked i stedet.
+- `frontend/src/lib/{selectorRedraw.ts,SymbolGuide.svelte}`, manualen, tests (2 nye).
+
 ## [1.13.1 build 0223] — 2026-10-25 — "Gælder i" skjules ved "Pr. værdi"
 
 - "Gælder i" læser symbolets EGEN position, ikke positionen afledt af tagget, og var forvirrende ved siden af fra-værdierne. Ved *Pr. værdi* skjules den nu i guiden, og serveren rydder den (`only`). Uden *Pr. værdi* er den uændret.
