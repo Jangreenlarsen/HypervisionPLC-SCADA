@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.12.1 build 0221] — 2026-10-25 — PLC-login: tydelig besked og sjældnere genforsøg ved afvist login
+
+- "Login afvist af PLC" forklarer nu, at PLC'en ikke godkender brugeren med den gemte adgangskode, og hvad man gør (tjek brugeren på PLC'en / sæt adgangskoden igen under PLC'er).
+- Afvist login gentages kun hvert `auth_retry_s` (60 s) i stedet for hvert 1–10 s, så PLC'ens log og alarm for login-fejl ikke fyldes. Rettes adgangskoden, genstartes forbindelsen straks som før.
+- `backend/app/plc/client.py`, `services/plc_runtime.py`, `mock_plc/app.py` (tæller også afviste login), test.
+
 ## [1.12.0 build 0220] — 2026-10-25 — Animationer: tag med positionens nummer ("pr. værdi")
 
 - Jan: ved en 3-trins knap gav *symbolets position* de rigtige tre vinkler, men *et tag* kun min/max-drejning. Nyt: for symboler med positioner kan en animation styret af et tag sættes til **Pr. værdi** — tagets værdi (0, 1, 2 …) vælger da værdien pr. position (vinkel, farve, synlig, blink, flyt, løbelys …) som med kilden *symbolets position*.

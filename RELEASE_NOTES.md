@@ -2,6 +2,10 @@
 
 ---
 
+## v1.12.1 — 2026-10-25 — Tydeligere ved afvist PLC-login
+
+- Afviser PLC'en SCADA's bruger (forkert adgangskode, eller brugeren findes ikke på PLC'en), siger beskeden nu præcis det og hvad du skal gøre. SCADA prøver kun at logge ind igen hvert minut, så PLC'en ikke fyldes med login-fejl.
+
 ## v1.12.0 — 2026-10-25 — Animation pr. værdi fra et tag
 
 - Styres en animation af et tag, hvis værdi er positionens nummer (0, 1, 2 …), kan du nu sætte hak i **Pr. værdi** — så får hver position sin egen vinkel/farve osv., ligesom med *symbolets position*.
