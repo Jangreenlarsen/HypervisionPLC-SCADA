@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.8.3 build 0213] — 2026-10-25 — fix: Opsæt symbol-guiden er smallere og kræver ikke vandret rulning
+
+- Guiden max 780 px (før 960); signal-tabellen i trin 2 med faste kolonner. `frontend/src/lib/SymbolGuide.svelte`.
+
 ## [1.8.2 build 0212] — 2026-10-25 — fix: netværksskift fra web afvistes ("fallback_after: ukendt felt")
 
 - `NetworkBody` kender nu `fallback_after` (siden sender det altid). Regression siden v0.123.0: ingen netværksændring kunne anvendes fra System › Konfiguration.

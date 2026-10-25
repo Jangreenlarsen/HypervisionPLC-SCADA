@@ -2,6 +2,10 @@
 
 ---
 
+## v1.8.3 — 2026-10-25 — Smallere Opsæt symbol
+
+- Opsæt symbol-guiden er gjort smallere, så den passer i visningen uden at man skal rulle sidelæns.
+
 ## v1.8.2 — 2026-10-25 — Rettelse: skift af IP-adresse fra web
 
 - Rettet en fejl, der gjorde, at **ingen** netværksændring (fast IP, DHCP …) kunne anvendes under System › Konfiguration — siden viste "Ugyldigt input — fallback_after: ukendt felt". Det virker nu igen.
