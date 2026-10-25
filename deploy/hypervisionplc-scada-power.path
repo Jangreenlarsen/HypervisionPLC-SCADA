@@ -1,0 +1,9 @@
+[Unit]
+Description=Venter på en genstart-anmodning fra HypervisionPLC SCADA
+
+[Path]
+PathExists=/var/lib/hypervisionplc-scada/config/power.request
+Unit=hypervisionplc-scada-power.service
+
+[Install]
+WantedBy=multi-user.target

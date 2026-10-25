@@ -2,6 +2,11 @@
 
 ---
 
+## v1.8.0 — 2026-10-25 — Genstart fra web
+
+- Under **System › Konfiguration › Genstart** kan admin genstarte SCADA-tjenesten eller hele maskinen — fx efter et skift til fast IP-adresse. Siden venter og genindlæser sig selv, når serveren er tilbage.
+- Kræver, at maskinen opdateres med denne version én gang (installationen sætter hjælperen op).
+
 ## v1.7.0 — 2026-10-24 — Skriv til ST-variabler
 
 - Tags på ST-variabler og GLOBAL_VAR kan nu gøres **skrivbare** og betjenes fra Overview (setpunkt, knapper, positioner, ugeprogrammer). Kræver at PLC'en er opdateret til firmware **v7.9.68.141** eller nyere — ellers får du en tydelig besked.

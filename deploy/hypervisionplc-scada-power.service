@@ -1,0 +1,13 @@
+[Unit]
+Description=Genstart SCADA-tjenesten eller maskinen efter anmodning fra HypervisionPLC SCADA (root)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/hypervisionplc-scada/apply-power.sh
+TimeoutStartSec=60
+# Hærdning: kun det scriptet skal bruge er skrivbart (systemctl taler med systemd over D-Bus)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/hypervisionplc-scada-net /var/lib/hypervisionplc-scada/config

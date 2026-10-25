@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.8.0 build 0210] — 2026-10-25 — Genstart fra web (SCADA-tjenesten eller maskinen)
+
+- Ny sektion **Genstart** i System › Konfiguration (admin): *Genstart SCADA-tjenesten* og *Genstart maskinen* (fx efter skift til fast IP-adresse), med bekræftelse. Siden venter på serveren og genindlæser, når den svarer igen (op til 6 min.).
+- Samme mønster som netværksopsætningen: tjenesten (ikke-privilegeret) lægger `power.request` i `<data>/config/`; en root-hjælper (`deploy/apply-power.sh`, udløst af `hypervisionplc-scada-power.path`) flytter den ind i sin egen mappe, afviser symlinks, ukendte handlinger og anmodninger ældre end 2 min., fjerner anmodningen FØR handlingen og udfører `systemctl restart hypervisionplc-scada` / `systemctl reboot` efter 3 s (så svaret når frem). Ingen værdi fra filen når et shell.
+- `install.sh` installerer hjælperen og enhederne og sætter markøren `power-enabled`; på maskiner uden den (ikke opdateret endnu) viser siden en tydelig besked i stedet for knapper.
+- API: `GET/POST /api/system/power` (admin, audit `system.power`); dobbelt-bestilling afvises (409).
+- `deploy/{apply-power.sh,hypervisionplc-scada-power.path,hypervisionplc-scada-power.service,install.sh}`, `backend/app/services/power.py`, `api/system_power.py`, `main.py`, `frontend/src/pages/SystemConfig.svelte`, manualen, tests (4 nye + hjælperscriptet afprøvet med stub). Symlink-afvisningen kunne ikke afprøves på Windows.
+
 ## [1.7.0 build 0209] — 2026-10-24 — ST-variabler kan skrives (kræver PLC-firmware v7.9.68.141)
 
 - Tags på ST-variabler (`plcN:logic:<prog>:<var>`) og GLOBAL_VAR (`plcN:global:<var>`) kan nu være skrivbare. Setpunkt, trykknap, til/fra-skift, symbolpositioner og ugeprogrammer bruger dem som almindelige tags. Skrivningen går via PLC'ens nye `POST /api/logic/{id}/var` og `POST /api/logic/globals/var` (HypervisionPLC FEAT-503, v7.9.68.141), og tilbagelæsning sker fra variabellisten.
