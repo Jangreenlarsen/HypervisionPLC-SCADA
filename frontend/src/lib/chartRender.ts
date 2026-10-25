@@ -41,9 +41,7 @@ function boxInRoot(root: SVGSVGElement, frame: SVGGraphicsElement): Box | null {
  * Fejl ved hentning vises i grafen (serverens tekst), ikke som en fejl på hele siden.
  */
 export function mountCharts(root: SVGSVGElement | null, symbols: Record<string, { chart?: ChartCfg | null }>, meta: Meta): () => void {
-  const timers: ReturnType<typeof setInterval>[] = [];
-  const groups: SVGElement[] = [];
-  let stopped = false;
+  const stops: (() => void)[] = [];
   if (!root) return () => {};
   for (const [element, s] of Object.entries(symbols)) {
     const cfg = s.chart;
@@ -60,9 +58,21 @@ export function mountCharts(root: SVGSVGElement | null, symbols: Record<string, 
     if (!found || found.w < 20 || found.h < 20) continue;
     const box = found;
     sym.querySelectorAll('[data-hv-pid="eksempel"],[data-hv-pid="titel"]').forEach((n) => ((n as SVGElement).style.display = 'none'));
+    stops.push(mountChartIn(root, box, cfg, meta, element));
+
+  }
+  return () => stops.forEach((stop) => stop());
+}
+
+/**
+ * Tegn ÉN graf i `box` (rodens koordinater) og hent historikken løbende (v1.15.0: også brugt af den store visning, ChartBig.svelte).
+ * En større boks giver flere punkter, diagramlinjer og tekst — grafen strækkes ikke. → stop-funktion.
+ */
+export function mountChartIn(root: SVGSVGElement, box: Box, cfg: ChartCfg, meta: Meta, element = ''): () => void {
+  let stopped = false;
+  const timers: ReturnType<typeof setInterval>[] = [];
     const g = el('g', { class: 'hv-chart', 'pointer-events': 'none', 'data-hv-chart': element });
     root.appendChild(g);
-    groups.push(g);
 
     const label = (t: string) => meta[t]?.description || t;
     const lg = legendOf(cfg);
@@ -130,10 +140,9 @@ export function mountCharts(root: SVGSVGElement | null, symbols: Record<string, 
     render(null);
     void load();
     timers.push(setInterval(load, refreshSeconds(cfg, plotW) * 1000));
-  }
   return () => {
     stopped = true;
     timers.forEach(clearInterval);
-    groups.forEach((g) => g.remove());
+    g.remove();
   };
 }

@@ -185,3 +185,4 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v1.12.0 — Animationer: tag med positionens nummer (pr. værdi) giver én værdi pr. position
 - [x] done v1.13.0 — Pr. værdi: fra-værdi pr. position, så et tag altid giver en fast position
 - [x] done v1.14.0 — Omskifter: tegningens gradtal vises/udfyldes ved Drej pr. position
+- [x] done v1.15.0 — Trendgraf i stor udgave ved tryk (med periodevalg og tilbage til tegningen)

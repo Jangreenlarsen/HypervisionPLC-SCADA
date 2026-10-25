@@ -162,6 +162,7 @@ text.hv-nav-badge-active, text.hv-nav-badge-unack { fill: #fff; }
 .prio-high { color: var(--alarm); font-weight: 600; }
 .prio-medium { color: var(--warn); font-weight: 600; }
 .prio-low { color: var(--accent); font-weight: 600; }
-.hv-step { cursor: ew-resize; }   /* venstre/højre-betjening (v1.11.0) */
+.hv-step { cursor: ew-resize; }
+.hv-chart-sym { cursor: zoom-in; }   /* trendgraf: tryk = stor udgave (v1.15.0) */   /* venstre/højre-betjening (v1.11.0) */
 .hv-clickable:hover { filter: brightness(1.12) drop-shadow(0 0 3px rgba(31, 95, 153, .7)); }
 @keyframes hv-blink { to { visibility: hidden; } }

@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.15.0 build 0225] — 2026-10-25 — Trendgraf i stor udgave
+
+- Overview: et tryk på et trend-symbol viser grafen i et stort vindue (op til 1200×780 px) med valg af periode (15 min … 7 dage) og knappen **← Tilbage til tegningen** (også Esc og klik udenfor). Virker for alle roller (kun visning). Musemarkøren er et forstørrelsesglas over trend-symboler.
+- Grafen tegnes af samme kode som i tegningen: `chartRender.mountChartIn()` er trukket ud af `mountCharts()`; en større boks giver flere punkter og diagramlinjer i stedet for at strække grafen.
+- `frontend/src/lib/{chartRender.ts,ChartBig.svelte (ny)}`, `pages/Overview.svelte`, `app.css`, manualen, test (2 nye).
+
 ## [1.14.0 build 0224] — 2026-10-25 — Omskifter: tegningens gradtal ved Drej pr. position
 
 - Opsæt symbol › Animationer: for bibliotekets omskiftere (omskifter, omskifter3, drejeomskifter) vises **Tegningens vinkler** under *Drej* pr. position (kilde *symbolets position* eller *pr. værdi*), med knappen *Brug tegningens vinkler*. Nye/ændrede Drej-animationer starter med tegningens vinkler i stedet for et gæt (−45…45). Har tegningen et andet antal positioner end opsætningen, vises en besked i stedet.
