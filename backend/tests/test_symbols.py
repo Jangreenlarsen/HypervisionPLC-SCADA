@@ -507,3 +507,13 @@ def test_by_value_with_value_ranges_per_position(api):
     # uden "pr. værdi" ryddes fra-værdierne
     r = put(api, dec_bin(anims=[{**rot, "by_value": False, "params": {"min": 0, "max": 100}}]))
     assert r.status_code == 200 and r.json()["config"]["anims"][0]["pos_values"] is None
+
+
+def test_by_value_clears_only(api):
+    """v1.13.1: "Gælder i" (symbolets egen position) ryddes ved "pr. værdi" — guiden viser den ikke længere."""
+    rot = {"part": "V1_greb", "type": "rotate", "src": "Niveau", "by_value": True, "only": [True, False] * 3 + [True],
+           "params": {"angles": [0] * 7}}
+    r = put(api, dec_bin(anims=[rot]))
+    assert r.status_code == 200 and r.json()["config"]["anims"][0]["only"] is None, r.text
+    r = put(api, dec_bin(anims=[{**rot, "by_value": False, "params": {"min": 0, "max": 100}}]))
+    assert r.json()["config"]["anims"][0]["only"] == [True, False] * 3 + [True]   # uden "pr. værdi" bevares den

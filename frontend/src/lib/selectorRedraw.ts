@@ -8,6 +8,18 @@ export const SELECTOR_TYPES: ReadonlySet<string> = new Set(['omskifter', 'omskif
 
 const norm = (l: string[]) => l.map((x) => x.trim());
 
+/** Positionernes navne, som de står i omskifterens tegning (tekst-delene uden pid). */
+export const drawnSelectorLabels = (parts: Record<string, { tag: string; pid?: string | null; text?: string | null }>): string[] =>
+  Object.values(parts).filter((p) => p.tag === 'text' && !p.pid).map((p) => p.text ?? '');
+
+/**
+ * Grebets vinkler i omskifterens tegning (v1.14.0): navnene står rundt om grebet i de vinkler, `selectorAngles` giver for det
+ * TEGNEDE antal positioner. null = tegningen og opsætningen har ikke samme antal (så passer vinklerne ikke til positionerne).
+ */
+export function drawnSelectorAngles(drawnCount: number, positions: number): number[] | null {
+  return drawnCount >= 2 && drawnCount === positions ? selectorAngles(drawnCount).map((a) => Math.round(a * 10) / 10) : null;
+}
+
 /** Viser tegningen andre positioner (antal eller navne) end opsætningen? Kun når opsætningen har mindst 2. */
 export function selectorMismatch(drawn: string[], positions: string[]): boolean {
   if (positions.length < 2) return false;

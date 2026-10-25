@@ -5,6 +5,7 @@
   import { applyAlarmBadges, markNavClickable, navTarget, NAV_TARGETS } from '../lib/navSymbols';
   import { loadAcked, pruneAcked, saveAcked, splitProblems } from '../lib/plcAck';
   import MessageSlot from '../lib/MessageSlot.svelte';
+  import ChartBig from '../lib/ChartBig.svelte';
   import type { Msg } from '../lib/messages';
   import { get, post, type Binding, type DrawingView, type LiveValue, type PlcSummary } from '../lib/api';
   import { clickFor, parseSetpoint, positionLabel, positions, rangeText, toggleQuestion } from '../lib/actions';
@@ -247,6 +248,7 @@
         if (s.fault) pseudoOf.set(s.fault, element);
         if (s.op !== 'view') svgRoot?.querySelector(`#${CSS.escape(element)}`)?.classList.add('hv-clickable');
         if (s.op === 'positions' && s.click === 'step') svgRoot?.querySelector(`#${CSS.escape(element)}`)?.classList.add('hv-step');
+        if (s.chart?.tags?.length) svgRoot?.querySelector(`#${CSS.escape(element)}`)?.classList.add('hv-chart-sym');
         overlay(element);
       }
       live.subscribe([...new Set([...byTag.keys(), ...pseudoOf.keys(), ...Object.values(symbolsOf()).map((s) => s.tag ?? '').filter(Boolean)])]);
@@ -278,6 +280,18 @@
   }
 
   /** Første forfader der er et konfigureret symbol (symbolstandarden). */
+  let bigChart = $state<{ cfg: NonNullable<SymbolView['chart']>; title: string } | null>(null);
+  /** Første forfader der er et symbol med en trendgraf. */
+  function chartTarget(target: Element | null): string | null {
+    let el = target;
+    const syms = symbolsOf();
+    while (el && el !== svgRoot) {
+      if (el.id && syms[el.id]?.chart?.tags?.length) return el.id;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
   function symbolTarget(target: Element | null): string | null {
     let el = target;
     const syms = symbolsOf();
@@ -300,6 +314,13 @@
       // Driftpanelet må åbne Alarmer og Trends (v0.105.0); Energi hører ikke til driftbilledet
       if (panel && nav === 'energy') showToast('error', `${NAV_TARGETS[nav]} kan ikke åbnes på driftpanelet`);
       else location.hash = `#${nav}`;
+      return;
+    }
+    // Trendgraf: vis den i stor udgave (v1.15.0) — også for operatører og viewere, det er kun visning
+    const chartEl = chartTarget(e.target as Element);
+    if (chartEl) {
+      const s = symbolsOf()[chartEl];
+      if (s?.chart) bigChart = { cfg: s.chart, title: s.chart.title || symName(chartEl) };
       return;
     }
     const element = symbolTarget(e.target as Element);
@@ -654,6 +675,10 @@
   <button class="fit-btn" onclick={resetView} title="Vis hele tegningen">Tilpas</button>
 {/if}
 </div>
+
+{#if bigChart && view}
+  <ChartBig cfg={bigChart.cfg} meta={view.tags} title={bigChart.title} onclose={() => (bigChart = null)} />
+{/if}
 
 {#if symDialog}
   {@const d = symDialog}

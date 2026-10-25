@@ -971,7 +971,7 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                     res.err("4", f"{nm}: retnings-tagget '{params['dir_tag']}' findes ikke.")
         a.params = params
         if a.only is not None:
-            if not P:
+            if not P or a.by_value:   # "gælder i" læser symbolets egen position — ryddes ved "pr. værdi" (v1.13.1)
                 a.only = None
             elif len(a.only) != n:
                 res.err("4", f"{nm}: 'gælder i positionerne' skal have én afkrydsning pr. position.")
