@@ -2,6 +2,10 @@
 
 ---
 
+## v1.9.0 — 2026-10-25 — Kvittér PLC-fejl på Overview
+
+- PLC-fejl øverst på Overview kan **kvitteres**, så de ikke fylder hele tiden. Er PLC'en i orden igen og fejler senere, vises den nye fejl. Kvitteringen gælder kun din browser.
+
 ## v1.8.3 — 2026-10-25 — Smallere Opsæt symbol
 
 - Opsæt symbol-guiden er gjort smallere, så den passer i visningen uden at man skal rulle sidelæns.
