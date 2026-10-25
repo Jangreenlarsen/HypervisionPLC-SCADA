@@ -7,11 +7,12 @@
   import TagSelect from './TagSelect.svelte';
   import AnimParams from './AnimParams.svelte';
   import OwnerAnims from './OwnerAnims.svelte';
+  import { mergePalette, paramColors, svgColors } from './usedColors';
   import {
-    ANIM_TXT, MAX_ANIMS, ON, WHEN_TYPES, alarmRef, animDefaults, keepSuggestion, parseAlarmRef, partLabel, tagKind, typesFor,
-    type Anim, type SrcKind, type SymbolInfo,
+    ANIM_TXT, MAX_ANIMS, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, animDefaults, keepSuggestion, parseAlarmRef, partLabel, tagKind, typesFor,
+    type Anim, type AnimType, type SrcKind, type SymbolInfo,
   } from './symbolConfig';
-  import { getGroupAnims, groupAnimsOn, groupColor, putGroupAnims, type GroupAnim, type OwnerBlock, type SymbolGroup } from './symbolGroups';
+  import { getGroupAnims, groupAnimsOn, groupColor, putGroupAnims, putGroupAnimsAll, type AllResult, type GroupAnim, type OwnerBlock, type SymbolGroup } from './symbolGroups';
 
   interface TagRow { name: string; source: string; unit: string; writable: boolean; plc: string }
   let { drawingId, group, tags: tagsProp = [], onclose, onsaved }: {
@@ -21,6 +22,10 @@
   const tags = $derived(tagsProp.length ? tagsProp : fetchedTags);
 
   const enc = encodeURIComponent;
+  const ALL = '*';   // fanen "Alle medlemmer": samme animationer på alle gruppens symboler (kun "Hele symbolet")
+  let applyMode = $state<'add' | 'replace'>('add');
+  let skipInvalid = $state(true);
+  let allResult = $state<AllResult | null>(null);
   let element = $state('');
   let symbol = $state<SymbolInfo | null>(null);
   let ownAnims = $state<GroupAnim[]>([]);
@@ -38,14 +43,23 @@
   const dirty = $derived(JSON.stringify(mine) !== saved);
   const tagByName = $derived(new Map(tags.map((t) => [t.name, t])));
   const partIds = $derived(['all', ...Object.keys(symbol?.parts ?? {})]);
+  // Alle typer tilbydes i "Alle medlemmer" — serveren afgør pr. medlem, om den passer (fx Niveau kræver en rektangel-del)
+  const typesList = (a: { part: string }): AnimType[] => (element === ALL ? (Object.keys(ANIM_TXT) as AnimType[]) : typesFor(partInfo(a.part)));
   const partInfo = (id: string) => (id === 'all' ? symbol ?? undefined : symbol?.parts[id]);
   const nameOf = (id: string) => id;
   const missingParts = $derived(symbol ? mine.filter((a) => a.part !== 'all' && !(a.part in symbol!.parts)).map((a) => a.part) : []);
 
+  // Hurtigvalg af brugte farver (som i symbolguiden): gruppens egne, så det valgte symbols tegnede, så tegningens øvrige
+  let drawingSvg = $state('');
+  const palette = $derived(mergePalette([paramColors(mine), element && element !== ALL ? svgColors(drawingSvg, element) : [], svgColors(drawingSvg)]));
   let loadToken = 0;   // kun det seneste svar må lande — ellers kan et langsomt svar for B overskrive C's animationer
   async function loadElement(el: string): Promise<void> {
     const token = ++loadToken;
-    loading = true; error = info = ''; warnings = [];
+    loading = true; error = info = ''; warnings = []; allResult = null;
+    if (el === ALL) {   // ingen hentning: en tom skabelon, der anvendes på alle medlemmer
+      symbol = null; ownAnims = []; others = []; mine = []; saved = '[]'; loading = false;
+      return;
+    }
     try {
       const [cfg, owners] = await Promise.all([
         get<{ config: { anims?: GroupAnim[] } | null; symbol: SymbolInfo | null }>(`/api/drawings/${enc(drawingId)}/symbols/${enc(el)}/config`),
@@ -70,6 +84,8 @@
     try { withAnims = new Set(Object.keys(await getGroupAnims(drawingId, group.id))); } catch { /* kun en markering i listen */ }
   }
   onMount(() => {
+    fetch(`/api/drawings/${enc(drawingId)}/svg`, { credentials: 'same-origin' }).then((r) => (r.ok ? r.text() : ''))
+      .then((svg) => (drawingSvg = svg)).catch((e) => console.error('Tegningens farver kunne ikke hentes:', e));
     if (!tagsProp.length) get<TagRow[]>('/api/tags').then((t) => (fetchedTags = t)).catch((e) => (error = `Tags kunne ikke hentes: ${(e as Error).message}`));
     element = group.members[0] ?? ''; void loadMarks(); if (element) void loadElement(element); });
 
@@ -90,16 +106,17 @@
     if (a.src === ON || parseAlarmRef(a.src)) return 'bool';
     return tagKind(tagByName.get(a.src)?.source) === 'bool' ? 'bool' : 'num';
   }
-  const srcMode = (a: Anim): string => (a.src === ON ? ON : parseAlarmRef(a.src) ? 'alarm' : 'tag');
+  const srcMode = (a: Anim): string => (a.src === ON ? ON : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : 'tag');
   function resetParams(a: Anim, wasSrc?: string): void {
-    if (!typesFor(partInfo(a.part)).includes(a.type)) a.type = 'fill';
+    if (!typesList(a).includes(a.type)) a.type = 'fill';
+    if (parseValRef(a.src) !== null && !VAL_TYPES.includes(a.type)) a.src = '';   // en fast værdi passer kun til tal-animationer
     const fresh = animDefaults(a.type, kindOf(a), 0);
     const before = wasSrc === undefined ? undefined : animDefaults(a.type, kindOf({ src: wasSrc }), 0);
     if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
     a.only = null;
   }
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === ON ? ON : mode === 'alarm' ? alarmRef('active', '') : '';
+    a.src = mode === ON ? ON : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : '';
     resetParams(a);
   }
   function addAnim(): void {
@@ -129,6 +146,23 @@
     }
   }
 
+  async function applyAll(): Promise<void> {
+    const verb = applyMode === 'add' ? 'lægges oven i' : 'erstatter';
+    if (!(await ask(`${mine.length} animationer ${verb} gruppe-animationerne på alle ${group.members.length} symboler. Fortsæt?`, { ok: 'Anvend', danger: applyMode === 'replace' }))) return;
+    busy = true; error = info = ''; allResult = null;
+    try {
+      allResult = await putGroupAnimsAll(drawingId, group.id, structuredClone($state.snapshot(mine)) as GroupAnim[], applyMode, skipInvalid);
+      info = `Gemt på ${allResult.applied} symboler.`;
+      mine = []; saved = '[]';
+      await loadMarks();
+      onsaved?.();
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
+
   async function close(): Promise<void> {
     if (dirty && !(await ask('Du har ændringer der ikke er gemt. Luk alligevel?', { ok: 'Luk', danger: true }))) return;
     onclose();
@@ -150,6 +184,10 @@
       Symbolets egne og andre gruppers vises nedenfor, så du kan se hvad der allerede findes.</p>
 
     <div class="members" role="group" aria-label="Gruppens symboler">
+      {#if group.members.length > 1}
+        <button class="all-tab" aria-pressed={element === ALL} class:active={element === ALL} disabled={loading && element !== ALL}
+          onclick={() => pick(ALL)} title="Sæt samme animationer op på alle gruppens symboler i ét hug">Alle medlemmer ({group.members.length})</button>
+      {/if}
       {#each group.members as m}
         <button aria-pressed={m === element} class:active={m === element} disabled={loading && m !== element} onclick={() => pick(m)}>
           {nameOf(m)}{#if withAnims.has(m)} <span class="dot" title="Har animationer fra denne gruppe"></span>{/if}
@@ -163,24 +201,41 @@
       {:else if loading}
         <p class="muted">Henter …</p>
       {:else}
-        <OwnerAnims {owners} {symbol} />
-        <h4 style:color={color}>Gruppens animationer på {element} ({mine.length}/{MAX_ANIMS})</h4>
+        {#if element === ALL}
+          <p class="small notice">Vælg de animationer, der skal gælde <strong>alle {group.members.length} symboler</strong> i gruppen — de anvendes på hvert symbols <strong>Hele symbolet</strong> (dele hedder forskelligt fra symbol til symbol, så dem sætter du op pr. symbol). Hvert symbol tjekkes for sig.</p>
+          <div class="row wrap small">
+            <label class="opt"><input type="radio" bind:group={applyMode} value="add" /> Tilføj til symbolernes egne gruppe-animationer</label>
+            <label class="opt"><input type="radio" bind:group={applyMode} value="replace" /> Erstat symbolernes gruppe-animationer</label>
+            <label class="opt"><input type="checkbox" bind:checked={skipInvalid} /> Spring over symboler, hvor det ikke kan bruges</label>
+          </div>
+          <h4 style:color={color}>Animationer til alle ({mine.length}/{MAX_ANIMS})</h4>
+        {:else}
+          <OwnerAnims {owners} {symbol} />
+          <h4 style:color={color}>Gruppens animationer på {element} ({mine.length}/{MAX_ANIMS})</h4>
+        {/if}
         {#each mine as a, i}
           {@const kind = kindOf(a)}
           <div class="anim">
             <div class="row wrap">
-              <select bind:value={a.part} onchange={() => resetParams(a)} aria-label="Del">
-                {#each partIds as p}<option value={p}>{partLabel(p, symbol)}</option>{/each}
-              </select>
+              {#if element !== ALL}
+                <select bind:value={a.part} onchange={() => resetParams(a)} aria-label="Del">
+                  {#each partIds as p}<option value={p}>{partLabel(p, symbol)}</option>{/each}
+                </select>
+              {:else}<span class="small muted">Hele symbolet</span>{/if}
               <select bind:value={a.type} onchange={() => resetParams(a)} aria-label="Animation">
-                {#each typesFor(partInfo(a.part)) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
+                {#each typesList(a) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
               </select>
               <span class="small muted">styres af</span>
               <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
                 <option value="tag">et tag</option>
+                {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                 {#if !['level', 'opacity', 'scale', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
               </select>
               {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
+              {#if srcMode(a) === 'val'}
+                <input class="n" value={parseValRef(a.src) ?? ''} aria-label="Fast værdi" title="Værdien bruges som om et tag havde den (område: Min–Max nedenfor)"
+                  onchange={(e) => (a.src = valRef(Number.isFinite(Number(e.currentTarget.value.replace(',', '.'))) && e.currentTarget.value.trim() !== '' ? Number(e.currentTarget.value.replace(',', '.')) : (parseValRef(a.src) ?? 0)))} />
+              {/if}
               {#if srcMode(a) === 'alarm'}
                 {@const al = parseAlarmRef(a.src)!}
                 <select value={al.kind} onchange={(e) => (a.src = alarmRef(e.currentTarget.value as 'active' | 'unack', al.tag))} aria-label="Alarmtilstand">
@@ -194,7 +249,7 @@
               <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === mine.length - 1} aria-label="Ned">▼</button>
               <button class="small" onclick={() => mine.splice(i, 1)} aria-label="Fjern animation">✕</button>
             </div>
-            <AnimParams {a} {kind} {tags} valueOf={() => undefined} metaOf={(t) => { const r = tagByName.get(t); return r ? ({ unit: r.unit } as never) : undefined; }} />
+            <AnimParams {a} {kind} {tags} {palette} valueOf={() => undefined} metaOf={(t) => { const r = tagByName.get(t); return r ? ({ unit: r.unit } as never) : undefined; }} />
             {#if WHEN_TYPES.includes(a.type)}
               <label class="opt small">Når den ikke er aktiv:
                 <select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">
@@ -210,6 +265,12 @@
         <button class="small" onclick={addAnim} disabled={mine.length >= MAX_ANIMS}>+ Animation</button>
         <p class="small muted">Flere animationer af samme slags på samme del: den <strong>øverste aktive</strong> vinder. Symbolets egne og gruppernes ligger i kæde — gruppernes kommer efter symbolets egne, så uden "passiv" vinder den sidste af samme slags — også hvis det er et andet tag, der ændrer sig.</p>
       {/if}
+      {#if allResult}
+        <div class="small notice">Anvendt på {allResult.applied} af {allResult.applied + allResult.skipped} symboler.
+          {#if allResult.skipped}Sprunget over:
+            <ul>{#each allResult.results.filter((r) => !r.ok) as r}<li><code>{r.element}</code>: {r.error}</li>{/each}</ul>{/if}
+        </div>
+      {/if}
       {#if missingParts.length}<p class="small notice">Disse animationer er på dele, der ikke findes på symbolet (længere), og vises derfor ikke: {missingParts.join(', ')}. Ret eller fjern dem.</p>{/if}
       {#if warnings.length}
         <div class="small notice">Overlap med andre ejere — rækkefølgen afgør, hvem der vinder (symbolets egne først, så grupperne i deres rækkefølge; ▲▼ i gruppelisten):
@@ -222,7 +283,11 @@
     <footer class="row">
       <span class="spacer"></span>
       <button onclick={close}>Luk</button>
-      <button class="primary" onclick={save} disabled={busy || loading || !dirty || !group.members.length}>Gem for {element}</button>
+      {#if element === ALL}
+        <button class="primary" onclick={applyAll} disabled={busy || loading || !mine.length}>Anvend på alle ({group.members.length})</button>
+      {:else}
+        <button class="primary" onclick={save} disabled={busy || loading || !dirty || !group.members.length}>Gem for {element}</button>
+      {/if}
     </footer>
   </div>
 </div>
@@ -236,6 +301,7 @@
   .close { margin-left: auto; }
   .members { display: flex; flex-wrap: wrap; gap: .25rem; margin: .4rem 0; border-bottom: 1px solid var(--line); padding-bottom: .4rem; }
   .members button.active { background: var(--c); color: #fff; border-color: var(--c); }
+  .members .all-tab { font-weight: 600; }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-left: .25rem; }
   .members button.active .dot { background: #fff; }
   .body { overflow: auto; flex: 1; min-height: 200px; padding-right: .3rem; }
@@ -246,7 +312,8 @@
   .spacer { flex: 1; }
   footer { gap: .5rem; align-items: center; border-top: 1px solid var(--line); padding-top: .5rem; margin-top: .5rem; }
   .error { color: var(--alarm); }
+  .n { width: 5.5em; }
   .notice { background: #fff8e1; border: 1px solid #ffe082; padding: .4rem .6rem; border-radius: var(--radius); margin: .4rem 0; }
   .notice ul { margin: .2rem 0 0 1rem; padding: 0; }
-  .anim :global(select) { width: auto; max-width: 15em; }
+  .anim :global(select) { width: auto; max-width: 24em; }
 </style>

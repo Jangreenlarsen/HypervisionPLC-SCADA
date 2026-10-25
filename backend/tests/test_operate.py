@@ -207,10 +207,9 @@ def test_non_writable_and_unknown(api):
     assert api.post("/api/tags/Findes_ikke/write", json={"value": 1}).status_code == 404
 
 
-def test_writable_only_for_hr_and_coil(api):
+def test_writable_only_for_hr_coil_and_st_variables(api):
     for body in ({"name": "X1", "source": "plc1:ir:1", "writable": True},
-                 {"name": "X2", "source": "plc1:di:1", "writable": True},
-                 {"name": "X3", "source": "plc1:logic:1:Niveau", "writable": True}):
+                 {"name": "X2", "source": "plc1:di:1", "writable": True}):
         r = api.post("/api/tags", json=body)
         assert r.status_code == 400 and "kun-læs" in r.json()["error"], body
     # samme regel ved opdatering: skrivbart tag må ikke få en kun-læs kilde ...
@@ -318,3 +317,48 @@ def test_selector_operator_may_only_write_its_positions(api, mock_plc):
     denied = [e for e in api.get("/api/audit").json() if e["username"] == "op3" and e["result"] == "error"]
     assert denied and "positioner" in denied[0]["message"]
     assert api.post("/api/tags/Setpunkt/write", json={"value": 15}).status_code == 200  # tekniker/admin: frit inden for min/max
+
+
+# ------------------------------------------------------------------ ST-variabler (PLC-firmware FEAT-503, v1.7.0)
+
+def test_write_st_variable_and_global(api, mock_plc):
+    assert api.post("/api/tags", json={"name": "ST_Start", "source": "plc1:logic:1:Starter", "writable": True}).status_code == 201
+    assert api.post("/api/tags", json={"name": "ST_Pumpe", "source": "plc1:logic:1:PumpeKoerer", "writable": True}).status_code == 201
+    assert api.post("/api/tags", json={"name": "G_Mode", "source": "plc1:global:Mode", "writable": True}).status_code == 201
+    r = api.post("/api/tags/ST_Start/write", json={"value": 12})
+    assert r.status_code == 200 and r.json()["written"] == 12 and r.json()["readback"] == 12, r.text
+    assert mock_plc.state.programs[1]["variables"][2]["value"] == 12
+    r = api.post("/api/tags/G_Mode/write", json={"value": 3})
+    assert r.status_code == 200 and r.json()["readback"] == 3
+    assert mock_plc.state.globals[0]["value"] == 3
+    # til/fra-variabel: skift læser den aktuelle værdi og skriver det modsatte
+    mock_plc.state.programs[1]["variables"][1]["value"] = True
+    r = api.post("/api/tags/ST_Pumpe/toggle")
+    assert r.status_code == 200 and r.json()["written"] is False and mock_plc.state.programs[1]["variables"][1]["value"] is False
+    # PLC'ens områdetjek når frem til brugeren
+    r = api.post("/api/tags/ST_Start/write", json={"value": 70000})
+    assert r.status_code == 409 and "range" in r.json()["error"], r.text   # PLC-afvisninger meldes som 409
+
+
+def test_write_st_variable_errors_are_specific(api, mock_plc):
+    api.post("/api/tags", json={"name": "ST_Start", "source": "plc1:logic:1:Starter", "writable": True})
+    api.post("/api/tags", json={"name": "ST_Ukendt", "source": "plc1:logic:1:FindesIkke", "writable": True})
+    r = api.post("/api/tags/ST_Ukendt/write", json={"value": 1})
+    assert "not found" in r.json()["error"] and "firmwaren" not in r.json()["error"]
+    mock_plc.state.input_bound.add((1, "Starter"))
+    r = api.post("/api/tags/ST_Start/write", json={"value": 1})
+    assert "INPUT" in r.json()["error"]
+    mock_plc.state.input_bound.clear()
+    mock_plc.state.var_write = False   # ældre firmware uden endpointet
+    r = api.post("/api/tags/ST_Start/write", json={"value": 1})
+    assert r.status_code >= 400 and "v7.9.68.141" in r.json()["error"], r.text
+
+
+def test_to_raw_for_st_variables_scales_and_keeps_type():
+    src = parse_source("plc1:logic:1:X")
+    assert to_raw(5, src, 1.0, 0.0) == (5, 5)
+    assert to_raw(True, src, 1.0, 0.0) == (True, True)
+    assert to_raw(2.5, src, 1.0, 0.0) == (2.5, 2.5)
+    assert to_raw(50, src, 0.1, 0.0) == (500, 50)
+    with pytest.raises(ServiceError):
+        to_raw("x", src, 1.0, 0.0)

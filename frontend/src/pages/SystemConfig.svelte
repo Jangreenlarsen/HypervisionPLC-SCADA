@@ -199,7 +199,49 @@
       saving = false;
     }
   }
-  onMount(refresh);
+  // ---- Genstart (v1.8.0): SCADA-tjenesten eller hele maskinen. Serveren udfører den via en root-hjælper.
+  interface PowerState { enabled: boolean; pending: boolean; last: { action: string; by: string; ts: number } | null }
+  let power = $state<PowerState | null>(null);
+  let powerError = $state('');
+  let restarting = $state<'' | 'restart' | 'reboot'>('');
+  let restartNote = $state('');
+
+  async function loadPower(): Promise<void> {
+    try { power = await get<PowerState>('/api/system/power'); } catch (e) { powerError = (e as Error).message; }
+  }
+  async function doPower(action: 'restart' | 'reboot'): Promise<void> {
+    powerError = '';
+    const what = action === 'reboot' ? 'hele maskinen' : 'SCADA-tjenesten';
+    const text = action === 'reboot'
+      ? 'Genstart hele maskinen?\n\nSiden er utilgængelig i ca. 1–2 minutter, mens maskinen starter. Har du lige ændret IP-adressen, så åbn den nye adresse bagefter.'
+      : 'Genstart SCADA-tjenesten?\n\nSiden er utilgængelig i et øjeblik. Maskinen og PLC\'erne røres ikke.';
+    if (!(await ask(text, { ok: 'Genstart', danger: true }))) return;
+    try {
+      await api('POST', '/api/system/power', { action });
+    } catch (e) {
+      powerError = (e as Error).message;
+      return;
+    }
+    restarting = action;
+    restartNote = `Genstarter ${what} …`;
+    void waitForServer(action === 'reboot');
+  }
+  /** Vent til serveren er væk og kommet tilbage (eller er uændret efter et stykke tid), og genindlæs så siden. */
+  async function waitForServer(isReboot: boolean): Promise<void> {
+    const started = Date.now();
+    let wentDown = false;
+    await new Promise((r) => setTimeout(r, 4000));
+    while (Date.now() - started < 6 * 60_000) {
+      let up = false;
+      try { up = (await fetch('/api/health', { cache: 'no-store' })).ok; } catch { up = false; }
+      if (!up) { wentDown = true; restartNote = isReboot ? 'Maskinen starter … (kan tage et par minutter)' : 'SCADA-tjenesten starter …'; }
+      else if (wentDown || Date.now() - started > (isReboot ? 45_000 : 20_000)) { location.reload(); return; }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    restarting = '';
+    powerError = 'Serveren svarede ikke inden for 6 minutter — tjek maskinen, eller åbn den nye IP-adresse, hvis du har ændret den.';
+  }
+  onMount(() => { void refresh(); void loadPower(); });
 </script>
 
 <section class="panel">
@@ -368,6 +410,25 @@
         <p class="muted small">Opsætningen anvendes med det samme. Du har derefter {net.confirm_s} sekunder til at bekræfte fra den nye adresse — ellers gendannes den gamle automatisk, så du ikke låser dig ude.</p>
       </form>
     {/if}
+  </section>
+
+  <section class="panel">
+    <h3>Genstart</h3>
+    <p class="muted small">Genstart SCADA-tjenesten (fx efter en ændring i opsætningen) eller hele maskinen (fx efter et skift til fast IP-adresse eller et systemopdatering).
+      Tags, tegninger og brugere er gemt i databasen og påvirkes ikke. Kun admin.</p>
+    {#if restarting}
+      <div class="notice" role="status"><strong>{restartNote}</strong> Siden genindlæses af sig selv, når serveren svarer igen.</div>
+    {:else if power && !power.enabled}
+      <div class="notice warn">Genstart fra web er ikke installeret på denne maskine. Opdatér SCADA'en under <a href="#update">System › Opdatering</a>, eller genstart fra kommandolinjen
+        (<code>sudo systemctl restart hypervisionplc-scada</code> / <code>sudo reboot</code>).</div>
+    {:else}
+      <div class="row">
+        <button onclick={() => doPower('restart')} disabled={!power?.enabled || power?.pending}>Genstart SCADA-tjenesten</button>
+        <button class="danger" onclick={() => doPower('reboot')} disabled={!power?.enabled || power?.pending}>Genstart maskinen</button>
+      </div>
+      {#if power?.last}<p class="muted small">Seneste bestilling: {power.last.action === 'reboot' ? 'maskinen' : 'SCADA-tjenesten'} af {power.last.by}, {new Date(power.last.ts * 1000).toLocaleString('da-DK')}.</p>{/if}
+    {/if}
+    {#if powerError}<div class="error">{powerError}</div>{/if}
   </section>
 {/if}
 

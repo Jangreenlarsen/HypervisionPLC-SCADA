@@ -7,7 +7,7 @@
 
   interface Status {
     state: string; message: string; last_ok: number | null; cycles?: number; errors?: number;
-    requests_per_cycle?: number; plan?: { kind: string; start: number; count: number }[];
+    requests_per_cycle?: number; slowest?: { what: string; last_s: number; max_s: number }[]; plan?: { kind: string; start: number; count: number }[];
     sse?: { state: string; message?: string; events?: number; covered?: number; external?: boolean; ext_events?: number; ext_by_src?: { rtu: number; mbx: number } };
   }
   interface Plc {
@@ -88,6 +88,10 @@
           <tr><th>Seneste OK</th><td>{ago(p.status.last_ok)} · {p.status.cycles ?? 0} cyklusser · {p.status.errors ?? 0} fejl</td></tr>
           <tr><th>Kald pr. cyklus</th><td>{p.status.requests_per_cycle ?? 0}
             {#if p.status.plan?.length}<span class="muted small">({p.status.plan.map((r) => `${r.kind} ${r.start}+${r.count}`).join(', ')})</span>{/if}</td></tr>
+          {#if p.status.slowest?.length}
+            <tr><th>Langsomste kald</th><td class="small" title="Svartid siden start — et kald tæt på tidsgrænsen (5 s) er det, der giver 'kommunikation tabt'">
+              {p.status.slowest.map((s) => `${s.what}: ${s.max_s.toFixed(1)} s (sidst ${s.last_s.toFixed(1)} s)`).join(' · ')}</td></tr>
+          {/if}
           <tr><th>SSE</th><td>
             <span class="badge {p.status.sse?.state}">{p.status.sse?.state ?? '-'}</span>
             <span class="small muted">{p.status.sse?.message ?? ''}{p.status.sse?.covered !== undefined ? ` · dækker ${p.status.sse.covered} adresser` : ''}{p.status.sse?.events ? ` · ${p.status.sse.events} hændelser` : ''}{p.status.sse?.external ? ` · eksterne registre via SSE: RS485 ${p.status.sse.ext_by_src?.rtu ?? 0}, expansion boards ${p.status.sse.ext_by_src?.mbx ?? 0}` : ''}</span>

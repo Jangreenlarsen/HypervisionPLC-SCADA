@@ -88,6 +88,7 @@ class NetworkBody(BaseModel):
     gateway: str = ""
     dns: list[str] = []
     hostname: str = ""
+    fallback_after: int = 5   # kun for dhcp_fallback (kontroller à 30 s uden DHCP-svar); frontend sender altid feltet (v1.8.2)
 
 
 def _net(request: Request) -> netconfig.NetworkService:

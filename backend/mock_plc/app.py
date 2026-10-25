@@ -62,6 +62,8 @@ class MockPlcState:
     di: list[bool] = field(default_factory=lambda: [False] * BIT_SIZE)
     programs: dict[int, dict[str, Any]] = field(default_factory=dict)
     globals: list[dict[str, Any]] = field(default_factory=list)
+    var_write: bool = True              # firmware med FEAT-503 (skriv ST-variabler); False = ældre firmware (404)
+    input_bound: set[tuple[int, str]] = field(default_factory=set)   # (program, variabel) bundet som INPUT → 409
     sessions: dict[str, float] = field(default_factory=dict)  # token → udløb
     sse_tokens: dict[str, float] = field(default_factory=dict)
     sse_active: int = 0
@@ -313,6 +315,82 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
         if (denied := _auth(request)) is not None:
             return denied
         return JSONResponse({"globals": st.globals, "count": len(st.globals)})
+
+    def _st_value(var: dict[str, Any], value: Any) -> tuple[Any, JSONResponse | None]:
+        """Som firmwarens st_var_json_to_value: typekonvertering og områdetjek."""
+        t = str(var.get("type")).upper()
+        if t == "BOOL":
+            if isinstance(value, bool) or value in (0, 1):
+                return bool(value), None
+            return None, _err(400, "BOOL expects true/false or 0/1")
+        if t == "REAL":
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                return float(value), None
+            return None, _err(400, "REAL expects a number")
+        if t == "STRING":
+            return None, _err(400, "STRING variables cannot be written via REST")
+        if not isinstance(value, int) or isinstance(value, bool):
+            return None, _err(400, "Integer value expected")
+        lo, hi = {"INT": (-32768, 32767), "DWORD": (0, 4294967295)}.get(t, (-2**31, 2**31 - 1))
+        if not lo <= value <= hi:
+            return None, _err(400, f"{t} out of range")
+        return value, None
+
+    async def _var_body(request: Request) -> tuple[str | None, Any, JSONResponse | None]:
+        try:
+            body = await request.json()
+        except ValueError:
+            return None, None, _err(400, "Invalid JSON")
+        if not body.get("name"):
+            return None, None, _err(400, "Missing 'name' field")
+        if body.get("value") is None:
+            return None, None, _err(400, "Missing 'value' field")
+        return body["name"], body["value"], None
+
+    @app.post("/api/logic/globals/var")
+    async def logic_global_write(request: Request) -> Response:
+        if (denied := _auth(request)) is not None:
+            return denied
+        if not st.var_write:
+            return _err(404, "Not found")
+        name, value, bad = await _var_body(request)
+        if bad is not None:
+            return bad
+        var = next((g for g in st.globals if g["name"] == name), None)
+        if var is None:
+            return _err(404, f"GLOBAL_VAR '{name}' not found")
+        val, bad = _st_value(var, value)
+        if bad is not None:
+            return bad
+        var["value"] = val
+        st.writes.append(("global", name, val))
+        return JSONResponse({"status": "ok", "name": name, "value": val})
+
+    @app.post("/api/logic/{pid}/var")
+    async def logic_var_write(pid: int, request: Request) -> Response:
+        if (denied := _auth(request)) is not None:
+            return denied
+        if not st.var_write:
+            return _err(404, "Not found")
+        if pid < 1 or pid > 4:
+            return _err(400, "Invalid logic ID (must be 1-4)")
+        prog = st.programs.get(pid)
+        if not prog or not prog.get("compiled"):
+            return _err(409, "Program not compiled. Upload source code first.")
+        name, value, bad = await _var_body(request)
+        if bad is not None:
+            return bad
+        var = next((v for v in prog["variables"] if v["name"] == name), None)
+        if var is None:
+            return _err(404, f"Variable '{name}' not found. Available: " + ", ".join(v["name"] for v in prog["variables"]))
+        if (pid, name) in st.input_bound:
+            return _err(409, f"Variable '{name}' is bound as INPUT from HR 100 - write that register instead")
+        val, bad = _st_value(var, value)
+        if bad is not None:
+            return bad
+        var["value"] = val
+        st.writes.append(("logic", f"{pid}:{name}", val))
+        return JSONResponse({"status": "ok", "program": pid, "name": name, "value": val})
 
     @app.get("/api/logic/{pid}")
     async def logic_single(pid: int, request: Request) -> Response:

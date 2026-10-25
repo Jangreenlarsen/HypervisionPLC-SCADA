@@ -101,6 +101,8 @@ export interface DrawingView {
   id: string;
   name: string;
   version: number;
+  /** Deaktiveret tegning (v1.6.0): offline — ingen live-data eller betjening */
+  disabled?: boolean;
   svg: string;
   bindings: Binding[];
   orphaned_bindings: string[];

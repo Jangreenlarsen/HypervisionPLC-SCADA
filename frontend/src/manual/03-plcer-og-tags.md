@@ -55,7 +55,7 @@ Et tal kan have en **datatype** til sidst (fx `:float`) hvis det fylder mere end
 | **Skala** og **Offset** | Værdien omregnes `råværdi × skala + offset`. Fx et register med 215 for 21,5 °C → skala 0,1 |
 | **Decimaler** | Antal decimaler der vises (tom = automatisk) |
 | **Min** og **Max** (teknisk enhed) | Det tilladte område. Setpunkter uden for området afvises af serveren |
-| **Skrivbar fra Overview** (under *Betjening*) | Sæt hak for at tagget må **skrives** fra Overview. Kun coil og hr kan skrives |
+| **Skrivbar fra Overview** (under *Betjening*) | Sæt hak for at tagget må **skrives** fra Overview. Coil, hr og ST-variabler (`logic`/`global`) kan skrives — ST-variabler kræver PLC-firmware v7.9.68.141 eller nyere; en variabel, som programmet selv tildeler hver cyklus, eller som er bundet som input fra et register, kan ikke holdes udefra. ir og di er indgange og kan kun læses |
 | **Kræv bekræftelse ved skrivning** | Operatøren skal bekræfte i en dialog, før der skrives |
 | **Beskrivelse** | Fri tekst |
 

@@ -14,13 +14,14 @@
   import TagSelect from './TagSelect.svelte';
   import AnimParams from './AnimParams.svelte';
   import OwnerAnims from './OwnerAnims.svelte';
+  import { mergePalette, paramColors, svgColors } from './usedColors';
   import { KIND_TXT, groupAnimsOn, groupColor, groupsOf, listGroups, type OwnerBlock, type SymbolGroup } from './symbolGroups';
   import { CHART_RANGES, FONT_SCALES, LEGEND_PLACES, MAX_CHART_TAGS, defaultChart, legendOf } from './chartGraphic';
   import { SELECTOR_TYPES, selectorMismatch } from './selectorRedraw';
   import { DIR_TXT, applyLever, leverDirs, leverInSync, type LeverDir } from './toggleSwitch';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
-    ALARM_TXT, ANIM_TXT, ON, WHEN_TYPES, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
+    ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, allowedOps, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
@@ -33,11 +34,13 @@
     plans: { position: number; label: string; writes: Write[] }[];
   }
 
-  let { drawingId, element, name, tags, group = [], onclose, onsaved }: {
+  let { drawingId, element, name, tags, group = [], onclose, onsaved, onremoved }: {
     drawingId: string; element: string; name: string; tags: TagRow[];
     /** "Opsæt de valgte samlet": de ANDRE valgte symboler — de får opsætningen, når der gemmes. */
     group?: { id: string; name: string }[];
     onclose: () => void; onsaved: () => void;
+    /** Opsætningen er fjernet fra alle de valgte ("Opsæt de valgte samlet"); antal fjernede */
+    onremoved?: (removed: number, skipped: number) => void;
   } = $props();
 
   const enc = encodeURIComponent;
@@ -90,8 +93,15 @@
   // ---------------------------------------------------------------- indlæsning
   // Animationer som grupper har lagt på symbolet (v0.131.0): vises skrivebeskyttet under symbolets egne
   let groupOwners = $state<OwnerBlock[]>([]);
+  // Hurtigvalg af brugte farver ved farvefelterne: animationernes egne, så symbolets tegnede, så tegningens øvrige
+  let drawnOwn = $state<string[]>([]), drawnAll = $state<string[]>([]);
+  const palette = $derived(mergePalette([paramColors(cfg.anims), drawnOwn, drawnAll]));
   let memberOf = $state<SymbolGroup[] | null>(null);   // grupperne symbolet er medlem af (null = ikke hentet endnu)
   onMount(() => {
+    fetch(`/api/drawings/${encodeURIComponent(drawingId)}/svg`, { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.text() : ''))
+      .then((svg) => { drawnOwn = svgColors(svg, element); drawnAll = svgColors(svg); })
+      .catch((e) => console.error('Tegningens farver kunne ikke hentes:', e));
     listGroups(drawingId)
       .then((all) => (memberOf = groupsOf(all, element)))
       .catch((e) => { memberOf = []; console.error('Grupperne kunne ikke hentes:', e); });
@@ -274,8 +284,12 @@
     if (cfg.signals.length >= 8) return;
     cfg.signals.push(newSignal(cfg));
   }
-  function removeSignal(i: number): void {
+  async function removeSignal(i: number): Promise<void> {
     const id = cfg.signals[i].id;
+    const plane = cfg.planes.find((p) => p.signal === id);
+    // Signalets kontaktplan (trin 3) fjernes med — spørg, hvis den allerede har indhold
+    if (plane?.values.some((v) => v !== null && v !== undefined) &&
+        !(await askUser(`${id} bruges af en kontaktplan (trin 3). Fjern signalet og dets plan?`, { ok: 'Fjern', danger: true }))) return;
     cfg.signals.splice(i, 1);
     cfg.planes = cfg.planes.filter((p) => p.signal !== id);
   }
@@ -304,9 +318,9 @@
   const poolLabel = (p: PoolBlock) => `${p.symbol} · ${p.id}${p.name ? ` – ${p.name}` : ''}`;
   const poolRef = (p: PoolBlock) => `@${p.element}:${p.id}`;
   const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
-  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : 'tag');
+  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : 'tag');
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
+    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
     resetParams(a);
   }
   // ---- 3-vejs ventil styret af ét til/fra-tag
@@ -389,6 +403,7 @@
    *  forslag fra biblioteket (fx kontaktens knive: 32°), beholdes forslagets indstillinger, når de passer (v0.94.0). */
   function resetParams(a: Anim, wasSrc?: string): void {
     if (!typesFor(partInfo(a.part)).includes(a.type)) a.type = 'fill';
+    if (parseValRef(a.src) !== null && !VAL_TYPES.includes(a.type)) a.src = '';   // en fast værdi passer kun til tal-animationer
     const fresh = animDefaults(a.type, srcKind(a), n);
     const before = wasSrc === undefined ? undefined : animDefaults(a.type, srcKind({ ...a, src: wasSrc }), n);
     if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
@@ -465,6 +480,23 @@
     try {
       await api('DELETE', `${base}/config`);
       onsaved();
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      saving = false;
+    }
+  }
+  /** "Opsæt de valgte samlet": fjern opsætningen på ALLE de valgte på én gang (alt eller intet). */
+  async function removeAll(): Promise<void> {
+    const ids = [element, ...group.map((g) => g.id)];
+    if (!await askUser(`Fjern symbol-konfigurationen for alle ${ids.length} valgte symboler (${name} m.fl.)? Symbolernes gamle bindinger gælder så igen. Symboler uden opsætning røres ikke.`,
+      { ok: 'Fjern fra alle', danger: true })) return;
+    saving = true;
+    error = '';
+    try {
+      const r = await post<{ removed: string[]; skipped: string[] }>(`/api/drawings/${encodeURIComponent(drawingId)}/symbols/delete-configs`, { elements: ids });
+      if (onremoved) onremoved(r.removed.length, r.skipped.length);
+      else onsaved();
     } catch (e) {
       error = (e as Error).message;
     } finally {
@@ -595,11 +627,14 @@
                           onchange={(e) => { const t = e.currentTarget.value.trim(); s.rest = t === '' ? null : num(t, 0); }} />
                       {/if}
                     </td>
-                    <td><button class="small" onclick={() => removeSignal(i)} disabled={cfg.signals.length <= 1} aria-label="Fjern {s.id}">✕</button></td>
+                    <td><button class="small" onclick={() => removeSignal(i)} aria-label="Fjern {s.id}" title="Fjern signalet {s.id} (og dets kontaktplan)">✕</button></td>
                   </tr>
                 {/each}
               </tbody>
             </table>
+            {#if !cfg.signals.length}
+              <p class="small notice">Ingen signaler. Et symbol med positioner skal have mindst ét — tilføj et med <strong>+ Signal</strong>, eller vælg <em>Kun visning</em> i trin 1, hvis symbolet ikke skal betjenes.</p>
+            {/if}
             <button class="small" onclick={addSignal} disabled={cfg.signals.length >= 8}>+ Signal</button>
           {/if}
           {#if cfg.op !== 'view'}
@@ -786,10 +821,15 @@
                 <span class="small muted">styres af</span>
                 <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
                   {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
+                  {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
                   {#if !['level', 'opacity', 'scale', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
                 </select>
                 {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
+                {#if srcMode(a) === 'val'}
+                  <input class="n" value={parseValRef(a.src) ?? ''} aria-label="Fast værdi" title="Værdien bruges som om et tag havde den (område: Min–Max nedenfor)"
+                    onchange={(e) => (a.src = valRef(num(e.currentTarget.value, parseValRef(a.src) ?? 0)))} />
+                {/if}
                 {#if srcMode(a) === 'alarm'}
                   {@const al = parseAlarmRef(a.src)!}
                   <select value={al.kind} onchange={(e) => (a.src = alarmRef(e.currentTarget.value as 'active' | 'unack', al.tag))} aria-label="Alarmtilstand">
@@ -809,7 +849,7 @@
                 <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
                 <button class="small" onclick={() => cfg.anims.splice(i, 1)} aria-label="Fjern animation">✕</button>
               </div>
-              <AnimParams {a} {kind} positions={cfg.positions} logic={cfg.logic} {pool} {tags} {valueOf} {metaOf} />
+              <AnimParams {a} {kind} positions={cfg.positions} logic={cfg.logic} {pool} {tags} {valueOf} {metaOf} {palette} />
               {#if WHEN_TYPES.includes(a.type)}
                 <label class="opt small">Når den ikke er aktiv:
                   <select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">
@@ -941,6 +981,10 @@
       </div>
 
       <footer class="row">
+        {#if group.length}
+          <button class="danger" onclick={removeAll} disabled={saving}
+            title="Fjern opsætningen fra alle de valgte symboler på én gang">Fjern konfiguration fra alle ({group.length + 1})</button>
+        {/if}
         {#if !group.length}
           {#if exists}<button class="danger" onclick={remove} disabled={saving}>Fjern konfiguration</button>{/if}
           <button onclick={openCopy} disabled={!canSave}
@@ -998,7 +1042,7 @@
   .grid { border-collapse: collapse; margin: .3rem 0; }
   .grid th, .grid td { border: 1px solid var(--line); padding: .2rem .35rem; text-align: left; }
   /* En tag-dropdown er ellers lige så bred som sin længste valgmulighed ("navn · kilde (type) [enhed]") og presser nabokolonnerne */
-  .grid :global(select), .anim :global(select) { width: auto; max-width: 15em; }   /* :global — TagSelect er en underkomponent */
+  .grid :global(select), .anim :global(select) { width: auto; max-width: 24em; }   /* :global — TagSelect er en underkomponent */
   .grid td.skriv { min-width: 13em; }
   .planes td, .planes th { text-align: center; }
   .n { width: 5.5em; }

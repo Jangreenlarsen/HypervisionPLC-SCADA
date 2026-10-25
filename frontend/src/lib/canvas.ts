@@ -83,7 +83,7 @@ export function onLayoutChange(fn: () => void, ...elements: (Element | null | un
 
 /** Alle tags en binding læser: dens eget og evt. løbelysets retnings-tag (samme regel som backendens binding_tags). */
 export function bindingTags(b: Pick<Binding, 'tag' | 'anim' | 'params'>): string[] {
-  const tags = b.tag && b.tag !== '@on' ? [b.tag] : [];   // "Altid til" er ikke et tag
+  const tags = b.tag && b.tag !== '@on' && !b.tag.startsWith('@val:') ? [b.tag] : [];   // "Altid til" og en fast værdi er ikke tags
   const extra = [b.anim === 'flow' ? b.params?.dir_tag : '', b.params?.pos_tag];
   for (const x of extra) if (x && !tags.includes(x)) tags.push(x);
   return tags;
@@ -130,7 +130,16 @@ export function priorityGroups(bindings: Binding[]): Map<string, Binding[]> {
   return out;
 }
 
-const liveOf = (b: Binding, values: Record<string, LiveValue>): LiveValue | undefined => (b.tag === '@on' ? ALWAYS_ON : values[b.tag]);
+/** Live-værdien for en binding: "Altid til", en fast værdi (`@val:75`) eller tagets værdi. */
+const liveFor = (tag: string, values: Record<string, LiveValue>): LiveValue | undefined => {
+  if (tag === '@on') return ALWAYS_ON;
+  if (tag.startsWith('@val:')) {
+    const n = Number(tag.slice(5));
+    return Number.isFinite(n) && tag.length > 5 ? { value: n, quality: 'good', ts: 0, error: null } : undefined;
+  }
+  return values[tag];
+};
+const liveOf = (b: Binding, values: Record<string, LiveValue>): LiveValue | undefined => liveFor(b.tag, values);
 const dirOf = (b: Binding, values: Record<string, LiveValue>) => (b.anim === 'flow' && b.params?.dir_tag ? values[b.params.dir_tag] : undefined);
 const posOf = (b: Binding, values: Record<string, LiveValue>) => (b.params?.pos_tag ? values[b.params.pos_tag] : undefined);
 
@@ -175,7 +184,7 @@ export function renderBinding(
   }
   const el = findElement(container, b.element);
   // "Altid til" (symbolguiden): altid aktiv, uden et tag
-  const own = b.tag === '@on' ? ALWAYS_ON : values[b.tag];
+  const own = liveFor(b.tag, values);
   if (el) applyBinding(el, b, own, tags[b.tag], b.anim === 'flow' && b.params?.dir_tag ? values[b.params.dir_tag] : undefined,
     b.params?.pos_tag ? values[b.params.pos_tag] : undefined);
 }

@@ -23,7 +23,7 @@ from .audit import AuditService
 from .auth import CurrentUser
 from .errors import ServiceError
 from .manager import PlcManager
-from .tagsource import TagSource, apply_scaling, decode_words, parse_source
+from .tagsource import ST_TYPE_MAP, TagSource, apply_scaling, decode_words, parse_source
 
 INT_RANGES = {"uint": (0, 65535), "int": (-32768, 32767), "dint": (-2**31, 2**31 - 1), "dword": (0, 2**32 - 1)}
 
@@ -43,6 +43,16 @@ def _plc_error(exc: PlcError, what: str) -> ServiceError:
 
 def to_raw(value: Any, source: TagSource, scale: float, offset: float) -> tuple[int | float | bool, Any]:
     """Teknisk værdi → (rå værdi, faktisk teknisk værdi efter afrunding)."""
+    if source.kind in ("logic", "global"):
+        # ST-variabel: typen kendes af PLC'en, som konverterer og tjekker området (FEAT-503)
+        if isinstance(value, bool):
+            return value, value
+        if not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ServiceError(400, "Værdien skal være et tal eller til/fra")
+        raw = (value - offset) / scale
+        if float(raw).is_integer():
+            return int(raw), apply_scaling(int(raw), scale, offset)
+        return raw, value
     if source.kind == "coil" or source.datatype == "bool":
         if isinstance(value, bool):
             return value, value
@@ -78,7 +88,7 @@ class OperateService:
         if not tag["writable"]:
             raise ServiceError(403, f"Tagget '{tag_name}' er ikke skrivbart")
         source = parse_source(tag["source"])
-        if source.kind not in ("hr", "coil"):
+        if source.kind not in ("hr", "coil", "logic", "global"):
             raise ServiceError(403, f"Tagget '{tag_name}' kan ikke skrives ({source.kind} er kun-læs)")
         runtime = self.manager.runtimes.get(source.plc)
         if runtime is None:
@@ -90,6 +100,12 @@ class OperateService:
         if source.is_external:
             # Med `wait`: PLC'en svarer når slaven har bekræftet, fejlet eller ikke nået at svare
             return await runtime.client.write_ext(ext_base(source), source.kind, source.addr, raw, source.datatype)
+        if source.kind == "logic":
+            await runtime.client.write_logic_var(source.program, source.var, raw)
+            return "ok"
+        if source.kind == "global":
+            await runtime.client.write_global(source.var, raw)
+            return "ok"
         if source.kind == "coil":
             await runtime.client.write_coil(source.addr, bool(raw))
             return "ok"
@@ -98,6 +114,18 @@ class OperateService:
             return "ok"
 
     async def _readback(self, runtime: Any, source: TagSource, tag: dict[str, Any]) -> Any:
+        if source.kind in ("logic", "global"):
+            if source.kind == "logic":
+                variables = (await runtime.client.logic_program(source.program)).get("variables") or []
+            else:
+                variables = await runtime.client.logic_globals()
+            var = next((v for v in variables if isinstance(v, dict) and v.get("name") == source.var), None)
+            if var is None or var.get("value") is None:
+                return None
+            value = var["value"]
+            if ST_TYPE_MAP.get(str(var.get("type")).upper()) == "bool" and isinstance(value, (int, bool)):
+                return bool(value)
+            return apply_scaling(value, tag["scale"], tag["offset"])
         if source.is_external:
             items = await runtime.client.read_ext(ext_base(source), source.kind, source.addr, source.words,
                                                   max_age_ms=0, wait_ms=1000)

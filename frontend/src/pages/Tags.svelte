@@ -223,7 +223,7 @@
     </div>
     <h3 style="margin-top: .8rem">Betjening</h3>
     <div class="grid-form">
-      <label class="row" style="flex-direction: row"><input type="checkbox" bind:checked={edit.writable} /> Skrivbar fra Overview (kun hr/coil)</label>
+      <label class="row" style="flex-direction: row"><input type="checkbox" bind:checked={edit.writable} /> Skrivbar fra Overview (hr, coil og ST-variabler)</label>
       <label>Min (teknisk enhed)<input bind:value={edit.min} inputmode="decimal" placeholder="ingen" /></label>
       <label>Max (teknisk enhed)<input bind:value={edit.max} inputmode="decimal" placeholder="ingen" /></label>
       <label class="row" style="flex-direction: row"><input type="checkbox" bind:checked={edit.confirm_write} /> Kræv bekræftelse ved skrivning</label>

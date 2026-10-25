@@ -9,7 +9,7 @@ from typing import Any
 
 from ..storage.db import Database
 from .errors import ServiceError
-from .symbols import validate_config
+from .symbols import MAX_ANIMS, validate_config
 
 log = logging.getLogger("scada.symbol_groups")
 
@@ -115,6 +115,64 @@ class SymbolGroupService:
         if self.db.get_symbol_group(drawing_id, group_id) is None:
             raise ServiceError(404, "Gruppen findes ikke")
         return {r["element"]: r["anims"] for r in self.db.list_group_anims(drawing_id, group_id)}
+
+    def put_anims_all(self, user: str, drawing_id: str, group_id: int, anims: list[dict[str, Any]], mode: str,
+                      skip_invalid: bool) -> dict[str, Any]:
+        """Samme animationer på ALLE gruppens medlemmer (v1.2.0). Kun "Hele symbolet" (`part` = all) kan bruges samlet — dele
+        hedder forskelligt fra symbol til symbol. Hvert medlem valideres for sig (tags, parametre, om animationen passer til
+        symbolet). mode: "add" lægger dem oven i medlemmets egne gruppe-animationer, "replace" erstatter dem.
+        skip_invalid: medlemmer hvor det ikke kan bruges springes over; ellers gemmes intet, hvis ét fejler.
+        → {results: [{element, ok, count, error?}], applied, skipped}"""
+        group = self.db.get_symbol_group(drawing_id, group_id)
+        if group is None:
+            raise ServiceError(404, "Gruppen findes ikke")
+        if mode not in ("add", "replace"):
+            raise ServiceError(400, "mode skal være 'add' eller 'replace'")
+        if not anims:
+            raise ServiceError(400, "Ingen animationer at anvende")
+        if any(a.get("part", "all") != "all" for a in anims):
+            raise ServiceError(400, "Samlet for alle kan kun \"Hele symbolet\" bruges (delene hedder forskelligt fra symbol til symbol)")
+        if not group["members"]:
+            raise ServiceError(400, "Gruppen har ingen symboler")
+        svc = self.symbols
+        others = svc.configs(drawing_id)
+        tags = svc._tags()
+        present = {s["id"] for s in svc.list_symbols_ids(drawing_id)}
+        existing = {r["element"]: r["anims"] for r in self.db.list_group_anims(drawing_id, group_id)}
+        results: list[dict[str, Any]] = []
+        ready: list[tuple[str, list[dict[str, Any]]]] = []
+        for el in group["members"]:
+            if el not in present:
+                results.append({"element": el, "ok": False, "count": 0, "error": "findes ikke længere på tegningen"})
+                continue
+            merged = ([*existing.get(el, []), *anims] if mode == "add" else list(anims))
+            if len(merged) > MAX_ANIMS:
+                results.append({"element": el, "ok": False, "count": 0, "error": f"ville få over {MAX_ANIMS} animationer"})
+                continue
+            try:
+                normalized, res = validate_config({"op": "view", "anims": merged}, svc._element(drawing_id, el), tags, False, el, others)
+            except ServiceError as exc:
+                results.append({"element": el, "ok": False, "count": 0, "error": exc.message})
+                continue
+            if res.count:
+                results.append({"element": el, "ok": False, "count": 0, "error": res.first()})
+                continue
+            ready.append((el, normalized["anims"]))
+            results.append({"element": el, "ok": True, "count": len(normalized["anims"])})
+        failed = [r for r in results if not r["ok"]]
+        if failed and not skip_invalid:
+            raise ServiceError(400, f"Kan ikke anvendes på {failed[0]['element']}: {failed[0]['error']}"
+                               + (f" (og {len(failed) - 1} andre)" if len(failed) > 1 else "") + " — intet er gemt",
+                               {"results": results})
+        for el, merged_anims in ready:
+            if not self.db.set_group_anims(group_id, el, merged_anims, user):
+                for r in results:
+                    if r["element"] == el:
+                        r.update(ok=False, count=0, error="er ikke længere medlem af gruppen")
+        applied = sum(1 for r in results if r["ok"])
+        log.info("Gruppe-animationer til alle: tegning=%s gruppe=%s mode=%s anvendt=%d sprunget over=%d bruger=%s", drawing_id,
+                 group["name"], mode, applied, len(results) - applied, user)
+        return {"results": results, "applied": applied, "skipped": len(results) - applied}
 
     @staticmethod
     def _channel(anim_type: str) -> str:

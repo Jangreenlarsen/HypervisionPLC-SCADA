@@ -35,6 +35,19 @@ MAX_POSITIONS, MAX_PLANES, MAX_SIGNALS, MAX_ANIMS = 8, 8, 8, 12
 MAX_LOGIC, MAX_LOGIC_INPUTS = 8, 4
 POS = "@pos"
 ON = "@on"   # kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag
+VAL = "@val:"   # kilden "fast værdi" (v1.4.0): `@val:75` — et tal i stedet for et tag; kun for tal-animationer
+VAL_TYPES = {"level", "opacity", "scale", "rotate", "move"}   # tal-animationer der kan styres af en fast værdi
+
+
+def parse_val_ref(src: Any) -> float | None:
+    """Tallet i en fast værdi (`@val:75` → 75.0); None hvis det ikke er en fast værdi eller tallet er ugyldigt/uendeligt."""
+    if not isinstance(src, str) or not src.startswith(VAL):
+        return None
+    try:
+        v = float(src[len(VAL):])
+    except ValueError:
+        return None
+    return v if v == v and abs(v) != float("inf") else None
 ALARM_REF = "@alarm:"   # kilden "alarm på et tag" (v0.74.0): @alarm:active:<tag> eller @alarm:unack:<tag>
 ALARM_KINDS = ("active", "unack")
 
@@ -282,7 +295,7 @@ PSEUDO_KINDS = ("pos", "remote", "state", "locked")
 
 def is_logic_ref(src: Any) -> bool:
     """`@L1` — kilden er en logikblok (`@pos` er positionen, `@on` er "Altid til")."""
-    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON) and not src.startswith(ALARM_REF)
+    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON) and not src.startswith((ALARM_REF, VAL))
 
 
 def split_logic_ref(src: str, own: str = "") -> tuple[str, str]:
@@ -512,7 +525,7 @@ class _TagInfo:
         self.is_bool = bool(src and (src.kind in ("coil", "di") or src.datatype == "bool"))
         # ST-variabler kendes først fra live-værdien — så kan typen ikke afgøres her
         self.known = bool(src and src.kind not in ("logic", "global"))
-        self.writable = bool(row["writable"]) and bool(src and src.kind in ("hr", "coil"))
+        self.writable = bool(row["writable"]) and bool(src and src.kind in ("hr", "coil", "logic", "global"))
 
     def range(self) -> tuple[float, float] | None:
         """Tilladt område i tekniske enheder: tagets min/max hvis sat, ellers datatypens område (skaleret)."""
@@ -852,6 +865,14 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             continue
         pos_src = a.src == POS
         on_src = a.src == ON
+        val_src = a.src.startswith(VAL)
+        if val_src:
+            if parse_val_ref(a.src) is None:
+                res.err("4", f"{nm}: ugyldig fast værdi '{a.src[len(VAL):]}' — angiv et tal.")
+                continue
+            if a.type not in VAL_TYPES:
+                res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en fast værdi — vælg et tag (eller \"Altid til\").")
+                continue
         logic_src = is_logic_ref(a.src)
         alarm_src = a.src.startswith(ALARM_REF)
         if alarm_src:
@@ -883,12 +904,14 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if a.type in NUMERIC_ONLY:
                 res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en logikblok — vælg et tal-tag.")
                 continue
-        elif not pos_src and not on_src and not alarm_src:
+        elif not pos_src and not on_src and not alarm_src and not val_src:
             t = tag_of(a.src)
             if t is None:
                 res.err("4", f"{nm}: tagget '{a.src}' findes ikke.")
                 continue
             # Et coil/til-fra-tag kan også styre Niveau/Gennemsigtighed/Størrelse: Fra = 0, Til = 100 (se fraction i animate.ts)
+        elif val_src:
+            pass   # fast værdi: intet tag at slå op
         elif a.type in NUMERIC_ONLY:
             res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af positionen — vælg et tal-tag.")
             continue
@@ -1156,6 +1179,24 @@ class SymbolService:
             raise ServiceError(404, f"'{element}' har ingen symbol-konfiguration")
         if self.on_change is not None:
             self.on_change(drawing_id, element)
+
+    def delete_many(self, drawing_id: str, elements: list[str]) -> dict[str, list[str]]:
+        """Fjern opsætningen på flere symboler på én gang (v1.2.1). Alt eller intet: bruger et symbol, der IKKE fjernes, en
+        logikblok i et af dem (eller en gruppe-animation gør), afvises hele fjernelsen. Blokke, som kun de fjernede symboler
+        bruger indbyrdes, er ikke et problem. Elementer uden opsætning springes over."""
+        self.drawings._require(drawing_id)
+        targets = list(dict.fromkeys(e for e in elements if e))
+        have = {e: self.db.get_symbol_config(drawing_id, e) for e in targets}
+        doomed = {e for e, row in have.items() if row is not None}
+        for e in sorted(doomed):
+            blocks = {b["id"] for b in have[e]["config"].get("logic", [])}
+            if remaining := [u for u in self._logic_users(drawing_id, e, blocks) if u[0] not in doomed]:
+                raise ServiceError(409, f"Symbolets logikblok {remaining[0][1]} i '{e}' bruges af '{remaining[0][0]}' — fjern henvisningen dér først (intet er fjernet)")
+        for e in sorted(doomed):
+            self.db.delete_symbol_config(drawing_id, e)
+            if self.on_change is not None:
+                self.on_change(drawing_id, e)
+        return {"removed": sorted(doomed), "skipped": [e for e in targets if e not in doomed]}
 
     # ------------------------------------------------------------ forsvundne opsætninger (v0.88.0)
 

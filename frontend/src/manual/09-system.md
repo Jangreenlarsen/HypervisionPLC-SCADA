@@ -106,6 +106,17 @@ Alle felter kontrolleres (gyldig adresse, gateway i samme subnet, højst 3 DNS-s
 
 Flytning af hele datamappen (databasen med tags, tegninger og brugere) understøttes ikke; det er trend-databasen, der fylder og skriver mest.
 
+### Genstart
+
+Nederst på **System › Konfiguration** er sektionen **Genstart** (kun admin):
+
+- **Genstart SCADA-tjenesten**: kun programmet genstartes (fx efter en ændring i opsætningen). Siden er væk i et øjeblik; maskinen og PLC'erne røres ikke.
+- **Genstart maskinen**: hele maskinen starter forfra — fx efter et skift til **fast IP-adresse** eller et systemopdatering. Siden er utilgængelig i ca. 1–2 minutter. Har du ændret IP-adressen, skal du åbne den **nye** adresse bagefter.
+
+Du bliver bedt om at bekræfte. Bagefter venter siden på serveren og genindlæser sig selv, når den svarer igen. Tags, tegninger og brugere ligger i databasen og bevares. Bestillingen står i auditloggen.
+
+Genstart fra web kræver, at maskinen er opdateret med en version, der har den (installationen sætter en lille hjælper op, ligesom for netværk). Står der *ikke installeret*, så opdatér under **System › Opdatering** — eller genstart fra kommandolinjen med `sudo systemctl restart hypervisionplc-scada` / `sudo reboot`.
+
 ### Fuld disk: `scada-maint`
 
 Er disken ved at blive fuld, kan du rydde op **på maskinen** — også selv om websiden ikke kan åbnes. Kør som root (`su -c '…'` eller `sudo`):

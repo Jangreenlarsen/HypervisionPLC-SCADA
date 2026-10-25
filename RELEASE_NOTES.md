@@ -2,6 +2,53 @@
 
 ---
 
+## v1.8.2 — 2026-10-25 — Rettelse: skift af IP-adresse fra web
+
+- Rettet en fejl, der gjorde, at **ingen** netværksændring (fast IP, DHCP …) kunne anvendes under System › Konfiguration — siden viste "Ugyldigt input — fallback_after: ukendt felt". Det virker nu igen.
+
+## v1.8.1 — 2026-10-25 — Fjern signaler i Opsæt symbol
+
+- I trin 2 kan alle signaler nu fjernes, også det sidste. Har signalet en kontaktplan med indhold, bliver du spurgt først.
+
+## v1.8.0 — 2026-10-25 — Genstart fra web
+
+- Under **System › Konfiguration › Genstart** kan admin genstarte SCADA-tjenesten eller hele maskinen — fx efter et skift til fast IP-adresse. Siden venter og genindlæser sig selv, når serveren er tilbage.
+- Kræver, at maskinen opdateres med denne version én gang (installationen sætter hjælperen op).
+
+## v1.7.0 — 2026-10-24 — Skriv til ST-variabler
+
+- Tags på ST-variabler og GLOBAL_VAR kan nu gøres **skrivbare** og betjenes fra Overview (setpunkt, knapper, positioner, ugeprogrammer). Kræver at PLC'en er opdateret til firmware **v7.9.68.141** eller nyere — ellers får du en tydelig besked.
+- PLC'en viser nu også variabelnavne op til 31 tegn (før 15).
+
+## v1.6.1 — 2026-10-24 — Fulde tag-navne
+
+- Tag-navne skæres ikke længere over i tag-valget i Opsæt symbol og gruppernes animationer.
+
+## v1.6.0 — 2026-10-24 — Deaktivér en tegning
+
+- På siden **Tegninger** kan du **deaktivere** en tegning: den bliver offline — grå på Overview, uden live-værdier og uden betjening. Tags, som kun den bruger, holder op med at blive pollet. **Alarmer, trend, energi og ugeprogrammer påvirkes ikke** (tags med dem pollas stadig). *Aktivér* henter tegningen online igen.
+
+## v1.5.0 — 2026-10-24 — Hurtigvalg af brugte farver
+
+- Ved farvefelterne i **Opsæt symbol** kan du nu vælge blandt de farver, symbolet og tegningen allerede bruger, med ét klik — så farverne holdes ens.
+
+## v1.4.1 — 2026-10-24 — Stabilere PLC-kommunikation
+
+- Rammes ét enkelt kald til PLC'en af en timeout, mister kun de tags, kaldet dækker, forbindelsen — resten af PLC'ens værdier bliver ved med at opdatere. Tidligere blev alle tags markeret som "kommunikation tabt".
+- PLC-siden viser nu hvilket kald der fejler, og hvilke kald der er langsomst, så en vedvarende årsag kan findes.
+
+## v1.4.0 — 2026-10-24 — Fast værdi som kilde
+
+- *Niveau*, *Gennemsigtighed*, *Størrelse*, *Drej* og *Flyt* kan nu styres af **en fast værdi** i stedet for et tag — skriv bare et tal. Virker på symboler og på gruppernes animationer.
+
+## v1.3.0 — 2026-10-24 — Fjern opsætning fra flere symboler
+
+- I **Opsæt de valgte samlet** er der nu en knap, der fjerner opsætningen fra alle de valgte symboler på én gang.
+
+## v1.2.0 — 2026-10-23 — Animation til alle i gruppen på én gang
+
+- I **Animationer for gruppen** kan du nu vælge fanen **Alle medlemmer** og sætte samme animation op på alle gruppens symboler i ét hug (tilføje eller erstatte). Symboler, hvor animationen ikke kan bruges, kan springes over, og du får en liste over dem.
+
 ## v1.1.0 — 2026-10-23 — Se symbolets grupper i Opsæt symbol
 
 - I **Opsæt symbol** kan du nu se, hvilke grupper symbolet er medlem af, lige under overskriften.

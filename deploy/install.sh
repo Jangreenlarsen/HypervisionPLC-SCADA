@@ -117,6 +117,11 @@ install -m 0644 "$SRC/deploy/hypervisionplc-scada-config.service" "$SRC/deploy/h
 install -d -o scada -g scada -m 0750 "$DATA/config"
 # Status og log ejes af ROOT (tjenesten kun læser) — så kan tjenesten ikke narre root-hjælperen med symlinks i sin egen mappe
 install -d -o root -g root -m 0755 /var/lib/hypervisionplc-scada-net
+# Genstart af SCADA-tjenesten / maskinen fra web (System › Konfiguration › Genstart): samme mønster som netværk — anmodning i <data>/config, root-hjælper
+install -m 0755 "$SRC/deploy/apply-power.sh" /usr/local/lib/hypervisionplc-scada/apply-power.sh.new
+mv /usr/local/lib/hypervisionplc-scada/apply-power.sh.new /usr/local/lib/hypervisionplc-scada/apply-power.sh
+install -m 0644 "$SRC/deploy/hypervisionplc-scada-power.service" "$SRC/deploy/hypervisionplc-scada-power.path" /etc/systemd/system/
+: > /var/lib/hypervisionplc-scada-net/power-enabled
 # Hvilket netværkssystem kører maskinen, og er der en brugbar DHCP-klient? (NetworkManager eller ifupdown; ingen af dem → netværk kan ikke ændres fra web)
 # net-detect.sh skriver capabilities + markørfiler, og køres igen af DHCP-vagtens timer, så en senere "apt install dhcpcd-base" slår igennem af sig selv.
 install -m 0755 "$SRC/deploy/net-detect.sh" /usr/local/lib/hypervisionplc-scada/net-detect.sh
@@ -136,6 +141,8 @@ systemctl enable -q hypervisionplc-scada-update.path
 systemctl restart hypervisionplc-scada-update.path
 systemctl enable -q hypervisionplc-scada-config.path
 systemctl restart hypervisionplc-scada-config.path
+systemctl enable -q hypervisionplc-scada-power.path
+systemctl restart hypervisionplc-scada-power.path
 systemctl enable -q hypervisionplc-scada-netwatch.timer; systemctl restart hypervisionplc-scada-netwatch.timer   # kører også net-detect.sh (hold capabilities opdateret)
 if [ "$WITH_MOCK" -eq 1 ]; then
     systemctl enable -q hypervisionplc-mock-plc

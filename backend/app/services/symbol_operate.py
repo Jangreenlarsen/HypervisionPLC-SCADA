@@ -50,6 +50,8 @@ class SymbolOperateService:
     # ------------------------------------------------------------- fælles tjek
 
     def _config(self, drawing_id: str, element: str, op: str) -> dict[str, Any]:
+        if self.runtime.drawings.is_disabled(drawing_id):
+            raise ServiceError(409, "Tegningen er deaktiveret — den er offline og kan ikke betjenes")
         row = self.db.get_symbol_config(drawing_id, element)
         if row is None:
             raise ServiceError(404, f"'{element}' er ikke et konfigureret symbol")

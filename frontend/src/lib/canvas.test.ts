@@ -146,3 +146,17 @@ describe('flere ejere på samme del (symbol + grupper)', () => {
     expect(fill()).toBe(grpOn);
   });
 });
+
+describe('fast værdi som kilde (@val:)', () => {
+  it('er ikke et tag (ingen abonnement) og giver animationen værdien direkte', () => {
+    const b: Binding = { element: 'r', tag: '@val:75', anim: 'opacity', params: { min: 0, max: 100 }, position: 1000 };
+    expect(bindingTags(b)).toEqual([]);
+    const box = document.createElement('div');
+    box.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"><rect id="r"/></svg>';
+    renderAll(box, [b], {}, {});                        // ingen live-værdier overhovedet
+    expect((box.querySelector('#r') as SVGElement).style.opacity).toBe('0.75');
+    const neg: Binding = { ...b, tag: '@val:-5' };
+    renderAll(box, [neg], {}, {});
+    expect((box.querySelector('#r') as SVGElement).style.opacity).toBe('0');   // under Min: klippet
+  });
+});

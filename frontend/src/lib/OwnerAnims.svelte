@@ -1,7 +1,7 @@
 <script lang="ts">
   // Skrivebeskyttet oversigt over animationer på et symbol, som ejes af andre end den der redigeres (v0.131.0):
   // symbolets egne i neutral farve, hver gruppes i gruppens farve med gruppens navn — så man kan se, hvad man ikke skal røre.
-  import { ANIM_TXT, ON, parseAlarmRef, partLabel, type AnimType, type SymbolInfo } from './symbolConfig';
+  import { ANIM_TXT, ON, parseAlarmRef, parseValRef, partLabel, type AnimType, type SymbolInfo } from './symbolConfig';
   import type { OwnerBlock } from './symbolGroups';
 
   let { owners, symbol = null, title = 'Andre animationer på symbolet (kan ikke ændres her)' }: {
@@ -11,6 +11,8 @@
   const srcText = (src: string): string => {
     if (src === ON) return 'altid til';
     if (src === '@pos') return 'symbolets position';
+    const val = parseValRef(src);
+    if (val !== null) return `fast værdi ${val}`;
     const al = parseAlarmRef(src);
     if (al) return `alarm ${al.kind === 'unack' ? 'ukvitteret' : 'aktiv'} på ${al.tag}`;
     return src || '(intet tag valgt)';

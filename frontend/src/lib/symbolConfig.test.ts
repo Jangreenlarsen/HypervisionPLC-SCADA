@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeAt, animDefaults, cycleCell, keepSuggestion, emptyConfig, foundPosition, partLabel, preset, resize, setOp, tagKind, template, typesFor,
+  activeAt, animDefaults, cycleCell, isLogicRef, keepSuggestion, emptyConfig, foundPosition, parseValRef, partLabel, preset, resize, setOp, tagKind, template, typesFor, valRef,
   type PartInfo, type SymbolConfig, type SymbolInfo,
 } from './symbolConfig';
 
@@ -140,3 +140,16 @@ describe('biblioteksforslag bevares, når det første tag vælges (v0.94.0)', ()
   });
 });
 
+describe('fast værdi (@val:)', () => {
+  it('læser tal, og afviser alt andet', () => {
+    expect(parseValRef('@val:75')).toBe(75);
+    expect(parseValRef('@val:-12.5')).toBe(-12.5);
+    expect(parseValRef('@val:0')).toBe(0);                 // nul er en gyldig værdi
+    for (const bad of ['@val:', '@val:abc', '@val:NaN', '@val:Infinity', 'Pumpe', '@on', '@L1', undefined, null]) expect(parseValRef(bad), String(bad)).toBeNull();
+    expect(valRef(40)).toBe('@val:40');
+  });
+  it('er ikke en logikblok-henvisning', () => {
+    expect(isLogicRef('@val:5')).toBe(false);
+    expect(isLogicRef('@L1')).toBe(true);
+  });
+});

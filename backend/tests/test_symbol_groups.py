@@ -335,3 +335,105 @@ def test_restore_enforces_group_limits_and_case_duplicates(gapi):
     backup["symbol_groups"].append({"drawing_id": gapi.did, "name": "fyr", "kind": "selection", "members": [], "anims": {}})
     r = gapi.post("/api/backup/restore", json=backup)
     assert r.status_code == 400 and "to gange" in r.json()["error"]
+
+
+# ------------------------------------------------------------ samme animationer til alle medlemmer (v1.2.0)
+
+def all_url(api, gid):
+    return url(api, f"/{gid}/anims")
+
+
+def test_apply_to_all_members_add_and_replace(gapi):
+    gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [fill("Pumpe")]})        # A har allerede en
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [fill("Fyr")], "mode": "add"})
+    assert r.status_code == 200 and r.json()["applied"] == 2 and r.json()["skipped"] == 0, r.text
+    on = gapi.get(url(gapi, f"/{gapi.g1}/anims")).json()
+    assert [a["src"] for a in on["A"]] == ["Pumpe", "Fyr"] and [a["src"] for a in on["B"]] == ["Fyr"]
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [fill("Pumpe", "#2e7d32")], "mode": "replace"})
+    assert r.json()["applied"] == 2
+    on = gapi.get(url(gapi, f"/{gapi.g1}/anims")).json()
+    assert [a["src"] for a in on["A"]] == ["Pumpe"] and [a["src"] for a in on["B"]] == ["Pumpe"]
+    # og de andre gruppers animationer røres ikke
+    assert gapi.get(url(gapi, f"/{gapi.g2}/anims")).json() == {}
+
+
+def test_apply_to_all_validation_and_skip_invalid(gapi):
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [{**fill("Fyr"), "part": "A_r"}], "mode": "add"})
+    assert r.status_code == 400 and "Hele symbolet" in r.json()["error"]
+    # level kræver en rect-del: "Hele symbolet" er en gruppe (<g>) → fejler på hvert medlem; uden skip_invalid gemmes intet
+    bad = {"part": "all", "type": "level", "src": "Fyr", "params": {}}
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [bad], "mode": "add", "skip_invalid": False})
+    assert r.status_code == 400 and "intet er gemt" in r.json()["error"] and len(r.json()["results"]) == 2
+    assert gapi.get(url(gapi, f"/{gapi.g1}/anims")).json() == {}
+    # med skip_invalid springes de over og meldes
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [bad], "mode": "add", "skip_invalid": True})
+    assert r.status_code == 200 and r.json()["applied"] == 0 and r.json()["skipped"] == 2
+    assert gapi.post(all_url(gapi, gapi.g1), json={"anims": [fill("Findes-ikke")], "mode": "add", "skip_invalid": False}).status_code == 400
+    assert gapi.post(all_url(gapi, 999), json={"anims": [fill("Fyr")], "mode": "add"}).status_code == 404
+
+
+def test_apply_to_all_limit_and_permissions(gapi):
+    many = [fill("Fyr", f"#00{n:02x}00") for n in range(11)]   # A fyldes op til 11 af højst 12 animationer
+    assert gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": many}).status_code == 200
+    r = gapi.post(all_url(gapi, gapi.g1), json={"anims": [fill("Pumpe"), fill("Fyr")], "mode": "add"})
+    assert r.status_code == 200 and {x["element"]: x["ok"] for x in r.json()["results"]} == {"A": False, "B": True}
+    assert "over 12" in [x for x in r.json()["results"] if x["element"] == "A"][0]["error"]
+    assert gapi.post("/api/users", json={"username": "op2", "role": "operator", "password": "Hemmelig-123"}).status_code == 201
+    with TestClient(gapi.app) as op:
+        op.post("/api/auth/login", json={"username": "op2", "password": "Hemmelig-123"})
+        op.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})
+        assert op.post(all_url(gapi, gapi.g1), json={"anims": [fill("Fyr")], "mode": "add"}).status_code == 403
+
+
+# ------------------------------------------------------------ fjern opsætning fra flere symboler (v1.2.1)
+
+def test_delete_configs_for_several_symbols(gapi):
+    block = {"id": "L1", "name": "", "op": "and", "inputs": [{"src": "Fyr"}], "invert": False}
+    cfg_a = {"op": "view", "anims": [fill("Pumpe")], "logic": [block]}
+    cfg_b = {"op": "view", "anims": [{**fill("Fyr"), "src": "@A:L1"}]}   # B bruger A's logikblok
+    for el, cfg in (("A", cfg_a), ("B", cfg_b)):
+        assert gapi.put(f"/api/drawings/{gapi.did}/symbols/{el}/config", json={"config": cfg}).status_code == 200
+    endpoint = f"/api/drawings/{gapi.did}/symbols/delete-configs"
+    # B bruger A's blok og bliver ikke fjernet → alt eller intet
+    r = gapi.post(endpoint, json={"elements": ["A"]})
+    assert r.status_code == 409 and "intet er fjernet" in r.json()["error"]
+    assert gapi.get(f"/api/drawings/{gapi.did}/symbols/A/config").json()["config"] is not None
+    # begge fjernes samlet (indbyrdes henvisning er ikke et problem); et element uden opsætning springes over
+    r = gapi.post(endpoint, json={"elements": ["A", "B", "Findes-ikke"]})
+    assert r.status_code == 200 and r.json() == {"removed": ["A", "B"], "skipped": ["Findes-ikke"]}
+    assert gapi.get(f"/api/drawings/{gapi.did}/symbols/A/config").json()["config"] is None
+    assert gapi.post(endpoint, json={"elements": []}).status_code == 422
+    assert gapi.post("/api/drawings/findes-ikke/symbols/delete-configs", json={"elements": ["A"]}).status_code == 404
+
+
+# ------------------------------------------------------------ fast værdi som kilde (v1.4.0)
+
+def test_static_value_source_on_symbol_and_group(gapi):
+    scale = lambda src, typ="scale": {"part": "all", "type": typ, "src": src, "params": {"min": 0, "max": 100}}   # noqa: E731
+    r = gapi.put(f"/api/drawings/{gapi.did}/symbols/A/config", json={"config": {"op": "view", "anims": [scale("@val:75"), fill("Fyr")]}})
+    assert r.status_code == 200, r.text
+    assert r.json()["config"]["anims"][0]["src"] == "@val:75"
+    view = gapi.get(f"/api/drawings/{gapi.did}/view").json()
+    b = [x for x in view["bindings"] if x["element"] == "A" and x["anim"] == "scale"][0]
+    assert b["tag"] == "@val:75" and "@val:75" not in view["tags"]          # ikke et tag: ingen tag-meta, ingen live-abonnement
+    # gruppe-animation med fast værdi
+    r = gapi.put(anims_url(gapi, gapi.g1, "B"), json={"anims": [{**scale("@val:40", "opacity")}]})
+    assert r.status_code == 200 and r.json()["anims"][0]["src"] == "@val:40"
+
+
+def test_static_value_validation(gapi):
+    def put(src, typ):
+        return gapi.put(anims_url(gapi, gapi.g1, "A"), json={"anims": [{"part": "all", "type": typ, "src": src, "params": {}}]})
+    assert put("@val:abc", "scale").status_code == 400                     # ikke et tal
+    assert put("@val:", "scale").status_code == 400
+    assert put("@val:nan", "scale").status_code == 400
+    assert put("@val:inf", "scale").status_code == 400
+    r = put("@val:5", "fill")                                              # kun tal-animationer
+    assert r.status_code == 400 and "fast værdi" in r.json()["error"]
+    assert put("@val:5", "blink").status_code == 400
+    assert put("@val:5", "opacity").status_code == 200
+    # en fast værdi tæller ikke som tag: sletning af tags/adgang påvirkes ikke, og backup-rundtur bevarer den
+    backup = gapi.get("/api/backup").json()
+    assert gapi.post("/api/backup/restore", json=backup).status_code == 200
+    ids = {g["name"]: g["id"] for g in gapi.get(url(gapi)).json()}
+    assert gapi.get(url(gapi, f"/{ids['Fyr']}/anims")).json()["A"][0]["src"] == "@val:5"

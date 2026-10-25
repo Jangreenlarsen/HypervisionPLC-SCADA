@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { del, get, patch, post, put } from '../lib/api';
+  import { ask } from '../lib/ask';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
   import SymbolConvert from '../lib/SymbolConvert.svelte';
 
   let { canEdit = false }: { canEdit?: boolean } = $props();
 
-  interface DrawingRow { id: string; name: string; active_version: number; version_count: number; updated_at: number; start?: boolean }
+  interface DrawingRow { id: string; name: string; active_version: number; version_count: number; updated_at: number; start?: boolean; disabled?: boolean }
   interface Version { version: number; comment: string; size: number; width: number | null; height: number | null; created_at: number }
   interface Detail { id: string; name: string; active_version: number; versions: Version[] }
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[] }
@@ -94,6 +95,18 @@
     }
   }
 
+  /** Deaktivér/aktivér (v1.6.0): en deaktiveret tegning er offline — ingen live-data, ingen betjening, og tags kun den bruger pollas ikke. */
+  async function setDisabled(row: DrawingRow, disabled: boolean): Promise<void> {
+    error = '';
+    if (disabled && !(await ask(`Deaktivér "${row.name}"? Tegningen går offline: ingen live-værdier og ingen betjening, og tags kun denne tegning bruger holder op med at blive pollet (tags med alarm, trend, energi eller ugeprogram pollas stadig). Tegning og opsætning bevares.`, { ok: 'Deaktivér', danger: true }))) return;
+    try {
+      await patch(`/api/drawings/${encodeURIComponent(row.id)}`, { disabled });
+      await refresh();
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
+
   /** Tegningen Overview åbner med (for alle brugere der har adgang til den). */
   async function setStart(row: DrawingRow | null): Promise<void> {
     error = '';
@@ -163,6 +176,7 @@
               <td>
                 <a href={'#overview/' + r.id}>{r.name}</a>
                 {#if r.start}<span class="badge connected" title="Overview åbner med denne tegning">Start</span>{/if}
+                {#if r.disabled}<span class="badge off" title="Offline: ingen live-data eller betjening">Deaktiveret</span>{/if}
               </td>
               <td>v{r.active_version}</td>
               <td>{r.version_count}</td>
@@ -174,6 +188,10 @@
                   {#if canEdit}
                     {#if r.start}<button onclick={() => setStart(null)} title="Overview åbner så med den første tegning">Fjern som start</button>
                     {:else}<button onclick={() => setStart(r)} title="Overview åbner med denne tegning">Gør til start</button>{/if}
+                  {/if}
+                  {#if canEdit}
+                    {#if r.disabled}<button onclick={() => setDisabled(r, false)} title="Tegningen bliver online igen">Aktivér</button>
+                    {:else}<button onclick={() => setDisabled(r, true)} title="Gør tegningen offline: ingen live-data eller betjening">Deaktivér</button>{/if}
                   {/if}
                   {#if canEdit}<button class="danger" onclick={() => remove(r)}>Slet</button>{/if}
                 </div>

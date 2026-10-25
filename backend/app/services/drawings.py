@@ -41,8 +41,22 @@ class DrawingService:
 
     def list(self) -> list[dict[str, Any]]:
         start = self.start_drawing()
-        return [{**{k: d[k] for k in ("id", "name", "active_version", "version_count", "updated_at")}, "start": d["id"] == start}
+        return [{**{k: d[k] for k in ("id", "name", "active_version", "version_count", "updated_at")}, "start": d["id"] == start,
+                 "disabled": bool(d["disabled"])}
                 for d in self.db.list_drawings()]
+
+    def disabled_ids(self) -> set[str]:
+        """Deaktiverede tegninger (v1.6.0): offline — ingen live-data, ingen betjening, ingen symbol-runtime."""
+        return {d["id"] for d in self.db.list_drawings() if d["disabled"]}
+
+    def is_disabled(self, drawing_id: str) -> bool:
+        d = self.db.get_drawing(drawing_id)
+        return bool(d and d["disabled"])
+
+    def set_disabled(self, drawing_id: str, disabled: bool) -> dict[str, Any]:
+        self._require(drawing_id)
+        self.db.set_drawing_disabled(drawing_id, disabled)
+        return self.get(drawing_id)
 
     def start_drawing(self) -> str | None:
         """Tegningen Overview åbner med. En slettet tegning ignoreres (Overview falder tilbage til den første)."""
@@ -66,7 +80,7 @@ class DrawingService:
         versions = [{k: v[k] for k in ("version", "comment", "size", "width", "height", "created_at")}
                     for v in self.db.list_versions(drawing_id)]
         return {"id": drawing["id"], "name": drawing["name"], "active_version": drawing["active_version"],
-                "versions": versions}
+                "disabled": bool(drawing["disabled"]), "versions": versions}
 
     def create(self, name: str, svg: str, comment: str = "") -> dict[str, Any]:
         name = (name or "").strip()
@@ -262,7 +276,7 @@ class DrawingService:
                 if name and name in tags and name not in meta:
                     meta[name] = self._meta(tags[name])
         return {"id": drawing["id"], "name": drawing["name"], "version": drawing["active_version"],
-                "svg": svg, "bindings": effective, "orphaned_bindings": sorted(set(orphans)), "tags": meta,
+                "disabled": bool(drawing["disabled"]), "svg": svg, "bindings": effective, "orphaned_bindings": sorted(set(orphans)), "tags": meta,
                 "symbols": self.db.list_symbol_meta(drawing_id), "symbol_config": configured}
 
     def legacy_bindings(self, drawing_id: str, element: str) -> list[dict[str, Any]]:

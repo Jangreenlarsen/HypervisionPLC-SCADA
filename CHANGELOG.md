@@ -4,6 +4,77 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.8.2 build 0212] — 2026-10-25 — fix: netværksskift fra web afvistes ("fallback_after: ukendt felt")
+
+- `NetworkBody` kender nu `fallback_after` (siden sender det altid). Regression siden v0.123.0: ingen netværksændring kunne anvendes fra System › Konfiguration.
+- Ny API-test med frontendens fulde body i alle fire tilstande (fejler uden rettelsen).
+- `backend/app/api/system_config.py`, `backend/tests/test_netconfig.py`.
+
+## [1.8.1 build 0211] — 2026-10-25 — fix: signaler kan altid fjernes i Opsæt symbol
+
+- Trin 2 (Signaler): ✕ er ikke længere slået fra ved det sidste signal; forklarende besked når der ingen er; bekræftelse hvis signalets kontaktplan har indhold.
+- `frontend/src/lib/SymbolGuide.svelte`.
+
+## [1.8.0 build 0210] — 2026-10-25 — Genstart fra web (SCADA-tjenesten eller maskinen)
+
+- Ny sektion **Genstart** i System › Konfiguration (admin): *Genstart SCADA-tjenesten* og *Genstart maskinen* (fx efter skift til fast IP-adresse), med bekræftelse. Siden venter på serveren og genindlæser, når den svarer igen (op til 6 min.).
+- Samme mønster som netværksopsætningen: tjenesten (ikke-privilegeret) lægger `power.request` i `<data>/config/`; en root-hjælper (`deploy/apply-power.sh`, udløst af `hypervisionplc-scada-power.path`) flytter den ind i sin egen mappe, afviser symlinks, ukendte handlinger og anmodninger ældre end 2 min., fjerner anmodningen FØR handlingen og udfører `systemctl restart hypervisionplc-scada` / `systemctl reboot` efter 3 s (så svaret når frem). Ingen værdi fra filen når et shell.
+- `install.sh` installerer hjælperen og enhederne og sætter markøren `power-enabled`; på maskiner uden den (ikke opdateret endnu) viser siden en tydelig besked i stedet for knapper.
+- API: `GET/POST /api/system/power` (admin, audit `system.power`); dobbelt-bestilling afvises (409).
+- `deploy/{apply-power.sh,hypervisionplc-scada-power.path,hypervisionplc-scada-power.service,install.sh}`, `backend/app/services/power.py`, `api/system_power.py`, `main.py`, `frontend/src/pages/SystemConfig.svelte`, manualen, tests (4 nye + hjælperscriptet afprøvet med stub). Symlink-afvisningen kunne ikke afprøves på Windows.
+
+## [1.7.0 build 0209] — 2026-10-24 — ST-variabler kan skrives (kræver PLC-firmware v7.9.68.141)
+
+- Tags på ST-variabler (`plcN:logic:<prog>:<var>`) og GLOBAL_VAR (`plcN:global:<var>`) kan nu være skrivbare. Setpunkt, trykknap, til/fra-skift, symbolpositioner og ugeprogrammer bruger dem som almindelige tags. Skrivningen går via PLC'ens nye `POST /api/logic/{id}/var` og `POST /api/logic/globals/var` (HypervisionPLC FEAT-503, v7.9.68.141), og tilbagelæsning sker fra variabellisten.
+- PLC'en konverterer og tjekker værdien efter variablens type; dens afvisninger (område, STRING, variabel bundet som INPUT, ukendt navn) vises ordret. Ældre firmware (endpointet findes ikke) giver beskeden "PLC-firmwaren kan ikke skrive ST-variabler — opdatér PLC'en til v7.9.68.141 eller nyere".
+- Mock-PLC'en har de to nye endpoints (og kan efterligne ældre firmware og INPUT-bundne variabler).
+- `backend/app/plc/client.py`, `services/{operate,tags,symbols}.py`, `mock_plc/app.py`, `frontend/src/pages/Tags.svelte`, manualen, tests (3 nye).
+
+## [1.6.1 build 0208] — 2026-10-24 — fix: tag-navne skæres ikke over i tag-dropdownen
+
+- `TagSelect`: det valgte tag vises med fuldt navn (uden kilde/enhed) i det lukkede felt; detaljer i tooltip og den åbne liste. Maks-bredden i symbolguiden, gruppernes animationer og animationsparametre hævet fra 15em til 24em.
+- `frontend/src/lib/{TagSelect,AnimParams,GroupAnims,SymbolGuide}.svelte`.
+
+## [1.6.0 build 0207] — 2026-10-24 — Tegninger kan deaktiveres (offline)
+
+- Under **Tegninger** kan en tegning sættes i **deaktiveret** tilstand (knappen *Deaktivér* / *Aktivér*, teknikere og admin): den er offline — Overview viser den grå med beskeden *Tegningen er deaktiveret*, uden live-data, bindinger, genveje og betjening. Bevares i backup.
+- Server: operatører (og panel) kan ikke længere betjene via en deaktiveret tegning (`scope._operator_bindings`), symbolpositioner kan ikke betjenes (`symbol_operate`), og symbol-runtime springer deaktiverede tegninger over (ingen positioner, ingen afvigelsesalarmer).
+- Polling: tags, som KUN deaktiverede tegninger bruger, pollas ikke (`services/drawing_activity.suspended_tags`, `manager.reload_tags`); deres live-værdi står som *ukendt*. Tags med alarm, trend, energi eller ugeprogram pollas som før — alarmer slås bevidst aldrig fra bare fordi en tegning er skjult (afvigelse fra den første beskrivelse: "alarmer slås fra").
+- Database: ny kolonne `drawings.disabled` (tilføjes automatisk, `ALTER TABLE`); backup/gendannelse bærer flaget.
+- `backend/app/storage/db.py`, `services/{drawings,drawing_activity (ny),manager,scope,symbol_operate,symbol_runtime,backup}.py`, `api/drawings.py`, `main.py`, `frontend/src/pages/{Drawings,Overview}.svelte`, `lib/api.ts`, manualen, tests (4 nye).
+
+## [1.5.0 build 0206] — 2026-10-24 — Brugte farver som hurtigvalg ved farvefelterne
+
+- Ved hvert farvefelt i **Opsæt symbol** (Til/Fra, grænser, blafrer, løbelys …) og i gruppernes animationer vises nu små farveknapper med de farver, der allerede bruges: først animationernes egne, så symbolets tegnede farver (mest brugte først), så tegningens øvrige (højst 10). Ét klik vælger farven; den almindelige farvevælger er der stadig, og den aktuelle farve er markeret.
+- Farverne hentes fra tegningens SVG (`GET /api/drawings/{id}/svg`) og fra animationernes parametre. Genbruger `svgedit-host/colors.js` (normalisering af farver).
+- `frontend/src/lib/{usedColors.ts (ny),AnimParams,SymbolGuide,GroupAnims}`, test.
+
+## [1.4.1 build 0205] — 2026-10-24 — fix: ét langsomt PLC-kald tager ikke længere hele PLC'en ned
+
+- `plc_runtime.poll_once`: hvert kald (register-område, ST-program, GLOBAL_VAR, ekstern slave) kører isoleret (`_guarded`). Fejler ét, får kun dets tags `comm_error`; resten opdateres normalt. Fejlende kald hviler 2→20 s (`COOL_STEP_S`/`COOL_MAX_S`) i stedet for at blive gentaget hver cyklus. Login-/rettigheds-/rate-fejl (401/403/429) rammer fortsat alt. Fejler *alle* kald, er det en fuld kommunikationsfejl som før.
+- Status: `partial` (kald der fejlede i cyklussen) og `slowest` (største svartider) i `/api/plcs`; PLC-siden viser *Delvis kommunikationsfejl* og *Langsomste kald*.
+- `backend/app/services/{plc_runtime,manager}.py`, `frontend/src/pages/Plcs.svelte`, tests (3 nye).
+
+## [1.4.0 build 0204] — 2026-10-24 — Fast værdi som kilde til tal-animationer
+
+- Ny kilde **en fast værdi** (`@val:75`) ved siden af *et tag*, *en alarm*, *altid til* og *en logikblok*: tal-animationerne **Niveau, Gennemsigtighed, Størrelse, Drej og Flyt** kan styres af et tal, der indtastes direkte, og som animationen bruger som om et tag havde værdien. Virker i symbolguiden og i gruppernes animationer (også fanen *Alle medlemmer*).
+- En fast værdi er ikke et tag: ingen live-abonnement, ingen tag-meta, ingen adgangs-/slettekontrol, ingen kommunikationsfejl. Serveren validerer: kun tal (ikke NaN/uendelig), og kun for de fem tal-typer (Farve/Blink/Synlig/Roterer/Blafrer/Løbelys har allerede *altid til*; *Værdi* vises ikke med fast værdi).
+- Skifter man animationstype til en, der ikke kan bruge en fast værdi, nulstilles kilden.
+- Ikke med (bevidst): Bindinger-siden (gamle pr.-element-bindinger) og *Værdi*-teksten.
+- `backend/app/services/symbols.py`, `bindings.py`, `frontend/src/lib/{symbolConfig.ts,canvas.ts,SymbolGuide,GroupAnims,OwnerAnims}`, manualen, tests (4 nye backend/frontend).
+
+## [1.3.0 build 0203] — 2026-10-24 — Opsæt de valgte samlet: fjern konfiguration fra alle
+
+- Når flere symboler er valgt til **Opsæt de valgte samlet**, kan opsætningen nu fjernes fra alle på én gang (knappen **Fjern konfiguration fra alle**), ligesom for ét symbol. Alt eller intet: bruger et symbol, der ikke fjernes, en logikblok i et af de valgte (eller en gruppe-animation), afvises hele fjernelsen med besked. Symboler uden opsætning springes over.
+- Backend: `POST /api/drawings/{id}/symbols/delete-configs` (ENGINEER, audit-log).
+- `backend/app/services/symbols.py`, `api/symbols.py`, `frontend/src/lib/SymbolGuide.svelte`, `pages/DrawEditor.svelte`, test.
+
+## [1.2.0 build 0202] — 2026-10-23 — Animationer for gruppen: samme animation på alle medlemmer
+
+- I **Animationer for gruppen** er der en ny fane **Alle medlemmer**: vælg animationerne én gang og anvend dem på alle gruppens symboler — tilføjet til symbolernes egne gruppe-animationer eller som erstatning. Anvendes på *Hele symbolet* (dele hedder forskelligt fra symbol til symbol, så dem sættes op pr. symbol). Hvert symbol valideres for sig; valgfrit springes symboler over, hvor animationen ikke kan bruges (fx Niveau på et symbol uden rektangel), og de meldes. Uden "spring over" gemmes intet, hvis ét fejler.
+- Backend: `POST /api/drawings/{id}/groups/{gid}/anims` (ENGINEER, audit-log); loft på 12 animationer pr. symbol gælder.
+- `backend/app/services/symbol_groups.py`, `api/symbol_groups.py`, `frontend/src/lib/{GroupAnims.svelte,symbolGroups.ts}`, manualen, tests (3 nye).
+
 ## [1.1.0 build 0201] — 2026-10-23 — Opsæt symbol viser symbolets grupper
 
 - Under overskriften i symbolguiden står de grupper, symbolet er medlem af (i gruppens farve, med art som tooltip), eller "Ikke medlem af nogen gruppe".
