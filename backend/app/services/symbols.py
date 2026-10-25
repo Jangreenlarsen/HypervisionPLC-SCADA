@@ -271,6 +271,7 @@ class SymbolConfig(_M):
     validate_s: float = 5
     alarm: Literal["", "low", "medium", "high"] = "medium"
     confirm: bool = True
+    click: Literal["dialog", "step"] = "dialog"   # v1.11.0: "step" = tryk venstre/højre side af symbolet for at skifte position
     pulse_ms: int = 500
     lock: Lock = Field(default_factory=Lock)
     anims: list[Anim] = Field(default_factory=list, max_length=MAX_ANIMS)
@@ -501,7 +502,8 @@ def symbol_view(drawing_id: str, element: str, cfg: dict[str, Any], has_pin: boo
             "display": cfg.get("display"), "confirm": bool(cfg.get("confirm", True)),
             "lock_positions": (cfg.get("lock") or {}).get("positions") or [],
             "lock_leave": bool((cfg.get("lock") or {}).get("leave")), "has_pin": has_pin,
-            "fault": cfg.get("fault") or "", "pulse_ms": cfg.get("pulse_ms")}
+            "fault": cfg.get("fault") or "", "pulse_ms": cfg.get("pulse_ms"),
+            "click": cfg.get("click") if cfg.get("op") == "positions" and cfg.get("click") == "step" else "dialog"}
     if cfg.get("op") == "positions":
         view["pseudo"] = {k: pseudo_tag(drawing_id, element, k) for k in PSEUDO_KINDS}
     if cfg.get("op") in ("pulse", "entry") and cfg.get("signals"):
@@ -663,6 +665,7 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
     else:
         cfg.positions, cfg.planes = [], []
         cfg.lock = Lock()
+        cfg.click = "dialog"   # venstre/højre-betjening giver kun mening for positioner
         n = 0
     if cfg.op == "view":
         cfg.signals = []

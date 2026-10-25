@@ -138,7 +138,7 @@
   function normalize(c: SymbolConfig): SymbolConfig {
     const d = emptyConfig(c.type);
     return {
-      ...d, ...c, fault: c.fault ?? '', lock: { ...d.lock, ...(c.lock ?? {}) },
+      ...d, ...c, click: c.click === 'step' ? 'step' as const : 'dialog' as const, fault: c.fault ?? '', lock: { ...d.lock, ...(c.lock ?? {}) },
       signals: (c.signals ?? []).map((s: Partial<Signal> & { id: string }) => ({ ...{ tag: '', fb: '', write: 'set' as const, ms: 500, rest: null }, ...s })),
       anims: (c.anims ?? []).map((a) => {
         const params = a.params ?? {};
@@ -880,6 +880,14 @@
             <p class="muted small">Kun visning — intet at betjene.</p>
           {:else}
             <label class="opt"><input type="checkbox" bind:checked={cfg.confirm} /> Operatøren skal bekræfte før der skrives</label>
+            {#if isPos}
+              <h4>Betjening på tegningen</h4>
+              <label class="opt"><input type="radio" name="clickmode" value="dialog" bind:group={cfg.click} /> <strong>Dialog</strong> — et tryk åbner en boks, hvor operatøren vælger position</label>
+              <label class="opt"><input type="radio" name="clickmode" value="step" bind:group={cfg.click} /> <strong>Interaktiv</strong> — tryk på <em>venstre</em> side for forrige og <em>højre</em> side for næste position (fx en omskifter med flere positioner)</label>
+              {#if cfg.click === 'step'}
+                <p class="small muted">Bekræftelse og nøglelås gælder som ellers: kræver positionen bekræftelse eller kode, åbnes boksen med den valgte position. Kendes den viste position ikke endnu, åbnes dialogen.</p>
+              {/if}
+            {/if}
             {#if cfg.op === 'pulse'}
               <label class="field-row">Pulslængde (ms) <input class="n" type="number" min="100" max="10000" step="100" bind:value={cfg.pulse_ms} /></label>
             {/if}

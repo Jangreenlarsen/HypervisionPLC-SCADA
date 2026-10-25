@@ -12,7 +12,7 @@
   import { byTag as indexByTag, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
   import { clearOverlays, drawOverlay } from '../lib/symbolOverlay';
-  import { clickAction, lockedPosition, needsPin, operateLabel, pickAction, STATE_TXT, type SymbolState, type SymbolView } from '../lib/symbolUi';
+  import { clickAction, clickSide, lockedPosition, needsPin, operateLabel, pickAction, STATE_TXT, stepTarget, type SymbolState, type SymbolView } from '../lib/symbolUi';
   import { panBy, pickDrawing, zoomAt, zoomLevel, type View } from '../lib/viewport';
 
   let { route = 'overview', canEdit = false, canOperate = false, panel = false, sourceUrl = '', onlogout }: {
@@ -246,6 +246,7 @@
         for (const name of Object.values(s.pseudo ?? {})) pseudoOf.set(name, element);
         if (s.fault) pseudoOf.set(s.fault, element);
         if (s.op !== 'view') svgRoot?.querySelector(`#${CSS.escape(element)}`)?.classList.add('hv-clickable');
+        if (s.op === 'positions' && s.click === 'step') svgRoot?.querySelector(`#${CSS.escape(element)}`)?.classList.add('hv-step');
         overlay(element);
       }
       live.subscribe([...new Set([...byTag.keys(), ...pseudoOf.keys(), ...Object.values(symbolsOf()).map((s) => s.tag ?? '').filter(Boolean)])]);
@@ -303,7 +304,7 @@
     }
     const element = symbolTarget(e.target as Element);
     if (element) {
-      await clickSymbol(element);
+      await clickSymbol(element, e);
       return;
     }
     const b = clickTarget(e.target as Element);
@@ -395,11 +396,42 @@
   const symUrl = (element: string, what: string) =>
     `/api/drawings/${encodeURIComponent(view?.id ?? '')}/symbols/${encodeURIComponent(element)}/${what}`;
 
-  async function clickSymbol(element: string): Promise<void> {
+  // Venstre/højre-betjening: den position der sidst blev bestilt, til PLC'en har svaret (så hurtige tryk tæller videre fra den)
+  let lastStep: { element: string; to: number; ts: number } | null = null;
+
+  async function stepSymbol(element: string, s: SymbolView, e: MouseEvent): Promise<void> {
+    const node = svgRoot?.querySelector(`#${CSS.escape(element)}`);
+    const rect = node?.getBoundingClientRect();
+    const shown = shownPos(element);
+    const recent = lastStep && lastStep.element === element && Date.now() - lastStep.ts < 4000 && shown !== lastStep.to ? lastStep.to : null;
+    const r = rect ? stepTarget(s, recent ?? shown, clickSide(e.clientX, rect)) : ({ kind: 'dialog' } as const);
+    if (r.kind === 'limit') {
+      showToast('warn', `${symName(element)} står allerede i ${r.end === 'first' ? 'første' : 'sidste'} position`);
+      return;
+    }
+    if (r.kind === 'dialog') {
+      symDialog = { element, name: symName(element), sym: s, pick: null, pin: '', entry: '', writes: null, error: '', busy: false };
+      return;
+    }
+    lastStep = { element, to: r.to, ts: Date.now() };
+    if (pickAction(s, shown, r.to) === 'operate') {
+      if (!(await doOperate(element, r.to, ''))) lastStep = null;
+    } else {
+      // bekræftelse eller kode kræves: dialogen åbnes med den valgte position (som ved to positioner)
+      symDialog = { element, name: symName(element), sym: s, pick: r.to, pin: '', entry: '', writes: null, error: '', busy: false };
+      await loadPlan(r.to);
+    }
+  }
+
+  async function clickSymbol(element: string, e?: MouseEvent): Promise<void> {
     const s = symbolsOf()[element];
     if (!s) return;
     if (!canOperate) {
       showToast('error', 'Betjening kræver rollen operatør');
+      return;
+    }
+    if (e && s.op === 'positions' && s.click === 'step') {
+      await stepSymbol(element, s, e);
       return;
     }
     const action = clickAction(s, shownPos(element));

@@ -181,3 +181,4 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v1.8.0 — Genstart fra web: SCADA-tjenesten eller maskinen (System › Konfiguration › Genstart)
 - [x] done v1.9.0 — Overview: PLC-fejl kan kvitteres (skjules til PLC'en har været i orden igen)
 - [x] done v1.10.0 — Overview: beskeder samlet i en fast pille i værktøjslinjen (tegningen hopper ikke)
+- [x] done v1.11.0 — Symboler med positioner: valgfri venstre/højre-betjening på tegningen (Opsæt symbol › Betjening)

@@ -22,6 +22,8 @@ import { defaultDirs, leverAnims } from './toggleSwitch';
 export interface SymbolConfig {
   type: string; op: Op; positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
   display: 'remote' | 'local'; validate_s: number; alarm: '' | 'low' | 'medium' | 'high'; confirm: boolean; pulse_ms: number;
+  /** Betjening på tegningen: dialog med valg af position (standard) eller tryk venstre/højre side for at skifte position (v1.11.0) */
+  click: 'dialog' | 'step';
   lock: { positions: boolean[]; leave: boolean }; anims: Anim[]; logic: LogicBlock[];
   /** Trendgraf (v0.91.0) — kun for symboler, der viser en graf. */
   chart?: ChartCfg | null;
@@ -268,7 +270,7 @@ export function tagKind(source: string | undefined): 'bool' | 'num' | 'unknown' 
 export function emptyConfig(type = 'custom'): SymbolConfig {
   return {
     type, op: 'view', positions: [], signals: [], planes: [], fault: '', display: 'remote', validate_s: 5, alarm: 'medium',
-    confirm: true, pulse_ms: 500, lock: { positions: [], leave: false }, anims: [], logic: [],
+    confirm: true, click: 'dialog', pulse_ms: 500, lock: { positions: [], leave: false }, anims: [], logic: [],
   };
 }
 
