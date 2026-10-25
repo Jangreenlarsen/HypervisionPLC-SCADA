@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.9.1 build 0215] — 2026-10-25 — fix: fejl ved sletning af tag i brug vises ved tagget
+
+- Tags: afvist sletning vises som en rød linje under tagget (ikke kun øverst på siden). Serverens besked nævner nu tegningerne og antal bindinger. `frontend/src/pages/Tags.svelte`, `backend/app/{services/tags.py,storage/db.py}`, test.
+
 ## [1.9.0 build 0214] — 2026-10-25 — Overview: PLC-fejl kan kvitteres
 
 - Røde PLC-bannere på Overview (fx *PLC …: kommunikation tabt*) har nu en knap **Kvittér**, så fejlen ikke står på hovedsiden hele tiden. En kvitteret fejl skjules, og der står en lille linje *Kvitterede PLC-fejl: … — vis igen*. Kvitteringen bortfalder, når PLC'en har været i orden igen, så en NY fejl vises igen.

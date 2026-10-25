@@ -437,3 +437,9 @@ def test_static_value_validation(gapi):
     assert gapi.post("/api/backup/restore", json=backup).status_code == 200
     ids = {g["name"]: g["id"] for g in gapi.get(url(gapi)).json()}
     assert gapi.get(url(gapi, f"/{ids['Fyr']}/anims")).json()["A"][0]["src"] == "@val:5"
+
+
+def test_delete_tag_in_use_names_the_drawings(gapi):
+    gapi.put(f"/api/drawings/{gapi.did}/bindings/A_r", json={"bindings": [{"tag": "Fyr", "anim": "text"}]})
+    r = gapi.delete("/api/tags/Fyr")
+    assert r.status_code == 409 and "Anlæg" in r.json()["error"] and "fjern dem under Bindinger først" in r.json()["error"], r.text

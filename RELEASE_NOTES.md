@@ -2,6 +2,10 @@
 
 ---
 
+## v1.9.1 — 2026-10-25 — Tydelig fejl når et tag i brug ikke kan slettes
+
+- Prøver du at slette et tag, der er i brug, står fejlen nu lige under tagget og nævner hvilke tegninger der bruger det.
+
 ## v1.9.0 — 2026-10-25 — Kvittér PLC-fejl på Overview
 
 - PLC-fejl øverst på Overview kan **kvitteres**, så de ikke fylder hele tiden. Er PLC'en i orden igen og fejler senere, vises den nye fejl. Kvitteringen gælder kun din browser.

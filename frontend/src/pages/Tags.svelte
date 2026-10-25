@@ -115,13 +115,17 @@
     }
   }
 
+  // Fejl ved sletning vises lige under tagget (listen er lang — en fejl øverst på siden overses nemt, og tagget bare bliver stående)
+  let deleteErrors = $state<Record<string, string>>({});
   async function remove(t: Tag): Promise<void> {
     if (!await askUser(`Slet tagget ${t.name}?`)) return;
+    const { [t.name]: _gone, ...rest } = deleteErrors;
+    deleteErrors = rest;
     try {
       await del(`/api/tags/${encodeURIComponent(t.name)}`);
       await refresh();
     } catch (e) {
-      error = (e as Error).message;
+      deleteErrors = { ...deleteErrors, [t.name]: (e as Error).message };
     }
   }
 
@@ -294,6 +298,12 @@
             <td class="small">{t.description}{v?.error ? ` — ${v.error}` : ''}</td>
             <td>{#if canEdit}<div class="row"><button onclick={() => startEdit(t)}>Redigér</button><button class="danger" onclick={() => remove(t)}>Slet</button></div>{/if}</td>
           </tr>
+          {#if deleteErrors[t.name]}
+            <tr class="del-error"><td colspan="6">
+              <div class="error row" style="justify-content: space-between" role="alert"><span><strong>{t.name} kan ikke slettes:</strong> {deleteErrors[t.name]}</span>
+                <button class="small" onclick={() => { const { [t.name]: _g, ...r } = deleteErrors; deleteErrors = r; }}>OK</button></div>
+            </td></tr>
+          {/if}
         {/each}
       </tbody>
     </table>
