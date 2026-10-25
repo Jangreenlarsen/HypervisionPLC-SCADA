@@ -834,7 +834,7 @@
                 {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
                 {#if srcMode(a) === 'tag' && isPos && BY_VALUE_TYPES.includes(a.type)}
                   <label class="opt small" title={`Tagets værdi er positionens nummer: ${cfg.positions.map((p, j) => `${j} = ${p.label}`).join(', ')}`}>
-                    <input type="checkbox" checked={!!a.by_value} onchange={(e) => { a.by_value = e.currentTarget.checked; a.pos_values = a.by_value ? cfg.positions.map((_, j) => j) : null; resetParams(a); }} />
+                    <input type="checkbox" checked={!!a.by_value} onchange={(e) => { a.by_value = e.currentTarget.checked; a.pos_values = a.by_value ? cfg.positions.map((_, j) => j) : null; if (a.by_value) a.only = null; resetParams(a); }} />
                     Pr. værdi (0 = {cfg.positions[0]?.label ?? '1. position'}, 1 = {cfg.positions[1]?.label ?? '2. position'} …)</label>
                 {/if}
                 {#if srcMode(a) === 'val'}
@@ -878,7 +878,7 @@
                   </select>
                 </label>
               {/if}
-              {#if isPos && a.src !== POS}
+              {#if isPos && a.src !== POS && !byValue(a)}   <!-- "Gælder i" læser symbolets EGEN position — giver ikke mening ved "pr. værdi" (v1.13.1) -->
                 <div class="row wrap small"><span class="muted">Gælder i:</span>
                   {#each cfg.positions as p, j}<label class="opt"><input type="checkbox" checked={a.only?.[j] ?? true} onchange={() => toggleOnly(a, j)} /> {p.label}</label>{/each}
                 </div>

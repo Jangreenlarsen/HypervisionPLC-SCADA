@@ -2,6 +2,10 @@
 
 ---
 
+## v1.13.1 — 2026-10-25 — Enklere opsætning ved Pr. værdi
+
+- Feltet *Gælder i* vises ikke længere, når en animation styres af et tag med *Pr. værdi* — det gjaldt symbolets egen position og var forvirrende dér.
+
 ## v1.13.0 — 2026-10-25 — Faste positioner fra et tag
 
 - Med *Pr. værdi* kan du nu angive, hvilke tag-værdier der hører til hver position (fx Fra ≥ 0, Hånd ≥ 50, Auto ≥ 100). En omskifter står derfor altid i en af sine positioner — aldrig midt imellem — uanset tagets værdi.

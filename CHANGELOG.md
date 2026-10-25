@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.13.1 build 0223] — 2026-10-25 — "Gælder i" skjules ved "Pr. værdi"
+
+- "Gælder i" læser symbolets EGEN position, ikke positionen afledt af tagget, og var forvirrende ved siden af fra-værdierne. Ved *Pr. værdi* skjules den nu i guiden, og serveren rydder den (`only`). Uden *Pr. værdi* er den uændret.
+- `frontend/src/lib/SymbolGuide.svelte`, `backend/app/services/symbols.py`, test.
+
 ## [1.13.0 build 0222] — 2026-10-25 — Pr. værdi: afgræns hvilke tag-værdier der hører til hver position
 
 - Jan: en omskifter har faste positioner, så knappen må ikke kunne stå midt imellem, hvis tagget har en uventet værdi. Med *Pr. værdi* angives nu en **fra-værdi pr. position** (stigende, standard 0, 1, 2 …): positionen er den sidste, hvis fra-værdi er nået; under den første: ingen position (delen som tegnet).
