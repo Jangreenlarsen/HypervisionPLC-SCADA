@@ -23,7 +23,7 @@
   import {
     ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
-    ALL_OPS, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
+    ALL_OPS, BY_VALUE_TYPES, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
 
@@ -78,7 +78,8 @@
     const v = liveVals[tag]?.value;   // ST-variabel: typen kendes fra live-værdien
     return typeof v === 'boolean' ? 'bool' : typeof v === 'number' ? 'num' : 'unknown';
   }
-  const srcKind = (a: Anim): SrcKind => (a.src === POS ? 'pos' : a.src === ON || parseAlarmRef(a.src) || isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
+  const byValue = (a: Anim): boolean => !!a.by_value && isPos && !!a.src && !a.src.startsWith('@') && BY_VALUE_TYPES.includes(a.type);
+  const srcKind = (a: Anim): SrcKind => (a.src === POS || byValue(a) ? 'pos' : a.src === ON || parseAlarmRef(a.src) || isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
   const n = $derived(cfg.positions.length);
   const isPos = $derived(cfg.op === 'positions');
   const partIds = $derived(['all', ...Object.keys(symbol?.parts ?? {})]);
@@ -143,7 +144,7 @@
       anims: (c.anims ?? []).map((a) => {
         const params = a.params ?? {};
         // Blafrer gemt med v0.69.0 (én farve) eller uden palette: altid tre farver at vælge (v0.70.0)
-        return { ...a, src: a.src ?? '', only: a.only ?? null, when: Boolean(a.when), params: a.type === 'flicker' ? { ...params, palette: flickerPalette(params) } : params };
+        return { ...a, src: a.src ?? '', only: a.only ?? null, when: Boolean(a.when), by_value: Boolean(a.by_value), params: a.type === 'flicker' ? { ...params, palette: flickerPalette(params) } : params };
       }),
       logic: (c.logic ?? []).map((b) => ({
         id: b.id, name: b.name ?? '', op: b.op ?? 'and', invert: Boolean(b.invert),
@@ -406,6 +407,7 @@
    *  forslag fra biblioteket (fx kontaktens knive: 32°), beholdes forslagets indstillinger, når de passer (v0.94.0). */
   function resetParams(a: Anim, wasSrc?: string): void {
     if (!typesFor(partInfo(a.part)).includes(a.type)) a.type = 'fill';
+    if (a.by_value && (!isPos || a.src.startsWith('@') || !BY_VALUE_TYPES.includes(a.type))) a.by_value = false;
     if (parseValRef(a.src) !== null && !VAL_TYPES.includes(a.type)) a.src = '';   // en fast værdi passer kun til tal-animationer
     const fresh = animDefaults(a.type, srcKind(a), n);
     const before = wasSrc === undefined ? undefined : animDefaults(a.type, srcKind({ ...a, src: wasSrc }), n);
@@ -830,6 +832,11 @@
                   {#if !['level', 'opacity', 'scale', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
                 </select>
                 {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
+                {#if srcMode(a) === 'tag' && isPos && BY_VALUE_TYPES.includes(a.type)}
+                  <label class="opt small" title={`Tagets værdi er positionens nummer: ${cfg.positions.map((p, j) => `${j} = ${p.label}`).join(', ')}`}>
+                    <input type="checkbox" checked={!!a.by_value} onchange={(e) => { a.by_value = e.currentTarget.checked; resetParams(a); }} />
+                    Pr. værdi (0 = {cfg.positions[0]?.label ?? '1. position'}, 1 = {cfg.positions[1]?.label ?? '2. position'} …)</label>
+                {/if}
                 {#if srcMode(a) === 'val'}
                   <input class="n" value={parseValRef(a.src) ?? ''} aria-label="Fast værdi" title="Værdien bruges som om et tag havde den (område: Min–Max nedenfor)"
                     onchange={(e) => (a.src = valRef(num(e.currentTarget.value, parseValRef(a.src) ?? 0)))} />

@@ -8,7 +8,11 @@ export type SrcKind = 'pos' | 'bool' | 'num';
 
 export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null }
 export interface Plane { signal: string; values: (number | null)[] }
-export interface Anim { part: string; type: AnimType; src: string; params: Record<string, any>; only: boolean[] | null; when?: boolean }
+export interface Anim { part: string; type: AnimType; src: string; params: Record<string, any>; only: boolean[] | null; when?: boolean;
+  /** v1.12.0: tagets værdi ER positionsnummeret (0, 1, 2 …) — én værdi pr. position, som med kilden "symbolets position" */
+  by_value?: boolean }
+/** Animationer der kan have én værdi pr. position (og dermed "pr. værdi" fra et tag) */
+export const BY_VALUE_TYPES: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'rotate', 'move', 'flow'];
 export type Cmp = '' | 'ge' | 'le' | 'eq';
 /** Én indgang til en logikblok: et tag (til/fra, eller et tal sammenlignet med en grænse) eller en tidligere blok (`@L1`). */
 export interface LogicInput { src: string; neg: boolean; cmp: Cmp; value: number | null }

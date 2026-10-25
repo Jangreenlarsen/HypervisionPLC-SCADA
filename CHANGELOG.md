@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.12.0 build 0220] — 2026-10-25 — Animationer: tag med positionens nummer ("pr. værdi")
+
+- Jan: ved en 3-trins knap gav *symbolets position* de rigtige tre vinkler, men *et tag* kun min/max-drejning. Nyt: for symboler med positioner kan en animation styret af et tag sættes til **Pr. værdi** — tagets værdi (0, 1, 2 …) vælger da værdien pr. position (vinkel, farve, synlig, blink, flyt, løbelys …) som med kilden *symbolets position*.
+- Backend: `Anim.by_value` (valideres som `@pos`: én værdi pr. position; kræver positioner; kun almindelige tags; ikke Værdi-teksten); bindingen får `params.pos`. Frontend: afkrydsning ved tag-valget i trin 4.
+- `backend/app/services/symbols.py`, `frontend/src/lib/{symbolConfig.ts,SymbolGuide.svelte}`, manualen, test.
+
 ## [1.11.1 build 0219] — 2026-10-25 — fix: betjeningsform kan vælges tilbage i Opsæt symbol
 
 - Trin 1: en betjeningsform man har haft valgt, bliver stående i listen (`opChoices`), så man kan skifte frem og tilbage mellem fx *Kun visning* og *Positioner*. `frontend/src/lib/{symbolConfig.ts,SymbolGuide.svelte}`, test.

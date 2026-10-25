@@ -2,6 +2,10 @@
 
 ---
 
+## v1.12.0 — 2026-10-25 — Animation pr. værdi fra et tag
+
+- Styres en animation af et tag, hvis værdi er positionens nummer (0, 1, 2 …), kan du nu sætte hak i **Pr. værdi** — så får hver position sin egen vinkel/farve osv., ligesom med *symbolets position*.
+
 ## v1.11.1 — 2026-10-25 — Skift frem og tilbage mellem betjeningsformer
 
 - I Opsæt symbol kan du nu skifte tilbage, fx fra *Positioner* til *Kun visning* — før forsvandt valget fra listen.
