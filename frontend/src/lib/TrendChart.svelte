@@ -360,17 +360,30 @@
     }, true);
   }
 
+  /** Bredden grafen skal have; 0 (beholderen er endnu ikke målt/vist) giver en usynlig graf, som først rettes ved næste ændring. */
+  const widthNow = (): number => el.clientWidth || chart?.width || 600;
+
+  /** Tilpas til beholderens faktiske størrelse, når layoutet er faldet på plads (grafer, der oprettes sammen med en ny visning, måles før de er lagt ud). */
+  function settle(): void {
+    requestAnimationFrame(() => {
+      if (!chart || !el.clientWidth) return;
+      if (Math.abs(chart.width - el.clientWidth) > 1) chart.setSize({ width: el.clientWidth, height: chart.height });
+      chart.redraw();
+    });
+  }
+
   function build(): void {
     chart?.destroy();
-    chart = new uPlot(options(el.clientWidth || 600), data as uPlot.AlignedData, el);
+    chart = new uPlot(options(widthNow()), data as uPlot.AlignedData, el);
     bindPan(chart.over);
     showFull();
+    settle();
   }
 
   onMount(() => {
     build();
     observer = new ResizeObserver(() => {
-      chart?.setSize({ width: el.clientWidth, height: chart.height });
+      if (el.clientWidth) chart?.setSize({ width: el.clientWidth, height: chart.height });
     });
     observer.observe(el);
   });
@@ -385,7 +398,7 @@
     void xRange; // ny periode → effekten skal også køre
     if (!chart) return;
     const wanted = series.every((s) => s.isBool) && !expanded ? 160 : height;
-    if (chart.height !== wanted) chart.setSize({ width: el.clientWidth, height: wanted });
+    if (chart.height !== wanted) chart.setSize({ width: widthNow(), height: wanted });
     if (sig !== signature) {
       signature = sig;
       build();
@@ -393,6 +406,7 @@
       chart.setData(data as uPlot.AlignedData, false);
       // Anden periodelængde valgt → zoom ud; samme periode (live-opdatering) → behold evt. zoom
       if (!zoomed || Math.abs(xRange[1] - xRange[0] - span) > 1) showFull();
+      settle();
     }
     span = xRange[1] - xRange[0];
   });

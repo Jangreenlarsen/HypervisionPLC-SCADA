@@ -2,6 +2,10 @@
 
 ---
 
+## v1.16.2 — 2026-10-26 — Graf tegnes straks efter valg af visning
+
+- Efter valg af en visning tegnes graferne med det samme — du skal ikke længere vælge en periode først.
+
 ## v1.16.1 — 2026-10-26 — Visninger i Trends tegner graferne
 
 - Valg af en gemt visning henter data først og viser graferne på én gang; manglende tags eller fejl forklares nu i stedet for at give tomme grafer.

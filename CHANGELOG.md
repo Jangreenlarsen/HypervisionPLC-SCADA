@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.16.2 build 0228] — 2026-10-26 — Trends: graf tegnes straks efter valg af visning
+
+- `TrendChart` brugte en bredde på 0 for grafer oprettet før layoutet var målt; nu bruges aldrig 0, og grafen tilpasses/tegnes om i næste billede efter opbygning og dataopdatering. `frontend/src/lib/TrendChart.svelte`. Ikke set i browser.
+
 ## [1.16.1 build 0227] — 2026-10-26 — Trends: visning tegner graferne robust
 
 - Valg af en gemt visning henter nu dataene først og skifter udvalg, periode og data i ét hug (graferne bygges aldrig tomme), tager kun tags med historik, viser en synlig besked ved fejl eller når intet kan vises, og en nyere valgt visning overstyrer en ældre. Rapporteret: grafer blev ikke tegnet; årsagen blev ikke genskabt (se BUGS.md).
