@@ -149,3 +149,27 @@ export const AVERAGE_CHOICES: { hours: number; label: string }[] = [
   { hours: 0, label: 'Ingen' }, { hours: 0.25, label: '15 min' }, { hours: 1, label: '1 time' }, { hours: 8, label: '8 timer' },
   { hours: 24, label: '24 timer' }, { hours: 168, label: '7 dage' },
 ];
+
+const hue = (hex: string): number => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const mx = Math.max(r, g, b), d = mx - Math.min(r, g, b);
+  if (!d) return 0;
+  const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return ((h * 60) + 360) % 360;
+};
+export const AVERAGE_FALLBACK = '#1f1f1d';
+
+/**
+ * Farve til en middelkurve: den palet-farve, der ligger længst fra råkurvens i farvetone og ikke bruges af andre kurver i grafen
+ * (så den kan kendes fra alle). Er alle farver i brug, bruges næsten sort.
+ */
+export function contrastColor(rawIndex: number, used: ReadonlySet<string>): string {
+  const raw = hue(colorOf(rawIndex));
+  let best = AVERAGE_FALLBACK, bestDist = -1;
+  for (const c of SERIES_COLORS) {
+    if (used.has(c)) continue;
+    const dist = Math.min(Math.abs(hue(c) - raw), 360 - Math.abs(hue(c) - raw));
+    if (dist > bestDist) { best = c; bestDist = dist; }
+  }
+  return best;
+}

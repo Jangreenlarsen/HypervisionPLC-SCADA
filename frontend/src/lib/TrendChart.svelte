@@ -8,7 +8,7 @@
   import { lastVisible, needsArrow, spreadLabels } from './lineLabels';
 
   export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null;
-    /** Middelværdi-kurven: tegnes stiplet, uden prikker. */ dashed?: boolean;
+    /** Middelværdi-kurven: tegnes stiplet, uden prikker, i en kontrastfarve (`color`). */ dashed?: boolean; color?: string;
     /** Kunstige (interpolerede) tidspunkter — tegnes blinkende, så de ikke forveksles med målte data. */ synthetic?: Set<number>;
     /** Fundne uregelmæssigheder (tilvalg) — tegnes som ring om punktet. */ issues?: Issue[] }
 
@@ -157,7 +157,7 @@
         prev = i;
       }
       if (blinkOn) {
-        ctx.strokeStyle = colorOf(s.colorIndex); ctx.lineWidth = 3.5 * dpr; ctx.setLineDash([6 * dpr, 5 * dpr]);
+        ctx.strokeStyle = s.color ?? colorOf(s.colorIndex); ctx.lineWidth = 3.5 * dpr; ctx.setLineDash([6 * dpr, 5 * dpr]);
       } else {
         ctx.strokeStyle = '#fcfcfb'; ctx.lineWidth = 5 * dpr; ctx.setLineDash([]);   // dækker linjen: strækningen forsvinder
       }
@@ -247,7 +247,7 @@
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';   // uPlot lader aksernes højrejustering stå
     items.forEach((it, n) => {
-      const color = colorOf(it.s.colorIndex), y = ly[n];
+      const color = it.s.color ?? colorOf(it.s.colorIndex), y = ly[n];
       if (needsArrow(it.y / dpr, y / dpr)) {
         // pil fra navnet til kurvens punkt (pilespidsen ved kurven)
         const fromX = labelX - 3 * dpr;
@@ -307,12 +307,12 @@
         { label: 'Tid', value: (_u, v) => (v === null ? '—' : fmtTooltip(new Date(v * 1000))) },
         ...series.map((s) => ({
           label: s.label,
-          stroke: colorOf(s.colorIndex),
+          stroke: s.color ?? colorOf(s.colorIndex),
           width: 2,
           dash: s.dashed ? [9, 6] : dashOf(s.colorIndex),
           spanGaps: false, // null = rigtigt hul → brud i linjen
           // Kun prikker hvor en linje ikke kan tegnes (enkeltstående værdier)
-          points: { show: !s.dashed, size: 8, fill: colorOf(s.colorIndex),
+          points: { show: !s.dashed, size: 8, fill: s.color ?? colorOf(s.colorIndex),
             filter: (u: uPlot, si: number) => isolatedPoints(u.data[si] as (number | null | undefined)[]) },
           paths: s.isBool ? uPlot.paths.stepped!({ align: 1 }) : undefined,
           value: (_u: uPlot, v: number | null) => format(v, s),
@@ -395,7 +395,7 @@
   let signature = '';
   let span = 0;
   $effect(() => {
-    const sig = series.map((s) => `${s.name}:${s.colorIndex}${s.dashed ? 'd' : ''}`).join('|') + unit;
+    const sig = series.map((s) => `${s.name}:${s.colorIndex}${s.dashed ? 'd' + s.color : ''}`).join('|') + unit;
     void series.map((s) => s.synthetic?.size);   // udfyldning slået til/fra → tegn om og start/stop blink
     syncBlink();
     void xRange; // ny periode → effekten skal også køre

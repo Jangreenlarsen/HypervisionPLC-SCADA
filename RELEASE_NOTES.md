@@ -2,6 +2,10 @@
 
 ---
 
+## v1.18.1 — 2026-10-26 — Middelkurven i kontrastfarve
+
+- Den stiplede middelkurve på Trends har nu altid en anden farve end kurven den er middel af (og end de øvrige kurver i grafen).
+
 ## v1.18.0 — 2026-10-26 — Middelkurve som stiplet linje
 
 - På Trends vises middelværdien nu som en stiplet linje ved siden af den rå kurve i samme graf. Vælg tiden under *Middel over*; fjern *Stiplet* for at lade middelkurven erstatte den rå.

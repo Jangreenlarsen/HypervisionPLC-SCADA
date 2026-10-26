@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { align, assignColors, groupByUnit, dividerTimes, groupTags, isolatedPoints, MAX_SERIES, movingAverage, type Point } from './trendData';
+import { align, assignColors, groupByUnit, dividerTimes, groupTags, isolatedPoints, MAX_SERIES, movingAverage, contrastColor, AVERAGE_FALLBACK, SERIES_COLORS, colorOf, type Point } from './trendData';
 
 describe('align', () => {
   it('fletter tidspunkter, og skelner hul (null) fra manglende punkt (undefined)', () => {
@@ -101,5 +101,18 @@ describe('movingAverage', () => {
   });
   it('tåler en tom serie', () => {
     expect(movingAverage([], 60)).toEqual([]);
+  });
+});
+
+describe('contrastColor', () => {
+  it('giver en anden farve end råkurvens og ikke en der allerede er i brug', () => {
+    const used = new Set([colorOf(0), colorOf(1)]);
+    const c = contrastColor(0, used);
+    expect(c).not.toBe(colorOf(0));
+    expect(used.has(c)).toBe(false);
+    expect(SERIES_COLORS).toContain(c);
+  });
+  it('bruger næsten sort, når alle farver er i brug', () => {
+    expect(contrastColor(2, new Set(SERIES_COLORS))).toBe(AVERAGE_FALLBACK);
   });
 });

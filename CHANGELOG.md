@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.18.1 build 0232] — 2026-10-26 — Trends: middelkurven altid i kontrastfarve
+
+- Den stiplede middelkurve får altid en anden farve end råkurven: den palet-farve der ligger længst fra råkurvens i farvetone og ikke bruges af andre kurver i grafen; er alle i brug, næsten sort. `lib/trendData.ts` (`contrastColor`), `TrendChart.svelte` (`color`), `Trends.svelte`; tests (+2). Set i Chromium.
+
 ## [1.18.0 build 0231] — 2026-10-26 — Trends: middelkurve som stiplet linje
 
 - *Middel over* tegner nu middelkurven som stiplet linje i samme farve ved siden af den rå kurve (afkrydsning *Stiplet*, standard til; fra = erstat som før). Ekstra kurve pr. tag i samme graf, legend "… (middel 24 t)"; til/fra-kurver røres ikke.

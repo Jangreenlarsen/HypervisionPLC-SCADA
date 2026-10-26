@@ -5,7 +5,7 @@
   import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
-  import { align, AVERAGE_CHOICES, assignColors, colorOf, dashOf, groupTags, MAX_SERIES, movingAverage, type Divider, RANGES, type Point } from '../lib/trendData';
+  import { align, AVERAGE_CHOICES, assignColors, colorOf, contrastColor, dashOf, groupTags, MAX_SERIES, movingAverage, type Divider, RANGES, type Point } from '../lib/trendData';
   import { FROZEN_DEFAULT_S, affectedPoints, analyze, fillGaps, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
   import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
   import { applyView, sameView, viewFrom, type TrendView } from '../lib/trendViews';
@@ -583,10 +583,13 @@
     const pts = filled.map((f) => f.points);
     const flags = names.map((t) => Boolean(t.isBool));
     // Middelværdi som stiplet linje: en ekstra kurve pr. tag i samme farve (samme graf, samme akse)
+    const used = new Set(series.map((s) => colorOf(s.colorIndex)));
     for (const [i, t] of names.entries()) {
       const m = avgHours > 0 ? resp?.avg?.[t.name] : undefined;
       if (!m || t.isBool) continue;
-      series.push({ ...series[i], name: `${t.name}~middel`, label: `${series[i].label} (middel ${hoursLabel(avgHours)})`, dashed: true,
+      const color = contrastColor(series[i].colorIndex, used);
+      used.add(color);
+      series.push({ ...series[i], color, name: `${t.name}~middel`, label: `${series[i].label} (middel ${hoursLabel(avgHours)})`, dashed: true,
         synthetic: undefined, issues: undefined });
       pts.push(m);
       flags.push(false);
