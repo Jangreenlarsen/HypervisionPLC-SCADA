@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.4 build 0239] — 2026-10-26 — Rettelse af regression i v1.21.3
+
+- `plc_runtime`: kald-tælleren til rate-limit-diagnostikken læses robust (`_requests_sent()`), så en klient uden `request_count` ikke giver fejl i hver cyklus. `backend/app/services/plc_runtime.py`.
+
 ## [1.21.3 build 0238] — 2026-10-26 — PLC-rate-limit (429) giver ikke længere "kommunikation tabt"
 
 - `plc_runtime`: 429 behandles som "PLC'en vil have færre kald": værdierne beholdes, status viser en notits, og først efter `RATE_LIMIT_GRACE_S` (60 s) uafbrudt bliver det en kommunikationsfejl/COMM-alarm. Status har `throttled`/`last_throttled`; loggen viser SCADA's kald/s det seneste minut ved første afvisning.

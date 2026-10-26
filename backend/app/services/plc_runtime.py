@@ -240,14 +240,17 @@ class PlcRuntime:
             except asyncio.TimeoutError:
                 pass
 
+    def _requests_sent(self) -> int:
+        return int(getattr(self.client, "request_count", 0) or 0)
+
     def _request_rate(self, window_s: float = 60.0) -> float | None:
         """Kald pr. sekund, SCADA har sendt til PLC'en det seneste minut (None hvis for få målinger)."""
         now = time.monotonic()
-        self._req_samples.append((now, self.client.request_count))
+        self._req_samples.append((now, self._requests_sent()))
         old = next(((t, n) for t, n in self._req_samples if now - t <= window_s), None)
         if old is None or now - old[0] < 5:
             return None
-        return (self.client.request_count - old[1]) / (now - old[0])
+        return (self._requests_sent() - old[1]) / (now - old[0])
 
     def _on_throttled(self, exc: PlcError) -> None:
         """PLC'en afviste kald pga. rate-limit (429). Den lever: behold de sidste værdier og vent (klienten backer selv af).
@@ -324,7 +327,7 @@ class PlcRuntime:
             self.status.errors += 1
         self.status.last_ok = time.time()
         self.status.cycles += 1
-        self._req_samples.append((time.monotonic(), self.client.request_count))
+        self._req_samples.append((time.monotonic(), self._requests_sent()))
 
     def _names_in(self, kind: str, first: int, last: int, group: tuple | None = None) -> list[str]:
         """Tags der læser (en del af) adresseområdet — PLC'ens egne registre, eller en ekstern slaves (`group`)."""

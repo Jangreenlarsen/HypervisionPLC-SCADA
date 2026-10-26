@@ -2,6 +2,10 @@
 
 ---
 
+## v1.21.4 — 2026-10-26 — Rettelse
+
+- Retter en fejl i v1.21.3's nye rate-limit-diagnostik. Brug denne version i stedet for v1.21.3.
+
 ## v1.21.3 — 2026-10-26 — Færre falske "kommunikation tabt"
 
 - Når en PLC kortvarigt beder SCADA om færre kald (rate-limit), beholdes værdierne nu, og der kommer ingen COMM-alarm — kun hvis det varer over et minut. PLC'er-siden viser, hvor ofte det sker. Selve årsagen er rettet i PLC-firmwaren v7.9.68.150.
