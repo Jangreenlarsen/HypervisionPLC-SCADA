@@ -1,6 +1,10 @@
 {
   "model": "opusplan",
   "effortLevel": "medium",
+  "statusLine": {
+    "type": "command",
+    "command": "node \"$CLAUDE_PROJECT_DIR/.claude/statusline.js\""
+  },
   "permissions": {
     "defaultMode": "bypassPermissions",
     "deny": [

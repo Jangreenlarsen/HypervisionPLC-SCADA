@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.16.1 build 0227] — 2026-10-26 — Trends: visning tegner graferne robust
+
+- Valg af en gemt visning henter nu dataene først og skifter udvalg, periode og data i ét hug (graferne bygges aldrig tomme), tager kun tags med historik, viser en synlig besked ved fejl eller når intet kan vises, og en nyere valgt visning overstyrer en ældre. Rapporteret: grafer blev ikke tegnet; årsagen blev ikke genskabt (se BUGS.md).
+- `frontend/src/pages/Trends.svelte` (`chooseView`, `fetchData`, `period`), `pages/TrendsViews.test.ts` (ny, 3 tests). Ikke set i browser.
+
 ## [1.16.0 build 0226] — 2026-10-26 — Trends: gem udvalg af tags som navngivne visninger
 
 - Trends: ny dropdown **Visning** øverst i tag-panelet. Tekniker/admin kan gemme det aktuelle udvalg (tags, graf-valg og tidsrum) under et navn — fx alle 8 temperaturfølere i en tank som *Tank temp* — med **Gem som …**, **Opdatér** (stjerne når udvalget er ændret) og **Slet**. Alle brugere kan vælge en visning; tags de ikke har adgang til/historik for, springes over med en besked (rettigheder håndhæves stadig ved datahentning).

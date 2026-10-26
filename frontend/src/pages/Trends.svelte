@@ -156,24 +156,39 @@
   async function loadViews(): Promise<void> {
     try { views = await get<TrendView[]>('/api/trends/views'); } catch (e) { viewMsg = `Visningerne kunne ikke hentes: ${(e as Error).message}`; }
   }
-  function chooseView(name: string): void {
+  let viewToken = 0;
+  async function chooseView(name: string): Promise<void> {
     viewName = name;
     viewMsg = '';
     const v = views.find((x) => x.name === name);
-    if (!v || !info) return;
-    const r = applyView(v, new Set(info.tags.map((t) => t.name)), MAX_SERIES);
-    symKey = '';
-    history.replaceState(null, '', '#trends');
-    selected = r.tags;
-    assign = r.assign;
-    try { localStorage.setItem('trend.assign', JSON.stringify(assign)); } catch { /* huskes bare ikke */ }
-    colors = assignColors(selected, {});
-    if (RANGES.some((x) => x.id === v.range)) range = v.range;
-    saveSelection();
-    const notes = [r.missing.length ? `Ikke tilgængelige (slettet, uden historik eller uden adgang): ${r.missing.map(label).join(', ')}.` : '',
-      r.over.length ? `Højst ${MAX_SERIES} kurver ad gangen — ikke vist: ${r.over.map(label).join(', ')}.` : ''].filter(Boolean);
-    viewMsg = notes.join(' ');
-    load();
+    if (!v) return;
+    if (!info) { viewMsg = 'Trends er ikke klar endnu — vælg visningen igen om et øjeblik.'; return; }
+    const token = ++viewToken;
+    try {
+      // kun tags med historik (som afkrydsningerne i listen); resten meldes
+      const r = applyView(v, new Set(info.tags.filter((t) => t.trend || t.samples).map((t) => t.name)), MAX_SERIES);
+      const notes = [r.missing.length ? `Ikke tilgængelige (slettet, uden historik eller uden adgang): ${r.missing.map(label).join(', ')}.` : '',
+        r.over.length ? `Højst ${MAX_SERIES} kurver ad gangen — ikke vist: ${r.over.map(label).join(', ')}.` : ''].filter(Boolean);
+      if (!r.tags.length) { viewMsg = `Ingen af visningens tags kan vises. ${notes.join(' ')}`.trim(); return; }
+      const nextRange = RANGES.some((x) => x.id === v.range) ? v.range : range;
+      // Data hentes FØR udvalget skiftes, så graferne tegnes med data fra første billede (ikke først tomme og så fyldt op)
+      const data = await fetchData(r.tags, nextRange);
+      if (token !== viewToken) return;   // en nyere visning blev valgt imens
+      symKey = '';
+      history.replaceState(null, '', '#trends');
+      range = nextRange;
+      selected = r.tags;
+      assign = r.assign;
+      try { localStorage.setItem('trend.assign', JSON.stringify(assign)); } catch { /* huskes bare ikke */ }
+      colors = assignColors(selected, {});
+      saveSelection();
+      resp = data;
+      error = '';
+      viewMsg = notes.join(' ');
+      restartTimer();
+    } catch (e) {
+      viewMsg = `Visningen "${name}" kunne ikke vises: ${(e as Error).message}`;
+    }
   }
   async function saveView(asNew: boolean): Promise<void> {
     if (!selected.length) { viewMsg = 'Vælg først de tags, visningen skal vise.'; return; }
@@ -302,16 +317,23 @@
     }
   }
 
-  function period(): { start: number; end: number } {
-    if (range === 'custom') {
+  function period(rangeId: string = range): { start: number; end: number } {
+    if (rangeId === 'custom') {
       const start = Date.parse(customFrom) / 1000;
       const end = Date.parse(customTo) / 1000;
       if (!Number.isFinite(start) || !Number.isFinite(end)) throw new Error('Vælg både fra- og til-tidspunkt');
       return { start, end };
     }
-    const r = RANGES.find((x) => x.id === range)!;
+    const r = RANGES.find((x) => x.id === rangeId)!;
     const end = Date.now() / 1000;
     return { start: end - r.seconds, end };
+  }
+
+  async function fetchData(names: string[], rangeId: string): Promise<DataResp> {
+    const { start, end } = period(rangeId);
+    const width = Math.min(1600, Math.max(300, window.innerWidth - 100));
+    return get<DataResp>(`/api/trends/data?tags=${names.map(encodeURIComponent).join(',')}` +
+      `&start=${start}&end=${end}&points=${Math.round(width / 2)}`);
   }
 
   async function load(): Promise<void> {
@@ -322,10 +344,7 @@
     error = '';
     loading = true;
     try {
-      const { start, end } = period();
-      const width = Math.min(1600, Math.max(300, window.innerWidth - 100));
-      resp = await get<DataResp>(`/api/trends/data?tags=${selected.map(encodeURIComponent).join(',')}` +
-        `&start=${start}&end=${end}&points=${Math.round(width / 2)}`);
+      resp = await fetchData(selected, range);
     } catch (e) {
       error = (e as Error).message;
     } finally {
