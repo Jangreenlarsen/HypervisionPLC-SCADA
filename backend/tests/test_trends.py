@@ -346,3 +346,51 @@ def test_energy_report_api(api, mock_plc):
     assert api.get("/api/energy/report?period=aar").status_code == 400
     csv_text = api.get("/api/energy/export?period=month").text.lstrip("﻿")
     assert csv_text.splitlines()[0].startswith("periode;fra;") and csv_text.splitlines()[-1].startswith("I alt;")
+
+
+def test_purge_per_tag_uses_primary_key_and_keeps_energy_longer(tmp_path):
+    """Kodeanalyse 26.10.2026 F2: oprydningen scannede hele tabellen (`ts < ?`) hver time i event-loopet."""
+    tdb = TrendDatabase(tmp_path / "p.db")
+    tdb.insert_many([("A", 10, 1.0), ("A", 200, 2.0), ("E", 10, 5.0), ("E", 60, 6.0), ("E", 200, 7.0)])
+    assert tdb.purge_before(100, keep={"E": 50}) == 2          # A@10 og E@10 — E beholder alt efter 50
+    assert tdb.stats()["A"]["samples"] == 1 and tdb.stats()["E"]["samples"] == 2
+    plan = tdb._conn.execute("EXPLAIN QUERY PLAN DELETE FROM samples WHERE tag_id = ? AND ts < ?", (1, 100)).fetchall()
+    assert any("SEARCH" in str(row) for row in plan) and not any("SCAN samples" in str(row) for row in plan)
+
+
+def test_flush_keeps_rows_when_database_write_fails(tmp_path, monkeypatch):
+    """Kodeanalyse 26.10.2026 F3: målingerne gik tabt, hvis en skrivning til trend-databasen fejlede."""
+    import app.services.trends as mod
+
+    class _Mgr:
+        class db:
+            @staticmethod
+            def list_trend_tags():
+                return []
+
+            @staticmethod
+            def list_energy_tags():
+                return []
+
+    tdb = TrendDatabase(tmp_path / "f.db")
+    rec = TrendRecorder(_Mgr(), tdb)
+    rec._buffer = [("A", 100.0, 1.0), ("A", 101.0, 2.0)]
+    real = tdb.insert_many
+
+    def locked(rows):
+        raise RuntimeError("database is locked")
+
+    tdb.insert_many = locked  # type: ignore[method-assign]
+    with pytest.raises(RuntimeError):
+        rec.flush(now=200.0, purge=False)
+    rec._store("A", 102.0, 3.0)                       # ny måling imens
+    tdb.insert_many = real  # type: ignore[method-assign]
+    rec.flush(now=210.0, purge=False)
+    assert [(t, v) for _, t, v in tdb.raw(["A"], 0, 1000, 10)] == [(100.0, 1.0), (101.0, 2.0), (102.0, 3.0)]
+    # grænsen: de ældste kasseres først
+    monkeypatch.setattr(mod, "MAX_BUFFER_ROWS", 3)
+    rec._buffer = [("B", float(i), float(i)) for i in range(5)]
+    tdb.insert_many = locked  # type: ignore[method-assign]
+    with pytest.raises(RuntimeError):
+        rec.flush(now=300.0, purge=False)
+    assert [t for _, t, _ in rec._buffer] == [2.0, 3.0, 4.0]

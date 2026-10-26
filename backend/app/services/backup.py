@@ -548,7 +548,8 @@ class BackupService:
         await asyncio.sleep(first_delay)
         while True:
             try:
-                name = self.save_to_server("auto", "system")
+                # i en tråd: læser alle tegninger og skriver filen — må ikke stoppe polling og live-værdier (kodeanalyse F7)
+                name = await asyncio.to_thread(self.save_to_server, "auto", "system")
                 log.info("Automatisk backup gemt: %s", name)
             except Exception:
                 log.exception("Automatisk backup fejlede")

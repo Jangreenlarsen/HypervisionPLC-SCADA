@@ -14,8 +14,10 @@ Regler:
 from __future__ import annotations
 
 import asyncio
+import logging
 import math
 import struct
+import time
 from typing import Any
 
 from ..plc.client import ext_base
@@ -25,6 +27,11 @@ from .auth import CurrentUser
 from .errors import ServiceError
 from .manager import PlcManager
 from .tagsource import ST_TYPE_MAP, TagSource, apply_scaling, decode_words, parse_source
+
+log = logging.getLogger(__name__)
+
+# Hvileværdien efter en puls (SLUK) skrives med genforsøg i så lang tid, før udgangen meldes som ikke nulstillet
+REST_RETRY_S = 10.0
 
 INT_RANGES = {"uint": (0, 65535), "int": (-32768, 32767), "dint": (-2**31, 2**31 - 1), "dword": (0, 2**32 - 1)}
 
@@ -79,6 +86,9 @@ class OperateService:
         self.audit = audit
         self._locks: dict[str, asyncio.Lock] = {}
         self._via: dict[str, str] = {}   # kilde → register der blev skrevet i stedet for en input-bundet ST-variabel
+        # Tags hvis hvileværdi efter en puls IKKE kunne skrives (udgangen kan stå tændt) → (plc, besked). Giver en alarm,
+        # indtil tagget skrives med succes igen.
+        self.stuck: dict[str, tuple[str, str]] = {}
 
     def _prepare(self, tag_name: str, allowed: set[str] | None = None) -> tuple[dict[str, Any], TagSource, Any]:
         if allowed is not None and tag_name not in allowed:
@@ -97,35 +107,74 @@ class OperateService:
             raise ServiceError(409, f"PLC '{source.plc}' er ikke aktiv: {self.manager.status(source.plc)['message']}")
         return tag, source, runtime
 
-    async def _write_raw(self, runtime: Any, source: TagSource, raw: Any) -> str:
-        """→ "ok" når skrivningen er bekræftet; for eksterne slaver evt. "timeout"/"queued" (ikke bekræftet)."""
+    async def _write_raw(self, runtime: Any, source: TagSource, raw: Any, urgent: bool = False) -> str:
+        """→ "ok" når skrivningen er bekræftet; for eksterne slaver evt. "timeout"/"queued" (ikke bekræftet).
+        `urgent`: sikkerhedsskrivning (hvileværdi efter puls) — afvises ikke af klientens lokale rate-limit-pause."""
         if source.is_external:
             # Med `wait`: PLC'en svarer når slaven har bekræftet, fejlet eller ikke nået at svare
-            return await runtime.client.write_ext(ext_base(source), source.kind, source.addr, raw, source.datatype)
+            return await runtime.client.write_ext(ext_base(source), source.kind, source.addr, raw, source.datatype,
+                                                  urgent=urgent)
         if source.kind == "logic":
             try:
-                await runtime.client.write_logic_var(source.program, source.var, raw)
+                await runtime.client.write_logic_var(source.program, source.var, raw, urgent=urgent)
             except PlcApiError as exc:
                 # PLC'en afviser en variabel, der er bundet som INPUT fra et register (den ville blive overskrevet hver cyklus).
                 # Så skriver vi i stedet det register, variablen læser fra — det er det, bindingen er til for.
                 if exc.status != 409 or "bound as input" not in exc.message.lower():
                     raise
-                self._via[str(source)] = await self._write_via_input_binding(runtime, source, raw)
+                self._via[str(source)] = await self._write_via_input_binding(runtime, source, raw, urgent)
             return "ok"
         if source.kind == "global":
-            await runtime.client.write_global(source.var, raw)
+            await runtime.client.write_global(source.var, raw, urgent=urgent)
             return "ok"
         if source.kind == "coil":
-            await runtime.client.write_coil(source.addr, bool(raw))
+            await runtime.client.write_coil(source.addr, bool(raw), urgent=urgent)
             return "ok"
-        else:
-            await runtime.client.write_hr(source.addr, raw, source.datatype)
-            return "ok"
+        await runtime.client.write_hr(source.addr, raw, source.datatype, urgent=urgent)
+        return "ok"
 
-    async def _write_via_input_binding(self, runtime: Any, source: TagSource, raw: Any) -> str:
+    async def _write_rest(self, runtime: Any, source: TagSource, tag_name: str, raw: Any) -> None:
+        """Skriv hvileværdien efter en puls (SLUK) — med genforsøg i op til REST_RETRY_S, så en enkelt timeout eller en
+        kort rate-limit-pause ikke efterlader en udgang tændt (kodeanalyse 26.10.2026, F4). Lykkes det ikke: tagget
+        markeres som "ikke nulstillet" (alarm), og den sidste fejl kastes. En ekstern slave, der ikke når at bekræfte
+        ("timeout"/"queued"), prøves også igen — at skrive samme værdi igen er harmløst."""
+        deadline = time.monotonic() + REST_RETRY_S
+        delay, attempts = 0.25, 0
+        last: PlcError | None = None
+        while True:
+            attempts += 1
+            try:
+                result = await self._write_raw(runtime, source, raw, urgent=True)
+                if result == "ok":
+                    if attempts > 1:
+                        log.warning("Hvileværdien for %s blev skrevet efter %d forsøg", tag_name, attempts)
+                    self.stuck.pop(tag_name, None)
+                    return
+                last = PlcUnreachable(f"slaven bekræftede ikke skrivningen ({result})")
+            except PlcError as exc:
+                last = exc
+            if time.monotonic() + delay > deadline:
+                break
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 2.0)
+        assert last is not None
+        message = f"{tag_name} kunne ikke sættes tilbage til hvileværdien efter en puls ({attempts} forsøg): {last.message}"
+        self.stuck[tag_name] = (source.plc, message)
+        log.error("%s — udgangen kan stå tændt", message)
+        raise last
+
+    def alarm_conditions(self, now: float) -> tuple[list[Any], set[str]]:
+        """Alarmkilde: udgange der ikke kunne nulstilles efter en puls (kontrollér udgangen på anlægget)."""
+        from .alarms import Condition
+        conds = [Condition(f"tag:{name}:pulse_stuck", name, plc, "state", "ON", None,
+                           f"{message} — kontrollér udgangen", priority="high")
+                 for name, (plc, message) in self.stuck.items()]
+        return conds, set()
+
+    async def _write_via_input_binding(self, runtime: Any, source: TagSource, raw: Any, urgent: bool = False) -> str:
         """Skriv det register, som ST-variablen er bundet til som INPUT (HR eller coil). → "HR 18" (til audit og besked).
         32-bit-typer skrives som to registre, lav ord først (som PLC'ens input-binding læser dem)."""
-        items = await runtime.client.bindings()
+        items = await runtime.client.bindings(urgent=urgent)
         mine = [b for b in items if b.get("direction") == "input" and b.get("program") == source.program
                 and b.get("name") == source.var]
         if not mine:
@@ -137,7 +186,7 @@ class OperateService:
             raise ServiceError(409, f"'{source.var}' er bundet som input fra et digitalt input (DI {addr}) — det kan kun læses, "
                                     "ikke skrives")
         if rtype == "Coil":
-            await runtime.client.write_coil(addr, bool(raw))
+            await runtime.client.write_coil(addr, bool(raw), urgent=urgent)
             return f"coil {addr}"
         if vtype == "BOOL":
             words = [1 if raw else 0]
@@ -152,7 +201,7 @@ class OperateService:
         else:
             raise ServiceError(409, f"'{source.var}' ({vtype}) kan ikke skrives via sit input-register")
         for i, w in enumerate(words):
-            await runtime.client.write_hr(addr + i, w, "uint")
+            await runtime.client.write_hr(addr + i, w, "uint", urgent=urgent)
         return f"HR {addr}" + (f"–{addr + len(words) - 1}" if len(words) > 1 else "")
 
     async def _readback(self, runtime: Any, source: TagSource, tag: dict[str, Any]) -> Any:
@@ -235,6 +284,7 @@ class OperateService:
                     detail.update(raw=raw, written=actual)
                 try:
                     confirmed = await self._write_raw(runtime, source, raw)
+                    self.stuck.pop(tag_name, None)   # skrevet med succes: en evt. "ikke nulstillet"-alarm er forældet
                     via = self._via.pop(str(source), None)
                     readback = await self._readback(runtime, source, tag)
                     if via:   # variablen får værdien fra registret ved næste ST-cyklus — giv den et øjeblik
@@ -281,6 +331,7 @@ class OperateService:
         async with self._locks.setdefault(tag_name, asyncio.Lock()):
             try:
                 await self._write_raw(runtime, source, raw)
+                self.stuck.pop(tag_name, None)
             except PlcError as exc:
                 raise _plc_error(exc, f"Skrivning til {tag_name} fejlede") from exc
         runtime.poke()
@@ -307,7 +358,7 @@ class OperateService:
                     await asyncio.sleep(ms / 1000)
             finally:
                 try:
-                    await self._write_raw(runtime, source, rest_raw)
+                    await self._write_rest(runtime, source, tag_name, rest_raw)
                 except PlcError as exc:
                     raise _plc_error(exc, f"ADVARSEL: {tag_name} blev ikke sat tilbage til hvileværdien") from exc
             if first_error is not None:
@@ -340,7 +391,7 @@ class OperateService:
                     # SLUK alligevel, så en udgang aldrig efterlades tændt (BUGS v0.27.0 #1).
                     detail["on_result"] = "ukendt (timeout)"
                     try:
-                        await self._write_raw(runtime, source, off_raw)
+                        await self._write_rest(runtime, source, tag_name, off_raw)
                     except PlcError as off_exc:
                         raise _plc_error(off_exc, "ADVARSEL: pulsen kunne ikke bekræftes, og udgangen kunne ikke "
                                                   "sættes til fra — kontrollér udgangen") from off_exc
@@ -352,9 +403,9 @@ class OperateService:
                 try:
                     await asyncio.sleep(ms / 1000)
                 finally:
-                    # Nulstil ALTID — også hvis requesten afbrydes undervejs.
+                    # Nulstil ALTID — også hvis requesten afbrydes undervejs — og prøv igen ved fejl (F4).
                     try:
-                        await self._write_raw(runtime, source, off_raw)
+                        await self._write_rest(runtime, source, tag_name, off_raw)
                     except PlcError as exc:
                         raise _plc_error(exc, "ADVARSEL: pulsen blev sat men IKKE nulstillet") from exc
             runtime.poke()

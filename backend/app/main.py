@@ -107,6 +107,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                                                  tick_s=settings.symbol_tick_s)
         app.state.symbol_runtime.reload()
         app.state.alarm_service.providers.append(app.state.symbol_runtime.alarm_conditions)
+        app.state.alarm_service.providers.append(app.state.operate_service.alarm_conditions)  # udgange der ikke kunne nulstilles
         app.state.symbol_operate_service = SymbolOperateService(app.state.operate_service, app.state.symbol_runtime,
                                                                 app.state.audit_service)
         symbol_task = asyncio.create_task(app.state.symbol_runtime.run(), name="symbols")

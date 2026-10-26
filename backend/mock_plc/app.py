@@ -74,6 +74,8 @@ class MockPlcState:
     reject_writes: str = ""
     # Test: afvis skrivning til bestemte adresser: {("coil", 12): "Udgang låst"}
     reject_addr: dict[tuple[str, int], str] = field(default_factory=dict)
+    # Test: de næste N skrivninger af værdien False/0 (fx SLUK efter en puls) afvises med 429 (rate-limit)
+    throttle_off_writes: int = 0
     # Test: de næste N skrivninger UDFØRES, men svaret kommer først efter slow_write_s (svar tabt/timeout)
     slow_writes: int = 0
     slow_write_s: float = 2.0
@@ -320,6 +322,9 @@ def create_mock_plc(state: MockPlcState | None = None, *, simulate_process: bool
         if ("coil", addr) in st.reject_addr:
             return _err(409, st.reject_addr[("coil", addr)])
         body = await request.json()
+        if st.throttle_off_writes > 0 and not body.get("value"):
+            st.throttle_off_writes -= 1
+            return _err(429, "Too many requests")
         st.coils[addr] = bool(body.get("value"))
         st.writes.append(("coil", addr, st.coils[addr]))
         st.apply_locks()

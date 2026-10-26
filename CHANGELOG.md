@@ -4,6 +4,29 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.8 build 0243] — 2026-10-26 — Trend-målinger tabes ikke ved databasefejl (kodeanalyse F3)
+
+- `services/trends.py`: ved fejl i `insert_many` lægges rækkerne tilbage i bufferen (`MAX_BUFFER_ROWS` = 100.000). `tests/test_trends.py` (+1).
+
+## [1.21.7 build 0242] — 2026-10-26 — Tunge trend-kald og oprydning blokerer ikke længere serveren (kodeanalyse F1 + F2 + F7)
+
+- `api/trends.py`: data, CSV og info i `asyncio.to_thread`.
+- `storage/trends_db.py`: `purge_before()` pr. tag via primærnøglen; `services/trends.py`: `purge()`/`purge_due()`, kørt i en tråd fra `run()`.
+- `services/backup.py`: automatisk backup i en tråd.
+- `tests/test_trends.py` (+1).
+
+## [1.21.6 build 0241] — 2026-10-26 — Energi: lineær beregning i tråd og fejlmålinger i tællere (kodeanalyse F6 + F5)
+
+- `services/energy.py`: `counter_energy()`/`power_energy()` i ét gennemløb (lineær tid); tæller-fald kræver bekræftelse (`RESET_LOOKAHEAD` = 3), ellers fejlmåling.
+- `api/energy.py`: rapport og CSV regnes i `asyncio.to_thread`.
+- `tests/test_energy.py` (+3).
+
+## [1.21.5 build 0240] — 2026-10-26 — Puls: SLUK med genforsøg og alarm (kodeanalyse F4)
+
+- `operate.py`: `_write_rest()` skriver hvileværdien med genforsøg i op til `REST_RETRY_S` (10 s); ved endelig fejl markeres tagget, og `alarm_conditions()` giver en alarm, indtil tagget skrives med succes. Bruges af `pulse()` og `pulse_value()`.
+- `plc/client.py`: `urgent`-flag på `request()` og skrivekald — afvises ikke af den lokale rate-limit-pause.
+- `main.py`: alarmkilden registreret. `mock_plc`: `throttle_off_writes`. Tests (+2).
+
 ## [1.21.4 build 0239] — 2026-10-26 — Rettelse af regression i v1.21.3
 
 - `plc_runtime`: kald-tælleren til rate-limit-diagnostikken læses robust (`_requests_sent()`), så en klient uden `request_count` ikke giver fejl i hver cyklus. `backend/app/services/plc_runtime.py`.

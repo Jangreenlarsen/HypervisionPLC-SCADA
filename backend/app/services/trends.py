@@ -31,6 +31,10 @@ def _number(value: Any) -> float | None:
     return None
 
 
+# Højst så mange ventende målinger i hukommelsen, mens databasen ikke tager imod (ca. 8 tags × 3 timer)
+MAX_BUFFER_ROWS = 100_000
+
+
 class TrendRecorder:
     def __init__(self, manager: PlcManager, tdb: TrendDatabase, *, flush_s: float = 5.0,
                  keepalive_s: float = 300.0, retention_days: float = 30.0, energy_days: float = 400.0):
@@ -104,7 +108,8 @@ class TrendRecorder:
         self._last[name] = (ts, value)
         self._pending.pop(name, None)
 
-    def flush(self, now: float | None = None) -> int:
+    def flush(self, now: float | None = None, purge: bool = True) -> int:
+        """Gem bufferen. `purge=False`: den timevise oprydning overlades til kalderen (run() kører den i en tråd)."""
         now = time.time() if now is None else now
         self._refresh_config()
         for name, (ts, value) in list(self._pending.items()):
@@ -119,18 +124,35 @@ class TrendRecorder:
                 if value is not None:
                     self._store(name, now, value)
         rows, self._buffer = self._buffer, []
-        self.tdb.insert_many(rows)
+        try:
+            self.tdb.insert_many(rows)
+        except Exception:
+            # Læg rækkerne tilbage og prøv igen ved næste flush (kodeanalyse F3: de gik før tabt ved fx "database is
+            # locked"). Grænse, så en længere fejl ikke fylder hukommelsen — de ældste kasseres først.
+            keep = rows + self._buffer
+            if len(keep) > MAX_BUFFER_ROWS:
+                log.warning("Trend: databasen tager ikke imod data — kasserer %d ældste målinger", len(keep) - MAX_BUFFER_ROWS)
+                keep = keep[-MAX_BUFFER_ROWS:]
+            self._buffer = keep
+            raise
         if rows:
             self.rows_written += len(rows)
             self.flushes += 1
-        if now - self._last_purge >= 3600:
-            self._last_purge = now
-            energy_cut = now - max(self.energy_days, self.retention_days) * 86400
-            keep = {t["name"]: energy_cut for t in self.manager.db.list_energy_tags()}
-            removed = self.tdb.purge_before(now - self.retention_days * 86400, keep)
-            if removed:
-                log.info("Trend: slettede %d samples ældre end %g dage", removed, self.retention_days)
+        if purge and self.purge_due(now):
+            self.purge(now)
         return len(rows)
+
+    def purge_due(self, now: float) -> bool:
+        return now - self._last_purge >= 3600
+
+    def purge(self, now: float) -> None:
+        """Slet historik ældre end opbevaringstiden (energi-tags længere). Må køre i en tråd."""
+        self._last_purge = now
+        energy_cut = now - max(self.energy_days, self.retention_days) * 86400
+        keep = {t["name"]: energy_cut for t in self.manager.db.list_energy_tags()}
+        removed = self.tdb.purge_before(now - self.retention_days * 86400, keep)
+        if removed:
+            log.info("Trend: slettede %d samples ældre end %g dage", removed, self.retention_days)
 
     async def run(self) -> None:
         queue = self.manager.cache.subscribe(maxsize=2000)
@@ -148,7 +170,11 @@ class TrendRecorder:
                 if time.monotonic() >= next_flush:
                     next_flush = time.monotonic() + self.flush_s
                     try:
-                        self.flush()
+                        now = time.time()
+                        self.flush(now, purge=False)
+                        if self.purge_due(now):
+                            # i en tråd: oprydningen må ikke stoppe polling og live-værdier (kodeanalyse F2)
+                            await asyncio.to_thread(self.purge, now)
                     except Exception:
                         log.exception("Trend: kunne ikke gemme samples")
         finally:

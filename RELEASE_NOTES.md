@@ -2,6 +2,22 @@
 
 ---
 
+## v1.21.8 — 2026-10-26 — Ingen huller i historikken ved kortvarige databasefejl
+
+- Kan trend-databasen et øjeblik ikke tage imod data, gemmes målingerne nu ved næste forsøg i stedet for at gå tabt.
+
+## v1.21.7 — 2026-10-26 — Ingen frosne skærme ved lange trends
+
+- Når nogen åbner en lang trendperiode, eksporterer CSV eller åbner Trends, fortsætter live-værdier, alarmer og betjening nu uden pause. Den timevise oprydning i historikken er gjort langt lettere.
+
+## v1.21.6 — 2026-10-26 — Hurtigere og mere robuste energirapporter
+
+- Lange energirapporter (fx et år pr. dag) beregnes nu på under et sekund og får ikke længere resten af SCADA til at stå stille. En enkelt fejlmåling i en energitæller giver ikke længere et kæmpe falsk forbrug.
+
+## v1.21.5 — 2026-10-26 — Sikrere puls
+
+- Efter en puls prøver SCADA nu igen i op til 10 sekunder at sætte udgangen tilbage, hvis det første forsøg fejler. Lykkes det ikke, kommer der en alarm om at kontrollere udgangen.
+
 ## v1.21.4 — 2026-10-26 — Rettelse
 
 - Retter en fejl i v1.21.3's nye rate-limit-diagnostik. Brug denne version i stedet for v1.21.3.
