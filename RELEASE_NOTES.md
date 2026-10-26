@@ -2,6 +2,10 @@
 
 ---
 
+## v1.21.0 — 2026-10-26 — Middelkurve i tegningens trendgraf
+
+- En trendgraf i tegningen kan nu vise en middelkurve (fx over 24 timer): vælg *Middelkurve* under *Opsæt symbol › Visning*, stiplet ved siden af kurven eller i stedet for den.
+
 ## v1.20.0 — 2026-10-26 — Værdier ved markøren i Trends
 
 - Peg på en trendgraf: en beskedboks viser tidspunktet og alle kurvers værdi lige ved markøren.

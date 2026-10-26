@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.0 build 0235] — 2026-10-26 — Trendgraf i tegningen: middelkurve
+
+- Ny opsætning `avg_h` (0–720 timer) og `avg_mode` (`both`/`avg`) på trendgraf-symbolet (backend `Chart`, API-validering + test); grafen i tegningen (og den store visning) henter forløbet før perioden med, regner glidende middel og tegner den stiplet i kontrastfarve (eller i stedet), med egne poster i forklaringen. Valg i Opsæt symbol › Visning. Gamle grafer uændrede (standard: ingen).
+- `backend/app/services/symbols.py`, `tests/test_trend_symbols.py`, `frontend/src/lib/{chartGraphic,chartRender,SymbolGuide,trendData}`. Tegningsgrafen set i Chromium (raw / begge / kun middel); selve opsætningsdialogen ikke set.
+
 ## [1.20.0 build 0234] — 2026-10-26 — Trends: beskedboks med værdier ved markøren
 
 - `TrendChart.svelte`: en boks ved markøren (uPlot `setCursor`) med tidspunkt og alle kurvers værdi; farveprøve (stiplet for middelkurver); vender til anden side/op ved kanten; rører ikke musen (`pointer-events: none`). Manualen. Set i Chromium.

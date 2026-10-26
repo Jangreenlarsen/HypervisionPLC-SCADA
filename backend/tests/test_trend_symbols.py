@@ -109,3 +109,17 @@ def test_non_engineers_only_trend_tags_configured_in_their_drawings(api):
         assert set(data["series"]) == {"Drift", "Tryk"}, role
         assert "Start" not in api.get("/api/trends/export?tags=Start,Lys").text   # intet tilladt tag tilbage: kun overskriften
         api.post("/api/auth/login", json=admin)
+
+
+def test_trend_chart_average_config(api):
+    """Middelkurve (v1.21.0): gemmes og begrænses; mangler den, er der ingen middelkurve."""
+    base = f"/api/drawings/{api.did}/symbols/L1/config"
+    chart = {"tags": ["Tryk"], "range_s": 3600, "style": "line"}
+    r = api.put(base, json={"config": {"op": "view", "chart": {**chart, "avg_h": 24, "avg_mode": "avg"}}})
+    assert r.status_code == 200, r.text
+    got = r.json()["config"]["chart"]
+    assert got["avg_h"] == 24 and got["avg_mode"] == "avg"
+    got = api.put(base, json={"config": {"op": "view", "chart": chart}}).json()["config"]["chart"]
+    assert got["avg_h"] == 0 and got["avg_mode"] == "both"
+    for bad in ({"avg_h": -1}, {"avg_h": 5000}, {"avg_mode": "andet"}):
+        assert api.put(base, json={"config": {"op": "view", "chart": {**chart, **bad}}}).status_code == 400, bad

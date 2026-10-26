@@ -17,6 +17,7 @@
   import { mergePalette, paramColors, svgColors } from './usedColors';
   import { KIND_TXT, groupAnimsOn, groupColor, groupsOf, listGroups, type OwnerBlock, type SymbolGroup } from './symbolGroups';
   import { CHART_RANGES, FONT_SCALES, LEGEND_PLACES, MAX_CHART_TAGS, defaultChart, legendOf } from './chartGraphic';
+import { AVERAGE_CHOICES } from './trendData';
   import { SELECTOR_TYPES, drawnSelectorAngles, drawnSelectorLabels, selectorMismatch } from './selectorRedraw';
   import { DIR_TXT, applyLever, leverDirs, leverInSync, type LeverDir } from './toggleSwitch';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
@@ -761,6 +762,19 @@
               <label class="opt small">til <input class="n" value={ch.y_max ?? ''} placeholder="auto" onchange={(e) => (ch.y_max = yLimit(e.currentTarget.value))} /></label>
               <label class="opt small">Titel <input class="lbl" bind:value={ch.title} maxlength="60" placeholder="tagenes navne" /></label>
             </div>
+            {#if ch.style === 'line'}
+              <div class="row wrap">
+                <label class="opt small" title="Glidende middelværdi over de seneste timer — en rolig kurve for langsomme forløb. Kun visning; gemte data er uændrede">Middelkurve
+                  <select value={String(ch.avg_h ?? 0)} onchange={(e) => (ch.avg_h = Number(e.currentTarget.value))}>
+                    {#each AVERAGE_CHOICES as c (c.hours)}<option value={String(c.hours)}>{c.hours ? `over ${c.label}` : 'ingen'}</option>{/each}
+                    {#if (ch.avg_h ?? 0) > 0 && !AVERAGE_CHOICES.some((c) => c.hours === ch.avg_h)}<option value={String(ch.avg_h)}>over {ch.avg_h} timer</option>{/if}
+                  </select></label>
+                {#if (ch.avg_h ?? 0) > 0}
+                  <label class="opt small"><input type="radio" value="both" checked={(ch.avg_mode ?? 'both') === 'both'} onchange={() => (ch.avg_mode = 'both')} /> Begge (middel stiplet)</label>
+                  <label class="opt small"><input type="radio" value="avg" checked={ch.avg_mode === 'avg'} onchange={() => (ch.avg_mode = 'avg')} /> Kun middel</label>
+                {/if}
+              </div>
+            {/if}
             {@const lg = legendOf(ch)}
             <div class="row wrap">
               <span class="small muted">Tekst med tagene:</span>

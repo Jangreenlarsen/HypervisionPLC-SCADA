@@ -4,7 +4,7 @@
 // forstørres eller strækkes, når symbolet skaleres: en større ramme giver flere punkter, flere diagramlinjer og mere tekst.
 import { get } from './api';
 import { axisNumber, axisTime, chartLayout, chartPoints, legendOf, refreshSeconds, type Box, type ChartCfg, type Point } from './chartGraphic';
-import { SERIES_COLORS } from './trendData';
+import { contrastColor, movingAverage, SERIES_COLORS } from './trendData';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -76,6 +76,10 @@ export function mountChartIn(root: SVGSVGElement, box: Box, cfg: ChartCfg, meta:
 
     const label = (t: string) => meta[t]?.description || t;
     const lg = legendOf(cfg);
+    // Middelkurve (kun for kurver): glidende middel over de seneste avg_h timer
+    const avgWin = cfg.style === 'line' && (cfg.avg_h ?? 0) > 0 ? (cfg.avg_h ?? 0) * 3600 : 0;
+    const avgMode = cfg.avg_mode ?? 'both';
+    const hLabel = (h: number) => (h < 1 ? `${Math.round(h * 60)} min` : h >= 24 && h % 24 === 0 ? `${h / 24} d` : `${h} t`);
     const legendText = (series: Point[][]) => cfg.tags.map((t, i) => {
       const v = latest(series[i] ?? []);
       const unit = meta[t]?.unit ? ` ${meta[t]!.unit}` : '';
@@ -87,9 +91,24 @@ export function mountChartIn(root: SVGSVGElement, box: Box, cfg: ChartCfg, meta:
     const render = (data: DataResp | null, message = '') => {
       if (stopped) return;
       g.replaceChildren();
-      const series = cfg.tags.map((t) => data?.series[t] ?? []);
       const start = data?.start ?? Date.now() / 1000 - cfg.range_s, end = data?.end ?? Date.now() / 1000;
-      const texts = legendText(series);
+      const rawSeries = cfg.tags.map((t) => data?.series[t] ?? []);
+      const avgSeries = avgWin ? rawSeries.map((pts) => movingAverage(pts, avgWin).filter((pt) => pt[0] >= start)) : [];
+      const cut = rawSeries.map((pts) => (avgWin ? pts.filter((pt) => pt[0] >= start) : pts));
+      const n = cfg.tags.length;
+      const both = avgWin > 0 && avgMode === 'both';
+      const series = both ? [...cut, ...avgSeries] : avgWin ? avgSeries : cut;
+      const texts = legendText(both ? cut : series.slice(0, n));
+      const cols = cfg.tags.map((_, i) => SERIES_COLORS[i % SERIES_COLORS.length]);
+      if (both) {
+        const used = new Set(cols);
+        cfg.tags.forEach((t, i) => {
+          const c = contrastColor(i, used);
+          used.add(c);
+          texts.push(`${label(t)} (middel ${hLabel(cfg.avg_h ?? 0)})`);
+          cols.push(c);
+        });
+      }
       const l = chartLayout(box, series, start, end, cfg, texts);
       const f = l.font, p = l.plot;
       const small = { 'font-size': f * 0.85, fill: '#555' };
@@ -109,15 +128,17 @@ export function mountChartIn(root: SVGSVGElement, box: Box, cfg: ChartCfg, meta:
       // data
       const sw = Math.max(1, f / 5);
       l.lines.forEach((parts, i) => parts.forEach((pts) => {
+        const color = i < cols.length ? cols[i] : SERIES_COLORS[i % SERIES_COLORS.length];
+        const dashed = both && i >= n;
         g.appendChild(el(pts.includes(' ') ? 'polyline' : 'circle', pts.includes(' ')
-          ? { points: pts, fill: 'none', stroke: SERIES_COLORS[i % SERIES_COLORS.length], 'stroke-width': sw, 'stroke-linejoin': 'round' }
-          : { cx: pts.split(',')[0], cy: pts.split(',')[1], r: sw, fill: SERIES_COLORS[i % SERIES_COLORS.length] }));
+          ? { points: pts, fill: 'none', stroke: color, 'stroke-width': sw, 'stroke-linejoin': 'round', ...(dashed ? { 'stroke-dasharray': `${sw * 3} ${sw * 2}` } : {}) }
+          : { cx: pts.split(',')[0], cy: pts.split(',')[1], r: sw, fill: color }));
       }));
       for (const b of l.bars) g.appendChild(el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, fill: SERIES_COLORS[b.series % SERIES_COLORS.length] }));
       // forklaringen: hvert tag i sin farve, på højst to linjer inden for rammen
       for (const line of l.legendLines) {
         const t = el('text', { x: box.x + box.w / 2, y: line.y, 'text-anchor': 'middle', 'font-size': l.legendFont, 'font-weight': lg.bold ? 600 : 400, fill: '#333' });
-        line.items.forEach((i, k) => t.appendChild(el('tspan', { fill: SERIES_COLORS[i % SERIES_COLORS.length], ...(k ? { dx: l.legendFont * 0.9 } : {}) }, texts[i])));
+        line.items.forEach((i, k) => t.appendChild(el('tspan', { fill: cols[i] ?? SERIES_COLORS[i % SERIES_COLORS.length], ...(k ? { dx: l.legendFont * 0.9 } : {}) }, texts[i])));
         g.appendChild(t);
       }
       const empty = !series.some((s2) => s2.some((pt) => pt[1] !== null));
@@ -130,8 +151,11 @@ export function mountChartIn(root: SVGSVGElement, box: Box, cfg: ChartCfg, meta:
     const load = async () => {
       const end = Date.now() / 1000, start = end - cfg.range_s;
       try {
+        // middelkurve: hent forløbet før perioden med (til første punkt), og skær det af igen ved tegning
+        const pts = Math.min(2000, Math.round(chartPoints(cfg, plotW) * (cfg.range_s + avgWin) / cfg.range_s));
         const data = await get<DataResp>(`/api/trends/data?tags=${cfg.tags.map(encodeURIComponent).join(',')}` +
-          `&start=${start}&end=${end}&points=${chartPoints(cfg, plotW)}`);
+          `&start=${start - avgWin}&end=${end}&points=${pts}`);
+        data.start = start;
         render(data);
       } catch (e) {
         render(null, (e as Error).message);   // fx ingen adgang til tagget, eller serveren svarer ikke

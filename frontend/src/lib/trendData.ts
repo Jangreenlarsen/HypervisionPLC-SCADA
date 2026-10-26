@@ -126,8 +126,8 @@ export const RANGES: { id: string; label: string; seconds: number }[] = [
  * (punkter med samme afstand, så de vægtes ens). Huller (null) tæller ikke med; et punkt uden en eneste gyldig værdi i vinduet forbliver et hul.
  * Min/max sættes til middelværdien, så kurven ikke viser spredning, der ikke længere hører til den.
  */
-export function movingAverage(points: Point[], windowS: number): Point[] {
-  if (windowS <= 0) return points;
+export function movingAverage<P extends readonly [number, number | null, ...unknown[]]>(points: P[], windowS: number): Point[] {
+  if (windowS <= 0) return points as unknown as Point[];
   const out: Point[] = [];
   let lo = 0, sum = 0, n = 0;
   for (let i = 0; i < points.length; i++) {
