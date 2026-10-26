@@ -295,17 +295,18 @@ class TrendDatabase:
 
     def purge_before(self, cutoff: float, keep: dict[str, float] | None = None) -> int:
         """Slet værdier ældre end `cutoff` — undtagen tags i `keep` ({navn: egen cutoff}, fx energi-tags)."""
+        # Pr. tag (kodeanalyse 26.10.2026, F2): `ts < ?` alene kan ikke bruge primærnøglen (tag_id, ts) og scannede hele
+        # tabellen hver time. `tag_id = ? AND ts < ?` er et kort intervalopslag, og låsen slippes mellem hvert tag, så
+        # opsamlerens indsættelser ikke venter på hele oprydningen.
         keep = keep or {}
         with self._lock:
-            ids = {self._ids[n]: c for n, c in keep.items() if n in self._ids}
-            if not ids:
-                return self._conn.execute("DELETE FROM samples WHERE ts < ?", (cutoff,)).rowcount
-            marks = ",".join("?" * len(ids))
-            n = self._conn.execute(f"DELETE FROM samples WHERE ts < ? AND tag_id NOT IN ({marks})",
-                                   (cutoff, *ids)).rowcount
-            for tid, c in ids.items():
-                n += self._conn.execute("DELETE FROM samples WHERE tag_id = ? AND ts < ?", (tid, c)).rowcount
-            return n
+            ids = list(self._conn.execute("SELECT id, name FROM trend_tags").fetchall())
+        n = 0
+        for tid, name in ids:
+            with self._lock:
+                n += self._conn.execute("DELETE FROM samples WHERE tag_id = ? AND ts < ?",
+                                        (tid, keep.get(name, cutoff))).rowcount
+        return n
 
     def samples_with_prev(self, name: str, start: float, end: float) -> list[tuple[float, float | None]]:
         """Alle værdier i [start, end] plus den sidste gyldige værdi før `start` (udgangspunkt for tællere)."""

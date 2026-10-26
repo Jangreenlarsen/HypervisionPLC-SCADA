@@ -2,6 +2,10 @@
 
 ---
 
+## v1.21.7 — 2026-10-26 — Ingen frosne skærme ved lange trends
+
+- Når nogen åbner en lang trendperiode, eksporterer CSV eller åbner Trends, fortsætter live-værdier, alarmer og betjening nu uden pause. Den timevise oprydning i historikken er gjort langt lettere.
+
 ## v1.21.6 — 2026-10-26 — Hurtigere og mere robuste energirapporter
 
 - Lange energirapporter (fx et år pr. dag) beregnes nu på under et sekund og får ikke længere resten af SCADA til at stå stille. En enkelt fejlmåling i en energitæller giver ikke længere et kæmpe falsk forbrug.

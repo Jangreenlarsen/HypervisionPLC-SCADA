@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.7 build 0242] — 2026-10-26 — Tunge trend-kald og oprydning blokerer ikke længere serveren (kodeanalyse F1 + F2 + F7)
+
+- `api/trends.py`: data, CSV og info i `asyncio.to_thread`.
+- `storage/trends_db.py`: `purge_before()` pr. tag via primærnøglen; `services/trends.py`: `purge()`/`purge_due()`, kørt i en tråd fra `run()`.
+- `services/backup.py`: automatisk backup i en tråd.
+- `tests/test_trends.py` (+1).
+
 ## [1.21.6 build 0241] — 2026-10-26 — Energi: lineær beregning i tråd og fejlmålinger i tællere (kodeanalyse F6 + F5)
 
 - `services/energy.py`: `counter_energy()`/`power_energy()` i ét gennemløb (lineær tid); tæller-fald kræver bekræftelse (`RESET_LOOKAHEAD` = 3), ellers fejlmåling.

@@ -104,7 +104,8 @@ class TrendRecorder:
         self._last[name] = (ts, value)
         self._pending.pop(name, None)
 
-    def flush(self, now: float | None = None) -> int:
+    def flush(self, now: float | None = None, purge: bool = True) -> int:
+        """Gem bufferen. `purge=False`: den timevise oprydning overlades til kalderen (run() kører den i en tråd)."""
         now = time.time() if now is None else now
         self._refresh_config()
         for name, (ts, value) in list(self._pending.items()):
@@ -123,14 +124,21 @@ class TrendRecorder:
         if rows:
             self.rows_written += len(rows)
             self.flushes += 1
-        if now - self._last_purge >= 3600:
-            self._last_purge = now
-            energy_cut = now - max(self.energy_days, self.retention_days) * 86400
-            keep = {t["name"]: energy_cut for t in self.manager.db.list_energy_tags()}
-            removed = self.tdb.purge_before(now - self.retention_days * 86400, keep)
-            if removed:
-                log.info("Trend: slettede %d samples ældre end %g dage", removed, self.retention_days)
+        if purge and self.purge_due(now):
+            self.purge(now)
         return len(rows)
+
+    def purge_due(self, now: float) -> bool:
+        return now - self._last_purge >= 3600
+
+    def purge(self, now: float) -> None:
+        """Slet historik ældre end opbevaringstiden (energi-tags længere). Må køre i en tråd."""
+        self._last_purge = now
+        energy_cut = now - max(self.energy_days, self.retention_days) * 86400
+        keep = {t["name"]: energy_cut for t in self.manager.db.list_energy_tags()}
+        removed = self.tdb.purge_before(now - self.retention_days * 86400, keep)
+        if removed:
+            log.info("Trend: slettede %d samples ældre end %g dage", removed, self.retention_days)
 
     async def run(self) -> None:
         queue = self.manager.cache.subscribe(maxsize=2000)
@@ -148,7 +156,11 @@ class TrendRecorder:
                 if time.monotonic() >= next_flush:
                     next_flush = time.monotonic() + self.flush_s
                     try:
-                        self.flush()
+                        now = time.time()
+                        self.flush(now, purge=False)
+                        if self.purge_due(now):
+                            # i en tråd: oprydningen må ikke stoppe polling og live-værdier (kodeanalyse F2)
+                            await asyncio.to_thread(self.purge, now)
                     except Exception:
                         log.exception("Trend: kunne ikke gemme samples")
         finally:

@@ -346,3 +346,13 @@ def test_energy_report_api(api, mock_plc):
     assert api.get("/api/energy/report?period=aar").status_code == 400
     csv_text = api.get("/api/energy/export?period=month").text.lstrip("﻿")
     assert csv_text.splitlines()[0].startswith("periode;fra;") and csv_text.splitlines()[-1].startswith("I alt;")
+
+
+def test_purge_per_tag_uses_primary_key_and_keeps_energy_longer(tmp_path):
+    """Kodeanalyse 26.10.2026 F2: oprydningen scannede hele tabellen (`ts < ?`) hver time i event-loopet."""
+    tdb = TrendDatabase(tmp_path / "p.db")
+    tdb.insert_many([("A", 10, 1.0), ("A", 200, 2.0), ("E", 10, 5.0), ("E", 60, 6.0), ("E", 200, 7.0)])
+    assert tdb.purge_before(100, keep={"E": 50}) == 2          # A@10 og E@10 — E beholder alt efter 50
+    assert tdb.stats()["A"]["samples"] == 1 and tdb.stats()["E"]["samples"] == 2
+    plan = tdb._conn.execute("EXPLAIN QUERY PLAN DELETE FROM samples WHERE tag_id = ? AND ts < ?", (1, 100)).fetchall()
+    assert any("SEARCH" in str(row) for row in plan) and not any("SCAN samples" in str(row) for row in plan)

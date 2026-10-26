@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import csv
 import io
 import time
@@ -101,9 +102,12 @@ async def data(request: Request, tags: str, start: float | None = None, end: flo
     step = (end - start) / points
     tdb = request.app.state.trend_db
     all_tags = {t["name"]: t for t in request.app.state.tag_service.list()}
+    # Nedsamplingen i en tråd: 30 dage × 8 tags holdt ellers hele serveren (polling, alarmer, live-værdier) i ~2 s
+    # (kodeanalyse 26.10.2026, F1). TrendDatabase har sin egen lås og en forbindelse der må bruges fra tråde.
+    series = await asyncio.to_thread(lambda: {n: tdb.series(n, start, end, step) for n in names})
     return {
         "start": start, "end": end, "step": step,
-        "series": {n: tdb.series(n, start, end, step) for n in names},
+        "series": series,
         "meta": {n: {k: all_tags[n][k] for k in ("unit", "description", "decimals")} for n in names if n in all_tags},
     }
 
@@ -113,22 +117,28 @@ async def export(request: Request, tags: str, start: float | None = None, end: f
                  user: CurrentUser = Depends(require("viewer"))) -> Response:
     names = _names(request, user, tags)
     start, end = _range(start, end)
-    buf = io.StringIO()
-    writer = csv.writer(buf, delimiter=";")
-    writer.writerow(["tidspunkt", "tag", "vaerdi"])
-    for name, ts, value in request.app.state.trend_db.raw(names, start, end, MAX_EXPORT_ROWS):
-        # Dansk tid (SCADA_TZ) uanset serverens tidszone — en Pi står ofte på UTC
-        writer.writerow([datetime.fromtimestamp(ts, TZ).replace(tzinfo=None).isoformat(timespec="milliseconds"), name,
-                         "" if value is None else f"{value:.10g}".replace(".", ",")])
+    tdb = request.app.state.trend_db
+
+    def build() -> str:   # i en tråd (F1: 30 dages eksport holdt ellers serveren i ~7 s)
+        buf = io.StringIO()
+        writer = csv.writer(buf, delimiter=";")
+        writer.writerow(["tidspunkt", "tag", "vaerdi"])
+        for name, ts, value in tdb.raw(names, start, end, MAX_EXPORT_ROWS):
+            # Dansk tid (SCADA_TZ) uanset serverens tidszone — en Pi står ofte på UTC
+            writer.writerow([datetime.fromtimestamp(ts, TZ).replace(tzinfo=None).isoformat(timespec="milliseconds"), name,
+                             "" if value is None else f"{value:.10g}".replace(".", ",")])
+        return buf.getvalue()
+
+    body = await asyncio.to_thread(build)
     stamp = datetime.now(TZ).strftime("%Y%m%d-%H%M%S")
-    return Response("﻿" + buf.getvalue(), media_type="text/csv; charset=utf-8",
+    return Response("﻿" + body, media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="trend-{stamp}.csv"'})
 
 
 @router.get("/info")
 async def info(request: Request, user: CurrentUser = Depends(require("viewer"))) -> dict[str, Any]:
     visible = _allowed(request, user)
-    stats = request.app.state.trend_db.stats()
+    stats = await asyncio.to_thread(request.app.state.trend_db.stats)   # gennemløber hele historikken (F2)
     tags = []
     for t in request.app.state.tag_service.list():
         if visible is not None and t["name"] not in visible:
