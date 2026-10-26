@@ -2,6 +2,10 @@
 
 ---
 
+## v1.21.9 — 2026-10-26 — Robust login
+
+- Mange fejlede login-forsøg (fx fra et program, der gætter) kan ikke længere gøre SCADA træg. En adresse med over 20 fejlede logins på 5 minutter må vente, før den kan prøve igen.
+
 ## v1.21.8 — 2026-10-26 — Ingen huller i historikken ved kortvarige databasefejl
 
 - Kan trend-databasen et øjeblik ikke tage imod data, gemmes målingerne nu ved næste forsøg i stedet for at gå tabt.

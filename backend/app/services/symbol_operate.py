@@ -145,7 +145,7 @@ class SymbolOperateService:
                 target_locked = position < len(locked) and locked[position]
                 label = f'"{labels[position]}"' if target_locked or shown is None else f'"{labels[shown]}"'
                 detail["pin"] = True
-                self._check_pin(actor, ip, key, pin, label)
+                await asyncio.to_thread(self._check_pin, actor, ip, key, pin, label)   # scrypt i en tråd (G1)
             self._blocked(cfg)
             lock = self._lock(key)
         except ServiceError as exc:

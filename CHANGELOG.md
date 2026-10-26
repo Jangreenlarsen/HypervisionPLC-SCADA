@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.9 build 0244] — 2026-10-26 — Login kan ikke længere holde serveren travl (kodeanalyse 2, G1)
+
+- `services/auth.py`: `verify()` med `VERIFY_CONCURRENCY` (2); fejl pr. IP på tværs af brugernavne (`IP_MAX_FAILS` 20 / `IP_FAIL_WINDOW_S` 300); tællere under lås.
+- `api/auth.py`: login og skift af adgangskode i `asyncio.to_thread`; `services/symbol_operate.py`: PIN-tjek i en tråd.
+- `tests/test_auth.py` (+2).
+
 ## [1.21.8 build 0243] — 2026-10-26 — Trend-målinger tabes ikke ved databasefejl (kodeanalyse F3)
 
 - `services/trends.py`: ved fejl i `insert_many` lægges rækkerne tilbage i bufferen (`MAX_BUFFER_ROWS` = 100.000). `tests/test_trends.py` (+1).
