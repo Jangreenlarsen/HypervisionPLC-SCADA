@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.1 build 0236] — 2026-10-26 — Trends: værdier ved markøren for alle kurver
+
+- Boksen ved markøren og forklaringen viser nu hver kurves nærmeste måling i tid i stedet for "—", når kurverne har forskellige tidspunkter. `lib/TrendChart.svelte` (`valueAt`). Set i Chromium.
+
 ## [1.21.0 build 0235] — 2026-10-26 — Trendgraf i tegningen: middelkurve
 
 - Ny opsætning `avg_h` (0–720 timer) og `avg_mode` (`both`/`avg`) på trendgraf-symbolet (backend `Chart`, API-validering + test); grafen i tegningen (og den store visning) henter forløbet før perioden med, regner glidende middel og tegner den stiplet i kontrastfarve (eller i stedet), med egne poster i forklaringen. Valg i Opsæt symbol › Visning. Gamle grafer uændrede (standard: ingen).

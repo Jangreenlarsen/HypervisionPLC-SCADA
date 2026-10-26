@@ -316,10 +316,25 @@
           points: { show: !s.dashed, size: 8, fill: s.color ?? colorOf(s.colorIndex),
             filter: (u: uPlot, si: number) => isolatedPoints(u.data[si] as (number | null | undefined)[]) },
           paths: s.isBool ? uPlot.paths.stepped!({ align: 1 }) : undefined,
-          value: (_u: uPlot, v: number | null) => format(v, s),
+          value: (u: uPlot, v: number | null, _si: number, idx: number | null) => format(idx == null ? v : valueAt(u, series.indexOf(s), idx) ?? v, s),
         })),
       ],
     };
+  }
+
+  /**
+   * Kurvens værdi ved markøren. Serierne har hver deres tidspunkter, så den samlede tidsakse har huller i en kurve
+   * (`undefined` = ingen måling netop dér): tag da den nærmeste måling i tid. `null` er et rigtigt hul og forbliver et hul.
+   */
+  function valueAt(u: uPlot, k: number, idx: number): number | null | undefined {
+    const ys = u.data[k + 1] as (number | null | undefined)[];
+    if (ys[idx] !== undefined) return ys[idx];
+    for (let d = 1; d < ys.length; d++) {
+      const a = ys[idx - d], b = ys[idx + d];
+      if (a !== undefined && idx - d >= 0) return a;
+      if (b !== undefined && idx + d < ys.length) return b;
+    }
+    return undefined;
   }
 
   /** Besked-boks ved markøren: tidspunkt og alle kurvers værdi lige dér (uPlot giver nærmeste punkt i tid). */
@@ -335,7 +350,7 @@
     head.textContent = fmtTooltip(new Date(t * 1000));
     tip.appendChild(head);
     series.forEach((s, k) => {
-      const v = (u.data[k + 1] as (number | null | undefined)[])[idx];
+      const v = valueAt(u, k, idx);
       const row = document.createElement('div');
       const sw = document.createElement('i');
       sw.style.background = s.color ?? colorOf(s.colorIndex);
