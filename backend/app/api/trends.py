@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
+from pydantic import BaseModel, ConfigDict
 
 from ..services.auth import CurrentUser, role_at_least
 from ..services.errors import ServiceError
@@ -61,6 +62,34 @@ def _range(start: float | None, end: float | None) -> tuple[float, float]:
     if end - start > MAX_SPAN_S:
         raise ServiceError(400, "Perioden må højst være 400 dage")
     return start, end
+
+
+class ViewBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str
+    tags: list[str]
+    assign: dict[str, int] = {}
+    range: str = "1h"
+
+
+@router.get("/views", dependencies=[Depends(require("viewer"))])
+async def list_views(request: Request) -> list[dict[str, Any]]:
+    """Gemte visninger (fælles for alle). Hvem der må se kurverne afgøres stadig pr. tag, når data hentes."""
+    return request.app.state.trend_view_service.list()
+
+
+@router.post("/views", dependencies=[Depends(require("engineer"))])
+async def save_view(body: ViewBody, request: Request, user: CurrentUser = Depends(require("engineer"))) -> dict[str, Any]:
+    view = request.app.state.trend_view_service.save(user.username, body.model_dump())
+    audit(request, "trend.view.save", view["name"], {"tags": len(view["tags"])})
+    return view
+
+
+@router.delete("/views", dependencies=[Depends(require("engineer"))], status_code=204)
+async def delete_view(name: str, request: Request) -> Response:
+    request.app.state.trend_view_service.delete(name)
+    audit(request, "trend.view.delete", name)
+    return Response(status_code=204)
 
 
 @router.get("/data")

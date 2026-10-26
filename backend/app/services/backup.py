@@ -31,6 +31,7 @@ from ..config import read_version
 from ..storage.files import DrawingFiles
 from .bindings import BindingError, binding_tags, validate_binding
 from .schedules import validate_schedule
+from .trend_views import clean_view
 from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
 from .symbols import SymbolConfig, config_tags
 from .errors import ServiceError
@@ -146,6 +147,7 @@ class BackupService:
             "symbol_meta": data["symbol_meta"],
             "symbol_config": data["symbol_config"],
             "symbol_groups": data["symbol_groups"],
+            "trend_views": data["trend_views"],
         }
 
     def save_to_server(self, kind: str, created_by: str) -> str:
@@ -460,6 +462,24 @@ class BackupService:
             symbol_groups.append({"drawing_id": g["drawing_id"], "name": g["name"], "kind": g["kind"],
                                   "members": members, "anims": anims})
 
+        trend_views = []
+        raw_views = backup.get("trend_views", [])   # ældre backups har ingen gemte trend-visninger
+        if not isinstance(raw_views, list):
+            err("trend_views skal være en liste")
+            raw_views = []
+        seen_views: set[str] = set()
+        for i, v in enumerate(raw_views):
+            try:
+                clean = clean_view(v if isinstance(v, dict) else {})
+            except ServiceError as exc:
+                err(f"Trend-visning #{i + 1}: {exc.message}")
+                continue
+            if clean["name"].casefold() in seen_views:
+                err(f"Trend-visning '{clean['name']}': navnet findes to gange")
+                continue
+            seen_views.add(clean["name"].casefold())
+            trend_views.append(clean)
+
         schedules = []
         raw_schedules = backup.get("schedules", [])  # ældre backups har ingen ugeprogrammer
         if not isinstance(raw_schedules, list):
@@ -488,7 +508,7 @@ class BackupService:
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
                 "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
                 "schedules": schedules, "symbol_meta": symbol_meta, "symbol_config": symbol_config,
-                "symbol_groups": symbol_groups}
+                "symbol_groups": symbol_groups, "trend_views": trend_views}
 
     # ---------------------------------------------------------------- restore
 

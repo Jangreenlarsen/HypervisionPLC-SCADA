@@ -8,6 +8,7 @@
   import { align, assignColors, colorOf, dashOf, groupTags, MAX_SERIES, type Divider, RANGES, type Point } from '../lib/trendData';
   import { FROZEN_DEFAULT_S, affectedPoints, analyze, fillGaps, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
   import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
+  import { applyView, sameView, viewFrom, type TrendView } from '../lib/trendViews';
 
   let { canEdit = false, route = 'trends' }: { canEdit?: boolean; route?: string } = $props();
 
@@ -145,6 +146,81 @@
   const label = (n: string) => tagInfo.get(n)?.description || n;
 
   /** Vis symbolets kurver (erstatter det valgte); '' = vælg tags selv. */
+  // ---- Gemte visninger (v1.16.0): fx alle 8 temperaturfølere i en tank under navnet "Tank temp"; fælles for alle brugere
+  let views = $state<TrendView[]>([]);
+  let viewName = $state('');
+  let viewMsg = $state('');
+  const currentView = $derived(views.find((v) => v.name === viewName) ?? null);
+  // funktioner (ikke $derived): `assign` erklæres længere nede i filen
+  const viewChanged = (): boolean => !!currentView && !sameView(currentView, viewFrom(viewName, selected, assign, range, RANGES.map((r) => r.id)));
+  async function loadViews(): Promise<void> {
+    try { views = await get<TrendView[]>('/api/trends/views'); } catch (e) { viewMsg = `Visningerne kunne ikke hentes: ${(e as Error).message}`; }
+  }
+  let viewToken = 0;
+  async function chooseView(name: string): Promise<void> {
+    viewName = name;
+    viewMsg = '';
+    const v = views.find((x) => x.name === name);
+    if (!v) return;
+    if (!info) { viewMsg = 'Trends er ikke klar endnu — vælg visningen igen om et øjeblik.'; return; }
+    const token = ++viewToken;
+    try {
+      // kun tags med historik (som afkrydsningerne i listen); resten meldes
+      const r = applyView(v, new Set(info.tags.filter((t) => t.trend || t.samples).map((t) => t.name)), MAX_SERIES);
+      const notes = [r.missing.length ? `Ikke tilgængelige (slettet, uden historik eller uden adgang): ${r.missing.map(label).join(', ')}.` : '',
+        r.over.length ? `Højst ${MAX_SERIES} kurver ad gangen — ikke vist: ${r.over.map(label).join(', ')}.` : ''].filter(Boolean);
+      if (!r.tags.length) { viewMsg = `Ingen af visningens tags kan vises. ${notes.join(' ')}`.trim(); return; }
+      const nextRange = RANGES.some((x) => x.id === v.range) ? v.range : range;
+      // Data hentes FØR udvalget skiftes, så graferne tegnes med data fra første billede (ikke først tomme og så fyldt op)
+      const data = await fetchData(r.tags, nextRange);
+      if (token !== viewToken) return;   // en nyere visning blev valgt imens
+      symKey = '';
+      history.replaceState(null, '', '#trends');
+      range = nextRange;
+      selected = r.tags;
+      assign = r.assign;
+      try { localStorage.setItem('trend.assign', JSON.stringify(assign)); } catch { /* huskes bare ikke */ }
+      colors = assignColors(selected, {});
+      saveSelection();
+      resp = data;
+      error = '';
+      viewMsg = notes.join(' ');
+      restartTimer();
+    } catch (e) {
+      viewMsg = `Visningen "${name}" kunne ikke vises: ${(e as Error).message}`;
+    }
+  }
+  async function saveView(asNew: boolean): Promise<void> {
+    if (!selected.length) { viewMsg = 'Vælg først de tags, visningen skal vise.'; return; }
+    let name = viewName;
+    if (asNew || !name) {
+      const typed = await askText('Navn på visningen (fx "Tank temp"):', { value: viewName, placeholder: 'Tank temp', ok: 'Gem visning' });
+      if (!typed?.trim()) return;
+      name = typed.trim();
+      const same = views.find((v) => v.name.toLowerCase() === name.toLowerCase());
+      if (same && !(await askUser(`Der findes allerede en visning "${same.name}". Erstat den med det nuværende udvalg?`, { ok: 'Erstat', danger: true }))) return;
+    }
+    try {
+      const saved = await api<TrendView>('POST', '/api/trends/views', viewFrom(name, selected, assign, range, RANGES.map((r) => r.id)));
+      await loadViews();
+      viewName = saved.name;
+      viewMsg = `Visningen "${saved.name}" er gemt (${saved.tags.length} tags).`;
+    } catch (e) {
+      viewMsg = (e as Error).message;
+    }
+  }
+  async function deleteView(): Promise<void> {
+    if (!currentView || !(await askUser(`Slet visningen "${currentView.name}"? Tags og historik røres ikke.`, { ok: 'Slet', danger: true }))) return;
+    try {
+      await api('DELETE', `/api/trends/views?name=${encodeURIComponent(currentView.name)}`);
+      viewName = '';
+      await loadViews();
+      viewMsg = '';
+    } catch (e) {
+      viewMsg = (e as Error).message;
+    }
+  }
+
   function chooseSymbol(key: string, reload = true): void {
     symKey = key;
     history.replaceState(null, '', key ? `#trends/${key}` : '#trends');
@@ -241,16 +317,23 @@
     }
   }
 
-  function period(): { start: number; end: number } {
-    if (range === 'custom') {
+  function period(rangeId: string = range): { start: number; end: number } {
+    if (rangeId === 'custom') {
       const start = Date.parse(customFrom) / 1000;
       const end = Date.parse(customTo) / 1000;
       if (!Number.isFinite(start) || !Number.isFinite(end)) throw new Error('Vælg både fra- og til-tidspunkt');
       return { start, end };
     }
-    const r = RANGES.find((x) => x.id === range)!;
+    const r = RANGES.find((x) => x.id === rangeId)!;
     const end = Date.now() / 1000;
     return { start: end - r.seconds, end };
+  }
+
+  async function fetchData(names: string[], rangeId: string): Promise<DataResp> {
+    const { start, end } = period(rangeId);
+    const width = Math.min(1600, Math.max(300, window.innerWidth - 100));
+    return get<DataResp>(`/api/trends/data?tags=${names.map(encodeURIComponent).join(',')}` +
+      `&start=${start}&end=${end}&points=${Math.round(width / 2)}`);
   }
 
   async function load(): Promise<void> {
@@ -261,10 +344,7 @@
     error = '';
     loading = true;
     try {
-      const { start, end } = period();
-      const width = Math.min(1600, Math.max(300, window.innerWidth - 100));
-      resp = await get<DataResp>(`/api/trends/data?tags=${selected.map(encodeURIComponent).join(',')}` +
-        `&start=${start}&end=${end}&points=${Math.round(width / 2)}`);
+      resp = await fetchData(selected, range);
     } catch (e) {
       error = (e as Error).message;
     } finally {
@@ -468,6 +548,7 @@
     } catch (e) {
       error = (e as Error).message;
     }
+    void loadViews();
     try {
       symbols = await get<TrendSymbol[]>('/api/trends/symbols');
       const k = keyFromRoute(route);
@@ -535,6 +616,26 @@
 
 <div class="layout">
   <aside class="panel">
+    {#if views.length || canEdit}
+      <div class="viewsel">
+        <label class="small">Visning
+          <select value={viewName} onchange={(e) => chooseView(e.currentTarget.value)} style="width:100%" aria-label="Gemte visninger">
+            <option value="">— ingen valgt —</option>
+            {#each views as v (v.name)}<option value={v.name}>{v.name} ({v.tags.length})</option>{/each}
+          </select>
+        </label>
+        {#if canEdit}
+          <div class="row wrap small">
+            <button class="small" onclick={() => saveView(true)} disabled={!selected.length} title="Gem de valgte tags (og graf-valg og periode) under et navn">Gem som …</button>
+            {#if currentView}
+              <button class="small" onclick={() => saveView(false)} disabled={!viewChanged() || !selected.length} title="Overskriv den valgte visning med det nuværende udvalg">Opdatér{viewChanged() ? ' *' : ''}</button>
+              <button class="small danger" onclick={deleteView}>Slet</button>
+            {/if}
+          </div>
+        {/if}
+        {#if viewMsg}<p class="small muted">{viewMsg}</p>{/if}
+      </div>
+    {/if}
     {#if symbols.length}
       <label class="small symsel">Symbol
         <select value={symKey} onchange={(e) => chooseSymbol(e.currentTarget.value)} style="width:100%">
@@ -650,6 +751,7 @@
 {/if}
 
 <style>
+  .viewsel { display: grid; gap: .3rem; margin-bottom: .6rem; padding-bottom: .5rem; border-bottom: 1px solid var(--line); }
   .toolbar { margin-bottom: .75rem; }
   .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 1rem; align-items: start; }
   @media (max-width: 800px) { .layout { grid-template-columns: minmax(0, 1fr); } }

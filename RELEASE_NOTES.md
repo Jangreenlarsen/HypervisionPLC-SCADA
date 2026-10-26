@@ -2,6 +2,14 @@
 
 ---
 
+## v1.16.1 — 2026-10-26 — Visninger i Trends tegner graferne
+
+- Valg af en gemt visning henter data først og viser graferne på én gang; manglende tags eller fejl forklares nu i stedet for at give tomme grafer.
+
+## v1.16.0 — 2026-10-26 — Gemte trend-visninger
+
+- På **Trends** kan du gemme et udvalg af tags (fx alle tankens temperaturfølere) som en **visning** med et navn (*Tank temp*) og vælge den igen fra en dropdown — tags, grafer og tidsrum kommer frem på én gang. Visningerne er fælles for alle brugere og med i backup.
+
 ## v1.15.0 — 2026-10-25 — Se trendgrafer stort
 
 - Tryk på en trendgraf i tegningen for at se den stort, vælg periode, og gå tilbage til tegningen med knappen *Tilbage til tegningen* (eller Esc).
