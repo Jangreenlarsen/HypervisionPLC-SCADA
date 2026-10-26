@@ -38,7 +38,7 @@ ROLES = ("viewer", "operator", "panel", "engineer", "admin")
 # drifttegningen alene (ingen menu). Rettighederne håndhæves her, aldrig ud fra hvad UI'et viser.
 ROLE_LEVEL = {"viewer": 0, "operator": 1, "panel": 1, "engineer": 2, "admin": 3}
 SCOPABLE_ROLES = ("viewer", "operator", "panel")  # tekniker og admin ser altid alle tegninger
-USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{2,32}$")
+USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{2,32}\Z")
 MIN_PASSWORD = 10
 _SCRYPT = {"n": 2**14, "r": 8, "p": 1}
 

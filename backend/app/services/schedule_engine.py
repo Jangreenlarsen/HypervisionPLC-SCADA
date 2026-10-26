@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo(os.environ.get("SCADA_TZ", "Europe/Copenhagen"))
 DAY_NAMES = ["man", "tir", "ons", "tor", "fre", "lør", "søn"]
-_HHMM = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$|^24:00$")
+_HHMM = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)\Z|^24:00\Z")
 
 
 @dataclass(frozen=True)

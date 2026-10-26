@@ -22,8 +22,8 @@ import struct
 from dataclasses import dataclass
 from typing import Any
 
-PLC_KEY_RE = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
-VAR_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.\[\]]{0,63}$")
+PLC_KEY_RE = re.compile(r"^[a-z][a-z0-9_]{0,31}\Z")
+VAR_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.\[\]]{0,63}\Z")
 
 # Adresserum i firmware v7.9.68.122 (include/constants.h): HR 256, IR 320, coils/DI 256.
 ADDR_COUNT = {"hr": 256, "ir": 320, "coil": 256, "di": 256}

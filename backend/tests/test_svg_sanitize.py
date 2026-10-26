@@ -112,3 +112,28 @@ def test_overlong_symbol_text_is_removed_and_reported():
 def test_other_data_attributes_still_checked():
     out = clean('<rect id="r" width="1" height="1" data-x="javascript:alert(1)"/>')
     assert "javascript" not in out
+
+
+def test_css_escapes_cannot_hide_import_or_url():
+    """Kodeanalyse 2, G2: browseren afkoder CSS-escapes, så `@\69mport` og `u\72l(` er @import og url(."""
+    b = chr(92)
+    head = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+    for body in (f'<style>@{b}69mport "http://evil/x.css";</style>',
+                 f'<style>rect{{fill:u{b}72l(http://evil/t.png)}}</style>',
+                 f'<rect style="fill:u{b}72l(http://evil/t)"/>',
+                 f'<rect fill="u{b}72l(http://evil/t)"/>'):
+        out = sanitize_svg(head + body + "</svg>").svg
+        assert "evil" not in out, out
+    # almindelig CSS med escapes (fx et unicode-tegn i content) bevares
+    out = sanitize_svg(head + f'<style>.a{{fill:#f00}} .b::after{{content:"{b}2192"}}</style></svg>').svg
+    assert "fill:#f00" in out and "→" in out
+
+
+def test_identifiers_with_trailing_newline_are_rejected():
+    """G5: `^…$` godtog et afsluttende linjeskift (fx tagnavnet "Tank\n")."""
+    from app.services.tags import TAG_NAME_RE
+    from app.services.auth import USERNAME_RE
+    from app.services.tagsource import PLC_KEY_RE
+    from app.storage.files import _SAFE_ID
+    for rx, ok in ((TAG_NAME_RE, "Tank"), (USERNAME_RE, "jan"), (PLC_KEY_RE, "plc1"), (_SAFE_ID, "anlaeg-a")):
+        assert rx.match(ok) and not rx.match(ok + "\n")

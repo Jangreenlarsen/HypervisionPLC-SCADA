@@ -2,6 +2,10 @@
 
 ---
 
+## v1.21.10 — 2026-10-26 — Strammere kontrol af tegninger og navne
+
+- Uploadede tegninger kontrolleres grundigere for skjulte henvisninger til eksterne filer, og navne/felter med usynlige linjeskift afvises.
+
 ## v1.21.9 — 2026-10-26 — Robust login
 
 - Mange fejlede login-forsøg (fx fra et program, der gætter) kan ikke længere gøre SCADA træg. En adresse med over 20 fejlede logins på 5 minutter må vente, før den kan prøve igen.

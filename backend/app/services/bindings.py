@@ -19,7 +19,7 @@ WRITE_CLICKS = ("click:write", "click:toggle", "click:pulse", "click:select")
 ANIM_TYPES: tuple[str, ...] = AnimType.__args__  # type: ignore[attr-defined]
 
 # Farver sættes som SVG-attributter i browseren — kun simple, ufarlige former tillades.
-_COLOR = re.compile(r"^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20}|rgba?\(\s*[0-9.,\s%]+\))$")
+_COLOR = re.compile(r"^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20}|rgba?\(\s*[0-9.,\s%]+\))\Z")
 
 # ISA-101-inspirerede standardfarver: grå = normal/stop, mørkegrøn = kører, rød kun til alarm.
 DEFAULT_ON = "#2e7d32"

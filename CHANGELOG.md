@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.10 build 0245] — 2026-10-26 — Strammere validering (kodeanalyse 2, G2 + G5)
+
+- `services/svg_sanitize.py`: `_css_unescape()` før kontrol af `@import`/`url(` i `<style>`, `style=` og præsentationsattributter.
+- 16 valideringsmønstre (auth, backup, bindings, netconfig, schedule_engine, svg_sanitize, symbols, tags, tagsource, updates, storage/files): `\Z` i stedet for `$`.
+- `tests/test_svg_sanitize.py` (+2).
+
 ## [1.21.9 build 0244] — 2026-10-26 — Login kan ikke længere holde serveren travl (kodeanalyse 2, G1)
 
 - `services/auth.py`: `verify()` med `VERIFY_CONCURRENCY` (2); fejl pr. IP på tværs af brugernavne (`IP_MAX_FAILS` 20 / `IP_FAIL_WINDOW_S` 300); tællere under lås.

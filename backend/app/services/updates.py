@@ -33,8 +33,8 @@ MAX_UNPACKED_BYTES = 600 * 1024 * 1024
 ROOT = "scada"
 REQUIRED = ("version.json", "deploy/install.sh", "deploy/apply-update.sh", "backend/app/main.py",
             "backend/requirements.txt", "frontend/dist/index.html")
-_VERSION = re.compile(r"^\d{1,4}\.\d{1,4}\.\d{1,4}(\.\d{1,4})?$")   # MAJOR.MINOR.PATCH[.D] — D under fejlsøgning (CLAUDE.md)
-_BUILD = re.compile(r"^\d{1,6}$")
+_VERSION = re.compile(r"^\d{1,4}\.\d{1,4}\.\d{1,4}(\.\d{1,4})?\Z")   # MAJOR.MINOR.PATCH[.D] — D under fejlsøgning (CLAUDE.md)
+_BUILD = re.compile(r"^\d{1,6}\Z")
 _USER = re.compile(r"[^A-Za-z0-9_.@-]")
 APPLYING_STALE_S = 20 * 60               # "applying" så længe = hjælperen er gået i stå
 
