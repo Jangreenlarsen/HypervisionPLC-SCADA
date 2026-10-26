@@ -5,6 +5,7 @@ samples: (tag_id, ts, value) — value NULL markerer et hul (ingen gyldig værdi
 
 from __future__ import annotations
 
+import math
 import os
 import sqlite3
 import threading
@@ -20,6 +21,10 @@ CREATE TABLE IF NOT EXISTS samples (
     PRIMARY KEY (tag_id, ts)
 ) WITHOUT ROWID;
 """
+
+# En gemt værdi gælder til næste række, dog højst så længe (opsamleren gemmer en uændret værdi hvert 5. min) —
+# derudover er der ingen data (fx tjenesten stoppet)
+MAX_HOLD_S = 360.0
 
 
 class TrendDatabase:
@@ -179,9 +184,13 @@ class TrendDatabase:
                 self._conn.execute("ROLLBACK")
                 raise
 
-    def series(self, name: str, start: float, end: float, step: float) -> list[list[Any]]:
+    def series(self, name: str, start: float, end: float, step: float, max_hold: float = MAX_HOLD_S) -> list[list[Any]]:
         """Nedsamplet serie: [[t, gennemsnit, min, max], ...] — én række pr. tidsspand med data.
-        Et spand med kun huller giver [t, None, None, None]. Første punkt er sidste værdi før `start`."""
+        Et spand med kun huller giver [t, None, None, None]. Første punkt er sidste værdi før `start`.
+
+        Opsamleren gemmer kun ved ændring (og hvert 5. min uændret), så en værdi gælder til næste række — højst `max_hold`
+        sekunder (længere uden rækker = opsamleren kørte ikke). Gennemsnittet er derfor TIDSVÆGTET (v1.21.2): en fejlmåling,
+        der kun stod i 10 s, vejer ikke som en værdi, der stod i 5 minutter (før: gennemsnit pr. række → dyk på op til 18 °C)."""
         with self._lock:
             tid = self._id(name, False)
             if tid is None:
@@ -190,14 +199,80 @@ class TrendDatabase:
                 "SELECT ts, value FROM samples WHERE tag_id = ? AND ts < ? ORDER BY ts DESC LIMIT 1",
                 (tid, start)).fetchone()
             rows = self._conn.execute(
-                "SELECT CAST((ts - ?) / ? AS INTEGER) AS b, AVG(value), MIN(value), MAX(value), MIN(ts) "
-                "FROM samples WHERE tag_id = ? AND ts >= ? AND ts <= ? GROUP BY b ORDER BY b",
-                (start, step, tid, start, end)).fetchall()
+                "SELECT ts, value FROM samples WHERE tag_id = ? AND ts >= ? AND ts <= ? ORDER BY ts",
+                (tid, start, end)).fetchall()
+        n = max(1, math.ceil((end - start) / step - 1e-9))
+        # pr. spand: værdi·tid, tid med værdi, min, max, hul (lister frem for objekter: løkken kører over alle rækker)
+        wsum = [0.0] * n
+        dur = [0.0] * n
+        lo: list[float | None] = [None] * n
+        hi: list[float | None] = [None] * n
+        gap = [False] * n
+        last = n - 1
+
+        def mark(b: int, v: float | None) -> None:
+            if v is None:
+                gap[b] = True
+            else:
+                if lo[b] is None or v < lo[b]:   # type: ignore[operator]
+                    lo[b] = v
+                if hi[b] is None or v > hi[b]:   # type: ignore[operator]
+                    hi[b] = v
+
+        def hold(t0: float, t1: float, v: float | None) -> None:
+            """Værdien `v` gælder fra t0 til t1: fordel tiden på spandene."""
+            if t0 < start:
+                t0 = start
+            if t1 > end:
+                t1 = end
+            if t1 <= t0:
+                return
+            b = int((t0 - start) // step)
+            if b > last:
+                b = last
+            edge = t1 if b == last else start + (b + 1) * step
+            if t1 <= edge:   # det almindelige: hele stykket i ét spand
+                if v is None:
+                    gap[b] = True
+                else:
+                    wsum[b] += v * (t1 - t0)
+                    dur[b] += t1 - t0
+                return
+            while t1 > t0:   # b vokser hver gang, og det sidste spand tager resten — løkken slutter altid
+                stop = t1 if b >= last else min(t1, start + (b + 1) * step)
+                if stop > t0:
+                    mark(b, v)
+                    if v is not None:
+                        wsum[b] += v * (stop - t0)
+                        dur[b] += stop - t0
+                    t0 = stop
+                b += 1
+
+        prev = before
+        if before is not None and before[0] + max_hold > start:
+            mark(0, before[1])   # værdien fra før perioden gælder ind i første spand
+        for ts, v in rows:
+            if prev is not None:
+                pt = prev[0]
+                hold(pt, ts if ts < pt + max_hold else pt + max_hold, prev[1])
+            b = int((ts - start) // step)
+            mark(b if b < last else last, v)   # også en værdi, der ikke nåede at stå (fx lige ved `end`)
+            prev = (ts, v)
+        if prev is not None:
+            hold(prev[0], min(end, prev[0] + max_hold), prev[1])
+
         out: list[list[Any]] = []
         if before is not None:
             out.append([start, before[1], before[1], before[1]])
-        for b, avg, lo, hi, _first in rows:
-            out.append([min(start + (b + 0.5) * step, end), avg, lo, hi])  # midt i tidsspandet
+        for b in range(n):
+            t = min(start + (b + 0.5) * step, end)   # midt i tidsspandet
+            if dur[b] > 0:
+                out.append([t, wsum[b] / dur[b], lo[b] if lo[b] is not None else wsum[b] / dur[b],
+                            hi[b] if hi[b] is not None else wsum[b] / dur[b]])
+            elif lo[b] is not None:
+                out.append([t, (lo[b] + hi[b]) / 2, lo[b], hi[b]])   # type: ignore[operator]  # kun værdier uden varighed
+            elif gap[b]:
+                out.append([t, None, None, None])
         return out
 
     def raw(self, names: list[str], start: float, end: float, limit: int) -> Iterator[tuple[str, float, float | None]]:

@@ -7,7 +7,7 @@
 
   interface Status {
     state: string; message: string; last_ok: number | null; cycles?: number; errors?: number;
-    requests_per_cycle?: number; slowest?: { what: string; last_s: number; max_s: number }[]; plan?: { kind: string; start: number; count: number }[];
+    requests_per_cycle?: number; throttled?: number; last_throttled?: number | null; slowest?: { what: string; last_s: number; max_s: number }[]; plan?: { kind: string; start: number; count: number }[];
     sse?: { state: string; message?: string; events?: number; covered?: number; external?: boolean; ext_events?: number; ext_by_src?: { rtu: number; mbx: number } };
   }
   interface Plc {
@@ -88,6 +88,10 @@
           <tr><th>Seneste OK</th><td>{ago(p.status.last_ok)} · {p.status.cycles ?? 0} cyklusser · {p.status.errors ?? 0} fejl</td></tr>
           <tr><th>Kald pr. cyklus</th><td>{p.status.requests_per_cycle ?? 0}
             {#if p.status.plan?.length}<span class="muted small">({p.status.plan.map((r) => `${r.kind} ${r.start}+${r.count}`).join(', ')})</span>{/if}</td></tr>
+          {#if p.status.throttled}
+            <tr><th>Rate-limit</th><td class="small" title="Gange PLC'en har afvist et kald, fordi der kom for mange (HTTP 429). SCADA beholder værdierne og venter; først efter 60 s regnes det som tabt forbindelse">
+              Afvist {p.status.throttled} gange · senest {ago(p.status.last_throttled ?? null)}</td></tr>
+          {/if}
           {#if p.status.slowest?.length}
             <tr><th>Langsomste kald</th><td class="small" title="Svartid siden start — et kald tæt på tidsgrænsen (5 s) er det, der giver 'kommunikation tabt'">
               {p.status.slowest.map((s) => `${s.what}: ${s.max_s.toFixed(1)} s (sidst ${s.last_s.toFixed(1)} s)`).join(' · ')}</td></tr>

@@ -142,6 +142,8 @@ class PlcManager:
             "errors": st.errors,
             "requests_per_cycle": runtime.requests_per_cycle,
             "request_count": runtime.client.request_count,
+            "throttled": st.throttled,                     # 429 fra PLC'en siden start (rate-limit)
+            "last_throttled": st.last_throttled or None,
             "plan": st.plan,
             "partial": st.partial,
             "slowest": runtime.slowest(),
