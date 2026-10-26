@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.20.0 build 0234] — 2026-10-26 — Trends: beskedboks med værdier ved markøren
+
+- `TrendChart.svelte`: en boks ved markøren (uPlot `setCursor`) med tidspunkt og alle kurvers værdi; farveprøve (stiplet for middelkurver); vender til anden side/op ved kanten; rører ikke musen (`pointer-events: none`). Manualen. Set i Chromium.
+
 ## [1.19.0 build 0233] — 2026-10-26 — Trends: skift mellem begge, middel og rå kurve
 
 - Tre knapper **Begge / Middel / Rå** ved *Middel over* erstatter afkrydsningen *Stiplet*; valget huskes i browseren (`trend.avgMode`). *Rå* henter ikke det ekstra forløb. `pages/Trends.svelte`, manualen. Set i Chromium.

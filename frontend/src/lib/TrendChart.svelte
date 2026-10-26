@@ -284,6 +284,7 @@
       hooks: {
         drawAxes: [drawDividers],
         draw: [drawFilled, drawDayLabels, drawIssues, drawLabels],
+        setCursor: [showTip],
         setScale: [(u: uPlot, key: string) => {
           if (key !== 'x') return;
           const lo = u.scales.x.min ?? 0, hi = u.scales.x.max ?? 0;
@@ -319,6 +320,37 @@
         })),
       ],
     };
+  }
+
+  /** Besked-boks ved markøren: tidspunkt og alle kurvers værdi lige dér (uPlot giver nærmeste punkt i tid). */
+  function showTip(u: uPlot): void {
+    const tip = u.over.querySelector<HTMLDivElement>('.hv-tt');
+    if (!tip) return;
+    const idx = u.cursor.idx, left = u.cursor.left ?? -1, top = u.cursor.top ?? -1;
+    if (idx == null || left < 0 || top < 0) { tip.style.display = 'none'; return; }
+    const t = (u.data[0] as number[])[idx];
+    tip.replaceChildren();
+    const head = document.createElement('div');
+    head.className = 'hv-tt-t';
+    head.textContent = fmtTooltip(new Date(t * 1000));
+    tip.appendChild(head);
+    series.forEach((s, k) => {
+      const v = (u.data[k + 1] as (number | null | undefined)[])[idx];
+      const row = document.createElement('div');
+      const sw = document.createElement('i');
+      sw.style.background = s.color ?? colorOf(s.colorIndex);
+      if (s.dashed) sw.style.background = `repeating-linear-gradient(90deg, ${s.color ?? colorOf(s.colorIndex)} 0 4px, transparent 4px 7px)`;
+      row.append(sw, `${s.label}: `);
+      const b = document.createElement('b');
+      b.textContent = format(v, s);
+      row.appendChild(b);
+      tip.appendChild(row);
+    });
+    tip.style.display = 'block';
+    // ved siden af markøren; vend til den anden side/op, hvis der ikke er plads
+    const w = tip.offsetWidth, h = tip.offsetHeight, ow = u.over.clientWidth, oh = u.over.clientHeight;
+    tip.style.left = `${left + 14 + w > ow ? Math.max(0, left - 14 - w) : left + 14}px`;
+    tip.style.top = `${top + 14 + h > oh ? Math.max(0, top - 14 - h) : top + 14}px`;
   }
 
   function showFull(): void {
@@ -379,6 +411,10 @@
     chart?.destroy();
     chart = new uPlot(options(widthNow()), data as uPlot.AlignedData, el);
     bindPan(chart.over);
+    const tip = document.createElement('div');
+    tip.className = 'hv-tt';
+    tip.style.display = 'none';
+    chart.over.appendChild(tip);
     showFull();
     settle();
   }
@@ -462,6 +498,10 @@
   .x { position: absolute; top: .2rem; right: .35rem; z-index: 5; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; background: transparent; font-size: 1.3rem; line-height: 1; color: #52514e; cursor: pointer; border-radius: 4px; }
   .x:hover { background: #e5e4e0; color: #1f1f1d; }
   figcaption { padding-right: 2rem; font-weight: 600; font-size: .9rem; margin: 0 0 .25rem .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  :global(.u-over .hv-tt) { position: absolute; z-index: 10; pointer-events: none; background: rgba(31, 31, 29, .92); color: #fff; font-size: .8rem; line-height: 1.35;
+    padding: .35rem .55rem; border-radius: 6px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+  :global(.u-over .hv-tt-t) { font-weight: 600; margin-bottom: .15rem; color: #d6d5d0; }
+  :global(.u-over .hv-tt i) { display: inline-block; width: 1.1em; height: 3px; margin-right: .4em; vertical-align: middle; border-radius: 1px; }
   :global(.u-legend) { font-size: .85rem; }
   /* Fast udtryk: aflæsningerne må ikke skifte bredde/højde, når markøren flyttes (ellers hopper legend og graf) */
   :global(.u-legend .u-series) { white-space: nowrap; }

@@ -2,6 +2,10 @@
 
 ---
 
+## v1.20.0 — 2026-10-26 — Værdier ved markøren i Trends
+
+- Peg på en trendgraf: en beskedboks viser tidspunktet og alle kurvers værdi lige ved markøren.
+
 ## v1.19.0 — 2026-10-26 — Skift mellem middel og rå kurve
 
 - På Trends skifter du med tre knapper mellem **Begge** (rå kurve og stiplet middel oven i hinanden), **Middel** og **Rå**.
