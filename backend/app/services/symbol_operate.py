@@ -17,7 +17,10 @@ hvad der er skrevet. Pulssignaler skriver altid deres hvileværdi (også hvis br
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import math
+import threading
 import time
 from typing import Any
 
@@ -30,8 +33,17 @@ from .symbols import needs_pin, write_plan
 
 log = logging.getLogger(__name__)
 
-PIN_TRIES = 3
-PIN_LOCK_S = 60.0
+PIN_TRIES = 3          # forkerte koder pr. bruger, før brugeren spærres
+SYMBOL_TRIES = 10      # forkerte koder for symbolet i alt (alle brugere), før symbolet spærres
+# Spærretider, der stiger ved gentagne spærringer (kodeanalyse 2, G3 — før altid 60 s, så en firecifret kode kunne
+# gennemprøves på ~2 døgn). Nulstilles ved rigtig kode, eller når en tekniker sætter/fjerner koden.
+PIN_LOCK_STEPS = (60.0, 300.0, 900.0, 3600.0)
+PIN_LOCK_S = PIN_LOCK_STEPS[0]
+
+
+def _fmt_wait(seconds: float) -> str:
+    s = max(1, math.ceil(seconds))
+    return f"{s} s" if s < 120 else f"{math.ceil(s / 60)} min"
 
 
 class SymbolOperateService:
@@ -42,9 +54,9 @@ class SymbolOperateService:
         self.cache = operate.manager.cache
         self.audit = audit
         self._locks: dict[tuple[str, str], asyncio.Lock] = {}
-        # Nøglelås: forkerte koder pr. (symbol, bruger) → (antal, spærret til). Kun i hukommelsen (nulstilles ved
-        # genstart — samme som login-låsningen).
-        self._pin_fails: dict[tuple[str, str, str], tuple[int, float]] = {}
+        # Nøglelås pr. symbol: {"sym": {count, level, until}, "users": {navn: {count, level, until}}}. Gemt i databasen
+        # (setting pinlock.<tegning>.<element>), så en genstart ikke nulstiller spærringen (G3). PIN tjekkes i en tråd.
+        self._pin_guard = threading.Lock()
         self._background: set[asyncio.Task[Any]] = set()
 
     # ------------------------------------------------------------- fælles tjek
@@ -91,33 +103,70 @@ class SymbolOperateService:
 
     # ------------------------------------------------------------- nøglelås
 
+    @staticmethod
+    def _pin_key(key: tuple[str, str]) -> str:
+        return f"pinlock.{key[0]}.{key[1]}"
+
+    def _pin_state(self, key: tuple[str, str]) -> dict[str, Any]:
+        try:
+            state = json.loads(self.db.get_setting(self._pin_key(key)) or "{}")
+        except ValueError:
+            state = {}
+        if not isinstance(state, dict):
+            state = {}
+        state.setdefault("sym", {})
+        state.setdefault("users", {})
+        return state
+
     def reset_pin_fails(self, drawing_id: str, element: str) -> None:
         """Ny eller fjernet kode: spærringer og fejltællere for symbolet gælder ikke længere."""
-        for k in [k for k in self._pin_fails if k[0] == drawing_id and k[1] == element]:
-            del self._pin_fails[k]
+        with self._pin_guard:
+            self.db.set_setting(self._pin_key((drawing_id, element)), None)
+
+    @staticmethod
+    def _bump(entry: dict[str, Any], limit: int, now: float) -> float:
+        """Tæl en fejl; ved `limit` spærres med stigende tid. → spærretid i sekunder (0 = ikke spærret nu)."""
+        entry["count"] = int(entry.get("count", 0)) + 1
+        if entry["count"] < limit:
+            return 0.0
+        level = int(entry.get("level", 0))
+        lock_s = PIN_LOCK_STEPS[min(level, len(PIN_LOCK_STEPS) - 1)]
+        entry.update(count=0, level=level + 1, until=now + lock_s)
+        return lock_s
 
     def _check_pin(self, actor: CurrentUser, ip: str, key: tuple[str, str], pin: str | None, label: str) -> None:
-        fail_key = (key[0], key[1], actor.username)
-        count, until = self._pin_fails.get(fail_key, (0, 0.0))
         now = time.time()
+        with self._pin_guard:
+            state = self._pin_state(key)
+        user_until = float(state["users"].get(actor.username, {}).get("until", 0))
+        sym_until = float(state["sym"].get("until", 0))
+        until = max(user_until, sym_until)
         if until > now:
-            raise ServiceError(429, f"For mange forkerte koder — prøv igen om {int(until - now) + 1} s")
+            who = "symbolet (for mange forkerte koder i alt)" if sym_until >= user_until else "dig"
+            raise ServiceError(429, f"For mange forkerte koder — betjening er spærret for {who} i {_fmt_wait(until - now)}")
         stored = self.db.get_symbol_pin_hash(*key)
         if stored is None:
             raise ServiceError(409, f"{label} er låst, og der er ingen kode — en tekniker skal sætte en kode")
         if not pin:
             raise ServiceError(403, f"{label} er låst — indtast koden")
         if not verify_password(pin, stored):
-            count += 1
-            if count >= PIN_TRIES:
-                self._pin_fails[fail_key] = (0, now + PIN_LOCK_S)
-                self._record(actor, ip, "symbol.pin_failed", key, {"attempts": count, "locked_s": PIN_LOCK_S})
-                raise ServiceError(429, f"Forkert kode {PIN_TRIES} gange — betjening af symbolet er spærret i "
-                                        f"{int(PIN_LOCK_S)} s")
-            self._pin_fails[fail_key] = (count, 0.0)
-            self._record(actor, ip, "symbol.pin_failed", key, {"attempts": count})
-            raise ServiceError(403, f"Forkert kode ({count} af {PIN_TRIES} forsøg)")
-        self._pin_fails.pop(fail_key, None)
+            with self._pin_guard:
+                state = self._pin_state(key)          # læs igen: en anden bruger kan have fejlet imens
+                mine = state["users"].setdefault(actor.username, {})
+                user_lock = self._bump(mine, PIN_TRIES, now)
+                sym_lock = self._bump(state["sym"], SYMBOL_TRIES, now)
+                attempts = mine.get("count", 0)
+                self.db.set_setting(self._pin_key(key), json.dumps(state))
+            lock_s = max(user_lock, sym_lock)
+            if lock_s:
+                self._record(actor, ip, "symbol.pin_failed", key, {"locked_s": lock_s, "symbol_locked": bool(sym_lock)})
+                log.warning("PIN for %s/%s: spærret i %.0f s efter forkerte koder (sidst: %s)", key[0], key[1], lock_s,
+                            actor.username)
+                raise ServiceError(429, f"Forkert kode — betjening af symbolet er spærret i {_fmt_wait(lock_s)}")
+            self._record(actor, ip, "symbol.pin_failed", key, {"attempts": attempts})
+            raise ServiceError(403, f"Forkert kode ({attempts} af {PIN_TRIES} forsøg)")
+        with self._pin_guard:
+            self.db.set_setting(self._pin_key(key), None)   # rigtig kode: alle tællere og niveauer nulstilles
         self._record(actor, ip, "symbol.unlock", key, {"position": label})
 
     # ------------------------------------------------------------- betjening

@@ -2,6 +2,10 @@
 
 ---
 
+## v1.21.12 — 2026-10-26 — Stærkere PIN-spærring
+
+- Gentagne forkerte koder på et PIN-beskyttet symbol giver nu stadig længere spærring (op til en time), også efter genstart. En tekniker kan låse op ved at sætte koden igen.
+
 ## v1.21.11 — 2026-10-26 — Adgang følger tegningerne
 
 - Fjernes et tag fra en tegning, holder brugere med adgang til netop den tegning op med at se dets værdier inden for få sekunder — også med siden åben.

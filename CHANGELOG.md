@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.12 build 0247] — 2026-10-26 — PIN-spærring stiger og overlever genstart (kodeanalyse 2, G3)
+
+- `services/symbol_operate.py`: `PIN_LOCK_STEPS` (60/300/900/3600 s), `SYMBOL_TRIES` (10) pr. symbol, tilstand i databasen, `_fmt_wait()`.
+- `tests/test_symbol_operate.py` (+1, 1 tilpasset).
+
 ## [1.21.11 build 0246] — 2026-10-26 — Live-forbindelsen følger ændrede tegninger (kodeanalyse 2, G4)
 
 - `api/live_ws.py`: `revalidate()` genberegner `visible` hver gang og sender nyt snapshot ved ændring. `tests/test_scope.py` (+1).

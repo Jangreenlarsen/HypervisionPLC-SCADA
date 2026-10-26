@@ -89,6 +89,10 @@ Grundlaget holder: alle endpoints har det rigtige rollekrav, synlighed håndhæv
 
 ---
 
+## Status (26.10.2026)
+
+Alle fund er rettet med tests: G1 i v1.21.9, G2 + G5 i v1.21.10, G4 i v1.21.11 og G3 i v1.21.12 (se BUGS.md). Bemærkningen om en ødelagt indstillingsfil er ikke ændret.
+
 ## Anbefalet rækkefølge
 
 1. **G1** (login/PIN i tråd + begrænsning pr. IP) — det eneste fund med reel driftsbetydning.
