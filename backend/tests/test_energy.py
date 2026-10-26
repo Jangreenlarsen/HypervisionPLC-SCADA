@@ -77,3 +77,89 @@ def test_report_applies_factor_and_totals():
     assert r["series"]["Maaler"] == [2.0, 1.0] and r["totals"]["Maaler"] == 3.0 and r["unit"] == "kWh"
     assert [b["label"] for b in r["buckets"]] == ["01.01.2026", "02.01.2026"]
     assert r["meta"]["Maaler"] == {"description": "Elmåler (Wh)", "kind": "counter"}
+
+
+def test_counter_glitch_is_ignored_but_real_reset_counts():
+    """Kodeanalyse 26.10.2026 F5: én fejlmåling (0 med god kvalitet) gav et falsk forbrug på hele tællerværdien."""
+    d = (ts(2026, 1, 1), ts(2026, 1, 2))
+    h = lambda n: ts(2026, 1, 1, n)  # noqa: E731
+    # enkelt fejlmåling midt i perioden: 12345 → 0 → 12346 = 1 kWh (ikke 12346)
+    assert counter_energy([(h(1), 12345.0), (h(2), 0.0), (h(3), 12346.0)], [d], now=ts(2026, 1, 5)) == [1.0]
+    # to fejlmålinger i træk
+    assert counter_energy([(h(1), 500.0), (h(2), 0.0), (h(3), 0.0), (h(4), 502.0)], [d], now=ts(2026, 1, 5)) == [2.0]
+    # ægte nulstilling (tælleren bliver lav): +stigning fra 0 som før
+    assert counter_energy([(h(1), 500.0), (h(2), 3.0), (h(3), 7.0), (h(4), 9.0)], [d], now=ts(2026, 1, 5)) == [9.0]
+    # seneste måling er et fald, der endnu ikke er bekræftet: tæller ikke med (hverken som nulstilling eller niveau)
+    assert counter_energy([(h(1), 500.0), (h(2), 510.0), (h(3), 0.0)], [d], now=ts(2026, 1, 5)) == [10.0]
+
+
+def _old_counter(samples, spans, now):   # den tidligere (kvadratiske) beregning — som reference uden fejlmålinger
+    out = []
+    for b0, b1 in spans:
+        if b0 >= now:
+            out.append(None)
+            continue
+        last, total, anyv = None, 0.0, False
+        for t, v in samples:
+            if v is None:
+                continue
+            if t > b1:
+                break
+            anyv = True
+            if t > b0 and last is not None:
+                d = v - last
+                total += d if d >= 0 else v
+            last = v
+        out.append(round(total, 6) if anyv else None)
+    return out
+
+
+def _old_power(samples, spans, now):
+    from app.services.energy import MAX_HOLD_S
+    segs = []
+    for i, (t, v) in enumerate(samples):
+        nxt = samples[i + 1][0] if i + 1 < len(samples) else now
+        stop = min(nxt, t + MAX_HOLD_S, now)
+        if v is not None and stop > t:
+            segs.append((t, stop, v))
+    out = []
+    for b0, b1 in spans:
+        if b0 >= now:
+            out.append(None)
+            continue
+        total, cov = 0.0, False
+        for s0, s1, v in segs:
+            lo, hi = max(s0, b0), min(s1, b1)
+            if hi > lo:
+                total += v * (hi - lo) / 3600.0
+                cov = True
+        out.append(round(total, 6) if cov else None)
+    return out
+
+
+def test_linear_energy_matches_previous_results_and_is_fast():
+    """F6: samme resultater som den tidligere beregning — men lineær (et år pr. dag tog 44 s for et effekt-tag)."""
+    import random
+    import time
+    rnd = random.Random(7)
+    start = ts(2026, 1, 1)
+    spans = [(start + d * 86400, start + (d + 1) * 86400) for d in range(20)]
+    t, c, samples_c, samples_p = start - 3600, 1000.0, [], []
+    while t < start + 21 * 86400:
+        t += rnd.uniform(30, 900)
+        c += rnd.uniform(0, 2)
+        if rnd.random() < 0.002:
+            c = rnd.uniform(0, 5)          # ægte nulstilling (bekræftes af de næste, lave værdier)
+        samples_c.append((t, None if rnd.random() < 0.01 else c))
+        samples_p.append((t, None if rnd.random() < 0.02 else rnd.uniform(0, 5)))
+    now = start + 19.5 * 86400
+    assert counter_energy(samples_c, spans, now) == _old_counter(samples_c, spans, now)
+    new_p, old_p = power_energy(samples_p, spans, now), _old_power(samples_p, spans, now)
+    assert [None if v is None else round(v, 6) for v in new_p] == [None if v is None else round(v, 6) for v in old_p]
+    # et år pr. dag, én måling i minuttet
+    year = [(start + i * 60.0, float(i % 50)) for i in range(365 * 1440)]
+    yspans = [(start + d * 86400, start + (d + 1) * 86400) for d in range(365)]
+    t0 = time.perf_counter()
+    power_energy(year, yspans, start + 366 * 86400)
+    counter_energy(year, yspans, start + 366 * 86400)
+    assert time.perf_counter() - t0 < 5.0

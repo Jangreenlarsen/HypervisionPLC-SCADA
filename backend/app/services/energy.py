@@ -2,7 +2,8 @@
 
 Et tag kan markeres som energi:
 - `counter` (tæller, fx kWh-måler): forbruget i en periode = summen af stigninger. Falder tælleren
-  (nulstilling/udskiftning), regnes den nye værdi som stigning fra 0.
+  (nulstilling/udskiftning), regnes den nye værdi som stigning fra 0 — men kun når de næste målinger bekræfter
+  faldet; et enkelt fald, som tælleren vender tilbage fra, er en fejlmåling og springes over.
 - `power` (effekt, fx W/kW): integreres over tiden (værdien holdes til næste måling). Huller (ingen
   gyldig værdi) og data ældre end MAX_HOLD tæller som 0 — aldrig som den sidste værdi.
 
@@ -85,34 +86,57 @@ def default_range(period: str, now: float) -> tuple[float, float]:
     return cur.timestamp(), now
 
 
+# Et fald i en tæller godtages først som nulstilling, når de næste målinger også ligger under niveauet før faldet;
+# kommer en af dem tilbage på/over niveauet, var faldet en fejlmåling (fx 0 med "god" kvalitet) og springes over.
+RESET_LOOKAHEAD = 3
+
+
+def _counter_increments(samples: list[tuple[float, float | None]]) -> tuple[list[float], list[float], float | None]:
+    """→ (tidspunkter, stigning pr. måling, første gyldige tidspunkt). Huller springes over; en nulstilling tæller som
+    stigning fra 0; fejlmålinger (et fald, som tælleren vender tilbage fra) og et endnu ubekræftet fald springes over."""
+    valid = [(t, v) for t, v in samples if v is not None]
+    times: list[float] = []
+    incs: list[float] = []
+    last: float | None = None
+    for i, (t, v) in enumerate(valid):
+        if last is not None and v < last:
+            ahead = valid[i + 1:i + 1 + RESET_LOOKAHEAD]
+            if not ahead or any(a >= last for _, a in ahead):
+                continue   # fejlmåling, eller faldet er endnu ikke bekræftet af senere målinger
+            inc = v        # nulstilling/udskiftning: tæller op fra 0
+        else:
+            inc = 0.0 if last is None else v - last
+        times.append(t)
+        incs.append(inc)
+        last = v
+    return times, incs, (valid[0][0] if valid else None)
+
+
 def counter_energy(samples: list[tuple[float, float | None]], spans: list[tuple[float, float]],
                    now: float) -> list[float | None]:
     """Stigning i hver periode. `samples` sorteret efter tid; den sidste værdi før perioden er udgangspunktet.
-    None = ingen tællerværdi før/i perioden, eller perioden ligger i fremtiden. Uændret tæller = 0."""
+    None = ingen tællerværdi før/i perioden, eller perioden ligger i fremtiden. Uændret tæller = 0.
+    Ét gennemløb (perioderne er sorterede): lineær tid, også for et år pr. dag (kodeanalyse 26.10.2026, F6)."""
+    times, incs, first = _counter_increments(samples)
     out: list[float | None] = []
+    k = 0
     for b0, b1 in spans:
         if b0 >= now:
             out.append(None)
             continue
-        last: float | None = None
-        total = 0.0
-        any_value = False
-        for ts, v in samples:
-            if v is None:
-                continue  # hul: tælleren fortsætter fra sidste kendte værdi
-            if ts > b1:
-                break
-            any_value = True
-            if ts > b0 and last is not None:
-                d = v - last
-                total += d if d >= 0 else v  # fald = nulstilling → tæller op fra 0
-            last = v
-        out.append(round(total, 6) if any_value else None)
+        while k < len(times) and times[k] <= b0:
+            k += 1
+        total, m = 0.0, k
+        while m < len(times) and times[m] <= b1:
+            total += incs[m]
+            m += 1
+        out.append(round(total, 6) if first is not None and first <= b1 else None)
     return out
 
 
 def power_energy(samples: list[tuple[float, float | None]], spans: list[tuple[float, float]], now: float) -> list[float | None]:
-    """∫ effekt dt (i timer) for hver periode — værdien holdes til næste måling, højst MAX_HOLD_S og aldrig efter `now`."""
+    """∫ effekt dt (i timer) for hver periode — værdien holdes til næste måling, højst MAX_HOLD_S og aldrig efter `now`.
+    Stykkerne og perioderne er sorterede, så de løbes igennem samtidig (lineær tid, F6)."""
     segs: list[tuple[float, float, float]] = []  # (fra, til, effekt)
     for i, (ts, v) in enumerate(samples):
         nxt = samples[i + 1][0] if i + 1 < len(samples) else now
@@ -120,17 +144,23 @@ def power_energy(samples: list[tuple[float, float | None]], spans: list[tuple[fl
         if v is not None and stop > ts:
             segs.append((ts, stop, v))
     out: list[float | None] = []
+    k = 0
     for b0, b1 in spans:
         if b0 >= now:
             out.append(None)  # fremtiden
             continue
+        while k < len(segs) and segs[k][1] <= b0:
+            k += 1            # stykker der slutter før perioden kommer aldrig i spil igen
         total = 0.0
         covered = False
-        for s0, s1, v in segs:
+        m = k
+        while m < len(segs) and segs[m][0] < b1:
+            s0, s1, v = segs[m]
             lo, hi = max(s0, b0), min(s1, b1)
             if hi > lo:
                 total += v * (hi - lo) / 3600.0
                 covered = True
+            m += 1
         out.append(round(total, 6) if covered else None)
     return out
 

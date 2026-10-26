@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import csv
 import io
 import time
@@ -61,7 +62,8 @@ async def energy_tags(request: Request, user: CurrentUser = Depends(require("vie
 async def energy_report(request: Request, tags: str | None = None, period: str = "day",
                         start: float | None = None, end: float | None = None,
                         user: CurrentUser = Depends(require("viewer"))) -> dict[str, Any]:
-    return _report(request, user, tags, period, start, end)
+    # I en tråd: en lang periode må ikke stoppe polling, alarmer og live-værdier imens (kodeanalyse F6)
+    return await asyncio.to_thread(_report, request, user, tags, period, start, end)
 
 
 @router.get("/export")
@@ -69,7 +71,7 @@ async def energy_export(request: Request, tags: str | None = None, period: str =
                         start: float | None = None, end: float | None = None,
                         user: CurrentUser = Depends(require("viewer"))) -> Response:
     """CSV (semikolon, decimalkomma, BOM) — åbner direkte i dansk Excel. Én kolonne pr. tag, kWh."""
-    r = _report(request, user, tags, period, start, end)
+    r = await asyncio.to_thread(_report, request, user, tags, period, start, end)
     names = list(r["series"])
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")

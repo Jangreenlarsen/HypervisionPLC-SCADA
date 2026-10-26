@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.6 build 0241] — 2026-10-26 — Energi: lineær beregning i tråd og fejlmålinger i tællere (kodeanalyse F6 + F5)
+
+- `services/energy.py`: `counter_energy()`/`power_energy()` i ét gennemløb (lineær tid); tæller-fald kræver bekræftelse (`RESET_LOOKAHEAD` = 3), ellers fejlmåling.
+- `api/energy.py`: rapport og CSV regnes i `asyncio.to_thread`.
+- `tests/test_energy.py` (+3).
+
 ## [1.21.5 build 0240] — 2026-10-26 — Puls: SLUK med genforsøg og alarm (kodeanalyse F4)
 
 - `operate.py`: `_write_rest()` skriver hvileværdien med genforsøg i op til `REST_RETRY_S` (10 s); ved endelig fejl markeres tagget, og `alarm_conditions()` giver en alarm, indtil tagget skrives med succes. Bruges af `pulse()` og `pulse_value()`.

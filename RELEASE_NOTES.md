@@ -2,6 +2,10 @@
 
 ---
 
+## v1.21.6 — 2026-10-26 — Hurtigere og mere robuste energirapporter
+
+- Lange energirapporter (fx et år pr. dag) beregnes nu på under et sekund og får ikke længere resten af SCADA til at stå stille. En enkelt fejlmåling i en energitæller giver ikke længere et kæmpe falsk forbrug.
+
 ## v1.21.5 — 2026-10-26 — Sikrere puls
 
 - Efter en puls prøver SCADA nu igen i op til 10 sekunder at sætte udgangen tilbage, hvis det første forsøg fejler. Lykkes det ikke, kommer der en alarm om at kontrollere udgangen.
