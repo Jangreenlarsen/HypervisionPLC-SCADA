@@ -366,9 +366,11 @@
   /** Tilpas til beholderens faktiske størrelse, når layoutet er faldet på plads (grafer, der oprettes sammen med en ny visning, måles før de er lagt ud). */
   function settle(): void {
     requestAnimationFrame(() => {
-      if (!chart || !el.clientWidth) return;
-      if (Math.abs(chart.width - el.clientWidth) > 1) chart.setSize({ width: el.clientWidth, height: chart.height });
-      chart.redraw();
+      if (!chart) return;
+      if (el.clientWidth && Math.abs(chart.width - el.clientWidth) > 1) chart.setSize({ width: el.clientWidth, height: chart.height });
+      // x-aksen kan være gået tabt, når grafen blev bygget midt i en omtegning: sæt den igen, efter alt andet
+      if (chart.scales.x.min == null || chart.scales.x.max == null) showFull();
+      else chart.redraw();
     });
   }
 

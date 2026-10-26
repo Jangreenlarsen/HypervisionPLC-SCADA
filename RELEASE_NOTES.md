@@ -2,6 +2,11 @@
 
 ---
 
+## v1.16.3 — 2026-10-26 — Graferne tegnes efter valg af visning + Nulstil valg
+
+- Efter valg af en visning tegnes graferne nu med det samme (fejlen er genskabt og rettet).
+- Ny knap **Nulstil valg** på Trends fjerner alle valgte tags og visningen.
+
 ## v1.16.2 — 2026-10-26 — Graf tegnes straks efter valg af visning
 
 - Efter valg af en visning tegnes graferne med det samme — du skal ikke længere vælge en periode først.

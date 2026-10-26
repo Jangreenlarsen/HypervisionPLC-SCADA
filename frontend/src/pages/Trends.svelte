@@ -190,6 +190,22 @@
       viewMsg = `Visningen "${name}" kunne ikke vises: ${(e as Error).message}`;
     }
   }
+  /** Nulstil: ingen tags valgt, ingen visning, graf-valg og zoom ryddet — tilbage til en tom side (periode og indstillinger beholdes). */
+  function resetAll(): void {
+    viewToken++;   // et igangværende valg af visning skal ikke komme bagefter
+    symKey = '';
+    history.replaceState(null, '', '#trends');
+    selected = [];
+    assign = {};
+    try { localStorage.setItem('trend.assign', '{}'); } catch { /* huskes bare ikke */ }
+    colors = {};
+    viewName = '';
+    viewMsg = '';
+    expandedKey = null;
+    saveSelection();
+    resetTick++;
+    void load();
+  }
   async function saveView(asNew: boolean): Promise<void> {
     if (!selected.length) { viewMsg = 'Vælg først de tags, visningen skal vise.'; return; }
     let name = viewName;
@@ -616,6 +632,9 @@
 
 <div class="layout">
   <aside class="panel">
+    <div class="viewsel">
+      <button class="small" onclick={resetAll} disabled={!selected.length && !viewName} title="Fravælg alle tags, ryd visning og graf-valg">Nulstil valg</button>
+    </div>
     {#if views.length || canEdit}
       <div class="viewsel">
         <label class="small">Visning

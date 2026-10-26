@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.16.3 build 0229] — 2026-10-26 — Trends: graf tegnes efter valg af visning (rigtig årsag) + Nulstil valg
+
+- Grafer bygget midt i en omtegning fik aldrig sat x-aksen (min/max = null) og stod tomme; `TrendChart` tjekker og sætter den nu i næste billede. Genskabt og verificeret i Chromium (5 scenarier).
+- Ny knap **Nulstil valg** i Trends: fravælger alle tags, rydder visning, graf-valg og zoom.
+- `frontend/src/lib/TrendChart.svelte`, `pages/Trends.svelte`, `pages/TrendsViews.test.ts` (+1 test).
+
 ## [1.16.2 build 0228] — 2026-10-26 — Trends: graf tegnes straks efter valg af visning
 
 - `TrendChart` brugte en bredde på 0 for grafer oprettet før layoutet var målt; nu bruges aldrig 0, og grafen tilpasses/tegnes om i næste billede efter opbygning og dataopdatering. `frontend/src/lib/TrendChart.svelte`. Ikke set i browser.
