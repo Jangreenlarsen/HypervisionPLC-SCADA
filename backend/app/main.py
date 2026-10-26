@@ -37,6 +37,7 @@ from .services.alarms import AlarmService
 from .services import sysconfig
 from .services.netconfig import NetworkService
 from .services.power import PowerService
+from .services.trend_views import TrendViewService
 from .services.audit import AuditService
 from .services.auth import AuthService
 from .services.backup import BackupService
@@ -97,6 +98,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.update_service = UpdateService(settings.data_dir, app.state.backup_service)
         app.state.network_service = NetworkService(settings.data_dir, settings.net_state_dir)
         app.state.power_service = PowerService(settings.data_dir, settings.net_state_dir)
+        app.state.trend_view_service = TrendViewService(db)
         await manager.start_all()
         app.state.alarm_service = AlarmService(manager, db, tick_s=settings.alarm_tick_s,
                                                comm_delay_s=settings.alarm_comm_delay_s)

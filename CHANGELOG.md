@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.16.0 build 0226] — 2026-10-26 — Trends: gem udvalg af tags som navngivne visninger
+
+- Trends: ny dropdown **Visning** øverst i tag-panelet. Tekniker/admin kan gemme det aktuelle udvalg (tags, graf-valg og tidsrum) under et navn — fx alle 8 temperaturfølere i en tank som *Tank temp* — med **Gem som …**, **Opdatér** (stjerne når udvalget er ændret) og **Slet**. Alle brugere kan vælge en visning; tags de ikke har adgang til/historik for, springes over med en besked (rettigheder håndhæves stadig ved datahentning).
+- Backend: `GET/POST/DELETE /api/trends/views` (læs: viewer; gem/slet: engineer, audit-log), lagret som én indstilling pr. visning (`setting.trendview.<navn>`, ingen skemaændring og ingen læs-ændr-skriv på en samlet liste); navne unikke uden hensyn til store/små bogstaver; højst 40 tags/100 visninger; brugerdefineret periode huskes ikke. Med i backup/gendannelse (valideres).
+- `backend/app/{services/trend_views.py (ny),storage/db.py,services/backup.py,api/trends.py,main.py}`, `frontend/src/lib/trendViews.ts (ny)`, `pages/Trends.svelte`, manualen, tests (backend 4, frontend 4). Ikke set i browser.
+
 ## [1.15.0 build 0225] — 2026-10-25 — Trendgraf i stor udgave
 
 - Overview: et tryk på et trend-symbol viser grafen i et stort vindue (op til 1200×780 px) med valg af periode (15 min … 7 dage) og knappen **← Tilbage til tegningen** (også Esc og klik udenfor). Virker for alle roller (kun visning). Musemarkøren er et forstørrelsesglas over trend-symboler.

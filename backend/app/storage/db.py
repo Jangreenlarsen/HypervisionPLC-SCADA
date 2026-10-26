@@ -340,6 +340,31 @@ class Database:
                                    (f"setting.{key}", value))
             self._conn.commit()
 
+    # ------------------------------------------------------- gemte trend-visninger (v1.16.0)
+
+    @staticmethod
+    def _trendview_key(name: str) -> str:
+        return f"trendview.{name.strip().casefold()}"
+
+    def list_trend_views(self) -> list[dict[str, Any]]:
+        out = []
+        for r in self._query("SELECT value FROM meta WHERE key LIKE 'setting.trendview.%'"):
+            try:
+                out.append(json.loads(r["value"]))
+            except ValueError:
+                continue   # beskadiget række — springes over
+        return sorted(out, key=lambda v: str(v.get("name", "")).casefold())
+
+    def set_trend_view(self, name: str, view: dict[str, Any] | None) -> bool:
+        """Gem (view) eller slet (None) én visning. → om der var noget at slette (ved gem altid True)."""
+        key = self._trendview_key(name)
+        if view is None:
+            had = self.get_setting(key) is not None
+            self.set_setting(key, None)
+            return had
+        self.set_setting(key, json.dumps(view, ensure_ascii=False))
+        return True
+
     def list_drawings(self) -> list[dict[str, Any]]:
         return self._query(
             "SELECT d.*, (SELECT COUNT(*) FROM drawing_versions v WHERE v.drawing_id = d.id) AS version_count "
@@ -910,6 +935,7 @@ class Database:
             "symbol_config": [{"drawing_id": r["drawing_id"], "element": r["element"], "config": r["config"]}
                               for r in self.list_symbol_configs()],
             "symbol_groups": self._export_groups(),
+            "trend_views": self.list_trend_views(),
             "settings": {"start_drawing": self.get_setting("start_drawing")},
             "schedules": [{k: s[k] for k in ("name", "tag", "enabled", "default_value", "entries", "exceptions")}
                           for s in self.list_schedules()],
@@ -1004,6 +1030,10 @@ class Database:
                          json.dumps(s["exceptions"]), now, now))
                 # Start-tegningen følger projektet (samme transaktion — kan ikke pege på en tegning der ikke findes)
                 cur.execute("DELETE FROM meta WHERE key = 'setting.start_drawing'")
+                cur.execute("DELETE FROM meta WHERE key LIKE 'setting.trendview.%'")
+                for v in data.get("trend_views", []):
+                    cur.execute("INSERT INTO meta(key, value) VALUES (?, ?)",
+                                (f"setting.{self._trendview_key(v['name'])}", json.dumps(v, ensure_ascii=False)))
                 start = (data.get("settings") or {}).get("start_drawing")
                 if start:
                     cur.execute("INSERT INTO meta(key, value) VALUES ('setting.start_drawing', ?)", (start,))
