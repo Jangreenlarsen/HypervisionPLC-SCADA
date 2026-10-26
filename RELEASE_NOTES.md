@@ -2,6 +2,10 @@
 
 ---
 
+## v1.21.8 — 2026-10-26 — Ingen huller i historikken ved kortvarige databasefejl
+
+- Kan trend-databasen et øjeblik ikke tage imod data, gemmes målingerne nu ved næste forsøg i stedet for at gå tabt.
+
 ## v1.21.7 — 2026-10-26 — Ingen frosne skærme ved lange trends
 
 - Når nogen åbner en lang trendperiode, eksporterer CSV eller åbner Trends, fortsætter live-værdier, alarmer og betjening nu uden pause. Den timevise oprydning i historikken er gjort langt lettere.

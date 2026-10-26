@@ -148,6 +148,10 @@ Testserveren har ingen energi-tags endnu, så det kan ikke måles dér.
 
 ---
 
+## Status (26.10.2026)
+
+Alle fund er rettet: F4 i v1.21.5, F6 + F5 i v1.21.6, F1 + F2 + F7 i v1.21.7 og F3 i v1.21.8 — med tests (se BUGS.md).
+
 ## Anbefalet rækkefølge
 
 1. **F4** (puls-SLUK med genforsøg): sikkerhed for udgange.

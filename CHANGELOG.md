@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.8 build 0243] — 2026-10-26 — Trend-målinger tabes ikke ved databasefejl (kodeanalyse F3)
+
+- `services/trends.py`: ved fejl i `insert_many` lægges rækkerne tilbage i bufferen (`MAX_BUFFER_ROWS` = 100.000). `tests/test_trends.py` (+1).
+
 ## [1.21.7 build 0242] — 2026-10-26 — Tunge trend-kald og oprydning blokerer ikke længere serveren (kodeanalyse F1 + F2 + F7)
 
 - `api/trends.py`: data, CSV og info i `asyncio.to_thread`.

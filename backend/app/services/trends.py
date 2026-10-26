@@ -31,6 +31,10 @@ def _number(value: Any) -> float | None:
     return None
 
 
+# Højst så mange ventende målinger i hukommelsen, mens databasen ikke tager imod (ca. 8 tags × 3 timer)
+MAX_BUFFER_ROWS = 100_000
+
+
 class TrendRecorder:
     def __init__(self, manager: PlcManager, tdb: TrendDatabase, *, flush_s: float = 5.0,
                  keepalive_s: float = 300.0, retention_days: float = 30.0, energy_days: float = 400.0):
@@ -120,7 +124,17 @@ class TrendRecorder:
                 if value is not None:
                     self._store(name, now, value)
         rows, self._buffer = self._buffer, []
-        self.tdb.insert_many(rows)
+        try:
+            self.tdb.insert_many(rows)
+        except Exception:
+            # Læg rækkerne tilbage og prøv igen ved næste flush (kodeanalyse F3: de gik før tabt ved fx "database is
+            # locked"). Grænse, så en længere fejl ikke fylder hukommelsen — de ældste kasseres først.
+            keep = rows + self._buffer
+            if len(keep) > MAX_BUFFER_ROWS:
+                log.warning("Trend: databasen tager ikke imod data — kasserer %d ældste målinger", len(keep) - MAX_BUFFER_ROWS)
+                keep = keep[-MAX_BUFFER_ROWS:]
+            self._buffer = keep
+            raise
         if rows:
             self.rows_written += len(rows)
             self.flushes += 1
