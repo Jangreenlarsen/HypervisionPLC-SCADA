@@ -2,6 +2,10 @@
 
 ---
 
+## v1.21.5 — 2026-10-26 — Sikrere puls
+
+- Efter en puls prøver SCADA nu igen i op til 10 sekunder at sætte udgangen tilbage, hvis det første forsøg fejler. Lykkes det ikke, kommer der en alarm om at kontrollere udgangen.
+
 ## v1.21.4 — 2026-10-26 — Rettelse
 
 - Retter en fejl i v1.21.3's nye rate-limit-diagnostik. Brug denne version i stedet for v1.21.3.

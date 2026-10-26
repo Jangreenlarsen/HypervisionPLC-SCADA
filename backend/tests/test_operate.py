@@ -393,3 +393,30 @@ def test_st_variable_bound_as_input_is_written_through_its_register(api, mock_pl
     # audit nævner registret
     api_audit = [e for e in api.get("/api/audit?limit=20").json() if e["target"] == "T_Mode"]
     assert api_audit and api_audit[0]["detail"].get("via_register") == "HR 18"
+
+
+def test_pulse_off_is_retried_when_rate_limited(api, mock_plc):
+    """Kodeanalyse 26.10.2026 F4: SLUK efter en puls må ikke gives op efter ét forsøg — en 429 (eller klientens
+    lokale pause efter den) ville ellers efterlade udgangen tændt."""
+    mock_plc.state.writes.clear()
+    mock_plc.state.throttle_off_writes = 2
+    r = api.post("/api/tags/Motor/pulse", json={"ms": 100})
+    assert r.status_code == 200, r.text
+    assert mock_plc.state.coils[3] is False                       # nulstillet trods to afvisninger
+    assert mock_plc.state.writes == [("coil", 3, True), ("coil", 3, False)]
+    assert not [a for a in api.get("/api/alarms").json()["active"] if "nulstillet" in a.get("message", "") or "hvileværdien" in a.get("message", "")]
+
+
+def test_pulse_off_that_never_succeeds_raises_alarm_until_written(api, mock_plc, monkeypatch):
+    import app.services.operate as op
+    monkeypatch.setattr(op, "REST_RETRY_S", 1.0)
+    mock_plc.state.throttle_off_writes = 1000
+    r = api.post("/api/tags/Motor/pulse", json={"ms": 100})
+    assert r.status_code >= 400 and "IKKE nulstillet" in r.json()["error"]
+    assert mock_plc.state.coils[3] is True                        # udgangen står tændt …
+    _wait(lambda: any("hvileværdien" in a.get("message", "") for a in api.get("/api/alarms").json()["active"]))   # … og der er alarm
+    mock_plc.state.throttle_off_writes = 0
+    # klienten holder selv en kort pause efter PLC'ens 429'ere — skrivningen lykkes, når den er ovre
+    _wait(lambda: api.post("/api/tags/Motor/write", json={"value": False}).status_code == 200, timeout=40)
+    _wait(lambda: not any(a.get("state") == "active_unack" and "hvileværdien" in a.get("message", "")
+                          for a in api.get("/api/alarms").json()["active"]))

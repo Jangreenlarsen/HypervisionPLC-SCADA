@@ -103,19 +103,22 @@ class PlcClient:
         json: Any = None,
         params: dict[str, Any] | None = None,
         accept: tuple[int, ...] = (),
+        urgent: bool = False,
     ) -> Any:
         """Udfør et autentificeret kald og returnér den parsede JSON-body. Statuskoder i `accept`
-        returnerer også body'en (fx /api/ext-skrivning, hvor 502/504 bærer slavens resultat)."""
+        returnerer også body'en (fx /api/ext-skrivning, hvor 502/504 bærer slavens resultat).
+        `urgent`: sendes selv om PLC'en for nylig bad os vente (429) — kun til sikkerhedsskrivninger som at nulstille en
+        puls; rate-budgettet overholdes stadig."""
         async with self._lock:
             if self._token is None:
                 await self._login_locked()
-            resp = await self._send(method, path, json=json, params=params)
+            resp = await self._send(method, path, json=json, params=params, urgent=urgent)
             if resp.status_code == 401:
                 # Token udløbet/revokeret (fx efter en ACL-ændring på PLC'en): ét nyt login.
                 log.info("PLC %s afviste token (401) — logger ind igen", self.name)
                 self._token = None
                 await self._login_locked()
-                resp = await self._send(method, path, json=json, params=params)
+                resp = await self._send(method, path, json=json, params=params, urgent=urgent)
             if resp.status_code in accept:
                 body, _ = _parse(resp)
                 if isinstance(body, dict):
@@ -150,9 +153,10 @@ class PlcClient:
         params: dict[str, Any] | None = None,
         auth: tuple[str, str] | None = None,
         use_token: bool = True,
+        urgent: bool = False,
     ) -> httpx.Response:
         wait = self._backoff_until - time.monotonic()
-        if wait > 0:
+        if wait > 0 and not urgent:
             raise PlcRateLimited(f"PLC'en har bedt os vente (429) — prøver igen om {wait:.0f} s", status=429)
         await self._bucket.acquire()
         headers = {}
@@ -231,13 +235,13 @@ class PlcClient:
         return [(values[i], str(states[i])) for i in range(count)]
 
     async def write_ext(self, base: str, kind: str, addr: int, value: Any, datatype: str = "uint",
-                        wait_ms: int = 1500) -> str:
+                        wait_ms: int = 1500, urgent: bool = False) -> str:
         """Skriv én værdi (hr) eller coil til en ekstern slave og vent på slavens svar.
         → "ok" (bekræftet), "timeout" (ikke bekræftet i tide — skrivningen KAN være udført, læs tilbage)
         eller "queued" (kan ikke bekræftes). Slavens "error" kastes som PlcApiError."""
         payload: dict[str, Any] = {"value": bool(value)} if kind == "coil" else {"value": value, "type": datatype}
         body = await self.request("POST", f"{base}/{_EXT_TYPE[kind]}/{addr}", params={"wait": wait_ms}, json=payload,
-                                  accept=(502, 504))
+                                  accept=(502, 504), urgent=urgent)
         result = body.get("result") if isinstance(body, dict) else None
         if result in ("ok", "queued", "timeout"):
             return str(result)
@@ -261,23 +265,23 @@ class PlcClient:
         items = body.get("globals") if isinstance(body, dict) else None
         return items if isinstance(items, list) else []
 
-    async def bindings(self) -> list[dict[str, Any]]:
+    async def bindings(self, urgent: bool = False) -> list[dict[str, Any]]:
         """ST-variabel↔register-bindinger (program, name, type, direction, register_type HR/DI/Coil, register_addr)."""
-        body = await self.request("GET", "/api/bindings")
+        body = await self.request("GET", "/api/bindings", urgent=urgent)
         items = body.get("bindings") if isinstance(body, dict) else None
         return [b for b in items if isinstance(b, dict)] if isinstance(items, list) else []
 
-    async def write_logic_var(self, program: int, name: str, value: Any) -> Any:
+    async def write_logic_var(self, program: int, name: str, value: Any, urgent: bool = False) -> Any:
         """Skriv en ST-variabel på navn (PLC-firmware v7.9.68.141+, FEAT-503)."""
-        return await self._write_var(f"/api/logic/{program}/var", name, value)
+        return await self._write_var(f"/api/logic/{program}/var", name, value, urgent)
 
-    async def write_global(self, name: str, value: Any) -> Any:
+    async def write_global(self, name: str, value: Any, urgent: bool = False) -> Any:
         """Skriv en GLOBAL_VAR på navn (PLC-firmware v7.9.68.141+, FEAT-503)."""
-        return await self._write_var("/api/logic/globals/var", name, value)
+        return await self._write_var("/api/logic/globals/var", name, value, urgent)
 
-    async def _write_var(self, path: str, name: str, value: Any) -> Any:
+    async def _write_var(self, path: str, name: str, value: Any, urgent: bool = False) -> Any:
         try:
-            return await self.request("POST", path, json={"name": name, "value": value})
+            return await self.request("POST", path, json={"name": name, "value": value}, urgent=urgent)
         except PlcApiError as exc:
             # Ældre firmware kender ikke endpointet: 404/405 uden firmwarens egen "not found"-tekst for variablen
             text = exc.message.lower()
@@ -286,11 +290,12 @@ class PlcClient:
                                   "(eller bind variablen til et register og skriv registret)", status=exc.status) from exc
             raise
 
-    async def write_hr(self, addr: int, value: int | float, datatype: str = "uint") -> Any:
-        return await self.request("POST", f"/api/registers/hr/{addr}", json={"value": value, "type": datatype})
+    async def write_hr(self, addr: int, value: int | float, datatype: str = "uint", urgent: bool = False) -> Any:
+        return await self.request("POST", f"/api/registers/hr/{addr}", json={"value": value, "type": datatype},
+                                  urgent=urgent)
 
-    async def write_coil(self, addr: int, value: bool) -> Any:
-        return await self.request("POST", f"/api/registers/coils/{addr}", json={"value": bool(value)})
+    async def write_coil(self, addr: int, value: bool, urgent: bool = False) -> Any:
+        return await self.request("POST", f"/api/registers/coils/{addr}", json={"value": bool(value)}, urgent=urgent)
 
     async def sse_status(self) -> dict[str, Any]:
         body = await self.request("GET", "/api/events/status")

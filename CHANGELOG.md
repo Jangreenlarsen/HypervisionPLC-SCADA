@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.5 build 0240] — 2026-10-26 — Puls: SLUK med genforsøg og alarm (kodeanalyse F4)
+
+- `operate.py`: `_write_rest()` skriver hvileværdien med genforsøg i op til `REST_RETRY_S` (10 s); ved endelig fejl markeres tagget, og `alarm_conditions()` giver en alarm, indtil tagget skrives med succes. Bruges af `pulse()` og `pulse_value()`.
+- `plc/client.py`: `urgent`-flag på `request()` og skrivekald — afvises ikke af den lokale rate-limit-pause.
+- `main.py`: alarmkilden registreret. `mock_plc`: `throttle_off_writes`. Tests (+2).
+
 ## [1.21.4 build 0239] — 2026-10-26 — Rettelse af regression i v1.21.3
 
 - `plc_runtime`: kald-tælleren til rate-limit-diagnostikken læses robust (`_requests_sent()`), så en klient uden `request_count` ikke giver fejl i hver cyklus. `backend/app/services/plc_runtime.py`.
