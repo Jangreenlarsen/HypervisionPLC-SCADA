@@ -30,8 +30,8 @@ MODE_TEXT = {"dhcp": "DHCP", "static": "Fast IP", "dhcp_static": "DHCP + fast IP
              "dhcp_fallback": "DHCP, fast IP efter N fejl"}
 FALLBACK_DEFAULT = 5   # kontroller (à 30 s) uden DHCP-svar, før reserve-IP'en tages i brug
 FALLBACK_MAX = 20
-_IFACE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}$")
-_HOST = re.compile(r"^(?!-)[a-z0-9-]{1,63}(?<!-)$")
+_IFACE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}\Z")
+_HOST = re.compile(r"^(?!-)[a-z0-9-]{1,63}(?<!-)\Z")
 _SAFE = re.compile(r"[^A-Za-z0-9_.@-]")
 STALE_S = 600   # en anmodning/status der ikke er ændret så længe, regnes for hængt
 

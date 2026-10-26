@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request, Response, WebSocket
@@ -93,7 +94,8 @@ class UserUpdate(_Model):
 @router.post("/auth/login")
 async def login(body: LoginBody, request: Request, response: Response) -> dict[str, Any]:
     try:
-        token, user = _auth(request).login(body.username, body.password, client_ip(request))
+        # scrypt i en tråd (kodeanalyse 2, G1): ellers holdt fejlede logins hele serveren travl
+        token, user = await asyncio.to_thread(_auth(request).login, body.username, body.password, client_ip(request))
     except ServiceError as exc:
         request.app.state.audit_service.record(body.username[:64], client_ip(request), "login", body.username[:64],
                                                {}, "error", exc.message)
@@ -135,7 +137,7 @@ async def put_palette(body: PaletteBody, request: Request, user: CurrentUser = D
 @router.post("/auth/password", status_code=204)
 async def change_password(body: PasswordBody, request: Request,
                           user: CurrentUser = Depends(require("viewer", allow_password_change=True))) -> None:
-    _auth(request).change_own_password(user, body.old_password, body.new_password)
+    await asyncio.to_thread(_auth(request).change_own_password, user, body.old_password, body.new_password)
     audit(request, "user.password", user.username)
 
 

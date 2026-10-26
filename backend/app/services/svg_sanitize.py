@@ -42,6 +42,7 @@ _RASTER_DATA_URI = re.compile(r"^data:image/(png|jpeg|jpg|gif|webp);base64,[A-Za
 _DANGEROUS_VALUE = re.compile(r"(javascript|vbscript|data)\s*:", re.I)
 _EXTERNAL_URL = re.compile(r"url\(\s*(['\"]?)(?!#)[^)]*\)", re.I)
 _CSS_IMPORT = re.compile(r"@import[^;]*;?", re.I)
+_CSS_ESCAPE = re.compile(r"\\([0-9a-fA-F]{1,6})[ \t\r\n\f]?|\\(.)", re.S)
 _CSS_EXPRESSION = re.compile(r"expression\s*\(", re.I)
 
 
@@ -75,7 +76,20 @@ def _count(d: dict[str, int], key: str) -> None:
     d[key] = d.get(key, 0) + 1
 
 
+def _css_unescape(text: str) -> str:
+    """Afkod CSS-escapes (`\\69` = i, `\\(` = `(`) — browseren gør det, så kontrollerne skal se det samme
+    (kodeanalyse 2, G2: `@\\69mport` og `u\\72l(` slap ellers forbi)."""
+    def one(m: re.Match[str]) -> str:
+        if m.group(1) is not None:
+            cp = int(m.group(1), 16)
+            return chr(cp) if 0 < cp <= 0x10FFFF and not 0xD800 <= cp <= 0xDFFF else "�"
+        return m.group(2)
+    return _CSS_ESCAPE.sub(one, text)
+
+
 def _clean_css(text: str) -> str:
+    if "\\" in text:
+        text = _css_unescape(text)
     text = _CSS_IMPORT.sub("", text)
     text = _EXTERNAL_URL.sub("none", text)
     return _CSS_EXPRESSION.sub("(", text)
@@ -162,9 +176,10 @@ def _attribute_problem(element: str, ns: str | None, name: str, value: str) -> s
         if element == "image" and _RASTER_DATA_URI.match(v):
             return None
         return "ekstern href"
-    if _DANGEROUS_VALUE.search(value) and name not in ("d", "points"):
+    plain = _css_unescape(value) if "\\" in value else value   # præsentationsattributter tolkes som CSS (G2)
+    if _DANGEROUS_VALUE.search(plain) and name not in ("d", "points"):
         return f"{name}=javascript/data"
-    if name != "style" and _EXTERNAL_URL.search(value):
+    if name != "style" and _EXTERNAL_URL.search(plain):
         return "ekstern url()"
     return None
 
@@ -238,7 +253,7 @@ def index_svg(svg: str) -> dict[str, tuple[str, str | None]]:
     return out
 
 
-_TYPE_RE = re.compile(r"^[a-z0-9_]{1,40}$")
+_TYPE_RE = re.compile(r"^[a-z0-9_]{1,40}\Z")
 _STROKE_SHAPES = {"path", "line", "polyline", "polygon", "circle", "ellipse"}
 
 

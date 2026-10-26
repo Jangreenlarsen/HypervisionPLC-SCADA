@@ -7,7 +7,7 @@ import re
 import shutil
 from pathlib import Path
 
-_SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+_SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}\Z")
 
 
 class DrawingFiles:

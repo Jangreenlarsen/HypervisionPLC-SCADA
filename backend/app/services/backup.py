@@ -47,8 +47,8 @@ FORMAT = "hypervisionplc-scada-backup"
 MAX_TREND_DB_BYTES = 2 * 1024 * 1024 * 1024  # udpakket historik ved indlæsning
 FORMAT_VERSION = 1
 MAX_RESTORE_BYTES = 64 * 1024 * 1024
-_DRAWING_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
-_BACKUP_NAME = re.compile(r"^(scada-(auto|foer-restore)-\d{8}-\d{6}\.json|trends-auto-\d{8}-\d{6}\.db\.gz)$")
+_DRAWING_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}\Z")
+_BACKUP_NAME = re.compile(r"^(scada-(auto|foer-restore)-\d{8}-\d{6}\.json|trends-auto-\d{8}-\d{6}\.db\.gz)\Z")
 MAX_ERRORS = 25
 
 

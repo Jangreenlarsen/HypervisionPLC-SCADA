@@ -22,6 +22,7 @@ import logging
 import os
 import re
 import secrets
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,7 +38,7 @@ ROLES = ("viewer", "operator", "panel", "engineer", "admin")
 # drifttegningen alene (ingen menu). Rettighederne håndhæves her, aldrig ud fra hvad UI'et viser.
 ROLE_LEVEL = {"viewer": 0, "operator": 1, "panel": 1, "engineer": 2, "admin": 3}
 SCOPABLE_ROLES = ("viewer", "operator", "panel")  # tekniker og admin ser altid alle tegninger
-USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{2,32}$")
+USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{2,32}\Z")
 MIN_PASSWORD = 10
 _SCRYPT = {"n": 2**14, "r": 8, "p": 1}
 
@@ -45,6 +46,13 @@ _SCRYPT = {"n": 2**14, "r": 8, "p": 1}
 MAX_FAILS = 5
 FAIL_WINDOW_S = 300
 LOCK_S = 60
+# Pr. IP på tværs af brugernavne (kodeanalyse 2, G1): ellers kunne fejlede logins med skiftende brugernavne holde
+# serveren travl med scrypt. Over grænsen afvises der med 429 uden at beregne noget.
+IP_MAX_FAILS = 20
+IP_FAIL_WINDOW_S = 300
+# Højst så mange adgangskode-tjek (scrypt) ad gangen; de køres i en tråd, men begrænses, så en byge ikke æder CPU'en
+VERIFY_CONCURRENCY = 2
+VERIFY_WAIT_S = 15
 
 
 def hash_password(password: str) -> str:
@@ -112,7 +120,19 @@ class AuthService:
         self.session_ttl_s = session_ttl_s
         self._fails: dict[tuple[str, str], list[float]] = {}
         self._locked_until: dict[tuple[str, str], float] = {}
+        self._ip_fails: dict[str, list[float]] = {}
+        self._guard = threading.Lock()   # login kører i tråde (G1): tællerne opdateres under lås
+        self._verify_slots = threading.BoundedSemaphore(VERIFY_CONCURRENCY)
         self._dummy_hash = hash_password(secrets.token_hex(16))
+
+    def verify(self, password: str, stored: str) -> bool:
+        """Tjek en adgangskode/PIN med højst VERIFY_CONCURRENCY samtidige scrypt-beregninger. Kaldes fra en tråd."""
+        if not self._verify_slots.acquire(timeout=VERIFY_WAIT_S):
+            raise ServiceError(503, "Serveren er optaget — prøv igen om lidt")
+        try:
+            return verify_password(password, stored)
+        finally:
+            self._verify_slots.release()
 
     # --------------------------------------------------------------- opstart
 
@@ -141,23 +161,32 @@ class AuthService:
         username = username.strip()
         key = (username.lower(), ip)
         now = time.time()
-        locked = self._locked_until.get(key, 0) - now
+        with self._guard:
+            locked = self._locked_until.get(key, 0) - now
+            ip_fails = [t for t in self._ip_fails.get(ip, []) if now - t < IP_FAIL_WINDOW_S]
+            self._ip_fails[ip] = ip_fails
         if locked > 0:
             raise ServiceError(429, f"For mange fejlede login-forsøg — prøv igen om {int(locked) + 1} s")
+        if len(ip_fails) >= IP_MAX_FAILS:
+            wait = int(IP_FAIL_WINDOW_S - (now - ip_fails[0])) + 1
+            raise ServiceError(429, f"For mange fejlede login-forsøg fra denne adresse — prøv igen om {wait} s")
         user = self.db.get_user(username)
         # Verificér altid (også for ukendt bruger), så svartiden ikke afslører om brugeren findes.
-        ok = verify_password(password, user["password_hash"] if user else self._dummy_hash)
+        ok = self.verify(password, user["password_hash"] if user else self._dummy_hash)
         if not user or not ok or user["disabled"]:
-            fails = [t for t in self._fails.get(key, []) if now - t < FAIL_WINDOW_S] + [now]
-            self._fails[key] = fails
-            if len(fails) >= MAX_FAILS:
-                self._locked_until[key] = now + LOCK_S
-                self._fails.pop(key, None)
+            with self._guard:
+                fails = [t for t in self._fails.get(key, []) if now - t < FAIL_WINDOW_S] + [now]
+                self._fails[key] = fails
+                if len(fails) >= MAX_FAILS:
+                    self._locked_until[key] = now + LOCK_S
+                    self._fails.pop(key, None)
+                self._ip_fails.setdefault(ip, []).append(now)
             log.warning("Fejlet login for '%s' fra %s", username, ip)
             if user and ok and user["disabled"]:
                 raise ServiceError(403, "Brugeren er deaktiveret")
             raise ServiceError(401, "Forkert brugernavn eller adgangskode")
-        self._fails.pop(key, None)
+        with self._guard:
+            self._fails.pop(key, None)
         token = secrets.token_urlsafe(32)
         self.db.purge_expired_sessions(now)
         self.db.insert_session(_token_hash(token), user["username"], now + self.session_ttl_s, ip)
@@ -204,10 +233,10 @@ class AuthService:
 
     def change_own_password(self, current: CurrentUser, old: Any, new: Any) -> None:
         user = self.db.get_user(current.username)
-        if user is None or not isinstance(old, str) or not verify_password(old, user["password_hash"]):
+        if user is None or not isinstance(old, str) or not self.verify(old, user["password_hash"]):
             raise ServiceError(400, "Den nuværende adgangskode er forkert")
         check_password_rules(new, current.username)
-        if verify_password(new, user["password_hash"]):
+        if self.verify(new, user["password_hash"]):
             raise ServiceError(400, "Den nye adgangskode skal være forskellig fra den nuværende")
         self.db.update_user_guarded(current.username, {"password_hash": hash_password(new),
                                                        "must_change_password": False}, keep_admin=False)

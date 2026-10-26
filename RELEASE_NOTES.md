@@ -2,6 +2,22 @@
 
 ---
 
+## v1.21.12 — 2026-10-26 — Stærkere PIN-spærring
+
+- Gentagne forkerte koder på et PIN-beskyttet symbol giver nu stadig længere spærring (op til en time), også efter genstart. En tekniker kan låse op ved at sætte koden igen.
+
+## v1.21.11 — 2026-10-26 — Adgang følger tegningerne
+
+- Fjernes et tag fra en tegning, holder brugere med adgang til netop den tegning op med at se dets værdier inden for få sekunder — også med siden åben.
+
+## v1.21.10 — 2026-10-26 — Strammere kontrol af tegninger og navne
+
+- Uploadede tegninger kontrolleres grundigere for skjulte henvisninger til eksterne filer, og navne/felter med usynlige linjeskift afvises.
+
+## v1.21.9 — 2026-10-26 — Robust login
+
+- Mange fejlede login-forsøg (fx fra et program, der gætter) kan ikke længere gøre SCADA træg. En adresse med over 20 fejlede logins på 5 minutter må vente, før den kan prøve igen.
+
 ## v1.21.8 — 2026-10-26 — Ingen huller i historikken ved kortvarige databasefejl
 
 - Kan trend-databasen et øjeblik ikke tage imod data, gemmes målingerne nu ved næste forsøg i stedet for at gå tabt.

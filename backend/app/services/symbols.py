@@ -63,8 +63,8 @@ def parse_alarm_ref(src: Any) -> tuple[str, str] | None:
 def alarm_tag(kind: str, tag: str) -> str:
     """Live-navnet alarmmotoren udgiver (`:` findes ikke i tag-navne)."""
     return f"alarm:{tag}:{kind}"
-_SIG_ID = re.compile(r"^[A-Za-z0-9_]{1,10}$")
-_LOGIC_ID = re.compile(r"^L[0-9]{1,2}$")
+_SIG_ID = re.compile(r"^[A-Za-z0-9_]{1,10}\Z")
+_LOGIC_ID = re.compile(r"^L[0-9]{1,2}\Z")
 _PIN = re.compile(r"[0-9]{4}")   # bruges med fullmatch: kun ASCII-cifre, ingen linjeskift
 
 

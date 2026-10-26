@@ -91,9 +91,12 @@ async def live_ws(ws: WebSocket) -> None:
                 await ws.close(code=4401)
             return False
         user = current
-        if (current.role, current.drawings) != access:
+        # Genberegn også synligheden for en uændret bruger (kodeanalyse 2, G4): fjernes et tag fra en tegning, må en
+        # begrænset bruger ikke blive ved med at få dets værdier, til siden genindlæses. Kun begrænsede brugere har en liste.
+        new_visible = scope.visible_tags(current)
+        if (current.role, current.drawings) != access or new_visible != visible:
             access = (current.role, current.drawings)
-            visible = scope.visible_tags(current)
+            visible = new_visible
             wanted = requested if visible is None else requested & visible
             await ws.send_json({"type": "snapshot", "values": cache.snapshot(sorted(wanted))})
             await send_alarms()

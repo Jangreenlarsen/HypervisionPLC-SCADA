@@ -194,3 +194,44 @@ def test_my_symbols_palette(tmp_path):
         assert c.delete("/api/users/tek").status_code == 204
         assert c.app.state.auth_service.db.get_setting("palette:tek") is None
 
+
+
+def test_failed_logins_are_limited_per_ip_across_usernames(tmp_path, monkeypatch):
+    """Kodeanalyse 2, G1: fejlede logins med skiftende brugernavne holdt serveren travl med scrypt, fordi spærringen
+    kun gjaldt (bruger, IP). Nu stoppes en IP efter IP_MAX_FAILS fejl — uden at beregne scrypt."""
+    import app.services.auth as auth_mod
+    monkeypatch.setattr(auth_mod, "IP_MAX_FAILS", 5)
+    calls = {"n": 0}
+    real = auth_mod.verify_password
+
+    def counting(pw, stored):
+        calls["n"] += 1
+        return real(pw, stored)
+
+    monkeypatch.setattr(auth_mod, "verify_password", counting)
+    with TestClient(create_app(_settings(tmp_path))) as c:
+        for i in range(5):
+            assert _login(c, f"ukendt{i}", "forkert").status_code == 401
+        before = calls["n"]
+        r = _login(c, "ukendt-x", "forkert")
+        assert r.status_code == 429 and "denne adresse" in r.json()["error"]
+        assert calls["n"] == before                 # ingen scrypt for den afviste
+        assert _login(c, "admin", ADMIN_PW).status_code == 429   # gælder hele adressen (afvejning: også gyldige logins)
+
+
+def test_verify_is_bounded_and_reports_busy(tmp_path, monkeypatch):
+    import app.services.auth as auth_mod
+    from app.services.errors import ServiceError
+    monkeypatch.setattr(auth_mod, "VERIFY_WAIT_S", 0.1)
+    with TestClient(create_app(_settings(tmp_path))) as c:
+        svc = c.app.state.auth_service
+        for _ in range(auth_mod.VERIFY_CONCURRENCY):
+            svc._verify_slots.acquire()
+        try:
+            with pytest.raises(ServiceError) as ei:
+                svc.verify("x", hash_password("y"))
+            assert ei.value.status == 503
+        finally:
+            for _ in range(auth_mod.VERIFY_CONCURRENCY):
+                svc._verify_slots.release()
+        assert svc.verify("y", hash_password("y")) is True

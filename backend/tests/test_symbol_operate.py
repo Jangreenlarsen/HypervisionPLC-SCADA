@@ -219,9 +219,9 @@ def test_locked_position_needs_pin_with_lockout(api, mock_plc):
     r = _op(api, 5, "2222")
     assert r.status_code == 429 and "spærret i 60 s" in r.json()["error"]
     r = _op(api, 5, "4711")                                 # rigtig kode, men stadig spærret
-    assert r.status_code == 429 and "prøv igen om" in r.json()["error"]
+    assert r.status_code == 429 and "spærret for dig" in r.json()["error"]
     assert mock_plc.state.writes == []
-    api.app.state.symbol_operate_service._pin_fails.clear()   # (spærringen udløber)
+    api.app.state.symbol_operate_service.reset_pin_fails(api.did, V1)   # (som når en tekniker sætter koden igen)
     assert _op(api, 5, "4711").status_code == 200
     log = api.get("/api/audit?limit=50").json()
     assert [e["action"] for e in log if e["action"] in ("symbol.unlock",)] == ["symbol.unlock"]
@@ -298,3 +298,35 @@ def test_preview_returns_plans_and_errors_without_saving(api, mock_plc):
     r = api.post(f"/api/drawings/{did}/symbols/{V1}/preview", json={"config": bad})
     assert r.json()["errors"] == 1 and "ikke skrivbart" in r.json()["steps"]["2"][0] and r.json()["plans"] == []
     assert api.get(f"/api/drawings/{did}/symbols/{V1}/config").json()["config"] is None
+
+
+def test_pin_lockout_escalates_per_user_and_symbol_and_survives_restart(api, mock_plc, monkeypatch):
+    """Kodeanalyse 2, G3: spærringen var altid 60 s pr. bruger og forsvandt ved genstart."""
+    import app.services.symbol_operate as so
+    _set_bits(mock_plc, 1)
+    cfg = dec_bin(display="remote", lock={"positions": [False] * 5 + [True, False], "leave": False})
+    _setup(api, mock_plc, cfg, pin="4711")
+    svc = api.app.state.symbol_operate_service
+    clock = {"t": 1_000_000.0}
+    monkeypatch.setattr(so.time, "time", lambda: clock["t"])
+    for _ in range(3):
+        _op(api, 5, "0000")
+    assert "60 s" in _op(api, 5, "4711").json()["error"]           # 1. spærring: 60 s
+    clock["t"] += 61
+    for _ in range(3):
+        r = _op(api, 5, "0000")
+    assert r.status_code == 429 and "300 s" not in r.json()["error"] and "5 min" in r.json()["error"]   # 2.: 5 min
+    # gemt i databasen: en ny service (som efter genstart) kender spærringen
+    fresh = so.SymbolOperateService(svc.operate, svc.runtime, svc.audit)
+    state = fresh._pin_state((api.did, V1))
+    assert state["users"]["admin"]["level"] == 2 and state["users"]["admin"]["until"] > clock["t"]
+    clock["t"] += 301
+    assert _op(api, 5, "4711").status_code == 200                  # rigtig kode nulstiller alt
+    assert svc._pin_state((api.did, V1)) == {"sym": {}, "users": {}}
+    # symbolet i alt: SYMBOL_TRIES fejl fordelt på "flere brugere" spærrer symbolet for alle
+    monkeypatch.setattr(so, "PIN_TRIES", 100)
+    monkeypatch.setattr(so, "SYMBOL_TRIES", 4)
+    for _ in range(4):
+        r = _op(api, 5, "0000")
+    assert r.status_code == 429
+    assert "symbolet" in _op(api, 5, "4711").json()["error"]

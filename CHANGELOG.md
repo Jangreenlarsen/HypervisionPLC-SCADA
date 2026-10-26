@@ -4,6 +4,27 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.12 build 0247] — 2026-10-26 — PIN-spærring stiger og overlever genstart (kodeanalyse 2, G3)
+
+- `services/symbol_operate.py`: `PIN_LOCK_STEPS` (60/300/900/3600 s), `SYMBOL_TRIES` (10) pr. symbol, tilstand i databasen, `_fmt_wait()`.
+- `tests/test_symbol_operate.py` (+1, 1 tilpasset).
+
+## [1.21.11 build 0246] — 2026-10-26 — Live-forbindelsen følger ændrede tegninger (kodeanalyse 2, G4)
+
+- `api/live_ws.py`: `revalidate()` genberegner `visible` hver gang og sender nyt snapshot ved ændring. `tests/test_scope.py` (+1).
+
+## [1.21.10 build 0245] — 2026-10-26 — Strammere validering (kodeanalyse 2, G2 + G5)
+
+- `services/svg_sanitize.py`: `_css_unescape()` før kontrol af `@import`/`url(` i `<style>`, `style=` og præsentationsattributter.
+- 16 valideringsmønstre (auth, backup, bindings, netconfig, schedule_engine, svg_sanitize, symbols, tags, tagsource, updates, storage/files): `\Z` i stedet for `$`.
+- `tests/test_svg_sanitize.py` (+2).
+
+## [1.21.9 build 0244] — 2026-10-26 — Login kan ikke længere holde serveren travl (kodeanalyse 2, G1)
+
+- `services/auth.py`: `verify()` med `VERIFY_CONCURRENCY` (2); fejl pr. IP på tværs af brugernavne (`IP_MAX_FAILS` 20 / `IP_FAIL_WINDOW_S` 300); tællere under lås.
+- `api/auth.py`: login og skift af adgangskode i `asyncio.to_thread`; `services/symbol_operate.py`: PIN-tjek i en tråd.
+- `tests/test_auth.py` (+2).
+
 ## [1.21.8 build 0243] — 2026-10-26 — Trend-målinger tabes ikke ved databasefejl (kodeanalyse F3)
 
 - `services/trends.py`: ved fejl i `insert_many` lægges rækkerne tilbage i bufferen (`MAX_BUFFER_ROWS` = 100.000). `tests/test_trends.py` (+1).
