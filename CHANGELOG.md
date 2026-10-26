@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.11 build 0246] — 2026-10-26 — Live-forbindelsen følger ændrede tegninger (kodeanalyse 2, G4)
+
+- `api/live_ws.py`: `revalidate()` genberegner `visible` hver gang og sender nyt snapshot ved ændring. `tests/test_scope.py` (+1).
+
 ## [1.21.10 build 0245] — 2026-10-26 — Strammere validering (kodeanalyse 2, G2 + G5)
 
 - `services/svg_sanitize.py`: `_css_unescape()` før kontrol af `@import`/`url(` i `<style>`, `style=` og præsentationsattributter.

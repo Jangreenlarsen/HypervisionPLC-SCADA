@@ -2,6 +2,10 @@
 
 ---
 
+## v1.21.11 — 2026-10-26 — Adgang følger tegningerne
+
+- Fjernes et tag fra en tegning, holder brugere med adgang til netop den tegning op med at se dets værdier inden for få sekunder — også med siden åben.
+
 ## v1.21.10 — 2026-10-26 — Strammere kontrol af tegninger og navne
 
 - Uploadede tegninger kontrolleres grundigere for skjulte henvisninger til eksterne filer, og navne/felter med usynlige linjeskift afvises.

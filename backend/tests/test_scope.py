@@ -223,3 +223,18 @@ def test_panel_role_has_operator_rights_and_scope_but_nothing_more(setup, mock_p
     assert c.patch("/api/users/panel1", json={"role": "operator"}).json()["role"] == "operator"
     assert c.patch("/api/users/panel1", json={"role": "panel"}).json()["role"] == "panel"
     assert c.patch("/api/users/panel1", json={"role": "kiosk"}).status_code == 400
+
+
+def test_live_ws_drops_tag_removed_from_drawing(setup):
+    """Kodeanalyse 2, G4: synligheden genberegnes også, når tegningen ændres (ikke kun brugerens adgang)."""
+    c, a, b = setup
+    c.app.state.settings.ws_revalidate_s = 0.2
+    op_cookie = {"cookie": f"scada_session={c.cookies.get('scada_session')}"}
+    with c.websocket_connect("/ws/live", headers=op_cookie) as ws:
+        ws.send_json({"type": "subscribe", "tags": ["Motor_A", "Niveau_A"]})
+        snap = _ws_until(ws, lambda m: m["type"] == "snapshot")
+        assert set(snap["values"]) == {"Motor_A", "Niveau_A"}
+        _as_admin(c)
+        assert c.put(f"/api/drawings/{a}/bindings/Knap_A", json={"bindings": []}).status_code == 200
+        snap = _ws_until(ws, lambda m: m["type"] == "snapshot")      # uden ny subscribe og uden ændret adgang
+        assert set(snap["values"]) == {"Niveau_A"}
