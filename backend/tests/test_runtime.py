@@ -217,3 +217,38 @@ async def test_rejected_login_is_retried_rarely(mock_plc):
     tries = mock_plc.state.login_attempts - before
     assert 1 <= tries <= 2, tries   # uden ventetiden ville det være mange forsøg på 2 s
     assert "API" not in rt.status.message and "'scada'" in rt.status.message and "PLC'er" in rt.status.message
+
+
+async def test_rate_limit_keeps_values_and_only_later_is_a_comm_error(mock_plc):
+    """429 fra PLC'en (BUG-509 i PLC'en gjorde budgettet fælles for alle klienter): PLC'en lever, så de sidste værdier
+    beholdes og der gives ingen "kommunikation tabt" — først hvis det varer ved, bliver det en kommunikationsfejl."""
+    from app.plc.errors import PlcRateLimited
+    mock_plc.state.hr[1] = 9
+    client = PlcClient(mock_plc.url, "scada", "scada123", rate=50, burst=50)
+    cache = LiveCache()
+    rt = PlcRuntime("plc1", client, cache, sse_enabled=False, fast_interval=0.05, slow_interval=0.2,
+                    error_retry_max=0.2, rate_limit_grace_s=1.0)
+    rt.set_tags(_tags(("A", "plc1:hr:1", 1.0, 0.0)))
+    real, limited = client.read_bulk, {"on": False}
+
+    async def maybe_429(kind, start, count):
+        if limited["on"]:
+            raise PlcRateLimited("PLC'en afviste kaldet (rate-limit): Too many requests", status=429)
+        return await real(kind, start, count)
+
+    client.read_bulk = maybe_429  # type: ignore[method-assign]
+    rt.start()
+    try:
+        await wait_for(lambda: cache.get("A").quality == "good")
+        limited["on"] = True
+        await wait_for(lambda: rt.status.throttled >= 1)
+        assert cache.get("A").quality == "good" and cache.get("A").value == 9    # sidste værdi beholdes
+        assert rt.status.state != "error" and "færre kald" in rt.status.message
+        assert rt.status.last_throttled > 0
+        await wait_for(lambda: rt.status.state == "error", timeout=8)              # varer det ved: kommunikationsfejl
+        assert cache.get("A").quality == "comm_error" and "afvist kald i" in rt.status.message
+        limited["on"] = False
+        await wait_for(lambda: cache.get("A").quality == "good" and rt.status.state == "ok", timeout=8)
+        assert rt.status.message == ""
+    finally:
+        await rt.stop()

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import collections
 import logging
 import time
 from dataclasses import dataclass, field
@@ -49,6 +50,10 @@ class _Failure:
     names: list[str]
 
 
+# Rate-limit (429): PLC'en lever, men vil have færre kald. Så længe det varer kortere end dette, beholdes de sidste
+# værdier (ingen "kommunikation tabt" og dermed ingen COMM-alarm); først derefter regnes det for en kommunikationsfejl.
+RATE_LIMIT_GRACE_S = 60.0
+
 # Efter en fejl spørger vi ikke igen med det samme om det samme (skåner en presset PLC): 2 s, 4 s … højst 20 s
 COOL_STEP_S = 2.0
 COOL_MAX_S = 20.0
@@ -63,6 +68,8 @@ class RuntimeStatus:
     errors: int = 0
     plan: list[dict[str, Any]] = field(default_factory=list)
     partial: list[dict[str, Any]] = field(default_factory=list)   # kald der fejlede i den seneste cyklus, mens resten virkede
+    throttled: int = 0           # antal gange PLC'en har afvist kald pga. rate-limit (429) siden start
+    last_throttled: float = 0.0  # tidspunkt (epoch) for seneste afvisning
 
 
 class PlcRuntime:
@@ -79,6 +86,7 @@ class PlcRuntime:
         ext_interval: float = 2.0,
         error_retry_max: float = 10.0,
         auth_retry_s: float = 60.0,
+        rate_limit_grace_s: float = RATE_LIMIT_GRACE_S,
         sse_listener: SseListener | None = None,
     ):
         self.key = key
@@ -89,6 +97,10 @@ class PlcRuntime:
         self.ext_interval = ext_interval
         self.error_retry_max = error_retry_max
         self.auth_retry_s = auth_retry_s
+        self.rate_limit_grace_s = rate_limit_grace_s
+        self._throttled_since: float | None = None
+        # (tid, kald i alt) pr. cyklus — så en afvisning kan logges med hvor mange kald vi faktisk sendte
+        self._req_samples: collections.deque[tuple[float, int]] = collections.deque(maxlen=400)
         self.status = RuntimeStatus()
         self._tags: list[RuntimeTag] = []
         self._plan: list[ReadRange] = []
@@ -200,14 +212,19 @@ class PlcRuntime:
                 if full:
                     self._last_full = now
                 retry = 1.0
+                if self._throttled_since is not None:
+                    log.info("PLC %s: svarer igen efter rate-limit (%.0f s)", self.key, time.monotonic() - self._throttled_since)
+                    self._throttled_since = None
             except asyncio.CancelledError:
                 raise
+            except PlcRateLimited as exc:
+                self._on_throttled(exc)
+                interval = max(retry, 2.0)
+                retry = min(retry * 2, self.error_retry_max)
             except PlcError as exc:
                 self._on_error(exc.message)
                 interval = retry
                 retry = min(retry * 2, self.error_retry_max)
-                if isinstance(exc, PlcRateLimited):
-                    interval = max(interval, 2.0)
                 if isinstance(exc, PlcAuthError):
                     # Afvist login: prøv sjældnere — hvert forsøg tæller som en auth-fejl og kan udløse PLC'ens alarm for
                     # stigende login-fejl. Rettes adgangskoden i SCADA, genstartes forbindelsen alligevel straks.
@@ -222,6 +239,34 @@ class PlcRuntime:
                 await asyncio.wait_for(self._wake.wait(), timeout=interval)
             except asyncio.TimeoutError:
                 pass
+
+    def _request_rate(self, window_s: float = 60.0) -> float | None:
+        """Kald pr. sekund, SCADA har sendt til PLC'en det seneste minut (None hvis for få målinger)."""
+        now = time.monotonic()
+        self._req_samples.append((now, self.client.request_count))
+        old = next(((t, n) for t, n in self._req_samples if now - t <= window_s), None)
+        if old is None or now - old[0] < 5:
+            return None
+        return (self.client.request_count - old[1]) / (now - old[0])
+
+    def _on_throttled(self, exc: PlcError) -> None:
+        """PLC'en afviste kald pga. rate-limit (429). Den lever: behold de sidste værdier og vent (klienten backer selv af).
+        Varer det mere end `rate_limit_grace_s`, behandles det som en kommunikationsfejl (og giver COMM-alarm)."""
+        now = time.monotonic()
+        self.status.throttled += 1
+        self.status.last_throttled = time.time()
+        if self._throttled_since is None:
+            self._throttled_since = now
+            rate = self._request_rate()
+            log.warning("PLC %s: rate-limit (429) — %s; SCADA sendte %s kald/s det seneste minut", self.key, exc.message,
+                        f"{rate:.1f}" if rate is not None else "?")
+        lasted = now - self._throttled_since
+        if lasted >= self.rate_limit_grace_s:
+            self._on_error(f"{exc.message} — PLC'en har afvist kald i {lasted:.0f} s")
+            return
+        if self.status.state != "error":
+            self.status.message = ("PLC'en beder om færre kald (rate-limit) — SCADA venter lidt og prøver igen; "
+                                   "værdierne er fra seneste vellykkede aflæsning")
 
     def _on_error(self, message: str) -> None:
         if self.status.state != "error" or self.status.message != message:
@@ -279,6 +324,7 @@ class PlcRuntime:
             self.status.errors += 1
         self.status.last_ok = time.time()
         self.status.cycles += 1
+        self._req_samples.append((time.monotonic(), self.client.request_count))
 
     def _names_in(self, kind: str, first: int, last: int, group: tuple | None = None) -> list[str]:
         """Tags der læser (en del af) adresseområdet — PLC'ens egne registre, eller en ekstern slaves (`group`)."""

@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.3 build 0238] — 2026-10-26 — PLC-rate-limit (429) giver ikke længere "kommunikation tabt"
+
+- `plc_runtime`: 429 behandles som "PLC'en vil have færre kald": værdierne beholdes, status viser en notits, og først efter `RATE_LIMIT_GRACE_S` (60 s) uafbrudt bliver det en kommunikationsfejl/COMM-alarm. Status har `throttled`/`last_throttled`; loggen viser SCADA's kald/s det seneste minut ved første afvisning.
+- PLC'er-siden viser *Rate-limit: afvist N gange · senest …*.
+- Rodårsagen var i PLC-firmwaren (BUG-509: fælles rate-limit for alle klienter) — rettet i HypervisionPLC v7.9.68.150.
+- `backend/app/services/{plc_runtime,manager}.py`, `tests/test_runtime.py` (+1), `frontend/src/pages/Plcs.svelte`.
+
 ## [1.21.2 build 0237] — 2026-10-26 — Trends: tidsvægtet gennemsnit i nedsamplingen
 
 - `TrendDatabase.series` vægter hver værdi med den tid, den stod (værdier gemmes kun ved ændring; højst 360 s pr. række), i stedet for et gennemsnit pr. række. En kort fejlmåling gav før dyk på op til 18,5 °C i kurven (og i middelkurven); nu ca. 1 °C. Spand uden rækker, hvor en uændret værdi stadig gælder, får nu også et punkt; et hul gælder for hele sin varighed.
