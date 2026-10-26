@@ -2,6 +2,10 @@
 
 ---
 
+## v1.21.2 — 2026-10-26 — Rolige kurver uden falske dyk
+
+- Trendkurverne viste dybe dyk, når PLC'en kortvarigt sendte en fejlmåling (fx 0,0). Gennemsnittet i grafen tager nu højde for, hvor længe en værdi stod, så en fejlmåling på få sekunder kun giver et lille udsving. Hullerne i kurverne er perioder uden forbindelse til PLC'en.
+
 ## v1.21.1 — 2026-10-26 — Alle kurver ved markøren
 
 - Beskedboksen ved markøren viser nu værdien for alle kurver, også når de er målt på forskellige tidspunkter (før stod der "—").

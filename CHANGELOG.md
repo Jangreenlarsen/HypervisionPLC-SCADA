@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.2 build 0237] — 2026-10-26 — Trends: tidsvægtet gennemsnit i nedsamplingen
+
+- `TrendDatabase.series` vægter hver værdi med den tid, den stod (værdier gemmes kun ved ændring; højst 360 s pr. række), i stedet for et gennemsnit pr. række. En kort fejlmåling gav før dyk på op til 18,5 °C i kurven (og i middelkurven); nu ca. 1 °C. Spand uden rækker, hvor en uændret værdi stadig gælder, får nu også et punkt; et hul gælder for hele sin varighed.
+- `backend/app/storage/trends_db.py`, `tests/test_trends.py` (+1 test, 1 rettet forventning). Kontrolleret på testserverens data.
+
 ## [1.21.1 build 0236] — 2026-10-26 — Trends: værdier ved markøren for alle kurver
 
 - Boksen ved markøren og forklaringen viser nu hver kurves nærmeste måling i tid i stedet for "—", når kurverne har forskellige tidspunkter. `lib/TrendChart.svelte` (`valueAt`). Set i Chromium.

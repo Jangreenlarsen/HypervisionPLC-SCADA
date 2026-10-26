@@ -93,13 +93,33 @@ def test_keepalive(rec):
     assert _rows(tdb, "A")[-1] == (4301, 5.0)
 
 
+def test_series_time_weighted(tmp_path):
+    """BUGS v1.21.2: værdier gemmes kun ved ændring, så gennemsnittet skal vægtes med tiden. En fejlmåling (0,0) der kun stod
+    i 10 s, må ikke trække spandets gennemsnit ned til det halve (rækkegennemsnit: (37+0)/2 = 18,5)."""
+    tdb = TrendDatabase(tmp_path / "w.db")
+    tdb.insert_many([("T", 0, 37.0), ("T", 290, 0.0), ("T", 300, 37.0)])
+    rows = tdb.series("T", 0, 300, 300)
+    assert rows[0][1] == pytest.approx(37 * 290 / 300) and rows[0][2] == 0.0 and rows[0][3] == 37.0   # min viser stadig fejlen
+    # en uændret værdi gælder videre (spand uden rækker), men højst MAX_HOLD_S — derefter ingen data (ikke et hul)
+    tdb.insert_many([("U", 0, 5.0), ("U", 2000, 6.0)])
+    got = {round(r[0]): r[1] for r in tdb.series("U", 0, 2400, 100)}
+    assert got[50] == 5.0 and got[350] == 5.0 and 450 not in got and got[2050] == 6.0
+    # et hul (None) gælder også videre: spandene i hullet er huller, ikke blot tomme
+    tdb.insert_many([("H", 0, 1.0), ("H", 100, None), ("H", 400, 2.0)])
+    got = {round(r[0]): r[1] for r in tdb.series("H", 0, 500, 100)}
+    assert got[50] == 1.0 and got[150] is None and got[250] is None and got[450] == 2.0
+    # en værdi lige ved `end` (uden varighed) kommer med
+    assert tdb.series("T", 300, 301, 1)[-1][1] == 37.0
+
+
 def test_series_downsampling_and_gaps(tmp_path):
     tdb = TrendDatabase(tmp_path / "s.db")
     tdb.insert_many([("X", 90, 1.0)] + [("X", 100 + i, float(i)) for i in range(10)] + [("X", 120, None)])
     rows = tdb.series("X", 100, 130, 10)
     assert rows[0] == [100, 1.0, 1.0, 1.0]                 # sidste værdi før perioden
     assert rows[1] == [105, 4.5, 0.0, 9.0]                  # spand 100-110: gennemsnit/min/max
-    assert rows[2] == [125, None, None, None]               # spand med kun et hul
+    assert rows[2] == [115, 9.0, 9.0, 9.0]                  # 9 gælder til hullet kl. 120 (gemmes kun ved ændring)
+    assert rows[3] == [125, None, None, None]               # spand med kun et hul
     assert tdb.series("findes_ikke", 0, 10, 1) == []
     assert tdb.purge_before(100) == 1
     tdb.forget("X")
