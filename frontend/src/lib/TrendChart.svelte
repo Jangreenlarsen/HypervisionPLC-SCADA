@@ -8,6 +8,7 @@
   import { lastVisible, needsArrow, spreadLabels } from './lineLabels';
 
   export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null;
+    /** Middelværdi-kurven: tegnes stiplet, uden prikker. */ dashed?: boolean;
     /** Kunstige (interpolerede) tidspunkter — tegnes blinkende, så de ikke forveksles med målte data. */ synthetic?: Set<number>;
     /** Fundne uregelmæssigheder (tilvalg) — tegnes som ring om punktet. */ issues?: Issue[] }
 
@@ -308,10 +309,10 @@
           label: s.label,
           stroke: colorOf(s.colorIndex),
           width: 2,
-          dash: dashOf(s.colorIndex),
+          dash: s.dashed ? [9, 6] : dashOf(s.colorIndex),
           spanGaps: false, // null = rigtigt hul → brud i linjen
           // Kun prikker hvor en linje ikke kan tegnes (enkeltstående værdier)
-          points: { show: true, size: 8, fill: colorOf(s.colorIndex),
+          points: { show: !s.dashed, size: 8, fill: colorOf(s.colorIndex),
             filter: (u: uPlot, si: number) => isolatedPoints(u.data[si] as (number | null | undefined)[]) },
           paths: s.isBool ? uPlot.paths.stepped!({ align: 1 }) : undefined,
           value: (_u: uPlot, v: number | null) => format(v, s),
@@ -394,7 +395,7 @@
   let signature = '';
   let span = 0;
   $effect(() => {
-    const sig = series.map((s) => `${s.name}:${s.colorIndex}`).join('|') + unit;
+    const sig = series.map((s) => `${s.name}:${s.colorIndex}${s.dashed ? 'd' : ''}`).join('|') + unit;
     void series.map((s) => s.synthetic?.size);   // udfyldning slået til/fra → tegn om og start/stop blink
     syncBlink();
     void xRange; // ny periode → effekten skal også køre

@@ -16,7 +16,8 @@
     trend_interval_s: number; samples: number; oldest: number | null; is_bool: boolean }
   interface Info { retention_days: number; db_size: number; tags: InfoTag[] }
   interface DataResp { start: number; end: number; series: Record<string, Point[]>;
-    meta: Record<string, { unit: string; description: string; decimals: number | null }> }
+    meta: Record<string, { unit: string; description: string; decimals: number | null }>;
+    /** Middelværdi-kurver (kun når de vises som stiplet linje ved siden af de rå kurver). */ avg?: Record<string, Point[]> }
 
   let info = $state<Info | null>(null);
   let selected = $state<string[]>(loadSelection());
@@ -62,6 +63,8 @@
   function loadAvg(): number {
     try { const v = Number(localStorage.getItem('trend.avgHours')); return Number.isFinite(v) && v > 0 && v <= 720 ? v : 0; } catch { return 0; }
   }
+  let avgDashed = $state(loadFlag('trend.avgDashed', true));   // middelkurven som stiplet linje ved siden af den rå (ellers erstatter den)
+  const hoursLabel = (h: number): string => (h < 1 ? `${Math.round(h * 60)} min` : h % 24 === 0 && h >= 24 ? `${h / 24} d` : `${h} t`);
   function setAvg(h: number): void {
     avgHours = Number.isFinite(h) && h > 0 ? Math.min(h, 720) : 0;
     try { localStorage.setItem('trend.avgHours', String(avgHours)); } catch { /* huskes bare ikke */ }
@@ -366,11 +369,15 @@
       `&start=${start - win}&end=${end}&points=${pts}`);
     if (!win) return r;
     const series: Record<string, Point[]> = {};
+    const avg: Record<string, Point[]> = {};
     for (const [n, p] of Object.entries(r.series)) {
       const isBool = info?.tags.find((t) => t.name === n)?.is_bool;
-      series[n] = isBool ? p.filter((x) => x[0] >= start) : movingAverage(p, win).filter((x) => x[0] >= start);
+      const cut = p.filter((x) => x[0] >= start);
+      if (isBool) { series[n] = cut; continue; }
+      const mean = movingAverage(p, win).filter((x) => x[0] >= start);
+      if (avgDashed) { series[n] = cut; avg[n] = mean; } else series[n] = mean;
     }
-    return { ...r, start, series };
+    return { ...r, start, series, ...(avgDashed ? { avg } : {}) };
   }
 
   async function load(): Promise<void> {
@@ -564,7 +571,7 @@
       const base = hide && issues[t.name] ? hideSpikes(raw, issues[t.name]) : raw;
       return fill && !t.isBool ? fillGaps(base) : { points: base, synthetic: undefined };
     });
-    const series = names.map((t, i) => ({
+    const series: ChartSeries[] = names.map((t, i) => ({
       synthetic: filled[i].synthetic,
       name: t.name,
       label: tagInfo.get(t.name)?.description || t.name,
@@ -574,7 +581,17 @@
       issues: rings ? issues[t.name] : undefined,
     }));
     const pts = filled.map((f) => f.points);
-    return { series, data: align(pts, names.map((t) => Boolean(t.isBool))) };
+    const flags = names.map((t) => Boolean(t.isBool));
+    // Middelværdi som stiplet linje: en ekstra kurve pr. tag i samme farve (samme graf, samme akse)
+    for (const [i, t] of names.entries()) {
+      const m = avgHours > 0 ? resp?.avg?.[t.name] : undefined;
+      if (!m || t.isBool) continue;
+      series.push({ ...series[i], name: `${t.name}~middel`, label: `${series[i].label} (middel ${hoursLabel(avgHours)})`, dashed: true,
+        synthetic: undefined, issues: undefined });
+      pts.push(m);
+      flags.push(false);
+    }
+    return { series, data: align(pts, flags) };
   }
 
   onMount(async () => {
@@ -638,6 +655,9 @@
       <input type="number" min="0.1" max="720" step="0.5" value={avgHours} style="width:5em" aria-label="Timer" onchange={(e) => setAvg(Number(e.currentTarget.value))} /> timer
     {/if}
   </label>
+  {#if avgHours > 0}
+    <label class="row small" title="Til: middelkurven tegnes som stiplet linje ved siden af den rå kurve. Fra: middelkurven erstatter den rå kurve"><input type="checkbox" bind:checked={avgDashed} onchange={() => { saveFlag('trend.avgDashed', avgDashed); void load(); }} /> Stiplet</label>
+  {/if}
   <label class="row small" title="Udfylder huller (ingen data) med kunstige, interpolerede punkter, der blinker, så de kan kendes fra målte data. Kun visning — de gemte data ændres ikke"><input type="checkbox" bind:checked={fill} onchange={() => saveFlag('trend.fillGaps', fill)} /> Udfyld huller (blinker)</label>
   <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>
   {#if analyse && resp && selected.length}

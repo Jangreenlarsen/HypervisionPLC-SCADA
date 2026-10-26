@@ -188,3 +188,4 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v1.15.0 — Trendgraf i stor udgave ved tryk (med periodevalg og tilbage til tegningen)
 - [x] done v1.16.0 — Trends: gemte visninger (navngivne udvalg af tags, grafer og periode)
 - [x] done v1.17.0 — Trends: **Middel over** — kurven vises som glidende middelværdi over de seneste N timer (15 min, 1 time, 8 timer, 24 timer, 7 dage eller egen tid op til 720 timer); regnes i browseren på data hentet med forløbet før perioden (så første punkt også er et fuldt gennemsnit); til/fra-kurver røres ikke; kun visning (gemte data og CSV uændrede); valget huskes i browseren. Ikke med i gemte visninger.
+- [x] done v1.18.0 — Trends: middelkurven som **stiplet linje** ved siden af den rå kurve (samme farve og graf), med afkrydsningen *Stiplet* (fra = middelkurven erstatter den rå, som i v1.17.0). Middeltiden vælges i *Middel over*.

@@ -2,6 +2,10 @@
 
 ---
 
+## v1.18.0 — 2026-10-26 — Middelkurve som stiplet linje
+
+- På Trends vises middelværdien nu som en stiplet linje ved siden af den rå kurve i samme graf. Vælg tiden under *Middel over*; fjern *Stiplet* for at lade middelkurven erstatte den rå.
+
 ## v1.17.0 — 2026-10-26 — Middelværdi i Trends
 
 - Ny vælger **Middel over** på Trends: vis kurverne som glidende middelværdi over fx de seneste 24 timer (eller en tid, du selv vælger). Kun visning — gemte data og CSV er uændrede.

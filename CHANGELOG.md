@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.18.0 build 0231] — 2026-10-26 — Trends: middelkurve som stiplet linje
+
+- *Middel over* tegner nu middelkurven som stiplet linje i samme farve ved siden af den rå kurve (afkrydsning *Stiplet*, standard til; fra = erstat som før). Ekstra kurve pr. tag i samme graf, legend "… (middel 24 t)"; til/fra-kurver røres ikke.
+- `frontend/src/lib/TrendChart.svelte` (`dashed`), `pages/Trends.svelte`, manualen. Set i Chromium med mock-API.
+
 ## [1.17.0 build 0230] — 2026-10-26 — Trends: kurver som glidende middelværdi (fx 24 timer)
 
 - Ny vælger **Middel over** (Ingen, 15 min, 1 time, 8 timer, 24 timer, 7 dage, egen tid): hver tal-kurve vises som bagudrettet glidende middelværdi; forløbet før perioden hentes med og skæres af, huller tæller ikke med, til/fra-kurver røres ikke. Kun visning. Huskes i browseren.
