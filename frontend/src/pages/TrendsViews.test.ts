@@ -112,4 +112,19 @@ describe('Trends: gemte visninger', () => {
       TAGS[2] = { ...TAGS[2], trend: true, samples: 100 };
     }
   });
+
+  it('Nulstil valg fravælger alle tags og rydder visningen', async () => {
+    const select = target.querySelector<HTMLSelectElement>('select[aria-label="Gemte visninger"]')!;
+    select.value = 'Tank temp';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    expect(target.querySelectorAll('.uplot-fake').length).toBe(2);
+    const reset = [...target.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Nulstil valg')!;
+    reset.click();
+    await settle();
+    expect(target.querySelectorAll('.uplot-fake').length).toBe(0);
+    expect(target.querySelector<HTMLSelectElement>('select[aria-label="Gemte visninger"]')!.value).toBe('');
+    expect(localStorage.getItem('trend.selected')).toBe('[]');
+    expect(target.textContent).toContain('Vælg et eller flere tags til venstre');
+  });
 });

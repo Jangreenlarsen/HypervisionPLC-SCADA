@@ -246,6 +246,9 @@ class Chart(_M):
     font_scale: float = Field(default=1.0, ge=0.5, le=3.0)
     bold: bool = True
     values: bool = True
+    # middelkurve (v1.21.0): glidende middelværdi over de seneste avg_h timer (0 = ingen), som stiplet linje (both) eller i stedet (avg)
+    avg_h: float = Field(default=0, ge=0, le=720)
+    avg_mode: Literal["both", "avg"] = "both"
 
     @field_validator("range_s")
     @classmethod

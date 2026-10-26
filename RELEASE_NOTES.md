@@ -2,6 +2,43 @@
 
 ---
 
+## v1.21.1 — 2026-10-26 — Alle kurver ved markøren
+
+- Beskedboksen ved markøren viser nu værdien for alle kurver, også når de er målt på forskellige tidspunkter (før stod der "—").
+
+## v1.21.0 — 2026-10-26 — Middelkurve i tegningens trendgraf
+
+- En trendgraf i tegningen kan nu vise en middelkurve (fx over 24 timer): vælg *Middelkurve* under *Opsæt symbol › Visning*, stiplet ved siden af kurven eller i stedet for den.
+
+## v1.20.0 — 2026-10-26 — Værdier ved markøren i Trends
+
+- Peg på en trendgraf: en beskedboks viser tidspunktet og alle kurvers værdi lige ved markøren.
+
+## v1.19.0 — 2026-10-26 — Skift mellem middel og rå kurve
+
+- På Trends skifter du med tre knapper mellem **Begge** (rå kurve og stiplet middel oven i hinanden), **Middel** og **Rå**.
+
+## v1.18.1 — 2026-10-26 — Middelkurven i kontrastfarve
+
+- Den stiplede middelkurve på Trends har nu altid en anden farve end kurven den er middel af (og end de øvrige kurver i grafen).
+
+## v1.18.0 — 2026-10-26 — Middelkurve som stiplet linje
+
+- På Trends vises middelværdien nu som en stiplet linje ved siden af den rå kurve i samme graf. Vælg tiden under *Middel over*; fjern *Stiplet* for at lade middelkurven erstatte den rå.
+
+## v1.17.0 — 2026-10-26 — Middelværdi i Trends
+
+- Ny vælger **Middel over** på Trends: vis kurverne som glidende middelværdi over fx de seneste 24 timer (eller en tid, du selv vælger). Kun visning — gemte data og CSV er uændrede.
+
+## v1.16.3 — 2026-10-26 — Graferne tegnes efter valg af visning + Nulstil valg
+
+- Efter valg af en visning tegnes graferne nu med det samme (fejlen er genskabt og rettet).
+- Ny knap **Nulstil valg** på Trends fjerner alle valgte tags og visningen.
+
+## v1.16.2 — 2026-10-26 — Graf tegnes straks efter valg af visning
+
+- Efter valg af en visning tegnes graferne med det samme — du skal ikke længere vælge en periode først.
+
 ## v1.16.1 — 2026-10-26 — Visninger i Trends tegner graferne
 
 - Valg af en gemt visning henter data først og viser graferne på én gang; manglende tags eller fejl forklares nu i stedet for at give tomme grafer.

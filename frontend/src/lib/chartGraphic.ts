@@ -14,6 +14,9 @@ export interface ChartCfg {
   font_scale?: number;
   bold?: boolean;
   values?: boolean;
+  /** Middelkurve (v1.21.0): glidende middelværdi over de seneste `avg_h` timer (0/mangler = ingen); `both` = stiplet ved siden af kurven, `avg` = i stedet. */
+  avg_h?: number;
+  avg_mode?: 'both' | 'avg';
 }
 
 export const LEGEND_PLACES: { id: 'top' | 'bottom' | 'none'; label: string }[] = [

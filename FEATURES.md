@@ -187,3 +187,8 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v1.14.0 — Omskifter: tegningens gradtal vises/udfyldes ved Drej pr. position
 - [x] done v1.15.0 — Trendgraf i stor udgave ved tryk (med periodevalg og tilbage til tegningen)
 - [x] done v1.16.0 — Trends: gemte visninger (navngivne udvalg af tags, grafer og periode)
+- [x] done v1.17.0 — Trends: **Middel over** — kurven vises som glidende middelværdi over de seneste N timer (15 min, 1 time, 8 timer, 24 timer, 7 dage eller egen tid op til 720 timer); regnes i browseren på data hentet med forløbet før perioden (så første punkt også er et fuldt gennemsnit); til/fra-kurver røres ikke; kun visning (gemte data og CSV uændrede); valget huskes i browseren. Ikke med i gemte visninger.
+- [x] done v1.21.0 — Trendgraf i tegningen: valgfri **middelkurve** (Opsæt symbol › Visning › *Middelkurve*: ingen / 15 min / 1 time / 8 timer / 24 timer / 7 dage) som stiplet linje i kontrastfarve ved siden af kurven (*Begge*) eller i stedet (*Kun middel*); forklaringen får en post pr. middelkurve. Kun for kurver (ikke søjler).
+- [x] done v1.20.0 — Trends: **beskedboks ved markøren** med tidspunkt og alle kurvers (også middelkurvernes) værdi lige dér; vender sig, når der ikke er plads.
+- [x] done v1.19.0 — Trends: skift mellem **Begge** (rå kurve + stiplet middel oven i hinanden), **Middel** (kun middelkurven) og **Rå** (kun den rå kurve) med tre knapper ved *Middel over*; erstatter afkrydsningen *Stiplet*.
+- [x] done v1.18.0 — Trends: middelkurven som **stiplet linje** ved siden af den rå kurve (samme farve og graf), med afkrydsningen *Stiplet* (fra = middelkurven erstatter den rå, som i v1.17.0). Middeltiden vælges i *Middel over*.

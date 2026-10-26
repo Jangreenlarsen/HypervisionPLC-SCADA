@@ -120,3 +120,56 @@ export const RANGES: { id: string; label: string; seconds: number }[] = [
   { id: '7d', label: '7 dage', seconds: 7 * 86400 },
   { id: '30d', label: '30 dage', seconds: 30 * 86400 },
 ];
+
+/**
+ * Glidende middelværdi (bagudrettet): hvert punkt bliver gennemsnittet af de gyldige værdier de seneste `windowS` sekunder
+ * (punkter med samme afstand, så de vægtes ens). Huller (null) tæller ikke med; et punkt uden en eneste gyldig værdi i vinduet forbliver et hul.
+ * Min/max sættes til middelværdien, så kurven ikke viser spredning, der ikke længere hører til den.
+ */
+export function movingAverage<P extends readonly [number, number | null, ...unknown[]]>(points: P[], windowS: number): Point[] {
+  if (windowS <= 0) return points as unknown as Point[];
+  const out: Point[] = [];
+  let lo = 0, sum = 0, n = 0;
+  for (let i = 0; i < points.length; i++) {
+    const v = points[i][1];
+    if (v !== null) { sum += v; n++; }
+    while (points[lo][0] <= points[i][0] - windowS) {
+      const old = points[lo][1];
+      if (old !== null) { sum -= old; n--; }
+      lo++;
+    }
+    const m = n > 0 ? sum / n : null;
+    out.push([points[i][0], m, m, m]);
+  }
+  return out;
+}
+
+/** Valg af middelværdi-tid (timer; 0 = ingen). */
+export const AVERAGE_CHOICES: { hours: number; label: string }[] = [
+  { hours: 0, label: 'Ingen' }, { hours: 0.25, label: '15 min' }, { hours: 1, label: '1 time' }, { hours: 8, label: '8 timer' },
+  { hours: 24, label: '24 timer' }, { hours: 168, label: '7 dage' },
+];
+
+const hue = (hex: string): number => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const mx = Math.max(r, g, b), d = mx - Math.min(r, g, b);
+  if (!d) return 0;
+  const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return ((h * 60) + 360) % 360;
+};
+export const AVERAGE_FALLBACK = '#1f1f1d';
+
+/**
+ * Farve til en middelkurve: den palet-farve, der ligger længst fra råkurvens i farvetone og ikke bruges af andre kurver i grafen
+ * (så den kan kendes fra alle). Er alle farver i brug, bruges næsten sort.
+ */
+export function contrastColor(rawIndex: number, used: ReadonlySet<string>): string {
+  const raw = hue(colorOf(rawIndex));
+  let best = AVERAGE_FALLBACK, bestDist = -1;
+  for (const c of SERIES_COLORS) {
+    if (used.has(c)) continue;
+    const dist = Math.min(Math.abs(hue(c) - raw), 360 - Math.abs(hue(c) - raw));
+    if (dist > bestDist) { best = c; bestDist = dist; }
+  }
+  return best;
+}

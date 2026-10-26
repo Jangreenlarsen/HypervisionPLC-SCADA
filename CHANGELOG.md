@@ -4,6 +4,47 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.21.1 build 0236] — 2026-10-26 — Trends: værdier ved markøren for alle kurver
+
+- Boksen ved markøren og forklaringen viser nu hver kurves nærmeste måling i tid i stedet for "—", når kurverne har forskellige tidspunkter. `lib/TrendChart.svelte` (`valueAt`). Set i Chromium.
+
+## [1.21.0 build 0235] — 2026-10-26 — Trendgraf i tegningen: middelkurve
+
+- Ny opsætning `avg_h` (0–720 timer) og `avg_mode` (`both`/`avg`) på trendgraf-symbolet (backend `Chart`, API-validering + test); grafen i tegningen (og den store visning) henter forløbet før perioden med, regner glidende middel og tegner den stiplet i kontrastfarve (eller i stedet), med egne poster i forklaringen. Valg i Opsæt symbol › Visning. Gamle grafer uændrede (standard: ingen).
+- `backend/app/services/symbols.py`, `tests/test_trend_symbols.py`, `frontend/src/lib/{chartGraphic,chartRender,SymbolGuide,trendData}`. Tegningsgrafen set i Chromium (raw / begge / kun middel); selve opsætningsdialogen ikke set.
+
+## [1.20.0 build 0234] — 2026-10-26 — Trends: beskedboks med værdier ved markøren
+
+- `TrendChart.svelte`: en boks ved markøren (uPlot `setCursor`) med tidspunkt og alle kurvers værdi; farveprøve (stiplet for middelkurver); vender til anden side/op ved kanten; rører ikke musen (`pointer-events: none`). Manualen. Set i Chromium.
+
+## [1.19.0 build 0233] — 2026-10-26 — Trends: skift mellem begge, middel og rå kurve
+
+- Tre knapper **Begge / Middel / Rå** ved *Middel over* erstatter afkrydsningen *Stiplet*; valget huskes i browseren (`trend.avgMode`). *Rå* henter ikke det ekstra forløb. `pages/Trends.svelte`, manualen. Set i Chromium.
+
+## [1.18.1 build 0232] — 2026-10-26 — Trends: middelkurven altid i kontrastfarve
+
+- Den stiplede middelkurve får altid en anden farve end råkurven: den palet-farve der ligger længst fra råkurvens i farvetone og ikke bruges af andre kurver i grafen; er alle i brug, næsten sort. `lib/trendData.ts` (`contrastColor`), `TrendChart.svelte` (`color`), `Trends.svelte`; tests (+2). Set i Chromium.
+
+## [1.18.0 build 0231] — 2026-10-26 — Trends: middelkurve som stiplet linje
+
+- *Middel over* tegner nu middelkurven som stiplet linje i samme farve ved siden af den rå kurve (afkrydsning *Stiplet*, standard til; fra = erstat som før). Ekstra kurve pr. tag i samme graf, legend "… (middel 24 t)"; til/fra-kurver røres ikke.
+- `frontend/src/lib/TrendChart.svelte` (`dashed`), `pages/Trends.svelte`, manualen. Set i Chromium med mock-API.
+
+## [1.17.0 build 0230] — 2026-10-26 — Trends: kurver som glidende middelværdi (fx 24 timer)
+
+- Ny vælger **Middel over** (Ingen, 15 min, 1 time, 8 timer, 24 timer, 7 dage, egen tid): hver tal-kurve vises som bagudrettet glidende middelværdi; forløbet før perioden hentes med og skæres af, huller tæller ikke med, til/fra-kurver røres ikke. Kun visning. Huskes i browseren.
+- `frontend/src/lib/trendData.ts` (`movingAverage`, `AVERAGE_CHOICES`), `pages/Trends.svelte`, manualen, tests (+3). Set i Chromium med mock-API.
+
+## [1.16.3 build 0229] — 2026-10-26 — Trends: graf tegnes efter valg af visning (rigtig årsag) + Nulstil valg
+
+- Grafer bygget midt i en omtegning fik aldrig sat x-aksen (min/max = null) og stod tomme; `TrendChart` tjekker og sætter den nu i næste billede. Genskabt og verificeret i Chromium (5 scenarier).
+- Ny knap **Nulstil valg** i Trends: fravælger alle tags, rydder visning, graf-valg og zoom.
+- `frontend/src/lib/TrendChart.svelte`, `pages/Trends.svelte`, `pages/TrendsViews.test.ts` (+1 test).
+
+## [1.16.2 build 0228] — 2026-10-26 — Trends: graf tegnes straks efter valg af visning
+
+- `TrendChart` brugte en bredde på 0 for grafer oprettet før layoutet var målt; nu bruges aldrig 0, og grafen tilpasses/tegnes om i næste billede efter opbygning og dataopdatering. `frontend/src/lib/TrendChart.svelte`. Ikke set i browser.
+
 ## [1.16.1 build 0227] — 2026-10-26 — Trends: visning tegner graferne robust
 
 - Valg af en gemt visning henter nu dataene først og skifter udvalg, periode og data i ét hug (graferne bygges aldrig tomme), tager kun tags med historik, viser en synlig besked ved fejl eller når intet kan vises, og en nyere valgt visning overstyrer en ældre. Rapporteret: grafer blev ikke tegnet; årsagen blev ikke genskabt (se BUGS.md).

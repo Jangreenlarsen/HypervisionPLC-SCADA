@@ -5,7 +5,7 @@
   import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
-  import { align, assignColors, colorOf, dashOf, groupTags, MAX_SERIES, type Divider, RANGES, type Point } from '../lib/trendData';
+  import { align, AVERAGE_CHOICES, assignColors, colorOf, contrastColor, dashOf, groupTags, MAX_SERIES, movingAverage, type Divider, RANGES, type Point } from '../lib/trendData';
   import { FROZEN_DEFAULT_S, affectedPoints, analyze, fillGaps, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
   import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
   import { applyView, sameView, viewFrom, type TrendView } from '../lib/trendViews';
@@ -16,7 +16,8 @@
     trend_interval_s: number; samples: number; oldest: number | null; is_bool: boolean }
   interface Info { retention_days: number; db_size: number; tags: InfoTag[] }
   interface DataResp { start: number; end: number; series: Record<string, Point[]>;
-    meta: Record<string, { unit: string; description: string; decimals: number | null }> }
+    meta: Record<string, { unit: string; description: string; decimals: number | null }>;
+    /** Middelværdi-kurver (kun når de vises som stiplet linje ved siden af de rå kurver). */ avg?: Record<string, Point[]> }
 
   let info = $state<Info | null>(null);
   let selected = $state<string[]>(loadSelection());
@@ -57,6 +58,34 @@
   let analyse = $state(loadFlag('trend.analyse'));
   let showIssues = $state(false);   // oversigten over uregelmæssigheder som overlay
   let hide = $state(loadFlag('trend.hideSpikes'));
+  // Middelværdi: kurven er den glidende middelværdi over de seneste N timer (0 = rå kurve) — fx 24 timer for en rolig, langsom kurve
+  let avgHours = $state(loadAvg());
+  function loadAvg(): number {
+    try { const v = Number(localStorage.getItem('trend.avgHours')); return Number.isFinite(v) && v > 0 && v <= 720 ? v : 0; } catch { return 0; }
+  }
+  // Hvad vises, når der er valgt en middeltid: begge oven i hinanden (middel stiplet), kun middelkurven eller kun den rå kurve
+  type AvgMode = 'both' | 'avg' | 'raw';
+  const AVG_MODES: { id: AvgMode; label: string; title: string }[] = [
+    { id: 'both', label: 'Begge', title: 'Rå kurve og stiplet middelkurve oven i hinanden' },
+    { id: 'avg', label: 'Middel', title: 'Kun middelkurven (hel linje)' },
+    { id: 'raw', label: 'Rå', title: 'Kun den rå kurve' },
+  ];
+  function loadAvgMode(): AvgMode {
+    try { const v = localStorage.getItem('trend.avgMode'); return v === 'avg' || v === 'raw' ? v : 'both'; } catch { return 'both'; }
+  }
+  let avgMode = $state<AvgMode>(loadAvgMode());
+  function setAvgMode(m: AvgMode): void {
+    avgMode = m;
+    try { localStorage.setItem('trend.avgMode', m); } catch { /* huskes bare ikke */ }
+    void load();
+  }
+  const hoursLabel = (h: number): string => (h < 1 ? `${Math.round(h * 60)} min` : h % 24 === 0 && h >= 24 ? `${h / 24} d` : `${h} t`);
+  function setAvg(h: number): void {
+    avgHours = Number.isFinite(h) && h > 0 ? Math.min(h, 720) : 0;
+    try { localStorage.setItem('trend.avgHours', String(avgHours)); } catch { /* huskes bare ikke */ }
+    restartTimer();
+    void load();
+  }
   let fill = $state(loadFlag('trend.fillGaps'));   // kunstige, blinkende punkter i huller
   let rings = $state(loadFlag('trend.rings', true));   // ring om uregelmæssige punkter i graferne
   /** Hvor længe samme værdi skal stå før den er "fastfrosset" (sekunder; 0 = undersøges ikke). Langsomme følere står stille længe. */
@@ -189,6 +218,22 @@
     } catch (e) {
       viewMsg = `Visningen "${name}" kunne ikke vises: ${(e as Error).message}`;
     }
+  }
+  /** Nulstil: ingen tags valgt, ingen visning, graf-valg og zoom ryddet — tilbage til en tom side (periode og indstillinger beholdes). */
+  function resetAll(): void {
+    viewToken++;   // et igangværende valg af visning skal ikke komme bagefter
+    symKey = '';
+    history.replaceState(null, '', '#trends');
+    selected = [];
+    assign = {};
+    try { localStorage.setItem('trend.assign', '{}'); } catch { /* huskes bare ikke */ }
+    colors = {};
+    viewName = '';
+    viewMsg = '';
+    expandedKey = null;
+    saveSelection();
+    resetTick++;
+    void load();
   }
   async function saveView(asNew: boolean): Promise<void> {
     if (!selected.length) { viewMsg = 'Vælg først de tags, visningen skal vise.'; return; }
@@ -332,8 +377,22 @@
   async function fetchData(names: string[], rangeId: string): Promise<DataResp> {
     const { start, end } = period(rangeId);
     const width = Math.min(1600, Math.max(300, window.innerWidth - 100));
-    return get<DataResp>(`/api/trends/data?tags=${names.map(encodeURIComponent).join(',')}` +
-      `&start=${start}&end=${end}&points=${Math.round(width / 2)}`);
+    const win = avgMode === 'raw' ? 0 : avgHours * 3600;
+    // Middelværdi: hent forløbet før perioden med (til første punkt), regn og skær det ekstra af igen
+    const pts = Math.min(2000, Math.round(width / 2 * (end - start + win) / (end - start)));
+    const r = await get<DataResp>(`/api/trends/data?tags=${names.map(encodeURIComponent).join(',')}` +
+      `&start=${start - win}&end=${end}&points=${pts}`);
+    if (!win) return r;
+    const series: Record<string, Point[]> = {};
+    const avg: Record<string, Point[]> = {};
+    for (const [n, p] of Object.entries(r.series)) {
+      const isBool = info?.tags.find((t) => t.name === n)?.is_bool;
+      const cut = p.filter((x) => x[0] >= start);
+      if (isBool) { series[n] = cut; continue; }
+      const mean = movingAverage(p, win).filter((x) => x[0] >= start);
+      if (avgMode === 'both') { series[n] = cut; avg[n] = mean; } else series[n] = mean;
+    }
+    return { ...r, start, series, ...(avgMode === 'both' ? { avg } : {}) };
   }
 
   async function load(): Promise<void> {
@@ -527,7 +586,7 @@
       const base = hide && issues[t.name] ? hideSpikes(raw, issues[t.name]) : raw;
       return fill && !t.isBool ? fillGaps(base) : { points: base, synthetic: undefined };
     });
-    const series = names.map((t, i) => ({
+    const series: ChartSeries[] = names.map((t, i) => ({
       synthetic: filled[i].synthetic,
       name: t.name,
       label: tagInfo.get(t.name)?.description || t.name,
@@ -537,7 +596,20 @@
       issues: rings ? issues[t.name] : undefined,
     }));
     const pts = filled.map((f) => f.points);
-    return { series, data: align(pts, names.map((t) => Boolean(t.isBool))) };
+    const flags = names.map((t) => Boolean(t.isBool));
+    // Middelværdi som stiplet linje: en ekstra kurve pr. tag i samme farve (samme graf, samme akse)
+    const used = new Set(series.map((s) => colorOf(s.colorIndex)));
+    for (const [i, t] of names.entries()) {
+      const m = avgHours > 0 ? resp?.avg?.[t.name] : undefined;
+      if (!m || t.isBool) continue;
+      const color = contrastColor(series[i].colorIndex, used);
+      used.add(color);
+      series.push({ ...series[i], color, name: `${t.name}~middel`, label: `${series[i].label} (middel ${hoursLabel(avgHours)})`, dashed: true,
+        synthetic: undefined, issues: undefined });
+      pts.push(m);
+      flags.push(false);
+    }
+    return { series, data: align(pts, flags) };
   }
 
   onMount(async () => {
@@ -592,6 +664,20 @@
       <option value="none">Fra</option><option value="hour">Pr. time</option><option value="day">Pr. dag</option>
     </select>
   </label>
+  <label class="row small" title="Vis kurven som glidende middelværdi over de seneste timer — en rolig kurve for langsomme forløb. Kun visning; de gemte data og CSV er uændrede. Til/fra-kurver røres ikke">Middel over
+    <select value={AVERAGE_CHOICES.some((c) => c.hours === avgHours) ? avgHours : 'own'} onchange={(e) => { const v = e.currentTarget.value; setAvg(v === 'own' ? (avgHours || 2) : Number(v)); }} aria-label="Middel over">
+      {#each AVERAGE_CHOICES as c}<option value={c.hours}>{c.label}</option>{/each}
+      <option value="own">Egen tid …</option>
+    </select>
+    {#if !AVERAGE_CHOICES.some((c) => c.hours === avgHours)}
+      <input type="number" min="0.1" max="720" step="0.5" value={avgHours} style="width:5em" aria-label="Timer" onchange={(e) => setAvg(Number(e.currentTarget.value))} /> timer
+    {/if}
+  </label>
+  {#if avgHours > 0}
+    <span class="row small seg" role="group" aria-label="Vis kurver">
+      {#each AVG_MODES as m}<button class="small" class:primary={avgMode === m.id} aria-pressed={avgMode === m.id} title={m.title} onclick={() => setAvgMode(m.id)}>{m.label}</button>{/each}
+    </span>
+  {/if}
   <label class="row small" title="Udfylder huller (ingen data) med kunstige, interpolerede punkter, der blinker, så de kan kendes fra målte data. Kun visning — de gemte data ændres ikke"><input type="checkbox" bind:checked={fill} onchange={() => saveFlag('trend.fillGaps', fill)} /> Udfyld huller (blinker)</label>
   <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>
   {#if analyse && resp && selected.length}
@@ -616,6 +702,9 @@
 
 <div class="layout">
   <aside class="panel">
+    <div class="viewsel">
+      <button class="small" onclick={resetAll} disabled={!selected.length && !viewName} title="Fravælg alle tags, ryd visning og graf-valg">Nulstil valg</button>
+    </div>
     {#if views.length || canEdit}
       <div class="viewsel">
         <label class="small">Visning

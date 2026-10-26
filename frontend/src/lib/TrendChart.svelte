@@ -8,6 +8,7 @@
   import { lastVisible, needsArrow, spreadLabels } from './lineLabels';
 
   export interface ChartSeries { name: string; label: string; colorIndex: number; isBool: boolean; decimals: number | null;
+    /** Middelværdi-kurven: tegnes stiplet, uden prikker, i en kontrastfarve (`color`). */ dashed?: boolean; color?: string;
     /** Kunstige (interpolerede) tidspunkter — tegnes blinkende, så de ikke forveksles med målte data. */ synthetic?: Set<number>;
     /** Fundne uregelmæssigheder (tilvalg) — tegnes som ring om punktet. */ issues?: Issue[] }
 
@@ -156,7 +157,7 @@
         prev = i;
       }
       if (blinkOn) {
-        ctx.strokeStyle = colorOf(s.colorIndex); ctx.lineWidth = 3.5 * dpr; ctx.setLineDash([6 * dpr, 5 * dpr]);
+        ctx.strokeStyle = s.color ?? colorOf(s.colorIndex); ctx.lineWidth = 3.5 * dpr; ctx.setLineDash([6 * dpr, 5 * dpr]);
       } else {
         ctx.strokeStyle = '#fcfcfb'; ctx.lineWidth = 5 * dpr; ctx.setLineDash([]);   // dækker linjen: strækningen forsvinder
       }
@@ -246,7 +247,7 @@
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';   // uPlot lader aksernes højrejustering stå
     items.forEach((it, n) => {
-      const color = colorOf(it.s.colorIndex), y = ly[n];
+      const color = it.s.color ?? colorOf(it.s.colorIndex), y = ly[n];
       if (needsArrow(it.y / dpr, y / dpr)) {
         // pil fra navnet til kurvens punkt (pilespidsen ved kurven)
         const fromX = labelX - 3 * dpr;
@@ -283,6 +284,7 @@
       hooks: {
         drawAxes: [drawDividers],
         draw: [drawFilled, drawDayLabels, drawIssues, drawLabels],
+        setCursor: [showTip],
         setScale: [(u: uPlot, key: string) => {
           if (key !== 'x') return;
           const lo = u.scales.x.min ?? 0, hi = u.scales.x.max ?? 0;
@@ -306,18 +308,64 @@
         { label: 'Tid', value: (_u, v) => (v === null ? '—' : fmtTooltip(new Date(v * 1000))) },
         ...series.map((s) => ({
           label: s.label,
-          stroke: colorOf(s.colorIndex),
+          stroke: s.color ?? colorOf(s.colorIndex),
           width: 2,
-          dash: dashOf(s.colorIndex),
+          dash: s.dashed ? [9, 6] : dashOf(s.colorIndex),
           spanGaps: false, // null = rigtigt hul → brud i linjen
           // Kun prikker hvor en linje ikke kan tegnes (enkeltstående værdier)
-          points: { show: true, size: 8, fill: colorOf(s.colorIndex),
+          points: { show: !s.dashed, size: 8, fill: s.color ?? colorOf(s.colorIndex),
             filter: (u: uPlot, si: number) => isolatedPoints(u.data[si] as (number | null | undefined)[]) },
           paths: s.isBool ? uPlot.paths.stepped!({ align: 1 }) : undefined,
-          value: (_u: uPlot, v: number | null) => format(v, s),
+          value: (u: uPlot, v: number | null, _si: number, idx: number | null) => format(idx == null ? v : valueAt(u, series.indexOf(s), idx) ?? v, s),
         })),
       ],
     };
+  }
+
+  /**
+   * Kurvens værdi ved markøren. Serierne har hver deres tidspunkter, så den samlede tidsakse har huller i en kurve
+   * (`undefined` = ingen måling netop dér): tag da den nærmeste måling i tid. `null` er et rigtigt hul og forbliver et hul.
+   */
+  function valueAt(u: uPlot, k: number, idx: number): number | null | undefined {
+    const ys = u.data[k + 1] as (number | null | undefined)[];
+    if (ys[idx] !== undefined) return ys[idx];
+    for (let d = 1; d < ys.length; d++) {
+      const a = ys[idx - d], b = ys[idx + d];
+      if (a !== undefined && idx - d >= 0) return a;
+      if (b !== undefined && idx + d < ys.length) return b;
+    }
+    return undefined;
+  }
+
+  /** Besked-boks ved markøren: tidspunkt og alle kurvers værdi lige dér (uPlot giver nærmeste punkt i tid). */
+  function showTip(u: uPlot): void {
+    const tip = u.over.querySelector<HTMLDivElement>('.hv-tt');
+    if (!tip) return;
+    const idx = u.cursor.idx, left = u.cursor.left ?? -1, top = u.cursor.top ?? -1;
+    if (idx == null || left < 0 || top < 0) { tip.style.display = 'none'; return; }
+    const t = (u.data[0] as number[])[idx];
+    tip.replaceChildren();
+    const head = document.createElement('div');
+    head.className = 'hv-tt-t';
+    head.textContent = fmtTooltip(new Date(t * 1000));
+    tip.appendChild(head);
+    series.forEach((s, k) => {
+      const v = valueAt(u, k, idx);
+      const row = document.createElement('div');
+      const sw = document.createElement('i');
+      sw.style.background = s.color ?? colorOf(s.colorIndex);
+      if (s.dashed) sw.style.background = `repeating-linear-gradient(90deg, ${s.color ?? colorOf(s.colorIndex)} 0 4px, transparent 4px 7px)`;
+      row.append(sw, `${s.label}: `);
+      const b = document.createElement('b');
+      b.textContent = format(v, s);
+      row.appendChild(b);
+      tip.appendChild(row);
+    });
+    tip.style.display = 'block';
+    // ved siden af markøren; vend til den anden side/op, hvis der ikke er plads
+    const w = tip.offsetWidth, h = tip.offsetHeight, ow = u.over.clientWidth, oh = u.over.clientHeight;
+    tip.style.left = `${left + 14 + w > ow ? Math.max(0, left - 14 - w) : left + 14}px`;
+    tip.style.top = `${top + 14 + h > oh ? Math.max(0, top - 14 - h) : top + 14}px`;
   }
 
   function showFull(): void {
@@ -360,17 +408,36 @@
     }, true);
   }
 
+  /** Bredden grafen skal have; 0 (beholderen er endnu ikke målt/vist) giver en usynlig graf, som først rettes ved næste ændring. */
+  const widthNow = (): number => el.clientWidth || chart?.width || 600;
+
+  /** Tilpas til beholderens faktiske størrelse, når layoutet er faldet på plads (grafer, der oprettes sammen med en ny visning, måles før de er lagt ud). */
+  function settle(): void {
+    requestAnimationFrame(() => {
+      if (!chart) return;
+      if (el.clientWidth && Math.abs(chart.width - el.clientWidth) > 1) chart.setSize({ width: el.clientWidth, height: chart.height });
+      // x-aksen kan være gået tabt, når grafen blev bygget midt i en omtegning: sæt den igen, efter alt andet
+      if (chart.scales.x.min == null || chart.scales.x.max == null) showFull();
+      else chart.redraw();
+    });
+  }
+
   function build(): void {
     chart?.destroy();
-    chart = new uPlot(options(el.clientWidth || 600), data as uPlot.AlignedData, el);
+    chart = new uPlot(options(widthNow()), data as uPlot.AlignedData, el);
     bindPan(chart.over);
+    const tip = document.createElement('div');
+    tip.className = 'hv-tt';
+    tip.style.display = 'none';
+    chart.over.appendChild(tip);
     showFull();
+    settle();
   }
 
   onMount(() => {
     build();
     observer = new ResizeObserver(() => {
-      chart?.setSize({ width: el.clientWidth, height: chart.height });
+      if (el.clientWidth) chart?.setSize({ width: el.clientWidth, height: chart.height });
     });
     observer.observe(el);
   });
@@ -379,13 +446,13 @@
   let signature = '';
   let span = 0;
   $effect(() => {
-    const sig = series.map((s) => `${s.name}:${s.colorIndex}`).join('|') + unit;
+    const sig = series.map((s) => `${s.name}:${s.colorIndex}${s.dashed ? 'd' + s.color : ''}`).join('|') + unit;
     void series.map((s) => s.synthetic?.size);   // udfyldning slået til/fra → tegn om og start/stop blink
     syncBlink();
     void xRange; // ny periode → effekten skal også køre
     if (!chart) return;
     const wanted = series.every((s) => s.isBool) && !expanded ? 160 : height;
-    if (chart.height !== wanted) chart.setSize({ width: el.clientWidth, height: wanted });
+    if (chart.height !== wanted) chart.setSize({ width: widthNow(), height: wanted });
     if (sig !== signature) {
       signature = sig;
       build();
@@ -393,6 +460,7 @@
       chart.setData(data as uPlot.AlignedData, false);
       // Anden periodelængde valgt → zoom ud; samme periode (live-opdatering) → behold evt. zoom
       if (!zoomed || Math.abs(xRange[1] - xRange[0] - span) > 1) showFull();
+      settle();
     }
     span = xRange[1] - xRange[0];
   });
@@ -445,6 +513,10 @@
   .x { position: absolute; top: .2rem; right: .35rem; z-index: 5; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; background: transparent; font-size: 1.3rem; line-height: 1; color: #52514e; cursor: pointer; border-radius: 4px; }
   .x:hover { background: #e5e4e0; color: #1f1f1d; }
   figcaption { padding-right: 2rem; font-weight: 600; font-size: .9rem; margin: 0 0 .25rem .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  :global(.u-over .hv-tt) { position: absolute; z-index: 10; pointer-events: none; background: rgba(31, 31, 29, .92); color: #fff; font-size: .8rem; line-height: 1.35;
+    padding: .35rem .55rem; border-radius: 6px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+  :global(.u-over .hv-tt-t) { font-weight: 600; margin-bottom: .15rem; color: #d6d5d0; }
+  :global(.u-over .hv-tt i) { display: inline-block; width: 1.1em; height: 3px; margin-right: .4em; vertical-align: middle; border-radius: 1px; }
   :global(.u-legend) { font-size: .85rem; }
   /* Fast udtryk: aflæsningerne må ikke skifte bredde/højde, når markøren flyttes (ellers hopper legend og graf) */
   :global(.u-legend .u-series) { white-space: nowrap; }
