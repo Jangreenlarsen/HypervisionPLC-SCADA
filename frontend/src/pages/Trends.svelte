@@ -63,7 +63,22 @@
   function loadAvg(): number {
     try { const v = Number(localStorage.getItem('trend.avgHours')); return Number.isFinite(v) && v > 0 && v <= 720 ? v : 0; } catch { return 0; }
   }
-  let avgDashed = $state(loadFlag('trend.avgDashed', true));   // middelkurven som stiplet linje ved siden af den rå (ellers erstatter den)
+  // Hvad vises, når der er valgt en middeltid: begge oven i hinanden (middel stiplet), kun middelkurven eller kun den rå kurve
+  type AvgMode = 'both' | 'avg' | 'raw';
+  const AVG_MODES: { id: AvgMode; label: string; title: string }[] = [
+    { id: 'both', label: 'Begge', title: 'Rå kurve og stiplet middelkurve oven i hinanden' },
+    { id: 'avg', label: 'Middel', title: 'Kun middelkurven (hel linje)' },
+    { id: 'raw', label: 'Rå', title: 'Kun den rå kurve' },
+  ];
+  function loadAvgMode(): AvgMode {
+    try { const v = localStorage.getItem('trend.avgMode'); return v === 'avg' || v === 'raw' ? v : 'both'; } catch { return 'both'; }
+  }
+  let avgMode = $state<AvgMode>(loadAvgMode());
+  function setAvgMode(m: AvgMode): void {
+    avgMode = m;
+    try { localStorage.setItem('trend.avgMode', m); } catch { /* huskes bare ikke */ }
+    void load();
+  }
   const hoursLabel = (h: number): string => (h < 1 ? `${Math.round(h * 60)} min` : h % 24 === 0 && h >= 24 ? `${h / 24} d` : `${h} t`);
   function setAvg(h: number): void {
     avgHours = Number.isFinite(h) && h > 0 ? Math.min(h, 720) : 0;
@@ -362,7 +377,7 @@
   async function fetchData(names: string[], rangeId: string): Promise<DataResp> {
     const { start, end } = period(rangeId);
     const width = Math.min(1600, Math.max(300, window.innerWidth - 100));
-    const win = avgHours * 3600;
+    const win = avgMode === 'raw' ? 0 : avgHours * 3600;
     // Middelværdi: hent forløbet før perioden med (til første punkt), regn og skær det ekstra af igen
     const pts = Math.min(2000, Math.round(width / 2 * (end - start + win) / (end - start)));
     const r = await get<DataResp>(`/api/trends/data?tags=${names.map(encodeURIComponent).join(',')}` +
@@ -375,9 +390,9 @@
       const cut = p.filter((x) => x[0] >= start);
       if (isBool) { series[n] = cut; continue; }
       const mean = movingAverage(p, win).filter((x) => x[0] >= start);
-      if (avgDashed) { series[n] = cut; avg[n] = mean; } else series[n] = mean;
+      if (avgMode === 'both') { series[n] = cut; avg[n] = mean; } else series[n] = mean;
     }
-    return { ...r, start, series, ...(avgDashed ? { avg } : {}) };
+    return { ...r, start, series, ...(avgMode === 'both' ? { avg } : {}) };
   }
 
   async function load(): Promise<void> {
@@ -659,7 +674,9 @@
     {/if}
   </label>
   {#if avgHours > 0}
-    <label class="row small" title="Til: middelkurven tegnes som stiplet linje ved siden af den rå kurve. Fra: middelkurven erstatter den rå kurve"><input type="checkbox" bind:checked={avgDashed} onchange={() => { saveFlag('trend.avgDashed', avgDashed); void load(); }} /> Stiplet</label>
+    <span class="row small seg" role="group" aria-label="Vis kurver">
+      {#each AVG_MODES as m}<button class="small" class:primary={avgMode === m.id} aria-pressed={avgMode === m.id} title={m.title} onclick={() => setAvgMode(m.id)}>{m.label}</button>{/each}
+    </span>
   {/if}
   <label class="row small" title="Udfylder huller (ingen data) med kunstige, interpolerede punkter, der blinker, så de kan kendes fra målte data. Kun visning — de gemte data ændres ikke"><input type="checkbox" bind:checked={fill} onchange={() => saveFlag('trend.fillGaps', fill)} /> Udfyld huller (blinker)</label>
   <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>

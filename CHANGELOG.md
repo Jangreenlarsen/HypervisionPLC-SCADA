@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.19.0 build 0233] — 2026-10-26 — Trends: skift mellem begge, middel og rå kurve
+
+- Tre knapper **Begge / Middel / Rå** ved *Middel over* erstatter afkrydsningen *Stiplet*; valget huskes i browseren (`trend.avgMode`). *Rå* henter ikke det ekstra forløb. `pages/Trends.svelte`, manualen. Set i Chromium.
+
 ## [1.18.1 build 0232] — 2026-10-26 — Trends: middelkurven altid i kontrastfarve
 
 - Den stiplede middelkurve får altid en anden farve end råkurven: den palet-farve der ligger længst fra råkurvens i farvetone og ikke bruges af andre kurver i grafen; er alle i brug, næsten sort. `lib/trendData.ts` (`contrastColor`), `TrendChart.svelte` (`color`), `Trends.svelte`; tests (+2). Set i Chromium.

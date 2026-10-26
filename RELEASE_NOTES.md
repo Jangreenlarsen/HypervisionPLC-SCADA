@@ -2,6 +2,10 @@
 
 ---
 
+## v1.19.0 — 2026-10-26 — Skift mellem middel og rå kurve
+
+- På Trends skifter du med tre knapper mellem **Begge** (rå kurve og stiplet middel oven i hinanden), **Middel** og **Rå**.
+
 ## v1.18.1 — 2026-10-26 — Middelkurven i kontrastfarve
 
 - Den stiplede middelkurve på Trends har nu altid en anden farve end kurven den er middel af (og end de øvrige kurver i grafen).
