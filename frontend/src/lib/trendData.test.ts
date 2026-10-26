@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { align, assignColors, groupByUnit, dividerTimes, groupTags, isolatedPoints, MAX_SERIES, type Point } from './trendData';
+import { align, assignColors, groupByUnit, dividerTimes, groupTags, isolatedPoints, MAX_SERIES, movingAverage, type Point } from './trendData';
 
 describe('align', () => {
   it('fletter tidspunkter, og skelner hul (null) fra manglende punkt (undefined)', () => {
@@ -85,5 +85,21 @@ describe('dividerTimes', () => {
     expect(dividerTimes(base, base + 3600, 'none')).toEqual([]);
     expect(dividerTimes(base + 10, base, 'hour')).toEqual([]);
     expect(dividerTimes(base, base + 30 * 86400, 'hour')).toEqual([]);
+  });
+});
+
+describe('movingAverage', () => {
+  const p = (t: number, v: number | null): Point => [t, v, v, v];
+  it('er gennemsnittet af de seneste N sekunder (bagudrettet)', () => {
+    const out = movingAverage([p(0, 10), p(10, 20), p(20, 30), p(30, 40)], 20);
+    expect(out.map((x) => x[1])).toEqual([10, 15, 25, 35]);   // vinduet (t-20, t]: 10 falder ud når t=20
+  });
+  it('springer huller over og lader et vindue uden værdier være et hul; 0 giver uændret kurve', () => {
+    const pts = [p(0, null), p(10, 4), p(20, null), p(30, null), p(40, 8)];
+    expect(movingAverage(pts, 20).map((x) => x[1])).toEqual([null, 4, 4, null, 8]);
+    expect(movingAverage(pts, 0)).toBe(pts);
+  });
+  it('tåler en tom serie', () => {
+    expect(movingAverage([], 60)).toEqual([]);
   });
 });

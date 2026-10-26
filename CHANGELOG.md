@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.17.0 build 0230] — 2026-10-26 — Trends: kurver som glidende middelværdi (fx 24 timer)
+
+- Ny vælger **Middel over** (Ingen, 15 min, 1 time, 8 timer, 24 timer, 7 dage, egen tid): hver tal-kurve vises som bagudrettet glidende middelværdi; forløbet før perioden hentes med og skæres af, huller tæller ikke med, til/fra-kurver røres ikke. Kun visning. Huskes i browseren.
+- `frontend/src/lib/trendData.ts` (`movingAverage`, `AVERAGE_CHOICES`), `pages/Trends.svelte`, manualen, tests (+3). Set i Chromium med mock-API.
+
 ## [1.16.3 build 0229] — 2026-10-26 — Trends: graf tegnes efter valg af visning (rigtig årsag) + Nulstil valg
 
 - Grafer bygget midt i en omtegning fik aldrig sat x-aksen (min/max = null) og stod tomme; `TrendChart` tjekker og sætter den nu i næste billede. Genskabt og verificeret i Chromium (5 scenarier).

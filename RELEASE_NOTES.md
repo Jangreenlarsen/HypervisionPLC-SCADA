@@ -2,6 +2,10 @@
 
 ---
 
+## v1.17.0 — 2026-10-26 — Middelværdi i Trends
+
+- Ny vælger **Middel over** på Trends: vis kurverne som glidende middelværdi over fx de seneste 24 timer (eller en tid, du selv vælger). Kun visning — gemte data og CSV er uændrede.
+
 ## v1.16.3 — 2026-10-26 — Graferne tegnes efter valg af visning + Nulstil valg
 
 - Efter valg af en visning tegnes graferne nu med det samme (fejlen er genskabt og rettet).

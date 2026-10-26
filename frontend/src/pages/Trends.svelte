@@ -5,7 +5,7 @@
   import { api, get, patch } from '../lib/api';
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import TrendChart, { type ChartSeries } from '../lib/TrendChart.svelte';
-  import { align, assignColors, colorOf, dashOf, groupTags, MAX_SERIES, type Divider, RANGES, type Point } from '../lib/trendData';
+  import { align, AVERAGE_CHOICES, assignColors, colorOf, dashOf, groupTags, MAX_SERIES, movingAverage, type Divider, RANGES, type Point } from '../lib/trendData';
   import { FROZEN_DEFAULT_S, affectedPoints, analyze, fillGaps, formatShare, hideSpikes, irregularShare, ISSUE_LABEL, type Issue, type IssueKind } from '../lib/trendAnalysis';
   import { byDrawing, keyFromRoute, symbolKey, symbolSeries, type TrendSymbol } from '../lib/trendSymbols';
   import { applyView, sameView, viewFrom, type TrendView } from '../lib/trendViews';
@@ -57,6 +57,17 @@
   let analyse = $state(loadFlag('trend.analyse'));
   let showIssues = $state(false);   // oversigten over uregelmæssigheder som overlay
   let hide = $state(loadFlag('trend.hideSpikes'));
+  // Middelværdi: kurven er den glidende middelværdi over de seneste N timer (0 = rå kurve) — fx 24 timer for en rolig, langsom kurve
+  let avgHours = $state(loadAvg());
+  function loadAvg(): number {
+    try { const v = Number(localStorage.getItem('trend.avgHours')); return Number.isFinite(v) && v > 0 && v <= 720 ? v : 0; } catch { return 0; }
+  }
+  function setAvg(h: number): void {
+    avgHours = Number.isFinite(h) && h > 0 ? Math.min(h, 720) : 0;
+    try { localStorage.setItem('trend.avgHours', String(avgHours)); } catch { /* huskes bare ikke */ }
+    restartTimer();
+    void load();
+  }
   let fill = $state(loadFlag('trend.fillGaps'));   // kunstige, blinkende punkter i huller
   let rings = $state(loadFlag('trend.rings', true));   // ring om uregelmæssige punkter i graferne
   /** Hvor længe samme værdi skal stå før den er "fastfrosset" (sekunder; 0 = undersøges ikke). Langsomme følere står stille længe. */
@@ -348,8 +359,18 @@
   async function fetchData(names: string[], rangeId: string): Promise<DataResp> {
     const { start, end } = period(rangeId);
     const width = Math.min(1600, Math.max(300, window.innerWidth - 100));
-    return get<DataResp>(`/api/trends/data?tags=${names.map(encodeURIComponent).join(',')}` +
-      `&start=${start}&end=${end}&points=${Math.round(width / 2)}`);
+    const win = avgHours * 3600;
+    // Middelværdi: hent forløbet før perioden med (til første punkt), regn og skær det ekstra af igen
+    const pts = Math.min(2000, Math.round(width / 2 * (end - start + win) / (end - start)));
+    const r = await get<DataResp>(`/api/trends/data?tags=${names.map(encodeURIComponent).join(',')}` +
+      `&start=${start - win}&end=${end}&points=${pts}`);
+    if (!win) return r;
+    const series: Record<string, Point[]> = {};
+    for (const [n, p] of Object.entries(r.series)) {
+      const isBool = info?.tags.find((t) => t.name === n)?.is_bool;
+      series[n] = isBool ? p.filter((x) => x[0] >= start) : movingAverage(p, win).filter((x) => x[0] >= start);
+    }
+    return { ...r, start, series };
   }
 
   async function load(): Promise<void> {
@@ -607,6 +628,15 @@
     <select bind:value={divider} onchange={saveDivider} aria-label="Skillelinjer">
       <option value="none">Fra</option><option value="hour">Pr. time</option><option value="day">Pr. dag</option>
     </select>
+  </label>
+  <label class="row small" title="Vis kurven som glidende middelværdi over de seneste timer — en rolig kurve for langsomme forløb. Kun visning; de gemte data og CSV er uændrede. Til/fra-kurver røres ikke">Middel over
+    <select value={AVERAGE_CHOICES.some((c) => c.hours === avgHours) ? avgHours : 'own'} onchange={(e) => { const v = e.currentTarget.value; setAvg(v === 'own' ? (avgHours || 2) : Number(v)); }} aria-label="Middel over">
+      {#each AVERAGE_CHOICES as c}<option value={c.hours}>{c.label}</option>{/each}
+      <option value="own">Egen tid …</option>
+    </select>
+    {#if !AVERAGE_CHOICES.some((c) => c.hours === avgHours)}
+      <input type="number" min="0.1" max="720" step="0.5" value={avgHours} style="width:5em" aria-label="Timer" onchange={(e) => setAvg(Number(e.currentTarget.value))} /> timer
+    {/if}
   </label>
   <label class="row small" title="Udfylder huller (ingen data) med kunstige, interpolerede punkter, der blinker, så de kan kendes fra målte data. Kun visning — de gemte data ændres ikke"><input type="checkbox" bind:checked={fill} onchange={() => saveFlag('trend.fillGaps', fill)} /> Udfyld huller (blinker)</label>
   <label class="row small" title="Find spikes, urealistiske spring, fastfrosne værdier og huller i tal-kurverne"><input type="checkbox" bind:checked={analyse} onchange={() => saveFlag('trend.analyse', analyse)} /> Analysér data</label>

@@ -120,3 +120,32 @@ export const RANGES: { id: string; label: string; seconds: number }[] = [
   { id: '7d', label: '7 dage', seconds: 7 * 86400 },
   { id: '30d', label: '30 dage', seconds: 30 * 86400 },
 ];
+
+/**
+ * Glidende middelværdi (bagudrettet): hvert punkt bliver gennemsnittet af de gyldige værdier de seneste `windowS` sekunder
+ * (punkter med samme afstand, så de vægtes ens). Huller (null) tæller ikke med; et punkt uden en eneste gyldig værdi i vinduet forbliver et hul.
+ * Min/max sættes til middelværdien, så kurven ikke viser spredning, der ikke længere hører til den.
+ */
+export function movingAverage(points: Point[], windowS: number): Point[] {
+  if (windowS <= 0) return points;
+  const out: Point[] = [];
+  let lo = 0, sum = 0, n = 0;
+  for (let i = 0; i < points.length; i++) {
+    const v = points[i][1];
+    if (v !== null) { sum += v; n++; }
+    while (points[lo][0] <= points[i][0] - windowS) {
+      const old = points[lo][1];
+      if (old !== null) { sum -= old; n--; }
+      lo++;
+    }
+    const m = n > 0 ? sum / n : null;
+    out.push([points[i][0], m, m, m]);
+  }
+  return out;
+}
+
+/** Valg af middelværdi-tid (timer; 0 = ingen). */
+export const AVERAGE_CHOICES: { hours: number; label: string }[] = [
+  { hours: 0, label: 'Ingen' }, { hours: 0.25, label: '15 min' }, { hours: 1, label: '1 time' }, { hours: 8, label: '8 timer' },
+  { hours: 24, label: '24 timer' }, { hours: 168, label: '7 dage' },
+];
