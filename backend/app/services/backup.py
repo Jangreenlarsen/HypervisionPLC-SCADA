@@ -534,11 +534,18 @@ class BackupService:
             for key in old_keys | new_keys:
                 await self.manager.reload_plc(key)
             missing = sorted(k for k in new_keys if not self.manager.secrets.has_plc_password(k))
+            pins = self.db.symbol_pin_keys()
+            missing_pins = sorted(f"{c['drawing_id']}#{c['element']}" for c in data.get("symbol_config", [])
+                                  if any((c["config"].get("lock") or {}).get("positions") or [])
+                                  and (c["drawing_id"], c["element"]) not in pins)
             log.info("Restore gennemført af %s: %d PLC'er, %d tags, %d tegninger, %d bindinger",
                      actor, len(data["plcs"]), len(data["tags"]), len(data["drawings"]), len(data["bindings"]))
             return {"plcs": len(data["plcs"]), "tags": len(data["tags"]), "drawings": len(data["drawings"]),
                     "schedules": len(data["schedules"]),
                     "versions": len(data["versions"]), "bindings": len(data["bindings"]),
+                    "symbol_configs": len(data.get("symbol_config", [])), "symbol_groups": len(data.get("symbol_groups", [])),
+                    # B5: symboler med nøglelås uden kode (fx gendannet på en ny server) — en tekniker skal sætte koden
+                    "missing_pins": missing_pins,
                     "missing_passwords": missing, "pre_restore_backup": before}
 
     # ------------------------------------------------------- automatisk backup

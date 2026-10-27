@@ -109,6 +109,9 @@ class DrawingService:
         orphans = sorted({b["element"] for b in self.db.list_bindings(drawing_id)} - ids)
         report = _report(result)
         report["orphaned_bindings"] = orphans
+        # B4 (funktionsanalyse): også symboler sat op med guiden og gruppe-animationer, hvis element er væk
+        report["orphaned_symbols"] = sorted(({r["element"] for r in self.db.list_symbol_configs(drawing_id)}
+                                             | {r["element"] for r in self.db.list_group_anims(drawing_id)}) - ids)
         return {"drawing": self.get(drawing_id), "version": version, "report": report}
 
     def _sanitize(self, svg: str) -> Any:

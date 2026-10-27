@@ -2,6 +2,10 @@
 
 ---
 
+## v1.22.1 — 2026-10-27 — Intet går tabt i det stille
+
+- Gemmer du en ny tegningsversion, hvor et symbol sat op med guiden er forsvundet, står det nu i rapporten. En gendannelse beholder symbolernes koder og fortæller, hvis et låst symbol mangler en kode.
+
 ## v1.22.0 — 2026-10-27 — Tydeligere bindinger
 
 - Binding-editoren siger nu, når et element hører til et symbol, der er sat op med *Opsæt symbol* — simple bindinger dér bruges ikke og kan ikke længere tilføjes. *Gå til tegning* virker fortsat på symboler, der kun viser. Kan et tag ikke slettes, står der præcis hvilket element der bruger det.

@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.22.1 build 0249] — 2026-10-27 — Versionsrapport og gendannelse siger, hvad der går tabt (funktionsanalyse B4 + B5)
+
+- `services/drawings.py`: `orphaned_symbols` i versionsrapporten; `Drawings.svelte`/`DrawEditor.svelte` viser dem.
+- `storage/db.py` `replace_project()`: PIN-koder bevares for symboler der findes efter gendannelsen; `services/backup.py`: `missing_pins`, `symbol_configs`, `symbol_groups`; `Backup.svelte` viser dem.
+- `tests/test_backup.py` (+1).
+
 ## [1.22.0 build 0248] — 2026-10-27 — Simple bindinger og wizard hænger sammen (funktionsanalyse B1–B3)
 
 - `services/drawings.py`: `_config_owner()`/`_refuse_if_configured()` i `set_element_bindings()` og `bind_symbol()`; `click:goto` på roden af et kun-visning-symbol gælder stadig.

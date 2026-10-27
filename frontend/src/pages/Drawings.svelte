@@ -10,7 +10,7 @@
   interface DrawingRow { id: string; name: string; active_version: number; version_count: number; updated_at: number; start?: boolean; disabled?: boolean }
   interface Version { version: number; comment: string; size: number; width: number | null; height: number | null; created_at: number }
   interface Detail { id: string; name: string; active_version: number; versions: Version[] }
-  interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[] }
+  interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[]; orphaned_symbols?: string[] }
 
   let rows = $state<DrawingRow[]>([]);
   let error = $state('');
@@ -159,7 +159,7 @@
     <strong>{report.title}.</strong> {report.report.element_count} elementer med id.
     {#if Object.keys(report.report.removed_elements).length}<br />Fjernet: {entries(report.report.removed_elements)}{/if}
     {#if Object.keys(report.report.removed_attributes).length}<br />Fjernede attributter: {entries(report.report.removed_attributes)}{/if}
-    {#if report.report.orphaned_bindings?.length}<br />Bindinger uden element i den nye version: {report.report.orphaned_bindings.join(', ')}{/if}
+    {#if report.report.orphaned_bindings?.length}<br />Bindinger uden element i den nye version: {report.report.orphaned_bindings.join(', ')}{/if}{#if report.report.orphaned_symbols?.length}<br /><strong>Symboler sat op med guiden, som ikke længere findes:</strong> {report.report.orphaned_symbols.join(', ')} — flyt eller fjern dem under Bindinger{/if}
     <button class="small" onclick={() => (report = null)}>OK</button>
   </div>
 {/if}

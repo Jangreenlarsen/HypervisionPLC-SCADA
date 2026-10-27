@@ -1006,6 +1006,9 @@ class Database:
             cur = self._conn.cursor()
             cur.execute("BEGIN IMMEDIATE")
             try:
+                # B5 (funktionsanalyse): PIN-koder er ikke i backuppen, men forsvinder med tegningerne (CASCADE) — gem dem
+                # og læg dem tilbage for symboler der stadig findes efter gendannelsen.
+                pins = cur.execute("SELECT drawing_id, element, pin_hash, set_by, set_at FROM symbol_pins").fetchall()
                 for table in ("schedules", "symbol_meta", "bindings", "drawing_versions", "drawings", "tags", "plcs"):
                     cur.execute(f"DELETE FROM {table}")
                 for p in data["plcs"]:
@@ -1054,11 +1057,14 @@ class Database:
                     cur.execute("INSERT INTO symbol_meta(drawing_id, element, description) VALUES (?,?,?)",
                                 (m["drawing_id"], m["element"], m["description"]))
                 # Tegningerne er slettet ovenfor → symbol_config/-pins/-state er væk via ON DELETE CASCADE.
-                # Konfigurationerne lægges ind igen; koder ikke (efter restore skal en tekniker sætte nye).
+                # Konfigurationerne lægges ind igen; koder kun for symboler der fandtes før (samme server).
                 for c in data.get("symbol_config", []):
                     cur.execute("INSERT INTO symbol_config(drawing_id, element, config, updated_at, updated_by) "
                                 "VALUES (?,?,?,?,?)",
                                 (c["drawing_id"], c["element"], json.dumps(c["config"], ensure_ascii=False), now, "restore"))
+                restored = {(c["drawing_id"], c["element"]) for c in data.get("symbol_config", [])}
+                cur.executemany("INSERT INTO symbol_pins(drawing_id, element, pin_hash, set_by, set_at) VALUES (?,?,?,?,?)",
+                                [tuple(p) for p in pins if (p[0], p[1]) in restored])
                 for i, g in enumerate(data.get("symbol_groups", [])):
                     gid = cur.execute("INSERT INTO symbol_groups(drawing_id, name, kind, sort, updated_at, updated_by) "
                                       "VALUES (?,?,?,?,?,?)", (g["drawing_id"], g["name"], g["kind"], i, now, "restore")).lastrowid
