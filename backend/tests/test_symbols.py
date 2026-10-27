@@ -269,8 +269,8 @@ def test_backup_roundtrip_keeps_configs_but_not_pins(api):
     assert r.status_code == 200, r.text
     got = api.get(f"/api/drawings/{api.did}/symbols/V1/config").json()
     assert got["config"]["planes"] == backup["symbol_config"][0]["config"]["planes"]
-    assert got["has_pin"] is False                      # koden skal sættes igen efter restore
-    assert any("4 cifre" in w for w in got["warnings"])  # og guiden siger det
+    assert got["has_pin"] is True                       # B5 (27.10.2026): koden bevares på samme server …
+    assert r.json()["missing_pins"] == []                # … men står aldrig i selve backup-filen (se ovenfor)
 
 
 def test_backup_with_unknown_tag_in_symbol_config_is_rejected(api):
