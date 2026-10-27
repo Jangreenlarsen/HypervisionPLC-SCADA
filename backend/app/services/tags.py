@@ -206,9 +206,10 @@ class TagService:
                                     f"{' …' if len(symbols) > 5 else ''} — ret dem under Bindinger først")
         used = self.db.count_bindings_for_tag(name)
         if used:
-            where = ", ".join(f"{d} ({n})" for d, n in self.db.drawings_using_tag(name)[:5])
+            places = self.db.binding_places(name)
+            where = ", ".join(places[:6]) + (" …" if len(places) > 6 else "")
             raise ServiceError(409, f"Tagget '{name}' bruges i {used} binding(er) i tegninger" + (f": {where}" if where else "")
-                                    + " — fjern dem under Bindinger først")
+                                    + " — vælg elementet under Bindinger og fjern bindingen først")
         if not self.db.delete_tag(name):
             raise ServiceError(404, f"Tag '{name}' findes ikke")
         self.manager.reload_tags(removed=[name])

@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.22.0 build 0248] — 2026-10-27 — Simple bindinger og wizard hænger sammen (funktionsanalyse B1–B3)
+
+- `services/drawings.py`: `_config_owner()`/`_refuse_if_configured()` i `set_element_bindings()` og `bind_symbol()`; `click:goto` på roden af et kun-visning-symbol gælder stadig.
+- `storage/db.py` `binding_places()`, `services/tags.py`: sletbesked med tegning og element.
+- `frontend/src/pages/Editor.svelte`: besked for dele af konfigurerede symboler, *Tilføj binding* skjult.
+- Tests (+1, 1 tilpasset).
+
 ## [1.21.12 build 0247] — 2026-10-26 — PIN-spærring stiger og overlever genstart (kodeanalyse 2, G3)
 
 - `services/symbol_operate.py`: `PIN_LOCK_STEPS` (60/300/900/3600 s), `SYMBOL_TRIES` (10) pr. symbol, tilstand i databasen, `_fmt_wait()`.

@@ -328,3 +328,33 @@ def test_operator_can_use_interactive_symbol(api, mock_plc):
     api.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})
     r = api.post("/api/tags/Pumpe/toggle", json={})
     assert r.status_code == 200, r.text
+
+
+def test_simple_bindings_inside_configured_symbol_are_refused_but_goto_on_view_root_kept(tmp_path, mock_plc):
+    """Funktionsanalyse 27.10.2026 B1/B2/B3."""
+    from fastapi.testclient import TestClient
+    from app.config import Settings
+    from app.main import create_app
+    pw = "test-admin-pw-1"
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g id="Pumpe"><rect id="Hus" width="9" height="9"/>'
+           '<circle id="Hjul" r="3"/></g><g id="Tank"><rect id="Krop" width="9" height="9"/></g></svg>')
+    s = Settings(data_dir=tmp_path, frontend_dir=tmp_path / "x", admin_password=pw, backup_hours=0)
+    with TestClient(create_app(s)) as c:
+        c.post("/api/auth/login", json={"username": "admin", "password": pw})
+        c.post("/api/plcs", json={"key": "plc1", "base_url": mock_plc.url, "username": "scada", "password": "scada123",
+                                  "sse_enabled": False})
+        assert c.post("/api/tags", json={"name": "Niveau", "source": "plc1:hr:1"}).status_code == 201
+        did = c.post("/api/drawings", json={"name": "Anlæg", "svg": svg}).json()["drawing"]["id"]
+        other = c.post("/api/drawings", json={"name": "Detalje", "svg": svg}).json()["drawing"]["id"]
+        assert c.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": [
+            {"tag": "", "anim": "click:goto", "params": {"drawing": other}}]}).status_code == 200
+        for el, part in (("Pumpe", "Hus"), ("Tank", "Krop")):
+            cfg = {"op": "view", "anims": [{"part": part, "type": "blink", "src": "Niveau", "params": {}}]}
+            assert c.put(f"/api/drawings/{did}/symbols/{el}/config", json={"config": cfg}).status_code == 200
+        r = c.put(f"/api/drawings/{did}/bindings/Hjul", json={"bindings": [{"tag": "Niveau", "anim": "blink", "params": {}}]})
+        assert r.status_code == 409 and "del af symbolet 'Pumpe'" in r.json()["error"]          # B1
+        assert c.put(f"/api/drawings/{did}/bindings/Hjul", json={"bindings": []}).status_code == 200   # rydning er tilladt
+        eff = c.get(f"/api/drawings/{did}/view").json()["bindings"]
+        assert any(b["element"] == "Tank" and b["anim"] == "click:goto" for b in eff)            # B2
+        r = c.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": [{"tag": "Niveau", "anim": "blink", "params": {}}]})
+        assert r.status_code == 409 and "Gå til tegning" in r.json()["error"]

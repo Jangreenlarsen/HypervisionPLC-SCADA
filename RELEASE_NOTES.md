@@ -2,6 +2,10 @@
 
 ---
 
+## v1.22.0 — 2026-10-27 — Tydeligere bindinger
+
+- Binding-editoren siger nu, når et element hører til et symbol, der er sat op med *Opsæt symbol* — simple bindinger dér bruges ikke og kan ikke længere tilføjes. *Gå til tegning* virker fortsat på symboler, der kun viser. Kan et tag ikke slettes, står der præcis hvilket element der bruger det.
+
 ## v1.21.12 — 2026-10-26 — Stærkere PIN-spærring
 
 - Gentagne forkerte koder på et PIN-beskyttet symbol giver nu stadig længere spærring (op til en time), også efter genstart. En tekniker kan låse op ved at sætte koden igen.

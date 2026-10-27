@@ -732,6 +732,13 @@ class Database:
             "SELECT d.name AS name, COUNT(*) AS n FROM bindings b JOIN drawings d ON d.id = b.drawing_id "
             "WHERE b.tag = ? OR (b.anim = 'flow' AND json_extract(b.params, '$.dir_tag') = ?) GROUP BY d.id ORDER BY d.name", (tag, tag))]
 
+    def binding_places(self, tag: str) -> list[str]:
+        """["Tegning: element", …] for bindinger der bruger tagget — så beskeden ved sletning siger præcis hvor (B3)."""
+        return [f"{r['name']}: {r['element']}" for r in self._query(
+            "SELECT d.name AS name, b.element AS element FROM bindings b JOIN drawings d ON d.id = b.drawing_id "
+            "WHERE b.tag = ? OR (b.anim = 'flow' AND json_extract(b.params, '$.dir_tag') = ?) "
+            "GROUP BY d.id, b.element ORDER BY d.name, b.element", (tag, tag))]
+
     def count_bindings_for_tag(self, tag: str) -> int:
         with self._lock:
             # Også løbelys der bruger tagget som retnings-tag (params.dir_tag)
