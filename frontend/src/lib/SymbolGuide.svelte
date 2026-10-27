@@ -23,7 +23,7 @@ import { AVERAGE_CHOICES } from './trendData';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
     ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
-    activeAt, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
+    activeAt, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, feedbackMismatch, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, BY_VALUE_TYPES, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
@@ -260,6 +260,7 @@ import { AVERAGE_CHOICES } from './trendData';
   /** Tagets enhed til forhåndsvisningen af en Værdi-animation. */
   const metaOf = (t: string): TagMeta | undefined => { const row = tagByName.get(t); return row ? ({ unit: row.unit } as TagMeta) : undefined; };
   const found = $derived(isPos ? foundPosition(cfg, valueOf) : null);
+  const fbMismatch = $derived(isPos ? feedbackMismatch(cfg, valueOf, tagKindOf) : []);
   const logicNow = $derived(evalLogic(cfg.logic, valueOf, (ref) => { const v = valueOf(pseudoOf(ref)); return typeof v === 'boolean' ? v : null; }));
   const triText = (v: boolean | null | undefined) => (v === true ? 'Til' : v === false ? 'Fra' : 'ukendt');
   const fmt = (v: unknown) => (v === undefined || v === null ? '—' : typeof v === 'boolean' ? (v ? 'Til' : 'Fra') : String(v));
@@ -973,6 +974,7 @@ import { AVERAGE_CHOICES } from './trendData';
               </tbody>
             </table>
             {#if isPos}<p class="small">PLC'ens position lige nu: <strong>{found !== null ? cfg.positions[found].label : 'ingen entydig position'}</strong></p>{/if}
+            {#if fbMismatch.length}<ul class="warnings small">{#each fbMismatch as w}<li>{w}</li>{/each}</ul>{/if}
           {/if}
           {#if cfg.logic.length}
             <h4>Logik (live)</h4>
