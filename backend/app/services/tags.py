@@ -15,7 +15,7 @@ _TEXT_FIELDS = {"description": 200, "unit": 16}
 LIMIT_FIELDS = ("alarm_ll", "alarm_l", "alarm_h", "alarm_hh")  # stigende rækkefølge
 ALARM_DEFAULTS = {"alarm_hh": None, "alarm_h": None, "alarm_l": None, "alarm_ll": None,
                   "alarm_deadband": 0.0, "alarm_delay_s": 0.0, "alarm_on": None,
-                  "trend": False, "trend_interval_s": 10.0, "energy": None, "energy_factor": 1.0}
+                  "trend": False, "trend_interval_s": 10.0, "energy": None, "energy_factor": 1.0, "priority": "normal"}
 WRITABLE_KINDS = ("hr", "coil", "logic", "global")   # logic/global: ST-variabler via PLC-firmware v7.9.68.141+
 
 
@@ -101,6 +101,17 @@ class TagService:
         if final_writable and final_source.kind not in WRITABLE_KINDS:
             raise ServiceError(400, f"Kun hr-, coil- og ST-variabel-tags (logic/global) kan være skrivbare — "
                                     f"'{final_source}' er kun-læs (ir/di er indgange)")
+        # Prioritet (FEATURE_TAG_PRIORITET): kun eksterne Modbus-tags (rtu/mbx) går gennem PLC'ens kø
+        if data.get("priority") is not None:
+            if data["priority"] not in ("normal", "high"):
+                raise ServiceError(400, "Prioritet skal være 'normal' eller 'high'")
+            out["priority"] = data["priority"]
+        final_priority = out.get("priority") or (current or {}).get("priority") or "normal"
+        if final_priority == "high" and not final_source.is_external:
+            if "priority" in out:
+                raise ServiceError(400, "Høj prioritet gælder kun eksterne Modbus-tags (kilde rtu eller mbx) — interne "
+                                        "registre og ST-variabler læses direkte fra PLC'ens hukommelse")
+            out["priority"] = "normal"   # kilden er ændret til intern: prioriteten har ingen betydning længere
         return out
 
     def _validate_energy(self, data: dict[str, Any], current: dict[str, Any] | None, out: dict[str, Any]) -> None:

@@ -127,8 +127,9 @@ class StubClient:
         self.answers = answers
         self.calls = []
 
-    async def read_ext(self, base, kind, start, count, *, max_age_ms=None, wait_ms=None):
+    async def read_ext(self, base, kind, start, count, *, max_age_ms=None, wait_ms=None, prio=None):
         self.calls.append((base, kind, start, count, max_age_ms))
+        self.prios = getattr(self, "prios", []) + [(start, count, prio)]
         a = self.answers[(base, kind, start)]
         if isinstance(a, Exception):
             raise a
@@ -252,3 +253,61 @@ async def test_external_tags_switch_sse_to_watch_all():
     rt.set_tags([RuntimeTag("HR5", parse_source("plc1:hr:5"), 1, 0.0)])
     rt.set_tags([RuntimeTag("HR5", parse_source("plc1:hr:5"), 1, 0.0), RuntimeTag("Ext", parse_source("plc1:rtu:90:hr:0"), 1, 0.0)])
     assert [c[1] for c in fake.calls] == [False, True]
+
+
+# ------------------------------------------------------------------ prioritet pr. tag (FEATURE_TAG_PRIORITET)
+
+async def test_read_ext_sends_prio_high_only_when_asked():
+    seen = []
+
+    def handler(req):
+        seen.append(str(req.url))
+        return httpx.Response(200, json=PENDING_ONE)
+
+    c = _client(handler)
+    await c.read_ext("/api/ext/rtu/90", "hr", 7, 1, prio="high")
+    await c.read_ext("/api/ext/rtu/90", "hr", 7, 1)
+    assert "prio=high" in seen[0] and "prio" not in seen[1]
+    await c.close()
+
+
+async def test_high_and_normal_tags_are_never_read_together_and_high_goes_first():
+    answers = {("/api/ext/rtu/90", "hr", a): [(a, "ok")] for a in range(3)}
+    cache = LiveCache()
+    client = StubClient(answers)
+    rt = PlcRuntime("plc1", client, cache, sse_enabled=False, ext_interval=2.0)  # type: ignore[arg-type]
+    rt.set_tags([RuntimeTag("N0", parse_source("plc1:rtu:90:hr:0"), 1.0, 0.0),
+                 RuntimeTag("H1", parse_source("plc1:rtu:90:hr:1"), 1.0, 0.0, "high"),
+                 RuntimeTag("N2", parse_source("plc1:rtu:90:hr:2"), 1.0, 0.0)])
+    await rt.poll_once()
+    assert client.prios[0] == (1, 1, "high")                    # den høje først, alene
+    assert sorted(client.prios[1:]) == [(0, 1, None), (2, 1, None)]   # de normale slås ikke sammen hen over den høje
+    assert cache.get("H1").value == 1 and cache.get("N0").value == 0
+    assert any(p.get("prio") == "high" for p in rt.status.plan)
+
+
+def test_priority_is_validated_saved_and_kept_through_backup(tmp_path, mock_plc):
+    from fastapi.testclient import TestClient
+    from app.config import Settings
+    from app.main import create_app
+    pw = "test-admin-pw-1"
+    s = Settings(data_dir=tmp_path, frontend_dir=tmp_path / "x", admin_password=pw, backup_hours=0)
+    with TestClient(create_app(s)) as c:
+        c.post("/api/auth/login", json={"username": "admin", "password": pw})
+        c.post("/api/plcs", json={"key": "plc1", "base_url": mock_plc.url, "username": "scada", "password": "scada123",
+                                  "sse_enabled": False})
+        r = c.post("/api/tags", json={"name": "Nodstop", "source": "plc1:rtu:10:coil:0", "priority": "high"})
+        assert r.status_code == 201 and r.json()["priority"] == "high"
+        assert c.post("/api/tags", json={"name": "Ext", "source": "plc1:rtu:10:hr:0"}).json()["priority"] == "normal"
+        r = c.post("/api/tags", json={"name": "Intern", "source": "plc1:hr:1", "priority": "high"})
+        assert r.status_code == 400 and "eksterne Modbus-tags" in r.json()["error"]
+        assert c.post("/api/tags", json={"name": "Ugyldig", "source": "plc1:rtu:10:hr:1", "priority": "max"}).status_code == 400
+        # skiftes kilden til intern, falder prioriteten tilbage til normal
+        assert c.patch("/api/tags/Nodstop", json={"source": "plc1:coil:5"}).json()["priority"] == "normal"
+        assert c.patch("/api/tags/Nodstop", json={"source": "plc1:rtu:10:coil:0", "priority": "high"}).json()["priority"] == "high"
+        backup = c.get("/api/backup").json()
+        assert {t["name"]: t["priority"] for t in backup["tags"]} == {"Ext": "normal", "Nodstop": "high"}
+        for t in backup["tags"]:
+            t.pop("priority")                                  # ældre backup uden feltet
+        assert c.post("/api/backup/restore", json=backup).status_code == 200
+        assert c.get("/api/tags/Nodstop").json()["priority"] == "normal"

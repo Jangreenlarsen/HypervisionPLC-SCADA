@@ -315,6 +315,11 @@ class BackupService:
             if alarm_err:
                 err(f"Tag {name}: {alarm_err}")
                 continue
+            priority = t.get("priority") or "normal"   # ældre backups har ingen prioritet
+            if priority not in ("normal", "high") or (priority == "high" and not source.is_external):
+                err(f"Tag {name}: priority skal være 'normal' (eller 'high' for eksterne Modbus-tags)")
+                continue
+            alarm["priority"] = priority
             tag_names.add(name)
             tags.append({"name": name, "source": str(source), "plc": source.plc,
                          "description": str(t.get("description") or "")[:200], "unit": str(t.get("unit") or "")[:16],

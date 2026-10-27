@@ -119,7 +119,7 @@ class PlcManager:
                 # Kan kun ske ved manuel redigering af databasen — valideres ellers ved oprettelse.
                 log.error("Tag %s har ugyldig kilde i databasen: %s", row["name"], exc)
                 continue
-            tags.append(RuntimeTag(row["name"], source, row["scale"], row["offset"]))
+            tags.append(RuntimeTag(row["name"], source, row["scale"], row["offset"], row.get("priority") or "normal"))
         return tags
 
     async def _stop(self, key: str) -> None:

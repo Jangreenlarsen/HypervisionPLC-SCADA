@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14   # 14: tags.priority (FEATURE_TAG_PRIORITET)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -218,8 +218,11 @@ TREND_FIELDS = tuple(TREND_COLUMNS)
 # Energi pr. tag: None | 'counter' (tæller) | 'power' (effekt); faktor omregner til kWh.
 ENERGY_COLUMNS = {"energy": "TEXT", "energy_factor": "REAL NOT NULL DEFAULT 1"}
 ENERGY_FIELDS = tuple(ENERGY_COLUMNS)
+# Prioritet pr. tag (v2.0.0): "high" = eksterne tags læses med prio=high i PLC'ens Modbus-kø
+PRIORITY_COLUMNS = {"priority": "TEXT NOT NULL DEFAULT 'normal'"}
+PRIORITY_FIELDS = tuple(PRIORITY_COLUMNS)
 TAG_FIELDS = ("source", "plc", "description", "unit", "scale", "offset", "decimals",
-              "writable", "min", "max", "confirm_write") + ALARM_FIELDS + TREND_FIELDS + ENERGY_FIELDS
+              "writable", "min", "max", "confirm_write") + ALARM_FIELDS + TREND_FIELDS + ENERGY_FIELDS + PRIORITY_FIELDS
 _BOOL_FIELDS = {"enabled", "sse_enabled", "verify_tls", "writable", "confirm_write", "disabled", "must_change_password",
                 "scoped", "trend"}
 USER_FIELDS = ("password_hash", "role", "disabled", "must_change_password", "scoped")
@@ -251,7 +254,7 @@ class Database:
             # v1.6.0: en deaktiveret tegning er offline (ingen live-data, ingen betjening). 0 = aktiv som før.
             self._conn.execute("ALTER TABLE drawings ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0")
         tag_cols = {r[1] for r in self._conn.execute("PRAGMA table_info(tags)").fetchall()}
-        for col, ddl in {**ALARM_COLUMNS, **TREND_COLUMNS, **ENERGY_COLUMNS}.items():
+        for col, ddl in {**ALARM_COLUMNS, **TREND_COLUMNS, **ENERGY_COLUMNS, **PRIORITY_COLUMNS}.items():
             if col not in tag_cols:
                 self._conn.execute(f"ALTER TABLE tags ADD COLUMN {col} {ddl}")
         self._conn.execute("UPDATE meta SET value = ? WHERE key = 'schema_version'", (str(SCHEMA_VERSION),))
@@ -311,7 +314,7 @@ class Database:
         now = time.time()
         cols = ["name", *TAG_FIELDS, "created_at", "updated_at"]
         defaults = {"alarm_deadband": 0.0, "alarm_delay_s": 0.0, "trend": False, "trend_interval_s": 10.0,
-                    "energy_factor": 1.0}
+                    "energy_factor": 1.0, "priority": "normal"}
         args = (name, *(_db(f, values.get(f, defaults.get(f))) for f in TAG_FIELDS), now, now)
         quoted = ",".join(f'"{c}"' for c in cols)
         self._execute(f"INSERT INTO tags({quoted}) VALUES ({','.join('?' * len(cols))})", args)
@@ -932,7 +935,7 @@ class Database:
         return {
             "plcs": self._query("SELECT key, name, base_url, username, enabled, sse_enabled, verify_tls FROM plcs ORDER BY key"),
             "tags": self._query('SELECT name, source, description, unit, scale, "offset", decimals, writable, min, max, '
-                                "confirm_write, " + ", ".join(ALARM_FIELDS + TREND_FIELDS + ENERGY_FIELDS) + " FROM tags ORDER BY name"),
+                                "confirm_write, " + ", ".join(ALARM_FIELDS + TREND_FIELDS + ENERGY_FIELDS + PRIORITY_FIELDS) + " FROM tags ORDER BY name"),
             "drawings": self._query("SELECT id, name, active_version, disabled FROM drawings ORDER BY id"),
             "versions": self._query("SELECT drawing_id, version, comment, size, width, height, created_at "
                                     "FROM drawing_versions ORDER BY drawing_id, version"),
@@ -1020,14 +1023,14 @@ class Database:
                 for t in data["tags"]:
                     cur.execute(
                         'INSERT INTO tags(name, source, plc, description, unit, scale, "offset", decimals, writable, '
-                        "min, max, confirm_write, " + ", ".join(ALARM_FIELDS + TREND_FIELDS + ENERGY_FIELDS) + ", created_at, updated_at) "
-                        "VALUES (" + ",".join("?" * (14 + len(ALARM_FIELDS) + len(TREND_FIELDS) + len(ENERGY_FIELDS))) + ")",
+                        "min, max, confirm_write, " + ", ".join(ALARM_FIELDS + TREND_FIELDS + ENERGY_FIELDS + PRIORITY_FIELDS) + ", created_at, updated_at) "
+                        "VALUES (" + ",".join("?" * (14 + len(ALARM_FIELDS) + len(TREND_FIELDS) + len(ENERGY_FIELDS) + len(PRIORITY_FIELDS))) + ")",
                         (t["name"], t["source"], t["plc"], t["description"], t["unit"], t["scale"], t["offset"],
                          t["decimals"], _db("writable", t["writable"]), t["min"], t["max"],
                          _db("confirm_write", t["confirm_write"]),
                          *(t.get(f, 0.0 if f in ("alarm_deadband", "alarm_delay_s") else None) for f in ALARM_FIELDS),
                          _db("trend", t.get("trend", False)), t.get("trend_interval_s", 10.0),
-                         t.get("energy"), t.get("energy_factor", 1.0),
+                         t.get("energy"), t.get("energy_factor", 1.0), t.get("priority") or "normal",
                          now, now))
                 for d in data["drawings"]:
                     cur.execute("INSERT INTO drawings(id, name, active_version, created_at, updated_at, disabled) VALUES (?,?,?,?,?,?)",

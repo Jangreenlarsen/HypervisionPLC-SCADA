@@ -46,6 +46,7 @@ class TagCreate(_Model):
     trend_interval_s: float | None = None
     energy: str | None = None
     energy_factor: float | None = None
+    priority: str | None = None
     alarm_hh: float | None = None
     alarm_h: float | None = None
     alarm_l: float | None = None
@@ -71,6 +72,7 @@ class TagUpdate(_Model):
     trend_interval_s: float | None = None
     energy: str | None = None
     energy_factor: float | None = None
+    priority: str | None = None
     alarm_hh: float | None = None
     alarm_h: float | None = None
     alarm_l: float | None = None

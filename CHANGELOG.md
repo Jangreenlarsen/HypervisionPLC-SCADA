@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.0.0 build 0251] — 2026-10-27 — Prioritet pr. tag (høj/normal) for eksterne Modbus-tags
+
+- **Skemaændring (MAJOR):** `tags.priority` (`normal`/`high`, standard `normal`), skemaversion 14; eksisterende databaser migreres automatisk.
+- `services/tags.py`: validering (kun `rtu`/`mbx` kan være høje; skiftes kilden til intern, bliver den normal); `api/routes.py`; backup/gendannelse (ældre backups → normal).
+- `services/plc_runtime.py`: høje og normale eksterne tags planlægges i hver sine områder (aldrig samme `/api/ext`-kald), høje polles først; `plc/client.py` `read_ext(prio=…)` sender `prio=high`; `plc/planner.py` `ExtRange.high`.
+- `frontend/src/pages/Tags.svelte`: *Prioritet: Normal/Høj* (låst for interne tags) med hjælpetekst og mærket *høj prioritet* i listen; manualen (PLC'er og tags).
+- `tests/test_ext.py` (+3). Spec: `docs/FEATURE_TAG_PRIORITET.md`. Effekten kræver PLC-firmware med FEAT-515; ældre firmware ignorerer parameteren.
+
 ## [1.22.2 build 0250] — 2026-10-27 — Bekræftelse før sletning af automatisk bundne tags (funktionsanalyse B6)
 
 - `services/tags.py` `delete(force)` + `auto_usage` (sat i `main.py`); `DELETE /api/tags/{name}?force=true`; `Tags.svelte` spørger først.

@@ -15,13 +15,14 @@
     alarm_hh: number | null; alarm_h: number | null; alarm_l: number | null; alarm_ll: number | null;
     alarm_deadband: number; alarm_delay_s: number; alarm_on: 'true' | 'false' | null;
     trend: boolean; trend_interval_s: number; energy: 'counter' | 'power' | null; energy_factor: number;
+    priority?: 'normal' | 'high';
   }
   interface EditForm {
     name: string; source: string; description: string; unit: string; scale: string; offset: string;
     decimals: string; writable: boolean; min: string; max: string; confirm_write: boolean;
     alarm_hh: string; alarm_h: string; alarm_l: string; alarm_ll: string; alarm_deadband: string;
     alarm_delay_s: string; alarm_on: '' | 'true' | 'false'; trend: boolean; trend_interval_s: string;
-    energy: '' | 'counter' | 'power'; energy_factor: string;
+    energy: '' | 'counter' | 'power'; energy_factor: string; priority: 'normal' | 'high';
   }
   interface Suggestion { name: string; source: string; datatype: string; description: string; exists: boolean; pick?: boolean }
 
@@ -47,7 +48,7 @@
       alarm_hh: s(t.alarm_hh), alarm_h: s(t.alarm_h), alarm_l: s(t.alarm_l), alarm_ll: s(t.alarm_ll),
       alarm_deadband: String(t.alarm_deadband ?? 0), alarm_delay_s: String(t.alarm_delay_s ?? 0), alarm_on: t.alarm_on ?? '',
       trend: t.trend, trend_interval_s: String(t.trend_interval_s ?? 10),
-      energy: t.energy ?? '', energy_factor: String(t.energy_factor ?? 1),
+      energy: t.energy ?? '', energy_factor: String(t.energy_factor ?? 1), priority: t.priority ?? 'normal',
     };
   }
 
@@ -67,6 +68,8 @@
         alarm_delay_s: num(edit.alarm_delay_s || '0', 'Forsinkelse'), alarm_on: edit.alarm_on || null,
         trend: edit.trend, trend_interval_s: num(edit.trend_interval_s || '10', 'Interval'),
         energy: edit.energy || null, energy_factor: num(edit.energy_factor || '1', 'Omregning til kWh'),
+        // Prioritet gælder kun eksterne Modbus-tags; for interne sendes altid normal (serveren afviser høj)
+        priority: sourceKind(edit.source) === 'intern' ? 'normal' : edit.priority,
       });
       edit = null;
       await refresh();
@@ -243,6 +246,24 @@
       <label>Max (teknisk enhed)<input bind:value={edit.max} inputmode="decimal" placeholder="ingen" /></label>
       <label class="row" style="flex-direction: row"><input type="checkbox" bind:checked={edit.confirm_write} /> Kræv bekræftelse ved skrivning</label>
     </div>
+    <h3 style="margin-top: .8rem">Prioritet i PLC'ens Modbus-kø</h3>
+    <div class="grid-form">
+      <label title={sourceKind(edit.source) !== 'intern' ? '' : 'Kun for eksterne Modbus-tags'}>Prioritet
+        <select bind:value={edit.priority} disabled={sourceKind(edit.source) === 'intern'}>
+          <option value="normal">Normal</option>
+          <option value="high">Høj</option>
+        </select>
+      </label>
+    </div>
+    <p class="muted small">
+      {#if sourceKind(edit.source) !== 'intern'}
+        SCADA's læsninger står bag PLC'ens egne programmer i køen til Modbus-slaverne. <strong>Høj</strong> læses som PLC'ens egne.
+        Høj prioritet bruges kun til få, vigtige tags (fx nødstop-tilbagemelding). Står mange tags på høj, forsvinder effekten,
+        og PLC'ens egne programmer kan blive forsinket. Kræver PLC-firmware med understøttelse (ældre firmware ignorerer valget).
+      {:else}
+        Kun for eksterne Modbus-tags (kilde Extern eller Expansion board) — interne registre og ST-variabler læses direkte fra PLC'ens hukommelse.
+      {/if}
+    </p>
     <h3 style="margin-top: .8rem">Historik (trends)</h3>
     <div class="grid-form">
       <label class="row" style="flex-direction: row"><input type="checkbox" bind:checked={edit.trend} /> Gem historik</label>
@@ -303,7 +324,7 @@
           {@const v = values[t.name]}
           <tr class:editing={edit?.name === t.name}>
             <td class="mono">{t.name}{#if t.writable} <span class="badge" title="Kan skrives fra Overview">skrivbar</span>{/if}</td>
-            <td class="mono">{t.source}{#if sourceKind(t.source) !== 'intern'} <span class="badge" title="Hentes via PLC'ens /api/ext">{SOURCE_LABEL[sourceKind(t.source)]}</span>{/if}</td>
+            <td class="mono">{t.source}{#if sourceKind(t.source) !== 'intern'} <span class="badge" title="Hentes via PLC'ens /api/ext">{SOURCE_LABEL[sourceKind(t.source)]}</span>{/if}{#if t.priority === 'high'} <span class="badge" title="Læses med høj prioritet i PLC'ens Modbus-kø">høj prioritet</span>{/if}</td>
             <td>{formatValue(v?.value, { unit: t.unit, decimals: t.decimals, description: '', plc: t.plc })}</td>
             <td><span class="badge {v?.quality ?? 'unknown'}" title={v?.error ?? ''}>{v?.quality ?? 'unknown'}</span></td>
             <td class="small">{t.description}{v?.error ? ` — ${v.error}` : ''}</td>
