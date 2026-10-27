@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { align, assignColors, groupByUnit, dividerTimes, groupTags, isolatedPoints, MAX_SERIES, movingAverage, contrastColor, AVERAGE_FALLBACK, SERIES_COLORS, colorOf, type Point } from './trendData';
+import { align, assignColors, groupByUnit, dividerTimes, groupTags, isolatedPoints, MAX_SERIES, movingAverage, contrastColor, AVERAGE_FALLBACK, SERIES_COLORS, colorOf, stepDecimals, type Point } from './trendData';
+
+describe('stepDecimals', () => {
+  it('giver nok decimaler til at skelne aksestregerne', () => {
+    expect(stepDecimals(0.0005)).toBe(4);
+    expect(stepDecimals(0.001)).toBe(3);
+    expect(stepDecimals(0.25)).toBe(2);
+    expect(stepDecimals(0.1 + 0.2)).toBe(1);   // flydende-komma-støj
+    expect(stepDecimals(5)).toBe(0);
+    expect(stepDecimals(2000)).toBe(0);
+  });
+  it('tåler ugyldig afstand', () => {
+    expect(stepDecimals(0)).toBe(0);
+    expect(stepDecimals(NaN)).toBe(0);
+    expect(stepDecimals(Infinity)).toBe(0);
+  });
+});
 
 describe('align', () => {
   it('fletter tidspunkter, og skelner hul (null) fra manglende punkt (undefined)', () => {
