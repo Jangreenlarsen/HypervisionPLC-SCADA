@@ -2,6 +2,10 @@
 
 ---
 
+## v2.2.0 — 2026-10-27 — Version i topmenuen
+
+- Den installerede version og build står nu yderst til højre i topmenuen (også før login).
+
 ## v2.1.2 — 2026-10-27 — Præcis aflæsning i trends
 
 - Zoomer man ind på et lille udsnit af en kurve, viser aflæsningen og y-aksen nu flere decimaler, så værdien følger kurven i stedet for at stå fast (fx 1,2756 i stedet for 1,28), og aksen har ikke længere ens tal.

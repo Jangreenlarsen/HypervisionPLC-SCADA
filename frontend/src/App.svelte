@@ -194,12 +194,20 @@
         {/if}
       </div>
     </nav>
+    {@render version()}
   {:else}
     <span class="brand">HypervisionPLC SCADA</span>
     <span class="spacer"></span>
     <a class="src" href={info?.source_url ?? 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener">AGPL · kildekode</a>
+    {@render version()}
   {/if}
 </header>
+
+<!-- Installeret version yderst til højre i topmenuen (serverens; indtil den er hentet: sidens egen) -->
+{#snippet version()}
+  {@const v = info ?? BUNDLE}
+  <span class="ver" title="HypervisionPLC SCADA v{v.version} build {v.build}">v{v.version}<span class="verbuild">{' · b'}{v.build}</span></span>
+{/snippet}
 
 <main>
   {#if stale}{@render staleBanner()}{/if}
@@ -308,6 +316,7 @@
   .bell.unacked { animation: bell 1s steps(2, start) infinite; }
   @keyframes bell { to { opacity: .55; } }
   .src { color: #bbb; font-size: .75rem; white-space: nowrap; }
+  .ver { color: #bbb; font-size: .75rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
   /* Ingen breddegrænse: SCADA bruges også på store kontrolrumsskærme */
   main { padding: .75rem 1rem 1rem; }
@@ -319,6 +328,7 @@
     .top { padding: 0 .4rem; font-size: .88rem; }
     .menubar { gap: 0; }
     .menu.user { margin-left: 0; padding-left: .25rem; }
-    .src { font-size: .7rem; }
+    .src, .ver { font-size: .7rem; }
+    .verbuild { display: none; }
   }
 </style>

@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.2.0 build 0256] — 2026-10-27 — Version i topmenuen
+
+- `frontend/src/App.svelte`: snippet `version` — serverens version og build (`/api/health`, indtil da sidens egen) yderst til højre i topmenuen og på login-siden; build skjules under 640 px.
+
 ## [2.1.2 build 0255] — 2026-10-27 — Trends: aflæsning og y-akse ved lille spænd
 
 - `frontend/src/lib/trendData.ts`: `stepDecimals(incr)` — decimaler der skal til for at skelne aksestregerne.
