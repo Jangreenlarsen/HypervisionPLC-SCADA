@@ -1,6 +1,6 @@
 # Feature: prioritet pr. tag (høj / normal)
 
-**Status:** planned · **Ønsket af:** Jan, 2026-10-27 · **Afhænger af:** HypervisionPLC-firmware med `prio=high` på `/api/ext` (FEAT-515 i PLC-projektet, ikke lavet endnu)
+**Status:** planned · **Ønsket af:** Jan, 2026-10-27 · **Afhænger af:** HypervisionPLC-firmware **v7.9.68.156** eller nyere (FEAT-515, færdig 2026-10-27, kører på 10.1.1.30)
 
 ## Baggrund
 
@@ -28,7 +28,8 @@ GET /api/ext/mbx/{board}/{kanal}/{slave}/{type}/{addr}?count=N&max_age=ms&prio=h
 
 - `prio=high`: læsningen køes med PLC'ens normale prioritet (1/2) i stedet for 3.
 - `prio` udeladt eller `prio=normal`: som i dag (prioritet 3).
-- PLC-firmware uden understøttelse ignorerer parameteren, så den kan sendes til alle PLC'er. Effekten kommer først med den firmware, der implementerer FEAT-515.
+- En ugyldig værdi (andet end `high`/`normal`) giver HTTP 400.
+- PLC-firmware før v7.9.68.156 ignorerer parameteren, så den kan sendes til alle PLC'er. Der virker den bare ikke.
 
 ## Ønsket funktionalitet i SCADA
 
@@ -54,6 +55,6 @@ GET /api/ext/mbx/{board}/{kanal}/{slave}/{type}/{addr}?count=N&max_age=ms&prio=h
 - Tests i `backend/tests/test_ext.py` dækker parameteren og opdelingen af områder.
 - Uændret adfærd mod PLC'er med ældre firmware.
 
-## Opfølgning i PLC-projektet (HypervisionPLC)
+## PLC-siden (HypervisionPLC)
 
-FEAT-515: `GET /api/ext/...` skal læse `prio=high` og så kalde `mb_async_queue_read(..., ext=false)` og `modbus_expansion_async_queue_read(..., ext=false)` (samme for `_multi`) i `src/api_ext_registers.cpp`. Manualen §7 opdateres.
+FEAT-515 er færdig i v7.9.68.156 (PLC-commit `eea20a7`): `GET /api/ext/...` læser `prio`, og `high` giver PLC'ens egen kø-prioritet. Testet på 10.1.1.30 med `prio=high`, `prio=normal`, udeladt (alle 200) og en ugyldig værdi (400).
