@@ -67,4 +67,6 @@ Standardmodel er `opusplan` (i `.claude/settings.local.json`): Opus i plan mode,
 
 1. Registrér i FEATURES.md/BUGS.md → 2. implementér i korrekt lag → 3. kør tests/verifikation → 4. opdatér version.json, CHANGELOG.md, RELEASE_NOTES.md → 5. commit `vX.X.X-bNNNN: beskrivelse` → 6. push `origin dev` → 7. spørg om merge til `main`.
 
-**OTA-pakke (hver gang)**: Efter hver commit med kodeændring bygges en ny OTA-pakke med `sh deploy/make-package.sh` (giver `scada-<version>-b<build>.tar` i projektets rod). Meld filnavn, størrelse og SHA256 til Jan sammen med resultatet. Doku-only commits er undtaget.
+**OTA-pakke (hver gang, UFRAVIGELIG)**: Efter hver commit med kodeændring bygges en ny OTA-pakke med `sh deploy/make-package.sh`. Filen, der uploades, skal have et sigende navn med version og build — `scada-<version>-b<build>.tar` (fx `scada-2.1.2-b0255.tar`, værdier fra `version.json`) — og ligge i **projektets rod**, klar til upload. Kontrollér at navnet matcher `version.json` efter bumpet. Meld filnavn, størrelse og SHA256 til Jan sammen med resultatet. Doku-only commits er undtaget.
+
+**Version i UI**: Den installerede version (`v<version> · b<build>`, fra `/api/health`) står altid yderst til højre i topmenuen (`App.svelte`, snippet `version`) — også på login-siden. Bevar den ved ændringer i topmenuen.
