@@ -110,6 +110,23 @@ def test_register_template_and_pulse_signal_with_rest(api):
     assert r.status_code == 200, r.text
 
 
+def test_feedback_warnings(api):
+    """Tilbagemeldinger der kan give "ingen entydig position": register (statusord), anden skalering, ST-variabel."""
+    def warnings(fb):
+        cfg = dec_bin(signals=[{"id": "S1", "tag": "Mode", "fb": fb}], planes=[{"signal": "S1", "values": [0, 1, 2]}],
+                      positions=[{"label": "A"}, {"label": "B"}, {"label": "C"}],
+                      anims=[{"part": "V1_greb", "type": "rotate", "src": "@pos", "params": {"angles": [-45, 0, 45]}}])
+        r = api.post(f"/api/drawings/{api.did}/symbols/V1/preview", json={"config": cfg})
+        assert r.status_code == 200 and r.json()["errors"] == 0, r.text
+        return " ".join(r.json()["warnings"])
+    assert "statusord" in warnings("Mode_fb")
+    api.post("/api/tags", json={"name": "Mode_fb_skal", "source": "plc1:hr:35", "scale": 0.1})
+    assert "skaleret anderledes" in warnings("Mode_fb_skal")
+    api.post("/api/tags", json={"name": "Mode_st", "source": "plc1:global:ModeFb"})
+    assert "ST-variabel" in warnings("Mode_st")
+    assert "tilbagemeldingen" not in " ".join(put(api, dec_bin()).json().get("warnings", []))   # di → coil: ingen
+
+
 def test_pulse_entry_and_view_symbols(api):
     assert put(api, {"op": "pulse", "signals": [{"id": "S1", "tag": "Bit0"}], "pulse_ms": 500,
                      "anims": [{"part": "Lampe_glas", "type": "fill", "src": "Bit0", "params": {"on": "#7cc47f"}}]},

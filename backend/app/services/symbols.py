@@ -647,6 +647,11 @@ def map_config(cfg: dict[str, Any], source: dict[str, Any], target: dict[str, An
     return out, notes
 
 
+def _scaling(row: dict[str, Any]) -> tuple[float, float]:
+    return (float(row.get("scale") if row.get("scale") is not None else 1.0),
+            float(row.get("offset") if row.get("offset") is not None else 0.0))
+
+
 def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str, Any]],
                     has_pin: bool, element_id: str = "",
                     others: dict[str, dict[str, Any]] | None = None) -> tuple[dict[str, Any], Result]:
@@ -732,6 +737,16 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                     res.err("2", f"{s.id}: tilbagemeldingen '{s.fb}' findes ikke.")
                 elif fb.known and t.known and fb.is_bool != t.is_bool:
                     res.err("2", f"{s.id}: tilbagemeldingen har en anden type end kommandoen.")
+                elif not fb.known:
+                    # ST-variablens type kendes først live (guiden tjekker den i trin 6)
+                    res.warnings.append(f"{s.id}: tilbagemeldingen {fb.name} er en ST-variabel — kontrollér i trin 6, at den giver "
+                                        + ("Til/Fra (0/1)." if t.is_bool else "de samme tal, som kontaktplanen skriver."))
+                elif not fb.is_bool and _scaling(fb.row) != _scaling(t.row):
+                    res.warnings.append(f"{s.id}: tilbagemeldingen {fb.name} er skaleret anderledes end kommandoen {t.name} — "
+                                        "den skal give præcis værdierne i kontaktplanen, ellers kan positionen ikke findes.")
+                elif not fb.is_bool:
+                    res.warnings.append(f"{s.id}: tilbagemeldingen {fb.name} er et register — det skal give præcis værdierne i "
+                                        "kontaktplanen (et statusord med flere bit gør positionen ukendt).")
             if t.is_bool:
                 s.write, s.rest = "set", None   # til/fra-signaler sættes altid
             if not any(p.signal == s.id for p in cfg.planes):

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeAt, animDefaults, opChoices, cycleCell, isLogicRef, keepSuggestion, emptyConfig, foundPosition, parseValRef, partLabel, preset, resize, setOp, tagKind, template, typesFor, valRef,
+  activeAt, animDefaults, opChoices, cycleCell, isLogicRef, keepSuggestion, emptyConfig, feedbackMismatch, foundPosition, parseValRef, partLabel, preset, resize, setOp, tagKind, template, typesFor, valRef,
   type PartInfo, type SymbolConfig, type SymbolInfo,
 } from './symbolConfig';
 
@@ -74,6 +74,17 @@ describe('struktur', () => {
     live.B2 = true;   // 7
     expect(foundPosition(c, (t) => live[t])).toBe(6);
     expect(foundPosition(c, () => undefined)).toBe(null);
+  });
+  it('tilbagemelding der ikke passer til kommandoens type (live)', () => {
+    const c = emptyConfig();
+    c.op = 'positions';
+    c.signals = [{ id: 'S1', tag: 'Cmd', fb: 'Fb', write: 'set', ms: 500, rest: null }];
+    c.planes = [{ signal: 'S1', values: [0, 1] }];
+    const kind = (k: 'bool' | 'num') => () => k;
+    expect(feedbackMismatch(c, () => 3, kind('bool'))[0]).toContain('skal være 0 eller 1');
+    expect(feedbackMismatch(c, () => 1, kind('bool'))).toEqual([]);
+    expect(feedbackMismatch(c, () => true, kind('num'))[0]).toContain('til/fra');
+    expect(feedbackMismatch(c, () => undefined, kind('bool'))).toEqual([]);
   });
   it('skift betjeningsform rydder det der ikke passer', () => {
     const c = emptyConfig();

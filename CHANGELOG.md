@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.1.0 build 0253] — 2026-10-27 — Advarsler om tilbagemeldinger i symbol-guiden
+
+- `backend/app/services/symbols.py`: advarsel når en tilbagemelding er et register (statusord), er skaleret anderledes end kommandoen, eller er en ST-variabel (typen kendes først live).
+- `frontend/src/lib/symbolConfig.ts` `feedbackMismatch` + `SymbolGuide.svelte` trin 6: advarsel når tilbagemeldingens live-værdi ikke passer til kommandoens type (til/fra-kommando med fx 3, tal-kommando med til/fra).
+- Tests: `test_symbols.py::test_feedback_warnings`, `symbolConfig.test.ts`.
+
 ## [2.0.1 build 0252] — 2026-10-27 — Tydeligere alarm-opsætning på tags
 
 - `frontend/src/pages/Tags.svelte`: bedre hjælpetekst under *Alarmer* (grænser vs. til/fra, dødbånd, forsinkelse), live advarsel når begge typer er udfyldt, og gemme-fejlen ryddes når et alarmfelt ændres.

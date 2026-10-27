@@ -516,6 +516,27 @@ export function foundPosition(cfg: SymbolConfig, valueOf: (tag: string) => unkno
   return hits.length === 1 ? hits[0] : null;
 }
 
+/**
+ * Tilbagemeldinger hvis live-værdi ikke passer til kontaktplanen (guidens trin 6): til/fra-kommando men tilbagemelding
+ * med et andet tal end 0/1, eller tal-kommando men tilbagemelding der er til/fra. Fanger bl.a. ST-variabler, hvis type
+ * først kendes live, og statusord. Signaler uden værdi endnu springes over.
+ */
+export function feedbackMismatch(cfg: SymbolConfig, valueOf: (tag: string) => unknown,
+                                 kindOf: (tag: string) => 'bool' | 'num' | 'unknown'): string[] {
+  const out: string[] = [];
+  for (const s of cfg.signals) {
+    if (!s.tag || !s.fb || s.write === 'pulse' || !cfg.planes.some((p) => p.signal === s.id)) continue;
+    const v = valueOf(s.fb);
+    if (v === undefined || v === null) continue;
+    const cmd = kindOf(s.tag);
+    if (cmd === 'bool' && typeof v === 'number' && v !== 0 && v !== 1)
+      out.push(`${s.id}: kommandoen ${s.tag} er til/fra, men tilbagemeldingen ${s.fb} er ${v} — den skal være 0 eller 1, ellers findes positionen ikke.`);
+    else if (cmd === 'num' && typeof v === 'boolean')
+      out.push(`${s.id}: kommandoen ${s.tag} er et tal, men tilbagemeldingen ${s.fb} er til/fra — den kan kun matche værdierne 0 og 1.`);
+  }
+  return out;
+}
+
 /** Skift betjeningsform (prototypens `setOp`): nulstil det der ikke giver mening for den nye form. */
 export function setOp(cfg: SymbolConfig, op: Op): void {
   cfg.op = op;

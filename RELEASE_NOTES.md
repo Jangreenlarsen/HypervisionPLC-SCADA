@@ -2,6 +2,10 @@
 
 ---
 
+## v2.1.0 — 2026-10-27 — Advarsler om tilbagemeldinger
+
+- Symbol-guiden advarer nu, hvis en tilbagemelding (fx et register med et statusord, et anderledes skaleret tag eller en ST-variabel) måske ikke giver de værdier, positionen genkendes ud fra. I testtrinnet vises det også ud fra den aktuelle værdi.
+
 ## v2.0.1 — 2026-10-27 — Tydeligere alarmer på tags
 
 - Alarm-opsætningen på et tag forklarer nu forskellen på grænsealarmer (tal) og til/fra-alarm, og advarer med det samme, hvis begge er udfyldt.
