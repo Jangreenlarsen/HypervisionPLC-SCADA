@@ -2,6 +2,10 @@
 
 ---
 
+## v2.1.2 — 2026-10-27 — Præcis aflæsning i trends
+
+- Zoomer man ind på et lille udsnit af en kurve, viser aflæsningen og y-aksen nu flere decimaler, så værdien følger kurven i stedet for at stå fast (fx 1,2756 i stedet for 1,28), og aksen har ikke længere ens tal.
+
 ## v2.1.1 — 2026-10-27 — Rettelse i trends
 
 - Aflæsningsfeltet under en trend-graf kunne pludselig vise et stort tal (tidsstempel) i stedet for kurvens værdi. Det viser nu den rigtige værdi.

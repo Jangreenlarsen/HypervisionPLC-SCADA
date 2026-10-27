@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.1.2 build 0255] — 2026-10-27 — Trends: aflæsning og y-akse ved lille spænd
+
+- `frontend/src/lib/trendData.ts`: `stepDecimals(incr)` — decimaler der skal til for at skelne aksestregerne.
+- `frontend/src/lib/TrendChart.svelte`: y-aksens tekster med `stepDecimals`; aflæsning og tooltip med mindst så mange decimaler som aksen (før rundet til tagets decimaler → stod fast).
+- Test: `trendData.test.ts::stepDecimals`.
+
 ## [2.1.1 build 0254] — 2026-10-27 — Trends: forkert værdi i aflæsningsfeltet
 
 - `frontend/src/lib/TrendChart.svelte`: legend-værdien bruger kurvens indeks fra `series.map((s, k)` i stedet for `series.indexOf(s)` (gav -1 → tidsaksen).

@@ -3,7 +3,7 @@
   import { onDestroy, onMount } from 'svelte';
   import uPlot from 'uplot';
   import 'uplot/dist/uPlot.min.css';
-  import { colorOf, dashOf, dividerTimes, isolatedPoints, type Divider } from './trendData';
+  import { colorOf, dashOf, dividerTimes, isolatedPoints, stepDecimals, type Divider } from './trendData';
   import type { Issue } from './trendAnalysis';
   import { lastVisible, needsArrow, spreadLabels } from './lineLabels';
 
@@ -71,10 +71,16 @@
     });
   }
 
+  // Decimaler på y-aksen lige nu (sættes når aksen tegnes). Kurven er gennemsnit pr. tidsspand og kan være finere end
+  // tagets decimaler: zoomes ind på 1,275–1,277, skal aflæsningen ikke stå fast på "1.28".
+  let yDecimals = 0;
+
   function format(v: number | null | undefined, s: ChartSeries): string {
     if (v === null || v === undefined) return '—';
     if (s.isBool) return v >= 0.5 ? 'Til' : 'Fra';
-    return (s.decimals !== null ? v.toFixed(s.decimals) : String(Math.round(v * 1000) / 1000)) + (unit ? ` ${unit}` : '');
+    const text = s.decimals !== null ? v.toFixed(Math.max(s.decimals, yDecimals))
+      : String(Math.round(v * 10 ** Math.max(3, yDecimals)) / 10 ** Math.max(3, yDecimals));
+    return text + (unit ? ` ${unit}` : '');
   }
 
   /** Stiplede lodrette linjer ved hele timer/dage — tegnes bag kurverne. */
@@ -301,6 +307,11 @@
           grid: { stroke: '#e5e4e0', width: 1 },
           ticks: { stroke: '#d6d5d0' },
           size: 56,
+          // uPlots standard viser højst 3 decimaler → ens tekster (1.276, 1.276) ved lille spænd
+          values: (_: uPlot, v: number[], _ax: number, _space: number, incr: number) => {
+            yDecimals = stepDecimals(incr);
+            return v.map((x) => x.toFixed(yDecimals));
+          },
           ...(isBool ? { splits: () => [0, 1], values: (_: uPlot, v: number[]) => v.map((x) => (x >= 0.5 ? 'Til' : 'Fra')) } : {}),
         },
       ],

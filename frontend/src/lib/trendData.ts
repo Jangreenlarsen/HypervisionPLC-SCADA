@@ -9,6 +9,19 @@ export const MAX_SERIES = 12;
 export const colorOf = (i: number): string => SERIES_COLORS[i % SERIES_COLORS.length];
 export const dashOf = (i: number): number[] | undefined => (i >= SERIES_COLORS.length ? [7, 4] : undefined);
 
+/**
+ * Decimaler der skal til for at vise aksestreger med afstanden `incr` uden ens tekster (0,0005 → 4, 0,25 → 2, 5 → 0).
+ * Kurven er tidsvægtede gennemsnit og kan derfor være finere end tagets decimaler — aflæsningen bruger mindst så mange.
+ */
+export function stepDecimals(incr: number): number {
+  if (!(incr > 0) || !Number.isFinite(incr)) return 0;
+  for (let d = 0; d < 10; d++) {
+    const x = incr * 10 ** d;
+    if (Math.abs(x - Math.round(x)) < 1e-6 * Math.max(1, x)) return d;
+  }
+  return 10;
+}
+
 /** [t, gennemsnit, min, max] — som backend leverer. */
 export type Point = [number, number | null, number | null, number | null];
 
