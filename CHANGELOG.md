@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.0.1 build 0252] — 2026-10-27 — Tydeligere alarm-opsætning på tags
+
+- `frontend/src/pages/Tags.svelte`: bedre hjælpetekst under *Alarmer* (grænser vs. til/fra, dødbånd, forsinkelse), live advarsel når begge typer er udfyldt, og gemme-fejlen ryddes når et alarmfelt ændres.
+
 ## [2.0.0 build 0251] — 2026-10-27 — Prioritet pr. tag (høj/normal) for eksterne Modbus-tags
 
 - **Skemaændring (MAJOR):** `tags.priority` (`normal`/`high`, standard `normal`), skemaversion 14; eksisterende databaser migreres automatisk.

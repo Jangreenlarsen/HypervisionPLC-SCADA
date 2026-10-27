@@ -292,8 +292,18 @@
       </p>
     {/if}
     <h3 style="margin-top: .8rem">Alarmer</h3>
-    <p class="muted small">Tal-tags: grænser i teknisk enhed (tomt = ingen). Til/fra-tags: alarm når værdien er sand eller falsk.</p>
-    <div class="grid-form">
+    <p class="muted small">
+      Et tag har enten <b>grænsealarmer</b> (tal-tags) eller en <b>til/fra-alarm</b> (til/fra-tags) — ikke begge.
+      <b>Tal-tag</b> (fx temperatur, tryk): udfyld de grænser du vil bruge i tagets tekniske enhed; tomt felt = ingen alarm på det niveau.
+      Grænserne skal stige: LL &lt; L &lt; H &lt; HH.
+      <b>Til/fra-tag</b> (coil, DI, BOOL): lad grænserne stå tomme og vælg om alarmen skal komme, når værdien er sand eller falsk.
+      <b>Dødbånd</b>: hvor langt værdien skal bevæge sig tilbage forbi en grænse, før alarmen nulstilles (undgår flimren).
+      <b>Forsinkelse</b>: hvor mange sekunder tilstanden skal vare, før alarmen udløses.
+    </p>
+    {#if [edit.alarm_hh, edit.alarm_h, edit.alarm_l, edit.alarm_ll].some((v) => v.trim() !== '') && edit.alarm_on}
+      <p class="error small">Både grænser og til/fra-alarm er udfyldt. Vælg én type: ryd grænserne (til/fra-tag) eller sæt "Til/fra-alarm" til "Ingen" (tal-tag).</p>
+    {/if}
+    <div class="grid-form" oninput={() => (editError = '')} onchange={() => (editError = '')}>
       <label>HH (høj-høj)<input bind:value={edit.alarm_hh} inputmode="decimal" placeholder="ingen" /></label>
       <label>H (høj)<input bind:value={edit.alarm_h} inputmode="decimal" placeholder="ingen" /></label>
       <label>L (lav)<input bind:value={edit.alarm_l} inputmode="decimal" placeholder="ingen" /></label>

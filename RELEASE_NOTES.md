@@ -2,6 +2,10 @@
 
 ---
 
+## v2.0.1 — 2026-10-27 — Tydeligere alarmer på tags
+
+- Alarm-opsætningen på et tag forklarer nu forskellen på grænsealarmer (tal) og til/fra-alarm, og advarer med det samme, hvis begge er udfyldt.
+
 ## v2.0.0 — 2026-10-27 — Høj prioritet for vigtige eksterne tags
 
 - Eksterne Modbus-tags (fx nødstop-tilbagemelding) kan sættes til **høj prioritet** under Tags, så PLC'en læser dem lige så hurtigt som sine egne. Kræver ny PLC-firmware for at have effekt. Databasen opdateres automatisk ved opdateringen.
