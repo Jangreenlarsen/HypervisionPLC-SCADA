@@ -91,6 +91,9 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         # Tags kun deaktiverede tegninger bruger pollas ikke (v1.6.0)
         manager.suspended_tags = lambda: suspended_tags(db, app.state.drawing_service, app.state.symbol_service)
         app.state.tag_service.symbol_usage = app.state.symbol_service.usage
+        app.state.tag_service.auto_usage = lambda name: [   # B6: hvor tagget vises via automatisk binding
+            f"{d['name']}: {b['element']}" for d in db.list_drawings()
+            for b in app.state.drawing_service.effective_bindings(d["id"]) if b.get("source") == "auto" and b.get("tag") == name]
         app.state.scope_service = ScopeService(app.state.drawing_service, app.state.symbol_service)
         app.state.backup_service = BackupService(manager, drawing_files, settings.data_dir / "backups",
                                                  keep=max(1, settings.backup_keep),

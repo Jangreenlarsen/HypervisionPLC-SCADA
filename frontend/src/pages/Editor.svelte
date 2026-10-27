@@ -36,6 +36,11 @@
   let showAll = $state(false);                   // standard: kun symboler (navngivne) og bundne elementer
   let descDraft = $state('');
   const current = $derived(elements.find((e) => e.id === selected) ?? null);
+  // Funktionsanalyse B1: det wizard-konfigurerede symbol, som det valgte element er (en del af). Simple bindinger her bruges
+  // ikke (serveren afviser dem); kun "Gå til tegning" på roden af et kun-visning-symbol gælder (B2).
+  const cfgOwner = $derived(current && view?.symbol_config
+    ? ([current.id, ...ancestorsOf(elements, current.id)].find((x) => view?.symbol_config?.[x]) ?? null) : null);
+  const canAddBinding = $derived(!cfgOwner || (cfgOwner === current?.id && view?.symbol_config?.[cfgOwner]?.op === 'view'));
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (symbolstandarden) er åben
   let selected = $state<string | null>(null);
   let drafts = $state<Draft[]>([]); // én binding = ét tag (gid) med en eller flere animationer
@@ -534,7 +539,14 @@
           </section>
         {/if}
 
-        {#if !explicitMode}
+        {#if cfgOwner && cfgOwner !== current.id}
+          <div class="notice">Del af symbolet <button class="link-btn" onclick={() => select(cfgOwner!)}>{displayName(elements.find((x) => x.id === cfgOwner)!)}</button>,
+            som er sat op med <em>Opsæt symbol</em> — simple bindinger her bruges ikke. Ret animationer og betjening i guiden.
+            {#if explicitFor(current.id).length}Bindingerne nedenfor er inaktive; fjern dem og gem for at rydde op.{/if}</div>
+        {:else if cfgOwner && canAddBinding}
+          <p class="small muted">Kun <em>Gå til tegning</em> kan tilføjes her — resten sættes op i guiden.</p>
+        {/if}
+        {#if !explicitMode && !cfgOwner}
           {#if autoFor(current.id).length}
             <div class="notice">
               Bundet automatisk fordi {current.label && tagNames.has(current.label) ? 'label' : 'id'} er lig tagget
@@ -718,7 +730,7 @@
 
         {#if draftError}<div class="error">{draftError}</div>{/if}
         <div class="row" style="margin-top:.6rem">
-          <button onclick={addBinding}>+ Tilføj binding</button>
+          {#if canAddBinding}<button onclick={addBinding}>+ Tilføj binding</button>{/if}
           {#if explicitMode}
             <button class="primary" onclick={save} disabled={!dirty}>Gem</button>
             <button onclick={() => select(current.id, true)} disabled={!dirty}>Fortryd</button>

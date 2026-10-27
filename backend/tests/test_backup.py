@@ -184,3 +184,33 @@ def test_database_failure_rolls_back_files(api, monkeypatch):
     r = api.post("/api/backup/restore", json=backup)
     assert r.status_code == 500 and "tidligere tilstand er bevaret" in r.json()["error"]
     assert api.get(f"/api/drawings/{did}/svg?version=1").text == before_svg
+
+
+def test_restore_keeps_pins_and_reports_missing(tmp_path, mock_plc):
+    """Funktionsanalyse 27.10.2026 B5 (PIN-koder forsvandt ved gendannelse) og B4 (versionsrapport uden wizard-symboler)."""
+    from fastapi.testclient import TestClient
+    from app.config import Settings
+    from app.main import create_app
+    from app.services.auth import hash_password
+    pw = "test-admin-pw-1"
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g id="Pumpe"><rect id="Hus" width="9" height="9"/></g>'
+           '<g id="Ventil"><rect id="Krop" width="9" height="9"/></g></svg>')
+    s = Settings(data_dir=tmp_path, frontend_dir=tmp_path / "x", admin_password=pw, backup_hours=0)
+    with TestClient(create_app(s)) as c:
+        c.post("/api/auth/login", json={"username": "admin", "password": pw})
+        c.post("/api/plcs", json={"key": "plc1", "base_url": mock_plc.url, "username": "scada", "password": "scada123",
+                                  "sse_enabled": False})
+        c.post("/api/tags", json={"name": "Niveau", "source": "plc1:hr:1"})
+        did = c.post("/api/drawings", json={"name": "Anlæg", "svg": svg}).json()["drawing"]["id"]
+        db = c.app.state.manager.db
+        for el, part in (("Pumpe", "Hus"), ("Ventil", "Krop")):
+            db.set_symbol_config(did, el, {"op": "view", "lock": {"positions": [True], "leave": False},
+                                           "anims": [{"part": part, "type": "blink", "src": "Niveau", "params": {}}]}, "test")
+        db.set_symbol_pin_hash(did, "Pumpe", hash_password("4711"), "admin")
+        r = c.post("/api/backup/restore", json=c.get("/api/backup").json())
+        assert r.status_code == 200, r.text
+        assert (did, "Pumpe") in db.symbol_pin_keys()                       # PIN bevaret på samme server
+        assert r.json()["missing_pins"] == [f"{did}#Ventil"] and r.json()["symbol_configs"] == 2
+        # B4: ny version uden Ventil → nævnes i rapporten
+        v = c.post(f"/api/drawings/{did}/versions", json={"svg": svg.replace('<g id="Ventil"><rect id="Krop" width="9" height="9"/></g>', "")})
+        assert v.json()["report"]["orphaned_symbols"] == ["Ventil"]

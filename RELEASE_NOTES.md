@@ -2,6 +2,18 @@
 
 ---
 
+## v1.22.2 — 2026-10-27 — Advarsel før sletning
+
+- Sletter du et tag, der vises automatisk i en tegning, spørger SCADA nu først og fortæller hvor.
+
+## v1.22.1 — 2026-10-27 — Intet går tabt i det stille
+
+- Gemmer du en ny tegningsversion, hvor et symbol sat op med guiden er forsvundet, står det nu i rapporten. En gendannelse beholder symbolernes koder og fortæller, hvis et låst symbol mangler en kode.
+
+## v1.22.0 — 2026-10-27 — Tydeligere bindinger
+
+- Binding-editoren siger nu, når et element hører til et symbol, der er sat op med *Opsæt symbol* — simple bindinger dér bruges ikke og kan ikke længere tilføjes. *Gå til tegning* virker fortsat på symboler, der kun viser. Kan et tag ikke slettes, står der præcis hvilket element der bruger det.
+
 ## v1.21.12 — 2026-10-26 — Stærkere PIN-spærring
 
 - Gentagne forkerte koder på et PIN-beskyttet symbol giver nu stadig længere spærring (op til en time), også efter genstart. En tekniker kan låse op ved at sætte koden igen.

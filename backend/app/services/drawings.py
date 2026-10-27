@@ -109,6 +109,9 @@ class DrawingService:
         orphans = sorted({b["element"] for b in self.db.list_bindings(drawing_id)} - ids)
         report = _report(result)
         report["orphaned_bindings"] = orphans
+        # B4 (funktionsanalyse): også symboler sat op med guiden og gruppe-animationer, hvis element er væk
+        report["orphaned_symbols"] = sorted(({r["element"] for r in self.db.list_symbol_configs(drawing_id)}
+                                             | {r["element"] for r in self.db.list_group_anims(drawing_id)}) - ids)
         return {"drawing": self.get(drawing_id), "version": version, "report": report}
 
     def _sanitize(self, svg: str) -> Any:
@@ -177,8 +180,36 @@ class DrawingService:
         if element not in index and items:
             raise ServiceError(400, f"Elementet '{element}' findes ikke i den aktive version af tegningen")
         normalized = self._normalize_bindings(items)
+        if normalized:
+            self._refuse_if_configured(drawing_id, element, normalized)
         self.db.set_element_bindings(drawing_id, element, normalized)
         return [b for b in self.db.list_bindings(drawing_id) if b["element"] == element]
+
+    def _config_owner(self, drawing_id: str, element: str) -> tuple[str, dict[str, Any]] | None:
+        """Det wizard-konfigurerede symbol, som elementet er (en del af) — eller None."""
+        configs = {r["element"]: r["config"] for r in self.db.list_symbol_configs(drawing_id)}
+        if not configs:
+            return None
+        if element in configs:
+            return element, configs[element]
+        for root, parts in subtree_map(self.svg(drawing_id), set(configs)).items():
+            if element in parts:
+                return root, configs[root]
+        return None
+
+    def _refuse_if_configured(self, drawing_id: str, element: str, items: list[dict[str, Any]]) -> None:
+        """Funktionsanalyse B1: simple bindinger i et wizard-konfigureret symbol bruges ikke — afvis dem i stedet for at gemme
+        døde bindinger. Undtagelse (B2): "Gå til tegning" på roden af et kun-visning-symbol gælder stadig."""
+        owner = self._config_owner(drawing_id, element)
+        if owner is None:
+            return
+        root, cfg = owner
+        if items and element == root and cfg.get("op") == "view" and all(b["anim"] == "click:goto" for b in items):
+            return
+        where = f"'{root}'" if element == root else f"'{element}' er en del af symbolet '{root}', som"
+        raise ServiceError(409, f"{where} er sat op med Opsæt symbol — simple bindinger her bruges ikke. Ret animationer og "
+                                "betjening i Opsæt symbol" + (" (kun 'Gå til tegning' kan tilføjes på et kun-visning-symbol)"
+                                                              if element == root and cfg.get("op") == "view" else ""))
 
     def _normalize_bindings(self, items: list[Any]) -> list[dict[str, Any]]:
         """Valider bindinger mod tags og regler (samme regler for manuelle og symbol-bindinger)."""
@@ -234,6 +265,8 @@ class DrawingService:
         svg, spec = self._symbol_element(drawing_id, element)
         if spec is None:
             raise ServiceError(400, f"'{element}' er ikke et symbol med færdige bindinger — brug 'Tilføj binding' på elementet")
+        if tag is not None:
+            self._refuse_if_configured(drawing_id, element, [])
         elements = [element] + [child for child, _ in spec["parts"]]
         warning = ""
         per_element: dict[str, list[dict[str, Any]]] = {e: [] for e in elements}
@@ -305,8 +338,8 @@ class DrawingService:
             if b["element"] not in index:
                 orphans.append(b["element"])
                 continue
-            if b["element"] in covered:
-                continue
+            if b["element"] in covered and not (b["anim"] == "click:goto" and configs.get(b["element"], {}).get("op") == "view"):
+                continue   # B2: "Gå til tegning" på roden af et kun-visning-symbol gælder stadig
             effective.append({**b, "source": "explicit"})
 
         for element, (el_tag, label) in index.items():

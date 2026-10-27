@@ -442,4 +442,4 @@ def test_static_value_validation(gapi):
 def test_delete_tag_in_use_names_the_drawings(gapi):
     gapi.put(f"/api/drawings/{gapi.did}/bindings/A_r", json={"bindings": [{"tag": "Fyr", "anim": "text"}]})
     r = gapi.delete("/api/tags/Fyr")
-    assert r.status_code == 409 and "Anlæg" in r.json()["error"] and "fjern dem under Bindinger først" in r.json()["error"], r.text
+    assert r.status_code == 409 and "Anlæg: A_r" in r.json()["error"] and "fjern bindingen først" in r.json()["error"], r.text

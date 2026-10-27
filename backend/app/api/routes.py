@@ -183,9 +183,9 @@ async def update_tag(name: str, body: TagUpdate, request: Request) -> dict[str, 
 
 
 @router.delete("/tags/{name}", status_code=204, dependencies=[ENGINEER])
-async def delete_tag(name: str, request: Request) -> None:
-    _tags(request).delete(name)
-    audit(request, "tag.delete", name)
+async def delete_tag(name: str, request: Request, force: bool = False) -> None:
+    _tags(request).delete(name, force=force)
+    audit(request, "tag.delete", name, {"force": True} if force else None)
 
 
 @router.get("/live", dependencies=[VIEWER])

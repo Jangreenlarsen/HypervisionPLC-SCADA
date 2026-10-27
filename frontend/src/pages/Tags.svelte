@@ -125,7 +125,18 @@
       await del(`/api/tags/${encodeURIComponent(t.name)}`);
       await refresh();
     } catch (e) {
-      deleteErrors = { ...deleteErrors, [t.name]: (e as Error).message };
+      const msg = (e as Error).message;
+      // B6: tagget vises automatisk i en tegning — spørg, og slet først efter bekræftelse
+      if (msg.includes('vises automatisk') && await askUser(msg, { ok: 'Slet alligevel', danger: true })) {
+        try {
+          await del(`/api/tags/${encodeURIComponent(t.name)}?force=true`);
+          await refresh();
+        } catch (e2) {
+          deleteErrors = { ...deleteErrors, [t.name]: (e2 as Error).message };
+        }
+        return;
+      }
+      deleteErrors = { ...deleteErrors, [t.name]: msg };
     }
   }
 

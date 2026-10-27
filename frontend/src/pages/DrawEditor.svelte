@@ -22,7 +22,7 @@
 
   interface Version { version: number; comment: string; created_at: number }
   interface Detail { id: string; name: string; active_version: number; versions: Version[] }
-  interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[] }
+  interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[]; orphaned_symbols?: string[] }
   interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string; children?: number; type?: string; onePath?: boolean }
   interface ScadaApi {
     build?: string;
@@ -796,7 +796,7 @@
     {#if report && (Object.keys(report.removed_elements).length || Object.keys(report.removed_attributes).length)}
       <br /><span class="small muted">Renset ved gem: {entries(report.removed_elements)} {entries(report.removed_attributes)}</span>
     {/if}
-    {#if report?.orphaned_bindings?.length}<br />Bindinger uden element nu: {report.orphaned_bindings.join(', ')}{/if}
+    {#if report?.orphaned_bindings?.length}<br />Bindinger uden element nu: {report.orphaned_bindings.join(', ')}{/if}{#if report?.orphaned_symbols?.length}<br /><strong>Symboler sat op med guiden, som ikke længere findes:</strong> {report.orphaned_symbols.join(', ')} — flyt eller fjern dem under Bindinger{/if}
   </div>
 {/if}
 

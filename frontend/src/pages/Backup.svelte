@@ -4,7 +4,7 @@
 
   interface ServerFile { name: string; size: number; created: number; kind: string }
   interface Summary { created: string; created_by: string; app_version: string; plcs: number; tags: number; drawings: number; versions: number; bindings: number }
-  interface Result { plcs: number; tags: number; drawings: number; versions: number; bindings: number; missing_passwords: string[]; pre_restore_backup: string }
+  interface Result { plcs: number; tags: number; drawings: number; versions: number; bindings: number; symbol_configs?: number; symbol_groups?: number; missing_pins?: string[]; missing_passwords: string[]; pre_restore_backup: string }
 
   let files = $state<ServerFile[]>([]);
   let error = $state('');
@@ -133,12 +133,18 @@
   {#if result}
     <div class="notice ok-box">
       Gendannet: {result.plcs} PLC'er, {result.tags} tags, {result.drawings} tegninger ({result.versions} versioner),
-      {result.bindings} bindinger. Den tidligere tilstand er gemt som <code>{result.pre_restore_backup}</code>.
+      {result.bindings} bindinger{#if result.symbol_configs}, {result.symbol_configs} opsatte symboler{/if}{#if result.symbol_groups}, {result.symbol_groups} grupper{/if}. Den tidligere tilstand er gemt som <code>{result.pre_restore_backup}</code>.
     </div>
     {#if result.missing_passwords.length}
       <div class="notice">
         Disse PLC'er mangler adgangskode og kører ikke, før den er sat under <a href="#plcs">PLC'er</a>:
         <strong>{result.missing_passwords.join(', ')}</strong>
+      </div>
+    {/if}
+    {#if result.missing_pins?.length}
+      <div class="notice">
+        Disse symboler har nøglelås, men ingen kode (koder er ikke med i backuppen) — de låste positioner kan ikke betjenes,
+        før en tekniker sætter koden under <a href="#editor">Bindinger</a>: <strong>{result.missing_pins.join(', ')}</strong>
       </div>
     {/if}
   {/if}
