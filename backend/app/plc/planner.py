@@ -59,6 +59,7 @@ class ExtRange:
     group: tuple  # (bus, board, kanal, slave, type)
     start: int
     count: int
+    high: bool = False   # FEATURE_TAG_PRIORITET: læses med prio=high (PLC'ens egen prioritet i Modbus-køen)
 
     @property
     def kind(self) -> str:

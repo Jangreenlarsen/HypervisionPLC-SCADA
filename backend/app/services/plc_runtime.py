@@ -21,7 +21,7 @@ import asyncio
 import collections
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ..plc.client import PlcClient, ext_base
@@ -40,6 +40,7 @@ class RuntimeTag:
     source: TagSource
     scale: float = 1.0
     offset: float = 0.0
+    priority: str = "normal"   # "high": eksterne tags læses med prio=high (FEATURE_TAG_PRIORITET)
 
 
 @dataclass
@@ -156,11 +157,11 @@ class PlcRuntime:
         sse_addrs: dict[str, set[int]] = {}
         programs: set[int] = set()
         need_globals = False
-        ext_units: dict[tuple, set[tuple[int, int]]] = {}
+        ext_units: dict[tuple[tuple, bool], set[tuple[int, int]]] = {}
         for tag in self._tags:
             src = tag.source
             if src.is_external:
-                ext_units.setdefault(src.ext_group, set()).add(src.unit())
+                ext_units.setdefault((src.ext_group, tag.priority == "high"), set()).add(src.unit())
             elif src.is_register:
                 units.setdefault(src.kind, set()).add(src.unit())
                 if src.words == 1:
@@ -174,11 +175,15 @@ class PlcRuntime:
         self._last_full = 0.0
         self._programs = programs
         self._need_globals = need_globals
-        self._ext_plan = plan_ext_reads(ext_units)
+        # Høje og normale tags deles aldrig i samme /api/ext-kald (ellers løftede ét højt tag op til 16 normale med op),
+        # og de høje polles først i hver runde
+        self._ext_plan = [replace(r, high=high) for high in (True, False)
+                          for r in plan_ext_reads({g: u for (g, h), u in ext_units.items() if h == high})]
         self._ext_last = 0.0
         self.status.plan = ([{"kind": r.kind, "start": r.start, "count": r.count} for r in self._plan] +
                             [{"kind": r.kind, "start": r.start, "count": r.count, "ext": ":".join(
-                                str(x) for x in r.group[:4] if x is not None)} for r in self._ext_plan])
+                                str(x) for x in r.group[:4] if x is not None), **({"prio": "high"} if r.high else {})}
+                             for r in self._ext_plan])
         if self.sse is not None:
             # eksterne tags → watch_all, så PLC'en også sender deres ændringer (`ext`, v0.90.0)
             self.sse.set_addresses(sse_addrs, external=bool(ext_units))
@@ -384,7 +389,8 @@ class PlcRuntime:
 
             async def call(rng: ExtRange = rng, src: TagSource = src) -> Any:
                 try:
-                    return await self.client.read_ext(ext_base(src), rng.kind, rng.start, rng.count, max_age_ms=max_age)
+                    return await self.client.read_ext(ext_base(src), rng.kind, rng.start, rng.count, max_age_ms=max_age,
+                                                      prio="high" if rng.high else None)
                 except PlcApiError as exc:
                     return exc   # PLC'en svarede med en fejl for netop dette område: markeres nedenfor
             names = self._names_in(rng.kind, rng.start, rng.start + rng.count - 1, group=rng.group)

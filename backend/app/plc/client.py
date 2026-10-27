@@ -212,7 +212,7 @@ class PlcClient:
         return result
 
     async def read_ext(self, base: str, kind: str, start: int, count: int, *, max_age_ms: int | None = None,
-                       wait_ms: int | None = None) -> list[tuple[Any, str]]:
+                       wait_ms: int | None = None, prio: str | None = None) -> list[tuple[Any, str]]:
         """Læs `count` (1-16) værdier fra en ekstern slave via /api/ext → [(værdi, status), ...].
         status: ok | pending (ingen værdi endnu) | error. Værdien er None når der ikke er en gyldig værdi."""
         if not 1 <= count <= EXT_MAX:
@@ -222,6 +222,9 @@ class PlcClient:
             params["max_age"] = max(0, int(max_age_ms))
         if wait_ms is not None:
             params["wait"] = max(0, min(2000, int(wait_ms)))
+        if prio == "high":
+            # PLC-firmware med FEAT-515 køer læsningen som sine egne; ældre firmware ignorerer parameteren
+            params["prio"] = "high"
         body = await self.request("GET", f"{base}/{_EXT_TYPE[kind]}/{start}", params=params)
         if not isinstance(body, dict):
             raise PlcApiError("Uventet svar fra PLC på /api/ext")

@@ -1,6 +1,6 @@
 # Feature: prioritet pr. tag (høj / normal)
 
-**Status:** planned · **Ønsket af:** Jan, 2026-10-27 · **Afhænger af:** HypervisionPLC-firmware **v7.9.68.156** eller nyere (FEAT-515, færdig 2026-10-27, kører på 10.1.1.30)
+**Status:** SCADA-delen færdig i v2.0.0 (27.10.2026); afventer PLC FEAT-515 for effekten · **Ønsket af:** Jan, 2026-10-27 · **Afhænger af:** HypervisionPLC-firmware **v7.9.68.156** eller nyere (FEAT-515, færdig 2026-10-27, kører på 10.1.1.30)
 
 ## Baggrund
 
