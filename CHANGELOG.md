@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.1.1 build 0254] — 2026-10-27 — Trends: forkert værdi i aflæsningsfeltet
+
+- `frontend/src/lib/TrendChart.svelte`: legend-værdien bruger kurvens indeks fra `series.map((s, k)` i stedet for `series.indexOf(s)` (gav -1 → tidsaksen).
+
 ## [2.1.0 build 0253] — 2026-10-27 — Advarsler om tilbagemeldinger i symbol-guiden
 
 - `backend/app/services/symbols.py`: advarsel når en tilbagemelding er et register (statusord), er skaleret anderledes end kommandoen, eller er en ST-variabel (typen kendes først live).

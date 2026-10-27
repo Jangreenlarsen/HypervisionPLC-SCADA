@@ -2,6 +2,10 @@
 
 ---
 
+## v2.1.1 — 2026-10-27 — Rettelse i trends
+
+- Aflæsningsfeltet under en trend-graf kunne pludselig vise et stort tal (tidsstempel) i stedet for kurvens værdi. Det viser nu den rigtige værdi.
+
 ## v2.1.0 — 2026-10-27 — Advarsler om tilbagemeldinger
 
 - Symbol-guiden advarer nu, hvis en tilbagemelding (fx et register med et statusord, et anderledes skaleret tag eller en ST-variabel) måske ikke giver de værdier, positionen genkendes ud fra. I testtrinnet vises det også ud fra den aktuelle værdi.
