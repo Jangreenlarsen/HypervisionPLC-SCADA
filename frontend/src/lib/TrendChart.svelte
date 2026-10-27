@@ -306,7 +306,7 @@
       ],
       series: [
         { label: 'Tid', value: (_u, v) => (v === null ? '—' : fmtTooltip(new Date(v * 1000))) },
-        ...series.map((s) => ({
+        ...series.map((s, k) => ({
           label: s.label,
           stroke: s.color ?? colorOf(s.colorIndex),
           width: 2,
@@ -316,7 +316,7 @@
           points: { show: !s.dashed, size: 8, fill: s.color ?? colorOf(s.colorIndex),
             filter: (u: uPlot, si: number) => isolatedPoints(u.data[si] as (number | null | undefined)[]) },
           paths: s.isBool ? uPlot.paths.stepped!({ align: 1 }) : undefined,
-          value: (u: uPlot, v: number | null, _si: number, idx: number | null) => format(idx == null ? v : valueAt(u, series.indexOf(s), idx) ?? v, s),
+          value: (u: uPlot, v: number | null, _si: number, idx: number | null) => format(idx == null ? v : valueAt(u, k, idx) ?? v, s),
         })),
       ],
     };
