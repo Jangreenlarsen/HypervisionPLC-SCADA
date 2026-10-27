@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [1.22.2 build 0250] — 2026-10-27 — Bekræftelse før sletning af automatisk bundne tags (funktionsanalyse B6)
+
+- `services/tags.py` `delete(force)` + `auto_usage` (sat i `main.py`); `DELETE /api/tags/{name}?force=true`; `Tags.svelte` spørger først.
+- `tests/test_drawings_api.py` (+1, 1 tilpasset).
+
 ## [1.22.1 build 0249] — 2026-10-27 — Versionsrapport og gendannelse siger, hvad der går tabt (funktionsanalyse B4 + B5)
 
 - `services/drawings.py`: `orphaned_symbols` i versionsrapporten; `Drawings.svelte`/`DrawEditor.svelte` viser dem.

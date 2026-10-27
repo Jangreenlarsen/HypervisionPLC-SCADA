@@ -32,6 +32,7 @@ class TagService:
         self.on_delete: Any = None  # fx trend-historikken der skal glemme tagget
         self.schedule_usage: Any = None  # navn → ugeprogrammer der skriver til tagget
         self.symbol_usage: Any = None    # navn → symboler (tegning#element) hvis konfiguration bruger tagget
+        self.auto_usage: Any = None      # navn → ["Tegning: element"] hvor tagget vises via en automatisk binding
         self.on_change: Any = None  # fx trend-opsamleren der skal læse historik-indstillingerne straks
 
     def list(self, plc: str | None = None) -> list[dict[str, Any]]:
@@ -198,7 +199,8 @@ class TagService:
     def _schedules_using(self, name: str) -> list[str]:
         return self.schedule_usage(name) if self.schedule_usage is not None else []
 
-    def delete(self, name: str) -> None:
+    def delete(self, name: str, force: bool = False) -> None:
+        """`force`: slet selv om tagget vises via en automatisk binding (et element med samme navn som tagget)."""
         if names := self._schedules_using(name):
             raise ServiceError(409, f"Tagget '{name}' bruges i ugeprogram: {', '.join(names)} — slet eller ret dem først")
         if self.symbol_usage is not None and (symbols := self.symbol_usage(name)):
@@ -210,6 +212,11 @@ class TagService:
             where = ", ".join(places[:6]) + (" …" if len(places) > 6 else "")
             raise ServiceError(409, f"Tagget '{name}' bruges i {used} binding(er) i tegninger" + (f": {where}" if where else "")
                                     + " — vælg elementet under Bindinger og fjern bindingen først")
+        # Funktionsanalyse B6: en automatisk binding er ikke gemt, så den blokerer ikke — men tegningen mister værdien
+        if not force and self.auto_usage is not None and (places := self.auto_usage(name)):
+            raise ServiceError(409, f"Tagget '{name}' vises automatisk i {', '.join(places[:6])}"
+                                    f"{' …' if len(places) > 6 else ''} (elementet hedder det samme som tagget) — "
+                                    "værdien forsvinder fra tegningen, hvis tagget slettes. Slet alligevel?")
         if not self.db.delete_tag(name):
             raise ServiceError(404, f"Tag '{name}' findes ikke")
         self.manager.reload_tags(removed=[name])

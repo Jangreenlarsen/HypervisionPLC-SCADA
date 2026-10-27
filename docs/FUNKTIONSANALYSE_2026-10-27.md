@@ -101,6 +101,10 @@ Overview får ét samlet sæt "effektive bindinger" fra fem kilder, lagt oven i 
 
 ---
 
+## Status (27.10.2026)
+
+Alle fund er rettet med tests: B1 + B2 + B3 i v1.22.0 (B2 som "Gå til tegning gælder fortsat på kun-visning-symboler"), B4 + B5 i v1.22.1 og B6 i v1.22.2 (se BUGS.md).
+
 ## Anbefalet rækkefølge
 
 1. **B1 + B3** (inaktive bindinger: forhindr dem og ryd op) — ét samlet greb i editor og backend.

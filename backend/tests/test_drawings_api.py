@@ -177,7 +177,9 @@ def test_bound_tag_cannot_be_deleted(api):
     r = api.delete("/api/tags/Niveau")
     assert r.status_code == 409 and "binding" in r.json()["error"]
     api.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": []})
-    assert api.delete("/api/tags/Niveau").status_code == 204
+    r = api.delete("/api/tags/Niveau")                     # tegningen har også et element "Niveau" (automatisk binding, B6)
+    assert r.status_code == 409 and "vises automatisk" in r.json()["error"]
+    assert api.delete("/api/tags/Niveau?force=true").status_code == 204
 
 
 def test_delete_drawing(api):
@@ -358,3 +360,24 @@ def test_simple_bindings_inside_configured_symbol_are_refused_but_goto_on_view_r
         assert any(b["element"] == "Tank" and b["anim"] == "click:goto" for b in eff)            # B2
         r = c.put(f"/api/drawings/{did}/bindings/Tank", json={"bindings": [{"tag": "Niveau", "anim": "blink", "params": {}}]})
         assert r.status_code == 409 and "Gå til tegning" in r.json()["error"]
+
+
+def test_deleting_auto_bound_tag_needs_confirmation(tmp_path, mock_plc):
+    """Funktionsanalyse 27.10.2026 B6: et automatisk bundet tag kunne slettes uden advarsel."""
+    from fastapi.testclient import TestClient
+    from app.config import Settings
+    from app.main import create_app
+    pw = "test-admin-pw-1"
+    s = Settings(data_dir=tmp_path, frontend_dir=tmp_path / "x", admin_password=pw, backup_hours=0)
+    with TestClient(create_app(s)) as c:
+        c.post("/api/auth/login", json={"username": "admin", "password": pw})
+        c.post("/api/plcs", json={"key": "plc1", "base_url": mock_plc.url, "username": "scada", "password": "scada123",
+                                  "sse_enabled": False})
+        c.post("/api/tags", json={"name": "Niveau", "source": "plc1:hr:1"})
+        c.post("/api/tags", json={"name": "Ubrugt", "source": "plc1:hr:2"})
+        c.post("/api/drawings", json={"name": "Anlæg", "svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9">'
+                                                              '<text id="Niveau">-</text></svg>'})
+        r = c.delete("/api/tags/Niveau")
+        assert r.status_code == 409 and "vises automatisk i Anlæg: Niveau" in r.json()["error"]
+        assert c.delete("/api/tags/Niveau?force=true").status_code == 204
+        assert c.delete("/api/tags/Ubrugt").status_code == 204          # ubrugte tags slettes som før

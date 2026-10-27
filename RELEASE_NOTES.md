@@ -2,6 +2,10 @@
 
 ---
 
+## v1.22.2 — 2026-10-27 — Advarsel før sletning
+
+- Sletter du et tag, der vises automatisk i en tegning, spørger SCADA nu først og fortæller hvor.
+
 ## v1.22.1 — 2026-10-27 — Intet går tabt i det stille
 
 - Gemmer du en ny tegningsversion, hvor et symbol sat op med guiden er forsvundet, står det nu i rapporten. En gendannelse beholder symbolernes koder og fortæller, hvis et låst symbol mangler en kode.
