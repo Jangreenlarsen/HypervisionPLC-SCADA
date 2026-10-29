@@ -130,7 +130,7 @@ def test_register_pulse_writes_value_then_rest(api, mock_plc):
     assert hr == [(30, 2), (33, 13), (33, 0)]                # sæt Mode, puls 13 → hvile 0
 
 
-PULSE_CFG = dec_bin(display="remote", signals=[{"id": "S1", "tag": "Mode"},
+PULSE_CFG = dec_bin(display="local", signals=[{"id": "S1", "tag": "Mode"},
                                                {"id": "S2", "tag": "Kommando", "write": "pulse", "ms": 200, "rest": 0}],
                     positions=[{"label": "A"}, {"label": "B"}],
                     planes=[{"signal": "S1", "values": [0, 1]}, {"signal": "S2", "values": [11, 12]}], anims=[])

@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.5.0 build 0259] — 2026-10-29 — PLC'ens position kræver tilbagemelding
+
+- `backend/app/services/symbols.py`: `has_feedback()`; trin 4 afviser `display = remote` uden tilbagemelding på et signal i en kontaktplan.
+- `backend/app/services/symbol_convert.py`: konverterede omskiftere/til-fra får kommando-tagget som tilbagemelding (samme opførsel som før).
+- `frontend/src/lib/symbolConfig.ts`: `hasFeedback()`; nye symboler og biblioteksstandarder får `display = local`.
+- `frontend/src/lib/SymbolGuide.svelte`: *PLC'ens position* kan ikke vælges uden tilbagemelding; teksten i trin 2 forklarer kravet.
+- `frontend/src/manual/06-symboler-og-guiden.md`: kravet beskrevet.
+- Tests: `test_symbols.py`, `symbolConfig.test.ts`; testopsætninger uden tilbagemelding bruger nu `local`.
+
 ## [2.4.0 build 0258] — 2026-10-29 — Omskifter opdaterer sig med det samme
 
 - `frontend/src/pages/DrawEditor.svelte`: efter guidens Gem tegnes en omskifter automatisk om, hvis opsætningens positioner afviger fra tegningen (`redrawSelector(auto)`), og tegningen gemmes uden at spørge (den var udgivet, før guiden blev åbnet).

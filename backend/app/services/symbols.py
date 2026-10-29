@@ -91,6 +91,12 @@ class Signal(_M):
     _s = field_validator("tag", "fb")(lambda cls, v: (v or "").strip())
 
 
+def has_feedback(cfg: "SymbolConfig") -> bool:
+    """Har mindst ét signal i en kontaktplan en tilbagemelding? Kræves for Vis = PLC'ens position (v2.5.0)."""
+    used = {p.signal for p in cfg.planes}
+    return any(s.fb for s in cfg.signals if s.id in used)
+
+
 class Plane(_M):
     signal: str
     values: list[float | None]
@@ -873,6 +879,9 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
     # -- visning (trin 4)
     if not 1 <= cfg.validate_s <= 120:
         res.err("4", "Valideringstid skal være 1–120 s.")
+    if cfg.op == "positions" and cfg.display == "remote" and not has_feedback(cfg):
+        res.err("4", "Vis \"PLC'ens position\" kræver en tilbagemelding på mindst ét signal i en kontaktplan (trin 2) "
+                     "— tilføj en, eller vælg \"Valgt position\".")
     parts = element["parts"]
     for i, a in enumerate(cfg.anims):
         nm = f"Animation {i + 1}"

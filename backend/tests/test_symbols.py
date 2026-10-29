@@ -534,3 +534,14 @@ def test_by_value_clears_only(api):
     assert r.status_code == 200 and r.json()["config"]["anims"][0]["only"] is None, r.text
     r = put(api, dec_bin(anims=[{**rot, "by_value": False, "params": {"min": 0, "max": 100}}]))
     assert r.json()["config"]["anims"][0]["only"] == [True, False] * 3 + [True]   # uden "pr. værdi" bevares den
+
+
+def test_remote_display_requires_feedback():
+    # v2.5.0: Vis = PLC'ens position kræver en tilbagemelding på et signal i en kontaktplan
+    from app.services.symbols import SymbolConfig, has_feedback
+    base = {"op": "positions", "positions": [{"label": "0"}, {"label": "1"}],
+            "planes": [{"signal": "S1", "values": [0, 1]}]}
+    assert not has_feedback(SymbolConfig(**base, signals=[{"id": "S1", "tag": "Bit0"}]))
+    assert has_feedback(SymbolConfig(**base, signals=[{"id": "S1", "tag": "Bit0", "fb": "Bit1"}]))
+    # en tilbagemelding på et signal uden kontaktplan tæller ikke
+    assert not has_feedback(SymbolConfig(**base, signals=[{"id": "S1", "tag": "Bit0"}, {"id": "S2", "tag": "Bit1", "fb": "Bit2"}]))

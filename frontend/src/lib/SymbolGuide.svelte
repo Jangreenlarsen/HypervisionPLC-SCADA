@@ -23,7 +23,7 @@ import { AVERAGE_CHOICES } from './trendData';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
     ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
-    activeAt, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, feedbackMismatch, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
+    activeAt, hasFeedback, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, feedbackMismatch, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, BY_VALUE_TYPES, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
@@ -623,7 +623,7 @@ import { AVERAGE_CHOICES } from './trendData';
               <TagSelect bind:value={cfg.signals[0].tag} {tags} writableOnly />
             </label>
           {:else}
-            <p class="muted small">Signalerne symbolet skriver. Tilbagemelding (valgfri) bruges til at finde PLC'ens position; ellers bruges kommandoen.</p>
+            <p class="muted small">Signalerne symbolet skriver. Tilbagemelding bruges til at finde PLC'ens position — den kræves for at kunne vise PLC'ens position i trin 4.</p>
             <table class="grid sig">
               <colgroup><col style="width: 3.2em" /><col style="width: 30%" /><col style="width: 30%" /><col /><col style="width: 2.6em" /></colgroup>
               <thead><tr><th>Id</th><th>Kommando</th><th>Tilbagemelding</th><th>Skrives som</th><th></th></tr></thead>
@@ -709,7 +709,7 @@ import { AVERAGE_CHOICES } from './trendData';
           <div class="row wrap">
             {#if isPos}
               <label class="field-row">Vis
-                <select bind:value={cfg.display}><option value="remote">PLC'ens position</option><option value="local">Valgt position</option></select>
+                <select bind:value={cfg.display}><option value="remote" disabled={!hasFeedback(cfg) && cfg.display !== 'remote'}>PLC'ens position{hasFeedback(cfg) ? '' : ' (kræver tilbagemelding i trin 2)'}</option><option value="local">Valgt position</option></select>
               </label>
               <label class="field-row">Tid til at bekræfte (s)
                 <input class="n" type="number" min="0.5" max="120" step="0.5" bind:value={cfg.validate_s} />

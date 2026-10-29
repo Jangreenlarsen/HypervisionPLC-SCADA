@@ -123,7 +123,7 @@ def test_source_must_have_saved_config(api):
 
 def test_lock_is_not_copied(api):
     cfg = {"op": "positions", "positions": [{"label": "0"}, {"label": "1"}],
-           "signals": [{"id": "S1", "tag": "Bit0"}], "planes": [{"signal": "S1", "values": [0, 1]}],
+           "signals": [{"id": "S1", "tag": "Bit0"}], "planes": [{"signal": "S1", "values": [0, 1]}], "display": "local",
            "anims": [{"part": "V1_greb", "type": "rotate", "src": "@pos", "params": {"angles": [-45, 45]}}],
            "lock": {"positions": [False, True], "leave": False}}
     assert put(api, cfg, "V1", pin="4711").status_code == 200

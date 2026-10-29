@@ -2,6 +2,11 @@
 
 ---
 
+## v2.5.0 — 2026-10-29 — PLC'ens position kræver tilbagemelding
+
+- I symbol-guiden kan *Vis: PLC'ens position* (trin 4) kun vælges, når mindst ét signal har en tilbagemelding (trin 2). Nye symboler viser som standard den valgte position.
+- Eksisterende symboler med *PLC'ens position* uden tilbagemelding virker som før, men skal have en tilbagemelding eller skiftes til *Valgt position*, næste gang de gemmes i guiden.
+
 ## v2.4.0 — 2026-10-29 — Omskifter opdaterer sig med det samme
 
 - Tilføjer eller fjerner man positioner (kontaktplaner) på en omskifter i guiden, tegnes omskifteren nu om med det samme, når man trykker Gem. Man skal ikke længere trykke på en knap bagefter.

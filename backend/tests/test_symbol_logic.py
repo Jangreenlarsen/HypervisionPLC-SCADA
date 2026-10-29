@@ -289,7 +289,7 @@ def test_library_defaults_for_three_way_valve_and_status_field_are_accepted_by_t
     did = api.post("/api/drawings", json={"name": "Bib", "svg": svg}).json()["drawing"]["id"]
     open_, closed = "#7cc47f", "#ffffff"
     valve = {"op": "positions", "positions": [{"label": "AB → A"}, {"label": "AB → B"}],
-             "signals": [{"id": "S1", "tag": "Bit0"}], "planes": [{"signal": "S1", "values": [0, 1]}], "display": "remote",
+             "signals": [{"id": "S1", "tag": "Bit0"}], "planes": [{"signal": "S1", "values": [0, 1]}], "display": "local",
              "anims": [{"part": "V3_port_a", "type": "fill", "src": "@pos", "params": {"colors": [open_, closed]}},
                        {"part": "V3_port_b", "type": "fill", "src": "@pos", "params": {"colors": [closed, open_]}},
                        {"part": "V3_port_ab", "type": "fill", "src": "@pos", "params": {"colors": [open_, open_]}}]}
