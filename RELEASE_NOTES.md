@@ -2,6 +2,10 @@
 
 ---
 
+## v2.3.0 — 2026-10-29 — Skrivbare tags i egen farve
+
+- Tags, som kan skrives fra Overview, vises nu i lilla i tag-listen og i tag-dropdowns, så de er nemme at skelne fra skrivebeskyttede.
+
 ## v2.2.0 — 2026-10-27 — Version i topmenuen
 
 - Den installerede version og build står nu yderst til højre i topmenuen (også før login).

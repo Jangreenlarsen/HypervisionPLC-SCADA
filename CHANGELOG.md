@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.3.0 build 0257] — 2026-10-29 — Skrivbare tags i egen farve
+
+- `frontend/src/app.css`: ny farve `--writable` og klasserne `.tag-writable` og `.badge.writable`.
+- `frontend/src/pages/Tags.svelte`: skrivbare tags har navn og badge i lilla.
+- `frontend/src/lib/TagSelect.svelte`: skrivbare tags er lilla i alle tag-dropdowns.
+
 ## [2.2.0 build 0256] — 2026-10-27 — Version i topmenuen
 
 - `frontend/src/App.svelte`: snippet `version` — serverens version og build (`/api/health`, indtil da sidens egen) yderst til højre i topmenuen og på login-siden; build skjules under 640 px.

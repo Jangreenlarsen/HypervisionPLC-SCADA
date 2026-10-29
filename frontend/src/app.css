@@ -10,6 +10,7 @@
   --ok: #2e7d32;
   --warn: #b26a00;
   --alarm: #c62828;
+  --writable: #6a1b9a;
   --radius: 4px;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 15px;
@@ -103,6 +104,9 @@ code, .mono { font-family: ui-monospace, Consolas, monospace; font-size: .9em; }
 }
 .badge.good, .badge.ok, .badge.connected { border-color: var(--ok); color: var(--ok); }
 .badge.comm_error, .badge.error, .badge.bad { border-color: var(--alarm); color: var(--alarm); }
+/* Skrivbare tags har egen farve i alle tag-lister, så de kan skelnes fra skrivebeskyttede. */
+.tag-writable { color: var(--writable); font-weight: 600; }
+.badge.writable { border-color: var(--writable); color: var(--writable); }
 .badge.unknown, .badge.connecting, .badge.stopped, .badge.full, .badge.off { color: var(--muted); }
 
 /* Kvalitet på bundne SVG-elementer: ikke-gyldige værdier må ikke ligne gyldige. */
