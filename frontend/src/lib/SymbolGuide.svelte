@@ -623,7 +623,7 @@ import { AVERAGE_CHOICES } from './trendData';
               <TagSelect bind:value={cfg.signals[0].tag} {tags} writableOnly />
             </label>
           {:else}
-            <p class="muted small">Signalerne symbolet skriver. Tilbagemelding bruges til at finde PLC'ens position — den kræves for at kunne vise PLC'ens position i trin 4.</p>
+            <p class="muted small">Signalerne symbolet skriver. Tilbagemelding bruges til at finde PLC'ens position. Giv enten alle signaler i kontaktplanerne en tilbagemelding (kræves for at vise PLC'ens position i trin 4) eller ingen.</p>
             <table class="grid sig">
               <colgroup><col style="width: 3.2em" /><col style="width: 30%" /><col style="width: 30%" /><col /><col style="width: 2.6em" /></colgroup>
               <thead><tr><th>Id</th><th>Kommando</th><th>Tilbagemelding</th><th>Skrives som</th><th></th></tr></thead>
@@ -709,7 +709,7 @@ import { AVERAGE_CHOICES } from './trendData';
           <div class="row wrap">
             {#if isPos}
               <label class="field-row">Vis
-                <select bind:value={cfg.display}><option value="remote" disabled={!hasFeedback(cfg) && cfg.display !== 'remote'}>PLC'ens position{hasFeedback(cfg) ? '' : ' (kræver tilbagemelding i trin 2)'}</option><option value="local">Valgt position</option></select>
+                <select bind:value={cfg.display}><option value="remote" disabled={!hasFeedback(cfg) && cfg.display !== 'remote'}>PLC'ens position{hasFeedback(cfg) ? '' : ' (kræver tilbagemelding på alle signaler i trin 2)'}</option><option value="local">Valgt position</option></select>
               </label>
               <label class="field-row">Tid til at bekræfte (s)
                 <input class="n" type="number" min="0.5" max="120" step="0.5" bind:value={cfg.validate_s} />

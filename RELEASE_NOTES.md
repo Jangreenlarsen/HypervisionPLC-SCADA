@@ -2,6 +2,11 @@
 
 ---
 
+## v2.5.1 — 2026-10-29 — Tilbagemelding på alle eller ingen signaler
+
+- I symbol-guiden skal enten alle signaler i kontaktplanerne have en tilbagemelding, eller ingen. En blanding kan ikke gemmes. *Vis: PLC'ens position* kræver, at alle har en tilbagemelding.
+- Rettet: et puls-signal med tilbagemelding bruges nu til at finde PLC'ens position (før blev positionen altid *Ukendt*).
+
 ## v2.5.0 — 2026-10-29 — PLC'ens position kræver tilbagemelding
 
 - I symbol-guiden kan *Vis: PLC'ens position* (trin 4) kun vælges, når mindst ét signal har en tilbagemelding (trin 2). Nye symboler viser som standard den valgte position.

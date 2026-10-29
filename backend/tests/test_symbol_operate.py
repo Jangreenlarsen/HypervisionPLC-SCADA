@@ -62,7 +62,7 @@ def _coil_writes(mock_plc):
 
 def _set_bits(mock_plc, n):
     mock_plc.state.coils[10], mock_plc.state.coils[11], mock_plc.state.coils[12] = bool(n & 1), bool(n & 2), bool(n & 4)
-    mock_plc.state.di[10] = bool(n & 1)
+    mock_plc.state.di[10], mock_plc.state.di[11], mock_plc.state.di[12] = bool(n & 1), bool(n & 2), bool(n & 4)
 
 
 @pytest.fixture
@@ -85,9 +85,12 @@ def test_break_before_make_and_only_changed_signals(api, mock_plc):
     entry = api.get("/api/audit?action=symbol.operate").json()[0]
     assert entry["result"] == "ok" and entry["detail"]["position"] == "6" and entry["detail"]["from"] == "1"
     # PLC'en melder tilbage (DI 10 følger coil 10 — det gør mock-PLC'en ikke selv)
-    mock_plc.state.di[10] = mock_plc.state.coils[10]
+    for a in (10, 11, 12):
+        mock_plc.state.di[a] = mock_plc.state.coils[a]
     # Allerede i position 6 → kun det der mangler skrives (intet)
     _wait(lambda: api.app.state.symbol_runtime.state(api.did, V1).pos == 5)
+    cache = api.app.state.cache   # skriveplanen sammenligner med kommandoernes værdier
+    _wait(lambda: [cache.get(t).value for t in ('Bit0', 'Bit1', 'Bit2')] == [False, True, True])
     mock_plc.state.writes.clear()
     assert _op(api, 5).status_code == 200 and _coil_writes(mock_plc) == []
 
@@ -117,8 +120,8 @@ def test_failed_write_stops_the_plan_and_reports_exactly(api, mock_plc):
 
 
 def test_register_pulse_writes_value_then_rest(api, mock_plc):
-    cfg = dec_bin(display="remote", signals=[{"id": "S1", "tag": "Mode", "fb": "Mode_fb"},
-                                             {"id": "S2", "tag": "Kommando", "write": "pulse", "ms": 200, "rest": 0}],
+    cfg = dec_bin(display="local", signals=[{"id": "S1", "tag": "Mode"},
+                                            {"id": "S2", "tag": "Kommando", "write": "pulse", "ms": 200, "rest": 0}],
                   positions=[{"label": "Hand"}, {"label": "0"}, {"label": "Auto"}],
                   planes=[{"signal": "S1", "values": [0, 1, 2]}, {"signal": "S2", "values": [11, 12, 13]}],
                   anims=[])

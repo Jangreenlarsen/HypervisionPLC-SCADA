@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.5.1 build 0260] — 2026-10-29 — Tilbagemelding på alle eller ingen signaler
+
+- `backend/app/services/symbols.py`: `feedback_coverage()` (all/none/mixed); blandet tilbagemelding afvises i trin 2; `display = remote` kræver tilbagemelding på alle signaler i kontaktplanerne.
+- `backend/app/services/symbol_runtime.py`: puls-signal med tilbagemelding bruges til at finde positionen (fejl: blev altid sprunget over).
+- `frontend/src/lib/symbolConfig.ts`: `feedbackCoverage()`, `hasFeedback()` kræver alle; `foundPosition` bruger puls-signaler med tilbagemelding.
+- `frontend/src/lib/SymbolGuide.svelte`, `frontend/src/manual/06-symboler-og-guiden.md`: teksterne forklarer reglen.
+- Tests: `test_symbols.py` (dec_bin har nu tilbagemelding på alle tre bit), `test_symbol_operate.py`, `test_symbol_runtime.py`, `symbolConfig.test.ts`.
+
 ## [2.5.0 build 0259] — 2026-10-29 — PLC'ens position kræver tilbagemelding
 
 - `backend/app/services/symbols.py`: `has_feedback()`; trin 4 afviser `display = remote` uden tilbagemelding på et signal i en kontaktplan.

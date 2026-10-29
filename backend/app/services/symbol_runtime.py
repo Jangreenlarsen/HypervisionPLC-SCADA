@@ -59,7 +59,7 @@ def remote_position(cfg: dict[str, Any], value_of: Any) -> tuple[int | None, boo
     comm = False
     for p in cfg.get("planes", []):
         s = sigs.get(p["signal"])
-        if not s or not s.get("tag") or s.get("write") == "pulse":
+        if not s or not s.get("tag") or (s.get("write") == "pulse" and not s.get("fb")):
             continue
         name = s.get("fb") or s["tag"]
         if name in values:
@@ -78,7 +78,7 @@ def remote_position(cfg: dict[str, Any], value_of: Any) -> tuple[int | None, boo
         ok, used = True, 0
         for p in cfg.get("planes", []):
             s = sigs.get(p["signal"])
-            if not s or not s.get("tag") or s.get("write") == "pulse" or j >= len(p["values"]):
+            if not s or not s.get("tag") or (s.get("write") == "pulse" and not s.get("fb")) or j >= len(p["values"]):
                 continue
             cell = p["values"][j]
             if cell is None:

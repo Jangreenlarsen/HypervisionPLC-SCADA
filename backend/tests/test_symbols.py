@@ -24,6 +24,8 @@ TAGS = [
     {"name": "Bit1", "source": "plc1:coil:11", "writable": True},
     {"name": "Bit2", "source": "plc1:coil:12", "writable": True},
     {"name": "Bit0_fb", "source": "plc1:di:10"},
+    {"name": "Bit1_fb", "source": "plc1:di:11"},
+    {"name": "Bit2_fb", "source": "plc1:di:12"},
     {"name": "Mode", "source": "plc1:hr:30", "writable": True, "min": 0, "max": 3},
     {"name": "Mode_fb", "source": "plc1:hr:32"},
     {"name": "Kommando", "source": "plc1:hr:33", "writable": True},
@@ -63,7 +65,7 @@ def dec_bin(**over):
     cfg = {
         "op": "positions",
         "positions": [{"label": str(j + 1)} for j in range(7)],
-        "signals": [{"id": f"S{b + 1}", "tag": f"Bit{b}", "fb": "Bit0_fb" if b == 0 else ""} for b in range(3)],
+        "signals": [{"id": f"S{b + 1}", "tag": f"Bit{b}", "fb": f"Bit{b}_fb"} for b in range(3)],
         "planes": [{"signal": f"S{b + 1}", "values": [((j + 1) >> b) & 1 for j in range(7)]} for b in range(3)],
         "display": "local", "validate_s": 5, "alarm": "high",
         "anims": [{"part": "V1_greb", "type": "rotate", "src": "@pos",
@@ -101,7 +103,7 @@ def test_dec_bin_selector_saves_and_reads_back(api):
 
 
 def test_register_template_and_pulse_signal_with_rest(api):
-    cfg = dec_bin(signals=[{"id": "S1", "tag": "Mode", "fb": "Mode_fb"},
+    cfg = dec_bin(signals=[{"id": "S1", "tag": "Mode"},
                            {"id": "S2", "tag": "Kommando", "write": "pulse", "ms": 300, "rest": 0}],
                   planes=[{"signal": "S1", "values": [0, 1, 2]}, {"signal": "S2", "values": [11, 12, 13]}],
                   positions=[{"label": "Hand"}, {"label": "0"}, {"label": "Auto"}],
@@ -545,3 +547,25 @@ def test_remote_display_requires_feedback():
     assert has_feedback(SymbolConfig(**base, signals=[{"id": "S1", "tag": "Bit0", "fb": "Bit1"}]))
     # en tilbagemelding på et signal uden kontaktplan tæller ikke
     assert not has_feedback(SymbolConfig(**base, signals=[{"id": "S1", "tag": "Bit0"}, {"id": "S2", "tag": "Bit1", "fb": "Bit2"}]))
+
+
+def test_feedback_must_be_all_or_none():
+    # v2.5.1: enten alle signaler i kontaktplanerne med tilbagemelding, eller ingen
+    from app.services.symbols import SymbolConfig, feedback_coverage
+    base = {"op": "positions", "positions": [{"label": "0"}, {"label": "1"}],
+            "planes": [{"signal": "S1", "values": [0, 1]}, {"signal": "S2", "values": [1, 0]}]}
+    assert feedback_coverage(SymbolConfig(**base, signals=[{"id": "S1", "tag": "A", "fb": "B"}, {"id": "S2", "tag": "C"}])) == "mixed"
+    assert feedback_coverage(SymbolConfig(**base, signals=[{"id": "S1", "tag": "A", "fb": "B"}, {"id": "S2", "tag": "C", "fb": "D"}])) == "all"
+    assert feedback_coverage(SymbolConfig(**base, signals=[{"id": "S1", "tag": "A"}, {"id": "S2", "tag": "C"}])) == "none"
+
+
+def test_pulse_signal_with_feedback_finds_position():
+    # v2.5.1: et puls-signal med tilbagemelding bruges til at finde positionen (før blev det altid sprunget over)
+    from types import SimpleNamespace
+    from app.services.symbol_runtime import remote_position
+    cfg = {"positions": [{"label": "Stop"}, {"label": "Start"}],
+           "signals": [{"id": "S1", "tag": "Cmd", "fb": "Fb", "write": "pulse"}],
+           "planes": [{"signal": "S1", "values": [0, 1]}]}
+    live = {"Fb": SimpleNamespace(value=1, quality="good")}
+    pos, comm, _ = remote_position(cfg, lambda t: live.get(t, SimpleNamespace(value=None, quality="comm_error")))
+    assert (pos, comm) == (1, False)

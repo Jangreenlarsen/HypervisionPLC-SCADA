@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeAt, hasFeedback, animDefaults, opChoices, cycleCell, isLogicRef, keepSuggestion, emptyConfig, feedbackMismatch, foundPosition, parseValRef, partLabel, preset, resize, setOp, tagKind, template, typesFor, valRef,
+  activeAt, feedbackCoverage, hasFeedback, animDefaults, opChoices, cycleCell, isLogicRef, keepSuggestion, emptyConfig, feedbackMismatch, foundPosition, parseValRef, partLabel, preset, resize, setOp, tagKind, template, typesFor, valRef,
   type PartInfo, type SymbolConfig, type SymbolInfo,
 } from './symbolConfig';
 
@@ -180,10 +180,16 @@ describe('betjeningsformer i trin 1 (v1.11.1)', () => {
 describe('hasFeedback (v2.5.0)', () => {
   const cfg = (signals: SymbolConfig['signals']): SymbolConfig =>
     ({ ...emptyConfig('ventil'), op: 'positions', signals, planes: [{ signal: 'S1', values: [0, 1] }] });
-  it('kræver en tilbagemelding på et signal i en kontaktplan', () => {
+  it('kræver en tilbagemelding på alle signaler i kontaktplanerne', () => {
     expect(hasFeedback(cfg([{ id: 'S1', tag: 'A', fb: '', write: 'set', ms: 500, rest: null }]))).toBe(false);
     expect(hasFeedback(cfg([{ id: 'S1', tag: 'A', fb: 'B', write: 'set', ms: 500, rest: null }]))).toBe(true);
     expect(hasFeedback(cfg([{ id: 'S1', tag: 'A', fb: '', write: 'set', ms: 500, rest: null }, { id: 'S2', tag: 'C', fb: 'D', write: 'set', ms: 500, rest: null }]))).toBe(false);
+  });
+  it('blandet tilbagemelding er "mixed"', () => {
+    const c = cfg([{ id: 'S1', tag: 'A', fb: 'B', write: 'set', ms: 500, rest: null }, { id: 'S2', tag: 'C', fb: '', write: 'set', ms: 500, rest: null }]);
+    c.planes.push({ signal: 'S2', values: [1, 0] });
+    expect(feedbackCoverage(c)).toBe('mixed');
+    expect(hasFeedback(c)).toBe(false);
   });
   it('nye symboler viser den valgte position', () => {
     expect(emptyConfig('ventil').display).toBe('local');

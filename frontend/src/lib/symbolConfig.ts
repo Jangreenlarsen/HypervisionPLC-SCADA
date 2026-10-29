@@ -481,11 +481,15 @@ export function preset(cfg: SymbolConfig): void {
 }
 
 /** Det position j sætter (prototypens `activeAt`): til/fra-signaler der er Til, og registre med deres værdi. */
-/** Har mindst ét signal i en kontaktplan en tilbagemelding? Kræves for Vis = PLC'ens position (som serverens `has_feedback`). */
-export function hasFeedback(cfg: SymbolConfig): boolean {
+/** Tilbagemelding på kontaktplanernes signaler: alle, ingen eller blandet (som serverens `feedback_coverage`, v2.5.1). */
+export function feedbackCoverage(cfg: SymbolConfig): 'all' | 'none' | 'mixed' {
   const used = new Set(cfg.planes.map((p) => p.signal));
-  return cfg.signals.some((s) => used.has(s.id) && !!s.fb);
+  const fbs = cfg.signals.filter((s) => used.has(s.id)).map((s) => !!s.fb);
+  return fbs.length && fbs.every(Boolean) ? 'all' : fbs.some(Boolean) ? 'mixed' : 'none';
 }
+
+/** Har alle signaler i kontaktplanerne en tilbagemelding? Kræves for Vis = PLC'ens position. */
+export const hasFeedback = (cfg: SymbolConfig): boolean => feedbackCoverage(cfg) === 'all';
 
 export function activeAt(cfg: SymbolConfig, j: number, kindOf: (signalId: string) => 'bool' | 'num' | 'unknown'): string[] {
   const out: string[] = [];
@@ -511,7 +515,7 @@ export function foundPosition(cfg: SymbolConfig, valueOf: (tag: string) => unkno
     for (const p of cfg.planes) {
       const s = sigs.get(p.signal);
       const cell = p.values[j];
-      if (!s || !s.tag || s.write === 'pulse' || cell === null || cell === undefined) continue;
+      if (!s || !s.tag || (s.write === 'pulse' && !s.fb) || cell === null || cell === undefined) continue;
       used++;
       const v = valueOf(s.fb || s.tag);
       const n = typeof v === 'boolean' ? (v ? 1 : 0) : typeof v === 'number' ? v : NaN;
