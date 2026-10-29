@@ -79,13 +79,13 @@ def suggest(drawings: Any, drawing_id: str, element: str) -> dict[str, Any]:
         if click["anim"] == "click:toggle":
             cfg.update(op="positions", confirm=bool(p.get("confirm", True)),
                        positions=[{"label": text_spec.get("false_text") or "Fra"}, {"label": text_spec.get("true_text") or "Til"}],
-                       signals=[{"id": "S1", "tag": tag}], planes=[{"signal": "S1", "values": [0, 1]}])
+                       signals=[{"id": "S1", "tag": tag, "fb": tag}], planes=[{"signal": "S1", "values": [0, 1]}])
             values = [0, 1]
             notes.append("Til/fra → 2 positioner med ét signal og én kontaktplan.")
         elif click["anim"] == "click:select":
             pos = p.get("positions") or []
             cfg.update(op="positions", confirm=bool(p.get("confirm", True)),
-                       positions=[{"label": x["label"]} for x in pos], signals=[{"id": "S1", "tag": tag}],
+                       positions=[{"label": x["label"]} for x in pos], signals=[{"id": "S1", "tag": tag, "fb": tag}],
                        planes=[{"signal": "S1", "values": [x["value"] for x in pos]}])
             values = [float(x["value"]) for x in pos]
             notes.append(f"Omskifter → {len(pos)} positioner, ét register med værdierne "

@@ -333,7 +333,7 @@
         {#each tags as t}
           {@const v = values[t.name]}
           <tr class:editing={edit?.name === t.name}>
-            <td class="mono">{t.name}{#if t.writable} <span class="badge" title="Kan skrives fra Overview">skrivbar</span>{/if}</td>
+            <td class="mono"><span class:tag-writable={t.writable}>{t.name}</span>{#if t.writable} <span class="badge writable" title="Kan skrives fra Overview">skrivbar</span>{/if}</td>
             <td class="mono">{t.source}{#if sourceKind(t.source) !== 'intern'} <span class="badge" title="Hentes via PLC'ens /api/ext">{SOURCE_LABEL[sourceKind(t.source)]}</span>{/if}{#if t.priority === 'high'} <span class="badge" title="Læses med høj prioritet i PLC'ens Modbus-kø">høj prioritet</span>{/if}</td>
             <td>{formatValue(v?.value, { unit: t.unit, decimals: t.decimals, description: '', plc: t.plc })}</td>
             <td><span class="badge {v?.quality ?? 'unknown'}" title={v?.error ?? ''}>{v?.quality ?? 'unknown'}</span></td>

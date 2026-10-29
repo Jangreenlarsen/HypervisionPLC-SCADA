@@ -135,7 +135,7 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
   if (symbol.type === 'trevejs_motorventil' || symbol.type === 'trevejs_motorventil_ab') {
     cfg.positions = [{ label: 'AB → A' }, { label: 'AB → B' }];
     setOp(cfg, 'positions');
-    cfg.display = 'remote';
+    cfg.display = 'local';   // PLC'ens position kræver en tilbagemelding (v2.5.0)
     const OPEN = '#7cc47f', CLOSED = '#ffffff';
     const colors: [string, string[]][] = [['port_a', [OPEN, CLOSED]], ['port_b', [CLOSED, OPEN]], ['port_ab', [OPEN, OPEN]]];
     for (const [pid, cols] of colors) {
@@ -150,7 +150,7 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     cfg.positions = (mid ? ['ON 1', 'OFF', 'ON 2'] : ['OFF', 'ON']).map((label) => ({ label }));
     setOp(cfg, 'positions');
     cfg.planes = [{ signal: cfg.signals[0].id, values: mid ? [1, 0, 2] : [0, 1] }];
-    cfg.display = 'remote';
+    cfg.display = 'local';   // PLC'ens position kræver en tilbagemelding (v2.5.0)
     const greb = partOf('greb'), knop = partOf('knop') ?? null;
     // Grebets stilling pr. position (v0.98.0) — samme opbygning for begge: ON/OFF = Ned, Op; ON/OFF/ON = Op, Midt, Ned
     if (greb) cfg.anims.push(...leverAnims(greb, knop, defaultDirs(cfg.positions.length, knop !== null && mid)));
@@ -284,7 +284,7 @@ export function tagKind(source: string | undefined): 'bool' | 'num' | 'unknown' 
 
 export function emptyConfig(type = 'custom'): SymbolConfig {
   return {
-    type, op: 'view', positions: [], signals: [], planes: [], fault: '', display: 'remote', validate_s: 5, alarm: 'medium',
+    type, op: 'view', positions: [], signals: [], planes: [], fault: '', display: 'local', validate_s: 5, alarm: 'medium',
     confirm: true, click: 'dialog', pulse_ms: 500, lock: { positions: [], leave: false }, anims: [], logic: [],
   };
 }
@@ -481,6 +481,16 @@ export function preset(cfg: SymbolConfig): void {
 }
 
 /** Det position j sætter (prototypens `activeAt`): til/fra-signaler der er Til, og registre med deres værdi. */
+/** Tilbagemelding på kontaktplanernes signaler: alle, ingen eller blandet (som serverens `feedback_coverage`, v2.5.1). */
+export function feedbackCoverage(cfg: SymbolConfig): 'all' | 'none' | 'mixed' {
+  const used = new Set(cfg.planes.map((p) => p.signal));
+  const fbs = cfg.signals.filter((s) => used.has(s.id)).map((s) => !!s.fb);
+  return fbs.length && fbs.every(Boolean) ? 'all' : fbs.some(Boolean) ? 'mixed' : 'none';
+}
+
+/** Har alle signaler i kontaktplanerne en tilbagemelding? Kræves for Vis = PLC'ens position. */
+export const hasFeedback = (cfg: SymbolConfig): boolean => feedbackCoverage(cfg) === 'all';
+
 export function activeAt(cfg: SymbolConfig, j: number, kindOf: (signalId: string) => 'bool' | 'num' | 'unknown'): string[] {
   const out: string[] = [];
   for (const p of cfg.planes) {
@@ -505,7 +515,7 @@ export function foundPosition(cfg: SymbolConfig, valueOf: (tag: string) => unkno
     for (const p of cfg.planes) {
       const s = sigs.get(p.signal);
       const cell = p.values[j];
-      if (!s || !s.tag || s.write === 'pulse' || cell === null || cell === undefined) continue;
+      if (!s || !s.tag || (s.write === 'pulse' && !s.fb) || cell === null || cell === undefined) continue;
       used++;
       const v = valueOf(s.fb || s.tag);
       const n = typeof v === 'boolean' ? (v ? 1 : 0) : typeof v === 'number' ? v : NaN;

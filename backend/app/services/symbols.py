@@ -91,6 +91,18 @@ class Signal(_M):
     _s = field_validator("tag", "fb")(lambda cls, v: (v or "").strip())
 
 
+def feedback_coverage(cfg: "SymbolConfig") -> str:
+    """Tilbagemelding på kontaktplanernes signaler: 'all', 'none' eller 'mixed' (v2.5.1). Blandet er ikke tilladt."""
+    used = {p.signal for p in cfg.planes}
+    fbs = [bool(s.fb) for s in cfg.signals if s.id in used]
+    return "all" if fbs and all(fbs) else "mixed" if any(fbs) else "none"
+
+
+def has_feedback(cfg: "SymbolConfig") -> bool:
+    """Har alle signaler i kontaktplanerne en tilbagemelding? Kræves for Vis = PLC'ens position (v2.5.1)."""
+    return feedback_coverage(cfg) == "all"
+
+
 class Plane(_M):
     signal: str
     values: list[float | None]
@@ -751,6 +763,9 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 s.write, s.rest = "set", None   # til/fra-signaler sættes altid
             if not any(p.signal == s.id for p in cfg.planes):
                 res.warnings.append(f"{s.id} ({s.tag}) bruges ikke af nogen kontaktplan.")
+    if cfg.op == "positions" and feedback_coverage(cfg) == "mixed":
+        res.err("2", "Enten skal alle signaler i kontaktplanerne have en tilbagemelding, eller ingen af dem — ellers er "
+                     "PLC'ens position kun delvis kontrolleret.")
     if cfg.fault:
         ft = tag_of(cfg.fault)
         if ft is None:
@@ -873,6 +888,9 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
     # -- visning (trin 4)
     if not 1 <= cfg.validate_s <= 120:
         res.err("4", "Valideringstid skal være 1–120 s.")
+    if cfg.op == "positions" and cfg.display == "remote" and not has_feedback(cfg):
+        res.err("4", "Vis \"PLC'ens position\" kræver en tilbagemelding på alle signaler i kontaktplanerne (trin 2) "
+                     "— tilføj dem, eller vælg \"Valgt position\".")
     parts = element["parts"]
     for i, a in enumerate(cfg.anims):
         nm = f"Animation {i + 1}"

@@ -2,6 +2,36 @@
 
 ---
 
+## v2.6.0 — 2026-10-29 — Skalér symmetrisk
+
+- I Tegn kan du slå **Skalér symmetrisk** til ved gitter og fang. Så ændres bredde og højde i samme forhold, når du trækker i et hjørne af et symbol. Hold Shift nede for at skalere frit.
+
+## v2.5.2 — 2026-10-29 — Rettet opdateringspakke
+
+- Opdateringspakkerne 2.3.0–2.5.1 indeholdt serverdelen fra versionen før, så siden bad om at genindlæse, selv om det ikke hjalp. Installér denne version.
+
+## v2.5.1 — 2026-10-29 — Tilbagemelding på alle eller ingen signaler
+
+- I symbol-guiden skal enten alle signaler i kontaktplanerne have en tilbagemelding, eller ingen. En blanding kan ikke gemmes. *Vis: PLC'ens position* kræver, at alle har en tilbagemelding.
+- Rettet: et puls-signal med tilbagemelding bruges nu til at finde PLC'ens position (før blev positionen altid *Ukendt*).
+
+## v2.5.0 — 2026-10-29 — PLC'ens position kræver tilbagemelding
+
+- I symbol-guiden kan *Vis: PLC'ens position* (trin 4) kun vælges, når mindst ét signal har en tilbagemelding (trin 2). Nye symboler viser som standard den valgte position.
+- Eksisterende symboler med *PLC'ens position* uden tilbagemelding virker som før, men skal have en tilbagemelding eller skiftes til *Valgt position*, næste gang de gemmes i guiden.
+
+## v2.4.0 — 2026-10-29 — Omskifter opdaterer sig med det samme
+
+- Tilføjer eller fjerner man positioner (kontaktplaner) på en omskifter i guiden, tegnes omskifteren nu om med det samme, når man trykker Gem. Man skal ikke længere trykke på en knap bagefter.
+
+## v2.3.0 — 2026-10-29 — Skrivbare tags i egen farve
+
+- Tags, som kan skrives fra Overview, vises nu i lilla i tag-listen og i tag-dropdowns, så de er nemme at skelne fra skrivebeskyttede.
+
+## v2.2.0 — 2026-10-27 — Version i topmenuen
+
+- Den installerede version og build står nu yderst til højre i topmenuen (også før login).
+
 ## v2.1.2 — 2026-10-27 — Præcis aflæsning i trends
 
 - Zoomer man ind på et lille udsnit af en kurve, viser aflæsningen og y-aksen nu flere decimaler, så værdien følger kurven i stedet for at stå fast (fx 1,2756 i stedet for 1,28), og aksen har ikke længere ens tal.

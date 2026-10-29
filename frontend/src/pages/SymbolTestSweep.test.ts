@@ -44,7 +44,7 @@ describe('Symboltest: gennemgang af siden', () => {
       expect(status(), tile.textContent ?? '').not.toContain('findes ikke');
     }
     expect(errors).toEqual([]);
-  });
+  }, 30000);   // gennemgår hele biblioteket — tager over 5 s, når hele suiten kører parallelt
 
   it('alle valg i alle menuer under en animation kan vælges uden fejl, og den bliver ved med at kunne anvendes', async () => {
     // et udvalg af symboler med forskellige dele og opsætninger

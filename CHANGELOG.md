@@ -4,6 +4,48 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.6.0 build 0262] — 2026-10-29 — Skalér symmetrisk i Tegn
+
+- `frontend/public/svgedit/scada-editor.js`: `guides.keepRatio`; under en størrelsesændring vendes Shift om (SVG-Edit skalerer symmetrisk med Shift). Billeder røres ikke.
+- `frontend/src/pages/DrawEditor.svelte`: afkrydsningen *Skalér symmetrisk* ved tegnehjælpen; huskes i `draw.guides`.
+- `frontend/src/manual/04-tegninger-og-tegn.md`: indstillingen beskrevet.
+- `frontend/src/pages/SymbolTestSweep.test.ts`: gennemgangen af hele biblioteket har 30 s timeout (faldt for 5 s under fuld suite).
+
+## [2.5.2 build 0261] — 2026-10-29 — OTA-pakken kan ikke bygges med ucommittede ændringer
+
+- `deploy/make-package.sh`: stopper med en fejl (i stedet for en advarsel), når der er ucommittede ændringer — ellers fik pakken HEAD's backend og version.json, men arbejdsmappens frontend.
+
+## [2.5.1 build 0260] — 2026-10-29 — Tilbagemelding på alle eller ingen signaler
+
+- `backend/app/services/symbols.py`: `feedback_coverage()` (all/none/mixed); blandet tilbagemelding afvises i trin 2; `display = remote` kræver tilbagemelding på alle signaler i kontaktplanerne.
+- `backend/app/services/symbol_runtime.py`: puls-signal med tilbagemelding bruges til at finde positionen (fejl: blev altid sprunget over).
+- `frontend/src/lib/symbolConfig.ts`: `feedbackCoverage()`, `hasFeedback()` kræver alle; `foundPosition` bruger puls-signaler med tilbagemelding.
+- `frontend/src/lib/SymbolGuide.svelte`, `frontend/src/manual/06-symboler-og-guiden.md`: teksterne forklarer reglen.
+- Tests: `test_symbols.py` (dec_bin har nu tilbagemelding på alle tre bit), `test_symbol_operate.py`, `test_symbol_runtime.py`, `symbolConfig.test.ts`.
+
+## [2.5.0 build 0259] — 2026-10-29 — PLC'ens position kræver tilbagemelding
+
+- `backend/app/services/symbols.py`: `has_feedback()`; trin 4 afviser `display = remote` uden tilbagemelding på et signal i en kontaktplan.
+- `backend/app/services/symbol_convert.py`: konverterede omskiftere/til-fra får kommando-tagget som tilbagemelding (samme opførsel som før).
+- `frontend/src/lib/symbolConfig.ts`: `hasFeedback()`; nye symboler og biblioteksstandarder får `display = local`.
+- `frontend/src/lib/SymbolGuide.svelte`: *PLC'ens position* kan ikke vælges uden tilbagemelding; teksten i trin 2 forklarer kravet.
+- `frontend/src/manual/06-symboler-og-guiden.md`: kravet beskrevet.
+- Tests: `test_symbols.py`, `symbolConfig.test.ts`; testopsætninger uden tilbagemelding bruger nu `local`.
+
+## [2.4.0 build 0258] — 2026-10-29 — Omskifter opdaterer sig med det samme
+
+- `frontend/src/pages/DrawEditor.svelte`: efter guidens Gem tegnes en omskifter automatisk om, hvis opsætningens positioner afviger fra tegningen (`redrawSelector(auto)`), og tegningen gemmes uden at spørge (den var udgivet, før guiden blev åbnet).
+
+## [2.3.0 build 0257] — 2026-10-29 — Skrivbare tags i egen farve
+
+- `frontend/src/app.css`: ny farve `--writable` og klasserne `.tag-writable` og `.badge.writable`.
+- `frontend/src/pages/Tags.svelte`: skrivbare tags har navn og badge i lilla.
+- `frontend/src/lib/TagSelect.svelte`: skrivbare tags er lilla i alle tag-dropdowns.
+
+## [2.2.0 build 0256] — 2026-10-27 — Version i topmenuen
+
+- `frontend/src/App.svelte`: snippet `version` — serverens version og build (`/api/health`, indtil da sidens egen) yderst til højre i topmenuen og på login-siden; build skjules under 640 px.
+
 ## [2.1.2 build 0255] — 2026-10-27 — Trends: aflæsning og y-akse ved lille spænd
 
 - `frontend/src/lib/trendData.ts`: `stepDecimals(incr)` — decimaler der skal til for at skelne aksestregerne.

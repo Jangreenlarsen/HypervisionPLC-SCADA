@@ -36,7 +36,7 @@
   {#each groups as [plc, rows]}
     <optgroup label={plc}>
       {#each rows as t}
-        <option value={t.name} disabled={writableOnly && !t.writable && t.name !== value}>
+        <option value={t.name} class:tag-writable={t.writable} disabled={writableOnly && !t.writable && t.name !== value}>
           {t.name === value ? t.name : detail(t)}{writableOnly && !t.writable ? ' (ikke skrivbar)' : ''}
         </option>
       {/each}

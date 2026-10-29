@@ -25,9 +25,9 @@ def _lv(values: dict, bad: set[str] = frozenset()):
 @pytest.mark.parametrize("j", range(7))
 def test_dec_bin_selector_finds_every_position(j):
     cfg = dec_bin()
-    n = j + 1   # position j sætter tallet j+1 binært på Bit0..Bit2 (Bit0 læses via Bit0_fb)
-    values = {"Bit0_fb": bool(n & 1), "Bit1": bool(n & 2), "Bit2": bool(n & 4)}
-    assert remote_position(cfg, _lv(values)) == (j, False, ["Bit0_fb", "Bit1", "Bit2"])
+    n = j + 1   # position j sætter tallet j+1 binært på Bit0..Bit2 (læses via Bit0_fb..Bit2_fb)
+    values = {"Bit0_fb": bool(n & 1), "Bit1_fb": bool(n & 2), "Bit2_fb": bool(n & 4)}
+    assert remote_position(cfg, _lv(values)) == (j, False, ["Bit0_fb", "Bit1_fb", "Bit2_fb"])
 
 
 def test_register_template_and_unknown_value():
@@ -105,8 +105,8 @@ def _pseudo(c, did, kind):
 def _set_position(mock_plc, n):
     """Sæt PLC'ens udgange som om vælgeren står på tallet n (position n-1)."""
     mock_plc.state.di[10] = bool(n & 1)      # Bit0_fb
-    mock_plc.state.coils[11] = bool(n & 2)   # Bit1
-    mock_plc.state.coils[12] = bool(n & 4)   # Bit2
+    mock_plc.state.di[11] = bool(n & 2)      # Bit1_fb
+    mock_plc.state.di[12] = bool(n & 4)      # Bit2_fb
 
 
 def test_pseudo_tags_follow_the_plc(tmp_path, mock_plc):

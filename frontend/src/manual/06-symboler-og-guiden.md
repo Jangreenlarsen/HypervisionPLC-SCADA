@@ -9,7 +9,7 @@ Alle symboler i biblioteket sættes op på samme måde: med **guiden i 6 trin**.
 | **1. Symbol** | Vælg **betjeningsform** (se nedenfor). Kun de former, der giver mening for symbolet, vises; **Vis alle betjeningsformer** åbner for resten. Knappen *Foreslå ud fra symbolet* henter et forslag ud fra de gamle bindinger |
 | **2. Signaler** | Vælg de tags symbolet skriver (**Kommando**) og evt. læser tilbage (**Tilbagemelding**). **Skrives som**: *Sæt* (til/fra eller værdi) eller *Puls* (kort impuls med en fast **hvile**-værdi bagefter). Et valgfrit **Fejlsignal** spærrer betjeningen, når det er Til |
 | **3. Kontakter** | Kun for positioner. Et **kontaktdiagram** fortæller, hvad hver position sætter: hver *plan* styrer ét signal, og hver celle er *Til*, *Fra*, *røres ikke* (til/fra) eller en **værdi** (register). Skabeloner A–D laver typiske mønstre: A = tallet 0,1,2 …; B = ét signal pr. position; C = bit-mønster; D = tal omsat til binære signaler |
-| **4. Visning** | **Vis**: *PLC'ens position* (tilbagemeldingen) eller *valgt position*. **Tid til at bekræfte**: hvor længe PLC'en må om at følge efter. **Alarm ved afvigelse/fejl**. Her laver du også **logikblokke** og **animationer** |
+| **4. Visning** | **Vis**: *PLC'ens position* (tilbagemeldingen — kræver en tilbagemelding på alle signaler i kontaktplanerne) eller *valgt position* (standard for nye symboler). **Tid til at bekræfte**: hvor længe PLC'en må om at følge efter. **Alarm ved afvigelse/fejl**. Her laver du også **logikblokke** og **animationer** |
 | **5. Betjening** | **Operatøren skal bekræfte** før der skrives. **Pulslængde** (trykknapper). **Nøglelås**: vælg hvilke positioner der kræver en **kode** (4 cifre) |
 | **6. Test og gem** | Se **live** værdier for signalerne og hvilken position PLC'en står på lige nu. En **skriveplan** viser præcis, hvad hver position vil skrive. Advarsler vises; **Gem** er kun muligt uden fejl |
 
@@ -45,7 +45,7 @@ Et symbol med positioner skal vide, hvilken position PLC'en **står i** (tilbage
 - Eksempel — en 7-trins vælger, der skriver tallet 1–7 som tre bit på tre coils (skabelon D, "dec → bin").
 - To positioner må ikke have samme mønster, ellers kan systemet ikke skille dem ad.
 
-Er en **tilbagemelding** valgt for et signal, læses PLC'ens position derfra; ellers bruges kommandoen. En position **fundet** i PLC'en vises som en lille tilstand (*bekræftet*, *afventer*, *afvigelse*, *ukendt*).
+Er en **tilbagemelding** valgt for et signal, læses PLC'ens position derfra; ellers bruges kommandoen. Enten har alle signaler i kontaktplanerne en tilbagemelding, eller ingen — en blanding afvises. *Vis: PLC'ens position* kræver, at alle har. Et puls-signal bruges også til at finde positionen, når det har en tilbagemelding. En position **fundet** i PLC'en vises som en lille tilstand (*bekræftet*, *afventer*, *afvigelse*, *ukendt*).
 
 ## Animationer i guiden (trin 4)
 

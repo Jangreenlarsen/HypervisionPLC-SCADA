@@ -37,7 +37,7 @@
     setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
     uniqueName(base: string): string;
     insertSymbol(fragment: string, baseId: string): string;
-    setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; step: number }): void;
+    setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number }): void;
     describeSelection(): SelectionInfo | null;
     replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any'; protectIds?: string[]; apexNative?: number; axisNative?: number; mirror?: boolean }):
       { ok?: boolean; replaced?: number; skipped?: number; ids?: string[]; error?: string };
@@ -73,11 +73,11 @@
   let ready = $state(false);
   // Tegnehjælp: gitter, fang til gitter/objekter. Huskes pr. browser (ikke pr. tegning).
   const GUIDE_STEPS = [5, 10, 20, 25, 50];
-  function loadGuides(): { grid: boolean; snapGrid: boolean; snapObjects: boolean; step: number } {
-    const fallback = { grid: false, snapGrid: false, snapObjects: false, step: 10 };
+  function loadGuides(): { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number } {
+    const fallback = { grid: false, snapGrid: false, snapObjects: false, keepRatio: false, step: 10 };
     try {
       const raw = JSON.parse(localStorage.getItem('draw.guides') ?? '{}');
-      return { grid: !!raw.grid, snapGrid: !!raw.snapGrid, snapObjects: !!raw.snapObjects, step: GUIDE_STEPS.includes(Number(raw.step)) ? Number(raw.step) : 10 };
+      return { grid: !!raw.grid, snapGrid: !!raw.snapGrid, snapObjects: !!raw.snapObjects, keepRatio: !!raw.keepRatio, step: GUIDE_STEPS.includes(Number(raw.step)) ? Number(raw.step) : 10 };
     } catch {
       return fallback; // ingen eller ødelagt localStorage: standardværdier
     }
@@ -142,7 +142,8 @@
       selectorFix = null;   // ingen opsætning (fx et ikke-udgivet symbol) — intet at sammenligne med
     }
   }
-  async function redrawSelector(): Promise<void> {
+  // auto = true efter guidens Gem: tegningen var udgivet før guiden åbnede, så den gemmes uden at spørge (v2.4.0)
+  async function redrawSelector(auto = false): Promise<void> {
     const fix = selectorFix, sel = selection[0];
     if (!ed || !fix || !sel || sel.id !== fix.id || !current) return;
     error = '';
@@ -152,7 +153,7 @@
     if (res.error) { error = res.error; return; }
     dirty = true;
     const grebId = ed.partIdByPid(fix.id, 'greb');
-    if (!(await ensurePublished('omskifterens nye tegning kan bruges'))) {
+    if (!(await ensurePublished('omskifterens nye tegning kan bruges', auto))) {
       info = 'Omskifteren er tegnet med de nye positioner. Gem og udgiv tegningen, og tryk så knappen igen for at rette grebets vinkler.';
       return;
     }
@@ -780,6 +781,7 @@
     <select bind:value={guides.step} aria-label="Gitterafstand">{#each GUIDE_STEPS as s}<option value={s}>{s}</option>{/each}</select>
   </label>
   <label class="opt" title="Når du slipper et objekt, lægges det kant mod kant eller midte mod midte med nærmeste objekt, hvis det er tæt på"><input type="checkbox" bind:checked={guides.snapObjects} /> Fang til objekter</label>
+  <label class="opt" title="Træk i et hjørne: bredde og højde ændres i samme forhold. Hold Shift nede for at skalere frit"><input type="checkbox" bind:checked={guides.keepRatio} /> Skalér symmetrisk</label>
   <span class="muted">Rotation sker i 15°-trin — hold <kbd>Shift</kbd> nede for fri rotation</span>
 </div>
 
@@ -826,7 +828,7 @@
           {#if selectorFix}
             <div class="notice small">
               Tegningen viser {selectorFix.drawn.length} positioner ({selectorFix.drawn.join(', ')}), men opsætningen har {selectorFix.labels.length} ({selectorFix.labels.join(', ')}).
-              <button class="small" onclick={() => guarded('Tegn omskifteren', redrawSelector)} disabled={busy || !ready}>Tegn omskifteren med {selectorFix.labels.length} positioner</button>
+              <button class="small" onclick={() => guarded('Tegn omskifteren', () => redrawSelector())} disabled={busy || !ready}>Tegn omskifteren med {selectorFix.labels.length} positioner</button>
             </div>
           {/if}
           {@render clipRow(true)}
@@ -968,7 +970,14 @@
 {#if guideFor && current}
   <SymbolGuide drawingId={current.id} element={guideFor.id} name={guideFor.name} {tags}
     onclose={() => (guideFor = null)}
-    onsaved={() => { info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`; guideFor = null; refreshReservedIds(); }} />
+    onsaved={() => guarded('Opdatér symbolet', async () => {
+      info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`;
+      guideFor = null;
+      await refreshReservedIds();
+      // omskifter: tegningen følger de nye positioner med det samme (ellers først ved et tryk på knappen)
+      await checkSelector();
+      if (selectorFix) await redrawSelector(true);
+    })} />
 {/if}
 
 <style>
