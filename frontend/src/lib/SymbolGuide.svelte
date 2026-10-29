@@ -287,6 +287,7 @@ import { AVERAGE_CHOICES } from './trendData';
     cfg.lock.positions.splice(j, 1);
     for (const a of cfg.anims) {
       a.only?.splice(j, 1);
+      a.pos_values?.splice(j, 1);   // "Pr. værdi": ellers én fra-værdi for meget
       for (const k of ['colors', 'set', 'angles', 'dxs', 'dys', 'dirs']) if (Array.isArray(a.params[k])) a.params[k].splice(j, 1);
     }
   }
@@ -712,7 +713,7 @@ import { AVERAGE_CHOICES } from './trendData';
                 <select bind:value={cfg.display}><option value="remote" disabled={!hasFeedback(cfg) && cfg.display !== 'remote'}>PLC'ens position{hasFeedback(cfg) ? '' : ' (kræver tilbagemelding på alle signaler i trin 2)'}</option><option value="local">Valgt position</option></select>
               </label>
               <label class="field-row">Tid til at bekræfte (s)
-                <input class="n" type="number" min="0.5" max="120" step="0.5" bind:value={cfg.validate_s} />
+                <input class="n" type="number" min="1" max="120" step="0.5" bind:value={cfg.validate_s} />
               </label>
             {/if}
             {#if cfg.op !== 'view'}

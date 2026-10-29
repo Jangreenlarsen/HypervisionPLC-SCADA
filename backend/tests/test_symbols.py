@@ -201,13 +201,21 @@ def test_full_16_bit_range_when_tag_has_no_min_max(api):
 def test_pulse_signal_rules(api, signal, text):
     cfg = dec_bin(signals=[{"id": "S1", "tag": "Mode"}, signal], positions=[{"label": "A"}, {"label": "B"}],
                   planes=[{"signal": "S1", "values": [0, 1]}, {"signal": "S2", "values": [11, 12]}], anims=[])
-    assert any(text in m for m in errors(put(api, cfg))["steps"]["5"])
+    assert any(text in m for m in errors(put(api, cfg))["steps"]["2"])   # felterne står i trin 2
 
 
 def test_only_pulse_planes_cannot_be_read(api):
     cfg = dec_bin(signals=[{"id": "S1", "tag": "Kommando", "write": "pulse", "ms": 300, "rest": 0}],
                   positions=[{"label": "A"}, {"label": "B"}], planes=[{"signal": "S1", "values": [1, 2]}], anims=[])
-    assert any("ikke puls" in m for m in errors(put(api, cfg))["steps"]["5"])
+    assert any("ikke puls" in m for m in errors(put(api, cfg))["steps"]["3"])
+
+
+def test_feedback_same_as_command_warns(api):
+    cfg = dec_bin(signals=[{"id": "S1", "tag": "Mode", "fb": "Mode"}], positions=[{"label": "A"}, {"label": "B"}],
+                  planes=[{"signal": "S1", "values": [0, 1]}], anims=[])
+    r = put(api, cfg)
+    assert r.status_code == 200
+    assert any("samme tag som kommandoen" in w for w in r.json()["warnings"])
 
 
 @pytest.mark.parametrize("element, anim, text", [

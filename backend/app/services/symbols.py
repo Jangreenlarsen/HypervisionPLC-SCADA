@@ -743,7 +743,10 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 res.err("2", f"{s.id} og {seen_tag[s.tag]} bruger samme tag {s.tag}.")
             else:
                 seen_tag[s.tag] = s.id
-            if s.fb:
+            if s.fb and s.fb == s.tag:
+                res.warnings.append(f"{s.id}: tilbagemeldingen er det samme tag som kommandoen ({s.tag}) — PLC'ens position "
+                                    "viser så kun det, der sidst er skrevet, og kontrollerer ikke anlægget.")
+            elif s.fb:
                 fb = tag_of(s.fb)
                 if fb is None:
                     res.err("2", f"{s.id}: tilbagemeldingen '{s.fb}' findes ikke.")
@@ -816,23 +819,23 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             k = cols.index(col)
             if k != j:
                 res.err("3", f'"{labels[k]}" og "{labels[j]}" har ens kontaktmønster og kan ikke skelnes.')
-        # puls med hvileværdi (trin 5)
+        # puls med hvileværdi (felterne står i trin 2)
         for s in cfg.signals:
             if s.write != "pulse":
                 continue
             vals = [v for p in cfg.planes if p.signal == s.id for v in p.values if _is_set(v)]
             if not 100 <= s.ms <= 10_000:
-                res.err("5", f"{s.id}: pulslængde skal være 100–10000 ms.")
+                res.err("2", f"{s.id}: pulslængde skal være 100–10000 ms.")
             if s.rest is None:
-                res.err("5", f"{s.id}: hvileværdien skal sættes.")
+                res.err("2", f"{s.id}: hvileværdien skal sættes.")
             elif not float(s.rest).is_integer():
-                res.err("5", f"{s.id}: hvileværdien skal være et heltal.")
+                res.err("2", f"{s.id}: hvileværdien skal være et heltal.")
             elif s.rest in vals:
-                res.err("5", f"{s.id}: hvileværdien {_fmt(s.rest)} er også en positions værdi.")
+                res.err("2", f"{s.id}: hvileværdien {_fmt(s.rest)} er også en positions værdi.")
             elif (t := tag_of(s.tag)) is not None and (why := t.exact(float(s.rest))) is not None:
-                res.err("5", f"{s.id}: hvileværdien — {why}.")
+                res.err("2", f"{s.id}: hvileværdien — {why}.")
         if cfg.planes and not readable:
-            res.err("5", "Mindst ét plan skal styre et signal der sættes (ikke puls), ellers kan positionen ikke aflæses.")
+            res.err("3", "Mindst ét plan skal styre et signal der sættes (ikke puls), ellers kan positionen ikke aflæses.")
 
     # -- logikblokke (trin 4)
     block_ids: list[str] = []
