@@ -2,6 +2,10 @@
 
 ---
 
+## v2.6.0 — 2026-10-29 — Skalér symmetrisk
+
+- I Tegn kan du slå **Skalér symmetrisk** til ved gitter og fang. Så ændres bredde og højde i samme forhold, når du trækker i et hjørne af et symbol. Hold Shift nede for at skalere frit.
+
 ## v2.5.2 — 2026-10-29 — Rettet opdateringspakke
 
 - Opdateringspakkerne 2.3.0–2.5.1 indeholdt serverdelen fra versionen før, så siden bad om at genindlæse, selv om det ikke hjalp. Installér denne version.

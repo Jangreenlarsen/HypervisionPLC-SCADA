@@ -37,7 +37,7 @@
     setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
     uniqueName(base: string): string;
     insertSymbol(fragment: string, baseId: string): string;
-    setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; step: number }): void;
+    setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number }): void;
     describeSelection(): SelectionInfo | null;
     replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any'; protectIds?: string[]; apexNative?: number; axisNative?: number; mirror?: boolean }):
       { ok?: boolean; replaced?: number; skipped?: number; ids?: string[]; error?: string };
@@ -73,11 +73,11 @@
   let ready = $state(false);
   // Tegnehjælp: gitter, fang til gitter/objekter. Huskes pr. browser (ikke pr. tegning).
   const GUIDE_STEPS = [5, 10, 20, 25, 50];
-  function loadGuides(): { grid: boolean; snapGrid: boolean; snapObjects: boolean; step: number } {
-    const fallback = { grid: false, snapGrid: false, snapObjects: false, step: 10 };
+  function loadGuides(): { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number } {
+    const fallback = { grid: false, snapGrid: false, snapObjects: false, keepRatio: false, step: 10 };
     try {
       const raw = JSON.parse(localStorage.getItem('draw.guides') ?? '{}');
-      return { grid: !!raw.grid, snapGrid: !!raw.snapGrid, snapObjects: !!raw.snapObjects, step: GUIDE_STEPS.includes(Number(raw.step)) ? Number(raw.step) : 10 };
+      return { grid: !!raw.grid, snapGrid: !!raw.snapGrid, snapObjects: !!raw.snapObjects, keepRatio: !!raw.keepRatio, step: GUIDE_STEPS.includes(Number(raw.step)) ? Number(raw.step) : 10 };
     } catch {
       return fallback; // ingen eller ødelagt localStorage: standardværdier
     }
@@ -781,6 +781,7 @@
     <select bind:value={guides.step} aria-label="Gitterafstand">{#each GUIDE_STEPS as s}<option value={s}>{s}</option>{/each}</select>
   </label>
   <label class="opt" title="Når du slipper et objekt, lægges det kant mod kant eller midte mod midte med nærmeste objekt, hvis det er tæt på"><input type="checkbox" bind:checked={guides.snapObjects} /> Fang til objekter</label>
+  <label class="opt" title="Træk i et hjørne: bredde og højde ændres i samme forhold. Hold Shift nede for at skalere frit"><input type="checkbox" bind:checked={guides.keepRatio} /> Skalér symmetrisk</label>
   <span class="muted">Rotation sker i 15°-trin — hold <kbd>Shift</kbd> nede for fri rotation</span>
 </div>
 

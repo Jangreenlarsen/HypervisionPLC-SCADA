@@ -44,6 +44,7 @@ Under værktøjslinjen i Tegn står rækken **Tegnehjælp**:
 - **Vis gitter** viser et net **ovenpå** tegningen (det ændrer ikke tegningen). Linjerne ligger med den valgte **gitterafstand** (5, 10, 20, 25 eller 50 enheder), og hver 5. linje er kraftigere. Gitteret følger zoom og rulning og flugter med linealerne.
 - **Fang til gitter** lægger objekter på gitteret: når du flytter, indsætter, duplikerer eller sætter et symbol ind, flyttes objektets **øverste venstre hjørne** til nærmeste gitterpunkt. Kopier havner dermed på samme gitter som originalen, og når du tegner nye figurer, følger de også gitteret.
 - **Fang til objekter**: slipper du et objekt tæt på et andet (inden for ca. 8 pixel på skærmen), lægger det sig **kant mod kant** eller **midte mod midte** med det nærmeste objekt. Det virker, når du **flytter** et eksisterende objekt (ikke mens du tegner et nyt), og fangen kan fortrydes med **Ctrl+Z**. Små justeringer med piletasterne fanges ikke.
+- **Skalér symmetrisk**: trækker du i et hjørne for at ændre størrelsen, ændres bredde og højde i samme forhold, så symbolet ikke bliver fladt eller strakt. Hold **Shift** nede for at skalere frit (uden indstillingen er det omvendt: Shift giver symmetrisk skalering). Huskes i browseren.
 - **Rotation** sker i **15°-trin**. Hold **Shift** nede, mens du drejer, for at rotere **frit**.
 
 Indstillingerne huskes i din browser.

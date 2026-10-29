@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.6.0 build 0262] — 2026-10-29 — Skalér symmetrisk i Tegn
+
+- `frontend/public/svgedit/scada-editor.js`: `guides.keepRatio`; under en størrelsesændring vendes Shift om (SVG-Edit skalerer symmetrisk med Shift). Billeder røres ikke.
+- `frontend/src/pages/DrawEditor.svelte`: afkrydsningen *Skalér symmetrisk* ved tegnehjælpen; huskes i `draw.guides`.
+- `frontend/src/manual/04-tegninger-og-tegn.md`: indstillingen beskrevet.
+- `frontend/src/pages/SymbolTestSweep.test.ts`: gennemgangen af hele biblioteket har 30 s timeout (faldt for 5 s under fuld suite).
+
 ## [2.5.2 build 0261] — 2026-10-29 — OTA-pakken kan ikke bygges med ucommittede ændringer
 
 - `deploy/make-package.sh`: stopper med en fejl (i stedet for en advarsel), når der er ucommittede ændringer — ellers fik pakken HEAD's backend og version.json, men arbejdsmappens frontend.

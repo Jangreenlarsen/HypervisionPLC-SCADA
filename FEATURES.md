@@ -194,6 +194,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v1.20.0 — Trends: **beskedboks ved markøren** med tidspunkt og alle kurvers (også middelkurvernes) værdi lige dér; vender sig, når der ikke er plads.
 - [x] done v1.19.0 — Trends: skift mellem **Begge** (rå kurve + stiplet middel oven i hinanden), **Middel** (kun middelkurven) og **Rå** (kun den rå kurve) med tre knapper ved *Middel over*; erstatter afkrydsningen *Stiplet*.
 - [x] done v1.18.0 — Trends: middelkurven som **stiplet linje** ved siden af den rå kurve (samme farve og graf), med afkrydsningen *Stiplet* (fra = middelkurven erstatter den rå, som i v1.17.0). Middeltiden vælges i *Middel over*.
+- [x] done v2.6.0 — Tegn: indstillingen **Skalér symmetrisk** ved tegnehjælpen — størrelsesændring bevarer forholdet mellem X og Y (Shift skalerer frit). Huskes pr. browser.
 - [x] done v2.5.1 — Tilbagemelding er alt eller intet: enten har alle signaler i kontaktplanerne en tilbagemelding, eller ingen (blandet afvises i trin 2). *Vis: PLC'ens position* kræver, at alle har.
 - [x] done v2.5.0 — Guiden trin 4: *Vis: PLC'ens position* kræver en tilbagemelding på mindst ét signal i en kontaktplan (trin 2) — tjekkes i guiden og af serveren. Nye symboler får *Valgt position*; konverterede symboler får kommandoen som tilbagemelding.
 - [x] done v2.4.0 — Omskifter i tegne-editoren tegnes automatisk om med de nye positioner, når guiden gemmer (ingen knap at trykke på).
