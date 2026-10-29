@@ -2,6 +2,10 @@
 
 ---
 
+## v2.5.2 — 2026-10-29 — Rettet opdateringspakke
+
+- Opdateringspakkerne 2.3.0–2.5.1 indeholdt serverdelen fra versionen før, så siden bad om at genindlæse, selv om det ikke hjalp. Installér denne version.
+
 ## v2.5.1 — 2026-10-29 — Tilbagemelding på alle eller ingen signaler
 
 - I symbol-guiden skal enten alle signaler i kontaktplanerne have en tilbagemelding, eller ingen. En blanding kan ikke gemmes. *Vis: PLC'ens position* kræver, at alle har en tilbagemelding.

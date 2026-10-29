@@ -5,6 +5,8 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v2.5.2 — OTA-pakkerne 2.3.0–2.5.1 (build 0257–0260) indeholdt den forrige versions backend og `version.json`, men den nye frontend, så serveren meldte en ældre version end siden ("SCADA er opdateret til v2.5.0 … denne side kører stadig v2.5.1"). **Årsag:** `make-package.sh` pakker `git archive HEAD` + en frisk frontend-build, og pakken blev bygget før commit; scriptet advarede kun. **Løsning:** scriptet stopper med en fejl ved ucommittede ændringer; pakken bygges efter commit.
+
 - [fixed] v2.5.1 — Et puls-signal blev altid sprunget over, når PLC'ens position skulle findes, også når det havde en tilbagemelding. Et symbol, hvor positionen kun kunne ses på pulssignalets tilbagemelding, var derfor altid *Ukendt*. **Årsag:** `remote_position` (og guidens `foundPosition`) sprang alle `write = pulse` over. **Løsning:** et puls-signal springes kun over, når det ikke har en tilbagemelding. Test.
 
 - [fixed] v2.1.2 — Trends: ved zoom ind på et lille spænd (fx `p1_bar_x100` 1,275–1,277) stod aflæsningen og tooltip fast på "1.28 bar", mens kurven bevægede sig, og y-aksen viste ens tekster (1.277, 1.277, 1.276 …). **Årsag:** kurven er tidsvægtede gennemsnit pr. tidsspand (finere end tagets 2 decimaler), men aflæsningen blev rundet til tagets decimaler og uPlots akse-tekster til højst 3 decimaler. **Løsning:** y-aksen bruger det antal decimaler, aksens stregafstand kræver (`stepDecimals`), og aflæsning/tooltip bruger mindst lige så mange. Test.

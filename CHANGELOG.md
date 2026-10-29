@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.5.2 build 0261] — 2026-10-29 — OTA-pakken kan ikke bygges med ucommittede ændringer
+
+- `deploy/make-package.sh`: stopper med en fejl (i stedet for en advarsel), når der er ucommittede ændringer — ellers fik pakken HEAD's backend og version.json, men arbejdsmappens frontend.
+
 ## [2.5.1 build 0260] — 2026-10-29 — Tilbagemelding på alle eller ingen signaler
 
 - `backend/app/services/symbols.py`: `feedback_coverage()` (all/none/mixed); blandet tilbagemelding afvises i trin 2; `display = remote` kræver tilbagemelding på alle signaler i kontaktplanerne.
