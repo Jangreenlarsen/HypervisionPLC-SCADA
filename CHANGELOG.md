@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.6.1 build 0263] — 2026-10-29 — Symbol-guiden: robusthedsrettelser
+
+- `frontend/src/lib/SymbolGuide.svelte`: Fjern position fjerner også `pos_values`; *Tid til at bekræfte* min 1 s.
+- `backend/app/services/symbols.py`: pulssignalets fejl under trin 2, "mindst ét plan … ikke puls" under trin 3; advarsel når tilbagemelding = kommando-tag.
+- `backend/tests/test_symbols.py`: trin rettet; ny test for advarslen.
+- Koden kom i commit 1 (uden versionsbump pga. en scriptfejl); version og dokumentation i den efterfølgende commit.
+
 ## [2.6.0 build 0262] — 2026-10-29 — Skalér symmetrisk i Tegn
 
 - `frontend/public/svgedit/scada-editor.js`: `guides.keepRatio`; under en størrelsesændring vendes Shift om (SVG-Edit skalerer symmetrisk med Shift). Billeder røres ikke.

@@ -5,6 +5,8 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v2.6.1 — Symbol-guiden: at fjerne en position efterlod en fra-værdi for meget i animationer med *Pr. værdi*, så opsætningen ikke kunne gemmes. Fejl for pulssignaler (pulslængde, hvileværdi) og "mindst ét plan skal styre et signal der sættes" stod under trin 5 i stedet for trin 2/3, hvor de rettes. *Tid til at bekræfte* tillod 0,5 s, serveren kræver 1 s. **Løsning:** positionen fjernes også fra `pos_values`; fejlene vises under det rigtige trin; feltet starter ved 1. Desuden advarsel, når tilbagemeldingen er samme tag som kommandoen. Test.
+
 - [fixed] v2.5.2 — OTA-pakkerne 2.3.0–2.5.1 (build 0257–0260) indeholdt den forrige versions backend og `version.json`, men den nye frontend, så serveren meldte en ældre version end siden ("SCADA er opdateret til v2.5.0 … denne side kører stadig v2.5.1"). **Årsag:** `make-package.sh` pakker `git archive HEAD` + en frisk frontend-build, og pakken blev bygget før commit; scriptet advarede kun. **Løsning:** scriptet stopper med en fejl ved ucommittede ændringer; pakken bygges efter commit.
 
 - [fixed] v2.5.1 — Et puls-signal blev altid sprunget over, når PLC'ens position skulle findes, også når det havde en tilbagemelding. Et symbol, hvor positionen kun kunne ses på pulssignalets tilbagemelding, var derfor altid *Ukendt*. **Årsag:** `remote_position` (og guidens `foundPosition`) sprang alle `write = pulse` over. **Løsning:** et puls-signal springes kun over, når det ikke har en tilbagemelding. Test.

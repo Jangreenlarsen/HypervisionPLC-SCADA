@@ -2,6 +2,12 @@
 
 ---
 
+## v2.6.1 — 2026-10-29 — Rettelser i symbol-guiden
+
+- At fjerne en position ødelægger ikke længere animationer sat til *Pr. værdi*.
+- Fejl om puls og hvileværdi vises nu under trin 2, hvor felterne står.
+- Guiden advarer, hvis tilbagemeldingen er samme tag som kommandoen — så kontrollerer *PLC'ens position* ikke anlægget.
+
 ## v2.6.0 — 2026-10-29 — Skalér symmetrisk
 
 - I Tegn kan du slå **Skalér symmetrisk** til ved gitter og fang. Så ændres bredde og højde i samme forhold, når du trækker i et hjørne af et symbol. Hold Shift nede for at skalere frit.
