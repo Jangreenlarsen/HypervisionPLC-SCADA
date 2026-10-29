@@ -2,6 +2,11 @@
 
 ---
 
+## v2.7.0 — 2026-10-29 — Tydeligere betjeningsformer og nøglelås på tegningen
+
+- Trin 1 i symbol-guiden hedder nu **Kun passiv visning** og **Interaktiv betjening**.
+- Låste positioner (nøglelås) har en lille hængelås ud for deres tekst på tegningen.
+
 ## v2.6.1 — 2026-10-29 — Rettelser i symbol-guiden
 
 - At fjerne en position ødelægger ikke længere animationer sat til *Pr. værdi*.
