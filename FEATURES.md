@@ -194,5 +194,6 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 - [x] done v1.20.0 — Trends: **beskedboks ved markøren** med tidspunkt og alle kurvers (også middelkurvernes) værdi lige dér; vender sig, når der ikke er plads.
 - [x] done v1.19.0 — Trends: skift mellem **Begge** (rå kurve + stiplet middel oven i hinanden), **Middel** (kun middelkurven) og **Rå** (kun den rå kurve) med tre knapper ved *Middel over*; erstatter afkrydsningen *Stiplet*.
 - [x] done v1.18.0 — Trends: middelkurven som **stiplet linje** ved siden af den rå kurve (samme farve og graf), med afkrydsningen *Stiplet* (fra = middelkurven erstatter den rå, som i v1.17.0). Middeltiden vælges i *Middel over*.
+- [x] done v2.4.0 — Omskifter i tegne-editoren tegnes automatisk om med de nye positioner, når guiden gemmer (ingen knap at trykke på).
 - [x] done v2.3.0 — Skrivbare tags har egen farve (lilla) i Tag-listen og i alle tag-dropdowns, så de kan skelnes fra skrivebeskyttede.
 - [x] done v2.2.0 — Installeret version (`v<version> · b<build>`) yderst til højre i topmenuen — også på login-siden; på smal skærm kun versionen.

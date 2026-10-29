@@ -2,6 +2,10 @@
 
 ---
 
+## v2.4.0 — 2026-10-29 — Omskifter opdaterer sig med det samme
+
+- Tilføjer eller fjerner man positioner (kontaktplaner) på en omskifter i guiden, tegnes omskifteren nu om med det samme, når man trykker Gem. Man skal ikke længere trykke på en knap bagefter.
+
 ## v2.3.0 — 2026-10-29 — Skrivbare tags i egen farve
 
 - Tags, som kan skrives fra Overview, vises nu i lilla i tag-listen og i tag-dropdowns, så de er nemme at skelne fra skrivebeskyttede.

@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.4.0 build 0258] — 2026-10-29 — Omskifter opdaterer sig med det samme
+
+- `frontend/src/pages/DrawEditor.svelte`: efter guidens Gem tegnes en omskifter automatisk om, hvis opsætningens positioner afviger fra tegningen (`redrawSelector(auto)`), og tegningen gemmes uden at spørge (den var udgivet, før guiden blev åbnet).
+
 ## [2.3.0 build 0257] — 2026-10-29 — Skrivbare tags i egen farve
 
 - `frontend/src/app.css`: ny farve `--writable` og klasserne `.tag-writable` og `.badge.writable`.

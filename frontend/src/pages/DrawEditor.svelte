@@ -142,7 +142,8 @@
       selectorFix = null;   // ingen opsætning (fx et ikke-udgivet symbol) — intet at sammenligne med
     }
   }
-  async function redrawSelector(): Promise<void> {
+  // auto = true efter guidens Gem: tegningen var udgivet før guiden åbnede, så den gemmes uden at spørge (v2.4.0)
+  async function redrawSelector(auto = false): Promise<void> {
     const fix = selectorFix, sel = selection[0];
     if (!ed || !fix || !sel || sel.id !== fix.id || !current) return;
     error = '';
@@ -152,7 +153,7 @@
     if (res.error) { error = res.error; return; }
     dirty = true;
     const grebId = ed.partIdByPid(fix.id, 'greb');
-    if (!(await ensurePublished('omskifterens nye tegning kan bruges'))) {
+    if (!(await ensurePublished('omskifterens nye tegning kan bruges', auto))) {
       info = 'Omskifteren er tegnet med de nye positioner. Gem og udgiv tegningen, og tryk så knappen igen for at rette grebets vinkler.';
       return;
     }
@@ -826,7 +827,7 @@
           {#if selectorFix}
             <div class="notice small">
               Tegningen viser {selectorFix.drawn.length} positioner ({selectorFix.drawn.join(', ')}), men opsætningen har {selectorFix.labels.length} ({selectorFix.labels.join(', ')}).
-              <button class="small" onclick={() => guarded('Tegn omskifteren', redrawSelector)} disabled={busy || !ready}>Tegn omskifteren med {selectorFix.labels.length} positioner</button>
+              <button class="small" onclick={() => guarded('Tegn omskifteren', () => redrawSelector())} disabled={busy || !ready}>Tegn omskifteren med {selectorFix.labels.length} positioner</button>
             </div>
           {/if}
           {@render clipRow(true)}
@@ -968,7 +969,14 @@
 {#if guideFor && current}
   <SymbolGuide drawingId={current.id} element={guideFor.id} name={guideFor.name} {tags}
     onclose={() => (guideFor = null)}
-    onsaved={() => { info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`; guideFor = null; refreshReservedIds(); }} />
+    onsaved={() => guarded('Opdatér symbolet', async () => {
+      info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`;
+      guideFor = null;
+      await refreshReservedIds();
+      // omskifter: tegningen følger de nye positioner med det samme (ellers først ved et tryk på knappen)
+      await checkSelector();
+      if (selectorFix) await redrawSelector(true);
+    })} />
 {/if}
 
 <style>
