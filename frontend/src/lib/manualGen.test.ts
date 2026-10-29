@@ -19,7 +19,8 @@ function build(): string {
   ];
   for (const c of CATEGORIES) {
     const list = SYMBOLS.filter((s) => s.category === c.id);
-    out.push(`## ${c.label}`, '', '| Symbol | Kan sættes op som | Bemærkning |', '| --- | --- | --- |');
+    // Skærmbillede af kategorien i Tegn (tages med npm run manual:screenshots)
+    out.push(`## ${c.label}`, '', `![Symbolerne i kategorien ${c.label.replace(/ \(.*\)$/, '')}](/manual/bibliotek-${c.id}.png)`, '', '| Symbol | Kan sættes op som | Bemærkning |', '| --- | --- | --- |');
     for (const s of list) {
       const ops = allowedOps(s.id).map((o) => OP_TXT[o]).join(', ');
       out.push(`| **${s.label}** | ${ops} | ${s.hint.replace(/\|/g, '/')} |`);
