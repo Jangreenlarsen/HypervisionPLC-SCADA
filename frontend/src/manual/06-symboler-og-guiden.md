@@ -29,8 +29,8 @@ Alle symboler i biblioteket sættes op på samme måde: med **guiden i 6 trin**.
 
 | Form | Hvad den gør | Eksempel |
 | --- | --- | --- |
-| **Kun visning** | Symbolet viser, men betjenes ikke | Lampe, tank, rør, 3-vejs ventil styret af én indgang |
-| **Positioner** | 2–8 navngivne positioner; hver sætter et mønster af signaler | Omskifter *Hånd/0/Auto*, ventil *Åben/Lukket*, pumpe *Stop/Start* |
+| **Kun passiv visning** | Symbolet viser, men betjenes ikke | Lampe, tank, rør, 3-vejs ventil styret af én indgang |
+| **Interaktiv betjening** | 2–8 navngivne positioner; hver sætter et mønster af signaler | Omskifter *Hånd/0/Auto*, ventil *Åben/Lukket*, pumpe *Stop/Start* |
 | **Trykknap (puls)** | Et til/fra-tag sættes Til i en fast tid (100–10000 ms), derefter Fra | Start-knap, kvittering |
 | **Setpunkt** | Operatøren indtaster en værdi i et skrivbart tal-tag | Ønsket temperatur |
 
@@ -94,13 +94,15 @@ Bekræftelse og nøglelås gælder uændret: kræver positionen bekræftelse ell
 
 I trin 5 kan du vælge de **positioner**, der kræver en **kode** (4 cifre). Operatøren skal indtaste koden, før den position kan vælges; **Koden kræves også for at forlade en låst position** er valgfrit. Koden gemmes kun som hash på serveren, vises aldrig igen og kommer ikke med i backup — efter en gendannelse skal den sættes igen. **Fjern kode** sletter den.
 
+På tegningen står en lille **hængelås** ud for teksten for hver låst position (fx ved *Auto* på en omskifter), og i betjeningsdialogen står 🔒 ved de låste positioner. Hængelåsen ved teksten kommer kun, når symbolet har en tekst med præcis positionens navn.
+
 ## Hurtig opsætning: 3-vejs ventil
 
 ![Hurtig opsætning af en 3-vejs ventil: vælg til/fra-tagget og tryk Opret animationer](/manual/guide-hurtig.png)
 
-De to **3-vejs motorventiler** har en **Hurtig opsætning** øverst i trin 4: vælg det **til/fra-tag**, der styrer ventilen, og tryk **Opret animationer**. Så får du tre farve-animationer: **Til** = AB → A (Port A og AB åbne), **Fra** = AB → B (Port B og AB åbne); **Port AB** er altid åben. Virker også med en indgang, du kun kan læse. Er der intet skrivbart tag valgt, sættes symbolet til *Kun visning*.
+De to **3-vejs motorventiler** har en **Hurtig opsætning** øverst i trin 4: vælg det **til/fra-tag**, der styrer ventilen, og tryk **Opret animationer**. Så får du tre farve-animationer: **Til** = AB → A (Port A og AB åbne), **Fra** = AB → B (Port B og AB åbne); **Port AB** er altid åben. Virker også med en indgang, du kun kan læse. Er der intet skrivbart tag valgt, sættes symbolet til *Kun passiv visning*.
 
-Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positioner** i trin 1: guiden foreslår to positioner, **AB → A** og **AB → B**, med farve pr. port.
+Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Interaktiv betjening** i trin 1: guiden foreslår to positioner, **AB → A** og **AB → B**, med farve pr. port.
 
 ## Ret og fjern en opsætning
 

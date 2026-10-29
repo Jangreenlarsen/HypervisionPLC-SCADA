@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.7.0 build 0264] — 2026-10-29 — Nye navne på betjeningsformer, hængelås ved låste positioner
+
+- `frontend/src/lib/symbolConfig.ts`: `OP_TXT` — *Kun passiv visning*, *Interaktiv betjening*.
+- `frontend/src/lib/symbolOverlay.ts`: `lockedTexts` + hængelås ud for teksten for hver låst position; `lockGlyph` fælles for begge låse.
+- `frontend/src/pages/Overview.svelte`: sender de låste positioners navne til overlaget.
+- `frontend/src/lib/symbolOverlay.test.ts` (ny), `symbolCopy.test.ts`, `SymbolGuide.svelte`, manual kap. 06 og 07: nye navne og beskrivelse.
+
 ## [2.6.1 build 0263] — 2026-10-29 — Symbol-guiden: robusthedsrettelser
 
 - `frontend/src/lib/SymbolGuide.svelte`: Fjern position fjerner også `pos_values`; *Tid til at bekræfte* min 1 s.

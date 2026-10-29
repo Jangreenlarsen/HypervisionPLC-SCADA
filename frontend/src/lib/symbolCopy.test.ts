@@ -84,7 +84,7 @@ describe('opsæt flere samlet', () => {
       { element: 'P4', name: 'Pumpe 4', config: cfg('P4_hus'), symbol: sym('P4') },
     ]);
     expect(g.map((x) => x.members.map((m) => m.element))).toEqual([['P2', 'P4'], ['P1']]);
-    expect(g[0].summary).toBe('Kun visning · Farve (Drift)');
+    expect(g[0].summary).toBe('Kun passiv visning · Farve (Drift)');
     expect(configGroups([])).toEqual([]);
   });
 

@@ -171,6 +171,7 @@
       state: symState(element),
       remoteLabel: typeof remote === 'number' ? s.labels[remote] ?? null : null,
       locked: values[s.pseudo?.locked ?? '']?.value === true,
+      lockedLabels: s.labels.filter((_, j) => s.lock_positions[j]),
     });
   }
 

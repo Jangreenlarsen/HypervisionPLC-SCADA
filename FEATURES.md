@@ -11,6 +11,8 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 
 ## Planlagte features
 
+- [x] done v2.7.0 — Symbol-guiden trin 1: *Kun passiv visning* og *Interaktiv betjening* (før *Kun visning* / *Positioner*). Nøglelås: lille hængelås på tegningen ud for teksten for hver låst position (betjeningsdialogen viste den allerede).
+
 ### Fase 1 — Backend og PLC-kommunikation
 - [x] done v0.2.0 — Backend-skelet (FastAPI, SQLite, config, logging, serverer frontend statisk)
 - [x] done v0.2.0 — Mock-PLC der efterligner HypervisionPLC REST API (login/Bearer, bulk-registre, skriv, 401/429, SSE)

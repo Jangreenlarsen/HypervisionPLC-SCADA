@@ -356,13 +356,13 @@ import { AVERAGE_CHOICES } from './trendData';
       valveMsg = `${valveTag} er et tal-tag — vælg et til/fra-tag.`;
       return;
     }
-    // Intet at skrive til endnu (forslaget "Positioner" uden tag): hurtig opsætning er til visning, så skift til "Kun visning"
+    // Intet at skrive til endnu (forslaget "Interaktiv betjening" uden tag): hurtig opsætning er til visning, så skift til "Kun passiv visning"
     const toView = cfg.op === 'positions' && !cfg.signals.some((s) => s.tag);
     const used = cfg.anims.filter((a) => ['port_a', 'port_b', 'port_ab'].includes(symbol!.parts[a.part]?.pid ?? '')).length;
     if (used && !toView && !await askUser(`Erstat de ${used} eksisterende animationer på portene A, B og AB?`)) return;
     if (toView) setOp(cfg, 'view');   // fjerner også forslagets positions-animationer
     const k = valveFromTag(cfg, symbol, valveTag);
-    valveMsg = k > 0 ? `${k} animationer oprettet: Til = AB → A, Fra = AB → B.${toView ? ' Symbolet er sat til "Kun visning".' : ''}`
+    valveMsg = k > 0 ? `${k} animationer oprettet: Til = AB → A, Fra = AB → B.${toView ? ' Symbolet er sat til "Kun passiv visning".' : ''}`
       : k === 0 ? 'Symbolet har ikke portene A, B og AB.' : 'Der er ikke plads til tre flere animationer (højst 12).';
   }
 
@@ -618,7 +618,7 @@ import { AVERAGE_CHOICES } from './trendData';
           {/if}
         {:else if step === 1}
           {#if cfg.op === 'view'}
-            <p class="muted small">Kun visning: symbolet skriver intet. Animationerne vælger deres tags under trin 4.</p>
+            <p class="muted small">Kun passiv visning: symbolet skriver intet. Animationerne vælger deres tags under trin 4.</p>
           {:else if cfg.op === 'pulse' || cfg.op === 'entry'}
             <label class="field-row">{cfg.op === 'pulse' ? 'Signal der pulses' : 'Register der skrives'}
               <TagSelect bind:value={cfg.signals[0].tag} {tags} writableOnly />
@@ -648,7 +648,7 @@ import { AVERAGE_CHOICES } from './trendData';
               </tbody>
             </table>
             {#if !cfg.signals.length}
-              <p class="small notice">Ingen signaler. Et symbol med positioner skal have mindst ét — tilføj et med <strong>+ Signal</strong>, eller vælg <em>Kun visning</em> i trin 1, hvis symbolet ikke skal betjenes.</p>
+              <p class="small notice">Ingen signaler. Et symbol med positioner skal have mindst ét — tilføj et med <strong>+ Signal</strong>, eller vælg <em>Kun passiv visning</em> i trin 1, hvis symbolet ikke skal betjenes.</p>
             {/if}
             <button class="small" onclick={addSignal} disabled={cfg.signals.length >= 8}>+ Signal</button>
           {/if}
@@ -931,7 +931,7 @@ import { AVERAGE_CHOICES } from './trendData';
           {/if}
         {:else if step === 4}
           {#if cfg.op === 'view'}
-            <p class="muted small">Kun visning — intet at betjene.</p>
+            <p class="muted small">Kun passiv visning — intet at betjene.</p>
           {:else}
             <label class="opt"><input type="checkbox" bind:checked={cfg.confirm} /> Operatøren skal bekræfte før der skrives</label>
             {#if isPos}
