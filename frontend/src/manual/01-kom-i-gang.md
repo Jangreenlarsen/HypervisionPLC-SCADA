@@ -15,6 +15,8 @@ Velkommen til **HypervisionPLC SCADA** — en webside, hvor du ser og betjener a
 
 ## Log ind
 
+![Login-siden med brugernavn og adgangskode](/manual/login.png)
+
 Skriv brugernavn og adgangskode. Er det første gang, eller har en administrator nulstillet din adgangskode, skal du vælge en ny (mindst 10 tegn), før du kommer videre. Du logges automatisk ud efter et stykke tids inaktivitet (standard 8 timer). Skift adgangskode eller log ud under **Bruger**.
 
 ## Menuen

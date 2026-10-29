@@ -27,6 +27,8 @@ Alle symboler i biblioteket sættes op på samme måde: med **guiden i 6 trin**.
 
 ## Betjeningsformer
 
+![Trin 1 med alle fire betjeningsformer vist: Kun passiv visning, Interaktiv betjening, Trykknap og Setpunkt](/manual/guide-former.png)
+
 | Form | Hvad den gør | Eksempel |
 | --- | --- | --- |
 | **Kun passiv visning** | Symbolet viser, men betjenes ikke | Lampe, tank, rør, 3-vejs ventil styret af én indgang |
@@ -35,6 +37,8 @@ Alle symboler i biblioteket sættes op på samme måde: med **guiden i 6 trin**.
 | **Setpunkt** | Operatøren indtaster en værdi i et skrivbart tal-tag | Ønsket temperatur |
 
 ## Positioner og kontaktplaner
+
+![Trin 3 for en omskifter med 8 positioner: kontaktplaner for fem signaler og de aktive signaler pr. position](/manual/guide-kontaktplan.png)
 
 **Omskifterens tegning følger positionerne:** giver du en omskifter fra biblioteket flere positioner (eller andre navne) i guiden, end der står rundt om grebet i tegningen, så vælg omskifteren i **Tegn** — der står *Tegningen viser 3 positioner …* med knappen **Tegn omskifteren med N positioner**. Den tegner omskifteren igen med guidens navne (samme navn, placering og opsætning), gemmer og udgiver tegningen (du bliver spurgt), og retter grebets vinkel pr. position, så det peger på navnene.
 
@@ -48,6 +52,8 @@ Et symbol med positioner skal vide, hvilken position PLC'en **står i** (tilbage
 Er en **tilbagemelding** valgt for et signal, læses PLC'ens position derfra; ellers bruges kommandoen. Enten har alle signaler i kontaktplanerne en tilbagemelding, eller ingen — en blanding afvises. *Vis: PLC'ens position* kræver, at alle har. Et puls-signal bruges også til at finde positionen, når det har en tilbagemelding. En position **fundet** i PLC'en vises som en lille tilstand (*bekræftet*, *afventer*, *afvigelse*, *ukendt*).
 
 ## Animationer i guiden (trin 4)
+
+![En animation i trin 4: grebet drejer efter symbolets position, med en vinkel pr. position og tegningens vinkler](/manual/guide-animation.png)
 
 Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symbolet* …; dele uden et navn fra biblioteket vises efter deres form, fx *Ramme*, *Rektangel 2*, *Cirkel* eller *Tekst "STF"*, med det tekniske id i parentes), en **type** (*Farve, Blink, Synlig, Roterer, Blafrer, Niveau, Gennemsigtighed, Størrelse, Værdi, Drej, Flyt, Løbelys*) og en **kilde**:
 
@@ -83,6 +89,8 @@ Vil du have en animation, der kun er aktiv, når **flere ting er sande** — fx 
 
 ## Betjening på tegningen: dialog eller venstre/højre
 
+![Trin 5 for en omskifter med Interaktiv betjening (venstre/højre side) valgt](/manual/guide-interaktiv.png)
+
 Har symbolet **positioner**, vælger du i trin 5 (*Betjening*), hvordan operatøren skifter position:
 
 - **Dialog** (standard): et tryk åbner en boks, hvor positionen vælges.
@@ -91,6 +99,8 @@ Har symbolet **positioner**, vælger du i trin 5 (*Betjening*), hvordan operatø
 Bekræftelse og nøglelås gælder uændret: kræver positionen bekræftelse eller kode, åbnes dialogen med den valgte position, så den kan bekræftes eller låses op. Hurtige tryk, før PLC'en har svaret, tæller videre fra den position, der sidst blev bestilt. Kendes den viste position ikke endnu (ingen tilbagemelding), åbnes dialogen i stedet.
 
 ## Nøglelås
+
+![Trin 5 med nøglelås: positionen Til er låst, og koden kræves også for at forlade den](/manual/guide-noeglelaas.png)
 
 I trin 5 kan du vælge de **positioner**, der kræver en **kode** (4 cifre). Operatøren skal indtaste koden, før den position kan vælges; **Koden kræves også for at forlade en låst position** er valgfrit. Koden gemmes kun som hash på serveren, vises aldrig igen og kommer ikke med i backup — efter en gendannelse skal den sættes igen. **Fjern kode** sletter den.
 
@@ -179,6 +189,8 @@ Hvert symbol får sin **egen kopi** — du kan bagefter rette det enkelte symbol
 
 
 ## Symboltest
+
+![Symboltest: vælg et symbol, simulér tags og afprøv animationerne uden PLC](/manual/symboltest.png)
 
 Siden **Symboltest** (rollen tekniker, under **Opsætning**) afprøver et biblioteksymbol uden PLC — med samme animationskode som Overview, så det du ser her, er det du får i tegningen. Intet gemmes.
 

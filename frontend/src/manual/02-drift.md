@@ -38,6 +38,8 @@ Brug **musehjulet**, **knib** på en touch-skærm eller knapperne **−**, **+**
 
 ### Betjening
 
+![Betjeningsdialogen for en omskifter: den låste position har 🔒, og koden skal indtastes, før der skiftes](/manual/drift-dialog.png)
+
 Elementer, der kan betjenes, reagerer på klik/tryk. Hvad der sker, afhænger af opsætningen:
 
 | Betjening | Sådan gør du |
@@ -101,6 +103,8 @@ Alarmgrænser opsættes pr. tag under **Tags** (se *PLC'er og tags*) — eller i
 - Hullerne i en kurve betyder, at der ikke var kontakt til PLC'en dengang.
 
 ### Analysér data
+
+![Trends med Analysér data slået til og to grafer over den seneste time](/manual/trends-analyse.png)
 
 Sæt flueben i **Analysér data** for at lade siden finde uregelmæssigheder i tal-kurverne (til/fra-kurver analyseres ikke). Rådata ændres aldrig, og CSV indeholder altid alt.
 

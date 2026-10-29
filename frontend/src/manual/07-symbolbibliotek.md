@@ -5,6 +5,8 @@ Biblioteket har **94 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 
 ## Betjening (skriver til PLC)
 
+![Symbolerne i kategorien Betjening](/manual/bibliotek-betjening.png)
+
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
 | **Trykknap (puls)** | Interaktiv betjening, Trykknap (puls) | Sender en kort puls (500 ms) — fx start, stop, kvittér. Vælg et skrivbart tag |
@@ -19,6 +21,8 @@ Biblioteket har **94 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 
 ## Proces og visning
 
+![Symbolerne i kategorien Proces og visning](/manual/bibliotek-proces.png)
+
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
 | **Statusfelt** | Kun passiv visning | Knyt til et register: farven følger værdien (Fyldfarve) — ret teksten i Tegn |
@@ -31,6 +35,8 @@ Biblioteket har **94 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 | **Knap** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | Bind "Klik: til/fra" eller "Klik: puls" |
 
 ## Rør og VVS
+
+![Symbolerne i kategorien Rør og VVS](/manual/bibliotek-vvs.png)
 
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
@@ -70,6 +76,8 @@ Biblioteket har **94 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 
 ## Elektrisk
 
+![Symbolerne i kategorien Elektrisk](/manual/bibliotek-el.png)
+
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
 | **Ledning (vandret)** | Kun passiv visning | Træk i enderne for at forlænge; bind "Stregfarve" til spænding |
@@ -100,6 +108,8 @@ Biblioteket har **94 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 
 ## Solcelleanlæg
 
+![Symbolerne i kategorien Solcelleanlæg](/manual/bibliotek-sol.png)
+
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
 | **Solcellepanel** | Kun passiv visning | Bind "Fyldfarve" til produktion, eller vis effekten i et værdifelt |
@@ -120,6 +130,8 @@ Biblioteket har **94 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 | **Energiflow-pil** | Kun passiv visning | Bind "Synlighed" (fx kun ved eksport) eller "Fyldfarve" |
 
 ## Genveje (gå til side)
+
+![Symbolerne i kategorien Genveje](/manual/bibliotek-genveje.png)
 
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
