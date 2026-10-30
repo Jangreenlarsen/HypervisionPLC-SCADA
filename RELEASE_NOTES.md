@@ -2,6 +2,10 @@
 
 ---
 
+## v2.11.1 — 2026-10-30 — Rettelse: "Gælder i"
+
+- Skifter du en animations kilde fra et tag til *symbolets position*, gælder de afkrydsninger, du havde sat under *Gælder i*, ikke længere skjult. Animationen virker nu i alle positioner, som feltet viser.
+
 ## v2.11.0 — 2026-10-30 — Tegn omskifteren om fra guiden
 
 - Ændrer du antallet af positioner på en omskifter, har guidens trin 3 nu knappen **Gem og tegn omskifteren om**. Fra *Tegn* tegnes omskifteren om med de nye positioner med det samme; fra *Bindinger* åbnes Tegn, og omskifteren tegnes om dér. Grebets vinkler følger med.

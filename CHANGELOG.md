@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.11.1 build 0272] — 2026-10-30 — "Gælder i" rydes ved skift til kilden position
+
+- `frontend/src/lib/symbolConfig.ts`: `keepsOnly`. `frontend/src/lib/SymbolGuide.svelte`: `resetParams` bruger den.
+- `backend/app/services/symbols.py`: `only` rydes også, når kilden er `@pos`.
+- Tests: `symbolConfig.test.ts`, backend `test_symbols.py`.
+
 ## [2.11.0 build 0271] — 2026-10-30 — Gem og tegn omskifteren om (fra guiden)
 
 - `frontend/src/lib/SymbolGuide.svelte`: i trin 3 erstattes henvisningen til Tegn af knappen *Gem og tegn omskifteren om* (nyt prop `selectorRedraw`; `onsaved({ redraw })`).

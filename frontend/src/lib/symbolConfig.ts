@@ -599,3 +599,9 @@ export function setPassive(cfg: SymbolConfig, on: boolean): void {
   cfg.alarm = '';
   cfg.lock = { positions: cfg.positions.map(() => false), leave: false };
 }
+
+/**
+ * Bevares "Gælder i" (`only`) efter et skift af kilde? Den læser symbolets egen position, så den giver kun mening for en
+ * anden kilde end positionen (og ikke "pr. værdi") på et symbol med positioner (v2.11.1; før blev den stående og gjaldt skjult).
+ */
+export const keepsOnly = (src: string, byValue: boolean, isPos: boolean): boolean => isPos && src !== POS && !byValue;

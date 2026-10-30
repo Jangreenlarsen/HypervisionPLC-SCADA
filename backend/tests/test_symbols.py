@@ -671,3 +671,22 @@ def test_segments_needs_a_number_tag(api, src):
 def test_segments_rejects_bad_parameters(api, params):
     did = _display_did(api)
     assert _put_display(api, did, {"part": "all", "type": "segments", "src": "Niveau", "params": params}).status_code == 400
+
+
+# ------------------------------------------------------------------ "gælder i" følger ikke med over i kilden "position" (v2.11.1)
+
+def test_only_is_cleared_when_the_source_is_the_symbols_own_position(api):
+    only = [True, False, True, True, True, True, True]
+    cfg = dec_bin(anims=[{"part": "V1_greb", "type": "rotate", "src": "@pos", "only": only,
+                          "params": {"angles": [-90 + 30 * j for j in range(7)]}}])
+    r = put(api, cfg)
+    assert r.status_code == 200, r.text
+    assert r.json()["config"]["anims"][0]["only"] is None   # før: den gamle afkrydsning gjaldt stadig, selv om feltet er skjult
+
+
+def test_only_is_kept_for_an_ordinary_tag_source(api):
+    only = [True, False, True, True, True, True, True]
+    cfg = dec_bin(anims=[{"part": "V1_greb", "type": "visible", "src": "Lys", "only": only, "params": {"invert": False}}])
+    r = put(api, cfg)
+    assert r.status_code == 200, r.text
+    assert r.json()["config"]["anims"][0]["only"] == only

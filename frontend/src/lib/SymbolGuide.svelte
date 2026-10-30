@@ -24,7 +24,7 @@ import { AVERAGE_CHOICES } from './trendData';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
     ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
-    activeAt, hasFeedback, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, feedbackMismatch, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
+    activeAt, hasFeedback, keepsOnly, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, feedbackMismatch, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, BY_VALUE_TYPES, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, setPassive, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
@@ -441,7 +441,8 @@ import { AVERAGE_CHOICES } from './trendData';
     // Drej pr. position på en omskifter: start med tegningens vinkler i stedet for et gæt
     if (a.type === 'rotate' && srcKind(a) === 'pos' && selectorAnglesNow) fresh.angles = [...selectorAnglesNow];
     if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
-    if (a.src !== POS) a.only = isPos ? a.only : null;
+    // "Gælder i" læser symbolets egen position — den giver ingen mening, når kilden SELV er positionen (eller "pr. værdi"): ryd den (v2.11.1)
+    if (!keepsOnly(a.src, byValue(a), isPos)) a.only = null;
   }
   function moveAnim(i: number, d: -1 | 1): void {
     const j = i + d;

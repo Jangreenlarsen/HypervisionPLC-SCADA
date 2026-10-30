@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeAt, feedbackCoverage, hasFeedback, animDefaults, opChoices, cycleCell, isLogicRef, keepSuggestion, emptyConfig, feedbackMismatch, foundPosition, parseValRef, partLabel, preset, resize, setOp, setPassive, tagKind, libraryDefault, template, typesFor, valRef,
+  activeAt, feedbackCoverage, hasFeedback, animDefaults, opChoices, cycleCell, isLogicRef, keepSuggestion, emptyConfig, feedbackMismatch, foundPosition, parseValRef, partLabel, preset, resize, setOp, setPassive, tagKind, libraryDefault, keepsOnly, template, typesFor, valRef,
   type PartInfo, type SymbolConfig, type SymbolInfo,
 } from './symbolConfig';
 
@@ -274,5 +274,14 @@ describe('segment-display i guiden (v2.9.0)', () => {
   });
   it('standardindstillinger', () => {
     expect(animDefaults('segments', 'num', 0)).toEqual({ zeros: false, align: 'right', on: '#7cc47f', off: '#3d3d3d' });
+  });
+});
+
+describe('"Gælder i" ved skift af kilde (v2.11.1)', () => {
+  it('bevares kun for en anden kilde end positionen på et symbol med positioner', () => {
+    expect(keepsOnly('Tag1', false, true)).toBe(true);
+    expect(keepsOnly('@pos', false, true)).toBe(false);   // kilden ER positionen
+    expect(keepsOnly('Tag1', true, true)).toBe(false);    // pr. værdi
+    expect(keepsOnly('Tag1', false, false)).toBe(false);  // symbolet har ingen positioner
   });
 });
