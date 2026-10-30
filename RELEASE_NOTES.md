@@ -2,6 +2,10 @@
 
 ---
 
+## v2.10.0 — 2026-10-30 — Preview ved animationerne
+
+- I symbol-guidens trin 4 står et lille **preview** af symbolet ved siden af animationerne. Det følger dine indstillinger med det samme: vælg Fra/Til, træk i skyderen, skift position, eller tryk **Afspil**. Intet gemmes, og der skrives ikke til PLC'en.
+
 ## v2.9.0 — 2026-10-30 — Segment-display
 
 - Nye symboler: **7-segment display** og **11-segment display** (kategorien *Proces og visning*). I Tegn kan du indsætte et display med **1–16 cifre** (*Display med egne cifre*).

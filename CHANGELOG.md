@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.10.0 build 0268] — 2026-10-30 — Live preview ved animationerne i guiden
+
+- `frontend/src/lib/animPreview.ts` (ny): guidens opsætning → de samme bindinger som Overview bruger (kilde, position, "gælder i", aktiv/passiv, logikblok, alarm, fast værdi, retnings-tag), kontroller og afspilning.
+- `frontend/src/lib/AnimPreview.svelte` (ny): lille preview af symbolet ved siden af animationerne i trin 4 med Fra/Til, skyder og positionsknapper, Afspil og Nulstil. Tegnes med Overviews animationsmotor (`renderAll`); gemmer og skriver intet.
+- `frontend/src/lib/SymbolGuide.svelte`: monterer preview'et (ved siden af listen på brede skærme, over den på smalle).
+- Tests: `animPreviewLogic.test.ts`, `AnimPreviewPanel.test.ts` (+ `AnimPreviewHarness.svelte`). Manual kap. 06.
+
 ## [2.9.0 build 0267] — 2026-10-30 — Segment-display (7/11 segmenter, 1–16 cifre)
 
 - `frontend/src/lib/segDisplay.ts` (ny): tegn → segmenter for 7- og 11-segment, layout (justering, foranstillede nuller, decimalpunkt, overløb), tegning af 1–16 cifre og visning.
