@@ -39,7 +39,8 @@
     selectByIds(ids: string[]): number;
     setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
     uniqueName(base: string): string;
-    insertSymbol(fragment: string, baseId: string): string;
+    insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
+    docPointAt(clientX: number, clientY: number): { x: number; y: number };
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number }): void;
     describeSelection(): SelectionInfo | null;
     replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any'; protectIds?: string[]; apexNative?: number; axisNative?: number; mirror?: boolean }):
@@ -104,6 +105,7 @@
   // Ny tegne-editor (PLAN.md): SVG-Edits motor direkte i siden, uden iframe. Prøves med ?editor=ny, til den kan det samme.
   const newEditor = new URLSearchParams(location.search).get('editor') === 'ny';
   let editorHeight = $state(600);
+  const SYMBOL_DRAG = 'application/x-hv-symbol';   // træk-og-slip fra symbolpaletten (ny editor)
   let inspectRev = $state(0);   // panelet Egenskaber læser markeringen igen, når tallet skifter
 
   async function connect(): Promise<void> {
@@ -727,12 +729,13 @@
     }
   }
 
-  function insert(symbolId: string): void {
+  function insert(symbolId: string, at: { x: number; y: number } | null = null): void {
     const s = SYMBOLS.find((x) => x.id === symbolId);
     if (!ed || !s) return;
-    ed.insertSymbol(withName(s.svg, ed.uniqueName(s.label)), s.id);
+    ed.insertSymbol(withName(s.svg, ed.uniqueName(s.label)), s.id, at);
     dirty = true;
-    info = 'Symbolet er indsat — tryk "Opsæt symbol (6 trin)" i panelet til højre for at sætte tag, positioner og animationer.';
+    // i den nye editor står "Opsæt symbol" allerede i panelet — en meddelelse over tegnefladen ville skubbe den ned
+    if (!newEditor) info = 'Symbolet er indsat — tryk "Opsæt symbol (6 trin)" i panelet til højre for at sætte tag, positioner og animationer.';
   }
 
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -864,7 +867,7 @@
 <div class="layout">
   <div class="frame" bind:this={frameBox}>
     {#if newEditor}
-      <DrawCanvas height={editorHeight} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++}
+      <DrawCanvas height={editorHeight} dropType={SYMBOL_DRAG} ondropsymbol={(id, x, y) => ed && insert(id, ed.docPointAt(x, y))} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++}
                   hint="{hint.name}: {hint.how} · Drejning i 15°-trin, Shift = fri" status={guidesUi} />
     {:else}
       <iframe bind:this={iframe} src="/svgedit/scada-editor.html?v={BUNDLE.build}" title="Tegne-editor" onload={connect}></iframe>
@@ -1002,7 +1005,8 @@
   {@const fav = favorites.includes(s.id)}
   {@const pos = favorites.indexOf(s.id)}
   <div class="tile">
-    <button class="ins" onclick={() => insert(s.id)} disabled={!ready} title={s.hint}>
+    <button class="ins" onclick={() => insert(s.id)} disabled={!ready} title={newEditor ? `${s.hint} — klik for at indsætte, eller træk ind på tegningen` : s.hint}
+            draggable={newEditor && ready} ondragstart={(e) => { e.dataTransfer?.setData(SYMBOL_DRAG, s.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'; }}>
       <svg viewBox="-4 -4 168 152" aria-hidden="true" {@attach fitPreview(s.id)}>{@html s.svg}</svg>
       <span>{s.label}</span>
     </button>

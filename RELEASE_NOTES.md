@@ -2,6 +2,11 @@
 
 ---
 
+## v2.17.0 — 2026-10-30 — Ny tegne-editor: træk symboler ind på tegningen (prøveversion)
+
+- I den nye tegne-editor (`?editor=ny`) kan du trække et symbol fra paletten til højre direkte ind på tegningen. Det lægges, hvor du slipper. Et klik på symbolet indsætter det som før.
+- Rettet: rør-værktøjet ramte tilslutningspunkterne forkert efter zoom eller rulning.
+
 ## v2.16.0 — 2026-10-30 — Symbol-editor: ret tilslutningspunkterne
 
 - Ny side **Symboler** under Opsætning (tekniker). Her kan du rette et bibliotekssymbols tilslutningspunkter, altså de grønne prikker, som rør sættes fast i: klik for at tilføje, træk for at flytte, højreklik for at fjerne. **Brug de automatiske** går tilbage til standardpunkterne.

@@ -5,6 +5,8 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v2.17.0 — Ny tegne-editor: rør-værktøjet (og det nye træk-og-slip) regnede musens placering om med lærredets `getrootSctm()`, som kun opdateres, når lærredet selv får et museklik. Efter zoom eller rulning uden et klik i tegningen lå punkterne forskudt, og et symbol trukket ind fra paletten landede ved skærmkoordinaterne. **Løsning:** `screenToDoc` beregner matricen frisk (som lærredet: første gruppe i tegningen). Set i browseren: rør hægtes fast efter zoom til 125 %, symbol lægges præcist under musen.
+
 - [fixed] v2.15.1 — Ny tegne-editor: drejning med musen sprang ikke i 15°-trin, men lagde en ekstra drejning oven i ved hver musebevægelse (rapporteret af Jan). **Årsag:** drejeberegningen læste elementets transform med `transform.baseVal.consolidate()`, som *skriver* listen om til én matrix — så lærredets `rotate(…)` blev til `rotate(…) matrix(…)`. Samme fejlklasse i panelets flyt/størrelse (`applyBox`), hvor en drejning gik tabt som `rotate`. **Løsning:** transformen læses uden at ændre den (`listMatrix`), og ren flytning lægger en translate forrest som lærredet selv. Set i browseren: 15°, 30°, 45°, 60° og fri med Shift.
 
 - [fixed] v2.13.0 — Tegn: gitteret (*Vis gitter*) var for lille og forskudt i tegninger uden et baggrundsrektangel over hele fladen. **Årsag:** gitterets placering blev målt med `getBoundingClientRect()` på tegningens indre `<svg>`, som giver indholdets yderkanter, ikke tegningens flade. **Løsning:** fladen beregnes fra lærredet (yderste svg) + tegningens x/y/bredde/højde. Set i browseren i både gammel og ny editor.

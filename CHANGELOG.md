@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.17.0 build 0279] — 2026-10-30 — Ny tegne-editor, trin 5: træk symboler fra paletten
+
+- `frontend/svgedit-host/scada-core.js`: `insertSymbol(fragment, type, at)` lægger symbolets midte i punktet `at`; `docPointAt`; `screenToDoc` (frisk skærm→tegning-matrix — rettet for rør-værktøjet efter zoom/rulning).
+- `frontend/src/lib/draw/DrawCanvas.svelte`: tegnefladen tager imod symboler (grøn stiplet kant mens der trækkes).
+- `frontend/src/pages/DrawEditor.svelte`: paletten kan trækkes fra i den nye editor; ingen meddelelse over tegnefladen ved indsættelse (den skubbede fladen ned).
+
 ## [2.16.0 build 0278] — 2026-10-30 — Symbol-editor: tilslutningspunkter pr. symboltype
 
 - Backend: `app/services/symbol_ports.py`, `app/api/symbol_ports.py` (nye): `GET/PUT/DELETE /api/symbol-ports[/{type}]` (tekniker), validering (1–32 punkter, 0..1), audit `symbol_ports.set/reset`. `storage/db.py`: gemt i `meta` (`symbolports.<type>`), med i projekt-eksport/gendannelse. `services/backup.py`: `symbol_ports` valideres ved gendannelse. `main.py`: registrering.

@@ -5,7 +5,7 @@
   import { onDestroy, onMount, type Snippet } from 'svelte';
   import { createEngine, type Engine } from './engine';
 
-  let { onready, onupdate, height = 600, status, hint = '' }: {
+  let { onready, onupdate, height = 600, status, hint = '', dropType = '', ondropsymbol }: {
     onready: (api: unknown) => void;
     /** markering/tegning kan være ændret — panelet til højre læser igen */
     onupdate?: () => void;
@@ -13,7 +13,12 @@
     /** tegnehjælp (gitter, fang …) i statuslinjen — ejes af Tegn-siden */
     status?: Snippet;
     hint?: string;
+    /** træk-og-slip: dataTransfer-typen, og hvad der skal ske, når et symbol slippes (skærmpunkt) */
+    dropType?: string;
+    ondropsymbol?: (id: string, clientX: number, clientY: number) => void;
   } = $props();
+  let dropping = $state(false);
+  const isSymbolDrag = (e: DragEvent): boolean => !!dropType && !!e.dataTransfer?.types.includes(dropType);
 
   let workarea: HTMLDivElement;
   let textInput: HTMLInputElement;
@@ -118,7 +123,10 @@
     <!-- svar på højreklik i tegnefladen; menuen styres også med tastaturet (Escape lukker) -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="stage" oncontextmenu={onContext} onmousedown={(e) => { if (menu && !(e.target as HTMLElement).closest('.cmenu')) closeMenu(); }}>
-      <div class="workarea" bind:this={workarea}></div>
+      <div class="workarea" class:dropping bind:this={workarea}
+           ondragover={(e) => { if (!isSymbolDrag(e)) return; e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; dropping = true; }}
+           ondragleave={() => (dropping = false)}
+           ondrop={(e) => { if (!isSymbolDrag(e)) return; e.preventDefault(); dropping = false; const id = e.dataTransfer?.getData(dropType); if (id) { engine?.setMode('select'); ondropsymbol?.(id, e.clientX, e.clientY); } }}></div>
 
       {#if count > 0}
         <div class="selbar" role="toolbar" aria-label="Det markerede">
@@ -233,6 +241,7 @@
     scrollbar-color: #6b6b6b #d9d9d9;
   }
   .workarea :global(.svgcanvas) { position: relative; }
+  .workarea.dropping { outline: 3px dashed #2e7d32; outline-offset: -3px; }
   /* Drejegrebets forbindelsesstreg tager ikke imod musen (BUGS.md v0.65.0) */
   .workarea :global(#selectorGrip_rotateconnector) { pointer-events: none; }
 

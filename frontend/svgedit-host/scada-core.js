@@ -713,10 +713,19 @@ export function createScada(host) {
   // ---- værktøjet: klik punkter, klik på et tilslutningspunkt (eller dobbeltklik/Enter) for at slutte, Escape fortryder
   const pipeTool = { on: false, pts: [], from: null, fromAxis: null, cursor: null, hover: null, ports: [], overlay: null, life: null };
 
-  function docPoint(e) {
-    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(canvas().getrootSctm());
+  /**
+   * Skærmpunkt → tegningens koordinater, beregnet frisk som lærredet gør det (første gruppe i tegningen). Ikke
+   * getrootSctm(): den sættes først, når lærredet selv får et museklik — forældet efter zoom/rulning og ved
+   * træk-og-slip (BUGS.md v2.17.0).
+   */
+  function screenToDoc(clientX, clientY) {
+    const g = canvas().getSvgContent()?.querySelector('g');
+    const m = g?.getScreenCTM?.();
+    if (!m) return [clientX, clientY];
+    const p = new DOMPoint(clientX, clientY).matrixTransform(m.inverse());
     return [p.x, p.y];
   }
+  const docPoint = (e) => screenToDoc(e.clientX, e.clientY);
   function snapPipePoint(raw) {
     const tol = 12 / (canvas().getZoom() || 1);
     const port = nearest(pipeTool.ports.map((q) => q.doc), raw, tol);
@@ -1525,7 +1534,14 @@ export function createScada(host) {
     },
 
     /** Indsæt et symbol (SVG-fragment med ét rodelement) midt i den synlige del, valgt og med fortryd. */
-    insertSymbol(fragment, baseId) {
+    /** Musens skærmpunkt → tegningens koordinater (fx hvor et symbol slippes). */
+    docPointAt(clientX, clientY) {
+      const [x, y] = screenToDoc(clientX, clientY);
+      return { x, y };
+    },
+
+    /** Indsæt et bibliotekssymbol. `at` (tegningens koordinater): symbolets midte lægges dér (træk-og-slip). */
+    insertSymbol(fragment, baseId, at = null) {
       const c = canvas();
       const node = buildSymbolNode(fragment, baseId);
       if (!node) return '';
@@ -1533,6 +1549,12 @@ export function createScada(host) {
       const step = (insertCount++ % 6) * 30; // forskyd hvert nyt symbol, så de ikke ligger oven i hinanden
       node.setAttribute('transform', `translate(${Math.round(res.w / 2 - 40 + step)} ${Math.round(res.h / 2 - 40 + step)})`);
       c.getCurrentDrawing().getCurrentLayer().appendChild(node);
+      if (at && Number.isFinite(at.x) && Number.isFinite(at.y)) {
+        const box = boxOfRoot(node);   // symbolets egen boks (uden translate)
+        const cx = box ? box.x + box.w / 2 : 40;
+        const cy = box ? box.y + box.h / 2 : 40;
+        node.setAttribute('transform', `translate(${Math.round(at.x - cx)} ${Math.round(at.y - cy)})`);
+      }
       c.undoMgr.addCommandToHistory(new c.history.InsertElementCommand(node));
       c.clearSelection();
       c.addToSelection([node]);
