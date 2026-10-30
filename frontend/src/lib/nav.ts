@@ -19,6 +19,7 @@ export const NAV: NavGroup[] = [
     { id: 'tags', label: 'Tags', role: 'viewer', icon: 'tags' },
     { id: 'schedules', label: 'Ugeprogrammer', role: 'engineer', icon: 'schedules' },
     { id: 'plcs', label: "PLC'er", role: 'engineer', icon: 'plcs' },
+    { id: 'symbols', label: 'Symboler', role: 'engineer', icon: 'symbols' },
     { id: 'symboltest', label: 'Symboltest', role: 'engineer', icon: 'symboltest' },
   ] },
   { id: 'system', label: 'System', pages: [
@@ -80,6 +81,7 @@ export const NAV_ICON: Record<string, string> = {
   config: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
   update: '<path d="M12 3v12"/><path d="M7 10l5-5 5 5"/><path d="M4 15v4h16v-4"/>',
   manual: '<path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M8 4v13a3 3 0 0 0-3 3"/><path d="M10 8h5M10 12h5"/>',
+  symbols: '<circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h3M14 12h3M10 8l4 4-4 4z"/>',
   symboltest: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/><path d="M8 15h8"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',

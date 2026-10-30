@@ -1,3 +1,21 @@
+# Plan: Symbol-editor — tilslutningspunkter pr. symboltype (Jan, 2026-10-30)
+
+**Mål:** I en egen sektion kan teknikere rette et bibliotekssymbols tilslutningspunkter (rørenes fikspunkter): tilføje, flytte, fjerne, eller nulstille til de automatisk fundne. **Symboler der allerede står i en tegning arver IKKE ændringen** — kun symboler der indsættes bagefter.
+
+**Beslutning:** punkterne bygges ind i symbolet ved indsættelse (`data-hv-ports="fx,fy;fx,fy"` på symbolets rod, brøkdele af symbolets egen boks — samme form som rørenes referencer). Rør-værktøjet bruger `data-hv-ports`, hvis det findes, ellers de automatiske punkter som i dag. Alternativer: slå punkterne op på serveren ved hver tegning (så arver alle — ikke ønsket) · gemme pr. tegning (ingen genbrug). Indbygning giver præcis "kun nye".
+
+## Trin
+1. **Backend:** ny tabel `symbol_ports (type TEXT PRIMARY KEY, ports TEXT NOT NULL, updated_by, updated_at)` (CREATE IF NOT EXISTS — ingen migration). Service + API i `api/symbols.py`: `GET /api/symbol-ports` (alle), `PUT /api/symbol-ports/{type}` (validering: kendt type, 1–32 punkter, 0 ≤ f ≤ 1), `DELETE` (= automatisk). Rolle tekniker/admin (som Tegn), audit-log. Med i backup/gendan. Tests.
+2. **Frontend, ny side "Symboler"** under Opsætning (`pages/SymbolEditor.svelte`): liste over bibliotekets symboler (søg, kategorier) → stort preview med punkterne: klik på kanten/en streg for at tilføje (fanger til rørender/kantmidter), træk for at flytte, Delete/højreklik for at fjerne, *Nulstil til automatisk*, *Gem*. Viser "Ændringen gælder symboler, du indsætter fremover — symboler i tegningerne beholder deres punkter."
+3. **Tegn:** ved indsættelse af et symbol med rettede punkter sættes `data-hv-ports`; `portsOf` i `scada-core.js` bruger dem. Rensningen beholder data-attributter (test).
+4. Manual + manualbillede, FEATURES/CHANGELOG/RELEASE_NOTES. Version MINOR.
+
+**Berørte filer:** `backend/app/storage/db.py`, `backend/app/services/symbol_ports.py` (ny), `backend/app/api/symbols.py`, backup-service, `frontend/src/pages/SymbolEditor.svelte` (ny), menu/routing i `App.svelte`, `frontend/svgedit-host/scada-core.js`, `pipes.js`, `DrawEditor.svelte` (indsæt), tests begge steder.
+
+**Risici:** symboler der drejes/spejles — brøkdele i symbolets egne koordinater følger med (som rørene). Symboler med `data-hv-ports` fra et gammelt bibliotek ændres ikke — det er netop ønsket; evt. senere en knap i Tegn "Hent punkter fra biblioteket" for ét symbol.
+
+---
+
 # Plan: ny tegne-editor — egen Svelte-UI på `@svgedit/svgcanvas` (option B, 2026-10-30)
 
 **Mål:** Tegn bliver et SCADA-værktøj i stedet for en generel illustrationseditor. Behold SVG-motoren (`@svgedit/svgcanvas` 7.4.2, MIT) og tegningsformatet; erstat SVG-Edits UI + iframe med egne Svelte-komponenter.

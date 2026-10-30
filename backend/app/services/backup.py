@@ -31,6 +31,7 @@ from ..config import read_version
 from ..storage.files import DrawingFiles
 from .bindings import BindingError, binding_tags, validate_binding
 from .schedules import validate_schedule
+from .symbol_ports import MAX_TYPES, clean_ports, clean_type
 from .trend_views import clean_view
 from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
 from .symbols import SymbolConfig, config_tags
@@ -148,6 +149,7 @@ class BackupService:
             "symbol_config": data["symbol_config"],
             "symbol_groups": data["symbol_groups"],
             "trend_views": data["trend_views"],
+            "symbol_ports": data["symbol_ports"],
         }
 
     def save_to_server(self, kind: str, created_by: str) -> str:
@@ -485,6 +487,20 @@ class BackupService:
             seen_views.add(clean["name"].casefold())
             trend_views.append(clean)
 
+        symbol_ports: dict[str, list[list[float]]] = {}
+        raw_ports = backup.get("symbol_ports", {})   # ældre backups har ingen rettede tilslutningspunkter
+        if not isinstance(raw_ports, dict):
+            err("symbol_ports skal være et objekt")
+            raw_ports = {}
+        if len(raw_ports) > MAX_TYPES:
+            err(f"symbol_ports: højst {MAX_TYPES} symboler kan have rettede tilslutningspunkter")
+            raw_ports = {}
+        for sym_type, ports in raw_ports.items():
+            try:
+                symbol_ports[clean_type(sym_type)] = clean_ports(ports)
+            except ServiceError as exc:
+                err(f"Tilslutningspunkter for '{sym_type}': {exc.message}")
+
         schedules = []
         raw_schedules = backup.get("schedules", [])  # ældre backups har ingen ugeprogrammer
         if not isinstance(raw_schedules, list):
@@ -513,7 +529,8 @@ class BackupService:
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
                 "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
                 "schedules": schedules, "symbol_meta": symbol_meta, "symbol_config": symbol_config,
-                "symbol_groups": symbol_groups, "trend_views": trend_views}
+                "symbol_groups": symbol_groups, "trend_views": trend_views,
+                "symbol_ports": symbol_ports}
 
     # ---------------------------------------------------------------- restore
 

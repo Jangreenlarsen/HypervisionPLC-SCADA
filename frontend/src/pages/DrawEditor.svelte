@@ -56,6 +56,7 @@
     selectorLabels(id: string): string[];
     partIdByPid(id: string, pid: string): string | null;
     fixDuplicateNames(): { id: string; from: string; to: string }[];
+    setLibraryPorts(map: Record<string, number[][]>): void;
     splitFitting(id: string, legs: string): { ok?: boolean; removed?: string[]; parts?: string[]; error?: string };
   }
 
@@ -139,6 +140,12 @@
     // dublet-navne følges løbende (fx tilbage efter Ctrl+Z på "Giv dem unikke navne")
     ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); readSize(); inspectRev++; });
     ready = true;
+    // Symbol-editorens rettede tilslutningspunkter bygges ind i symboler, der indsættes herfra
+    try {
+      ed.setLibraryPorts(await get<Record<string, number[][]>>('/api/symbol-ports'));
+    } catch (e) {
+      info = `Symbolernes rettede tilslutningspunkter kunne ikke hentes (${(e as Error).message}) — nye symboler får de automatiske.`;
+    }
     await drawingsReady;
     const [, fromRoute, wantSelector] = route.split('/');
     if (fromRoute && drawings.some((d) => d.id === fromRoute)) {

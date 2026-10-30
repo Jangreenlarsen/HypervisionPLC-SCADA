@@ -115,3 +115,15 @@ Et nyindsat symbol skal **sættes op**: vælg symbolet og tryk **Opsæt symbol (
 **Omskifter med egne positioner**: under *Betjening* kan du skrive positionernes navne (2–8, adskilt med komma, fx *Hånd, 0, Auto*) og indsætte en omskifter med lige det antal positioner.
 
 > Rør og fittings (bøjninger, T-stykker, kryds) er tegnet i samme tykkelse, så de passer sammen. Brug **Løbelys** på rør for at vise strømning. T-stykker og kryds består af selvstændige rør, så hvert rør kan få sit eget løbelys; et ældre T-stykke/kryds (én sti) deles med **Del i rør** i panelet *Valgt element*.
+
+## Tilslutningspunkter (siden Symboler)
+
+Rør tegnet med værktøjet **Rør** i den nye tegne-editor sættes fast i et symbols *tilslutningspunkter* — de grønne prikker. Som standard findes de automatisk: rørender på symbolets kant og midten af hver kant.
+
+På siden **Symboler** (rollen tekniker, under **Opsætning**) kan du rette punkterne for et symbol i biblioteket:
+
+- Vælg symbolet i listen. Symboler med rettede punkter er mærket **rettet**.
+- **Klik** for at tilføje et punkt — det fanger til rørender og kantmidter. **Træk** et punkt for at flytte det. **Højreklik** eller **Delete** fjerner det valgte.
+- **Gem punkter** gemmer. **Brug de automatiske** går tilbage til de automatisk fundne.
+
+> Ændringen gælder **symboler, du indsætter fremover**. Symboler, der allerede står i en tegning, beholder deres punkter — så eksisterende rør flytter sig ikke.

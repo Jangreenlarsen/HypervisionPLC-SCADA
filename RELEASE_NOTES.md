@@ -2,6 +2,12 @@
 
 ---
 
+## v2.16.0 — 2026-10-30 — Symbol-editor: ret tilslutningspunkterne
+
+- Ny side **Symboler** under Opsætning (tekniker). Her kan du rette et bibliotekssymbols tilslutningspunkter, altså de grønne prikker, som rør sættes fast i: klik for at tilføje, træk for at flytte, højreklik for at fjerne. **Brug de automatiske** går tilbage til standardpunkterne.
+- Ændringen gælder symboler, du indsætter fremover. Symboler, der allerede står i en tegning, beholder deres punkter.
+- Punkterne er med i backup.
+
 ## v2.15.1 — 2026-10-30 — Rettelser i den nye tegne-editor
 
 - Drejning med musen sker nu i 15°-trin igen; hold Shift for fri drejning.

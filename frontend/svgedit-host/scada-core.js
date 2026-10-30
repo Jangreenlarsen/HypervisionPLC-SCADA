@@ -7,6 +7,7 @@ import {
 import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
 import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
+import { boxOfRoot, formatPorts, parsePorts, portAxis, localVertices as rootVertices } from './symbolPorts.js';
 import { PIPE_STYLE, connect, formatRef, fromFrac, moveEnd, nearest, orthoLeg, parseRef, pathD, portsFrom, simplify, toFrac } from './pipes.js';
 
 /**
@@ -428,6 +429,8 @@ export function createScada(host) {
   }
 
   /** Et bibliotekssymbol (SVG-fragment med ét rodelement) som et element med unikke id'er — endnu ikke sat ind. */
+  let libraryPorts = {};   // symboltype → rettede punkter (sat af Tegn fra /api/symbol-ports)
+
   function buildSymbolNode(fragment, baseId, wantedId) {
     const parsed = new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${fragment}</svg>`, 'image/svg+xml');
     const src = parsed.documentElement.firstElementChild;
@@ -439,7 +442,13 @@ export function createScada(host) {
     node.setAttribute('id', wantedId && free(wantedId) ? wantedId : uniqueId(wantedId || baseId));
     // Bibliotekstypen og delenes egne navne gemmes, så symbol-guiden kender symbolet og dets dele
     // (id'erne nedenfor kan få et løbenummer, så delens navn kan ikke udledes sikkert af id'et)
-    node.setAttribute('data-hv-type', String(baseId).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 40));
+    const type = String(baseId).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 40);
+    node.setAttribute('data-hv-type', type);
+    // Rettede tilslutningspunkter (symbol-editoren) følger med det nye symbol — symboler der allerede står i
+    // tegningen beholder deres egne
+    const lp = libraryPorts[type];
+    if (Array.isArray(lp) && lp.length) node.setAttribute('data-hv-ports', formatPorts(lp));
+    else node.removeAttribute('data-hv-ports');
     // Børn får unikke id'er så flere kopier af samme symbol ikke kolliderer
     node.querySelectorAll('[id]').forEach((el) => {
       el.setAttribute('data-hv-pid', el.id);
@@ -592,39 +601,24 @@ export function createScada(host) {
   const isPipe = (el) => el?.hasAttribute?.('data-hv-pipe');
   const toPoint = (m, v) => [m.a * v[0] + m.c * v[1] + m.e, m.b * v[0] + m.d * v[1] + m.f];
 
-  /** Hjørnepunkter af formens streger, i `el`s egne koordinater. */
-  function localVertices(el) {
-    const base = toDocMatrix(el);
-    const inv = invertMatrix(base);
-    if (!inv) return [];
-    const out = [];
-    for (const e of [el, ...el.querySelectorAll('path, line, polyline, polygon, rect')]) {
-      const tag = e.tagName.toLowerCase();
-      let vs = [];
-      const n = (a) => Number(e.getAttribute(a)) || 0;
-      if (tag === 'path') vs = pathVertices(e.getAttribute('d')) || [];
-      else if (tag === 'line') vs = [[n('x1'), n('y1')], [n('x2'), n('y2')]];
-      else if (tag === 'polyline' || tag === 'polygon') vs = (e.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number).reduce((a, v, i, all) => (i % 2 ? a : [...a, [v, all[i + 1]]]), []);
-      else if (tag === 'rect') { const x = n('x'), y = n('y'), w = n('width'), h = n('height'); vs = [[x, y + h / 2], [x + w, y + h / 2], [x + w / 2, y], [x + w / 2, y + h]]; }
-      else continue;
-      const m = e === el ? identityMatrix() : multiplyMatrix(inv, toDocMatrix(e));
-      for (const v of vs) if (Number.isFinite(v[0]) && Number.isFinite(v[1])) out.push(toPoint(m, v));
-    }
-    return out;
-  }
-
   /** Symbolets tilslutningspunkter: [{ local, doc, axis }] — axis = retningen et rør bør starte i ('h' fra en sidekant). */
   function portsOf(el) {
-    let bb;
-    try { bb = el.getBBox(); } catch { return []; }
-    if (!(bb.width > 0 || bb.height > 0)) return [];
-    const box = { x: bb.x, y: bb.y, w: bb.width, h: bb.height };
+    const box = boxOfRoot(el);
+    if (!box) return [];
     const m = toDocMatrix(el);
-    return portsFrom(localVertices(el), box).map((local) => {
+    const turned = Math.abs(m.b) > Math.abs(m.a);   // drejet 90°: siden vender den anden vej
+    // rettede punkter fra symbol-editoren (bygget ind ved indsættelse) går forud for de automatiske
+    const fixed = parsePorts(el.getAttribute('data-hv-ports'));
+    if (fixed) {
+      return fixed.map((frac) => {
+        const local = fromFrac(frac, box);
+        const ax = portAxis(frac);
+        return { local, frac, doc: toPoint(m, local), axis: turned ? (ax === 'h' ? 'v' : 'h') : ax };
+      });
+    }
+    return portsFrom(rootVertices(el), box).map((local) => {
       const side = Math.abs(local[0] - box.x) < 1.5 || Math.abs(local[0] - box.x - box.w) < 1.5;
       const doc = toPoint(m, local);
-      // drejet 90°: siden vender den anden vej
-      const turned = Math.abs(m.b) > Math.abs(m.a);
       return { local, frac: toFrac(local, box), doc, axis: side !== turned ? 'h' : 'v' };
     });
   }
@@ -967,6 +961,9 @@ export function createScada(host) {
   }
 
   const scada = {
+    /** Bibliotekets rettede tilslutningspunkter ({type: [[fx, fy], …]}) — bruges ved indsættelse af nye symboler. */
+    setLibraryPorts(map) { libraryPorts = map && typeof map === 'object' ? map : {}; },
+
     /** Rør-værktøjet til/fra (den nye editor). Mens det er til, tager det musen fra lærredet. */
     setPipeTool(on) { setPipeTool(!!on); },
     /** Tegn rørværktøjets lag igen (efter zoom/rulning). */

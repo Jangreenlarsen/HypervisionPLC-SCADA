@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.16.0 build 0278] — 2026-10-30 — Symbol-editor: tilslutningspunkter pr. symboltype
+
+- Backend: `app/services/symbol_ports.py`, `app/api/symbol_ports.py` (nye): `GET/PUT/DELETE /api/symbol-ports[/{type}]` (tekniker), validering (1–32 punkter, 0..1), audit `symbol_ports.set/reset`. `storage/db.py`: gemt i `meta` (`symbolports.<type>`), med i projekt-eksport/gendannelse. `services/backup.py`: `symbol_ports` valideres ved gendannelse. `main.py`: registrering.
+- Frontend: `pages/SymbolEditor.svelte` (ny side *Symboler*), `lib/nav.ts`, `App.svelte`. `svgedit-host/symbolPorts.js` (ny): fælles punkt-logik for Tegn og siden. `svgedit-host/scada-core.js`: `setLibraryPorts`; rettede punkter bygges ind ved indsættelse (`data-hv-ports`) og bruges af rør-værktøjet. `pages/DrawEditor.svelte`: henter punkterne.
+- Manual kap. 04: *Tilslutningspunkter (siden Symboler)*.
+- Loft: højst 500 symboltyper med rettede punkter (API og backup); beskadigede rækker springes over ved læsning (fra review).
+- Tests: backend `test_symbol_ports.py`; frontend `symbolPorts.test.ts`, `nav.test.ts`.
+
 ## [2.15.1 build 0277] — 2026-10-30 — Rettet: drejning i 15°-trin i den nye editor; fortryd/gentag i værktøjslinjen
 
 - `frontend/src/lib/draw/engine.ts`: drejningens midtpunkt læses uden `consolidate()` (ændrede elementets transform).

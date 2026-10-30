@@ -20,6 +20,7 @@
   import Schedules from './pages/Schedules.svelte';
   import Trends from './pages/Trends.svelte';
   import SymbolTest from './pages/SymbolTest.svelte';
+  import SymbolEditor from './pages/SymbolEditor.svelte';
   import { LiveClient } from './lib/live';
   import Login from './pages/Login.svelte';
   import ChangePassword from './pages/ChangePassword.svelte';
@@ -240,6 +241,8 @@
     <Tags {canEdit} />
   {:else if page === 'symboltest'}
     <SymbolTest />
+  {:else if page === 'symbols'}
+    <SymbolEditor />
   {:else if page === 'plcs'}
     <Plcs isAdmin={me.role === 'admin'} />
   {:else if page === 'audit'}
