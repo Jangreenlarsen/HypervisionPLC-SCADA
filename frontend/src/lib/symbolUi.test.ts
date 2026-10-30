@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clickAction, clickSide, needsPin, operateLabel, pickAction, stepTarget, type SymbolView } from './symbolUi';
+import { clickAction, clickSide, isOperable, needsPin, operateLabel, pickAction, stepTarget, type SymbolView } from './symbolUi';
 
 const sym = (over: Partial<SymbolView> = {}): SymbolView => ({
   op: 'positions', labels: ['Stop', 'Start'], display: 'remote', confirm: true, lock_positions: [false, false],
@@ -76,5 +76,16 @@ describe('venstre/højre-betjening (v1.11.0)', () => {
     expect(pickAction(sw, 2, 3)).toBe('operate');
     expect(pickAction({ ...sw, confirm: true }, 2, 3)).toBe('pick');
     expect(pickAction({ ...sw, lock_positions: [false, false, false, true, false], has_pin: true }, 2, 3)).toBe('pick');
+  });
+});
+
+describe('kun passiv visning (v2.8.0)', () => {
+  it('et passivt symbol kan ikke betjenes: intet klik, og det er ikke betjenbart', () => {
+    const p = sym({ passive: true });
+    expect(clickAction(p, 0)).toEqual({ kind: 'none' });
+    expect(isOperable(p)).toBe(false);
+    expect(isOperable(sym({ op: 'view' }))).toBe(false);
+    expect(isOperable(sym())).toBe(true);
+    expect(isOperable(sym({ op: 'pulse' }))).toBe(true);
   });
 });

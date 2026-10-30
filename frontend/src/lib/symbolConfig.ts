@@ -26,7 +26,10 @@ import { KNIV_LUKKET } from './symbols';
 import { defaultDirs, leverAnims } from './toggleSwitch';
 
 export interface SymbolConfig {
-  type: string; op: Op; positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
+  type: string; op: Op;
+  /** Kun passiv visning med positioner (v2.8.0): PLC'ens trin vises ud fra tilbagemeldingerne; symbolet kan ikke betjenes (kun med op = positions) */
+  passive?: boolean;
+  positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
   display: 'remote' | 'local'; validate_s: number; alarm: '' | 'low' | 'medium' | 'high'; confirm: boolean; pulse_ms: number;
   /** Betjening på tegningen: dialog med valg af position (standard) eller tryk venstre/højre side for at skifte position (v1.11.0) */
   click: 'dialog' | 'step';
@@ -284,7 +287,7 @@ export function tagKind(source: string | undefined): 'bool' | 'num' | 'unknown' 
 
 export function emptyConfig(type = 'custom'): SymbolConfig {
   return {
-    type, op: 'view', positions: [], signals: [], planes: [], fault: '', display: 'local', validate_s: 5, alarm: 'medium',
+    type, op: 'view', passive: false, positions: [], signals: [], planes: [], fault: '', display: 'local', validate_s: 5, alarm: 'medium',
     confirm: true, click: 'dialog', pulse_ms: 500, lock: { positions: [], leave: false }, anims: [], logic: [],
   };
 }
@@ -515,7 +518,7 @@ export function foundPosition(cfg: SymbolConfig, valueOf: (tag: string) => unkno
     for (const p of cfg.planes) {
       const s = sigs.get(p.signal);
       const cell = p.values[j];
-      if (!s || !s.tag || (s.write === 'pulse' && !s.fb) || cell === null || cell === undefined) continue;
+      if (!s || !(s.tag || s.fb) || (s.write === 'pulse' && !s.fb) || cell === null || cell === undefined) continue;
       used++;
       const v = valueOf(s.fb || s.tag);
       const n = typeof v === 'boolean' ? (v ? 1 : 0) : typeof v === 'number' ? v : NaN;
@@ -549,7 +552,10 @@ export function feedbackMismatch(cfg: SymbolConfig, valueOf: (tag: string) => un
 
 /** Skift betjeningsform (prototypens `setOp`): nulstil det der ikke giver mening for den nye form. */
 export function setOp(cfg: SymbolConfig, op: Op): void {
+  const wasPassive = !!cfg.passive;
   cfg.op = op;
+  cfg.passive = false;
+  if (wasPassive) { cfg.confirm = true; cfg.alarm = 'medium'; cfg.display = 'local'; }   // passiv visning har ryddet dem — et symbol der skriver skal have standardsikringen
   if (op === 'positions') {
     if (cfg.positions.length < 2) cfg.positions = [{ label: 'Fra' }, { label: 'Til' }];
     if (!cfg.signals.length) cfg.signals = [newSignal(cfg)];
@@ -562,4 +568,21 @@ export function setOp(cfg: SymbolConfig, op: Op): void {
     cfg.signals = op === 'view' ? [] : [cfg.signals[0] ?? newSignal(cfg)].map((s) => ({ ...s, fb: '', write: 'set', rest: null }));
     cfg.anims = cfg.anims.filter((a) => a.src !== POS).map((a) => ({ ...a, only: null }));
   }
+}
+
+/**
+ * Kun passiv visning med positioner (v2.8.0): slå til/fra. Til: symbolet får positioner, kommando-tags rykker over som
+ * tilbagemelding (de læses stadig), og alt der hører til betjening ryddes. Serveren tømmer selv kommando-tags og kræver en tilbagemelding. Fra: tilbage til almindelig visning.
+ */
+export function setPassive(cfg: SymbolConfig, on: boolean): void {
+  if (!on) { setOp(cfg, 'view'); return; }
+  setOp(cfg, 'positions');
+  cfg.passive = true;
+  for (const s of cfg.signals) { s.fb = s.fb || s.tag; s.tag = ''; s.write = 'set'; s.rest = null; }
+  cfg.display = 'remote';
+  cfg.click = 'dialog';
+  cfg.confirm = false;
+  cfg.fault = '';
+  cfg.alarm = '';
+  cfg.lock = { positions: cfg.positions.map(() => false), leave: false };
 }

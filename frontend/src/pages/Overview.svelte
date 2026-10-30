@@ -12,8 +12,8 @@
   import { formatValue } from '../lib/animate';
   import { byTag as indexByTag, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
-  import { clearOverlays, drawOverlay } from '../lib/symbolOverlay';
-  import { clickAction, clickSide, lockedPosition, needsPin, operateLabel, pickAction, STATE_TXT, stepTarget, type SymbolState, type SymbolView } from '../lib/symbolUi';
+  import { clearOverlays, drawOverlay, markPassive } from '../lib/symbolOverlay';
+  import { clickAction, clickSide, isOperable, lockedPosition, needsPin, operateLabel, pickAction, STATE_TXT, stepTarget, type SymbolState, type SymbolView } from '../lib/symbolUi';
   import { panBy, pickDrawing, zoomAt, zoomLevel, type View } from '../lib/viewport';
 
   let { route = 'overview', canEdit = false, canOperate = false, panel = false, sourceUrl = '', onlogout }: {
@@ -247,8 +247,9 @@
       for (const [element, s] of Object.entries(symbolsOf())) {
         for (const name of Object.values(s.pseudo ?? {})) pseudoOf.set(name, element);
         if (s.fault) pseudoOf.set(s.fault, element);
-        if (s.op !== 'view') svgRoot?.querySelector(`#${CSS.escape(element)}`)?.classList.add('hv-clickable');
-        if (s.op === 'positions' && s.click === 'step') svgRoot?.querySelector(`#${CSS.escape(element)}`)?.classList.add('hv-step');
+        if (isOperable(s)) svgRoot?.querySelector(`#${CSS.escape(element)}`)?.classList.add('hv-clickable');
+        if (s.passive && svgRoot) markPassive(svgRoot, element);
+        if (s.op === 'positions' && !s.passive && s.click === 'step') svgRoot?.querySelector(`#${CSS.escape(element)}`)?.classList.add('hv-step');
         if (s.chart?.tags?.length) svgRoot?.querySelector(`#${CSS.escape(element)}`)?.classList.add('hv-chart-sym');
         overlay(element);
       }
@@ -297,7 +298,7 @@
     let el = target;
     const syms = symbolsOf();
     while (el && el !== svgRoot) {
-      if (el.id && syms[el.id] && syms[el.id].op !== 'view') return el.id;
+      if (el.id && syms[el.id] && isOperable(syms[el.id])) return el.id;
       el = el.parentElement;
     }
     return null;
@@ -452,6 +453,7 @@
       showToast('error', 'Betjening kræver rollen operatør');
       return;
     }
+    if (!isOperable(s)) return;   // kun visning (passiv): intet klik betjener — også selv om en ældre opsætning mangler server-normaliseringen
     if (e && s.op === 'positions' && s.click === 'step') {
       await stepSymbol(element, s, e);
       return;

@@ -2,6 +2,11 @@
 
 ---
 
+## v2.8.0 — 2026-10-30 — Kun passiv visning af trin
+
+- En omskifter (eller et andet symbol med trin) kan nu sættes op som **Kun passiv visning**: symbolet viser PLC'ens trin ud fra tilbagemeldinger, uden at der skal vælges en kommando. I trin 2 er *Kommando* grå.
+- Et passivt symbol kan ikke betjenes — hverken på Overview eller via API'et. Tooltip: *Kun visning — kan ikke betjenes*.
+
 ## v2.7.0 — 2026-10-29 — Tydeligere betjeningsformer og nøglelås på tegningen
 
 - Trin 1 i symbol-guiden hedder nu **Kun passiv visning** og **Interaktiv betjening**.

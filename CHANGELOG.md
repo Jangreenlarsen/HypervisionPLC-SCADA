@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.8.0 build 0265] — 2026-10-30 — Kun passiv visning med positioner
+
+- `backend/app/services/symbols.py`: nyt felt `passive` på symbolopsætningen; ved `passive` ryddes kommando-tag, skrivemåde, bekræftelse, fejlsignal, alarm og nøglelås, visningen tvinges til PLC'ens position, og hvert signal skal have en tilbagemelding (som ikke behøver at være skrivbar). `symbol_view` sender `passive`.
+- `backend/app/services/symbol_runtime.py`: positionen findes ud fra tilbagemeldingen alene, når der ikke er et kommando-tag.
+- `backend/app/services/symbol_operate.py`: betjening (plan, skift, puls, setpunkt, accepter) af et passivt symbol afvises med 409.
+- `backend/app/api/symbols.py`: ingen skriveplan i forhåndsvisningen for passive symboler.
+- `frontend/src/lib/symbolConfig.ts`, `symbolUi.ts`, `symbolOverlay.ts`, `pages/Overview.svelte`: `setPassive`, `isOperable`, `markPassive`; passive symboler kan ikke klikkes og får tooltip *Kun visning — kan ikke betjenes*; et valg af betjening efter passiv visning genindsætter bekræftelse og alarm.
+- `frontend/src/lib/SymbolGuide.svelte`: trin 1 har *Symbolet har trin* under *Kun passiv visning*; trin 2 gør *Kommando* grå og kræver tilbagemelding; trin 4/5/6 tilpasset; *Hurtig opsætning* rydder ikke en passiv opsætning.
+- Tests: backend (`test_symbols.py`, `test_symbol_runtime.py`, `test_symbol_operate.py`), frontend (`symbolConfig.test.ts`, `symbolUi.test.ts`, `symbolOverlay.test.ts`). Manual kap. 06.
+
 ## [2.7.0 build 0264] — 2026-10-29 — Nye navne på betjeningsformer, hængelås ved låste positioner
 
 - `frontend/src/lib/symbolConfig.ts`: `OP_TXT` — *Kun passiv visning*, *Interaktiv betjening*.

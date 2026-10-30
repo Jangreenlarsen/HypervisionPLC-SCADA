@@ -1,25 +1,40 @@
-# Plan: Skriv ST-variabler via REST (PLC-firmware + SCADA)
+# Plan: passiv visning af positioner + 7-/11-segment display (2026-10-30)
 
-Ønske (Jan, 2026-10-24): SCADA skal kunne skrive til ST-variabler (`plcN:logic:<prog>:<var>` og GLOBAL_VAR), ikke kun hr/coil. Valgt løsning: ret PLC-firmwaren (HypervisionPLC-projektet), så REST API'et kan skrive en variabel direkte, og variabelnavne over 15 tegn virker i API'et.
+## A. Kun passiv visning med positioner (fx 3-punkts omskifter der kun viser PLC'ens trin)
 
-Fund: PLC'ens API har intet kald, der sætter en ST-variabel (kun upload/bind/debug), og navne gemmes i `char var_names[64][16]` (`include/st_types.h:694`) → højst 15 tegn (`system_styre_mode` → `system_styre_mo`).
+**Mål:** et symbol med positioner kan vise PLC'ens position uden at kunne betjenes og uden at kræve et kommando-tag.
 
-## Del A — PLC-firmware (C:\Projekter\HypervisionPLC, følger dets egen CLAUDE.md/workflow, ny FEAT i BUGS_INDEX)
-1. `POST /api/logic/{id}/var` — body `{"name":"…","value":…}` (CHECK_AUTH_WRITE). Finder variablen på navn, konverterer efter `var_types` (BOOL/INT/DINT/REAL …), afviser STRING (400), ukendt navn (404 + liste), ikke-kompileret program (409) og en variabel der er **bundet som input** fra et register (409: "skriv til HR N i stedet" — ellers overskrives den hver cyklus).
-2. `POST /api/logic/globals/var` — samme for GLOBAL_VAR.
-3. **Ingen race med ST-tasken:** skrivningen lægges i en lille kø pr. program (fx 8 pladser, beskyttet af mutex/spinlock) og anvendes af ST-tasken i starten af næste cyklus (`st_logic_execute_program`), før VM'en kører. Svar `{"status":"queued"}` (evt. `?wait=ms` til den er anvendt). Skrivningen logges i hændelsesloggen (som `/api/ext`-skrivninger).
-4. **Navne > 15 tegn:** `var_names[...][16]` → `[32]` (+4 KB RAM for 4 programmer — tjekkes i build-output), bytecode-cachens format (16 → 32 byte pr. navn) og `ST_BYTECODE_VERSION` bumpes, så gamle `.bc` genkompileres ved boot.
-5. Manual (B_REST_API_Reference + kap. 7/8), BUGS_INDEX, version efter projektets regler, `pio run` + `test/st_host/run.sh`.
-6. Hardwaretest: kræver Jans OK + adgang til test-PLC'en (OTA via `POST /api/system/ota`) — eller Jan flasher selv.
+**Beslutning:** nyt felt `passive: bool` (standard `false`) på symbolopsætningen, sammen med `op = positions`.
+Alternativer: ny `op` (flere grene i al kode) · `view` + positioner (ændrer betydningen af `view`). Flaget er mindst invasivt.
 
-## Del B — SCADA
-7. `PlcClient.write_logic_var(program, name, value)` og `write_global(name, value)` (kun i `backend/app/plc/`).
-8. `tags.py`: `logic` og `global` kan være skrivbare; `operate.write` får en gren for dem (skalering omvendt, bool/tal). Ældre firmware (404 på endpointet) giver en klar fejl: "PLC-firmwaren understøtter ikke skrivning til ST-variabler (kræver vX)".
-9. Setpunkt, trykknap, positioner, ugeprogrammer bruger alle `operate.write` → virker automatisk; audit-log som før.
-10. Mock-PLC: de to nye endpoints; tests (skriv, afvisninger, gammel firmware).
+**Adfærd når `passive = true`:**
+- Trin 1: valget *Kun passiv visning* får for symboler med positioner en underindstilling "Vis symbolets position fra tilbagemelding". *Interaktiv betjening* uændret.
+- Trin 2: kolonnen **Kommando** (og *Skrives som*, *Fejlsignal*) er grå/deaktiveret; **Tilbagemelding er krævet** på alle signaler i kontaktplanerne (ellers kan positionen ikke findes).
+- Trin 3: kontaktplanerne beskriver tilbagemeldingens mønster pr. position (som nu).
+- Trin 4: *Vis* låses til "PLC'ens position"; ingen valideringsalarm for "valgt position".
+- Trin 5: "Kun passiv visning — intet at betjene" (ingen bekræftelse, nøglelås, klik-valg).
+- Backend: kommando-tag ikke påkrævet/skrivbart; `operate` afviser (409 "kun visning"); låse og skrivning ryddes; runtime finder positionen kun fra tilbagemeldingen.
+- Overview: symbolet får ikke `hv-clickable`/`hv-step`, markør er pil, tooltip "Kun visning — kan ikke betjenes". Lille mærke (øje/lås-fri) kan tilføjes ved tilstandsmærket.
+- Skift mellem passiv og interaktiv bevarer kontaktplanerne (tilbagemeldingerne bliver til kommando-tags ved skift til interaktiv kræver nyt valg — vises som fejl i trin 2).
 
-## Risici / bemærkninger
-- En variabel, som programmet selv tildeler hver cyklus, kan ikke "holdes" udefra — skrivningen overskrives straks. Typisk brug er indstillings-/kommandovariabler (fx `system_styre_mode`), som programmet kun læser.
-- Værdien er ikke persistent: efter genstart af PLC'en starter variablen igen på sin startværdi (som i dag).
-- RAM på ESP32: +4 KB for navnene; skal holdes under budget (build viser forbrug).
-- Firmware og SCADA versioneres hver for sig; SCADA skal tåle ældre firmware.
+**Berørte filer (≈10):** `backend/app/services/symbols.py` (model, validering, plans), `symbol_runtime.py`, `backend/app/api/symbols.py` (operate), `symbol_convert.py`, `frontend/src/lib/symbolConfig.ts`, `SymbolGuide.svelte`, `Overview.svelte`, `symbolUi.ts`, tests (backend + frontend), manual kap. 06, FEATURES/CHANGELOG/RELEASE_NOTES.
+**Version:** MINOR (ny feature) → 2.8.0.
+
+## B. Display-element: 7-/11-segment, 1–16 cifre
+
+**Mål:** ét bibliotekssymbol "Segment-display" med valgfri type (7 eller 11 segmenter) og 1–16 cifre, styret af ét tal-tag.
+
+**Antagelse (bekræft):** *7-segment* = a–g + decimalpunkt (8 pladser pr. ciffer). *11-segment* = a–f, midterstregen delt i to (g1/g2), to lodrette midtersegmenter (i/l) og decimalpunkt = 11 — kan vise tal og de fleste store bogstaver.
+
+**Løsning:** (1) Indsættelse i Tegn som *Omskifter med egne positioner*: felter *Type* (7/11) og *Antal cifre* (1–16) → tegner N cifre med segmenter som navngivne dele (`data-hv-pid`, fx `c3_a`). (2) Ny animationstype **Segmenter** (`segments`) på hele symbolet: kilde = tal-tag; parametre: type, cifre, decimaler, fortegn (−), foranstillede nuller (til/fra), farve tændt/slukket, justering (højre/venstre), vis "OFL" ved overløb. Teksten formateres som i `Værdi` (skala/decimaler fra tagget) og hvert tegn slår de rette segmenter til. (3) Hurtig opsætning i guiden: vælg tag → opretter animationen.
+Alternativer: ét symbol pr. cifre-antal (mange biblioteksposter) · hvert ciffer sit tag (besværligt). Valgt: ét symbol, én animation.
+
+**Berørte filer (≈12):** `frontend/src/lib/symbols.ts` (+ ny `segDisplay.ts`: tegning + tegn→segmenter), `animate.ts`, `symbolConfig.ts`, `AnimParams.svelte`, `DrawEditor.svelte`, `backend/app/services/symbols.py` (ASegments, ANIM_PARAMS, label), tests (formatering, tegn→segmenter, tegning 1–16 cifre, backend-validering), manual kap. 04/05/06/07, FEATURES/CHANGELOG/RELEASE_NOTES.
+**Version:** MINOR → 2.9.0 (efter A).
+
+## Rækkefølge og risici
+1. A først (rører backend-datamodel og bør være færdig og testet), commit + OTA-pakke 2.8.0.
+2. B bagefter, commit + OTA-pakke 2.9.0.
+- **Datamodel:** `passive` er nyt felt; gamle opsætninger mangler det → standard `false`, ingen migration.
+- **Sikkerhed/PLC-skrivninger:** `operate` skal afvise passive symboler i backend (ikke kun i UI) — reviewer-agenten kontrollerer A før commit.
+- **Visuel verifikation:** begge dele ses i browseren mod testserveren før de meldes færdige.

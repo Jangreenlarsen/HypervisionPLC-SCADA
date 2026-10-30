@@ -283,6 +283,7 @@ class Chart(_M):
 class SymbolConfig(_M):
     type: str = "custom"
     op: Literal["positions", "pulse", "entry", "view"] = "view"
+    passive: bool = False   # v2.8.0: positioner vises fra tilbagemeldingen, symbolet kan ikke betjenes (kun med op = positions)
     positions: list[Position] = Field(default_factory=list, max_length=MAX_POSITIONS)
     signals: list[Signal] = Field(default_factory=list, max_length=MAX_SIGNALS)
     planes: list[Plane] = Field(default_factory=list, max_length=MAX_PLANES)
@@ -525,7 +526,8 @@ def symbol_view(drawing_id: str, element: str, cfg: dict[str, Any], has_pin: boo
             "lock_positions": (cfg.get("lock") or {}).get("positions") or [],
             "lock_leave": bool((cfg.get("lock") or {}).get("leave")), "has_pin": has_pin,
             "fault": cfg.get("fault") or "", "pulse_ms": cfg.get("pulse_ms"),
-            "click": cfg.get("click") if cfg.get("op") == "positions" and cfg.get("click") == "step" else "dialog"}
+            "click": cfg.get("click") if cfg.get("op") == "positions" and cfg.get("click") == "step" else "dialog",
+            "passive": bool(cfg.get("passive"))}
     if cfg.get("op") == "positions":
         view["pseudo"] = {k: pseudo_tag(drawing_id, element, k) for k in PSEUDO_KINDS}
     if cfg.get("op") in ("pulse", "entry") and cfg.get("signals"):
@@ -693,7 +695,13 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
         cfg.positions, cfg.planes = [], []
         cfg.lock = Lock()
         cfg.click = "dialog"   # venstre/højre-betjening giver kun mening for positioner
+        cfg.passive = False
         n = 0
+    if cfg.passive:   # kun visning: ingen betjening, ingen kommando — PLC'ens position er det eneste der vises
+        cfg.display, cfg.click, cfg.confirm, cfg.fault, cfg.alarm = "remote", "dialog", False, "", ""
+        cfg.lock = Lock()
+        for s in cfg.signals:
+            s.tag, s.write, s.rest = "", "set", None
     if cfg.op == "view":
         cfg.signals = []
     if cfg.op in ("pulse", "entry"):
@@ -728,6 +736,18 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 res.err("2", f"Signal-id '{s.id}' må kun bestå af bogstaver, tal og _ (højst 10).")
             if ids.count(s.id) > 1:
                 res.err("2", f"To signaler har id'et {s.id}.")
+            if cfg.passive:   # intet kommando-tag: tilbagemeldingen er det eneste der læses
+                if not s.fb:
+                    res.err("2", f"{s.id}: vælg en tilbagemelding — passiv visning finder positionen ud fra den.")
+                elif tag_of(s.fb) is None:
+                    res.err("2", f"{s.id}: tilbagemeldingen '{s.fb}' findes ikke.")
+                elif s.fb in seen_tag:
+                    res.err("2", f"{s.id} og {seen_tag[s.fb]} bruger samme tilbagemelding {s.fb}.")
+                else:
+                    seen_tag[s.fb] = s.id
+                if not any(p.signal == s.id for p in cfg.planes):
+                    res.warnings.append(f"{s.id} ({s.fb}) bruges ikke af nogen kontaktplan.")
+                continue
             if not s.tag:
                 res.err("2", f"{s.id}: vælg et kommando-tag.")
                 continue
@@ -798,7 +818,7 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if len(p.values) != n:
                 res.err("3", f"{nm}: skal have én celle pr. position ({n}).")
                 continue
-            t = tag_of(s.tag)
+            t = tag_of(s.fb if cfg.passive else s.tag)
             for j, v in enumerate(p.values):
                 if not _is_set(v) or t is None:
                     continue
@@ -806,6 +826,8 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 if t.is_bool:
                     if v not in (0, 1):
                         res.err("3", f"{where}: et til/fra-signal er Til (1), Fra (0) eller røres ikke.")
+                elif cfg.passive:
+                    continue   # læses kun: tilbagemeldingen sammenlignes med cellen, intet skal kunne skrives præcist
                 elif not float(v).is_integer():
                     res.err("3", f'{where}: "{_fmt(v)}" er ikke et heltal.')
                 elif (why := t.exact(float(v))) is not None:

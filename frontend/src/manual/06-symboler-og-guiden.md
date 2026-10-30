@@ -31,10 +31,22 @@ Alle symboler i biblioteket sættes op på samme måde: med **guiden i 6 trin**.
 
 | Form | Hvad den gør | Eksempel |
 | --- | --- | --- |
-| **Kun passiv visning** | Symbolet viser, men betjenes ikke | Lampe, tank, rør, 3-vejs ventil styret af én indgang |
+| **Kun passiv visning** | Symbolet viser, men betjenes ikke. Har symbolet trin (fx en omskifter), kan du slå *Symbolet har trin* til, så PLC'ens trin vises ud fra tilbagemeldinger | Lampe, tank, rør, 3-vejs ventil styret af én indgang; en omskifter, der kun viser PLC'ens trin |
 | **Interaktiv betjening** | 2–8 navngivne positioner; hver sætter et mønster af signaler | Omskifter *Hånd/0/Auto*, ventil *Åben/Lukket*, pumpe *Stop/Start* |
 | **Trykknap (puls)** | Et til/fra-tag sættes Til i en fast tid (100–10000 ms), derefter Fra | Start-knap, kvittering |
 | **Setpunkt** | Operatøren indtaster en værdi i et skrivbart tal-tag | Ønsket temperatur |
+
+## Kun passiv visning af trin (omskifter, der ikke kan betjenes)
+
+Vil du blot **se**, hvilket trin en omskifter (eller anden positions-symbol) står i, vælg **Kun passiv visning** i trin 1 og sæt hak ved **Symbolet har trin (positioner)**. Så gælder:
+
+- **Trin 2:** kolonnen *Kommando* er **grå** — den bruges ikke, og der skal ikke vælges et skrivbart tag. Vælg kun en **tilbagemelding** til hvert signal (kræves; det kan være et tag, du kun kan læse).
+- **Trin 3:** kontaktplanerne beskriver, hvilket mønster tilbagemeldingerne har i hvert trin — præcis som ved betjening. Positionerne navngives som sædvanligt.
+- **Trin 4:** symbolet viser altid *PLC'ens position*; der er ingen alarm for afvigelse (der er intet valgt at afvige fra).
+- **Trin 5:** intet at betjene — ingen bekræftelse og ingen nøglelås.
+- **På Overview** kan symbolet ikke klikkes, og tooltip'en siger *Kun visning — kan ikke betjenes*. Serveren afviser også betjening, hvis nogen forsøger via API'et.
+
+Skifter du tilbage til *Interaktiv betjening*, skal du vælge kommando-tags igen (tilbagemeldingerne bevares).
 
 ## Positioner og kontaktplaner
 

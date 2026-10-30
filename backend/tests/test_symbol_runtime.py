@@ -162,3 +162,10 @@ def test_removed_config_removes_pseudo_tags(tmp_path, mock_plc):
         _wait(lambda: _pseudo(c, did, "pos").get("value") == 0)
         assert c.delete(f"/api/drawings/{did}/symbols/V1/config").status_code == 204
         _wait(lambda: _pseudo(c, did, "pos").get("quality") in (None, "unknown"))
+
+
+def test_passive_position_is_found_from_feedback_only():
+    from tests.test_symbols import dec_bin as _d
+    cfg = _d(passive=True, signals=[{"id": f"S{b + 1}", "tag": "", "fb": f"Bit{b}_fb"} for b in range(3)])
+    values = {"Bit0_fb": True, "Bit1_fb": True, "Bit2_fb": False}   # 3 = position 2
+    assert remote_position(cfg, _lv(values)) == (2, False, ["Bit0_fb", "Bit1_fb", "Bit2_fb"])

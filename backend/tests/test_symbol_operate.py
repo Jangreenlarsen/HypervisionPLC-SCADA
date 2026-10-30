@@ -333,3 +333,14 @@ def test_pin_lockout_escalates_per_user_and_symbol_and_survives_restart(api, moc
         r = _op(api, 5, "0000")
     assert r.status_code == 429
     assert "symbolet" in _op(api, 5, "4711").json()["error"]
+
+
+def test_passive_symbol_cannot_be_operated_and_writes_nothing(api, mock_plc):
+    cfg = dec_bin(passive=True, signals=[{"id": f"S{b + 1}", "fb": f"Bit{b}_fb"} for b in range(3)])
+    _setup(api, mock_plc, cfg)
+    mock_plc.state.writes.clear()
+    r = _op(api, 2)
+    assert r.status_code == 409 and "kun visning" in r.json()["error"]
+    assert api.get(f"/api/drawings/{api.did}/symbols/{V1}/plan/2").status_code == 409
+    assert api.post(f"/api/drawings/{api.did}/symbols/{V1}/accept").status_code == 409
+    assert mock_plc.state.writes == []

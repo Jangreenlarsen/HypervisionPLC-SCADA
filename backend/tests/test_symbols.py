@@ -577,3 +577,45 @@ def test_pulse_signal_with_feedback_finds_position():
     live = {"Fb": SimpleNamespace(value=1, quality="good")}
     pos, comm, _ = remote_position(cfg, lambda t: live.get(t, SimpleNamespace(value=None, quality="comm_error")))
     assert (pos, comm) == (1, False)
+
+
+# ------------------------------------------------------------------ passiv visning (v2.8.0)
+
+def passive_cfg(**over):
+    """3-punkts omskifter der kun viser PLC'ens trin: ingen kommando-tags, kun tilbagemelding."""
+    over.setdefault("signals", [{"id": f"S{b + 1}", "fb": f"Bit{b}_fb"} for b in range(3)])
+    return dec_bin(passive=True, **over)
+
+
+def test_passive_symbol_saves_without_command_tags_and_is_normalised(api):
+    r = put(api, passive_cfg(confirm=True, fault="Fejl", alarm="high", lock={"positions": [True] + [False] * 6, "leave": True}))
+    assert r.status_code == 200, r.text
+    cfg = r.json()["config"]
+    assert cfg["passive"] is True and cfg["display"] == "remote" and cfg["confirm"] is False
+    assert cfg["fault"] == "" and cfg["alarm"] == "" and not any(cfg["lock"]["positions"]) and cfg["lock"]["leave"] is False
+    assert all(s["tag"] == "" and s["write"] == "set" for s in cfg["signals"])
+    # kommando-tags fra klienten (fx fra et interaktivt symbol) ryddes — passiv visning skriver aldrig
+    cfg2 = put(api, passive_cfg(signals=[{"id": f"S{b + 1}", "tag": f"Bit{b}", "fb": f"Bit{b}_fb", "write": "pulse", "ms": 300, "rest": 0}
+                                         for b in range(3)])).json()["config"]
+    assert all(s["tag"] == "" and s["write"] == "set" and s["rest"] is None for s in cfg2["signals"])
+
+
+def test_passive_requires_feedback_on_every_signal(api):
+    sigs = [{"id": "S1", "fb": "Bit0_fb"}, {"id": "S2"}, {"id": "S3", "fb": "Bit2_fb"}]
+    assert any("S2: vælg en tilbagemelding" in m for m in errors(put(api, passive_cfg(signals=sigs)))["steps"]["2"])
+    sigs[1] = {"id": "S2", "fb": "FindesIkke"}
+    assert any("findes ikke" in m for m in errors(put(api, passive_cfg(signals=sigs)))["steps"]["2"])
+    sigs[1] = {"id": "S2", "fb": "Bit0_fb"}
+    assert any("samme tilbagemelding" in m for m in errors(put(api, passive_cfg(signals=sigs)))["steps"]["2"])
+
+
+def test_passive_feedback_need_not_be_writable_and_registers_may_be_any_number(api):
+    cfg = passive_cfg(signals=[{"id": "S1", "fb": "Mode_fb"}], positions=[{"label": "A"}, {"label": "B"}, {"label": "C"}],
+                      planes=[{"signal": "S1", "values": [0, 1.5, 7]}], anims=[])
+    assert put(api, cfg).status_code == 200
+
+
+def test_view_op_clears_passive(api):
+    cfg = {"op": "view", "passive": True, "anims": [{"part": "V1_greb", "type": "fill", "src": "@on", "params": {}}]}
+    r = put(api, cfg)
+    assert r.status_code == 200 and r.json()["config"]["passive"] is False

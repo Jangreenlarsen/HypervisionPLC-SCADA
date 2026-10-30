@@ -100,6 +100,21 @@ export function drawOverlay(root: SVGSVGElement, element: string, input: Overlay
   lay.appendChild(g);
 }
 
+/** Kun passiv visning: tooltip på symbolet siger, at det ikke kan betjenes (tilføjes til symbolets <title>). */
+export function markPassive(root: SVGSVGElement, element: string): void {
+  const el = root.querySelector(`#${CSS.escape(element)}`);
+  if (!el) return;
+  el.setAttribute('data-hv-passive', '');
+  if (el.tagName === 'text' || el.tagName === 'tspan') return;   // en <title> her ville blive slettet af tekst-bindinger (som addTooltips)
+  const note = 'Kun visning — kan ikke betjenes';
+  let title = [...el.children].find((c) => c.tagName === 'title') as SVGElement | undefined;
+  if (!title) {
+    title = make('title', {});
+    el.insertBefore(title, el.firstChild);
+  }
+  if (!(title.textContent ?? '').includes(note)) title.textContent = title.textContent ? `${title.textContent} — ${note}` : note;
+}
+
 /** Fjern alle mærker (fx når en ny tegning vises). */
 export function clearOverlays(root: SVGSVGElement | null): void {
   root?.querySelector(':scope > g.hv-symlayer')?.remove();
