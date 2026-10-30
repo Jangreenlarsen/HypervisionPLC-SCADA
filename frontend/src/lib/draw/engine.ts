@@ -182,8 +182,11 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
   function freeAngle(el: SVGGraphicsElement): number | null {
     try {
       const bb = el.getBBox();
-      const own = el.transform?.baseVal?.consolidate()?.matrix;
-      const c = new DOMPoint(bb.x + bb.width / 2, bb.y + bb.height / 2).matrixTransform(own ?? new DOMMatrix());
+      // transformen læses UDEN consolidate(): den skriver listen om til én matrix og ødelægger lærredets rotate(…)
+      const tl = el.transform?.baseVal;
+      let own = new DOMMatrix();
+      for (let i = 0; i < (tl?.numberOfItems ?? 0); i++) own = own.multiply(DOMMatrix.fromMatrix(tl!.getItem(i).matrix));
+      const c = new DOMPoint(bb.x + bb.width / 2, bb.y + bb.height / 2).matrixTransform(own);
       // samme regning som lærredet: skærm → tegning med rootSctm (allerede den omvendte matrix)
       const p = new DOMPoint(pointer.x, pointer.y).matrixTransform(canvas.getrootSctm());
       return Math.atan2(c.y - p.y, c.x - p.x) * (180 / Math.PI) - 90;

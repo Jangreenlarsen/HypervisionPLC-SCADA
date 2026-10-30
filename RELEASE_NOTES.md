@@ -2,6 +2,11 @@
 
 ---
 
+## v2.15.1 — 2026-10-30 — Rettelser i den nye tegne-editor
+
+- Drejning med musen sker nu i 15°-trin igen; hold Shift for fri drejning.
+- **Fortryd** og **Gentag** står nu øverst i værktøjslinjen til venstre.
+
 ## v2.15.0 — 2026-10-30 — Ny tegne-editor: rør-værktøj (prøveversion)
 
 - Den nye tegne-editor (`?editor=ny`) har værktøjet **Rør** (tast O). Klik for start og knæk; røret går altid vandret eller lodret. Grønne prikker viser symbolernes tilslutningspunkter. Starter eller slutter røret på en prik, følger det med, når symbolet flyttes, ændrer størrelse eller drejes. Dobbeltklik eller Enter slutter røret, Backspace fjerner sidste knæk, og Esc går tilbage til Vælg.

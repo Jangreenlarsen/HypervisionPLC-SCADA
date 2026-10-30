@@ -899,15 +899,17 @@ export function createScada(host) {
     const p = parent && parent !== c.getSvgContent() ? toDocMatrix(parent) : identityMatrix();
     const near = (v, w) => Math.abs(v - w) < 1e-6;   // toDocMatrix har små afrundingsrester
     const plain = near(p.a, 1) && near(p.d, 1) && near(p.b, 0) && near(p.c, 0) && near(p.e, 0) && near(p.f, 0);
-    const tlist = el.transform?.baseVal;
-    const own = tlist?.consolidate ? (tlist.numberOfItems ? tlist.consolidate().matrix : null) : null;
-    const ownM = own ? { a: own.a, b: own.b, c: own.c, d: own.d, e: own.e, f: own.f } : identityMatrix();
-    if (own) {
-      // consolidate() har lagt listen sammen til én matrix — skriv den ud igen, så lærredet ser én transform
-      el.setAttribute('transform', `matrix(${[ownM.a, ownM.b, ownM.c, ownM.d, ownM.e, ownM.f].join(' ')})`);
-    }
+    // Elementets egen transform LÆSES uden consolidate(): den skriver listen om til én matrix, så fx en drejning
+    // (rotate(…)) går tabt for lærredet (BUGS.md v2.15.1)
+    const ownM = listMatrix(el);
     const inv = invertMatrix(ownM);
-    if (plain && inv && near(ownM.b, 0) && near(ownM.c, 0)) {
+    const pureMove = near(from.w, to.w) && near(from.h, to.h);
+    if (plain && pureMove) {
+      // flyt: translate forrest (som lærredet selv gør), så en drejning bevares som rotate(…)
+      const t = root.createSVGTransform();
+      t.setTranslate(to.x - from.x, to.y - from.y);
+      el.transform.baseVal.insertItemBefore(t, 0);
+    } else if (plain && inv && near(ownM.b, 0) && near(ownM.c, 0)) {
       const fromL = transformBox(from, inv);
       const toL = transformBox(to, inv);
       const sx = fromL.w > 0 ? toL.w / fromL.w : 1;
@@ -930,6 +932,17 @@ export function createScada(host) {
       el.setAttribute('transform', `matrix(${[local.a, local.b, local.c, local.d, local.e, local.f].map(r).join(' ')})`);
     }
     try { c.recalculateDimensions(el); } catch { /* transformen bliver stående — tegningen ser stadig rigtig ud */ }
+  }
+
+  /** Elementets egen transform som matrix — uden at ændre transform-listen. */
+  function listMatrix(el) {
+    const tl = el.transform?.baseVal;
+    let m = identityMatrix();
+    for (let i = 0; i < (tl?.numberOfItems ?? 0); i++) {
+      const t = tl.getItem(i).matrix;
+      m = multiplyMatrix(m, { a: t.a, b: t.b, c: t.c, d: t.d, e: t.e, f: t.f });
+    }
+    return m;
   }
 
   function moveDoc(el, dx, dy) {

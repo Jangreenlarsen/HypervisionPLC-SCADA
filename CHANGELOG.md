@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.15.1 build 0277] — 2026-10-30 — Rettet: drejning i 15°-trin i den nye editor; fortryd/gentag i værktøjslinjen
+
+- `frontend/src/lib/draw/engine.ts`: drejningens midtpunkt læses uden `consolidate()` (ændrede elementets transform).
+- `frontend/svgedit-host/scada-core.js`: `listMatrix` (læser transform uden at ændre den); `applyBox` flytter med translate forrest, så en drejning bevares.
+- `frontend/src/lib/draw/DrawCanvas.svelte`: Fortryd og Gentag øverst i venstre værktøjslinje (flyttet fra statuslinjen).
+
 ## [2.15.0 build 0276] — 2026-10-30 — Ny tegne-editor, trin 4: rør-værktøj
 
 - `frontend/svgedit-host/pipes.js` (ny): rene beregninger — vinkelret ruteføring (`orthoLeg`, `connect`), ende-flytning der holder røret vinkelret (`moveEnd`), tilslutningspunkter (`portsFrom`), referencer som brøkdel af symbolets boks.

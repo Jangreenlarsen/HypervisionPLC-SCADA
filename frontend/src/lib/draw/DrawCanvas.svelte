@@ -101,6 +101,13 @@
 
 <div class="draw" style:height="{height}px">
   <nav class="rail" aria-label="Tegneværktøjer">
+    <button onclick={() => act('undo')} disabled={!canUndo} title="Fortryd (Ctrl+Z)" aria-label="Fortryd">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6 L4 11 L9 16 M4 11 H14 A6 6 0 0 1 14 23" /></svg>
+    </button>
+    <button onclick={() => act('redo')} disabled={!canRedo} title="Gentag (Ctrl+Y)" aria-label="Gentag">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 L20 11 L15 16 M20 11 H10 A6 6 0 0 0 10 23" /></svg>
+    </button>
+    <span class="rsep"></span>
     {#each TOOLS as t}
       <button class:on={mode === t.mode} onclick={() => tool(t.mode)} title="{t.label} ({t.key})" aria-label={t.label} aria-pressed={mode === t.mode}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d={t.icon} /></svg>
@@ -172,9 +179,6 @@
       {#if message}<div class="msg" role="alert">{message} <button class="small" onclick={() => (message = '')} aria-label="Luk">✕</button></div>{/if}
     </div>
     <footer class="status">
-      <button onclick={() => act('undo')} disabled={!canUndo} title="Fortryd (Ctrl+Z)" aria-label="Fortryd">↶</button>
-      <button onclick={() => act('redo')} disabled={!canRedo} title="Gentag (Ctrl+Y)" aria-label="Gentag">↷</button>
-      <span class="sep"></span>
       <button onclick={() => act('zoomOut')} title="Zoom ud (Ctrl+−)" aria-label="Zoom ud">−</button>
       <span class="zoom">{Math.round(zoom * 100)} %</span>
       <button onclick={() => act('zoomIn')} title="Zoom ind (Ctrl++)" aria-label="Zoom ind">+</button>
@@ -214,6 +218,8 @@
   }
   .rail button:hover { background: #e6e6e6; }
   .rail button.on { background: #dbe8ff; border-color: #6c93d8; }
+  .rail button:disabled { opacity: .35; }
+  .rsep { height: 1px; background: var(--line); margin: 3px 2px; }
   svg { width: 100%; height: 100%; fill: none; stroke: #222; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
   svg .fill { fill: #9db8e8; }
   .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
