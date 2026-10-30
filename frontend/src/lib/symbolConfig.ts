@@ -29,6 +29,8 @@ export interface SymbolConfig {
   type: string; op: Op;
   /** Kun passiv visning med positioner (v2.8.0): PLC'ens trin vises ud fra tilbagemeldingerne; symbolet kan ikke betjenes (kun med op = positions) */
   passive?: boolean;
+  /** Tilstandsmærket (✓ … ! ?) på Overview (v2.12.0); false = vises ikke */
+  badge?: boolean;
   positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
   display: 'remote' | 'local'; validate_s: number; alarm: '' | 'low' | 'medium' | 'high'; confirm: boolean; pulse_ms: number;
   /** Betjening på tegningen: dialog med valg af position (standard) eller tryk venstre/højre side for at skifte position (v1.11.0) */
@@ -296,7 +298,7 @@ export function tagKind(source: string | undefined): 'bool' | 'num' | 'unknown' 
 
 export function emptyConfig(type = 'custom'): SymbolConfig {
   return {
-    type, op: 'view', passive: false, positions: [], signals: [], planes: [], fault: '', display: 'local', validate_s: 5, alarm: 'medium',
+    type, op: 'view', passive: false, badge: true, positions: [], signals: [], planes: [], fault: '', display: 'local', validate_s: 5, alarm: 'medium',
     confirm: true, click: 'dialog', pulse_ms: 500, lock: { positions: [], leave: false }, anims: [], logic: [],
   };
 }
@@ -599,3 +601,9 @@ export function setPassive(cfg: SymbolConfig, on: boolean): void {
   cfg.alarm = '';
   cfg.lock = { positions: cfg.positions.map(() => false), leave: false };
 }
+
+/**
+ * Bevares "Gælder i" (`only`) efter et skift af kilde? Den læser symbolets egen position, så den giver kun mening for en
+ * anden kilde end positionen (og ikke "pr. værdi") på et symbol med positioner (v2.11.1; før blev den stående og gjaldt skjult).
+ */
+export const keepsOnly = (src: string, byValue: boolean, isPos: boolean): boolean => isPos && src !== POS && !byValue;

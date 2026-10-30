@@ -13,7 +13,7 @@
   import { byTag as indexByTag, fitSvg, mountSvg, onLayoutChange, renderAll, renderBinding } from '../lib/canvas';
   import { LiveClient } from '../lib/live';
   import { clearOverlays, drawOverlay, markPassive } from '../lib/symbolOverlay';
-  import { clickAction, clickSide, isOperable, lockedPosition, needsPin, operateLabel, pickAction, STATE_TXT, stepTarget, type SymbolState, type SymbolView } from '../lib/symbolUi';
+  import { clickAction, clickSide, isOperable, showsBadge, lockedPosition, needsPin, operateLabel, pickAction, STATE_TXT, stepTarget, type SymbolState, type SymbolView } from '../lib/symbolUi';
   import { panBy, pickDrawing, zoomAt, zoomLevel, type View } from '../lib/viewport';
 
   let { route = 'overview', canEdit = false, canOperate = false, panel = false, sourceUrl = '', onlogout }: {
@@ -169,6 +169,7 @@
     const remote = values[s.pseudo?.remote ?? '']?.value;
     drawOverlay(svgRoot, element, {
       state: symState(element),
+      badge: showsBadge(s),   // tilstandsmærket kan fravælges i guiden (v2.12.0)
       remoteLabel: typeof remote === 'number' ? s.labels[remote] ?? null : null,
       locked: values[s.pseudo?.locked ?? '']?.value === true,
       lockedLabels: s.labels.filter((_, j) => s.lock_positions[j]),

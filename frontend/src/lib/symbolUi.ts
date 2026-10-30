@@ -12,6 +12,8 @@ export interface SymbolView {
   fault: string;
   /** Kun passiv visning (v2.8.0): viser PLC'ens position, kan ikke betjenes */
   passive?: boolean;
+  /** Tilstandsmærket vises (standard); false = fravalgt i guiden (v2.12.0) */
+  badge?: boolean;
   pulse_ms?: number;
   /** 'step' = tryk venstre/højre side af symbolet for at skifte position (v1.11.0) */
   click?: 'dialog' | 'step';
@@ -94,3 +96,6 @@ export function operateLabel(s: SymbolView, shown: number | null, to: number): s
 
 /** Kan operatøren betjene symbolet? (ikke kun visning, ikke passiv visning) */
 export const isOperable = (s: SymbolView): boolean => s.op !== 'view' && !s.passive;
+
+/** Skal tilstandsmærket tegnes? Kun når det ikke er fravalgt (ældre opsætninger har ikke feltet = vises). */
+export const showsBadge = (s: Pick<SymbolView, 'badge'>): boolean => s.badge !== false;

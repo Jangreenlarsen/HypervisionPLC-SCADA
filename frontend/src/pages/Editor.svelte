@@ -808,9 +808,16 @@
 {/if}
 
 {#if guideFor && view}
-  <SymbolGuide drawingId={view.id} element={guideFor.id} name={guideFor.name} {tags}
+  <SymbolGuide drawingId={view.id} element={guideFor.id} name={guideFor.name} {tags} selectorRedraw="tegn"
     onclose={() => (guideFor = null)}
-    onsaved={async () => { const id = guideFor?.id; guideFor = null; await load(drawingId, true); if (id) select(id, true); }} />
+    onsaved={async (o) => {
+      const id = guideFor?.id;
+      guideFor = null;
+      // "Gem og tegn omskifteren om": Tegn åbnes med omskifteren valgt og tegner den om dér (#draw/<tegning>/<element>)
+      if (o?.redraw && id && view) { location.hash = `#draw/${view.id}/${id}`; return; }
+      await load(drawingId, true);
+      if (id) select(id, true);
+    }} />
 {/if}
 
 <style>

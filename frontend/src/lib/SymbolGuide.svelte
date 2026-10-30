@@ -24,7 +24,7 @@ import { AVERAGE_CHOICES } from './trendData';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
     ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
-    activeAt, hasFeedback, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, feedbackMismatch, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
+    activeAt, hasFeedback, keepsOnly, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, feedbackMismatch, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, BY_VALUE_TYPES, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, setPassive, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
@@ -36,11 +36,16 @@ import { AVERAGE_CHOICES } from './trendData';
     plans: { position: number; label: string; writes: Write[] }[];
   }
 
-  let { drawingId, element, name, tags, group = [], onclose, onsaved, onremoved }: {
+  let { drawingId, element, name, tags, group = [], selectorRedraw, onclose, onsaved, onremoved }: {
     drawingId: string; element: string; name: string; tags: TagRow[];
     /** "Opsæt de valgte samlet": de ANDRE valgte symboler — de får opsætningen, når der gemmes. */
     group?: { id: string; name: string }[];
-    onclose: () => void; onsaved: () => void;
+    /** Omskifter, hvor tegningen viser andre positioner end opsætningen: 'auto' = siden tegner den om ved Gem (Tegn);
+     *  'tegn' = siden åbner Tegn og tegner den om dér (Bindinger). Uden værdi: kun en henvisning til Tegn. */
+    selectorRedraw?: 'auto' | 'tegn';
+    onclose: () => void;
+    /** `redraw`: brugeren trykkede "Gem og tegn omskifteren om" */
+    onsaved: (opts?: { redraw?: boolean }) => void;
     /** Opsætningen er fjernet fra alle de valgte ("Opsæt de valgte samlet"); antal fjernede */
     onremoved?: (removed: number, skipped: number) => void;
   } = $props();
@@ -436,7 +441,8 @@ import { AVERAGE_CHOICES } from './trendData';
     // Drej pr. position på en omskifter: start med tegningens vinkler i stedet for et gæt
     if (a.type === 'rotate' && srcKind(a) === 'pos' && selectorAnglesNow) fresh.angles = [...selectorAnglesNow];
     if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
-    if (a.src !== POS) a.only = isPos ? a.only : null;
+    // "Gælder i" læser symbolets egen position — den giver ingen mening, når kilden SELV er positionen (eller "pr. værdi"): ryd den (v2.11.1)
+    if (!keepsOnly(a.src, byValue(a), isPos)) a.only = null;
   }
   function moveAnim(i: number, d: -1 | 1): void {
     const j = i + d;
@@ -470,10 +476,10 @@ import { AVERAGE_CHOICES } from './trendData';
       saving = false;
     }
   }
-  async function save(): Promise<void> {
+  async function save(redraw = false): Promise<void> {
     if (!(await persist())) return;
     if (group.length && !(await applyGroup())) return;
-    onsaved();
+    onsaved(redraw ? { redraw: true } : undefined);
   }
   /** Gruppetilstand: kopiér den netop gemte opsætning til de andre valgte (overskriver — det er hele formålet). → alt gik glat? */
   async function applyGroup(): Promise<boolean> {
@@ -699,7 +705,12 @@ import { AVERAGE_CHOICES } from './trendData';
           {#if symbol && SELECTOR_TYPES.has(symbol.type)}
             {@const drawn = Object.values(symbol.parts).filter((p) => p.tag === 'text' && !p.pid).map((p) => p.text ?? '')}
             {#if selectorMismatch(drawn, cfg.positions.map((p) => p.label))}
-              <p class="small notice">Omskifterens tegning viser {drawn.length} positioner ({drawn.join(', ')}). Efter Gem: vælg omskifteren i <strong>Tegn</strong> og tryk <strong>Tegn omskifteren med {n} positioner</strong>, så tegningen og grebets vinkler følger med.</p>
+              <p class="small notice">Omskifterens tegning viser {drawn.length} positioner ({drawn.join(', ')}), men opsætningen har {n}.
+                {#if selectorRedraw === 'auto'}Når du trykker <strong>Gem</strong>, tegnes omskifteren om med de {n} positioner, og grebets vinkler følger med.
+                {:else if selectorRedraw === 'tegn'}Tegningen skal tegnes om med de {n} positioner, så navne og grebets vinkler følger med — det sker i <strong>Tegn</strong>.
+                {:else}Efter Gem: vælg omskifteren i <strong>Tegn</strong> og tryk <strong>Tegn omskifteren med {n} positioner</strong>, så tegningen og grebets vinkler følger med.{/if}
+                {#if selectorRedraw}<button class="small primary" onclick={() => save(true)} disabled={!canSave}
+                  title={canSave ? '' : 'Ret fejlene først (se trinene markeret med rødt)'}>{selectorRedraw === 'auto' ? 'Gem og tegn omskifteren om' : 'Gem og tegn omskifteren om i Tegn'}</button>{/if}</p>
             {/if}
           {/if}
           <div class="row wrap">
@@ -744,6 +755,8 @@ import { AVERAGE_CHOICES } from './trendData';
               <label class="field-row">Vis
                 <select bind:value={cfg.display}><option value="remote" disabled={!hasFeedback(cfg) && cfg.display !== 'remote'}>PLC'ens position{hasFeedback(cfg) ? '' : ' (kræver tilbagemelding på alle signaler i trin 2)'}</option><option value="local">Valgt position</option></select>
               </label>
+              <label class="opt" title="Mærket ✓ / … / ! / ? ved symbolet på Overview viser, om positionen er bekræftet, venter, afviger eller er ukendt">
+                <input type="checkbox" checked={cfg.badge !== false} onchange={(e) => (cfg.badge = e.currentTarget.checked)} /> Vis tilstandsmærke</label>
               <label class="field-row">Tid til at bekræfte (s)
                 <input class="n" type="number" min="1" max="120" step="0.5" bind:value={cfg.validate_s} />
               </label>
@@ -1098,7 +1111,7 @@ import { AVERAGE_CHOICES } from './trendData';
           <button onclick={() => (step = Math.min(5, step + 1 + (!isPos && step === 1 ? 1 : 0)))}>Næste</button>
         {/if}
         <!-- Gem på alle trin (v0.69.0): serveren kontrollerer løbende, så der kan gemmes, så snart der ikke er fejl -->
-        <button class="primary" onclick={save} disabled={!canSave}
+        <button class="primary" onclick={() => save()} disabled={!canSave}
           title={canSave ? '' : 'Ret fejlene først (se trinene markeret med rødt)'}>{saving ? 'Gemmer…' : group.length ? `Gem i alle ${group.length + 1}` : 'Gem'}</button>
       </footer>
     {/if}

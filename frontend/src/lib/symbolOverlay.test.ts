@@ -49,3 +49,24 @@ describe('markPassive', () => {
     expect(g.querySelector('title')?.textContent).toBe('Kun visning — kan ikke betjenes');
   });
 });
+
+describe('tilstandsmærket kan fravælges (v2.12.0)', () => {
+  it('uden mærke tegnes intet mærke, men skyggen ved afvigelse står stadig', async () => {
+    const { drawOverlay } = await import('./symbolOverlay');
+    const root = document.createElementNS(NS, 'svg') as SVGSVGElement;
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('id', 's');
+    root.appendChild(g);
+    // jsdom har ingen getBBox/getScreenCTM: giv elementet en kasse
+    (g as any).getBBox = () => ({ x: 0, y: 0, width: 40, height: 40 });
+    const m = { inverse: () => m, multiply: () => m };
+    (root as any).getScreenCTM = () => m;
+    (g as any).getScreenCTM = () => m;
+    (globalThis as any).DOMPoint ??= class { constructor(public x: number, public y: number) {} matrixTransform() { return this; } };
+    drawOverlay(root, 's', { state: 'mismatch', remoteLabel: 'Fra', locked: false, badge: false });
+    expect(root.querySelector('.hv-badge')).toBeNull();
+    expect(root.querySelector('.hv-ghost')).not.toBeNull();
+    drawOverlay(root, 's', { state: 'confirmed', remoteLabel: null, locked: false });
+    expect(root.querySelector('.hv-badge')).not.toBeNull();   // standard: vises
+  });
+});

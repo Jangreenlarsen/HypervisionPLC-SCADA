@@ -123,9 +123,20 @@
     // dublet-navne følges løbende (fx tilbage efter Ctrl+Z på "Giv dem unikke navne")
     ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); readSize(); });
     ready = true;
-    const fromRoute = route.split('/')[1];
-    if (fromRoute && drawings.some((d) => d.id === fromRoute)) await open(fromRoute);
-    else startNew(true);
+    const [, fromRoute, wantSelector] = route.split('/');
+    if (fromRoute && drawings.some((d) => d.id === fromRoute)) {
+      await open(fromRoute);
+      if (wantSelector) await guarded('Tegn omskifteren', () => redrawFromRoute(wantSelector));   // fra Bindinger: #draw/<tegning>/<omskifter>
+    } else startNew(true);
+  }
+
+  /** Åbnet fra Bindinger med "Gem og tegn omskifteren om": vælg omskifteren og tegn den om med opsætningens positioner (v2.11.0). */
+  async function redrawFromRoute(id: string): Promise<void> {
+    if (!ed || !ed.selectByIds([id])) { info = `Omskifteren '${id}' findes ikke i den aktive version af tegningen.`; return; }
+    for (let i = 0; i < 40 && selection[0]?.id !== id; i++) await new Promise((r) => setTimeout(r, 100));
+    await checkSelector();
+    if (selectorFix) await redrawSelector(true);
+    else info = 'Omskifterens tegning passer allerede med opsætningens positioner.';
   }
 
   // Omskifter (v0.91.1): tegningens positioner skal følge opsætningens — ellers tilbyd at tegne den igen
@@ -993,7 +1004,7 @@
 {/if}
 
 {#if guideFor && current}
-  <SymbolGuide drawingId={current.id} element={guideFor.id} name={guideFor.name} {tags}
+  <SymbolGuide drawingId={current.id} element={guideFor.id} name={guideFor.name} {tags} selectorRedraw="auto"
     onclose={() => (guideFor = null)}
     onsaved={() => guarded('Opdatér symbolet', async () => {
       info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`;

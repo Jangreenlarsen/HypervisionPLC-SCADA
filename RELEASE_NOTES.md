@@ -2,6 +2,18 @@
 
 ---
 
+## v2.12.0 — 2026-10-30 — Tilstandsmærket kan slås fra
+
+- I symbol-guidens trin 4 kan du fjerne hakket ved **Vis tilstandsmærke**. Så vises mærket (✓, …, !, ?) ikke ved symbolet på Overview. Afvigelsen ("PLC: …") og hængelåsen vises stadig.
+
+## v2.11.1 — 2026-10-30 — Rettelse: "Gælder i"
+
+- Skifter du en animations kilde fra et tag til *symbolets position*, gælder de afkrydsninger, du havde sat under *Gælder i*, ikke længere skjult. Animationen virker nu i alle positioner, som feltet viser.
+
+## v2.11.0 — 2026-10-30 — Tegn omskifteren om fra guiden
+
+- Ændrer du antallet af positioner på en omskifter, har guidens trin 3 nu knappen **Gem og tegn omskifteren om**. Fra *Tegn* tegnes omskifteren om med de nye positioner med det samme; fra *Bindinger* åbnes Tegn, og omskifteren tegnes om dér. Grebets vinkler følger med.
+
 ## v2.10.2 — 2026-10-30 — Rettelse: eksterne coils og registre
 
 - Et tag fra et **expansion board** eller **RS485** blev behandlet som et tal i symbol-guiden og preview'et, også når det er en coil eller indgang. Nu vises det som Til/Fra. Preview'ets skyder bruger tagets min/max, hvis de er sat.

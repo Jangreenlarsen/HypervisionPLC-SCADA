@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#444"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2e7d32"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1f5f99"/></marker>
+  </defs>
+  <rect width="1000" height="560" fill="#ffffff"/>
+  <text x="20" y="30" font-size="20" font-weight="700" fill="#1f1f1f">Interaktiv betjening med "Vis: PLC'ens position"</text>
+  <text x="20" y="52" font-size="13" fill="#5c5c5c">Kommando skrives · tilbagemelding læses · symbolets position findes i kontaktplanen · egne tags går direkte til deres animationer</text>
+
+  <!-- operatør -->
+  <rect x="20" y="80" width="160" height="70" rx="8" fill="#eeeeee" stroke="#888"/>
+  <text x="100" y="108" font-size="14" font-weight="600" text-anchor="middle">Operatør</text>
+  <text x="100" y="128" font-size="12" text-anchor="middle" fill="#5c5c5c">vælger "Auto"</text>
+
+  <!-- kommando -->
+  <rect x="240" y="80" width="200" height="70" rx="8" fill="#e8f0f8" stroke="#1f5f99"/>
+  <text x="340" y="104" font-size="14" font-weight="600" text-anchor="middle" fill="#1f5f99">Kommando-tags</text>
+  <text x="340" y="124" font-size="12" text-anchor="middle">S1 := 0 · S2 := 1</text>
+  <text x="340" y="141" font-size="11" text-anchor="middle" fill="#5c5c5c">kun skrivning</text>
+  <line x1="180" y1="115" x2="238" y2="115" stroke="#1f5f99" stroke-width="2" marker-end="url(#b)"/>
+
+  <!-- PLC -->
+  <rect x="500" y="70" width="170" height="90" rx="8" fill="#f5f5f5" stroke="#555" stroke-width="2"/>
+  <text x="585" y="108" font-size="16" font-weight="700" text-anchor="middle">PLC</text>
+  <text x="585" y="128" font-size="12" text-anchor="middle" fill="#5c5c5c">udfører skiftet</text>
+  <line x1="440" y1="115" x2="498" y2="115" stroke="#1f5f99" stroke-width="2" marker-end="url(#b)"/>
+
+  <!-- tilbagemelding -->
+  <rect x="730" y="80" width="250" height="70" rx="8" fill="#eaf4eb" stroke="#2e7d32"/>
+  <text x="855" y="104" font-size="14" font-weight="600" text-anchor="middle" fill="#2e7d32">Tilbagemeldings-tags</text>
+  <text x="855" y="124" font-size="12" text-anchor="middle">S1_fb = 0 · S2_fb = 1</text>
+  <text x="855" y="141" font-size="11" text-anchor="middle" fill="#5c5c5c">læses løbende</text>
+  <line x1="670" y1="115" x2="728" y2="115" stroke="#2e7d32" stroke-width="2" marker-end="url(#g)"/>
+
+  <!-- kontaktplan -->
+  <rect x="640" y="200" width="340" height="120" rx="8" fill="#ffffff" stroke="#2e7d32"/>
+  <text x="810" y="222" font-size="14" font-weight="600" text-anchor="middle">Kontaktplan (trin 3)</text>
+  <g font-size="12" text-anchor="middle">
+    <text x="690" y="246" fill="#5c5c5c">Signal</text><text x="770" y="246">Fra</text><text x="840" y="246" font-weight="700" fill="#2e7d32">Auto</text><text x="910" y="246">Hånd</text>
+    <text x="690" y="270">S1</text><text x="770" y="270">0</text><text x="840" y="270" font-weight="700" fill="#2e7d32">0</text><text x="910" y="270">1</text>
+    <text x="690" y="292">S2</text><text x="770" y="292">0</text><text x="840" y="292" font-weight="700" fill="#2e7d32">1</text><text x="910" y="292">0</text>
+  </g>
+  <rect x="812" y="232" width="56" height="70" fill="none" stroke="#2e7d32" stroke-width="2" rx="4"/>
+  <text x="810" y="314" font-size="11" text-anchor="middle" fill="#5c5c5c">tilbagemeldingen passer til præcis én kolonne</text>
+  <line x1="855" y1="150" x2="855" y2="198" stroke="#2e7d32" stroke-width="2" marker-end="url(#g)"/>
+
+  <!-- PLC'ens position -->
+  <rect x="330" y="225" width="250" height="70" rx="8" fill="#eaf4eb" stroke="#2e7d32" stroke-width="2"/>
+  <text x="455" y="252" font-size="14" font-weight="700" text-anchor="middle" fill="#2e7d32">PLC'ens position = Auto</text>
+  <text x="455" y="272" font-size="12" text-anchor="middle">"Vis: PLC'ens position" → symbolets position</text>
+  <line x1="638" y1="260" x2="582" y2="260" stroke="#2e7d32" stroke-width="2" marker-end="url(#g)"/>
+
+  <!-- animationer position -->
+  <rect x="20" y="225" width="250" height="70" rx="8" fill="#ffffff" stroke="#2e7d32"/>
+  <text x="145" y="250" font-size="13" font-weight="600" text-anchor="middle">Animationer med kilde</text>
+  <text x="145" y="268" font-size="13" font-weight="600" text-anchor="middle">"symbolets position"</text>
+  <text x="145" y="286" font-size="11" text-anchor="middle" fill="#5c5c5c">grebets drej, farve pr. position</text>
+  <line x1="328" y1="260" x2="272" y2="260" stroke="#2e7d32" stroke-width="2" marker-end="url(#g)"/>
+
+  <!-- egne tags -->
+  <rect x="20" y="360" width="960" height="110" rx="8" fill="#fafafa" stroke="#888" stroke-dasharray="6 4"/>
+  <text x="40" y="385" font-size="14" font-weight="600">Egne tags (uafhængige af "Vis")</text>
+  <g font-size="12">
+    <rect x="40" y="398" width="290" height="56" rx="6" fill="#ffffff" stroke="#888"/>
+    <text x="55" y="420" font-weight="600">Drift → Løbelys på røret</text><text x="55" y="440" fill="#5c5c5c">følger tagget Pumpe_Drift direkte</text>
+    <rect x="350" y="398" width="290" height="56" rx="6" fill="#ffffff" stroke="#888"/>
+    <text x="365" y="420" font-weight="600">Fejl → Blink på lampen</text><text x="365" y="440" fill="#5c5c5c">følger tagget Pumpe_Fejl direkte</text>
+    <rect x="660" y="398" width="300" height="56" rx="6" fill="#ffffff" stroke="#888"/>
+    <text x="675" y="420" font-weight="600">Temperatur → Værdi i feltet</text><text x="675" y="440" fill="#5c5c5c">"Gælder i" bruger PLC'ens position</text>
+  </g>
+
+  <text x="20" y="500" font-size="12" fill="#5c5c5c">Ukendt position (intet eller flere mønstre passer, eller komm.fejl på en tilbagemelding): animationer med kilde "symbolets position" står som tegnet;</text>
+  <text x="20" y="518" font-size="12" fill="#5c5c5c">tag-animationerne kører videre efter deres eget tag. Med "Vis: PLC'ens position" er der ingen afvigelsesalarm — symbolet viser altid det, PLC'en melder.</text>
+</svg>

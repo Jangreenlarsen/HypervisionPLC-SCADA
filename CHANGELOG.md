@@ -4,6 +4,25 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.12.0 build 0273] — 2026-10-30 — Tilstandsmærket kan fravælges
+
+- `backend/app/services/symbols.py`: feltet `badge` (standard sand) på symbolopsætningen; `symbol_view` sender det.
+- `frontend/src/lib/symbolConfig.ts`, `symbolUi.ts` (`showsBadge`), `symbolOverlay.ts` (`badge` i overlaget), `pages/Overview.svelte`, `SymbolGuide.svelte` (*Vis tilstandsmærke* i trin 4).
+- Tests: `symbolOverlay.test.ts`, backend `test_symbols.py`. Manual kap. 06.
+
+## [2.11.1 build 0272] — 2026-10-30 — "Gælder i" rydes ved skift til kilden position
+
+- `frontend/src/lib/symbolConfig.ts`: `keepsOnly`. `frontend/src/lib/SymbolGuide.svelte`: `resetParams` bruger den.
+- `backend/app/services/symbols.py`: `only` rydes også, når kilden er `@pos`.
+- Tests: `symbolConfig.test.ts`, backend `test_symbols.py`.
+
+## [2.11.0 build 0271] — 2026-10-30 — Gem og tegn omskifteren om (fra guiden)
+
+- `frontend/src/lib/SymbolGuide.svelte`: i trin 3 erstattes henvisningen til Tegn af knappen *Gem og tegn omskifteren om* (nyt prop `selectorRedraw`; `onsaved({ redraw })`).
+- `frontend/src/pages/DrawEditor.svelte`: guiden får `selectorRedraw="auto"` (Gem tegner allerede om); ny rute `#draw/<tegning>/<element>` vælger omskifteren og tegner den om (`redrawFromRoute`).
+- `frontend/src/pages/Editor.svelte`: *Gem og tegn omskifteren om i Tegn* gemmer og åbner Tegn med omskifteren valgt.
+- `frontend/src/manual/06-symboler-og-guiden.md`: beskrevet.
+
 ## [2.10.2 build 0270] — 2026-10-30 — Eksterne coils/registre genkendes som til/fra og tal
 
 - `frontend/src/lib/symbolConfig.ts`: `tagKind` finder typen rigtigt for `rtu` og `mbx` (og `coils`).
