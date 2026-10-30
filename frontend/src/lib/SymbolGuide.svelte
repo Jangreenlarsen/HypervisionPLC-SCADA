@@ -613,6 +613,10 @@ import { AVERAGE_CHOICES } from './trendData';
             {#each opList as op}
               <label class="opt"><input type="radio" name="op" checked={op === 'view' ? viewLike : op === 'positions' ? cfg.op === 'positions' && !passive : cfg.op === op}
                 onchange={() => changeOp(op)} /> {OP_TXT[op]}</label>
+              {#if op === 'positions' && cfg.op === 'positions' && !passive}
+                <span class="sub small"><button class="small" onclick={() => changePassive(true)}
+                  title="Kommando-tagsene bliver til tilbagemeldinger; positioner og kontaktplaner beholdes">Gør til kun passiv visning (behold trin og kontaktplaner)</button></span>
+              {/if}
               {#if op === 'view' && viewLike && offersPassive}
                 <label class="opt sub small"><input type="checkbox" checked={passive} onchange={(e) => changePassive(e.currentTarget.checked)} />
                   Symbolet har trin (positioner) — vis PLC'ens trin ud fra tilbagemeldinger. Symbolet kan ikke betjenes, og der skal ikke vælges en kommando.</label>

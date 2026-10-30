@@ -2,6 +2,10 @@
 
 ---
 
+## v2.8.1 — 2026-10-30 — Gør et symbol passivt uden at miste opsætningen
+
+- I trin 1 kan et interaktivt symbol gøres til *Kun passiv visning* med ét tryk, så trin og kontaktplaner bevares (kommando-tagsene bliver til tilbagemeldinger).
+
 ## v2.8.0 — 2026-10-30 — Kun passiv visning af trin
 
 - En omskifter (eller et andet symbol med trin) kan nu sættes op som **Kun passiv visning**: symbolet viser PLC'ens trin ud fra tilbagemeldinger, uden at der skal vælges en kommando. I trin 2 er *Kommando* grå.

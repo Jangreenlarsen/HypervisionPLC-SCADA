@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.8.1 build 0266] — 2026-10-30 — Gør et interaktivt symbol passivt uden at miste kontaktplanerne
+
+- `frontend/src/lib/SymbolGuide.svelte`: knappen *Gør til kun passiv visning (behold trin og kontaktplaner)* under *Interaktiv betjening* (trin 1). Før mistede et symbol sine positioner og kontaktplaner, hvis man først valgte *Kun passiv visning*.
+- `frontend/src/manual/06-symboler-og-guiden.md`: beskrevet.
+
 ## [2.8.0 build 0265] — 2026-10-30 — Kun passiv visning med positioner
 
 - `backend/app/services/symbols.py`: nyt felt `passive` på symbolopsætningen; ved `passive` ryddes kommando-tag, skrivemåde, bekræftelse, fejlsignal, alarm og nøglelås, visningen tvinges til PLC'ens position, og hvert signal skal have en tilbagemelding (som ikke behøver at være skrivbar). `symbol_view` sender `passive`.

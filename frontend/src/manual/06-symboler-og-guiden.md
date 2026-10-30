@@ -46,6 +46,8 @@ Vil du blot **se**, hvilket trin en omskifter (eller anden positions-symbol) st�
 - **Trin 5:** intet at betjene — ingen bekræftelse og ingen nøglelås.
 - **På Overview** kan symbolet ikke klikkes, og tooltip'en siger *Kun visning — kan ikke betjenes*. Serveren afviser også betjening, hvis nogen forsøger via API'et.
 
+Har symbolet allerede en interaktiv opsætning, tryk **Gør til kun passiv visning (behold trin og kontaktplaner)** under *Interaktiv betjening* i trin 1 — så bliver kommando-tagsene til tilbagemeldinger, og positioner og kontaktplaner bevares.
+
 Skifter du tilbage til *Interaktiv betjening*, skal du vælge kommando-tags igen (tilbagemeldingerne bevares).
 
 ## Positioner og kontaktplaner
