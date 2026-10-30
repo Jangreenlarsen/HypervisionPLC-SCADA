@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.10.2 build 0270] — 2026-10-30 — Eksterne coils/registre genkendes som til/fra og tal
+
+- `frontend/src/lib/symbolConfig.ts`: `tagKind` finder typen rigtigt for `rtu` og `mbx` (og `coils`).
+- `frontend/src/lib/animPreview.ts`, `AnimPreview.svelte`, `SymbolGuide.svelte`: skyderens område følger tagets min/max, når animationerne ikke har et.
+- Tests: `symbolConfig.test.ts` (eksterne kilder), `animPreviewLogic.test.ts` (område).
+
 ## [2.10.1 build 0269] — 2026-10-30 — Preview: symbolet vises også, når det står forskudt i tegningen
 
 - `frontend/src/lib/AnimPreview.svelte`: symbolet pakkes ind i en `<g>`, og viewBox måles på den (getBBox medregner ikke elementets egen transform). `AnimPreviewPanel.test.ts`: tjek af indpakningen.

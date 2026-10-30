@@ -69,6 +69,19 @@ describe('animationer → bindinger og kontroller', () => {
   });
 });
 
+describe('skyderens område', () => {
+  const num = (params: Record<string, any>, own: { min: number; max: number } | null) =>
+    buildPreview(cfgWith([anim({ src: 'AI1', type: 'level', params })]), 's', kindOf, () => own).controls[0];
+  it('tagets egne min/max bruges, når animationen ikke har et område', () => {
+    expect(num({}, { min: 0, max: 400 })).toMatchObject({ min: 0, max: 400 });
+  });
+  it('animationens eget område går forud, og et ugyldigt område ignoreres', () => {
+    expect(num({ min: 5, max: 20 }, { min: 0, max: 400 })).toMatchObject({ min: 5, max: 20 });
+    expect(num({}, { min: 10, max: 10 })).toMatchObject({ min: 0, max: 100 });
+    expect(num({}, null)).toMatchObject({ min: 0, max: 100 });
+  });
+});
+
 describe('værdier og afspilning', () => {
   const p = buildPreview(cfgWith([anim({}), anim({ part: 'greb', type: 'rotate', src: 'AI1', params: { min: 0, max: 100, angle_min: 0, angle_max: 90 } })]), 's', kindOf);
   it('til/fra som sand/falsk, tal og positioner som tal, og holdt inden for området', () => {

@@ -279,12 +279,17 @@ export function opChoices(type: string, current: Op, visited: readonly Op[]): Op
 /** Eksemplet "7-trins vælger" giver kun mening for vælgere og egne tegninger — ikke for fx en ventil eller en pumpe. */
 export const offersSelectorExample = (type: string): boolean => type === 'custom' || type.startsWith('omskifter') || type === 'drejeomskifter' || type.startsWith('vippe_');
 
-/** Til/fra, tal eller ukendt (ST-variabler kendes først fra live-værdien) ud fra tagets kilde `plc:type:adr[:datatype]`. */
+/**
+ * Til/fra, tal eller ukendt (ST-variabler kendes først fra live-værdien) ud fra tagets kilde (som backendens tagsource.py):
+ * `plc:type:adr[:datatype]`, `plc:rtu:slave:type:adr[:datatype]` og `plc:mbx:board:kanal:slave:type:adr[:datatype]` — typen
+ * står længere henne for eksterne kilder (v2.10.2; før blev en ekstern coil/DI regnet som et tal).
+ */
 export function tagKind(source: string | undefined): 'bool' | 'num' | 'unknown' {
   if (!source) return 'unknown';
   const parts = source.split(':');
-  const kind = parts[1];
-  if (kind === 'coil' || kind === 'di') return 'bool';
+  const bus = parts[1];
+  const kind = bus === 'rtu' ? parts[3] : bus === 'mbx' ? parts[5] : bus;
+  if (kind === 'coil' || kind === 'coils' || kind === 'di') return 'bool';
   if (kind === 'logic' || kind === 'global') return 'unknown';
   return parts[parts.length - 1] === 'bool' ? 'bool' : 'num';
 }
