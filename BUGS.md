@@ -5,6 +5,8 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v2.10.2 — Tags fra et expansion board (`mbx`) eller RS485 (`rtu`) blev altid regnet som **tal** i symbol-guiden og preview'et: en ekstern coil/DI fik tal-indstillinger og en skyder fra 0 til 100 i stedet for Fra/Til. Interne coils/registre blev genkendt rigtigt. **Årsag:** frontendens `tagKind` læste registertypen som 2. segment i kilden (`plc1:coil:3`), men for eksterne kilder står den længere henne (`plc1:mbx:1:D:1:coil:0`, `plc1:rtu:90:coil:4`). Backend (`parse_source`) var rigtig. **Løsning:** typen læses fra det rigtige segment. Preview'ets skyder bruger desuden tagets egne min/max, når de er sat. Test.
+
 - [fixed] v2.10.1 — Preview ved animationerne (v2.10.0) viste et tomt billede for symboler, der står forskudt eller skaleret i tegningen. **Årsag:** `getBBox` på selve symbol-elementet medregner ikke dets egen `transform` (fx `translate(408.8 63.3) scale(1.1)`), så viewBox pegede ved siden af symbolet. **Løsning:** symbolet pakkes ind i en gruppe, og viewBox måles på den. Test af indpakningen; set i browseren.
 
 - [fixed] v2.6.1 — Symbol-guiden: at fjerne en position efterlod en fra-værdi for meget i animationer med *Pr. værdi*, så opsætningen ikke kunne gemmes. Fejl for pulssignaler (pulslængde, hvileværdi) og "mindst ét plan skal styre et signal der sættes" stod under trin 5 i stedet for trin 2/3, hvor de rettes. *Tid til at bekræfte* tillod 0,5 s, serveren kræver 1 s. **Løsning:** positionen fjernes også fra `pos_values`; fejlene vises under det rigtige trin; feltet starter ved 1. Desuden advarsel, når tilbagemeldingen er samme tag som kommandoen. Test.

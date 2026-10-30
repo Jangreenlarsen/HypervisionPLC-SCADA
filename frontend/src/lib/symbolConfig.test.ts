@@ -19,6 +19,16 @@ describe('tagKind', () => {
     expect(tagKind('plc1:hr:30:real')).toBe('num');
     expect(tagKind('plc1:logic:1:Niveau')).toBe('unknown');
   });
+  it('eksterne kilder: typen står længere henne i kilden (RS485 og expansion board)', () => {
+    expect(tagKind('plc1:mbx:1:D:1:coil:0')).toBe('bool');
+    expect(tagKind('plc1:mbx:1:D:1:di:2')).toBe('bool');
+    expect(tagKind('plc1:mbx:2:A:5:hr:10')).toBe('num');
+    expect(tagKind('plc1:mbx:2:A:5:ir:10:real')).toBe('num');
+    expect(tagKind('plc1:rtu:90:coil:4')).toBe('bool');
+    expect(tagKind('plc1:rtu:90:di:4')).toBe('bool');
+    expect(tagKind('plc1:rtu:90:hr:0')).toBe('num');
+    expect(tagKind('fyrrum:rtu:10:hr:3:int')).toBe('num');
+  });
 });
 
 describe('skabeloner og eksemplet dec → bin', () => {

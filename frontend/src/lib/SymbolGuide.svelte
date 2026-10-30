@@ -259,6 +259,11 @@ import { AVERAGE_CHOICES } from './trendData';
     if (timer) clearTimeout(timer);
   });
   const valueOf = (t: string) => liveVals[t]?.value;
+  /** Tagets egne min/max (sat under Tags), til skyderen i preview'et — kun hvis begge er sat */
+  const rangeOf = (t: string): { min: number; max: number } | null => {
+    const row = tagByName.get(t) as (TagRow & { min?: number | null; max?: number | null }) | undefined;
+    return row && typeof row.min === 'number' && typeof row.max === 'number' && row.max > row.min ? { min: row.min, max: row.max } : null;
+  };
   /** Tagets enhed til forhåndsvisningen af en Værdi-animation. */
   const metaOf = (t: string): TagMeta | undefined => { const row = tagByName.get(t); return row ? ({ unit: row.unit } as TagMeta) : undefined; };
   const found = $derived(isPos ? foundPosition(cfg, valueOf) : null);
@@ -955,7 +960,7 @@ import { AVERAGE_CHOICES } from './trendData';
               title="Tilføj en animation med 'altid til' nederst — den gælder, når ingen af de aktiv/passive over den er aktive">+ Standard</button>
           </div>
           </div>
-          {#if drawingSvg}<AnimPreview {cfg} {element} svg={drawingSvg} kindOf={tagKindOf} metaOf={(t) => metaOf(t)} />{/if}
+          {#if drawingSvg}<AnimPreview {cfg} {element} svg={drawingSvg} kindOf={tagKindOf} metaOf={(t) => metaOf(t)} rangeOf={rangeOf} />{/if}
           </div>
           <OwnerAnims owners={groupOwners} {symbol} title="Animationer fra grupper (ændres under Grupper — gælder ud over symbolets egne)" />
           {#if cfg.anims.some((x) => x.when)}

@@ -2,6 +2,10 @@
 
 ---
 
+## v2.10.2 — 2026-10-30 — Rettelse: eksterne coils og registre
+
+- Et tag fra et **expansion board** eller **RS485** blev behandlet som et tal i symbol-guiden og preview'et, også når det er en coil eller indgang. Nu vises det som Til/Fra. Preview'ets skyder bruger tagets min/max, hvis de er sat.
+
 ## v2.10.1 — 2026-10-30 — Rettelse: preview ved animationerne
 
 - Preview'et i symbol-guiden viste et tomt billede for symboler, der står forskudt eller skaleret i tegningen. Det er rettet.

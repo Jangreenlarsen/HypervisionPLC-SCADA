@@ -28,6 +28,8 @@ export interface Preview {
 }
 
 type KindOf = (tag: string) => 'bool' | 'num' | 'unknown';
+/** Tagets egne min/max (Tags › Betjening), hvis de er sat — bruges til skyderen, når animationerne ikke har et område */
+type RangeOf = (tag: string) => { min: number; max: number } | null;
 
 /** Navnet bindingerne bruger for en kilde: `@pos`, en logikblok, en alarm eller et tag. "Altid til" og en fast værdi står som de er. */
 function nameOf(src: string): string {
@@ -48,11 +50,12 @@ const labelOf = (src: string): string => {
 };
 
 /** Området et tal-tags skyder dækker: animationernes Min/Max, ellers op over den højeste grænse, ellers 0–100. */
-function numRange(anims: Anim[]): { min: number; max: number } {
+function numRange(anims: Anim[], own: { min: number; max: number } | null): { min: number; max: number } {
   for (const a of anims) {
     const { min, max } = a.params ?? {};
     if (typeof min === 'number' && typeof max === 'number' && max > min) return { min, max };
   }
+  if (own && own.max > own.min) return own;
   const limits = anims.flatMap((a) => (Array.isArray(a.params?.thresholds) ? a.params.thresholds.map((t: { value: number }) => Number(t.value)) : []))
     .filter(Number.isFinite);
   if (limits.length) {
@@ -62,7 +65,7 @@ function numRange(anims: Anim[]): { min: number; max: number } {
   return { min: 0, max: 100 };
 }
 
-export function buildPreview(cfg: SymbolConfig, element: string, kindOf: KindOf): Preview {
+export function buildPreview(cfg: SymbolConfig, element: string, kindOf: KindOf, rangeOf: RangeOf = () => null): Preview {
   const isPos = cfg.op === 'positions';
   const labels = cfg.positions.map((p, j) => p.label || `Position ${j + 1}`);
   const byValue = (a: Anim): boolean => !!a.by_value && isPos && !!a.src && !a.src.startsWith('@') && BY_VALUE_TYPES.includes(a.type);
@@ -108,7 +111,7 @@ export function buildPreview(cfg: SymbolConfig, element: string, kindOf: KindOf)
     const bool = parseAlarmRef(src) !== null || isLogicRef(src) || kindOf(src) === 'bool';
     if (bool) controls.push({ name: nameOf(src), label: labelOf(src), kind: 'bool', min: 0, max: 1, step: 1, labels: [] });
     else {
-      const r = numRange(anims);
+      const r = numRange(anims, rangeOf(src));
       controls.push({ name: nameOf(src), label: labelOf(src), kind: 'num', min: r.min, max: r.max, step: Math.max((r.max - r.min) / 100, 0.01), labels: [] });
     }
   }

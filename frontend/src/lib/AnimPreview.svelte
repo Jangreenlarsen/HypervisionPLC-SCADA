@@ -7,12 +7,14 @@
   import { renderAll } from './canvas';
   import type { SymbolConfig } from './symbolConfig';
 
-  let { cfg, element, svg, kindOf, metaOf }: {
+  let { cfg, element, svg, kindOf, metaOf, rangeOf }: {
     cfg: SymbolConfig; element: string;
     /** Hele tegningens SVG (symbolet findes i den via element-id'et) */
     svg: string;
     kindOf: (tag: string) => 'bool' | 'num' | 'unknown';
     metaOf: (tag: string) => TagMeta | undefined;
+    /** tagets egne min/max, hvis sat */
+    rangeOf?: (tag: string) => { min: number; max: number } | null;
   } = $props();
 
   let host = $state<SVGSVGElement | null>(null);
@@ -24,7 +26,7 @@
   let timer: ReturnType<typeof setInterval> | null = null;
   let t0 = 0;
 
-  const preview = $derived(buildPreview(cfg, element, kindOf));
+  const preview = $derived(buildPreview(cfg, element, kindOf, rangeOf));
   const bindingsKey = $derived(JSON.stringify(preview.bindings));
   const values = $derived(previewValues(preview.controls, playing ? playVals : vals));
 
