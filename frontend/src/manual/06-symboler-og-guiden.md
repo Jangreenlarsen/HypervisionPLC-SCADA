@@ -68,6 +68,38 @@ Et symbol med positioner skal vide, hvilken position PLC'en **står i** (tilbage
 
 Er en **tilbagemelding** valgt for et signal, læses PLC'ens position derfra; ellers bruges kommandoen. Enten har alle signaler i kontaktplanerne en tilbagemelding, eller ingen — en blanding afvises. *Vis: PLC'ens position* kræver, at alle har. Et puls-signal bruges også til at finde positionen, når det har en tilbagemelding. En position **fundet** i PLC'en vises som en lille tilstand (*bekræftet*, *afventer*, *afvigelse*, *ukendt*).
 
+## Eksempel: kommando, tilbagemelding og egne tags med "Vis: PLC'ens position"
+
+En omskifter med tre positioner (*Fra*, *Auto*, *Hånd*) er sat op som **Interaktiv betjening**. Den har to signaler med **forskellige** kommando- og tilbagemeldings-tags, og symbolet har tre animationer på egne tags (drift, fejl og temperatur). I trin 4 er **Vis** sat til **PLC'ens position**.
+
+| Trin | Indstilling |
+| --- | --- |
+| 2 · Signaler | S1: kommando `S1`, tilbagemelding `S1_fb` · S2: kommando `S2`, tilbagemelding `S2_fb` |
+| 3 · Kontakter | Fra = S1 0, S2 0 · Auto = S1 0, S2 1 · Hånd = S1 1, S2 0 |
+| 4 · Visning | *Vis: PLC'ens position*; grebet drejer efter **symbolets position**; løbelys efter `Pumpe_Drift`, blink efter `Pumpe_Fejl`, værdi efter `Temperatur` |
+
+![Sådan hænger det sammen: kommandoen skrives til PLC'en, tilbagemeldingen sammenlignes med kontaktplanen og giver PLC'ens position, som styrer animationerne med kilde "symbolets position" — de egne tags styrer deres animationer direkte](/manual/eksempel-vis-plc.png)
+
+**Sådan virker det:**
+
+- **Kommando-tagsene skrives kun.** Når operatøren vælger *Auto*, skrives S1 := 0 og S2 := 1. De læses ikke for at finde positionen.
+- **Tilbagemeldingerne bestemmer positionen.** Serveren sammenligner hele tiden `S1_fb` og `S2_fb` med kontaktplanen. Passer de til præcis én kolonne, er det **PLC'ens position**, og med *Vis: PLC'ens position* er det også **symbolets position**.
+- **Animationer med kilden *symbolets position*** (her grebets drej) følger altså det, PLC'en melder tilbage, ikke det operatøren valgte.
+- **Animationer med et eget tag** (løbelys, blink og værdi) følger kun deres eget tag. *Vis* har ingen betydning for dem. Har de *Gælder i* sat, bruges den viste position, altså PLC'ens.
+
+![Tidsforløb: efter valget venter symbolet i den gamle position, til tilbagemeldingen viser den nye — så skifter det og bliver bekræftet](/manual/eksempel-vis-forloeb.png)
+
+**Når operatøren skifter position:** symbolet bliver stående i PLC'ens position og viser mærket *venter*, mens PLC'en udfører skiftet. Det springer altså ikke frem. Først når tilbagemeldingerne viser den nye position, skifter symbolet og bliver *bekræftet*. Kommer tilbagemeldingen aldrig, står symbolet stadig i PLC'ens position. Med *Vis: PLC'ens position* er der hverken afvigelsesalarm eller "PLC: …"-skygge, for symbolet viser altid PLC'ens virkelighed. Vil du se, at et valg ikke blev udført, så brug **Vis: Valgt position** (afvigelse og alarm efter *Tid til at bekræfte*).
+
+**Faldgruber:**
+
+- **Ingen kolonne passer:** står tilbagemeldingerne i et mønster, som ikke findes i kontaktplanen (eller som passer til flere kolonner), er positionen **ukendt**. Animationerne med kilden position står så som tegnet, mens tag-animationerne kører videre.
+- **Kommunikationsfejl på en tilbagemelding** giver også ukendt position. Tag-animationerne tones ned efter deres eget tags kvalitet.
+- **Brug ikke et kommando-tag som kilde** til en animation, der skal vise den fysiske tilstand. Den viser det, der *er skrevet*, og kan være uenig med symbolets position. Brug tilbagemeldings-tagget i stedet.
+- **Tilbagemelding på alle signaler eller ingen:** *PLC'ens position* kræver tilbagemelding på alle signaler i kontaktplanerne. En blanding kan ikke gemmes.
+
+**Tommelfingerregel:** brug **symbolets position** som kilde til alt, der viser *positionen* (greb, farve pr. position), og **egne tags** til det, der ikke er positionen (drift, fejl, niveau, måling).
+
 ## Animationer i guiden (trin 4)
 
 ![En animation i trin 4: grebet drejer efter symbolets position, med en vinkel pr. position og tegningens vinkler](/manual/guide-animation.png)
