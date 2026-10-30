@@ -2,23 +2,25 @@
 import { describe, expect, it } from 'vitest';
 import type { AnimType, SrcKind } from './symbolConfig';
 import { newAnim, newTag, retune, syncSim, tagRange, type SimTag } from './symbolSim';
+import { segDisplaySvg } from './segDisplay';
 
 const SVG = '<g><rect id="r" x="0" y="0" width="20" height="10" fill="#ccc" stroke="#000" stroke-width="2"/>' +
-  '<path id="p" d="M0 20 H90" stroke="#000" stroke-width="10" fill="none"/><text id="t">x</text></g>';
+  '<path id="p" d="M0 20 H90" stroke="#000" stroke-width="10" fill="none"/><text id="t">x</text>' +
+  segDisplaySvg(7, 3).replace('<g data-hv-kind', '<g id="d" data-hv-kind') + '</g>';
 const host = () => {
   const h = document.createElement('div');
   h.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg">${SVG}</svg>`;
   return h.firstElementChild!;
 };
 const PART: Record<AnimType, string> = {
-  fill: 'r', stroke: 'r', blink: 'r', visible: 'r', spin: 'r', flicker: 'r', level: 'r', opacity: 'r', text: 't', rotate: 'r', move: 'r', scale: 'r', flow: 'p',
+  fill: 'r', stroke: 'r', blink: 'r', visible: 'r', spin: 'r', flicker: 'r', level: 'r', opacity: 'r', text: 't', rotate: 'r', move: 'r', scale: 'r', flow: 'p', segments: 'd',
 };
 const ALL = Object.keys(PART) as AnimType[];
 const KINDS: SrcKind[] = ['bool', 'num', 'pos'];
 
 /** Det synlige aftryk af delen: attributter og style (uden data-hv-quality, som altid sættes). */
 const look = (el: Element): string =>
-  JSON.stringify([...el.attributes].filter((a) => a.name !== 'data-hv-quality').map((a) => [a.name, a.value]).sort()) + el.textContent + (el as SVGElement).style.cssText;
+  JSON.stringify([...el.attributes].filter((a) => a.name !== 'data-hv-quality').map((a) => [a.name, a.value]).sort()) + el.textContent + (el as SVGElement).style.cssText + (el.hasAttribute('data-hv-kind') ? el.innerHTML : '');   // displayet ændrer sine segmenter (børn)
 
 function lowHigh(t: SimTag): [number, number] {
   const r = tagRange(t);

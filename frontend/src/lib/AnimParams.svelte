@@ -91,6 +91,15 @@
         {#if expressionError(p.expression ?? '')}<span class="small error">Beregning: {expressionError(p.expression ?? '')}</span>{/if}
         {#if valueOf(a.src) !== undefined && valueOf(a.src) !== null}<span class="small muted">Lige nu: {fmt(valueOf(a.src))} → <strong>{textFor(valueOf(a.src), metaOf(a.src), p)}</strong></span>{/if}
       {/if}
+    {:else if a.type === 'segments'}
+      {@render numInput(p, 'decimals', 'Decimaler')}
+      <label class="opt small">Beregning <input class="lbl" bind:value={p.expression} maxlength="80" placeholder="fx x / 10" /></label>
+      <label class="opt small">Justering
+        <select bind:value={p.align}><option value="right">Højre</option><option value="left">Venstre</option></select></label>
+      <label class="opt small" title="Fylder op med nuller foran tallet (fx 0042)"><input type="checkbox" bind:checked={p.zeros} /> Foranstillede nuller</label>
+      {@render colorInput(p, 'on', 'Tændt')}{@render colorInput(p, 'off', 'Slukket')}
+      {#if expressionError(p.expression ?? '')}<span class="small error">Beregning: {expressionError(p.expression ?? '')}</span>{/if}
+      {#if valueOf(a.src) !== undefined && valueOf(a.src) !== null}<span class="small muted">Lige nu: {fmt(valueOf(a.src))}</span>{/if}
     {:else if a.type === 'rotate'}
       {#if kind === 'pos'}
         {#each positions as pos, j}{@render numInput(p.angles, j, `${pos.label} °`)}{/each}

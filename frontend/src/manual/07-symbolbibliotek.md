@@ -1,7 +1,7 @@
 <!-- GENERERET af src/lib/manualGen.test.ts ud fra symbolbiblioteket — ret ikke i hånden; kør GEN_MANUAL=1 npx vitest run src/lib/manualGen.test.ts -->
 # Symbolbiblioteket
 
-Biblioteket har **94 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
+Biblioteket har **96 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
 
 ## Betjening (skriver til PLC)
 
@@ -31,6 +31,8 @@ Biblioteket har **94 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 | **Motor** | Kun passiv visning, Interaktiv betjening, Trykknap (puls) | Bind "Fyldfarve" til drift-signalet |
 | **Tank** | Kun passiv visning | Bind "Niveau" på det indre rektangel |
 | **Værdifelt** | Kun passiv visning | Bind "Tekst" på teksten |
+| **7-segment display** | Kun passiv visning | Viser et tal på 4 cifre — bind "Segmenter" til et tal-tag. Andre antal cifre (1–16): brug "Display med egne cifre" |
+| **11-segment display** | Kun passiv visning | Som 7-segment, men viser også de fleste store bogstaver (A, C, D, E, F, G, H, I, J, L, O, P, S, T, U, Y, Z) |
 | **Lampe** | Kun passiv visning | Bind "Fyldfarve" til signalet |
 | **Knap** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | Bind "Klik: til/fra" eller "Klik: puls" |
 

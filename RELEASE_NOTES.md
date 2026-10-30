@@ -2,6 +2,11 @@
 
 ---
 
+## v2.9.0 — 2026-10-30 — Segment-display
+
+- Nye symboler: **7-segment display** og **11-segment display** (kategorien *Proces og visning*). I Tegn kan du indsætte et display med **1–16 cifre** (*Display med egne cifre*).
+- Displayet viser et tal-tag med animationen **Segmenter**: decimaler, beregning, højre/venstre justering, foranstillede nuller og egne farver. 11-segment viser også de fleste store bogstaver.
+
 ## v2.8.1 — 2026-10-30 — Gør et symbol passivt uden at miste opsætningen
 
 - I trin 1 kan et interaktivt symbol gøres til *Kun passiv visning* med ét tryk, så trin og kontaktplaner bevares (kommando-tagsene bliver til tilbagemeldinger).

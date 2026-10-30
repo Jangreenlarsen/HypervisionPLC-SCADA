@@ -619,3 +619,55 @@ def test_view_op_clears_passive(api):
     cfg = {"op": "view", "passive": True, "anims": [{"part": "V1_greb", "type": "fill", "src": "@on", "params": {}}]}
     r = put(api, cfg)
     assert r.status_code == 200 and r.json()["config"]["passive"] is False
+
+
+# ------------------------------------------------------------------ segment-display (v2.9.0)
+
+DISPLAY_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">'
+               '<g id="D1" data-hv-type="segdisplay7" data-hv-kind="7" data-hv-name="Display">'
+               '<rect x="0" y="0" width="100" height="60"/>'
+               '<g data-hv-digit="0"><polygon data-hv-seg="a" points="0,0 10,0 5,5" fill="#3d3d3d"/></g></g></svg>')
+
+
+def _display_did(api):
+    r = api.post("/api/drawings", json={"name": "Display", "svg": DISPLAY_SVG})
+    assert r.status_code in (200, 201), r.text
+    return r.json()["drawing"]["id"]
+
+
+def _put_display(api, did, anim):
+    cfg = {"op": "view", "anims": [anim]}
+    return api.put(f"/api/drawings/{did}/symbols/D1/config", json={"config": cfg})
+
+
+def test_segments_animation_saves_with_defaults_and_compiles_to_a_binding(api):
+    did = _display_did(api)
+    r = _put_display(api, did, {"part": "all", "type": "segments", "src": "Niveau", "params": {"decimals": 1, "expression": "x / 10"}})
+    assert r.status_code == 200, r.text
+    params = r.json()["config"]["anims"][0]["params"]
+    assert params == {"decimals": 1, "expression": "x / 10", "zeros": False, "align": "right", "on": "#7cc47f", "off": "#3d3d3d"}
+    from app.services.symbols import config_bindings
+    b = config_bindings(did, "D1", r.json()["config"], set())
+    assert [(x["element"], x["tag"], x["anim"]) for x in b] == [("D1", "Niveau", "segments")]
+    assert b[0]["params"]["align"] == "right" and "decimals" in b[0]["params"]
+
+
+def test_segments_only_on_a_display_as_the_whole_symbol(api):
+    anim = {"part": "all", "type": "segments", "src": "Niveau", "params": {}}
+    assert any("segment-display" in m for m in errors(put(api, {"op": "view", "anims": [anim]}))["steps"]["4"])   # V1 er en omskifter
+    did = _display_did(api)
+    r = _put_display(api, did, {"part": "D1", "type": "segments", "src": "Niveau", "params": {}})
+    assert errors(r)["steps"]["4"]   # en bestemt del af displayet (eller rodens eget id) afvises
+
+
+@pytest.mark.parametrize("src", ["@on", "@pos"])
+def test_segments_needs_a_number_tag(api, src):
+    did = _display_did(api)
+    r = _put_display(api, did, {"part": "all", "type": "segments", "src": src, "params": {}})
+    assert r.status_code == 400
+
+
+@pytest.mark.parametrize("params", [{"on": "url(javascript:1)"}, {"expression": "x +"}, {"align": "midt"}, {"decimals": 9}, {"ekstra": 1}])
+def test_segments_rejects_bad_parameters(api, params):
+    did = _display_did(api)
+    assert _put_display(api, did, {"part": "all", "type": "segments", "src": "Niveau", "params": params}).status_code == 400

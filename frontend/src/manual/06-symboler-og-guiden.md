@@ -152,6 +152,19 @@ Tal-animationerne — *Niveau*, *Gennemsigtighed*, *Størrelse*, *Drej* og *Flyt
 
 **Historik (Trends) (trin 6):** under alarmerne ser du, om hvert af symbolets tags **gemmer historik**. Sæt flueben ud for et tag, eller tryk **Gem historik for alle** — så gemmer serveren værdierne fra nu af (højst hvert 10. sekund som standard; intervallet ændres under *Tags*). Historikken gælder tagget overalt. **Vis symbolet i Trends** åbner Trends i en ny fane med alle symbolets kurver.
 
+### Segment-display
+
+Et **7-segment display** eller **11-segment display** (kategorien *Proces og visning*, eller *Display med egne cifre* i Tegn: 1–16 cifre) viser et tal-tag som lysende segmenter. Vælg **Kun passiv visning** i trin 1; guiden foreslår én animation, **Segmenter**, på *Hele symbolet*. I trin 4 vælger du **tallet** (et tal-tag) og:
+
+- **Decimaler** og **Beregning** (fx `x / 10`) — som under *Værdi*. Tagets egne decimaler bruges, hvis du lader feltet stå tomt.
+- **Justering:** højre (standard) eller venstre.
+- **Foranstillede nuller:** fylder op med nuller foran tallet (0042), fortegnet står forrest.
+- **Tændt** og **Slukket**: farverne på segmenterne.
+
+Decimalpunktet bruger ikke et ciffer: *12,3* på et display med 4 cifre viser `_ 1 2. 3`. Er tallet for langt til cifrene, vises en bindestreg i alle cifre; en ukendt værdi (fx kommunikationsfejl) vises som én bindestreg. Et til/fra-tag vises som 1 eller 0.
+
+**11-segment** kan vise tallene og bogstaverne A, C, D, E, F, G, H, I, J, L, O, P, S, T, U, Y og Z (små bogstaver vises som store). **7-segment** viser tal og de bogstaver, et 7-segment kan lave (fx A, b, C, d, E, F, H, L, n, o, P, r, S, t, U). Andre tegn står slukket.
+
 ### Værdi: decimaler, tekst før/efter, beregning og enhed
 
 Animationen **Værdi** skriver taggets værdi i en tekst-del. For et tal-tag har den felterne:

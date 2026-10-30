@@ -4,6 +4,7 @@ import { flickerPalette } from './symbolConfig';
 import { chainPhases, dashOffset, splitSubpaths, trimInnerEnds, type Phase, type Piece } from './flowChain';
 import type { Binding, LiveValue, TagMeta } from './api';
 import { evalExpression } from './expression';
+import { SEG_UNKNOWN, clearSegments, renderSegmentText } from './segDisplay';
 
 const SHAPES = 'path,rect,circle,ellipse,polygon,polyline,line';
 
@@ -805,6 +806,9 @@ export function activeFor(v: unknown, p: Record<string, any>): boolean {
 export function resetAnim(el: Element, anim: string, p: Record<string, any>): void {
   const st = (el as SVGElement).style;
   switch (anim) {
+    case 'segments':
+      clearSegments(el, p);
+      break;
     case 'fill':
     case 'stroke':
       paint(el, anim, '');
@@ -876,6 +880,7 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
       return;
     }
     if (b.anim === 'text') setText(el, textFor(null, meta, p));
+    if (b.anim === 'segments') renderSegmentText(el, SEG_UNKNOWN, p);   // ukendt værdi: en bindestreg
     // Ukendt værdi (fx kommunikationsfejl): løbelyset står stille, så det aldrig viser flow der ikke er der
     if (b.anim === 'flow') flow(el, 0, p);
     return;
@@ -887,6 +892,12 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
     case 'text':
       setText(el, p.pos ? String(at(p.labels) ?? '') : textFor(v, meta, p));
       break;
+    case 'segments': {
+      // Segment-display (v2.9.0): tallet formateres som under Værdi (beregning, decimaler), men uden enhed og tekst
+      const shown = typeof v === 'boolean' ? (v ? '1' : '0') : formatValue(v, meta, { ...p, show_unit: false });
+      renderSegmentText(el, shown === '—' ? SEG_UNKNOWN : shown, p);
+      break;
+    }
     case 'fill':
     case 'stroke': {
       const color = p.pos ? at(p.colors) : colorFor(v, p);

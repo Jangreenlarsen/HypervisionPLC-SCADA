@@ -25,6 +25,7 @@ Hedder et element det samme som et tag (id eller label), bindes det **automatisk
 | **Niveau** | En rektangel fyldes fra bunden efter min/max (kan vende) | Tank, søjle |
 | **Gennemsigtighed** | Elementet bliver mere eller mindre synligt efter værdien | Fade |
 | **Tekst** | Viser tagets værdi som tekst, med decimaler, enhed og evt. **beregning** | Temperatur, tæller |
+| **Segmenter** | Et segment-display viser tallet på sine cifre (7- eller 11-segment). Kun på et display, og sættes op i symbol-guiden | Måling, tæller, klokkeslæt |
 | **Drej** | Elementet drejes en vinkel efter værdien (eller efter position) | Viser på manometer, omskifterstilling |
 | **Flyt** | Elementet forskydes dx/dy efter værdien | Skyder, vippekontakt |
 | **Roterer** | Elementet roterer kontinuerligt | Pumpehjul, blæser |

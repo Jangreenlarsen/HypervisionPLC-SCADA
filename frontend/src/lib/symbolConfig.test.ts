@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeAt, feedbackCoverage, hasFeedback, animDefaults, opChoices, cycleCell, isLogicRef, keepSuggestion, emptyConfig, feedbackMismatch, foundPosition, parseValRef, partLabel, preset, resize, setOp, setPassive, tagKind, template, typesFor, valRef,
+  activeAt, feedbackCoverage, hasFeedback, animDefaults, opChoices, cycleCell, isLogicRef, keepSuggestion, emptyConfig, feedbackMismatch, foundPosition, parseValRef, partLabel, preset, resize, setOp, setPassive, tagKind, libraryDefault, template, typesFor, valRef,
   type PartInfo, type SymbolConfig, type SymbolInfo,
 } from './symbolConfig';
 
@@ -248,5 +248,21 @@ describe('passiv visning → betjening (v2.8.0)', () => {
     expect([cfg.confirm, cfg.alarm]).toEqual([false, '']);
     setOp(cfg, 'positions');
     expect([cfg.passive, cfg.confirm, cfg.alarm, cfg.display]).toEqual([false, true, 'medium', 'local']);
+  });
+});
+
+describe('segment-display i guiden (v2.9.0)', () => {
+  const info = (type: string): SymbolInfo => ({ type, name: 'Display', tag: 'g', line: false, parts: {} });
+  it('et display tilbyder kun Segmenter, og bibliotekets forslag er en animation på hele symbolet', () => {
+    expect(typesFor(info('segdisplay7'))).toEqual(['segments']);
+    expect(typesFor(info('segdisplay11'))).toEqual(['segments']);
+    expect(typesFor(info('lampe'))).not.toContain('segments');
+    const proposal = libraryDefault(info('segdisplay11'))!;
+    expect(proposal.config.op).toBe('view');
+    expect(proposal.config.anims).toEqual([{ part: 'all', type: 'segments', src: '', params: animDefaults('segments', 'num', 0), only: null }]);
+    expect(opChoices('segdisplay7', 'view', [])).toEqual(['view']);
+  });
+  it('standardindstillinger', () => {
+    expect(animDefaults('segments', 'num', 0)).toEqual({ zeros: false, align: 'right', on: '#7cc47f', off: '#3d3d3d' });
   });
 });

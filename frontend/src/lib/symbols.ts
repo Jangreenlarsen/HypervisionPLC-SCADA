@@ -3,6 +3,7 @@
 // Rør har tykkelse 10 og centerlinje i y=45 / x=45, så fittings og rør passer sammen. Brug
 // SVG-Edits rotation (eller spejling) for at vende en bøjning/T-stykke den rigtige vej.
 
+import { SEG_OFF, segDisplaySvg } from './segDisplay';
 export type SymbolCategory = 'betjening' | 'proces' | 'vvs' | 'el' | 'sol' | 'genveje';
 
 export interface SymbolDef {
@@ -73,7 +74,7 @@ const OFF = '#d6d6d6';
 const WHITE = '#ffffff', FACE = '#e3e3e3', KNOB = '#cfcfcf', METAL = '#b8b8b8', SHINE = '#e8e8e8', RIM = '#c8c8c8', HILITE = '#f5f5f5';
 const GRID = '#b0b0b0', SCALE = '#bbbbbb', FRAME = '#888888', SUBTLE = '#5c5c5c', INK = '#1f1f1f';
 const MEDIUM = '#7aa7c7', DATA = '#2a78d6', SOLAR = '#5f7d95', SOLAR_GRID = '#c9d6e0', CHARGE = '#8fbf8f';
-export const SYMBOL_COLORS: readonly string[] = [LINE, FILL, PANEL, DARK, ON, OFF, WHITE, FACE, KNOB, METAL, SHINE, RIM, HILITE,
+export const SYMBOL_COLORS: readonly string[] = [SEG_OFF, LINE, FILL, PANEL, DARK, ON, OFF, WHITE, FACE, KNOB, METAL, SHINE, RIM, HILITE,
   GRID, SCALE, FRAME, SUBTLE, INK, MEDIUM, DATA, SOLAR, SOLAR_GRID, CHARGE];
 
 /** Rør og fittings vises i samme målestok i symbolpaletten, så rørtykkelsen (10) ser ens ud (v0.28.1). */
@@ -226,6 +227,16 @@ export const SYMBOLS: SymbolDef[] = [
     svg: `<g><rect x="0" y="0" width="160" height="56" rx="4" fill="${PANEL}" stroke="${FRAME}"/>` +
       `<text id="titel" x="12" y="20" font-size="12" fill="${SUBTLE}" ${FONT}>Måling</text>` +
       `<text id="vaerdi" x="12" y="45" font-size="20" font-weight="600" fill="${INK}" ${FONT}>--</text></g>`,
+  },
+  {
+    id: 'segdisplay7', label: '7-segment display', category: 'proces',
+    hint: 'Viser et tal på 4 cifre — bind "Segmenter" til et tal-tag. Andre antal cifre (1–16): brug "Display med egne cifre"',
+    svg: segDisplaySvg(7, 4),
+  },
+  {
+    id: 'segdisplay11', label: '11-segment display', category: 'proces',
+    hint: 'Som 7-segment, men viser også de fleste store bogstaver (A, C, D, E, F, G, H, I, J, L, O, P, S, T, U, Y, Z)',
+    svg: segDisplaySvg(11, 4),
   },
   {
     id: 'lampe', label: 'Lampe', category: 'proces', hint: 'Bind "Fyldfarve" til signalet',

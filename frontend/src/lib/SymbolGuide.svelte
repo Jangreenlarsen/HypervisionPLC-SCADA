@@ -876,7 +876,7 @@ import { AVERAGE_CHOICES } from './trendData';
                   {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
                   {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
-                  {#if !['level', 'opacity', 'scale', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
+                  {#if !['level', 'opacity', 'scale', 'text', 'segments'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
                 </select>
                 {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
                 {#if srcMode(a) === 'tag' && isPos && BY_VALUE_TYPES.includes(a.type)}

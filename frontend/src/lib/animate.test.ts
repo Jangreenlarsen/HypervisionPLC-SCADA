@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { activeFor, applyBinding, FLICKER_MS, motionHost, spinHost, nextFlickerColor, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, lengthScale, segmentsOf, textFor, withDirection } from './animate';
+import { activeFor, applyBinding, resetAnim, FLICKER_MS, motionHost, spinHost, nextFlickerColor, armFlowsOut, armName, colorFor, flowState, formatValue, fraction, junctionArms, lengthScale, segmentsOf, textFor, withDirection } from './animate';
 import { FLICKER_PALETTE, flickerPalette } from './symbolConfig';
+import { segDisplaySvg } from './segDisplay';
 import type { Binding, LiveValue } from './api';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -628,5 +629,46 @@ describe('tagets værdi → position (v1.13.0)', () => {
     expect(`${el.getAttribute('transform') ?? ''} ${(el as SVGElement).style.transform}`).toMatch(/rotate\(10(deg| )/);
     applyBinding(el, b, { value: 20, quality: 'good', ts: 0, error: null });
     expect(`${el.getAttribute('transform') ?? ''} ${(el as SVGElement).style.transform}`).toMatch(/rotate\(45(deg| )/);
+  });
+});
+
+describe('segment-display (v2.9.0)', () => {
+  const display = (digits = 4): Element => {
+    const holder = document.createElementNS(SVGNS, 'svg');
+    holder.innerHTML = segDisplaySvg(7, digits);
+    return holder.firstElementChild!;
+  };
+  const bind = (params: Record<string, any> = {}): Binding => ({ id: 1, element: 'd', tag: 'T', anim: 'segments', params } as unknown as Binding);
+  const litIn = (root: Element, i: number) => [...root.querySelectorAll('[data-hv-digit]')[i].querySelectorAll('[data-hv-seg]')]
+    .filter((s) => s.getAttribute('fill') === '#7cc47f').map((s) => s.getAttribute('data-hv-seg')).join('');
+  it('viser tallet efter tagets decimaler og uden enhed', () => {
+    const d = display();
+    applyBinding(d, bind(), good(12.34), meta);   // meta: 1 decimal, enhed °C
+    expect(litIn(d, 0)).toBe('');
+    expect(litIn(d, 1)).toBe('bc');
+    expect(litIn(d, 2)).toBe('abdegdp');
+    expect(litIn(d, 3)).toBe('abcdg');
+  });
+  it('beregning og decimaler fra animationen', () => {
+    const d = display();
+    applyBinding(d, bind({ expression: 'x / 10', decimals: 1 }), good(128), meta);
+    expect(litIn(d, 1)).toBe('bc');
+    expect(litIn(d, 2)).toBe('abdegdp');
+    expect(litIn(d, 3)).toBe('abcdefg');
+  });
+  it('til/fra vises som 1 og 0; ukendt værdi som en bindestreg; nulstil slukker alt', () => {
+    const d = display(2);
+    applyBinding(d, bind(), good(true), meta);
+    expect(litIn(d, 1)).toBe('bc');
+    applyBinding(d, bind(), { value: null, quality: 'comm_error', ts: 0, error: null } as LiveValue, meta);
+    expect(litIn(d, 1)).toBe('g');
+    resetAnim(d, 'segments', {});
+    expect(litIn(d, 1)).toBe('');
+  });
+  it('for stort tal: bindestreg i alle cifre', () => {
+    const d = display(2);
+    applyBinding(d, bind({ decimals: 0 }), good(12345), meta);
+    expect(litIn(d, 0)).toBe('g');
+    expect(litIn(d, 1)).toBe('g');
   });
 });

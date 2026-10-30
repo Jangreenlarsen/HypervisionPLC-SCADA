@@ -23,7 +23,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from ..storage.db import Database
 from .auth import CurrentUser, hash_password
 from .bindings import (DEFAULT_OFF, DEFAULT_ON, ColorParams, FlowParams, LevelParams, MoveParams, RangeParams,
-                       RotateParams, TextParams, ToggleParams, _color)
+                       RotateParams, TextParams, ToggleParams, _P, _color)
+from .expression import ExpressionError, validate_expression
 from .errors import ServiceError
 from .operate import INT_RANGES, to_raw
 from .svg_sanitize import describe_element, index_svg, named_symbols
@@ -202,6 +203,27 @@ class AScale(RangeParams):
     size_max: float = Field(default=150, gt=0, le=1000)
 
 
+class ASegments(_P):
+    """Segment-display (v2.9.0): tallet vises på displayets cifre (7- eller 11-segment, antal cifre efter tegningen).
+    `expression`/`decimals` som under Værdi; `zeros`: foranstillede nuller; `align`: højre eller venstre; `on`/`off`: farver."""
+    decimals: int | None = Field(default=None, ge=0, le=6)
+    expression: str = Field(default="", max_length=80)
+    zeros: bool = False
+    align: Literal["right", "left"] = "right"
+    on: str = "#7cc47f"
+    off: str = "#3d3d3d"
+
+    _cols = field_validator("on", "off")(lambda cls, v: _color(v))
+
+    @field_validator("expression")
+    @classmethod
+    def _expression(cls, v: str) -> str:
+        try:
+            return validate_expression(v)
+        except ExpressionError as exc:
+            raise ValueError(f"beregningen er ugyldig: {exc}") from None
+
+
 class AFlow(FlowParams):
     dirs: list[Literal[-1, 0, 1]] | None = None
 
@@ -209,22 +231,22 @@ class AFlow(FlowParams):
 ANIM_PARAMS: dict[str, type[BaseModel]] = {
     "fill": AColor, "stroke": AColor, "blink": ABlink, "visible": AToggle, "spin": AToggle,
     "level": LevelParams, "opacity": RangeParams, "text": AText, "rotate": ARotate, "move": AMove, "flow": AFlow,
-    "flicker": AFlicker, "scale": AScale,
+    "flicker": AFlicker, "scale": AScale, "segments": ASegments,
 }
 ANIM_LABEL = {"fill": "Farve", "stroke": "Stregfarve", "blink": "Blink", "visible": "Synlig", "spin": "Roterer",
               "level": "Niveau", "opacity": "Gennemsigtighed", "text": "Værdi", "rotate": "Drej", "move": "Flyt",
-              "flow": "Løbelys", "flicker": "Blafrer", "scale": "Størrelse"}
+              "flow": "Løbelys", "flicker": "Blafrer", "scale": "Størrelse", "segments": "Segmenter"}
 # Animationer der kan være "aktiv/passiv" (til/fra-agtige); de andre følger et tal hele tiden
 WHEN_TYPES = {"fill", "stroke", "blink", "visible", "spin", "flicker", "flow"}
 # Parametre pr. position: (feltnavn(e) der skal have én værdi pr. position) — kun når kilden er @pos
 POS_FIELDS = {"fill": ("colors",), "stroke": ("colors",), "blink": ("set",), "visible": ("set",), "spin": ("set",),
-              "rotate": ("angles",), "move": ("dxs", "dys"), "flow": ("dirs",), "text": (), "flicker": ("set",)}
-NUMERIC_ONLY = {"level", "opacity", "scale"}
+              "rotate": ("angles",), "move": ("dxs", "dys"), "flow": ("dirs",), "text": (), "flicker": ("set",), "segments": ()}
+NUMERIC_ONLY = {"level", "opacity", "scale", "segments"}
 
 
 class Anim(_M):
     part: str = Field(max_length=120)
-    type: Literal["fill", "stroke", "blink", "visible", "spin", "level", "opacity", "text", "rotate", "move", "flow", "flicker", "scale"]
+    type: Literal["fill", "stroke", "blink", "visible", "spin", "level", "opacity", "text", "rotate", "move", "flow", "flicker", "scale", "segments"]
     # "aktiv/passiv" (v0.72.0): når animationen ikke er aktiv, rører den ikke delen — så kan en anden (eller standarden)
     # på samme del bestemme. Standard: "aktiv/ikke aktiv" (viser sin fra-tilstand).
     when: bool = False
@@ -925,6 +947,8 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             continue
         if a.type == "level" and target["tag"] != "rect":
             res.err("4", f"{nm}: Niveau kræver en rektangel-del (<rect>), ikke <{target['tag']}>.")
+        if a.type == "segments" and (a.part != "all" or not str(element.get("type", "")).startswith("segdisplay")):
+            res.err("4", f"{nm}: Segmenter hører til et segment-display (vælg \"Hele symbolet\" som del).")
         if a.type == "text" and target["tag"] not in ("text", "tspan"):
             res.err("4", f"{nm}: Værdi kræver en tekst-del (<text>), ikke <{target['tag']}>.")
         if a.when and a.type not in WHEN_TYPES:

@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.9.0 build 0267] — 2026-10-30 — Segment-display (7/11 segmenter, 1–16 cifre)
+
+- `frontend/src/lib/segDisplay.ts` (ny): tegn → segmenter for 7- og 11-segment, layout (justering, foranstillede nuller, decimalpunkt, overløb), tegning af 1–16 cifre og visning.
+- `frontend/src/lib/animate.ts`, `api.ts`: ny animationstype `segments` (tal formateres som under Værdi, uden enhed; til/fra = 1/0; ukendt = bindestreg).
+- `frontend/src/lib/symbols.ts`: bibliotekssymbolerne *7-segment display* og *11-segment display* (4 cifre); `SEG_OFF` i symbolpaletten.
+- `frontend/src/lib/symbolConfig.ts`, `symbolSim.ts`, `AnimParams.svelte`, `SymbolGuide.svelte`: animationen *Segmenter* i guiden og Symboltest (decimaler, beregning, justering, nuller, farver); forslag fra biblioteket.
+- `frontend/src/pages/DrawEditor.svelte`: *Display med egne cifre* (type og 1–16 cifre) under *Proces og visning*.
+- `backend/app/services/symbols.py`: `ASegments` (parametre valideres), kun som *Hele symbolet* på et display, kun med et tal-tag.
+- Tests: `segDisplay.test.ts` (ny), `animate.test.ts`, `symbolConfig.test.ts`, `symbolSimAudit.test.ts`, backend `test_symbols.py`. Manual kap. 04–07.
+
 ## [2.8.1 build 0266] — 2026-10-30 — Gør et interaktivt symbol passivt uden at miste kontaktplanerne
 
 - `frontend/src/lib/SymbolGuide.svelte`: knappen *Gør til kun passiv visning (behold trin og kontaktplaner)* under *Interaktiv betjening* (trin 1). Før mistede et symbol sine positioner og kontaktplaner, hvis man først valgte *Kun passiv visning*.
