@@ -68,6 +68,8 @@ class SymbolOperateService:
         if row is None:
             raise ServiceError(404, f"'{element}' er ikke et konfigureret symbol")
         cfg = row["config"]
+        if cfg.get("passive"):   # v2.8.0: kun visning — afvises her, så det også gælder direkte kald til API'et
+            raise ServiceError(409, f"'{element}' er sat op som kun visning — det kan ikke betjenes")
         if cfg.get("op") != op:
             what = {"positions": "positioner", "pulse": "trykknap", "entry": "setpunkt", "view": "kun visning"}
             raise ServiceError(409, f"Symbolet er sat op som {what.get(cfg.get('op'), cfg.get('op'))} — ikke {what[op]}")

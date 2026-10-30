@@ -27,14 +27,32 @@ Alle symboler i biblioteket sættes op på samme måde: med **guiden i 6 trin**.
 
 ## Betjeningsformer
 
+![Trin 1 med alle fire betjeningsformer vist: Kun passiv visning, Interaktiv betjening, Trykknap og Setpunkt](/manual/guide-former.png)
+
 | Form | Hvad den gør | Eksempel |
 | --- | --- | --- |
-| **Kun visning** | Symbolet viser, men betjenes ikke | Lampe, tank, rør, 3-vejs ventil styret af én indgang |
-| **Positioner** | 2–8 navngivne positioner; hver sætter et mønster af signaler | Omskifter *Hånd/0/Auto*, ventil *Åben/Lukket*, pumpe *Stop/Start* |
+| **Kun passiv visning** | Symbolet viser, men betjenes ikke. Har symbolet trin (fx en omskifter), kan du slå *Symbolet har trin* til, så PLC'ens trin vises ud fra tilbagemeldinger | Lampe, tank, rør, 3-vejs ventil styret af én indgang; en omskifter, der kun viser PLC'ens trin |
+| **Interaktiv betjening** | 2–8 navngivne positioner; hver sætter et mønster af signaler | Omskifter *Hånd/0/Auto*, ventil *Åben/Lukket*, pumpe *Stop/Start* |
 | **Trykknap (puls)** | Et til/fra-tag sættes Til i en fast tid (100–10000 ms), derefter Fra | Start-knap, kvittering |
 | **Setpunkt** | Operatøren indtaster en værdi i et skrivbart tal-tag | Ønsket temperatur |
 
+## Kun passiv visning af trin (omskifter, der ikke kan betjenes)
+
+Vil du blot **se**, hvilket trin en omskifter (eller anden positions-symbol) står i, vælg **Kun passiv visning** i trin 1 og sæt hak ved **Symbolet har trin (positioner)**. Så gælder:
+
+- **Trin 2:** kolonnen *Kommando* er **grå** — den bruges ikke, og der skal ikke vælges et skrivbart tag. Vælg kun en **tilbagemelding** til hvert signal (kræves; det kan være et tag, du kun kan læse).
+- **Trin 3:** kontaktplanerne beskriver, hvilket mønster tilbagemeldingerne har i hvert trin — præcis som ved betjening. Positionerne navngives som sædvanligt.
+- **Trin 4:** symbolet viser altid *PLC'ens position*; der er ingen alarm for afvigelse (der er intet valgt at afvige fra).
+- **Trin 5:** intet at betjene — ingen bekræftelse og ingen nøglelås.
+- **På Overview** kan symbolet ikke klikkes, og tooltip'en siger *Kun visning — kan ikke betjenes*. Serveren afviser også betjening, hvis nogen forsøger via API'et.
+
+Har symbolet allerede en interaktiv opsætning, tryk **Gør til kun passiv visning (behold trin og kontaktplaner)** under *Interaktiv betjening* i trin 1 — så bliver kommando-tagsene til tilbagemeldinger, og positioner og kontaktplaner bevares.
+
+Skifter du tilbage til *Interaktiv betjening*, skal du vælge kommando-tags igen (tilbagemeldingerne bevares).
+
 ## Positioner og kontaktplaner
+
+![Trin 3 for en omskifter med 8 positioner: kontaktplaner for fem signaler og de aktive signaler pr. position](/manual/guide-kontaktplan.png)
 
 **Omskifterens tegning følger positionerne:** giver du en omskifter fra biblioteket flere positioner (eller andre navne) i guiden, end der står rundt om grebet i tegningen, så vælg omskifteren i **Tegn** — der står *Tegningen viser 3 positioner …* med knappen **Tegn omskifteren med N positioner**. Den tegner omskifteren igen med guidens navne (samme navn, placering og opsætning), gemmer og udgiver tegningen (du bliver spurgt), og retter grebets vinkel pr. position, så det peger på navnene.
 
@@ -48,6 +66,8 @@ Et symbol med positioner skal vide, hvilken position PLC'en **står i** (tilbage
 Er en **tilbagemelding** valgt for et signal, læses PLC'ens position derfra; ellers bruges kommandoen. Enten har alle signaler i kontaktplanerne en tilbagemelding, eller ingen — en blanding afvises. *Vis: PLC'ens position* kræver, at alle har. Et puls-signal bruges også til at finde positionen, når det har en tilbagemelding. En position **fundet** i PLC'en vises som en lille tilstand (*bekræftet*, *afventer*, *afvigelse*, *ukendt*).
 
 ## Animationer i guiden (trin 4)
+
+![En animation i trin 4: grebet drejer efter symbolets position, med en vinkel pr. position og tegningens vinkler](/manual/guide-animation.png)
 
 Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symbolet* …; dele uden et navn fra biblioteket vises efter deres form, fx *Ramme*, *Rektangel 2*, *Cirkel* eller *Tekst "STF"*, med det tekniske id i parentes), en **type** (*Farve, Blink, Synlig, Roterer, Blafrer, Niveau, Gennemsigtighed, Størrelse, Værdi, Drej, Flyt, Løbelys*) og en **kilde**:
 
@@ -83,6 +103,8 @@ Vil du have en animation, der kun er aktiv, når **flere ting er sande** — fx 
 
 ## Betjening på tegningen: dialog eller venstre/højre
 
+![Trin 5 for en omskifter med Interaktiv betjening (venstre/højre side) valgt](/manual/guide-interaktiv.png)
+
 Har symbolet **positioner**, vælger du i trin 5 (*Betjening*), hvordan operatøren skifter position:
 
 - **Dialog** (standard): et tryk åbner en boks, hvor positionen vælges.
@@ -92,15 +114,21 @@ Bekræftelse og nøglelås gælder uændret: kræver positionen bekræftelse ell
 
 ## Nøglelås
 
+![Trin 5 med nøglelås: positionen Til er låst, og koden kræves også for at forlade den](/manual/guide-noeglelaas.png)
+
 I trin 5 kan du vælge de **positioner**, der kræver en **kode** (4 cifre). Operatøren skal indtaste koden, før den position kan vælges; **Koden kræves også for at forlade en låst position** er valgfrit. Koden gemmes kun som hash på serveren, vises aldrig igen og kommer ikke med i backup — efter en gendannelse skal den sættes igen. **Fjern kode** sletter den.
+
+På tegningen står en lille **hængelås** ud for teksten for hver låst position (fx ved *Auto* på en omskifter), og i betjeningsdialogen står 🔒 ved de låste positioner. Hængelåsen ved teksten kommer kun, når symbolet har en tekst med præcis positionens navn.
+
+![Omskifter på Overview: position 4 er låst og har en lille hængelås ved teksten; den stiplede ramme og "PLC: Fra" viser, at PLC'en står i en anden position](/manual/drift-laas.png)
 
 ## Hurtig opsætning: 3-vejs ventil
 
 ![Hurtig opsætning af en 3-vejs ventil: vælg til/fra-tagget og tryk Opret animationer](/manual/guide-hurtig.png)
 
-De to **3-vejs motorventiler** har en **Hurtig opsætning** øverst i trin 4: vælg det **til/fra-tag**, der styrer ventilen, og tryk **Opret animationer**. Så får du tre farve-animationer: **Til** = AB → A (Port A og AB åbne), **Fra** = AB → B (Port B og AB åbne); **Port AB** er altid åben. Virker også med en indgang, du kun kan læse. Er der intet skrivbart tag valgt, sættes symbolet til *Kun visning*.
+De to **3-vejs motorventiler** har en **Hurtig opsætning** øverst i trin 4: vælg det **til/fra-tag**, der styrer ventilen, og tryk **Opret animationer**. Så får du tre farve-animationer: **Til** = AB → A (Port A og AB åbne), **Fra** = AB → B (Port B og AB åbne); **Port AB** er altid åben. Virker også med en indgang, du kun kan læse. Er der intet skrivbart tag valgt, sættes symbolet til *Kun passiv visning*.
 
-Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Positioner** i trin 1: guiden foreslår to positioner, **AB → A** og **AB → B**, med farve pr. port.
+Skal ventilen **betjenes** (skifte mellem AB → A og AB → B), vælg **Interaktiv betjening** i trin 1: guiden foreslår to positioner, **AB → A** og **AB → B**, med farve pr. port.
 
 ## Ret og fjern en opsætning
 
@@ -123,6 +151,21 @@ Tal-animationerne — *Niveau*, *Gennemsigtighed*, *Størrelse*, *Drej* og *Flyt
 **Alarmer på symbolets tags (trin 6):** en tabel viser hvert tag, symbolet bruger, med dets alarmopsætning (fx *H 80 · HH 90 bar* eller *når Til*) og status lige nu (*Ingen alarm*, *Aktiv — ukvitteret*, *Aktiv — kvitteret*, *Ophørt — ukvitteret*). Med **Ret alarm** sætter du alarmen direkte her: grænser **HH/H/L/LL** og **Dødbånd** for tal-tags, **Alarm når Til / når Fra** for til/fra-tags, og **Forsinkelse**. Alarmen gælder tagget overalt — det er den samme som under *Tags*.
 
 **Historik (Trends) (trin 6):** under alarmerne ser du, om hvert af symbolets tags **gemmer historik**. Sæt flueben ud for et tag, eller tryk **Gem historik for alle** — så gemmer serveren værdierne fra nu af (højst hvert 10. sekund som standard; intervallet ændres under *Tags*). Historikken gælder tagget overalt. **Vis symbolet i Trends** åbner Trends i en ny fane med alle symbolets kurver.
+
+### Segment-display
+
+![Et 11-segment display i Symboltest: tallet 73 vist på de to højre cifre, de øvrige segmenter står slukket](/manual/display-symboltest.png)
+
+Et **7-segment display** eller **11-segment display** (kategorien *Proces og visning*, eller *Display med egne cifre* i Tegn: 1–16 cifre) viser et tal-tag som lysende segmenter. Vælg **Kun passiv visning** i trin 1; guiden foreslår én animation, **Segmenter**, på *Hele symbolet*. I trin 4 vælger du **tallet** (et tal-tag) og:
+
+- **Decimaler** og **Beregning** (fx `x / 10`) — som under *Værdi*. Tagets egne decimaler bruges, hvis du lader feltet stå tomt.
+- **Justering:** højre (standard) eller venstre.
+- **Foranstillede nuller:** fylder op med nuller foran tallet (0042), fortegnet står forrest.
+- **Tændt** og **Slukket**: farverne på segmenterne.
+
+Decimalpunktet bruger ikke et ciffer: *12,3* på et display med 4 cifre viser `_ 1 2. 3`. Er tallet for langt til cifrene, vises en bindestreg i alle cifre; en ukendt værdi (fx kommunikationsfejl) vises som én bindestreg. Et til/fra-tag vises som 1 eller 0.
+
+**11-segment** kan vise tallene og bogstaverne A, C, D, E, F, G, H, I, J, L, O, P, S, T, U, Y og Z (små bogstaver vises som store). **7-segment** viser tal og de bogstaver, et 7-segment kan lave (fx A, b, C, d, E, F, H, L, n, o, P, r, S, t, U). Andre tegn står slukket.
 
 ### Værdi: decimaler, tekst før/efter, beregning og enhed
 
@@ -177,6 +220,8 @@ Hvert symbol får sin **egen kopi** — du kan bagefter rette det enkelte symbol
 
 
 ## Symboltest
+
+![Symboltest: vælg et symbol, simulér tags og afprøv animationerne uden PLC](/manual/symboltest.png)
 
 Siden **Symboltest** (rollen tekniker, under **Opsætning**) afprøver et biblioteksymbol uden PLC — med samme animationskode som Overview, så det du ser her, er det du får i tegningen. Intet gemmes.
 

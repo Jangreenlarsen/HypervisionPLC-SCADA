@@ -8,6 +8,23 @@ export interface OverlayInput {
   state: SymbolState | null;   // null = intet mærke (fx trykknap)
   remoteLabel: string | null;  // PLC'ens position — vises som skygge ved afvigelse
   locked: boolean;
+  /** Navnene på de låste positioner (nøglelås) — får en lille hængelås ud for positionens tekst i symbolet */
+  lockedLabels?: string[];
+}
+
+/** Tekster i symbolet, der viser en låst position (teksten er præcis positionens navn). */
+export function lockedTexts(el: Element, labels: string[]): SVGTextElement[] {
+  const want = new Set(labels.map((l) => l.trim()).filter(Boolean));
+  if (!want.size) return [];
+  return [...el.querySelectorAll<SVGTextElement>('text')].filter((t) => want.has((t.textContent ?? '').trim()));
+}
+
+function lockGlyph(x: number, y: number, s: number, title: string): SVGElement {
+  const lock = make('g', { class: 'hv-lock', transform: `translate(${x} ${y}) scale(${s})` });
+  lock.appendChild(make('title', {}, title));
+  lock.appendChild(make('path', { d: 'M5 10 V6 a5 5 0 0 1 10 0 V10' }));
+  lock.appendChild(make('rect', { x: 2, y: 10, width: 16, height: 12, rx: 2 }));
+  return lock;
 }
 
 /** Symbolets kasse i tegningens koordinater (rodens brugerkoordinater), uanset symbolets egne transforms. */
@@ -50,7 +67,8 @@ export function drawOverlay(root: SVGSVGElement, element: string, input: Overlay
   const el = root.querySelector<SVGGraphicsElement>(`#${CSS.escape(element)}`);
   const lay = layer(root);
   lay.querySelector(`:scope > g[data-for="${CSS.escape(element)}"]`)?.remove();
-  if (!el || (!input.state && !input.locked)) return;
+  const texts = el ? lockedTexts(el, input.lockedLabels ?? []) : [];
+  if (!el || (!input.state && !input.locked && !texts.length)) return;
   const box = boxInRoot(root, el);
   if (!box) return;
   const g = make('g', { 'data-for': element, class: 'hv-symstate' }) as SVGGElement;
@@ -70,14 +88,31 @@ export function drawOverlay(root: SVGSVGElement, element: string, input: Overlay
     g.appendChild(badge);
   }
   if (input.locked) {
-    const s = r / 10, x = box.x - r * 0.4, y = box.y - r * 1.2;
-    const lock = make('g', { class: 'hv-lock', transform: `translate(${x} ${y}) scale(${s})` });
-    lock.appendChild(make('title', {}, 'Låst position'));
-    lock.appendChild(make('path', { d: 'M5 10 V6 a5 5 0 0 1 10 0 V10' }));
-    lock.appendChild(make('rect', { x: 2, y: 10, width: 16, height: 12, rx: 2 }));
-    g.appendChild(lock);
+    g.appendChild(lockGlyph(box.x - r * 0.4, box.y - r * 1.2, r / 10, 'Låst position'));
+  }
+  // Ud for hver låst positions tekst: en lille hængelås lige til højre for teksten, i tekstens højde
+  for (const t of texts) {
+    const tb = boxInRoot(root, t);
+    if (!tb || !tb.h) continue;
+    const h = tb.h * 0.8, s = h / 22;
+    g.appendChild(lockGlyph(tb.x + tb.w + h * 0.15, tb.y + (tb.h - h) / 2, s, `${(t.textContent ?? '').trim()} er låst (kode kræves)`));
   }
   lay.appendChild(g);
+}
+
+/** Kun passiv visning: tooltip på symbolet siger, at det ikke kan betjenes (tilføjes til symbolets <title>). */
+export function markPassive(root: SVGSVGElement, element: string): void {
+  const el = root.querySelector(`#${CSS.escape(element)}`);
+  if (!el) return;
+  el.setAttribute('data-hv-passive', '');
+  if (el.tagName === 'text' || el.tagName === 'tspan') return;   // en <title> her ville blive slettet af tekst-bindinger (som addTooltips)
+  const note = 'Kun visning — kan ikke betjenes';
+  let title = [...el.children].find((c) => c.tagName === 'title') as SVGElement | undefined;
+  if (!title) {
+    title = make('title', {});
+    el.insertBefore(title, el.firstChild);
+  }
+  if (!(title.textContent ?? '').includes(note)) title.textContent = title.textContent ? `${title.textContent} — ${note}` : note;
 }
 
 /** Fjern alle mærker (fx når en ny tegning vises). */

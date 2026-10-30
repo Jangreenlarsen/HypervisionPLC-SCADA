@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeAt, feedbackCoverage, hasFeedback, animDefaults, opChoices, cycleCell, isLogicRef, keepSuggestion, emptyConfig, feedbackMismatch, foundPosition, parseValRef, partLabel, preset, resize, setOp, tagKind, template, typesFor, valRef,
+  activeAt, feedbackCoverage, hasFeedback, animDefaults, opChoices, cycleCell, isLogicRef, keepSuggestion, emptyConfig, feedbackMismatch, foundPosition, parseValRef, partLabel, preset, resize, setOp, setPassive, tagKind, libraryDefault, template, typesFor, valRef,
   type PartInfo, type SymbolConfig, type SymbolInfo,
 } from './symbolConfig';
 
@@ -193,5 +193,76 @@ describe('hasFeedback (v2.5.0)', () => {
   });
   it('nye symboler viser den valgte position', () => {
     expect(emptyConfig('ventil').display).toBe('local');
+  });
+});
+
+describe('kun passiv visning med positioner (v2.8.0)', () => {
+  it('setPassive flytter kommandoen over som tilbagemelding og rydder alt der hører til betjening', () => {
+    const cfg = emptyConfig('omskifter3');
+    template(cfg, 'A');
+    cfg.signals[0].tag = 'Mode';
+    cfg.confirm = true; cfg.fault = 'Fejl'; cfg.alarm = 'high'; cfg.display = 'local';
+    cfg.lock = { positions: cfg.positions.map((_, j) => j === 0), leave: true };
+    setPassive(cfg, true);
+    expect(cfg.op).toBe('positions');
+    expect(cfg.passive).toBe(true);
+    expect(cfg.signals.map((s) => [s.tag, s.fb])).toEqual([['', 'Mode']]);
+    expect([cfg.display, cfg.confirm, cfg.fault, cfg.alarm, cfg.click]).toEqual(['remote', false, '', '', 'dialog']);
+    expect(cfg.lock.positions.some(Boolean)).toBe(false);
+    expect(cfg.lock.leave).toBe(false);
+  });
+  it('en tilbagemelding der allerede er sat bevares', () => {
+    const cfg = emptyConfig('omskifter3');
+    template(cfg, 'A');
+    cfg.signals[0].tag = 'Mode'; cfg.signals[0].fb = 'Mode_fb';
+    setPassive(cfg, true);
+    expect(cfg.signals[0].fb).toBe('Mode_fb');
+  });
+  it('fra: tilbage til almindelig visning; et nyt valg af betjeningsform fjerner også flaget', () => {
+    const cfg = emptyConfig('omskifter3');
+    template(cfg, 'A');
+    setPassive(cfg, true);
+    setPassive(cfg, false);
+    expect([cfg.op, cfg.passive, cfg.positions.length]).toEqual(['view', false, 0]);
+    setPassive(cfg, true);
+    setOp(cfg, 'positions');
+    expect(cfg.passive).toBe(false);
+  });
+  it('positionen findes ud fra tilbagemeldingen alene (uden kommando-tag)', () => {
+    const cfg = emptyConfig('omskifter3');
+    cfg.op = 'positions'; cfg.passive = true;
+    cfg.positions = [{ label: 'Fra' }, { label: 'Auto' }, { label: 'Hånd' }];
+    cfg.signals = [{ id: 'S1', tag: '', fb: 'Mode_fb', write: 'set', ms: 500, rest: null }];
+    cfg.planes = [{ signal: 'S1', values: [0, 1, 2] }];
+    expect(foundPosition(cfg, (t) => (t === 'Mode_fb' ? 2 : undefined))).toBe(2);
+    expect(foundPosition(cfg, () => 7)).toBeNull();
+    expect(hasFeedback(cfg)).toBe(true);
+  });
+});
+
+describe('passiv visning → betjening (v2.8.0)', () => {
+  it('et valg af Interaktiv betjening efter passiv visning genindsætter bekræftelse, alarm og lokal visning', () => {
+    const cfg = emptyConfig('omskifter3');
+    template(cfg, 'A');
+    setPassive(cfg, true);
+    expect([cfg.confirm, cfg.alarm]).toEqual([false, '']);
+    setOp(cfg, 'positions');
+    expect([cfg.passive, cfg.confirm, cfg.alarm, cfg.display]).toEqual([false, true, 'medium', 'local']);
+  });
+});
+
+describe('segment-display i guiden (v2.9.0)', () => {
+  const info = (type: string): SymbolInfo => ({ type, name: 'Display', tag: 'g', line: false, parts: {} });
+  it('et display tilbyder kun Segmenter, og bibliotekets forslag er en animation på hele symbolet', () => {
+    expect(typesFor(info('segdisplay7'))).toEqual(['segments']);
+    expect(typesFor(info('segdisplay11'))).toEqual(['segments']);
+    expect(typesFor(info('lampe'))).not.toContain('segments');
+    const proposal = libraryDefault(info('segdisplay11'))!;
+    expect(proposal.config.op).toBe('view');
+    expect(proposal.config.anims).toEqual([{ part: 'all', type: 'segments', src: '', params: animDefaults('segments', 'num', 0), only: null }]);
+    expect(opChoices('segdisplay7', 'view', [])).toEqual(['view']);
+  });
+  it('standardindstillinger', () => {
+    expect(animDefaults('segments', 'num', 0)).toEqual({ zeros: false, align: 'right', on: '#7cc47f', off: '#3d3d3d' });
   });
 });

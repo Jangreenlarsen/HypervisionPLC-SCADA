@@ -17,6 +17,7 @@
   import type { SymbolConfig, SymbolInfo } from '../lib/symbolConfig';
   import type { SelectionInfo } from '../lib/symbolSuggest';
   import { CATEGORIES, FITTING_LEGS, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
+  import { MAX_DIGITS, MIN_DIGITS, segDisplaySvg } from '../lib/segDisplay';
 
   let { route = 'draw' }: { route?: string } = $props();
 
@@ -661,6 +662,19 @@
     }
   };
 
+  // Display med egne cifre (v2.9.0): 7- eller 11-segment, 1–16 cifre
+  let displayKind = $state<'7' | '11'>('7');
+  let displayDigits = $state(4);
+  function insertDisplay(): void {
+    if (!ed) return;
+    const kind = displayKind === '11' ? 11 : 7;
+    const n = Math.min(MAX_DIGITS, Math.max(MIN_DIGITS, Math.round(Number(displayDigits)) || MIN_DIGITS));
+    displayDigits = n;
+    ed.insertSymbol(withName(segDisplaySvg(kind, n), ed.uniqueName(`${kind}-segment display`)), `segdisplay${kind}`);
+    dirty = true;
+    info = `Displayet med ${n} ${n === 1 ? 'ciffer' : 'cifre'} er indsat — tryk "Opsæt symbol (6 trin)" i panelet til højre og vælg det tal-tag, det skal vise.`;
+  }
+
   let selectorLabels = $state('Hånd, 0, Auto');
   let selectorError = $state('');
 
@@ -884,6 +898,17 @@
             <div class="symbols">
               {#each list as s (s.id)}{@render tile(s, false)}{/each}
             </div>
+            {#if cat.id === 'proces'}
+              <div class="selector-cfg">
+                <label class="small">Display med egne cifre (1–16)
+                  <span class="row">
+                    <select bind:value={displayKind} aria-label="Type"><option value="7">7-segment</option><option value="11">11-segment</option></select>
+                    <input type="number" min="1" max="16" bind:value={displayDigits} style="width:4.5rem" aria-label="Antal cifre" />
+                    <button onclick={insertDisplay} disabled={!ready}>Indsæt</button></span>
+                </label>
+                <p class="small muted">7-segment viser tal; 11-segment også de fleste store bogstaver.</p>
+              </div>
+            {/if}
             {#if cat.id === 'betjening'}
               <div class="selector-cfg">
                 <label class="small">Omskifter med egne positioner (2-8, komma imellem)

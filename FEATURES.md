@@ -11,6 +11,11 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 
 ## Planlagte features
 
+- [done] v2.8.0 — Passiv visning med positioner: et symbol med positioner (fx 3-punkts omskifter) kan sættes op som *Kun passiv visning* — kun tilbagemelding, intet kommando-tag, ikke betjenelig (afvises i backend), tooltip "Kun visning". Plan: PLAN.md.
+- [planned] Live preview ved animationerne i symbol-guiden (trin 4): et lille billede af symbolet ved siden af hver animation, som viser hvordan den ser ud — med skyder/til-fra for kilden og for hver position. Genbruger symbol-simuleringen fra Symboltest (`symbolSim`).
+- [done] v2.9.0 — Segment-display (7/11 segmenter, 1–16 cifre) som bibliotekssymbol med animationen *Segmenter*. Plan: PLAN.md.
+- [x] done v2.7.0 — Symbol-guiden trin 1: *Kun passiv visning* og *Interaktiv betjening* (før *Kun visning* / *Positioner*). Nøglelås: lille hængelås på tegningen ud for teksten for hver låst position (betjeningsdialogen viste den allerede).
+
 ### Fase 1 — Backend og PLC-kommunikation
 - [x] done v0.2.0 — Backend-skelet (FastAPI, SQLite, config, logging, serverer frontend statisk)
 - [x] done v0.2.0 — Mock-PLC der efterligner HypervisionPLC REST API (login/Bearer, bulk-registre, skriv, 401/429, SSE)

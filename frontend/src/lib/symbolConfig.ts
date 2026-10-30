@@ -3,7 +3,7 @@
 // Valideringen er serverens (POST …/preview) — her er kun struktur og forslag.
 
 export type Op = 'positions' | 'pulse' | 'entry' | 'view';
-export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow' | 'flicker' | 'scale';
+export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow' | 'flicker' | 'scale' | 'segments';
 export type SrcKind = 'pos' | 'bool' | 'num';
 
 export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null }
@@ -26,7 +26,10 @@ import { KNIV_LUKKET } from './symbols';
 import { defaultDirs, leverAnims } from './toggleSwitch';
 
 export interface SymbolConfig {
-  type: string; op: Op; positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
+  type: string; op: Op;
+  /** Kun passiv visning med positioner (v2.8.0): PLC'ens trin vises ud fra tilbagemeldingerne; symbolet kan ikke betjenes (kun med op = positions) */
+  passive?: boolean;
+  positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
   display: 'remote' | 'local'; validate_s: number; alarm: '' | 'low' | 'medium' | 'high'; confirm: boolean; pulse_ms: number;
   /** Betjening på tegningen: dialog med valg af position (standard) eller tryk venstre/højre side for at skifte position (v1.11.0) */
   click: 'dialog' | 'step';
@@ -75,11 +78,11 @@ export function flickerPalette(p: Record<string, any>): string[] {
 export const MAX_POSITIONS = 8, MAX_PLANES = 8, MAX_ANIMS = 12, MAX_LOGIC = 8, MAX_LOGIC_INPUTS = 4;
 
 export const STEPS = ['Symbol', 'Signaler', 'Kontakter', 'Visning', 'Betjening', 'Test og gem'];
-export const OP_TXT: Record<Op, string> = { view: 'Kun visning', positions: 'Positioner', pulse: 'Trykknap (puls)', entry: 'Setpunkt (indtastning)' };
+export const OP_TXT: Record<Op, string> = { view: 'Kun passiv visning', positions: 'Interaktiv betjening', pulse: 'Trykknap (puls)', entry: 'Setpunkt (indtastning)' };
 export const ALARM_TXT: Record<string, string> = { '': 'Nej', low: 'Ja — lav', medium: 'Ja — medium', high: 'Ja — høj' };
 export const ANIM_TXT: Record<AnimType, string> = {
   fill: 'Farve', stroke: 'Stregfarve', blink: 'Blink', visible: 'Synlig', spin: 'Roterer', flicker: 'Blafrer', level: 'Niveau',
-  opacity: 'Gennemsigtighed', text: 'Værdi', rotate: 'Drej', move: 'Flyt', flow: 'Løbelys', scale: 'Størrelse',
+  opacity: 'Gennemsigtighed', text: 'Værdi', rotate: 'Drej', move: 'Flyt', flow: 'Løbelys', scale: 'Størrelse', segments: 'Segmenter',
 };
 export const BLINK_TXT: Record<string, string> = { slow: 'Langsom (0,5 Hz)', normal: 'Normal (1 Hz)', fast: 'Hurtig (2 Hz)' };
 
@@ -191,6 +194,10 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     if (!cfg.anims.length) return null;
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: rotoren drejer og lampen bliver grøn, når varmepumpen kører. Vælg drifts-tagget for begge under trin 4.' };
   }
+  if (symbol.type === 'segdisplay7' || symbol.type === 'segdisplay11') {
+    cfg.anims.push({ part: 'all', type: 'segments', src: '', params: animDefaults('segments', 'num', 0), only: null });
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: displayet viser et tal-tag. Vælg tagget under trin 4 (og evt. decimaler eller en beregning).' };
+  }
   if (symbol.type === 'statusfelt') {
     const part = partOf('felt');
     if (!part) return null;
@@ -237,7 +244,7 @@ const OPS_BY_TYPE: Record<string, Op[]> = {
   kugleventil: SWITCH, motorventil: SWITCH, magnetventil: SWITCH, regventil: ['view', 'entry'],
   trevejs_motorventil: ['view', 'positions'], trevejs_motorventil_ab: ['view', 'positions'],
   // maskiner og kontakter: start/stop (frekvensomformer også en hastighed)
-  trendgraf: VIEW, kontakt2: SWITCH, kontakt3: SWITCH,
+  trendgraf: VIEW, segdisplay7: VIEW, segdisplay11: VIEW, kontakt2: SWITCH, kontakt3: SWITCH,
   pumpe: SWITCH, motor: SWITCH, ventilator: SWITCH, kontaktor: SWITCH, hovedafbryder: SWITCH, dc_afbryder: SWITCH, ac_afbryder: SWITCH,
   elbillader: SWITCH, frekvensomformer: [...SWITCH, 'entry'],
   // kun visning: rør, fittings, beholdere, målere, lamper og statusfelter, passive el- og solcelledele
@@ -284,7 +291,7 @@ export function tagKind(source: string | undefined): 'bool' | 'num' | 'unknown' 
 
 export function emptyConfig(type = 'custom'): SymbolConfig {
   return {
-    type, op: 'view', positions: [], signals: [], planes: [], fault: '', display: 'local', validate_s: 5, alarm: 'medium',
+    type, op: 'view', passive: false, positions: [], signals: [], planes: [], fault: '', display: 'local', validate_s: 5, alarm: 'medium',
     confirm: true, click: 'dialog', pulse_ms: 500, lock: { positions: [], leave: false }, anims: [], logic: [],
   };
 }
@@ -355,6 +362,8 @@ export function evalLogic(
 
 /** Hvilke animationer en del kan have — efter delens geometri (samme regel som serveren). */
 export function typesFor(part: PartInfo | undefined): AnimType[] {
+  // Segment-display (v2.9.0): hele displayet får én animation, der viser tallet på cifrene
+  if ((part as SymbolInfo | undefined)?.type?.startsWith('segdisplay')) return ['segments'];
   const t: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'rotate', 'move', 'opacity', 'scale'];
   if (part?.tag === 'rect') t.push('level');
   if (part?.tag === 'text' || part?.tag === 'tspan') t.push('text');
@@ -412,6 +421,8 @@ export function animDefaults(type: AnimType, kind: SrcKind, n: number): Record<s
       return { min: 0, max: 100, size_min: 50, size_max: 150 };
     case 'text':
       return {};
+    case 'segments':
+      return { zeros: false, align: 'right', on: '#7cc47f', off: '#3d3d3d' };
     case 'rotate':
       if (kind === 'pos') return { angles: spread(-45, 45) };
       return kind === 'bool' ? { min: 0, max: 1, angle_min: 0, angle_max: 90 } : { min: 0, max: 100, angle_min: -120, angle_max: 120 };
@@ -515,7 +526,7 @@ export function foundPosition(cfg: SymbolConfig, valueOf: (tag: string) => unkno
     for (const p of cfg.planes) {
       const s = sigs.get(p.signal);
       const cell = p.values[j];
-      if (!s || !s.tag || (s.write === 'pulse' && !s.fb) || cell === null || cell === undefined) continue;
+      if (!s || !(s.tag || s.fb) || (s.write === 'pulse' && !s.fb) || cell === null || cell === undefined) continue;
       used++;
       const v = valueOf(s.fb || s.tag);
       const n = typeof v === 'boolean' ? (v ? 1 : 0) : typeof v === 'number' ? v : NaN;
@@ -549,7 +560,10 @@ export function feedbackMismatch(cfg: SymbolConfig, valueOf: (tag: string) => un
 
 /** Skift betjeningsform (prototypens `setOp`): nulstil det der ikke giver mening for den nye form. */
 export function setOp(cfg: SymbolConfig, op: Op): void {
+  const wasPassive = !!cfg.passive;
   cfg.op = op;
+  cfg.passive = false;
+  if (wasPassive) { cfg.confirm = true; cfg.alarm = 'medium'; cfg.display = 'local'; }   // passiv visning har ryddet dem — et symbol der skriver skal have standardsikringen
   if (op === 'positions') {
     if (cfg.positions.length < 2) cfg.positions = [{ label: 'Fra' }, { label: 'Til' }];
     if (!cfg.signals.length) cfg.signals = [newSignal(cfg)];
@@ -562,4 +576,21 @@ export function setOp(cfg: SymbolConfig, op: Op): void {
     cfg.signals = op === 'view' ? [] : [cfg.signals[0] ?? newSignal(cfg)].map((s) => ({ ...s, fb: '', write: 'set', rest: null }));
     cfg.anims = cfg.anims.filter((a) => a.src !== POS).map((a) => ({ ...a, only: null }));
   }
+}
+
+/**
+ * Kun passiv visning med positioner (v2.8.0): slå til/fra. Til: symbolet får positioner, kommando-tags rykker over som
+ * tilbagemelding (de læses stadig), og alt der hører til betjening ryddes. Serveren tømmer selv kommando-tags og kræver en tilbagemelding. Fra: tilbage til almindelig visning.
+ */
+export function setPassive(cfg: SymbolConfig, on: boolean): void {
+  if (!on) { setOp(cfg, 'view'); return; }
+  setOp(cfg, 'positions');
+  cfg.passive = true;
+  for (const s of cfg.signals) { s.fb = s.fb || s.tag; s.tag = ''; s.write = 'set'; s.rest = null; }
+  cfg.display = 'remote';
+  cfg.click = 'dialog';
+  cfg.confirm = false;
+  cfg.fault = '';
+  cfg.alarm = '';
+  cfg.lock = { positions: cfg.positions.map(() => false), leave: false };
 }

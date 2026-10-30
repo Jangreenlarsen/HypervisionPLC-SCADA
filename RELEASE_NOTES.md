@@ -2,6 +2,31 @@
 
 ---
 
+## v2.9.0 — 2026-10-30 — Segment-display
+
+- Nye symboler: **7-segment display** og **11-segment display** (kategorien *Proces og visning*). I Tegn kan du indsætte et display med **1–16 cifre** (*Display med egne cifre*).
+- Displayet viser et tal-tag med animationen **Segmenter**: decimaler, beregning, højre/venstre justering, foranstillede nuller og egne farver. 11-segment viser også de fleste store bogstaver.
+
+## v2.8.1 — 2026-10-30 — Gør et symbol passivt uden at miste opsætningen
+
+- I trin 1 kan et interaktivt symbol gøres til *Kun passiv visning* med ét tryk, så trin og kontaktplaner bevares (kommando-tagsene bliver til tilbagemeldinger).
+
+## v2.8.0 — 2026-10-30 — Kun passiv visning af trin
+
+- En omskifter (eller et andet symbol med trin) kan nu sættes op som **Kun passiv visning**: symbolet viser PLC'ens trin ud fra tilbagemeldinger, uden at der skal vælges en kommando. I trin 2 er *Kommando* grå.
+- Et passivt symbol kan ikke betjenes — hverken på Overview eller via API'et. Tooltip: *Kun visning — kan ikke betjenes*.
+
+## v2.7.0 — 2026-10-29 — Tydeligere betjeningsformer og nøglelås på tegningen
+
+- Trin 1 i symbol-guiden hedder nu **Kun passiv visning** og **Interaktiv betjening**.
+- Låste positioner (nøglelås) har en lille hængelås ud for deres tekst på tegningen.
+
+## v2.6.1 — 2026-10-29 — Rettelser i symbol-guiden
+
+- At fjerne en position ødelægger ikke længere animationer sat til *Pr. værdi*.
+- Fejl om puls og hvileværdi vises nu under trin 2, hvor felterne står.
+- Guiden advarer, hvis tilbagemeldingen er samme tag som kommandoen — så kontrollerer *PLC'ens position* ikke anlægget.
+
 ## v2.6.0 — 2026-10-29 — Skalér symmetrisk
 
 - I Tegn kan du slå **Skalér symmetrisk** til ved gitter og fang. Så ændres bredde og højde i samme forhold, når du trækker i et hjørne af et symbol. Hold Shift nede for at skalere frit.

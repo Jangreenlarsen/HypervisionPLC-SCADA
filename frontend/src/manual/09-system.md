@@ -56,6 +56,8 @@ Under **System** ligger Log, Brugere, Backup, Opdatering og Konfiguration. **Log
 
 ## Konfiguration
 
+![System › Konfiguration: lagring, trend-historik, netværk og genstart](/manual/konfiguration.png)
+
 **Konfiguration** (admin) viser, hvor data ligger, hvor meget plads de fylder, og hvor meget der skrives til disken.
 
 - **Lagring**: datamappens placering, størrelsen på databaserne og mapperne, og ledig plads på disken.
@@ -84,6 +86,8 @@ For at skåne SD-kortet kan historikken ligge på en **USB-SSD**:
 **Tilbage til datamappen** flytter den den anden vej. Mangler disken ved en genstart, starter SCADA'en alligevel — med en tom database i datamappen og en advarsel på siden; historikken på disken er urørt og kommer tilbage, når disken er monteret og du flytter databasen dertil igen.
 
 ### Netværksopsætning
+
+![Netværk: netkort, fast IP eller DHCP, gateway, DNS og værtsnavn](/manual/netvaerk.png)
 
 Nederst på siden kan du sætte maskinens netværk. Vælg **netkort** og **tilstand**:
 

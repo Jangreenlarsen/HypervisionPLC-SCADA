@@ -209,7 +209,7 @@ async def preview(drawing_id: str, element: str, body: PreviewBody, request: Req
     others = {k: v for k, v in svc.configs(drawing_id).items() if k != element}
     cfg, res = validate_config(body.config, info, svc._tags(), has_pin=True, element_id=element, others=others)
     plans = ([{"position": k, "label": p["label"], "writes": write_plan(cfg, k)} for k, p in enumerate(cfg["positions"])]
-             if cfg["op"] == "positions" and not res.count else [])
+             if cfg["op"] == "positions" and not cfg.get("passive") and not res.count else [])
     return {"config": cfg, "steps": res.steps, "warnings": res.warnings, "errors": res.count, "plans": plans}
 
 

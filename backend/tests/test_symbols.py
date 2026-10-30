@@ -201,13 +201,21 @@ def test_full_16_bit_range_when_tag_has_no_min_max(api):
 def test_pulse_signal_rules(api, signal, text):
     cfg = dec_bin(signals=[{"id": "S1", "tag": "Mode"}, signal], positions=[{"label": "A"}, {"label": "B"}],
                   planes=[{"signal": "S1", "values": [0, 1]}, {"signal": "S2", "values": [11, 12]}], anims=[])
-    assert any(text in m for m in errors(put(api, cfg))["steps"]["5"])
+    assert any(text in m for m in errors(put(api, cfg))["steps"]["2"])   # felterne står i trin 2
 
 
 def test_only_pulse_planes_cannot_be_read(api):
     cfg = dec_bin(signals=[{"id": "S1", "tag": "Kommando", "write": "pulse", "ms": 300, "rest": 0}],
                   positions=[{"label": "A"}, {"label": "B"}], planes=[{"signal": "S1", "values": [1, 2]}], anims=[])
-    assert any("ikke puls" in m for m in errors(put(api, cfg))["steps"]["5"])
+    assert any("ikke puls" in m for m in errors(put(api, cfg))["steps"]["3"])
+
+
+def test_feedback_same_as_command_warns(api):
+    cfg = dec_bin(signals=[{"id": "S1", "tag": "Mode", "fb": "Mode"}], positions=[{"label": "A"}, {"label": "B"}],
+                  planes=[{"signal": "S1", "values": [0, 1]}], anims=[])
+    r = put(api, cfg)
+    assert r.status_code == 200
+    assert any("samme tag som kommandoen" in w for w in r.json()["warnings"])
 
 
 @pytest.mark.parametrize("element, anim, text", [
@@ -569,3 +577,97 @@ def test_pulse_signal_with_feedback_finds_position():
     live = {"Fb": SimpleNamespace(value=1, quality="good")}
     pos, comm, _ = remote_position(cfg, lambda t: live.get(t, SimpleNamespace(value=None, quality="comm_error")))
     assert (pos, comm) == (1, False)
+
+
+# ------------------------------------------------------------------ passiv visning (v2.8.0)
+
+def passive_cfg(**over):
+    """3-punkts omskifter der kun viser PLC'ens trin: ingen kommando-tags, kun tilbagemelding."""
+    over.setdefault("signals", [{"id": f"S{b + 1}", "fb": f"Bit{b}_fb"} for b in range(3)])
+    return dec_bin(passive=True, **over)
+
+
+def test_passive_symbol_saves_without_command_tags_and_is_normalised(api):
+    r = put(api, passive_cfg(confirm=True, fault="Fejl", alarm="high", lock={"positions": [True] + [False] * 6, "leave": True}))
+    assert r.status_code == 200, r.text
+    cfg = r.json()["config"]
+    assert cfg["passive"] is True and cfg["display"] == "remote" and cfg["confirm"] is False
+    assert cfg["fault"] == "" and cfg["alarm"] == "" and not any(cfg["lock"]["positions"]) and cfg["lock"]["leave"] is False
+    assert all(s["tag"] == "" and s["write"] == "set" for s in cfg["signals"])
+    # kommando-tags fra klienten (fx fra et interaktivt symbol) ryddes — passiv visning skriver aldrig
+    cfg2 = put(api, passive_cfg(signals=[{"id": f"S{b + 1}", "tag": f"Bit{b}", "fb": f"Bit{b}_fb", "write": "pulse", "ms": 300, "rest": 0}
+                                         for b in range(3)])).json()["config"]
+    assert all(s["tag"] == "" and s["write"] == "set" and s["rest"] is None for s in cfg2["signals"])
+
+
+def test_passive_requires_feedback_on_every_signal(api):
+    sigs = [{"id": "S1", "fb": "Bit0_fb"}, {"id": "S2"}, {"id": "S3", "fb": "Bit2_fb"}]
+    assert any("S2: vælg en tilbagemelding" in m for m in errors(put(api, passive_cfg(signals=sigs)))["steps"]["2"])
+    sigs[1] = {"id": "S2", "fb": "FindesIkke"}
+    assert any("findes ikke" in m for m in errors(put(api, passive_cfg(signals=sigs)))["steps"]["2"])
+    sigs[1] = {"id": "S2", "fb": "Bit0_fb"}
+    assert any("samme tilbagemelding" in m for m in errors(put(api, passive_cfg(signals=sigs)))["steps"]["2"])
+
+
+def test_passive_feedback_need_not_be_writable_and_registers_may_be_any_number(api):
+    cfg = passive_cfg(signals=[{"id": "S1", "fb": "Mode_fb"}], positions=[{"label": "A"}, {"label": "B"}, {"label": "C"}],
+                      planes=[{"signal": "S1", "values": [0, 1.5, 7]}], anims=[])
+    assert put(api, cfg).status_code == 200
+
+
+def test_view_op_clears_passive(api):
+    cfg = {"op": "view", "passive": True, "anims": [{"part": "V1_greb", "type": "fill", "src": "@on", "params": {}}]}
+    r = put(api, cfg)
+    assert r.status_code == 200 and r.json()["config"]["passive"] is False
+
+
+# ------------------------------------------------------------------ segment-display (v2.9.0)
+
+DISPLAY_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">'
+               '<g id="D1" data-hv-type="segdisplay7" data-hv-kind="7" data-hv-name="Display">'
+               '<rect x="0" y="0" width="100" height="60"/>'
+               '<g data-hv-digit="0"><polygon data-hv-seg="a" points="0,0 10,0 5,5" fill="#3d3d3d"/></g></g></svg>')
+
+
+def _display_did(api):
+    r = api.post("/api/drawings", json={"name": "Display", "svg": DISPLAY_SVG})
+    assert r.status_code in (200, 201), r.text
+    return r.json()["drawing"]["id"]
+
+
+def _put_display(api, did, anim):
+    cfg = {"op": "view", "anims": [anim]}
+    return api.put(f"/api/drawings/{did}/symbols/D1/config", json={"config": cfg})
+
+
+def test_segments_animation_saves_with_defaults_and_compiles_to_a_binding(api):
+    did = _display_did(api)
+    r = _put_display(api, did, {"part": "all", "type": "segments", "src": "Niveau", "params": {"decimals": 1, "expression": "x / 10"}})
+    assert r.status_code == 200, r.text
+    params = r.json()["config"]["anims"][0]["params"]
+    assert params == {"decimals": 1, "expression": "x / 10", "zeros": False, "align": "right", "on": "#7cc47f", "off": "#3d3d3d"}
+    from app.services.symbols import config_bindings
+    b = config_bindings(did, "D1", r.json()["config"], set())
+    assert [(x["element"], x["tag"], x["anim"]) for x in b] == [("D1", "Niveau", "segments")]
+    assert b[0]["params"]["align"] == "right" and "decimals" in b[0]["params"]
+
+
+def test_segments_only_on_a_display_as_the_whole_symbol(api):
+    anim = {"part": "all", "type": "segments", "src": "Niveau", "params": {}}
+    assert any("segment-display" in m for m in errors(put(api, {"op": "view", "anims": [anim]}))["steps"]["4"])   # V1 er en omskifter
+    did = _display_did(api)
+    r = _put_display(api, did, {"part": "D1", "type": "segments", "src": "Niveau", "params": {}})
+    assert errors(r)["steps"]["4"]   # en bestemt del af displayet (eller rodens eget id) afvises
+
+
+@pytest.mark.parametrize("src", ["@on", "@pos"])
+def test_segments_needs_a_number_tag(api, src):
+    did = _display_did(api)
+    r = _put_display(api, did, {"part": "all", "type": "segments", "src": src, "params": {}})
+    assert r.status_code == 400
+
+
+@pytest.mark.parametrize("params", [{"on": "url(javascript:1)"}, {"expression": "x +"}, {"align": "midt"}, {"decimals": 9}, {"ekstra": 1}])
+def test_segments_rejects_bad_parameters(api, params):
+    did = _display_did(api)
+    assert _put_display(api, did, {"part": "all", "type": "segments", "src": "Niveau", "params": params}).status_code == 400

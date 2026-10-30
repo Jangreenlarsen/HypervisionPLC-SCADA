@@ -23,7 +23,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from ..storage.db import Database
 from .auth import CurrentUser, hash_password
 from .bindings import (DEFAULT_OFF, DEFAULT_ON, ColorParams, FlowParams, LevelParams, MoveParams, RangeParams,
-                       RotateParams, TextParams, ToggleParams, _color)
+                       RotateParams, TextParams, ToggleParams, _P, _color)
+from .expression import ExpressionError, validate_expression
 from .errors import ServiceError
 from .operate import INT_RANGES, to_raw
 from .svg_sanitize import describe_element, index_svg, named_symbols
@@ -202,6 +203,27 @@ class AScale(RangeParams):
     size_max: float = Field(default=150, gt=0, le=1000)
 
 
+class ASegments(_P):
+    """Segment-display (v2.9.0): tallet vises på displayets cifre (7- eller 11-segment, antal cifre efter tegningen).
+    `expression`/`decimals` som under Værdi; `zeros`: foranstillede nuller; `align`: højre eller venstre; `on`/`off`: farver."""
+    decimals: int | None = Field(default=None, ge=0, le=6)
+    expression: str = Field(default="", max_length=80)
+    zeros: bool = False
+    align: Literal["right", "left"] = "right"
+    on: str = "#7cc47f"
+    off: str = "#3d3d3d"
+
+    _cols = field_validator("on", "off")(lambda cls, v: _color(v))
+
+    @field_validator("expression")
+    @classmethod
+    def _expression(cls, v: str) -> str:
+        try:
+            return validate_expression(v)
+        except ExpressionError as exc:
+            raise ValueError(f"beregningen er ugyldig: {exc}") from None
+
+
 class AFlow(FlowParams):
     dirs: list[Literal[-1, 0, 1]] | None = None
 
@@ -209,22 +231,22 @@ class AFlow(FlowParams):
 ANIM_PARAMS: dict[str, type[BaseModel]] = {
     "fill": AColor, "stroke": AColor, "blink": ABlink, "visible": AToggle, "spin": AToggle,
     "level": LevelParams, "opacity": RangeParams, "text": AText, "rotate": ARotate, "move": AMove, "flow": AFlow,
-    "flicker": AFlicker, "scale": AScale,
+    "flicker": AFlicker, "scale": AScale, "segments": ASegments,
 }
 ANIM_LABEL = {"fill": "Farve", "stroke": "Stregfarve", "blink": "Blink", "visible": "Synlig", "spin": "Roterer",
               "level": "Niveau", "opacity": "Gennemsigtighed", "text": "Værdi", "rotate": "Drej", "move": "Flyt",
-              "flow": "Løbelys", "flicker": "Blafrer", "scale": "Størrelse"}
+              "flow": "Løbelys", "flicker": "Blafrer", "scale": "Størrelse", "segments": "Segmenter"}
 # Animationer der kan være "aktiv/passiv" (til/fra-agtige); de andre følger et tal hele tiden
 WHEN_TYPES = {"fill", "stroke", "blink", "visible", "spin", "flicker", "flow"}
 # Parametre pr. position: (feltnavn(e) der skal have én værdi pr. position) — kun når kilden er @pos
 POS_FIELDS = {"fill": ("colors",), "stroke": ("colors",), "blink": ("set",), "visible": ("set",), "spin": ("set",),
-              "rotate": ("angles",), "move": ("dxs", "dys"), "flow": ("dirs",), "text": (), "flicker": ("set",)}
-NUMERIC_ONLY = {"level", "opacity", "scale"}
+              "rotate": ("angles",), "move": ("dxs", "dys"), "flow": ("dirs",), "text": (), "flicker": ("set",), "segments": ()}
+NUMERIC_ONLY = {"level", "opacity", "scale", "segments"}
 
 
 class Anim(_M):
     part: str = Field(max_length=120)
-    type: Literal["fill", "stroke", "blink", "visible", "spin", "level", "opacity", "text", "rotate", "move", "flow", "flicker", "scale"]
+    type: Literal["fill", "stroke", "blink", "visible", "spin", "level", "opacity", "text", "rotate", "move", "flow", "flicker", "scale", "segments"]
     # "aktiv/passiv" (v0.72.0): når animationen ikke er aktiv, rører den ikke delen — så kan en anden (eller standarden)
     # på samme del bestemme. Standard: "aktiv/ikke aktiv" (viser sin fra-tilstand).
     when: bool = False
@@ -283,6 +305,7 @@ class Chart(_M):
 class SymbolConfig(_M):
     type: str = "custom"
     op: Literal["positions", "pulse", "entry", "view"] = "view"
+    passive: bool = False   # v2.8.0: positioner vises fra tilbagemeldingen, symbolet kan ikke betjenes (kun med op = positions)
     positions: list[Position] = Field(default_factory=list, max_length=MAX_POSITIONS)
     signals: list[Signal] = Field(default_factory=list, max_length=MAX_SIGNALS)
     planes: list[Plane] = Field(default_factory=list, max_length=MAX_PLANES)
@@ -525,7 +548,8 @@ def symbol_view(drawing_id: str, element: str, cfg: dict[str, Any], has_pin: boo
             "lock_positions": (cfg.get("lock") or {}).get("positions") or [],
             "lock_leave": bool((cfg.get("lock") or {}).get("leave")), "has_pin": has_pin,
             "fault": cfg.get("fault") or "", "pulse_ms": cfg.get("pulse_ms"),
-            "click": cfg.get("click") if cfg.get("op") == "positions" and cfg.get("click") == "step" else "dialog"}
+            "click": cfg.get("click") if cfg.get("op") == "positions" and cfg.get("click") == "step" else "dialog",
+            "passive": bool(cfg.get("passive"))}
     if cfg.get("op") == "positions":
         view["pseudo"] = {k: pseudo_tag(drawing_id, element, k) for k in PSEUDO_KINDS}
     if cfg.get("op") in ("pulse", "entry") and cfg.get("signals"):
@@ -693,7 +717,13 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
         cfg.positions, cfg.planes = [], []
         cfg.lock = Lock()
         cfg.click = "dialog"   # venstre/højre-betjening giver kun mening for positioner
+        cfg.passive = False
         n = 0
+    if cfg.passive:   # kun visning: ingen betjening, ingen kommando — PLC'ens position er det eneste der vises
+        cfg.display, cfg.click, cfg.confirm, cfg.fault, cfg.alarm = "remote", "dialog", False, "", ""
+        cfg.lock = Lock()
+        for s in cfg.signals:
+            s.tag, s.write, s.rest = "", "set", None
     if cfg.op == "view":
         cfg.signals = []
     if cfg.op in ("pulse", "entry"):
@@ -728,6 +758,18 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 res.err("2", f"Signal-id '{s.id}' må kun bestå af bogstaver, tal og _ (højst 10).")
             if ids.count(s.id) > 1:
                 res.err("2", f"To signaler har id'et {s.id}.")
+            if cfg.passive:   # intet kommando-tag: tilbagemeldingen er det eneste der læses
+                if not s.fb:
+                    res.err("2", f"{s.id}: vælg en tilbagemelding — passiv visning finder positionen ud fra den.")
+                elif tag_of(s.fb) is None:
+                    res.err("2", f"{s.id}: tilbagemeldingen '{s.fb}' findes ikke.")
+                elif s.fb in seen_tag:
+                    res.err("2", f"{s.id} og {seen_tag[s.fb]} bruger samme tilbagemelding {s.fb}.")
+                else:
+                    seen_tag[s.fb] = s.id
+                if not any(p.signal == s.id for p in cfg.planes):
+                    res.warnings.append(f"{s.id} ({s.fb}) bruges ikke af nogen kontaktplan.")
+                continue
             if not s.tag:
                 res.err("2", f"{s.id}: vælg et kommando-tag.")
                 continue
@@ -743,7 +785,10 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 res.err("2", f"{s.id} og {seen_tag[s.tag]} bruger samme tag {s.tag}.")
             else:
                 seen_tag[s.tag] = s.id
-            if s.fb:
+            if s.fb and s.fb == s.tag:
+                res.warnings.append(f"{s.id}: tilbagemeldingen er det samme tag som kommandoen ({s.tag}) — PLC'ens position "
+                                    "viser så kun det, der sidst er skrevet, og kontrollerer ikke anlægget.")
+            elif s.fb:
                 fb = tag_of(s.fb)
                 if fb is None:
                     res.err("2", f"{s.id}: tilbagemeldingen '{s.fb}' findes ikke.")
@@ -795,7 +840,7 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if len(p.values) != n:
                 res.err("3", f"{nm}: skal have én celle pr. position ({n}).")
                 continue
-            t = tag_of(s.tag)
+            t = tag_of(s.fb if cfg.passive else s.tag)
             for j, v in enumerate(p.values):
                 if not _is_set(v) or t is None:
                     continue
@@ -803,6 +848,8 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 if t.is_bool:
                     if v not in (0, 1):
                         res.err("3", f"{where}: et til/fra-signal er Til (1), Fra (0) eller røres ikke.")
+                elif cfg.passive:
+                    continue   # læses kun: tilbagemeldingen sammenlignes med cellen, intet skal kunne skrives præcist
                 elif not float(v).is_integer():
                     res.err("3", f'{where}: "{_fmt(v)}" er ikke et heltal.')
                 elif (why := t.exact(float(v))) is not None:
@@ -816,23 +863,23 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             k = cols.index(col)
             if k != j:
                 res.err("3", f'"{labels[k]}" og "{labels[j]}" har ens kontaktmønster og kan ikke skelnes.')
-        # puls med hvileværdi (trin 5)
+        # puls med hvileværdi (felterne står i trin 2)
         for s in cfg.signals:
             if s.write != "pulse":
                 continue
             vals = [v for p in cfg.planes if p.signal == s.id for v in p.values if _is_set(v)]
             if not 100 <= s.ms <= 10_000:
-                res.err("5", f"{s.id}: pulslængde skal være 100–10000 ms.")
+                res.err("2", f"{s.id}: pulslængde skal være 100–10000 ms.")
             if s.rest is None:
-                res.err("5", f"{s.id}: hvileværdien skal sættes.")
+                res.err("2", f"{s.id}: hvileværdien skal sættes.")
             elif not float(s.rest).is_integer():
-                res.err("5", f"{s.id}: hvileværdien skal være et heltal.")
+                res.err("2", f"{s.id}: hvileværdien skal være et heltal.")
             elif s.rest in vals:
-                res.err("5", f"{s.id}: hvileværdien {_fmt(s.rest)} er også en positions værdi.")
+                res.err("2", f"{s.id}: hvileværdien {_fmt(s.rest)} er også en positions værdi.")
             elif (t := tag_of(s.tag)) is not None and (why := t.exact(float(s.rest))) is not None:
-                res.err("5", f"{s.id}: hvileværdien — {why}.")
+                res.err("2", f"{s.id}: hvileværdien — {why}.")
         if cfg.planes and not readable:
-            res.err("5", "Mindst ét plan skal styre et signal der sættes (ikke puls), ellers kan positionen ikke aflæses.")
+            res.err("3", "Mindst ét plan skal styre et signal der sættes (ikke puls), ellers kan positionen ikke aflæses.")
 
     # -- logikblokke (trin 4)
     block_ids: list[str] = []
@@ -900,6 +947,8 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             continue
         if a.type == "level" and target["tag"] != "rect":
             res.err("4", f"{nm}: Niveau kræver en rektangel-del (<rect>), ikke <{target['tag']}>.")
+        if a.type == "segments" and (a.part != "all" or not str(element.get("type", "")).startswith("segdisplay")):
+            res.err("4", f"{nm}: Segmenter hører til et segment-display (vælg \"Hele symbolet\" som del).")
         if a.type == "text" and target["tag"] not in ("text", "tspan"):
             res.err("4", f"{nm}: Værdi kræver en tekst-del (<text>), ikke <{target['tag']}>.")
         if a.when and a.type not in WHEN_TYPES:

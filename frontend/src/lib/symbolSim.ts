@@ -308,6 +308,13 @@ export function paramFields(anim: AnimType, tag: Pick<SimTag, 'kind' | 'count'>)
         { key: 'decimals', label: 'Decimaler', type: 'number', optional: true }, { key: 'expression', label: 'Beregning (fx x / 10)', type: 'text', optional: true },
         { key: 'show_unit', label: 'Vis enhed', type: 'bool', defaultOn: true },
       ];
+    case 'segments':
+      return [
+        { key: 'decimals', label: 'Decimaler', type: 'number', optional: true }, { key: 'expression', label: 'Beregning (fx x / 10)', type: 'text', optional: true },
+        { key: 'zeros', label: 'Foranstillede nuller', type: 'bool' },
+        { key: 'align', label: 'Justering', type: 'select', options: [{ v: 'right', label: 'Højre' }, { v: 'left', label: 'Venstre' }] },
+        { key: 'on', label: 'Tændt', type: 'color' }, { key: 'off', label: 'Slukket', type: 'color' },
+      ];
     case 'flow':
       return [
         ...(kind === 'pos' ? [{ key: 'dirs', label: 'Retning pr. position (-1, 0, 1)', type: 'numbers', n, step: 1 } as Field]

@@ -24,7 +24,7 @@ import { AVERAGE_CHOICES } from './trendData';
   import {
     ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, hasFeedback, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, feedbackMismatch, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
-    ALL_OPS, BY_VALUE_TYPES, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, tagKind, template, typesFor, valveFromTag,
+    ALL_OPS, BY_VALUE_TYPES, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, setPassive, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
   } from './symbolConfig';
 
@@ -71,7 +71,7 @@ import { AVERAGE_CHOICES } from './trendData';
   const tagByName = $derived(new Map(tags.map((t) => [t.name, t])));
   const sigKind = (id: string): 'bool' | 'num' | 'unknown' => {
     const s = cfg.signals.find((x) => x.id === id);
-    return s ? tagKindOf(s.tag) : 'unknown';
+    return s ? tagKindOf(s.tag || s.fb) : 'unknown';
   };
   function tagKindOf(tag: string): 'bool' | 'num' | 'unknown' {
     const k = tagKind(tagByName.get(tag)?.source);
@@ -275,6 +275,14 @@ import { AVERAGE_CHOICES } from './trendData';
   function changeOp(op: Op): void {
     setOp(cfg, op);
   }
+  /** Kun passiv visning: har symbolet trin (fx en omskifter), kan PLC'ens position vises fra tilbagemeldinger — uden betjening. */
+  const passive = $derived(!!cfg.passive);
+  const viewLike = $derived(cfg.op === 'view' || passive);
+  const offersPassive = $derived(passive || opList.includes('positions'));
+  function changePassive(on: boolean): void {
+    setPassive(cfg, on);
+    if (on) step = 1;   // kommandoerne er ryddet — vælg tilbagemeldingerne
+  }
   function addPosition(): void {
     if (n >= MAX_POSITIONS) return;
     cfg.positions.push({ label: String(n + 1) });
@@ -287,6 +295,7 @@ import { AVERAGE_CHOICES } from './trendData';
     cfg.lock.positions.splice(j, 1);
     for (const a of cfg.anims) {
       a.only?.splice(j, 1);
+      a.pos_values?.splice(j, 1);   // "Pr. værdi": ellers én fra-værdi for meget
       for (const k of ['colors', 'set', 'angles', 'dxs', 'dys', 'dirs']) if (Array.isArray(a.params[k])) a.params[k].splice(j, 1);
     }
   }
@@ -355,13 +364,13 @@ import { AVERAGE_CHOICES } from './trendData';
       valveMsg = `${valveTag} er et tal-tag — vælg et til/fra-tag.`;
       return;
     }
-    // Intet at skrive til endnu (forslaget "Positioner" uden tag): hurtig opsætning er til visning, så skift til "Kun visning"
-    const toView = cfg.op === 'positions' && !cfg.signals.some((s) => s.tag);
+    // Intet at skrive til endnu (forslaget "Interaktiv betjening" uden tag): hurtig opsætning er til visning, så skift til "Kun passiv visning"
+    const toView = cfg.op === 'positions' && !passive && !cfg.signals.some((s) => s.tag);   // passiv visning har aldrig kommando-tags — den må ikke ryddes her
     const used = cfg.anims.filter((a) => ['port_a', 'port_b', 'port_ab'].includes(symbol!.parts[a.part]?.pid ?? '')).length;
     if (used && !toView && !await askUser(`Erstat de ${used} eksisterende animationer på portene A, B og AB?`)) return;
     if (toView) setOp(cfg, 'view');   // fjerner også forslagets positions-animationer
     const k = valveFromTag(cfg, symbol, valveTag);
-    valveMsg = k > 0 ? `${k} animationer oprettet: Til = AB → A, Fra = AB → B.${toView ? ' Symbolet er sat til "Kun visning".' : ''}`
+    valveMsg = k > 0 ? `${k} animationer oprettet: Til = AB → A, Fra = AB → B.${toView ? ' Symbolet er sat til "Kun passiv visning".' : ''}`
       : k === 0 ? 'Symbolet har ikke portene A, B og AB.' : 'Der er ikke plads til tre flere animationer (højst 12).';
   }
 
@@ -602,7 +611,16 @@ import { AVERAGE_CHOICES } from './trendData';
           <p class="muted small">Vælg hvordan symbolet betjenes. Alt andet i guiden følger af dette valg.</p>
           <div class="ops">
             {#each opList as op}
-              <label class="opt"><input type="radio" name="op" checked={cfg.op === op} onchange={() => changeOp(op)} /> {OP_TXT[op]}</label>
+              <label class="opt"><input type="radio" name="op" checked={op === 'view' ? viewLike : op === 'positions' ? cfg.op === 'positions' && !passive : cfg.op === op}
+                onchange={() => changeOp(op)} /> {OP_TXT[op]}</label>
+              {#if op === 'positions' && cfg.op === 'positions' && !passive}
+                <span class="sub small"><button class="small" onclick={() => changePassive(true)}
+                  title="Kommando-tagsene bliver til tilbagemeldinger; positioner og kontaktplaner beholdes">Gør til kun passiv visning (behold trin og kontaktplaner)</button></span>
+              {/if}
+              {#if op === 'view' && viewLike && offersPassive}
+                <label class="opt sub small"><input type="checkbox" checked={passive} onchange={(e) => changePassive(e.currentTarget.checked)} />
+                  Symbolet har trin (positioner) — vis PLC'ens trin ud fra tilbagemeldinger. Symbolet kan ikke betjenes, og der skal ikke vælges en kommando.</label>
+              {/if}
             {/each}
           </div>
           {#if opsRestricted || showAllOps}
@@ -617,28 +635,34 @@ import { AVERAGE_CHOICES } from './trendData';
           {/if}
         {:else if step === 1}
           {#if cfg.op === 'view'}
-            <p class="muted small">Kun visning: symbolet skriver intet. Animationerne vælger deres tags under trin 4.</p>
+            <p class="muted small">Kun passiv visning: symbolet skriver intet. Animationerne vælger deres tags under trin 4.</p>
           {:else if cfg.op === 'pulse' || cfg.op === 'entry'}
             <label class="field-row">{cfg.op === 'pulse' ? 'Signal der pulses' : 'Register der skrives'}
               <TagSelect bind:value={cfg.signals[0].tag} {tags} writableOnly />
             </label>
           {:else}
-            <p class="muted small">Signalerne symbolet skriver. Tilbagemelding bruges til at finde PLC'ens position. Giv enten alle signaler i kontaktplanerne en tilbagemelding (kræves for at vise PLC'ens position i trin 4) eller ingen.</p>
+            {#if passive}
+              <p class="muted small">Kun passiv visning: symbolet viser PLC'ens trin ud fra tilbagemeldingerne og skriver aldrig. <strong>Kommando</strong> bruges ikke (grå) — vælg en <strong>tilbagemelding</strong> til hvert signal.</p>
+            {:else}
+              <p class="muted small">Signalerne symbolet skriver. Tilbagemelding bruges til at finde PLC'ens position. Giv enten alle signaler i kontaktplanerne en tilbagemelding (kræves for at vise PLC'ens position i trin 4) eller ingen.</p>
+            {/if}
             <table class="grid sig">
               <colgroup><col style="width: 3.2em" /><col style="width: 30%" /><col style="width: 30%" /><col /><col style="width: 2.6em" /></colgroup>
-              <thead><tr><th>Id</th><th>Kommando</th><th>Tilbagemelding</th><th>Skrives som</th><th></th></tr></thead>
+              <thead><tr><th>Id</th><th class:greyed={passive}>Kommando</th><th>Tilbagemelding{passive ? ' (kræves)' : ''}</th><th class:greyed={passive}>Skrives som</th><th></th></tr></thead>
               <tbody>
                 {#each cfg.signals as s, i (s.id)}
                   <tr>
                     <td><strong>{s.id}</strong></td>
-                    <td><TagSelect bind:value={s.tag} {tags} writableOnly /></td>
-                    <td><TagSelect bind:value={s.fb} {tags} placeholder="— ingen —" /></td>
-                    <td class="skriv">
+                    <td>{#if passive}<select disabled class="greyed" aria-label="Kommando bruges ikke"><option>— bruges ikke —</option></select>{:else}<TagSelect bind:value={s.tag} {tags} writableOnly />{/if}</td>
+                    <td><TagSelect bind:value={s.fb} {tags} placeholder={passive ? '— vælg tilbagemelding —' : '— ingen —'} /></td>
+                    <td class="skriv" class:greyed={passive}>
+                      {#if passive}<span class="small muted">—</span>{:else}
                       <select bind:value={s.write}><option value="set">Sæt</option><option value="pulse">Puls</option></select>
                       {#if s.write === 'pulse'}
                         <input class="n" type="number" min="100" max="10000" step="100" bind:value={s.ms} title="Pulslængde (ms)" /> ms
                         hvile <input class="n" value={s.rest ?? ''} placeholder="0" title="Værdi efter pulsen (tom = 0/Fra)"
                           onchange={(e) => { const t = e.currentTarget.value.trim(); s.rest = t === '' ? null : num(t, 0); }} />
+                      {/if}
                       {/if}
                     </td>
                     <td><button class="small" onclick={() => removeSignal(i)} aria-label="Fjern {s.id}" title="Fjern signalet {s.id} (og dets kontaktplan)">✕</button></td>
@@ -647,11 +671,11 @@ import { AVERAGE_CHOICES } from './trendData';
               </tbody>
             </table>
             {#if !cfg.signals.length}
-              <p class="small notice">Ingen signaler. Et symbol med positioner skal have mindst ét — tilføj et med <strong>+ Signal</strong>, eller vælg <em>Kun visning</em> i trin 1, hvis symbolet ikke skal betjenes.</p>
+              <p class="small notice">Ingen signaler. Et symbol med positioner skal have mindst ét — tilføj et med <strong>+ Signal</strong>, eller vælg <em>Kun passiv visning</em> i trin 1, hvis symbolet ikke skal betjenes.</p>
             {/if}
             <button class="small" onclick={addSignal} disabled={cfg.signals.length >= 8}>+ Signal</button>
           {/if}
-          {#if cfg.op !== 'view'}
+          {#if cfg.op !== 'view' && !passive}
             <label class="field-row">Fejlsignal (valgfrit — betjening spærres når det er sat)
               <TagSelect bind:value={cfg.fault} {tags} placeholder="— intet —" />
             </label>
@@ -684,7 +708,7 @@ import { AVERAGE_CHOICES } from './trendData';
               {#each cfg.planes as p, i}
                 {@const k = sigKind(p.signal)}
                 <tr>
-                  <td><select bind:value={p.signal}>{#each cfg.signals as s}<option value={s.id}>{s.id}{s.tag ? ` · ${s.tag}` : ''}</option>{/each}</select></td>
+                  <td><select bind:value={p.signal}>{#each cfg.signals as s}<option value={s.id}>{s.id}{s.tag || s.fb ? ` · ${s.tag || s.fb}` : ''}</option>{/each}</select></td>
                   {#each p.values as v, j}
                     <td>
                       {#if k === 'bool'}
@@ -707,15 +731,17 @@ import { AVERAGE_CHOICES } from './trendData';
           <p class="small muted">Til/fra-signaler: klik i cellen (Til → Fra → røres ikke). Registre: skriv værdien, tom = røres ikke.</p>
         {:else if step === 3}
           <div class="row wrap">
-            {#if isPos}
+            {#if passive}
+              <span class="small muted">Viser PLC'ens position ud fra tilbagemeldingerne — kun visning, symbolet kan ikke betjenes.</span>
+            {:else if isPos}
               <label class="field-row">Vis
                 <select bind:value={cfg.display}><option value="remote" disabled={!hasFeedback(cfg) && cfg.display !== 'remote'}>PLC'ens position{hasFeedback(cfg) ? '' : ' (kræver tilbagemelding på alle signaler i trin 2)'}</option><option value="local">Valgt position</option></select>
               </label>
               <label class="field-row">Tid til at bekræfte (s)
-                <input class="n" type="number" min="0.5" max="120" step="0.5" bind:value={cfg.validate_s} />
+                <input class="n" type="number" min="1" max="120" step="0.5" bind:value={cfg.validate_s} />
               </label>
             {/if}
-            {#if cfg.op !== 'view'}
+            {#if cfg.op !== 'view' && !passive}
               <label class="field-row">Alarm ved afvigelse/fejl
                 <select bind:value={cfg.alarm}>{#each Object.entries(ALARM_TXT) as [v, t]}<option value={v}>{t}</option>{/each}</select>
               </label>
@@ -850,7 +876,7 @@ import { AVERAGE_CHOICES } from './trendData';
                   {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
                   {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
-                  {#if !['level', 'opacity', 'scale', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
+                  {#if !['level', 'opacity', 'scale', 'text', 'segments'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
                 </select>
                 {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
                 {#if srcMode(a) === 'tag' && isPos && BY_VALUE_TYPES.includes(a.type)}
@@ -929,8 +955,8 @@ import { AVERAGE_CHOICES } from './trendData';
             <p class="small muted">Flere animationer af samme slags på samme del: den <strong>øverste aktive</strong> vinder (en med "vis fra-tilstand" tæller altid som aktiv). Er ingen aktive, vises delen som tegnet. Brug ▲▼ til at ordne dem.</p>
           {/if}
         {:else if step === 4}
-          {#if cfg.op === 'view'}
-            <p class="muted small">Kun visning — intet at betjene.</p>
+          {#if viewLike}
+            <p class="muted small">{passive ? 'Kun passiv visning — symbolet kan ikke betjenes, så her er intet at vælge. På Overview står der "Kun visning — kan ikke betjenes" som tooltip.' : 'Kun passiv visning — intet at betjene.'}</p>
           {:else}
             <label class="opt"><input type="checkbox" bind:checked={cfg.confirm} /> Operatøren skal bekræfte før der skrives</label>
             {#if isPos}
@@ -963,13 +989,13 @@ import { AVERAGE_CHOICES } from './trendData';
             {/if}
           {/if}
         {:else if step === 5}
-          {#if cfg.signals.some((s) => s.tag)}
+          {#if cfg.signals.some((s) => s.tag || s.fb)}
             <h4>Live</h4>
             <table class="grid">
               <thead><tr><th>Signal</th><th>Kommando</th><th>Tilbagemelding</th></tr></thead>
               <tbody>
-                {#each cfg.signals.filter((s) => s.tag) as s}
-                  <tr><td>{s.id}</td><td>{s.tag}: <strong>{fmt(valueOf(s.tag))}</strong></td><td>{s.fb ? `${s.fb}: ` : '—'}{#if s.fb}<strong>{fmt(valueOf(s.fb))}</strong>{/if}</td></tr>
+                {#each cfg.signals.filter((s) => s.tag || s.fb) as s}
+                  <tr><td>{s.id}</td><td>{#if s.tag}{s.tag}: <strong>{fmt(valueOf(s.tag))}</strong>{:else}<span class="muted">—</span>{/if}</td><td>{s.fb ? `${s.fb}: ` : '—'}{#if s.fb}<strong>{fmt(valueOf(s.fb))}</strong>{/if}</td></tr>
                 {/each}
               </tbody>
             </table>
@@ -1093,6 +1119,8 @@ import { AVERAGE_CHOICES } from './trendData';
   .close { margin-left: auto; }
   .steps { display: flex; flex-wrap: wrap; gap: .25rem; margin: .6rem 0; border-bottom: 1px solid var(--line); padding-bottom: .4rem; }
   .steps button { position: relative; }
+  .greyed { color: var(--muted); opacity: .55; }
+  .opt.sub { margin-left: 1.6rem; }
   .steps button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--alarm); margin-left: .35rem; vertical-align: middle; }
   .body { overflow: auto; flex: 1; min-height: 240px; min-width: 0; padding-right: .3rem; }

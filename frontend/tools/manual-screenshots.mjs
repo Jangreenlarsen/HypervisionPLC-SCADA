@@ -32,6 +32,12 @@ const tags = await api('/api/tags');
 const startDrawing = drawings.find((d) => d.start)?.id ?? drawings[0]?.id;
 const trendTags = tags.filter((t) => t.trend).slice(0, 3).map((t) => t.name);
 
+// Sikring: browseren må kun LÆSE. Alt andet end GET mod API'et afvises, før det når serveren (guidens løbende kontrol,
+// /preview, ændrer intet og slipper igennem) — så et klik på et symbol aldrig kan skrive til en PLC.
+await ctx.route('**/api/**', (r) => {
+  const q = r.request();
+  return q.method() === 'GET' || q.method() === 'HEAD' || q.url().endsWith('/preview') ? r.continue() : r.abort();
+});
 const page = await ctx.newPage();
 await page.addInitScript((sel) => { try { localStorage.setItem('trend.selected', JSON.stringify(sel)); } catch { /* ingen localStorage */ } }, trendTags);
 
@@ -52,6 +58,10 @@ const shot = async (name, fn, opts = {}) => {
       await page.evaluate(() => window.scrollTo(0, 0));
       const box = await page.locator(opts.top.locator).first().boundingBox();
       await page.screenshot({ path, clip: { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, opts.top.height) }, fullPage: true });
+    } else if (opts.locator && opts.pad) {   // elementet med luft omkring (fx ét symbol på tegningen)
+      const b = await page.locator(opts.locator).first().boundingBox();
+      const x = Math.max(0, b.x - opts.pad), y = Math.max(opts.minY ?? 0, b.y - opts.pad);
+      await page.screenshot({ path, clip: { x, y, width: b.width + 2 * opts.pad, height: b.y + b.height + opts.pad - y } });
     } else if (opts.locator) await page.locator(opts.locator).first().screenshot({ path });
     else await page.screenshot({ path, clip: opts.clip });
     results.push([name, 'ok']);
@@ -129,25 +139,29 @@ await shot('tegn-symboler', async () => {
 // ------------------------------------------------------------------ Bindinger
 await shot('bindinger', async () => {
   await go(`editor/${startDrawing}`, '.editor');
-  await page.locator('aside li button', { hasText: /bundet/ }).first().click();
-  await settle(800);
+  await page.locator('aside').getByText('Reguleringsventil AVTB').first().click();   // et bundet symbol (kan ændres, hvis tegningen ændres)
+  await settle(1000);
 });
+const cfgOf = async (d, el) => (await api(`/api/drawings/${d}/symbols/${el}/config`).catch(() => ({}))).config ?? null;
 // ------------------------------------------------------------------ guiden (læser kun — der trykkes aldrig Gem)
-if (valve) {
-  await shot('bindinger-symbol', async () => { await go(`editor/${valve}/V3`, '.symbol-cfg'); await settle(600); });
-  await shot('guide-1', async () => { await openGuide(valve, 'V3'); await guideStep(1); }, { locator: GUIDE });
+// Guiden vises på omskifteren på starttegningen (har positioner og nøglelås). 3-vejs-ventilen (guide-hurtig) findes kun på en
+// ældre testtegning og tages derfor ikke igen automatisk.
+const gEl = 'omskifter3';
+if (startDrawing && (await cfgOf(startDrawing, gEl))?.op === 'positions') {
+  await shot('bindinger-symbol', async () => { await go(`editor/${startDrawing}/${gEl}`, '.symbol-cfg'); await settle(600); });
+  await shot('guide-1', async () => { await openGuide(startDrawing, gEl); await guideStep(1); }, { locator: GUIDE });
   await shot('guide-2', async () => { await guideStep(2); }, { locator: GUIDE });
   await shot('guide-3', async () => { await guideStep(3); }, { locator: GUIDE });
   await shot('guide-4', async () => { await guideStep(4); }, { locator: GUIDE });
-  await shot('guide-hurtig', async () => { await guideStep(4); await page.locator('.guide .notice', { hasText: 'Hurtig opsætning' }).scrollIntoViewIfNeeded(); }, { locator: `${GUIDE} .notice` });
+  await shot('guide-5', async () => { await guideStep(5); }, { locator: GUIDE });
+  await shot('guide-6', async () => { await guideStep(6); await settle(1500); }, { locator: GUIDE });
+  // sidst: den tomme logikblok bliver stående i guiden og ville give fejl i de følgende billeder
   await shot('guide-logik', async () => {
     await guideStep(4);
     await page.getByRole('button', { name: '+ Logikblok' }).click();
     await settle(500);
     await page.locator('.guide .logic').first().scrollIntoViewIfNeeded();
   }, { locator: GUIDE });
-  await shot('guide-5', async () => { await guideStep(5); }, { locator: GUIDE });
-  await shot('guide-6', async () => { await guideStep(6); await settle(1500); }, { locator: GUIDE });
 }
 // ------------------------------------------------------------------ ugeprogrammer og System
 await shot('ugeprogrammer', async () => { await go('schedules', 'text=Nyt ugeprogram'); });
@@ -155,6 +169,157 @@ await shot('log', async () => { await go('audit', 'text=Log'); await settle(1000
 await shot('brugere', async () => { await go('users', 'text=Ny bruger'); });
 await shot('backup', async () => { await go('backup', 'text=Hent backup'); });
 await shot('opdatering', async () => { await go('update', 'text=Installeret version'); });
+
+// ------------------------------------------------------------------ flere billeder (v2.7.0)
+const lockedSel = valve && (await cfgOf(valve, 'omskifter3_2'))?.lock?.positions?.some(Boolean) ? 'omskifter3_2' : null;
+const stepSel = valve && (await cfgOf(valve, 'omskifter3'))?.op === 'positions' ? 'omskifter3' : null;
+const extTag = tags.find((t) => /:(rtu|mbx):/.test(t.source))?.name;
+const editTag = async (name) => {
+  await go('tags', 'text=Nyt tag');
+  await page.locator('tbody tr', { hasText: name }).first().getByRole('button', { name: 'Redigér' }).click();
+  await page.waitForSelector('.edit-panel');
+  await page.addStyleTag({ content: '.edit-panel { max-height: none !important; overflow: visible !important; } .edit-panel .actions, .edit-panel [class*="sticky"] { position: static !important; }' });
+  await settle(500);
+};
+// 01 — login (egen kontekst uden cookie)
+if (!ONLY || ONLY.has('login')) {
+  const anon = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1180, height: 760 }, locale: 'da-DK' });
+  const p2 = await anon.newPage();
+  try {
+    await p2.goto(`${BASE}/`);
+    await p2.waitForSelector('input[type=password]', { timeout: 20000 });
+    await p2.waitForTimeout(1200);
+    await p2.screenshot({ path: join(OUT, 'login.png') });
+    results.push(['login', 'ok']);
+    console.log('ok   login');
+  } catch (e) {
+    results.push(['login', `FEJL: ${e.message.split('\n')[0]}`]);
+    console.log(`FEJL login: ${e.message.split('\n')[0]}`);
+  }
+  await anon.close();
+}
+// 02 — drift: nøglelåsens hængelås på tegningen (omskifteren på starttegningen; zoomet ind, så den kan ses)
+if (startDrawing) {
+  const lockedOn = async () => {
+    for (const sy of await api(`/api/drawings/${startDrawing}/symbols`)) {
+      const c = (await api(`/api/drawings/${startDrawing}/symbols/${sy.element}/config`)).config;
+      if (c?.lock?.positions?.some(Boolean)) return sy.element;
+    }
+    return null;
+  };
+  const lockedEl = await lockedOn();
+  if (lockedEl) await shot('drift-laas', async () => {
+    await go(`overview/${startDrawing}`, 'svg');
+    await settle(2500);
+    // Hjulet zoomer om markøren: symbolet bliver stående, hvor det er, og bliver ca. 2 × større (kun visningen ændres)
+    const b0 = await page.locator(`#${lockedEl}`).first().boundingBox();
+    await page.mouse.move(b0.x + b0.width / 2, b0.y + b0.height / 2);
+    for (let i = 0; i < 3; i++) { await page.mouse.wheel(0, -100); await settle(300); }
+    await page.mouse.move(5, 750);
+    await settle(1500);
+  }, { locator: `#${lockedEl}`, pad: 45, minY: 100 });
+}
+// 02 — drift: betjeningsdialogen for en omskifter med nøglelås (skrivninger er blokeret ovenfor)
+if (lockedSel) {
+  await shot('drift-dialog', async () => {
+    await go(`overview/${valve}`, 'svg');
+    await settle(2500);
+    const b = await page.locator(`#${lockedSel}`).first().boundingBox();
+    // Den synlige del af symbolet; højre for midten = næste position, venstre = forrige (en låst position åbner dialogen med koden)
+    const cx = b.x + b.width / 2, cy = Math.min(Math.max(b.y + b.height / 2, 150), 700);
+    const right = Math.min(b.x + b.width - 10, 1170), left = Math.max(b.x + 10, 10);
+    for (const x of [(cx + right) / 2, (cx + left) / 2]) {
+      await page.mouse.click(x, cy);
+      await settle(1000);
+      if (await page.locator('.dialog').count()) break;
+    }
+    await page.waitForSelector('.dialog', { timeout: 5000 });
+    await settle(600);
+  }, { locator: '.dialog' });
+}
+// 10 — eksempler: udsnit af en kørende tegning (symbolerne findes på starttegningen hos testserveren)
+const crop = (name, id, pad) => shot(name, async () => { await go(`overview/${startDrawing}`, 'svg'); await page.mouse.move(5, 750); await settle(2500); }, { locator: `#${id}`, pad, minY: 100 });
+await crop('eksempel-pumpe', 'svg_101', 60);
+await crop('eksempel-tank', 'svg_9', 55);
+// 06 — segment-displayet i Symboltest (simuleret værdi; intet gemmes) og indsat i Tegn (kun i browseren)
+await shot('display-symboltest', async () => {
+  await go('symboltest', '.tile');
+  await page.locator('.tile', { hasText: '11-segment display' }).first().click();
+  await settle(800);
+  await page.locator('.card select').first().selectOption('num');
+  await page.locator('.card input[type=range]').first().evaluate((e) => { e.value = '73'; e.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.locator('input[type=range]').first().evaluate((e) => { e.value = e.max; e.dispatchEvent(new Event('input', { bubbles: true })); });
+  await settle(800);
+}, { clip: { x: 460, y: 130, width: 700, height: 480 } });
+await shot('tegn-display', async () => {
+  await go(`draw/${startDrawing}`, 'iframe');
+  await settle(3500);
+  const panel = page.locator('details:has(> summary:has-text("Proces og visning"))');
+  await panel.locator('select[aria-label="Type"]').selectOption('11');
+  await panel.locator('input[aria-label="Antal cifre"]').fill('8');
+  await panel.scrollIntoViewIfNeeded();
+}, { locator: 'details:has(> summary:has-text("Proces og visning")) .selector-cfg' });
+await shot('trends-analyse', async () => {
+  await go('trends', 'text=15 min');
+  await page.getByRole('button', { name: '1 time' }).click();
+  await page.getByLabel('Analysér data').check();   // kun visning i browseren
+  await settle(2500);
+});
+// 03 — PLC'er og tags
+await shot('plc-ny', async () => { await go('plcs', 'text=Tilføj PLC'); }, { locator: '.panel:has(h2:text-is("Tilføj PLC"))' });
+if (extTag) await shot('tag-ekstern', async () => { await editTag(extTag); }, { locator: '.edit-panel' });
+// 04 — tegninger og Tegn
+await shot('tegninger-upload', async () => { await go('drawings', 'text=Upload tegning'); }, { locator: '.panel:has(h2:text-is("Upload tegning"))' });
+await shot('tegn-hjaelp', async () => {
+  await go(`draw/${startDrawing}`, 'iframe');
+  await settle(3000);
+  await page.getByLabel('Skalér symmetrisk').check();
+  await settle(300);
+}, { locator: 'label:has-text("Skalér symmetrisk") >> xpath=..' });
+await shot('tegn-grupper', async () => { await go(`draw/${startDrawing}`, 'iframe'); await settle(3000); }, { locator: 'details:has(> summary:text-is("Grupper"))' });
+for (const [id, label] of [['betjening', 'Betjening'], ['proces', 'Proces og visning'], ['vvs', 'Rør og VVS'], ['el', 'Elektrisk'], ['sol', 'Solcelleanlæg'], ['genveje', 'Genveje']]) {
+  await shot(`bibliotek-${id}`, async () => {
+    if (!page.url().includes('#draw/')) {
+      await go(`draw/${startDrawing}`, 'iframe');
+      await settle(3000);
+      // sidepanelet ruller normalt for sig selv — fold det ud, så hele kategorien kan fotograferes
+      await page.addStyleTag({ content: 'aside, .sym-panel { max-height: none !important; height: auto !important; overflow: visible !important; }' });
+      await settle(300);
+    }
+    await page.locator(`details:has(> summary:has-text("${label}")) .symbols`).first().scrollIntoViewIfNeeded();
+  }, { locator: `details:has(> summary:has-text("${label}")) .symbols` });
+}
+// 06 — guiden (der trykkes aldrig Gem; Gem ville også blive blokeret)
+if (valve) {
+  await shot('guide-former', async () => {
+    await openGuide(valve, 'V3');
+    await guideStep(1);
+    await page.getByLabel(/Vis alle betjeningsformer/).check().catch(() => {});
+    await settle(400);
+  }, { locator: GUIDE });
+}
+if (stepSel) {
+  await shot('guide-kontaktplan', async () => { await openGuide(valve, stepSel); await guideStep(3); await settle(600); }, { locator: GUIDE });
+  await shot('guide-animation', async () => {
+    await guideStep(4);
+    await page.locator('.guide .anim:not(.logic)').first().scrollIntoViewIfNeeded();
+    await settle(400);
+  }, { locator: '.guide .anim:not(.logic)' });
+  await shot('guide-interaktiv', async () => { await guideStep(5); await settle(400); }, { locator: GUIDE });
+}
+if (lockedSel) await shot('guide-noeglelaas', async () => { await openGuide(valve, lockedSel); await guideStep(5); await settle(500); }, { locator: GUIDE });
+await shot('symboltest', async () => {
+  await go('symboltest', '.tile');
+  await page.locator('.tile', { hasText: 'Omskifter Hånd/0/Auto' }).first().click();
+  await settle(1200);
+});
+// 09 — System
+await shot('konfiguration', async () => { await go('config', 'text=Konfiguration'); await settle(800); });
+await shot('netvaerk', async () => {
+  await go('config', 'text=Netværk');
+  await page.locator('h3', { hasText: 'Netværk' }).scrollIntoViewIfNeeded();
+  await settle(500);
+}, { locator: '.panel:has(h3:text-is("Netværk"))' });
 
 await browser.close();
 const failed = results.filter(([, r]) => r !== 'ok');

@@ -10,6 +10,8 @@ export interface SymbolView {
   lock_leave: boolean;
   has_pin: boolean;
   fault: string;
+  /** Kun passiv visning (v2.8.0): viser PLC'ens position, kan ikke betjenes */
+  passive?: boolean;
   pulse_ms?: number;
   /** 'step' = tryk venstre/højre side af symbolet for at skifte position (v1.11.0) */
   click?: 'dialog' | 'step';
@@ -67,7 +69,7 @@ export type ClickAction =
  * - ellers dialog med positionerne.
  */
 export function clickAction(s: SymbolView, shown: number | null): ClickAction {
-  if (s.op === 'view') return { kind: 'none' };
+  if (s.op === 'view' || s.passive) return { kind: 'none' };
   if (s.op === 'pulse') return s.confirm ? { kind: 'dialog', pick: null } : { kind: 'pulse' };
   if (s.op === 'entry') return { kind: 'dialog', pick: null };
   if (!s.confirm && s.labels.length === 2) {
@@ -89,3 +91,6 @@ export function pickAction(s: SymbolView, shown: number | null, to: number): 'op
 export function operateLabel(s: SymbolView, shown: number | null, to: number): string {
   return `${needsPin(s, shown, to) ? 'Lås op og skift' : 'Skift'} til ${s.labels[to] ?? ''}`;
 }
+
+/** Kan operatøren betjene symbolet? (ikke kun visning, ikke passiv visning) */
+export const isOperable = (s: SymbolView): boolean => s.op !== 'view' && !s.passive;

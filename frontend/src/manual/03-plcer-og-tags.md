@@ -6,6 +6,8 @@ Du skal bruge en **PLC** og nogle **tags**, før en tegning kan vise noget. Begg
 
 ![Siden PLC'er med de tilsluttede PLC'er og deres status](/manual/plcer.png)
 
+![Tilføj PLC: nøgle, navn, adresse, bruger og adgangskode](/manual/plc-ny.png)
+
 Siden **PLC'er** lister de HypervisionPLC-enheder, SCADA'en henter data fra. Tryk **Tilføj PLC** og udfyld:
 
 | Felt | Betydning |
@@ -86,6 +88,8 @@ Grænserne er i tagets **tekniske enhed** (efter skalering), og tomt felt betyde
 Prioriteten følger niveauet og kan ikke vælges. Mister PLC'en forbindelsen, bevares tagets alarmer som de er (en kommunikationsfejl rydder ikke en alarm — den giver sin egen kommunikationsalarm). Alarmer vises og kvitteres under *Drift › Alarmer*; i symbolguiden kan alarmen også sættes op (trin 6) og styre en animation (fx blinke ved en ukvitteret alarm), se *Symboler og guiden › Alarmer i guiden*.
 
 ### Prioritet (eksterne Modbus-tags)
+
+![Et eksternt Modbus-tag (kilde rtu) med feltet Prioritet i PLC'ens Modbus-kø](/manual/tag-ekstern.png)
 
 Tags med kilden *Extern (RS485)* eller *Expansion board* læses af PLC'en fra en Modbus-slave. I PLC'ens kø står SCADA's læsninger bag PLC'ens egne programmer, så SCADA ikke forsinker dem. Et tag kan sættes til **Prioritet: Høj** (Tags › Redigér), og så læses det, som var det PLC'ens eget. Høje og normale tags hentes altid i hver sit kald, og de høje hentes først. Brug det kun til få, vigtige tags, fx nødstop-tilbagemelding: står mange på høj, forsvinder effekten. Listen viser mærket *høj prioritet*. Valget er låst for interne tags (de læses direkte fra PLC'ens hukommelse) og kræver PLC-firmware med understøttelse; ældre firmware ignorerer det. Skrivninger har altid højeste prioritet.
 

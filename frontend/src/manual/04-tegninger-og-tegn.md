@@ -6,6 +6,8 @@ En **tegning** er et SVG-billede af anlægget. Du kan **uploade** en tegning lav
 
 ![Siden Tegninger: upload, listen over tegninger og deres versioner](/manual/tegninger.png)
 
+![Upload tegning: vælg SVG-filen og giv tegningen et navn](/manual/tegninger-upload.png)
+
 Siden **Tegninger** er listen over alle tegninger.
 
 - **Upload tegning**: vælg en SVG-fil (højst 5 MB), giv den et **navn** og evt. en **kommentar**. Serveren renser filen (scripts og andet farligt fjernes) og viser en rapport over, hvad der blev fjernet.
@@ -39,6 +41,8 @@ Er der ændringer, du ikke har gemt, spørger systemet, før de kasseres.
 
 ### Tegnehjælp: gitter, fang og rotation
 
+![Linjen Tegnehjælp: gitter, fang, gitterafstand og Skalér symmetrisk](/manual/tegn-hjaelp.png)
+
 Under værktøjslinjen i Tegn står rækken **Tegnehjælp**:
 
 - **Vis gitter** viser et net **ovenpå** tegningen (det ændrer ikke tegningen). Linjerne ligger med den valgte **gitterafstand** (5, 10, 20, 25 eller 50 enheder), og hver 5. linje er kraftigere. Gitteret følger zoom og rulning og flugter med linealerne.
@@ -58,6 +62,8 @@ Vælg et eller flere symboler (hold **Shift** nede, eller træk en ramme), så v
 > Farven her er symbolets **grundfarve** i tegningen. Har symbolet en animation (fx *Farve* eller *Løbelys*), bestemmer animationen farven på Overview, når den er aktiv.
 
 ### Grupper af symboler
+
+![Grupper i Tegn: gem markeringen som gruppe og vælg en eksisterende gruppe](/manual/tegn-grupper.png)
 
 Vælg flere symboler i tegningen og tryk **Gem markering som gruppe** i sektionen **Grupper** (symbollisten til højre). Giv gruppen et navn og en art: **Funktionsgrupper** er en del af anlægget med en funktion, fx *Fyr uden akku-tank*; **Udvalg** er et frit udvalg, fx 3-vejs ventil, rør og akkutank. Tryk på gruppens navn for at markere alle dens symboler igen. Under **⋯** kan du tilføje eller fjerne de valgte, sætte gruppen til de valgte, omdøbe, flytte den mellem de to arter eller slette den (symbolerne slettes ikke).
 
@@ -101,6 +107,10 @@ Et nyindsat symbol skal **sættes op**: vælg symbolet og tryk **Opsæt symbol (
 **Felter med tekst** (*Statusfelt*, *Værdifelt*, *Auto/Manuel*): træk i et sidegreb for at gøre feltet bredere (eller højere), så der er plads til mere tekst — teksten bliver ikke strakt, men beholder sin størrelse (midterstillet tekst følger midten), og et statusfelt beholder sine runde ender. Ret selve teksten ved at dobbeltklikke på den.
 
 **Genveje** (kategorien *Genveje*): knapperne **Gå til Alarmer**, **Gå til Trends** og **Gå til Energi**. Et klik på dem i Overview åbner siden. Alarmknappen viser et mærke med **antallet af aktive alarmer** — orange når de er kvitteret, rødt og blinkende når der er ukvitterede (mærket er skjult uden alarmer). Genvejene skal ikke sættes op. På et driftpanel åbner *Gå til Alarmer* (med kvittering) og *Gå til Trends* siderne uden menu — med *Tilbage* til tegningen; *Gå til Energi* åbnes ikke. Trends viser kun de trends, der er sat op i panelbrugerens tegninger.
+
+![Display med egne cifre i Tegn: vælg 7- eller 11-segment og antal cifre (1–16)](/manual/tegn-display.png)
+
+**Display med egne cifre**: under *Proces og visning* vælger du **7-segment** eller **11-segment** og et antal **cifre (1–16)** og trykker *Indsæt*. 7-segment viser tal; 11-segment viser også de fleste store bogstaver. Bibliotekets faste displays har 4 cifre. Sæt displayet op med guiden (se *Segment-display* i *Symboler og guiden*).
 
 **Omskifter med egne positioner**: under *Betjening* kan du skrive positionernes navne (2–8, adskilt med komma, fx *Hånd, 0, Auto*) og indsætte en omskifter med lige det antal positioner.
 
