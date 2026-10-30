@@ -38,3 +38,29 @@ Alternativer: ét symbol pr. cifre-antal (mange biblioteksposter) · hvert ciffe
 - **Datamodel:** `passive` er nyt felt; gamle opsætninger mangler det → standard `false`, ingen migration.
 - **Sikkerhed/PLC-skrivninger:** `operate` skal afvise passive symboler i backend (ikke kun i UI) — reviewer-agenten kontrollerer A før commit.
 - **Visuel verifikation:** begge dele ses i browseren mod testserveren før de meldes færdige.
+
+---
+
+# Plan C: live preview ved animationerne i symbol-guiden (2026-10-30)
+
+**Mål:** i guidens trin 4 står et lille preview af symbolet ved siden af animationerne, som viser, hvordan symbolet ser ud, når animationerne kører — og opdaterer sig med det samme, når en indstilling ændres.
+
+**Beslutning:** ét preview for hele symbolet (alle animationer samtidig, som på Overview) frem for ét pr. animation — det viser samspillet (flere animationer på samme del, aktiv/passiv, prioritet). Alternativ: ét lille billede pr. animation (12 klon af symbolet, uoverskueligt).
+
+**Løsning (kun frontend, ingen backend- eller datamodel-ændring):**
+- Ny komponent `AnimPreview.svelte` i trin 4 (sticky i højre kolonne på brede skærme, over animationerne på smalle). Symbolets SVG hentes fra tegningen (guiden henter den allerede til farvehjælpen), klones til en lille indlejret `<svg>` med `viewBox` efter symbolets kasse.
+- Genbruger Symboltestens motor (`symbolSim.ts`: `SimTag`, `SimAnim`, `syncSim`, `bindingOf`) og den rigtige animationsmotor (`applyBinding`) — så preview'et ser ud som på Overview.
+- Ny ren funktion `simFromConfig(cfg, symbol)` (testet): laver SimAnim/SimTag ud fra guidens opsætning. Kilden afgør betjeningen i preview'et:
+  - *til/fra-tag, logikblok, alarm, "altid til"* → to knapper **Fra / Til**
+  - *tal-tag* → skyder fra min til max (område efter animationernes Min/Max)
+  - *symbolets position* eller *pr. værdi* → en knap pr. position (positionens navn)
+  - samme kilde bruges af flere animationer → én kontrol (som i Symboltest)
+- Knapper: **Afspil** (løber gennem værdierne), **Nulstil**, og *Kvalitet* (God / Kommunikationsfejl) vises ikke i første version.
+- "Gælder i positionerne", aktiv/passiv og "pr. værdi" oversættes som backend gør (`params.pos`, `only`, `when`, `pos_values`) — samme regler som `config_bindings`.
+- Preview'et ændrer intet på serveren og gemmer intet.
+
+**Berørte filer (≈5):** `frontend/src/lib/AnimPreview.svelte` (ny), `frontend/src/lib/simFromConfig.ts` (ny, ren logik) + test, `SymbolGuide.svelte` (monterer panelet; tegnings-SVG gemmes), `manual/06` (+ skærmbillede), FEATURES/CHANGELOG/RELEASE_NOTES.
+**Version:** MINOR → 2.10.0.
+
+**Risici:** (1) symbolets SVG skal klones uden id-kollisioner med tegningen (klonen sættes i et isoleret `<svg>`; id'er bevares, da dele findes via id); (2) segment-display og løbelys kræver at animationsmotoren kører i et frakoblet DOM — Symboltest gør det allerede; (3) ydeevne: preview'et opdateres med 100 ms debounce ved ændringer.
+**Visuel verifikation:** installeres på testserveren og ses i guiden (trin 4) for omskifter, ventil, pumpe og segment-display.

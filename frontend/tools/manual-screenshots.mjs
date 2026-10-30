@@ -153,6 +153,7 @@ if (startDrawing && (await cfgOf(startDrawing, gEl))?.op === 'positions') {
   await shot('guide-2', async () => { await guideStep(2); }, { locator: GUIDE });
   await shot('guide-3', async () => { await guideStep(3); }, { locator: GUIDE });
   await shot('guide-4', async () => { await guideStep(4); }, { locator: GUIDE });
+  await shot('guide-preview', async () => { await guideStep(4); await page.locator('.guide aside.preview').scrollIntoViewIfNeeded(); await settle(400); }, { locator: '.guide aside.preview' });
   await shot('guide-5', async () => { await guideStep(5); }, { locator: GUIDE });
   await shot('guide-6', async () => { await guideStep(6); await settle(1500); }, { locator: GUIDE });
   // sidst: den tomme logikblok bliver stående i guiden og ville give fejl i de følgende billeder

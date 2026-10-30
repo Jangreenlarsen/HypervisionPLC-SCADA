@@ -14,6 +14,7 @@
   import TagSelect from './TagSelect.svelte';
   import AnimParams from './AnimParams.svelte';
   import OwnerAnims from './OwnerAnims.svelte';
+  import AnimPreview from './AnimPreview.svelte';
   import { mergePalette, paramColors, svgColors } from './usedColors';
   import { KIND_TXT, groupAnimsOn, groupColor, groupsOf, listGroups, type OwnerBlock, type SymbolGroup } from './symbolGroups';
   import { CHART_RANGES, FONT_SCALES, LEGEND_PLACES, MAX_CHART_TAGS, defaultChart, legendOf } from './chartGraphic';
@@ -101,12 +102,13 @@ import { AVERAGE_CHOICES } from './trendData';
   let groupOwners = $state<OwnerBlock[]>([]);
   // Hurtigvalg af brugte farver ved farvefelterne: animationernes egne, så symbolets tegnede, så tegningens øvrige
   let drawnOwn = $state<string[]>([]), drawnAll = $state<string[]>([]);
+  let drawingSvg = $state('');   // tegningens SVG — preview'et ved animationerne tegner symbolet ud fra den (v2.10.0)
   const palette = $derived(mergePalette([paramColors(cfg.anims), drawnOwn, drawnAll]));
   let memberOf = $state<SymbolGroup[] | null>(null);   // grupperne symbolet er medlem af (null = ikke hentet endnu)
   onMount(() => {
     fetch(`/api/drawings/${encodeURIComponent(drawingId)}/svg`, { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.text() : ''))
-      .then((svg) => { drawnOwn = svgColors(svg, element); drawnAll = svgColors(svg); })
+      .then((svg) => { drawingSvg = svg; drawnOwn = svgColors(svg, element); drawnAll = svgColors(svg); })
       .catch((e) => console.error('Tegningens farver kunne ikke hentes:', e));
     listGroups(drawingId)
       .then((all) => (memberOf = groupsOf(all, element)))
@@ -861,6 +863,8 @@ import { AVERAGE_CHOICES } from './trendData';
           {/each}
           <button class="small" onclick={addBlock} disabled={cfg.logic.length >= MAX_LOGIC}>+ Logikblok</button>
           <h4>Animationer ({cfg.anims.length}/{MAX_ANIMS})</h4>
+          <div class="anim-layout">
+          <div class="anim-list">
           {#each cfg.anims as a, i}
             {@const kind = srcKind(a)}
             <div class="anim">
@@ -949,6 +953,9 @@ import { AVERAGE_CHOICES } from './trendData';
             <button class="small" onclick={addAnim} disabled={cfg.anims.length >= MAX_ANIMS}>+ Animation</button>
             <button class="small" onclick={addDefault} disabled={cfg.anims.length >= MAX_ANIMS}
               title="Tilføj en animation med 'altid til' nederst — den gælder, når ingen af de aktiv/passive over den er aktive">+ Standard</button>
+          </div>
+          </div>
+          {#if drawingSvg}<AnimPreview {cfg} {element} svg={drawingSvg} kindOf={tagKindOf} metaOf={(t) => metaOf(t)} />{/if}
           </div>
           <OwnerAnims owners={groupOwners} {symbol} title="Animationer fra grupper (ændres under Grupper — gælder ud over symbolets egne)" />
           {#if cfg.anims.some((x) => x.when)}
@@ -1121,6 +1128,10 @@ import { AVERAGE_CHOICES } from './trendData';
   .steps button { position: relative; }
   .greyed { color: var(--muted); opacity: .55; }
   .opt.sub { margin-left: 1.6rem; }
+  /* Preview ved animationerne (v2.10.0): ved siden af listen på brede skærme, over den på smalle */
+  .anim-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: .6rem; }
+  .anim-layout .anim-list { min-width: 0; }
+  @media (min-width: 720px) { .anim-layout { grid-template-columns: minmax(0, 1fr) 210px; } }
   .steps button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--alarm); margin-left: .35rem; vertical-align: middle; }
   .body { overflow: auto; flex: 1; min-height: 240px; min-width: 0; padding-right: .3rem; }
