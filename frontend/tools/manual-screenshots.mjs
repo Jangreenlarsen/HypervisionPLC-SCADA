@@ -139,17 +139,20 @@ await shot('tegn-symboler', async () => {
 // ------------------------------------------------------------------ Bindinger
 await shot('bindinger', async () => {
   await go(`editor/${startDrawing}`, '.editor');
-  await page.locator('aside li button', { hasText: /bundet/ }).first().click();
-  await settle(800);
+  await page.locator('aside').getByText('Reguleringsventil AVTB').first().click();   // et bundet symbol (kan ændres, hvis tegningen ændres)
+  await settle(1000);
 });
+const cfgOf = async (d, el) => (await api(`/api/drawings/${d}/symbols/${el}/config`).catch(() => ({}))).config ?? null;
 // ------------------------------------------------------------------ guiden (læser kun — der trykkes aldrig Gem)
-if (valve) {
-  await shot('bindinger-symbol', async () => { await go(`editor/${valve}/V3`, '.symbol-cfg'); await settle(600); });
-  await shot('guide-1', async () => { await openGuide(valve, 'V3'); await guideStep(1); }, { locator: GUIDE });
+// Guiden vises på omskifteren på starttegningen (har positioner og nøglelås). 3-vejs-ventilen (guide-hurtig) findes kun på en
+// ældre testtegning og tages derfor ikke igen automatisk.
+const gEl = 'omskifter3';
+if (startDrawing && (await cfgOf(startDrawing, gEl))?.op === 'positions') {
+  await shot('bindinger-symbol', async () => { await go(`editor/${startDrawing}/${gEl}`, '.symbol-cfg'); await settle(600); });
+  await shot('guide-1', async () => { await openGuide(startDrawing, gEl); await guideStep(1); }, { locator: GUIDE });
   await shot('guide-2', async () => { await guideStep(2); }, { locator: GUIDE });
   await shot('guide-3', async () => { await guideStep(3); }, { locator: GUIDE });
   await shot('guide-4', async () => { await guideStep(4); }, { locator: GUIDE });
-  await shot('guide-hurtig', async () => { await guideStep(4); await page.locator('.guide .notice', { hasText: 'Hurtig opsætning' }).scrollIntoViewIfNeeded(); }, { locator: `${GUIDE} .notice` });
   await shot('guide-logik', async () => {
     await guideStep(4);
     await page.getByRole('button', { name: '+ Logikblok' }).click();
@@ -167,7 +170,6 @@ await shot('backup', async () => { await go('backup', 'text=Hent backup'); });
 await shot('opdatering', async () => { await go('update', 'text=Installeret version'); });
 
 // ------------------------------------------------------------------ flere billeder (v2.7.0)
-const cfgOf = async (d, el) => (await api(`/api/drawings/${d}/symbols/${el}/config`).catch(() => ({}))).config ?? null;
 const lockedSel = valve && (await cfgOf(valve, 'omskifter3_2'))?.lock?.positions?.some(Boolean) ? 'omskifter3_2' : null;
 const stepSel = valve && (await cfgOf(valve, 'omskifter3'))?.op === 'positions' ? 'omskifter3' : null;
 const extTag = tags.find((t) => /:(rtu|mbx):/.test(t.source))?.name;
@@ -234,6 +236,10 @@ if (lockedSel) {
     await settle(600);
   }, { locator: '.dialog' });
 }
+// 10 — eksempler: udsnit af en kørende tegning (symbolerne findes på starttegningen hos testserveren)
+const crop = (name, id, pad) => shot(name, async () => { await go(`overview/${startDrawing}`, 'svg'); await page.mouse.move(5, 750); await settle(2500); }, { locator: `#${id}`, pad, minY: 100 });
+await crop('eksempel-pumpe', 'svg_101', 60);
+await crop('eksempel-tank', 'svg_9', 55);
 await shot('trends-analyse', async () => {
   await go('trends', 'text=15 min');
   await page.getByRole('button', { name: '1 time' }).click();
