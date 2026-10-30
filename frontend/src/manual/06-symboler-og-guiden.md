@@ -157,6 +157,10 @@ Har symbolet **positioner**, vælger du i trin 5 (*Betjening*), hvordan operatø
 
 Bekræftelse og nøglelås gælder uændret: kræver positionen bekræftelse eller kode, åbnes dialogen med den valgte position, så den kan bekræftes eller låses op. Hurtige tryk, før PLC'en har svaret, tæller videre fra den position, der sidst blev bestilt. Kendes den viste position ikke endnu (ingen tilbagemelding), åbnes dialogen i stedet.
 
+## Tilstandsmærket
+
+Et symbol med positioner viser et lille **mærke** i øverste højre hjørne på Overview: ✓ bekræftet, … venter, ! afviger og ? ukendt. Vil du ikke have mærket (fx på en tæt tegning eller et symbol, hvor positionen er tydelig nok), så fjern hakket ved **Vis tilstandsmærke** i trin 4. Symbolet virker ellers som før: skyggen *PLC: …* ved en afvigelse og hængelåsen ved en låst position vises stadig, og en afvigelse giver stadig alarm.
+
 ## Nøglelås
 
 ![Trin 5 med nøglelås: positionen Til er låst, og koden kræves også for at forlade den](/manual/guide-noeglelaas.png)

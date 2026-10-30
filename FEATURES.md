@@ -11,6 +11,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 
 ## Planlagte features
 
+- [done] v2.12.0 — Tilstandsmærket (✓ … ! ?) på et symbol kan fravælges i guidens trin 4 (*Vis tilstandsmærke*). Skyggen ved afvigelse og hængelåsen vises stadig.
 - [done] v2.11.0 — Omskifterens tegning følger opsætningens positioner fra guiden: knappen *Gem og tegn omskifteren om* i trin 3 (fra Tegn tegnes den om med det samme; fra Bindinger åbnes Tegn med omskifteren valgt og tegner den om).
 - [done] v2.8.0 — Passiv visning med positioner: et symbol med positioner (fx 3-punkts omskifter) kan sættes op som *Kun passiv visning* — kun tilbagemelding, intet kommando-tag, ikke betjenelig (afvises i backend), tooltip "Kun visning". Plan: PLAN.md.
 - [done] v2.10.0 — Live preview ved animationerne i symbol-guiden (trin 4): et lille billede af symbolet ved siden af hver animation, som viser hvordan den ser ud — med skyder/til-fra for kilden og for hver position. Genbruger symbol-simuleringen fra Symboltest (`symbolSim`).

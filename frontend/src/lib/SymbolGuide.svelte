@@ -755,6 +755,8 @@ import { AVERAGE_CHOICES } from './trendData';
               <label class="field-row">Vis
                 <select bind:value={cfg.display}><option value="remote" disabled={!hasFeedback(cfg) && cfg.display !== 'remote'}>PLC'ens position{hasFeedback(cfg) ? '' : ' (kræver tilbagemelding på alle signaler i trin 2)'}</option><option value="local">Valgt position</option></select>
               </label>
+              <label class="opt" title="Mærket ✓ / … / ! / ? ved symbolet på Overview viser, om positionen er bekræftet, venter, afviger eller er ukendt">
+                <input type="checkbox" checked={cfg.badge !== false} onchange={(e) => (cfg.badge = e.currentTarget.checked)} /> Vis tilstandsmærke</label>
               <label class="field-row">Tid til at bekræfte (s)
                 <input class="n" type="number" min="1" max="120" step="0.5" bind:value={cfg.validate_s} />
               </label>

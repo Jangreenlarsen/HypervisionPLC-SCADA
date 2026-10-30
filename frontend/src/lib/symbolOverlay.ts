@@ -8,6 +8,8 @@ export interface OverlayInput {
   state: SymbolState | null;   // null = intet mærke (fx trykknap)
   remoteLabel: string | null;  // PLC'ens position — vises som skygge ved afvigelse
   locked: boolean;
+  /** Tegn tilstandsmærket (standard); false = fravalgt i guiden. Skyggen ved afvigelse og hængelåsen vises stadig (v2.12.0) */
+  badge?: boolean;
   /** Navnene på de låste positioner (nøglelås) — får en lille hængelås ud for positionens tekst i symbolet */
   lockedLabels?: string[];
 }
@@ -79,7 +81,7 @@ export function drawOverlay(root: SVGSVGElement, element: string, input: Overlay
     g.appendChild(make('text', { class: 'hv-ghosttext', x: box.x + box.w / 2, y: box.y + box.h + r * 1.6, 'text-anchor': 'middle',
       'font-size': r * 1.2 }, `PLC: ${input.remoteLabel}`));
   }
-  if (input.state) {
+  if (input.state && input.badge !== false) {
     const cx = box.x + box.w, cy = box.y;
     const badge = make('g', { class: `hv-badge ${input.state}` });
     badge.appendChild(make('title', {}, STATE_TXT[input.state]));

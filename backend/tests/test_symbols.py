@@ -690,3 +690,14 @@ def test_only_is_kept_for_an_ordinary_tag_source(api):
     r = put(api, cfg)
     assert r.status_code == 200, r.text
     assert r.json()["config"]["anims"][0]["only"] == only
+
+
+# ------------------------------------------------------------------ tilstandsmærket kan fravælges (v2.12.0)
+
+def test_badge_defaults_on_and_can_be_switched_off(api):
+    assert put(api, dec_bin()).json()["config"]["badge"] is True            # ældre opsætninger uden feltet: vises
+    r = put(api, dec_bin(badge=False))
+    assert r.status_code == 200 and r.json()["config"]["badge"] is False
+    from app.services.symbols import symbol_view
+    assert symbol_view(api.did, "V1", r.json()["config"], False)["badge"] is False
+    assert symbol_view(api.did, "V1", {"op": "positions", "positions": []}, False)["badge"] is True

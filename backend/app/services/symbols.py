@@ -314,6 +314,7 @@ class SymbolConfig(_M):
     validate_s: float = 5
     alarm: Literal["", "low", "medium", "high"] = "medium"
     confirm: bool = True
+    badge: bool = True   # v2.12.0: tilstandsmærket (✓ … ! ?) på Overview — kan fravælges
     click: Literal["dialog", "step"] = "dialog"   # v1.11.0: "step" = tryk venstre/højre side af symbolet for at skifte position
     pulse_ms: int = 500
     lock: Lock = Field(default_factory=Lock)
@@ -549,7 +550,7 @@ def symbol_view(drawing_id: str, element: str, cfg: dict[str, Any], has_pin: boo
             "lock_leave": bool((cfg.get("lock") or {}).get("leave")), "has_pin": has_pin,
             "fault": cfg.get("fault") or "", "pulse_ms": cfg.get("pulse_ms"),
             "click": cfg.get("click") if cfg.get("op") == "positions" and cfg.get("click") == "step" else "dialog",
-            "passive": bool(cfg.get("passive"))}
+            "passive": bool(cfg.get("passive")), "badge": cfg.get("badge", True) is not False}
     if cfg.get("op") == "positions":
         view["pseudo"] = {k: pseudo_tag(drawing_id, element, k) for k in PSEUDO_KINDS}
     if cfg.get("op") in ("pulse", "entry") and cfg.get("signals"):

@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.12.0 build 0273] — 2026-10-30 — Tilstandsmærket kan fravælges
+
+- `backend/app/services/symbols.py`: feltet `badge` (standard sand) på symbolopsætningen; `symbol_view` sender det.
+- `frontend/src/lib/symbolConfig.ts`, `symbolUi.ts` (`showsBadge`), `symbolOverlay.ts` (`badge` i overlaget), `pages/Overview.svelte`, `SymbolGuide.svelte` (*Vis tilstandsmærke* i trin 4).
+- Tests: `symbolOverlay.test.ts`, backend `test_symbols.py`. Manual kap. 06.
+
 ## [2.11.1 build 0272] — 2026-10-30 — "Gælder i" rydes ved skift til kilden position
 
 - `frontend/src/lib/symbolConfig.ts`: `keepsOnly`. `frontend/src/lib/SymbolGuide.svelte`: `resetParams` bruger den.

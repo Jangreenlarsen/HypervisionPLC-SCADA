@@ -2,6 +2,10 @@
 
 ---
 
+## v2.12.0 — 2026-10-30 — Tilstandsmærket kan slås fra
+
+- I symbol-guidens trin 4 kan du fjerne hakket ved **Vis tilstandsmærke**. Så vises mærket (✓, …, !, ?) ikke ved symbolet på Overview. Afvigelsen ("PLC: …") og hængelåsen vises stadig.
+
 ## v2.11.1 — 2026-10-30 — Rettelse: "Gælder i"
 
 - Skifter du en animations kilde fra et tag til *symbolets position*, gælder de afkrydsninger, du havde sat under *Gælder i*, ikke længere skjult. Animationen virker nu i alle positioner, som feltet viser.
