@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.10.1 build 0269] — 2026-10-30 — Preview: symbolet vises også, når det står forskudt i tegningen
+
+- `frontend/src/lib/AnimPreview.svelte`: symbolet pakkes ind i en `<g>`, og viewBox måles på den (getBBox medregner ikke elementets egen transform). `AnimPreviewPanel.test.ts`: tjek af indpakningen.
+
 ## [2.10.0 build 0268] — 2026-10-30 — Live preview ved animationerne i guiden
 
 - `frontend/src/lib/animPreview.ts` (ny): guidens opsætning → de samme bindinger som Overview bruger (kilde, position, "gælder i", aktiv/passiv, logikblok, alarm, fast værdi, retnings-tag), kontroller og afspilning.

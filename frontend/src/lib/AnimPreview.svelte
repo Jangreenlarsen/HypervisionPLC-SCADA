@@ -40,10 +40,12 @@
       const src = doc.querySelector(`[id="${CSS.escape(id)}"]`);
       if (!src) { found = false; return; }
       for (const x of doc.querySelectorAll('svg > defs, svg > style')) h.appendChild(document.importNode(x, true));
-      const el = document.importNode(src, true) as SVGGraphicsElement;
-      h.appendChild(el);
+      // Symbolets egen transform (placeringen i tegningen) medregnes ikke af getBBox på selve elementet — mål på en indpakning
+      const wrap = document.createElementNS('http://www.w3.org/2000/svg', 'g') as SVGGraphicsElement;
+      wrap.appendChild(document.importNode(src, true));
+      h.appendChild(wrap);
       try {
-        const b = el.getBBox();
+        const b = wrap.getBBox();
         const pad = 4 + Math.max(b.width, b.height) * 0.05;
         h.setAttribute('viewBox', `${b.x - pad} ${b.y - pad} ${b.width + 2 * pad} ${b.height + 2 * pad}`);
       } catch {

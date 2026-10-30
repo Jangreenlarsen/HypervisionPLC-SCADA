@@ -29,6 +29,8 @@ describe('preview ved animationerne', () => {
     mountIt(cfg());
     await settle();
     expect(target.querySelector('svg #hjul')).toBeTruthy();
+    // symbolet står i en indpakning uden transform, så viewBox kan måles ud fra symbolets placering i tegningen
+    expect(target.querySelector('svg > g > g#pumpe')).toBeTruthy();
     expect(fill()).toBe('rgb(51, 51, 51)');
     button('Til').click();
     await settle();
