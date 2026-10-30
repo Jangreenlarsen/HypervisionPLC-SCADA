@@ -108,6 +108,8 @@ Et nyindsat symbol skal **sættes op**: vælg symbolet og tryk **Opsæt symbol (
 
 **Genveje** (kategorien *Genveje*): knapperne **Gå til Alarmer**, **Gå til Trends** og **Gå til Energi**. Et klik på dem i Overview åbner siden. Alarmknappen viser et mærke med **antallet af aktive alarmer** — orange når de er kvitteret, rødt og blinkende når der er ukvitterede (mærket er skjult uden alarmer). Genvejene skal ikke sættes op. På et driftpanel åbner *Gå til Alarmer* (med kvittering) og *Gå til Trends* siderne uden menu — med *Tilbage* til tegningen; *Gå til Energi* åbnes ikke. Trends viser kun de trends, der er sat op i panelbrugerens tegninger.
 
+![Display med egne cifre i Tegn: vælg 7- eller 11-segment og antal cifre (1–16)](/manual/tegn-display.png)
+
 **Display med egne cifre**: under *Proces og visning* vælger du **7-segment** eller **11-segment** og et antal **cifre (1–16)** og trykker *Indsæt*. 7-segment viser tal; 11-segment viser også de fleste store bogstaver. Bibliotekets faste displays har 4 cifre. Sæt displayet op med guiden (se *Segment-display* i *Symboler og guiden*).
 
 **Omskifter med egne positioner**: under *Betjening* kan du skrive positionernes navne (2–8, adskilt med komma, fx *Hånd, 0, Auto*) og indsætte en omskifter med lige det antal positioner.

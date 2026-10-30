@@ -241,6 +241,24 @@ if (lockedSel) {
 const crop = (name, id, pad) => shot(name, async () => { await go(`overview/${startDrawing}`, 'svg'); await page.mouse.move(5, 750); await settle(2500); }, { locator: `#${id}`, pad, minY: 100 });
 await crop('eksempel-pumpe', 'svg_101', 60);
 await crop('eksempel-tank', 'svg_9', 55);
+// 06 — segment-displayet i Symboltest (simuleret værdi; intet gemmes) og indsat i Tegn (kun i browseren)
+await shot('display-symboltest', async () => {
+  await go('symboltest', '.tile');
+  await page.locator('.tile', { hasText: '11-segment display' }).first().click();
+  await settle(800);
+  await page.locator('.card select').first().selectOption('num');
+  await page.locator('.card input[type=range]').first().evaluate((e) => { e.value = '73'; e.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.locator('input[type=range]').first().evaluate((e) => { e.value = e.max; e.dispatchEvent(new Event('input', { bubbles: true })); });
+  await settle(800);
+}, { clip: { x: 460, y: 130, width: 700, height: 480 } });
+await shot('tegn-display', async () => {
+  await go(`draw/${startDrawing}`, 'iframe');
+  await settle(3500);
+  const panel = page.locator('details:has(> summary:has-text("Proces og visning"))');
+  await panel.locator('select[aria-label="Type"]').selectOption('11');
+  await panel.locator('input[aria-label="Antal cifre"]').fill('8');
+  await panel.scrollIntoViewIfNeeded();
+}, { locator: 'details:has(> summary:has-text("Proces og visning")) .selector-cfg' });
 await shot('trends-analyse', async () => {
   await go('trends', 'text=15 min');
   await page.getByRole('button', { name: '1 time' }).click();

@@ -154,6 +154,8 @@ Tal-animationerne — *Niveau*, *Gennemsigtighed*, *Størrelse*, *Drej* og *Flyt
 
 ### Segment-display
 
+![Et 11-segment display i Symboltest: tallet 73 vist på de to højre cifre, de øvrige segmenter står slukket](/manual/display-symboltest.png)
+
 Et **7-segment display** eller **11-segment display** (kategorien *Proces og visning*, eller *Display med egne cifre* i Tegn: 1–16 cifre) viser et tal-tag som lysende segmenter. Vælg **Kun passiv visning** i trin 1; guiden foreslår én animation, **Segmenter**, på *Hele symbolet*. I trin 4 vælger du **tallet** (et tal-tag) og:
 
 - **Decimaler** og **Beregning** (fx `x / 10`) — som under *Værdi*. Tagets egne decimaler bruges, hvis du lader feltet stå tomt.
