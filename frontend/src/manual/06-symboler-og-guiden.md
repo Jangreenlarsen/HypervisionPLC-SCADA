@@ -106,6 +106,8 @@ I trin 5 kan du vælge de **positioner**, der kræver en **kode** (4 cifre). Ope
 
 På tegningen står en lille **hængelås** ud for teksten for hver låst position (fx ved *Auto* på en omskifter), og i betjeningsdialogen står 🔒 ved de låste positioner. Hængelåsen ved teksten kommer kun, når symbolet har en tekst med præcis positionens navn.
 
+![Omskifter på Overview: position 4 er låst og har en lille hængelås ved teksten; den stiplede ramme og "PLC: Fra" viser, at PLC'en står i en anden position](/manual/drift-laas.png)
+
 ## Hurtig opsætning: 3-vejs ventil
 
 ![Hurtig opsætning af en 3-vejs ventil: vælg til/fra-tagget og tryk Opret animationer](/manual/guide-hurtig.png)

@@ -60,8 +60,8 @@ const shot = async (name, fn, opts = {}) => {
       await page.screenshot({ path, clip: { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, opts.top.height) }, fullPage: true });
     } else if (opts.locator && opts.pad) {   // elementet med luft omkring (fx ét symbol på tegningen)
       const b = await page.locator(opts.locator).first().boundingBox();
-      const x = Math.max(0, b.x - opts.pad), y = Math.max(0, b.y - opts.pad);
-      await page.screenshot({ path, clip: { x, y, width: b.width + 2 * opts.pad, height: b.height + 2 * opts.pad } });
+      const x = Math.max(0, b.x - opts.pad), y = Math.max(opts.minY ?? 0, b.y - opts.pad);
+      await page.screenshot({ path, clip: { x, y, width: b.width + 2 * opts.pad, height: b.y + b.height + opts.pad - y } });
     } else if (opts.locator) await page.locator(opts.locator).first().screenshot({ path });
     else await page.screenshot({ path, clip: opts.clip });
     results.push([name, 'ok']);
@@ -194,6 +194,27 @@ if (!ONLY || ONLY.has('login')) {
     console.log(`FEJL login: ${e.message.split('\n')[0]}`);
   }
   await anon.close();
+}
+// 02 — drift: nøglelåsens hængelås på tegningen (omskifteren på starttegningen; zoomet ind, så den kan ses)
+if (startDrawing) {
+  const lockedOn = async () => {
+    for (const sy of await api(`/api/drawings/${startDrawing}/symbols`)) {
+      const c = (await api(`/api/drawings/${startDrawing}/symbols/${sy.element}/config`)).config;
+      if (c?.lock?.positions?.some(Boolean)) return sy.element;
+    }
+    return null;
+  };
+  const lockedEl = await lockedOn();
+  if (lockedEl) await shot('drift-laas', async () => {
+    await go(`overview/${startDrawing}`, 'svg');
+    await settle(2500);
+    // Hjulet zoomer om markøren: symbolet bliver stående, hvor det er, og bliver ca. 2 × større (kun visningen ændres)
+    const b0 = await page.locator(`#${lockedEl}`).first().boundingBox();
+    await page.mouse.move(b0.x + b0.width / 2, b0.y + b0.height / 2);
+    for (let i = 0; i < 3; i++) { await page.mouse.wheel(0, -100); await settle(300); }
+    await page.mouse.move(5, 750);
+    await settle(1500);
+  }, { locator: `#${lockedEl}`, pad: 45, minY: 100 });
 }
 // 02 — drift: betjeningsdialogen for en omskifter med nøglelås (skrivninger er blokeret ovenfor)
 if (lockedSel) {
