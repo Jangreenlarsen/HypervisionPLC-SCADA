@@ -82,7 +82,7 @@ export function shortcutFor(e: { key: string; ctrlKey: boolean; metaKey: boolean
   if (k === 'Delete' || k === 'Backspace') return 'delete';
   if (k === 'Escape') return 'escape';
   if (k.startsWith('Arrow')) return `nudge${k.slice(5)}${e.shiftKey ? '10' : '1'}`;
-  const tools: Record<string, string> = { v: 'select', l: 'line', r: 'rect', e: 'ellipse', p: 'path', t: 'text', f: 'fhpath' };
+  const tools: Record<string, string> = { v: 'select', o: 'pipe', l: 'line', r: 'rect', e: 'ellipse', p: 'path', t: 'text', f: 'fhpath' };
   return !e.shiftKey && tools[k] ? `tool:${tools[k]}` : null;
 }
 
@@ -137,6 +137,7 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
     // markeringsrammerne og gitteret følger zoomen (det gjorde SVG-Edit-appen i zoomDone)
     for (const el of canvas.getSelectedElements() || []) if (el) canvas.selectorManager.requestSelector(el).resize();
     api?.redrawGrid?.();
+    api?.redrawPipes?.();
     hooks.onZoom?.(zoom);
   }
 
@@ -159,8 +160,10 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
   });
   canvas.bind('selected', () => hooks.onHistory?.());
 
+  // 'pipe' er vores eget værktøj (scada-core): lærredet står i Vælg, og værktøjet tager musen
   const setMode = (mode: string): void => {
-    canvas.setMode(mode);
+    canvas.setMode(mode === 'pipe' ? 'select' : mode);
+    api?.setPipeTool?.(mode === 'pipe');
     hooks.onMode?.(mode);
   };
 

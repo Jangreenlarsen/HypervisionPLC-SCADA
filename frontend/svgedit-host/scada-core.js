@@ -7,6 +7,7 @@ import {
 import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
 import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
+import { PIPE_STYLE, connect, formatRef, fromFrac, moveEnd, nearest, orthoLeg, parseRef, pathD, portsFrom, simplify, toFrac } from './pipes.js';
 
 /**
  * @param {{ canvas(): any, loadFromString(svg: string): unknown, updateCanvas(): void, gridHost(): HTMLElement | null,
@@ -316,6 +317,7 @@ export function createScada(host) {
   function hookEvents() {
     const c = canvas();
     host.decorate?.();
+    hookPipeFollow();
     if (typeof c.setMode === 'function' && !c.__hvMode) {
       const setMode = c.setMode.bind(c);
       c.setMode = (mode) => { const r = setMode(mode); if (modeListener) modeListener(String(mode)); return r; };
@@ -374,6 +376,10 @@ export function createScada(host) {
    * forbliver unikke (BUGS.md v0.63.0). Kopien hører til samme fortryd-trin som indsætningen, så navnet fortrydes med den.
    */
   function renameCopies() {
+    for (const el of selectedEls()) for (const e of [el, ...el.querySelectorAll('[data-hv-pipe]')]) {
+      e.removeAttribute('data-hv-from');
+      e.removeAttribute('data-hv-to');
+    }
     const root = canvas().getSvgContent();
     const copies = selectedEls().flatMap((el) => [el, ...el.querySelectorAll('[data-hv-name]')]).filter((el) => el.getAttribute('data-hv-name'));
     if (!copies.length) return;
@@ -578,6 +584,272 @@ export function createScada(host) {
   }
 
 
+
+  // ---------------------------------------------------------------- rør (PLAN.md trin 4)
+  // Et rør er en <path data-hv-pipe> med vandrette/lodrette stykker. Enderne kan sidde fast i et symbols
+  // tilslutningspunkt (data-hv-from/-to, se pipes.js); når symbolet flyttes, følger røret med i samme fortryd-trin.
+  const NS = 'http://www.w3.org/2000/svg';
+  const isPipe = (el) => el?.hasAttribute?.('data-hv-pipe');
+  const toPoint = (m, v) => [m.a * v[0] + m.c * v[1] + m.e, m.b * v[0] + m.d * v[1] + m.f];
+
+  /** Hjørnepunkter af formens streger, i `el`s egne koordinater. */
+  function localVertices(el) {
+    const base = toDocMatrix(el);
+    const inv = invertMatrix(base);
+    if (!inv) return [];
+    const out = [];
+    for (const e of [el, ...el.querySelectorAll('path, line, polyline, polygon, rect')]) {
+      const tag = e.tagName.toLowerCase();
+      let vs = [];
+      const n = (a) => Number(e.getAttribute(a)) || 0;
+      if (tag === 'path') vs = pathVertices(e.getAttribute('d')) || [];
+      else if (tag === 'line') vs = [[n('x1'), n('y1')], [n('x2'), n('y2')]];
+      else if (tag === 'polyline' || tag === 'polygon') vs = (e.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number).reduce((a, v, i, all) => (i % 2 ? a : [...a, [v, all[i + 1]]]), []);
+      else if (tag === 'rect') { const x = n('x'), y = n('y'), w = n('width'), h = n('height'); vs = [[x, y + h / 2], [x + w, y + h / 2], [x + w / 2, y], [x + w / 2, y + h]]; }
+      else continue;
+      const m = e === el ? identityMatrix() : multiplyMatrix(inv, toDocMatrix(e));
+      for (const v of vs) if (Number.isFinite(v[0]) && Number.isFinite(v[1])) out.push(toPoint(m, v));
+    }
+    return out;
+  }
+
+  /** Symbolets tilslutningspunkter: [{ local, doc, axis }] — axis = retningen et rør bør starte i ('h' fra en sidekant). */
+  function portsOf(el) {
+    let bb;
+    try { bb = el.getBBox(); } catch { return []; }
+    if (!(bb.width > 0 || bb.height > 0)) return [];
+    const box = { x: bb.x, y: bb.y, w: bb.width, h: bb.height };
+    const m = toDocMatrix(el);
+    return portsFrom(localVertices(el), box).map((local) => {
+      const side = Math.abs(local[0] - box.x) < 1.5 || Math.abs(local[0] - box.x - box.w) < 1.5;
+      const doc = toPoint(m, local);
+      // drejet 90°: siden vender den anden vej
+      const turned = Math.abs(m.b) > Math.abs(m.a);
+      return { local, frac: toFrac(local, box), doc, axis: side !== turned ? 'h' : 'v' };
+    });
+  }
+
+  /** Elementer et rør kan tilsluttes: øverste niveau i lagene, ikke rør, ikke baggrunden. */
+  function pipeTargets() {
+    const content = canvas().getSvgContent();
+    return [...content.querySelectorAll('g.layer > *')].filter((el) =>
+      el.id && el.id !== 'baggrund' && !isPipe(el) && !RESERVED.has(el.tagName.toLowerCase()) && el.getAttribute('display') !== 'none');
+  }
+
+  function pipePoints(el) {
+    return (pathVertices(el.getAttribute('d')) || []).map(([x, y]) => [x, y]);
+  }
+
+  /** Hvor rørets ende skal være nu (tegningens koordinater), eller null hvis den ikke sidder fast. */
+  function endTarget(el, attr) {
+    const ref = parseRef(el.getAttribute(attr));
+    if (!ref) return null;
+    const sym = canvas().getSvgContent().querySelector(`[id="${CSS.escape(ref.id)}"]`);
+    if (!sym) return null;   // symbolet er slettet: enden bliver hvor den er
+    let bb;
+    try { bb = sym.getBBox(); } catch { return null; }
+    return toPoint(toDocMatrix(sym), fromFrac(ref.local, { x: bb.x, y: bb.y, w: bb.width, h: bb.height }));
+  }
+
+  /**
+   * Lad rørene følge deres symboler. `moved` = elementerne i den ændring, der netop er sket: et rør der selv blev
+   * flyttet (uden sit symbol) slippes fra symbolet i stedet. Giver ændringerne som ét fortryd-trin (eller null).
+   */
+  function followPipes(moved) {
+    const c = canvas();
+    const pipes = [...c.getSvgContent().querySelectorAll('[data-hv-pipe]')].filter((el) => el.hasAttribute('data-hv-from') || el.hasAttribute('data-hv-to'));
+    if (!pipes.length) return null;
+    const batch = new c.history.BatchCommand('Rør følger med');
+    const movedSet = new Set(moved);
+    for (const el of pipes) {
+      const before = { d: el.getAttribute('d'), 'data-hv-from': el.getAttribute('data-hv-from'), 'data-hv-to': el.getAttribute('data-hv-to'), transform: el.getAttribute('transform') };
+      if (movedSet.has(el)) {
+        // røret selv er ændret: en ende der ikke længere ligger på sit symbol (røret er flyttet væk) slippes;
+        // fx en ny farve rører ikke enderne, så røret bliver siddende
+        const pts = pipePoints(el);
+        const ends = { 'data-hv-from': pts[0], 'data-hv-to': pts[pts.length - 1] };
+        for (const attr of ['data-hv-from', 'data-hv-to']) {
+          const target = endTarget(el, attr);
+          const end = ends[attr];
+          if (target && end && Math.hypot(target[0] - end[0], target[1] - end[1]) > 0.5) el.removeAttribute(attr);
+        }
+      } else {
+        if (el.getAttribute('transform')) continue;   // et transformeret rør (sjældent): rør det ikke
+        let pts = pipePoints(el);
+        if (pts.length < 2) continue;
+        const from = endTarget(el, 'data-hv-from');
+        const to = endTarget(el, 'data-hv-to');
+        const off = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) > 0.01;
+        if (from && off(from, pts[0])) pts = moveEnd(pts, 'start', from);
+        if (to && off(to, pts[pts.length - 1])) pts = moveEnd(pts, 'end', to);
+        const d = pathD(pts);
+        if (d !== el.getAttribute('d')) el.setAttribute('d', d);
+      }
+      const changed = Object.entries(before).some(([k, v]) => el.getAttribute(k) !== v);
+      if (changed) batch.addSubCommand(new c.history.ChangeElementCommand(el, before));
+    }
+    return batch.isEmpty() ? null : batch;
+  }
+
+  /** Hver ny ændring i fortryd-historikken: rørene følger med i samme trin. */
+  function hookPipeFollow() {
+    const c = canvas();
+    const um = c.undoMgr;
+    if (!um || um.__hvPipes) return;
+    const add = um.addCommandToHistory.bind(um);
+    let busy = false;
+    um.addCommandToHistory = (cmd) => {
+      if (busy) return add(cmd);
+      busy = true;
+      try {
+        let extra = null;
+        try { extra = followPipes(cmd?.elements?.() ?? []); } catch (e) { console.warn('Rør kunne ikke følge med', e); }
+        if (!extra) return add(cmd);
+        const batch = new c.history.BatchCommand(cmd.text ?? 'Ændring');
+        batch.addSubCommand(cmd);
+        batch.addSubCommand(extra);
+        return add(batch);
+      } finally {
+        busy = false;
+      }
+    };
+    um.__hvPipes = true;
+  }
+
+  // ---- værktøjet: klik punkter, klik på et tilslutningspunkt (eller dobbeltklik/Enter) for at slutte, Escape fortryder
+  const pipeTool = { on: false, pts: [], from: null, fromAxis: null, cursor: null, hover: null, ports: [], overlay: null, life: null };
+
+  function docPoint(e) {
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(canvas().getrootSctm());
+    return [p.x, p.y];
+  }
+  function snapPipePoint(raw) {
+    const tol = 12 / (canvas().getZoom() || 1);
+    const port = nearest(pipeTool.ports.map((q) => q.doc), raw, tol);
+    if (port) return { p: port, port: pipeTool.ports.find((q) => q.doc === port) };
+    if (guides.snapGrid) return { p: [Math.round(raw[0] / guides.step) * guides.step, Math.round(raw[1] / guides.step) * guides.step], port: null };
+    return { p: raw, port: null };
+  }
+  /** Stykket hen til p. Fra et tilslutningspunkt går røret ud i punktets retning; ind i et punkt rammer det i punktets retning. */
+  function legTo(p, port = null) {
+    const pts = pipeTool.pts;
+    const last = pts[pts.length - 1];
+    return connect(last, p, pts.length === 1 ? pipeTool.fromAxis ?? undefined : undefined, port?.axis);
+  }
+
+  function drawPipeOverlay() {
+    const gridHost = host.gridHost();
+    const content = canvas()?.getSvgContent?.();
+    if (!gridHost || !content) return;
+    let layer = pipeTool.overlay;
+    if (!pipeTool.on) { layer?.remove(); pipeTool.overlay = null; return; }
+    if (!layer) {
+      layer = document.createElementNS(NS, 'svg');
+      layer.setAttribute('id', 'hvPipeOverlay');
+      layer.style.cssText = 'position:absolute; pointer-events:none; z-index:55; overflow:visible;';
+      gridHost.appendChild(layer);
+      pipeTool.overlay = layer;
+    }
+    const hr = gridHost.getBoundingClientRect();
+    const cr = contentRect(content);
+    const vb = (content.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    layer.style.left = `${cr.left - hr.left + gridHost.scrollLeft}px`;
+    layer.style.top = `${cr.top - hr.top + gridHost.scrollTop}px`;
+    layer.setAttribute('width', cr.width);
+    layer.setAttribute('height', cr.height);
+    if (vb.length === 4) layer.setAttribute('viewBox', vb.join(' '));
+    const z = canvas().getZoom() || 1;
+    const r = 4 / z;
+    const dots = pipeTool.ports.map((q) => {
+      const hot = pipeTool.hover && q.doc === pipeTool.hover.doc;
+      return `<circle cx="${q.doc[0]}" cy="${q.doc[1]}" r="${hot ? r * 1.8 : r}" fill="${hot ? '#2e7d32' : '#fff'}" stroke="#2e7d32" stroke-width="${1.5 / z}"/>`;
+    }).join('');
+    let preview = '';
+    if (pipeTool.pts.length) {
+      const pts = pipeTool.cursor ? simplify([...pipeTool.pts, ...legTo(pipeTool.cursor, pipeTool.hover).slice(1)]) : pipeTool.pts;
+      preview = `<path d="${pathD(pts)}" fill="none" stroke="${PIPE_STYLE.stroke}" stroke-opacity=".55" stroke-width="${PIPE_STYLE['stroke-width']}"/>` +
+        `<path d="${pathD(pts)}" fill="none" stroke="#2e7d32" stroke-width="${1.5 / z}" stroke-dasharray="${4 / z} ${3 / z}"/>`;
+    }
+    layer.innerHTML = preview + dots;
+  }
+
+  function finishPipe() {
+    const c = canvas();
+    const pts = simplify(pipeTool.pts);
+    const fromRef = pipeTool.from;
+    const toRef = pipeTool.to ?? null;
+    pipeTool.pts = [];
+    pipeTool.from = pipeTool.fromAxis = pipeTool.to = null;
+    if (pts.length >= 2) {
+      const el = document.createElementNS(NS, 'path');
+      el.setAttribute('id', c.getNextId());
+      for (const [k, v] of Object.entries(PIPE_STYLE)) el.setAttribute(k, v);
+      el.setAttribute('d', pathD(pts));
+      el.setAttribute('data-hv-pipe', '1');
+      if (fromRef) el.setAttribute('data-hv-from', fromRef);
+      if (toRef) el.setAttribute('data-hv-to', toRef);
+      // bag de symboler det forbinder (rør ligger under ventiler, pumper …)
+      const layer = c.getCurrentDrawing().getCurrentLayer();
+      const ends = [fromRef, toRef].map((r) => parseRef(r)?.id).filter(Boolean);
+      const first = [...layer.children].find((ch) => ends.includes(ch.id));
+      layer.insertBefore(el, first ?? null);
+      c.undoMgr.addCommandToHistory(new c.history.InsertElementCommand(el));
+      c.clearSelection();
+      c.addToSelection([el]);
+      if (changeListener) changeListener();
+    }
+    drawPipeOverlay();
+  }
+
+  function setPipeTool(on) {
+    if (on === pipeTool.on) return;
+    pipeTool.on = on;
+    pipeTool.life?.abort();
+    pipeTool.pts = [];
+    pipeTool.cursor = pipeTool.hover = null;
+    if (!on) { drawPipeOverlay(); return; }
+    if (modeListener) modeListener('pipe');
+    const c = canvas();
+    c.clearSelection();
+    // tilslutningspunkter: symbolets id skal kunne findes igen fra punktet
+    pipeTool.ports = pipeTargets().flatMap((el) => portsOf(el).map((q) => ({ ...q, id: el.id })));
+    const life = new AbortController();
+    pipeTool.life = life;
+    const area = host.gridHost();
+    const opts = { capture: true, signal: life.signal };
+    const swallow = (e) => { e.stopPropagation(); e.preventDefault(); };
+    area.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;   // midterknap: panorér som normalt
+      swallow(e);
+      const { p, port } = snapPipePoint(docPoint(e));
+      if (!pipeTool.pts.length) {
+        pipeTool.pts = [p];
+        pipeTool.from = port ? formatRef(port.id, port.frac) : null;
+        pipeTool.fromAxis = port?.axis ?? null;
+      } else if (e.detail >= 2) {
+        finishPipe();
+        return;
+      } else {
+        pipeTool.pts = simplify([...pipeTool.pts, ...legTo(p, port).slice(1)]);
+        if (port) { pipeTool.to = formatRef(port.id, port.frac); finishPipe(); return; }
+      }
+      drawPipeOverlay();
+    }, opts);
+    area.addEventListener('mousemove', (e) => {
+      const { p, port } = snapPipePoint(docPoint(e));
+      pipeTool.cursor = p;
+      pipeTool.hover = port;
+      drawPipeOverlay();
+    }, opts);
+    for (const t of ['mouseup', 'click', 'dblclick']) area.addEventListener(t, (e) => { if (e.button === 0) swallow(e); }, opts);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && pipeTool.pts.length) { pipeTool.pts = []; swallow(e); drawPipeOverlay(); }
+      else if (e.key === 'Enter' && pipeTool.pts.length) { swallow(e); finishPipe(); }
+      else if (e.key === 'Backspace' && pipeTool.pts.length) { pipeTool.pts = pipeTool.pts.slice(0, -1); swallow(e); drawPipeOverlay(); }
+    }, opts);
+    drawPipeOverlay();
+  }
+
   // ---------------------------------------------------------------- panelet i den nye editor: geometri, stil, orden
   const TEXTY = new Set(['text', 'tspan']);
   const num = (v, d = 0) => { const n = parseFloat(v); return Number.isFinite(n) ? n : d; };
@@ -682,6 +954,11 @@ export function createScada(host) {
   }
 
   const scada = {
+    /** Rør-værktøjet til/fra (den nye editor). Mens det er til, tager det musen fra lærredet. */
+    setPipeTool(on) { setPipeTool(!!on); },
+    /** Tegn rørværktøjets lag igen (efter zoom/rulning). */
+    redrawPipes() { if (pipeTool.on) drawPipeOverlay(); },
+
     /** Det markerede til panelet: samlet boks (tegningens koordinater), vinkel og stil for ét element. */
     inspect() {
       const sel = selectedEls();

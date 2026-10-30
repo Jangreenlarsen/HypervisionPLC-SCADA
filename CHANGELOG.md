@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.15.0 build 0276] — 2026-10-30 — Ny tegne-editor, trin 4: rør-værktøj
+
+- `frontend/svgedit-host/pipes.js` (ny): rene beregninger — vinkelret ruteføring (`orthoLeg`, `connect`), ende-flytning der holder røret vinkelret (`moveEnd`), tilslutningspunkter (`portsFrom`), referencer som brøkdel af symbolets boks.
+- `frontend/svgedit-host/scada-core.js`: rør-værktøj (`setPipeTool`) med tilslutningspunkter og forhåndsvisning; rør følger deres symboler i samme fortryd-trin (hægtet på fortryd-historikken, virker også i den gamle editor); kopier af rør slipper symbolerne; nye rør lægges bag de symboler, de forbinder.
+- `frontend/src/lib/draw/engine.ts`, `DrawCanvas.svelte`: værktøjet *Rør* (tast O) i værktøjslinjen. `src/lib/toolHints.ts`: hjælpetekst.
+- Tests: `src/lib/pipes.test.ts` (ny), backend `test_svg_sanitize.py` (rørets data-hv-attributter overlever gem).
+
 ## [2.14.0 build 0275] — 2026-10-30 — Ny tegne-editor, trin 2–3: panel, svævende linje, højreklikmenu
 
 - `frontend/svgedit-host/edit.js` (ny): rene beregninger til panelet (`boxMapping`, `editBox`, `distribute`).

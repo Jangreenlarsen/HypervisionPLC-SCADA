@@ -7,6 +7,7 @@ const ESC = 'Esc = tilbage til Vælg';
 
 export const TOOL_HINTS: Record<string, ToolHint> = {
   select: { name: 'Vælg og flyt', how: 'Klik for at vælge · træk for at flytte · træk i et hjørne for at ændre størrelsen · Shift+klik eller en ramme vælger flere · piletaster flytter lidt' },
+  pipe: { name: 'Rør', how: `Klik for start og knæk — røret går altid vandret/lodret · start eller slut på en grøn prik, så følger røret symbolet · dobbeltklik eller Enter slutter · Backspace fjerner sidste knæk · ${ESC}` },
   zoom: { name: 'Zoom', how: `Træk en ramme om det, du vil se tættere på · Ctrl + musehjul zoomer også · ${ESC}` },
   'ext-panning': { name: 'Flyt udsnittet', how: 'Træk for at flytte det, du ser — tegningen ændres ikke · hold mellemrum nede for at gøre det fra et andet værktøj' },
   fhpath: { name: 'Frihåndstegning', how: `Hold museknappen nede og tegn · ${ESC}` },

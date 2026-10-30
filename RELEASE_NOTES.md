@@ -2,6 +2,11 @@
 
 ---
 
+## v2.15.0 — 2026-10-30 — Ny tegne-editor: rør-værktøj (prøveversion)
+
+- Den nye tegne-editor (`?editor=ny`) har værktøjet **Rør** (tast O). Klik for start og knæk; røret går altid vandret eller lodret. Grønne prikker viser symbolernes tilslutningspunkter. Starter eller slutter røret på en prik, følger det med, når symbolet flyttes, ændrer størrelse eller drejes. Dobbeltklik eller Enter slutter røret, Backspace fjerner sidste knæk, og Esc går tilbage til Vælg.
+- Nye rør lægges bag de symboler, de forbinder. Røret kan få løbelys som andre elementer: giv det et navn og sæt det op i guiden.
+
 ## v2.14.0 — 2026-10-30 — Ny tegne-editor: panel, knaplinje og højreklikmenu (prøveversion)
 
 - I den nye tegne-editor (`?editor=ny`) viser panelet **Egenskaber** placering og størrelse (X, Y, B, H), drejning, hjørner, fyld, streg, tykkelse, synlighed og skrift for det markerede. Skriv en værdi og tryk Enter. Ctrl+Z fortryder.

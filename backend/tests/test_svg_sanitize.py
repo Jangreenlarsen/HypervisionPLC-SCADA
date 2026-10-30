@@ -137,3 +137,18 @@ def test_identifiers_with_trailing_newline_are_rejected():
     from app.storage.files import _SAFE_ID
     for rx, ok in ((TAG_NAME_RE, "Tank"), (USERNAME_RE, "jan"), (PLC_KEY_RE, "plc1"), (_SAFE_ID, "anlaeg-a")):
         assert rx.match(ok) and not rx.match(ok + "\n")
+
+
+def test_pipe_connections_survive():
+    """Rør fra Tegns rør-værktøj: forbindelserne til symbolerne (data-hv-pipe/-from/-to) skal overleve gem (PLAN.md trin 4)."""
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><g class="layer">'
+        '<path id="svg_3" d="M10 50 L100 50 L100 80" fill="none" stroke="#555" stroke-width="10" '
+        'data-hv-pipe="1" data-hv-from="ventil_1@1,0.5" data-hv-to="pumpe@0,0.5"/>'
+        '<rect id="ventil_1" x="0" y="40" width="10" height="20"/></g></svg>'
+    )
+    out = sanitize_svg(svg.encode())
+    assert 'data-hv-pipe="1"' in out.svg
+    assert 'data-hv-from="ventil_1@1,0.5"' in out.svg
+    assert 'data-hv-to="pumpe@0,0.5"' in out.svg
+    assert not out.removed_attributes
