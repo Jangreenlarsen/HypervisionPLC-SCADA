@@ -25,6 +25,7 @@
     "vitest": "^5.0.3"
   },
   "dependencies": {
+    "@svgedit/svgcanvas": "^7.4.2",
     "dompurify": "^3.4.16",
     "marked": "^18.1.1",
     "svgedit": "^7.4.2",

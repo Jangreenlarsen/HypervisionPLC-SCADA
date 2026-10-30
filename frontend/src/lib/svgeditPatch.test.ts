@@ -17,8 +17,10 @@ describe.skipIf(!existsSync(editor))('SVG-Edit-kopien (public/svgedit)', () => {
 
   it('værtssiden bruger vores gitter og fang-funktioner, ikke SVG-Edits eget gitter-udvidelse', () => {
     const js = readFileSync(host, 'utf-8');
-    expect(js).toMatch(/from '\.\/snap\.js\?v=\d+'/);   // versioneret adresse (cache-sikring, v0.63.2)
-    expect(js).toContain('setGuides');
+    expect(js).toMatch(/from '\.\/scada-core\.js\?v=\d+'/);   // versioneret adresse (cache-sikring, v0.63.2)
+    const core = readFileSync(join(process.cwd(), 'public', 'svgedit', 'scada-core.js'), 'utf-8');   // vores logik (delt med ny editor)
+    expect(core).toMatch(/from '\.\/snap\.js\?v=\d+'/);
+    expect(core).toContain('setGuides');
     expect(js).not.toContain("'ext-grid'");
     expect(existsSync(join(process.cwd(), 'public', 'svgedit', 'snap.js'))).toBe(true);
   });

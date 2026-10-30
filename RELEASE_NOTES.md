@@ -2,6 +2,11 @@
 
 ---
 
+## v2.13.0 — 2026-10-30 — Ny tegne-editor (prøveversion)
+
+- Første del af en ny tegne-editor i **Tegn**. Den kan prøves ved at åbne Tegn med `?editor=ny` i adressen, fx `https://<server>/?editor=ny#draw`. Den har en ny værktøjslinje til venstre og fortryd/zoom i bunden. Zoom med Ctrl + musehjul, og flyt udsnittet med mellemrum eller midterknappen. Den nuværende editor er stadig standard.
+- Rettet: **Vis gitter** dækker nu hele tegningen, også i tegninger uden en baggrund.
+
 ## v2.12.0 — 2026-10-30 — Tilstandsmærket kan slås fra
 
 - I symbol-guidens trin 4 kan du fjerne hakket ved **Vis tilstandsmærke**. Så vises mærket (✓, …, !, ?) ikke ved symbolet på Overview. Afvigelsen ("PLC: …") og hængelåsen vises stadig.

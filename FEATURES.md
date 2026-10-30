@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [ ] in-progress (v2.13.0 trin 1 af 6) — **Ny tegne-editor** (PLAN.md, option B): SVG-Edits motor (`@svgedit/svgcanvas`) direkte i Tegn uden iframe og uden SVG-Edits brugerflade; ny venstre værktøjsrail, statuslinje med fortryd/zoom, egen inspektør og rør-værktøj i senere trin. Trin 1: motor + delt kerne (`svgedit-host/scada-core.js`) bag `?editor=ny`.
 **Aftalt rækkefølge (Jan, 2026-10-08):** 1) Fase 4 tegne-editor (SVG-Edit, samme tag-dropdown som binding-editoren) → 2) Alarmer → 3) Trends. Raspberry Pi venter; testserver 10.1.1.31 bruges.
 
 ---

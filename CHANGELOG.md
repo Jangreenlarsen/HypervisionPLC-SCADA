@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.13.0 build 0274] — 2026-10-30 — Ny tegne-editor, trin 1: motor uden iframe (bag ?editor=ny)
+
+- `frontend/svgedit-host/scada-core.js` (ny): al vores egen Tegn-logik (gitter, fang, id'er, navne, symboler, `window.scada`-API'et) som `createScada(host)` — uafhængig af SVG-Edits brugerflade. `scada-editor.js` er nu kun SVG-Edit-adapteren.
+- `frontend/src/lib/draw/engine.ts` (ny): `@svgedit/svgcanvas` direkte i siden — rulleflade, zoom (Ctrl+hjul, trin, Tilpas), panorering (mellemrum/midterknap), tastatur (fortryd, kopiér/indsæt, dupliker, gruppér, slet, pile, værktøjstaster).
+- `frontend/src/lib/draw/DrawCanvas.svelte` (ny): venstre værktøjsrail + statuslinje. `pages/DrawEditor.svelte`: bruger den med `?editor=ny`; venter på tegningslisten før `#draw/<id>` åbnes.
+- Rettet: gitteret var forskudt i tegninger uden fuld baggrund (BUGS.md).
+- `frontend/package.json`: `@svgedit/svgcanvas` som direkte afhængighed (var allerede med via `svgedit`, MIT).
+- Tests: `src/lib/draw/engine.test.ts`, `svgeditPatch.test.ts` opdateret.
+
 ## [2.12.0 build 0273] — 2026-10-30 — Tilstandsmærket kan fravælges
 
 - `backend/app/services/symbols.py`: feltet `badge` (standard sand) på symbolopsætningen; `symbol_view` sender det.

@@ -1,3 +1,49 @@
+# Plan: ny tegne-editor — egen Svelte-UI på `@svgedit/svgcanvas` (option B, 2026-10-30)
+
+**Mål:** Tegn bliver et SCADA-værktøj i stedet for en generel illustrationseditor. Behold SVG-motoren (`@svgedit/svgcanvas` 7.4.2, MIT) og tegningsformatet; erstat SVG-Edits UI + iframe med egne Svelte-komponenter.
+
+**Beslutning:** B frem for A (flere udvidelser i SVG-Edit — vi kæmper fortsat mod dens UI og patcher minificeret kode) og C (maxGraph/Fabric — kræver konvertering, mister id'er/bindinger). Tegninger, id-regler og backend-rensning er uændrede → ingen migration.
+
+## Nyt layout (erstatter 3 værktøjslinjer: vores øverste, SVG-Edits top-kontekstlinje, SVG-Edits venstre)
+```
+┌ Topbar: Tegning ▾ (ny/åbn/version) · Gem kladde · Gem og udgiv │ Fortryd Gentag │ Størrelse │ Zoom − 100% + Tilpas ┐
+├──┬──────────────────────────────────────────────────────────────┬───────────────────────┤
+│▣ │                                                              │ Inspektør (faneblade) │
+│╱ │                       Lærred                                 │  Egenskaber: X Y B H ∠│
+│⌐ │                                                              │   fyld/streg/tekst    │
+│▭ │                                                              │  Binding: tag, guide  │
+│T │                                                              │  Lag / objekttræ      │
+│◇ │                                                              │                       │
+│⊞ │                                                              │                       │
+├──┴──────────────────────────────────────────────────────────────┴───────────────────────┤
+└ Statuslinje: x,y · gitter ☐ fang gitter ☐ fang objekter ☐ trin [10] · værktøjshjælp           ┘
+```
+- **Venstre værktøjsrail (SCADA-orienteret, få knapper, grupper med undermenu):** Vælg · Rør (ortogonal, Fase 3) · Linje/pil · Form ▸ (rektangel, ellipse, polygon, stjerne, fri) · Tekst · Symbol ▸ (bibliotek/favoritter, træk-og-slip) · Display/Omskifter · Panorér. Fjernes: pipette som værktøj (bliver knap i Inspektør), billede, SVG-Edits formbibliotek (talebobler m.m.).
+- **Topbar:** kun dokument-handlinger + fortryd/zoom. Ingen kontekst-felter dér.
+- **Markeringshandlinger** (justér, fordel, gruppér/opløs, frem/tilbage, dupliker, slet) vises som en flydende lille linje over markeringen + i højreklik-menu — ikke i topbaren.
+- **Inspektør til højre** samler: geometri, stil, tag-binding, symbolguide, id/navn — erstatter dagens højrepanel i DrawEditor.svelte.
+- Statuslinje: koordinater + hjælpelinje-indstillinger (i dag gemt i menu).
+
+## Trin
+1. **Motor uden UI** (største risiko): `lib/draw/engine.ts` initialiserer `SvgCanvas` direkte i en `<div>` (ingen iframe), wrapper events (selected/changed/zoomed) til Svelte-stores. Bevis: åbn, tegn rektangel, fortryd, gem → identisk SVG som i dag.
+2. **Flyt vores funktioner ind** fra `svgedit-host/scada-editor.js` (1138 linjer) som moduler: gitter/fang (`draw/guides.ts`), id-regler/renameCopies (`draw/ids.ts`), symbolindsættelse, normalize/settle. Tests for id- og fanglogik. Rotations-patchen i `copy-svgedit.mjs` erstattes af egen rotationshåndtering.
+3. **Nyt layout**: Topbar, ToolRail, Inspector, StatusBar, SelectionBar som Svelte-komponenter; dansk tekst direkte (ingen localize-hacks). Funktionsparitet med i dag.
+4. **Rør-værktøj**: forankringspunkter på symboler, ortogonal routing, rør følger symbolet ved flytning (gemmes som almindelig `<path>` + `data-`-attributter der overlever serverens rensning — tjek rensningen først).
+5. **Symbolpalet med træk-og-slip** + justér/fordel.
+6. Fjern `svgedit`-pakken, `copy-svgedit.mjs`, `svgedit-host/` og `public/svgedit` når 1–3 er verificeret.
+
+**Version (Jan, 2026-10-30):** når den nye editor er færdig og gjort til standard (trin 6), bumpes til **3.0.0**. Indtil da er hver fase en egen commit/version (MINOR), egen OTA-pakke, visuelt verificeret på 10.1.1.31. Fase 1–3 bag skifter (`?editor=ny`) indtil paritet, så Tegn aldrig er ubrugelig.
+
+## Berørte filer
+`frontend/src/pages/DrawEditor.svelte` (opdeles), ny `frontend/src/lib/draw/*`, `frontend/svgedit-host/*` (udfases), `frontend/scripts/copy-svgedit.mjs`, `frontend/package.json` (svgcanvas er allerede installeret; `svgedit` fjernes i trin 6), evt. backend SVG-rensning (trin 4), FEATURES.md, manual-billeder.
+
+## Risici
+- `svgcanvas` alene er dårligt dokumenteret; dele af værdien (stifelt-redigering, tekstredigering, kontekstmenu) ligger i SVG-Edit-UI'et → må genbygges. Trin 1 er proof-of-concept; holder den ikke, stop og vurdér igen.
+- Paritet: mange små opførsler i scada-editor.js (fang, id'er, guide-hooks) — liste dem op før trin 2 og tjek af én for én.
+- Manualens skærmbilleder skal tages om.
+
+---
+
 # Plan: passiv visning af positioner + 7-/11-segment display (2026-10-30)
 
 ## A. Kun passiv visning med positioner (fx 3-punkts omskifter der kun viser PLC'ens trin)

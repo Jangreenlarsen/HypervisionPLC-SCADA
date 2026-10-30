@@ -9,6 +9,7 @@
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
   import GroupBasis from '../lib/GroupBasis.svelte';
+  import DrawCanvas from '../lib/draw/DrawCanvas.svelte';
   import { BUNDLE } from '../lib/staleCheck';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
@@ -98,6 +99,10 @@
   let iframe: HTMLIFrameElement;
   let ed: ScadaApi | null = null;
 
+  // Ny tegne-editor (PLAN.md): SVG-Edits motor direkte i siden, uden iframe. Prøves med ?editor=ny, til den kan det samme.
+  const newEditor = new URLSearchParams(location.search).get('editor') === 'ny';
+  let editorHeight = $state(600);
+
   async function connect(): Promise<void> {
     const win = iframe.contentWindow as (Window & { scada?: ScadaApi }) | null;
     // Vent på at værtssiden har lavet window.scada
@@ -106,8 +111,16 @@
       error = 'Tegne-editoren kunne ikke indlæses';
       return;
     }
-    ed = win.scada;
-    if (ed.build !== BUNDLE.build) {
+    await attach(win.scada);
+  }
+
+  // Listen over tegninger skal være hentet, før #draw/<tegning> kan åbnes (den nye editor er klar før listen)
+  let drawingsLoaded: () => void = () => {};
+  const drawingsReady = new Promise<void>((r) => (drawingsLoaded = r));
+
+  async function attach(api: ScadaApi): Promise<void> {
+    ed = api;
+    if (!newEditor && ed.build !== BUNDLE.build) {
       // browseren har en gammel kopi af tegneeditoren — nye funktioner (fx navngivning ved indsæt) mangler i den
       error = `Tegneeditoren er en ældre version (build ${ed.build ?? 'ukendt'}, siden er build ${BUNDLE.build}). Genindlæs siden med Ctrl+F5.`;
     }
@@ -123,6 +136,7 @@
     // dublet-navne følges løbende (fx tilbage efter Ctrl+Z på "Giv dem unikke navne")
     ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); readSize(); });
     ready = true;
+    await drawingsReady;
     const [, fromRoute, wantSelector] = route.split('/');
     if (fromRoute && drawings.some((d) => d.id === fromRoute)) {
       await open(fromRoute);
@@ -719,10 +733,12 @@
   // Sidepanelet får samme højde som editoren, så symbolbiblioteket ruller for sig selv (v0.75.1); på smalle skærme
   // ligger panelet under tegningen og har sin naturlige højde.
   let aside: HTMLElement;
+  let frameBox: HTMLElement;
   const fitFrame = () => {
-    if (!iframe) return;
-    const h = Math.max(600, availableHeight(iframe) - 2);
-    iframe.style.height = `${h}px`;
+    if (!frameBox) return;
+    const h = Math.max(600, availableHeight(frameBox) - 2);
+    if (iframe) iframe.style.height = `${h}px`;
+    editorHeight = h;
     if (aside) aside.style.height = window.matchMedia('(max-width: 900px)').matches ? '' : `${h}px`;
   };
   let stopLayout: (() => void) | null = null;
@@ -737,6 +753,7 @@
     } catch (e) {
       error = (e as Error).message;
     }
+    drawingsLoaded();
   });
   onDestroy(() => {
     window.removeEventListener('beforeunload', onBeforeUnload);
@@ -829,7 +846,13 @@
 
 <p class="tool-hint small" aria-live="polite"><strong>{hint.name}:</strong> {hint.how}</p>
 <div class="layout">
-  <iframe bind:this={iframe} src="/svgedit/scada-editor.html?v={BUNDLE.build}" title="Tegne-editor" onload={connect}></iframe>
+  <div class="frame" bind:this={frameBox}>
+    {#if newEditor}
+      <DrawCanvas height={editorHeight} onready={(api) => attach(api as ScadaApi)} />
+    {:else}
+      <iframe bind:this={iframe} src="/svgedit/scada-editor.html?v={BUNDLE.build}" title="Tegne-editor" onload={connect}></iframe>
+    {/if}
+  </div>
 
   <aside bind:this={aside}>
     <section class="panel sel-panel">
@@ -1036,6 +1059,7 @@
     border-radius: var(--radius);
     background: #fff;
   }
+  .frame { min-width: 0; }
   aside { min-width: 0; }
   /* Sidepanelet har editorens højde (fitFrame): "Valgt element" efter behov (højst 55 %), symbolbiblioteket ruller for sig selv */
   @media (min-width: 901px) {
