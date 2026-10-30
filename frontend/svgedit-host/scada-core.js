@@ -6,6 +6,7 @@ import {
 } from './snap.js';
 import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
+import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
 
 /**
  * @param {{ canvas(): any, loadFromString(svg: string): unknown, updateCanvas(): void, gridHost(): HTMLElement | null,
@@ -576,7 +577,208 @@ export function createScada(host) {
     });
   }
 
+
+  // ---------------------------------------------------------------- panelet i den nye editor: geometri, stil, orden
+  const TEXTY = new Set(['text', 'tspan']);
+  const num = (v, d = 0) => { const n = parseFloat(v); return Number.isFinite(n) ? n : d; };
+
+  /** Fortryd: husk alle attributter på elementerne og deres efterkommere, så én ændring kan fortrydes samlet. */
+  function snapshot(els) {
+    const map = new Map();
+    for (const el of els) for (const e of [el, ...el.querySelectorAll('*')]) {
+      map.set(e, Object.fromEntries([...e.attributes].map((a) => [a.name, a.value])));
+    }
+    return map;
+  }
+  function commitSnapshot(map, label) {
+    const c = canvas();
+    const batch = new c.history.BatchCommand(label);
+    for (const [e, before] of map) {
+      const now = Object.fromEntries([...e.attributes].map((a) => [a.name, a.value]));
+      const old = {};
+      let changed = false;
+      for (const k of new Set([...Object.keys(before), ...Object.keys(now)])) {
+        if (before[k] !== now[k]) { old[k] = before[k] ?? null; changed = true; }
+      }
+      if (changed) batch.addSubCommand(new c.history.ChangeElementCommand(e, old));
+    }
+    if (batch.isEmpty()) return false;
+    c.undoMgr.addCommandToHistory(batch);
+    return true;
+  }
+  function afterEdit() {
+    const c = canvas();
+    for (const el of selectedEls()) c.selectorManager.requestSelector(el).resize();
+    rememberBoxes();
+    if (changeListener) changeListener();
+    if (selectionListener) selectionListener(currentSelection());
+  }
+
+  /**
+   * Afbild markeringens boks `from` over i `to` (tegningens koordinater) for ét element. Som når man trækker i et
+   * hjørne: translate/scale/translate sættes bagest på elementets transform, og lærredet regner det ind i elementets
+   * egne mål (x, width, punkter …) — så tegningen forbliver ren. Ligger elementet i en transformeret gruppe, bruges en
+   * samlet matrix i stedet (lærredet kan ikke forenkle den).
+   */
+  function applyBox(el, from, to) {
+    const c = canvas();
+    const root = c.getSvgRoot();
+    const parent = el.parentNode;
+    const p = parent && parent !== c.getSvgContent() ? toDocMatrix(parent) : identityMatrix();
+    const near = (v, w) => Math.abs(v - w) < 1e-6;   // toDocMatrix har små afrundingsrester
+    const plain = near(p.a, 1) && near(p.d, 1) && near(p.b, 0) && near(p.c, 0) && near(p.e, 0) && near(p.f, 0);
+    const tlist = el.transform?.baseVal;
+    const own = tlist?.consolidate ? (tlist.numberOfItems ? tlist.consolidate().matrix : null) : null;
+    const ownM = own ? { a: own.a, b: own.b, c: own.c, d: own.d, e: own.e, f: own.f } : identityMatrix();
+    if (own) {
+      // consolidate() har lagt listen sammen til én matrix — skriv den ud igen, så lærredet ser én transform
+      el.setAttribute('transform', `matrix(${[ownM.a, ownM.b, ownM.c, ownM.d, ownM.e, ownM.f].join(' ')})`);
+    }
+    const inv = invertMatrix(ownM);
+    if (plain && inv && near(ownM.b, 0) && near(ownM.c, 0)) {
+      const fromL = transformBox(from, inv);
+      const toL = transformBox(to, inv);
+      const sx = fromL.w > 0 ? toL.w / fromL.w : 1;
+      const sy = fromL.h > 0 ? toL.h / fromL.h : 1;
+      const back = root.createSVGTransform();
+      const scale = root.createSVGTransform();
+      const origin = root.createSVGTransform();
+      back.setTranslate(toL.x, toL.y);
+      scale.setScale(sx, sy);
+      origin.setTranslate(-fromL.x, -fromL.y);
+      const list = el.transform.baseVal;
+      list.appendItem(back);
+      list.appendItem(scale);
+      list.appendItem(origin);
+    } else {
+      const m = boxMapping(from, to);
+      const pInv = invertMatrix(p) ?? identityMatrix();
+      const local = multiplyMatrix(pInv, multiplyMatrix(m, multiplyMatrix(p, ownM)));
+      const r = (v) => Math.round(v * 1e4) / 1e4;
+      el.setAttribute('transform', `matrix(${[local.a, local.b, local.c, local.d, local.e, local.f].map(r).join(' ')})`);
+    }
+    try { c.recalculateDimensions(el); } catch { /* transformen bliver stående — tegningen ser stadig rigtig ud */ }
+  }
+
+  function moveDoc(el, dx, dy) {
+    if (!dx && !dy) return;
+    const b = boxOf(el);
+    applyBox(el, b, { ...b, x: b.x + dx, y: b.y + dy });
+  }
+
+  function paintOf(el) {
+    const cs = getComputedStyle(el);
+    const g = (a) => el.getAttribute(a) || cs.getPropertyValue(a) || '';
+    return {
+      fill: g('fill') || 'none',
+      stroke: g('stroke') || 'none',
+      strokeWidth: num(g('stroke-width'), 0),
+      opacity: num(el.getAttribute('opacity'), 1),
+      fontSize: TEXTY.has(el.tagName) ? num(g('font-size'), 16) : null,
+      fontFamily: TEXTY.has(el.tagName) ? (g('font-family') || 'sans-serif') : null,
+      bold: TEXTY.has(el.tagName) ? /bold|[6-9]00/.test(g('font-weight')) : null,
+      rx: el.tagName === 'rect' ? num(el.getAttribute('rx'), 0) : null,
+    };
+  }
+
   const scada = {
+    /** Det markerede til panelet: samlet boks (tegningens koordinater), vinkel og stil for ét element. */
+    inspect() {
+      const sel = selectedEls();
+      if (!sel.length) return null;
+      const box = unionBox(sel.map(boxOf));
+      if (!box) return null;
+      const one = sel.length === 1 ? sel[0] : null;
+      return {
+        count: sel.length,
+        tag: one ? one.tagName : null,
+        box: { x: round2(box.x), y: round2(box.y), w: round2(box.w), h: round2(box.h) },
+        angle: one ? round2(canvas().getRotationAngle(one) || 0) : 0,
+        paint: one && one.tagName !== 'g' ? paintOf(one) : null,
+      };
+    },
+
+    /** Sæt x, y, bredde eller højde på markeringen (som én enhed). Drejede elementer kan kun flyttes. */
+    setBox(field, value, keepRatio = false) {
+      const sel = selectedEls();
+      const from = unionBox(sel.map(boxOf));
+      if (!from) return { error: 'Intet valgt' };
+      const to = editBox(from, field, value, keepRatio);
+      if (!to) return { error: field === 'w' || field === 'h' ? 'Størrelsen skal være mindst 1' : 'Ugyldigt tal' };
+      if ((field === 'w' || field === 'h') && sel.some((el) => canvas().getRotationAngle(el))) {
+        return { error: 'Et drejet element kan ikke ændre størrelse her — træk i hjørnet, eller drej det til 0° først' };
+      }
+      const snap = snapshot(sel);
+      for (const el of sel) applyBox(el, from, to);
+      commitSnapshot(snap, `Panel: ${field}`);
+      afterEdit();
+      return { ok: true };
+    },
+
+    setAngle(deg) {
+      const v = Number(deg);
+      if (!Number.isFinite(v) || selectedEls().length !== 1) return { error: 'Vælg ét element' };
+      canvas().setRotationAngle(((v % 360) + 540) % 360 - 180);
+      afterEdit();
+      return { ok: true };
+    },
+
+    /** Stil på det markerede: fill, stroke, stroke-width, opacity, font-size, font-family, font-weight, rx. */
+    setStyle(attr, value) {
+      const sel = selectedEls();
+      if (!sel.length) return { error: 'Intet valgt' };
+      const allowed = new Set(['fill', 'stroke', 'stroke-width', 'opacity', 'font-size', 'font-family', 'font-weight', 'rx']);
+      if (!allowed.has(attr)) return { error: `Ukendt egenskab ${attr}` };
+      const snap = snapshot(sel);
+      for (const el of sel) {
+        if (value === null || value === '') el.removeAttribute(attr);
+        else {
+          el.setAttribute(attr, String(value));
+          if (attr === 'rx') el.setAttribute('ry', String(value));
+        }
+      }
+      commitSnapshot(snap, `Panel: ${attr}`);
+      afterEdit();
+      return { ok: true };
+    },
+
+    /** Justér: l, c, r (vandret), t, m, b (lodret) — i forhold til markeringen; ét element i forhold til tegningen. */
+    align(type) {
+      const sel = selectedEls();
+      if (!sel.length) return 0;
+      canvas().alignSelectedElements(type, sel.length === 1 ? 'page' : 'selected');
+      afterEdit();
+      return sel.length;
+    },
+
+    /** Fordel 3 eller flere med lige store mellemrum ('x' vandret, 'y' lodret). */
+    distribute(axis) {
+      const sel = selectedEls();
+      if (sel.length < 3) return 0;
+      const deltas = distributeBoxes(sel.map(boxOf), axis);
+      const snap = snapshot(sel);
+      sel.forEach((el, i) => (axis === 'x' ? moveDoc(el, deltas[i], 0) : moveDoc(el, 0, deltas[i])));
+      commitSnapshot(snap, 'Fordel');
+      afterEdit();
+      return sel.length;
+    },
+
+    /** Rækkefølge: 'top', 'bottom' (helt), 'up', 'down' (ét trin). */
+    order(where) {
+      const c = canvas();
+      if (!selectedEls().length) return;
+      if (where === 'top') c.moveToTopSelectedElement();
+      else if (where === 'bottom') c.moveToBottomSelectedElement();
+      else c.moveUpDownSelected(where === 'up' ? 'Up' : 'Down');
+      afterEdit();
+    },
+
+    flip(dir) {
+      if (!selectedEls().length) return;
+      canvas().flipSelectedElements(dir === 'h' ? -1 : 1, dir === 'v' ? -1 : 1);
+      afterEdit();
+    },
+
 
     ready: whenReady().then(hookEvents),
 

@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.14.0 build 0275] — 2026-10-30 — Ny tegne-editor, trin 2–3: panel, svævende linje, højreklikmenu
+
+- `frontend/svgedit-host/edit.js` (ny): rene beregninger til panelet (`boxMapping`, `editBox`, `distribute`).
+- `frontend/svgedit-host/scada-core.js`: `inspect`, `setBox`, `setAngle`, `setStyle`, `align`, `distribute`, `order`, `flip`. Størrelse/placering sættes med lærredets eget translate/scale/translate-mønster, så elementet får rene mål (x, width …) i stedet for en matrix; ét fortryd-trin pr. ændring.
+- `frontend/src/lib/draw/Inspector.svelte` (ny): panelet *Egenskaber*.
+- `frontend/src/lib/draw/DrawCanvas.svelte`: svævende linje til det markerede, højreklikmenu, tegnehjælp og hjælpetekst i statuslinjen.
+- `frontend/src/lib/draw/engine.ts`: `perform()` (fælles for taster, knapper og menu); drejning i 15°-trin og fri med Shift; piletaster flytter i tegningens enheder uanset zoom.
+- `frontend/src/pages/DrawEditor.svelte`: tegnehjælpen som snippet (egen linje i den gamle editor, statuslinjen i den nye); *Egenskaber* øverst i sidepanelet.
+- Tests: `src/lib/editMath.test.ts` (ny), `src/lib/draw/engine.test.ts` (drejning).
+
 ## [2.13.0 build 0274] — 2026-10-30 — Ny tegne-editor, trin 1: motor uden iframe (bag ?editor=ny)
 
 - `frontend/svgedit-host/scada-core.js` (ny): al vores egen Tegn-logik (gitter, fang, id'er, navne, symboler, `window.scada`-API'et) som `createScada(host)` — uafhængig af SVG-Edits brugerflade. `scada-editor.js` er nu kun SVG-Edit-adapteren.

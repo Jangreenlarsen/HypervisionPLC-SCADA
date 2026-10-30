@@ -10,6 +10,7 @@
   import { deleteDrawingFlow } from '../lib/drawingDelete';
   import GroupBasis from '../lib/GroupBasis.svelte';
   import DrawCanvas from '../lib/draw/DrawCanvas.svelte';
+  import Inspector, { type InspectApi } from '../lib/draw/Inspector.svelte';
   import { BUNDLE } from '../lib/staleCheck';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
@@ -102,6 +103,7 @@
   // Ny tegne-editor (PLAN.md): SVG-Edits motor direkte i siden, uden iframe. Prøves med ?editor=ny, til den kan det samme.
   const newEditor = new URLSearchParams(location.search).get('editor') === 'ny';
   let editorHeight = $state(600);
+  let inspectRev = $state(0);   // panelet Egenskaber læser markeringen igen, når tallet skifter
 
   async function connect(): Promise<void> {
     const win = iframe.contentWindow as (Window & { scada?: ScadaApi }) | null;
@@ -131,10 +133,11 @@
       idInput = sel.length === 1 ? sel[0].id : '';
       nameInput = sel.length === 1 ? sel[0].name ?? '' : '';
       void checkSelector();
+      inspectRev++;
     });
     ed.onMode((m) => (mode = m));   // hjælpelinjen under tegneområdet (v0.92.0)
     // dublet-navne følges løbende (fx tilbage efter Ctrl+Z på "Giv dem unikke navne")
-    ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); readSize(); });
+    ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); readSize(); inspectRev++; });
     ready = true;
     await drawingsReady;
     const [, fromRoute, wantSelector] = route.split('/');
@@ -815,8 +818,7 @@
   </div>
 {/if}
 
-<div class="row guides small" role="group" aria-label="Tegnehjælp">
-  <strong>Tegnehjælp</strong>
+{#snippet guidesUi()}
   <label class="opt"><input type="checkbox" bind:checked={guides.grid} /> Vis gitter</label>
   <label class="opt"><input type="checkbox" bind:checked={guides.snapGrid} /> Fang til gitter</label>
   <label class="opt">Gitterafstand
@@ -824,8 +826,15 @@
   </label>
   <label class="opt" title="Når du slipper et objekt, lægges det kant mod kant eller midte mod midte med nærmeste objekt, hvis det er tæt på"><input type="checkbox" bind:checked={guides.snapObjects} /> Fang til objekter</label>
   <label class="opt" title="Træk i et hjørne: bredde og højde ændres i samme forhold. Hold Shift nede for at skalere frit"><input type="checkbox" bind:checked={guides.keepRatio} /> Skalér symmetrisk</label>
-  <span class="muted">Rotation sker i 15°-trin — hold <kbd>Shift</kbd> nede for fri rotation</span>
-</div>
+{/snippet}
+
+{#if !newEditor}
+  <div class="row guides small" role="group" aria-label="Tegnehjælp">
+    <strong>Tegnehjælp</strong>
+    {@render guidesUi()}
+    <span class="muted">Rotation sker i 15°-trin — hold <kbd>Shift</kbd> nede for fri rotation</span>
+  </div>
+{/if}
 
 {#if error}<div class="error">{error}</div>{/if}
 {#if dupNames.length}
@@ -844,17 +853,19 @@
   </div>
 {/if}
 
-<p class="tool-hint small" aria-live="polite"><strong>{hint.name}:</strong> {hint.how}</p>
+{#if !newEditor}<p class="tool-hint small" aria-live="polite"><strong>{hint.name}:</strong> {hint.how}</p>{/if}
 <div class="layout">
   <div class="frame" bind:this={frameBox}>
     {#if newEditor}
-      <DrawCanvas height={editorHeight} onready={(api) => attach(api as ScadaApi)} />
+      <DrawCanvas height={editorHeight} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++}
+                  hint="{hint.name}: {hint.how} · Drejning i 15°-trin, Shift = fri" status={guidesUi} />
     {:else}
       <iframe bind:this={iframe} src="/svgedit/scada-editor.html?v={BUNDLE.build}" title="Tegne-editor" onload={connect}></iframe>
     {/if}
   </div>
 
   <aside bind:this={aside}>
+    {#if newEditor}<Inspector api={ready ? (ed as unknown as InspectApi) : null} rev={inspectRev} keepRatio={guides.keepRatio} />{/if}
     <section class="panel sel-panel">
       <h3>Valgt element</h3>
       {#if !single}

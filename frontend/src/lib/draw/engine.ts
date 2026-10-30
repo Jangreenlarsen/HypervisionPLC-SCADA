@@ -41,6 +41,9 @@ export interface Engine {
   /** Det samme API som den gamle værtsside lagde på `window.scada` (se ScadaApi i DrawEditor.svelte). */
   api: any;
   setMode(mode: string): void;
+  /** Handling fra knap/menu/tast: undo, redo, copy, cut, paste, duplicate, group, ungroup, delete, … */
+  perform(act: string): boolean;
+  selectionCount(): number;
   zoomTo(z: number, center?: { x: number; y: number }): void;
   zoomFit(): void;
   undo(): void;
@@ -48,6 +51,13 @@ export interface Engine {
   canUndo(): boolean;
   canRedo(): boolean;
   destroy(): void;
+}
+
+/** Drejevinkel fra musen: 15°-trin, fri med Shift; altid i -180..180 (som lærredet forventer). */
+export function rotationAngle(free: number, shift: boolean): number {
+  let a = ((free % 360) + 540) % 360 - 180;
+  if (!shift) a = Math.round(a / 15) * 15;
+  return a === 180 ? -180 : a;
 }
 
 /** Tastaturgenvej → handling. Ren funktion (testet), så tasterne er de samme overalt. */
@@ -81,7 +91,7 @@ export function shortcutFor(e: { key: string; ctrlKey: boolean; metaKey: boolean
  * `onMode` får det aktive værktøj, `onZoom` den aktuelle zoom, `onHistory` når fortryd/gentag kan have skiftet.
  */
 export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement, hooks: {
-  onMode?: (mode: string) => void; onZoom?: (zoom: number) => void; onHistory?: () => void;
+  onMode?: (mode: string) => void; onZoom?: (zoom: number) => void; onHistory?: () => void; onMessage?: (text: string) => void;
 } = {}): Engine {
   const host = document.createElement('div');
   host.className = 'svgcanvas';
@@ -154,6 +164,31 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
     hooks.onMode?.(mode);
   };
 
+  // Drejning med musen: 15°-trin, og Shift giver fri drejning (lærredet selv: fri, Shift = 45°). Lærredet kalder
+  // setRotationAngle(vinkel, true) for hver musebevægelse — vinklen regnes her igen ud fra musen og elementets midte.
+  const pointer = { x: 0, y: 0, shift: false };
+  const setRotation = canvas.setRotationAngle.bind(canvas);
+  canvas.setRotationAngle = (angle: number, preventUndo?: boolean) => {
+    const el = (canvas.getSelectedElements() || [])[0];
+    if (preventUndo && canvas.getMode() === 'rotate' && el) {
+      const free = freeAngle(el);
+      if (free !== null) angle = rotationAngle(free, pointer.shift);
+    }
+    return setRotation(angle, preventUndo);
+  };
+  function freeAngle(el: SVGGraphicsElement): number | null {
+    try {
+      const bb = el.getBBox();
+      const own = el.transform?.baseVal?.consolidate()?.matrix;
+      const c = new DOMPoint(bb.x + bb.width / 2, bb.y + bb.height / 2).matrixTransform(own ?? new DOMMatrix());
+      // samme regning som lærredet: skærm → tegning med rootSctm (allerede den omvendte matrix)
+      const p = new DOMPoint(pointer.x, pointer.y).matrixTransform(canvas.getrootSctm());
+      return Math.atan2(c.y - p.y, c.x - p.x) * (180 / Math.PI) - 90;
+    } catch {
+      return null;
+    }
+  }
+
   api = createScada({
     canvas: () => canvas,
     loadFromString: (svg: string) => {
@@ -178,36 +213,43 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
       return;
     }
     const act = shortcutFor(e);
-    if (!act) return;
+    if (act && perform(act)) e.preventDefault();
+  }
+
+  /** Udfør en handling (tast, knap eller højreklikmenu). Giver false, hvis der ikke var noget at gøre. */
+  function perform(act: string): boolean {
     const sel = (canvas.getSelectedElements() || []).filter(Boolean);
     const nudge = /^nudge(Up|Down|Left|Right)(\d+)$/.exec(act);
     if (nudge) {
-      if (!sel.length) return;
-      const d = Number(nudge[2]);
+      if (!sel.length) return false;
+      // flytningen er i tegningens enheder; lærredet regner i skærmpunkter (deler med zoom)
+      const d = Number(nudge[2]) * canvas.getZoom();
       const [dx, dy] = ({ Up: [0, -d], Down: [0, d], Left: [-d, 0], Right: [d, 0] } as Record<string, number[]>)[nudge[1]];
       canvas.moveSelectedElements(dx, dy);
     } else if (act.startsWith('tool:')) {
       setMode(act.slice(5));
     } else {
+      const needs = (n: number): boolean => sel.length >= n;
       switch (act) {
         case 'undo': canvas.undoMgr.undo(); break;
         case 'redo': canvas.undoMgr.redo(); break;
-        case 'copy': if (!sel.length) return; canvas.copySelectedElements(); break;
-        case 'cut': if (!sel.length) return; canvas.cutSelectedElements(); break;
+        case 'copy': if (!needs(1)) return false; canvas.copySelectedElements(); break;
+        case 'cut': if (!needs(1)) return false; canvas.cutSelectedElements(); break;
         case 'paste': canvas.pasteElements('in_place'); break;
-        case 'duplicate': if (!sel.length) return; canvas.cloneSelectedElements(20, 20); break;
+        case 'duplicate': if (!needs(1)) return false; canvas.cloneSelectedElements(20, 20); break;
         case 'selectAll': canvas.selectAllInCurrentLayer(); break;
-        case 'group': if (sel.length < 2) return; canvas.groupSelectedElements(); break;
-        case 'ungroup': if (!sel.length) return; canvas.ungroupSelectedElement(); break;
-        case 'delete': if (!sel.length) return; canvas.deleteSelectedElements(); break;
+        case 'group': if (!needs(2)) return false; canvas.groupSelectedElements(); break;
+        case 'ungroup': { if (!needs(1)) return false; const msg = api.ungroupSelected(); if (msg) hooks.onMessage?.(msg); break; }
+        case 'delete': if (!needs(1)) return false; canvas.deleteSelectedElements(); break;
         case 'escape': canvas.clearSelection(); setMode('select'); break;
         case 'zoomFit': zoomFit(); break;
         case 'zoomIn': zoomTo(zoomStep(canvas.getZoom(), 1)); break;
         case 'zoomOut': zoomTo(zoomStep(canvas.getZoom(), -1)); break;
+        default: return false;
       }
     }
     hooks.onHistory?.();
-    e.preventDefault();
+    return true;
   }
   // Ctrl + musehjul zoomer om musen; uden Ctrl ruller fladen som normalt
   function onWheel(e: WheelEvent): void {
@@ -246,7 +288,7 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
     workarea.scrollTop -= e.clientY - pan.y;
     pan = { x: e.clientX, y: e.clientY };
   };
-  const onUp = (): void => { pan = null; };
+  const onUp = (): void => { pan = null; setTimeout(() => hooks.onHistory?.(), 0); };
   const life = new AbortController();
   const o = { signal: life.signal };
   document.addEventListener('keydown', onKey, o);
@@ -255,6 +297,8 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
   workarea.addEventListener('wheel', onWheel, { signal: life.signal, passive: false });
   workarea.addEventListener('mousedown', onDown, { signal: life.signal, capture: true });
   document.addEventListener('mousemove', onMove, o);
+  // musens sidste placering og Shift til drejningen (før lærredet får bevægelsen)
+  document.addEventListener('mousemove', (e) => { pointer.x = e.clientX; pointer.y = e.clientY; pointer.shift = e.shiftKey; }, { signal: life.signal, capture: true });
   document.addEventListener('mouseup', onUp, o);
   const ro = new ResizeObserver(() => updateCanvas());
   ro.observe(workarea);
@@ -264,6 +308,8 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
     canvas,
     api,
     setMode,
+    perform,
+    selectionCount: () => (canvas.getSelectedElements() || []).filter(Boolean).length,
     zoomTo,
     zoomFit,
     undo: () => { canvas.undoMgr.undo(); hooks.onHistory?.(); },

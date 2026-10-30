@@ -55,3 +55,21 @@ describe('zoom', () => {
     expect(clampZoom(0)).toBe(ZOOM_MIN);
   });
 });
+
+describe('rotationAngle', async () => {
+  const { rotationAngle } = await import('./engine');
+  it('15°-trin uden Shift', () => {
+    expect(rotationAngle(22, false)).toBe(15);
+    expect(rotationAngle(23, false)).toBe(30);
+    expect(rotationAngle(-7, false)).toBeCloseTo(0);
+    expect(rotationAngle(-8, false)).toBe(-15);
+  });
+  it('fri med Shift', () => {
+    expect(rotationAngle(22.4, true)).toBeCloseTo(22.4);
+  });
+  it('holdes i -180..180', () => {
+    expect(rotationAngle(270, true)).toBe(-90);
+    expect(rotationAngle(-200, true)).toBe(160);
+    expect(rotationAngle(179, false)).toBe(-180);
+  });
+});

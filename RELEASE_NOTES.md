@@ -2,6 +2,13 @@
 
 ---
 
+## v2.14.0 — 2026-10-30 — Ny tegne-editor: panel, knaplinje og højreklikmenu (prøveversion)
+
+- I den nye tegne-editor (`?editor=ny`) viser panelet **Egenskaber** placering og størrelse (X, Y, B, H), drejning, hjørner, fyld, streg, tykkelse, synlighed og skrift for det markerede. Skriv en værdi og tryk Enter. Ctrl+Z fortryder.
+- Når noget er markeret, vises en knaplinje øverst på tegnefladen: justér, fordel, læg øverst/nederst, spejl, gruppér/opløs, dupliker og slet.
+- Højreklik giver en menu med klip, kopiér, indsæt, dupliker, gruppér, rækkefølge og slet.
+- Tegnehjælpen (gitter, fang) og hjælpeteksten står nu i bunden af tegnefladen. Drejning sker i 15°-trin, og med Shift drejes frit.
+
 ## v2.13.0 — 2026-10-30 — Ny tegne-editor (prøveversion)
 
 - Første del af en ny tegne-editor i **Tegn**. Den kan prøves ved at åbne Tegn med `?editor=ny` i adressen, fx `https://<server>/?editor=ny#draw`. Den har en ny værktøjslinje til venstre og fortryd/zoom i bunden. Zoom med Ctrl + musehjul, og flyt udsnittet med mellemrum eller midterknappen. Den nuværende editor er stadig standard.

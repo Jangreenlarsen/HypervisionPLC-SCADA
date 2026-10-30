@@ -25,6 +25,8 @@
 - Statuslinje: koordinater + hjælpelinje-indstillinger (i dag gemt i menu).
 
 ## Trin
+**Status 2026-10-30:** trin 1 (v2.13.0), trin 2 (delt kerne — gjort i trin 1) og trin 3 (v2.14.0: panel, svævende linje, højreklikmenu, statuslinje) er lavet. Mangler fra trin 3: lag/objekttræ og at topbaren samles (bruger stadig Tegns nuværende øverste linje). Næste: trin 4 (rør-værktøj).
+
 1. **Motor uden UI** (største risiko): `lib/draw/engine.ts` initialiserer `SvgCanvas` direkte i en `<div>` (ingen iframe), wrapper events (selected/changed/zoomed) til Svelte-stores. Bevis: åbn, tegn rektangel, fortryd, gem → identisk SVG som i dag.
 2. **Flyt vores funktioner ind** fra `svgedit-host/scada-editor.js` (1138 linjer) som moduler: gitter/fang (`draw/guides.ts`), id-regler/renameCopies (`draw/ids.ts`), symbolindsættelse, normalize/settle. Tests for id- og fanglogik. Rotations-patchen i `copy-svgedit.mjs` erstattes af egen rotationshåndtering.
 3. **Nyt layout**: Topbar, ToolRail, Inspector, StatusBar, SelectionBar som Svelte-komponenter; dansk tekst direkte (ingen localize-hacks). Funktionsparitet med i dag.
