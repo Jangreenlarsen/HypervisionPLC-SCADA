@@ -89,6 +89,8 @@ Står flere animationer på samme del, **vinder den nederste** (▲▼ ændrer r
 
 ### Preview ved animationerne
 
+![Preview ved animationerne: omskifteren tegnet lille, med en knap pr. position, Afspil og Nulstil](/manual/guide-preview.png)
+
 Ved siden af animationerne i trin 4 står et lille **preview** af symbolet. Det viser alle animationerne samtidig, præcis som på Overview (også aktiv/passiv og "gælder i positionerne"), og opdaterer sig, hver gang du ændrer noget.
 
 Under billedet er der en kontrol pr. kilde: **Fra / Til** for et til/fra-tag, en logikblok eller en alarm, en **skyder** for et tal-tag (området følger animationens Min/Max), og en **knap pr. position** for symbolets position. **Afspil** lader alle kilder løbe gennem deres værdier; **Nulstil** stiller dem tilbage. Animationer, der endnu ikke har en kilde, vises ikke, og preview'et siger, hvor mange der mangler.
