@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.11.0 build 0271] — 2026-10-30 — Gem og tegn omskifteren om (fra guiden)
+
+- `frontend/src/lib/SymbolGuide.svelte`: i trin 3 erstattes henvisningen til Tegn af knappen *Gem og tegn omskifteren om* (nyt prop `selectorRedraw`; `onsaved({ redraw })`).
+- `frontend/src/pages/DrawEditor.svelte`: guiden får `selectorRedraw="auto"` (Gem tegner allerede om); ny rute `#draw/<tegning>/<element>` vælger omskifteren og tegner den om (`redrawFromRoute`).
+- `frontend/src/pages/Editor.svelte`: *Gem og tegn omskifteren om i Tegn* gemmer og åbner Tegn med omskifteren valgt.
+- `frontend/src/manual/06-symboler-og-guiden.md`: beskrevet.
+
 ## [2.10.2 build 0270] — 2026-10-30 — Eksterne coils/registre genkendes som til/fra og tal
 
 - `frontend/src/lib/symbolConfig.ts`: `tagKind` finder typen rigtigt for `rtu` og `mbx` (og `coils`).

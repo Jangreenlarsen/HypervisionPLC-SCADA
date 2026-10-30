@@ -2,6 +2,10 @@
 
 ---
 
+## v2.11.0 — 2026-10-30 — Tegn omskifteren om fra guiden
+
+- Ændrer du antallet af positioner på en omskifter, har guidens trin 3 nu knappen **Gem og tegn omskifteren om**. Fra *Tegn* tegnes omskifteren om med de nye positioner med det samme; fra *Bindinger* åbnes Tegn, og omskifteren tegnes om dér. Grebets vinkler følger med.
+
 ## v2.10.2 — 2026-10-30 — Rettelse: eksterne coils og registre
 
 - Et tag fra et **expansion board** eller **RS485** blev behandlet som et tal i symbol-guiden og preview'et, også når det er en coil eller indgang. Nu vises det som Til/Fra. Preview'ets skyder bruger tagets min/max, hvis de er sat.

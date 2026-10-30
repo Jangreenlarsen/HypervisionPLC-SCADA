@@ -52,6 +52,9 @@ Skifter du tilbage til *Interaktiv betjening*, skal du vælge kommando-tags igen
 
 ## Positioner og kontaktplaner
 
+**Omskifterens tegning følger positionerne:** ændrer du antallet af positioner (eller navnene) på en omskifter, viser guiden i trin 3, at tegningen har andre positioner, og knappen **Gem og tegn omskifteren om**. Den gemmer opsætningen og tegner omskifteren om med de nye positioner, så navnene og grebets vinkler passer. Åbnede du guiden fra *Bindinger*, åbnes *Tegn* med omskifteren valgt, og den tegnes om dér; tegningen gemmes og udgives automatisk.
+
+
 ![Trin 3 for en omskifter med 8 positioner: kontaktplaner for fem signaler og de aktive signaler pr. position](/manual/guide-kontaktplan.png)
 
 **Omskifterens tegning følger positionerne:** giver du en omskifter fra biblioteket flere positioner (eller andre navne) i guiden, end der står rundt om grebet i tegningen, så vælg omskifteren i **Tegn** — der står *Tegningen viser 3 positioner …* med knappen **Tegn omskifteren med N positioner**. Den tegner omskifteren igen med guidens navne (samme navn, placering og opsætning), gemmer og udgiver tegningen (du bliver spurgt), og retter grebets vinkel pr. position, så det peger på navnene.
