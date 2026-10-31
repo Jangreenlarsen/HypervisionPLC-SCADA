@@ -73,3 +73,14 @@ describe('rotationAngle', async () => {
     expect(rotationAngle(179, false)).toBe(-180);
   });
 });
+
+describe('cycleNext (Alt+klik)', async () => {
+  const { cycleNext } = await import('./engine');
+  it('forreste først, så bagved, så forfra', () => {
+    expect(cycleNext(['a', 'b', 'c'], null)).toBe('a');
+    expect(cycleNext(['a', 'b', 'c'], 'a')).toBe('b');
+    expect(cycleNext(['a', 'b', 'c'], 'c')).toBe('a');
+    expect(cycleNext(['a', 'b'], 'x')).toBe('a');
+    expect(cycleNext([], 'a')).toBeNull();
+  });
+});

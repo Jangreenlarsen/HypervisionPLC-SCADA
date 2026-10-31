@@ -34,6 +34,8 @@ Skærmen er delt sådan:
 - **Højreklik** på tegnefladen giver klip, kopiér, indsæt, dupliker, gruppér, rækkefølge og slet.
 - **Panelet til højre** består af foldbare sektioner — klik på en overskrift for at folde den ud; de andre foldes så sammen, undtagen dem du har **fastgjort med 📌** (de står altid åbne; huskes i browseren). Fra start er *Valgt element* og *Egenskaber* fastgjort. Sektionerne: **Valgt element** (navn, guide, farver), **Egenskaber** (placering X/Y, størrelse B/H, drejning, hjørner, fyld, streg, tykkelse, synlighed og skrift — skriv en værdi og tryk Enter), **Objekter** (alle elementer, forrest øverst; klik vælger, også et element der ligger skjult under et andet; Ctrl-klik vælger flere; ▲▼ flytter frem/tilbage) og **Symboler** (biblioteket og grupper).
 
+**Symboler oven i hinanden:** hold **Alt** nede og klik — så vælges elementet, der ligger *bagved* det valgte på samme sted; klik igen med Alt for at gå et lag længere ned (efter det bagerste starter den forfra). Du kan også vælge elementet i **Objekter**.
+
 Alt kan fortrydes med **Ctrl+Z**. Andre taster: **Delete** sletter, **Ctrl+C/X/V** kopierer/klipper/indsætter, **Ctrl+D** duplikerer, **Ctrl+G** grupperer (Ctrl+Shift+G opløser), **Ctrl+A** vælger alt, piletasterne flytter 1 (med Shift 10), **Esc** går tilbage til Vælg.
 
 ### Rør

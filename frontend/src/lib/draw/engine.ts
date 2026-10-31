@@ -63,6 +63,16 @@ export function rotationAngle(free: number, shift: boolean): number {
 /** Shift-tilstanden lærredet skal se ved træk i et hjørne: med "Skalér symmetrisk" er betydningen vendt. */
 export const shouldKeepShift = (shift: boolean, keepRatio: boolean): boolean => (keepRatio ? !shift : shift);
 
+/**
+ * Alt+klik: det element, der skal vælges, blandt dem der ligger under musen (forrest først). Er det forreste allerede
+ * valgt, tages det næste bagved — og efter det bagerste starter den forfra.
+ */
+export function cycleNext<T>(stack: T[], current: T | null | undefined): T | null {
+  if (!stack.length) return null;
+  const i = current ? stack.indexOf(current) : -1;
+  return stack[(i + 1) % stack.length];
+}
+
 /** Tastaturgenvej → handling. Ren funktion (testet), så tasterne er de samme overalt. */
 export function shortcutFor(e: { key: string; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean; altKey: boolean }): string | null {
   const mod = e.ctrlKey || e.metaKey;
@@ -304,6 +314,26 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
   const onUp = (): void => { pan = null; setTimeout(() => hooks.onHistory?.(), 0); };
   const life = new AbortController();
   const o = { signal: life.signal };
+  // Alt+klik: vælg elementet BAGVED det valgte på samme sted (symboler, der ligger oven i hinanden — v3.9.0)
+  workarea.addEventListener('mousedown', (e) => {
+    if (!e.altKey || e.button !== 0 || canvas.getMode() !== 'select') return;
+    const content = canvas.getSvgContent() as SVGSVGElement;
+    const stack: Element[] = [];
+    for (const hit of document.elementsFromPoint(e.clientX, e.clientY)) {
+      if (!content.contains(hit)) continue;
+      const top = hit.closest('g.layer > *');
+      if (top && !stack.includes(top) && top.id !== 'baggrund') stack.push(top);
+    }
+    const sel = (canvas.getSelectedElements() || []).filter(Boolean);
+    const next = cycleNext(stack, sel.length === 1 ? sel[0] : null);
+    if (!next) return;
+    e.preventDefault();
+    e.stopPropagation();
+    canvas.clearSelection();
+    canvas.addToSelection([next], true);
+    hooks.onHistory?.();
+  }, { signal: life.signal, capture: true });
+
   document.addEventListener('keydown', onKey, o);
   document.addEventListener('keydown', onSpace, o);
   document.addEventListener('keyup', onSpace, o);

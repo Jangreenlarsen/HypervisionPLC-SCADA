@@ -2,6 +2,10 @@
 
 ---
 
+## v3.9.0 — 2026-10-31 — Vælg symboler, der ligger bagved
+
+- Ligger symboler oven i hinanden, så hold **Alt** nede og klik. Så vælges det, der ligger bagved. Klik igen med Alt for at gå endnu et lag ned. Du kan også vælge i panelet **Objekter**.
+
 ## v3.8.0 — 2026-10-31 — Ryd op i rør
 
 - Trækker du et stykke af et rør tæt på linje med et andet stykke eller en af enderne, fanges det på linje, så det lille hak forsvinder, og stykkerne bliver til ét.
