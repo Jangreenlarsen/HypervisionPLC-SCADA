@@ -2,6 +2,20 @@
 
 ---
 
+## v3.0.0 — 2026-10-31 — Ny tegne-editor
+
+**Tegn** har fået en ny tegne-editor, bygget til SCADA-tegninger:
+
+- Værktøjslinje til venstre med **Fortryd/Gentag**, **Vælg**, **Rør**, **Linje**, **Rektangel**, **Ellipse**, **Sti**, **Frihånd** og **Tekst**.
+- **Rør**, der går vandret eller lodret og sidder fast i symbolernes tilslutningspunkter: de følger med, når symbolet flyttes eller drejes.
+- Panelet **Egenskaber** (placering, størrelse, drejning, farver, streg, skrift) og panelet **Objekter** (find og vælg elementer, også dem der ligger under andre).
+- Knaplinje over det markerede (justér, fordel, rækkefølge, spejl, gruppér, dupliker, slet) og højreklikmenu.
+- Træk symboler fra biblioteket ind på tegningen. Ctrl + musehjul zoomer, og mellemrum + træk flytter udsnittet.
+- Ny side **Symboler**, hvor tilslutningspunkterne på bibliotekets symboler kan rettes.
+- Rettet: **Skalér symmetrisk** virker nu, når du trækker i et hjørne.
+
+Den gamle editor (SVG-Edit) er fjernet. Dine tegninger er uændrede. Værktøjerne stjerne/polygon, formbiblioteket, pipetten, billeder og linealerne findes ikke i den nye editor.
+
 ## v2.18.0 — 2026-10-31 — Ny tegne-editor: objekttræ (prøveversion)
 
 - Panelet **Objekter** i den nye tegne-editor viser tegningens elementer med navn og type, forrest øverst. Klik vælger et element, også ét der ligger skjult under et andet. Ctrl- eller Shift-klik vælger flere, og ▲▼ flytter det valgte frem eller tilbage.

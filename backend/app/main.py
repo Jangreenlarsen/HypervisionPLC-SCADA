@@ -193,7 +193,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
 
 class FrontendFiles(StaticFiles):
     """Frontend med cache-regler (BUGS.md v0.63.0): Vites filer under assets/ har hash i navnet og må gemmes længe; alt
-    andet (index.html, SVG-Edit-værten under svgedit/, manualbilleder) skal genvalideres, så en opdatering slår igennem
+    andet (index.html, tegne-editorens markør under draw/, manualbilleder) skal genvalideres, så en opdatering slår igennem
     ved næste indlæsning i stedet for at browseren genbruger en gammel kopi."""
 
     async def get_response(self, path: str, scope: Any) -> Any:

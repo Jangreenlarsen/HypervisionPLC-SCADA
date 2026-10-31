@@ -166,7 +166,7 @@ Betingelser fra prototypen: til/fra-kilde "når Til/Fra" = eksisterende `invert`
    Udfyldes for alle 82 symboler ud fra det prototypens import gør (`convertDef`): navngivne dele (`fyld`, `soejle`,
    `rotor`, `flamme`, `viser`, `vaerdi` …), rør/fittings = `flow`, T-stykke/kryds = `junction`.
 2. Ved indsættelse i Tegn skrives `data-hv-type="<id>"` på roden og `data-hv-pid="<delens id i biblioteket>"` på hver del
-   (`svgedit-host/scada-editor.js` `insertSymbol`) — delenes id'er kan få løbenumre, så delens navn kan ikke udledes af
+   (`svgedit-host/scada-core.js` `insertSymbol`) — delenes id'er kan få løbenumre, så delens navn kan ikke udledes af
    id'et. Saneringen bevarer `data-*`; backend læser typen kun hvis den matcher `[a-z0-9_]{1,40}` (`describe_element`).
    `meta` bruges kun af guiden (forslag og navne) — backend validerer mod tegningens geometri (5.1).
 3. Elementer uden `data-hv-type` (egne tegninger, gamle symboler): type `custom`; dele = børn med id; ingen særlige

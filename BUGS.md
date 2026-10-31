@@ -5,6 +5,8 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v3.0.0 — Tegn: *Skalér symmetrisk* (fra v2.6.0) gjorde ingenting — bredde og højde blev stadig ændret frit ved træk i et hjørne. **Årsag:** indstillingen blev sendt til editoren (`setGuides`), men intet brugte den. **Løsning:** tegnemotoren vender lærredets Shift-regel, mens der trækkes i et hjørne og indstillingen er slået til: symmetrisk uden Shift, frit med Shift (som manualen beskriver).
+
 - [fixed] v2.17.0 — Ny tegne-editor: rør-værktøjet (og det nye træk-og-slip) regnede musens placering om med lærredets `getrootSctm()`, som kun opdateres, når lærredet selv får et museklik. Efter zoom eller rulning uden et klik i tegningen lå punkterne forskudt, og et symbol trukket ind fra paletten landede ved skærmkoordinaterne. **Løsning:** `screenToDoc` beregner matricen frisk (som lærredet: første gruppe i tegningen). Set i browseren: rør hægtes fast efter zoom til 125 %, symbol lægges præcist under musen.
 
 - [fixed] v2.15.1 — Ny tegne-editor: drejning med musen sprang ikke i 15°-trin, men lagde en ekstra drejning oven i ved hver musebevægelse (rapporteret af Jan). **Årsag:** drejeberegningen læste elementets transform med `transform.baseVal.consolidate()`, som *skriver* listen om til én matrix — så lærredets `rotate(…)` blev til `rotate(…) matrix(…)`. Samme fejlklasse i panelets flyt/størrelse (`applyBox`), hvor en drejning gik tabt som `rotate`. **Løsning:** transformen læses uden at ændre den (`listMatrix`), og ren flytning lægger en translate forrest som lærredet selv. Set i browseren: 15°, 30°, 45°, 60° og fri med Shift.

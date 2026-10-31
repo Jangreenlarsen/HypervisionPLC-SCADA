@@ -12,7 +12,6 @@
   import DrawCanvas from '../lib/draw/DrawCanvas.svelte';
   import Inspector, { type InspectApi } from '../lib/draw/Inspector.svelte';
   import ObjectTree, { type TreeApi } from '../lib/draw/ObjectTree.svelte';
-  import { BUNDLE } from '../lib/staleCheck';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
@@ -29,7 +28,6 @@
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[]; orphaned_symbols?: string[] }
   interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string; children?: number; type?: string; onePath?: boolean }
   interface ScadaApi {
-    build?: string;
     ready: Promise<void>;
     load(svg: string): boolean;
     newDrawing(w: number, h: number): void;
@@ -100,25 +98,13 @@
   });
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let tags = $state<{ name: string; source: string; unit: string; writable: boolean; plc: string }[]>([]);
-  let iframe: HTMLIFrameElement;
   let ed: ScadaApi | null = null;
 
-  // Ny tegne-editor (PLAN.md): SVG-Edits motor direkte i siden, uden iframe. Prøves med ?editor=ny, til den kan det samme.
-  const newEditor = new URLSearchParams(location.search).get('editor') === 'ny';
+  // Tegne-editoren (v3.0.0): SVG-Edits tegnemotor (@svgedit/svgcanvas) direkte i siden med vores egen brugerflade
+  // (lib/draw/*). Al Tegn-logik ligger i svgedit-host/scada-core.js.
   let editorHeight = $state(600);
-  const SYMBOL_DRAG = 'application/x-hv-symbol';   // træk-og-slip fra symbolpaletten (ny editor)
+  const SYMBOL_DRAG = 'application/x-hv-symbol';   // træk-og-slip fra symbolpaletten
   let inspectRev = $state(0);   // panelet Egenskaber læser markeringen igen, når tallet skifter
-
-  async function connect(): Promise<void> {
-    const win = iframe.contentWindow as (Window & { scada?: ScadaApi }) | null;
-    // Vent på at værtssiden har lavet window.scada
-    for (let i = 0; i < 200 && !win?.scada; i++) await new Promise((r) => setTimeout(r, 50));
-    if (!win?.scada) {
-      error = 'Tegne-editoren kunne ikke indlæses';
-      return;
-    }
-    await attach(win.scada);
-  }
 
   // Listen over tegninger skal være hentet, før #draw/<tegning> kan åbnes (den nye editor er klar før listen)
   let drawingsLoaded: () => void = () => {};
@@ -126,10 +112,6 @@
 
   async function attach(api: ScadaApi): Promise<void> {
     ed = api;
-    if (!newEditor && ed.build !== BUNDLE.build) {
-      // browseren har en gammel kopi af tegneeditoren — nye funktioner (fx navngivning ved indsæt) mangler i den
-      error = `Tegneeditoren er en ældre version (build ${ed.build ?? 'ukendt'}, siden er build ${BUNDLE.build}). Genindlæs siden med Ctrl+F5.`;
-    }
     await ed.ready;
     ed.onSelection((sel) => {
       selection = sel;
@@ -735,15 +717,14 @@
     if (!ed || !s) return;
     ed.insertSymbol(withName(s.svg, ed.uniqueName(s.label)), s.id, at);
     dirty = true;
-    // i den nye editor står "Opsæt symbol" allerede i panelet — en meddelelse over tegnefladen ville skubbe den ned
-    if (!newEditor) info = 'Symbolet er indsat — tryk "Opsæt symbol (6 trin)" i panelet til højre for at sætte tag, positioner og animationer.';
+    // ingen meddelelse: "Opsæt symbol" står allerede i panelet, og en meddelelse over tegnefladen ville skubbe den ned
   }
 
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
     if (dirty) e.preventDefault();
   };
 
-  // Tegne-editoren fylder højden ned til sidefoden (mindst 600 px, så hele SVG-Edits værktøjslinje ses — ellers scrolles siden)
+  // Tegne-editoren fylder højden ned til sidefoden (mindst 600 px — ellers scrolles siden)
   // Sidepanelet får samme højde som editoren, så symbolbiblioteket ruller for sig selv (v0.75.1); på smalle skærme
   // ligger panelet under tegningen og har sin naturlige højde.
   let aside: HTMLElement;
@@ -751,7 +732,6 @@
   const fitFrame = () => {
     if (!frameBox) return;
     const h = Math.max(600, availableHeight(frameBox) - 2);
-    if (iframe) iframe.style.height = `${h}px`;
     editorHeight = h;
     if (aside) aside.style.height = window.matchMedia('(max-width: 900px)').matches ? '' : `${h}px`;
   };
@@ -839,13 +819,6 @@
   <label class="opt" title="Træk i et hjørne: bredde og højde ændres i samme forhold. Hold Shift nede for at skalere frit"><input type="checkbox" bind:checked={guides.keepRatio} /> Skalér symmetrisk</label>
 {/snippet}
 
-{#if !newEditor}
-  <div class="row guides small" role="group" aria-label="Tegnehjælp">
-    <strong>Tegnehjælp</strong>
-    {@render guidesUi()}
-    <span class="muted">Rotation sker i 15°-trin — hold <kbd>Shift</kbd> nede for fri rotation</span>
-  </div>
-{/if}
 
 {#if error}<div class="error">{error}</div>{/if}
 {#if dupNames.length}
@@ -864,22 +837,15 @@
   </div>
 {/if}
 
-{#if !newEditor}<p class="tool-hint small" aria-live="polite"><strong>{hint.name}:</strong> {hint.how}</p>{/if}
 <div class="layout">
   <div class="frame" bind:this={frameBox}>
-    {#if newEditor}
-      <DrawCanvas height={editorHeight} dropType={SYMBOL_DRAG} ondropsymbol={(id, x, y) => ed && insert(id, ed.docPointAt(x, y))} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++}
-                  hint="{hint.name}: {hint.how} · Drejning i 15°-trin, Shift = fri" status={guidesUi} />
-    {:else}
-      <iframe bind:this={iframe} src="/svgedit/scada-editor.html?v={BUNDLE.build}" title="Tegne-editor" onload={connect}></iframe>
-    {/if}
+    <DrawCanvas height={editorHeight} dropType={SYMBOL_DRAG} ondropsymbol={(id, x, y) => ed && insert(id, ed.docPointAt(x, y))} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++}
+                hint="{hint.name}: {hint.how} · Drejning i 15°-trin, Shift = fri" status={guidesUi} />
   </div>
 
   <aside bind:this={aside}>
-    {#if newEditor}
-      <Inspector api={ready ? (ed as unknown as InspectApi) : null} rev={inspectRev} keepRatio={guides.keepRatio} />
-      <ObjectTree api={ready ? (ed as unknown as TreeApi) : null} rev={inspectRev} onchange={() => inspectRev++} />
-    {/if}
+    <Inspector api={ready ? (ed as unknown as InspectApi) : null} rev={inspectRev} keepRatio={guides.keepRatio} />
+    <ObjectTree api={ready ? (ed as unknown as TreeApi) : null} rev={inspectRev} onchange={() => inspectRev++} />
     <section class="panel sel-panel">
       <h3>Valgt element</h3>
       {#if !single}
@@ -1009,8 +975,8 @@
   {@const fav = favorites.includes(s.id)}
   {@const pos = favorites.indexOf(s.id)}
   <div class="tile">
-    <button class="ins" onclick={() => insert(s.id)} disabled={!ready} title={newEditor ? `${s.hint} — klik for at indsætte, eller træk ind på tegningen` : s.hint}
-            draggable={newEditor && ready} ondragstart={(e) => { e.dataTransfer?.setData(SYMBOL_DRAG, s.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'; }}>
+    <button class="ins" onclick={() => insert(s.id)} disabled={!ready} title="{s.hint} — klik for at indsætte, eller træk ind på tegningen"
+            draggable={ready} ondragstart={(e) => { e.dataTransfer?.setData(SYMBOL_DRAG, s.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'; }}>
       <svg viewBox="-4 -4 168 152" aria-hidden="true" {@attach fitPreview(s.id)}>{@html s.svg}</svg>
       <span>{s.label}</span>
     </button>
@@ -1067,8 +1033,6 @@
 
 <style>
   .toolbar { margin-bottom: .35rem; }
-  .guides { margin-bottom: .6rem; flex-wrap: wrap; gap: .3rem 1rem; align-items: center; }
-  .guides kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 .3rem; background: var(--panel-2); font-size: .85em; }
   .comment { flex: 1; min-width: 12rem; }
   .layout {
     display: grid;
@@ -1077,14 +1041,6 @@
     align-items: start;
   }
   @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
-  iframe {
-    width: 100%;
-    height: 600px; /* sættes af fitFrame */
-    display: block;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: #fff;
-  }
   .frame { min-width: 0; }
   aside { min-width: 0; }
   /* Sidepanelet har editorens højde (fitFrame): "Valgt element" efter behov (højst 55 %), symbolbiblioteket ruller for sig selv */
@@ -1124,5 +1080,4 @@
   .symbols svg { width: 44px; height: 40px; }
   .size-panel { margin: .25rem 0 .5rem; display: grid; gap: .4rem; }
   .size-panel .num { width: 5.5rem; }
-  .tool-hint { margin: 0 0 .35rem; padding: .25rem .6rem; background: var(--panel-2); border-left: 3px solid var(--accent); border-radius: 3px; }
 </style>

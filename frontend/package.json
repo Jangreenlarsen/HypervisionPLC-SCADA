@@ -9,8 +9,6 @@
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
-    "predev": "node scripts/copy-svgedit.mjs",
-    "prebuild": "node scripts/copy-svgedit.mjs",
     "manual:screenshots": "node tools/manual-screenshots.mjs"
   },
   "devDependencies": {
@@ -28,7 +26,6 @@
     "@svgedit/svgcanvas": "^7.4.2",
     "dompurify": "^3.4.16",
     "marked": "^18.1.1",
-    "svgedit": "^7.4.2",
     "uplot": "^1.6.32"
   }
 }

@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.0.0 build 0281] — 2026-10-31 — Den nye tegne-editor er Tegn; SVG-Edit-appen er fjernet
+
+- **Breaking:** Tegn kører altid den nye editor (`?editor=ny` er ikke længere nødvendig). SVG-Edits brugerflade i en iframe er væk — med den forsvinder stjerne/polygon, formbiblioteket, pipetten, billedværktøjet, linealerne og SVG-Edits lag-panel. Tegningerne er uændrede (ren SVG); ingen migration.
+- `frontend/src/pages/DrawEditor.svelte`: iframe, `connect`, build-tjek og gammel tegnehjælp-/hjælpelinje fjernet.
+- Fjernet: `svgedit`-pakken, `scripts/copy-svgedit.mjs`, `scripts/versionHost.mjs`, `svgedit-host/scada-editor.{js,css,html}`, `svgedit-host/locale-da.js`, tests `svgeditPatch.test.ts`, `versionHost.test.ts`; `predev`/`prebuild` i `package.json`. Drejegrebets markør ligger nu i `public/draw/rotate.svg` (MIT, fra SVG-Edit).
+- `frontend/src/lib/draw/engine.ts`: *Skalér symmetrisk* virker ved træk i hjørnerne (BUGS.md); afkrydsninger (fx tegnehjælpen) blokerer ikke længere genvejstasterne; `window.scada` til manualens skærmbillede-script.
+- `frontend/tools/manual-screenshots.mjs`: venter på tegnefladen i stedet for iframen. Manual kap. 04 beskriver den nye editor. `ARCHITECTURE.md`, `docs/SYMBOLSTANDARD_IMPLEMENTERING.md`, `backend/app/main.py` (kommentar).
+
 ## [2.18.0 build 0280] — 2026-10-31 — Ny tegne-editor: objekttræ
 
 - `frontend/src/lib/draw/ObjectTree.svelte` (ny): panelet *Objekter* — elementer pr. lag, forrest øverst, navn og type; klik/Ctrl-klik vælger, ▲▼ rækkefølge, søgefelt.

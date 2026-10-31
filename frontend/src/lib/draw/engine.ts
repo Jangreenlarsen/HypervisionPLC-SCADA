@@ -15,7 +15,7 @@ export const CANVAS_CONFIG = {
   initStroke: { color: '000000', opacity: 1, width: 2 },
   text: { stroke_width: 0, font_size: 16, font_family: 'sans-serif' },
   initOpacity: 1,
-  imgPath: '/svgedit/images',
+  imgPath: '/draw',   // drejegrebets musemarkør (rotate.svg fra SVG-Edit, MIT)
   dimensions: [1200, 700] as [number, number],
   baseUnit: 'px',
   gridSnapping: false,
@@ -59,6 +59,9 @@ export function rotationAngle(free: number, shift: boolean): number {
   if (!shift) a = Math.round(a / 15) * 15;
   return a === 180 ? -180 : a;
 }
+
+/** Shift-tilstanden lærredet skal se ved træk i et hjørne: med "Skalér symmetrisk" er betydningen vendt. */
+export const shouldKeepShift = (shift: boolean, keepRatio: boolean): boolean => (keepRatio ? !shift : shift);
 
 /** Tastaturgenvej → handling. Ren funktion (testet), så tasterne er de samme overalt. */
 export function shortcutFor(e: { key: string; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean; altKey: boolean }): string | null {
@@ -206,13 +209,17 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
     gridHost: () => workarea,
     curConfig: () => canvas.getCurConfig?.(),
   });
+  // window.scada: samme indgang som den gamle editor havde i sin iframe — bruges af manualens skærmbillede-script
+  (window as unknown as { scada?: unknown }).scada = api;
   // API'ets onMode følger værktøjsskift fra både os og lærredet (fx tilbage til Vælg efter tekst)
   api.ready.then(() => api.onMode?.((m: string) => hooks.onMode?.(m)));
 
   // ---- tastatur (det gjorde SVG-Edit-appen før)
   const editingText = (): boolean => canvas.getMode() === 'textedit' || document.activeElement === textInput;
+  // kun felter man skriver i, blokerer genvejstasterne (ikke afkrydsninger og knapper, fx tegnehjælpen i statuslinjen)
   const typingInForm = (t: EventTarget | null): boolean =>
-    t instanceof HTMLElement && t !== textInput && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+    t instanceof HTMLElement && t !== textInput && (t.isContentEditable || /^(TEXTAREA|SELECT)$/.test(t.tagName) ||
+      (t instanceof HTMLInputElement && !/^(checkbox|radio|button|submit|reset|range|color)$/.test(t.type)));
   function onKey(e: KeyboardEvent): void {
     if (typingInForm(e.target) || editingText()) {
       if (e.key === 'Escape' && editingText()) { canvas.textActions.toSelectMode(true); e.preventDefault(); }
@@ -303,6 +310,13 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
   workarea.addEventListener('wheel', onWheel, { signal: life.signal, passive: false });
   workarea.addEventListener('mousedown', onDown, { signal: life.signal, capture: true });
   document.addEventListener('mousemove', onMove, o);
+  // "Skalér symmetrisk": lærredet holder forholdet, når Shift er nede, mens der trækkes i et hjørne. Med indstillingen slået
+  // til vendes det: symmetrisk uden Shift, frit med Shift (BUGS.md v3.0.0 — indstillingen fra v2.6.0 var aldrig koblet på).
+  for (const t of ['mousemove', 'mouseup'] as const) {
+    workarea.addEventListener(t, (e) => {
+      if (canvas.getMode() === 'resize' && api?.keepsRatio?.()) Object.defineProperty(e, 'shiftKey', { value: shouldKeepShift(e.shiftKey, true) });
+    }, { signal: life.signal, capture: true });
+  }
   // musens sidste placering og Shift til drejningen (før lærredet får bevægelsen)
   document.addEventListener('mousemove', (e) => { pointer.x = e.clientX; pointer.y = e.clientY; pointer.shift = e.shiftKey; }, { signal: life.signal, capture: true });
   document.addEventListener('mouseup', onUp, o);
@@ -322,6 +336,10 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
     redo: () => { canvas.undoMgr.redo(); hooks.onHistory?.(); },
     canUndo: () => canvas.undoMgr.getUndoStackSize() > 0,
     canRedo: () => canvas.undoMgr.getRedoStackSize() > 0,
-    destroy: () => { life.abort(); ro.disconnect(); api.dispose?.(); host.remove(); },
+    destroy: () => {
+      life.abort(); ro.disconnect(); api.dispose?.(); host.remove();
+      const w = window as unknown as { scada?: unknown };
+      if (w.scada === api) delete w.scada;
+    },
   };
 }

@@ -22,14 +22,30 @@ Siden **Tegninger** er listen over alle tegninger.
 
 ## Tegn
 
-![Tegn: editoren til venstre og det valgte element med navn, symboler og Gem-knapper til højre](/manual/tegn.png)
+![Tegn: værktøjslinjen til venstre, tegnefladen i midten og panelerne Egenskaber, Objekter, Valgt element og symbolerne til højre](/manual/tegn.png)
 
-**Tegn** er en indbygget tegneeditor (SVG-Edit). Brug den til at tegne rør, tanke og tekst, eller til at indsætte færdige **symboler** fra biblioteket.
+**Tegn** er den indbyggede tegneeditor. Brug den til at tegne rør, tanke og tekst, eller til at indsætte færdige **symboler** fra biblioteket.
+
+Skærmen er delt sådan:
+
+- **Værktøjslinjen til venstre**: **Fortryd** og **Gentag** øverst, derefter værktøjerne **Vælg** (V), **Rør** (O), **Linje** (L), **Rektangel** (R), **Ellipse** (E), **Sti** (P), **Frihånd** (F) og **Tekst** (T). Bogstavet er genvejstasten.
+- **Tegnefladen** i midten. **Ctrl + musehjul** zoomer, og **mellemrum** eller **midterknappen** + træk flytter udsnittet. I bunden står zoom (−, +, **Tilpas**), **tegnehjælpen** (se nedenfor) og en linje, der forklarer det valgte værktøj.
+- **Knaplinjen over det markerede**: når noget er markeret, vises justér (venstre, midte, højre, top, midte, bund), fordel vandret/lodret (mindst 3), læg øverst/nederst, spejl, **Gruppér**/**Opløs**, **Dupliker** og **Slet**.
+- **Højreklik** på tegnefladen giver klip, kopiér, indsæt, dupliker, gruppér, rækkefølge og slet.
+- **Panelerne til højre**: **Egenskaber** (placering X/Y, størrelse B/H, drejning, hjørner, fyld, streg, tykkelse, synlighed og skrift — skriv en værdi og tryk Enter), **Objekter** (alle elementer, forrest øverst; klik vælger, også et element der ligger skjult under et andet; Ctrl-klik vælger flere; ▲▼ flytter frem/tilbage), **Valgt element** (navn og guide) og **symbolbiblioteket**.
+
+Alt kan fortrydes med **Ctrl+Z**. Andre taster: **Delete** sletter, **Ctrl+C/X/V** kopierer/klipper/indsætter, **Ctrl+D** duplikerer, **Ctrl+G** grupperer (Ctrl+Shift+G opløser), **Ctrl+A** vælger alt, piletasterne flytter 1 (med Shift 10), **Esc** går tilbage til Vælg.
+
+### Rør
+
+Værktøjet **Rør** (O) tegner rør, der altid går vandret eller lodret. Klik for start og for hvert knæk; **dobbeltklik** eller **Enter** slutter røret, **Backspace** fjerner det sidste knæk, og **Esc** fortryder røret.
+
+Grønne prikker viser symbolernes **tilslutningspunkter**. Starter eller slutter du røret på en prik, sidder røret fast: flytter, drejer eller ændrer du størrelse på symbolet, følger røret med (og Ctrl+Z fortryder begge dele på én gang). Mellem to sidepunkter laves et pænt Z-formet rør. Nye rør lægges bag de symboler, de forbinder. Flytter du selve røret væk fra symbolet, slipper det. Røret kan få **løbelys** som andre elementer: giv det et navn, og sæt det op med guiden.
 
 ### Sådan tegner du
 
 1. Vælg en eksisterende tegning (og version) i rullelisterne øverst, eller start en ny (**— Ny tegning —**). Står du på en tegning i **Overview**, åbner menupunktet **Tegn** (og **Bindinger**) direkte den tegning.
-2. Tegn med værktøjerne i editoren: linjer, rektangler, cirkler, tekst, farver og lag. Peg på et værktøj for at se, hvad det hedder (og dets genvejstast); **linjen over tegneområdet** fortæller, hvordan det valgte værktøj bruges (fx *Rektangel: træk for at tegne · Shift = kvadrat · Esc = tilbage til Vælg*).
+2. Tegn med værktøjerne til venstre, og indsæt symboler fra biblioteket til højre — klik på et symbol, eller **træk det ind** på tegningen, hvor det skal stå. Peg på et værktøj for at se, hvad det hedder (og dets genvejstast); **linjen under tegnefladen** fortæller, hvordan det valgte værktøj bruges (fx *Rektangel: træk for at tegne · Shift = kvadrat · Esc = tilbage til Vælg*).
 3. Til højre ser du **Valgt element**. Giv det et **Navn**, hvis det skal være et symbol, der senere kan sættes op med guiden. **Avanceret** viser elementets tekniske **id**.
 4. Tryk **Gem kladde** (gemmer en ny version, men viser den ikke endnu) eller **Gem og udgiv** (gemmer og gør den aktiv). En ny tegning skal have et navn.
 5. **Slet tegning** fjerner hele tegningen (med samme oversigt over, hvad det rammer).
@@ -41,11 +57,11 @@ Er der ændringer, du ikke har gemt, spørger systemet, før de kasseres.
 
 ### Tegnehjælp: gitter, fang og rotation
 
-![Linjen Tegnehjælp: gitter, fang, gitterafstand og Skalér symmetrisk](/manual/tegn-hjaelp.png)
+![Tegnehjælpen i bunden af tegnefladen: gitter, fang, gitterafstand og Skalér symmetrisk](/manual/tegn-hjaelp.png)
 
-Under værktøjslinjen i Tegn står rækken **Tegnehjælp**:
+I bunden af tegnefladen står **tegnehjælpen**:
 
-- **Vis gitter** viser et net **ovenpå** tegningen (det ændrer ikke tegningen). Linjerne ligger med den valgte **gitterafstand** (5, 10, 20, 25 eller 50 enheder), og hver 5. linje er kraftigere. Gitteret følger zoom og rulning og flugter med linealerne.
+- **Vis gitter** viser et net **ovenpå** tegningen (det ændrer ikke tegningen). Linjerne ligger med den valgte **gitterafstand** (5, 10, 20, 25 eller 50 enheder), og hver 5. linje er kraftigere. Gitteret følger zoom og rulning.
 - **Fang til gitter** lægger objekter på gitteret: når du flytter, indsætter, duplikerer eller sætter et symbol ind, flyttes objektets **øverste venstre hjørne** til nærmeste gitterpunkt. Kopier havner dermed på samme gitter som originalen, og når du tegner nye figurer, følger de også gitteret.
 - **Fang til objekter**: slipper du et objekt tæt på et andet (inden for ca. 8 pixel på skærmen), lægger det sig **kant mod kant** eller **midte mod midte** med det nærmeste objekt. Det virker, når du **flytter** et eksisterende objekt (ikke mens du tegner et nyt), og fangen kan fortrydes med **Ctrl+Z**. Små justeringer med piletasterne fanges ikke.
 - **Skalér symmetrisk**: trækker du i et hjørne for at ændre størrelsen, ændres bredde og højde i samme forhold, så symbolet ikke bliver fladt eller strakt. Hold **Shift** nede for at skalere frit (uden indstillingen er det omvendt: Shift giver symmetrisk skalering). Huskes i browseren.

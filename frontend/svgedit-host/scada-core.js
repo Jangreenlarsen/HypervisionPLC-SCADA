@@ -1110,10 +1110,14 @@ export function createScada(host) {
       guides.grid = !!opts.grid;
       guides.snapGrid = !!opts.snapGrid;
       guides.snapObjects = !!opts.snapObjects;
+      guides.keepRatio = !!opts.keepRatio;
       const step = Number(opts.step);
       guides.step = Number.isFinite(step) && step >= 1 ? step : 10;
       applyGuides();
     },
+
+    /** "Skalér symmetrisk" er slået til (læses af tegnemotoren ved træk i et hjørne). */
+    keepsRatio() { return !!guides.keepRatio; },
 
     hasUndo() {
       return canvas().undoMgr.getUndoStackSize() > 0;

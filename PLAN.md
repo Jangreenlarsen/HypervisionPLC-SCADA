@@ -43,7 +43,7 @@
 - Statuslinje: koordinater + hjælpelinje-indstillinger (i dag gemt i menu).
 
 ## Trin
-**Status 2026-10-30:** trin 1 (v2.13.0), trin 2 (delt kerne — gjort i trin 1) og trin 3 (v2.14.0: panel, svævende linje, højreklikmenu, statuslinje) er lavet. Mangler fra trin 3: lag/objekttræ og at topbaren samles (bruger stadig Tegns nuværende øverste linje). Trin 4 (v2.15.0, rør) og trin 5 (v2.17.0, træk-og-slip; justér/fordel kom i v2.14.0) er lavet. Næste: lag/objekttræ + samlet topbar, derefter trin 6 (standard + fjern SVG-Edit-appen → 3.0.0).
+**Status 2026-10-30:** trin 1 (v2.13.0), trin 2 (delt kerne — gjort i trin 1) og trin 3 (v2.14.0: panel, svævende linje, højreklikmenu, statuslinje) er lavet. Mangler fra trin 3: lag/objekttræ og at topbaren samles (bruger stadig Tegns nuværende øverste linje). Trin 4 (v2.15.0, rør) og trin 5 (v2.17.0, træk-og-slip; justér/fordel kom i v2.14.0) er lavet. Objekttræ (v2.18.0) og trin 6 (v3.0.0: den nye editor er Tegn, SVG-Edit-appen fjernet) er lavet — **planen er færdig**. Topbaren blev ikke bygget om: Tegns øverste linje dækker allerede tegning/gem/udgiv/størrelse; fortryd/gentag står i værktøjslinjen (Jans ønske) og zoom i bunden.
 
 1. **Motor uden UI** (største risiko): `lib/draw/engine.ts` initialiserer `SvgCanvas` direkte i en `<div>` (ingen iframe), wrapper events (selected/changed/zoomed) til Svelte-stores. Bevis: åbn, tegn rektangel, fortryd, gem → identisk SVG som i dag.
 2. **Flyt vores funktioner ind** fra `svgedit-host/scada-editor.js` (1138 linjer) som moduler: gitter/fang (`draw/guides.ts`), id-regler/renameCopies (`draw/ids.ts`), symbolindsættelse, normalize/settle. Tests for id- og fanglogik. Rotations-patchen i `copy-svgedit.mjs` erstattes af egen rotationshåndtering.

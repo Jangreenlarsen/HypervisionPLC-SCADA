@@ -48,7 +48,7 @@ Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.m
 ## Lag-beskrivelse
 
 ### Lag 1 — Frontend
-- **Ansvar**: Overview-board (viser tegning + live-animationer), tegne-editor (SVG-Edit + binding-panel + tag-browser + symbolbibliotek), admin (PLC'er, tags, brugere), Trends (analyse af uregelmæssigheder, rene funktioner i `lib/trendAnalysis.ts`), Symboltest (afprøvning af biblioteksymboler uden PLC, `lib/symbolTest.ts`) og driftpanel (kun drifttegning; Alarmer og Trends via genveje).
+- **Ansvar**: Overview-board (viser tegning + live-animationer), tegne-editor (SVG-Edits tegnemotor `@svgedit/svgcanvas` direkte i siden med egen brugerflade i `lib/draw/` — motor `engine.ts`, panelerne Egenskaber/Objekter, rør-værktøj; al Tegn-logik i `svgedit-host/scada-core.js` (+ `pipes.js`, `symbolPorts.js`, `snap.js`); binding-panel, tag-browser, symbolbibliotek, symbol-editor `pages/SymbolEditor.svelte`), admin (PLC'er, tags, brugere), Trends (analyse af uregelmæssigheder, rene funktioner i `lib/trendAnalysis.ts`), Symboltest (afprøvning af biblioteksymboler uden PLC, `lib/symbolTest.ts`) og driftpanel (kun drifttegning; Alarmer og Trends via genveje).
 - **Filer**: `frontend/src/`
 - **Regler**: Kalder kun SCADA-serverens `/api/*` og `/ws/live`. Kender ikke PLC-adresser i tegningen (kun tag-navne). Indsætter aldrig SVG i DOM uden DOMPurify. Viser altid backendens specifikke fejlbesked.
 
