@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v3.11.0 — **Tydelig fang til hjælpelinjer** (ønske fra Jan 2026-10-31): mens et symbol trækkes, lyser linjen orange med prik på den kant, der fanges, og position; blinker ved slip.
 - [x] done v3.10.0 — **Hjælpelinjer i Tegn** (ønske fra Jan 2026-10-31): fast inddeling og frie linjer, gemt i tegningen (vises kun i Tegn, aldrig i Overview); symboler, rør og rør-stykker fanges til dem; en aktiv linje bruges af knaplinjens justering.
 - [x] done v3.9.0 — **Alt+klik vælger det bagved** (ønske fra Jan 2026-10-31): symboler oven i hinanden — Alt+klik går et lag længere ned på samme sted, rundt.
 - [x] done v3.8.0 — **Læg rør-stykker sammen** (ønske fra Jan 2026-10-31): et stykke trukket tæt på linje med et andet stykke/en ende fanges derhen, så hakket forsvinder; knappen *Ret røret ud* lægger røret om med færrest knæk (forbindelser bevares).

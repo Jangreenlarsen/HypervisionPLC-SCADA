@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.11.0 build 0293] — 2026-10-31 — Tydelig fang til hjælpelinjer
+
+- `frontend/svgedit-host/guides.js`: `snapBoxToGuides` giver også linjen (`atX`/`atY`); `snapHint` (linje + prik på kanten) — testet.
+- `frontend/svgedit-host/scada-core.js`: under træk vises linjen, symbolet vil blive fanget til (orange, prik, position) — lytter efter lærredet, så den aktuelle position vises; blink 0,7 s ved fang.
+- Manual kap. 04. Tests: `src/lib/guides.test.ts`.
+
 ## [3.10.0 build 0292] — 2026-10-31 — Hjælpelinjer i Tegn
 
 - `frontend/svgedit-host/guides.js` (ny, testet): læs/gem `data-hv-guides`, linjer (fast inddeling + frie), fang af bokse og punkter, justér til en linje.

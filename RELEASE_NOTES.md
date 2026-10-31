@@ -2,6 +2,10 @@
 
 ---
 
+## v3.11.0 — 2026-10-31 — Se hvad der fanges
+
+- Når du trækker et symbol hen mod en hjælpelinje, lyser linjen **orange**, og en prik viser, hvilken kant eller midte af symbolet der fanges, med positionen ved siden af. Når du slipper, blinker linjen kort, så du kan se, at symbolet blev lagt på den.
+
 ## v3.10.0 — 2026-10-31 — Hjælpelinjer i Tegn
 
 - **Hjælpelinjer** til at bygge tegningen op efter. **Inddeling** lægger faste linjer med en valgt afstand over hele tegningen, og **+ Lodret** og **+ Vandret** lægger frie linjer, som du kan trække på plads.

@@ -86,7 +86,7 @@ Hjælpelinjer er linjer, du bygger tegningen op efter. De **gemmes i tegningen**
 - **Hjælpelinjer** i statuslinjen viser/skjuler dem (sletter dem ikke).
 - **Inddeling** (Fra/50/100/200/250) lægger faste, stiplede linjer med den afstand over hele tegningen.
 - **+ Lodret** / **+ Vandret** lægger en fri linje midt i det, du ser. Træk i linjen for at flytte den (positionen vises undervejs); træk den ud over kanten — eller klik på den og tryk **Delete** — for at fjerne den.
-- **Fang til hjælpelinjer**: symboler (kant eller midte), rør og rør-stykker fanges til linjerne, når de er tæt på. Hjælpelinjerne går forud for gitter og objekter.
+- **Fang til hjælpelinjer**: symboler (kant eller midte), rør og rør-stykker fanges til linjerne, når de er tæt på. Hjælpelinjerne går forud for gitter og objekter. Mens du trækker et symbol, lyser den linje, det vil blive fanget til, **orange**, og en orange prik viser, hvilken kant eller midte der fanges (med positionen ved siden af). Når du slipper, blinker linjen kort.
 - **Justér til en linje:** klik på en fri linje, så den bliver **blå (aktiv)**. Knaplinjen over det markerede viser *til lodret/vandret hjælpelinje* — venstre/midte/højre justerer til en lodret linje, top/midte/bund til en vandret. **Esc** slipper linjen.
 
 Ændringer af hjælpelinjerne kan fortrydes med **Ctrl+Z**.

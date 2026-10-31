@@ -36,21 +36,34 @@ export function guideLines(g, w, h) {
   return { x: [...new Set(x.map(r2))].sort((a, b) => a - b), y: [...new Set(y.map(r2))].sort((a, b) => a - b) };
 }
 
-/** Nærmeste linje inden for tol for et af tallene (fx venstre kant, midte, højre kant). → flytning eller 0. */
-function nearestShift(values, lines, tol) {
+/** Nærmeste linje inden for tol for et af tallene (fx venstre kant, midte, højre kant). → { d, at, from } eller null. */
+function nearestHit(values, lines, tol) {
   let best = null;
   for (const v of values) for (const l of lines) {
     const d = l - v;
-    if (Math.abs(d) <= tol && (best === null || Math.abs(d) < Math.abs(best))) best = d;
+    if (Math.abs(d) <= tol && (best === null || Math.abs(d) < Math.abs(best.d))) best = { d, at: l, from: v };
   }
   return best;
 }
+const nearestShift = (values, lines, tol) => nearestHit(values, lines, tol)?.d ?? null;
 
 /** Fang en boks: kanter eller midte til nærmeste linje på hver akse. → { dx, dy } (null = ingen linje tæt på). */
 export function snapBoxToGuides(box, lines, tol) {
+  const hx = nearestHit([box.x, box.x + box.w / 2, box.x + box.w], lines.x, tol);
+  const hy = nearestHit([box.y, box.y + box.h / 2, box.y + box.h], lines.y, tol);
+  return { dx: hx?.d ?? null, dy: hy?.d ?? null, atX: hx?.at ?? null, atY: hy?.at ?? null };
+}
+
+/**
+ * Til visning mens der trækkes: hvilke linjer boksen fanges til, og hvor på boksen (prik midt på den kant/midte, der
+ * rammer linjen). → { x: { at, mark } | null, y: { at, mark } | null }
+ */
+export function snapHint(box, lines, tol) {
+  const hx = nearestHit([box.x, box.x + box.w / 2, box.x + box.w], lines.x, tol);
+  const hy = nearestHit([box.y, box.y + box.h / 2, box.y + box.h], lines.y, tol);
   return {
-    dx: nearestShift([box.x, box.x + box.w / 2, box.x + box.w], lines.x, tol),
-    dy: nearestShift([box.y, box.y + box.h / 2, box.y + box.h], lines.y, tol),
+    x: hx ? { at: hx.at, mark: [hx.at, box.y + box.h / 2 + (hy?.d ?? 0)] } : null,
+    y: hy ? { at: hy.at, mark: [box.x + box.w / 2 + (hx?.d ?? 0), hy.at] } : null,
   };
 }
 

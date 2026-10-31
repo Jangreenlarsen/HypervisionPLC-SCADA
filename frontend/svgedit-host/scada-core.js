@@ -7,7 +7,7 @@ import {
 import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
 import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
-import { alignToGuide, formatGuides, guideLines, parseGuides, snapBoxToGuides, snapPointToGuides } from './guides.js';
+import { alignToGuide, formatGuides, guideLines, parseGuides, snapBoxToGuides, snapHint, snapPointToGuides } from './guides.js';
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
 import { PIPE_STYLE, alignDelta, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
 
@@ -179,6 +179,7 @@ export function createScada(host) {
       const g = snapBoxToGuides(now, guideLinesNow(), SNAP_PX / (canvas().getZoom() || 1));
       if (g.dx !== null) dx = g.dx;
       if (g.dy !== null) dy = g.dy;
+      if (g.dx !== null || g.dy !== null) flashGuides({ ...now, x: now.x + (g.dx ?? 0), y: now.y + (g.dy ?? 0) });
     }
     if (dx || dy) {
       snapping = true;
@@ -741,7 +742,8 @@ export function createScada(host) {
 
   // ---- hjælpelinjer (v3.10.0): gemt i tegningen som data-hv-guides på rod-elementet; vises KUN i Tegn
   let activeGuide = null;   // { axis: 'v' | 'h', at } — knaplinjens justering bruger den
-  const guideLayer = { el: null, drag: null };
+  // hot: de linjer, det markerede fanges til lige nu (vises orange mens der trækkes, og blinker når det fanges)
+  const guideLayer = { el: null, drag: null, hot: null, flash: 0 };
   const contentEl = () => canvas().getSvgContent();
   function readGuides() { return parseGuides(contentEl()?.getAttribute('data-hv-guides')); }
   function docSize() {
@@ -808,8 +810,48 @@ export function createScada(host) {
         }
       });
     }
+    // fanges lige nu: tyk orange linje + prik på den kant, der rammer, + position
+    const hot = guideLayer.hot;
+    if (hot) {
+      const mark = (m, label) => `<circle cx="${m[0]}" cy="${m[1]}" r="${5 / z}" fill="#ef6c00" stroke="#fff" stroke-width="${1.5 / z}"/>` +
+        `<text x="${m[0] + 8 / z}" y="${m[1] - 8 / z}" font-size="${12 / z}" font-weight="600" fill="#ef6c00" stroke="#fff" stroke-width="${3 / z}" paint-order="stroke">${label}</text>`;
+      if (hot.x) out += `<line x1="${hot.x.at}" y1="0" x2="${hot.x.at}" y2="${h}" stroke="#ef6c00" stroke-width="${3 / z}"/>` + mark(hot.x.mark, `x ${Math.round(hot.x.at)}`);
+      if (hot.y) out += `<line x1="0" y1="${hot.y.at}" x2="${w}" y2="${hot.y.at}" stroke="#ef6c00" stroke-width="${3 / z}"/>` + mark(hot.y.mark, `y ${Math.round(hot.y.at)}`);
+    }
     layer.innerHTML = out;
   }
+
+  /** Vis kort (0,7 s), hvilke linjer boksen er fanget til. */
+  function flashGuides(box) {
+    const hint = snapHint(box, guideLinesNow(), 0.5);
+    if (!hint.x && !hint.y) return;
+    guideLayer.hot = hint;
+    const token = ++guideLayer.flash;
+    drawGuides();
+    setTimeout(() => { if (guideLayer.flash === token) { guideLayer.hot = null; drawGuides(); } }, 700);
+  }
+
+  // Mens et symbol trækkes: vis hvilke hjælpelinjer det vil blive fanget til, når det slippes
+  document.addEventListener('mousemove', () => {
+    const c = canvas();
+    if (!c?.getStarted?.() || c.getMode() !== 'select' || !guides.snapGuides || !guides.showGuides) return;
+    const sel = selectedEls();
+    if (!sel.length || handles.busy) return;
+    const box = unionBox(sel.map(boxOf));
+    if (!box) return;
+    const hint = snapHint(box, guideLinesNow(), SNAP_PX / (c.getZoom() || 1));
+    const next = hint.x || hint.y ? hint : null;
+    if (JSON.stringify(next) === JSON.stringify(guideLayer.hot)) return;
+    guideLayer.flash++;
+    guideLayer.hot = next;
+    drawGuides();
+  }, { signal: life.signal });   // efter lærredet (det flytter symbolet i samme bevægelse) — ellers vises den forrige position
+  // slippes musen uden fang, forsvinder markeringen (fanges den, blinker den fra settleSelection)
+  document.addEventListener('mouseup', () => {
+    if (!guideLayer.hot) return;
+    const token = guideLayer.flash;
+    setTimeout(() => { if (guideLayer.flash === token) { guideLayer.hot = null; drawGuides(); } }, 50);
+  }, { capture: true, signal: life.signal });
 
   function startGuideDrag(e) {
     const tag = e.target?.getAttribute?.('data-guide');
