@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v3.13.0 — **Installation fra GitHub** (ønske fra Jan 2026-10-31): `deploy/bootstrap.sh` installerer en ny Pi fra nyeste Release; GitHub Actions bygger Releases ved tag.
 - [x] done v3.12.0 — **Tekstredigering i Tegn** (ønske fra Jan 2026-10-31): ret tekst (også flere linjer) fra *Egenskaber*, størrelse med forslag, flere skrifttyper, fed/kursiv/understreget, justering (bliver stående), tekstfarve.
 - [x] done v3.11.0 — **Tydelig fang til hjælpelinjer** (ønske fra Jan 2026-10-31): mens et symbol trækkes, lyser linjen orange med prik på den kant, der fanges, og position; blinker ved slip.
 - [x] done v3.10.0 — **Hjælpelinjer i Tegn** (ønske fra Jan 2026-10-31): fast inddeling og frie linjer, gemt i tegningen (vises kun i Tegn, aldrig i Overview); symboler, rør og rør-stykker fanges til dem; en aktiv linje bruges af knaplinjens justering.

@@ -6,7 +6,7 @@
 *Open-source web SCADA / HMI for PLCs on a Raspberry Pi.*
 
 [![Licens: AGPL v3](https://img.shields.io/badge/licens-AGPL--3.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.12-success.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.13-success.svg)](CHANGELOG.md)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![Svelte](https://img.shields.io/badge/Svelte_5-FF3E00?logo=svelte&logoColor=white)
@@ -96,6 +96,20 @@ npm run build       # → frontend/dist, som SCADA-serveren serverer (kopierer o
 Eksempeltegninger: [docs/examples/](docs/examples/).
 
 ## Installation (Debian / Raspberry Pi OS)
+
+### Ny Raspberry Pi direkte fra GitHub
+
+Installér **Raspberry Pi OS Lite (64-bit)**, tilslut netværk og kør:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Jangreenlarsen/HypervisionPLC-SCADA/main/deploy/bootstrap.sh | sudo sh
+```
+
+Scriptet henter den nyeste [Release](https://github.com/Jangreenlarsen/HypervisionPLC-SCADA/releases) (færdigbygget pakke — intet Node.js på Pi'en), kontrollerer kontrolsummen og kører `deploy/install.sh`. Til sidst vises adressen og engangsadgangskoden til `admin`. Valg sendes videre: `… | sudo sh -s -- --with-nginx scada.local 192.168.1.50` eller `--with-mock-plc`. En bestemt version: `… | sudo SCADA_VERSION=v3.13.0 sh`.
+
+Releases bygges automatisk af GitHub Actions ([.github/workflows/release.yml](.github/workflows/release.yml)), når et tag `vX.Y.Z` pushes.
+
+### Fra en udpakket kopi af repoet
 
 ```sh
 sudo sh deploy/install.sh                 # SCADA som systemd-service

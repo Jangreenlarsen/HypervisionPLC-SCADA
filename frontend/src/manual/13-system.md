@@ -52,7 +52,9 @@ Under **System** ligger Log, Brugere, Backup, Opdatering og Konfiguration. **Log
 
 **Kassér pakken** fjerner en klargjort pakke. Under en opdatering kan intet andet ændres. Loggen fra den seneste opdatering ligger nederst på siden. Kontrolsummen beskytter mod beskadigelse, men en administrator kan via en opdatering i praksis køre kode på serveren — kun betroede personer bør være admin.
 
-> Første gang skal serveren have installationen kørt som administrator på serveren (`sh deploy/install.sh`); derefter kan alle nye versioner komme via siden.
+> Første gang installeres serveren på en ny Raspberry Pi (Raspberry Pi OS Lite) med én kommando, der henter den nyeste udgivelse fra GitHub:
+> `curl -fsSL https://raw.githubusercontent.com/Jangreenlarsen/HypervisionPLC-SCADA/main/deploy/bootstrap.sh | sudo sh`
+> Til sidst vises adressen og engangsadgangskoden til `admin`. Derefter kan alle nye versioner komme via siden — pakkerne (`scada-*.tar`) ligger under *Releases* på GitHub.
 
 ## Konfiguration
 

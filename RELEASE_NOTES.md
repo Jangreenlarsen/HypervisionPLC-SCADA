@@ -2,6 +2,11 @@
 
 ---
 
+## v3.13.0 — 2026-10-31 — Installation direkte fra GitHub
+
+- En ny Raspberry Pi installeres med én kommando: `curl -fsSL https://raw.githubusercontent.com/Jangreenlarsen/HypervisionPLC-SCADA/main/deploy/bootstrap.sh | sudo sh`. Den henter den nyeste udgivelse, kontrollerer den og installerer.
+- Hver version udgives nu på GitHub under *Releases* med pakken til *System › Opdatering*.
+
 ## v3.12.5 — 2026-10-31 — Manualens billeder på GitHub
 
 - Billederne i manualen vises nu også, når manualen læses direkte på GitHub. I programmet er der ingen ændring.

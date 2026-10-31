@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.13.0 build 0303] — 2026-10-31 — Installation af en ny Pi direkte fra GitHub
+
+- `deploy/bootstrap.sh` (ny): henter nyeste (eller `SCADA_VERSION`) GitHub Release, kontrollerer SHA256, kører `deploy/install.sh` med de givne valg og viser adresse og engangsadgangskode. `DRY_RUN=1` henter og kontrollerer uden at installere.
+- `.github/workflows/release.yml` (ny): tag `vX.Y.Z` → tjek mod version.json, frontend-tests, `deploy/make-package.sh`, Release med pakke + `.sha256` og noter fra RELEASE_NOTES.md.
+- `README.md`, `frontend/src/manual/13-system.md`: installationsvejledning.
+
 ## [3.12.5 build 0302] — 2026-10-31 — Test rettet til de nye billedstier
 
 - `frontend/src/lib/manualImages.test.ts`: leder efter billeder med den relative sti (`../../public/manual/…`). Build 0301 blev lagt ud med 2 fejlende tests i denne fil (programmet var korrekt).
