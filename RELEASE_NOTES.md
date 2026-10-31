@@ -2,6 +2,12 @@
 
 ---
 
+## v3.12.0 — 2026-10-31 — Bedre tekstredigering i Tegn
+
+- Når en tekst er valgt, kan du i *Egenskaber* rette teksten direkte, også over flere linjer (Enter giver ny linje).
+- Du kan vælge størrelse fra en liste, vælge mellem flere skrifttyper og bruge **fed**, *kursiv* og understreget.
+- Du kan justere teksten til venstre, midt eller højre, uden at den flytter sig, og vælge tekstfarve.
+
 ## v3.11.2 — 2026-10-31 — Tegn: værktøjslinjen øverst
 
 - Linjen med zoom, tegnehjælp (gitter, fang) og hjælpelinjer står nu øverst over tegnefladen i stedet for i bunden.

@@ -9,13 +9,14 @@
     box: { x: number; y: number; w: number; h: number };
     angle: number;
     pipeRadius: number | null;
-    paint: { fill: string; stroke: string; strokeWidth: number; opacity: number; fontSize: number | null; fontFamily: string | null; bold: boolean | null; rx: number | null } | null;
+    paint: { fill: string; stroke: string; strokeWidth: number; opacity: number; fontSize: number | null; fontFamily: string | null; bold: boolean | null; italic: boolean | null; underline: boolean | null; anchor: string | null; text: string | null; rx: number | null } | null;
   }
   export interface InspectApi {
     inspect(): Inspect | null;
     setBox(field: 'x' | 'y' | 'w' | 'h', value: string, keepRatio?: boolean): { ok?: boolean; error?: string };
     setAngle(deg: string): { ok?: boolean; error?: string };
     setStyle(attr: string, value: string | null): { ok?: boolean; error?: string };
+    setText(value: string): { ok?: boolean; error?: string };
     setPipeRadius(value: string): { ok?: boolean; error?: string };
     straightenPipe(): { ok?: boolean; error?: string };
   }
@@ -29,7 +30,13 @@
     info = api?.inspect() ?? null;
   });
 
-  const FONTS = ['sans-serif', 'serif', 'monospace', 'Arial', 'Verdana', 'Courier New'];
+  const FONTS = ['Segoe UI, Arial', 'Arial', 'Verdana', 'Tahoma', 'Georgia', 'Courier New', 'sans-serif', 'serif', 'monospace'];
+  const SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 64];
+  const ALIGN = [
+    { v: 'start', label: 'Venstrestillet', d: 'M4 6 H20 M4 10 H14 M4 14 H20 M4 18 H12' },
+    { v: 'middle', label: 'Centreret', d: 'M4 6 H20 M7 10 H17 M4 14 H20 M8 18 H16' },
+    { v: 'end', label: 'Højrestillet', d: 'M4 6 H20 M10 10 H20 M4 14 H20 M12 18 H20' },
+  ];
   const isNone = (c: string | undefined) => !c || c === 'none' || c === 'transparent';
 
   function run(r: { ok?: boolean; error?: string } | undefined): void {
@@ -76,7 +83,7 @@
     {#if info.paint}
       {@const p = info.paint}
       <div class="row paint">
-        <span class="lbl">Fyld</span>
+        <span class="lbl">{p.fontSize !== null ? 'Farve' : 'Fyld'}</span>
         {#if isNone(p.fill)}
           <button class="small" onclick={() => run(api?.setStyle('fill', '#ffffff'))}>Ingen — tilføj</button>
         {:else}
@@ -103,14 +110,35 @@
         </label>
       </div>
       {#if p.fontSize !== null}
-        <div class="grid">
-          <label>Skrift <input inputmode="decimal" value={p.fontSize} onchange={(e) => onField(e, (v) => api?.setStyle('font-size', v))} onkeydown={key} /></label>
-          <label>Font
-            <select value={p.fontFamily} onchange={(e) => run(api?.setStyle('font-family', e.currentTarget.value))}>
-              {#each FONTS.includes(p.fontFamily ?? '') ? FONTS : [p.fontFamily ?? '', ...FONTS] as f}<option value={f}>{f}</option>{/each}
-            </select>
+        <div class="textbox">
+          <label class="full">Tekst
+            <textarea rows={Math.min(5, Math.max(2, (p.text ?? '').split('\n').length))} value={p.text ?? ''}
+                      onchange={(e) => run(api?.setText(e.currentTarget.value))}
+                      title="Ret teksten — Enter giver en ny linje; klik uden for feltet for at gemme"></textarea>
           </label>
-          <label class="chk"><input type="checkbox" checked={!!p.bold} onchange={(e) => run(api?.setStyle('font-weight', e.currentTarget.checked ? 'bold' : null))} /> Fed</label>
+          <div class="grid">
+            <label>Størrelse
+              <input inputmode="decimal" list="hv-font-sizes" value={p.fontSize} onchange={(e) => onField(e, (v) => api?.setStyle('font-size', v))} onkeydown={key} />
+            </label>
+            <label>Skrifttype
+              <select value={p.fontFamily} onchange={(e) => run(api?.setStyle('font-family', e.currentTarget.value))}>
+                {#each FONTS.includes(p.fontFamily ?? '') ? FONTS : [p.fontFamily ?? '', ...FONTS] as f}<option value={f}>{f}</option>{/each}
+              </select>
+            </label>
+          </div>
+          <datalist id="hv-font-sizes">{#each SIZES as n}<option value={n}></option>{/each}</datalist>
+          <div class="tbar" role="toolbar" aria-label="Tekstformat">
+            <button class="fmt" class:on={p.bold} aria-pressed={!!p.bold} title="Fed" onclick={() => run(api?.setStyle('font-weight', p.bold ? null : 'bold'))}><b>F</b></button>
+            <button class="fmt" class:on={p.italic} aria-pressed={!!p.italic} title="Kursiv" onclick={() => run(api?.setStyle('font-style', p.italic ? null : 'italic'))}><i>K</i></button>
+            <button class="fmt" class:on={p.underline} aria-pressed={!!p.underline} title="Understreget" onclick={() => run(api?.setStyle('text-decoration', p.underline ? null : 'underline'))}><u>U</u></button>
+            <span class="tsep"></span>
+            {#each ALIGN as a}
+              <button class="fmt" class:on={p.anchor === a.v} aria-pressed={p.anchor === a.v} title={a.label} aria-label={a.label}
+                      onclick={() => run(api?.setStyle('text-anchor', a.v === 'start' ? null : a.v))}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d={a.d} /></svg>
+              </button>
+            {/each}
+          </div>
         </div>
       {/if}
     {:else if info.count === 1}
@@ -124,9 +152,16 @@
   .what { margin: 0 0 .3rem; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); gap: .3rem .5rem; margin-bottom: .4rem; }
   .grid label { display: flex; flex-direction: column; font-size: .8rem; color: #555; }
-  .grid label.chk { flex-direction: row; align-items: center; gap: .3rem; padding-top: 1rem; }
   .grid input, .grid select { width: 100%; min-width: 0; font-size: .9rem; padding: 2px 4px; }
   .pipe-acts { margin-bottom: .4rem; }
+  .textbox { border-top: 1px solid var(--line); padding-top: .4rem; margin-top: .2rem; }
+  .full { display: flex; flex-direction: column; font-size: .8rem; color: #555; margin-bottom: .35rem; }
+  .full textarea { width: 100%; font: inherit; font-size: .9rem; resize: vertical; padding: 3px 5px; }
+  .tbar { display: flex; gap: 2px; align-items: center; flex-wrap: wrap; }
+  .fmt { width: 30px; height: 28px; padding: 3px; border: 1px solid var(--line); border-radius: 4px; background: #fff; font-size: .95rem; line-height: 1; }
+  .fmt.on { background: #dbe8ff; border-color: #6c93d8; }
+  .fmt svg { width: 100%; height: 100%; fill: none; stroke: #333; stroke-width: 2; stroke-linecap: round; }
+  .tsep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
   .paint { align-items: center; gap: .4rem; margin-bottom: .35rem; flex-wrap: wrap; }
   .paint .lbl { width: 2.6rem; font-size: .85rem; }
 </style>

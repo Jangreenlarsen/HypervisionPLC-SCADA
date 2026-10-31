@@ -67,3 +67,13 @@ it('round2', () => {
   expect(round2(1.23456)).toBe(1.23);
   expect(round2(-0.005)).toBe(-0);
 });
+
+describe('textLines (tekst fra panelet)', async () => {
+  // @ts-expect-error — ren JS uden typer
+  const { textLines } = await import('../../svgedit-host/edit.js');
+  it('linjer, Windows-linjeskift, tomme linjer fylder en linje', () => {
+    expect(textLines('Pumpe 1')).toEqual(['Pumpe 1']);
+    expect(textLines('Kedel\r\nrum\n\nB')).toEqual(['Kedel', 'rum', ' ', 'B']);
+    expect(textLines(null)).toEqual([' ']);
+  });
+});

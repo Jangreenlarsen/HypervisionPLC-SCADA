@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.12.0 build 0296] — 2026-10-31 — Tekstredigering i Egenskaber
+
+- `frontend/svgedit-host/scada-core.js`: `setText` (flere linjer som tspan'er; ét fortryd-trin, samme id); `setStyle` tillader `font-style`, `text-decoration`, `text-anchor` (justering flytter x, så teksten bliver stående); `paintOf` giver kursiv/understreget/justering/tekst.
+- `frontend/svgedit-host/edit.js`: `textLines` (testet).
+- `frontend/src/lib/draw/Inspector.svelte`: tekst-del med tekstfelt, størrelse (forslag), skrifttyper, F/K/U, justering, *Farve*. Manual kap. 04.
+
 ## [3.11.2 build 0295] — 2026-10-31 — Tegn: zoom, tegnehjælp og hjælpelinjer øverst
 
 - `frontend/src/lib/draw/DrawCanvas.svelte`: linjen med zoom, tegnehjælp og hjælpelinjer er flyttet fra bunden op over tegnefladen (Jans ønske); værktøjets hjælpetekst bliver i bunden. Manual kap. 04.

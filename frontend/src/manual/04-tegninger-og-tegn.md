@@ -38,6 +38,18 @@ Skærmen er delt sådan:
 
 Alt kan fortrydes med **Ctrl+Z**. Andre taster: **Delete** sletter, **Ctrl+C/X/V** kopierer/klipper/indsætter, **Ctrl+D** duplikerer, **Ctrl+G** grupperer (Ctrl+Shift+G opløser), **Ctrl+A** vælger alt, piletasterne flytter 1 (med Shift 10), **Esc** går tilbage til Vælg.
 
+### Tekst
+
+Vælg værktøjet **Tekst** (T), klik og skriv; dobbeltklik på en tekst for at rette den direkte. Når en tekst er valgt, har *Egenskaber* en tekst-del:
+
+- **Tekst** — ret teksten i feltet; **Enter** giver en ny linje (teksten står så på flere linjer). Klik uden for feltet for at gemme.
+- **Størrelse** (skriv eller vælg fra listen) og **Skrifttype**.
+- **F**, **K**, **U** — fed, kursiv og understreget (klik igen for at slå fra).
+- **Justering** — venstre-, centreret eller højrestillet; teksten bliver stående samme sted.
+- **Farve** — tekstens farve.
+
+Alt kan fortrydes med **Ctrl+Z**.
+
 ### Forbindelser (rør og ledninger)
 
 Værktøjet **Forbindelse** (O) tegner forbindelser — rør i et procesanlæg eller ledninger i en el-tegning — der altid går vandret eller lodret. Nedenfor kaldes de *rør*, men alt gælder lige så vel for ledninger. Klik for start og for hvert knæk; **dobbeltklik** eller **Enter** slutter røret, **Backspace** fjerner det sidste knæk, og **Esc** fortryder røret.

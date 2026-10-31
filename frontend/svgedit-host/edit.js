@@ -57,3 +57,14 @@ export function distribute(boxes, axis) {
 
 /** Afrund til 2 decimaler (felterne i panelet). */
 export const round2 = (v) => Math.round(v * 100) / 100;
+
+/** Tekst fra panelet → linjer (Windows-linjeskift ok, tomme linjer bevares som et mellemrum, så de fylder en linje). */
+export function textLines(value) {
+  const lines = String(value ?? '').replace(/\r\n?/g, '\n').split('\n');
+  return lines.map((l) => (l.length ? l : ' '));
+}
+
+/** Teksten i et tekst-element som én streng (linjer fra tspan'er adskilt af linjeskift). */
+export function textOf(lines) {
+  return lines.join('\n');
+}

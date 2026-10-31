@@ -6,7 +6,7 @@ import {
 } from './snap.js';
 import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
-import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
+import { boxMapping, distribute as distributeBoxes, editBox, round2, textLines } from './edit.js';
 import { alignToGuide, formatGuides, guideLines, parseGuides, snapBoxToGuides, snapHint, snapPointToGuides } from './guides.js';
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
 import { PIPE_STYLE, alignDelta, ensureOrthogonal, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
@@ -1620,6 +1620,11 @@ export function createScada(host) {
       fontSize: TEXTY.has(el.tagName) ? num(g('font-size'), 16) : null,
       fontFamily: TEXTY.has(el.tagName) ? (g('font-family') || 'sans-serif') : null,
       bold: TEXTY.has(el.tagName) ? /bold|[6-9]00/.test(g('font-weight')) : null,
+      italic: TEXTY.has(el.tagName) ? /italic|oblique/.test(g('font-style')) : null,
+      underline: TEXTY.has(el.tagName) ? /underline/.test(el.getAttribute('text-decoration') || cs.textDecorationLine || '') : null,
+      anchor: TEXTY.has(el.tagName) ? (el.getAttribute('text-anchor') || 'start') : null,
+      // teksten: linjer fra tspan'er (flere linjer) eller selve teksten
+      text: TEXTY.has(el.tagName) ? ([...el.children].filter((c) => c.tagName === 'tspan').map((t) => t.textContent).join(String.fromCharCode(10)) || el.textContent) : null,
       rx: el.tagName === 'rect' ? num(el.getAttribute('rx'), 0) : null,
     };
   }
@@ -1732,17 +1737,55 @@ export function createScada(host) {
     setStyle(attr, value) {
       const sel = selectedEls();
       if (!sel.length) return { error: 'Intet valgt' };
-      const allowed = new Set(['fill', 'stroke', 'stroke-width', 'opacity', 'font-size', 'font-family', 'font-weight', 'rx']);
+      const allowed = new Set(['fill', 'stroke', 'stroke-width', 'opacity', 'font-size', 'font-family', 'font-weight', 'font-style', 'text-decoration', 'text-anchor', 'rx']);
       if (!allowed.has(attr)) return { error: `Ukendt egenskab ${attr}` };
       const snap = snapshot(sel);
       for (const el of sel) {
+        // justering: teksten bliver stående samme sted (x flyttes, så boksen ikke hopper)
+        const before = attr === 'text-anchor' && TEXTY.has(el.tagName) ? el.getBBox() : null;
         if (value === null || value === '') el.removeAttribute(attr);
         else {
           el.setAttribute(attr, String(value));
           if (attr === 'rx') el.setAttribute('ry', String(value));
         }
+        if (before) {
+          const dx = before.x - el.getBBox().x;
+          for (const t of [el, ...el.querySelectorAll('tspan[x]')]) {
+            if (t.hasAttribute('x')) t.setAttribute('x', String(Math.round((num(t.getAttribute('x')) + dx) * 100) / 100));
+          }
+        }
       }
       commitSnapshot(snap, `Panel: ${attr}`);
+      afterEdit();
+      return { ok: true };
+    },
+
+    /** Ret teksten i det valgte tekst-element (flere linjer = én linje pr. tspan). Ét fortryd-trin; id og opsætning bevares. */
+    setText(value) {
+      const sel = selectedEls();
+      const el = sel.length === 1 && TEXTY.has(sel[0].tagName) ? sel[0] : null;
+      if (!el || el.tagName !== 'text') return { error: 'Vælg en tekst' };
+      const lines = textLines(value);
+      const parent = el.parentNode, next = el.nextSibling;
+      const copy = el.cloneNode(false);   // samme id og attributter, nyt indhold
+      if (lines.length === 1) copy.textContent = lines[0];
+      else {
+        const x = el.getAttribute('x') ?? '0';
+        lines.forEach((line, i) => {
+          const t = document.createElementNS(NS, 'tspan');
+          t.setAttribute('x', x);
+          t.setAttribute('dy', i ? '1.2em' : '0');
+          t.textContent = line;
+          copy.appendChild(t);
+        });
+      }
+      const c = canvas();
+      c.clearSelection();
+      const cmds = [removeCmd(el)];
+      parent.insertBefore(copy, next);
+      cmds.push(new c.history.InsertElementCommand(copy));
+      commitCmds('Tekst rettet', cmds);
+      c.addToSelection([copy]);
       afterEdit();
       return { ok: true };
     },
