@@ -2,6 +2,12 @@
 
 ---
 
+## v3.6.0 — 2026-10-31 — Flyt dele af et rør
+
+- Vælg et rør, så får hvert lige stykke et **blåt håndtag** på midten. Træk det på tværs for at flytte netop det stykke. Rørets ender bliver siddende i deres tilslutningspunkter.
+- Dine ændringer af rørets forløb bevares, når du bagefter flytter et symbol. Kun stykket lige ved symbolet lægges om.
+- Rettet: når man klikkede på et rør for at vælge det, kunne næste træk flytte hele røret, så det mistede sine forbindelser.
+
 ## v3.5.0 — 2026-10-31 — Ryddeligere panel i Tegn
 
 - Panelet til højre i Tegn er nu delt i foldbare sektioner: **Valgt element**, **Egenskaber**, **Objekter** og **Symboler**. Valgt element og Egenskaber står lige under hinanden.

@@ -254,3 +254,50 @@ describe('v3.4.0: rør-ende på rør-ende', async () => {
     expect(m.endDir(b, 'start')).toEqual([0, -1]);
   });
 });
+
+describe('v3.6.0: flyt et stykke af røret', async () => {
+  it('reroute bevarer et flyttet stykke, når symbolet flyttes', async () => {
+    // @ts-expect-error — ren JS uden typer
+    const mm = await import('../../svgedit-host/pipes.js');
+    const route: [number, number][] = [[214, 282], [234, 282], [234, 391], [780, 391], [780, 250], [800, 250]];   // stykket er flyttet ned
+    const r = mm.reroute(route, 'start', [214, 216], [1, 0]);   // pumpen er flyttet op
+    expect(r[0]).toEqual([214, 216]);
+    expect(r).toContainEqual([780, 391]);   // det flyttede stykke er der stadig
+    expect(r).toContainEqual([234, 391]);
+  });
+
+  // @ts-expect-error — ren JS uden typer
+  const m = await import('../../svgedit-host/pipes.js');
+  type Q = [number, number];
+  const ortho = (pts: Q[]) => pts.every((p, i) => i === 0 || m.axisOf(pts[i - 1], p) !== null);
+  const route: Q[] = [[0, 0], [100, 0], [100, 80], [200, 80]];
+
+  it('et midterstykke flyttes; enderne bliver', () => {
+    const r = m.moveSegment(route, 1, 30);   // det lodrette stykke 30 til højre
+    expect(r).toEqual([[0, 0], [130, 0], [130, 80], [200, 80]]);
+  });
+
+  it('første stykke: enden bliver, der kommer et knæk efter et lige stykke', () => {
+    const r = m.moveSegment(route, 0, -40);
+    expect(r[0]).toEqual([0, 0]);
+    expect(r[1]).toEqual([m.STUB, 0]);
+    expect(r[2]).toEqual([m.STUB, -40]);
+    expect(r[r.length - 1]).toEqual([200, 80]);
+    expect(ortho(r)).toBe(true);
+  });
+
+  it('et lige rør med begge ender fast får to knæk', () => {
+    const r = m.moveSegment([[0, 0], [200, 0]], 0, 50);
+    expect(r).toEqual([[0, 0], [m.STUB, 0], [m.STUB, 50], [200 - m.STUB, 50], [200 - m.STUB, 0], [200, 0]]);
+  });
+
+  it('flyttes stykket tilbage på plads, forsvinder de ekstra knæk', () => {
+    expect(m.moveSegment(route, 1, 0)).toEqual(route);
+    const there = m.moveSegment(route, 1, 30);
+    expect(m.moveSegment(there, 1, -30)).toEqual(route);
+  });
+
+  it('segmentHandles: midten af stykker, der er lange nok', () => {
+    expect(m.segmentHandles(route, 90)).toEqual([{ k: 0, mid: [50, 0], axis: 'h' }, { k: 2, mid: [150, 80], axis: 'h' }]);
+  });
+});

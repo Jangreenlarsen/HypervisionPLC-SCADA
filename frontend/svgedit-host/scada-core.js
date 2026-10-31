@@ -8,7 +8,7 @@ import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
 import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
-import { PIPE_STYLE, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
+import { PIPE_STYLE, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
 
 /**
  * @param {{ canvas(): any, loadFromString(svg: string): unknown, updateCanvas(): void, gridHost(): HTMLElement | null,
@@ -354,7 +354,7 @@ export function createScada(host) {
     // SVG-Edit sender ikke 'changed' efter en flytning med musen, så vi lytter selv på museknappen (efter editorens egen
     // håndtering): ved nedtryk huskes de valgte elementers placering, ved slip fanges der — hvis det var et træk.
     document.addEventListener('mousedown', () => setTimeout(rememberBoxes, 0), { capture: true, signal: life.signal });
-    document.addEventListener('mouseup', () => setTimeout(() => { if (!snapping) settleAfterMouseUp(); drawHandles(); }, 0), { capture: true, signal: life.signal });
+    document.addEventListener('mouseup', () => setTimeout(() => { if (!snapping && !handles.busy) settleAfterMouseUp(); handles.busy = false; drawHandles(); }, 0), { capture: true, signal: life.signal });
     // Indsæt og dupliker (Ctrl+V, Ctrl+D): kopien lægges på gitteret, så den passer sammen med originalen
     for (const name of ['pasteElements', 'cloneSelectedElements']) {
       const original = c[name];
@@ -808,7 +808,8 @@ export function createScada(host) {
     return best;
   }
 
-  const handles = { layer: null, drag: null };
+  // busy: et håndtag-træk er i gang/netop slut — så må "fang efter træk" ikke flytte røret bagefter (BUGS.md v3.6.0)
+  const handles = { layer: null, drag: null, busy: false };
   function selectedPipe() {
     const sel = selectedEls();
     return sel.length === 1 && isPipe(sel[0]) && !sel[0].getAttribute('transform') ? sel[0] : null;
@@ -829,6 +830,9 @@ export function createScada(host) {
       gridHost.appendChild(layer);
       handles.layer = layer;
       layer.addEventListener('mousedown', startHandleDrag);
+      // Håndtagene tegnes, så snart røret er valgt — ofte lige under musen. Lander museslippet så på et håndtag, får
+      // lærredet det aldrig og tror, at knappen stadig er nede (næste træk flyttede hele røret). Send det videre.
+      layer.addEventListener('mouseup', (ev) => { const c = canvas(); if (c.getStarted?.()) c.mouseUpEvent?.(ev); });
     }
     const hr = gridHost.getBoundingClientRect();
     const cr = contentRect(content);
@@ -842,7 +846,9 @@ export function createScada(host) {
     const drag = handles.drag;
     const pts = drag ? drag.preview : pipePoints(el);
     let out = '';
-    if (drag) {
+    if (drag && drag.seg !== undefined) {
+      out += `<path d="${pipePath(pts, radiusOf(el))}" fill="none" stroke="#1565c0" stroke-width="${2 / z}" stroke-dasharray="${5 / z} ${3 / z}"/>`;
+    } else if (drag) {
       out += drag.ports.map((q) => {
         const hot = drag.hit && q.doc === drag.hit.doc;
         return `<circle cx="${q.doc[0]}" cy="${q.doc[1]}" r="${(hot ? 7 : 4) / z}" fill="${hot ? '#2e7d32' : '#fff'}" stroke="#2e7d32" stroke-width="${1.5 / z}"/>`;
@@ -851,11 +857,20 @@ export function createScada(host) {
       if (spot) out += `<circle cx="${spot[0]}" cy="${spot[1]}" r="${7 / z}" fill="#ef6c00" stroke="#fff" stroke-width="${1.5 / z}"/>`;
       out += `<path d="${pipePath(pts, radiusOf(el))}" fill="none" stroke="#2e7d32" stroke-width="${2 / z}" stroke-dasharray="${5 / z} ${3 / z}"/>`;
     }
+    // håndtag midt på hvert stykke: træk på tværs for at flytte stykket (enderne bliver siddende, v3.6.0)
+    if (!drag || drag.seg !== undefined) {
+      for (const h of segmentHandles(pts, 24 / z)) {
+        const w = (h.axis === 'h' ? 18 : 8) / z, hgt = (h.axis === 'h' ? 8 : 18) / z;
+        out += `<rect data-seg="${h.k}" x="${h.mid[0] - w / 2}" y="${h.mid[1] - hgt / 2}" width="${w}" height="${hgt}" rx="${3 / z}" ` +
+          `fill="#fff" stroke="#1565c0" stroke-width="${1.5 / z}" style="pointer-events:all; cursor:${h.axis === 'h' ? 'ns-resize' : 'ew-resize'}">` +
+          `<title>Træk for at flytte dette stykke af røret — enderne bliver siddende</title></rect>`;
+      }
+    }
     for (const which of ['start', 'end']) {
       const p = which === 'start' ? pts[0] : pts[pts.length - 1];
       if (!p) continue;
       const attr = which === 'start' ? 'data-hv-from' : 'data-hv-to';
-      const fixed = !drag && el.hasAttribute(attr);
+      const fixed = (!drag || drag.seg !== undefined) && el.hasAttribute(attr);
       out += `<rect data-end="${which}" x="${p[0] - 6 / z}" y="${p[1] - 6 / z}" width="${12 / z}" height="${12 / z}" ` +
         `fill="${fixed ? '#2e7d32' : '#ef6c00'}" stroke="#fff" stroke-width="${1.5 / z}" style="pointer-events:all; cursor:move">` +
         `<title>${fixed ? 'Sidder fast — træk for at flytte enden til et andet punkt' : 'Fri ende — træk hen på et tilslutningspunkt for at sætte den fast'}</title></rect>`;
@@ -863,7 +878,51 @@ export function createScada(host) {
     layer.innerHTML = out;
   }
 
+  /** Træk et stykke af det valgte rør på tværs. */
+  function startSegmentDrag(e, el, k) {
+    e.stopPropagation();
+    e.preventDefault();
+    const base = pipePoints(el);
+    const axis = axisOf(base[k], base[k + 1]);
+    const from = docPoint(e);
+    handles.drag = { el, seg: k, base, preview: base, ports: [] };
+    handles.busy = true;
+    const life = new AbortController();
+    const move = (ev) => {
+      const p = docPoint(ev);
+      let delta = axis === 'h' ? p[1] - from[1] : p[0] - from[0];
+      if (guides.snapGrid) {
+        // det flyttede stykke lægges på gitteret
+        const at = (axis === 'h' ? base[k][1] : base[k][0]) + delta;
+        delta = Math.round(at / guides.step) * guides.step - (axis === 'h' ? base[k][1] : base[k][0]);
+      }
+      handles.drag.preview = moveSegment(base, k, delta);
+      drawHandles();
+    };
+    const up = () => {
+      life.abort();
+      const d = handles.drag;
+      handles.drag = null;
+      if (d && d.preview !== d.base) {
+        const before = attrsOf(el);
+        drawPipe(el, d.preview);
+        commitCmds('Rør-stykke flyttet', [changeCmd(el, before)]);
+        afterEdit();
+      }
+      drawHandles();
+    };
+    document.addEventListener('mousemove', move, { signal: life.signal, capture: true });
+    document.addEventListener('mouseup', up, { signal: life.signal, capture: true });
+    drawHandles();
+  }
+
   function startHandleDrag(e) {
+    const seg = e.target?.getAttribute?.('data-seg');
+    if (seg !== null && seg !== undefined && e.button === 0) {
+      const el = selectedPipe();
+      if (el) startSegmentDrag(e, el, Number(seg));
+      return;
+    }
     const which = e.target?.getAttribute?.('data-end');
     const el = selectedPipe();
     if (!which || !el || e.button !== 0) return;
@@ -871,6 +930,7 @@ export function createScada(host) {
     e.preventDefault();
     const base = pipePoints(el);
     handles.drag = { el, which, base, preview: base, hit: null, ports: allPorts() };
+    handles.busy = true;
     const life = new AbortController();
     const move = (ev) => {
       const raw = docPoint(ev);

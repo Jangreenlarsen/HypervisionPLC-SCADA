@@ -317,18 +317,28 @@ export function reroute(points, which, p, dir = null) {
   const keep = pts.slice(0, -1);
   const sp = dir ? plus(p, dir, STUB) : p;
   const length = (list) => list.reduce((n, q, i) => (i ? n + Math.hypot(q[0] - list[i - 1][0], q[1] - list[i - 1][1]) : 0), 0);
-  // prøv at lægge om fra hvert knæk (det nærmeste først): et gammelt knæk, der nu ligger bag punktet, ville give en
-  // sløjfe — den korteste rute med færrest knæk vinder. Lægges der om helt fra den anden ende, går røret stadig ud af
-  // den i samme retning som før (dens første stykke).
-  let best = null;
-  let bestScore = Infinity;
-  for (let j = keep.length - 1; j >= 0; j--) {
+  const routeFrom = (j) => {
     const kept = keep.slice(0, j + 1);
     const anchor = kept[kept.length - 1];
     const before = kept.length >= 2 ? kept[kept.length - 2] : null;
     const startDir = before ? unit(before, anchor) : keep.length >= 2 ? unit(keep[0], keep[1]) : null;
     const leg = bestRoute(anchor, startDir, sp, dir);
-    const res = simplify([...kept, ...leg.slice(1), ...(dir ? [p] : [])]);
+    return simplify([...kept, ...leg.slice(1), ...(dir ? [p] : [])]);
+  };
+  // Behold så meget af den eksisterende rute som muligt (brugeren kan have flyttet stykker): læg om fra det nærmeste
+  // knæk, der ikke ligger BAG punktet (set i punktets retning) — et knæk bag punktet ville give en sløjfe (v3.6.0).
+  for (let j = keep.length - 1; j >= 0; j--) {
+    const a = keep[j];
+    const behind = dir && (a[0] - p[0]) * dir[0] + (a[1] - p[1]) * dir[1] < -EPS;
+    if (behind) continue;
+    const res = routeFrom(j);
+    return which === 'start' ? res.reverse() : res;
+  }
+  // alle knæk ligger bag punktet: den korteste rute med færrest knæk
+  let best = null;
+  let bestScore = Infinity;
+  for (let j = keep.length - 1; j >= 0; j--) {
+    const res = routeFrom(j);
     const score = length(res) + 30 * (res.length - 1);
     if (score < bestScore) { best = res; bestScore = score; }
   }
@@ -457,4 +467,47 @@ export function endDir(points, which) {
   const [a, b] = which === 'end' ? [points[n - 2], points[n - 1]] : [points[1], points[0]];
   const d = unit(a, b);
   return Math.abs(d[0]) >= Math.abs(d[1]) ? [Math.sign(d[0]) || 1, 0] : [0, Math.sign(d[1]) || 1];
+}
+
+// ---------------------------------------------------------------- v3.6.0: flyt et stykke af røret
+/**
+ * Flyt stykket k (points[k] → points[k + 1]) `delta` på tværs (et vandret stykke op/ned, et lodret til siden).
+ * Nabostykkerne strækkes; rørets ender bliver, hvor de er — er stykket det første/sidste, beholdes et lige stykke på
+ * STUB ud af enden (eller halvdelen af stykket, hvis det er kortere), og der indsættes et knæk.
+ */
+export function moveSegment(points, k, delta) {
+  const n = points.length;
+  if (k < 0 || k + 1 >= n || !delta) return points;
+  const a = points[k];
+  const b = points[k + 1];
+  const axis = axisOf(a, b);
+  if (!axis) return points;
+  const shift = (p) => (axis === 'h' ? [p[0], p[1] + delta] : [p[0] + delta, p[1]]);
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const stub = Math.min(STUB, len / 3);
+  const u = unit(a, b);
+  const out = points.slice(0, k);
+  if (k === 0) {
+    // starten ligger fast: lige stykke ud af den, så knæk over til det flyttede stykke
+    const s = [a[0] + u[0] * stub, a[1] + u[1] * stub];
+    out.push(a, s, shift(s));
+  } else out.push(shift(a));
+  if (k + 1 === n - 1) {
+    const e = [b[0] - u[0] * stub, b[1] - u[1] * stub];
+    out.push(shift(e), e, b);
+  } else out.push(shift(b));
+  out.push(...points.slice(k + 2));
+  return simplify(out);
+}
+
+/** Midten af hvert stykke, der er langt nok til et håndtag: [{ k, mid, axis }]. */
+export function segmentHandles(points, minLen = 0) {
+  const out = [];
+  for (let k = 0; k + 1 < points.length; k++) {
+    const a = points[k], b = points[k + 1];
+    const axis = axisOf(a, b);
+    if (!axis || Math.hypot(b[0] - a[0], b[1] - a[1]) < minLen) continue;
+    out.push({ k, mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], axis });
+  }
+  return out;
 }

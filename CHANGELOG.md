@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.6.0 build 0288] — 2026-10-31 — Flyt et stykke af et rør
+
+- `frontend/svgedit-host/pipes.js`: `moveSegment` (flyt et stykke på tværs, enderne bliver), `segmentHandles`; `reroute` bevarer ruten og lægger kun om fra det nærmeste knæk, der ikke ligger bag punktet.
+- `frontend/svgedit-host/scada-core.js`: blå håndtag midt på det valgte rørs stykker (`startSegmentDrag`); rettet: museslip på håndtagene sendes til lærredet (ellers flyttede næste træk hele røret); "fang efter træk" springes over efter håndtag-træk.
+- Manual kap. 04. Tests: `src/lib/pipes.test.ts`.
+
 ## [3.5.0 build 0287] — 2026-10-31 — Tegns højre panel: foldbare sektioner med fastgør
 
 - `frontend/src/lib/draw/panels.ts` (ny, testet): fold ud/ind, fastgør, gemt tilstand. `PanelSection.svelte` (ny): overskrift med ▾/▸ og 📌.
