@@ -16,11 +16,15 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import tarfile
+import tempfile
+import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 from ..config import read_version
 from .errors import ServiceError
@@ -116,6 +120,7 @@ class UpdateService:
         self.dir.mkdir(parents=True, exist_ok=True)
         self.backups = backups
         self.current = current
+        self._receiving = threading.Lock()   # én pakke modtages ad gangen (upload eller GitHub)
 
     # ------------------------------------------------------------- filer
     @property
@@ -162,15 +167,34 @@ class UpdateService:
                 "busy": state in ("applying", "queued"), "log": self._log_tail()}
 
     # ------------------------------------------------------------- pakke
-    def stage(self, uploaded_by: str) -> dict[str, Any]:
-        """Kontrollér den uploadede `incoming.tar`; ved succes bliver den til den klargjorte pakke (`staged.tar`)."""
+    @contextmanager
+    def receiving(self) -> Iterator[Path]:
+        """Egen midlertidig fil til en pakke, der modtages — kun én ad gangen; filen slettes altid bagefter."""
         self._require_enabled()
         self._require_idle()
-        info = inspect_package(self.incoming)
+        if not self._receiving.acquire(blocking=False):
+            raise ServiceError(409, "En anden pakke modtages allerede — vent til den er færdig")
+        path: Path | None = None
+        try:
+            fd, name = tempfile.mkstemp(dir=self.dir, prefix="incoming-", suffix=".part")
+            os.close(fd)
+            path = Path(name)
+            yield path
+        finally:
+            if path is not None:
+                path.unlink(missing_ok=True)
+            self._receiving.release()
+
+    def stage(self, uploaded_by: str, source: Path | None = None) -> dict[str, Any]:
+        """Kontrollér den modtagne pakke (`source`, ellers `incoming.tar`); ved succes bliver den til den klargjorte (`staged.tar`)."""
+        self._require_enabled()
+        self._require_idle()
+        src = source or self.incoming
+        info = inspect_package(src)
         info["relation"] = relation(self.current(), info)
         info["uploaded_by"] = uploaded_by
         info["uploaded_at"] = time.time()
-        self.incoming.replace(self.dir / "staged.tar")
+        src.replace(self.dir / "staged.tar")
         self._write("staged.json", info)
         log.info("Opdateringspakke klargjort: %s build %s (%s) af %s", info["version"], info["build"], info["relation"], uploaded_by)
         return info

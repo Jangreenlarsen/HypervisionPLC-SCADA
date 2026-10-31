@@ -53,3 +53,19 @@ export function isFinished(s: UpdateStatus | null, startedAt: number): boolean {
 }
 
 export const fmtSize = (bytes: number): string => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} kB`);
+
+/** Nyeste udgivelse på GitHub (GET /api/system/update/github). */
+export interface GitHubRelease extends Version {
+  tag: string; name: string; size: number; published_at: string | null; url: string | null; notes: string; relation: Relation;
+}
+
+/** Hvad siden tilbyder for GitHub-udgivelsen: hent den (nyere), hent igen (samme) eller intet (ældre/ukendt). */
+export function githubOffer(r: GitHubRelease | null): { canDownload: boolean; label: string; text: string } | null {
+  if (!r) return null;
+  switch (r.relation) {
+    case 'newer': return { canDownload: true, label: 'Hent og klargør', text: `Ny version ${r.version} build ${r.build} er klar` };
+    case 'same': return { canDownload: true, label: 'Hent igen', text: `Du har den nyeste version (${r.version} build ${r.build})` };
+    case 'older': return { canDownload: false, label: '', text: `Den installerede version er nyere end GitHubs nyeste (${r.version} build ${r.build})` };
+    default: return { canDownload: false, label: '', text: `Versionen på GitHub (${r.version} build ${r.build}) kan ikke sammenlignes med den installerede` };
+  }
+}

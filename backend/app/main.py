@@ -58,6 +58,7 @@ from .services.manager import PlcManager, TransportFactory
 from .services.plcs import PlcService
 from .services.tags import TagService
 from .services.updates import UpdateService
+from .services.github_releases import GitHubReleases
 from .storage.db import Database
 from .storage.files import DrawingFiles
 from .storage.trends_db import TrendDatabase
@@ -102,6 +103,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                                                  keep=max(1, settings.backup_keep),
                                                  trend_keep=max(0, settings.trend_backup_keep))
         app.state.update_service = UpdateService(settings.data_dir, app.state.backup_service)
+        app.state.github_releases = GitHubReleases(settings.update_repo)
         app.state.network_service = NetworkService(settings.data_dir, settings.net_state_dir)
         app.state.power_service = PowerService(settings.data_dir, settings.net_state_dir)
         app.state.trend_view_service = TrendViewService(db)

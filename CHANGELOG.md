@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.14.0 build 0305] — 2026-10-31 — OTA-opdatering direkte fra GitHub
+
+- `backend/app/services/github_releases.py` (ny): nyeste Release via GitHub API, hentning af `scada-*.tar` med størrelsesgrænse og SHA256-kontrol; afviser hvis en nyere udgivelse er kommet siden søgningen.
+- `backend/app/api/system.py`: `GET /api/system/update/github`, `POST /api/system/update/github/download` (admin, audit `system.update.github`); pakken klargøres via `UpdateService.stage`.
+- `backend/app/config.py`, `backend/app/main.py`: `SCADA_UPDATE_REPO` (standard Jangreenlarsen/HypervisionPLC-SCADA; tom = slået fra).
+- `frontend/src/pages/Update.svelte`, `frontend/src/lib/updateUi.ts`: boksen *Fra GitHub*.
+- Tests: `backend/tests/test_github_releases.py`, `frontend/src/lib/updateUi.test.ts`.
+
 ## [3.13.1 build 0304] — 2026-10-31 — Rettet: siden kunne ikke nås efter bootstrap-installation
 
 - `deploy/bootstrap.sh`: nginx med TLS som standard (`--with-nginx <hostnavn> <ip>`), nyt valg `--local-only`, korrekt adresse (`https://<ip>`) i slutbeskeden.
