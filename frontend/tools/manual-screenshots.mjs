@@ -122,7 +122,8 @@ await shot('tegn-erstat', async () => {
   await f.evaluate(() => {
     const big = [...document.querySelectorAll('#svgcontent g.layer > g')].find((g) => g.children.length > 20);
     if (big) { window.scada.selectById(big.id); window.scada.ungroupSelected(); }
-    const pill = document.querySelector('#svgcontent g.layer > rect[rx]');
+    // en pille-etiket — ellers et andet tegnet element på øverste niveau (tegningen ændrer sig over tid)
+    const pill = document.querySelector('#svgcontent g.layer > rect[rx]') ?? document.querySelector('#svgcontent g.layer > rect:not([id="baggrund"]), #svgcontent g.layer > path');
     if (pill) window.scada.selectById(pill.id);
   });
   await settle(500);
