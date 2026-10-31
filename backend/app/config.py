@@ -40,6 +40,8 @@ class Settings:
     # AGPL §13: brugere over netværket skal tilbydes kildekoden — peg på jeres egen fork ved ændringer.
     source_url: str = field(default_factory=lambda: os.environ.get(
         "SCADA_SOURCE_URL", "https://github.com/Jangreenlarsen/HypervisionPLC-SCADA"))
+    # OTA fra GitHub: repoet hvis Releases tilbydes under System › Opdatering. Tom = slået fra (fx anlæg uden internet).
+    update_repo: str = field(default_factory=lambda: os.environ.get("SCADA_UPDATE_REPO", "Jangreenlarsen/HypervisionPLC-SCADA"))
     # Sæt til true når serveren kører bag TLS (nginx) — så sendes session-cookien kun over HTTPS.
     cookie_secure: bool = field(default_factory=lambda: os.environ.get("SCADA_COOKIE_SECURE", "").lower() in ("1", "true", "yes"))
     session_hours: float = field(default_factory=lambda: _env_float("SCADA_SESSION_HOURS", 8.0))

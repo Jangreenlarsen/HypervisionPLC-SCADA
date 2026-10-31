@@ -122,6 +122,10 @@ Konfiguration: `/etc/hypervisionplc-scada.env`. Data: `/var/lib/hypervisionplc-s
 
 ### Opdatering via web-siden (OTA)
 
+**Fra GitHub:** under **System › Opdatering** søger **Søg efter opdatering på GitHub** efter den nyeste Release; **Hent og klargør** henter og kontrollerer pakken (SHA256), som derefter installeres som nedenfor (trin 3). Kræver internet; slås fra med `SCADA_UPDATE_REPO=` i `/etc/hypervisionplc-scada.env`.
+
+**Upload:**
+
 Efter én installation med `deploy/install.sh` kan en admin opdatere serveren fra **System › Opdatering**:
 
 1. Byg pakken på udviklingsmaskinen: `sh deploy/make-package.sh` → `scada-<version>-b<build>.tar`.

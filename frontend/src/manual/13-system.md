@@ -52,6 +52,8 @@ Under **System** ligger Log, Brugere, Backup, Opdatering og Konfiguration. **Log
 
 **Kassér pakken** fjerner en klargjort pakke. Under en opdatering kan intet andet ændres. Loggen fra den seneste opdatering ligger nederst på siden. Kontrolsummen beskytter mod beskadigelse, men en administrator kan via en opdatering i praksis køre kode på serveren — kun betroede personer bør være admin.
 
+**Fra GitHub**: tryk **Søg efter opdatering på GitHub**. Er der en nyere version, viser siden den med udgivelsesnoter; **Hent og klargør** henter pakken, kontrollerer kontrolsummen og klargør den, præcis som hvis du havde uploadet den. Serveren skal have adgang til internettet. Funktionen kan slås fra med `SCADA_UPDATE_REPO=` i `/etc/hypervisionplc-scada.env`.
+
 > Første gang installeres serveren på en ny Raspberry Pi (Raspberry Pi OS Lite) med én kommando, der henter den nyeste udgivelse fra GitHub:
 > `curl -fsSL https://raw.githubusercontent.com/Jangreenlarsen/HypervisionPLC-SCADA/main/deploy/bootstrap.sh | sudo sh`
 > Siden åbnes derefter på `https://<pi-ens-ip>` (godkend advarslen om det selvsignerede certifikat). Til sidst vises adressen og engangsadgangskoden til `admin`. Derefter kan alle nye versioner komme via siden — pakkerne (`scada-*.tar`) ligger under *Releases* på GitHub.

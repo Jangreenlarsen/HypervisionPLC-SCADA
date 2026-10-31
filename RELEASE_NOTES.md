@@ -2,6 +2,10 @@
 
 ---
 
+## v3.14.0 — 2026-10-31 — Opdatering direkte fra GitHub
+
+- Under **System › Opdatering** kan en admin trykke **Søg efter opdatering på GitHub**. Er der en nyere version, hentes og kontrolleres den med **Hent og klargør** og installeres derefter med **Installér og genstart** som før. Serveren skal have adgang til internettet.
+
 ## v3.13.1 — 2026-10-31 — Installation fra GitHub: siden kan nås
 
 - Efter installation med én kommando kunne siden ikke åbnes fra andre maskiner. Nu sættes HTTPS op automatisk, og siden åbnes på `https://<pi-ens-ip>`.

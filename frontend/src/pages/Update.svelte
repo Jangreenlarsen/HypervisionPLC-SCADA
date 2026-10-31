@@ -2,13 +2,15 @@
   import { onDestroy, onMount } from 'svelte';
   import { ask as askUser } from '../lib/ask';
   import { api, get, post } from '../lib/api';
-  import { RELATION_TEXT, canInstall, fmtSize, isFinished, progressText, resultOf, type Staged, type UpdateStatus } from '../lib/updateUi';
+  import { RELATION_TEXT, canInstall, fmtSize, githubOffer, isFinished, progressText, resultOf, type GitHubRelease, type Staged, type UpdateStatus } from '../lib/updateUi';
 
   let status = $state<UpdateStatus | null>(null);
   let error = $state('');
   let info = $state('');
   let uploading = $state(false);
   let reinstall = $state(false);
+  let gh = $state<GitHubRelease | null>(null);
+  let ghBusy = $state<'' | 'search' | 'download'>('');
   let unreachable = $state(false);   // serveren genstarter (kald fejler) — det hører til forløbet
   let watching = $state(false);      // vi har selv startet en opdatering og følger den
   let startedAt = 0;
@@ -55,6 +57,35 @@
     }
   }
 
+  async function searchGitHub(): Promise<void> {
+    error = info = '';
+    ghBusy = 'search';
+    try {
+      gh = await get<GitHubRelease>('/api/system/update/github');
+    } catch (e) {
+      gh = null;
+      error = (e as Error).message;
+    } finally {
+      ghBusy = '';
+    }
+  }
+
+  async function downloadGitHub(): Promise<void> {
+    if (!gh) return;
+    error = info = '';
+    ghBusy = 'download';
+    try {
+      await post('/api/system/update/github/download', { name: gh.name });
+      reinstall = false;
+      gh = null;
+      await refresh();
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      ghBusy = '';
+    }
+  }
+
   async function install(): Promise<void> {
     const s = status?.staged;
     if (!s) return;
@@ -97,6 +128,7 @@
   const result = $derived(resultOf(status?.last ?? null));
   const progress = $derived(watching ? progressText(status, unreachable) : '');
   const staged = $derived(status?.staged as Staged | null | undefined);
+  const offer = $derived(githubOffer(gh));
 </script>
 
 {#if error}<div class="error">{error}</div>{/if}
@@ -108,7 +140,7 @@
     {#if !status.enabled}
       <div class="notice">
         Opdatering fra web-siden er ikke aktiveret på denne server. Kør installationen én gang som root
-        (<code>sh deploy/install.sh</code> fra en udpakket pakke) — herefter kan nye versioner uploades her.
+        (<code>sh deploy/install.sh</code> fra en udpakket pakke, eller <code>deploy/bootstrap.sh</code> fra GitHub) — herefter kan nye versioner hentes og uploades her.
       </div>
     {/if}
   {:else}
@@ -127,9 +159,26 @@
   <section class="panel">
     <h2>Ny version</h2>
     <p class="muted small">
-      Upload en opdateringspakke (<code>.tar</code>, <code>.tar.gz</code> eller <code>.tgz</code>), lavet med <code>sh deploy/make-package.sh</code>.
+      Hent den nyeste udgivelse fra GitHub, eller upload en opdateringspakke (<code>.tar</code>, <code>.tar.gz</code> eller <code>.tgz</code>), lavet med <code>sh deploy/make-package.sh</code>.
       Pakken kontrolleres først og installeres først, når du har bekræftet. Din opsætning (tags, tegninger, brugere) bevares.
     </p>
+    <div class="gh">
+      <strong>Fra GitHub</strong>
+      <div class="row">
+        <button onclick={searchGitHub} disabled={!!ghBusy || uploading || status.busy}>Søg efter opdatering på GitHub</button>
+        {#if offer?.canDownload}
+          <button class="primary" onclick={downloadGitHub} disabled={!!ghBusy || uploading || status.busy}>{offer.label}</button>
+        {/if}
+      </div>
+      {#if ghBusy === 'search'}<p class="muted small">Søger …</p>{/if}
+      {#if ghBusy === 'download'}<p class="muted small">Henter og kontrollerer pakken … (kan tage et minut)</p>{/if}
+      {#if gh && offer}
+        <p class="small"><strong>{offer.text}</strong> · {gh.name} · {fmtSize(gh.size)}
+          {#if gh.url} · <a href={gh.url} target="_blank" rel="noopener noreferrer">se på GitHub</a>{/if}</p>
+        {#if gh.notes}<details><summary class="small">Udgivelsesnoter</summary><pre class="log">{gh.notes}</pre></details>{/if}
+      {/if}
+    </div>
+    <strong>Upload en pakke</strong><br />
     <input type="file" accept=".tar,.gz,.tgz,application/x-tar,application/gzip" disabled={uploading || status.busy}
       onchange={(e) => upload((e.currentTarget as HTMLInputElement).files?.[0])} />
     {#if uploading}<p class="muted small">Uploader og kontrollerer …</p>{/if}
@@ -167,4 +216,5 @@
   .ok-box { background: #e8f5e9; border-color: #a5d6a7; }
   .log { max-height: 20rem; overflow: auto; font-size: .78rem; background: var(--panel-2); padding: .5rem; border-radius: var(--radius); white-space: pre-wrap; }
   code { word-break: break-all; }
+  .gh { border-bottom: 1px solid var(--border, #ddd); padding-bottom: .75rem; margin-bottom: .75rem; display: grid; gap: .4rem; }
 </style>

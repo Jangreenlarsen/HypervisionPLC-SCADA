@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canInstall, fmtSize, isFinished, progressText, resultOf, type LastRun, type Staged, type UpdateStatus } from './updateUi';
+import { canInstall, fmtSize, githubOffer, isFinished, progressText, resultOf, type LastRun, type Relation, type Staged, type UpdateStatus } from './updateUi';
 
 const staged = (relation: Staged['relation']): Staged => ({
   version: '0.50.0', build: '0071', sha256: 'a'.repeat(64), size: 1000, files: 10, relation, uploaded_by: 'jan', uploaded_at: 1,
@@ -61,5 +61,17 @@ describe('fmtSize', () => {
     expect(fmtSize(500)).toBe('1 kB');
     expect(fmtSize(2048)).toBe('2 kB');
     expect(fmtSize(6.5 * 1024 * 1024)).toBe('6.5 MB');
+  });
+});
+
+describe('githubOffer', () => {
+  const rel = (relation: Relation) => ({ tag: 'v9.0.0', name: 'scada-9.0.0-b0009.tar', size: 1, published_at: null, url: null,
+    notes: '', version: '9.0.0', build: '0009', relation });
+  it('tilbyder hentning af en nyere version og genhentning af samme, men aldrig en ældre', () => {
+    expect(githubOffer(null)).toBeNull();
+    expect(githubOffer(rel('newer'))).toMatchObject({ canDownload: true, label: 'Hent og klargør' });
+    expect(githubOffer(rel('same'))).toMatchObject({ canDownload: true, label: 'Hent igen' });
+    expect(githubOffer(rel('older'))?.canDownload).toBe(false);
+    expect(githubOffer(rel('unknown'))?.canDownload).toBe(false);
   });
 });
