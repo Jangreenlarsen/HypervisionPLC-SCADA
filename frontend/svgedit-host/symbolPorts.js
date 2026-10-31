@@ -10,13 +10,16 @@ export function parsePorts(text) {
   if (typeof text !== 'string' || !text.trim()) return null;
   const out = [];
   for (const part of text.split(';')) {
-    const [x, y] = part.split(',').map((v) => Number(v.trim()));
-    if (Number.isFinite(x) && Number.isFinite(y) && x >= 0 && x <= 1 && y >= 0 && y <= 1) out.push([x, y]);
+    const [xs, ys, side] = part.split(',').map((v) => v.trim());
+    const x = Number(xs), y = Number(ys);
+    if (!(Number.isFinite(x) && Number.isFinite(y) && x >= 0 && x <= 1 && y >= 0 && y <= 1)) continue;
+    // valgfri side (l/r/t/b): hvilken vej røret går ud — ellers den nærmeste kant
+    out.push(/^[lrtb]$/.test(side ?? '') ? [x, y, side] : [x, y]);
   }
   return out.length ? out : null;
 }
 
-export const formatPorts = (ports) => ports.map((p) => `${r4(p[0])},${r4(p[1])}`).join(';');
+export const formatPorts = (ports) => ports.map((p) => `${r4(p[0])},${r4(p[1])}${typeof p[2] === 'string' ? `,${p[2]}` : ''}`).join(';');
 
 /** Rørets retning ud af punktet: fra en sidekant vandret, fra top/bund lodret, ellers ud mod nærmeste kant. */
 export function portAxis(frac) {

@@ -315,13 +315,24 @@ export function routeBetween(a, b, dirA = null, dirB = null) {
 export function reroute(points, which, p, dir = null) {
   const pts = which === 'start' ? [...points].reverse() : [...points];
   const keep = pts.slice(0, -1);
-  if (keep.length >= 3) keep.pop();   // det gamle knæk ved enden lægges om
-  const anchor = keep[keep.length - 1];
-  const before = keep.length >= 2 ? keep[keep.length - 2] : null;
   const sp = dir ? plus(p, dir, STUB) : p;
-  const leg = bestRoute(anchor, before ? unit(before, anchor) : null, sp, dir);
-  const res = simplify([...keep, ...leg.slice(1), ...(dir ? [p] : [])]);
-  return which === 'start' ? res.reverse() : res;
+  const length = (list) => list.reduce((n, q, i) => (i ? n + Math.hypot(q[0] - list[i - 1][0], q[1] - list[i - 1][1]) : 0), 0);
+  // prøv at lægge om fra hvert knæk (det nærmeste først): et gammelt knæk, der nu ligger bag punktet, ville give en
+  // sløjfe — den korteste rute med færrest knæk vinder. Lægges der om helt fra den anden ende, går røret stadig ud af
+  // den i samme retning som før (dens første stykke).
+  let best = null;
+  let bestScore = Infinity;
+  for (let j = keep.length - 1; j >= 0; j--) {
+    const kept = keep.slice(0, j + 1);
+    const anchor = kept[kept.length - 1];
+    const before = kept.length >= 2 ? kept[kept.length - 2] : null;
+    const startDir = before ? unit(before, anchor) : keep.length >= 2 ? unit(keep[0], keep[1]) : null;
+    const leg = bestRoute(anchor, startDir, sp, dir);
+    const res = simplify([...kept, ...leg.slice(1), ...(dir ? [p] : [])]);
+    const score = length(res) + 30 * (res.length - 1);
+    if (score < bestScore) { best = res; bestScore = score; }
+  }
+  return which === 'start' ? best.reverse() : best;
 }
 
 /**
@@ -380,4 +391,51 @@ export function extendRoute(points, target, startDir = null, endDir = null) {
   const sp = endDir ? plus(target, endDir, STUB) : target;
   const leg = bestRoute(last, unit(before, last), sp, endDir);
   return simplify([...points, ...leg.slice(1), ...(endDir ? [target] : [])]);
+}
+
+// ---------------------------------------------------------------- v3.2.0: T-stykker (rør på rør)
+/**
+ * Nærmeste punkt på et rør (dets knækpunkter) — projiceret ind på det nærmeste stykke. → { q, k, dist }, hvor stykket
+ * er points[k] → points[k + 1]. Rørets egne ender tæller ikke (der kobles man på enden, ikke et T).
+ */
+export function nearestOnRoute(points, p) {
+  let best = null;
+  for (let k = 0; k + 1 < points.length; k++) {
+    const a = points[k];
+    const b = points[k + 1];
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const len2 = dx * dx + dy * dy;
+    if (!len2) continue;
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2));
+    const q = [a[0] + t * dx, a[1] + t * dy];
+    const dist = Math.hypot(p[0] - q[0], p[1] - q[1]);
+    if (!best || dist < best.dist) best = { q, k, dist };
+  }
+  if (!best) return null;
+  const first = points[0], last = points[points.length - 1];
+  if (same(best.q, first) || same(best.q, last)) return null;
+  return best;
+}
+
+/** Del rørets punkter i q (på stykket k) → [til q, fra q]. */
+export function splitRoute(points, k, q) {
+  return [simplify([...points.slice(0, k + 1), q]), simplify([q, ...points.slice(k + 1)])];
+}
+
+/** Siden (l/r/t/b) af et T-stykke i q, der vender mod punktet p (langs den dominerende akse). */
+export function sideToward(q, p) {
+  const dx = p[0] - q[0], dy = p[1] - q[1];
+  if (Math.abs(dx) >= Math.abs(dy)) return dx < 0 ? 'l' : 'r';
+  return dy < 0 ? 't' : 'b';
+}
+
+/**
+ * Siden en gren skal have på et T-stykke, hvor hovedrøret bruger to sider: på tværs af hovedrøret, mod grenen
+ * (`toward`). Er begge tværsider optaget, eller ligger grenen præcis på linje, bruges en ledig side.
+ */
+export function branchSide(used, q, toward) {
+  const horizontal = used.includes('l') || used.includes('r');
+  const across = horizontal ? (toward[1] < q[1] ? 't' : 'b') : (toward[0] < q[0] ? 'l' : 'r');
+  if (!used.includes(across)) return across;
+  return ['t', 'b', 'l', 'r'].find((s) => !used.includes(s)) ?? null;
 }

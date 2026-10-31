@@ -57,6 +57,7 @@
     partIdByPid(id: string, pid: string): string | null;
     fixDuplicateNames(): { id: string; from: string; to: string }[];
     setLibraryPorts(map: Record<string, number[][]>): void;
+    setTeeSymbol(def: { fragment: string; label: string } | null): void;
     splitFitting(id: string, legs: string): { ok?: boolean; removed?: string[]; parts?: string[]; error?: string };
   }
 
@@ -125,6 +126,9 @@
     // dublet-navne følges løbende (fx tilbage efter Ctrl+Z på "Giv dem unikke navne")
     ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); readSize(); inspectRev++; });
     ready = true;
+    // Rør koblet på et rør får bibliotekets T-stykke (tre ben, hvert med eget løbelys i guiden)
+    const tee = SYMBOLS.find((x) => x.id === 't_stykke');
+    ed.setTeeSymbol(tee ? { fragment: tee.svg, label: tee.label } : null);
     // Symbol-editorens rettede tilslutningspunkter bygges ind i symboler, der indsættes herfra
     try {
       ed.setLibraryPorts(await get<Record<string, number[][]>>('/api/symbol-ports'));

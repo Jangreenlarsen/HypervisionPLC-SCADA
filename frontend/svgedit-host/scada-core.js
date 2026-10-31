@@ -8,7 +8,7 @@ import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
 import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
-import { PIPE_STYLE, axisOfDir, extendRoute, formatRef, fracSide, fromFrac, nearest, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, turnDir } from './pipes.js';
+import { PIPE_STYLE, axisOf, axisOfDir, branchSide, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
 
 /**
  * @param {{ canvas(): any, loadFromString(svg: string): unknown, updateCanvas(): void, gridHost(): HTMLElement | null,
@@ -608,7 +608,7 @@ export function createScada(host) {
     const m = toDocMatrix(el);
     // rettede punkter fra symbol-editoren (bygget ind ved indsættelse) går forud for de automatiske
     const fixed = parsePorts(el.getAttribute('data-hv-ports'));
-    const list = fixed ? fixed.map((frac) => ({ frac, side: fracSide(frac) })) : autoPortsWithSide(el);
+    const list = fixed ? fixed.map((f) => ({ frac: [f[0], f[1]], side: f[2] ?? fracSide(f) })) : autoPortsWithSide(el);
     return list.map(({ frac, side }) => {
       const local = fromFrac(frac, box);
       // udadgående retning — drejer og spejler med symbolet, så røret altid går ind fra den rigtige side
@@ -739,12 +739,92 @@ export function createScada(host) {
     const tol = 12 / (canvas().getZoom() || 1);
     const port = nearest(pipeTool.ports.map((q) => q.doc), raw, tol);
     if (port) return { p: port, port: pipeTool.ports.find((q) => q.doc === port) };
+    // på et eksisterende rør: her bliver der et T-stykke (røret deles)
+    let onPipe = null;
+    for (const el of canvas().getSvgContent().querySelectorAll('[data-hv-pipe]')) {
+      if (el.getAttribute('transform')) continue;
+      const hit = nearestOnRoute(pipePoints(el), raw);
+      if (hit && hit.dist <= tol && (!onPipe || hit.dist < onPipe.dist)) onPipe = { el, k: hit.k, q: hit.q, dist: hit.dist };
+    }
+    if (onPipe) return { p: onPipe.q, port: null, onPipe };
     if (guides.snapGrid) return { p: [Math.round(raw[0] / guides.step) * guides.step, Math.round(raw[1] / guides.step) * guides.step], port: null };
     return { p: raw, port: null };
   }
   /** Røret forlænget hen til p: ud af startpunktets retning, ind i et punkt langs dets retning (pipes.js extendRoute). */
-  function routeTo(p, port = null) {
-    return extendRoute(pipeTool.pts, p, pipeTool.fromDir, port?.dir ?? null);
+  function routeTo(p, port = null, onPipe = null) {
+    const pts = pipeTool.pts;
+    let startDir = pipeTool.fromDir;
+    if (!startDir && pipeTool.fromTee && pts.length === 1) startDir = acrossDir(pipeTool.fromTee, p);
+    const endDir = port?.dir ?? (onPipe ? acrossDir(onPipe, pts[pts.length - 1]) : null);
+    return extendRoute(pts, p, startDir, endDir);
+  }
+  /** Retningen på tværs af røret i punktet info.q, mod `toward`. */
+  function acrossDir(info, toward) {
+    const pts = pipePoints(info.el);
+    const axis = axisOf(pts[info.k], pts[info.k + 1]);
+    if (axis === 'h') return [0, toward[1] < info.q[1] ? -1 : 1];
+    return [toward[0] < info.q[0] ? -1 : 1, 0];
+  }
+
+  // ---- T-stykke: røret deles, og bibliotekets T-stykke sættes ind (tre ben, hvert med sit eget løbelys i guiden)
+  let teeSymbol = null;   // { fragment, label } — sat af Tegn fra symbolbiblioteket
+  const TEE_ANGLE = { t: 0, r: 90, b: 180, l: -90 };   // T-stykket har grenen opad; drej så den vender mod grenen
+  /**
+   * Del røret info.el i info.q og indsæt et T-stykke dér, med grenen mod `toward`. Halvdelene sættes fast i T-stykkets
+   * gennemløb. → { cmds, port } (port = grenens tilslutningspunkt) eller null.
+   */
+  function makeTee(info, toward) {
+    const c = canvas();
+    if (!teeSymbol) return null;
+    const el = info.el;
+    const pts = pipePoints(el);
+    const [p1, p2] = splitRoute(pts, info.k, info.q);
+    if (p1.length < 2 || p2.length < 2) return null;
+    const axis = axisOf(pts[info.k], pts[info.k + 1]);
+    if (!axis) return null;
+    const side = branchSide(axis === 'h' ? ['l', 'r'] : ['t', 'b'], info.q, toward) ?? 't';
+    const node = buildSymbolNode(teeSymbol.fragment, 't_stykke');
+    if (!node) return null;
+    node.setAttribute('data-hv-name', uniqueNameIn(teeSymbol.label));
+    // benenes ender som punkter med side (gennemløb venstre/højre, gren op) — medmindre biblioteket har rettede punkter
+    if (!node.hasAttribute('data-hv-ports')) node.setAttribute('data-hv-ports', '0,1,l;1,1,r;0.5,0,t');
+    el.after(node);
+    const bb = node.getBBox();
+    const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
+    const a = TEE_ANGLE[side] * Math.PI / 180;
+    // samlingspunktet (gennemløbets midte: bund-midten af benene) skal ligge i q
+    const jx = bb.x + bb.width / 2, jy = bb.y + bb.height;
+    const rx = cx + (jx - cx) * Math.cos(a) - (jy - cy) * Math.sin(a);
+    const ry = cy + (jx - cx) * Math.sin(a) + (jy - cy) * Math.cos(a);
+    const r = (v) => Math.round(v * 100) / 100;
+    node.setAttribute('transform', `translate(${r(info.q[0] - rx)} ${r(info.q[1] - ry)})${TEE_ANGLE[side] ? ` rotate(${TEE_ANGLE[side]} ${r(cx)} ${r(cy)})` : ''}`);
+    const ports = portsOf(node);
+    const pick = (towardPt, taken) => ports.filter((q) => !taken.includes(q)).sort((u, v) => {
+      const d = (q) => { const dx = towardPt[0] - info.q[0], dy = towardPt[1] - info.q[1]; return q.dir[0] * dx + q.dir[1] * dy; };
+      return d(v) - d(u);
+    })[0];
+    const portA = pick(p1[p1.length - 2], []);
+    const portB = pick(p2[1], [portA]);
+    const portC = ports.find((q) => q !== portA && q !== portB);
+    if (!portA || !portB || !portC) { node.remove(); return null; }
+    const before = Object.fromEntries([...el.attributes].map((x) => [x.name, x.value]));
+    // første halvdel: det eksisterende rør (beholder id, navn og opsætning)
+    drawPipe(el, reroute(p1, 'end', portA.doc, portA.dir));
+    el.setAttribute('data-hv-to', formatRef(node.id, portA.frac, portA.side));
+    // anden halvdel: nyt rør med samme udseende, uden navn/opsætning
+    const el2 = el.cloneNode(false);
+    el2.setAttribute('id', c.getNextId());
+    for (const k of ['data-hv-name', 'data-hv-desc']) el2.removeAttribute(k);
+    el2.setAttribute('data-hv-from', formatRef(node.id, portB.frac, portB.side));
+    if (before['data-hv-to']) el2.setAttribute('data-hv-to', before['data-hv-to']); else el2.removeAttribute('data-hv-to');
+    drawPipe(el2, reroute(p2, 'start', portB.doc, portB.dir));
+    el.after(el2);
+    const old = {};
+    for (const k of new Set([...Object.keys(before), ...[...el.attributes].map((x) => x.name)])) {
+      if (before[k] !== el.getAttribute(k)) old[k] = before[k] ?? null;
+    }
+    const cmds = [new c.history.ChangeElementCommand(el, old), new c.history.InsertElementCommand(el2), new c.history.InsertElementCommand(node)];
+    return { cmds, port: portC, node };
   }
 
   function drawPipeOverlay() {
@@ -775,10 +855,18 @@ export function createScada(host) {
       return `<circle cx="${q.doc[0]}" cy="${q.doc[1]}" r="${hot ? r * 1.8 : r}" fill="${hot ? '#2e7d32' : '#fff'}" stroke="#2e7d32" stroke-width="${1.5 / z}"/>`;
     }).join('');
     let preview = '';
+    if (!pipeTool.pts.length && pipeTool.hoverPipe) {
+      const q = pipeTool.hoverPipe.q;
+      preview += `<circle cx="${q[0]}" cy="${q[1]}" r="${7 / z}" fill="#ef6c00" stroke="#fff" stroke-width="${1.5 / z}"/>`;
+    }
     if (pipeTool.pts.length) {
-      const pts = pipeTool.cursor ? routeTo(pipeTool.cursor, pipeTool.hover) : pipeTool.pts;
+      const pts = pipeTool.cursor ? routeTo(pipeTool.cursor, pipeTool.hover, pipeTool.hoverPipe) : pipeTool.pts;
+      if (pipeTool.hoverPipe) {
+        const q = pipeTool.hoverPipe.q;
+        preview += `<circle cx="${q[0]}" cy="${q[1]}" r="${7 / z}" fill="#ef6c00" stroke="#fff" stroke-width="${1.5 / z}"/>`;
+      }
       const d = pipePath(pts, pipeDefaults.radius);
-      preview = `<path d="${d}" fill="none" stroke="${PIPE_STYLE.stroke}" stroke-opacity=".55" stroke-width="${PIPE_STYLE['stroke-width']}"/>` +
+      preview += `<path d="${d}" fill="none" stroke="${PIPE_STYLE.stroke}" stroke-opacity=".55" stroke-width="${PIPE_STYLE['stroke-width']}"/>` +
         `<path d="${d}" fill="none" stroke="#2e7d32" stroke-width="${1.5 / z}" stroke-dasharray="${4 / z} ${3 / z}"/>`;
     }
     layer.innerHTML = preview + dots;
@@ -786,11 +874,34 @@ export function createScada(host) {
 
   function finishPipe() {
     const c = canvas();
-    const pts = simplify(pipeTool.pts);
-    const fromRef = pipeTool.from;
-    const toRef = pipeTool.to ?? null;
+    let pts = simplify(pipeTool.pts);
+    let fromRef = pipeTool.from;
+    let toRef = pipeTool.to ?? null;
+    const fromTee = pipeTool.fromTee;
+    let toTee = pipeTool.toTee;
     pipeTool.pts = [];
-    pipeTool.from = pipeTool.fromDir = pipeTool.to = null;
+    pipeTool.from = pipeTool.fromDir = pipeTool.to = pipeTool.fromTee = pipeTool.toTee = null;
+    const teeCmds = [];
+    if (pts.length >= 2) {
+      // begge ender på samme rør: kun starten bliver et T (det andet punkt ligger på et rør, der netop er delt)
+      if (fromTee && toTee && fromTee.el === toTee.el) toTee = null;
+      if (fromTee) {
+        const t = makeTee(fromTee, pts[1]);
+        if (t) {
+          teeCmds.push(...t.cmds);
+          pts = reroute(pts, 'start', t.port.doc, t.port.dir);
+          fromRef = formatRef(t.node.id, t.port.frac, t.port.side);
+        }
+      }
+      if (toTee) {
+        const t = makeTee(toTee, pts[pts.length - 2]);
+        if (t) {
+          teeCmds.push(...t.cmds);
+          pts = reroute(pts, 'end', t.port.doc, t.port.dir);
+          toRef = formatRef(t.node.id, t.port.frac, t.port.side);
+        }
+      }
+    }
     if (pts.length >= 2) {
       const el = document.createElementNS(NS, 'path');
       el.setAttribute('id', c.getNextId());
@@ -805,7 +916,13 @@ export function createScada(host) {
       const ends = [fromRef, toRef].map((r) => parseRef(r)?.id).filter(Boolean);
       const first = [...layer.children].find((ch) => ends.includes(ch.id));
       layer.insertBefore(el, first ?? null);
-      c.undoMgr.addCommandToHistory(new c.history.InsertElementCommand(el));
+      if (teeCmds.length) {
+        // røret, de delte rør og T-stykkerne fortrydes samlet
+        const batch = new c.history.BatchCommand('Rør med T-stykke');
+        for (const cmd of teeCmds) batch.addSubCommand(cmd);
+        batch.addSubCommand(new c.history.InsertElementCommand(el));
+        c.undoMgr.addCommandToHistory(batch);
+      } else c.undoMgr.addCommandToHistory(new c.history.InsertElementCommand(el));
       c.clearSelection();
       c.addToSelection([el]);
       if (changeListener) changeListener();
@@ -833,24 +950,27 @@ export function createScada(host) {
     area.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;   // midterknap: panorér som normalt
       swallow(e);
-      const { p, port } = snapPipePoint(docPoint(e));
+      const { p, port, onPipe } = snapPipePoint(docPoint(e));
       if (!pipeTool.pts.length) {
         pipeTool.pts = [p];
+        pipeTool.fromTee = onPipe ?? null;
         pipeTool.from = port ? formatRef(port.id, port.frac, port.side) : null;
         pipeTool.fromDir = port?.dir ?? null;
       } else if (e.detail >= 2) {
         finishPipe();
         return;
       } else {
-        pipeTool.pts = routeTo(p, port);
+        pipeTool.pts = routeTo(p, port, onPipe);
         if (port) { pipeTool.to = formatRef(port.id, port.frac, port.side); finishPipe(); return; }
+        if (onPipe) { pipeTool.toTee = onPipe; finishPipe(); return; }
       }
       drawPipeOverlay();
     }, opts);
     area.addEventListener('mousemove', (e) => {
-      const { p, port } = snapPipePoint(docPoint(e));
+      const { p, port, onPipe } = snapPipePoint(docPoint(e));
       pipeTool.cursor = p;
       pipeTool.hover = port;
+      pipeTool.hoverPipe = onPipe ?? null;
       drawPipeOverlay();
     }, opts);
     for (const t of ['mouseup', 'click', 'dblclick']) area.addEventListener(t, (e) => { if (e.button === 0) swallow(e); }, opts);
@@ -979,6 +1099,9 @@ export function createScada(host) {
   }
 
   const scada = {
+    /** Bibliotekets T-stykke ({ fragment, label }) — bruges, når et rør kobles på et andet rør. */
+    setTeeSymbol(def) { teeSymbol = def && def.fragment ? def : null; },
+
     /** Bibliotekets rettede tilslutningspunkter ({type: [[fx, fy], …]}) — bruges ved indsættelse af nye symboler. */
     setLibraryPorts(map) { libraryPorts = map && typeof map === 'object' ? map : {}; },
 

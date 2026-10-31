@@ -2,6 +2,12 @@
 
 ---
 
+## v3.2.0 — 2026-10-31 — T-stykker i Tegn
+
+- Med værktøjet **Rør** kan du nu starte eller slutte et rør på et eksisterende rør. En orange prik viser stedet. Røret deles, og der indsættes et **T-stykke**, som er drejet, så det passer til rørene.
+- Alle tre rør sidder fast i T-stykket og følger med, når du flytter det. T-stykkets tre ben kan få hvert sit løbelys i guiden.
+- Ctrl+Z fortryder røret og T-stykket på én gang.
+
 ## v3.1.1 — 2026-10-31 — Rettelse i Tegn
 
 - **Esc** slår nu altid rør-værktøjet fra og går tilbage til Vælg, også hvis du lige har skrevet i søgefeltet eller i panelet *Egenskaber*. Det samme gælder de andre genvejstaster.

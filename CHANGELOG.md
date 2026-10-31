@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.2.0 build 0284] — 2026-10-31 — T-stykke: rør koblet på rør
+
+- `frontend/svgedit-host/pipes.js`: `nearestOnRoute`, `splitRoute`, `sideToward`, `branchSide`; `reroute` prøver alle ankerpunkter (et gammelt knæk bag det nye punkt gav en sløjfe, når et T-stykke blev flyttet).
+- `frontend/svgedit-host/scada-core.js`: rør-værktøjet fanger til eksisterende rør (orange prik); `makeTee` deler røret, indsætter bibliotekets T-stykke drejet efter rør og gren, sætter halvdelene og grenen fast i benene — ét fortryd-trin; `setTeeSymbol`.
+- `frontend/svgedit-host/symbolPorts.js`: `data-hv-ports` kan have en side pr. punkt (`fx,fy,side`).
+- `frontend/src/pages/DrawEditor.svelte`: giver kernen bibliotekets T-stykke. Manual kap. 04.
+- Tests: `src/lib/pipes.test.ts`.
+
 ## [3.1.1 build 0283] — 2026-10-31 — Rettet: Esc slog ikke rør-værktøjet fra
 
 - `frontend/src/lib/draw/engine.ts`: et klik i tegnefladen fjerner fokus fra felter i panelerne, så Esc og genvejstaster virker.

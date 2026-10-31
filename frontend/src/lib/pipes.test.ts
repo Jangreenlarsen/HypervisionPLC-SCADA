@@ -186,3 +186,48 @@ describe('v3.1.0: stier, punkter, retning og radius', async () => {
     expect(m.pipePath([[0, 0], [10, 0], [10, 6], [40, 6]], 50)).toContain('A3 3');
   });
 });
+
+describe('v3.2.0: T-stykker', async () => {
+  it('reroute: et gammelt knæk bag det nye punkt giver ikke en sløjfe (T-stykke flyttet)', async () => {
+    // @ts-expect-error — ren JS uden typer
+    const mm = await import('../../svgedit-host/pipes.js');
+    const route: [number, number][] = [[100, 30], [120, 30], [120, 0], [300, 0]];   // starter i T-stykket, går til højre
+    const r = mm.reroute(route, 'start', [160, 70], [1, 0]);
+    const len = r.reduce((n: number, q: number[], i: number) => (i ? n + Math.hypot(q[0] - r[i - 1][0], q[1] - r[i - 1][1]) : 0), 0);
+    expect(r[0]).toEqual([160, 70]);
+    expect(r[r.length - 1]).toEqual([300, 0]);
+    expect(len).toBeLessThanOrEqual(230);
+    expect(r.every((q: number[]) => q[0] >= 160)).toBe(true);   // går aldrig tilbage til venstre for punktet
+  });
+
+  // @ts-expect-error — ren JS uden typer
+  const m = await import('../../svgedit-host/pipes.js');
+  type Q = [number, number];
+  const route: Q[] = [[0, 0], [100, 0], [100, 80]];
+
+  it('nearestOnRoute projicerer ind på nærmeste stykke', () => {
+    expect(m.nearestOnRoute(route, [40, 7])).toEqual({ q: [40, 0], k: 0, dist: 7 });
+    expect(m.nearestOnRoute(route, [104, 50])).toEqual({ q: [100, 50], k: 1, dist: 4 });
+  });
+
+  it('rørets egne ender giver ikke et T', () => {
+    expect(m.nearestOnRoute(route, [-5, 0])).toBeNull();
+    expect(m.nearestOnRoute(route, [100, 90])).toBeNull();
+  });
+
+  it('splitRoute deler i punktet — også i et knæk', () => {
+    expect(m.splitRoute(route, 0, [40, 0])).toEqual([[[0, 0], [40, 0]], [[40, 0], [100, 0], [100, 80]]]);
+    expect(m.splitRoute(route, 1, [100, 50])).toEqual([[[0, 0], [100, 0], [100, 50]], [[100, 50], [100, 80]]]);
+  });
+
+  it('sideToward og branchSide', () => {
+    expect(m.sideToward([40, 0], [0, 0])).toBe('l');
+    expect(m.sideToward([40, 0], [100, 0])).toBe('r');
+    expect(m.sideToward([100, 50], [100, 0])).toBe('t');
+    expect(m.branchSide(['l', 'r'], [40, 0], [60, 90])).toBe('b');
+    expect(m.branchSide(['l', 'r'], [40, 0], [60, -90])).toBe('t');
+    expect(m.branchSide(['t', 'b'], [100, 50], [10, 40])).toBe('l');
+    expect(m.branchSide(['l', 'r', 'b'], [40, 0], [60, 90])).toBe('t');   // kryds: sidste ledige side
+    expect(m.branchSide(['l', 'r', 't', 'b'], [40, 0], [60, 90])).toBeNull();
+  });
+});
