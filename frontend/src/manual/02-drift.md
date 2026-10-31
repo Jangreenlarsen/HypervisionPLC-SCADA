@@ -4,7 +4,7 @@ Under **Drift** ser og betjener du anlægget. Siderne er **Overview**, **Alarmer
 
 ## Overview
 
-![Overview: en tegning med live-værdier, zoomknapper og status for forbindelsen til PLC'en](/manual/overview.png)
+![Overview: en tegning med live-værdier, zoomknapper og status for forbindelsen til PLC'en](../../public/manual/overview.png)
 
 Overview viser en tegning af anlægget med live-værdier. Øverst vælger du **tegning**; en tegning kan være sat som **start-tegning** (se *Tegninger og Tegn*), og den åbner Overview først.
 
@@ -38,7 +38,7 @@ Brug **musehjulet**, **knib** på en touch-skærm eller knapperne **−**, **+**
 
 ### Betjening
 
-![Betjeningsdialogen for en omskifter: den låste position har 🔒, og koden skal indtastes, før der skiftes](/manual/drift-dialog.png)
+![Betjeningsdialogen for en omskifter: den låste position har 🔒, og koden skal indtastes, før der skiftes](../../public/manual/drift-dialog.png)
 
 Elementer, der kan betjenes, reagerer på klik/tryk. Hvad der sker, afhænger af opsætningen:
 
@@ -62,7 +62,7 @@ Alarmer og kurver har hver sit kapitel: se *Alarmer* og *Trends*.
 
 ## Energi
 
-![Energi: forbrug pr. dag for et energi-tag, med tabel under søjlerne](/manual/energi.png)
+![Energi: forbrug pr. dag for et energi-tag, med tabel under søjlerne](../../public/manual/energi.png)
 
 **Energi** viser forbrug og produktion for tags, der er markeret som **energi-tags** under **Tags → Redigér → Energi**:
 

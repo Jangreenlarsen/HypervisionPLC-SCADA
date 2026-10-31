@@ -1,6 +1,6 @@
 # Tegn – tegne-editoren
 
-![Tegn: værktøjslinjen til venstre, tegnefladen i midten og panelerne Valgt element, Egenskaber, Objekter og Symboler til højre](/manual/tegn.png)
+![Tegn: værktøjslinjen til venstre, tegnefladen i midten og panelerne Valgt element, Egenskaber, Objekter og Symboler til højre](../../public/manual/tegn.png)
 
 **Tegn** (under **Opsætning**, rollen tekniker) er den indbyggede tegne-editor. Brug den til at tegne anlægget, indsætte færdige **symboler** fra biblioteket og forbinde dem med **forbindelser** (rør og ledninger — se næste kapitel).
 
@@ -59,7 +59,7 @@ Knappen **Størrelse: 1200 × 700** øverst viser og ændrer tegningens bredde o
 
 ## Tegnehjælp: gitter, fang og drejning
 
-![Tegnehjælpen over tegnefladen: gitter, fang, gitterafstand og Skalér symmetrisk](/manual/tegn-hjaelp.png)
+![Tegnehjælpen over tegnefladen: gitter, fang, gitterafstand og Skalér symmetrisk](../../public/manual/tegn-hjaelp.png)
 
 Linjen over tegnefladen har **tegnehjælpen**:
 
@@ -71,7 +71,7 @@ Linjen over tegnefladen har **tegnehjælpen**:
 
 Indstillingerne huskes i din browser.
 
-![Tegn med gitter vist og fang slået til](/manual/tegn-gitter.png)
+![Tegn med gitter vist og fang slået til](../../public/manual/tegn-gitter.png)
 
 ## Hjælpelinjer
 
@@ -91,7 +91,7 @@ Vælg et eller flere symboler, så viser *Valgt element* feltet **Farver** med d
 
 ## Symbolbiblioteket
 
-![Symbolbiblioteket i Tegn, sorteret i kategorier med søgning](/manual/tegn-symboler.png)
+![Symbolbiblioteket i Tegn, sorteret i kategorier med søgning](../../public/manual/tegn-symboler.png)
 
 Sektionen **Symboler** til højre er **symbolbiblioteket**, sorteret i kategorier (*Betjening*, *Proces og visning*, *Rør og VVS*, *Elektrisk*, *Solcelleanlæg*, *Genveje*). Søg efter et symbol (fx *bøjning* eller *kontaktor*). **Klik** på det for at sætte det ind midt på tegningen, eller **træk** det ind, hvor det skal stå. Hvert indsat symbol får et **navn** (fx *Pumpe 2*), som du kan ændre.
 
@@ -105,7 +105,7 @@ Et nyindsat symbol skal **sættes op**: vælg symbolet og tryk **Opsæt symbol (
 
 **Genveje** (kategorien *Genveje*): knapperne **Gå til Alarmer**, **Gå til Trends** og **Gå til Energi**. Et klik på dem i Overview åbner siden. Alarmknappen viser **antallet af aktive alarmer** — orange når de er kvitteret, rødt og blinkende når der er ukvitterede. På et driftpanel åbner *Gå til Alarmer* og *Gå til Trends* siderne uden menu, med *Tilbage* til tegningen.
 
-![Display med egne cifre i Tegn: vælg 7- eller 11-segment og antal cifre (1–16)](/manual/tegn-display.png)
+![Display med egne cifre i Tegn: vælg 7- eller 11-segment og antal cifre (1–16)](../../public/manual/tegn-display.png)
 
 **Display med egne cifre**: under *Proces og visning* vælger du **7-segment** eller **11-segment** og et antal **cifre (1–16)** og trykker *Indsæt*. Sæt displayet op med guiden (se *Segment-display* i *Symboler og guiden*).
 
@@ -115,7 +115,7 @@ Et nyindsat symbol skal **sættes op**: vælg symbolet og tryk **Opsæt symbol (
 
 ## Grupper af symboler
 
-![Grupper i Tegn: gem markeringen som gruppe og vælg en eksisterende gruppe](/manual/tegn-grupper.png)
+![Grupper i Tegn: gem markeringen som gruppe og vælg en eksisterende gruppe](../../public/manual/tegn-grupper.png)
 
 Vælg flere symboler og tryk **Gem markering som gruppe** i sektionen **Grupper** (under *Symboler*). Giv gruppen et navn og en art: **Funktionsgrupper** er en del af anlægget med en funktion, fx *Fyr uden akku-tank*; **Udvalg** er et frit udvalg. Tryk på gruppens navn for at markere alle dens symboler igen. Under **⋯** kan du tilføje eller fjerne de valgte, sætte gruppen til de valgte, omdøbe, flytte den mellem de to arter eller slette den (symbolerne slettes ikke).
 
@@ -140,6 +140,6 @@ Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige 
 
 **Opdatér gamle symboler:** er et symbol fra biblioteket kommet i en ny udgave, så vælg et af de gamle og tryk **Erstat med symbol …** — forslaget er den nyeste udgave. Med **Behold delens id** beholder symbolet navn, placering, drejning, størrelse og opsætning (animationer på *Hele symbolet*). **Også de N lignende** opdaterer alle af samme slags på én gang.
 
-![Erstat med symbol: forslag ud fra delens form, indstillinger og valg om at erstatte alle lignende](/manual/tegn-erstat.png)
+![Erstat med symbol: forslag ud fra delens form, indstillinger og valg om at erstatte alle lignende](../../public/manual/tegn-erstat.png)
 
 > **Retning og akse:** for en **pumpe** og en **kontraventil** aflæser systemet, hvilken vej den tegnede trekant peger, og drejer symbolet; for en **ventil** af to trekanter aflæses, om den står vandret eller lodret. For andre symboler kan retningen ikke aflæses sikkert — kontrollér og drej dem efter erstatning. Bindinger på **underelementer** i den gamle del følger ikke med; dialogen advarer, hvis der er nogen.

@@ -2,13 +2,13 @@
 
 En **tegning** er et SVG-billede af anlægget. Du kan **uploade** en tegning lavet i et andet program (fx Inkscape) eller **tegne** den i systemets egen editor (kapitlet *Tegn*). Begge dele ligger under **Opsætning** og kræver rollen tekniker.
 
-![Siden Tegninger: upload, listen over tegninger og deres versioner](/manual/tegninger.png)
+![Siden Tegninger: upload, listen over tegninger og deres versioner](../../public/manual/tegninger.png)
 
 Siden **Tegninger** er listen over alle tegninger.
 
 ## Upload en tegning
 
-![Upload tegning: vælg SVG-filen og giv tegningen et navn](/manual/tegninger-upload.png)
+![Upload tegning: vælg SVG-filen og giv tegningen et navn](../../public/manual/tegninger-upload.png)
 
 Tryk **Upload tegning**, vælg en SVG-fil (højst 5 MB), og giv den et **navn** og evt. en **kommentar**. Serveren renser filen (scripts og andet farligt fjernes) og viser en rapport over, hvad der blev fjernet.
 
@@ -16,7 +16,7 @@ Tryk **Upload tegning**, vælg en SVG-fil (højst 5 MB), og giv den et **navn** 
 
 Hver gang du uploader eller gemmer, opstår en ny **version**. **Versioner** viser listen; **Gør aktiv** vælger, hvilken version Overview viser. Du kan derfor forberede en ny version uden at brugerne ser den, og gå tilbage, hvis noget går galt. **Upload ny version** lægger en ny version til en eksisterende tegning.
 
-![Versioner af en tegning: Gør aktiv, upload ny version og visning af selve SVG'en](/manual/tegninger-versioner.png)
+![Versioner af en tegning: Gør aktiv, upload ny version og visning af selve SVG'en](../../public/manual/tegninger-versioner.png)
 
 > Bindinger følger tegningens **element-id'er**. Ændrer en ny version et elements id, mister det sin binding; **Bindinger** viser *Forsvundne elementer*, som du kan rydde op i.
 

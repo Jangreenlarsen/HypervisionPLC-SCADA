@@ -1,6 +1,6 @@
 # Trends
 
-![Trends: visningen "Tank Temperatur total" med tankens 8 temperaturfølere over 7 dage — navnene står ved højre kant](/manual/trends.png)
+![Trends: visningen "Tank Temperatur total" med tankens 8 temperaturfølere over 7 dage — navnene står ved højre kant](../../public/manual/trends.png)
 
 **Trends** viser kurver over værdier gennem tiden. Kun tags, hvor **historik** er slået til, har kurver (slås til under **Tags**, eller direkte på Trends-siden med **Begynd at gemme historik**).
 
@@ -50,7 +50,7 @@ Sæt flueben i **Administrér** og tryk **Navn** ud for et tag — så vises nav
 
 ## Analysér data
 
-![Trends med Analysér data slået til og to grafer over den seneste time](/manual/trends-analyse.png)
+![Trends med Analysér data slået til og to grafer over den seneste time](../../public/manual/trends-analyse.png)
 
 Sæt flueben i **Analysér data** for at lade siden finde uregelmæssigheder i tal-kurverne (til/fra-kurver analyseres ikke). Rådata ændres aldrig, og CSV indeholder altid alt.
 

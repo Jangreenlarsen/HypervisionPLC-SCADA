@@ -4,9 +4,9 @@ Du skal bruge en **PLC** og nogle **tags**, før en tegning kan vise noget. Begg
 
 ## PLC'er
 
-![Siden PLC'er med de tilsluttede PLC'er og deres status](/manual/plcer.png)
+![Siden PLC'er med de tilsluttede PLC'er og deres status](../../public/manual/plcer.png)
 
-![Tilføj PLC: nøgle, navn, adresse, bruger og adgangskode](/manual/plc-ny.png)
+![Tilføj PLC: nøgle, navn, adresse, bruger og adgangskode](../../public/manual/plc-ny.png)
 
 Siden **PLC'er** lister de HypervisionPLC-enheder, SCADA'en henter data fra. Tryk **Tilføj PLC** og udfyld:
 
@@ -23,7 +23,7 @@ Statusen (*ok*, *ikke tilgængelig*) vises ud for hver PLC. SCADA'en bruger PLC'
 
 ## Tags
 
-![Siden Tags: alle tags med kilde, værdi og knapper til at redigere](/manual/tags.png)
+![Siden Tags: alle tags med kilde, værdi og knapper til at redigere](../../public/manual/tags.png)
 
 Et **tag** er en navngivet værdi. Siden **Tags** viser dem alle. **Nyt tag** opretter et; **Redigér** ændrer det; **Slet** fjerner det — men et tag, der bruges af en binding, et symbol, et ugeprogram eller en alarm, kan ikke slettes, før det er frigjort, og systemet siger hvor det bruges.
 
@@ -47,7 +47,7 @@ Et tal kan have en **datatype** til sidst (fx `:float`) hvis det fylder mere end
 
 ### Felter
 
-![Redigér tag: kilde, skala, betjening, historik, energi og alarmer](/manual/tag-redigeer.png)
+![Redigér tag: kilde, skala, betjening, historik, energi og alarmer](../../public/manual/tag-redigeer.png)
 
 | Felt | Hvad det gør |
 | --- | --- |
@@ -89,7 +89,7 @@ Prioriteten følger niveauet og kan ikke vælges. Mister PLC'en forbindelsen, be
 
 ### Prioritet (eksterne Modbus-tags)
 
-![Et eksternt Modbus-tag (kilde rtu) med feltet Prioritet i PLC'ens Modbus-kø](/manual/tag-ekstern.png)
+![Et eksternt Modbus-tag (kilde rtu) med feltet Prioritet i PLC'ens Modbus-kø](../../public/manual/tag-ekstern.png)
 
 Tags med kilden *Extern (RS485)* eller *Expansion board* læses af PLC'en fra en Modbus-slave. I PLC'ens kø står SCADA's læsninger bag PLC'ens egne programmer, så SCADA ikke forsinker dem. Et tag kan sættes til **Prioritet: Høj** (Tags › Redigér), og så læses det, som var det PLC'ens eget. Høje og normale tags hentes altid i hver sit kald, og de høje hentes først. Brug det kun til få, vigtige tags, fx nødstop-tilbagemelding: står mange på høj, forsvinder effekten. Listen viser mærket *høj prioritet*. Valget er låst for interne tags (de læses direkte fra PLC'ens hukommelse) og kræver PLC-firmware med understøttelse; ældre firmware ignorerer det. Skrivninger har altid højeste prioritet.
 

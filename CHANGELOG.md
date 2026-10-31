@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.12.5 build 0301] — 2026-10-31 — Rettet: manualens billeder virker også på GitHub
+
+- `frontend/src/manual/*.md`: 72 billeder henviser nu med den relative sti i repoet (`../../public/manual/…`).
+- `frontend/src/lib/manual.ts`: `manualImageSrc` omsætter stien til serverens `/manual/…`, når manualen vises i programmet.
+- `frontend/src/lib/manualGen.test.ts`: det genererede bibliotekskapitel skriver relative stier.
+- Tests: `src/lib/manual.test.ts` (ingen gamle stier, hvert billede findes).
+
 ## [3.12.4 build 0300] — 2026-10-31 — Nye skærmbilleder af Alarmer og Trends
 
 - `frontend/public/manual/alarmer.png`, `alarmer-historik.png`, `trends.png`: taget om fra testserveren 10.1.1.31 — Trends med visningen *Tank Temperatur total* (8 følere) over 7 dage.
