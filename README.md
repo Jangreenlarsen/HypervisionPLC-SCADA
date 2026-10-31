@@ -1,27 +1,47 @@
+<div align="center">
+
 # HypervisionPLC SCADA
 
-Web-baseret SCADA/HMI til HypervisionPLC, bygget til Raspberry Pi 4.
+**Web-baseret SCADA/HMI til PLC'er — tegn anlægget, se det live, betjen det fra browseren.**
+*Open-source web SCADA / HMI for PLCs on a Raspberry Pi.*
 
-- Upload en SVG-tegning af anlægget, bind elementer til PLC-tags og se værdierne live på Overview-boardet.
-- Tegn og redigér anlægget i den indbyggede tegne-editor: symbolbibliotek, forbindelser (rør og ledninger) der følger symbolerne, T-stykker, hjælpelinjer og en symbol-editor til tilslutningspunkter.
-- Al kommunikation med PLC'erne går via PLC'ens REST API (+ SSE), og kun SCADA-serveren taler med PLC'erne.
+[![Licens: AGPL v3](https://img.shields.io/badge/licens-AGPL--3.0-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-3.12-success.svg)](CHANGELOG.md)
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Svelte](https://img.shields.io/badge/Svelte_5-FF3E00?logo=svelte&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Raspberry Pi](https://img.shields.io/badge/Raspberry_Pi_4-A22846?logo=raspberrypi&logoColor=white)
 
-Dokumentation:
+![Overview: anlægget live med værdier og animationer](frontend/public/manual/overview.png)
+
+</div>
+
+## Hvad kan den?
+
+- 🖥️ **Overview** — anlæggets SVG-tegning med **live PLC-værdier**, animationer (farve, niveau, løbelys, tekst) og **betjening** af pumper, ventiler, omskiftere og setpunkter.
+- ✏️ **Indbygget tegne-editor** — symbolbibliotek (proces, VVS, el, sol), **forbindelser** (rør og ledninger) der følger symbolerne, T-stykker, bøjningsradius, hjælpelinjer og fang.
+- 🧩 **Symbol-guide i 6 trin** — tag, betjening, positioner, animationer, logikblokke, nøglelås og alarmer — uden at skrive kode.
+- 🔔 **Alarmer** med prioritet, kvittering og historik · 📈 **Trends** med gemte visninger, middelkurver og dataanalyse · ⚡ **Energi** pr. dag/uge/måned · 🗓️ **Ugeprogrammer**.
+- 🔌 **PLC'er og Modbus** — al kommunikation via PLC'ens REST API (+ SSE), også eksternt RS485-udstyr; kun SCADA-serveren taler med PLC'erne.
+- 🔐 **Brugere og roller** (viewer, operatør, driftpanel, tekniker, admin) med adgang pr. tegning, audit-log, HTTPS, backup/restore og **OTA-opdatering** fra web-siden.
+- 🍓 Kører på en **Raspberry Pi 4** som én systemd-service; frontend serveres statisk af FastAPI.
+
+## In English
+
+HypervisionPLC SCADA is an open-source, self-hosted **web SCADA / HMI** for PLCs, built for the **Raspberry Pi 4**. Upload or draw an **SVG process diagram**, bind its elements to PLC tags and watch the plant **live** in the browser — with operator controls, **alarm management**, **trends** (historian), energy reports, weekly schedules and **Modbus** (incl. RS485 devices) via the PLC's REST API. It includes a built-in **SVG drawing editor** with a symbol library, pipes/wires that follow the symbols, T-pieces and guide lines, and a no-code symbol wizard for animations and interlocks. Stack: Python 3.11, FastAPI, SQLite, Svelte 5, TypeScript. Licensed under **AGPL-3.0**. The UI and manual are in Danish.
+
+## Dokumentation
+
 - [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md) — research, design og faseplan
 - [ARCHITECTURE.md](ARCHITECTURE.md) — lag og projektstruktur
 - [FEATURES.md](FEATURES.md) — backlog
 - **Brugermanual:** i programmet under **Bruger › Manual** (kilden er markdown i [frontend/src/manual/](frontend/src/manual/)). Skærmbillederne tages automatisk fra en kørende server: `cd frontend && SCADA_URL=https://<server> SCADA_USER=<admin> SCADA_PASS=… npm run manual:screenshots` (kun læsning).
 - [docs/SYMBOLSTANDARD.md](docs/SYMBOLSTANDARD.md) — designet for symboler (guide, kontaktplaner, animationer) + [interaktiv prototype](docs/prototyper/symbolguide.html)
 
-Status: v3.12 — Overview med live SVG-tegninger, betjening, alarmer, trends og energi, ny tegne-editor med forbindelser og hjælpelinjer, symbol-guide med animationer og logikblokke, ugeprogrammer, binding-editor, tags, audit-log, backup/restore og OTA-opdatering, login, roller med adgang pr. tegning og HTTPS.
-
 ## Skærmbilleder
 
 Billederne er de samme som i brugermanualen ([frontend/public/manual/](frontend/public/manual/)).
-
-**Overview** — anlægget live med værdier, animationer og betjening
-
-![Overview: tegningen med live-værdier](frontend/public/manual/overview.png)
 
 **Tegn** — tegne-editoren med værktøjslinje, tegneflade og panelerne Valgt element, Egenskaber, Objekter og Symboler
 
