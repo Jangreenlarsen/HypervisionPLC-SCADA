@@ -17,6 +17,7 @@
     setAngle(deg: string): { ok?: boolean; error?: string };
     setStyle(attr: string, value: string | null): { ok?: boolean; error?: string };
     setPipeRadius(value: string): { ok?: boolean; error?: string };
+    straightenPipe(): { ok?: boolean; error?: string };
   }
 
   let { api, rev, keepRatio = false }: { api: InspectApi | null; rev: number; keepRatio?: boolean } = $props();
@@ -66,6 +67,12 @@
         <label>Hjørne <input inputmode="decimal" value={info.paint.rx} onchange={(e) => onField(e, (v) => api?.setStyle('rx', v === '0' ? null : v))} onkeydown={key} title="Afrundede hjørner (radius)" /></label>
       {/if}
     </div>
+    {#if info.pipeRadius !== null}
+      <div class="row pipe-acts">
+        <button class="small" onclick={() => run(api?.straightenPipe())}
+                title="Læg røret om mellem dets to ender med så få knæk som muligt — forbindelserne bevares">Ret røret ud</button>
+      </div>
+    {/if}
     {#if info.paint}
       {@const p = info.paint}
       <div class="row paint">
@@ -119,6 +126,7 @@
   .grid label { display: flex; flex-direction: column; font-size: .8rem; color: #555; }
   .grid label.chk { flex-direction: row; align-items: center; gap: .3rem; padding-top: 1rem; }
   .grid input, .grid select { width: 100%; min-width: 0; font-size: .9rem; padding: 2px 4px; }
+  .pipe-acts { margin-bottom: .4rem; }
   .paint { align-items: center; gap: .4rem; margin-bottom: .35rem; flex-wrap: wrap; }
   .paint .lbl { width: 2.6rem; font-size: .85rem; }
 </style>

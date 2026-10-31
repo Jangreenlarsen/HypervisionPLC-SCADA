@@ -301,3 +301,31 @@ describe('v3.6.0: flyt et stykke af røret', async () => {
     expect(m.segmentHandles(route, 90)).toEqual([{ k: 0, mid: [50, 0], axis: 'h' }, { k: 2, mid: [150, 80], axis: 'h' }]);
   });
 });
+
+describe('v3.8.0: læg stykker sammen', async () => {
+  // @ts-expect-error — ren JS uden typer
+  const m = await import('../../svgedit-host/pipes.js');
+  type Q = [number, number];
+  // et hak: det midterste vandrette stykke ligger 6 under de to andre
+  const jog: Q[] = [[0, 0], [100, 0], [100, 6], [200, 6], [200, 0], [300, 0]];
+
+  it('alignDelta fanger på linje med et parallelt stykke', () => {
+    expect(m.alignDelta(jog, 2, -4, 8)).toBe(-6);   // tæt på y=0 → præcis derhen
+    expect(m.alignDelta(jog, 2, -40, 8)).toBe(-40);   // langt fra: uændret
+  });
+
+  it('fanget på linje forsvinder hakket (stykkerne bliver ét)', () => {
+    const d = m.alignDelta(jog, 2, -4, 8);
+    expect(m.moveSegment(jog, 2, d)).toEqual([[0, 0], [300, 0]]);
+  });
+
+  it('straighten lægger røret om med få knæk og bevarer retningen ind i punkterne', () => {
+    const messy: Q[] = [[0, 0], [20, 0], [20, 90], [60, 90], [60, 10], [150, 10], [150, 50], [200, 50]];
+    const r = m.straighten(messy, [1, 0], [-1, 0]);
+    expect(r[0]).toEqual([0, 0]);
+    expect(r[r.length - 1]).toEqual([200, 50]);
+    expect(r.length).toBeLessThan(messy.length);
+    expect(r[1][1]).toBe(0);                 // ud vandret
+    expect(r[r.length - 2][1]).toBe(50);     // ind vandret
+  });
+});

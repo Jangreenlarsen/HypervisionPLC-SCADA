@@ -511,3 +511,31 @@ export function segmentHandles(points, minLen = 0) {
   }
   return out;
 }
+
+// ---------------------------------------------------------------- v3.8.0: læg stykker sammen / ret røret ud
+/**
+ * Flytningen af stykke k, fanget så stykket kommer på linje med et andet parallelt stykke af røret eller en af enderne,
+ * hvis det er inden for `tol` — så forsvinder hakket, og stykkerne bliver ét.
+ */
+export function alignDelta(points, k, delta, tol) {
+  const a = points[k], b = points[k + 1];
+  const axis = axisOf(a, b);
+  if (!axis) return delta;
+  const at = (p) => (axis === 'h' ? p[1] : p[0]);
+  const target = at(a) + delta;
+  const lines = [];
+  for (let i = 0; i + 1 < points.length; i++) {
+    if (i === k || axisOf(points[i], points[i + 1]) !== axis) continue;
+    lines.push(at(points[i]));
+  }
+  lines.push(at(points[0]), at(points[points.length - 1]));
+  let best = null;
+  for (const c of lines) if (Math.abs(c - target) <= tol && (best === null || Math.abs(c - target) < Math.abs(best - target))) best = c;
+  return best === null ? delta : best - at(a);
+}
+
+/** Ret røret ud: læg det helt om mellem enderne med så få knæk som muligt (retningen ind i punkterne bevares). */
+export function straighten(points, dirStart = null, dirEnd = null) {
+  if (points.length < 2) return points;
+  return routeBetween(points[0], points[points.length - 1], dirStart, dirEnd);
+}

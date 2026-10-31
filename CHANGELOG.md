@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.8.0 build 0290] — 2026-10-31 — Læg rør-stykker sammen / Ret røret ud
+
+- `frontend/svgedit-host/pipes.js`: `alignDelta` (fang på linje med parallelle stykker/enderne), `straighten`.
+- `frontend/svgedit-host/scada-core.js`: stykke-træk fanger på linje; `straightenPipe`.
+- `frontend/src/lib/draw/Inspector.svelte`: knappen *Ret røret ud* for rør. Manual kap. 04. Tests: `src/lib/pipes.test.ts`.
+
 ## [3.7.0 build 0289] — 2026-10-31 — Genvej mellem Tegn og symbol-editoren
 
 - `frontend/src/lib/symbolRoute.ts` (ny, testet): `#symbols/<tegning>/<symboltype>`.

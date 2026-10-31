@@ -8,7 +8,7 @@ import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
 import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
-import { PIPE_STYLE, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
+import { PIPE_STYLE, alignDelta, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
 
 /**
  * @param {{ canvas(): any, loadFromString(svg: string): unknown, updateCanvas(): void, gridHost(): HTMLElement | null,
@@ -896,6 +896,8 @@ export function createScada(host) {
         const at = (axis === 'h' ? base[k][1] : base[k][0]) + delta;
         delta = Math.round(at / guides.step) * guides.step - (axis === 'h' ? base[k][1] : base[k][0]);
       }
+      // tæt på linje med et andet stykke eller en ende: fang derhen, så hakket forsvinder (v3.8.0)
+      delta = alignDelta(base, k, delta, 8 / (canvas().getZoom() || 1));
       handles.drag.preview = moveSegment(base, k, delta);
       drawHandles();
     };
@@ -1453,6 +1455,23 @@ export function createScada(host) {
         paint: one && one.tagName !== 'g' ? paintOf(one) : null,
         pipeRadius: one && isPipe(one) ? radiusOf(one) : null,
       };
+    },
+
+    /** Ret de valgte rør ud: læg dem om mellem enderne med så få knæk som muligt (forbindelserne bevares). */
+    straightenPipe() {
+      const pipes = selectedEls().filter(isPipe).filter((el) => !el.getAttribute('transform'));
+      if (!pipes.length) return { error: 'Vælg et rør' };
+      const cmds = [];
+      for (const el of pipes) {
+        const before = attrsOf(el);
+        const from = endTarget(el, 'data-hv-from');
+        const to = endTarget(el, 'data-hv-to');
+        drawPipe(el, straighten(pipePoints(el), from?.dir ?? null, to?.dir ?? null));
+        cmds.push(changeCmd(el, before));
+      }
+      commitCmds('Rør rettet ud', cmds);
+      afterEdit();
+      return { ok: true };
     },
 
     /** Bøjningsradius på de valgte rør (0 = skarpe knæk); bruges også til nye rør. */

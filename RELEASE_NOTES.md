@@ -2,6 +2,11 @@
 
 ---
 
+## v3.8.0 — 2026-10-31 — Ryd op i rør
+
+- Trækker du et stykke af et rør tæt på linje med et andet stykke eller en af enderne, fanges det på linje, så det lille hak forsvinder, og stykkerne bliver til ét.
+- Ny knap **Ret røret ud** i *Egenskaber*, når et rør er valgt. Den lægger røret om mellem dets to ender med så få knæk som muligt. Forbindelserne bevares, og Ctrl+Z fortryder.
+
 ## v3.7.0 — 2026-10-31 — Genvej til symbol-editoren
 
 - Vælg et bibliotekssymbol i Tegn og tryk **Ret tilslutningspunkter …**, så åbner symbol-editoren direkte på det symbol. Der er også et link øverst i sektionen *Symboler*.

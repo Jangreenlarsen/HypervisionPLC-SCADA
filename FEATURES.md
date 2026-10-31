@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v3.8.0 — **Læg rør-stykker sammen** (ønske fra Jan 2026-10-31): et stykke trukket tæt på linje med et andet stykke/en ende fanges derhen, så hakket forsvinder; knappen *Ret røret ud* lægger røret om med færrest knæk (forbindelser bevares).
 - [x] done v3.7.0 — **Genvej Tegn ↔ symbol-editoren** (ønske fra Jan 2026-10-31): *Ret tilslutningspunkter …* på et valgt bibliotekssymbol (og link i *Symboler*) åbner editoren på symbolet; *← Tilbage til "<tegning>"* fører tilbage. Spørger ved ugemte ændringer.
 - [x] done v3.6.0 — **Flyt et stykke af et rør** (ønske fra Jan 2026-10-31): blå håndtag midt på rørets stykker; træk på tværs — enderne bliver siddende; ændringerne bevares, når et symbol bagefter flyttes.
 - [x] done v3.5.0 — **Tegns højre panel som foldbare sektioner** (ønske fra Jan 2026-10-31): Valgt element, Egenskaber, Objekter og Symboler; åbnes én, foldes de ikke-fastgjorte sammen; 📌 fastgør; huskes i browseren.
