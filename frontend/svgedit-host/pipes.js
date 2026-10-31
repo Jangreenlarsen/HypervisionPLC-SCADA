@@ -517,7 +517,7 @@ export function segmentHandles(points, minLen = 0) {
  * Flytningen af stykke k, fanget så stykket kommer på linje med et andet parallelt stykke af røret eller en af enderne,
  * hvis det er inden for `tol` — så forsvinder hakket, og stykkerne bliver ét.
  */
-export function alignDelta(points, k, delta, tol) {
+export function alignDelta(points, k, delta, tol, extra = []) {
   const a = points[k], b = points[k + 1];
   const axis = axisOf(a, b);
   if (!axis) return delta;
@@ -528,7 +528,7 @@ export function alignDelta(points, k, delta, tol) {
     if (i === k || axisOf(points[i], points[i + 1]) !== axis) continue;
     lines.push(at(points[i]));
   }
-  lines.push(at(points[0]), at(points[points.length - 1]));
+  lines.push(at(points[0]), at(points[points.length - 1]), ...extra);   // extra: hjælpelinjer på samme akse
   let best = null;
   for (const c of lines) if (Math.abs(c - target) <= tol && (best === null || Math.abs(c - target) < Math.abs(best - target))) best = c;
   return best === null ? delta : best - at(a);

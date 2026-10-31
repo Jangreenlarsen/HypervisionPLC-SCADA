@@ -2,6 +2,13 @@
 
 ---
 
+## v3.10.0 — 2026-10-31 — Hjælpelinjer i Tegn
+
+- **Hjælpelinjer** til at bygge tegningen op efter. **Inddeling** lægger faste linjer med en valgt afstand over hele tegningen, og **+ Lodret** og **+ Vandret** lægger frie linjer, som du kan trække på plads.
+- Symboler, rør og rør-stykker fanges til linjerne. Klik på en linje for at gøre den aktiv, så justerer knaplinjen det markerede til den.
+- Linjerne gemmes i tegningen, men vises kun i Tegn og aldrig i Overview.
+- Rettet: *Fang til gitter* og *Fang til objekter* ramte lidt ved siden af, når der var zoomet ind eller ud.
+
 ## v3.9.0 — 2026-10-31 — Vælg symboler, der ligger bagved
 
 - Ligger symboler oven i hinanden, så hold **Alt** nede og klik. Så vælges det, der ligger bagved. Klik igen med Alt for at gå endnu et lag ned. Du kan også vælge i panelet **Objekter**.

@@ -152,3 +152,12 @@ def test_pipe_connections_survive():
     assert 'data-hv-from="ventil_1@1,0.5"' in out.svg
     assert 'data-hv-to="pumpe@0,0.5"' in out.svg
     assert not out.removed_attributes
+
+
+def test_guides_on_root_survive():
+    """Tegns hjælpelinjer (v3.10.0) gemmes som data-hv-guides på rod-elementet og skal overleve gem."""
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100" '
+           'data-hv-guides=\'{"every":100,"v":[40],"h":[]}\'><g class="layer"><rect id="r" width="1" height="1"/></g></svg>')
+    out = sanitize_svg(svg.encode())
+    assert "data-hv-guides" in out.svg and '"v":[40]' in out.svg.replace("&quot;", '"')
+    assert not out.removed_attributes

@@ -7,6 +7,7 @@ import {
 import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
 import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
+import { alignToGuide, formatGuides, guideLines, parseGuides, snapBoxToGuides, snapPointToGuides } from './guides.js';
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
 import { PIPE_STYLE, alignDelta, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
 
@@ -19,7 +20,7 @@ export function createScada(host) {
 
   // ---------------------------------------------------------------- hjælpelinjer: gitter, fang til gitter, fang til objekter
   // Gitteret tegnes af os selv (SVG-Edits eget gitter kan kun 10/100/…-inddelinger og matcher ikke fangtrinnet).
-  const guides = { grid: false, snapGrid: false, step: 10, snapObjects: false };
+  const guides = { grid: false, snapGrid: false, step: 10, snapObjects: false, showGuides: true, snapGuides: true };
   const SNAP_PX = 8;                       // fang inden for så mange skærm-pixel
   let lastBoxes = new Map();               // valgte elementer → deres boks ved forrige 'selected'/'changed' (til at se en flytning)
   let snapping = false;
@@ -94,6 +95,7 @@ export function createScada(host) {
   }
 
   function drawGrid() {
+    queueMicrotask(() => drawGuides());
     // Gitteret ligger OVENPÅ tegningen som et gennemsigtigt lag: en tegning har ofte et uigennemsigtigt baggrundsrektangel
     // (nye tegninger har), og et lag under tegningen — som SVG-Edits eget gitter — ville aldrig kunne ses.
     const gridHost = host.gridHost();
@@ -172,10 +174,18 @@ export function createScada(host) {
       if (hit.guideX !== null) dx = hit.dx;
       if (hit.guideY !== null) dy = hit.dy;
     }
+    // hjælpelinjer vinder over gitter og objekter (de er sat med vilje, v3.10.0)
+    if (guides.snapGuides && guides.showGuides) {
+      const g = snapBoxToGuides(now, guideLinesNow(), SNAP_PX / (canvas().getZoom() || 1));
+      if (g.dx !== null) dx = g.dx;
+      if (g.dy !== null) dy = g.dy;
+    }
     if (dx || dy) {
       snapping = true;
       try {
-        canvas().moveSelectedElements(dx, dy, true);
+        // lærredet regner i skærmpunkter (deler med zoom) — flytningen er i tegningens enheder (BUGS.md v3.10.0)
+        const z = canvas().getZoom() || 1;
+        canvas().moveSelectedElements(dx * z, dy * z, true);
       } finally {
         snapping = false;
       }
@@ -350,6 +360,7 @@ export function createScada(host) {
       if (changeListener) changeListener();
       if (selectionListener) selectionListener(currentSelection());
       drawHandles();
+      drawGuides();
     });
     // SVG-Edit sender ikke 'changed' efter en flytning med musen, så vi lytter selv på museknappen (efter editorens egen
     // håndtering): ved nedtryk huskes de valgte elementers placering, ved slip fanges der — hvis det var et træk.
@@ -728,6 +739,144 @@ export function createScada(host) {
     um.__hvPipes = true;
   }
 
+  // ---- hjælpelinjer (v3.10.0): gemt i tegningen som data-hv-guides på rod-elementet; vises KUN i Tegn
+  let activeGuide = null;   // { axis: 'v' | 'h', at } — knaplinjens justering bruger den
+  const guideLayer = { el: null, drag: null };
+  const contentEl = () => canvas().getSvgContent();
+  function readGuides() { return parseGuides(contentEl()?.getAttribute('data-hv-guides')); }
+  function docSize() {
+    const vb = (contentEl()?.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    return vb.length === 4 ? { w: vb[2], h: vb[3] } : { w: canvas().contentW, h: canvas().contentH };
+  }
+  function guideLinesNow() { const { w, h } = docSize(); return guideLines(readGuides(), w, h); }
+  function writeGuides(g, label) {
+    const content = contentEl();
+    const before = attrsOf(content);
+    const text = formatGuides(g);
+    if (text) content.setAttribute('data-hv-guides', text); else content.removeAttribute('data-hv-guides');
+    if ((before['data-hv-guides'] ?? null) !== content.getAttribute('data-hv-guides')) {
+      commitCmds(label, [changeCmd(content, before)]);
+      if (changeListener) changeListener();
+    }
+    drawGuides();
+  }
+
+  function drawGuides() {
+    const gridHost = host.gridHost();
+    const content = contentEl();
+    if (!gridHost || !content) return;
+    let layer = guideLayer.el;
+    if (!guides.showGuides) { layer?.remove(); guideLayer.el = null; return; }
+    if (!layer) {
+      layer = document.createElementNS(NS, 'svg');
+      layer.setAttribute('id', 'hvGuides');
+      layer.style.cssText = 'position:absolute; pointer-events:none; z-index:54; overflow:visible;';
+      gridHost.appendChild(layer);
+      guideLayer.el = layer;
+      layer.addEventListener('mousedown', startGuideDrag);
+    }
+    const hr = gridHost.getBoundingClientRect();
+    const cr = contentRect(content);
+    const { w, h } = docSize();
+    layer.style.left = `${cr.left - hr.left + gridHost.scrollLeft}px`;
+    layer.style.top = `${cr.top - hr.top + gridHost.scrollTop}px`;
+    layer.setAttribute('width', cr.width);
+    layer.setAttribute('height', cr.height);
+    layer.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    const z = canvas().getZoom() || 1;
+    const g = readGuides();
+    const drag = guideLayer.drag;
+    let out = '';
+    // fast inddeling: tynde, stiplede
+    if (g.every > 0) {
+      const lines = guideLines({ every: g.every, v: [], h: [] }, w, h);
+      for (const x of lines.x) out += `<line x1="${x}" y1="0" x2="${x}" y2="${h}" stroke="#00acc1" stroke-opacity=".45" stroke-width="${1 / z}" stroke-dasharray="${6 / z} ${4 / z}"/>`;
+      for (const y of lines.y) out += `<line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="#00acc1" stroke-opacity=".45" stroke-width="${1 / z}" stroke-dasharray="${6 / z} ${4 / z}"/>`;
+    }
+    // frie linjer: kan trækkes, klik gør den aktiv
+    for (const axis of ['v', 'h']) {
+      (axis === 'v' ? g.v : g.h).forEach((raw, i) => {
+        const at = drag && drag.axis === axis && drag.index === i ? drag.at : raw;
+        const active = activeGuide && activeGuide.axis === axis && Math.abs(activeGuide.at - raw) < 1e-6;
+        const [x1, y1, x2, y2] = axis === 'v' ? [at, 0, at, h] : [0, at, w, at];
+        out += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${active ? '#1565c0' : '#00acc1'}" stroke-width="${(active ? 2.5 : 1.5) / z}"/>`;
+        out += `<line data-guide="${axis}:${i}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="${10 / z}" ` +
+          `style="pointer-events:stroke; cursor:${axis === 'v' ? 'ew-resize' : 'ns-resize'}"><title>Hjælpelinje ${Math.round(at)} — træk for at flytte (ud over kanten for at fjerne), klik for at justere til den</title></line>`;
+        if (drag && drag.axis === axis && drag.index === i) {
+          const [tx, ty] = axis === 'v' ? [at + 4 / z, 14 / z] : [4 / z, at - 4 / z];
+          out += `<text x="${tx}" y="${ty}" font-size="${12 / z}" fill="#1565c0">${Math.round(at)}</text>`;
+        }
+      });
+    }
+    layer.innerHTML = out;
+  }
+
+  function startGuideDrag(e) {
+    const tag = e.target?.getAttribute?.('data-guide');
+    if (!tag || e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const [axis, idx] = tag.split(':');
+    const index = Number(idx);
+    const g = readGuides();
+    const start = (axis === 'v' ? g.v : g.h)[index];
+    guideLayer.drag = { axis, index, at: start, moved: false };
+    const from = docPoint(e);
+    const life = new AbortController();
+    const move = (ev) => {
+      const p = docPoint(ev);
+      let at = start + (axis === 'v' ? p[0] - from[0] : p[1] - from[1]);
+      if (guides.snapGrid) at = Math.round(at / guides.step) * guides.step;
+      guideLayer.drag.at = Math.round(at);   // hele enheder
+      guideLayer.drag.moved = guideLayer.drag.moved || Math.abs(at - start) > 1;
+      drawGuides();
+    };
+    const up = () => {
+      life.abort();
+      const d = guideLayer.drag;
+      guideLayer.drag = null;
+      if (!d) return;
+      if (!d.moved) {
+        // klik: gør linjen aktiv (eller inaktiv igen)
+        activeGuide = activeGuide && activeGuide.axis === axis && activeGuide.at === start ? null : { axis, at: start };
+        drawGuides();
+        canvas().call('selected', selectedEls());
+        return;
+      }
+      const g2 = readGuides();
+      const list = axis === 'v' ? g2.v : g2.h;
+      const { w, h } = docSize();
+      const outside = d.at < 0 || d.at > (axis === 'v' ? w : h);
+      list.splice(index, 1);
+      if (!outside) list.push(d.at);
+      // var den flyttede linje aktiv, følger det aktive med; ellers ændres intet (kun et klik gør en linje aktiv)
+      if (activeGuide && activeGuide.axis === axis && activeGuide.at === start) activeGuide = outside ? null : { axis, at: d.at };
+      writeGuides(g2, outside ? 'Hjælpelinje fjernet' : 'Hjælpelinje flyttet');
+      canvas().call('selected', selectedEls());
+    };
+    document.addEventListener('mousemove', move, { signal: life.signal, capture: true });
+    document.addEventListener('mouseup', up, { signal: life.signal, capture: true });
+  }
+
+  // Delete fjerner den aktive hjælpelinje; Escape slipper den
+  document.addEventListener('keydown', (e) => {
+    if (!activeGuide) return;
+    const t = e.target;
+    if (t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && !/^(checkbox|radio|button)$/.test(t.type))) return;
+    if (e.key === 'Escape') { activeGuide = null; drawGuides(); canvas().call('selected', selectedEls()); return; }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && !selectedEls().length) {
+      const g = readGuides();
+      const list = activeGuide.axis === 'v' ? g.v : g.h;
+      const i = list.findIndex((v) => Math.abs(v - activeGuide.at) < 1e-6);
+      if (i >= 0) list.splice(i, 1);
+      activeGuide = null;
+      e.preventDefault();
+      e.stopPropagation();
+      writeGuides(g, 'Hjælpelinje fjernet');
+      canvas().call('selected', selectedEls());
+    }
+  }, { capture: true, signal: life.signal });
+
   // ---- rør-ende på rør-ende (v3.4.0)
   /** Nærmeste rør-ende inden for tol (ikke `except`): { el, which, p, dist } eller null. */
   function pipeEndNear(p, tol, except = null) {
@@ -897,7 +1046,8 @@ export function createScada(host) {
         delta = Math.round(at / guides.step) * guides.step - (axis === 'h' ? base[k][1] : base[k][0]);
       }
       // tæt på linje med et andet stykke eller en ende: fang derhen, så hakket forsvinder (v3.8.0)
-      delta = alignDelta(base, k, delta, 8 / (canvas().getZoom() || 1));
+      const gl = guides.snapGuides && guides.showGuides ? guideLinesNow() : { x: [], y: [] };
+      delta = alignDelta(base, k, delta, 8 / (canvas().getZoom() || 1), axis === 'h' ? gl.y : gl.x);
       handles.drag.preview = moveSegment(base, k, delta);
       drawHandles();
     };
@@ -1029,6 +1179,10 @@ export function createScada(host) {
       if (hit && hit.dist <= tol && (!onPipe || hit.dist < onPipe.dist)) onPipe = { el, k: hit.k, q: hit.q, dist: hit.dist };
     }
     if (onPipe) return { p: onPipe.q, port: null, onPipe };
+    if (guides.snapGuides && guides.showGuides) {
+      const sp = snapPointToGuides(raw, guideLinesNow(), tol);
+      if (sp[0] !== raw[0] || sp[1] !== raw[1]) return { p: sp, port: null };
+    }
     if (guides.snapGrid) return { p: [Math.round(raw[0] / guides.step) * guides.step, Math.round(raw[1] / guides.step) * guides.step], port: null };
     return { p: raw, port: null };
   }
@@ -1429,6 +1583,21 @@ export function createScada(host) {
   }
 
   const scada = {
+    /** Hjælpelinjerne i tegningen + den aktive: { every, v, h, active } */
+    getGuides() { return { ...readGuides(), active: activeGuide }; },
+    /** Fast inddeling (0 = fra) — gemmes i tegningen. */
+    setGuideEvery(n) { const g = readGuides(); g.every = Number(n) > 0 ? Number(n) : 0; writeGuides(g, 'Hjælpelinjer: inddeling'); },
+    /** Ny fri hjælpelinje midt i det, man ser ('v' lodret, 'h' vandret). */
+    addGuide(axis) {
+      const area = host.gridHost();
+      const r = area.getBoundingClientRect();
+      const [cx, cy] = screenToDoc(r.left + r.width / 2, r.top + r.height / 2);
+      const g = readGuides();
+      const at = Math.round(axis === 'v' ? cx : cy);
+      (axis === 'v' ? g.v : g.h).push(at);
+      writeGuides(g, 'Ny hjælpelinje');   // bliver først aktiv, når man klikker på den
+    },
+
     /** Bibliotekets T-stykke ({ fragment, label }) — bruges, når et rør kobles på et andet rør. */
     setTeeSymbol(def) { teeSymbol = def && def.fragment ? def : null; },
 
@@ -1540,6 +1709,22 @@ export function createScada(host) {
     align(type) {
       const sel = selectedEls();
       if (!sel.length) return 0;
+      // en aktiv hjælpelinje: justér hvert element til den (venstre/midte/højre til lodret, top/midte/bund til vandret)
+      if (activeGuide) {
+        const cmds = [];
+        for (const el of sel) {
+          const mv = alignToGuide(boxOf(el), type, activeGuide.axis, activeGuide.at);
+          if (!mv) continue;
+          const before = attrsOf(el);
+          moveDoc(el, mv.dx, mv.dy);
+          cmds.push(changeCmd(el, before));
+        }
+        if (cmds.length) {
+          commitCmds('Justér til hjælpelinje', cmds);
+          afterEdit();
+          return sel.length;
+        }
+      }
       canvas().alignSelectedElements(type, sel.length === 1 ? 'page' : 'selected');
       afterEdit();
       return sel.length;
@@ -1609,6 +1794,9 @@ export function createScada(host) {
       guides.snapGrid = !!opts.snapGrid;
       guides.snapObjects = !!opts.snapObjects;
       guides.keepRatio = !!opts.keepRatio;
+      guides.showGuides = opts.showGuides !== false;
+      guides.snapGuides = opts.snapGuides !== false;
+      if (!guides.showGuides) activeGuide = null;
       const step = Number(opts.step);
       guides.step = Number.isFinite(step) && step >= 1 ? step : 10;
       applyGuides();

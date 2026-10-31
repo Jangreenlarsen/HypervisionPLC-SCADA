@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.10.0 build 0292] — 2026-10-31 — Hjælpelinjer i Tegn
+
+- `frontend/svgedit-host/guides.js` (ny, testet): læs/gem `data-hv-guides`, linjer (fast inddeling + frie), fang af bokse og punkter, justér til en linje.
+- `frontend/svgedit-host/scada-core.js`: hjælpelinje-lag (kun i Tegn), træk/klik/Delete/Esc, gemt i tegningen med fortryd; fang i `settleSelection`, rør-værktøjet og stykke-træk; `align` til den aktive linje; API `getGuides`/`setGuideEvery`/`addGuide`. Rettet: fang ramte forkert ved zoom ≠ 100 %.
+- `frontend/svgedit-host/pipes.js`: `alignDelta` tager ekstra linjer.
+- `frontend/src/pages/DrawEditor.svelte`: *Hjælpelinjer*, *Inddeling*, *+ Lodret/+ Vandret*, *Fang til hjælpelinjer* i statuslinjen. `DrawCanvas.svelte`: knaplinjen viser og bruger den aktive linje.
+- Manual kap. 04. Tests: `src/lib/guides.test.ts`, backend `test_svg_sanitize.py` (data-hv-guides overlever gem).
+
 ## [3.9.0 build 0291] — 2026-10-31 — Alt+klik vælger elementet bagved
 
 - `frontend/src/lib/draw/engine.ts`: Alt+klik i Vælg går gennem elementerne under musen (forrest først, rundt) — `cycleNext` (testet).

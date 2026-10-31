@@ -29,7 +29,8 @@
   let canUndo = $state(false);
   let canRedo = $state(false);
   let count = $state(0);
-  let isGroup = $state(false);   // ét element valgt, og det er en gruppe (kan opløses)
+  let isGroup = $state(false);
+  let guideAxis = $state<'v' | 'h' | null>(null);   // aktiv hjælpelinje: justér-knapperne går til den   // ét element valgt, og det er en gruppe (kan opløses)
   let message = $state('');
   let menu = $state<{ x: number; y: number } | null>(null);
 
@@ -61,6 +62,7 @@
     canRedo = engine.canRedo();
     count = engine.selectionCount();
     isGroup = count === 1 && engine.canvas.getSelectedElements()[0]?.tagName === 'g';
+    guideAxis = api?.getGuides?.()?.active?.axis ?? null;
     onupdate?.();
   };
 
@@ -130,8 +132,11 @@
 
       {#if count > 0}
         <div class="selbar" role="toolbar" aria-label="Det markerede">
+          {#if guideAxis}<span class="gchip" title="En hjælpelinje er valgt — Esc slipper den">til {guideAxis === 'v' ? 'lodret' : 'vandret'} hjælpelinje:</span>{/if}
           {#each ALIGN as a}
-            <button onclick={() => call(() => api?.align(a.t))} title="{a.label}{count === 1 ? ' (i forhold til tegningen)' : ''}" aria-label={a.label}>
+            {@const toGuide = guideAxis && ((guideAxis === 'v') === ['l', 'c', 'r'].includes(a.t))}
+            <button onclick={() => call(() => api?.align(a.t))} class:guide={toGuide} disabled={!!guideAxis && !toGuide}
+                    title="{a.label}{toGuide ? ' — til den valgte hjælpelinje' : count === 1 ? ' (i forhold til tegningen)' : ''}" aria-label={a.label}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d={a.icon} /></svg>
             </button>
           {/each}
@@ -266,6 +271,8 @@
   .selbar button:hover:not(:disabled) { background: #e9eef7; }
   .selbar button:disabled { opacity: .35; }
   .selbar .danger { color: #b3261e; }
+  .selbar button.guide { background: #e1f5f8; border-color: #00acc1; }
+  .gchip { font-size: .75rem; color: #00838f; padding: 0 4px; }
   .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; flex: none; }
 
   .cmenu {

@@ -45,7 +45,10 @@
     uniqueName(base: string): string;
     insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
     docPointAt(clientX: number, clientY: number): { x: number; y: number };
-    setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number }): void;
+    setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean }): void;
+    getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
+    setGuideEvery(n: number): void;
+    addGuide(axis: 'v' | 'h'): void;
     describeSelection(): SelectionInfo | null;
     replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any'; protectIds?: string[]; apexNative?: number; axisNative?: number; mirror?: boolean }):
       { ok?: boolean; replaced?: number; skipped?: number; ids?: string[]; error?: string };
@@ -83,11 +86,12 @@
   let ready = $state(false);
   // Tegnehjælp: gitter, fang til gitter/objekter. Huskes pr. browser (ikke pr. tegning).
   const GUIDE_STEPS = [5, 10, 20, 25, 50];
-  function loadGuides(): { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number } {
-    const fallback = { grid: false, snapGrid: false, snapObjects: false, keepRatio: false, step: 10 };
+  function loadGuides(): { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean } {
+    const fallback = { grid: false, snapGrid: false, snapObjects: false, keepRatio: false, step: 10, showGuides: true, snapGuides: true };
     try {
       const raw = JSON.parse(localStorage.getItem('draw.guides') ?? '{}');
-      return { grid: !!raw.grid, snapGrid: !!raw.snapGrid, snapObjects: !!raw.snapObjects, keepRatio: !!raw.keepRatio, step: GUIDE_STEPS.includes(Number(raw.step)) ? Number(raw.step) : 10 };
+      return { grid: !!raw.grid, snapGrid: !!raw.snapGrid, snapObjects: !!raw.snapObjects, keepRatio: !!raw.keepRatio, step: GUIDE_STEPS.includes(Number(raw.step)) ? Number(raw.step) : 10,
+               showGuides: raw.showGuides !== false, snapGuides: raw.snapGuides !== false };
     } catch {
       return fallback; // ingen eller ødelagt localStorage: standardværdier
     }
@@ -114,12 +118,14 @@
   // Højre panel: foldbare sektioner — åbnes én, foldes de ikke-fastgjorte sammen (v3.5.0)
   let panels = $state(loadPanels());
   let objCount = $state(0);
+  let guideEvery = $state(0);   // tegningens faste inddeling (læses fra tegningen)
   $effect(() => savePanels($state.snapshot(panels)));
   // antal elementer i tegningen (tallet ved Objekter — også når sektionen er foldet sammen)
   $effect(() => {
     void inspectRev;
     const list = ready && ed ? (ed as unknown as TreeApi).objectList() : [];
     objCount = list.reduce((n, l) => n + l.items.length, 0);
+    guideEvery = ready && ed ? ed.getGuides().every : 0;
   });
   const sec = (id: string) => ({
     open: panels.open.includes(id),
@@ -849,6 +855,18 @@
   </label>
   <label class="opt" title="Når du slipper et objekt, lægges det kant mod kant eller midte mod midte med nærmeste objekt, hvis det er tæt på"><input type="checkbox" bind:checked={guides.snapObjects} /> Fang til objekter</label>
   <label class="opt" title="Træk i et hjørne: bredde og højde ændres i samme forhold. Hold Shift nede for at skalere frit"><input type="checkbox" bind:checked={guides.keepRatio} /> Skalér symmetrisk</label>
+  <span class="gsep"></span>
+  <label class="opt" title="Hjælpelinjerne gemmes i tegningen, men vises kun her i Tegn — aldrig i Overview"><input type="checkbox" bind:checked={guides.showGuides} /> Hjælpelinjer</label>
+  {#if guides.showGuides}
+    <label class="opt" title="Faste hjælpelinjer med denne afstand over hele tegningen (gemmes i tegningen)">Inddeling
+      <select value={guideEvery} onchange={(e) => { ed?.setGuideEvery(Number(e.currentTarget.value)); guideEvery = ed?.getGuides().every ?? 0; }} disabled={!ready} aria-label="Fast inddeling">
+        {#each [0, 50, 100, 200, 250] as n}<option value={n}>{n ? n : 'Fra'}</option>{/each}
+      </select>
+    </label>
+    <button class="small" onclick={() => ed?.addGuide('v')} disabled={!ready} title="Ny lodret hjælpelinje midt i det, du ser — træk den på plads">+ Lodret</button>
+    <button class="small" onclick={() => ed?.addGuide('h')} disabled={!ready} title="Ny vandret hjælpelinje midt i det, du ser — træk den på plads">+ Vandret</button>
+    <label class="opt" title="Symboler, rør og rør-stykker fanges til hjælpelinjerne"><input type="checkbox" bind:checked={guides.snapGuides} /> Fang til hjælpelinjer</label>
+  {/if}
 {/snippet}
 
 
@@ -1091,6 +1109,7 @@
     aside > :global(.psec.open.grow) { flex: 1 1 0; max-height: none; min-height: 8rem; }
     .sym-head { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: .2rem 0 .4rem; }
   }
+  .gsep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; display: inline-block; }
   .linkish { border: 0; background: none; padding: 0 0 .3rem; color: var(--accent); text-decoration: underline; cursor: pointer; }
   .field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
   .field :global(select), .field input { width: 100%; }
