@@ -89,7 +89,18 @@ await shot('menu-bruger', async () => { await go('overview', '.menubar'); await 
 await shot('overview', async () => { await go(`overview/${startDrawing}`, 'svg'); await page.mouse.move(600, 740); await settle(2500); });
 await shot('alarmer', async () => { await go('alarms', 'text=Aktive'); });
 await shot('alarmer-historik', async () => { await go('alarms', 'text=Aktive'); await page.getByRole('button', { name: 'Historik' }).click(); await settle(); });
-await shot('trends', async () => { await go('trends', 'text=15 min'); await page.getByRole('button', { name: '1 time' }).click(); await settle(2500); });
+await shot('trends', async () => {
+  // den gemte visning med tankens 8 temperaturfølere over 7 dage (falder tilbage til 1 time uden visningen)
+  await go('trends', 'text=15 min');
+  const sel = page.locator('select[aria-label="Gemte visninger"]');
+  // visningerne hentes efter siden — vent på dem
+  await page.waitForFunction(() => (document.querySelector('select[aria-label="Gemte visninger"]')?.options.length ?? 0) > 1, null, { timeout: 8000 }).catch(() => {});
+  const names = await sel.locator('option').allTextContents().catch(() => []);
+  const tank = names.find((n) => /tank temp/i.test(n));
+  if (tank) { await sel.selectOption({ label: tank }); await settle(1500); await page.getByRole('button', { name: '7 dage' }).click(); }
+  else await page.getByRole('button', { name: '1 time' }).click();
+  await settle(4000);
+});
 await shot('energi', async () => { await go('energy', 'h1, h2, h3'); await settle(1500); });
 // ------------------------------------------------------------------ PLC'er og tags
 await shot('plcer', async () => { await go('plcs', 'text=Tilføj PLC'); });
