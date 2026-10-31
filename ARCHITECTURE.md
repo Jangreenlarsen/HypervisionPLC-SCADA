@@ -60,7 +60,7 @@ Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.m
 ### Lag 3 — Service-lag
 - **Ansvar**: SVG-sanering og versioner, bindinger, tag-model og -skalering, live-cache (værdi + kvalitet + tid), abonnements-sæt, skrive-service (validering min/max, audit), brugere/roller (inkl. sidste-admin-beskyttelse), alarmer, trend-opsamling (ved ændring + keepalive, batch-skrivning, oprydning).
 - **Filer**: `backend/app/services/`
-- **Regler**: Kalder PLC-klient-laget og lager-laget; aldrig HTTP direkte.
+- **Regler**: Kalder PLC-klient-laget og lager-laget; aldrig HTTP direkte til en PLC. Eneste undtagelse for andre HTTP-kald: `github_releases.py` (OTA fra GitHub Releases — kun `api.github.com`/`github.com` i det konfigurerede repo `SCADA_UPDATE_REPO`, kun admin, https, størrelses- og tidsgrænse, SHA256-kontrol).
 
 ### Lag 4a — PLC-klient
 - **Ansvar**: Én klient pr. PLC: login → Bearer-token, re-login ved 401, bulk-reads planlagt ud fra abonnements-sættet, SSE-lytter, rate-budget (≤ 5 req/s pr. PLC), backoff ved 429/timeout, skrivekald.
