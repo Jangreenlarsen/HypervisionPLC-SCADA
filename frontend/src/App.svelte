@@ -242,7 +242,7 @@
   {:else if page === 'symboltest'}
     <SymbolTest />
   {:else if page === 'symbols'}
-    <SymbolEditor />
+    <SymbolEditor {route} />
   {:else if page === 'plcs'}
     <Plcs isAdmin={me.role === 'admin'} />
   {:else if page === 'audit'}

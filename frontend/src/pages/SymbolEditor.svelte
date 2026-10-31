@@ -5,8 +5,13 @@
   import { del, get, put } from '../lib/api';
   import { ask } from '../lib/ask';
   import { CATEGORIES, SYMBOLS, type SymbolCategory } from '../lib/symbols';
+  import { drawHref, parseSymbolRoute } from '../lib/symbolRoute';
   // @ts-expect-error — ren JS uden typer (deles med Tegn)
   import { autoPorts, boxOfRoot, snapCandidates, symbolType } from '../../svgedit-host/symbolPorts.js';
+
+  let { route = 'symbols' }: { route?: string } = $props();
+  const from = $derived(parseSymbolRoute(route));
+  let backName = $state('');
 
   type Pt = [number, number];
   type Box = { x: number; y: number; w: number; h: number };
@@ -40,8 +45,20 @@
     } catch (e) {
       error = `Kunne ikke hente de rettede punkter: ${(e as Error).message}`;
     }
-    await show(selectedId);
+    // åbnet fra Tegn: vis tegningens navn på tilbage-knappen, og start på det valgte symbol
+    if (from.drawing) {
+      try {
+        backName = (await get<{ id: string; name: string }[]>('/api/drawings')).find((d) => d.id === from.drawing)?.name ?? '';
+      } catch { /* knappen viser så bare "tegningen" */ }
+    }
+    const start = from.type ? SYMBOLS.find((x) => symbolType(x.id) === from.type) : null;
+    await show(start?.id ?? selectedId);
   });
+
+  async function back(): Promise<void> {
+    if (dirty && !(await ask('Du har ændringer, der ikke er gemt. Kassér dem og gå tilbage?', { ok: 'Kassér', danger: true }))) return;
+    location.hash = drawHref(from.drawing);
+  }
 
   /** Tegn symbolet og læs dets boks og automatiske punkter. */
   async function show(id: string): Promise<void> {
@@ -163,7 +180,10 @@
 
 <svelte:window onkeydown={onKey} onmouseup={up} />
 
-<h2>Symboler — tilslutningspunkter</h2>
+<div class="row title">
+  <h2>Symboler — tilslutningspunkter</h2>
+  {#if from.fromDraw}<button class="back" onclick={back}>← Tilbage til {backName ? `"${backName}"` : 'tegningen'}</button>{/if}
+</div>
 <p class="muted small">
   Tilslutningspunkterne er de grønne prikker, rør i <a href="#draw">Tegn</a> sættes fast i. Vælg et symbol, og ret punkterne.
   <strong>Ændringen gælder symboler, du indsætter fremover</strong> — symboler, der allerede står i en tegning, beholder deres punkter.
@@ -216,6 +236,9 @@
 </div>
 
 <style>
+  .title { align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .title h2 { margin: 0; }
+  .back { margin-left: auto; }
   .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 1rem; align-items: start; }
   @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
   aside { display: flex; flex-direction: column; gap: .4rem; max-height: 75vh; }

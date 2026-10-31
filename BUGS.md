@@ -5,6 +5,8 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [open] v3.7.0 — Tegn: skifter man side via menuen (eller adresselinjen), mens tegningen har ændringer, der ikke er gemt, går de tabt uden advarsel — kun lukning/genindlæsning af fanen og de nye genveje (Symboler) spørger. Fundet under arbejdet med genvejen til symbol-editoren. Forslag: en fælles "forlad siden"-vagt i App.svelte, som Tegn kan tilmelde sig.
+
 - [fixed] v3.6.0 — Tegn: klik på et rør for at vælge det kunne få lærredet til at flytte hele røret ved næste træk (fx i et håndtag), og røret mistede sine forbindelser. **Årsag:** håndtagene (v3.3.0) tegnes, så snart røret er valgt — ofte lige under musen — så museslippet landede på håndtaget, og lærredet fik det aldrig; det troede, knappen stadig var nede. **Løsning:** et museslip på håndtagene sendes videre til lærredet, når det venter på ét; desuden flytter "fang efter træk" ikke længere røret efter et håndtag-træk. Desuden: når et symbol flyttes, lagde omlægningen hele røret om ad korteste vej og kasserede brugerens egne ændringer — nu bevares ruten, og kun knæk bag det nye punkt lægges om. Set i browseren.
 
 - [fixed] v3.1.1 — Tegn: Esc slog ikke rør-værktøjet fra (rapporteret af Jan). **Årsag:** stod fokus i et felt i panelet (fx søgefeltet eller *Bøjningsradius*), blev det stående, når man klikkede i tegnefladen — rør-værktøjet stopper klikkets standardhandling — så Esc og de andre genvejstaster gik til feltet. **Løsning:** et klik i tegnefladen tager altid fokus fra panelernes felter (alle værktøjer). Set i browseren.

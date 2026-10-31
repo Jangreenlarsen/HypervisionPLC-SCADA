@@ -2,6 +2,12 @@
 
 ---
 
+## v3.7.0 — 2026-10-31 — Genvej til symbol-editoren
+
+- Vælg et bibliotekssymbol i Tegn og tryk **Ret tilslutningspunkter …**, så åbner symbol-editoren direkte på det symbol. Der er også et link øverst i sektionen *Symboler*.
+- I symbol-editoren fører **← Tilbage til "<tegning>"** dig tilbage til tegningen.
+- Har tegningen ændringer, der ikke er gemt, spørger Tegn først.
+
 ## v3.6.0 — 2026-10-31 — Flyt dele af et rør
 
 - Vælg et rør, så får hvert lige stykke et **blåt håndtag** på midten. Træk det på tværs for at flytte netop det stykke. Rørets ender bliver siddende i deres tilslutningspunkter.

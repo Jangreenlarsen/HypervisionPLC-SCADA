@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.7.0 build 0289] — 2026-10-31 — Genvej mellem Tegn og symbol-editoren
+
+- `frontend/src/lib/symbolRoute.ts` (ny, testet): `#symbols/<tegning>/<symboltype>`.
+- `frontend/src/pages/DrawEditor.svelte`: *Ret tilslutningspunkter …* for valgt bibliotekssymbol og link i *Symboler*; spørger ved ugemte ændringer.
+- `frontend/src/pages/SymbolEditor.svelte`: åbner på symbolet fra adressen; *← Tilbage til "<tegning>"*. `App.svelte`: route til siden.
+- Manual kap. 04. BUGS.md: åben fejl om ugemte ændringer ved menuskift.
+
 ## [3.6.0 build 0288] — 2026-10-31 — Flyt et stykke af et rør
 
 - `frontend/svgedit-host/pipes.js`: `moveSegment` (flyt et stykke på tværs, enderne bliver), `segmentHandles`; `reroute` bevarer ruten og lægger kun om fra det nærmeste knæk, der ikke ligger bag punktet.

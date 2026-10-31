@@ -144,6 +144,8 @@ Et nyindsat symbol skal **sættes op**: vælg symbolet og tryk **Opsæt symbol (
 
 Rør tegnet med værktøjet **Rør** i den nye tegne-editor sættes fast i et symbols *tilslutningspunkter* — de grønne prikker. Som standard findes de automatisk: rørender på symbolets kant og midten af hver kant.
 
+**Genvej fra Tegn:** vælg et bibliotekssymbol og tryk **Ret tilslutningspunkter …** under *Valgt element* (eller linket øverst i *Symboler*). Symbol-editoren åbner på symbolet, og knappen **← Tilbage til "<tegning>"** fører dig tilbage. Har tegningen ændringer, der ikke er gemt, spørger Tegn først — gem med *Gem kladde*, før du skifter.
+
 På siden **Symboler** (rollen tekniker, under **Opsætning**) kan du rette punkterne for et symbol i biblioteket:
 
 - Vælg symbolet i listen. Symboler med rettede punkter er mærket **rettet**.

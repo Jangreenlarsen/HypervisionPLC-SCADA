@@ -14,6 +14,9 @@
   import ObjectTree, { type TreeApi } from '../lib/draw/ObjectTree.svelte';
   import PanelSection from '../lib/draw/PanelSection.svelte';
   import { loadPanels, savePanels, togglePanel, togglePin } from '../lib/draw/panels';
+  import { symbolsHref } from '../lib/symbolRoute';
+  // @ts-expect-error — ren JS uden typer
+  import { symbolType } from '../../svgedit-host/symbolPorts.js';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
@@ -255,6 +258,13 @@
       info = `${done.length} symbol${done.length === 1 ? '' : 'er'} fik nyt navn: ${done.map((d) => `"${d.from}" → "${d.to}"`).join(', ')}. ` +
         'Tryk Gem kladde eller Gem og udgiv for at gemme (Ctrl+Z fortryder).';
     });
+  }
+
+  /** Til symbol-editoren (med "Tilbage til tegningen"); ugemte ændringer går tabt — spørg først. */
+  async function gotoSymbols(type: string | null): Promise<void> {
+    if (dirty && !(await askUser('Tegningen har ændringer, der ikke er gemt — de går tabt, hvis du skifter til Symboler. Gem først med "Gem kladde", eller fortsæt og kassér dem.', { ok: 'Kassér og fortsæt', danger: true }))) return;
+    dirty = false;
+    location.hash = symbolsHref(current?.id ?? null, type);
   }
 
   async function confirmDiscard(): Promise<boolean> {
@@ -905,6 +915,9 @@
           <div class="row"><button onclick={() => guarded('Del i rør', splitFitting)} disabled={!ready || busy} title="Del T-stykket/krydset i selvstændige rør, så hvert rør kan få sit eget løbelys">Del i rør</button></div>
         {/if}
         <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat den tegnede del med et symbol fra biblioteket (samme placering, størrelse og drejning)">Erstat med symbol …</button></div>
+        {#if single.type && SYMBOLS.some((x) => symbolType(x.id) === single.type)}
+          <div class="row"><button onclick={() => gotoSymbols(single?.type ?? null)} title="Åbn symbol-editoren på dette symbol — ret tilslutningspunkterne for symboler, der indsættes fremover">Ret tilslutningspunkter …</button></div>
+        {/if}
         {@render colorRow()}
         <details class="adv">
           <summary class="small">Avanceret</summary>
@@ -922,6 +935,7 @@
     </PanelSection>
     <PanelSection id="symboler" title="Symboler" grow {...sec('symboler')}>
       <div class="sym-head">
+        <button class="linkish small" onclick={() => gotoSymbols(null)} title="Åbn symbol-editoren — ret symbolernes tilslutningspunkter">Ret tilslutningspunkter i symbol-editoren →</button>
         <input bind:value={symbolFilter} placeholder="Søg symbol (fx bøjning, kontaktor)" style="width:100%" />
       </div>
       {#if favError}<p class="small error">{favError}</p>{/if}
@@ -1077,6 +1091,7 @@
     aside > :global(.psec.open.grow) { flex: 1 1 0; max-height: none; min-height: 8rem; }
     .sym-head { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: .2rem 0 .4rem; }
   }
+  .linkish { border: 0; background: none; padding: 0 0 .3rem; color: var(--accent); text-decoration: underline; cursor: pointer; }
   .field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
   .field :global(select), .field input { width: 100%; }
   /* minmax(0, 1fr): lange navne må ikke gøre en kolonne bredere end panelet */
