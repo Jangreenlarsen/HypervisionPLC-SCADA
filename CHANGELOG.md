@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.12.3 build 0299] — 2026-10-31 — Manualen omlagt i flere kapitler og afsnit
+
+- `frontend/src/manual/`: *Tegninger og Tegn* delt i **Tegninger**, **Tegn – tegne-editoren** og **Forbindelser (rør og ledninger)**; *Alarmer* og *Trends* flyttet ud af *Drift* til egne kapitler — alle med egne `##`-afsnit i indholdsfortegnelsen. Rettet forældet tekst (symbolbiblioteket står til højre, tilslutningspunkter fra stregerne, linjen over tegnefladen) og nyt om skillelinjer, Begge/Middel/Rå, Udfyld huller, låste grafer, Nulstil visning, forstør/fjern graf og animation på forbindelser. Kapitlerne er omnummereret (adresserne er uændrede).
+- `frontend/src/manual/14-eksempler.md`: billede til hvert eksempel. Tegn-billederne taget om.
+- `frontend/src/lib/manualGen.test.ts`: symbolbibliotekets kapitel hedder nu `11-symbolbibliotek.md`.
+- `frontend/src/pages/DrawEditor.svelte`: ingen tom boble ved *Valgt element*, når intet er valgt.
+
 ## [3.12.2 build 0298] — 2026-10-31 — Rettet: ophobede bugter og nye rørstumper ved flytning af symboler
 
 - `frontend/svgedit-host/pipes.js`: `reroute` lægger altid knæk inden for 60 enheder fra enden om (de er lavet automatisk).

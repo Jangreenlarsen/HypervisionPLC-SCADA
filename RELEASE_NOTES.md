@@ -2,6 +2,11 @@
 
 ---
 
+## v3.12.3 — 2026-10-31 — Ny opdeling af manualen
+
+- Manualen er delt op i flere kapitler med egne afsnit: **Alarmer** og **Trends** har fået egne kapitler, og *Tegninger og Tegn* er delt i **Tegninger**, **Tegn – tegne-editoren** og **Forbindelser (rør og ledninger)**. Afsnittene står i indholdsfortegnelsen til venstre.
+- Alle eksempler i *Eksempler trin for trin* har nu et billede, og billederne af Tegn er opdateret.
+
 ## v3.12.2 — 2026-10-31 — Rettelser i forbindelser
 
 - Når du flytter et symbol flere gange, får forbindelsen ikke længere flere og flere bugter.

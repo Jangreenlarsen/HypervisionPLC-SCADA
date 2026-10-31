@@ -896,7 +896,7 @@
   <aside bind:this={aside}>
     {#snippet selBadge()}{selection.length > 1 ? `${selection.length} valgt` : single ? (single.name || `<${single.tag}>`) : ''}{/snippet}
     {#snippet objBadge()}{objCount}{/snippet}
-    <PanelSection id="valgt" title="Valgt element" badge={selBadge} {...sec('valgt')}>
+    <PanelSection id="valgt" title="Valgt element" badge={selection.length ? selBadge : undefined} {...sec('valgt')}>
       {#if !single}
         <p class="muted small">{selection.length > 1 ? `${selection.length} elementer valgt` : 'Vælg et element i tegningen.'}</p>
         {#if selection.length > 1}

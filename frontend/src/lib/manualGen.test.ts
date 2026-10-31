@@ -1,5 +1,5 @@
 // @ts-nocheck — kun et udviklerværktøj der bruger node (fs/path), som frontendens typer ikke kender
-// Genererer frontend/src/manual/07-symbolbibliotek.md ud fra symbolbiblioteket (kør med: GEN_MANUAL=1 npx vitest run src/lib/manualGen.test.ts).
+// Genererer frontend/src/manual/11-symbolbibliotek.md ud fra symbolbiblioteket (kør med: GEN_MANUAL=1 npx vitest run src/lib/manualGen.test.ts).
 // Uden GEN_MANUAL kontrolleres kun at kapitlet er opdateret, så et nyt symbol ikke kan glemmes i manualen.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { CATEGORIES, SYMBOLS } from './symbols';
 import { OP_TXT, allowedOps } from './symbolConfig';
 
-const FILE = join(process.cwd(), 'src', 'manual', '07-symbolbibliotek.md');   // vitest kører fra frontend-mappen
+const FILE = join(process.cwd(), 'src', 'manual', '11-symbolbibliotek.md');   // vitest kører fra frontend-mappen
 
 function build(): string {
   const out: string[] = [
