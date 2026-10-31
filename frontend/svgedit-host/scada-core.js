@@ -8,7 +8,7 @@ import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
 import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
-import { PIPE_STYLE, axisOf, axisOfDir, branchSide, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
+import { PIPE_STYLE, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
 
 /**
  * @param {{ canvas(): any, loadFromString(svg: string): unknown, updateCanvas(): void, gridHost(): HTMLElement | null,
@@ -728,6 +728,73 @@ export function createScada(host) {
     um.__hvPipes = true;
   }
 
+  // ---- rør-ende på rør-ende (v3.4.0)
+  /** Nærmeste rør-ende inden for tol (ikke `except`): { el, which, p, dist } eller null. */
+  function pipeEndNear(p, tol, except = null) {
+    let best = null;
+    for (const el of canvas().getSvgContent().querySelectorAll('[data-hv-pipe]')) {
+      if (el === except || el.getAttribute('transform')) continue;
+      const pts = pipePoints(el);
+      if (pts.length < 2) continue;
+      for (const [which, q] of [['start', pts[0]], ['end', pts[pts.length - 1]]]) {
+        const dist = Math.hypot(q[0] - p[0], q[1] - p[1]);
+        if (dist <= tol && (!best || dist < best.dist)) best = { el, which, p: q, dist };
+      }
+    }
+    return best;
+  }
+  /** Nærmeste punkt midt på et rør (til et T-stykke) inden for tol: { el, k, q, dist } eller null. */
+  function pipeMidNear(p, tol, except = null) {
+    let best = null;
+    for (const el of canvas().getSvgContent().querySelectorAll('[data-hv-pipe]')) {
+      if (el === except || el.getAttribute('transform')) continue;
+      const hit = nearestOnRoute(pipePoints(el), p);
+      if (hit && hit.dist <= tol && (!best || hit.dist < best.dist)) best = { el, k: hit.k, q: hit.q, dist: hit.dist };
+    }
+    return best;
+  }
+  const attrsOf = (el) => Object.fromEntries([...el.attributes].map((x) => [x.name, x.value]));
+  /** Fortryd-kommando for ændringerne på el siden `before` (attributterne). */
+  function changeCmd(el, before) {
+    const old = {};
+    for (const k of new Set([...Object.keys(before), ...[...el.attributes].map((x) => x.name)])) {
+      if (before[k] !== el.getAttribute(k)) old[k] = before[k] ?? null;
+    }
+    return new (canvas().history.ChangeElementCommand)(el, old);
+  }
+  function removeCmd(el) {
+    const parent = el.parentNode, next = el.nextSibling;
+    el.remove();
+    return new (canvas().history.RemoveElementCommand)(el, next, parent);
+  }
+  /** Rørets anden endes reference: den ende der IKKE er `which`. */
+  const otherRef = (el, which) => el.getAttribute(which === 'start' ? 'data-hv-to' : 'data-hv-from');
+  const named = (el) => !!el.getAttribute('data-hv-name');
+
+  /**
+   * Læg to rør sammen, hvor A's ende `aWhich` (punkterne `aPts`) møder B's ende `bWhich`. Det rør, der har en opsætning
+   * (navn), bevares; har begge, lægges de ikke sammen (→ null). → { keep, cmds }.
+   */
+  function joinPipes(A, aPts, aWhich, B, bWhich) {
+    if (named(A) && named(B)) return null;
+    const route = mergeRoutes(aPts, aWhich, pipePoints(B), bWhich);   // fra A's anden ende til B's anden ende
+    const refStart = otherRef(A, aWhich);
+    const refEnd = otherRef(B, bWhich);
+    const keep = named(B) ? B : A;
+    const drop = keep === A ? B : A;
+    const before = attrsOf(keep);
+    drawPipe(keep, route);
+    if (refStart) keep.setAttribute('data-hv-from', refStart); else keep.removeAttribute('data-hv-from');
+    if (refEnd) keep.setAttribute('data-hv-to', refEnd); else keep.removeAttribute('data-hv-to');
+    return { keep, cmds: [changeCmd(keep, before), removeCmd(drop)] };
+  }
+  function commitCmds(label, cmds) {
+    const c = canvas();
+    const batch = new c.history.BatchCommand(label);
+    for (const cmd of cmds) batch.addSubCommand(cmd);
+    if (!batch.isEmpty()) c.undoMgr.addCommandToHistory(batch);
+  }
+
   // ---- genforbind: håndtag på det valgte rørs ender (v3.3.0)
   const RECONNECT_TOL = 6;   // en flyttet rør-ende inden for så mange enheder af et punkt sættes fast igen
   /** Alle tilslutningspunkter i tegningen (med symbolets id). */
@@ -780,6 +847,8 @@ export function createScada(host) {
         const hot = drag.hit && q.doc === drag.hit.doc;
         return `<circle cx="${q.doc[0]}" cy="${q.doc[1]}" r="${(hot ? 7 : 4) / z}" fill="${hot ? '#2e7d32' : '#fff'}" stroke="#2e7d32" stroke-width="${1.5 / z}"/>`;
       }).join('');
+      const spot = drag.hitEnd?.p ?? drag.hitMid?.q;
+      if (spot) out += `<circle cx="${spot[0]}" cy="${spot[1]}" r="${7 / z}" fill="#ef6c00" stroke="#fff" stroke-width="${1.5 / z}"/>`;
       out += `<path d="${pipePath(pts, radiusOf(el))}" fill="none" stroke="#2e7d32" stroke-width="${2 / z}" stroke-dasharray="${5 / z} ${3 / z}"/>`;
     }
     for (const which of ['start', 'end']) {
@@ -806,11 +875,21 @@ export function createScada(host) {
     const move = (ev) => {
       const raw = docPoint(ev);
       const z = canvas().getZoom() || 1;
-      const hit = nearest(handles.drag.ports.map((q) => q.doc), raw, 12 / z);
-      const port = hit ? handles.drag.ports.find((q) => q.doc === hit) : null;
-      const p = port ? port.doc : guides.snapGrid ? raw.map((v) => Math.round(v / guides.step) * guides.step) : raw;
-      handles.drag.hit = port;
-      handles.drag.preview = reroute(base, which, p, port?.dir ?? null);
+      const tol = 12 / z;
+      const d = handles.drag;
+      const hit = nearest(d.ports.map((q) => q.doc), raw, tol);
+      const port = hit ? d.ports.find((q) => q.doc === hit) : null;
+      // ellers: en anden rør-ende (lægges sammen) eller midt på et rør (T-stykke)
+      const end = port ? null : pipeEndNear(raw, tol, el);
+      const mid = port || end ? null : pipeMidNear(raw, tol, el);
+      d.hit = port;
+      d.hitEnd = end;
+      d.hitMid = mid;
+      const neighbor = which === 'start' ? base[1] : base[base.length - 2];
+      if (port) d.preview = reroute(base, which, port.doc, port.dir);
+      else if (end) d.preview = reroute(base, which, end.p, endDir(pipePoints(end.el), end.which));
+      else if (mid) d.preview = reroute(base, which, mid.q, acrossDir(mid, neighbor));
+      else d.preview = reroute(base, which, guides.snapGrid ? raw.map((v) => Math.round(v / guides.step) * guides.step) : raw, null);
       drawHandles();
     };
     const up = () => {
@@ -819,11 +898,34 @@ export function createScada(host) {
       handles.drag = null;
       if (d && d.preview !== d.base) {
         const attr = which === 'start' ? 'data-hv-from' : 'data-hv-to';
-        const snap = snapshot([el]);
-        drawPipe(el, d.preview);
-        if (d.hit) el.setAttribute(attr, formatRef(d.hit.id, d.hit.frac, d.hit.side));
-        else el.removeAttribute(attr);
-        commitSnapshot(snap, d.hit ? 'Rør sat fast' : 'Rør-ende flyttet');
+        const before = attrsOf(el);
+        let done = false;
+        if (d.hitEnd) {
+          // rør-ende på rør-ende: ét rør
+          const j = joinPipes(el, d.preview, which, d.hitEnd.el, d.hitEnd.which);
+          if (j) {
+            commitCmds('Rør lagt sammen', j.cmds);
+            canvas().clearSelection();
+            canvas().addToSelection([j.keep]);
+            done = true;
+          }
+        } else if (d.hitMid) {
+          // midt på et rør: T-stykke
+          const neighbor = which === 'start' ? d.preview[1] : d.preview[d.preview.length - 2];
+          const t = makeTee(d.hitMid, neighbor);
+          if (t) {
+            drawPipe(el, reroute(d.base, which, t.port.doc, t.port.dir));
+            el.setAttribute(attr, formatRef(t.node.id, t.port.frac, t.port.side));
+            commitCmds('Rør med T-stykke', [...t.cmds, changeCmd(el, before)]);
+            done = true;
+          }
+        }
+        if (!done) {
+          drawPipe(el, d.preview);
+          if (d.hit) el.setAttribute(attr, formatRef(d.hit.id, d.hit.frac, d.hit.side));
+          else el.removeAttribute(attr);
+          commitCmds(d.hit ? 'Rør sat fast' : 'Rør-ende flyttet', [changeCmd(el, before)]);
+        }
         afterEdit();
       }
       drawHandles();
@@ -854,6 +956,9 @@ export function createScada(host) {
     const tol = 12 / (canvas().getZoom() || 1);
     const port = nearest(pipeTool.ports.map((q) => q.doc), raw, tol);
     if (port) return { p: port, port: pipeTool.ports.find((q) => q.doc === port) };
+    // en rør-ende: røret fortsættes / lægges sammen
+    const pipeEnd = pipeEndNear(raw, tol);
+    if (pipeEnd) return { p: pipeEnd.p, port: null, pipeEnd };
     // på et eksisterende rør: her bliver der et T-stykke (røret deles)
     let onPipe = null;
     for (const el of canvas().getSvgContent().querySelectorAll('[data-hv-pipe]')) {
@@ -975,7 +1080,7 @@ export function createScada(host) {
       preview += `<circle cx="${q[0]}" cy="${q[1]}" r="${7 / z}" fill="#ef6c00" stroke="#fff" stroke-width="${1.5 / z}"/>`;
     }
     if (pipeTool.pts.length) {
-      const pts = pipeTool.cursor ? routeTo(pipeTool.cursor, pipeTool.hover, pipeTool.hoverPipe) : pipeTool.pts;
+      const pts = pipeTool.cursor ? routeTo(pipeTool.cursor, pipeTool.hover, pipeTool.hoverPipe?.el ? pipeTool.hoverPipe : null) : pipeTool.pts;
       if (pipeTool.hoverPipe) {
         const q = pipeTool.hoverPipe.q;
         preview += `<circle cx="${q[0]}" cy="${q[1]}" r="${7 / z}" fill="#ef6c00" stroke="#fff" stroke-width="${1.5 / z}"/>`;
@@ -994,8 +1099,10 @@ export function createScada(host) {
     let toRef = pipeTool.to ?? null;
     const fromTee = pipeTool.fromTee;
     let toTee = pipeTool.toTee;
+    const fromEnd = pipeTool.fromEnd;
+    const toEnd = pipeTool.toEnd;
     pipeTool.pts = [];
-    pipeTool.from = pipeTool.fromDir = pipeTool.to = pipeTool.fromTee = pipeTool.toTee = null;
+    pipeTool.from = pipeTool.fromDir = pipeTool.to = pipeTool.fromTee = pipeTool.toTee = pipeTool.fromEnd = pipeTool.toEnd = null;
     const teeCmds = [];
     if (pts.length >= 2) {
       // begge ender på samme rør: kun starten bliver et T (det andet punkt ligger på et rør, der netop er delt)
@@ -1015,6 +1122,45 @@ export function createScada(host) {
           pts = reroute(pts, 'end', t.port.doc, t.port.dir);
           toRef = formatRef(t.node.id, t.port.frac, t.port.side);
         }
+      }
+    }
+    if (pts.length >= 2 && (fromEnd || toEnd)) {
+      // startet/sluttet på en rør-ende: det nye stykke bliver en del af det eksisterende rør
+      const cmds = [...teeCmds];
+      let keep = null;
+      let route = pts;
+      if (fromEnd) {
+        const before = attrsOf(fromEnd.el);
+        route = mergeRoutes(pipePoints(fromEnd.el), fromEnd.which, route, 'start');
+        const refStart = otherRef(fromEnd.el, fromEnd.which);
+        keep = fromEnd.el;
+        drawPipe(keep, route);
+        if (refStart) keep.setAttribute('data-hv-from', refStart); else keep.removeAttribute('data-hv-from');
+        if (toRef) keep.setAttribute('data-hv-to', toRef); else keep.removeAttribute('data-hv-to');
+        cmds.push(changeCmd(keep, before));
+      }
+      if (toEnd && toEnd.el !== keep) {
+        if (keep) {
+          const j = joinPipes(keep, pipePoints(keep), 'end', toEnd.el, toEnd.which);
+          if (j) { cmds.push(...j.cmds); keep = j.keep; }
+        } else {
+          const before = attrsOf(toEnd.el);
+          keep = toEnd.el;
+          route = mergeRoutes(route, 'end', pipePoints(keep), toEnd.which);
+          const refEnd = otherRef(keep, toEnd.which);
+          drawPipe(keep, route);
+          if (fromRef) keep.setAttribute('data-hv-from', fromRef); else keep.removeAttribute('data-hv-from');
+          if (refEnd) keep.setAttribute('data-hv-to', refEnd); else keep.removeAttribute('data-hv-to');
+          cmds.push(changeCmd(keep, before));
+        }
+      }
+      if (keep) {
+        commitCmds('Rør forlænget', cmds);
+        c.clearSelection();
+        c.addToSelection([keep]);
+        if (changeListener) changeListener();
+        drawPipeOverlay();
+        return;
       }
     }
     if (pts.length >= 2) {
@@ -1066,27 +1212,32 @@ export function createScada(host) {
     area.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;   // midterknap: panorér som normalt
       swallow(e);
-      const { p, port, onPipe } = snapPipePoint(docPoint(e));
+      const { p, port, onPipe, pipeEnd } = snapPipePoint(docPoint(e));
       if (!pipeTool.pts.length) {
         pipeTool.pts = [p];
         pipeTool.fromTee = onPipe ?? null;
+        pipeTool.fromEnd = pipeEnd ?? null;
+        // fra en rør-ende: fortsæt i rørets retning
+        if (pipeEnd) pipeTool.fromDir = endDir(pipePoints(pipeEnd.el), pipeEnd.which);
         pipeTool.from = port ? formatRef(port.id, port.frac, port.side) : null;
         pipeTool.fromDir = port?.dir ?? null;
       } else if (e.detail >= 2) {
         finishPipe();
         return;
       } else {
-        pipeTool.pts = routeTo(p, port, onPipe);
+        // ind i en rør-ende: kom ind langs rørets retning (som et tilslutningspunkt, der peger ud af røret)
+        pipeTool.pts = routeTo(p, port ?? (pipeEnd ? { dir: endDir(pipePoints(pipeEnd.el), pipeEnd.which) } : null), onPipe);
+        if (pipeEnd && pipeEnd.el !== pipeTool.fromEnd?.el) { pipeTool.toEnd = pipeEnd; finishPipe(); return; }
         if (port) { pipeTool.to = formatRef(port.id, port.frac, port.side); finishPipe(); return; }
         if (onPipe) { pipeTool.toTee = onPipe; finishPipe(); return; }
       }
       drawPipeOverlay();
     }, opts);
     area.addEventListener('mousemove', (e) => {
-      const { p, port, onPipe } = snapPipePoint(docPoint(e));
+      const { p, port, onPipe, pipeEnd } = snapPipePoint(docPoint(e));
       pipeTool.cursor = p;
-      pipeTool.hover = port;
-      pipeTool.hoverPipe = onPipe ?? null;
+      pipeTool.hover = port ?? (pipeEnd ? { dir: endDir(pipePoints(pipeEnd.el), pipeEnd.which), doc: pipeEnd.p } : null);
+      pipeTool.hoverPipe = onPipe ?? (pipeEnd ? { q: pipeEnd.p } : null);
       drawPipeOverlay();
     }, opts);
     for (const t of ['mouseup', 'click', 'dblclick']) area.addEventListener(t, (e) => { if (e.button === 0) swallow(e); }, opts);

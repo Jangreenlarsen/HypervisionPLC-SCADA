@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v3.4.0 — **Rør-ende på rør-ende** (ønske fra Jan 2026-10-31): rør-værktøjet og håndtagene kan koble på et andet rørs ende — de to rør lægges sammen til ét (røret med opsætning bevares; har begge, lægges de ikke sammen); håndtag sluppet midt på et rør giver et T-stykke.
 - [x] done v3.3.0 — **Genforbind rør** (ønske fra Jan 2026-10-31): håndtag på det valgte rørs ender (grøn = fast, orange = fri) — træk på et tilslutningspunkt for at sætte enden fast; et flyttet rør, hvis ende lander på et punkt, sættes fast af sig selv.
 - [x] done v3.2.0 — **T-stykke ved rør på rør** (ønske fra Jan 2026-10-31, option A): kobles et rør på et eksisterende rør, deles røret, og bibliotekets T-stykke indsættes (drejet efter rør og gren); de tre rør sidder fast i T-stykket, og dets tre ben kan få hvert sit løbelys i guiden.
 - [x] done v3.1.0 — Rør (ønsker fra Jan 2026-10-31): **bøjningsradius** på rør (bløde bøjninger, sættes i *Egenskaber*, nye rør får den senest brugte); røret går altid lige ud af et tilslutningspunkt og ind fra den rigtige side — også når symbolet er drejet eller spejlet.

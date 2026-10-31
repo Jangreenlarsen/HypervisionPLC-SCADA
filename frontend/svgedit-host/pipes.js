@@ -439,3 +439,22 @@ export function branchSide(used, q, toward) {
   if (!used.includes(across)) return across;
   return ['t', 'b', 'l', 'r'].find((s) => !used.includes(s)) ?? null;
 }
+
+// ---------------------------------------------------------------- v3.4.0: rør-ende på rør-ende
+/**
+ * Læg to rør sammen, hvor a's ende `aEnd` møder b's ende `bEnd` ('start' | 'end'). → punkterne fra a's anden ende
+ * til b's anden ende. Enderne der mødes, skal ligge i samme punkt.
+ */
+export function mergeRoutes(a, aEnd, b, bEnd) {
+  const A = aEnd === 'end' ? [...a] : [...a].reverse();
+  const B = bEnd === 'start' ? [...b] : [...b].reverse();
+  return simplify([...A, ...B.slice(1)]);
+}
+
+/** Retningen ud af rørets ende ('start'/'end') — langs dets sidste stykke, væk fra røret. */
+export function endDir(points, which) {
+  const n = points.length;
+  const [a, b] = which === 'end' ? [points[n - 2], points[n - 1]] : [points[1], points[0]];
+  const d = unit(a, b);
+  return Math.abs(d[0]) >= Math.abs(d[1]) ? [Math.sign(d[0]) || 1, 0] : [0, Math.sign(d[1]) || 1];
+}

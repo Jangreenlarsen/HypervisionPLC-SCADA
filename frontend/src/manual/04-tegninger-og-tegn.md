@@ -42,7 +42,7 @@ Værktøjet **Rør** (O) tegner rør, der altid går vandret eller lodret. Klik 
 
 Grønne prikker viser symbolernes **tilslutningspunkter**. Starter eller slutter du røret på en prik, sidder røret fast: flytter, drejer eller ændrer du størrelse på symbolet, følger røret med (og Ctrl+Z fortryder begge dele på én gang). Mellem to sidepunkter laves et pænt Z-formet rør. Nye rør lægges bag de symboler, de forbinder. Flytter du selve røret væk fra symbolet, slipper det. Røret kan få **løbelys** som andre elementer: giv det et navn, og sæt det op med guiden.
 
-**Sæt et rør fast igen:** vælg røret — enderne får et lille håndtag: **grønt** = sidder fast, **orange** = fri. Træk et håndtag hen på et tilslutningspunkt (grøn prik), så sættes enden fast dér, og det sidste stykke lægges om. Slipper du et andet sted, bliver enden fri. Flytter du et helt rør, så en ende lander på et tilslutningspunkt, sættes den fast af sig selv.
+**Sæt et rør fast igen:** vælg røret — enderne får et lille håndtag: **grønt** = sidder fast, **orange** = fri. Træk et håndtag hen på et tilslutningspunkt (grøn prik), så sættes enden fast dér, og det sidste stykke lægges om. Slipper du et andet sted, bliver enden fri. Flytter du et helt rør, så en ende lander på et tilslutningspunkt, sættes den fast af sig selv. Trækker du et håndtag hen på **et andet rørs ende** (orange prik), lægges de to rør sammen til ét; slipper du det **midt på et rør**, laves et T-stykke. Det samme gælder med værktøjet **Rør**: start eller slut på et rørs ende for at forlænge røret. Har begge rør en opsætning (et navn), lægges de ikke sammen — så går ingen opsætning tabt.
 
 **Bøjningsradius:** vælg et rør, og skriv en radius i *Egenskaber* — så får knækkene bløde bøjninger. Nye rør får den senest brugte radius.
 

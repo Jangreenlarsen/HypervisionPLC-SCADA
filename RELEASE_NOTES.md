@@ -2,6 +2,12 @@
 
 ---
 
+## v3.4.0 — 2026-10-31 — Rør kan kobles ende mod ende
+
+- Træk et rørs håndtag hen på **et andet rørs ende**, så bliver de to rør til ét. Du kan også starte eller slutte med værktøjet **Rør** på et rørs ende for at forlænge røret.
+- Slipper du et håndtag **midt på et rør**, laves et T-stykke.
+- Har begge rør en opsætning (et navn), lægges de ikke sammen, så ingen opsætning går tabt.
+
 ## v3.3.0 — 2026-10-31 — Sæt et rør fast igen
 
 - Vælg et rør, så får enderne et håndtag: **grønt** betyder, at enden sidder fast, og **orange**, at den er fri. Træk et håndtag hen på et tilslutningspunkt for at sætte enden fast igen. Røret lægges om, så det går lige ind i punktet.

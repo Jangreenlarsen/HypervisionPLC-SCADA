@@ -231,3 +231,26 @@ describe('v3.2.0: T-stykker', async () => {
     expect(m.branchSide(['l', 'r', 't', 'b'], [40, 0], [60, 90])).toBeNull();
   });
 });
+
+describe('v3.4.0: rør-ende på rør-ende', async () => {
+  // @ts-expect-error — ren JS uden typer
+  const m = await import('../../svgedit-host/pipes.js');
+  type Q = [number, number];
+  const a: Q[] = [[0, 0], [100, 0]];
+  const b: Q[] = [[100, 0], [100, 50], [200, 50]];
+
+  it('mergeRoutes: ende mod start giver ét rør, lige stykker slås sammen', () => {
+    expect(m.mergeRoutes(a, 'end', b, 'start')).toEqual([[0, 0], [100, 0], [100, 50], [200, 50]]);
+    expect(m.mergeRoutes([[0, 0], [50, 0]], 'end', [[50, 0], [120, 0]], 'start')).toEqual([[0, 0], [120, 0]]);
+  });
+
+  it('mergeRoutes: vendte rør (start mod start / ende mod ende)', () => {
+    expect(m.mergeRoutes([[100, 0], [0, 0]], 'start', b, 'start')).toEqual([[0, 0], [100, 0], [100, 50], [200, 50]]);
+    expect(m.mergeRoutes(a, 'end', [[200, 50], [100, 50], [100, 0]], 'end')).toEqual([[0, 0], [100, 0], [100, 50], [200, 50]]);
+  });
+
+  it('endDir: retningen ud af enden', () => {
+    expect(m.endDir(b, 'end')).toEqual([1, 0]);
+    expect(m.endDir(b, 'start')).toEqual([0, -1]);
+  });
+});

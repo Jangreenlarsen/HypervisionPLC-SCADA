@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.4.0 build 0286] — 2026-10-31 — Rør-ende på rør-ende
+
+- `frontend/svgedit-host/pipes.js`: `mergeRoutes`, `endDir`.
+- `frontend/svgedit-host/scada-core.js`: `pipeEndNear`, `pipeMidNear`, `joinPipes` (røret med navn bevares; begge navngivne → ikke sammen), `changeCmd`/`removeCmd`/`commitCmds`; rør-værktøjet starter/slutter på rør-ender (forlænger røret); håndtag kan slippes på en rør-ende (sammen) eller midt på et rør (T-stykke).
+- Manual kap. 04. Tests: `src/lib/pipes.test.ts`.
+
 ## [3.3.0 build 0285] — 2026-10-31 — Genforbind rør: håndtag på rørets ender
 
 - `frontend/svgedit-host/scada-core.js`: håndtag på det valgte rørs ender (`drawHandles`, `startHandleDrag`) — træk på et tilslutningspunkt sætter enden fast (reroute + reference), andetsteds bliver den fri; ét fortryd-trin. `followPipes`: en flyttet rør-ende inden for 6 enheder af et punkt sættes fast igen (`portNear`).
