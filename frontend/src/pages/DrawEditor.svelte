@@ -12,6 +12,8 @@
   import DrawCanvas from '../lib/draw/DrawCanvas.svelte';
   import Inspector, { type InspectApi } from '../lib/draw/Inspector.svelte';
   import ObjectTree, { type TreeApi } from '../lib/draw/ObjectTree.svelte';
+  import PanelSection from '../lib/draw/PanelSection.svelte';
+  import { loadPanels, savePanels, togglePanel, togglePin } from '../lib/draw/panels';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
@@ -105,7 +107,23 @@
   // (lib/draw/*). Al Tegn-logik ligger i svgedit-host/scada-core.js.
   let editorHeight = $state(600);
   const SYMBOL_DRAG = 'application/x-hv-symbol';   // træk-og-slip fra symbolpaletten
-  let inspectRev = $state(0);   // panelet Egenskaber læser markeringen igen, når tallet skifter
+  let inspectRev = $state(0);
+  // Højre panel: foldbare sektioner — åbnes én, foldes de ikke-fastgjorte sammen (v3.5.0)
+  let panels = $state(loadPanels());
+  let objCount = $state(0);
+  $effect(() => savePanels($state.snapshot(panels)));
+  // antal elementer i tegningen (tallet ved Objekter — også når sektionen er foldet sammen)
+  $effect(() => {
+    void inspectRev;
+    const list = ready && ed ? (ed as unknown as TreeApi).objectList() : [];
+    objCount = list.reduce((n, l) => n + l.items.length, 0);
+  });
+  const sec = (id: string) => ({
+    open: panels.open.includes(id),
+    pinned: panels.pinned.includes(id),
+    ontoggle: (x: string) => (panels = togglePanel(panels, x)),
+    onpin: (x: string) => (panels = togglePin(panels, x)),
+  });   // panelet Egenskaber læser markeringen igen, når tallet skifter
 
   // Listen over tegninger skal være hentet, før #draw/<tegning> kan åbnes (den nye editor er klar før listen)
   let drawingsLoaded: () => void = () => {};
@@ -848,10 +866,9 @@
   </div>
 
   <aside bind:this={aside}>
-    <Inspector api={ready ? (ed as unknown as InspectApi) : null} rev={inspectRev} keepRatio={guides.keepRatio} />
-    <ObjectTree api={ready ? (ed as unknown as TreeApi) : null} rev={inspectRev} onchange={() => inspectRev++} />
-    <section class="panel sel-panel">
-      <h3>Valgt element</h3>
+    {#snippet selBadge()}{selection.length > 1 ? `${selection.length} valgt` : single ? (single.name || `<${single.tag}>`) : ''}{/snippet}
+    {#snippet objBadge()}{objCount}{/snippet}
+    <PanelSection id="valgt" title="Valgt element" badge={selBadge} {...sec('valgt')}>
       {#if !single}
         <p class="muted small">{selection.length > 1 ? `${selection.length} elementer valgt` : 'Vælg et element i tegningen.'}</p>
         {#if selection.length > 1}
@@ -896,11 +913,15 @@
           </label>
         </details>
       {/if}
-    </section>
-
-    <section class="panel sym-panel">
+    </PanelSection>
+    <PanelSection id="egenskaber" title="Egenskaber" {...sec('egenskaber')}>
+      <Inspector api={ready ? (ed as unknown as InspectApi) : null} rev={inspectRev} keepRatio={guides.keepRatio} />
+    </PanelSection>
+    <PanelSection id="objekter" title="Objekter" badge={objBadge} {...sec('objekter')}>
+      <ObjectTree api={ready ? (ed as unknown as TreeApi) : null} rev={inspectRev} onchange={() => inspectRev++} />
+    </PanelSection>
+    <PanelSection id="symboler" title="Symboler" grow {...sec('symboler')}>
       <div class="sym-head">
-        <h3>Symboler</h3>
         <input bind:value={symbolFilter} placeholder="Søg symbol (fx bøjning, kontaktor)" style="width:100%" />
       </div>
       {#if favError}<p class="small error">{favError}</p>{/if}
@@ -953,7 +974,7 @@
       {/each}
       {#if CATEGORIES.every((c) => !symbolsIn(c.id).length)}<p class="small muted">Ingen symboler matcher "{symbolFilter}".</p>{/if}
       <p class="small muted">Symbolerne er grå i normaltilstand (ISA-101). Farve og animation kommer fra bindingerne.</p>
-    </section>
+    </PanelSection>
   </aside>
 </div>
 
@@ -1047,13 +1068,14 @@
   @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
   .frame { min-width: 0; }
   aside { min-width: 0; }
-  /* Sidepanelet har editorens højde (fitFrame): "Valgt element" efter behov (højst 55 %), symbolbiblioteket ruller for sig selv */
+  /* Sidepanelet har editorens højde (fitFrame): foldbare sektioner; åbne sektioner deler højden og ruller hver for sig,
+     symbolbiblioteket får resten (v3.5.0) */
   @media (min-width: 901px) {
-    aside { display: flex; flex-direction: column; gap: .8rem; overflow: hidden; }
-    aside > .panel { margin: 0; }
-    .sel-panel { flex: 0 1 auto; max-height: 55%; overflow-y: auto; }
-    .sym-panel { flex: 1 1 0; min-height: 8rem; overflow-y: auto; padding-top: 0; }
-    .sym-head { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: .8rem 0 .4rem; }
+    aside { display: flex; flex-direction: column; gap: .5rem; overflow: hidden; }
+    aside > :global(.psec) { margin: 0; flex: 0 1 auto; }
+    aside > :global(.psec.open) { max-height: 60%; }
+    aside > :global(.psec.open.grow) { flex: 1 1 0; max-height: none; min-height: 8rem; }
+    .sym-head { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: .2rem 0 .4rem; }
   }
   .field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
   .field :global(select), .field input { width: 100%; }

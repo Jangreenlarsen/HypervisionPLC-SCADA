@@ -11,10 +11,9 @@
     order(where: 'up' | 'down' | 'top' | 'bottom'): void;
   }
 
-  let { api, rev, onchange }: { api: TreeApi | null; rev: number; onchange?: () => void } = $props();
+  let { api, rev, onchange, count = $bindable(0) }: { api: TreeApi | null; rev: number; onchange?: () => void; count?: number } = $props();
   let layers = $state<{ layer: string; items: Item[] }[]>([]);
   let filter = $state('');
-  let open = $state(true);
 
   $effect(() => {
     void rev;
@@ -28,7 +27,7 @@
   const typeLabel = (it: Item): string =>
     it.pipe ? 'Rør' : SYMBOLS.find((s) => s.id === it.type)?.label ?? TAG_LABEL[it.tag] ?? it.tag;
   const label = (it: Item): string => it.name || typeLabel(it);
-  const count = $derived(layers.reduce((n, l) => n + l.items.length, 0));
+  $effect(() => { count = layers.reduce((n, l) => n + l.items.length, 0); });
   const shown = $derived(layers.map((l) => ({
     ...l,
     items: filter.trim() ? l.items.filter((it) => `${label(it)} ${typeLabel(it)} ${it.id}`.toLowerCase().includes(filter.trim().toLowerCase())) : l.items,
@@ -49,19 +48,16 @@
   }
 </script>
 
-<section class="panel tree" aria-label="Objekter">
-  <h3>
-    <button class="toggle" onclick={() => (open = !open)} aria-expanded={open}>{open ? '▾' : '▸'} Objekter</button>
-    <span class="muted small">{count}</span>
-    {#if open && anySelected}
+<div class="tree">
+  <div class="top">
+    {#if count > 8}<input class="filter" placeholder="Find element" bind:value={filter} aria-label="Find element" />{/if}
+    {#if anySelected}
       <span class="ord">
         <button class="small" onclick={() => order('up')} title="Ét trin frem (over de andre)" aria-label="Frem">▲</button>
         <button class="small" onclick={() => order('down')} title="Ét trin tilbage (under de andre)" aria-label="Tilbage">▼</button>
       </span>
     {/if}
-  </h3>
-  {#if open}
-    {#if count > 8}<input class="filter" placeholder="Find element" bind:value={filter} aria-label="Find element" />{/if}
+  </div>
     <div class="list">
       {#each shown as l}
         {#if layers.length > 1}<div class="layer">{l.layer}</div>{/if}
@@ -74,15 +70,13 @@
       {/each}
       {#if !count}<p class="muted small">Tegningen er tom.</p>{/if}
     </div>
-  {/if}
-</section>
+</div>
 
 <style>
-  .tree h3 { display: flex; align-items: center; gap: .5rem; }
-  .toggle { border: 0; background: none; padding: 0; font: inherit; font-weight: inherit; cursor: pointer; }
+  .top { display: flex; gap: .4rem; align-items: center; margin-bottom: .3rem; }
   .ord { margin-left: auto; display: flex; gap: 2px; }
-  .filter { width: 100%; margin-bottom: .3rem; }
-  .list { max-height: 14rem; overflow-y: auto; display: flex; flex-direction: column; }
+  .filter { flex: 1; min-width: 0; }
+  .list { display: flex; flex-direction: column; }
   .layer { font-size: .75rem; color: #777; text-transform: uppercase; margin: .3rem 0 .1rem; }
   .item { display: flex; justify-content: space-between; gap: .5rem; border: 0; background: transparent; text-align: left; padding: 2px 6px; border-radius: 4px; font-size: .88rem; }
   .item:hover { background: #eef2f8; }

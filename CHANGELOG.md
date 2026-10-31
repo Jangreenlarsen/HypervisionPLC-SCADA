@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.5.0 build 0287] — 2026-10-31 — Tegns højre panel: foldbare sektioner med fastgør
+
+- `frontend/src/lib/draw/panels.ts` (ny, testet): fold ud/ind, fastgør, gemt tilstand. `PanelSection.svelte` (ny): overskrift med ▾/▸ og 📌.
+- `frontend/src/pages/DrawEditor.svelte`: Valgt element, Egenskaber, Objekter og Symboler som sektioner (Valgt element og Egenskaber lige under hinanden, fastgjort fra start); åbne sektioner deler højden og ruller hver for sig.
+- `Inspector.svelte`, `ObjectTree.svelte`: kun indhold (sektionen ejes af Tegn). Manual kap. 04.
+- Tests: `src/lib/draw/panels.test.ts`.
+
 ## [3.4.0 build 0286] — 2026-10-31 — Rør-ende på rør-ende
 
 - `frontend/svgedit-host/pipes.js`: `mergeRoutes`, `endDir`.

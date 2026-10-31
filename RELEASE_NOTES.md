@@ -2,6 +2,11 @@
 
 ---
 
+## v3.5.0 — 2026-10-31 — Ryddeligere panel i Tegn
+
+- Panelet til højre i Tegn er nu delt i foldbare sektioner: **Valgt element**, **Egenskaber**, **Objekter** og **Symboler**. Valgt element og Egenskaber står lige under hinanden.
+- Åbner du en sektion, folder de andre sig sammen. Klik på **📌** for at fastgøre en sektion, så den altid står åben. Valget huskes i browseren.
+
 ## v3.4.0 — 2026-10-31 — Rør kan kobles ende mod ende
 
 - Træk et rørs håndtag hen på **et andet rørs ende**, så bliver de to rør til ét. Du kan også starte eller slutte med værktøjet **Rør** på et rørs ende for at forlænge røret.

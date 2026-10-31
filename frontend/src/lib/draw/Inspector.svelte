@@ -43,9 +43,11 @@
   const key = (e: KeyboardEvent) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); };
 </script>
 
-{#if info}
-  <section class="panel insp" aria-label="Egenskaber">
-    <h3>Egenskaber <span class="muted small">{info.count > 1 ? `${info.count} valgt` : `<${info.tag}>`}</span></h3>
+{#if !info}
+  <p class="muted small">Vælg et element i tegningen.</p>
+{:else}
+  <div class="insp">
+    <p class="muted small what">{info.count > 1 ? `${info.count} valgt` : `<${info.tag}>`}</p>
     <div class="grid">
       {#each [['x', 'X'], ['y', 'Y'], ['w', 'B'], ['h', 'H']] as [f, l]}
         <label>{l}
@@ -108,11 +110,11 @@
       <p class="muted small">Farverne i en gruppe/et symbol ændres under <strong>Farver</strong> nedenfor.</p>
     {/if}
     {#if error}<p class="error small" role="alert">{error}</p>{/if}
-  </section>
+  </div>
 {/if}
 
 <style>
-  .insp h3 { display: flex; align-items: baseline; gap: .5rem; }
+  .what { margin: 0 0 .3rem; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); gap: .3rem .5rem; margin-bottom: .4rem; }
   .grid label { display: flex; flex-direction: column; font-size: .8rem; color: #555; }
   .grid label.chk { flex-direction: row; align-items: center; gap: .3rem; padding-top: 1rem; }
