@@ -3,7 +3,7 @@
 Web-baseret SCADA/HMI til HypervisionPLC, bygget til Raspberry Pi 4.
 
 - Upload en SVG-tegning af anlægget, bind elementer til PLC-tags og se værdierne live på Overview-boardet.
-- Redigér tegninger i den indbyggede tegne-editor (SVG-Edit).
+- Tegn og redigér anlægget i den indbyggede tegne-editor: symbolbibliotek, forbindelser (rør og ledninger) der følger symbolerne, T-stykker, hjælpelinjer og en symbol-editor til tilslutningspunkter.
 - Al kommunikation med PLC'erne går via PLC'ens REST API (+ SSE), og kun SCADA-serveren taler med PLC'erne.
 
 Dokumentation:
@@ -13,7 +13,45 @@ Dokumentation:
 - **Brugermanual:** i programmet under **Bruger › Manual** (kilden er markdown i [frontend/src/manual/](frontend/src/manual/)). Skærmbillederne tages automatisk fra en kørende server: `cd frontend && SCADA_URL=https://<server> SCADA_USER=<admin> SCADA_PASS=… npm run manual:screenshots` (kun læsning).
 - [docs/SYMBOLSTANDARD.md](docs/SYMBOLSTANDARD.md) — designet for symboler (guide, kontaktplaner, animationer) + [interaktiv prototype](docs/prototyper/symbolguide.html)
 
-Status: v0.77.0 — Overview med live SVG-tegninger, betjening, alarmer og trends, tegne-editor, binding-editor, tags, audit-log, backup/restore, login, roller med adgang pr. tegning og HTTPS.
+Status: v3.12 — Overview med live SVG-tegninger, betjening, alarmer, trends og energi, ny tegne-editor med forbindelser og hjælpelinjer, symbol-guide med animationer og logikblokke, ugeprogrammer, binding-editor, tags, audit-log, backup/restore og OTA-opdatering, login, roller med adgang pr. tegning og HTTPS.
+
+## Skærmbilleder
+
+Billederne er de samme som i brugermanualen ([frontend/public/manual/](frontend/public/manual/)).
+
+**Overview** — anlægget live med værdier, animationer og betjening
+
+![Overview: tegningen med live-værdier](frontend/public/manual/overview.png)
+
+**Tegn** — tegne-editoren med værktøjslinje, tegneflade og panelerne Valgt element, Egenskaber, Objekter og Symboler
+
+![Tegn: tegne-editoren](frontend/public/manual/tegn.png)
+
+| Tegnehjælp og hjælpelinjer | Symbolbiblioteket |
+|---|---|
+| ![Tegn med gitter og fang](frontend/public/manual/tegn-gitter.png) | ![Symbolbiblioteket i Tegn](frontend/public/manual/tegn-symboler.png) |
+
+**Symbol-guiden** — sæt et symbol op i 6 trin: tag, betjening, positioner, animationer, nøglelås og alarmer
+
+| Animationer (trin 4) | Logikblok |
+|---|---|
+| ![Guiden trin 4: animationer](frontend/public/manual/guide-4.png) | ![Logikblok i guiden](frontend/public/manual/guide-logik.png) |
+
+**Drift**
+
+| Alarmer | Trends |
+|---|---|
+| ![Alarmer](frontend/public/manual/alarmer.png) | ![Trends](frontend/public/manual/trends.png) |
+
+| Energi | Ugeprogrammer |
+|---|---|
+| ![Energi](frontend/public/manual/energi.png) | ![Ugeprogrammer](frontend/public/manual/ugeprogrammer.png) |
+
+**Opsætning og system**
+
+| Tags | Opdatering (OTA) |
+|---|---|
+| ![Tags](frontend/public/manual/tags.png) | ![System › Opdatering](frontend/public/manual/opdatering.png) |
 
 ## Udvikling
 
