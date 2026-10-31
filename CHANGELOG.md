@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [2.18.0 build 0280] — 2026-10-31 — Ny tegne-editor: objekttræ
+
+- `frontend/src/lib/draw/ObjectTree.svelte` (ny): panelet *Objekter* — elementer pr. lag, forrest øverst, navn og type; klik/Ctrl-klik vælger, ▲▼ rækkefølge, søgefelt.
+- `frontend/svgedit-host/scada-core.js`: `objectList`, `toggleSelected`.
+- `frontend/src/pages/DrawEditor.svelte`: *Objekter* under *Egenskaber* i den nye editor.
+
 ## [2.17.0 build 0279] — 2026-10-30 — Ny tegne-editor, trin 5: træk symboler fra paletten
 
 - `frontend/svgedit-host/scada-core.js`: `insertSymbol(fragment, type, at)` lægger symbolets midte i punktet `at`; `docPointAt`; `screenToDoc` (frisk skærm→tegning-matrix — rettet for rør-værktøjet efter zoom/rulning).

@@ -2,6 +2,10 @@
 
 ---
 
+## v2.18.0 — 2026-10-31 — Ny tegne-editor: objekttræ (prøveversion)
+
+- Panelet **Objekter** i den nye tegne-editor viser tegningens elementer med navn og type, forrest øverst. Klik vælger et element, også ét der ligger skjult under et andet. Ctrl- eller Shift-klik vælger flere, og ▲▼ flytter det valgte frem eller tilbage.
+
 ## v2.17.0 — 2026-10-30 — Ny tegne-editor: træk symboler ind på tegningen (prøveversion)
 
 - I den nye tegne-editor (`?editor=ny`) kan du trække et symbol fra paletten til højre direkte ind på tegningen. Det lægges, hvor du slipper. Et klik på symbolet indsætter det som før.

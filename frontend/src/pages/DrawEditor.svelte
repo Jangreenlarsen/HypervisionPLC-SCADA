@@ -11,6 +11,7 @@
   import GroupBasis from '../lib/GroupBasis.svelte';
   import DrawCanvas from '../lib/draw/DrawCanvas.svelte';
   import Inspector, { type InspectApi } from '../lib/draw/Inspector.svelte';
+  import ObjectTree, { type TreeApi } from '../lib/draw/ObjectTree.svelte';
   import { BUNDLE } from '../lib/staleCheck';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
@@ -875,7 +876,10 @@
   </div>
 
   <aside bind:this={aside}>
-    {#if newEditor}<Inspector api={ready ? (ed as unknown as InspectApi) : null} rev={inspectRev} keepRatio={guides.keepRatio} />{/if}
+    {#if newEditor}
+      <Inspector api={ready ? (ed as unknown as InspectApi) : null} rev={inspectRev} keepRatio={guides.keepRatio} />
+      <ObjectTree api={ready ? (ed as unknown as TreeApi) : null} rev={inspectRev} onchange={() => inspectRev++} />
+    {/if}
     <section class="panel sel-panel">
       <h3>Valgt element</h3>
       {#if !single}

@@ -1309,6 +1309,34 @@ export function createScada(host) {
     },
 
     /** Vælg flere elementer på én gang (til en samlet erstatning). Returnerer antal fundne. */
+    /**
+     * Objekttræet: lagene og deres elementer, øverst (forrest) først. → [{ layer, items: [{ id, name, type, tag, pipe, selected }] }]
+     */
+    objectList() {
+      const content = canvas().getSvgContent();
+      const sel = new Set(selectedEls());
+      return [...content.querySelectorAll(':scope > g.layer')].reverse().map((layer) => ({
+        layer: layer.querySelector(':scope > title')?.textContent?.trim() || 'Lag',
+        items: [...layer.children].filter((el) => !RESERVED.has(el.tagName.toLowerCase())).reverse().map((el) => ({
+          id: el.id,
+          name: el.getAttribute('data-hv-name') || '',
+          type: el.getAttribute('data-hv-type') || '',
+          tag: el.tagName.toLowerCase(),
+          pipe: isPipe(el),
+          selected: sel.has(el),
+        })),
+      }));
+    },
+
+    /** Tilføj/fjern ét element fra markeringen (Ctrl/Shift-klik i objekttræet). */
+    toggleSelected(id) {
+      const c = canvas();
+      const el = c.getSvgContent().querySelector(`[id="${CSS.escape(id)}"]`);
+      if (!el) return;
+      if (selectedEls().includes(el)) c.removeFromSelection([el]);
+      else c.addToSelection([el]);
+    },
+
     selectByIds(ids) {
       const content = canvas().getSvgContent();
       const els = ids.map((id) => content.querySelector(`#${CSS.escape(id)}`)).filter(Boolean);
