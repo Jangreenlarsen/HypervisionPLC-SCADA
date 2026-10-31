@@ -37,7 +37,7 @@
   // Venstre rail: få værktøjer, SCADA-orienteret. Symbol ▸ og Display/Omskifter kommer i de næste trin.
   const TOOLS: { mode: string; label: string; key: string; icon: string }[] = [
     { mode: 'select', label: 'Vælg og flyt', key: 'V', icon: 'M5 3 L5 19 L9 15 L12 21 L14 20 L11 14 L17 14 Z' },
-    { mode: 'pipe', label: 'Rør — vandret/lodret, følger symbolerne', key: 'O', icon: 'M3 8 H14 V20 M3 4 H18 V20' },
+    { mode: 'pipe', label: 'Forbindelse (rør eller ledning) — vandret/lodret, følger symbolerne', key: 'O', icon: 'M3 8 H14 V20 M3 4 H18 V20' },
     { mode: 'line', label: 'Linje', key: 'L', icon: 'M4 20 L20 4' },
     { mode: 'rect', label: 'Rektangel', key: 'R', icon: 'M4 6 H20 V18 H4 Z' },
     { mode: 'ellipse', label: 'Ellipse', key: 'E', icon: 'M12 6 A8 6 0 1 0 12.01 6 Z' },

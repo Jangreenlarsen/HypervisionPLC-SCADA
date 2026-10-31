@@ -185,7 +185,7 @@
   {#if from.fromDraw}<button class="back" onclick={back}>← Tilbage til {backName ? `"${backName}"` : 'tegningen'}</button>{/if}
 </div>
 <p class="muted small">
-  Tilslutningspunkterne er de grønne prikker, rør i <a href="#draw">Tegn</a> sættes fast i. Vælg et symbol, og ret punkterne.
+  Tilslutningspunkterne er de grønne prikker, forbindelser (rør og ledninger) i <a href="#draw">Tegn</a> sættes fast i. Vælg et symbol, og ret punkterne.
   <strong>Ændringen gælder symboler, du indsætter fremover</strong> — symboler, der allerede står i en tegning, beholder deres punkter.
 </p>
 

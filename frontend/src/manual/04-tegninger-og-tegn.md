@@ -28,7 +28,7 @@ Siden **Tegninger** er listen over alle tegninger.
 
 Skærmen er delt sådan:
 
-- **Værktøjslinjen til venstre**: **Fortryd** og **Gentag** øverst, derefter værktøjerne **Vælg** (V), **Rør** (O), **Linje** (L), **Rektangel** (R), **Ellipse** (E), **Sti** (P), **Frihånd** (F) og **Tekst** (T). Bogstavet er genvejstasten.
+- **Værktøjslinjen til venstre**: **Fortryd** og **Gentag** øverst, derefter værktøjerne **Vælg** (V), **Forbindelse** (O), **Linje** (L), **Rektangel** (R), **Ellipse** (E), **Sti** (P), **Frihånd** (F) og **Tekst** (T). Bogstavet er genvejstasten.
 - **Tegnefladen** i midten. **Ctrl + musehjul** zoomer, og **mellemrum** eller **midterknappen** + træk flytter udsnittet. I bunden står zoom (−, +, **Tilpas**), **tegnehjælpen** (se nedenfor) og en linje, der forklarer det valgte værktøj.
 - **Knaplinjen over det markerede**: når noget er markeret, vises justér (venstre, midte, højre, top, midte, bund), fordel vandret/lodret (mindst 3), læg øverst/nederst, spejl, **Gruppér**/**Opløs**, **Dupliker** og **Slet**.
 - **Højreklik** på tegnefladen giver klip, kopiér, indsæt, dupliker, gruppér, rækkefølge og slet.
@@ -38,19 +38,19 @@ Skærmen er delt sådan:
 
 Alt kan fortrydes med **Ctrl+Z**. Andre taster: **Delete** sletter, **Ctrl+C/X/V** kopierer/klipper/indsætter, **Ctrl+D** duplikerer, **Ctrl+G** grupperer (Ctrl+Shift+G opløser), **Ctrl+A** vælger alt, piletasterne flytter 1 (med Shift 10), **Esc** går tilbage til Vælg.
 
-### Rør
+### Forbindelser (rør og ledninger)
 
-Værktøjet **Rør** (O) tegner rør, der altid går vandret eller lodret. Klik for start og for hvert knæk; **dobbeltklik** eller **Enter** slutter røret, **Backspace** fjerner det sidste knæk, og **Esc** fortryder røret.
+Værktøjet **Forbindelse** (O) tegner forbindelser — rør i et procesanlæg eller ledninger i en el-tegning — der altid går vandret eller lodret. Nedenfor kaldes de *rør*, men alt gælder lige så vel for ledninger. Klik for start og for hvert knæk; **dobbeltklik** eller **Enter** slutter røret, **Backspace** fjerner det sidste knæk, og **Esc** fortryder røret.
 
 Grønne prikker viser symbolernes **tilslutningspunkter**. Starter eller slutter du røret på en prik, sidder røret fast: flytter, drejer eller ændrer du størrelse på symbolet, følger røret med (og Ctrl+Z fortryder begge dele på én gang). Mellem to sidepunkter laves et pænt Z-formet rør. Nye rør lægges bag de symboler, de forbinder. Flytter du selve røret væk fra symbolet, slipper det. Røret kan få **løbelys** som andre elementer: giv det et navn, og sæt det op med guiden.
 
-**Flyt et stykke af røret:** vælg røret — hvert lige stykke får et lille **blåt håndtag** på midten. Træk det på tværs for at flytte stykket; nabostykkerne strækkes med, og rørets ender bliver siddende i deres tilslutningspunkter (flyttes det første eller sidste stykke, indsættes et knæk, så røret stadig går lige ud af punktet). Flytter du bagefter et symbol, bevares dine ændringer — kun stykket ved symbolet lægges om. Trækker du et stykke tæt på linje med et andet stykke af røret (eller en af enderne), fanges det derhen, så hakket forsvinder, og stykkerne bliver ét. Er røret blevet rodet, så tryk **Ret røret ud** i *Egenskaber*: røret lægges om mellem sine to ender med så få knæk som muligt, og forbindelserne bevares.
+**Flyt et stykke af røret:** vælg røret — hvert lige stykke får et lille **blåt håndtag** på midten. Træk det på tværs for at flytte stykket; nabostykkerne strækkes med, og rørets ender bliver siddende i deres tilslutningspunkter (flyttes det første eller sidste stykke, indsættes et knæk, så røret stadig går lige ud af punktet). Flytter du bagefter et symbol, bevares dine ændringer — kun stykket ved symbolet lægges om. Trækker du et stykke tæt på linje med et andet stykke af røret (eller en af enderne), fanges det derhen, så hakket forsvinder, og stykkerne bliver ét. Er røret blevet rodet, så tryk **Ret forbindelsen ud** i *Egenskaber*: røret lægges om mellem sine to ender med så få knæk som muligt, og forbindelserne bevares.
 
-**Sæt et rør fast igen:** vælg røret — enderne får et lille håndtag: **grønt** = sidder fast, **orange** = fri. Træk et håndtag hen på et tilslutningspunkt (grøn prik), så sættes enden fast dér, og det sidste stykke lægges om. Slipper du et andet sted, bliver enden fri. Flytter du et helt rør, så en ende lander på et tilslutningspunkt, sættes den fast af sig selv. Trækker du et håndtag hen på **et andet rørs ende** (orange prik), lægges de to rør sammen til ét; slipper du det **midt på et rør**, laves et T-stykke. Det samme gælder med værktøjet **Rør**: start eller slut på et rørs ende for at forlænge røret. Har begge rør en opsætning (et navn), lægges de ikke sammen — så går ingen opsætning tabt.
+**Sæt et rør fast igen:** vælg røret — enderne får et lille håndtag: **grønt** = sidder fast, **orange** = fri. Træk et håndtag hen på et tilslutningspunkt (grøn prik), så sættes enden fast dér, og det sidste stykke lægges om. Slipper du et andet sted, bliver enden fri. Flytter du et helt rør, så en ende lander på et tilslutningspunkt, sættes den fast af sig selv. Trækker du et håndtag hen på **et andet rørs ende** (orange prik), lægges de to rør sammen til ét; slipper du det **midt på et rør**, laves et T-stykke. Det samme gælder med værktøjet **Forbindelse**: start eller slut på et rørs ende for at forlænge røret. Har begge rør en opsætning (et navn), lægges de ikke sammen — så går ingen opsætning tabt.
 
 **Bøjningsradius:** vælg et rør, og skriv en radius i *Egenskaber* — så får knækkene bløde bøjninger. Nye rør får den senest brugte radius.
 
-**T-stykke (rør på rør):** starter eller slutter du et rør på et eksisterende rør (en **orange prik** viser stedet), deles røret, og bibliotekets **T-stykke** sættes ind dér — drejet, så gennemløbet følger røret og grenen vender mod det nye rør. Alle tre rør sidder fast i T-stykket og følger med, når du flytter det. T-stykkets tre ben (*tilløb 1*, *tilløb 2* og *midte*) kan få hvert sit løbelys i guiden. Det oprindelige rør beholder sit navn og sin opsætning på den første halvdel. **Ctrl+Z** fortryder røret og T-stykket samlet.
+**T-stykke (forbindelse på forbindelse):** starter eller slutter du et rør på et eksisterende rør (en **orange prik** viser stedet), deles røret, og bibliotekets **T-stykke** sættes ind dér — drejet, så gennemløbet følger røret og grenen vender mod det nye rør. Alle tre rør sidder fast i T-stykket og følger med, når du flytter det. T-stykkets tre ben (*tilløb 1*, *tilløb 2* og *midte*) kan få hvert sit løbelys i guiden. Det oprindelige rør beholder sit navn og sin opsætning på den første halvdel. **Ctrl+Z** fortryder røret og T-stykket samlet.
 
 ### Sådan tegner du
 
@@ -156,7 +156,7 @@ Et nyindsat symbol skal **sættes op**: vælg symbolet og tryk **Opsæt symbol (
 
 ## Tilslutningspunkter (siden Symboler)
 
-Rør tegnet med værktøjet **Rør** i den nye tegne-editor sættes fast i et symbols *tilslutningspunkter* — de grønne prikker. Som standard findes de automatisk: rørender på symbolets kant og midten af hver kant.
+Forbindelser (rør og ledninger) tegnet med værktøjet **Forbindelse** sættes fast i et symbols *tilslutningspunkter* — de grønne prikker. Som standard findes de automatisk: rørender på symbolets kant og midten af hver kant.
 
 **Genvej fra Tegn:** vælg et bibliotekssymbol og tryk **Ret tilslutningspunkter …** under *Valgt element* (eller linket øverst i *Symboler*). Symbol-editoren åbner på symbolet, og knappen **← Tilbage til "<tegning>"** fører dig tilbage. Har tegningen ændringer, der ikke er gemt, spørger Tegn først — gem med *Gem kladde*, før du skifter.
 

@@ -5,6 +5,8 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v3.11.1 — Tegn: et rør fik af og til et **skråt stykke**, når et symbol blev flyttet eller et nyt rør tegnet (rapporteret af Jan med skærmbillede). **Årsag:** med bøjningsradius og to knæk tæt på hinanden bliver det lige stykke mellem buerne 0 langt; når knækkene skulle genfindes (`pipeCorners`), blev de tomme stykker sorteret fra, så knæk forsvandt, og omlægningen tegnede en skrå linje mellem de resterende punkter. **Løsning:** knækkene genfindes ud fra buerne (hver kvartcirkel giver præcis sit knæk og sin nye retning); desuden retter optegningen et skråt stykke til et vinkelret knæk, så rør, der allerede er ramt, repareres næste gang de tegnes om (eller med *Ret forbindelsen ud*). Test for knæk tæt på hinanden ved radius 0–50; set i browseren.
+
 - [fixed] v3.10.0 — Tegn: *Fang til gitter* og *Fang til objekter* ramte lidt ved siden af, når der var zoomet til andet end 100 %. **Årsag:** fangens flytning (i tegningens enheder) blev givet til lærredets `moveSelectedElements`, som regner i skærmpunkter og deler med zoom. **Løsning:** flytningen ganges med zoom. Fundet under arbejdet med hjælpelinjer.
 
 - [open] v3.7.0 — Tegn: skifter man side via menuen (eller adresselinjen), mens tegningen har ændringer, der ikke er gemt, går de tabt uden advarsel — kun lukning/genindlæsning af fanen og de nye genveje (Symboler) spørger. Fundet under arbejdet med genvejen til symbol-editoren. Forslag: en fælles "forlad siden"-vagt i App.svelte, som Tegn kan tilmelde sig.

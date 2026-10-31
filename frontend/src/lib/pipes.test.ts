@@ -329,3 +329,30 @@ describe('v3.8.0: læg stykker sammen', async () => {
     expect(r[r.length - 2][1]).toBe(50);     // ind vandret
   });
 });
+
+describe('v3.11.1: knæk tæt på hinanden med bøjningsradius', async () => {
+  // @ts-expect-error — ren JS uden typer
+  const m = await import('../../svgedit-host/pipes.js');
+  type Q = [number, number];
+  const cases: Q[][] = [
+    [[0, 0], [50, 0], [50, -30], [80, -30], [80, 0], [200, 0]],           // lille hak: mellemstykkerne bliver 0 lange
+    [[0, 100], [100, 100], [100, 60], [140, 60], [140, 100], [250, 100]],
+    [[0, 0], [100, 0], [100, 80], [200, 80]],
+    [[0, 0], [0, 40], [30, 40], [30, 0], [60, 0], [60, 90]],               // lodret start, flere hak
+  ];
+  for (const pts of cases) {
+    it(`knækkene genfindes for ${JSON.stringify(pts)}`, () => {
+      for (const r of [0, 10, 20, 50]) expect(m.pipeCorners(m.pipePath(pts, r))).toEqual(pts);
+    });
+  }
+  it('ensureOrthogonal retter et skråt stykke', () => {
+    const r = m.ensureOrthogonal([[0, 0], [50, 0], [150, 20], [200, 20]]);
+    expect(r.every((p: number[], i: number) => i === 0 || m.axisOf(r[i - 1], p) !== null)).toBe(true);
+    expect(r[0]).toEqual([0, 0]);
+    expect(r[r.length - 1]).toEqual([200, 20]);
+    expect(m.ensureOrthogonal([[0, 0], [10, 0], [10, 5]])).toEqual([[0, 0], [10, 0], [10, 5]]);
+  });
+  it('canvas-format med kommaer og relative kommandoer', () => {
+    expect(m.pipeCorners('M0,0 l50,0 l0,-30 l30,0')).toEqual([[0, 0], [50, 0], [50, -30], [80, -30]]);
+  });
+});

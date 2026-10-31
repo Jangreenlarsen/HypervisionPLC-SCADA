@@ -2,6 +2,11 @@
 
 ---
 
+## v3.11.1 — 2026-10-31 — Rettelse i rør; værktøjet hedder nu Forbindelse
+
+- Rettet: et rør kunne af og til få et skråt stykke, når et symbol blev flyttet. Det skete især med bøjningsradius og knæk tæt på hinanden. Rør, der allerede har et skråt stykke, rettes næste gang de flyttes, eller når du trykker **Ret forbindelsen ud**.
+- Værktøjet **Rør** hedder nu **Forbindelse**, fordi det kan bruges til både rør og el-ledninger. Det virker som før.
+
 ## v3.11.0 — 2026-10-31 — Se hvad der fanges
 
 - Når du trækker et symbol hen mod en hjælpelinje, lyser linjen **orange**, og en prik viser, hvilken kant eller midte af symbolet der fanges, med positionen ved siden af. Når du slipper, blinker linjen kort, så du kan se, at symbolet blev lagt på den.

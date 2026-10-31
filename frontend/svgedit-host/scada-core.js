@@ -9,7 +9,7 @@ import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './na
 import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
 import { alignToGuide, formatGuides, guideLines, parseGuides, snapBoxToGuides, snapHint, snapPointToGuides } from './guides.js';
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
-import { PIPE_STYLE, alignDelta, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
+import { PIPE_STYLE, alignDelta, ensureOrthogonal, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
 
 /**
  * @param {{ canvas(): any, loadFromString(svg: string): unknown, updateCanvas(): void, gridHost(): HTMLElement | null,
@@ -645,7 +645,7 @@ export function createScada(host) {
   const radiusOf = (el) => Math.max(0, Number(el.getAttribute('data-hv-radius')) || 0);
   /** Tegn røret ud fra knækpunkterne med rørets bøjningsradius. */
   function drawPipe(el, pts) {
-    const d = pipePath(pts, radiusOf(el));
+    const d = pipePath(ensureOrthogonal(pts), radiusOf(el));   // aldrig skrå stykker (reparerer også ældre rør)
     if (d !== el.getAttribute('d')) el.setAttribute('d', d);
   }
 
@@ -1054,7 +1054,7 @@ export function createScada(host) {
         const w = (h.axis === 'h' ? 18 : 8) / z, hgt = (h.axis === 'h' ? 8 : 18) / z;
         out += `<rect data-seg="${h.k}" x="${h.mid[0] - w / 2}" y="${h.mid[1] - hgt / 2}" width="${w}" height="${hgt}" rx="${3 / z}" ` +
           `fill="#fff" stroke="#1565c0" stroke-width="${1.5 / z}" style="pointer-events:all; cursor:${h.axis === 'h' ? 'ns-resize' : 'ew-resize'}">` +
-          `<title>Træk for at flytte dette stykke af røret — enderne bliver siddende</title></rect>`;
+          `<title>Træk for at flytte dette stykke af forbindelsen — enderne bliver siddende</title></rect>`;
       }
     }
     for (const which of ['start', 'end']) {
@@ -1064,7 +1064,7 @@ export function createScada(host) {
       const fixed = (!drag || drag.seg !== undefined) && el.hasAttribute(attr);
       out += `<rect data-end="${which}" x="${p[0] - 6 / z}" y="${p[1] - 6 / z}" width="${12 / z}" height="${12 / z}" ` +
         `fill="${fixed ? '#2e7d32' : '#ef6c00'}" stroke="#fff" stroke-width="${1.5 / z}" style="pointer-events:all; cursor:move">` +
-        `<title>${fixed ? 'Sidder fast — træk for at flytte enden til et andet punkt' : 'Fri ende — træk hen på et tilslutningspunkt for at sætte den fast'}</title></rect>`;
+        `<title>${fixed ? 'Sidder fast — træk for at flytte enden til et andet punkt (eller en anden forbindelses ende)' : 'Fri ende — træk hen på et tilslutningspunkt for at sætte den fast'}</title></rect>`;
     }
     layer.innerHTML = out;
   }

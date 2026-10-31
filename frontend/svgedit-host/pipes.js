@@ -350,19 +350,35 @@ export function reroute(points, which, p, dir = null) {
  * mellem lige stykker ignoreres.
  */
 export function pipeCorners(d) {
-  const lines = pathSegments(d).filter((s) => s.type === 'L' && Math.hypot(s.to[0] - s.from[0], s.to[1] - s.from[1]) > 1e-6);
-  if (!lines.length) return pathPoints(d);
-  const pts = [lines[0].from];
-  for (let i = 1; i < lines.length; i++) {
-    const a = lines[i - 1];
-    const b = lines[i];
-    const ha = Math.abs(a.from[1] - a.to[1]) < 1e-6;   // vandret
-    const hb = Math.abs(b.from[1] - b.to[1]) < 1e-6;
-    if (ha && !hb) pts.push([b.from[0], a.from[1]]);
-    else if (!ha && hb) pts.push([a.from[0], b.from[1]]);
-    else pts.push(a.to);   // samme retning (eller skråt): stykkerne mødes i a's ende
+  const segs = pathSegments(d);
+  if (!segs.length) return [];
+  const axisUnit = (v) => (Math.abs(v[0]) >= Math.abs(v[1]) ? [Math.sign(v[0]) || 1, 0] : [0, Math.sign(v[1]) || 1]);
+  const pts = [segs[0].from];
+  let dir = null;          // retning på det seneste stykke
+  let turned = false;      // en bue har allerede sat knækket siden det seneste lige stykke
+  for (const sg of segs) {
+    const dv = [sg.to[0] - sg.from[0], sg.to[1] - sg.from[1]];
+    const len = Math.hypot(dv[0], dv[1]);
+    if (sg.type === 'A' && dir && len > EPS) {
+      // kvartcirkel: knækket ligger r ud ad den indgående retning; den udgående retning er resten af buen.
+      // Virker også, når det lige stykke mellem to buer er 0 langt (to knæk tæt på hinanden, BUGS.md v3.11.1)
+      const r = Math.abs(dv[0] * dir[0] + dv[1] * dir[1]);
+      if (r > EPS) {
+        pts.push([sg.from[0] + dir[0] * r, sg.from[1] + dir[1] * r]);
+        dir = axisUnit([(dv[0] - dir[0] * r) / r, (dv[1] - dir[1] * r) / r]);
+        turned = true;
+        continue;
+      }
+    }
+    if (len <= EPS) continue;
+    const nd = sg.type === 'L' ? axisUnit(dv) : null;
+    if (!nd) { pts.push(sg.to); dir = null; continue; }   // en anden kurve: brug blot endepunktet
+    // skarpt knæk (uden bue) mellem to lige stykker: knækket er det nye stykkes start
+    if (dir && !turned && (dir[0] !== nd[0] || dir[1] !== nd[1])) pts.push(sg.from);
+    dir = nd;
+    turned = false;
   }
-  pts.push(lines[lines.length - 1].to);
+  pts.push(segs[segs.length - 1].to);
   return simplify(pts);
 }
 
@@ -538,4 +554,16 @@ export function alignDelta(points, k, delta, tol, extra = []) {
 export function straighten(points, dirStart = null, dirEnd = null) {
   if (points.length < 2) return points;
   return routeBetween(points[0], points[points.length - 1], dirStart, dirEnd);
+}
+
+/** Gør et rør vinkelret: et skråt stykke (fx fra en ældre fejl) får et knæk. Vinkelrette rør er uændrede. */
+export function ensureOrthogonal(points) {
+  if (points.length < 2) return points;
+  const out = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const a = out[out.length - 1];
+    const b = points[i];
+    out.push(...(axisOf(a, b) || same(a, b) ? [b] : orthoLeg(a, b).slice(1)));
+  }
+  return simplify(out);
 }

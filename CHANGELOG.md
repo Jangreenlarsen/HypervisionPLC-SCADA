@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.11.1 build 0294] — 2026-10-31 — Rettet: skrå stykker i rør; værktøjet hedder nu Forbindelse
+
+- `frontend/svgedit-host/pipes.js`: `pipeCorners` genfinder knæk ud fra buerne (også når mellemstykket er 0 langt); `ensureOrthogonal`.
+- `frontend/svgedit-host/scada-core.js`: `drawPipe` tegner altid vinkelret (reparerer ældre rør).
+- Omdøbt i brugerfladen: *Rør* → **Forbindelse** (kan bruges til rør og el-ledninger) — `DrawCanvas.svelte`, `toolHints.ts`, `Inspector.svelte` (*Ret forbindelsen ud*), `ObjectTree.svelte`, `SymbolEditor.svelte`, manual kap. 04. Internt (data-hv-pipe) uændret.
+- Tests: `src/lib/pipes.test.ts`.
+
 ## [3.11.0 build 0293] — 2026-10-31 — Tydelig fang til hjælpelinjer
 
 - `frontend/svgedit-host/guides.js`: `snapBoxToGuides` giver også linjen (`atX`/`atY`); `snapHint` (linje + prik på kanten) — testet.

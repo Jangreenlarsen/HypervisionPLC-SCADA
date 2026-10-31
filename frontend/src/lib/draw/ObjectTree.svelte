@@ -25,7 +25,7 @@
     text: 'Tekst', g: 'Gruppe', image: 'Billede',
   };
   const typeLabel = (it: Item): string =>
-    it.pipe ? 'Rør' : SYMBOLS.find((s) => s.id === it.type)?.label ?? TAG_LABEL[it.tag] ?? it.tag;
+    it.pipe ? 'Forbindelse' : SYMBOLS.find((s) => s.id === it.type)?.label ?? TAG_LABEL[it.tag] ?? it.tag;
   const label = (it: Item): string => it.name || typeLabel(it);
   $effect(() => { count = layers.reduce((n, l) => n + l.items.length, 0); });
   const shown = $derived(layers.map((l) => ({

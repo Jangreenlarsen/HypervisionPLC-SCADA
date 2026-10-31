@@ -61,7 +61,7 @@
       {/if}
       {#if info.pipeRadius !== null}
         <label>Bøjningsradius <input inputmode="decimal" value={info.pipeRadius} onchange={(e) => onField(e, (v) => api?.setPipeRadius(v))} onkeydown={key}
-               title="Bløde bøjninger i rørets knæk (0 = skarpe 90°-knæk). Nye rør får den senest brugte radius." /></label>
+               title="Bløde bøjninger i forbindelsens knæk (0 = skarpe 90°-knæk). Nye forbindelser får den senest brugte radius." /></label>
       {/if}
       {#if info.paint?.rx !== null && info.paint?.rx !== undefined && info.pipeRadius === null}
         <label>Hjørne <input inputmode="decimal" value={info.paint.rx} onchange={(e) => onField(e, (v) => api?.setStyle('rx', v === '0' ? null : v))} onkeydown={key} title="Afrundede hjørner (radius)" /></label>
@@ -70,7 +70,7 @@
     {#if info.pipeRadius !== null}
       <div class="row pipe-acts">
         <button class="small" onclick={() => run(api?.straightenPipe())}
-                title="Læg røret om mellem dets to ender med så få knæk som muligt — forbindelserne bevares">Ret røret ud</button>
+                title="Læg forbindelsen om mellem dens to ender med så få knæk som muligt — tilslutningerne bevares">Ret forbindelsen ud</button>
       </div>
     {/if}
     {#if info.paint}
