@@ -2,6 +2,10 @@
 
 ---
 
+## v3.12.4 — 2026-10-31 — Nye billeder i manualen
+
+- Manualens billeder af **Alarmer** og **Trends** er taget om, så de viser siderne, som de ser ud nu. Trends viser tankens 8 temperaturer over 7 dage.
+
 ## v3.12.3 — 2026-10-31 — Ny opdeling af manualen
 
 - Manualen er delt op i flere kapitler med egne afsnit: **Alarmer** og **Trends** har fået egne kapitler, og *Tegninger og Tegn* er delt i **Tegninger**, **Tegn – tegne-editoren** og **Forbindelser (rør og ledninger)**. Afsnittene står i indholdsfortegnelsen til venstre.

@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.12.4 build 0300] — 2026-10-31 — Nye skærmbilleder af Alarmer og Trends
+
+- `frontend/public/manual/alarmer.png`, `alarmer-historik.png`, `trends.png`: taget om fra testserveren 10.1.1.31 — Trends med visningen *Tank Temperatur total* (8 følere) over 7 dage.
+- `frontend/tools/manual-screenshots.mjs`: Trends-billedet vælger visningen med tankens temperaturer og *7 dage* (venter på, at visningerne er hentet).
+- Manual: billedtekster til de nye billeder; *30 dage* med i listen over tidsrum.
+
 ## [3.12.3 build 0299] — 2026-10-31 — Manualen omlagt i flere kapitler og afsnit
 
 - `frontend/src/manual/`: *Tegninger og Tegn* delt i **Tegninger**, **Tegn – tegne-editoren** og **Forbindelser (rør og ledninger)**; *Alarmer* og *Trends* flyttet ud af *Drift* til egne kapitler — alle med egne `##`-afsnit i indholdsfortegnelsen. Rettet forældet tekst (symbolbiblioteket står til højre, tilslutningspunkter fra stregerne, linjen over tegnefladen) og nyt om skillelinjer, Begge/Middel/Rå, Udfyld huller, låste grafer, Nulstil visning, forstør/fjern graf og animation på forbindelser. Kapitlerne er omnummereret (adresserne er uændrede).

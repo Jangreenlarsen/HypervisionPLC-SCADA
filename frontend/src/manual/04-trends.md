@@ -1,6 +1,6 @@
 # Trends
 
-![Trends: valgte tags, tidsrum og kurver](/manual/trends.png)
+![Trends: visningen "Tank Temperatur total" med tankens 8 temperaturfølere over 7 dage — navnene står ved højre kant](/manual/trends.png)
 
 **Trends** viser kurver over værdier gennem tiden. Kun tags, hvor **historik** er slået til, har kurver (slås til under **Tags**, eller direkte på Trends-siden med **Begynd at gemme historik**).
 
@@ -16,7 +16,7 @@ Viewer, operatør og driftpanel kan ikke søge efter eller vælge tags frit — 
 
 ## Tidsrum
 
-Vælg **15 min, 1 time, 8 timer, 24 timer, 7 dage**, eller **Vælg periode** for et selvvalgt interval (*Fra* og *Til*). Kurverne **opdateres live**.
+Vælg **15 min, 1 time, 8 timer, 24 timer, 7 dage, 30 dage**, eller **Vælg periode** for et selvvalgt interval (*Fra* og *Til*). Kurverne **opdateres live**.
 
 ## Læs kurverne
 
