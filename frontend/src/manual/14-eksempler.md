@@ -32,6 +32,8 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 
 ## 3. 3-vejs motorventil (AB → A / AB → B)
 
+![Eksempel 3: Hurtig opsætning i guidens trin 4 — vælg retnings-tagget og tryk Opret animationer](/manual/guide-hurtig.png)
+
 **Mål:** vis om flowet går AB → A eller AB → B, styret af ét til/fra-signal.
 
 1. **Tag:** `Ventil_Retning` (`plc1:di:7`). Til = AB → A, Fra = AB → B.
@@ -41,6 +43,8 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 5. Skal operatøren kunne skifte ventilen, så brug i stedet **Interaktiv betjening** i trin 1 med et skrivbart tag (to positioner, *AB → A* og *AB → B*).
 
 ## 4. Logikblok: lys i røret, når pumpen kører og ventilen er åben
+
+![Eksempel 4: en logikblok (AND) i guidens trin 4, der kombinerer to tags](/manual/guide-logik.png)
 
 **Mål:** et rør viser strømning, kun når **både** pumpen kører og ventilen er åben.
 
@@ -53,6 +57,8 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 
 ## 5. Setpunkt med beregning
 
+![Eksempel 5: tagget redigeres — Betjening, Min og Max sætter grænserne for, hvad operatøren må skrive](/manual/tag-redigeer.png)
+
 **Mål:** operatøren indtaster en ønsket temperatur, som PLC'en gemmer i et register med én decimal for meget.
 
 1. **Tag:** `Stue_Setpunkt` (`plc1:hr:20`, *Betjening* sat, *Min* 5, *Max* 30). PLC'en gemmer 215 for 21,5 °C.
@@ -61,6 +67,10 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 4. På Overview skriver operatøren fx 22; serveren tjekker mod min/max og afviser 40 med en forklaring.
 
 ## 6. Alarm ved høj temperatur — og kurve
+
+![Eksempel 6: Alarmer — den aktive alarm kvitteres her](/manual/alarmer.png)
+
+![Eksempel 6: Trends — kurven over temperaturen de seneste timer](/manual/trends.png)
 
 **Mål:** alarm, når temperaturen er over 70 °C, og en kurve over de seneste timer.
 
@@ -72,9 +82,15 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 
 ## 7. Ugeprogram: komfort og nedsat
 
+![Eksempel 7: Ugeprogrammer — perioder for hverdage og weekend og en undtagelse](/manual/ugeprogrammer.png)
+
 Se eksemplet i *Ugeprogrammer*. Kort: opret **+ Nyt ugeprogram**, vælg tagget, læg perioder ind for hverdage og weekend, sæt **Uden for perioderne**, tilføj en **undtagelse** for ferie, og tryk **Vis forhåndsvisning** før du gemmer.
 
 ## 8. Omskifter Hånd / 0 / Auto
+
+![Eksempel 8: omskifteren betjenes på Overview — den låste position har en hængelås](/manual/drift-dialog.png)
+
+![Eksempel 8: nøglelås på en position i guidens trin 5](/manual/guide-noeglelaas.png)
 
 **Mål:** en omskifter, hvor operatøren vælger driftsform, som PLC'en gemmer i et register.
 
@@ -86,6 +102,8 @@ Se eksemplet i *Ugeprogrammer*. Kort: opret **+ Nyt ugeprogram**, vælg tagget, 
 
 ## 9. Eksternt Modbus-udstyr (RS485)
 
+![Eksempel 9: et tag på eksternt RS485-udstyr — kilden angiver slave og register](/manual/tag-ekstern.png)
+
 **Mål:** læs en temperaturføler, der sidder på PLC'ens RS485-bus.
 
 1. Under **Tags → Nyt tag**: **Kilde** `plc1:rtu:3:hr:0` (slave 3, holdingregister 0) — eller brug **Foreslå tags fra PLC**.
@@ -94,11 +112,15 @@ Se eksemplet i *Ugeprogrammer*. Kort: opret **+ Nyt ugeprogram**, vælg tagget, 
 
 ## 10. Opdatér SCADA'en uden SSH
 
+![Eksempel 10: System › Opdatering — vælg pakken, kontrollér version og kontrolsum, og installér](/manual/opdatering.png)
+
 1. Byg pakken: `sh deploy/make-package.sh`.
 2. **System › Opdatering** → vælg filen → kontrollér version og kontrolsum.
 3. **Installér og genstart** → bekræft. Siden følger forløbet; svarer den nye version ikke, rulles der automatisk tilbage.
 
 ## 11. Sæt op med en logikblok, der bruges i flere symboler
+
+![Eksempel 11: en animation med kilden "en logikblok" — blokke fra andre symboler kan vælges](/manual/guide-animation.png)
 
 1. Lav blokken (fx *Anlæg klar* = AND af tre tags) i det **første** symbol, som du alligevel sætter op.
 2. I de **andre** symboler på samme tegning vælger du animationens kilde **en logikblok** → gruppen **Andre symboler**.

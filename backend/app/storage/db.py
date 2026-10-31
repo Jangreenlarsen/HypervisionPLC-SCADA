@@ -349,6 +349,27 @@ class Database:
     def _trendview_key(name: str) -> str:
         return f"trendview.{name.strip().casefold()}"
 
+    # Tilslutningspunkter pr. bibliotekssymbol (symbol-editoren): meta-nøgle symbolports.<type> → JSON [[fx, fy], …]
+    def list_symbol_ports(self) -> dict[str, list[list[float]]]:
+        out: dict[str, list[list[float]]] = {}
+        for r in self._query("SELECT key, value FROM meta WHERE key LIKE 'symbolports.%' ORDER BY key"):
+            try:
+                ports = json.loads(r["value"])
+            except ValueError:
+                continue   # beskadiget række — symbolet bruger de automatiske punkter
+            if isinstance(ports, list) and all(isinstance(p, list) and len(p) == 2 for p in ports):
+                out[r["key"][len("symbolports."):]] = ports
+        return out
+
+    def set_symbol_ports(self, sym_type: str, ports: list[list[float]] | None) -> bool:
+        """Gem (ports) eller slet (None). → om der var noget (ved gem altid True)."""
+        key = f"symbolports.{sym_type}"
+        if ports is None:
+            return self._execute("DELETE FROM meta WHERE key = ?", (key,)) > 0
+        self._execute("INSERT INTO meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                      (key, json.dumps(ports)))
+        return True
+
     def list_trend_views(self) -> list[dict[str, Any]]:
         out = []
         for r in self._query("SELECT value FROM meta WHERE key LIKE 'setting.trendview.%'"):
@@ -946,6 +967,7 @@ class Database:
                               for r in self.list_symbol_configs()],
             "symbol_groups": self._export_groups(),
             "trend_views": self.list_trend_views(),
+            "symbol_ports": self.list_symbol_ports(),
             "settings": {"start_drawing": self.get_setting("start_drawing")},
             "schedules": [{k: s[k] for k in ("name", "tag", "enabled", "default_value", "entries", "exceptions")}
                           for s in self.list_schedules()],
@@ -1044,6 +1066,9 @@ class Database:
                 # Start-tegningen følger projektet (samme transaktion — kan ikke pege på en tegning der ikke findes)
                 cur.execute("DELETE FROM meta WHERE key = 'setting.start_drawing'")
                 cur.execute("DELETE FROM meta WHERE key LIKE 'setting.trendview.%'")
+                cur.execute("DELETE FROM meta WHERE key LIKE 'symbolports.%'")
+                for sym_type, ports in (data.get("symbol_ports") or {}).items():
+                    cur.execute("INSERT INTO meta(key, value) VALUES (?, ?)", (f"symbolports.{sym_type}", json.dumps(ports)))
                 for v in data.get("trend_views", []):
                     cur.execute("INSERT INTO meta(key, value) VALUES (?, ?)",
                                 (f"setting.{self._trendview_key(v['name'])}", json.dumps(v, ensure_ascii=False)))

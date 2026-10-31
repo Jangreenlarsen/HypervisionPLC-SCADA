@@ -9,7 +9,14 @@
   import { availableHeight, onLayoutChange } from '../lib/canvas';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
   import GroupBasis from '../lib/GroupBasis.svelte';
-  import { BUNDLE } from '../lib/staleCheck';
+  import DrawCanvas from '../lib/draw/DrawCanvas.svelte';
+  import Inspector, { type InspectApi } from '../lib/draw/Inspector.svelte';
+  import ObjectTree, { type TreeApi } from '../lib/draw/ObjectTree.svelte';
+  import PanelSection from '../lib/draw/PanelSection.svelte';
+  import { loadPanels, savePanels, togglePanel, togglePin } from '../lib/draw/panels';
+  import { symbolsHref } from '../lib/symbolRoute';
+  // @ts-expect-error — ren JS uden typer
+  import { symbolType } from '../../svgedit-host/symbolPorts.js';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
@@ -26,7 +33,6 @@
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[]; orphaned_symbols?: string[] }
   interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string; children?: number; type?: string; onePath?: boolean }
   interface ScadaApi {
-    build?: string;
     ready: Promise<void>;
     load(svg: string): boolean;
     newDrawing(w: number, h: number): void;
@@ -37,8 +43,12 @@
     selectByIds(ids: string[]): number;
     setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
     uniqueName(base: string): string;
-    insertSymbol(fragment: string, baseId: string): string;
-    setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number }): void;
+    insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
+    docPointAt(clientX: number, clientY: number): { x: number; y: number };
+    setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean }): void;
+    getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
+    setGuideEvery(n: number): void;
+    addGuide(axis: 'v' | 'h'): void;
     describeSelection(): SelectionInfo | null;
     replaceSelected(fragment: string, baseId: string, opts: { name?: string; namePrefix?: string; keepId?: boolean; stretch?: boolean; useText?: boolean; similar?: false | 'same' | 'any'; protectIds?: string[]; apexNative?: number; axisNative?: number; mirror?: boolean }):
       { ok?: boolean; replaced?: number; skipped?: number; ids?: string[]; error?: string };
@@ -54,6 +64,8 @@
     selectorLabels(id: string): string[];
     partIdByPid(id: string, pid: string): string | null;
     fixDuplicateNames(): { id: string; from: string; to: string }[];
+    setLibraryPorts(map: Record<string, number[][]>): void;
+    setTeeSymbol(def: { fragment: string; label: string } | null): void;
     splitFitting(id: string, legs: string): { ok?: boolean; removed?: string[]; parts?: string[]; error?: string };
   }
 
@@ -74,11 +86,12 @@
   let ready = $state(false);
   // Tegnehjælp: gitter, fang til gitter/objekter. Huskes pr. browser (ikke pr. tegning).
   const GUIDE_STEPS = [5, 10, 20, 25, 50];
-  function loadGuides(): { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number } {
-    const fallback = { grid: false, snapGrid: false, snapObjects: false, keepRatio: false, step: 10 };
+  function loadGuides(): { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean } {
+    const fallback = { grid: false, snapGrid: false, snapObjects: false, keepRatio: false, step: 10, showGuides: true, snapGuides: true };
     try {
       const raw = JSON.parse(localStorage.getItem('draw.guides') ?? '{}');
-      return { grid: !!raw.grid, snapGrid: !!raw.snapGrid, snapObjects: !!raw.snapObjects, keepRatio: !!raw.keepRatio, step: GUIDE_STEPS.includes(Number(raw.step)) ? Number(raw.step) : 10 };
+      return { grid: !!raw.grid, snapGrid: !!raw.snapGrid, snapObjects: !!raw.snapObjects, keepRatio: !!raw.keepRatio, step: GUIDE_STEPS.includes(Number(raw.step)) ? Number(raw.step) : 10,
+               showGuides: raw.showGuides !== false, snapGuides: raw.snapGuides !== false };
     } catch {
       return fallback; // ingen eller ødelagt localStorage: standardværdier
     }
@@ -95,22 +108,38 @@
   });
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let tags = $state<{ name: string; source: string; unit: string; writable: boolean; plc: string }[]>([]);
-  let iframe: HTMLIFrameElement;
   let ed: ScadaApi | null = null;
 
-  async function connect(): Promise<void> {
-    const win = iframe.contentWindow as (Window & { scada?: ScadaApi }) | null;
-    // Vent på at værtssiden har lavet window.scada
-    for (let i = 0; i < 200 && !win?.scada; i++) await new Promise((r) => setTimeout(r, 50));
-    if (!win?.scada) {
-      error = 'Tegne-editoren kunne ikke indlæses';
-      return;
-    }
-    ed = win.scada;
-    if (ed.build !== BUNDLE.build) {
-      // browseren har en gammel kopi af tegneeditoren — nye funktioner (fx navngivning ved indsæt) mangler i den
-      error = `Tegneeditoren er en ældre version (build ${ed.build ?? 'ukendt'}, siden er build ${BUNDLE.build}). Genindlæs siden med Ctrl+F5.`;
-    }
+  // Tegne-editoren (v3.0.0): SVG-Edits tegnemotor (@svgedit/svgcanvas) direkte i siden med vores egen brugerflade
+  // (lib/draw/*). Al Tegn-logik ligger i svgedit-host/scada-core.js.
+  let editorHeight = $state(600);
+  const SYMBOL_DRAG = 'application/x-hv-symbol';   // træk-og-slip fra symbolpaletten
+  let inspectRev = $state(0);
+  // Højre panel: foldbare sektioner — åbnes én, foldes de ikke-fastgjorte sammen (v3.5.0)
+  let panels = $state(loadPanels());
+  let objCount = $state(0);
+  let guideEvery = $state(0);   // tegningens faste inddeling (læses fra tegningen)
+  $effect(() => savePanels($state.snapshot(panels)));
+  // antal elementer i tegningen (tallet ved Objekter — også når sektionen er foldet sammen)
+  $effect(() => {
+    void inspectRev;
+    const list = ready && ed ? (ed as unknown as TreeApi).objectList() : [];
+    objCount = list.reduce((n, l) => n + l.items.length, 0);
+    guideEvery = ready && ed ? ed.getGuides().every : 0;
+  });
+  const sec = (id: string) => ({
+    open: panels.open.includes(id),
+    pinned: panels.pinned.includes(id),
+    ontoggle: (x: string) => (panels = togglePanel(panels, x)),
+    onpin: (x: string) => (panels = togglePin(panels, x)),
+  });   // panelet Egenskaber læser markeringen igen, når tallet skifter
+
+  // Listen over tegninger skal være hentet, før #draw/<tegning> kan åbnes (den nye editor er klar før listen)
+  let drawingsLoaded: () => void = () => {};
+  const drawingsReady = new Promise<void>((r) => (drawingsLoaded = r));
+
+  async function attach(api: ScadaApi): Promise<void> {
+    ed = api;
     await ed.ready;
     ed.onSelection((sel) => {
       selection = sel;
@@ -118,11 +147,22 @@
       idInput = sel.length === 1 ? sel[0].id : '';
       nameInput = sel.length === 1 ? sel[0].name ?? '' : '';
       void checkSelector();
+      inspectRev++;
     });
     ed.onMode((m) => (mode = m));   // hjælpelinjen under tegneområdet (v0.92.0)
     // dublet-navne følges løbende (fx tilbage efter Ctrl+Z på "Giv dem unikke navne")
-    ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); readSize(); });
+    ed.onChange(() => { dirty = true; dupNames = ed!.duplicateNames(); readSize(); inspectRev++; });
     ready = true;
+    // Rør koblet på et rør får bibliotekets T-stykke (tre ben, hvert med eget løbelys i guiden)
+    const tee = SYMBOLS.find((x) => x.id === 't_stykke');
+    ed.setTeeSymbol(tee ? { fragment: tee.svg, label: tee.label } : null);
+    // Symbol-editorens rettede tilslutningspunkter bygges ind i symboler, der indsættes herfra
+    try {
+      ed.setLibraryPorts(await get<Record<string, number[][]>>('/api/symbol-ports'));
+    } catch (e) {
+      info = `Symbolernes rettede tilslutningspunkter kunne ikke hentes (${(e as Error).message}) — nye symboler får de automatiske.`;
+    }
+    await drawingsReady;
     const [, fromRoute, wantSelector] = route.split('/');
     if (fromRoute && drawings.some((d) => d.id === fromRoute)) {
       await open(fromRoute);
@@ -224,6 +264,13 @@
       info = `${done.length} symbol${done.length === 1 ? '' : 'er'} fik nyt navn: ${done.map((d) => `"${d.from}" → "${d.to}"`).join(', ')}. ` +
         'Tryk Gem kladde eller Gem og udgiv for at gemme (Ctrl+Z fortryder).';
     });
+  }
+
+  /** Til symbol-editoren (med "Tilbage til tegningen"); ugemte ændringer går tabt — spørg først. */
+  async function gotoSymbols(type: string | null): Promise<void> {
+    if (dirty && !(await askUser('Tegningen har ændringer, der ikke er gemt — de går tabt, hvis du skifter til Symboler. Gem først med "Gem kladde", eller fortsæt og kassér dem.', { ok: 'Kassér og fortsæt', danger: true }))) return;
+    dirty = false;
+    location.hash = symbolsHref(current?.id ?? null, type);
   }
 
   async function confirmDiscard(): Promise<boolean> {
@@ -703,26 +750,27 @@
     }
   }
 
-  function insert(symbolId: string): void {
+  function insert(symbolId: string, at: { x: number; y: number } | null = null): void {
     const s = SYMBOLS.find((x) => x.id === symbolId);
     if (!ed || !s) return;
-    ed.insertSymbol(withName(s.svg, ed.uniqueName(s.label)), s.id);
+    ed.insertSymbol(withName(s.svg, ed.uniqueName(s.label)), s.id, at);
     dirty = true;
-    info = 'Symbolet er indsat — tryk "Opsæt symbol (6 trin)" i panelet til højre for at sætte tag, positioner og animationer.';
+    // ingen meddelelse: "Opsæt symbol" står allerede i panelet, og en meddelelse over tegnefladen ville skubbe den ned
   }
 
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
     if (dirty) e.preventDefault();
   };
 
-  // Tegne-editoren fylder højden ned til sidefoden (mindst 600 px, så hele SVG-Edits værktøjslinje ses — ellers scrolles siden)
+  // Tegne-editoren fylder højden ned til sidefoden (mindst 600 px — ellers scrolles siden)
   // Sidepanelet får samme højde som editoren, så symbolbiblioteket ruller for sig selv (v0.75.1); på smalle skærme
   // ligger panelet under tegningen og har sin naturlige højde.
   let aside: HTMLElement;
+  let frameBox: HTMLElement;
   const fitFrame = () => {
-    if (!iframe) return;
-    const h = Math.max(600, availableHeight(iframe) - 2);
-    iframe.style.height = `${h}px`;
+    if (!frameBox) return;
+    const h = Math.max(600, availableHeight(frameBox) - 2);
+    editorHeight = h;
     if (aside) aside.style.height = window.matchMedia('(max-width: 900px)').matches ? '' : `${h}px`;
   };
   let stopLayout: (() => void) | null = null;
@@ -737,6 +785,7 @@
     } catch (e) {
       error = (e as Error).message;
     }
+    drawingsLoaded();
   });
   onDestroy(() => {
     window.removeEventListener('beforeunload', onBeforeUnload);
@@ -798,8 +847,7 @@
   </div>
 {/if}
 
-<div class="row guides small" role="group" aria-label="Tegnehjælp">
-  <strong>Tegnehjælp</strong>
+{#snippet guidesUi()}
   <label class="opt"><input type="checkbox" bind:checked={guides.grid} /> Vis gitter</label>
   <label class="opt"><input type="checkbox" bind:checked={guides.snapGrid} /> Fang til gitter</label>
   <label class="opt">Gitterafstand
@@ -807,8 +855,20 @@
   </label>
   <label class="opt" title="Når du slipper et objekt, lægges det kant mod kant eller midte mod midte med nærmeste objekt, hvis det er tæt på"><input type="checkbox" bind:checked={guides.snapObjects} /> Fang til objekter</label>
   <label class="opt" title="Træk i et hjørne: bredde og højde ændres i samme forhold. Hold Shift nede for at skalere frit"><input type="checkbox" bind:checked={guides.keepRatio} /> Skalér symmetrisk</label>
-  <span class="muted">Rotation sker i 15°-trin — hold <kbd>Shift</kbd> nede for fri rotation</span>
-</div>
+  <span class="gsep"></span>
+  <label class="opt" title="Hjælpelinjerne gemmes i tegningen, men vises kun her i Tegn — aldrig i Overview"><input type="checkbox" bind:checked={guides.showGuides} /> Hjælpelinjer</label>
+  {#if guides.showGuides}
+    <label class="opt" title="Faste hjælpelinjer med denne afstand over hele tegningen (gemmes i tegningen)">Inddeling
+      <select value={guideEvery} onchange={(e) => { ed?.setGuideEvery(Number(e.currentTarget.value)); guideEvery = ed?.getGuides().every ?? 0; }} disabled={!ready} aria-label="Fast inddeling">
+        {#each [0, 50, 100, 200, 250] as n}<option value={n}>{n ? n : 'Fra'}</option>{/each}
+      </select>
+    </label>
+    <button class="small" onclick={() => ed?.addGuide('v')} disabled={!ready} title="Ny lodret hjælpelinje midt i det, du ser — træk den på plads">+ Lodret</button>
+    <button class="small" onclick={() => ed?.addGuide('h')} disabled={!ready} title="Ny vandret hjælpelinje midt i det, du ser — træk den på plads">+ Vandret</button>
+    <label class="opt" title="Symboler, rør og rør-stykker fanges til hjælpelinjerne"><input type="checkbox" bind:checked={guides.snapGuides} /> Fang til hjælpelinjer</label>
+  {/if}
+{/snippet}
+
 
 {#if error}<div class="error">{error}</div>{/if}
 {#if dupNames.length}
@@ -827,13 +887,16 @@
   </div>
 {/if}
 
-<p class="tool-hint small" aria-live="polite"><strong>{hint.name}:</strong> {hint.how}</p>
 <div class="layout">
-  <iframe bind:this={iframe} src="/svgedit/scada-editor.html?v={BUNDLE.build}" title="Tegne-editor" onload={connect}></iframe>
+  <div class="frame" bind:this={frameBox}>
+    <DrawCanvas height={editorHeight} dropType={SYMBOL_DRAG} ondropsymbol={(id, x, y) => ed && insert(id, ed.docPointAt(x, y))} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++}
+                hint="{hint.name}: {hint.how} · Drejning i 15°-trin, Shift = fri" status={guidesUi} />
+  </div>
 
   <aside bind:this={aside}>
-    <section class="panel sel-panel">
-      <h3>Valgt element</h3>
+    {#snippet selBadge()}{selection.length > 1 ? `${selection.length} valgt` : single ? (single.name || `<${single.tag}>`) : ''}{/snippet}
+    {#snippet objBadge()}{objCount}{/snippet}
+    <PanelSection id="valgt" title="Valgt element" badge={selection.length ? selBadge : undefined} {...sec('valgt')}>
       {#if !single}
         <p class="muted small">{selection.length > 1 ? `${selection.length} elementer valgt` : 'Vælg et element i tegningen.'}</p>
         {#if selection.length > 1}
@@ -870,6 +933,9 @@
           <div class="row"><button onclick={() => guarded('Del i rør', splitFitting)} disabled={!ready || busy} title="Del T-stykket/krydset i selvstændige rør, så hvert rør kan få sit eget løbelys">Del i rør</button></div>
         {/if}
         <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat den tegnede del med et symbol fra biblioteket (samme placering, størrelse og drejning)">Erstat med symbol …</button></div>
+        {#if single.type && SYMBOLS.some((x) => symbolType(x.id) === single.type)}
+          <div class="row"><button onclick={() => gotoSymbols(single?.type ?? null)} title="Åbn symbol-editoren på dette symbol — ret tilslutningspunkterne for symboler, der indsættes fremover">Ret tilslutningspunkter …</button></div>
+        {/if}
         {@render colorRow()}
         <details class="adv">
           <summary class="small">Avanceret</summary>
@@ -878,11 +944,16 @@
           </label>
         </details>
       {/if}
-    </section>
-
-    <section class="panel sym-panel">
+    </PanelSection>
+    <PanelSection id="egenskaber" title="Egenskaber" {...sec('egenskaber')}>
+      <Inspector api={ready ? (ed as unknown as InspectApi) : null} rev={inspectRev} keepRatio={guides.keepRatio} />
+    </PanelSection>
+    <PanelSection id="objekter" title="Objekter" badge={objBadge} {...sec('objekter')}>
+      <ObjectTree api={ready ? (ed as unknown as TreeApi) : null} rev={inspectRev} onchange={() => inspectRev++} />
+    </PanelSection>
+    <PanelSection id="symboler" title="Symboler" grow {...sec('symboler')}>
       <div class="sym-head">
-        <h3>Symboler</h3>
+        <button class="linkish small" onclick={() => gotoSymbols(null)} title="Åbn symbol-editoren — ret symbolernes tilslutningspunkter">Ret tilslutningspunkter i symbol-editoren →</button>
         <input bind:value={symbolFilter} placeholder="Søg symbol (fx bøjning, kontaktor)" style="width:100%" />
       </div>
       {#if favError}<p class="small error">{favError}</p>{/if}
@@ -935,7 +1006,7 @@
       {/each}
       {#if CATEGORIES.every((c) => !symbolsIn(c.id).length)}<p class="small muted">Ingen symboler matcher "{symbolFilter}".</p>{/if}
       <p class="small muted">Symbolerne er grå i normaltilstand (ISA-101). Farve og animation kommer fra bindingerne.</p>
-    </section>
+    </PanelSection>
   </aside>
 </div>
 
@@ -961,7 +1032,8 @@
   {@const fav = favorites.includes(s.id)}
   {@const pos = favorites.indexOf(s.id)}
   <div class="tile">
-    <button class="ins" onclick={() => insert(s.id)} disabled={!ready} title={s.hint}>
+    <button class="ins" onclick={() => insert(s.id)} disabled={!ready} title="{s.hint} — klik for at indsætte, eller træk ind på tegningen"
+            draggable={ready} ondragstart={(e) => { e.dataTransfer?.setData(SYMBOL_DRAG, s.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'; }}>
       <svg viewBox="-4 -4 168 152" aria-hidden="true" {@attach fitPreview(s.id)}>{@html s.svg}</svg>
       <span>{s.label}</span>
     </button>
@@ -1018,8 +1090,6 @@
 
 <style>
   .toolbar { margin-bottom: .35rem; }
-  .guides { margin-bottom: .6rem; flex-wrap: wrap; gap: .3rem 1rem; align-items: center; }
-  .guides kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 .3rem; background: var(--panel-2); font-size: .85em; }
   .comment { flex: 1; min-width: 12rem; }
   .layout {
     display: grid;
@@ -1028,23 +1098,19 @@
     align-items: start;
   }
   @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
-  iframe {
-    width: 100%;
-    height: 600px; /* sættes af fitFrame */
-    display: block;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: #fff;
-  }
+  .frame { min-width: 0; }
   aside { min-width: 0; }
-  /* Sidepanelet har editorens højde (fitFrame): "Valgt element" efter behov (højst 55 %), symbolbiblioteket ruller for sig selv */
+  /* Sidepanelet har editorens højde (fitFrame): foldbare sektioner; åbne sektioner deler højden og ruller hver for sig,
+     symbolbiblioteket får resten (v3.5.0) */
   @media (min-width: 901px) {
-    aside { display: flex; flex-direction: column; gap: .8rem; overflow: hidden; }
-    aside > .panel { margin: 0; }
-    .sel-panel { flex: 0 1 auto; max-height: 55%; overflow-y: auto; }
-    .sym-panel { flex: 1 1 0; min-height: 8rem; overflow-y: auto; padding-top: 0; }
-    .sym-head { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: .8rem 0 .4rem; }
+    aside { display: flex; flex-direction: column; gap: .5rem; overflow: hidden; }
+    aside > :global(.psec) { margin: 0; flex: 0 1 auto; }
+    aside > :global(.psec.open) { max-height: 60%; }
+    aside > :global(.psec.open.grow) { flex: 1 1 0; max-height: none; min-height: 8rem; }
+    .sym-head { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: .2rem 0 .4rem; }
   }
+  .gsep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; display: inline-block; }
+  .linkish { border: 0; background: none; padding: 0 0 .3rem; color: var(--accent); text-decoration: underline; cursor: pointer; }
   .field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
   .field :global(select), .field input { width: 100%; }
   /* minmax(0, 1fr): lange navne må ikke gøre en kolonne bredere end panelet */
@@ -1074,5 +1140,4 @@
   .symbols svg { width: 44px; height: 40px; }
   .size-panel { margin: .25rem 0 .5rem; display: grid; gap: .4rem; }
   .size-panel .num { width: 5.5rem; }
-  .tool-hint { margin: 0 0 .35rem; padding: .25rem .6rem; background: var(--panel-2); border-left: 3px solid var(--accent); border-radius: 3px; }
 </style>

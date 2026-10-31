@@ -105,9 +105,9 @@ await shot('tag-redigeer', async () => {
 // ------------------------------------------------------------------ tegninger og Tegn
 await shot('tegninger', async () => { await go('drawings', 'text=Upload tegning'); });
 await shot('tegninger-versioner', async () => { await go('drawings', 'text=Upload tegning'); await page.getByRole('button', { name: 'Versioner' }).first().click(); await settle(800); await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await settle(300); });
-await shot('tegn', async () => { await go(`draw/${startDrawing}`, 'iframe'); await settle(3500); });
+await shot('tegn', async () => { await go(`draw/${startDrawing}`, '.workarea svg'); await settle(3500); });
 await shot('tegn-gitter', async () => {
-  await go(`draw/${startDrawing}`, 'iframe');
+  await go(`draw/${startDrawing}`, '.workarea svg');
   await settle(3500);
   await page.getByLabel('Vis gitter').check();     // kun visning i browseren (localStorage) — gemmer intet på serveren
   await page.getByLabel('Fang til gitter').check();
@@ -116,13 +116,14 @@ await shot('tegn-gitter', async () => {
 }, { clip: { x: 0, y: 84, width: 1180, height: 480 } });
 await shot('tegn-erstat', async () => {
   // Opløs den store gruppe i browseren (gemmer ikke), vælg en pille-etiket og åbn "Erstat med symbol" med Statusfelt valgt
-  await go(`draw/${startDrawing}`, 'iframe');
+  await go(`draw/${startDrawing}`, '.workarea svg');
   await settle(3500);
-  const f = page.frames().find((x) => x.url().includes('scada-editor'));
+  const f = page   /* tegne-editoren ligger i selve siden (v3.0.0) — window.scada sættes af tegnemotoren */;
   await f.evaluate(() => {
     const big = [...document.querySelectorAll('#svgcontent g.layer > g')].find((g) => g.children.length > 20);
     if (big) { window.scada.selectById(big.id); window.scada.ungroupSelected(); }
-    const pill = document.querySelector('#svgcontent g.layer > rect[rx]');
+    // en pille-etiket — ellers et andet tegnet element på øverste niveau (tegningen ændrer sig over tid)
+    const pill = document.querySelector('#svgcontent g.layer > rect[rx]') ?? document.querySelector('#svgcontent g.layer > rect:not([id="baggrund"]), #svgcontent g.layer > path');
     if (pill) window.scada.selectById(pill.id);
   });
   await settle(500);
@@ -132,7 +133,7 @@ await shot('tegn-erstat', async () => {
   await settle(500);
 }, { locator: '.dlg' });
 await shot('tegn-symboler', async () => {
-  await go(`draw/${startDrawing}`, 'iframe');
+  await go(`draw/${startDrawing}`, '.workarea svg');
   await settle(3000);
   await settle(500);
 }, { top: { locator: 'aside', height: 760 } });
@@ -253,7 +254,7 @@ await shot('display-symboltest', async () => {
   await settle(800);
 }, { clip: { x: 460, y: 130, width: 700, height: 480 } });
 await shot('tegn-display', async () => {
-  await go(`draw/${startDrawing}`, 'iframe');
+  await go(`draw/${startDrawing}`, '.workarea svg');
   await settle(3500);
   const panel = page.locator('details:has(> summary:has-text("Proces og visning"))');
   await panel.locator('select[aria-label="Type"]').selectOption('11');
@@ -272,16 +273,16 @@ if (extTag) await shot('tag-ekstern', async () => { await editTag(extTag); }, { 
 // 04 — tegninger og Tegn
 await shot('tegninger-upload', async () => { await go('drawings', 'text=Upload tegning'); }, { locator: '.panel:has(h2:text-is("Upload tegning"))' });
 await shot('tegn-hjaelp', async () => {
-  await go(`draw/${startDrawing}`, 'iframe');
+  await go(`draw/${startDrawing}`, '.workarea svg');
   await settle(3000);
   await page.getByLabel('Skalér symmetrisk').check();
   await settle(300);
 }, { locator: 'label:has-text("Skalér symmetrisk") >> xpath=..' });
-await shot('tegn-grupper', async () => { await go(`draw/${startDrawing}`, 'iframe'); await settle(3000); }, { locator: 'details:has(> summary:text-is("Grupper"))' });
+await shot('tegn-grupper', async () => { await go(`draw/${startDrawing}`, '.workarea svg'); await settle(3000); }, { locator: 'details:has(> summary:text-is("Grupper"))' });
 for (const [id, label] of [['betjening', 'Betjening'], ['proces', 'Proces og visning'], ['vvs', 'Rør og VVS'], ['el', 'Elektrisk'], ['sol', 'Solcelleanlæg'], ['genveje', 'Genveje']]) {
   await shot(`bibliotek-${id}`, async () => {
     if (!page.url().includes('#draw/')) {
-      await go(`draw/${startDrawing}`, 'iframe');
+      await go(`draw/${startDrawing}`, '.workarea svg');
       await settle(3000);
       // sidepanelet ruller normalt for sig selv — fold det ud, så hele kategorien kan fotograferes
       await page.addStyleTag({ content: 'aside, .sym-panel { max-height: none !important; height: auto !important; overflow: visible !important; }' });

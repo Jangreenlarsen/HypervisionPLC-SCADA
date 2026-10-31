@@ -4,6 +4,176 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.12.3 build 0299] — 2026-10-31 — Manualen omlagt i flere kapitler og afsnit
+
+- `frontend/src/manual/`: *Tegninger og Tegn* delt i **Tegninger**, **Tegn – tegne-editoren** og **Forbindelser (rør og ledninger)**; *Alarmer* og *Trends* flyttet ud af *Drift* til egne kapitler — alle med egne `##`-afsnit i indholdsfortegnelsen. Rettet forældet tekst (symbolbiblioteket står til højre, tilslutningspunkter fra stregerne, linjen over tegnefladen) og nyt om skillelinjer, Begge/Middel/Rå, Udfyld huller, låste grafer, Nulstil visning, forstør/fjern graf og animation på forbindelser. Kapitlerne er omnummereret (adresserne er uændrede).
+- `frontend/src/manual/14-eksempler.md`: billede til hvert eksempel. Tegn-billederne taget om.
+- `frontend/src/lib/manualGen.test.ts`: symbolbibliotekets kapitel hedder nu `11-symbolbibliotek.md`.
+- `frontend/src/pages/DrawEditor.svelte`: ingen tom boble ved *Valgt element*, når intet er valgt.
+
+## [3.12.2 build 0298] — 2026-10-31 — Rettet: ophobede bugter og nye rørstumper ved flytning af symboler
+
+- `frontend/svgedit-host/pipes.js`: `reroute` lægger altid knæk inden for 60 enheder fra enden om (de er lavet automatisk).
+- `frontend/svgedit-host/scada-core.js`: tryk på et symbol med *Forbindelse* valgt skifter til *Vælg* (flytter symbolet); flere lyttere på værktøjsskift (værktøjslinjen fulgte ikke med).
+- Manual kap. 04. Tests: `src/lib/pipes.test.ts`.
+
+## [3.12.1 build 0297] — 2026-10-31 — Topmenuen åbner kun ved klik
+
+- `frontend/src/App.svelte`: menuerne i topbjælken åbner ikke længere, når musen føres hen over dem (og lukker ikke af sig selv, når musen forlader dem) — kun ved klik; lukkes ved nyt klik, valg, Escape eller klik udenfor (Jans ønske).
+
+## [3.12.0 build 0296] — 2026-10-31 — Tekstredigering i Egenskaber
+
+- `frontend/svgedit-host/scada-core.js`: `setText` (flere linjer som tspan'er; ét fortryd-trin, samme id); `setStyle` tillader `font-style`, `text-decoration`, `text-anchor` (justering flytter x, så teksten bliver stående); `paintOf` giver kursiv/understreget/justering/tekst.
+- `frontend/svgedit-host/edit.js`: `textLines` (testet).
+- `frontend/src/lib/draw/Inspector.svelte`: tekst-del med tekstfelt, størrelse (forslag), skrifttyper, F/K/U, justering, *Farve*. Manual kap. 04.
+
+## [3.11.2 build 0295] — 2026-10-31 — Tegn: zoom, tegnehjælp og hjælpelinjer øverst
+
+- `frontend/src/lib/draw/DrawCanvas.svelte`: linjen med zoom, tegnehjælp og hjælpelinjer er flyttet fra bunden op over tegnefladen (Jans ønske); værktøjets hjælpetekst bliver i bunden. Manual kap. 04.
+
+## [3.11.1 build 0294] — 2026-10-31 — Rettet: skrå stykker i rør; værktøjet hedder nu Forbindelse
+
+- `frontend/svgedit-host/pipes.js`: `pipeCorners` genfinder knæk ud fra buerne (også når mellemstykket er 0 langt); `ensureOrthogonal`.
+- `frontend/svgedit-host/scada-core.js`: `drawPipe` tegner altid vinkelret (reparerer ældre rør).
+- Omdøbt i brugerfladen: *Rør* → **Forbindelse** (kan bruges til rør og el-ledninger) — `DrawCanvas.svelte`, `toolHints.ts`, `Inspector.svelte` (*Ret forbindelsen ud*), `ObjectTree.svelte`, `SymbolEditor.svelte`, manual kap. 04. Internt (data-hv-pipe) uændret.
+- Tests: `src/lib/pipes.test.ts`.
+
+## [3.11.0 build 0293] — 2026-10-31 — Tydelig fang til hjælpelinjer
+
+- `frontend/svgedit-host/guides.js`: `snapBoxToGuides` giver også linjen (`atX`/`atY`); `snapHint` (linje + prik på kanten) — testet.
+- `frontend/svgedit-host/scada-core.js`: under træk vises linjen, symbolet vil blive fanget til (orange, prik, position) — lytter efter lærredet, så den aktuelle position vises; blink 0,7 s ved fang.
+- Manual kap. 04. Tests: `src/lib/guides.test.ts`.
+
+## [3.10.0 build 0292] — 2026-10-31 — Hjælpelinjer i Tegn
+
+- `frontend/svgedit-host/guides.js` (ny, testet): læs/gem `data-hv-guides`, linjer (fast inddeling + frie), fang af bokse og punkter, justér til en linje.
+- `frontend/svgedit-host/scada-core.js`: hjælpelinje-lag (kun i Tegn), træk/klik/Delete/Esc, gemt i tegningen med fortryd; fang i `settleSelection`, rør-værktøjet og stykke-træk; `align` til den aktive linje; API `getGuides`/`setGuideEvery`/`addGuide`. Rettet: fang ramte forkert ved zoom ≠ 100 %.
+- `frontend/svgedit-host/pipes.js`: `alignDelta` tager ekstra linjer.
+- `frontend/src/pages/DrawEditor.svelte`: *Hjælpelinjer*, *Inddeling*, *+ Lodret/+ Vandret*, *Fang til hjælpelinjer* i statuslinjen. `DrawCanvas.svelte`: knaplinjen viser og bruger den aktive linje.
+- Manual kap. 04. Tests: `src/lib/guides.test.ts`, backend `test_svg_sanitize.py` (data-hv-guides overlever gem).
+
+## [3.9.0 build 0291] — 2026-10-31 — Alt+klik vælger elementet bagved
+
+- `frontend/src/lib/draw/engine.ts`: Alt+klik i Vælg går gennem elementerne under musen (forrest først, rundt) — `cycleNext` (testet).
+- `frontend/src/lib/toolHints.ts`: hjælpeteksten nævner Alt+klik. Manual kap. 04.
+
+## [3.8.0 build 0290] — 2026-10-31 — Læg rør-stykker sammen / Ret røret ud
+
+- `frontend/svgedit-host/pipes.js`: `alignDelta` (fang på linje med parallelle stykker/enderne), `straighten`.
+- `frontend/svgedit-host/scada-core.js`: stykke-træk fanger på linje; `straightenPipe`.
+- `frontend/src/lib/draw/Inspector.svelte`: knappen *Ret røret ud* for rør. Manual kap. 04. Tests: `src/lib/pipes.test.ts`.
+
+## [3.7.0 build 0289] — 2026-10-31 — Genvej mellem Tegn og symbol-editoren
+
+- `frontend/src/lib/symbolRoute.ts` (ny, testet): `#symbols/<tegning>/<symboltype>`.
+- `frontend/src/pages/DrawEditor.svelte`: *Ret tilslutningspunkter …* for valgt bibliotekssymbol og link i *Symboler*; spørger ved ugemte ændringer.
+- `frontend/src/pages/SymbolEditor.svelte`: åbner på symbolet fra adressen; *← Tilbage til "<tegning>"*. `App.svelte`: route til siden.
+- Manual kap. 04. BUGS.md: åben fejl om ugemte ændringer ved menuskift.
+
+## [3.6.0 build 0288] — 2026-10-31 — Flyt et stykke af et rør
+
+- `frontend/svgedit-host/pipes.js`: `moveSegment` (flyt et stykke på tværs, enderne bliver), `segmentHandles`; `reroute` bevarer ruten og lægger kun om fra det nærmeste knæk, der ikke ligger bag punktet.
+- `frontend/svgedit-host/scada-core.js`: blå håndtag midt på det valgte rørs stykker (`startSegmentDrag`); rettet: museslip på håndtagene sendes til lærredet (ellers flyttede næste træk hele røret); "fang efter træk" springes over efter håndtag-træk.
+- Manual kap. 04. Tests: `src/lib/pipes.test.ts`.
+
+## [3.5.0 build 0287] — 2026-10-31 — Tegns højre panel: foldbare sektioner med fastgør
+
+- `frontend/src/lib/draw/panels.ts` (ny, testet): fold ud/ind, fastgør, gemt tilstand. `PanelSection.svelte` (ny): overskrift med ▾/▸ og 📌.
+- `frontend/src/pages/DrawEditor.svelte`: Valgt element, Egenskaber, Objekter og Symboler som sektioner (Valgt element og Egenskaber lige under hinanden, fastgjort fra start); åbne sektioner deler højden og ruller hver for sig.
+- `Inspector.svelte`, `ObjectTree.svelte`: kun indhold (sektionen ejes af Tegn). Manual kap. 04.
+- Tests: `src/lib/draw/panels.test.ts`.
+
+## [3.4.0 build 0286] — 2026-10-31 — Rør-ende på rør-ende
+
+- `frontend/svgedit-host/pipes.js`: `mergeRoutes`, `endDir`.
+- `frontend/svgedit-host/scada-core.js`: `pipeEndNear`, `pipeMidNear`, `joinPipes` (røret med navn bevares; begge navngivne → ikke sammen), `changeCmd`/`removeCmd`/`commitCmds`; rør-værktøjet starter/slutter på rør-ender (forlænger røret); håndtag kan slippes på en rør-ende (sammen) eller midt på et rør (T-stykke).
+- Manual kap. 04. Tests: `src/lib/pipes.test.ts`.
+
+## [3.3.0 build 0285] — 2026-10-31 — Genforbind rør: håndtag på rørets ender
+
+- `frontend/svgedit-host/scada-core.js`: håndtag på det valgte rørs ender (`drawHandles`, `startHandleDrag`) — træk på et tilslutningspunkt sætter enden fast (reroute + reference), andetsteds bliver den fri; ét fortryd-trin. `followPipes`: en flyttet rør-ende inden for 6 enheder af et punkt sættes fast igen (`portNear`).
+- Manual kap. 04.
+
+## [3.2.0 build 0284] — 2026-10-31 — T-stykke: rør koblet på rør
+
+- `frontend/svgedit-host/pipes.js`: `nearestOnRoute`, `splitRoute`, `sideToward`, `branchSide`; `reroute` prøver alle ankerpunkter (et gammelt knæk bag det nye punkt gav en sløjfe, når et T-stykke blev flyttet).
+- `frontend/svgedit-host/scada-core.js`: rør-værktøjet fanger til eksisterende rør (orange prik); `makeTee` deler røret, indsætter bibliotekets T-stykke drejet efter rør og gren, sætter halvdelene og grenen fast i benene — ét fortryd-trin; `setTeeSymbol`.
+- `frontend/svgedit-host/symbolPorts.js`: `data-hv-ports` kan have en side pr. punkt (`fx,fy,side`).
+- `frontend/src/pages/DrawEditor.svelte`: giver kernen bibliotekets T-stykke. Manual kap. 04.
+- Tests: `src/lib/pipes.test.ts`.
+
+## [3.1.1 build 0283] — 2026-10-31 — Rettet: Esc slog ikke rør-værktøjet fra
+
+- `frontend/src/lib/draw/engine.ts`: et klik i tegnefladen fjerner fokus fra felter i panelerne, så Esc og genvejstaster virker.
+
+## [3.1.0 build 0282] — 2026-10-31 — Rør: bøjningsradius, rigtig indgang efter drejning, punkter fra stregerne
+
+- `frontend/svgedit-host/pipes.js`: `pathSegments`/`pathPoints` (alle stikommandoer), `portsFromVertices` (punkter fra stregerne), `sideDir`/`fracSide`/`turnDir` (retning der drejer med symbolet), `bestRoute`/`routeBetween`/`reroute`/`extendRoute` (vinkelret rute med lige stub ud af punktet), `pipePath`/`pipeCorners` (bløde bøjninger og genfinding af knæk); `simplify` fjerner ikke længere et punkt, hvor røret vender; referencen kan bære siden (`id@fx,fy,r`).
+- `frontend/svgedit-host/symbolPorts.js`: buer og cirkler med i hjørnepunkterne; `autoPortsWithSide`.
+- `frontend/svgedit-host/scada-core.js`: tilslutningspunkter med retning; rør-værktøj og "følg med" bruger retningen og lægger enden om, hvis røret kommer ind fra den forkerte side; `setPipeRadius`, `data-hv-radius`, nye rør får den senest brugte radius.
+- `frontend/src/lib/draw/Inspector.svelte`: feltet *Bøjningsradius* for rør.
+- Tests: `src/lib/pipes.test.ts`.
+
+## [3.0.0 build 0281] — 2026-10-31 — Den nye tegne-editor er Tegn; SVG-Edit-appen er fjernet
+
+- **Breaking:** Tegn kører altid den nye editor (`?editor=ny` er ikke længere nødvendig). SVG-Edits brugerflade i en iframe er væk — med den forsvinder stjerne/polygon, formbiblioteket, pipetten, billedværktøjet, linealerne og SVG-Edits lag-panel. Tegningerne er uændrede (ren SVG); ingen migration.
+- `frontend/src/pages/DrawEditor.svelte`: iframe, `connect`, build-tjek og gammel tegnehjælp-/hjælpelinje fjernet.
+- Fjernet: `svgedit`-pakken, `scripts/copy-svgedit.mjs`, `scripts/versionHost.mjs`, `svgedit-host/scada-editor.{js,css,html}`, `svgedit-host/locale-da.js`, tests `svgeditPatch.test.ts`, `versionHost.test.ts`; `predev`/`prebuild` i `package.json`. Drejegrebets markør ligger nu i `public/draw/rotate.svg` (MIT, fra SVG-Edit).
+- `frontend/src/lib/draw/engine.ts`: *Skalér symmetrisk* virker ved træk i hjørnerne (BUGS.md); afkrydsninger (fx tegnehjælpen) blokerer ikke længere genvejstasterne; `window.scada` til manualens skærmbillede-script.
+- `frontend/tools/manual-screenshots.mjs`: venter på tegnefladen i stedet for iframen. Manual kap. 04 beskriver den nye editor. `ARCHITECTURE.md`, `docs/SYMBOLSTANDARD_IMPLEMENTERING.md`, `backend/app/main.py` (kommentar).
+
+## [2.18.0 build 0280] — 2026-10-31 — Ny tegne-editor: objekttræ
+
+- `frontend/src/lib/draw/ObjectTree.svelte` (ny): panelet *Objekter* — elementer pr. lag, forrest øverst, navn og type; klik/Ctrl-klik vælger, ▲▼ rækkefølge, søgefelt.
+- `frontend/svgedit-host/scada-core.js`: `objectList`, `toggleSelected`.
+- `frontend/src/pages/DrawEditor.svelte`: *Objekter* under *Egenskaber* i den nye editor.
+
+## [2.17.0 build 0279] — 2026-10-30 — Ny tegne-editor, trin 5: træk symboler fra paletten
+
+- `frontend/svgedit-host/scada-core.js`: `insertSymbol(fragment, type, at)` lægger symbolets midte i punktet `at`; `docPointAt`; `screenToDoc` (frisk skærm→tegning-matrix — rettet for rør-værktøjet efter zoom/rulning).
+- `frontend/src/lib/draw/DrawCanvas.svelte`: tegnefladen tager imod symboler (grøn stiplet kant mens der trækkes).
+- `frontend/src/pages/DrawEditor.svelte`: paletten kan trækkes fra i den nye editor; ingen meddelelse over tegnefladen ved indsættelse (den skubbede fladen ned).
+
+## [2.16.0 build 0278] — 2026-10-30 — Symbol-editor: tilslutningspunkter pr. symboltype
+
+- Backend: `app/services/symbol_ports.py`, `app/api/symbol_ports.py` (nye): `GET/PUT/DELETE /api/symbol-ports[/{type}]` (tekniker), validering (1–32 punkter, 0..1), audit `symbol_ports.set/reset`. `storage/db.py`: gemt i `meta` (`symbolports.<type>`), med i projekt-eksport/gendannelse. `services/backup.py`: `symbol_ports` valideres ved gendannelse. `main.py`: registrering.
+- Frontend: `pages/SymbolEditor.svelte` (ny side *Symboler*), `lib/nav.ts`, `App.svelte`. `svgedit-host/symbolPorts.js` (ny): fælles punkt-logik for Tegn og siden. `svgedit-host/scada-core.js`: `setLibraryPorts`; rettede punkter bygges ind ved indsættelse (`data-hv-ports`) og bruges af rør-værktøjet. `pages/DrawEditor.svelte`: henter punkterne.
+- Manual kap. 04: *Tilslutningspunkter (siden Symboler)*.
+- Loft: højst 500 symboltyper med rettede punkter (API og backup); beskadigede rækker springes over ved læsning (fra review).
+- Tests: backend `test_symbol_ports.py`; frontend `symbolPorts.test.ts`, `nav.test.ts`.
+
+## [2.15.1 build 0277] — 2026-10-30 — Rettet: drejning i 15°-trin i den nye editor; fortryd/gentag i værktøjslinjen
+
+- `frontend/src/lib/draw/engine.ts`: drejningens midtpunkt læses uden `consolidate()` (ændrede elementets transform).
+- `frontend/svgedit-host/scada-core.js`: `listMatrix` (læser transform uden at ændre den); `applyBox` flytter med translate forrest, så en drejning bevares.
+- `frontend/src/lib/draw/DrawCanvas.svelte`: Fortryd og Gentag øverst i venstre værktøjslinje (flyttet fra statuslinjen).
+
+## [2.15.0 build 0276] — 2026-10-30 — Ny tegne-editor, trin 4: rør-værktøj
+
+- `frontend/svgedit-host/pipes.js` (ny): rene beregninger — vinkelret ruteføring (`orthoLeg`, `connect`), ende-flytning der holder røret vinkelret (`moveEnd`), tilslutningspunkter (`portsFrom`), referencer som brøkdel af symbolets boks.
+- `frontend/svgedit-host/scada-core.js`: rør-værktøj (`setPipeTool`) med tilslutningspunkter og forhåndsvisning; rør følger deres symboler i samme fortryd-trin (hægtet på fortryd-historikken, virker også i den gamle editor); kopier af rør slipper symbolerne; nye rør lægges bag de symboler, de forbinder.
+- `frontend/src/lib/draw/engine.ts`, `DrawCanvas.svelte`: værktøjet *Rør* (tast O) i værktøjslinjen. `src/lib/toolHints.ts`: hjælpetekst.
+- Tests: `src/lib/pipes.test.ts` (ny), backend `test_svg_sanitize.py` (rørets data-hv-attributter overlever gem).
+
+## [2.14.0 build 0275] — 2026-10-30 — Ny tegne-editor, trin 2–3: panel, svævende linje, højreklikmenu
+
+- `frontend/svgedit-host/edit.js` (ny): rene beregninger til panelet (`boxMapping`, `editBox`, `distribute`).
+- `frontend/svgedit-host/scada-core.js`: `inspect`, `setBox`, `setAngle`, `setStyle`, `align`, `distribute`, `order`, `flip`. Størrelse/placering sættes med lærredets eget translate/scale/translate-mønster, så elementet får rene mål (x, width …) i stedet for en matrix; ét fortryd-trin pr. ændring.
+- `frontend/src/lib/draw/Inspector.svelte` (ny): panelet *Egenskaber*.
+- `frontend/src/lib/draw/DrawCanvas.svelte`: svævende linje til det markerede, højreklikmenu, tegnehjælp og hjælpetekst i statuslinjen.
+- `frontend/src/lib/draw/engine.ts`: `perform()` (fælles for taster, knapper og menu); drejning i 15°-trin og fri med Shift; piletaster flytter i tegningens enheder uanset zoom.
+- `frontend/src/pages/DrawEditor.svelte`: tegnehjælpen som snippet (egen linje i den gamle editor, statuslinjen i den nye); *Egenskaber* øverst i sidepanelet.
+- Tests: `src/lib/editMath.test.ts` (ny), `src/lib/draw/engine.test.ts` (drejning).
+
+## [2.13.0 build 0274] — 2026-10-30 — Ny tegne-editor, trin 1: motor uden iframe (bag ?editor=ny)
+
+- `frontend/svgedit-host/scada-core.js` (ny): al vores egen Tegn-logik (gitter, fang, id'er, navne, symboler, `window.scada`-API'et) som `createScada(host)` — uafhængig af SVG-Edits brugerflade. `scada-editor.js` er nu kun SVG-Edit-adapteren.
+- `frontend/src/lib/draw/engine.ts` (ny): `@svgedit/svgcanvas` direkte i siden — rulleflade, zoom (Ctrl+hjul, trin, Tilpas), panorering (mellemrum/midterknap), tastatur (fortryd, kopiér/indsæt, dupliker, gruppér, slet, pile, værktøjstaster).
+- `frontend/src/lib/draw/DrawCanvas.svelte` (ny): venstre værktøjsrail + statuslinje. `pages/DrawEditor.svelte`: bruger den med `?editor=ny`; venter på tegningslisten før `#draw/<id>` åbnes.
+- Rettet: gitteret var forskudt i tegninger uden fuld baggrund (BUGS.md).
+- `frontend/package.json`: `@svgedit/svgcanvas` som direkte afhængighed (var allerede med via `svgedit`, MIT).
+- Tests: `src/lib/draw/engine.test.ts`, `svgeditPatch.test.ts` opdateret.
+
 ## [2.12.0 build 0273] — 2026-10-30 — Tilstandsmærket kan fravælges
 
 - `backend/app/services/symbols.py`: feltet `badge` (standard sand) på symbolopsætningen; `symbol_view` sender det.

@@ -2,6 +2,151 @@
 
 ---
 
+## v3.12.3 — 2026-10-31 — Ny opdeling af manualen
+
+- Manualen er delt op i flere kapitler med egne afsnit: **Alarmer** og **Trends** har fået egne kapitler, og *Tegninger og Tegn* er delt i **Tegninger**, **Tegn – tegne-editoren** og **Forbindelser (rør og ledninger)**. Afsnittene står i indholdsfortegnelsen til venstre.
+- Alle eksempler i *Eksempler trin for trin* har nu et billede, og billederne af Tegn er opdateret.
+
+## v3.12.2 — 2026-10-31 — Rettelser i forbindelser
+
+- Når du flytter et symbol flere gange, får forbindelsen ikke længere flere og flere bugter.
+- Står værktøjet **Forbindelse** stadig valgt, og du trækker i et symbol, flyttes symbolet nu, i stedet for at der startes en ny forbindelse. Tegn skifter selv til **Vælg**.
+
+## v3.12.1 — 2026-10-31 — Menuen åbner ved klik
+
+- Menuerne i topbjælken (Drift, Opsætning, System, Bruger) åbner nu kun, når du klikker på dem, og ikke længere, når musen bare føres hen over dem. De lukker ved et nyt klik, når du vælger et punkt, ved klik udenfor eller med Esc.
+
+## v3.12.0 — 2026-10-31 — Bedre tekstredigering i Tegn
+
+- Når en tekst er valgt, kan du i *Egenskaber* rette teksten direkte, også over flere linjer (Enter giver ny linje).
+- Du kan vælge størrelse fra en liste, vælge mellem flere skrifttyper og bruge **fed**, *kursiv* og understreget.
+- Du kan justere teksten til venstre, midt eller højre, uden at den flytter sig, og vælge tekstfarve.
+
+## v3.11.2 — 2026-10-31 — Tegn: værktøjslinjen øverst
+
+- Linjen med zoom, tegnehjælp (gitter, fang) og hjælpelinjer står nu øverst over tegnefladen i stedet for i bunden.
+
+## v3.11.1 — 2026-10-31 — Rettelse i rør; værktøjet hedder nu Forbindelse
+
+- Rettet: et rør kunne af og til få et skråt stykke, når et symbol blev flyttet. Det skete især med bøjningsradius og knæk tæt på hinanden. Rør, der allerede har et skråt stykke, rettes næste gang de flyttes, eller når du trykker **Ret forbindelsen ud**.
+- Værktøjet **Rør** hedder nu **Forbindelse**, fordi det kan bruges til både rør og el-ledninger. Det virker som før.
+
+## v3.11.0 — 2026-10-31 — Se hvad der fanges
+
+- Når du trækker et symbol hen mod en hjælpelinje, lyser linjen **orange**, og en prik viser, hvilken kant eller midte af symbolet der fanges, med positionen ved siden af. Når du slipper, blinker linjen kort, så du kan se, at symbolet blev lagt på den.
+
+## v3.10.0 — 2026-10-31 — Hjælpelinjer i Tegn
+
+- **Hjælpelinjer** til at bygge tegningen op efter. **Inddeling** lægger faste linjer med en valgt afstand over hele tegningen, og **+ Lodret** og **+ Vandret** lægger frie linjer, som du kan trække på plads.
+- Symboler, rør og rør-stykker fanges til linjerne. Klik på en linje for at gøre den aktiv, så justerer knaplinjen det markerede til den.
+- Linjerne gemmes i tegningen, men vises kun i Tegn og aldrig i Overview.
+- Rettet: *Fang til gitter* og *Fang til objekter* ramte lidt ved siden af, når der var zoomet ind eller ud.
+
+## v3.9.0 — 2026-10-31 — Vælg symboler, der ligger bagved
+
+- Ligger symboler oven i hinanden, så hold **Alt** nede og klik. Så vælges det, der ligger bagved. Klik igen med Alt for at gå endnu et lag ned. Du kan også vælge i panelet **Objekter**.
+
+## v3.8.0 — 2026-10-31 — Ryd op i rør
+
+- Trækker du et stykke af et rør tæt på linje med et andet stykke eller en af enderne, fanges det på linje, så det lille hak forsvinder, og stykkerne bliver til ét.
+- Ny knap **Ret røret ud** i *Egenskaber*, når et rør er valgt. Den lægger røret om mellem dets to ender med så få knæk som muligt. Forbindelserne bevares, og Ctrl+Z fortryder.
+
+## v3.7.0 — 2026-10-31 — Genvej til symbol-editoren
+
+- Vælg et bibliotekssymbol i Tegn og tryk **Ret tilslutningspunkter …**, så åbner symbol-editoren direkte på det symbol. Der er også et link øverst i sektionen *Symboler*.
+- I symbol-editoren fører **← Tilbage til "<tegning>"** dig tilbage til tegningen.
+- Har tegningen ændringer, der ikke er gemt, spørger Tegn først.
+
+## v3.6.0 — 2026-10-31 — Flyt dele af et rør
+
+- Vælg et rør, så får hvert lige stykke et **blåt håndtag** på midten. Træk det på tværs for at flytte netop det stykke. Rørets ender bliver siddende i deres tilslutningspunkter.
+- Dine ændringer af rørets forløb bevares, når du bagefter flytter et symbol. Kun stykket lige ved symbolet lægges om.
+- Rettet: når man klikkede på et rør for at vælge det, kunne næste træk flytte hele røret, så det mistede sine forbindelser.
+
+## v3.5.0 — 2026-10-31 — Ryddeligere panel i Tegn
+
+- Panelet til højre i Tegn er nu delt i foldbare sektioner: **Valgt element**, **Egenskaber**, **Objekter** og **Symboler**. Valgt element og Egenskaber står lige under hinanden.
+- Åbner du en sektion, folder de andre sig sammen. Klik på **📌** for at fastgøre en sektion, så den altid står åben. Valget huskes i browseren.
+
+## v3.4.0 — 2026-10-31 — Rør kan kobles ende mod ende
+
+- Træk et rørs håndtag hen på **et andet rørs ende**, så bliver de to rør til ét. Du kan også starte eller slutte med værktøjet **Rør** på et rørs ende for at forlænge røret.
+- Slipper du et håndtag **midt på et rør**, laves et T-stykke.
+- Har begge rør en opsætning (et navn), lægges de ikke sammen, så ingen opsætning går tabt.
+
+## v3.3.0 — 2026-10-31 — Sæt et rør fast igen
+
+- Vælg et rør, så får enderne et håndtag: **grønt** betyder, at enden sidder fast, og **orange**, at den er fri. Træk et håndtag hen på et tilslutningspunkt for at sætte enden fast igen. Røret lægges om, så det går lige ind i punktet.
+- Flytter du et helt rør, så en ende lander på et tilslutningspunkt, sættes den fast automatisk.
+
+## v3.2.0 — 2026-10-31 — T-stykker i Tegn
+
+- Med værktøjet **Rør** kan du nu starte eller slutte et rør på et eksisterende rør. En orange prik viser stedet. Røret deles, og der indsættes et **T-stykke**, som er drejet, så det passer til rørene.
+- Alle tre rør sidder fast i T-stykket og følger med, når du flytter det. T-stykkets tre ben kan få hvert sit løbelys i guiden.
+- Ctrl+Z fortryder røret og T-stykket på én gang.
+
+## v3.1.1 — 2026-10-31 — Rettelse i Tegn
+
+- **Esc** slår nu altid rør-værktøjet fra og går tilbage til Vælg, også hvis du lige har skrevet i søgefeltet eller i panelet *Egenskaber*. Det samme gælder de andre genvejstaster.
+
+## v3.1.0 — 2026-10-31 — Bedre rør
+
+- **Bøjningsradius:** vælg et rør og skriv en radius i panelet *Egenskaber*, så får knækkene bløde bøjninger i stedet for skarpe 90°-hjørner. Nye rør får den radius, du senest har brugt.
+- Rør sættes nu fast præcis ved symbolets rørender, fx spidsen på en ventil. Tekster ved symbolet (som "A", "B" og "AB") flytter ikke længere punktet.
+- Drejer eller spejler du et symbol, går røret ind fra den rigtige side, og røret går altid et stykke lige ud fra symbolet, før det knækker.
+- Siden *Symboler* viser de nye, mere præcise automatiske punkter.
+
+## v3.0.0 — 2026-10-31 — Ny tegne-editor
+
+**Tegn** har fået en ny tegne-editor, bygget til SCADA-tegninger:
+
+- Værktøjslinje til venstre med **Fortryd/Gentag**, **Vælg**, **Rør**, **Linje**, **Rektangel**, **Ellipse**, **Sti**, **Frihånd** og **Tekst**.
+- **Rør**, der går vandret eller lodret og sidder fast i symbolernes tilslutningspunkter: de følger med, når symbolet flyttes eller drejes.
+- Panelet **Egenskaber** (placering, størrelse, drejning, farver, streg, skrift) og panelet **Objekter** (find og vælg elementer, også dem der ligger under andre).
+- Knaplinje over det markerede (justér, fordel, rækkefølge, spejl, gruppér, dupliker, slet) og højreklikmenu.
+- Træk symboler fra biblioteket ind på tegningen. Ctrl + musehjul zoomer, og mellemrum + træk flytter udsnittet.
+- Ny side **Symboler**, hvor tilslutningspunkterne på bibliotekets symboler kan rettes.
+- Rettet: **Skalér symmetrisk** virker nu, når du trækker i et hjørne.
+
+Den gamle editor (SVG-Edit) er fjernet. Dine tegninger er uændrede. Værktøjerne stjerne/polygon, formbiblioteket, pipetten, billeder og linealerne findes ikke i den nye editor.
+
+## v2.18.0 — 2026-10-31 — Ny tegne-editor: objekttræ (prøveversion)
+
+- Panelet **Objekter** i den nye tegne-editor viser tegningens elementer med navn og type, forrest øverst. Klik vælger et element, også ét der ligger skjult under et andet. Ctrl- eller Shift-klik vælger flere, og ▲▼ flytter det valgte frem eller tilbage.
+
+## v2.17.0 — 2026-10-30 — Ny tegne-editor: træk symboler ind på tegningen (prøveversion)
+
+- I den nye tegne-editor (`?editor=ny`) kan du trække et symbol fra paletten til højre direkte ind på tegningen. Det lægges, hvor du slipper. Et klik på symbolet indsætter det som før.
+- Rettet: rør-værktøjet ramte tilslutningspunkterne forkert efter zoom eller rulning.
+
+## v2.16.0 — 2026-10-30 — Symbol-editor: ret tilslutningspunkterne
+
+- Ny side **Symboler** under Opsætning (tekniker). Her kan du rette et bibliotekssymbols tilslutningspunkter, altså de grønne prikker, som rør sættes fast i: klik for at tilføje, træk for at flytte, højreklik for at fjerne. **Brug de automatiske** går tilbage til standardpunkterne.
+- Ændringen gælder symboler, du indsætter fremover. Symboler, der allerede står i en tegning, beholder deres punkter.
+- Punkterne er med i backup.
+
+## v2.15.1 — 2026-10-30 — Rettelser i den nye tegne-editor
+
+- Drejning med musen sker nu i 15°-trin igen; hold Shift for fri drejning.
+- **Fortryd** og **Gentag** står nu øverst i værktøjslinjen til venstre.
+
+## v2.15.0 — 2026-10-30 — Ny tegne-editor: rør-værktøj (prøveversion)
+
+- Den nye tegne-editor (`?editor=ny`) har værktøjet **Rør** (tast O). Klik for start og knæk; røret går altid vandret eller lodret. Grønne prikker viser symbolernes tilslutningspunkter. Starter eller slutter røret på en prik, følger det med, når symbolet flyttes, ændrer størrelse eller drejes. Dobbeltklik eller Enter slutter røret, Backspace fjerner sidste knæk, og Esc går tilbage til Vælg.
+- Nye rør lægges bag de symboler, de forbinder. Røret kan få løbelys som andre elementer: giv det et navn og sæt det op i guiden.
+
+## v2.14.0 — 2026-10-30 — Ny tegne-editor: panel, knaplinje og højreklikmenu (prøveversion)
+
+- I den nye tegne-editor (`?editor=ny`) viser panelet **Egenskaber** placering og størrelse (X, Y, B, H), drejning, hjørner, fyld, streg, tykkelse, synlighed og skrift for det markerede. Skriv en værdi og tryk Enter. Ctrl+Z fortryder.
+- Når noget er markeret, vises en knaplinje øverst på tegnefladen: justér, fordel, læg øverst/nederst, spejl, gruppér/opløs, dupliker og slet.
+- Højreklik giver en menu med klip, kopiér, indsæt, dupliker, gruppér, rækkefølge og slet.
+- Tegnehjælpen (gitter, fang) og hjælpeteksten står nu i bunden af tegnefladen. Drejning sker i 15°-trin, og med Shift drejes frit.
+
+## v2.13.0 — 2026-10-30 — Ny tegne-editor (prøveversion)
+
+- Første del af en ny tegne-editor i **Tegn**. Den kan prøves ved at åbne Tegn med `?editor=ny` i adressen, fx `https://<server>/?editor=ny#draw`. Den har en ny værktøjslinje til venstre og fortryd/zoom i bunden. Zoom med Ctrl + musehjul, og flyt udsnittet med mellemrum eller midterknappen. Den nuværende editor er stadig standard.
+- Rettet: **Vis gitter** dækker nu hele tegningen, også i tegninger uden en baggrund.
+
 ## v2.12.0 — 2026-10-30 — Tilstandsmærket kan slås fra
 
 - I symbol-guidens trin 4 kan du fjerne hakket ved **Vis tilstandsmærke**. Så vises mærket (✓, …, !, ?) ikke ved symbolet på Overview. Afvigelsen ("PLC: …") og hængelåsen vises stadig.

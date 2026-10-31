@@ -20,6 +20,7 @@
   import Schedules from './pages/Schedules.svelte';
   import Trends from './pages/Trends.svelte';
   import SymbolTest from './pages/SymbolTest.svelte';
+  import SymbolEditor from './pages/SymbolEditor.svelte';
   import { LiveClient } from './lib/live';
   import Login from './pages/Login.svelte';
   import ChangePassword from './pages/ChangePassword.svelte';
@@ -96,22 +97,13 @@
   const page = $derived(current.id);
   // Fire menupunkter i topbjælken (Drift, Opsætning, System, Bruger). En rullemenu åbner af sig selv når musen
   // føres hen over punktet og lukker lidt efter at den forlader det; klik/tryk og tastatur virker også (touch har ingen hover).
-  // Menuen foldes ud OVER indholdet (skubber ikke tegningen ned) og lukkes ved valg, Escape eller klik udenfor.
+  // Menuen foldes ud OVER indholdet (skubber ikke tegningen ned). Den åbner KUN ved klik (ikke når musen føres hen over
+  // den — Jan, v3.12.1) og lukkes ved nyt klik, valg, Escape eller klik udenfor.
   let openMenu = $state<string | null>(null);
-  let closeTimer: ReturnType<typeof setTimeout> | null = null;
-  const HOVER_CLOSE_MS = 220;   // tid til at føre musen skråt fra punktet ned i menuen uden at den lukker
   $effect(() => { void route; openMenu = null; });
   function showMenu(id: string): void {
-    if (closeTimer) clearTimeout(closeTimer);
-    closeTimer = null;
     openMenu = id;
   }
-  function hideMenuSoon(): void {
-    if (closeTimer) clearTimeout(closeTimer);
-    closeTimer = setTimeout(() => (openMenu = null), HOVER_CLOSE_MS);
-  }
-  const onHover = (id: string) => (e: PointerEvent) => { if (e.pointerType === 'mouse') showMenu(id); };
-  const onLeave = (e: PointerEvent) => { if (e.pointerType === 'mouse') hideMenuSoon(); };
   function onKey(e: KeyboardEvent): void {
     if (e.key === 'Escape' && openMenu) openMenu = null;
   }
@@ -154,7 +146,7 @@
   {#if me && !me.must_change_password}
     <nav class="menubar" aria-label="Hovedmenu">
       {#each groups as g}
-        <div class="menu" class:open={openMenu === g.id} role="presentation" onpointerenter={onHover(g.id)} onpointerleave={onLeave}>
+        <div class="menu" class:open={openMenu === g.id} role="presentation">
           <button class="top" class:here={groupOf(page)?.id === g.id} aria-haspopup="true" aria-expanded={openMenu === g.id}
                   onclick={() => (openMenu === g.id ? (openMenu = null) : showMenu(g.id))}>{g.label}<span class="caret" aria-hidden="true"></span></button>
           {#if openMenu === g.id}
@@ -178,7 +170,7 @@
     <a class="src" href={info?.source_url ?? 'https://github.com/Jangreenlarsen/HypervisionPLC-SCADA'} target="_blank" rel="noopener"
        title="Fri software under AGPL-3.0{info ? ` · v${info.version} build ${info.build}` : ''}">AGPL<span class="srcfull"> · kildekode</span></a>
     <nav class="menubar" aria-label="Brugermenu">
-      <div class="menu user" class:open={openMenu === 'user'} role="presentation" onpointerenter={onHover('user')} onpointerleave={onLeave}>
+      <div class="menu user" class:open={openMenu === 'user'} role="presentation">
         <button class="top" aria-haspopup="true" aria-expanded={openMenu === 'user'} title="Rolle: {ROLE_TXT[me.role] ?? me.role}"
                 onclick={() => (openMenu === 'user' ? (openMenu = null) : showMenu('user'))}>
           {@render icon('user')}<span class="name">Bruger</span><span class="caret" aria-hidden="true"></span>
@@ -240,6 +232,8 @@
     <Tags {canEdit} />
   {:else if page === 'symboltest'}
     <SymbolTest />
+  {:else if page === 'symbols'}
+    <SymbolEditor {route} />
   {:else if page === 'plcs'}
     <Plcs isAdmin={me.role === 'admin'} />
   {:else if page === 'audit'}
