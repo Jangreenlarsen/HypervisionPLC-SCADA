@@ -2,6 +2,10 @@
 
 ---
 
+## v3.11.2 — 2026-10-31 — Tegn: værktøjslinjen øverst
+
+- Linjen med zoom, tegnehjælp (gitter, fang) og hjælpelinjer står nu øverst over tegnefladen i stedet for i bunden.
+
 ## v3.11.1 — 2026-10-31 — Rettelse i rør; værktøjet hedder nu Forbindelse
 
 - Rettet: et rør kunne af og til få et skråt stykke, når et symbol blev flyttet. Det skete især med bøjningsradius og knæk tæt på hinanden. Rør, der allerede har et skråt stykke, rettes næste gang de flyttes, eller når du trykker **Ret forbindelsen ud**.

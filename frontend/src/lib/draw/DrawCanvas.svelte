@@ -122,6 +122,14 @@
     {/each}
   </nav>
   <div class="main">
+    <!-- zoom, tegnehjælp og hjælpelinjer øverst over tegnefladen (Jan, v3.11.2) -->
+    <div class="status" role="toolbar" aria-label="Visning og tegnehjælp">
+      <button onclick={() => act('zoomOut')} title="Zoom ud (Ctrl+−)" aria-label="Zoom ud">−</button>
+      <span class="zoom">{Math.round(zoom * 100)} %</span>
+      <button onclick={() => act('zoomIn')} title="Zoom ind (Ctrl++)" aria-label="Zoom ind">+</button>
+      <button onclick={() => act('zoomFit')} title="Tilpas til vinduet (Ctrl+0)">Tilpas</button>
+      {#if status}<span class="sep"></span>{@render status()}{/if}
+    </div>
     <!-- svar på højreklik i tegnefladen; menuen styres også med tastaturet (Escape lukker) -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="stage" oncontextmenu={onContext} onmousedown={(e) => { if (menu && !(e.target as HTMLElement).closest('.cmenu')) closeMenu(); }}>
@@ -191,13 +199,6 @@
       {/if}
       {#if message}<div class="msg" role="alert">{message} <button class="small" onclick={() => (message = '')} aria-label="Luk">✕</button></div>{/if}
     </div>
-    <footer class="status">
-      <button onclick={() => act('zoomOut')} title="Zoom ud (Ctrl+−)" aria-label="Zoom ud">−</button>
-      <span class="zoom">{Math.round(zoom * 100)} %</span>
-      <button onclick={() => act('zoomIn')} title="Zoom ind (Ctrl++)" aria-label="Zoom ind">+</button>
-      <button onclick={() => act('zoomFit')} title="Tilpas til vinduet (Ctrl+0)">Tilpas</button>
-      {#if status}<span class="sep"></span>{@render status()}{/if}
-    </footer>
     {#if hint}<div class="hint small" aria-live="polite">{hint}</div>{/if}
   </div>
   <!-- lærredet skriver tekst gennem dette skjulte felt -->
@@ -322,7 +323,7 @@
     flex-wrap: wrap;
     gap: 4px 6px;
     padding: 3px 6px;
-    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
     background: #f4f4f4;
     font-size: .85rem;
   }

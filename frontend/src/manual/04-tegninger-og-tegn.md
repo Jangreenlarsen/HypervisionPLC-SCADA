@@ -29,7 +29,7 @@ Siden **Tegninger** er listen over alle tegninger.
 Skærmen er delt sådan:
 
 - **Værktøjslinjen til venstre**: **Fortryd** og **Gentag** øverst, derefter værktøjerne **Vælg** (V), **Forbindelse** (O), **Linje** (L), **Rektangel** (R), **Ellipse** (E), **Sti** (P), **Frihånd** (F) og **Tekst** (T). Bogstavet er genvejstasten.
-- **Tegnefladen** i midten. **Ctrl + musehjul** zoomer, og **mellemrum** eller **midterknappen** + træk flytter udsnittet. I bunden står zoom (−, +, **Tilpas**), **tegnehjælpen** (se nedenfor) og en linje, der forklarer det valgte værktøj.
+- **Tegnefladen** i midten. **Ctrl + musehjul** zoomer, og **mellemrum** eller **midterknappen** + træk flytter udsnittet. Øverst over tegnefladen står zoom (−, +, **Tilpas**), **tegnehjælpen** og **hjælpelinjerne** (se nedenfor); i bunden en linje, der forklarer det valgte værktøj.
 - **Knaplinjen over det markerede**: når noget er markeret, vises justér (venstre, midte, højre, top, midte, bund), fordel vandret/lodret (mindst 3), læg øverst/nederst, spejl, **Gruppér**/**Opløs**, **Dupliker** og **Slet**.
 - **Højreklik** på tegnefladen giver klip, kopiér, indsæt, dupliker, gruppér, rækkefølge og slet.
 - **Panelet til højre** består af foldbare sektioner — klik på en overskrift for at folde den ud; de andre foldes så sammen, undtagen dem du har **fastgjort med 📌** (de står altid åbne; huskes i browseren). Fra start er *Valgt element* og *Egenskaber* fastgjort. Sektionerne: **Valgt element** (navn, guide, farver), **Egenskaber** (placering X/Y, størrelse B/H, drejning, hjørner, fyld, streg, tykkelse, synlighed og skrift — skriv en værdi og tryk Enter), **Objekter** (alle elementer, forrest øverst; klik vælger, også et element der ligger skjult under et andet; Ctrl-klik vælger flere; ▲▼ flytter frem/tilbage) og **Symboler** (biblioteket og grupper).
@@ -67,9 +67,9 @@ Er der ændringer, du ikke har gemt, spørger systemet, før de kasseres.
 
 ### Tegnehjælp: gitter, fang og rotation
 
-![Tegnehjælpen i bunden af tegnefladen: gitter, fang, gitterafstand og Skalér symmetrisk](/manual/tegn-hjaelp.png)
+![Tegnehjælpen øverst over tegnefladen: gitter, fang, gitterafstand og Skalér symmetrisk](/manual/tegn-hjaelp.png)
 
-I bunden af tegnefladen står **tegnehjælpen**:
+Øverst over tegnefladen står **tegnehjælpen**:
 
 - **Vis gitter** viser et net **ovenpå** tegningen (det ændrer ikke tegningen). Linjerne ligger med den valgte **gitterafstand** (5, 10, 20, 25 eller 50 enheder), og hver 5. linje er kraftigere. Gitteret følger zoom og rulning.
 - **Fang til gitter** lægger objekter på gitteret: når du flytter, indsætter, duplikerer eller sætter et symbol ind, flyttes objektets **øverste venstre hjørne** til nærmeste gitterpunkt. Kopier havner dermed på samme gitter som originalen, og når du tegner nye figurer, følger de også gitteret.

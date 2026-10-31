@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.11.2 build 0295] — 2026-10-31 — Tegn: zoom, tegnehjælp og hjælpelinjer øverst
+
+- `frontend/src/lib/draw/DrawCanvas.svelte`: linjen med zoom, tegnehjælp og hjælpelinjer er flyttet fra bunden op over tegnefladen (Jans ønske); værktøjets hjælpetekst bliver i bunden. Manual kap. 04.
+
 ## [3.11.1 build 0294] — 2026-10-31 — Rettet: skrå stykker i rør; værktøjet hedder nu Forbindelse
 
 - `frontend/svgedit-host/pipes.js`: `pipeCorners` genfinder knæk ud fra buerne (også når mellemstykket er 0 langt); `ensureOrthogonal`.
