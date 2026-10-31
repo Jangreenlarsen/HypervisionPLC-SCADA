@@ -2,6 +2,10 @@
 
 ---
 
+## v3.1.1 — 2026-10-31 — Rettelse i Tegn
+
+- **Esc** slår nu altid rør-værktøjet fra og går tilbage til Vælg, også hvis du lige har skrevet i søgefeltet eller i panelet *Egenskaber*. Det samme gælder de andre genvejstaster.
+
 ## v3.1.0 — 2026-10-31 — Bedre rør
 
 - **Bøjningsradius:** vælg et rør og skriv en radius i panelet *Egenskaber*, så får knækkene bløde bøjninger i stedet for skarpe 90°-hjørner. Nye rør får den radius, du senest har brugt.

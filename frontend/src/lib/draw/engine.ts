@@ -309,6 +309,12 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
   document.addEventListener('keyup', onSpace, o);
   workarea.addEventListener('wheel', onWheel, { signal: life.signal, passive: false });
   workarea.addEventListener('mousedown', onDown, { signal: life.signal, capture: true });
+  // Et klik i tegnefladen tager fokus fra felterne i panelerne (søgefelt, Egenskaber …) — ellers går Esc og de andre
+  // genvejstaster til feltet, fordi fx rør-værktøjet stopper klikkets standardhandling (BUGS.md v3.1.1)
+  workarea.addEventListener('mousedown', () => {
+    const a = document.activeElement;
+    if (a instanceof HTMLElement && a !== textInput && a !== document.body && !workarea.contains(a)) a.blur();
+  }, { signal: life.signal, capture: true });
   document.addEventListener('mousemove', onMove, o);
   // "Skalér symmetrisk": lærredet holder forholdet, når Shift er nede, mens der trækkes i et hjørne. Med indstillingen slået
   // til vendes det: symmetrisk uden Shift, frit med Shift (BUGS.md v3.0.0 — indstillingen fra v2.6.0 var aldrig koblet på).

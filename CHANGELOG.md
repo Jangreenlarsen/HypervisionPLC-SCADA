@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.1.1 build 0283] — 2026-10-31 — Rettet: Esc slog ikke rør-værktøjet fra
+
+- `frontend/src/lib/draw/engine.ts`: et klik i tegnefladen fjerner fokus fra felter i panelerne, så Esc og genvejstaster virker.
+
 ## [3.1.0 build 0282] — 2026-10-31 — Rør: bøjningsradius, rigtig indgang efter drejning, punkter fra stregerne
 
 - `frontend/svgedit-host/pipes.js`: `pathSegments`/`pathPoints` (alle stikommandoer), `portsFromVertices` (punkter fra stregerne), `sideDir`/`fracSide`/`turnDir` (retning der drejer med symbolet), `bestRoute`/`routeBetween`/`reroute`/`extendRoute` (vinkelret rute med lige stub ud af punktet), `pipePath`/`pipeCorners` (bløde bøjninger og genfinding af knæk); `simplify` fjerner ikke længere et punkt, hvor røret vender; referencen kan bære siden (`id@fx,fy,r`).
