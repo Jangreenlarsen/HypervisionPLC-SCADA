@@ -2,6 +2,10 @@
 
 ---
 
+## v3.12.5 — 2026-10-31 — Manualens billeder på GitHub
+
+- Billederne i manualen vises nu også, når manualen læses direkte på GitHub. I programmet er der ingen ændring.
+
 ## v3.12.4 — 2026-10-31 — Nye billeder i manualen
 
 - Manualens billeder af **Alarmer** og **Trends** er taget om, så de viser siderne, som de ser ud nu. Trends viser tankens 8 temperaturer over 7 dage.

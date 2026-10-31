@@ -15,15 +15,15 @@ Velkommen til **HypervisionPLC SCADA** — en webside, hvor du ser og betjener a
 
 ## Log ind
 
-![Login-siden med brugernavn og adgangskode](/manual/login.png)
+![Login-siden med brugernavn og adgangskode](../../public/manual/login.png)
 
 Skriv brugernavn og adgangskode. Er det første gang, eller har en administrator nulstillet din adgangskode, skal du vælge en ny (mindst 10 tegn), før du kommer videre. Du logges automatisk ud efter et stykke tids inaktivitet (standard 8 timer). Skift adgangskode eller log ud under **Bruger**.
 
 ## Menuen
 
-![Menuen Opsætning foldet ud, når musen peger på punktet](/manual/menu-opsaetning.png)
+![Menuen Opsætning foldet ud, når musen peger på punktet](../../public/manual/menu-opsaetning.png)
 
-![Menuen Bruger yderst til højre: navn og rolle, Manual, Skift adgangskode, Log ud og version](/manual/menu-bruger.png)
+![Menuen Bruger yderst til højre: navn og rolle, Manual, Skift adgangskode, Log ud og version](../../public/manual/menu-bruger.png)
 
 Øverst står fire menupunkter. Før musen hen over et punkt, så folder menuen sig ud af sig selv — vælg siden direkte. På en touch-skærm trykker du på punktet; **Escape** eller et klik udenfor lukker menuen igen.
 

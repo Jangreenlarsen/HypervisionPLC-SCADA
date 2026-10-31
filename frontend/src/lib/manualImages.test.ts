@@ -7,7 +7,8 @@ import { describe, expect, it } from 'vitest';
 
 const root = process.cwd();
 const md = readdirSync(join(root, 'src', 'manual')).filter((f) => f.endsWith('.md')).map((f) => readFileSync(join(root, 'src', 'manual', f), 'utf-8')).join('\n');
-const used = [...md.matchAll(/!\[([^\]]*)\]\(\/manual\/([^)]+)\)/g)].map((m) => ({ alt: m[1], file: m[2] }));
+// billederne står med den relative sti i repoet (../../public/manual/x.png), så de også virker på GitHub (v3.12.5)
+const used = [...md.matchAll(/!\[([^\]]*)\]\((?:\.\.\/)*public\/manual\/([^)]+)\)/g)].map((m) => ({ alt: m[1], file: m[2] }));
 
 describe('skærmbilleder i manualen', () => {
   it('der er billeder, og hvert har en billedtekst', () => {

@@ -4,7 +4,7 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 
 ## 1. Vis og betjen en pumpe
 
-![Eksempel 1: en pumpe på Overview — farven viser, om pumpen kører, og et klik åbner betjeningen](/manual/eksempel-pumpe.png)
+![Eksempel 1: en pumpe på Overview — farven viser, om pumpen kører, og et klik åbner betjeningen](../../public/manual/eksempel-pumpe.png)
 
 **Mål:** en pumpe på tegningen, der er grøn, når den kører, og som operatøren kan starte og stoppe.
 
@@ -21,7 +21,7 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 
 ## 2. Niveau i en tank med tal ved siden af
 
-![Eksempel 2: en tank, hvis fyld følger niveauet, med et statusfelt ved siden af](/manual/eksempel-tank.png)
+![Eksempel 2: en tank, hvis fyld følger niveauet, med et statusfelt ved siden af](../../public/manual/eksempel-tank.png)
 
 **Mål:** en tank der fyldes efter niveauet, og et felt der viser procenten.
 
@@ -32,7 +32,7 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 
 ## 3. 3-vejs motorventil (AB → A / AB → B)
 
-![Eksempel 3: Hurtig opsætning i guidens trin 4 — vælg retnings-tagget og tryk Opret animationer](/manual/guide-hurtig.png)
+![Eksempel 3: Hurtig opsætning i guidens trin 4 — vælg retnings-tagget og tryk Opret animationer](../../public/manual/guide-hurtig.png)
 
 **Mål:** vis om flowet går AB → A eller AB → B, styret af ét til/fra-signal.
 
@@ -44,7 +44,7 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 
 ## 4. Logikblok: lys i røret, når pumpen kører og ventilen er åben
 
-![Eksempel 4: en logikblok (AND) i guidens trin 4, der kombinerer to tags](/manual/guide-logik.png)
+![Eksempel 4: en logikblok (AND) i guidens trin 4, der kombinerer to tags](../../public/manual/guide-logik.png)
 
 **Mål:** et rør viser strømning, kun når **både** pumpen kører og ventilen er åben.
 
@@ -57,7 +57,7 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 
 ## 5. Setpunkt med beregning
 
-![Eksempel 5: tagget redigeres — Betjening, Min og Max sætter grænserne for, hvad operatøren må skrive](/manual/tag-redigeer.png)
+![Eksempel 5: tagget redigeres — Betjening, Min og Max sætter grænserne for, hvad operatøren må skrive](../../public/manual/tag-redigeer.png)
 
 **Mål:** operatøren indtaster en ønsket temperatur, som PLC'en gemmer i et register med én decimal for meget.
 
@@ -68,9 +68,9 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 
 ## 6. Alarm ved høj temperatur — og kurve
 
-![Eksempel 6: Alarmer — den aktive alarm kvitteres her](/manual/alarmer.png)
+![Eksempel 6: Alarmer — den aktive alarm kvitteres her](../../public/manual/alarmer.png)
 
-![Eksempel 6: Trends — kurven over temperaturen de seneste timer](/manual/trends.png)
+![Eksempel 6: Trends — kurven over temperaturen de seneste timer](../../public/manual/trends.png)
 
 **Mål:** alarm, når temperaturen er over 70 °C, og en kurve over de seneste timer.
 
@@ -82,15 +82,15 @@ Hvert eksempel følger samme forløb som resten af manualen. De forudsætter en 
 
 ## 7. Ugeprogram: komfort og nedsat
 
-![Eksempel 7: Ugeprogrammer — perioder for hverdage og weekend og en undtagelse](/manual/ugeprogrammer.png)
+![Eksempel 7: Ugeprogrammer — perioder for hverdage og weekend og en undtagelse](../../public/manual/ugeprogrammer.png)
 
 Se eksemplet i *Ugeprogrammer*. Kort: opret **+ Nyt ugeprogram**, vælg tagget, læg perioder ind for hverdage og weekend, sæt **Uden for perioderne**, tilføj en **undtagelse** for ferie, og tryk **Vis forhåndsvisning** før du gemmer.
 
 ## 8. Omskifter Hånd / 0 / Auto
 
-![Eksempel 8: omskifteren betjenes på Overview — den låste position har en hængelås](/manual/drift-dialog.png)
+![Eksempel 8: omskifteren betjenes på Overview — den låste position har en hængelås](../../public/manual/drift-dialog.png)
 
-![Eksempel 8: nøglelås på en position i guidens trin 5](/manual/guide-noeglelaas.png)
+![Eksempel 8: nøglelås på en position i guidens trin 5](../../public/manual/guide-noeglelaas.png)
 
 **Mål:** en omskifter, hvor operatøren vælger driftsform, som PLC'en gemmer i et register.
 
@@ -102,7 +102,7 @@ Se eksemplet i *Ugeprogrammer*. Kort: opret **+ Nyt ugeprogram**, vælg tagget, 
 
 ## 9. Eksternt Modbus-udstyr (RS485)
 
-![Eksempel 9: et tag på eksternt RS485-udstyr — kilden angiver slave og register](/manual/tag-ekstern.png)
+![Eksempel 9: et tag på eksternt RS485-udstyr — kilden angiver slave og register](../../public/manual/tag-ekstern.png)
 
 **Mål:** læs en temperaturføler, der sidder på PLC'ens RS485-bus.
 
@@ -112,7 +112,7 @@ Se eksemplet i *Ugeprogrammer*. Kort: opret **+ Nyt ugeprogram**, vælg tagget, 
 
 ## 10. Opdatér SCADA'en uden SSH
 
-![Eksempel 10: System › Opdatering — vælg pakken, kontrollér version og kontrolsum, og installér](/manual/opdatering.png)
+![Eksempel 10: System › Opdatering — vælg pakken, kontrollér version og kontrolsum, og installér](../../public/manual/opdatering.png)
 
 1. Byg pakken: `sh deploy/make-package.sh`.
 2. **System › Opdatering** → vælg filen → kontrollér version og kontrolsum.
@@ -120,7 +120,7 @@ Se eksemplet i *Ugeprogrammer*. Kort: opret **+ Nyt ugeprogram**, vælg tagget, 
 
 ## 11. Sæt op med en logikblok, der bruges i flere symboler
 
-![Eksempel 11: en animation med kilden "en logikblok" — blokke fra andre symboler kan vælges](/manual/guide-animation.png)
+![Eksempel 11: en animation med kilden "en logikblok" — blokke fra andre symboler kan vælges](../../public/manual/guide-animation.png)
 
 1. Lav blokken (fx *Anlæg klar* = AND af tre tags) i det **første** symbol, som du alligevel sætter op.
 2. I de **andre** symboler på samme tegning vælger du animationens kilde **en logikblok** → gruppen **Andre symboler**.

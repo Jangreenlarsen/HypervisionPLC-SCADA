@@ -1,6 +1,6 @@
 # Alarmer
 
-![Alarmer — fanen Aktive med prioritet, tilstand (aktiv/ophørt, kvitteret af hvem) og knapperne Kvittér og Kvittér alle](/manual/alarmer.png)
+![Alarmer — fanen Aktive med prioritet, tilstand (aktiv/ophørt, kvitteret af hvem) og knapperne Kvittér og Kvittér alle](../../public/manual/alarmer.png)
 
 Alarmklokken i topbjælken åbner siden **Alarmer**. Et **driftpanel** (uden topbjælke) åbner den med knappen *Gå til Alarmer* i tegningen og kan kvittere derfra.
 
@@ -14,7 +14,7 @@ Tryk **Kvittér** på en alarm for at sige, at du har set den, eller **Kvittér 
 
 ## Historik
 
-![Alarmer — fanen Historik: hvornår hver alarm opstod, ophørte og blev kvitteret](/manual/alarmer-historik.png)
+![Alarmer — fanen Historik: hvornår hver alarm opstod, ophørte og blev kvitteret](../../public/manual/alarmer-historik.png)
 
 Fanen **Historik** viser alle tidligere alarmer med tidspunkter for **udløsning**, **kvittering** (og hvem) og **ophør**.
 

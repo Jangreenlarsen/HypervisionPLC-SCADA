@@ -36,6 +36,14 @@ export function buildChapters(files: Record<string, string>): Chapter[] {
 }
 
 /** Markdown → ren HTML. Overskrifter (##, ###) får anker-id'er; alt renses, så intet kan køre script. */
+/**
+ * Billedets adresse i programmet. I markdown-filerne står billederne med den relative sti i repoet
+ * (`../../public/manual/x.png`), så de også vises, når filen læses på GitHub; serveren leverer dem på `/manual/x.png`.
+ */
+export function manualImageSrc(href: string): string {
+  return href.replace(/^(?:\.\.\/)*public\/manual\//, '/manual/');
+}
+
 export function renderMarkdown(md: string): string {
   const seen = new Map<string, number>();
   const marked = new Marked({
@@ -44,7 +52,7 @@ export function renderMarkdown(md: string): string {
       // Skærmbilleder: billedet med billedteksten (alt-teksten) under. Klik på et billede åbner det stort (Manual.svelte)
       image({ href, text }) {
         const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return `<figure><img src="${esc(href)}" alt="${esc(text)}" loading="lazy" decoding="async"><figcaption>${esc(text)}</figcaption></figure>`;
+        return `<figure><img src="${esc(manualImageSrc(href))}" alt="${esc(text)}" loading="lazy" decoding="async"><figcaption>${esc(text)}</figcaption></figure>`;
       },
       // Et afsnit der kun er et billede bliver til en figur uden <p> omkring (en <figure> må ikke ligge i et <p>)
       paragraph({ tokens }) {

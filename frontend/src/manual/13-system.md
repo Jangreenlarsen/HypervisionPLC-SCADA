@@ -4,13 +4,13 @@ Under **System** ligger Log, Brugere, Backup, Opdatering og Konfiguration. **Log
 
 ## Log
 
-![Log: tidspunkt, bruger, handling og resultat — med filter øverst](/manual/log.png)
+![Log: tidspunkt, bruger, handling og resultat — med filter øverst](../../public/manual/log.png)
 
 **Log** er systemets revisionsspor: **alle skrivninger til PLC'erne og alle ændringer af konfigurationen** — også afviste forsøg. Hver linje viser tidspunkt, bruger, handling, hvad den gjaldt og om det lykkedes. Brug filtrene (*Alt*, *Skrivninger*, *Til/fra*, *Pulser* og flere) til at indsnævre, og **Opdatér** for at hente nyt. Loggen kan ikke redigeres.
 
 ## Brugere
 
-![Brugere: roller, tegningsadgang, aktivér/deaktivér og oprettelse af en ny bruger](/manual/brugere.png)
+![Brugere: roller, tegningsadgang, aktivér/deaktivér og oprettelse af en ny bruger](../../public/manual/brugere.png)
 
 **Brugere** (admin) styrer, hvem der må hvad.
 
@@ -24,7 +24,7 @@ Under **System** ligger Log, Brugere, Backup, Opdatering og Konfiguration. **Log
 
 ## Backup
 
-![Backup: hent og gendan opsætningen, trend-historik og backup på serveren](/manual/backup.png)
+![Backup: hent og gendan opsætningen, trend-historik og backup på serveren](../../public/manual/backup.png)
 
 **Backup** (admin) beskytter din opsætning.
 
@@ -35,7 +35,7 @@ Under **System** ligger Log, Brugere, Backup, Opdatering og Konfiguration. **Log
 
 ## Opdatering
 
-![Opdatering: installeret version og upload af en ny pakke](/manual/opdatering.png)
+![Opdatering: installeret version og upload af en ny pakke](../../public/manual/opdatering.png)
 
 **Opdatering** (admin) installerer en ny version af SCADA'en direkte fra websiden — uden SSH.
 
@@ -56,7 +56,7 @@ Under **System** ligger Log, Brugere, Backup, Opdatering og Konfiguration. **Log
 
 ## Konfiguration
 
-![System › Konfiguration: lagring, trend-historik, netværk og genstart](/manual/konfiguration.png)
+![System › Konfiguration: lagring, trend-historik, netværk og genstart](../../public/manual/konfiguration.png)
 
 **Konfiguration** (admin) viser, hvor data ligger, hvor meget plads de fylder, og hvor meget der skrives til disken.
 
@@ -87,7 +87,7 @@ For at skåne SD-kortet kan historikken ligge på en **USB-SSD**:
 
 ### Netværksopsætning
 
-![Netværk: netkort, fast IP eller DHCP, gateway, DNS og værtsnavn](/manual/netvaerk.png)
+![Netværk: netkort, fast IP eller DHCP, gateway, DNS og værtsnavn](../../public/manual/netvaerk.png)
 
 Nederst på siden kan du sætte maskinens netværk. Vælg **netkort** og **tilstand**:
 

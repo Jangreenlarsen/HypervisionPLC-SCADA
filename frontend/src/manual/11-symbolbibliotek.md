@@ -5,7 +5,7 @@ Biblioteket har **96 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 
 ## Betjening (skriver til PLC)
 
-![Symbolerne i kategorien Betjening](/manual/bibliotek-betjening.png)
+![Symbolerne i kategorien Betjening](../../public/manual/bibliotek-betjening.png)
 
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
@@ -21,7 +21,7 @@ Biblioteket har **96 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 
 ## Proces og visning
 
-![Symbolerne i kategorien Proces og visning](/manual/bibliotek-proces.png)
+![Symbolerne i kategorien Proces og visning](../../public/manual/bibliotek-proces.png)
 
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
@@ -38,7 +38,7 @@ Biblioteket har **96 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 
 ## Rør og VVS
 
-![Symbolerne i kategorien Rør og VVS](/manual/bibliotek-vvs.png)
+![Symbolerne i kategorien Rør og VVS](../../public/manual/bibliotek-vvs.png)
 
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
@@ -78,7 +78,7 @@ Biblioteket har **96 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 
 ## Elektrisk
 
-![Symbolerne i kategorien Elektrisk](/manual/bibliotek-el.png)
+![Symbolerne i kategorien Elektrisk](../../public/manual/bibliotek-el.png)
 
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
@@ -110,7 +110,7 @@ Biblioteket har **96 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 
 ## Solcelleanlæg
 
-![Symbolerne i kategorien Solcelleanlæg](/manual/bibliotek-sol.png)
+![Symbolerne i kategorien Solcelleanlæg](../../public/manual/bibliotek-sol.png)
 
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
@@ -133,7 +133,7 @@ Biblioteket har **96 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 
 ## Genveje (gå til side)
 
-![Symbolerne i kategorien Genveje](/manual/bibliotek-genveje.png)
+![Symbolerne i kategorien Genveje](../../public/manual/bibliotek-genveje.png)
 
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |

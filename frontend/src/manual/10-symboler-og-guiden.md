@@ -13,21 +13,21 @@ Alle symboler i biblioteket sættes op på samme måde: med **guiden i 6 trin**.
 | **5. Betjening** | **Operatøren skal bekræfte** før der skrives. **Pulslængde** (trykknapper). **Nøglelås**: vælg hvilke positioner der kræver en **kode** (4 cifre) |
 | **6. Test og gem** | Se **live** værdier for signalerne og hvilken position PLC'en står på lige nu. En **skriveplan** viser præcis, hvad hver position vil skrive. Advarsler vises; **Gem** er kun muligt uden fejl |
 
-![Trin 1 — Symbol: vælg betjeningsform](/manual/guide-1.png)
+![Trin 1 — Symbol: vælg betjeningsform](../../public/manual/guide-1.png)
 
-![Trin 2 — Signaler: kommando, tilbagemelding og hvordan der skrives](/manual/guide-2.png)
+![Trin 2 — Signaler: kommando, tilbagemelding og hvordan der skrives](../../public/manual/guide-2.png)
 
-![Trin 3 — Kontakter: hvad hver position sætter (kontaktdiagrammet)](/manual/guide-3.png)
+![Trin 3 — Kontakter: hvad hver position sætter (kontaktdiagrammet)](../../public/manual/guide-3.png)
 
-![Trin 4 — Visning: hurtig opsætning, logikblokke og animationer](/manual/guide-4.png)
+![Trin 4 — Visning: hurtig opsætning, logikblokke og animationer](../../public/manual/guide-4.png)
 
-![Trin 5 — Betjening: bekræftelse og nøglelås](/manual/guide-5.png)
+![Trin 5 — Betjening: bekræftelse og nøglelås](../../public/manual/guide-5.png)
 
-![Trin 6 — Test og gem: live-værdier, fundet position og skriveplan](/manual/guide-6.png)
+![Trin 6 — Test og gem: live-værdier, fundet position og skriveplan](../../public/manual/guide-6.png)
 
 ## Betjeningsformer
 
-![Trin 1 med alle fire betjeningsformer vist: Kun passiv visning, Interaktiv betjening, Trykknap og Setpunkt](/manual/guide-former.png)
+![Trin 1 med alle fire betjeningsformer vist: Kun passiv visning, Interaktiv betjening, Trykknap og Setpunkt](../../public/manual/guide-former.png)
 
 | Form | Hvad den gør | Eksempel |
 | --- | --- | --- |
@@ -55,7 +55,7 @@ Skifter du tilbage til *Interaktiv betjening*, skal du vælge kommando-tags igen
 **Omskifterens tegning følger positionerne:** ændrer du antallet af positioner (eller navnene) på en omskifter, viser guiden i trin 3, at tegningen har andre positioner, og knappen **Gem og tegn omskifteren om**. Den gemmer opsætningen og tegner omskifteren om med de nye positioner, så navnene og grebets vinkler passer. Åbnede du guiden fra *Bindinger*, åbnes *Tegn* med omskifteren valgt, og den tegnes om dér; tegningen gemmes og udgives automatisk.
 
 
-![Trin 3 for en omskifter med 8 positioner: kontaktplaner for fem signaler og de aktive signaler pr. position](/manual/guide-kontaktplan.png)
+![Trin 3 for en omskifter med 8 positioner: kontaktplaner for fem signaler og de aktive signaler pr. position](../../public/manual/guide-kontaktplan.png)
 
 **Omskifterens tegning følger positionerne:** giver du en omskifter fra biblioteket flere positioner (eller andre navne) i guiden, end der står rundt om grebet i tegningen, så vælg omskifteren i **Tegn** — der står *Tegningen viser 3 positioner …* med knappen **Tegn omskifteren med N positioner**. Den tegner omskifteren igen med guidens navne (samme navn, placering og opsætning), gemmer og udgiver tegningen (du bliver spurgt), og retter grebets vinkel pr. position, så det peger på navnene.
 
@@ -78,7 +78,7 @@ En omskifter med tre positioner (*Fra*, *Auto*, *Hånd*) er sat op som **Interak
 | 3 · Kontakter | Fra = S1 0, S2 0 · Auto = S1 0, S2 1 · Hånd = S1 1, S2 0 |
 | 4 · Visning | *Vis: PLC'ens position*; grebet drejer efter **symbolets position**; løbelys efter `Pumpe_Drift`, blink efter `Pumpe_Fejl`, værdi efter `Temperatur` |
 
-![Sådan hænger det sammen: kommandoen skrives til PLC'en, tilbagemeldingen sammenlignes med kontaktplanen og giver PLC'ens position, som styrer animationerne med kilde "symbolets position" — de egne tags styrer deres animationer direkte](/manual/eksempel-vis-plc.png)
+![Sådan hænger det sammen: kommandoen skrives til PLC'en, tilbagemeldingen sammenlignes med kontaktplanen og giver PLC'ens position, som styrer animationerne med kilde "symbolets position" — de egne tags styrer deres animationer direkte](../../public/manual/eksempel-vis-plc.png)
 
 **Sådan virker det:**
 
@@ -87,7 +87,7 @@ En omskifter med tre positioner (*Fra*, *Auto*, *Hånd*) er sat op som **Interak
 - **Animationer med kilden *symbolets position*** (her grebets drej) følger altså det, PLC'en melder tilbage, ikke det operatøren valgte.
 - **Animationer med et eget tag** (løbelys, blink og værdi) følger kun deres eget tag. *Vis* har ingen betydning for dem. Har de *Gælder i* sat, bruges den viste position, altså PLC'ens.
 
-![Tidsforløb: efter valget venter symbolet i den gamle position, til tilbagemeldingen viser den nye — så skifter det og bliver bekræftet](/manual/eksempel-vis-forloeb.png)
+![Tidsforløb: efter valget venter symbolet i den gamle position, til tilbagemeldingen viser den nye — så skifter det og bliver bekræftet](../../public/manual/eksempel-vis-forloeb.png)
 
 **Når operatøren skifter position:** symbolet bliver stående i PLC'ens position og viser mærket *venter*, mens PLC'en udfører skiftet. Det springer altså ikke frem. Først når tilbagemeldingerne viser den nye position, skifter symbolet og bliver *bekræftet*. Kommer tilbagemeldingen aldrig, står symbolet stadig i PLC'ens position. Med *Vis: PLC'ens position* er der hverken afvigelsesalarm eller "PLC: …"-skygge, for symbolet viser altid PLC'ens virkelighed. Vil du se, at et valg ikke blev udført, så brug **Vis: Valgt position** (afvigelse og alarm efter *Tid til at bekræfte*).
 
@@ -102,7 +102,7 @@ En omskifter med tre positioner (*Fra*, *Auto*, *Hånd*) er sat op som **Interak
 
 ## Animationer i guiden (trin 4)
 
-![En animation i trin 4: grebet drejer efter symbolets position, med en vinkel pr. position og tegningens vinkler](/manual/guide-animation.png)
+![En animation i trin 4: grebet drejer efter symbolets position, med en vinkel pr. position og tegningens vinkler](../../public/manual/guide-animation.png)
 
 Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symbolet* …; dele uden et navn fra biblioteket vises efter deres form, fx *Ramme*, *Rektangel 2*, *Cirkel* eller *Tekst "STF"*, med det tekniske id i parentes), en **type** (*Farve, Blink, Synlig, Roterer, Blafrer, Niveau, Gennemsigtighed, Størrelse, Værdi, Drej, Flyt, Løbelys*) og en **kilde**:
 
@@ -124,7 +124,7 @@ Står flere animationer på samme del, **vinder den nederste** (▲▼ ændrer r
 
 ### Preview ved animationerne
 
-![Preview ved animationerne: omskifteren tegnet lille, med en knap pr. position, Afspil og Nulstil](/manual/guide-preview.png)
+![Preview ved animationerne: omskifteren tegnet lille, med en knap pr. position, Afspil og Nulstil](../../public/manual/guide-preview.png)
 
 Ved siden af animationerne i trin 4 står et lille **preview** af symbolet. Det viser alle animationerne samtidig, præcis som på Overview (også aktiv/passiv og "gælder i positionerne"), og opdaterer sig, hver gang du ændrer noget.
 
@@ -134,7 +134,7 @@ Preview'et er kun til at se på: det gemmer ikke noget, og der skrives intet til
 
 ### Logikblokke (betingelser på flere tags)
 
-![Sektionen Logik i trin 4 med en ny logikblok (AND/OR, NOT og op til 4 indgange)](/manual/guide-logik.png)
+![Sektionen Logik i trin 4 med en ny logikblok (AND/OR, NOT og op til 4 indgange)](../../public/manual/guide-logik.png)
 
 Vil du have en animation, der kun er aktiv, når **flere ting er sande** — fx *pumpen kører OG ventilen er åben* — laver du en **logikblok** i trin 4, sektionen **Logik**:
 
@@ -148,7 +148,7 @@ Vil du have en animation, der kun er aktiv, når **flere ting er sande** — fx 
 
 ## Betjening på tegningen: dialog eller venstre/højre
 
-![Trin 5 for en omskifter med Interaktiv betjening (venstre/højre side) valgt](/manual/guide-interaktiv.png)
+![Trin 5 for en omskifter med Interaktiv betjening (venstre/højre side) valgt](../../public/manual/guide-interaktiv.png)
 
 Har symbolet **positioner**, vælger du i trin 5 (*Betjening*), hvordan operatøren skifter position:
 
@@ -163,17 +163,17 @@ Et symbol med positioner viser et lille **mærke** i øverste højre hjørne på
 
 ## Nøglelås
 
-![Trin 5 med nøglelås: positionen Til er låst, og koden kræves også for at forlade den](/manual/guide-noeglelaas.png)
+![Trin 5 med nøglelås: positionen Til er låst, og koden kræves også for at forlade den](../../public/manual/guide-noeglelaas.png)
 
 I trin 5 kan du vælge de **positioner**, der kræver en **kode** (4 cifre). Operatøren skal indtaste koden, før den position kan vælges; **Koden kræves også for at forlade en låst position** er valgfrit. Koden gemmes kun som hash på serveren, vises aldrig igen og kommer ikke med i backup — efter en gendannelse skal den sættes igen. **Fjern kode** sletter den.
 
 På tegningen står en lille **hængelås** ud for teksten for hver låst position (fx ved *Auto* på en omskifter), og i betjeningsdialogen står 🔒 ved de låste positioner. Hængelåsen ved teksten kommer kun, når symbolet har en tekst med præcis positionens navn.
 
-![Omskifter på Overview: position 4 er låst og har en lille hængelås ved teksten; den stiplede ramme og "PLC: Fra" viser, at PLC'en står i en anden position](/manual/drift-laas.png)
+![Omskifter på Overview: position 4 er låst og har en lille hængelås ved teksten; den stiplede ramme og "PLC: Fra" viser, at PLC'en står i en anden position](../../public/manual/drift-laas.png)
 
 ## Hurtig opsætning: 3-vejs ventil
 
-![Hurtig opsætning af en 3-vejs ventil: vælg til/fra-tagget og tryk Opret animationer](/manual/guide-hurtig.png)
+![Hurtig opsætning af en 3-vejs ventil: vælg til/fra-tagget og tryk Opret animationer](../../public/manual/guide-hurtig.png)
 
 De to **3-vejs motorventiler** har en **Hurtig opsætning** øverst i trin 4: vælg det **til/fra-tag**, der styrer ventilen, og tryk **Opret animationer**. Så får du tre farve-animationer: **Til** = AB → A (Port A og AB åbne), **Fra** = AB → B (Port B og AB åbne); **Port AB** er altid åben. Virker også med en indgang, du kun kan læse. Er der intet skrivbart tag valgt, sættes symbolet til *Kun passiv visning*.
 
@@ -203,7 +203,7 @@ Tal-animationerne — *Niveau*, *Gennemsigtighed*, *Størrelse*, *Drej* og *Flyt
 
 ### Segment-display
 
-![Et 11-segment display i Symboltest: tallet 73 vist på de to højre cifre, de øvrige segmenter står slukket](/manual/display-symboltest.png)
+![Et 11-segment display i Symboltest: tallet 73 vist på de to højre cifre, de øvrige segmenter står slukket](../../public/manual/display-symboltest.png)
 
 Et **7-segment display** eller **11-segment display** (kategorien *Proces og visning*, eller *Display med egne cifre* i Tegn: 1–16 cifre) viser et tal-tag som lysende segmenter. Vælg **Kun passiv visning** i trin 1; guiden foreslår én animation, **Segmenter**, på *Hele symbolet*. I trin 4 vælger du **tallet** (et tal-tag) og:
 
@@ -270,7 +270,7 @@ Hvert symbol får sin **egen kopi** — du kan bagefter rette det enkelte symbol
 
 ## Symboltest
 
-![Symboltest: vælg et symbol, simulér tags og afprøv animationerne uden PLC](/manual/symboltest.png)
+![Symboltest: vælg et symbol, simulér tags og afprøv animationerne uden PLC](../../public/manual/symboltest.png)
 
 Siden **Symboltest** (rollen tekniker, under **Opsætning**) afprøver et biblioteksymbol uden PLC — med samme animationskode som Overview, så det du ser her, er det du får i tegningen. Intet gemmes.
 

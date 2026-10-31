@@ -1,6 +1,8 @@
 // Brugermanualen (v0.52.0): opbygning, rendering, søgning — og at alle menusider og symboler er omtalt.
 import { describe, expect, it } from 'vitest';
-import { buildChapters, highlight, renderMarkdown, searchChapters, slugify } from './manual';
+import { buildChapters, highlight, manualImageSrc, renderMarkdown, searchChapters, slugify } from './manual';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { NAV } from './nav';
 import { SYMBOLS } from './symbols';
 
@@ -42,7 +44,7 @@ describe('renderMarkdown', () => {
   });
 
   it('billeder bliver til figur med billedtekst (alt-teksten), og teksten escapes', () => {
-    const html = renderMarkdown('![Overview: <live> "værdier"](/manual/overview.png)');
+    const html = renderMarkdown('![Overview: <live> "værdier"](../../public/manual/overview.png)');
     expect(html).toContain('<figure>');
     expect(html).toContain('src="/manual/overview.png"');
     expect(html).toContain('<figcaption>Overview: &lt;live&gt;');
@@ -103,5 +105,22 @@ describe('manualens indhold', () => {
 
   it('alle kapitler kan gengives uden fejl', () => {
     for (const c of chapters) expect(renderMarkdown(c.md).length, c.slug).toBeGreaterThan(100);
+  });
+});
+
+describe('billeder i manualen (også på GitHub)', () => {
+  it('relativ repo-sti → serverens adresse; andre adresser uændrede', () => {
+    expect(manualImageSrc('../../public/manual/tegn.png')).toBe('/manual/tegn.png');
+    expect(manualImageSrc('/manual/tegn.png')).toBe('/manual/tegn.png');
+    expect(manualImageSrc('https://x/y.png')).toBe('https://x/y.png');
+  });
+  it('kapitlerne bruger relative stier (så de virker på GitHub), og hvert billede findes', () => {
+    for (const c of chapters) {
+      expect(c.md, c.slug).not.toMatch(/\]\(\/manual\//);
+      for (const m of c.md.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)) {
+        expect(m[1], `${c.slug}: ${m[1]}`).toMatch(/^\.\.\/\.\.\/public\/manual\/[\w-]+\.png$/);
+        expect(existsSync(join(process.cwd(), 'src', 'manual', m[1])), `${c.slug}: ${m[1]} findes ikke`).toBe(true);
+      }
+    }
   });
 });
