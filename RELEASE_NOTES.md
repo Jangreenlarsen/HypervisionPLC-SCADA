@@ -2,6 +2,13 @@
 
 ---
 
+## v3.1.0 — 2026-10-31 — Bedre rør
+
+- **Bøjningsradius:** vælg et rør og skriv en radius i panelet *Egenskaber*, så får knækkene bløde bøjninger i stedet for skarpe 90°-hjørner. Nye rør får den radius, du senest har brugt.
+- Rør sættes nu fast præcis ved symbolets rørender, fx spidsen på en ventil. Tekster ved symbolet (som "A", "B" og "AB") flytter ikke længere punktet.
+- Drejer eller spejler du et symbol, går røret ind fra den rigtige side, og røret går altid et stykke lige ud fra symbolet, før det knækker.
+- Siden *Symboler* viser de nye, mere præcise automatiske punkter.
+
 ## v3.0.0 — 2026-10-31 — Ny tegne-editor
 
 **Tegn** har fået en ny tegne-editor, bygget til SCADA-tegninger:

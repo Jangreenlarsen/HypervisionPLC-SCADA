@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.1.0 build 0282] — 2026-10-31 — Rør: bøjningsradius, rigtig indgang efter drejning, punkter fra stregerne
+
+- `frontend/svgedit-host/pipes.js`: `pathSegments`/`pathPoints` (alle stikommandoer), `portsFromVertices` (punkter fra stregerne), `sideDir`/`fracSide`/`turnDir` (retning der drejer med symbolet), `bestRoute`/`routeBetween`/`reroute`/`extendRoute` (vinkelret rute med lige stub ud af punktet), `pipePath`/`pipeCorners` (bløde bøjninger og genfinding af knæk); `simplify` fjerner ikke længere et punkt, hvor røret vender; referencen kan bære siden (`id@fx,fy,r`).
+- `frontend/svgedit-host/symbolPorts.js`: buer og cirkler med i hjørnepunkterne; `autoPortsWithSide`.
+- `frontend/svgedit-host/scada-core.js`: tilslutningspunkter med retning; rør-værktøj og "følg med" bruger retningen og lægger enden om, hvis røret kommer ind fra den forkerte side; `setPipeRadius`, `data-hv-radius`, nye rør får den senest brugte radius.
+- `frontend/src/lib/draw/Inspector.svelte`: feltet *Bøjningsradius* for rør.
+- Tests: `src/lib/pipes.test.ts`.
+
 ## [3.0.0 build 0281] — 2026-10-31 — Den nye tegne-editor er Tegn; SVG-Edit-appen er fjernet
 
 - **Breaking:** Tegn kører altid den nye editor (`?editor=ny` er ikke længere nødvendig). SVG-Edits brugerflade i en iframe er væk — med den forsvinder stjerne/polygon, formbiblioteket, pipetten, billedværktøjet, linealerne og SVG-Edits lag-panel. Tegningerne er uændrede (ren SVG); ingen migration.

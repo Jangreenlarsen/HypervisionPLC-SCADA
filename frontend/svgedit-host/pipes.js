@@ -18,7 +18,9 @@ export function simplify(points) {
       const a = out[out.length - 2];
       const b = out[out.length - 1];
       const straight = (Math.abs(a[0] - b[0]) < EPS && Math.abs(b[0] - p[0]) < EPS) || (Math.abs(a[1] - b[1]) < EPS && Math.abs(b[1] - p[1]) < EPS);
-      if (straight) { out[out.length - 1] = p; continue; }
+      // kun hvis røret fortsætter samme vej — vender det om (U på samme linje), er punktet et rigtigt knæk
+      const forward = (b[0] - a[0]) * (p[0] - b[0]) + (b[1] - a[1]) * (p[1] - b[1]) >= 0;
+      if (straight && forward) { out[out.length - 1] = p; continue; }
     }
     out.push(p);
   }
@@ -106,16 +108,19 @@ export function nearest(points, p, tol) {
   return best;
 }
 
-/** "<id>@<x>,<y>" ↔ { id, local: [x, y] } — null hvis teksten ikke er en gyldig reference. */
+/**
+ * "<id>@<fx>,<fy>[,<side>]" ↔ { id, local: [fx, fy], side } — side (l/r/t/b) er den kant, røret går ud fra (v3.1.0;
+ * ældre referencer uden side: null). Null hvis teksten ikke er en gyldig reference.
+ */
 export function parseRef(text) {
-  const m = /^(.+)@(-?[\d.]+(?:e[-+]?\d+)?),(-?[\d.]+(?:e[-+]?\d+)?)$/i.exec(String(text ?? ''));
+  const m = /^(.+)@(-?[\d.]+(?:e[-+]?\d+)?),(-?[\d.]+(?:e[-+]?\d+)?)(?:,([lrtb]))?$/i.exec(String(text ?? ''));
   if (!m) return null;
   const x = Number(m[2]);
   const y = Number(m[3]);
-  return Number.isFinite(x) && Number.isFinite(y) ? { id: m[1], local: [x, y] } : null;
+  return Number.isFinite(x) && Number.isFinite(y) ? { id: m[1], local: [x, y], side: m[4]?.toLowerCase() ?? null } : null;
 }
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
-export const formatRef = (id, frac) => `${id}@${r4(frac[0])},${r4(frac[1])}`;
+export const formatRef = (id, frac, side = null) => `${id}@${r4(frac[0])},${r4(frac[1])}${side ? `,${side}` : ''}`;
 
 /** Punkt i boksen → brøkdel (en boks uden bredde/højde giver midten). */
 export const toFrac = (p, box) => [box.w > 0 ? (p[0] - box.x) / box.w : 0.5, box.h > 0 ? (p[1] - box.y) / box.h : 0.5];
@@ -138,4 +143,241 @@ export function connect(a, b, axA, axB) {
   if (axA) return orthoLeg(a, b, axA);
   if (axB) return orthoLeg(a, b, axB === 'h' ? 'v' : 'h');
   return orthoLeg(a, b);
+}
+
+// ---------------------------------------------------------------- v3.1.0: retning, stub, radius og alle stikommandoer
+export const STUB = 20;   // røret går så langt lige ud fra et tilslutningspunkt, før det knækker
+
+/**
+ * Stiens segmenter: [{ type: 'L' | 'A' | 'C' | 'Q', from: [x, y], to: [x, y] }] — alle kommandoer (også buer og kurver),
+ * kun endepunkterne. Ugyldig sti → [].
+ */
+export function pathSegments(d) {
+  const tokens = String(d || '').match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g);
+  if (!tokens) return [];
+  const segs = [];
+  let i = 0, cmd = '', x = 0, y = 0, sx = 0, sy = 0;
+  const n = () => Number(tokens[i++]);
+  const counts = { M: 2, L: 2, H: 1, V: 1, Z: 0, A: 7, C: 6, S: 4, Q: 4, T: 2 };
+  while (i < tokens.length) {
+    if (/[a-zA-Z]/.test(tokens[i])) cmd = tokens[i++];
+    else if (cmd === 'm') cmd = 'l';
+    else if (cmd === 'M') cmd = 'L';
+    const U = cmd.toUpperCase();
+    if (!(U in counts)) return [];
+    const rel = cmd !== U;
+    const args = [];
+    for (let k = 0; k < counts[U]; k++) args.push(n());
+    if (args.some((v) => !Number.isFinite(v))) return [];
+    const from = [x, y];
+    let to;
+    if (U === 'M') {
+      to = rel ? [x + args[0], y + args[1]] : [args[0], args[1]];
+      [x, y] = to;
+      [sx, sy] = to;
+      continue;
+    }
+    if (U === 'H') to = [rel ? x + args[0] : args[0], y];
+    else if (U === 'V') to = [x, rel ? y + args[0] : args[0]];
+    else if (U === 'Z') to = [sx, sy];
+    else {
+      const ex = args[args.length - 2];
+      const ey = args[args.length - 1];
+      to = rel ? [x + ex, y + ey] : [ex, ey];
+    }
+    const type = U === 'H' || U === 'V' || U === 'L' || U === 'Z' ? 'L' : U === 'A' ? 'A' : U === 'S' ? 'C' : U === 'T' ? 'Q' : U;
+    segs.push({ type, from, to });
+    [x, y] = to;
+  }
+  return segs;
+}
+
+/** Alle endepunkter i en sti (også efter buer/kurver). */
+export function pathPoints(d) {
+  const segs = pathSegments(d);
+  if (!segs.length) return [];
+  return [segs[0].from, ...segs.map((s) => s.to)];
+}
+
+/**
+ * Tilslutningspunkter ud fra stregernes hjørnepunkter (ikke den samlede boks — tekster som "M" og "AB" må ikke flytte
+ * punkterne): for hver side af stregernes boks midten af de punkter, der ligger på kanten. → [{ p, side }].
+ */
+export function portsFromVertices(vertices, tol = 1.5) {
+  if (!vertices.length) return [];
+  const xs = vertices.map((v) => v[0]);
+  const ys = vertices.map((v) => v[1]);
+  const x1 = Math.min(...xs), x2 = Math.max(...xs), y1 = Math.min(...ys), y2 = Math.max(...ys);
+  const out = [];
+  const side = (name, onEdge, along, fixed) => {
+    const on = vertices.filter(onEdge);
+    if (!on.length) return;
+    const vals = on.map(along);
+    const mid = (Math.min(...vals) + Math.max(...vals)) / 2;
+    out.push({ p: fixed(mid), side: name });
+  };
+  if (x2 - x1 > tol) {
+    side('l', (v) => Math.abs(v[0] - x1) < tol, (v) => v[1], (m) => [x1, m]);
+    side('r', (v) => Math.abs(v[0] - x2) < tol, (v) => v[1], (m) => [x2, m]);
+  }
+  if (y2 - y1 > tol) {
+    side('t', (v) => Math.abs(v[1] - y1) < tol, (v) => v[0], (m) => [m, y1]);
+    side('b', (v) => Math.abs(v[1] - y2) < tol, (v) => v[0], (m) => [m, y2]);
+  }
+  return out;
+}
+
+const SIDE_DIR = { l: [-1, 0], r: [1, 0], t: [0, -1], b: [0, 1] };
+export const sideDir = (side) => SIDE_DIR[side] ?? [1, 0];
+
+/** Udadgående side for et punkt givet som brøkdel af boksen: nærmeste kant. */
+export function fracSide(frac) {
+  const [fx, fy] = frac;
+  const d = { l: fx, r: 1 - fx, t: fy, b: 1 - fy };
+  return Object.entries(d).sort((a, b) => a[1] - b[1])[0][0];
+}
+
+/** Retningsvektor efter symbolets matrix (drejning/spejling/skalering), afrundet til nærmeste akse. */
+export function turnDir(dir, m) {
+  const dx = m.a * dir[0] + m.c * dir[1];
+  const dy = m.b * dir[0] + m.d * dir[1];
+  return Math.abs(dx) >= Math.abs(dy) ? [Math.sign(dx) || 1, 0] : [0, Math.sign(dy) || 1];
+}
+
+export const axisOfDir = (dir) => (dir[0] ? 'h' : 'v');
+const plus = (p, dir, len) => [p[0] + dir[0] * len, p[1] + dir[1] * len];
+
+const DETOUR = 40;   // så langt ud til siden en U-omvej går
+const unit = (a, b) => {
+  const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  return [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
+};
+const dot = (u, v) => u[0] * v[0] + u[1] * v[1];
+
+/**
+ * Bedste vinkelrette vej fra S til E: første stykke må ikke gå imod `dirS` (ud af et punkt / videre fra forrige stykke),
+ * sidste stykke må ikke gå i `dirE`s retning (det ville komme ind gennem symbolet), og røret må aldrig vende oven i sig
+ * selv. Kandidater: lige, L (begge veje), Z (midtvejs) og U-omveje; kortest med færrest knæk vinder.
+ */
+export function bestRoute(S, dirS, E, dirE) {
+  const [sx, sy] = S;
+  const [ex, ey] = E;
+  const mx = (sx + ex) / 2, my = (sy + ey) / 2;
+  const lo = (u, v) => Math.min(u, v) - DETOUR, hi = (u, v) => Math.max(u, v) + DETOUR;
+  const cands = [
+    [S, E],
+    [S, [ex, sy], E], [S, [sx, ey], E],
+    [S, [mx, sy], [mx, ey], E], [S, [sx, my], [ex, my], E],
+    ...[lo(sy, ey), hi(sy, ey)].map((y) => [S, [sx, y], [ex, y], E]),
+    ...[lo(sx, ex), hi(sx, ex)].map((x) => [S, [x, sy], [x, ey], E]),
+    // ud langs dirS først, så rundt (når målet ligger bag punktet)
+    ...(dirS ? [lo(sy, ey), hi(sy, ey), lo(sx, ex), hi(sx, ex)].flatMap((v) => {
+      const o = [sx + dirS[0] * DETOUR, sy + dirS[1] * DETOUR];
+      return dirS[0] ? [[S, o, [o[0], v], [ex, v], E], [S, o, [o[0], ey], E]] : [[S, o, [v, o[1]], [v, ey], E], [S, o, [ex, o[1]], E]];
+    }) : []),
+  ];
+  let best = null;
+  let bestScore = Infinity;
+  for (const raw of cands) {
+    const pts = simplify(raw);
+    if (pts.length < 2 && !(Math.abs(sx - ex) < EPS && Math.abs(sy - ey) < EPS)) continue;
+    let ok = true;
+    let len = 0;
+    for (let i = 1; i < pts.length && ok; i++) {
+      if (!axisOf(pts[i - 1], pts[i])) { ok = false; break; }
+      const u = unit(pts[i - 1], pts[i]);
+      len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      if (i === 1 && dirS && dot(u, dirS) < -EPS) ok = false;
+      if (i === pts.length - 1 && dirE && dot(u, dirE) > EPS) ok = false;
+      if (i >= 2 && dot(u, unit(pts[i - 2], pts[i - 1])) < -EPS) ok = false;   // vender oven i sig selv
+    }
+    if (!ok) continue;
+    const score = len + 30 * (pts.length - 1);
+    if (score < bestScore) { best = pts; bestScore = score; }
+  }
+  return best ?? connect(S, E);
+}
+
+/**
+ * Rute fra a til b. `dirA`/`dirB` = udadgående retning ved et tilslutningspunkt (eller null): røret går STUB lige ud,
+ * før det knækker, så det aldrig går ind i symbolet fra siden eller bagfra.
+ */
+export function routeBetween(a, b, dirA = null, dirB = null) {
+  const sa = dirA ? plus(a, dirA, STUB) : a;
+  const sb = dirB ? plus(b, dirB, STUB) : b;
+  return simplify([a, ...bestRoute(sa, dirA, sb, dirB), b]);
+}
+
+/**
+ * Flyt en ende ('start'/'end') til p med udadgående retning `dir` (eller null): stykket hen til enden lægges om fra
+ * nærmeste knæk, så røret går lige ud af punktet. Resten af røret bevares.
+ */
+export function reroute(points, which, p, dir = null) {
+  const pts = which === 'start' ? [...points].reverse() : [...points];
+  const keep = pts.slice(0, -1);
+  if (keep.length >= 3) keep.pop();   // det gamle knæk ved enden lægges om
+  const anchor = keep[keep.length - 1];
+  const before = keep.length >= 2 ? keep[keep.length - 2] : null;
+  const sp = dir ? plus(p, dir, STUB) : p;
+  const leg = bestRoute(anchor, before ? unit(before, anchor) : null, sp, dir);
+  const res = simplify([...keep, ...leg.slice(1), ...(dir ? [p] : [])]);
+  return which === 'start' ? res.reverse() : res;
+}
+
+/**
+ * Knækpunkterne i et rør tegnet med bløde bøjninger (eller uden): de lige stykker forlænges til de mødes. Buer og kurver
+ * mellem lige stykker ignoreres.
+ */
+export function pipeCorners(d) {
+  const lines = pathSegments(d).filter((s) => s.type === 'L' && Math.hypot(s.to[0] - s.from[0], s.to[1] - s.from[1]) > 1e-6);
+  if (!lines.length) return pathPoints(d);
+  const pts = [lines[0].from];
+  for (let i = 1; i < lines.length; i++) {
+    const a = lines[i - 1];
+    const b = lines[i];
+    const ha = Math.abs(a.from[1] - a.to[1]) < 1e-6;   // vandret
+    const hb = Math.abs(b.from[1] - b.to[1]) < 1e-6;
+    if (ha && !hb) pts.push([b.from[0], a.from[1]]);
+    else if (!ha && hb) pts.push([a.from[0], b.from[1]]);
+    else pts.push(a.to);   // samme retning (eller skråt): stykkerne mødes i a's ende
+  }
+  pts.push(lines[lines.length - 1].to);
+  return simplify(pts);
+}
+
+/** Sti for røret med bløde bøjninger med radius r (0 = skarpe knæk). Radius begrænses af stykkernes længde. */
+export function pipePath(points, r = 0) {
+  const pts = simplify(points);
+  if (!(r > 0) || pts.length < 3) return pathD(pts);
+  let d = `M${r2(pts[0][0])} ${r2(pts[0][1])}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const a = pts[i - 1], c = pts[i], b = pts[i + 1];
+    const lin = Math.hypot(c[0] - a[0], c[1] - a[1]);
+    const lout = Math.hypot(b[0] - c[0], b[1] - c[1]);
+    // de mellemste stykker deles med naboknækket; ved enderne bevares mindst 20 % lige rør, så knækkene altid kan
+    // genfindes (pipeCorners) og røret går lige ind i tilslutningspunktet
+    const rr = Math.min(r, i === 1 ? lin * 0.8 : lin / 2, i === pts.length - 2 ? lout * 0.8 : lout / 2);
+    const u1 = [(c[0] - a[0]) / lin, (c[1] - a[1]) / lin];
+    const u2 = [(b[0] - c[0]) / lout, (b[1] - c[1]) / lout];
+    const p1 = [c[0] - u1[0] * rr, c[1] - u1[1] * rr];
+    const p2 = [c[0] + u2[0] * rr, c[1] + u2[1] * rr];
+    const sweep = u1[0] * u2[1] - u1[1] * u2[0] > 0 ? 1 : 0;
+    d += ` L${r2(p1[0])} ${r2(p1[1])} A${r2(rr)} ${r2(rr)} 0 0 ${sweep} ${r2(p2[0])} ${r2(p2[1])}`;
+  }
+  const z = pts[pts.length - 1];
+  return `${d} L${r2(z[0])} ${r2(z[1])}`;
+}
+
+/**
+ * Forlæng et rør under tegning hen til `target`. Første stykke går ud af startpunktets retning (`startDir`); slutter
+ * røret i et tilslutningspunkt, går det ind langs punktets retning (`endDir`). Senere stykker fortsætter videre fra det
+ * forrige uden at vende. → hele rørets punkter.
+ */
+export function extendRoute(points, target, startDir = null, endDir = null) {
+  if (points.length === 1) return routeBetween(points[0], target, startDir, endDir);
+  const last = points[points.length - 1];
+  const before = points[points.length - 2];
+  const sp = endDir ? plus(target, endDir, STUB) : target;
+  const leg = bestRoute(last, unit(before, last), sp, endDir);
+  return simplify([...points, ...leg.slice(1), ...(endDir ? [target] : [])]);
 }

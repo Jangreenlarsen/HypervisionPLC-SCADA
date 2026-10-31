@@ -8,6 +8,7 @@
     tag: string | null;
     box: { x: number; y: number; w: number; h: number };
     angle: number;
+    pipeRadius: number | null;
     paint: { fill: string; stroke: string; strokeWidth: number; opacity: number; fontSize: number | null; fontFamily: string | null; bold: boolean | null; rx: number | null } | null;
   }
   export interface InspectApi {
@@ -15,6 +16,7 @@
     setBox(field: 'x' | 'y' | 'w' | 'h', value: string, keepRatio?: boolean): { ok?: boolean; error?: string };
     setAngle(deg: string): { ok?: boolean; error?: string };
     setStyle(attr: string, value: string | null): { ok?: boolean; error?: string };
+    setPipeRadius(value: string): { ok?: boolean; error?: string };
   }
 
   let { api, rev, keepRatio = false }: { api: InspectApi | null; rev: number; keepRatio?: boolean } = $props();
@@ -54,7 +56,11 @@
       {#if info.count === 1}
         <label>∠ <input inputmode="decimal" value={info.angle} onchange={(e) => onField(e, (v) => api?.setAngle(v))} onkeydown={key} title="Drejning i grader" /></label>
       {/if}
-      {#if info.paint?.rx !== null && info.paint?.rx !== undefined}
+      {#if info.pipeRadius !== null}
+        <label>Bøjningsradius <input inputmode="decimal" value={info.pipeRadius} onchange={(e) => onField(e, (v) => api?.setPipeRadius(v))} onkeydown={key}
+               title="Bløde bøjninger i rørets knæk (0 = skarpe 90°-knæk). Nye rør får den senest brugte radius." /></label>
+      {/if}
+      {#if info.paint?.rx !== null && info.paint?.rx !== undefined && info.pipeRadius === null}
         <label>Hjørne <input inputmode="decimal" value={info.paint.rx} onchange={(e) => onField(e, (v) => api?.setStyle('rx', v === '0' ? null : v))} onkeydown={key} title="Afrundede hjørner (radius)" /></label>
       {/if}
     </div>

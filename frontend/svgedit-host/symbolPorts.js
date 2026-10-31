@@ -1,8 +1,7 @@
 // Tilslutningspunkter på symboler — fælles for Tegn (scada-core.js) og symbol-editoren (pages/SymbolEditor.svelte).
 // Et punkt er en brøkdel [fx, fy] af symbolets EGEN boks (getBBox på symbolets rod), så det følger symbolet, når det
 // flyttes, skaleres eller drejes. Rettede punkter bygges ind i symbolet ved indsættelse: data-hv-ports="fx,fy;fx,fy".
-import { pathVertices } from './snap.js';
-import { portsFrom, toFrac } from './pipes.js';
+import { pathPoints, portsFromVertices, toFrac } from './pipes.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
@@ -45,11 +44,11 @@ export function localVertices(root) {
   const inv = base ? inverse(M(base)) : null;
   if (!inv) return [];
   const out = [];
-  for (const e of [root, ...root.querySelectorAll('path, line, polyline, polygon, rect')]) {
+  for (const e of [root, ...root.querySelectorAll('path, line, polyline, polygon, rect, circle, ellipse')]) {
     const tag = e.tagName.toLowerCase();
     const n = (a) => Number(e.getAttribute(a)) || 0;
     let vs;
-    if (tag === 'path') vs = pathVertices(e.getAttribute('d')) || [];
+    if (tag === 'path') vs = pathPoints(e.getAttribute('d'));   // også buer og kurver (v3.1.0)
     else if (tag === 'line') vs = [[n('x1'), n('y1')], [n('x2'), n('y2')]];
     else if (tag === 'polyline' || tag === 'polygon') {
       const nums = (e.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
@@ -58,6 +57,10 @@ export function localVertices(root) {
     } else if (tag === 'rect') {
       const x = n('x'), y = n('y'), w = n('width'), h = n('height');
       vs = [[x, y + h / 2], [x + w, y + h / 2], [x + w / 2, y], [x + w / 2, y + h]];
+    } else if (tag === 'circle' || tag === 'ellipse') {
+      const cx = n('cx'), cy = n('cy');
+      const rx = tag === 'circle' ? n('r') : n('rx'), ry = tag === 'circle' ? n('r') : n('ry');
+      vs = [[cx - rx, cy], [cx + rx, cy], [cx, cy - ry], [cx, cy + ry]];
     } else continue;
     const own = e.getCTM?.();
     if (!own) continue;
@@ -77,12 +80,16 @@ export function boxOfRoot(root) {
   }
 }
 
-/** De automatisk fundne punkter som brøkdele (rørender på kanten + kantmidter). */
-export function autoPorts(root) {
+/**
+ * De automatisk fundne punkter: ud fra stregerne alene (tekster som "M" og "AB" tæller ikke med) — på hver side midten
+ * af de streg-endepunkter, der ligger på kanten. → [{ frac: [fx, fy], side }], brøkdele af rodens boks (getBBox).
+ */
+export function autoPortsWithSide(root) {
   const box = boxOfRoot(root);
   if (!box) return [];
-  return portsFrom(localVertices(root), box).map((p) => toFrac(p, box).map(r4));
+  return portsFromVertices(localVertices(root)).map(({ p, side }) => ({ frac: toFrac(p, box).map(r4), side }));
 }
+export const autoPorts = (root) => autoPortsWithSide(root).map((q) => q.frac);
 
 /** Kandidater at fange til i symbol-editoren: alle hjørnepunkter + kantmidter, som brøkdele inden for boksen. */
 export function snapCandidates(root) {

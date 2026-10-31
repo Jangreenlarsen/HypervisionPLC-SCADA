@@ -7,8 +7,8 @@ import {
 import { collectColors, recolorAttrs } from './colors.js';
 import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './names.js';
 import { boxMapping, distribute as distributeBoxes, editBox, round2 } from './edit.js';
-import { boxOfRoot, formatPorts, parsePorts, portAxis, localVertices as rootVertices } from './symbolPorts.js';
-import { PIPE_STYLE, connect, formatRef, fromFrac, moveEnd, nearest, orthoLeg, parseRef, pathD, portsFrom, simplify, toFrac } from './pipes.js';
+import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
+import { PIPE_STYLE, axisOfDir, extendRoute, formatRef, fracSide, fromFrac, nearest, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, turnDir } from './pipes.js';
 
 /**
  * @param {{ canvas(): any, loadFromString(svg: string): unknown, updateCanvas(): void, gridHost(): HTMLElement | null,
@@ -606,20 +606,14 @@ export function createScada(host) {
     const box = boxOfRoot(el);
     if (!box) return [];
     const m = toDocMatrix(el);
-    const turned = Math.abs(m.b) > Math.abs(m.a);   // drejet 90°: siden vender den anden vej
     // rettede punkter fra symbol-editoren (bygget ind ved indsættelse) går forud for de automatiske
     const fixed = parsePorts(el.getAttribute('data-hv-ports'));
-    if (fixed) {
-      return fixed.map((frac) => {
-        const local = fromFrac(frac, box);
-        const ax = portAxis(frac);
-        return { local, frac, doc: toPoint(m, local), axis: turned ? (ax === 'h' ? 'v' : 'h') : ax };
-      });
-    }
-    return portsFrom(rootVertices(el), box).map((local) => {
-      const side = Math.abs(local[0] - box.x) < 1.5 || Math.abs(local[0] - box.x - box.w) < 1.5;
-      const doc = toPoint(m, local);
-      return { local, frac: toFrac(local, box), doc, axis: side !== turned ? 'h' : 'v' };
+    const list = fixed ? fixed.map((frac) => ({ frac, side: fracSide(frac) })) : autoPortsWithSide(el);
+    return list.map(({ frac, side }) => {
+      const local = fromFrac(frac, box);
+      // udadgående retning — drejer og spejler med symbolet, så røret altid går ind fra den rigtige side
+      const dir = turnDir(sideDir(side), m);
+      return { local, frac, side, doc: toPoint(m, local), dir, axis: axisOfDir(dir) };
     });
   }
 
@@ -630,11 +624,18 @@ export function createScada(host) {
       el.id && el.id !== 'baggrund' && !isPipe(el) && !RESERVED.has(el.tagName.toLowerCase()) && el.getAttribute('display') !== 'none');
   }
 
+  /** Rørets knækpunkter (også når det er tegnet med bløde bøjninger). */
   function pipePoints(el) {
-    return (pathVertices(el.getAttribute('d')) || []).map(([x, y]) => [x, y]);
+    return pipeCorners(el.getAttribute('d'));
+  }
+  const radiusOf = (el) => Math.max(0, Number(el.getAttribute('data-hv-radius')) || 0);
+  /** Tegn røret ud fra knækpunkterne med rørets bøjningsradius. */
+  function drawPipe(el, pts) {
+    const d = pipePath(pts, radiusOf(el));
+    if (d !== el.getAttribute('d')) el.setAttribute('d', d);
   }
 
-  /** Hvor rørets ende skal være nu (tegningens koordinater), eller null hvis den ikke sidder fast. */
+  /** Hvor rørets ende skal være nu: { p, dir } i tegningens koordinater, eller null hvis den ikke sidder fast. */
   function endTarget(el, attr) {
     const ref = parseRef(el.getAttribute(attr));
     if (!ref) return null;
@@ -642,7 +643,9 @@ export function createScada(host) {
     if (!sym) return null;   // symbolet er slettet: enden bliver hvor den er
     let bb;
     try { bb = sym.getBBox(); } catch { return null; }
-    return toPoint(toDocMatrix(sym), fromFrac(ref.local, { x: bb.x, y: bb.y, w: bb.width, h: bb.height }));
+    const m = toDocMatrix(sym);
+    const dir = turnDir(sideDir(ref.side ?? fracSide(ref.local)), m);
+    return { p: toPoint(m, fromFrac(ref.local, { x: bb.x, y: bb.y, w: bb.width, h: bb.height })), dir };
   }
 
   /**
@@ -663,7 +666,7 @@ export function createScada(host) {
         const pts = pipePoints(el);
         const ends = { 'data-hv-from': pts[0], 'data-hv-to': pts[pts.length - 1] };
         for (const attr of ['data-hv-from', 'data-hv-to']) {
-          const target = endTarget(el, attr);
+          const target = endTarget(el, attr)?.p;
           const end = ends[attr];
           if (target && end && Math.hypot(target[0] - end[0], target[1] - end[1]) > 0.5) el.removeAttribute(attr);
         }
@@ -674,10 +677,15 @@ export function createScada(host) {
         const from = endTarget(el, 'data-hv-from');
         const to = endTarget(el, 'data-hv-to');
         const off = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) > 0.01;
-        if (from && off(from, pts[0])) pts = moveEnd(pts, 'start', from);
-        if (to && off(to, pts[pts.length - 1])) pts = moveEnd(pts, 'end', to);
-        const d = pathD(pts);
-        if (d !== el.getAttribute('d')) el.setAttribute('d', d);
+        // går det sidste stykke ind i punktet fra den forkerte side (fx efter drejning), lægges enden også om
+        const wrongWay = (end, prev, dir) => {
+          const dx = end[0] - prev[0], dy = end[1] - prev[1];
+          return dx * dir[0] + dy * dir[1] > 0.01;   // bevæger sig udad ind i punktet = kommer gennem symbolet
+        };
+        if (from && (off(from.p, pts[0]) || wrongWay(pts[0], pts[1], from.dir))) pts = reroute(pts, 'start', from.p, from.dir);
+        const n = pts.length;
+        if (to && (off(to.p, pts[n - 1]) || wrongWay(pts[n - 1], pts[n - 2], to.dir))) pts = reroute(pts, 'end', to.p, to.dir);
+        drawPipe(el, pts);
       }
       const changed = Object.entries(before).some(([k, v]) => el.getAttribute(k) !== v);
       if (changed) batch.addSubCommand(new c.history.ChangeElementCommand(el, before));
@@ -711,7 +719,8 @@ export function createScada(host) {
   }
 
   // ---- værktøjet: klik punkter, klik på et tilslutningspunkt (eller dobbeltklik/Enter) for at slutte, Escape fortryder
-  const pipeTool = { on: false, pts: [], from: null, fromAxis: null, cursor: null, hover: null, ports: [], overlay: null, life: null };
+  const pipeDefaults = { radius: 0 };   // bøjningsradius for nye rør (senest brugte)
+  const pipeTool = { on: false, pts: [], from: null, fromDir: null, cursor: null, hover: null, ports: [], overlay: null, life: null };
 
   /**
    * Skærmpunkt → tegningens koordinater, beregnet frisk som lærredet gør det (første gruppe i tegningen). Ikke
@@ -733,11 +742,9 @@ export function createScada(host) {
     if (guides.snapGrid) return { p: [Math.round(raw[0] / guides.step) * guides.step, Math.round(raw[1] / guides.step) * guides.step], port: null };
     return { p: raw, port: null };
   }
-  /** Stykket hen til p. Fra et tilslutningspunkt går røret ud i punktets retning; ind i et punkt rammer det i punktets retning. */
-  function legTo(p, port = null) {
-    const pts = pipeTool.pts;
-    const last = pts[pts.length - 1];
-    return connect(last, p, pts.length === 1 ? pipeTool.fromAxis ?? undefined : undefined, port?.axis);
+  /** Røret forlænget hen til p: ud af startpunktets retning, ind i et punkt langs dets retning (pipes.js extendRoute). */
+  function routeTo(p, port = null) {
+    return extendRoute(pipeTool.pts, p, pipeTool.fromDir, port?.dir ?? null);
   }
 
   function drawPipeOverlay() {
@@ -769,9 +776,10 @@ export function createScada(host) {
     }).join('');
     let preview = '';
     if (pipeTool.pts.length) {
-      const pts = pipeTool.cursor ? simplify([...pipeTool.pts, ...legTo(pipeTool.cursor, pipeTool.hover).slice(1)]) : pipeTool.pts;
-      preview = `<path d="${pathD(pts)}" fill="none" stroke="${PIPE_STYLE.stroke}" stroke-opacity=".55" stroke-width="${PIPE_STYLE['stroke-width']}"/>` +
-        `<path d="${pathD(pts)}" fill="none" stroke="#2e7d32" stroke-width="${1.5 / z}" stroke-dasharray="${4 / z} ${3 / z}"/>`;
+      const pts = pipeTool.cursor ? routeTo(pipeTool.cursor, pipeTool.hover) : pipeTool.pts;
+      const d = pipePath(pts, pipeDefaults.radius);
+      preview = `<path d="${d}" fill="none" stroke="${PIPE_STYLE.stroke}" stroke-opacity=".55" stroke-width="${PIPE_STYLE['stroke-width']}"/>` +
+        `<path d="${d}" fill="none" stroke="#2e7d32" stroke-width="${1.5 / z}" stroke-dasharray="${4 / z} ${3 / z}"/>`;
     }
     layer.innerHTML = preview + dots;
   }
@@ -782,13 +790,14 @@ export function createScada(host) {
     const fromRef = pipeTool.from;
     const toRef = pipeTool.to ?? null;
     pipeTool.pts = [];
-    pipeTool.from = pipeTool.fromAxis = pipeTool.to = null;
+    pipeTool.from = pipeTool.fromDir = pipeTool.to = null;
     if (pts.length >= 2) {
       const el = document.createElementNS(NS, 'path');
       el.setAttribute('id', c.getNextId());
       for (const [k, v] of Object.entries(PIPE_STYLE)) el.setAttribute(k, v);
-      el.setAttribute('d', pathD(pts));
       el.setAttribute('data-hv-pipe', '1');
+      if (pipeDefaults.radius > 0) el.setAttribute('data-hv-radius', String(pipeDefaults.radius));
+      el.setAttribute('d', pipePath(pts, pipeDefaults.radius));
       if (fromRef) el.setAttribute('data-hv-from', fromRef);
       if (toRef) el.setAttribute('data-hv-to', toRef);
       // bag de symboler det forbinder (rør ligger under ventiler, pumper …)
@@ -827,14 +836,14 @@ export function createScada(host) {
       const { p, port } = snapPipePoint(docPoint(e));
       if (!pipeTool.pts.length) {
         pipeTool.pts = [p];
-        pipeTool.from = port ? formatRef(port.id, port.frac) : null;
-        pipeTool.fromAxis = port?.axis ?? null;
+        pipeTool.from = port ? formatRef(port.id, port.frac, port.side) : null;
+        pipeTool.fromDir = port?.dir ?? null;
       } else if (e.detail >= 2) {
         finishPipe();
         return;
       } else {
-        pipeTool.pts = simplify([...pipeTool.pts, ...legTo(p, port).slice(1)]);
-        if (port) { pipeTool.to = formatRef(port.id, port.frac); finishPipe(); return; }
+        pipeTool.pts = routeTo(p, port);
+        if (port) { pipeTool.to = formatRef(port.id, port.frac, port.side); finishPipe(); return; }
       }
       drawPipeOverlay();
     }, opts);
@@ -991,7 +1000,26 @@ export function createScada(host) {
         box: { x: round2(box.x), y: round2(box.y), w: round2(box.w), h: round2(box.h) },
         angle: one ? round2(canvas().getRotationAngle(one) || 0) : 0,
         paint: one && one.tagName !== 'g' ? paintOf(one) : null,
+        pipeRadius: one && isPipe(one) ? radiusOf(one) : null,
       };
+    },
+
+    /** Bøjningsradius på de valgte rør (0 = skarpe knæk); bruges også til nye rør. */
+    setPipeRadius(value) {
+      const r = Number(value);
+      if (!Number.isFinite(r) || r < 0 || r > 500) return { error: 'Radius skal være et tal mellem 0 og 500' };
+      const pipes = selectedEls().filter(isPipe);
+      if (!pipes.length) return { error: 'Vælg et rør' };
+      const snap = snapshot(pipes);
+      for (const el of pipes) {
+        const pts = pipePoints(el);
+        if (r > 0) el.setAttribute('data-hv-radius', String(r)); else el.removeAttribute('data-hv-radius');
+        drawPipe(el, pts);
+      }
+      pipeDefaults.radius = r;
+      commitSnapshot(snap, 'Bøjningsradius');
+      afterEdit();
+      return { ok: true };
     },
 
     /** Sæt x, y, bredde eller højde på markeringen (som én enhed). Drejede elementer kan kun flyttes. */
