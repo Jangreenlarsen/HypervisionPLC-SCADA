@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.3.0 build 0285] — 2026-10-31 — Genforbind rør: håndtag på rørets ender
+
+- `frontend/svgedit-host/scada-core.js`: håndtag på det valgte rørs ender (`drawHandles`, `startHandleDrag`) — træk på et tilslutningspunkt sætter enden fast (reroute + reference), andetsteds bliver den fri; ét fortryd-trin. `followPipes`: en flyttet rør-ende inden for 6 enheder af et punkt sættes fast igen (`portNear`).
+- Manual kap. 04.
+
 ## [3.2.0 build 0284] — 2026-10-31 — T-stykke: rør koblet på rør
 
 - `frontend/svgedit-host/pipes.js`: `nearestOnRoute`, `splitRoute`, `sideToward`, `branchSide`; `reroute` prøver alle ankerpunkter (et gammelt knæk bag det nye punkt gav en sløjfe, når et T-stykke blev flyttet).

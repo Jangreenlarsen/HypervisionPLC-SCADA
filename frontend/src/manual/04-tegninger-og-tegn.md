@@ -42,6 +42,8 @@ Værktøjet **Rør** (O) tegner rør, der altid går vandret eller lodret. Klik 
 
 Grønne prikker viser symbolernes **tilslutningspunkter**. Starter eller slutter du røret på en prik, sidder røret fast: flytter, drejer eller ændrer du størrelse på symbolet, følger røret med (og Ctrl+Z fortryder begge dele på én gang). Mellem to sidepunkter laves et pænt Z-formet rør. Nye rør lægges bag de symboler, de forbinder. Flytter du selve røret væk fra symbolet, slipper det. Røret kan få **løbelys** som andre elementer: giv det et navn, og sæt det op med guiden.
 
+**Sæt et rør fast igen:** vælg røret — enderne får et lille håndtag: **grønt** = sidder fast, **orange** = fri. Træk et håndtag hen på et tilslutningspunkt (grøn prik), så sættes enden fast dér, og det sidste stykke lægges om. Slipper du et andet sted, bliver enden fri. Flytter du et helt rør, så en ende lander på et tilslutningspunkt, sættes den fast af sig selv.
+
 **Bøjningsradius:** vælg et rør, og skriv en radius i *Egenskaber* — så får knækkene bløde bøjninger. Nye rør får den senest brugte radius.
 
 **T-stykke (rør på rør):** starter eller slutter du et rør på et eksisterende rør (en **orange prik** viser stedet), deles røret, og bibliotekets **T-stykke** sættes ind dér — drejet, så gennemløbet følger røret og grenen vender mod det nye rør. Alle tre rør sidder fast i T-stykket og følger med, når du flytter det. T-stykkets tre ben (*tilløb 1*, *tilløb 2* og *midte*) kan få hvert sit løbelys i guiden. Det oprindelige rør beholder sit navn og sin opsætning på den første halvdel. **Ctrl+Z** fortryder røret og T-stykket samlet.

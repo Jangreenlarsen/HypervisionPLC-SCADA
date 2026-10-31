@@ -341,6 +341,7 @@ export function createScada(host) {
       if (prevSelected) prevSelected(win, elems);
       rememberBoxes();
       if (selectionListener) selectionListener(currentSelection());
+      drawHandles();
     });
     const prevChanged = c.bind('changed', (win, elems) => {
       // før editorens egen håndtering: den skriver contentW/H tilbage i viewBox (updateCanvas)
@@ -348,11 +349,12 @@ export function createScada(host) {
       if (prevChanged) prevChanged(win, elems);
       if (changeListener) changeListener();
       if (selectionListener) selectionListener(currentSelection());
+      drawHandles();
     });
     // SVG-Edit sender ikke 'changed' efter en flytning med musen, så vi lytter selv på museknappen (efter editorens egen
     // håndtering): ved nedtryk huskes de valgte elementers placering, ved slip fanges der — hvis det var et træk.
     document.addEventListener('mousedown', () => setTimeout(rememberBoxes, 0), { capture: true, signal: life.signal });
-    document.addEventListener('mouseup', () => setTimeout(() => { if (!snapping) settleAfterMouseUp(); }, 0), { capture: true, signal: life.signal });
+    document.addEventListener('mouseup', () => setTimeout(() => { if (!snapping) settleAfterMouseUp(); drawHandles(); }, 0), { capture: true, signal: life.signal });
     // Indsæt og dupliker (Ctrl+V, Ctrl+D): kopien lægges på gitteret, så den passer sammen med originalen
     for (const name of ['pasteElements', 'cloneSelectedElements']) {
       const original = c[name];
@@ -669,6 +671,14 @@ export function createScada(host) {
           const target = endTarget(el, attr)?.p;
           const end = ends[attr];
           if (target && end && Math.hypot(target[0] - end[0], target[1] - end[1]) > 0.5) el.removeAttribute(attr);
+          // fri ende, der er landet på et tilslutningspunkt: sæt den fast igen (v3.3.0)
+          if (end && !el.hasAttribute(attr)) {
+            const hit = portNear(end, RECONNECT_TOL);
+            if (hit) {
+              el.setAttribute(attr, formatRef(hit.id, hit.frac, hit.side));
+              drawPipe(el, reroute(pipePoints(el), attr === 'data-hv-from' ? 'start' : 'end', hit.doc, hit.dir));
+            }
+          }
         }
       } else {
         if (el.getAttribute('transform')) continue;   // et transformeret rør (sjældent): rør det ikke
@@ -716,6 +726,111 @@ export function createScada(host) {
       }
     };
     um.__hvPipes = true;
+  }
+
+  // ---- genforbind: håndtag på det valgte rørs ender (v3.3.0)
+  const RECONNECT_TOL = 6;   // en flyttet rør-ende inden for så mange enheder af et punkt sættes fast igen
+  /** Alle tilslutningspunkter i tegningen (med symbolets id). */
+  const allPorts = () => pipeTargets().flatMap((el) => portsOf(el).map((q) => ({ ...q, id: el.id })));
+  function portNear(p, tol) {
+    let best = null;
+    for (const q of allPorts()) {
+      const d = Math.hypot(q.doc[0] - p[0], q.doc[1] - p[1]);
+      if (d <= tol && (!best || d < best.d)) best = { ...q, d };
+    }
+    return best;
+  }
+
+  const handles = { layer: null, drag: null };
+  function selectedPipe() {
+    const sel = selectedEls();
+    return sel.length === 1 && isPipe(sel[0]) && !sel[0].getAttribute('transform') ? sel[0] : null;
+  }
+
+  /** Tegn håndtagene (og under træk: punkterne og det nye forløb). */
+  function drawHandles() {
+    const gridHost = host.gridHost();
+    const content = canvas()?.getSvgContent?.();
+    if (!gridHost || !content) return;
+    const el = handles.drag?.el ?? (pipeTool.on ? null : selectedPipe());
+    if (!el) { handles.layer?.remove(); handles.layer = null; return; }
+    let layer = handles.layer;
+    if (!layer) {
+      layer = document.createElementNS(NS, 'svg');
+      layer.setAttribute('id', 'hvPipeHandles');
+      layer.style.cssText = 'position:absolute; pointer-events:none; z-index:56; overflow:visible;';
+      gridHost.appendChild(layer);
+      handles.layer = layer;
+      layer.addEventListener('mousedown', startHandleDrag);
+    }
+    const hr = gridHost.getBoundingClientRect();
+    const cr = contentRect(content);
+    const vb = (content.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    layer.style.left = `${cr.left - hr.left + gridHost.scrollLeft}px`;
+    layer.style.top = `${cr.top - hr.top + gridHost.scrollTop}px`;
+    layer.setAttribute('width', cr.width);
+    layer.setAttribute('height', cr.height);
+    if (vb.length === 4) layer.setAttribute('viewBox', vb.join(' '));
+    const z = canvas().getZoom() || 1;
+    const drag = handles.drag;
+    const pts = drag ? drag.preview : pipePoints(el);
+    let out = '';
+    if (drag) {
+      out += drag.ports.map((q) => {
+        const hot = drag.hit && q.doc === drag.hit.doc;
+        return `<circle cx="${q.doc[0]}" cy="${q.doc[1]}" r="${(hot ? 7 : 4) / z}" fill="${hot ? '#2e7d32' : '#fff'}" stroke="#2e7d32" stroke-width="${1.5 / z}"/>`;
+      }).join('');
+      out += `<path d="${pipePath(pts, radiusOf(el))}" fill="none" stroke="#2e7d32" stroke-width="${2 / z}" stroke-dasharray="${5 / z} ${3 / z}"/>`;
+    }
+    for (const which of ['start', 'end']) {
+      const p = which === 'start' ? pts[0] : pts[pts.length - 1];
+      if (!p) continue;
+      const attr = which === 'start' ? 'data-hv-from' : 'data-hv-to';
+      const fixed = !drag && el.hasAttribute(attr);
+      out += `<rect data-end="${which}" x="${p[0] - 6 / z}" y="${p[1] - 6 / z}" width="${12 / z}" height="${12 / z}" ` +
+        `fill="${fixed ? '#2e7d32' : '#ef6c00'}" stroke="#fff" stroke-width="${1.5 / z}" style="pointer-events:all; cursor:move">` +
+        `<title>${fixed ? 'Sidder fast — træk for at flytte enden til et andet punkt' : 'Fri ende — træk hen på et tilslutningspunkt for at sætte den fast'}</title></rect>`;
+    }
+    layer.innerHTML = out;
+  }
+
+  function startHandleDrag(e) {
+    const which = e.target?.getAttribute?.('data-end');
+    const el = selectedPipe();
+    if (!which || !el || e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const base = pipePoints(el);
+    handles.drag = { el, which, base, preview: base, hit: null, ports: allPorts() };
+    const life = new AbortController();
+    const move = (ev) => {
+      const raw = docPoint(ev);
+      const z = canvas().getZoom() || 1;
+      const hit = nearest(handles.drag.ports.map((q) => q.doc), raw, 12 / z);
+      const port = hit ? handles.drag.ports.find((q) => q.doc === hit) : null;
+      const p = port ? port.doc : guides.snapGrid ? raw.map((v) => Math.round(v / guides.step) * guides.step) : raw;
+      handles.drag.hit = port;
+      handles.drag.preview = reroute(base, which, p, port?.dir ?? null);
+      drawHandles();
+    };
+    const up = () => {
+      life.abort();
+      const d = handles.drag;
+      handles.drag = null;
+      if (d && d.preview !== d.base) {
+        const attr = which === 'start' ? 'data-hv-from' : 'data-hv-to';
+        const snap = snapshot([el]);
+        drawPipe(el, d.preview);
+        if (d.hit) el.setAttribute(attr, formatRef(d.hit.id, d.hit.frac, d.hit.side));
+        else el.removeAttribute(attr);
+        commitSnapshot(snap, d.hit ? 'Rør sat fast' : 'Rør-ende flyttet');
+        afterEdit();
+      }
+      drawHandles();
+    };
+    document.addEventListener('mousemove', move, { signal: life.signal, capture: true });
+    document.addEventListener('mouseup', up, { signal: life.signal, capture: true });
+    drawHandles();
   }
 
   // ---- værktøjet: klik punkter, klik på et tilslutningspunkt (eller dobbeltklik/Enter) for at slutte, Escape fortryder
@@ -936,8 +1051,9 @@ export function createScada(host) {
     pipeTool.life?.abort();
     pipeTool.pts = [];
     pipeTool.cursor = pipeTool.hover = null;
-    if (!on) { drawPipeOverlay(); return; }
+    if (!on) { drawPipeOverlay(); drawHandles(); return; }
     if (modeListener) modeListener('pipe');
+    handles.layer?.remove(); handles.layer = null;
     const c = canvas();
     c.clearSelection();
     // tilslutningspunkter: symbolets id skal kunne findes igen fra punktet
@@ -1011,6 +1127,7 @@ export function createScada(host) {
     return true;
   }
   function afterEdit() {
+    queueMicrotask(() => drawHandles());
     const c = canvas();
     for (const el of selectedEls()) c.selectorManager.requestSelector(el).resize();
     rememberBoxes();
@@ -1108,7 +1225,7 @@ export function createScada(host) {
     /** Rør-værktøjet til/fra (den nye editor). Mens det er til, tager det musen fra lærredet. */
     setPipeTool(on) { setPipeTool(!!on); },
     /** Tegn rørværktøjets lag igen (efter zoom/rulning). */
-    redrawPipes() { if (pipeTool.on) drawPipeOverlay(); },
+    redrawPipes() { if (pipeTool.on) drawPipeOverlay(); drawHandles(); },
 
     /** Det markerede til panelet: samlet boks (tegningens koordinater), vinkel og stil for ét element. */
     inspect() {

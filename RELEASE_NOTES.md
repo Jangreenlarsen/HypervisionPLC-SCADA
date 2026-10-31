@@ -2,6 +2,11 @@
 
 ---
 
+## v3.3.0 — 2026-10-31 — Sæt et rør fast igen
+
+- Vælg et rør, så får enderne et håndtag: **grønt** betyder, at enden sidder fast, og **orange**, at den er fri. Træk et håndtag hen på et tilslutningspunkt for at sætte enden fast igen. Røret lægges om, så det går lige ind i punktet.
+- Flytter du et helt rør, så en ende lander på et tilslutningspunkt, sættes den fast automatisk.
+
 ## v3.2.0 — 2026-10-31 — T-stykker i Tegn
 
 - Med værktøjet **Rør** kan du nu starte eller slutte et rør på et eksisterende rør. En orange prik viser stedet. Røret deles, og der indsættes et **T-stykke**, som er drejet, så det passer til rørene.
