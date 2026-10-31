@@ -2,6 +2,10 @@
 
 ---
 
+## v3.13.1 — 2026-10-31 — Installation fra GitHub: siden kan nås
+
+- Efter installation med én kommando kunne siden ikke åbnes fra andre maskiner. Nu sættes HTTPS op automatisk, og siden åbnes på `https://<pi-ens-ip>`.
+
 ## v3.13.0 — 2026-10-31 — Installation direkte fra GitHub
 
 - En ny Raspberry Pi installeres med én kommando: `curl -fsSL https://raw.githubusercontent.com/Jangreenlarsen/HypervisionPLC-SCADA/main/deploy/bootstrap.sh | sudo sh`. Den henter den nyeste udgivelse, kontrollerer den og installerer.
