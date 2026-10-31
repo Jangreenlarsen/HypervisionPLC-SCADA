@@ -324,7 +324,9 @@ export function createScada(host) {
   }
 
   /** Det aktive værktøj (SVG-Edits "mode") til hjælpelinjen i Tegn (v0.92.0). */
-  let modeListener = null;
+  // flere lyttere: Tegn-siden (hjælpelinjen) og tegnemotoren (værktøjslinjen) — én erstattede før den anden (BUGS.md v3.12.2)
+  const modeListeners = [];
+  const modeListener = (m) => { for (const fn of modeListeners) fn(m); };
 
   function hookEvents() {
     const c = canvas();
@@ -332,7 +334,7 @@ export function createScada(host) {
     hookPipeFollow();
     if (typeof c.setMode === 'function' && !c.__hvMode) {
       const setMode = c.setMode.bind(c);
-      c.setMode = (mode) => { const r = setMode(mode); if (modeListener) modeListener(String(mode)); return r; };
+      c.setMode = (mode) => { const r = setMode(mode); modeListener(String(mode)); return r; };
       c.__hvMode = true;
     }
     // SVG-Edits egne id'er (svg_N — tegneværktøjer, indsæt, dupliker): spring reserverede over. Dupliker henter id'et
@@ -1456,7 +1458,7 @@ export function createScada(host) {
     pipeTool.pts = [];
     pipeTool.cursor = pipeTool.hover = null;
     if (!on) { drawPipeOverlay(); drawHandles(); return; }
-    if (modeListener) modeListener('pipe');
+    modeListener('pipe');
     handles.layer?.remove(); handles.layer = null;
     const c = canvas();
     c.clearSelection();
@@ -1469,8 +1471,20 @@ export function createScada(host) {
     const swallow = (e) => { e.stopPropagation(); e.preventDefault(); };
     area.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;   // midterknap: panorér som normalt
+      const hit = snapPipePoint(docPoint(e));
+      // Tryk på selve et symbol (ikke en grøn prik, et rør eller en rør-ende), før en forbindelse er begyndt: brugeren vil
+      // flytte symbolet — skift til Vælg og lad lærredet tage trykket (ellers startede et nyt rør, BUGS.md v3.12.2)
+      if (!pipeTool.pts.length && !hit.port && !hit.onPipe && !hit.pipeEnd) {
+        const sym = e.target?.closest?.('g.layer > *');
+        if (sym && !isPipe(sym) && sym.id !== 'baggrund') {
+          canvas().setMode('select');
+          setPipeTool(false);
+          modeListener('select');
+          return;
+        }
+      }
       swallow(e);
-      const { p, port, onPipe, pipeEnd } = snapPipePoint(docPoint(e));
+      const { p, port, onPipe, pipeEnd } = hit;
       if (!pipeTool.pts.length) {
         pipeTool.pts = [p];
         pipeTool.fromTee = onPipe ?? null;
@@ -2211,7 +2225,7 @@ export function createScada(host) {
      */
     /** Kaldes med værktøjets navn, når et andet værktøj vælges (v0.92.0). */
     onMode(fn) {
-      modeListener = fn;
+      if (!modeListeners.includes(fn)) modeListeners.push(fn);
       fn(String(canvas()?.getMode?.() ?? 'select'));
     },
 

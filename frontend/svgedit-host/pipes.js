@@ -146,7 +146,8 @@ export function connect(a, b, axA, axB) {
 }
 
 // ---------------------------------------------------------------- v3.1.0: retning, stub, radius og alle stikommandoer
-export const STUB = 20;   // røret går så langt lige ud fra et tilslutningspunkt, før det knækker
+export const STUB = 20;
+const END_ZONE = 3 * STUB;   // så langt fra enden er knæk lavet automatisk (reroute)   // røret går så langt lige ud fra et tilslutningspunkt, før det knækker
 
 /**
  * Stiens segmenter: [{ type: 'L' | 'A' | 'C' | 'Q', from: [x, y], to: [x, y] }] — alle kommandoer (også buer og kurver),
@@ -325,9 +326,18 @@ export function reroute(points, which, p, dir = null) {
     const leg = bestRoute(anchor, startDir, sp, dir);
     return simplify([...kept, ...leg.slice(1), ...(dir ? [p] : [])]);
   };
-  // Behold så meget af den eksisterende rute som muligt (brugeren kan have flyttet stykker): læg om fra det nærmeste
-  // knæk, der ikke ligger BAG punktet (set i punktets retning) — et knæk bag punktet ville give en sløjfe (v3.6.0).
+  // Knæk tæt ved enden (inden for END_ZONE langs røret) er lavet automatisk (stykket lige ud af punktet og knækket
+  // derfra) — de lægges altid om; ellers hober de sig op, hver gang symbolet flyttes (BUGS.md v3.12.2).
+  let maxJ = 0;
+  let along = 0;
   for (let j = keep.length - 1; j >= 0; j--) {
+    const next = j === keep.length - 1 ? pts[pts.length - 1] : keep[j + 1];
+    along += Math.hypot(next[0] - keep[j][0], next[1] - keep[j][1]);
+    if (along >= END_ZONE) { maxJ = j; break; }
+  }
+  // Behold så meget af resten af ruten som muligt (brugeren kan have flyttet stykker): læg om fra det nærmeste
+  // knæk, der ikke ligger BAG punktet (set i punktets retning) — et knæk bag punktet ville give en sløjfe (v3.6.0).
+  for (let j = maxJ; j >= 0; j--) {
     const a = keep[j];
     const behind = dir && (a[0] - p[0]) * dir[0] + (a[1] - p[1]) * dir[1] < -EPS;
     if (behind) continue;

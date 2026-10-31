@@ -2,6 +2,11 @@
 
 ---
 
+## v3.12.2 — 2026-10-31 — Rettelser i forbindelser
+
+- Når du flytter et symbol flere gange, får forbindelsen ikke længere flere og flere bugter.
+- Står værktøjet **Forbindelse** stadig valgt, og du trækker i et symbol, flyttes symbolet nu, i stedet for at der startes en ny forbindelse. Tegn skifter selv til **Vælg**.
+
 ## v3.12.1 — 2026-10-31 — Menuen åbner ved klik
 
 - Menuerne i topbjælken (Drift, Opsætning, System, Bruger) åbner nu kun, når du klikker på dem, og ikke længere, når musen bare føres hen over dem. De lukker ved et nyt klik, når du vælger et punkt, ved klik udenfor eller med Esc.

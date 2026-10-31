@@ -356,3 +356,19 @@ describe('v3.11.1: knæk tæt på hinanden med bøjningsradius', async () => {
     expect(m.pipeCorners('M0,0 l50,0 l0,-30 l30,0')).toEqual([[0, 0], [50, 0], [50, -30], [80, -30]]);
   });
 });
+
+describe('v3.12.2: ingen ophobning af knæk, når et symbol flyttes igen og igen', async () => {
+  // @ts-expect-error — ren JS uden typer
+  const m = await import('../../svgedit-host/pipes.js');
+  it('antallet af knæk vokser ikke', () => {
+    let r = m.routeBetween([100, 100], [600, 100], [1, 0], [-1, 0]);
+    for (const y of [130, 80, 150, 60, 110, 140, 100, 170, 40]) {
+      r = m.reroute(r, 'start', [100, y], [1, 0]);
+      expect(r.length).toBeLessThanOrEqual(5);
+      expect(r[0]).toEqual([100, y]);
+      expect(r[r.length - 1]).toEqual([600, 100]);
+    }
+    r = m.reroute(r, 'start', [100, 100], [1, 0]);
+    expect(r).toEqual([[100, 100], [600, 100]]);   // tilbage på linje: lige igen
+  });
+});

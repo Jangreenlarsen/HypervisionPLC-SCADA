@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.12.2 build 0298] — 2026-10-31 — Rettet: ophobede bugter og nye rørstumper ved flytning af symboler
+
+- `frontend/svgedit-host/pipes.js`: `reroute` lægger altid knæk inden for 60 enheder fra enden om (de er lavet automatisk).
+- `frontend/svgedit-host/scada-core.js`: tryk på et symbol med *Forbindelse* valgt skifter til *Vælg* (flytter symbolet); flere lyttere på værktøjsskift (værktøjslinjen fulgte ikke med).
+- Manual kap. 04. Tests: `src/lib/pipes.test.ts`.
+
 ## [3.12.1 build 0297] — 2026-10-31 — Topmenuen åbner kun ved klik
 
 - `frontend/src/App.svelte`: menuerne i topbjælken åbner ikke længere, når musen føres hen over dem (og lukker ikke af sig selv, når musen forlader dem) — kun ved klik; lukkes ved nyt klik, valg, Escape eller klik udenfor (Jans ønske).
