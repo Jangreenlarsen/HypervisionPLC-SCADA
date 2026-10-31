@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.12.1 build 0297] — 2026-10-31 — Topmenuen åbner kun ved klik
+
+- `frontend/src/App.svelte`: menuerne i topbjælken åbner ikke længere, når musen føres hen over dem (og lukker ikke af sig selv, når musen forlader dem) — kun ved klik; lukkes ved nyt klik, valg, Escape eller klik udenfor (Jans ønske).
+
 ## [3.12.0 build 0296] — 2026-10-31 — Tekstredigering i Egenskaber
 
 - `frontend/svgedit-host/scada-core.js`: `setText` (flere linjer som tspan'er; ét fortryd-trin, samme id); `setStyle` tillader `font-style`, `text-decoration`, `text-anchor` (justering flytter x, så teksten bliver stående); `paintOf` giver kursiv/understreget/justering/tekst.

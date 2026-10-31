@@ -2,6 +2,10 @@
 
 ---
 
+## v3.12.1 — 2026-10-31 — Menuen åbner ved klik
+
+- Menuerne i topbjælken (Drift, Opsætning, System, Bruger) åbner nu kun, når du klikker på dem, og ikke længere, når musen bare føres hen over dem. De lukker ved et nyt klik, når du vælger et punkt, ved klik udenfor eller med Esc.
+
 ## v3.12.0 — 2026-10-31 — Bedre tekstredigering i Tegn
 
 - Når en tekst er valgt, kan du i *Egenskaber* rette teksten direkte, også over flere linjer (Enter giver ny linje).
