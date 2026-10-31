@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.12.5 build 0302] — 2026-10-31 — Test rettet til de nye billedstier
+
+- `frontend/src/lib/manualImages.test.ts`: leder efter billeder med den relative sti (`../../public/manual/…`). Build 0301 blev lagt ud med 2 fejlende tests i denne fil (programmet var korrekt).
+
 ## [3.12.5 build 0301] — 2026-10-31 — Rettet: manualens billeder virker også på GitHub
 
 - `frontend/src/manual/*.md`: 72 billeder henviser nu med den relative sti i repoet (`../../public/manual/…`).
