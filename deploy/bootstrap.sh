@@ -3,9 +3,11 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/Jangreenlarsen/HypervisionPLC-SCADA/main/deploy/bootstrap.sh | sudo sh
 #
-# Valg sendes videre til deploy/install.sh:
-#   ... | sudo sh -s -- --with-nginx scada.local 192.168.1.50      (nginx med TLS foran SCADA)
+# Som standard sættes nginx med TLS op foran SCADA med Pi'ens hostnavn og IP (SCADA selv lytter kun på 127.0.0.1),
+# så siden kan nås på https://<pi-ens-ip>. Valg sendes videre til deploy/install.sh:
+#   ... | sudo sh -s -- --with-nginx scada.local 192.168.1.50      (andet hostnavn/IP i certifikatet)
 #   ... | sudo sh -s -- --with-mock-plc                            (+ mock-PLC til test)
+#   ... | sudo sh -s -- --local-only                               (ingen nginx — kun adgang fra Pi'en selv)
 #
 # Miljøvariabler (skrives FØR sh, efter sudo: ... | sudo SCADA_VERSION=v3.13.0 sh):
 #   SCADA_VERSION=v3.13.0   en bestemt udgivelse i stedet for den nyeste
@@ -68,12 +70,30 @@ if [ "$DRY" = 1 ]; then
     exit 0
 fi
 
+IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+# nginx som standard: uden den kan SCADA kun nås fra Pi'en selv
+NGINX=1
+for a in "$@"; do case "$a" in --with-nginx|--local-only) NGINX=0 ;; esac; done
+LOCAL=0
+for a in "$@"; do [ "$a" = --local-only ] && LOCAL=1; done
+if [ "$LOCAL" = 1 ]; then
+    # --local-only er bootstraps eget valg og sendes ikke videre
+    for a in "$@"; do shift; [ "$a" = --local-only ] || set -- "$@" "$a"; done
+fi
+if [ "$NGINX" = 1 ]; then
+    [ -n "$IP" ] || fail "kunne ikke finde Pi'ens IP-adresse — angiv den: … | sudo sh -s -- --with-nginx <hostnavn> <ip>"
+    set -- "$@" --with-nginx "$(hostname)" "$IP"
+fi
+
 say "Installerer"
 sh "$WORK/scada/deploy/install.sh" "$@"
 
-IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 echo
-say "SCADA kører. Åbn http://${IP:-<pi-ens-ip>}:8000 (eller https://… hvis du brugte --with-nginx)"
+if [ "$LOCAL" = 1 ]; then
+    say "SCADA kører kun lokalt: http://127.0.0.1:8000 (fra Pi'en selv)"
+else
+    say "SCADA kører. Åbn https://${IP:-<pi-ens-ip>} (selvsigneret certifikat — godkend advarslen i browseren)"
+fi
 if [ -f "$DATA/initial-admin-password.txt" ]; then
     echo "   Første login: bruger 'admin', engangsadgangskode: $(cat "$DATA/initial-admin-password.txt")"
     echo "   (skal skiftes ved første login; filen ligger i $DATA/initial-admin-password.txt)"

@@ -105,7 +105,7 @@ Installér **Raspberry Pi OS Lite (64-bit)**, tilslut netværk og kør:
 curl -fsSL https://raw.githubusercontent.com/Jangreenlarsen/HypervisionPLC-SCADA/main/deploy/bootstrap.sh | sudo sh
 ```
 
-Scriptet henter den nyeste [Release](https://github.com/Jangreenlarsen/HypervisionPLC-SCADA/releases) (færdigbygget pakke — intet Node.js på Pi'en), kontrollerer kontrolsummen og kører `deploy/install.sh`. Til sidst vises adressen og engangsadgangskoden til `admin`. Valg sendes videre: `… | sudo sh -s -- --with-nginx scada.local 192.168.1.50` eller `--with-mock-plc`. En bestemt version: `… | sudo SCADA_VERSION=v3.13.0 sh`.
+Scriptet henter den nyeste [Release](https://github.com/Jangreenlarsen/HypervisionPLC-SCADA/releases) (færdigbygget pakke — intet Node.js på Pi'en), kontrollerer kontrolsummen og kører `deploy/install.sh`. Som standard sættes nginx med TLS (selvsigneret certifikat) op foran SCADA med Pi'ens hostnavn og IP — siden åbnes på `https://<pi-ens-ip>`. Til sidst vises adressen og engangsadgangskoden til `admin`. Valg sendes videre: `… | sudo sh -s -- --with-nginx scada.local 192.168.1.50` (andet navn/IP i certifikatet), `--with-mock-plc`, eller `--local-only` (ingen nginx; kun adgang fra Pi'en selv). En bestemt version: `… | sudo SCADA_VERSION=v3.13.0 sh`.
 
 Releases bygges automatisk af GitHub Actions ([.github/workflows/release.yml](.github/workflows/release.yml)), når et tag `vX.Y.Z` pushes.
 

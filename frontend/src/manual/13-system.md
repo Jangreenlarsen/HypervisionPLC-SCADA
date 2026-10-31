@@ -54,7 +54,7 @@ Under **System** ligger Log, Brugere, Backup, Opdatering og Konfiguration. **Log
 
 > Første gang installeres serveren på en ny Raspberry Pi (Raspberry Pi OS Lite) med én kommando, der henter den nyeste udgivelse fra GitHub:
 > `curl -fsSL https://raw.githubusercontent.com/Jangreenlarsen/HypervisionPLC-SCADA/main/deploy/bootstrap.sh | sudo sh`
-> Til sidst vises adressen og engangsadgangskoden til `admin`. Derefter kan alle nye versioner komme via siden — pakkerne (`scada-*.tar`) ligger under *Releases* på GitHub.
+> Siden åbnes derefter på `https://<pi-ens-ip>` (godkend advarslen om det selvsignerede certifikat). Til sidst vises adressen og engangsadgangskoden til `admin`. Derefter kan alle nye versioner komme via siden — pakkerne (`scada-*.tar`) ligger under *Releases* på GitHub.
 
 ## Konfiguration
 

@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.13.1 build 0304] — 2026-10-31 — Rettet: siden kunne ikke nås efter bootstrap-installation
+
+- `deploy/bootstrap.sh`: nginx med TLS som standard (`--with-nginx <hostnavn> <ip>`), nyt valg `--local-only`, korrekt adresse (`https://<ip>`) i slutbeskeden.
+- `README.md`, `frontend/src/manual/13-system.md`, `BUGS.md`.
+
 ## [3.13.0 build 0303] — 2026-10-31 — Installation af en ny Pi direkte fra GitHub
 
 - `deploy/bootstrap.sh` (ny): henter nyeste (eller `SCADA_VERSION`) GitHub Release, kontrollerer SHA256, kører `deploy/install.sh` med de givne valg og viser adresse og engangsadgangskode. `DRY_RUN=1` henter og kontrollerer uden at installere.
