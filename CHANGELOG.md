@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.14.2 build 0307] — 2026-11-01 — kommunikationsalarmer for delvise fejl og ikke-startede PLC'er
+
+- `backend/app/services/alarms.py`: `_comm_problems` — alarm `plc:<plc>:partial` (COMM) når kald/områder fejler delvist og `plc:<plc>:comm` for en aktiv PLC, der ikke kan startes (mangler adgangskode); tællere pr. alarmnøgle ryddes, når problemet forsvinder.
+- `backend/app/services/plc_runtime.py`: `status.partial` er vedvarende (fjernes først når netop det kald lykkes); fejl, PLC'en svarer med for et eksternt område, tæller med; ryddes ved ændret plan og ved total fejl.
+- `backend/app/services/manager.py`: `attention` i PLC-status (aktiv PLC uden adgangskode).
+- Tests: `test_alarms.py`, `test_runtime.py`. BUGS.md: Gennemgang #7 og #9 lukket. Gennemgået af `reviewer`.
+
 ## [3.14.1 build 0306] — 2026-11-01 — fejlrettelser: Origin bag nginx, ugyldige PLC-værdier, dybt SVG, brugernavne
 
 - `backend/app/main.py`: `origin_matches_host` (værtsnavn; port kun når `Host` har en). `deploy/nginx-hypervisionplc-scada.conf`: `Host $http_host`.

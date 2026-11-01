@@ -115,8 +115,13 @@ class PlcRuntime:
         # (gruppe, adresse) → (værdi, status, fejltekst); status ok | pending | error
         self._ext_raw: dict[tuple[tuple, int], tuple[Any, str, str]] = {}
         self._tasks: list[asyncio.Task[None]] = []
+        self._partial: dict[str, dict[str, Any]] = {}   # kald der fejler lige nu (vedvarer, til netop det kald lykkes igen)
         self._cool: dict[str, tuple[float, PlcError]] = {}      # kald → (spørg ikke før, sidste fejl)
         self._fails: dict[str, int] = {}                        # kald → antal fejl i træk
+        # kald der fejler lige nu: what → {message, tags}. Vedvarer, til netop det kald lykkes igen — ellers ville
+        # eksterne områder (polles kun hvert `ext_interval`) kun være "fejlet" i en enkelt cyklus og aldrig give alarm
+        self._partial: dict[str, dict[str, Any]] = {}
+        self._plan_sig: Any = None
         self._timing: dict[str, list[float]] = {}               # kald → [sidste, største] svartid i sekunder
         self._wake = asyncio.Event()
         self.sse: SseListener | None = None
@@ -180,6 +185,11 @@ class PlcRuntime:
         self._ext_plan = [replace(r, high=high) for high in (True, False)
                           for r in plan_ext_reads({g: u for (g, h), u in ext_units.items() if h == high})]
         self._ext_last = 0.0
+        sig = (self._plan, self._ext_plan, programs, need_globals)
+        if sig != self._plan_sig:   # andre områder → gamle fejlposter hører ikke længere til (ellers hænger de evigt)
+            self._partial.clear()
+            self.status.partial = []
+            self._plan_sig = sig
         self.status.plan = ([{"kind": r.kind, "start": r.start, "count": r.count} for r in self._plan] +
                             [{"kind": r.kind, "start": r.start, "count": r.count, "ext": ":".join(
                                 str(x) for x in r.group[:4] if x is not None), **({"prio": "high"} if r.high else {})}
@@ -282,6 +292,7 @@ class PlcRuntime:
         self.status.state = "error"
         self.status.message = message
         self.status.errors += 1
+        self.status.partial = []   # hele PLC'en er tabt — de delvise fejl er ikke længere relevante at vise
         self.cache.mark_comm_error([t.name for t in self._tags], message)
 
     def _plan_for(self, full: bool) -> list[ReadRange]:
@@ -322,7 +333,7 @@ class PlcRuntime:
         self._publish(logic, globals_, skip=failed)
         for f in failures:   # kun de tags, det fejlede kald dækker, mister forbindelsen — resten viser friske værdier
             self.cache.mark_comm_error(f.names, f.exc.message)
-        self.status.partial = [{"what": f.what, "message": f.exc.message, "tags": len(f.names)} for f in failures]
+        self.status.partial = [{"what": w, **p} for w, p in self._partial.items()]
         self.status.state = "ok"
         self.status.message = ""
         if failures:
@@ -355,6 +366,7 @@ class PlcRuntime:
         until, last = self._cool.get(what, (0.0, None))
         if last is not None and time.monotonic() < until:
             failures.append(_Failure(what, last, names))
+            self._partial[what] = {"message": last.message, "tags": len(names)}
             return None
         t0 = time.monotonic()
         try:
@@ -367,10 +379,12 @@ class PlcRuntime:
             self._cool[what] = (time.monotonic() + min(COOL_STEP_S * n, COOL_MAX_S), exc)
             log.warning("PLC %s: %s fejlede (%d i træk): %s", self.key, what, n, exc.message)
             failures.append(_Failure(what, exc, names))
+            self._partial[what] = {"message": exc.message, "tags": len(names)}
             return None
         dt = time.monotonic() - t0
         self._fails.pop(what, None)
         self._cool.pop(what, None)
+        self._partial.pop(what, None)
         t = self._timing.setdefault(what, [0.0, 0.0])
         t[0], t[1] = dt, max(t[1], dt)
         return result
@@ -394,13 +408,14 @@ class PlcRuntime:
                 except PlcApiError as exc:
                     return exc   # PLC'en svarede med en fejl for netop dette område: markeres nedenfor
             names = self._names_in(rng.kind, rng.start, rng.start + rng.count - 1, group=rng.group)
-            items = await self._guarded(f"ekstern {':'.join(str(x) for x in rng.group[:4] if x is not None)} {rng.start}–{rng.start + rng.count - 1}",
-                                        names, call, failures, attempts)
+            what = f"ekstern {':'.join(str(x) for x in rng.group[:4] if x is not None)} {rng.start}–{rng.start + rng.count - 1}"
+            items = await self._guarded(what, names, call, failures, attempts)
             if items is None:
                 continue
             if isinstance(items, PlcApiError):
                 for i in range(rng.count):
                     self._ext_raw[(rng.group, rng.start + i)] = (None, "error", items.message)
+                self._partial[what] = {"message": items.message, "tags": len(names)}   # PLC'en svarede med en fejl for området
                 continue
             for i, (value, state) in enumerate(items):
                 key = (rng.group, rng.start + i)

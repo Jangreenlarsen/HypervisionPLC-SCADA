@@ -2,6 +2,11 @@
 
 ---
 
+## v3.14.2 — 2026-11-01 — Alarm når en del af en PLC svarer dårligt
+
+- Svarer en ekstern slave, et ST-program eller et register-område ikke (mens resten af PLC'en virker), kommer der nu en kommunikationsalarm (niveau COMM) med besked om, hvad der fejler. Den ophører af sig selv, når det virker igen.
+- En aktiv PLC uden adgangskode giver også en alarm i stedet for at stå stille uden besked.
+
 ## v3.14.1 — 2026-11-01 — Fejlrettelser
 
 - Skrivning virker nu også, når siden åbnes på en anden port end standard (fx `https://scada:8443`) bag nginx.
