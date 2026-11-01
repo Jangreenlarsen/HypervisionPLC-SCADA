@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { get } from '../lib/api';
+  import MetricsToken from '../lib/MetricsToken.svelte';
   import { AREA_TEXT, LEVEL_TEXT, fmtBytes, fmtDuration, fmtMs, fmtPercent, levelClass, type Health } from '../lib/status';
 
   const REFRESH_MS = 5000;
@@ -115,6 +116,7 @@
   {:else if !error}
     <p class="muted">Henter …</p>
   {/if}
+  <MetricsToken />
 </section>
 
 <style>

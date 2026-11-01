@@ -3,7 +3,6 @@ OTA-rollback og versionstjekket) ligger i routes.py."""
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -15,5 +14,5 @@ router = APIRouter(prefix="/api/health")
 
 @router.get("/details", dependencies=[ENGINEER])
 async def details(request: Request) -> dict[str, Any]:
-    # databasetjek og diskopslag er blokerende → ud af event-loopet, så målingen ikke selv skaber lag
-    return await asyncio.to_thread(request.app.state.health_service.details, request.app.state)
+    # blokerende opslag køres i en tråd inde i details(); resten læses på event-loopet (trådsikkert)
+    return await request.app.state.health_service.details(request.app.state)

@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.16.0 build 0310] — 2026-11-01 — Prometheus /metrics med scrape-token
+
+- `backend/app/services/metrics.py` (ny): håndskrevet Prometheus-eksponering (0.0.4) ud fra `HealthService.details()`; målinger uden værdi udelades; kun systemtal.
+- `backend/app/api/metrics.py` (ny): `GET /metrics` (kun Bearer-token, 404 når slået fra, 401 + `WWW-Authenticate` ved forkert/manglende; afviste forsøg tælles og logges); admin: `GET/PUT/DELETE /api/system/metrics` (audit uden værdi).
+- `backend/app/storage/secrets.py`: scrape-token som SHA-256-kontrolsum (skriv-kun, `hmac.compare_digest`). `backend/app/main.py`: `app.state.secrets`. `backend/app/services/health.py`: `request_count` pr. PLC.
+- `frontend/src/lib/MetricsToken.svelte`, `frontend/src/lib/metricsToken.ts` (+ test): token genereres i browseren, vises én gang med færdigt `prometheus.yml`-eksempel; indsat nederst på Status. Manual: afsnit *Prometheus og Grafana*.
+- Trådsikkerhed (reviewer): `HealthService.details` er nu async — det event-loopet ændrer (PLC-status, alarmer, lag) læses på loopet, kun database/disk/filer kører i en tråd; token kun URL-sikre tegn; tabellen over afviste IP-adresser er begrænset (1000).
+- Tests: `backend/tests/test_metrics.py`, `frontend/src/lib/metricsToken.test.ts`.
+
 ## [3.15.0 build 0309] — 2026-11-01 — System › Status (systemhelbred)
 
 - `backend/app/services/health.py` (ny): `HealthService` (event-loop-lag-sonde, WebSocket-tæller, samlet billede) og `assess` (gul/rød-grænser, dansk tekst); læser Pi-throttling, CPU-temperatur, hukommelse fra /proc og /sys.
