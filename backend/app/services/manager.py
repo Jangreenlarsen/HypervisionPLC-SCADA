@@ -155,6 +155,6 @@ class PlcManager:
             "sse": ({"state": sse.state, "message": sse.message, "events": sse.events,
                      "external": bool(sse.extra.get("external")), "ext_events": runtime.sse.ext_events,  # type: ignore[union-attr]
                      "ext_by_src": dict(runtime.sse.ext_by_src),  # type: ignore[union-attr]
-                     "covered": sum(len(v) for v in runtime.sse.covered.values())}  # type: ignore[union-attr]
+                     "covered": sum(len(v) for v in list(runtime.sse.covered.values()))}  # type: ignore[union-attr]
                     if sse else {"state": "off_in_scada"}),
         }

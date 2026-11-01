@@ -22,6 +22,7 @@ from .api.auth import router as auth_router
 from .api.backup import router as backup_router
 from .api.energy import router as energy_router
 from .api.health import router as health_router
+from .api.metrics import admin_router as metrics_admin_router, router as metrics_router
 from .api.schedules import router as schedules_router
 from .api.trends import router as trends_router
 from .api.drawings import router as drawings_router
@@ -99,7 +100,11 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         auth = AuthService(db, settings.data_dir, session_ttl_s=settings.session_hours * 3600)
         auth.bootstrap(settings.admin_password)
         app.state.auth_service = auth
-        manager = PlcManager(db, SecretStore(settings.secrets_path), LiveCache(), settings, transport_factory)
+        secrets = SecretStore(settings.secrets_path)
+        app.state.secrets = secrets
+        app.state.metrics_auth_failures = 0
+        app.state.metrics_last_log = {}
+        manager = PlcManager(db, secrets, LiveCache(), settings, transport_factory)
         app.state.cache = manager.cache
         app.state.settings = settings
         app.state.health_service = HealthService()
@@ -204,6 +209,8 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(energy_router)
     app.include_router(schedules_router)
     app.include_router(health_router)
+    app.include_router(metrics_router)
+    app.include_router(metrics_admin_router)
     app.include_router(router)
     app.include_router(drawings_router)
     app.include_router(symbols_router)

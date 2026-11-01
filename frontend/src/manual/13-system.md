@@ -12,6 +12,12 @@ Siden **Status** viser på ét sted, hvordan serveren og PLC'erne har det — og
 
 Gul/rød udløses blandt andet af: en PLC der ikke svarer, mindre end 10 % (rød under 5 %) ledig disk, CPU over 75 °C (rød over 85 °C), og en backup der er mere end 1½ gange ældre end intervallet. Siden kun *læser* — den ændrer intet.
 
+### Prometheus og Grafana (`/metrics`)
+
+Samme tal som på siden kan hentes af Prometheus (og vises i Grafana) fra adressen `https://<serverens adresse>/metrics`. Nederst på Status-siden kan en **admin** trykke **Slå til (opret token)**: siden laver et langt, tilfældigt token og viser det *én gang* sammen med et færdigt eksempel til `prometheus.yml`. Serveren gemmer kun en kontrolsum af tokenet, så det kan ikke hentes igen — mistes det, opretter man blot et nyt (det gamle holder så op med at virke). **Slå fra** lukker for `/metrics` igen.
+
+Adgangen sker med headeren `Authorization: Bearer <token>`; en almindelig login-session giver ikke adgang, og tokenet kan ikke sendes i adressen. Der udleveres kun systemtal (fx event-loop-lag, kald i sekundet til hver PLC, om en PLC svarer, alarmantal, disk, hukommelse, temperatur) — aldrig tag-værdier, tag- eller tegningsnavne, brugere eller adgangskoder. Afviste forsøg tælles og logges. Tokenet følger ikke med i en backup og skal sættes igen på en ny server.
+
 ## Log
 
 ![Log: tidspunkt, bruger, handling og resultat — med filter øverst](../../public/manual/log.png)

@@ -2,6 +2,11 @@
 
 ---
 
+## v3.16.0 — 2026-11-01 — Prometheus/Grafana kan hente tal fra SCADA
+
+- På **System › Status** kan en admin slå **/metrics** til: siden laver et token, som kopieres til Prometheus (med færdigt eksempel). Så kan Prometheus og Grafana vise grafer over bl.a. forsinkelser, kald i sekundet til PLC'erne, om en PLC svarer, alarmer, disk, hukommelse og temperatur.
+- Der udleveres kun systemtal — aldrig tag-værdier, navne, brugere eller adgangskoder. Tokenet kan ikke hentes igen; mistes det, opretter man et nyt. Tokenet følger ikke med i en backup.
+
 ## v3.15.0 — 2026-11-01 — Ny side: System › Status
 
 - Under **System** er der kommet en side **Status** (tekniker og admin). Den viser grøn/gul/rød for hele anlægget, hvad der evt. er galt, og detaljer om PLC'erne (forbindelse, kald i sekundet, afviste kald), serveren (om den har været optaget, database, åbne sider, alarmer, backup) og maskinen (disk, hukommelse, temperatur og på en Raspberry Pi strøm/varme). Siden opdaterer sig selv og ændrer intet.

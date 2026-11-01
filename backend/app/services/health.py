@@ -179,14 +179,23 @@ class HealthService:
 
     def lag_max(self, window_s: float = 60.0, now: float | None = None) -> float | None:
         now = time.monotonic() if now is None else now
-        values = [lag for t, lag in self._lag if now - t <= window_s]
+        values = [lag for t, lag in list(self._lag) if now - t <= window_s]
         return max(values) if values else None
 
     # ------------------------------------------------------------- samlet billede
 
-    def details(self, state: Any) -> dict[str, Any]:
-        """Alt til System › Status. `state` er `app.state`. Kun læsning."""
-        settings = state.settings
+    async def details(self, state: Any) -> dict[str, Any]:
+        """Alt til System › Status og /metrics. `state` er `app.state`. Kun læsning.
+
+        Det der ændres af event-loopet (PLC-status, alarmer, lag-målinger, tællere) læses HER på loopet; kun det
+        blokerende (database, disk, filer, glob) køres i en tråd — så ingen datastruktur itereres, mens den ændres."""
+        fast = self._loop_part(state)
+        slow = await asyncio.to_thread(self._thread_part, state)
+        data = {**fast, **slow}
+        data.update(assess(data))
+        return data
+
+    def _loop_part(self, state: Any) -> dict[str, Any]:
         now = time.time()
         plcs = []
         for plc in state.manager.db.list_plcs():
@@ -197,23 +206,25 @@ class HealthService:
                 "state": st["state"], "message": st["message"], "attention": bool(st.get("attention")),
                 "last_ok_age_s": round(now - last_ok, 1) if last_ok else None,
                 "request_rate": st.get("request_rate"), "requests_per_cycle": st.get("requests_per_cycle"),
-                "throttled": st.get("throttled", 0), "last_throttled": st.get("last_throttled"),
+                "request_count": st.get("request_count"), "throttled": st.get("throttled", 0), "last_throttled": st.get("last_throttled"),
                 "partial": st.get("partial") or [], "cycles": st.get("cycles"), "errors": st.get("errors"),
                 "sse": (st.get("sse") or {}).get("state"),
             })
-        alarms = state.alarm_service.summary(None)
-        data: dict[str, Any] = {
+        return {
             "now": now, "started": self.started, "uptime_s": round(now - self.started),
             "version": read_version(), "plcs": plcs,
             "loop": {"lag_last_s": round(self.lag_last, 4), "lag_max_s": self.lag_max()},
-            "ws_clients": self.ws_clients, "alarms": alarms,
-            "db": self._db_probe(state.manager.db),
-            "disk": self._disk(settings.data_dir), "host": read_host(),
+            "ws_clients": self.ws_clients, "alarms": state.alarm_service.summary(None),
             "trends": self._trends(state),
+        }
+
+    def _thread_part(self, state: Any) -> dict[str, Any]:
+        """Blokerende opslag (kører i en tråd)."""
+        return {
+            "db": self._db_probe(state.manager.db),
+            "disk": self._disk(state.settings.data_dir), "host": read_host(),
             "backup": self._backup(state),
         }
-        data.update(assess(data))
-        return data
 
     @staticmethod
     def _db_probe(db: Any) -> dict[str, Any]:
