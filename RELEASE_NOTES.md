@@ -2,6 +2,10 @@
 
 ---
 
+## v3.14.3 — 2026-11-01 — Advarsel før ugemte ændringer går tabt
+
+- Skifter du side i menuen, mens **Tegn** eller **Symboler** har ændringer, der ikke er gemt, bliver du nu spurgt først. Vælger du at blive, står du stadig på tegningen med dine ændringer.
+
 ## v3.14.2 — 2026-11-01 — Alarm når en del af en PLC svarer dårligt
 
 - Svarer en ekstern slave, et ST-program eller et register-område ikke (mens resten af PLC'en virker), kommer der nu en kommunikationsalarm (niveau COMM) med besked om, hvad der fejler. Den ophører af sig selv, når det virker igen.

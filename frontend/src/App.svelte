@@ -3,6 +3,7 @@
   import { BUNDLE, isStale } from './lib/staleCheck';
   import { ApiError, get, onUnauthorized, post, roleAtLeast, type AlarmSummary, type Me } from './lib/api';
   import { NAV_ICON, groupOf, navFor, navHref, pageFor } from './lib/nav';
+  import { mayLeave } from './lib/leaveGuard';
   import Overview from './pages/Overview.svelte';
   import Drawings from './pages/Drawings.svelte';
   import Tags from './pages/Tags.svelte';
@@ -72,7 +73,15 @@
   }
 
   onMount(() => {
-    const onHash = () => (route = location.hash.slice(1) || 'overview');
+    const onHash = async () => {
+      const next = location.hash.slice(1) || 'overview';
+      // Skifter man side (ikke blot tegning inden for samme side), får en side med ugemte ændringer lov at spørge først
+      if (pageFor(next, me?.role).id !== pageFor(route, me?.role).id && !(await mayLeave())) {
+        history.replaceState(null, '', '#' + route);   // bliv: sæt adressen tilbage (udløser ikke hashchange)
+        return;
+      }
+      route = next;
+    };
     window.addEventListener('hashchange', onHash);
     onUnauthorized(() => (me = null));
     loadMe();

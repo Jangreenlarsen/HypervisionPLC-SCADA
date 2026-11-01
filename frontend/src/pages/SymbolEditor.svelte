@@ -1,9 +1,10 @@
 <script lang="ts">
   // Symbol-editoren (v2.16.0): ret et bibliotekssymbols tilslutningspunkter — de punkter, rør i Tegn sættes fast i.
   // Ændringen gælder symboler, der indsættes EFTER den; symboler i tegningerne beholder deres punkter (PLAN.md).
-  import { onMount, tick } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
   import { del, get, put } from '../lib/api';
   import { ask } from '../lib/ask';
+  import { setLeaveGuard } from '../lib/leaveGuard';
   import { CATEGORIES, SYMBOLS, type SymbolCategory } from '../lib/symbols';
   import { drawHref, parseSymbolRoute } from '../lib/symbolRoute';
   // @ts-expect-error — ren JS uden typer (deles med Tegn)
@@ -39,6 +40,9 @@
   const list = $derived(SYMBOLS.filter((s) =>
     (category === 'alle' || s.category === category) && (!search.trim() || s.label.toLowerCase().includes(search.trim().toLowerCase()))));
 
+  const removeLeaveGuard = setLeaveGuard(async () => !dirty || await ask('Du har ændringer, der ikke er gemt. Kassér dem og forlad siden?', { ok: 'Kassér og forlad', danger: true }));
+  onDestroy(removeLeaveGuard);
+
   onMount(async () => {
     try {
       saved = await get<Record<string, Pt[]>>('/api/symbol-ports');
@@ -57,6 +61,7 @@
 
   async function back(): Promise<void> {
     if (dirty && !(await ask('Du har ændringer, der ikke er gemt. Kassér dem og gå tilbage?', { ok: 'Kassér', danger: true }))) return;
+    dirty = false;   // allerede spurgt — vagten ved sideskiftet skal ikke spørge igen
     location.hash = drawHref(from.drawing);
   }
 
