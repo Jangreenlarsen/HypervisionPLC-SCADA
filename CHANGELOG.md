@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.14.3 build 0308] — 2026-11-01 — Tegn/Symboler spørger før ugemte ændringer går tabt ved sideskift
+
+- `frontend/src/lib/leaveGuard.ts` (ny): vagt som en side kan tilmelde; `App.svelte` spørger den ved sideskift (menu, adresselinje, tilbage) og sætter adressen tilbage, hvis man bliver.
+- `frontend/src/pages/DrawEditor.svelte`, `frontend/src/pages/SymbolEditor.svelte`: tilmelder vagten; "Tilbage" i Symboler spørger kun én gang.
+- Test: `frontend/src/lib/leaveGuard.test.ts`. BUGS.md: v3.7.0-fejlen lukket.
+
 ## [3.14.2 build 0307] — 2026-11-01 — kommunikationsalarmer for delvise fejl og ikke-startede PLC'er
 
 - `backend/app/services/alarms.py`: `_comm_problems` — alarm `plc:<plc>:partial` (COMM) når kald/områder fejler delvist og `plc:<plc>:comm` for en aktiv PLC, der ikke kan startes (mangler adgangskode); tællere pr. alarmnøgle ryddes, når problemet forsvinder.

@@ -25,6 +25,7 @@
   import type { SelectionInfo } from '../lib/symbolSuggest';
   import { CATEGORIES, FITTING_LEGS, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
   import { MAX_DIGITS, MIN_DIGITS, segDisplaySvg } from '../lib/segDisplay';
+  import { setLeaveGuard } from '../lib/leaveGuard';
 
   let { route = 'draw' }: { route?: string } = $props();
 
@@ -777,6 +778,7 @@
 
   onMount(async () => {
     window.addEventListener('beforeunload', onBeforeUnload);
+    removeLeaveGuard = setLeaveGuard(async () => !dirty || await askUser('Tegningen har ændringer, der ikke er gemt — de går tabt, hvis du forlader siden. Gem først med "Gem kladde", eller fortsæt og kassér dem.', { ok: 'Kassér og forlad', danger: true }));
     loadFavorites();
     fitFrame();
     stopLayout = onLayoutChange(fitFrame);
@@ -787,8 +789,10 @@
     }
     drawingsLoaded();
   });
+  let removeLeaveGuard: (() => void) | null = null;
   onDestroy(() => {
     window.removeEventListener('beforeunload', onBeforeUnload);
+    removeLeaveGuard?.();
     stopLayout?.();
   });
 
