@@ -252,3 +252,39 @@ async def test_rate_limit_keeps_values_and_only_later_is_a_comm_error(mock_plc):
         assert rt.status.message == ""
     finally:
         await rt.stop()
+
+
+async def test_partial_is_sticky_and_covers_ext_errors(mock_plc, monkeypatch):
+    """`partial` vedvarer, til netop det kald lykkes igen (eksterne områder polles sjældent), og en fejl, som PLC'en
+    svarer med for et eksternt område, tæller også; total fejl nulstiller listen."""
+    from app.plc.errors import PlcApiError
+    rt, cache = await _runtime(mock_plc)
+    rt.set_tags(_tags(("E", "plc1:rtu:5:hr:0", 1.0, 0.0), ("A", "plc1:hr:1", 1.0, 0.0)))
+    broken = {"on": True}
+    real = rt.client.read_ext
+
+    async def ext(*a, **kw):
+        if broken["on"]:
+            raise PlcApiError("Modbus Master er slået fra", status=409)
+        return await real(*a, **kw)
+
+    rt.client.read_ext = ext  # type: ignore[method-assign]
+    rt.ext_interval = 0.5
+    rt.start()
+    try:
+        await wait_for(lambda: len(rt.status.partial) == 1)
+        first = rt.status.partial[0]
+        assert first["what"].startswith("ekstern rtu") and "slået fra" in first["message"] and first["tags"] == 1
+        await wait_for(lambda: rt.status.cycles >= 6)     # mange hurtige cyklusser uden ext-kald imellem
+        assert len(rt.status.partial) == 1                  # forsvandt ikke mellem ext-pollingerne
+        sig = rt._plan_sig
+        rt.set_tags(_tags(("E", "plc1:rtu:5:hr:0", 1.0, 0.0), ("A", "plc1:hr:1", 1.0, 0.0)))
+        assert rt._plan_sig == sig and len(rt._partial) == 1   # uændret plan → posten bevares
+        rt.set_tags(_tags(("A", "plc1:hr:1", 1.0, 0.0)))
+        assert rt._partial == {} and rt.status.partial == []   # planen ændret → forældede poster ryddes
+        rt.set_tags(_tags(("E", "plc1:rtu:5:hr:0", 1.0, 0.0), ("A", "plc1:hr:1", 1.0, 0.0)))
+        await wait_for(lambda: len(rt.status.partial) == 1)
+        rt._on_error("nede")
+        assert rt.status.partial == []
+    finally:
+        await rt.stop()

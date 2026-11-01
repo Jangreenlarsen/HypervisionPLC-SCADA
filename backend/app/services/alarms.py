@@ -156,6 +156,25 @@ class AlarmService:
         finally:
             self.manager.cache.unsubscribe(queue)
 
+    @staticmethod
+    def _comm_problems(plc: dict[str, Any], st: dict[str, Any]) -> list[tuple[str, str]]:
+        """Kommunikationsproblemer for en aktiv PLC → [(alarmnøgle, tekst)]: hele PLC'en tabt, aldrig startet
+        (mangler adgangskode), eller delvist (ét bulk-område / ST-program / ekstern slave svarer ikke — tagsene
+        er `comm_error`, men PLC'en er ellers oppe)."""
+        key, name = plc["key"], plc["name"]
+        if st["state"] == "error":
+            return [(f"plc:{key}:comm", f"PLC {name}: kommunikation tabt — {st['message']}")]
+        if st["state"] == "stopped" and st.get("attention"):
+            return [(f"plc:{key}:comm", f"PLC {name}: ikke startet — {st['message']}")]
+        partial = st.get("partial") or []
+        if not partial:
+            return []
+        first = partial[0]
+        more = f" (+{len(partial) - 1} andre)" if len(partial) > 1 else ""
+        # én alarm pr. PLC (ikke pr. kald): stabil nøgle, også når tags ændrer opdelingen i områder
+        return [(f"plc:{key}:partial",
+                 f"PLC {name}: {first['what']} svarer ikke ({first['tags']} tag) — {first['message']}{more}")]
+
     def evaluate(self, now: float | None = None) -> None:
         now = time.time() if now is None else now
         desired: dict[str, Condition] = {}
@@ -172,16 +191,18 @@ class AlarmService:
             for c in conds or []:
                 desired[c.key] = c
 
+        seen: set[str] = set()
         for plc in self.db.list_plcs():
+            if not plc["enabled"]:
+                continue
             st = self.manager.status(plc["key"])
-            if plc["enabled"] and st["state"] == "error":
-                since = self._comm_since.setdefault(plc["key"], now)
+            for key, message in self._comm_problems(plc, st):
+                seen.add(key)
+                since = self._comm_since.setdefault(key, now)
                 if now - since >= self.comm_delay_s:
-                    desired[f"plc:{plc['key']}:comm"] = Condition(
-                        f"plc:{plc['key']}:comm", "", plc["key"], "comm", "COMM", None,
-                        f"PLC {plc['name']}: kommunikation tabt — {st['message']}")
-            else:
-                self._comm_since.pop(plc["key"], None)
+                    desired[key] = Condition(key, "", plc["key"], "comm", "COMM", None, message)
+        for key in [k for k in self._comm_since if k not in seen]:
+            del self._comm_since[key]
 
         for provider in self.providers:
             try:

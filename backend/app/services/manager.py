@@ -41,6 +41,7 @@ class PlcManager:
         self._transport_factory = transport_factory
         self.runtimes: dict[str, PlcRuntime] = {}
         self._not_started: dict[str, str] = {}
+        self._attention: set[str] = set()
 
     async def start_all(self) -> None:
         for plc in self.db.list_plcs():
@@ -53,6 +54,7 @@ class PlcManager:
     async def reload_plc(self, key: str) -> None:
         """Genstart runtime efter en ændring af forbindelsesindstillinger (eller sletning)."""
         await self._stop(key)
+        self._attention.discard(key)
         plc = self.db.get_plc(key)
         if plc is None:
             self._not_started.pop(key, None)
@@ -63,6 +65,7 @@ class PlcManager:
         password = self.secrets.get_plc_password(key)
         if password is None:
             self._not_started[key] = "Ingen adgangskode sat for PLC-brugeren"
+            self._attention.add(key)   # aktiv PLC, der aldrig kommer i gang, før en tekniker sætter en adgangskode
             return
         if not self.settings.start_runtimes:
             self._not_started[key] = "Runtimes er slået fra i denne instans"
@@ -131,7 +134,8 @@ class PlcManager:
     def status(self, key: str) -> dict[str, Any]:
         runtime = self.runtimes.get(key)
         if runtime is None:
-            return {"state": "stopped", "message": self._not_started.get(key, "Ikke startet")}
+            return {"state": "stopped", "message": self._not_started.get(key, "Ikke startet"),
+                    "attention": key in self._attention}
         st = runtime.status
         sse = runtime.sse.status if runtime.sse is not None else None
         return {

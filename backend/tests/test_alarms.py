@@ -241,3 +241,67 @@ def test_switching_between_limits_and_on_off_alarm(api):
     r = api.patch("/api/tags/Auto", json={"alarm_on": "true", "alarm_h": None})
     assert r.status_code == 200, r.text
 
+
+
+# ------------------------------------------------- kommunikationsalarmer (delvis fejl, ikke startet)
+
+def test_comm_problems_variants():
+    from app.services.alarms import AlarmService as A
+    plc = {"key": "plc1", "name": "Kedel"}
+    assert A._comm_problems(plc, {"state": "ok", "message": "", "partial": []}) == []
+    assert A._comm_problems(plc, {"state": "stopped", "message": "Ikke startet", "attention": False}) == []
+    k, m = A._comm_problems(plc, {"state": "stopped", "message": "Ingen adgangskode sat", "attention": True})[0]
+    assert k == "plc:plc1:comm" and "ikke startet" in m
+    k, m = A._comm_problems(plc, {"state": "error", "message": "nede"})[0]
+    assert k == "plc:plc1:comm" and "kommunikation tabt" in m
+    (k, m), = A._comm_problems(plc, {"state": "ok", "partial": [{"what": "ST-program 1", "message": "timeout", "tags": 3},
+                                                                {"what": "hr 0–9", "message": "x", "tags": 1}]})
+    assert k == "plc:plc1:partial" and "ST-program 1 svarer ikke (3 tag)" in m and "(+1 andre)" in m
+
+
+def test_partial_failure_raises_comm_alarm_and_clears(api, mock_plc, monkeypatch):
+    """Et fejlende ST-program giver en kommunikationsalarm (tidligere kun hele-PLC'en-tabt), og den ophører igen."""
+    import app.services.plc_runtime as mod
+    from app.plc.errors import PlcUnreachable
+    monkeypatch.setattr(mod, "COOL_STEP_S", 0.05)
+    api.post("/api/tags", json={"name": "ST", "source": "plc1:logic:1:Niveau"})
+    rt = api.app.state.manager.runtimes["plc1"]
+    real, broken = rt.client.logic_program, {"on": True}
+
+    async def flaky(program_id):
+        if broken["on"]:
+            raise PlcUnreachable("svarede ikke (test)")
+        return await real(program_id)
+
+    rt.client.logic_program = flaky  # type: ignore[method-assign]
+    api.app.state.alarm_service.comm_delay_s = 0.0
+    a = _wait(lambda: _active(api).get("plc:plc1:partial"))
+    assert a["level"] == "COMM" and "ST-program 1 svarer ikke" in a["message"]
+    broken["on"] = False
+    _wait(lambda: "plc:plc1:partial" not in _active(api) or
+          _active(api)["plc:plc1:partial"]["state"] == "rtn_unack")
+
+
+def test_plc_without_password_raises_comm_alarm(api, mock_plc):
+    """En aktiv PLC uden adgangskode starter aldrig — det skal give en alarm, ikke tavshed."""
+    r = api.post("/api/plcs", json={"key": "plc2", "base_url": mock_plc.url, "username": "scada", "sse_enabled": False})
+    assert r.status_code == 201, r.text
+    api.app.state.alarm_service.comm_delay_s = 0.0
+    a = _wait(lambda: _active(api).get("plc:plc2:comm"))
+    assert a["level"] == "COMM" and "ikke startet" in a["message"] and "adgangskode" in a["message"]
+
+
+def test_partial_alarm_cleared_when_plc_disabled(api, mock_plc, monkeypatch):
+    import app.services.plc_runtime as mod
+    from app.plc.errors import PlcUnreachable
+    monkeypatch.setattr(mod, "COOL_STEP_S", 0.05)
+    api.post("/api/tags", json={"name": "ST", "source": "plc1:logic:1:Niveau"})
+
+    async def broken(program_id):
+        raise PlcUnreachable("svarede ikke (test)")
+
+    api.app.state.manager.runtimes["plc1"].client.logic_program = broken  # type: ignore[method-assign]
+    api.app.state.alarm_service.comm_delay_s = 0.0
+    _wait(lambda: _active(api).get("plc:plc1:partial"))
+    assert api.patch("/api/plcs/plc1", json={"enabled": False}).status_code == 200
+    _wait(lambda: "plc:plc1:partial" not in _active(api) or _active(api)["plc:plc1:partial"]["state"] == "rtn_unack")

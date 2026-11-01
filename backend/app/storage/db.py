@@ -7,11 +7,14 @@ read-modify-write af hele rækker).
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import threading
 import time
 from pathlib import Path
 from typing import Any
+
+log = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 14   # 14: tags.priority (FEATURE_TAG_PRIORITET)
 
@@ -257,6 +260,12 @@ class Database:
         for col, ddl in {**ALARM_COLUMNS, **TREND_COLUMNS, **ENERGY_COLUMNS, **PRIORITY_COLUMNS}.items():
             if col not in tag_cols:
                 self._conn.execute(f"ALTER TABLE tags ADD COLUMN {col} {ddl}")
+        # Brugernavne er unikke uanset store/små bogstaver. Findes der allerede dubletter, springes indekset over
+        # (de eksisterende konti røres ikke) — oprettelse tjekkes under alle omstændigheder i `get_user_ci`.
+        try:
+            self._conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_username_ci ON users(lower(username))")
+        except sqlite3.IntegrityError:
+            log.warning("Brugernavne med forskellig store/små bogstaver findes allerede — unikt indeks springes over")
         self._conn.execute("UPDATE meta SET value = ? WHERE key = 'schema_version'", (str(SCHEMA_VERSION),))
 
     def close(self) -> None:
@@ -774,6 +783,11 @@ class Database:
 
     def list_users(self) -> list[dict[str, Any]]:
         return self._query("SELECT * FROM users ORDER BY username")
+
+    def get_user_ci(self, username: str) -> dict[str, Any] | None:
+        """Som get_user, men uden hensyn til store/små bogstaver (til tjek af dubletter ved oprettelse)."""
+        rows = self._query("SELECT * FROM users WHERE lower(username) = lower(?)", (username,))
+        return rows[0] if rows else None
 
     def get_user(self, username: str) -> dict[str, Any] | None:
         rows = self._query("SELECT * FROM users WHERE username = ?", (username,))

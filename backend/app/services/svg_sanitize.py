@@ -95,6 +95,9 @@ def _clean_css(text: str) -> str:
     return _CSS_EXPRESSION.sub("(", text)
 
 
+MAX_DEPTH = 100  # indlejring af elementer; dybere giver RecursionError i rensningen
+
+
 def sanitize_svg(data: bytes | str) -> SanitizeResult:
     raw = data.encode("utf-8") if isinstance(data, str) else data
     if not raw or not raw.strip():
@@ -123,14 +126,16 @@ def sanitize_svg(data: bytes | str) -> SanitizeResult:
     return result
 
 
-def _clean_element(el: ET.Element, result: SanitizeResult) -> None:
+def _clean_element(el: ET.Element, result: SanitizeResult, depth: int = 0) -> None:
+    if depth > MAX_DEPTH:
+        raise SvgError(f"SVG'en er indlejret for dybt (mere end {MAX_DEPTH} niveauer)")
     for child in list(el):
         ns, name = _local(child.tag) if isinstance(child.tag, str) else (None, "")
         if not isinstance(child.tag, str) or ns not in (SVG_NS, None) or name not in ALLOWED_ELEMENTS:
             _count(result.removed_elements, name or "kommentar/processing-instruction")
             _remove_keep_tail(el, child)
             continue
-        _clean_element(child, result)
+        _clean_element(child, result, depth + 1)
 
     ns, name = _local(el.tag)
     for attr in list(el.attrib):

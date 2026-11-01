@@ -34,6 +34,19 @@ from .ratelimit import TokenBucket
 log = logging.getLogger(__name__)
 
 # Bulk-grænser fra PLC'ens api_handlers.cpp
+def coerce_register(value: Any, where: str = "register") -> int:
+    """PLC-værdi → heltal. Bool → 0/1; heltal-flydende (5.0) accepteres. `None`, tekst og decimaltal afvises
+    med PlcApiError i stedet for TypeError eller stille afkortning (log: kilden til den ugyldige værdi)."""
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    log.warning("Ugyldig registerværdi fra PLC: %s = %r", where, value)
+    raise PlcApiError(f"Ugyldig værdi fra PLC i {where}: {value!r}")
+
+
 BULK_MAX = {"hr": 200, "ir": 200, "coil": 256, "di": 256}
 _BULK_PATH = {"hr": "hr", "ir": "ir", "coil": "coils", "di": "di"}
 _BULK_KEY = {"hr": "registers", "ir": "registers", "coil": "coils", "di": "inputs"}
@@ -207,8 +220,7 @@ class PlcClient:
         for item in items:
             if not isinstance(item, dict) or "addr" not in item or "value" not in item:
                 continue
-            value = item["value"]
-            result[int(item["addr"])] = int(bool(value)) if isinstance(value, bool) else int(value)
+            result[int(item["addr"])] = coerce_register(item["value"], f"{kind} {item['addr']}")
         return result
 
     async def read_ext(self, base: str, kind: str, start: int, count: int, *, max_age_ms: int | None = None,
