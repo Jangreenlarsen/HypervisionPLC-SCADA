@@ -145,6 +145,7 @@ class PlcManager:
             "cycles": st.cycles,
             "errors": st.errors,
             "requests_per_cycle": runtime.requests_per_cycle,
+            "request_rate": (None if (r := runtime.request_rate()) is None else round(r, 2)),
             "request_count": runtime.client.request_count,
             "throttled": st.throttled,                     # 429 fra PLC'en siden start (rate-limit)
             "last_throttled": st.last_throttled or None,

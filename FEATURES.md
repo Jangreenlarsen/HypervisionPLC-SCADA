@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v3.15.0 — **System › Status** (ønske fra Jan 2026-11-01, PLAN.md Del C1): én side (tekniker+) med grøn/gul/rød helbred for SCADA og PLC'erne — database, trend-skrivning, pr. PLC (kommunikation, kald/s mod budget, 429, delvise fejl, SSE), WebSocket-klienter, alarmer, disk, hukommelse, CPU-temperatur/throttling (Pi), alder på seneste backup og **event-loop-lag** (afslører blokeringer som G1). `GET /api/health/details`; `/api/health` forbliver minimal (bruges af OTA-rollback). Grundlag for `/metrics` (C2) og interne alarmer (C3).
 - [x] done v3.14.0 — **OTA fra GitHub** (ønske fra Jan 2026-10-31): *System › Opdatering* søger efter nyeste Release, henter og kontrollerer pakken (SHA256) og klargør den som en uploadet pakke; `SCADA_UPDATE_REPO` (tom = fra).
 - [x] done v3.13.0 — **Installation fra GitHub** (ønske fra Jan 2026-10-31): `deploy/bootstrap.sh` installerer en ny Pi fra nyeste Release; GitHub Actions bygger Releases ved tag.
 - [x] done v3.12.0 — **Tekstredigering i Tegn** (ønske fra Jan 2026-10-31): ret tekst (også flere linjer) fra *Egenskaber*, størrelse med forslag, flere skrifttyper, fed/kursiv/understreget, justering (bliver stående), tekstfarve.
