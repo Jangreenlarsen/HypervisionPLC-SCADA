@@ -235,3 +235,39 @@ def test_verify_is_bounded_and_reports_busy(tmp_path, monkeypatch):
             for _ in range(auth_mod.VERIFY_CONCURRENCY):
                 svc._verify_slots.release()
         assert svc.verify("y", hash_password("y")) is True
+
+
+def test_origin_matches_host_ports():
+    from app.main import origin_matches_host as m
+    assert m("https://scada.local", "scada.local")
+    assert m("https://scada.local:8443", "scada.local")          # nginx uden port i Host (tidligere afvist)
+    assert m("https://scada.local:8443", "scada.local:8443")
+    assert m("https://SCADA.local", "scada.local")
+    assert not m("https://scada.local:9999", "scada.local:8443")
+    assert not m("https://scada.local", "scada.local:8443")      # standardport ≠ 8443
+    assert not m("https://evil.example", "scada.local")
+    assert not m("https://scada.local.evil.example", "scada.local")
+    assert not m("null", "scada.local") and not m("https://scada.local:x", "scada.local")
+
+
+def test_username_unique_case_insensitive(admin):
+    body = {"username": "Per", "role": "viewer", "password": "Hemmelig-kode-12345"}
+    assert admin.post("/api/users", json=body).status_code == 201
+    r = admin.post("/api/users", json={**body, "username": "per"})
+    assert r.status_code == 409 and "findes allerede" in r.json()["error"]
+    r = admin.post("/api/users", json={**body, "username": "ADMIN"})
+    assert r.status_code == 409
+
+
+def test_ci_unique_index_skipped_when_duplicates_exist(tmp_path):
+    from app.storage.db import Database
+    path = tmp_path / "x.db"
+    db = Database(path)
+    db.close()
+    import sqlite3
+    c = sqlite3.connect(path)
+    c.execute("DROP INDEX users_username_ci")
+    for n in ("Ab", "ab"):
+        c.execute("INSERT INTO users(username,password_hash,role,created_at,updated_at) VALUES (?,?,?,0,0)", (n, "h", "viewer"))
+    c.commit(); c.close()
+    Database(path).close()   # må ikke fejle, selvom indekset ikke kan oprettes

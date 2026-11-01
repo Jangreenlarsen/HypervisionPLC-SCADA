@@ -161,3 +161,12 @@ def test_guides_on_root_survive():
     out = sanitize_svg(svg.encode())
     assert "data-hv-guides" in out.svg and '"v":[40]' in out.svg.replace("&quot;", '"')
     assert not out.removed_attributes
+
+
+def test_deeply_nested_svg_is_rejected_readably():
+    import pytest
+    from app.services.svg_sanitize import SvgError, sanitize_svg
+    head = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+    with pytest.raises(SvgError, match="for dybt"):
+        sanitize_svg(head + "<g>" * 5000 + "</g>" * 5000 + "</svg>")
+    assert sanitize_svg(head + "<g>" * 50 + "</g>" * 50 + "</svg>").svg

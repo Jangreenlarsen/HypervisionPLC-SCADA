@@ -67,6 +67,24 @@ from .storage.secrets import SecretStore
 log = logging.getLogger("scada")
 
 
+def origin_matches_host(origin: str, host: str) -> bool:
+    """Samme side? Værtsnavnet skal passe; porten sammenlignes kun, når `Host` har en (nginx sendte før `$host`
+    uden port, så en side på en ikke-standardport blev afvist). Skemaet og porten i en forskellig Origin uden
+    port i Host er dækket af SameSite=Strict på sessionen."""
+    try:
+        parts = urlsplit(origin)
+        h = urlsplit("//" + host)
+        o_port, h_port = parts.port, h.port
+    except ValueError:
+        return False
+    o_host, h_host = (parts.hostname or "").lower(), (h.hostname or "").lower()
+    if not o_host or o_host != h_host:
+        return False
+    if h_port is None:
+        return True
+    return (o_port or (443 if parts.scheme == "https" else 80)) == h_port
+
+
 def create_app(settings: Settings | None = None, transport_factory: TransportFactory | None = None) -> FastAPI:
     settings = settings or Settings()
     sysconfig.apply_overrides(settings)   # gemte trend-indstillinger (System › Konfiguration) overstyrer miljøvariablerne
@@ -167,7 +185,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         # Forsvar mod CSRF ud over SameSite=Strict: ændrende kald fra en browser skal komme fra samme origin.
         if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.url.path.startswith("/api/"):
             origin = request.headers.get("origin")
-            if origin and urlsplit(origin).netloc != request.headers.get("host", ""):
+            if origin and not origin_matches_host(origin, request.headers.get("host", "")):
                 return JSONResponse({"error": "Afvist: forespørgslen kommer fra en anden side (origin)"}, status_code=403)
         return await call_next(request)
 

@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.14.1 build 0306] — 2026-11-01 — fejlrettelser: Origin bag nginx, ugyldige PLC-værdier, dybt SVG, brugernavne
+
+- `backend/app/main.py`: `origin_matches_host` (værtsnavn; port kun når `Host` har en). `deploy/nginx-hypervisionplc-scada.conf`: `Host $http_host`.
+- `backend/app/plc/client.py`, `backend/app/services/plc_runtime.py`: `coerce_register` — `None`/tekst/decimaltal fra PLC giver `PlcApiError` (bulk) eller kvalitet `bad` (eksterne) i stedet for `TypeError`/afkortning; logges med kilde.
+- `backend/app/services/svg_sanitize.py`: dybdegrænse (100) med læsbar fejl.
+- `backend/app/storage/db.py`, `backend/app/services/auth.py`: brugernavne unikke uanset store/små bogstaver (`get_user_ci`, unikt indeks når muligt).
+- Tests: `test_auth.py`, `test_client.py`, `test_svg_sanitize.py`. BUGS.md: fire punkter fra Gennemgang (#13, #15, #16, #18) lukket.
+
 ## [3.14.0 build 0305] — 2026-10-31 — OTA-opdatering direkte fra GitHub
 
 - `backend/app/services/github_releases.py` (ny): nyeste Release via GitHub API, hentning af `scada-*.tar` med størrelsesgrænse og SHA256-kontrol; afviser hvis en nyere udgivelse er kommet siden søgningen.

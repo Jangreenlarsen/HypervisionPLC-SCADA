@@ -114,3 +114,14 @@ async def test_logic_endpoints(mock_plc):
     assert [p["id"] for p in programs] == [1, 2]
     assert prog["variables"][0]["name"] == "Niveau"
     assert globals_[0]["name"] == "Mode"
+
+
+def test_coerce_register():
+    import pytest
+    from app.plc.client import coerce_register
+    from app.plc.errors import PlcApiError
+    assert coerce_register(True) == 1 and coerce_register(False) == 0
+    assert coerce_register(7) == 7 and coerce_register(5.0) == 5
+    for bad in (None, 1.5, "12", [1]):
+        with pytest.raises(PlcApiError):
+            coerce_register(bad, "hr 3")

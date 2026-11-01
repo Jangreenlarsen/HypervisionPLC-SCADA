@@ -261,8 +261,10 @@ class AuthService:
         if not isinstance(username, str) or not USERNAME_RE.match(username.strip()):
             raise ServiceError(400, "Brugernavn skal være 2-32 tegn: bogstaver, tal, _ . -")
         username = username.strip()
-        if self.db.get_user(username) is not None:
-            raise ServiceError(409, f"Brugeren '{username}' findes allerede")
+        existing = self.db.get_user_ci(username)
+        if existing is not None:
+            raise ServiceError(409, f"Brugeren '{existing['username']}' findes allerede"
+                                    + ("" if existing["username"] == username else " (store/små bogstaver er ens)"))
         role = data.get("role")
         if role not in ROLES:
             raise ServiceError(400, f"Ukendt rolle '{role}' (brug {', '.join(ROLES)})")

@@ -1,3 +1,127 @@
+# Plan: oprydning, MQTT/direkte board-adgang og observability (2026-11-01)
+
+**Status:** udkast — afventer Jans valg (se "Beslutninger" nederst). Ingen kode ændret.
+
+## Del A — Punkt 3: ryd op i åbne fejl og gamle `in-progress`
+
+**Hvorfor:** `FEATURES.md` har ~20 punkter, der stadig står som `in-progress` (v0.27–v0.58), og `BUGS.md` har 7 åbne punkter. Det skjuler, hvad der reelt mangler, og de åbne fejl rammer drift (alarm der udebliver, tab af ugemte ændringer).
+
+### A1. Åbne fejl (rækkefølge efter værdi/risiko)
+| # | Fejl (BUGS.md) | Foreslået løsning | Størrelse |
+|---|---|---|---|
+| 1 | v0.27.0 #7: ingen alarm ved `bad`-kvalitet (ekstern slave / ST) eller PLC `stopped` uden adgangskode | `alarms.evaluate` udvides med kommunikationsalarm pr. kilde (PLC / rtu / mbx) | M |
+| 2 | v0.27.0 #9: én `PlcApiError` på ét område markerer ALLE PLC'ens tags `comm_error` | `poll_once` markerer kun tags i det område/program, der fejlede | M |
+| 3 | v0.27.0 #18: "Admin" og "admin" kan være to brugere | unikt indeks på `lower(username)` + håndtering af eksisterende dubletter; test | S (skema — tjek MAJOR-reglen) |
+| 4 | v0.27.0 #13: Origin-tjek sammenligner med `Host` uden port | sammenlign host + port korrekt bag nginx | S |
+| 5 | v0.27.0 #15: `None`/decimaltal fra PLC giver rå `TypeError`/stille trunkering | validér i `read_bulk`/`_ext_value` → `PlcApiError` | S |
+| 6 | v0.27.0 #16: dybt indlejret SVG → `RecursionError` | dybdegrænse i `svg_sanitize` med læsbar fejl | S |
+| 7 | v3.7.0: Tegn mister ugemte ændringer ved sidenavigation | fælles "forlad siden"-vagt i `App.svelte`, som Tegn tilmelder sig | S–M |
+| 8 | v0.131.4: `_compute` ikke cachet | **mål først på Pi 4** (event-loop-lag fra Del C); cache kun hvis målingen viser behov | afventer måling |
+
+Hver rettelse: registreres i BUGS.md med løsning, test i faktisk kontekst, PATCH-bump, CHANGELOG/RELEASE_NOTES, OTA-pakke. #1–#2 berører PLC-læsning/alarmer → `reviewer` før commit.
+
+### A2. Gamle `in-progress`-punkter
+Koden er leveret og senere versioner bygger ovenpå, men "afventer Jans test" er aldrig lukket. Kun Jan kan bekræfte, at de virker. Forslag: en kort tjekliste (pr. punkt: hvor i UI'et, hvad skal ses) som Jan krydser af; bekræftede → `done`, resten → BUGS.md. Docs-only commit (ingen versionsbump).
+
+### A3. Den gamle bindingsmodel (symbolstandard fase 8)
+Funktionsanalysen (27.10) viser, at simple bindinger stadig kan noget, wizarden ikke kan (frit element uden symbol, `click:goto` på ikke-symboler). Alternativer:
+- **A. Behold begge, markér simple bindinger som "enkel tilstand"** — ingen migration, mindst risiko. *Anbefalet.*
+- B. Migrér simple bindinger automatisk til symbolopsætning — stort, skema-/MAJOR-ændring, risiko for tabt opførsel.
+- C. Fjern simple bindinger — bryder eksisterende tegninger. Frarådes.
+Beslutningen noteres i FEATURES.md, og punktet lukkes.
+
+### A4. Repo
+`scada-*.tar` er git-ignoreret (0 sporede) og roder kun lokalt. Forslag: behold de seneste 3 i roden, flyt resten til et ignoreret arkiv — sletning kræver Jans accept.
+
+---
+
+## Del B — Punkt 5: MQTT og direkte adgang til expansion board
+
+### B1. Direkte adgang til expansion board uden om PLC'en — vurdering
+Fundet i PLC-dokumentationen (`docs/expansion/PLC_INTEGRATION_MANUAL.md`, `docs/manual/06_Modbus_Interface.md`):
+
+| Vej | Kan SCADA bruge den? |
+|---|---|
+| **Modbus TCP (port 502/503)** — boardets data-plan | **Nej.** Boardet accepterer KUN forbindelser fra ÉN fast IP (`plc_ip`). Sættes den til SCADA, mister PLC'en sine boards; SCADA fra en anden IP afvises. Ingen protokol-auth. |
+| **Board-REST (port 8080)**: `/api/status`, `/api/channels`, `/read`, `/write` | Teknisk ja (ikke begrænset af `plc_ip`, kræver Bearer/Basic), men `/read`/`/write` er **ad-hoc diagnostik, "ikke til høj-frekvent drift"**: én synkron RTU-transaktion på samme RS485-bus som PLC'ens ST-logik bruger, uden at PLC'en ved det → forstyrrer timing og kan give timeouts i ST-programmer. |
+| **PLC'ens `/api/ext/mbx/...`** (som i dag) | Ja — PLC'en styrer busadgang, prioritet (`prio=high`) og rate-budget. |
+
+**Hvad ville direkte adgang give?** (1) Ingen belastning af PLC'ens 32/48-posters ext-cache og ≤5 req/s-budget; (2) boardets sundhed/kanalstatistik uafhængigt af PLC'en; (3) data selv hvis PLC'en er nede.
+**Hvad koster det?** Bryder projektets faste ramme (CLAUDE.md: al PLC-kommunikation kun via PLC'ens REST API; ARCHITECTURE princip 2), board-token skal ligge i SCADA, og busdeling sker uden koordinering.
+
+**Anbefaling: ingen direkte busadgang.** Dæk behovene inden for rammen:
+1. **Boardets sundhed** findes allerede i PLC'ens `/api/metrics` (`expansion_board_online{board}`, `mbx_channel_requests_total/_ok/_timeouts/_errors/_last_ok_age_ms`). SCADA henter og viser dem (Del C4). Det dækker "er boardet oppe, og hvor mange timeouts".
+2. **Cache-presset**: bed PLC-teamet om (a) større ext-cache eller (b) et bulk-endpoint for flere eksterne adresser (jf. HYPERVISIONPLC_ANALYSE §7). Det er en PLC-ændring, ikke en SCADA-omgåelse.
+3. **Hvis Jan alligevel vil have det:** kun en snæver, **skrivebeskyttet undtagelse**: `GET /api/status` på boardets REST (ingen busaktivitet) til sundhedstjek, i PLC-klient-laget som en ny `board_client`, token i `secrets.json`, undtagelsen dokumenteret i ARCHITECTURE.md. Aldrig `/read`, `/write` eller Modbus TCP. Kræver Jans eksplicitte accept, fordi det ændrer den faste ramme.
+
+### B2. MQTT-udgang — hvorfor og hvad opnår vi
+**Hvorfor:** SCADA er i dag en lukket ø — andre systemer skal polle web-API'et eller læse CSV. MQTT lader SCADA *skubbe* værdier og alarmer ud til en mægler (Mosquitto/EMQX), som Home Assistant, Node-RED, Grafana (via Telegraf), BMS og sky kan abonnere på.
+
+**Hvad opnår vi:** integration uden ekstra belastning af SCADA/PLC; fælles datakilde til dashboards og langtidshistorik uden for Pi'ens SQLite; alarmer videre til andre notifikationssystemer (delvis løsning på den manglende notifikation); Home Assistant-autodiscovery.
+
+**Afgrænsning (første version): kun udgående og kun læsning.**
+- Publicér tag-værdier (kun tags valgt til MQTT), alarmtilstand og SCADA/PLC-status. Topic `hvscada/<anlæg>/<plc>/<tag>` (JSON `{v, q, ts, unit}`), retained + LWT (`online/offline`).
+- **Ingen indgående skrivning.** En skrivning via MQTT skulle gennem betjeningstjenesten (min/max, tilbagelæsning, audit, rolle) — udskydes til en senere fase med eget design.
+- Lag: ny `services/mqtt_publisher.py` abonnerer på `live_cache` (ingen PLC-kald; lag-reglen overholdes). Konfiguration under System › MQTT (admin). Mægler-adgangskode i `secrets.json`; API'et returnerer kun `has_password`. TLS til mægler. Audit på konfigurationsændringer. Begrænset publiceringsrate (ændring + keepalive, som trends).
+- **Ny afhængighed — skal godkendes:** forslag `paho-mqtt` (dual EPL-2.0 / EDL-1.0 = BSD-3; vælg EDL-1.0) eller `aiomqtt` (BSD-3, bygger på paho). Licens tjekkes før tilføjelse.
+- Test: mock-mægler, fejl/genopkobling, ingen hemmeligheder i log, kun valgte tags publiceres. Bemærk: adgang pr. tegning gælder GUI; MQTT er en system-integration og følger en eksplicit tag-liste.
+
+**Risici:** data forlader SCADA (mitigeres af eksplicit tag-liste + TLS); belastning på Pi (rate-grænse); retained-beskeder med forældede værdier (LWT + kvalitet i payload).
+
+---
+
+## Del C — Observability: systemhelbred, metrics, Prometheus
+
+**I dag:** `/api/health` returnerer kun `{status, version, build, source_url}` og bruges af OTA-rollback — den skal forblive minimal og hurtig. Ingen metrics, ingen overvågning af SCADA selv. G1 (scrypt blokerer event-loopet) blev først fundet ved manuel måling — netop det en metric ville vise.
+
+**Mål:** (1) se på ét sted om SCADA og PLC'erne har det godt, (2) lade Prometheus/Grafana scrape SCADA, (3) få alarm om SCADA's *egne* problemer.
+
+### C1. Detaljeret helbred (GUI + API)
+`GET /api/health/details` (tekniker+) og siden **System › Status** (grøn/gul/rød):
+- Database: svar-test, WAL-størrelse; `trends.db`-størrelse og skrivehastighed.
+- Pr. PLC: kommunikationsstatus, alder på seneste værdi, poll-kald/s mod budget (≤5), antal 429 og seneste, SSE tilsluttet.
+- WebSocket-klienter, aktive/ukvitterede alarmer, ugeprogram-fejl.
+- Host: uptime, hukommelse, ledig disk, CPU-temperatur og undervoltage/throttling på Pi, alder på seneste backup.
+- **Event-loop-lag** (lille periodisk opgave) — afslører blokeringer som G1.
+
+### C2. Prometheus-endpoint
+`GET /metrics` i tekstformat. **Adgang:** ikke åben — separat scrape-token (skrive-kun i `secrets.json`) eller localhost/nginx-allowlist, fordi tag- og tegningsnavne er følsomme. Eksempler:
+`scada_up`, `scada_build_info{version,build}`, `scada_event_loop_lag_seconds`, `scada_plc_up{plc}`, `scada_plc_last_ok_age_seconds{plc}`, `scada_plc_requests_total{plc,result}`, `scada_plc_rate_limited_total{plc}`, `scada_plc_poll_duration_seconds{plc}`, `scada_ws_clients`, `scada_alarms_active{state}`, `scada_trend_writes_total`, `scada_db_bytes{db}`, `scada_disk_free_bytes`, `scada_host_temp_celsius`, `scada_last_backup_age_seconds`.
+**Valg:** håndskrevet eksponering (~100 linjer, ingen afhængighed — anbefalet til Pi) eller `prometheus_client` (Apache-2.0, kompatibel — kræver godkendelse).
+
+### C3. Interne alarmer om SCADA selv
+Genbrug alarmmotoren: pseudo-tags (`sys:disk_free`, `sys:loop_lag`, `sys:backup_age`, `sys:temp`) med grænser. Giver kvittering/historik/notifikation uden ny mekanisme.
+
+### C4. PLC'ernes egne metrics (inden for rammen)
+PLC'en udstiller `/api/metrics` (Prometheus-tekst, uden auth; inkl. `expansion_board_online`, Modbus-statistik, RS485-trafik, heap). SCADA's PLC-klient henter den lavfrekvent (fx hvert 30–60 s; tæller mod rate-budgettet) og viser udvalgte værdier i System › Status; evt. gen-eksponeret i `/metrics` med `plc`-label, så ét scrape dækker alt. Det løser B1 punkt 1 uden direkte board-adgang.
+
+### C5. Drift
+- Valgfrit: systemd `WatchdogSec` + `sd_notify` (SCADA genstartes, hvis event-loopet hænger) — testes på Pi.
+- Eksempel-Grafana-dashboard og Prometheus-scrape-konfiguration i `docs/observability/`.
+- Manualen: afsnit om Status og metrics; manualbillede af Status-siden.
+
+---
+
+## Faser og versionering (hvert trin = egen commit, OTA-pakke, doku)
+1. **Del A** fejl 3–6 (små) — PATCH hver; `reviewer` på #1–#2.
+2. **C1 + event-loop-lag** — MINOR. *Mål først på en rigtig Pi 4 (afgør A1 #8).*
+3. **C2 + C4** — MINOR.
+4. **C3** — MINOR.
+5. **B2 MQTT** — MINOR, efter at afhængigheden er godkendt.
+6. **A2/A3/A4** (doku/oprydning) — docs-only, ingen bump.
+
+**Berørte filer (skøn):** `backend/app/services/health.py` (ny), `api/system.py`/`routes.py`, `services/alarms.py`, `services/plc_runtime.py`, `plc/client.py` (hent `/api/metrics`), `services/mqtt_publisher.py` (ny), `storage/secrets.py`, `frontend/src/pages/Status.svelte` (ny) + menu, `deploy/nginx-hypervisionplc-scada.conf` (allowlist for `/metrics`), `deploy/hypervisionplc-scada.service` (watchdog), manual, tests.
+
+## Beslutninger (Jan)
+1. **Direkte board-adgang:** (a) nej — brug PLC'ens `/api/metrics` og bed PLC-teamet om bulk/større cache *(anbefalet)* · (b) snæver skrivebeskyttet undtagelse for boardets `GET /api/status`.
+2. **Ny afhængighed til MQTT:** `paho-mqtt` / `aiomqtt` — OK at undersøge licens og tilføje?
+3. **Prometheus:** håndskrevet eksponering *(anbefalet)* eller `prometheus_client`.
+4. **Bindingsmodel:** behold begge (A) *(anbefalet)*.
+5. **Tjekliste til de gamle `in-progress`:** skal jeg lave den, så du kan kvittere?
+6. **Rækkefølge:** start med fejl + Status-side, eller MQTT først?
+
+---
+
 # Plan: Symbol-editor — tilslutningspunkter pr. symboltype (Jan, 2026-10-30)
 
 **Mål:** I en egen sektion kan teknikere rette et bibliotekssymbols tilslutningspunkter (rørenes fikspunkter): tilføje, flytte, fjerne, eller nulstille til de automatisk fundne. **Symboler der allerede står i en tegning arver IKKE ændringen** — kun symboler der indsættes bagefter.

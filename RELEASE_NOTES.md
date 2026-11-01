@@ -2,6 +2,14 @@
 
 ---
 
+## v3.14.1 — 2026-11-01 — Fejlrettelser
+
+- Skrivning virker nu også, når siden åbnes på en anden port end standard (fx `https://scada:8443`) bag nginx.
+- Ugyldige værdier fra en PLC (tomme eller med decimaler) vises som dårlig kvalitet i stedet for at give en intern fejl.
+- En SVG, der er indlejret alt for dybt, afvises med en forståelig fejlbesked.
+- Brugernavne skelner ikke længere mellem store og små bogstaver ved oprettelse ("Admin" og "admin" kan ikke begge oprettes).
+- Opdateringen af nginx-indstillingen (`Host`) træder først i kraft, når nginx-konfigurationen geninstalleres på Pi'en; selve programmet retter sig selv.
+
 ## v3.14.0 — 2026-10-31 — Opdatering direkte fra GitHub
 
 - Under **System › Opdatering** kan en admin trykke **Søg efter opdatering på GitHub**. Er der en nyere version, hentes og kontrolleres den med **Hent og klargør** og installeres derefter med **Installér og genstart** som før. Serveren skal have adgang til internettet.

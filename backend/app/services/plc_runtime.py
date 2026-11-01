@@ -24,7 +24,7 @@ import time
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from ..plc.client import PlcClient, ext_base
+from ..plc.client import PlcClient, coerce_register, ext_base
 from ..plc.errors import PlcApiError, PlcAuthError, PlcError, PlcForbidden, PlcRateLimited
 from ..plc.planner import ExtRange, ReadRange, plan_ext_reads, plan_reads
 from ..plc.sse import SseListener
@@ -488,7 +488,10 @@ class PlcRuntime:
                 return LiveValue(quality="bad", ts=now, error=message or f"{src.device} svarer ikke")
             if state == "pending" or value is None:
                 return LiveValue(quality="unknown", ts=now, error=f"Venter på første svar fra {src.device}")
-        words = [int(bool(v)) if isinstance(v, bool) else int(v) for v, _, _ in entries]  # type: ignore[misc]
+        try:
+            words = [coerce_register(v, src.device) for v, _, _ in entries]  # type: ignore[misc]
+        except PlcApiError as exc:
+            return LiveValue(quality="bad", ts=now, error=str(exc))
         value = decode_words(words, src.datatype)  # type: ignore[arg-type]
         return LiveValue(value=apply_scaling(value, tag.scale, tag.offset), quality="good", ts=now)
 
