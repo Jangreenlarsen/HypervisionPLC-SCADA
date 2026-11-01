@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.15.0 build 0309] — 2026-11-01 — System › Status (systemhelbred)
+
+- `backend/app/services/health.py` (ny): `HealthService` (event-loop-lag-sonde, WebSocket-tæller, samlet billede) og `assess` (gul/rød-grænser, dansk tekst); læser Pi-throttling, CPU-temperatur, hukommelse fra /proc og /sys.
+- `backend/app/api/health.py` (ny): `GET /api/health/details` (tekniker+, kun læsning). `/api/health` er uændret (OTA-rollback).
+- `backend/app/main.py`, `backend/app/api/live_ws.py`, `backend/app/services/manager.py`, `backend/app/services/plc_runtime.py`: sonden startes/stoppes i lifespan; `health_service.ws_clients`; `request_rate` i PLC-status.
+- `frontend/src/pages/Status.svelte`, `frontend/src/lib/status.ts`, `frontend/src/lib/nav.ts`, `frontend/src/App.svelte`: siden *System › Status* (opdaterer hvert 5. s); `frontend/src/manual/13-system.md`: afsnit.
+- Tests: `backend/tests/test_health.py`, `frontend/src/lib/status.test.ts`, `nav.test.ts`.
+
 ## [3.14.3 build 0308] — 2026-11-01 — Tegn/Symboler spørger før ugemte ændringer går tabt ved sideskift
 
 - `frontend/src/lib/leaveGuard.ts` (ny): vagt som en side kan tilmelde; `App.svelte` spørger den ved sideskift (menu, adresselinje, tilbage) og sætter adressen tilbage, hvis man bliver.

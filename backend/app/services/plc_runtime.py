@@ -258,6 +258,10 @@ class PlcRuntime:
     def _requests_sent(self) -> int:
         return int(getattr(self.client, "request_count", 0) or 0)
 
+    def request_rate(self) -> float | None:
+        """Kald pr. sekund det seneste minut (til status/Status-siden)."""
+        return self._request_rate()
+
     def _request_rate(self, window_s: float = 60.0) -> float | None:
         """Kald pr. sekund, SCADA har sendt til PLC'en det seneste minut (None hvis for få målinger)."""
         now = time.monotonic()

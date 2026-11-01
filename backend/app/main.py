@@ -21,6 +21,7 @@ from .api.alarms import router as alarms_router
 from .api.auth import router as auth_router
 from .api.backup import router as backup_router
 from .api.energy import router as energy_router
+from .api.health import router as health_router
 from .api.schedules import router as schedules_router
 from .api.trends import router as trends_router
 from .api.drawings import router as drawings_router
@@ -54,6 +55,7 @@ from .services.symbol_operate import SymbolOperateService
 from .services.schedules import ScheduleService
 from .services.trends import TrendRecorder
 from .services.live_cache import LiveCache
+from .services.health import HealthService
 from .services.manager import PlcManager, TransportFactory
 from .services.plcs import PlcService
 from .services.tags import TagService
@@ -100,6 +102,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         manager = PlcManager(db, SecretStore(settings.secrets_path), LiveCache(), settings, transport_factory)
         app.state.cache = manager.cache
         app.state.settings = settings
+        app.state.health_service = HealthService()
         app.state.manager = manager
         app.state.plc_service = PlcService(manager)
         app.state.tag_service = TagService(manager)
@@ -138,6 +141,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                                                                 app.state.audit_service)
         symbol_task = asyncio.create_task(app.state.symbol_runtime.run(), name="symbols")
         alarm_task = asyncio.create_task(app.state.alarm_service.run(), name="alarms")
+        lag_task = asyncio.create_task(app.state.health_service.run_lag_probe(), name="loop-lag")
         trend_path, trend_warning = sysconfig.resolve_trend_db_path(settings.data_dir)
         app.state.trend_storage_warning = trend_warning
         trend_db = TrendDatabase(trend_path)
@@ -163,6 +167,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
             yield
         finally:
             alarm_task.cancel()
+            lag_task.cancel()
             symbol_task.cancel()
             if schedule_task is not None:
                 schedule_task.cancel()
@@ -198,6 +203,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(trends_router)
     app.include_router(energy_router)
     app.include_router(schedules_router)
+    app.include_router(health_router)
     app.include_router(router)
     app.include_router(drawings_router)
     app.include_router(symbols_router)

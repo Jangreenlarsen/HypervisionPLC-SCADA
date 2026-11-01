@@ -67,6 +67,8 @@ async def live_ws(ws: WebSocket) -> None:
         return
     cache = ws.app.state.cache
     manager = ws.app.state.manager
+    health = ws.app.state.health_service
+    health.ws_clients += 1
     queue = cache.subscribe()
     alarms = ws.app.state.alarm_service
     alarm_queue = alarms.subscribe()
@@ -146,5 +148,6 @@ async def live_ws(ws: WebSocket) -> None:
         send_task.cancel()
         with contextlib.suppress(asyncio.CancelledError, Exception):
             await send_task
+        health.ws_clients -= 1
         cache.unsubscribe(queue)
         alarms.unsubscribe(alarm_queue)

@@ -2,6 +2,10 @@
 
 ---
 
+## v3.15.0 — 2026-11-01 — Ny side: System › Status
+
+- Under **System** er der kommet en side **Status** (tekniker og admin). Den viser grøn/gul/rød for hele anlægget, hvad der evt. er galt, og detaljer om PLC'erne (forbindelse, kald i sekundet, afviste kald), serveren (om den har været optaget, database, åbne sider, alarmer, backup) og maskinen (disk, hukommelse, temperatur og på en Raspberry Pi strøm/varme). Siden opdaterer sig selv og ændrer intet.
+
 ## v3.14.3 — 2026-11-01 — Advarsel før ugemte ændringer går tabt
 
 - Skifter du side i menuen, mens **Tegn** eller **Symboler** har ændringer, der ikke er gemt, bliver du nu spurgt først. Vælger du at blive, står du stadig på tegningen med dine ændringer.
