@@ -181,6 +181,11 @@ SCRIPT = Path(__file__).resolve().parents[2] / "deploy" / "apply-config.sh"
 FAKE_NMCLI = """#!/bin/sh
 echo "$@" >> "$FAKE_LOG"
 case "$*" in
+  *"connection show uuid"*) [ -n "${FAKE_ORIG_GONE:-}" ] && exit 1 ;;
+  *"connection delete uuid 1111-2222"*)
+      [ -f "$STATE/nm-clone.state" ] && echo STATEFILE_PRESENT >> "$FAKE_LOG"
+      [ -n "${FAKE_FAIL_DELETE_ORIG:-}" ] && exit 1 ;;
+  *"connection show hv-"*) echo "3333-4444" ;;
   *"GENERAL.CONNECTION device show"*) echo "Wired connection 1" ;;
   *"connection.uuid connection show"*) echo "1111-2222" ;;
   *"connection modify"*) [ -n "${FAKE_FAIL_MODIFY:-}" ] && exit 1 ;;
@@ -406,3 +411,207 @@ def test_script_afvist_aendring_roerer_ikke_vagtens_konfiguration(sandbox):
     (tmp / "config" / "network.revert").write_text("ok")
     p.wait(timeout=30)
     assert (tmp / "state" / "watchdog.conf").read_text() == "MODE=dhcp\n"
+
+
+# ---------------------------------------------------------------- netplan-ejet profil (Raspberry Pi OS Trixie)
+
+def netplan_profile(tmp, env, marker=True):
+    """En netplan-genereret profil i "/run": netplan-<navn>.nmconnection med samme uuid som den falske nmcli svarer med."""
+    d = tmp / "runnm"
+    d.mkdir()
+    extra = "#Netplan: passthrough setting\ntimestamp=1\n" if marker else ""
+    (d / "netplan-eth0.nmconnection").write_text(
+        f"[connection]\nid=netplan-eth0\ntype=ethernet\nuuid=1111-2222\n{extra}", newline="\n")
+    env["RUNNM"] = str(d)
+
+
+def clone_state(tmp):
+    return tmp / "state" / "nm-clone.state"
+
+
+@needs_sh
+def test_netplan_profil_arbejder_paa_en_kopi_og_roerer_ikke_originalen_foer_bekraeftelse(sandbox):
+    """Varig `nmcli connection modify` på en netplan-profil kapper forbindelsen (målt på en Pi) — derfor en kopi."""
+    tmp, env = sandbox
+    netplan_profile(tmp, env)
+    request(tmp)
+    p = subprocess.Popen([SH, str(SCRIPT)], env=env)
+    wait_for_state(tmp, "waiting_confirm")
+    before = calls(tmp)
+    assert any("connection clone uuid 1111-2222 hv-eth0-" in c for c in before)               # unikt navn, aldrig en sletning på navn
+    mods = [c for c in before if "connection modify" in c]
+    assert len(mods) == 2 and all("uuid 3333-4444" in m for m in mods)                        # kun kopien ændres
+    assert "connection.autoconnect no" in mods[0] and "--temporary" not in mods[0]            # kopien starter ikke af sig selv under ventetiden
+    assert "--temporary" in mods[1]
+    assert any("connection up uuid 3333-4444" in c for c in before)
+    assert not any("delete" in c for c in before)                                             # originalen er urørt
+    assert clone_state(tmp).read_text() == "orig=1111-2222\nclone=3333-4444\n"
+    (tmp / "config" / "network.confirm").write_text("ok")
+    p.wait(timeout=30)
+    assert status(tmp)["state"] == "confirmed" and "ADVARSEL" not in status(tmp)["message"]
+    after = calls(tmp)
+    mods = [c for c in after if "connection modify" in c]
+    assert len(mods) == 3 and "--temporary" not in mods[2] and "uuid 3333-4444" in mods[2]    # varig ændring på kopien
+    assert "connection.autoconnect yes" in mods[2] and "connection.autoconnect-priority 10" in mods[2]   # vinder ved opstart
+    assert not any("modify" in c and "uuid 1111-2222" in c for c in after)                    # aldrig varig ændring på netplan-profilen
+    delete = next(c for c in after if "connection delete uuid 1111-2222" in c)                # først nu fjernes originalen
+    assert after.index(delete) > after.index(mods[2])
+    assert "STATEFILE_PRESENT" not in after                                                   # tilstandsfilen var væk, før originalen blev slettet
+    assert not clone_state(tmp).exists()
+    assert "UUID=3333-4444" in (tmp / "state" / "watchdog.conf").read_text()                  # DHCP-vagten følger kopien
+
+
+@needs_sh
+def test_netplan_profil_original_kan_ikke_slettes_giver_synlig_advarsel(sandbox):
+    tmp, env = sandbox
+    netplan_profile(tmp, env)
+    env["FAKE_FAIL_DELETE_ORIG"] = "1"
+    request(tmp)
+    p = subprocess.Popen([SH, str(SCRIPT)], env=env)
+    wait_for_state(tmp, "waiting_confirm")
+    (tmp / "config" / "network.confirm").write_text("ok")
+    p.wait(timeout=30)
+    assert status(tmp)["state"] == "confirmed" and "ADVARSEL" in status(tmp)["message"]
+    assert not clone_state(tmp).exists()
+
+
+@needs_sh
+def test_netplan_profil_fortryd_sletter_kopien_og_tager_originalen_i_brug(sandbox):
+    tmp, env = sandbox
+    netplan_profile(tmp, env)
+    request(tmp)
+    p = subprocess.Popen([SH, str(SCRIPT)], env=env)
+    wait_for_state(tmp, "waiting_confirm")
+    (tmp / "config" / "network.revert").write_text("ok")
+    p.wait(timeout=30)
+    assert status(tmp)["state"] == "reverted"
+    log = calls(tmp)
+    drop = next(c for c in log if "connection delete uuid 3333-4444" in c)
+    back = next(c for c in reversed(log) if "connection up uuid 1111-2222" in c)
+    assert log.index(drop) < log.index(back)
+    assert not any("delete uuid 1111-2222" in c for c in log)
+    assert not any("modify" in c and "--temporary" not in c and "autoconnect" not in c for c in log)   # intet varigt på nogen profil
+    assert not clone_state(tmp).exists()
+
+
+@needs_sh
+def test_netplan_profil_gendanner_hvis_nmcli_afviser(sandbox):
+    tmp, env = sandbox
+    netplan_profile(tmp, env)
+    env["FAKE_FAIL_MODIFY"] = "1"
+    request(tmp)
+    run(env, 30)
+    assert status(tmp)["state"] == "failed"
+    log = calls(tmp)
+    assert any("connection delete uuid 3333-4444" in c for c in log)      # kopien er væk igen
+    assert not any("delete uuid 1111-2222" in c for c in log) and not clone_state(tmp).exists()
+
+
+@needs_sh
+def test_netplan_profil_recover_efter_doed_helper(sandbox):
+    """ExecStopPost: døde scriptet midt i en ændring, slettes kopien, og originalen tages i brug."""
+    tmp, env = sandbox
+    netplan_profile(tmp, env)
+    (tmp / "state" / "status.json").write_text('{"state":"waiting_confirm","message":"x","deadline":0,"by":"a","ts":1}')
+    clone_state(tmp).write_text("orig=1111-2222\nclone=3333-4444\n")
+    subprocess.run([SH, str(SCRIPT), "--recover"], env=env, check=False, timeout=30)
+    log = calls(tmp)
+    assert any("connection delete uuid 3333-4444" in c for c in log) and any("connection up uuid 1111-2222" in c for c in log)
+    assert not clone_state(tmp).exists() and status(tmp)["state"] == "reverted"
+
+
+@needs_sh
+def test_netplan_profil_recover_roerer_ikke_kopien_naar_originalen_er_vaek(sandbox):
+    """Strømsvigt lige efter bekræftelsen (originalen slettet, tilstandsfilen ikke): kopien ER den gældende profil."""
+    tmp, env = sandbox
+    netplan_profile(tmp, env)
+    env["FAKE_ORIG_GONE"] = "1"
+    (tmp / "state" / "status.json").write_text('{"state":"waiting_confirm","message":"x","deadline":0,"by":"a","ts":1}')
+    clone_state(tmp).write_text("orig=1111-2222\nclone=3333-4444\n")
+    subprocess.run([SH, str(SCRIPT), "--recover"], env=env, check=False, timeout=30)
+    log = calls(tmp)
+    assert not any("delete" in c for c in log) and not any("connection up" in c for c in log)
+    assert not clone_state(tmp).exists()
+
+
+@needs_sh
+def test_netplan_profil_recover_afviser_ugyldig_tilstandsfil(sandbox):
+    tmp, env = sandbox
+    netplan_profile(tmp, env)
+    (tmp / "state" / "status.json").write_text('{"state":"waiting_confirm","message":"x","deadline":0,"by":"a","ts":1}')
+    clone_state(tmp).write_text("orig=1111-2222; reboot\nclone=$(reboot)\n")
+    subprocess.run([SH, str(SCRIPT), "--recover"], env=env, check=False, timeout=30)
+    assert not any("delete" in c or "up" in c.split() for c in calls(tmp)) and not clone_state(tmp).exists()
+
+
+@needs_sh
+def test_gammel_tilstandsfil_ryddes_ved_naeste_aendring_kun_med_originalen_i_behold(sandbox):
+    tmp, env = sandbox
+    netplan_profile(tmp, env)
+    clone_state(tmp).write_text("orig=1111-2222\nclone=5555-6666\n")       # rest efter en tidligere afbrudt ændring
+    request(tmp)
+    p = subprocess.Popen([SH, str(SCRIPT)], env=env)
+    wait_for_state(tmp, "waiting_confirm")
+    assert any("connection delete uuid 5555-6666" in c for c in calls(tmp))
+    (tmp / "config" / "network.revert").write_text("ok")
+    p.wait(timeout=30)
+
+
+@needs_sh
+def test_gammel_tilstandsfil_uden_original_sletter_ikke_den_aktive_kopi(sandbox):
+    tmp, env = sandbox
+    env["RUNNM"] = str(tmp / "findes-ikke")                                   # den aktive profil er nu en almindelig (bekræftet kopi)
+    env["FAKE_ORIG_GONE"] = "1"
+    clone_state(tmp).write_text("orig=1111-2222\nclone=5555-6666\n")
+    request(tmp)
+    p = subprocess.Popen([SH, str(SCRIPT)], env=env)
+    wait_for_state(tmp, "waiting_confirm")
+    assert not any("delete" in c for c in calls(tmp)) and not clone_state(tmp).exists()
+    (tmp / "config" / "network.revert").write_text("ok")
+    p.wait(timeout=30)
+
+
+@needs_sh
+def test_netplan_profil_uden_netplan_linjer_kendes_paa_filnavnet(sandbox):
+    """En simpel netplan-profil (fx ethernet uden særlige indstillinger) har ingen "#Netplan"-linjer — kun filnavnet."""
+    tmp, env = sandbox
+    netplan_profile(tmp, env, marker=False)
+    (tmp / "runnm" / "lo.nmconnection").write_text("[connection]\nid=lo\nuuid=9999-9999\n", newline="\n")
+    request(tmp)
+    p = subprocess.Popen([SH, str(SCRIPT)], env=env)
+    wait_for_state(tmp, "waiting_confirm")
+    assert any("connection clone uuid 1111-2222 hv-eth0-" in c for c in calls(tmp))
+    (tmp / "config" / "network.revert").write_text("ok")
+    p.wait(timeout=30)
+    assert status(tmp)["state"] == "reverted"
+
+
+@needs_sh
+def test_ikke_netplan_profil_i_run_kloner_ikke(sandbox):
+    """En profil i /run uden netplan-navn og uden "#Netplan" (fx NetworkManagers egen lo) kopieres ikke."""
+    tmp, env = sandbox
+    d = tmp / "runnm"
+    d.mkdir()
+    (d / "lo.nmconnection").write_text("[connection]\nid=lo\nuuid=1111-2222\n", newline="\n")
+    env["RUNNM"] = str(d)
+    request(tmp)
+    p = subprocess.Popen([SH, str(SCRIPT)], env=env)
+    wait_for_state(tmp, "waiting_confirm")
+    (tmp / "config" / "network.revert").write_text("ok")
+    p.wait(timeout=30)
+    assert not any("clone" in c for c in calls(tmp))
+
+
+@needs_sh
+def test_almindelig_profil_kloner_ikke(sandbox):
+    """Uden netplan (Bookworm, almindelig keyfile) er forløbet uændret: ingen kopi."""
+    tmp, env = sandbox
+    env["RUNNM"] = str(tmp / "findes-ikke")
+    request(tmp)
+    p = subprocess.Popen([SH, str(SCRIPT)], env=env)
+    wait_for_state(tmp, "waiting_confirm")
+    (tmp / "config" / "network.confirm").write_text("ok")
+    p.wait(timeout=30)
+    assert status(tmp)["state"] == "confirmed"
+    assert not any("clone" in c or "delete" in c for c in calls(tmp))
+    assert len([c for c in calls(tmp) if "connection modify uuid 1111-2222" in c]) == 1

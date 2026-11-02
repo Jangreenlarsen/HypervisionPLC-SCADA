@@ -2,6 +2,11 @@
 
 ---
 
+## v3.16.1 — 2026-11-02 — Fast IP virker nu på nyere Raspberry Pi OS
+
+- Skifte til fast IP (System › Konfiguration) mistede forbindelsen, når du trykkede Bekræft, på Raspberry Pi OS Trixie (WiFi/netværk styret af netplan), så maskinen endte på DHCP. Nu virker det: forbindelsen holdes ved Bekræft, og Fortryd gendanner den gamle opsætning.
+- Står din Pi allerede forkert (fx både en fast og en DHCP-profil på WiFi), så ryd op, før du prøver igen — se vejledningen i docs/TEST_PI.md.
+
 ## v3.16.0 — 2026-11-01 — Prometheus/Grafana kan hente tal fra SCADA
 
 - På **System › Status** kan en admin slå **/metrics** til: siden laver et token, som kopieres til Prometheus (med færdigt eksempel). Så kan Prometheus og Grafana vise grafer over bl.a. forsinkelser, kald i sekundet til PLC'erne, om en PLC svarer, alarmer, disk, hukommelse og temperatur.

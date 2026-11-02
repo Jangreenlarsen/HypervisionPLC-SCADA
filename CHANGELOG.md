@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.16.1 build 0311] — 2026-11-02 — fix: fast IP på Raspberry Pi OS Trixie (netplan)
+
+- `deploy/apply-config.sh`: er NetworkManager-profilen skabt af netplan, arbejdes der på en kopi (`nmcli connection clone`); kopien gøres varig ved Bekræft og netplan-originalen slettes, ved Fortryd/timeout/`--recover` slettes kopien. Årsag: en varig `nmcli connection modify` på en netplan-profil fik NetworkManager til at skrive netplan-filer og begrave profilen, så netkortet mistede forbindelsen ved Bekræft.
+- `backend/tests/test_netconfig.py`: 7 nye tests (kopi ved bekræft/fortryd/fejl/recover, registrering efter filnavn, ingen kopi for almindelige profiler).
+- Gennemgået af `reviewer`: tilstandsfilen fjernes før originalen slettes; kopien starter uden autoconnect, til Bekræft (så slås autoconnect + prioritet 10 til); oprydning og `--recover` sletter kun kopien, hvis originalen findes; unikt navn på kopien (ingen sletning på navn); synlig advarsel hvis originalen ikke kan slettes.
+- BUGS.md: fejlen beskrevet med bevis fra Pi'en.
+
 ## [3.16.0 build 0310] — 2026-11-01 — Prometheus /metrics med scrape-token
 
 - `backend/app/services/metrics.py` (ny): håndskrevet Prometheus-eksponering (0.0.4) ud fra `HealthService.details()`; målinger uden værdi udelades; kun systemtal.
