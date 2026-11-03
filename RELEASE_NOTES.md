@@ -2,6 +2,12 @@
 
 ---
 
+## v3.18.0 — 2026-11-03 — Alarm når serveren selv har det dårligt
+
+- SCADA lager nu en alarm (niveau **SYS**), når noget er galt med serveren eller maskinen: disk næsten fuld, serveren er optaget, databasen er langsom, lidt hukommelse, CPU'en er varm, **lav spænding fra strømforsyningen (undervoltage)**, backup for gammel, eller certifikatet snart udløber. Alarmerne kan kvitteres og ses i historikken som andre alarmer.
+- En advarsel skal ses to gange i træk, før den bliver en alarm, og en alarm ophører først to minutter efter, at problemet er væk.
+- Kan slås fra med `SCADA_HEALTH_ALARMS=0`.
+
 ## v3.17.0 — 2026-11-03 — Rigtigt HTTPS-certifikat (Let's Encrypt)
 
 - Siden kan få et rigtigt **Let's Encrypt-certifikat**, så browsere ikke længere advarer — også når maskinen kun står på det lokale net. Opsætningen gøres på maskinen med `hypervision-letsencrypt` (se `docs/TLS_LETSENCRYPT.md`); certifikatet fornyes automatisk.

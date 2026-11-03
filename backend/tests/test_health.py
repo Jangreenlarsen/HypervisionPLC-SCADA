@@ -15,7 +15,7 @@ NOW = 1_000_000.0
 
 
 def _data(**kw):
-    base = {"now": NOW, "plcs": [], "loop": {"lag_max_s": 0.01}, "db": {"ok": True, "latency_s": 0.001},
+    base = {"now": NOW, "uptime_s": 100_000, "plcs": [], "loop": {"lag_max_s": 0.01}, "db": {"ok": True, "latency_s": 0.001},
             "disk": {"total": 100_000_000_000, "used": 10_000_000_000, "free": 90_000_000_000},
             "host": {"mem_total": 4e9, "mem_available": 2e9, "cpu_temp_c": 50.0, "throttled": None},
             "backup": {"interval_h": 24, "last_age_s": 3600}}

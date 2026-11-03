@@ -33,6 +33,7 @@ TEMP_WARN_C, TEMP_ERROR_C = 75.0, 85.0
 BACKUP_WARN_FACTOR = 1.5                      # ældre end 1,5 × backup-intervallet
 DB_WARN_S = 0.2
 THROTTLE_RECENT_S = 300.0
+BACKUP_GRACE_S = 600.0                        # første automatiske backup tages 5 min efter start (backup.py)
 CERT_WARN_DAYS, CERT_ERROR_DAYS = 21, 7   # certifikatets levetid (Let's Encrypt fornyes ved 30 dage; gul/rød er en fornyelse, der er stoppet)
 
 # Raspberry Pi `get_throttled`: bit 0 undervoltage, 1 frekvens begrænset, 2 throttlet, 3 blød temperaturgrænse;
@@ -90,8 +91,9 @@ def read_tls(state_dir: Path, now: float | None = None) -> dict[str, Any] | None
             "fingerprint": raw.get("fingerprint", ""), "not_after_ts": expires, "days_left": int((expires - now) // 86400)}
 
 
-def _problem(level: str, area: str, message: str) -> dict[str, str]:
-    return {"level": level, "area": area, "message": message}
+def _problem(level: str, area: str, message: str, code: str | None = None) -> dict[str, str]:
+    """`code` identificerer problemet (bruges som alarmnøgle `sys:<code>`); standard = området."""
+    return {"level": level, "area": area, "message": message, "code": code or area}
 
 
 def assess(d: dict[str, Any]) -> dict[str, Any]:
@@ -117,9 +119,9 @@ def assess(d: dict[str, Any]) -> dict[str, Any]:
     lag = d.get("loop", {}).get("lag_max_s")
     if lag is not None:
         if lag >= LAG_ERROR_S:
-            problems.append(_problem("error", "server", f"Serveren var optaget i {lag:.1f} s uden at svare (event-loop-lag)"))
+            problems.append(_problem("error", "server", f"Serveren var optaget i {lag:.1f} s uden at svare (event-loop-lag)", "loop_lag"))
         elif lag >= LAG_WARN_S:
-            problems.append(_problem("warn", "server", f"Serveren var kortvarigt optaget ({lag * 1000:.0f} ms event-loop-lag)"))
+            problems.append(_problem("warn", "server", f"Serveren var kortvarigt optaget ({lag * 1000:.0f} ms event-loop-lag)", "loop_lag"))
 
     db_s = d.get("db", {}).get("latency_s")
     if d.get("db", {}).get("ok") is False:
@@ -139,19 +141,19 @@ def assess(d: dict[str, Any]) -> dict[str, Any]:
     host = d.get("host", {})
     if host.get("mem_total") and host.get("mem_available") is not None:
         if host["mem_available"] / host["mem_total"] < MEM_WARN_FRAC:
-            problems.append(_problem("warn", "host", f"Lidt hukommelse tilbage ({host['mem_available'] / 1e6:.0f} MB ledig)"))
+            problems.append(_problem("warn", "host", f"Lidt hukommelse tilbage ({host['mem_available'] / 1e6:.0f} MB ledig)", "mem"))
     temp = host.get("cpu_temp_c")
     if temp is not None:
         if temp >= TEMP_ERROR_C:
-            problems.append(_problem("error", "host", f"CPU'en er meget varm ({temp:.0f} °C)"))
+            problems.append(_problem("error", "host", f"CPU'en er meget varm ({temp:.0f} °C)", "temp"))
         elif temp >= TEMP_WARN_C:
-            problems.append(_problem("warn", "host", f"CPU'en er varm ({temp:.0f} °C)"))
+            problems.append(_problem("warn", "host", f"CPU'en er varm ({temp:.0f} °C)", "temp"))
     thr = host.get("throttled")
     if thr:
         if thr["now"]:
-            problems.append(_problem("error", "host", "Strøm/varme lige nu: " + ", ".join(thr["now"])))
+            problems.append(_problem("error", "host", "Strøm/varme lige nu: " + ", ".join(thr["now"]), "power"))
         elif thr["past"]:
-            problems.append(_problem("warn", "host", "Siden opstart: " + ", ".join(thr["past"])))
+            problems.append(_problem("warn", "host", "Siden opstart: " + ", ".join(thr["past"]), "power_past"))
 
     tls = d.get("tls")
     if tls:
@@ -169,7 +171,9 @@ def assess(d: dict[str, Any]) -> dict[str, Any]:
     if interval_h > 0:
         age = backup.get("last_age_s")
         if age is None:
-            problems.append(_problem("warn", "backup", "Der er endnu ikke taget nogen automatisk backup"))
+            # den første automatiske backup tages først nogle minutter efter start — ingen advarsel før da (falsk alarm)
+            if d.get("uptime_s", 0) >= BACKUP_GRACE_S:
+                problems.append(_problem("warn", "backup", "Der er endnu ikke taget nogen automatisk backup"))
         elif age > interval_h * 3600 * BACKUP_WARN_FACTOR:
             problems.append(_problem("warn", "backup", f"Seneste backup er {age / 3600:.0f} timer gammel"))
 
@@ -211,18 +215,18 @@ class HealthService:
 
     # ------------------------------------------------------------- samlet billede
 
-    async def details(self, state: Any) -> dict[str, Any]:
+    async def details(self, state: Any, lag_window_s: float = 60.0) -> dict[str, Any]:
         """Alt til System › Status og /metrics. `state` er `app.state`. Kun læsning.
 
         Det der ændres af event-loopet (PLC-status, alarmer, lag-målinger, tællere) læses HER på loopet; kun det
         blokerende (database, disk, filer, glob) køres i en tråd — så ingen datastruktur itereres, mens den ændres."""
-        fast = self._loop_part(state)
+        fast = self._loop_part(state, lag_window_s)
         slow = await asyncio.to_thread(self._thread_part, state)
         data = {**fast, **slow}
         data.update(assess(data))
         return data
 
-    def _loop_part(self, state: Any) -> dict[str, Any]:
+    def _loop_part(self, state: Any, lag_window_s: float) -> dict[str, Any]:
         now = time.time()
         plcs = []
         for plc in state.manager.db.list_plcs():
@@ -240,7 +244,7 @@ class HealthService:
         return {
             "now": now, "started": self.started, "uptime_s": round(now - self.started),
             "version": read_version(), "plcs": plcs,
-            "loop": {"lag_last_s": round(self.lag_last, 4), "lag_max_s": self.lag_max()},
+            "loop": {"lag_last_s": round(self.lag_last, 4), "lag_max_s": self.lag_max(lag_window_s)},
             "ws_clients": self.ws_clients, "alarms": state.alarm_service.summary(None),
             "trends": self._trends(state),
         }

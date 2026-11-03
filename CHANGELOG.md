@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.18.0 build 0314] — 2026-11-03 — Interne alarmer om SCADA selv
+
+- `backend/app/services/health_alarms.py` (ny): `HealthAlarms` — målinger fra systemhelbredet hvert 30. s (efter 60 s opstartsventetid) → alarmkilde `sys:<kode>` (niveau SYS). Gul = to målinger i træk, rød straks; ophør først 120 s efter sidst set; `plc` og `power_past` er undtaget.
+- `backend/app/services/health.py`: hvert problem har en `code`. `backend/app/config.py`: `SCADA_HEALTH_ALARMS`, `SCADA_HEALTH_ALARM_SAMPLE_S`, `SCADA_HEALTH_ALARM_WARMUP_S`. `backend/app/main.py`: kilden og opgaven.
+- `frontend/src/lib/api.ts`, `frontend/src/pages/Alarms.svelte`: alarmtypen `sys` ("SCADA-serveren"). Manual: afsnit under Alarmer og Status.
+- Tests: `backend/tests/test_health_alarms.py` (22).
+
 ## [3.17.0 build 0313] — 2026-11-03 — Let's Encrypt (certbot + deSEC) og certifikatkort på Status
 
 - `deploy/desec-acme-hook.sh` (ny): certbot `--manual-auth-hook`/`--manual-cleanup-hook` mod deSEC's API; skriver TXT-posten i den zone, CNAME'en peger på (Debians `python3-certbot-dns-desec` 1.2.1 følger ikke CNAME'er); tokenet sendes kun via en 0600-headerfil til curl.

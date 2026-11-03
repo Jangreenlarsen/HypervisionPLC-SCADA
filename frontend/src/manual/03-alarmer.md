@@ -22,6 +22,10 @@ Fanen **Historik** viser alle tidligere alarmer med tidspunkter for **udløsning
 
 Alarmer har en **prioritet**: *lav*, *medium* eller *høj* (sættes pr. tag). Klokken i topbjælken viser antallet af aktive alarmer; den er **rød** ved høj prioritet, **orange** ved medium, og **blinker**, indtil alle er kvitteret.
 
+## Alarmer om serveren selv (SYS)
+
+Ud over tag-alarmer og kommunikationsalarmer laver SCADA en alarm, når noget er galt med **serveren eller maskinen**: disk næsten fuld, serveren optaget (event-loop-lag), langsom database, lidt hukommelse, varm CPU, **lav spænding fra strømforsyningen**, gammel backup eller et certifikat, der snart udløber. De vises med niveauet **SYS** og teksten *System: …*, kan kvitteres som andre alarmer og står i historikken. En advarsel skal ses to gange i træk (ca. et minut), før den bliver en alarm; en alvorlig fejl udløser straks. Alarmen ophører først to minutter efter, at problemet er væk. Kun problemer, der kræver handling, giver alarm: at strømforsyningen *har været* for svag siden start står kun på Status-siden. Brugere, der er begrænset til udvalgte tegninger, ser ikke SYS-alarmer (de hører ikke til nogen tegning); teknikere og administratorer ser dem. Kan slås fra med `SCADA_HEALTH_ALARMS=0`.
+
 ## Hvor kommer alarmer fra?
 
 - **Grænsealarmer** på tal-tags: *LL* (lav-lav), *L* (lav), *H* (høj) og *HH* (høj-høj), med **dødbånd** (så alarmen ikke svinger ved grænsen) og **forsinkelse** (værdien skal have været uden for grænsen så længe, før alarmen kommer).
