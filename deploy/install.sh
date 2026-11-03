@@ -126,6 +126,9 @@ install -m 0644 "$SRC/deploy/hypervisionplc-scada-power.service" "$SRC/deploy/hy
 # net-detect.sh skriver capabilities + markørfiler, og køres igen af DHCP-vagtens timer, så en senere "apt install dhcpcd-base" slår igennem af sig selv.
 install -m 0755 "$SRC/deploy/net-detect.sh" /usr/local/lib/hypervisionplc-scada/net-detect.sh
 /usr/local/lib/hypervisionplc-scada/net-detect.sh || true
+# Strøm-/varmestatus (Raspberry Pi) til System › Status og alarmer — tjenesten må ikke selv åbne /dev/vcio
+install -m 0755 "$SRC/deploy/power-info.sh" /usr/local/lib/hypervisionplc-scada/power-info.sh
+/usr/local/lib/hypervisionplc-scada/power-info.sh || true
 NETBACKEND=$(sed -n 's/^backend=//p' /var/lib/hypervisionplc-scada-net/capabilities 2>/dev/null | head -n 1)
 [ "$NETBACKEND" = none ] && echo "ADVARSEL: hverken NetworkManager eller ifupdown findes — netværk kan ikke ændres fra web" >&2
 # WiFi-strømbesparelse slås fra: på en server giver den forsinkelser og udfald (målt på en Pi: "Power save: on" som standard).
@@ -139,6 +142,13 @@ if [ "$NETBACKEND" = nm ]; then
         iw dev "$(basename "$(dirname "$w")")" set power_save off 2>/dev/null || true
     done
 fi
+
+echo "== Let's Encrypt (certbot + deSEC): hypervision-letsencrypt"
+# Hooken ligger på en fast sti (certbots fornyelsesopsætning peger på den); styringsscriptet er til en admin på maskinen.
+install -m 0755 "$SRC/deploy/cert-deploy.sh" /usr/local/lib/hypervisionplc-scada/cert-deploy.sh
+install -m 0755 "$SRC/deploy/desec-acme-hook.sh" /usr/local/lib/hypervisionplc-scada/desec-acme-hook.sh
+install -m 0755 "$SRC/deploy/tls-letsencrypt.sh" /usr/local/sbin/hypervision-letsencrypt
+/usr/local/lib/hypervisionplc-scada/cert-deploy.sh info || true    # certifikatets metadata til System › Status (ingen nginx = intet at beskrive)
 
 echo "== systemd"
 install -m 0644 "$SRC/deploy/hypervisionplc-scada.service" /etc/systemd/system/

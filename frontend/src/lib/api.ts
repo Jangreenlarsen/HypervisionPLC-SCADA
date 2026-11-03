@@ -133,8 +133,8 @@ export interface Alarm {
   key: string;
   tag: string;
   plc: string;
-  kind: 'high' | 'low' | 'state' | 'comm' | 'symbol';
-  level: 'HH' | 'H' | 'L' | 'LL' | 'ON' | 'COMM';
+  kind: 'high' | 'low' | 'state' | 'comm' | 'symbol' | 'sys';
+  level: 'HH' | 'H' | 'L' | 'LL' | 'ON' | 'COMM' | 'AFV' | 'SYS';
   priority: 'high' | 'medium' | 'low';
   state: 'active_unack' | 'active_ack' | 'rtn_unack';
   raised_at: number;

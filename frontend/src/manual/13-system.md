@@ -10,13 +10,17 @@ Siden **Status** viser på ét sted, hvordan serveren og PLC'erne har det — og
 - **Server**: *event-loop-lag* viser, hvor længe serveren sidste minut var optaget uden at kunne svare — normalt få millisekunder; over ¼ sekund giver gul, over 1 sekund rød. Desuden databasens svartid, antal åbne sider (live-forbindelser), alarmer, trend-historikkens størrelse og alderen på seneste backup.
 - **Maskine**: ledig disk, hukommelse, CPU-temperatur og — på en Raspberry Pi — om strømforsyningen har været for svag, eller maskinen har sat farten ned pga. varme.
 
-Gul/rød udløses blandt andet af: en PLC der ikke svarer, mindre end 10 % (rød under 5 %) ledig disk, CPU over 75 °C (rød over 85 °C), og en backup der er mere end 1½ gange ældre end intervallet. Siden kun *læser* — den ændrer intet.
+Gul/rød udløses blandt andet af: en PLC der ikke svarer, mindre end 10 % (rød under 5 %) ledig disk, CPU over 75 °C (rød over 85 °C), og en backup der er mere end 1½ gange ældre end intervallet. Siden kun *læser* — den ændrer intet. De samme problemer bliver også til **alarmer** (niveau SYS), så de ikke overses — se kapitlet Alarmer.
 
 ### Prometheus og Grafana (`/metrics`)
 
 Samme tal som på siden kan hentes af Prometheus (og vises i Grafana) fra adressen `https://<serverens adresse>/metrics`. Nederst på Status-siden kan en **admin** trykke **Slå til (opret token)**: siden laver et langt, tilfældigt token og viser det *én gang* sammen med et færdigt eksempel til `prometheus.yml`. Serveren gemmer kun en kontrolsum af tokenet, så det kan ikke hentes igen — mistes det, opretter man blot et nyt (det gamle holder så op med at virke). **Slå fra** lukker for `/metrics` igen.
 
 Adgangen sker med headeren `Authorization: Bearer <token>`; en almindelig login-session giver ikke adgang, og tokenet kan ikke sendes i adressen. Der udleveres kun systemtal (fx event-loop-lag, kald i sekundet til hver PLC, om en PLC svarer, alarmantal, disk, hukommelse, temperatur) — aldrig tag-værdier, tag- eller tegningsnavne, brugere eller adgangskoder. Afviste forsøg tælles og logges. Tokenet følger ikke med i en backup og skal sættes igen på en ny server.
+
+### HTTPS-certifikat (Let's Encrypt)
+
+Siden bruger HTTPS. Som standard med et **selvsigneret** certifikat (browsere advarer); et rigtigt **Let's Encrypt-certifikat** sættes op på maskinen med `hypervision-letsencrypt` (certbot + deSEC) — opskriften står i `docs/TLS_LETSENCRYPT.md`. På Status-siden viser kortet *HTTPS-certifikat udløber om* antal dage; **gul under 21 dage og rød under 7** betyder, at den automatiske fornyelse er stoppet og skal ses efter (`hypervision-letsencrypt status`). Det selvsignerede certifikat bliver liggende, hvis udstedelsen fejler, så siden kan altid åbnes.
 
 ## Log
 

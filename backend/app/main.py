@@ -57,6 +57,7 @@ from .services.schedules import ScheduleService
 from .services.trends import TrendRecorder
 from .services.live_cache import LiveCache
 from .services.health import HealthService
+from .services.health_alarms import HealthAlarms
 from .services.manager import PlcManager, TransportFactory
 from .services.plcs import PlcService
 from .services.tags import TagService
@@ -147,6 +148,14 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         symbol_task = asyncio.create_task(app.state.symbol_runtime.run(), name="symbols")
         alarm_task = asyncio.create_task(app.state.alarm_service.run(), name="alarms")
         lag_task = asyncio.create_task(app.state.health_service.run_lag_probe(), name="loop-lag")
+        # Interne alarmer om SCADA selv (system-helbredet → almindelige alarmer med kvittering og historik)
+        app.state.health_alarms = HealthAlarms(app.state.health_service, app.state,
+                                               sample_s=settings.health_alarm_sample_s, warmup_s=settings.health_alarm_warmup_s,
+                                               stored=lambda: app.state.alarm_service.state)
+        health_alarm_task = None
+        if settings.health_alarms and settings.start_runtimes:
+            app.state.alarm_service.providers.append(app.state.health_alarms.alarm_conditions)
+            health_alarm_task = asyncio.create_task(app.state.health_alarms.run(), name="health-alarms")
         trend_path, trend_warning = sysconfig.resolve_trend_db_path(settings.data_dir)
         app.state.trend_storage_warning = trend_warning
         trend_db = TrendDatabase(trend_path)
@@ -173,6 +182,8 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         finally:
             alarm_task.cancel()
             lag_task.cancel()
+            if health_alarm_task is not None:
+                health_alarm_task.cancel()
             symbol_task.cancel()
             if schedule_task is not None:
                 schedule_task.cancel()

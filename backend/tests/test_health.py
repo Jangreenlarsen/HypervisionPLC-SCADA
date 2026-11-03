@@ -1,5 +1,6 @@
 """Systemhelbred: vurderingen (grænser), målingerne og endpointet /api/health/details."""
 
+import json
 import time
 
 import pytest
@@ -14,7 +15,7 @@ NOW = 1_000_000.0
 
 
 def _data(**kw):
-    base = {"now": NOW, "plcs": [], "loop": {"lag_max_s": 0.01}, "db": {"ok": True, "latency_s": 0.001},
+    base = {"now": NOW, "uptime_s": 100_000, "plcs": [], "loop": {"lag_max_s": 0.01}, "db": {"ok": True, "latency_s": 0.001},
             "disk": {"total": 100_000_000_000, "used": 10_000_000_000, "free": 90_000_000_000},
             "host": {"mem_total": 4e9, "mem_available": 2e9, "cpu_temp_c": 50.0, "throttled": None},
             "backup": {"interval_h": 24, "last_age_s": 3600}}
@@ -141,3 +142,45 @@ def test_ws_client_counter(api):
         assert h.ws_clients == 1
     time.sleep(0.3)
     assert h.ws_clients == 0
+
+
+# ------------------------------------------------------------- certifikat (v3.17.0)
+
+def _tls(days, self_signed=False):
+    return {"days_left": days, "self_signed": self_signed, "issuer": "CN=R11", "subject": "CN=scada.laces.dk", "not_after_ts": 0}
+
+
+@pytest.mark.parametrize("tls, level", [
+    (_tls(60), "ok"), (_tls(21), "ok"), (_tls(20), "warn"), (_tls(7), "warn"), (_tls(6), "error"), (_tls(0), "error"), (_tls(-1), "error"),
+    (_tls(800, self_signed=True), "ok"), (_tls(10, self_signed=True), "warn"), (_tls(-5, self_signed=True), "error"), (None, "ok"),
+])
+def test_certificate_thresholds(tls, level):
+    assert assess(_data(tls=tls))["level"] == level
+
+
+def test_certificate_messages():
+    msgs = [p["message"] for p in assess(_data(tls=_tls(12)))["problems"]]
+    assert msgs == ["Certifikatet udløber om 12 dage — tjek fornyelsen: hypervision-letsencrypt status"]
+    assert assess(_data(tls=_tls(-3)))["problems"][0]["message"] == "Certifikatet er udløbet (browsere afviser siden)"
+    assert "Selvsigneret" in assess(_data(tls=_tls(3, True)))["problems"][0]["message"]
+
+
+def test_read_tls_parses_openssl_dates_and_computes_days_from_now(tmp_path):
+    from datetime import datetime, timezone
+    from app.services.health import read_tls
+    info = {"subject": "CN=scada.laces.dk", "issuer": "C=US, O=Let's Encrypt, CN=R11", "not_after": "Feb  2 16:19:12 2029 GMT",
+            "fingerprint": "AA:BB", "self_signed": False}
+    (tmp_path / "cert.json").write_text(json.dumps(info), encoding="utf-8")
+    expires = datetime(2029, 2, 2, 16, 19, 12, tzinfo=timezone.utc).timestamp()
+    r = read_tls(tmp_path, now=expires - 5 * 86400 - 60)
+    assert r["days_left"] == 5 and r["not_after_ts"] == expires and r["self_signed"] is False and "Let's Encrypt" in r["issuer"]
+    assert read_tls(tmp_path, now=expires + 3600)["days_left"] == -1                       # udløbet
+    assert read_tls(tmp_path / "findes-ikke") is None
+    for bad in ("ikke json", json.dumps({"subject": "x"}), json.dumps({"not_after": "i morgen"}), json.dumps([1])):
+        (tmp_path / "cert.json").write_text(bad, encoding="utf-8")
+        assert read_tls(tmp_path) is None, bad
+
+
+def test_details_includes_tls_only_when_metadata_exists(api):
+    r = api.get("/api/health/details").json()
+    assert "tls" in r        # nøglen findes altid (None uden cert.json)

@@ -8,11 +8,13 @@ Må ikke tale med PLC'er — kun læse, hvad runtimes allerede ved.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import shutil
 import sqlite3
 import time
 from collections import deque
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +33,8 @@ TEMP_WARN_C, TEMP_ERROR_C = 75.0, 85.0
 BACKUP_WARN_FACTOR = 1.5                      # ældre end 1,5 × backup-intervallet
 DB_WARN_S = 0.2
 THROTTLE_RECENT_S = 300.0
+BACKUP_GRACE_S = 600.0                        # første automatiske backup tages 5 min efter start (backup.py)
+CERT_WARN_DAYS, CERT_ERROR_DAYS = 21, 7   # certifikatets levetid (Let's Encrypt fornyes ved 30 dage; gul/rød er en fornyelse, der er stoppet)
 
 # Raspberry Pi `get_throttled`: bit 0 undervoltage, 1 frekvens begrænset, 2 throttlet, 3 blød temperaturgrænse;
 # bit 16-19 er det samme "har været" siden opstart.
@@ -46,7 +50,27 @@ def decode_throttled(value: int | None) -> dict[str, list[str]] | None:
             "past": [t for b, t in THROTTLE_PAST.items() if value >> b & 1]}
 
 
-def read_host() -> dict[str, Any]:
+POWER_FRESH_S = 300.0   # <state>/power.json (deploy/power-info.sh, hvert 30. s) ældre end dette er ukendt, ikke "i orden"
+
+
+def read_throttled(state_dir: Path | None, now: float | None = None) -> dict[str, list[str]] | None:
+    """Pi-strømstatus: først root-hjælperens fil <state>/power.json (tjenesten må ikke åbne /dev/vcio), ellers kernens sysfs-sti (findes ikke
+    på alle kerner). None = ukendt (ikke en Pi, eller filen er for gammel/ugyldig)."""
+    now = time.time() if now is None else now
+    if state_dir is not None:
+        try:
+            raw = json.loads((state_dir / "power.json").read_text(encoding="utf-8"))
+            if now - float(raw["ts"]) <= POWER_FRESH_S:
+                return decode_throttled(int(raw["throttled"]))
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    try:
+        return decode_throttled(int(Path("/sys/devices/platform/soc/soc:firmware/get_throttled").read_text().strip(), 16))
+    except (OSError, ValueError):
+        return None
+
+
+def read_host(state_dir: Path | None = None) -> dict[str, Any]:
     """Hukommelse, belastning, CPU-temperatur og Pi-throttling. Det der ikke findes (fx på Windows) er None."""
     host: dict[str, Any] = {"mem_total": None, "mem_available": None, "load": None, "cpu_temp_c": None, "throttled": None}
     try:
@@ -66,16 +90,26 @@ def read_host() -> dict[str, Any]:
         host["cpu_temp_c"] = int(Path("/sys/class/thermal/thermal_zone0/temp").read_text().strip()) / 1000.0
     except (OSError, ValueError):
         pass
-    try:
-        raw = Path("/sys/devices/platform/soc/soc:firmware/get_throttled").read_text().strip()
-        host["throttled"] = decode_throttled(int(raw, 16))
-    except (OSError, ValueError):
-        pass
+    host["throttled"] = read_throttled(state_dir)
     return host
 
 
-def _problem(level: str, area: str, message: str) -> dict[str, str]:
-    return {"level": level, "area": area, "message": message}
+def read_tls(state_dir: Path, now: float | None = None) -> dict[str, Any] | None:
+    """Metadata om det certifikat nginx bruger (skrevet af deploy/cert-deploy.sh til <state>/cert.json). Dage tilbage regnes her,
+    så tallet er rigtigt, selv om filen er gammel. None hvis der ikke er en fil (ingen nginx/TLS) eller den ikke kan læses."""
+    try:
+        raw = json.loads((state_dir / "cert.json").read_text(encoding="utf-8"))
+        expires = datetime.strptime(str(raw["not_after"]), "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc).timestamp()
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    now = time.time() if now is None else now
+    return {"issuer": raw.get("issuer", ""), "subject": raw.get("subject", ""), "self_signed": bool(raw.get("self_signed")),
+            "fingerprint": raw.get("fingerprint", ""), "not_after_ts": expires, "days_left": int((expires - now) // 86400)}
+
+
+def _problem(level: str, area: str, message: str, code: str | None = None) -> dict[str, str]:
+    """`code` identificerer problemet (bruges som alarmnøgle `sys:<code>`); standard = området."""
+    return {"level": level, "area": area, "message": message, "code": code or area}
 
 
 def assess(d: dict[str, Any]) -> dict[str, Any]:
@@ -101,9 +135,9 @@ def assess(d: dict[str, Any]) -> dict[str, Any]:
     lag = d.get("loop", {}).get("lag_max_s")
     if lag is not None:
         if lag >= LAG_ERROR_S:
-            problems.append(_problem("error", "server", f"Serveren var optaget i {lag:.1f} s uden at svare (event-loop-lag)"))
+            problems.append(_problem("error", "server", f"Serveren var optaget i {lag:.1f} s uden at svare (event-loop-lag)", "loop_lag"))
         elif lag >= LAG_WARN_S:
-            problems.append(_problem("warn", "server", f"Serveren var kortvarigt optaget ({lag * 1000:.0f} ms event-loop-lag)"))
+            problems.append(_problem("warn", "server", f"Serveren var kortvarigt optaget ({lag * 1000:.0f} ms event-loop-lag)", "loop_lag"))
 
     db_s = d.get("db", {}).get("latency_s")
     if d.get("db", {}).get("ok") is False:
@@ -123,26 +157,39 @@ def assess(d: dict[str, Any]) -> dict[str, Any]:
     host = d.get("host", {})
     if host.get("mem_total") and host.get("mem_available") is not None:
         if host["mem_available"] / host["mem_total"] < MEM_WARN_FRAC:
-            problems.append(_problem("warn", "host", f"Lidt hukommelse tilbage ({host['mem_available'] / 1e6:.0f} MB ledig)"))
+            problems.append(_problem("warn", "host", f"Lidt hukommelse tilbage ({host['mem_available'] / 1e6:.0f} MB ledig)", "mem"))
     temp = host.get("cpu_temp_c")
     if temp is not None:
         if temp >= TEMP_ERROR_C:
-            problems.append(_problem("error", "host", f"CPU'en er meget varm ({temp:.0f} °C)"))
+            problems.append(_problem("error", "host", f"CPU'en er meget varm ({temp:.0f} °C)", "temp"))
         elif temp >= TEMP_WARN_C:
-            problems.append(_problem("warn", "host", f"CPU'en er varm ({temp:.0f} °C)"))
+            problems.append(_problem("warn", "host", f"CPU'en er varm ({temp:.0f} °C)", "temp"))
     thr = host.get("throttled")
     if thr:
         if thr["now"]:
-            problems.append(_problem("error", "host", "Strøm/varme lige nu: " + ", ".join(thr["now"])))
+            problems.append(_problem("error", "host", "Strøm/varme lige nu: " + ", ".join(thr["now"]), "power"))
         elif thr["past"]:
-            problems.append(_problem("warn", "host", "Siden opstart: " + ", ".join(thr["past"])))
+            problems.append(_problem("warn", "host", "Siden opstart: " + ", ".join(thr["past"]), "power_past"))
+
+    tls = d.get("tls")
+    if tls:
+        days = tls["days_left"]
+        who = "Selvsigneret certifikat" if tls["self_signed"] else "Certifikatet"
+        if days < 0:
+            problems.append(_problem("error", "tls", f"{who} er udløbet (browsere afviser siden)"))
+        elif days < CERT_WARN_DAYS:
+            level = "error" if days < CERT_ERROR_DAYS else "warn"
+            hint = "" if tls["self_signed"] else " — tjek fornyelsen: hypervision-letsencrypt status"
+            problems.append(_problem(level, "tls", f"{who} udløber om {days} dage{hint}"))
 
     backup = d.get("backup", {})
     interval_h = backup.get("interval_h") or 0
     if interval_h > 0:
         age = backup.get("last_age_s")
         if age is None:
-            problems.append(_problem("warn", "backup", "Der er endnu ikke taget nogen automatisk backup"))
+            # den første automatiske backup tages først nogle minutter efter start — ingen advarsel før da (falsk alarm)
+            if d.get("uptime_s", 0) >= BACKUP_GRACE_S:
+                problems.append(_problem("warn", "backup", "Der er endnu ikke taget nogen automatisk backup"))
         elif age > interval_h * 3600 * BACKUP_WARN_FACTOR:
             problems.append(_problem("warn", "backup", f"Seneste backup er {age / 3600:.0f} timer gammel"))
 
@@ -184,18 +231,18 @@ class HealthService:
 
     # ------------------------------------------------------------- samlet billede
 
-    async def details(self, state: Any) -> dict[str, Any]:
+    async def details(self, state: Any, lag_window_s: float = 60.0) -> dict[str, Any]:
         """Alt til System › Status og /metrics. `state` er `app.state`. Kun læsning.
 
         Det der ændres af event-loopet (PLC-status, alarmer, lag-målinger, tællere) læses HER på loopet; kun det
         blokerende (database, disk, filer, glob) køres i en tråd — så ingen datastruktur itereres, mens den ændres."""
-        fast = self._loop_part(state)
+        fast = self._loop_part(state, lag_window_s)
         slow = await asyncio.to_thread(self._thread_part, state)
         data = {**fast, **slow}
         data.update(assess(data))
         return data
 
-    def _loop_part(self, state: Any) -> dict[str, Any]:
+    def _loop_part(self, state: Any, lag_window_s: float) -> dict[str, Any]:
         now = time.time()
         plcs = []
         for plc in state.manager.db.list_plcs():
@@ -213,7 +260,7 @@ class HealthService:
         return {
             "now": now, "started": self.started, "uptime_s": round(now - self.started),
             "version": read_version(), "plcs": plcs,
-            "loop": {"lag_last_s": round(self.lag_last, 4), "lag_max_s": self.lag_max()},
+            "loop": {"lag_last_s": round(self.lag_last, 4), "lag_max_s": self.lag_max(lag_window_s)},
             "ws_clients": self.ws_clients, "alarms": state.alarm_service.summary(None),
             "trends": self._trends(state),
         }
@@ -222,8 +269,9 @@ class HealthService:
         """Blokerende opslag (kører i en tråd)."""
         return {
             "db": self._db_probe(state.manager.db),
-            "disk": self._disk(state.settings.data_dir), "host": read_host(),
+            "disk": self._disk(state.settings.data_dir), "host": read_host(state.settings.net_state_dir),
             "backup": self._backup(state),
+            "tls": read_tls(state.settings.net_state_dir),
         }
 
     @staticmethod

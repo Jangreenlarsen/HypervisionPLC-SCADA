@@ -60,6 +60,10 @@ class Settings:
     symbol_tick_s: float = field(default_factory=lambda: _env_float("SCADA_SYMBOL_TICK_S", 0.5))
     # En PLC skal have været utilgængelig så længe før kommunikationsalarmen udløses
     alarm_comm_delay_s: float = field(default_factory=lambda: _env_float("SCADA_ALARM_COMM_DELAY_S", 10.0))
+    # Interne alarmer om SCADA selv (disk, lag, strøm, temperatur, backup, certifikat): til/fra, måleinterval og opstartsventetid
+    health_alarms: bool = field(default_factory=lambda: os.environ.get("SCADA_HEALTH_ALARMS", "1") not in ("0", "false", "no"))
+    health_alarm_sample_s: float = field(default_factory=lambda: _env_float("SCADA_HEALTH_ALARM_SAMPLE_S", 30.0))
+    health_alarm_warmup_s: float = field(default_factory=lambda: _env_float("SCADA_HEALTH_ALARM_WARMUP_S", 60.0))
     trend_days: float = field(default_factory=lambda: _env_float("SCADA_TREND_DAYS", 30.0))
     trend_flush_s: float = field(default_factory=lambda: _env_float("SCADA_TREND_FLUSH_S", 5.0))
     # Energi-tags gemmes længere end anden historik, så måneds-/årsrapporter er mulige.

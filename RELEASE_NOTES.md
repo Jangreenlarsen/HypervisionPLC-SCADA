@@ -2,6 +2,22 @@
 
 ---
 
+## v3.18.1 — 2026-11-03 — Strømstatus virker på Raspberry Pi
+
+- **System › Status** viser nu rigtigt, om Pi'ens strømforsyning er for svag (*Strøm og varme*), og der kommer en SYS-alarm, mens spændingen er for lav. Det virkede ikke før på alle Pi-kerner.
+
+## v3.18.0 — 2026-11-03 — Alarm når serveren selv har det dårligt
+
+- SCADA lager nu en alarm (niveau **SYS**), når noget er galt med serveren eller maskinen: disk næsten fuld, serveren er optaget, databasen er langsom, lidt hukommelse, CPU'en er varm, **lav spænding fra strømforsyningen (undervoltage)**, backup for gammel, eller certifikatet snart udløber. Alarmerne kan kvitteres og ses i historikken som andre alarmer.
+- En advarsel skal ses to gange i træk, før den bliver en alarm, og en alarm ophører først to minutter efter, at problemet er væk.
+- Kan slås fra med `SCADA_HEALTH_ALARMS=0`.
+
+## v3.17.0 — 2026-11-03 — Rigtigt HTTPS-certifikat (Let's Encrypt)
+
+- Siden kan få et rigtigt **Let's Encrypt-certifikat**, så browsere ikke længere advarer — også når maskinen kun står på det lokale net. Opsætningen gøres på maskinen med `hypervision-letsencrypt` (se `docs/TLS_LETSENCRYPT.md`); certifikatet fornyes automatisk.
+- **System › Status** viser, hvor mange dage der er til certifikatet udløber (gul/rød hvis fornyelsen er stoppet).
+- Slår udstedelsen fejl, bliver det nuværende certifikat liggende, så siden altid kan åbnes.
+
 ## v3.16.2 — 2026-11-03 — Mere stabilt WiFi på Raspberry Pi
 
 - Installationen slår WiFi-strømbesparelsen fra på Pi'en (den gav forsinkelser og udfald). Gælder ved installation og opdatering. Tjek også strømforsyningen: System › Status viser under *Strøm og varme*, om Pi'en har meldt for lav spænding.

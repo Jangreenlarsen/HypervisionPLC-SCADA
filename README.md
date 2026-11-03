@@ -116,7 +116,7 @@ sudo sh deploy/install.sh                 # SCADA som systemd-service
 sudo sh deploy/install.sh --with-mock-plc # + mock-PLC til test
 ```
 ```sh
-sudo sh deploy/install.sh --with-nginx scada.laces.dk 10.1.1.31   # + nginx med TLS (selvsigneret certifikat)
+sudo sh deploy/install.sh --with-nginx scada.laces.dk 10.1.1.31   # + nginx med TLS (selvsigneret certifikat; Let's Encrypt: docs/TLS_LETSENCRYPT.md)
 ```
 Konfiguration: `/etc/hypervisionplc-scada.env`. Data: `/var/lib/hypervisionplc-scada`. Certifikat: `/etc/hypervisionplc-scada/tls/`.
 

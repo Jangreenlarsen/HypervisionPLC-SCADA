@@ -11,7 +11,7 @@
 
   // Symbolernes afvigelsesalarm har intet grænseniveau (H/HH …) — der vises det valgte alarmniveau
   const PRIO_TEXT: Record<string, string> = { high: 'Høj', medium: 'Medium', low: 'Lav' };
-  const levelText = (level: string, priority: string) => (level === 'AFV' ? PRIO_TEXT[priority] ?? priority : level);
+  const levelText = (level: string, priority: string) => (level === 'AFV' ? PRIO_TEXT[priority] ?? priority : level);   // SYS vises som "SYS"
   const STATE_TEXT = { active_unack: 'Aktiv — ikke kvitteret', active_ack: 'Aktiv — kvitteret', rtn_unack: 'Ophørt — ikke kvitteret' };
   const EVENT_TEXT = { raise: 'Opstået', clear: 'Ophørt', ack: 'Kvitteret', change: 'Ændret niveau' };
 
@@ -84,7 +84,7 @@
             <tr class:unacked={a.state !== 'active_ack'}>
               <td class="small nowrap">{fmt(a.raised_at)}</td>
               <td><span class="prio-{a.priority}">{levelText(a.level, a.priority)}</span></td>
-              <td>{a.message}<div class="muted small mono">{a.kind === 'symbol' ? `symbol ${a.key.split(':').slice(2).join(':')}` : a.tag || a.plc}</div></td>
+              <td>{a.message}<div class="muted small mono">{a.kind === 'symbol' ? `symbol ${a.key.split(':').slice(2).join(':')}` : a.kind === 'sys' ? 'SCADA-serveren' : a.tag || a.plc}</div></td>
               <td class="small">
                 {STATE_TEXT[a.state]}
                 {#if a.acked_by}<div class="muted">af {a.acked_by} {fmt(a.acked_at)}</div>{/if}
