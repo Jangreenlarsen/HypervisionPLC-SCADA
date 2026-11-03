@@ -1,6 +1,6 @@
 # Plan: Let's Encrypt-certifikat på Pi'en (TLS trin 2) — 2026-11-03
 
-**Status:** i gang (scripts + tests bygges; udstedelse venter på Jans deSEC-token og CNAME).
+**Status:** værktøjet er bygget og installeret (v3.17.0), men **udstedelsen er parkeret** (Jan, 2026-11-03: "vi venter til vi er helt klar med at gå public"). Bemærk: movie.laces.dk bruger HTTP-01 (offentlig A-record + port 80/443 til proxy-VM'en, `certbot --nginx`) og har ingen deSEC-konto; når SCADA går public, vælges metoden igen (HTTP-01 eller DNS-01 via deSEC).
 
 **Beslutninger (Jan, 2026-11-03):** hostnavn **scada.laces.dk** · DNS-01 via **deSEC** (one.com har intet API → CNAME-delegering) · værktøj **certbot** (Jans valg frem for lego). Tjekket: Raspberry Pi OS Trixie har `certbot` 4.0.0 (Apache-2.0) som apt-pakke; `certbot.timer` fornyer automatisk. **Rettelse (2026-11-03):** Debians `python3-certbot-dns-desec` er version **1.2.1**, som IKKE følger CNAME'er (kun den nyere PyPI-version 1.3.2 gør) — derfor bruges pluginet ikke; i stedet en lille `--manual-auth-hook` (`deploy/desec-acme-hook.sh`, curl mod deSEC's API) der skriver TXT-posten i den zone, CNAME'en peger på. Ingen pip, ingen plugin-afhængighed. Fundet af reviewer; bekræftet ved at hente pakken fra Pi'ens apt og læse koden.
 
