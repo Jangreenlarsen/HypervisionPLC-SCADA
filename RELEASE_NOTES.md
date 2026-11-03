@@ -2,6 +2,10 @@
 
 ---
 
+## v3.18.1 — 2026-11-03 — Strømstatus virker på Raspberry Pi
+
+- **System › Status** viser nu rigtigt, om Pi'ens strømforsyning er for svag (*Strøm og varme*), og der kommer en SYS-alarm, mens spændingen er for lav. Det virkede ikke før på alle Pi-kerner.
+
 ## v3.18.0 — 2026-11-03 — Alarm når serveren selv har det dårligt
 
 - SCADA lager nu en alarm (niveau **SYS**), når noget er galt med serveren eller maskinen: disk næsten fuld, serveren er optaget, databasen er langsom, lidt hukommelse, CPU'en er varm, **lav spænding fra strømforsyningen (undervoltage)**, backup for gammel, eller certifikatet snart udløber. Alarmerne kan kvitteres og ses i historikken som andre alarmer.

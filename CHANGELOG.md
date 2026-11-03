@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.18.1 build 0315] — 2026-11-03 — fix: strøm-/undervoltage-status virker på Raspberry Pi
+
+- `deploy/power-info.sh` (ny, root): `vcgencmd get_throttled` → `<state>/power.json`; kører i DHCP-vagtens timer (ExecStartPre i `hypervisionplc-scada-netwatch.service`) og ved installation.
+- `backend/app/services/health.py`: `read_throttled`/`read_host(state_dir)` — læser `power.json` (frisk < 5 min), sysfs-stien som reserve. Før: stien fandtes ikke på Pi'ens kerne, så kortet var tomt og alarmen udeblev.
+- Tests: `backend/tests/test_power_info.py`. BUGS.md: fejlen beskrevet (fundet på den rigtige Pi).
+
 ## [3.18.0 build 0314] — 2026-11-03 — Interne alarmer om SCADA selv
 
 - `backend/app/services/health_alarms.py` (ny): `HealthAlarms` — målinger fra systemhelbredet hvert 30. s (efter 60 s opstartsventetid) → alarmkilde `sys:<kode>` (niveau SYS). Gul = to målinger i træk, rød straks; ophør først 120 s efter sidst set; `plc` og `power_past` er undtaget.

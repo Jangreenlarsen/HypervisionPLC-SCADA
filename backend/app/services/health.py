@@ -50,7 +50,27 @@ def decode_throttled(value: int | None) -> dict[str, list[str]] | None:
             "past": [t for b, t in THROTTLE_PAST.items() if value >> b & 1]}
 
 
-def read_host() -> dict[str, Any]:
+POWER_FRESH_S = 300.0   # <state>/power.json (deploy/power-info.sh, hvert 30. s) ældre end dette er ukendt, ikke "i orden"
+
+
+def read_throttled(state_dir: Path | None, now: float | None = None) -> dict[str, list[str]] | None:
+    """Pi-strømstatus: først root-hjælperens fil <state>/power.json (tjenesten må ikke åbne /dev/vcio), ellers kernens sysfs-sti (findes ikke
+    på alle kerner). None = ukendt (ikke en Pi, eller filen er for gammel/ugyldig)."""
+    now = time.time() if now is None else now
+    if state_dir is not None:
+        try:
+            raw = json.loads((state_dir / "power.json").read_text(encoding="utf-8"))
+            if now - float(raw["ts"]) <= POWER_FRESH_S:
+                return decode_throttled(int(raw["throttled"]))
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    try:
+        return decode_throttled(int(Path("/sys/devices/platform/soc/soc:firmware/get_throttled").read_text().strip(), 16))
+    except (OSError, ValueError):
+        return None
+
+
+def read_host(state_dir: Path | None = None) -> dict[str, Any]:
     """Hukommelse, belastning, CPU-temperatur og Pi-throttling. Det der ikke findes (fx på Windows) er None."""
     host: dict[str, Any] = {"mem_total": None, "mem_available": None, "load": None, "cpu_temp_c": None, "throttled": None}
     try:
@@ -70,11 +90,7 @@ def read_host() -> dict[str, Any]:
         host["cpu_temp_c"] = int(Path("/sys/class/thermal/thermal_zone0/temp").read_text().strip()) / 1000.0
     except (OSError, ValueError):
         pass
-    try:
-        raw = Path("/sys/devices/platform/soc/soc:firmware/get_throttled").read_text().strip()
-        host["throttled"] = decode_throttled(int(raw, 16))
-    except (OSError, ValueError):
-        pass
+    host["throttled"] = read_throttled(state_dir)
     return host
 
 
@@ -253,7 +269,7 @@ class HealthService:
         """Blokerende opslag (kører i en tråd)."""
         return {
             "db": self._db_probe(state.manager.db),
-            "disk": self._disk(state.settings.data_dir), "host": read_host(),
+            "disk": self._disk(state.settings.data_dir), "host": read_host(state.settings.net_state_dir),
             "backup": self._backup(state),
             "tls": read_tls(state.settings.net_state_dir),
         }
