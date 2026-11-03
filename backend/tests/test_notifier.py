@@ -36,6 +36,7 @@ class Recorder:
         self.raise_exc: Exception | None = None
         self.mail_exc: Exception | None = None
         self.fail_first = 0
+        self.response_json = None
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
@@ -44,6 +45,8 @@ class Recorder:
         if self.fail_first > 0:
             self.fail_first -= 1
             return httpx.Response(503)
+        if self.response_json is not None:
+            return httpx.Response(self.status, json=self.response_json)
         return httpx.Response(self.status)
 
     def smtp(self, conn, _unused, msg):
@@ -405,6 +408,100 @@ async def test_default_client_does_not_use_proxy_or_netrc_from_the_environment(t
     svc = NotificationService(tmp_path, SecretStore(tmp_path / "s.json"))
     async with svc._client_factory() as client:
         assert client.trust_env is False and client.follow_redirects is False
+
+
+# ------------------------------------------------------------------ Resend (HTTPS-API som e-mail-udbyder)
+
+RESEND_KEY = "re_AbCdEfGhIjKlMnOpQrStUvWxYz_0123"
+
+
+def resend(svc, **extra):
+    return svc.update({"enabled": True, "webhook": {"enabled": False},
+                       "email": {"enabled": True, "provider": "resend", "sender": "alarm@laces.dk",
+                                 "recipients": ["jan@laces.dk", "drift@laces.dk"], "resend_key": RESEND_KEY, **extra}})
+
+
+async def test_resend_posts_to_the_fixed_api_with_bearer_key_and_never_uses_smtp(env):
+    svc, rec, _ = env
+    resend(svc, host="smtp.skal-ignoreres.dk")                         # værten gælder kun SMTP
+    r = await svc.deliver([{"event": "raise", "time": 1.0, "key": "k", "tag": "Temp", "plc": "plc1", "kind": "high", "level": "H",
+                            "priority": "high", "message": "Kedel for høj"}])
+    assert r == {"email": {"ok": True, "attempts": 1, "error": ""}}
+    (req,) = rec.requests
+    assert str(req.url) == "https://api.resend.com/emails" and req.method == "POST"       # fast adresse
+    assert req.headers["authorization"] == f"Bearer {RESEND_KEY}"
+    body = json.loads(req.content)
+    assert body["from"] == "alarm@laces.dk" and body["to"] == ["jan@laces.dk", "drift@laces.dk"]
+    assert body["subject"] == "[SCADA testanlæg] 1 alarm" and "[HØJ] Kedel for høj (Temp)" in body["text"]
+    assert rec.mails == [] and RESEND_KEY not in json.dumps(body)
+
+
+@pytest.mark.parametrize("status, payload, expected", [
+    (403, {"name": "validation_error", "message": "The laces.dk domain is not verified."}, "HTTP 403: The laces.dk domain is not verified."),
+    (401, {"message": "API key is invalid"}, "HTTP 401: API key is invalid"),
+    (429, {"error": "rate limited"}, "HTTP 429: rate limited"),
+    (500, None, "HTTP 500"),
+])
+async def test_resend_errors_show_the_providers_message(env, status, payload, expected):
+    svc, rec, _ = env
+    resend(svc)
+    rec.response_json = payload
+    rec.status = status
+    err = (await svc.send_test())["email"]["error"]
+    assert expected in err and RESEND_KEY not in err
+
+
+async def test_resend_key_is_hidden_even_if_the_provider_echoes_it(env, caplog):
+    svc, rec, _ = env
+    resend(svc)
+    rec.status, rec.response_json = 401, {"message": f"Invalid key {RESEND_KEY} and also re_AbCdEfGhIjKlMnOpQ"}
+    err = (await svc.send_test())["email"]["error"]
+    assert RESEND_KEY not in err and "<skjult>" in err
+    rec.raise_exc = httpx.ConnectError(f"boom {RESEND_KEY}")
+    assert RESEND_KEY not in (await svc.deliver(BATCH))["email"]["error"]
+    assert RESEND_KEY not in caplog.text
+
+
+def test_resend_key_is_write_only(env):
+    svc, _, tmp = env
+    resend(svc)
+    p = svc.public()
+    assert p["config"]["email"]["has_resend_key"] is True and p["config"]["email"]["provider"] == "resend"
+    assert RESEND_KEY not in json.dumps(p) and RESEND_KEY not in (tmp / "config" / "settings.json").read_text()
+    svc.update({"email": {"enabled": False, "clear_resend_key": True}})
+    assert svc.public()["config"]["email"]["has_resend_key"] is False
+
+
+@pytest.mark.parametrize("email, message", [
+    ({"provider": "mailgun"}, "udbyder"),
+    ({"provider": "resend", "enabled": True, "sender": "a@laces.dk", "recipients": ["j@laces.dk"]}, "API-nøgle"),
+    ({"provider": "resend", "enabled": True, "recipients": ["j@laces.dk"], "resend_key": RESEND_KEY}, "afsender"),
+    ({"provider": "resend", "enabled": True, "sender": "a@laces.dk", "resend_key": RESEND_KEY}, "modtager"),
+    ({"resend_key": "ikke-en-nøgle-1234567890"}, "starte med re_"),
+    ({"resend_key": "re_kort"}, "starte med re_"),
+    ({"resend_key": RESEND_KEY, "clear_resend_key": True}, "både sætte og fjerne"),
+])
+def test_resend_validation(env, email, message):
+    svc, *_ = env
+    with pytest.raises(ServiceError, match=message):
+        svc.update({"email": email})
+    assert svc.public()["config"]["email"]["has_resend_key"] is False
+
+
+def test_switching_between_providers_keeps_both_secret_sets(env):
+    svc, *_ = env
+    resend(svc)
+    svc.update({"email": {"provider": "smtp", "enabled": True, "host": "smtp.laces.dk", "password": SMTP_PW, "security": "ssl"}})
+    e = svc.public()["config"]["email"]
+    assert e["provider"] == "smtp" and e["has_resend_key"] is True and e["has_password"] is True
+    svc.update({"email": {"provider": "resend"}})
+    assert svc.public()["config"]["email"]["provider"] == "resend"
+
+
+async def test_smtp_requirements_do_not_apply_to_resend(env):
+    svc, *_ = env
+    resend(svc, security="none", username="x")                         # login-reglen gælder kun SMTP
+    assert svc.public()["config"]["email"]["enabled"] is True
 
 
 # ------------------------------------------------------------------ API

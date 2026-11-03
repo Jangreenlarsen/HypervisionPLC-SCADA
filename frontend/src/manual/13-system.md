@@ -28,7 +28,8 @@ Siden **Notifikationer** (admin) lader SCADA sende besked, når en alarm **rejse
 
 - **Hvilke alarmer:** som standard kun *høj prioritet* (det kan ændres til medium og højere eller alle). *Send også når alarmen ophører* kan slås fra. Kvittering giver aldrig en besked.
 - **Samletid:** alarmer inden for samletiden (standard 20 sekunder) sendes som **én** besked, og en besked viser højst 20 alarmer ("… og N flere"), så en alarmstorm ikke fylder indbakken.
-- **Hemmeligheder er skriv-kun:** webhook-adressen (den kan indeholde en nøgle), et valgfrit Bearer-token og SMTP-adgangskoden gemmes kun på serveren; siden viser kun, *om* de er sat (og webhook-adressens vært). Skriv en ny værdi for at ændre dem, eller vælg *Fjern*.
+- **E-mail kan sendes på to måder:** via en **SMTP-server** eller via **Resend** (deres HTTPS-API; vælg *Udbyder*). Med Resend indsætter du API-nøglen (`re_…`) og bruger en afsender på et domæne, du har verificeret hos Resend.
+- **Hemmeligheder er skriv-kun:** webhook-adressen (den kan indeholde en nøgle), et valgfrit Bearer-token, SMTP-adgangskoden og Resend-nøglen gemmes kun på serveren; siden viser kun, *om* de er sat (og webhook-adressens vært). Skriv en ny værdi for at ændre dem, eller vælg *Fjern*.
 - **Send prøvebesked** sender straks en besked med den gemte opsætning og viser den præcise fejl pr. kanal (fx *HTTP 404* eller et afvist login).
 - **Fejl:** en mislykket afsendelse prøves igen (efter 5, 30 og 120 sekunder). Mislykkes flere afsendelser i træk, vises det her, på Status-siden og som en **SYS-alarm**. Tabellen *Status* viser de seneste 50 afsendelser; tællere findes også i `/metrics`. Beskeder, der venter på at blive sendt, ligger i hukommelsen og går tabt, hvis tjenesten genstarter. Adressen kan pege på en maskine på det lokale net (fx Node-RED); kun en admin kan sætte den, og med SMTP-login kræves STARTTLS eller SSL.
 

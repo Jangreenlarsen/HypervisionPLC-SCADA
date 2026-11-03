@@ -4,7 +4,7 @@ import { buildBody, formFrom, parseRecipients, type NotifyConfig } from './notif
 const cfg: NotifyConfig = {
   enabled: true, min_priority: 'high', on_clear: true, batch_s: 20,
   webhook: { enabled: true, has_url: true, host: 'hooks.example.test', has_token: true },
-  email: { enabled: false, host: 'smtp.laces.dk', port: 587, security: 'starttls', username: 'jan', sender: 's@laces.dk', recipients: ['a@b.dk', 'c@d.dk'], has_password: true },
+  email: { enabled: false, host: 'smtp.laces.dk', port: 587, security: 'starttls', username: 'jan', sender: 's@laces.dk', recipients: ['a@b.dk', 'c@d.dk'], has_password: true, provider: 'smtp', has_resend_key: false },
 };
 
 describe('notifications', () => {
@@ -36,5 +36,18 @@ describe('notifications', () => {
     const body = buildBody(f) as any;
     expect(body.enabled).toBe(false);
     expect(body.on_clear).toBe(false);
+  });
+  it('Resend: nøglen står tom, udbyderen sendes, og nøglen sendes kun når den er udfyldt', () => {
+    const f = formFrom({ ...cfg, email: { ...cfg.email, provider: 'resend', has_resend_key: true } });
+    expect(f.em_provider).toBe('resend');
+    expect(f.em_resend_key).toBe('');
+    let body = buildBody(f) as any;
+    expect(body.email.provider).toBe('resend');
+    expect('resend_key' in body.email).toBe(false);
+    f.em_resend_key = '  re_abcdefghijklmnop1234  ';
+    body = buildBody(f) as any;
+    expect(body.email.resend_key).toBe('re_abcdefghijklmnop1234');
+    f.clear_resend_key = true;
+    expect((buildBody(f) as any).email.clear_resend_key).toBe(true);
   });
 });

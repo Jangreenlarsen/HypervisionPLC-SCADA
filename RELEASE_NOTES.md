@@ -2,6 +2,10 @@
 
 ---
 
+## v3.20.0 — 2026-11-03 — Notifikationer kan sendes via Resend
+
+- Under **System › Notifikationer › E-mail** kan du nu vælge **Resend (API)** i stedet for en SMTP-server. Indsæt din Resend API-nøgle (den kan ikke læses igen), en afsender på et domæne, du har verificeret hos Resend, og modtagere. **Send prøvebesked** viser Resends egen fejlbesked, hvis noget er galt (fx et uverificeret domæne).
+
 ## v3.19.0 — 2026-11-03 — Få besked om alarmer (webhook og e-mail)
 
 - Ny side **System › Notifikationer** (admin): SCADA kan sende besked, når en alarm rejses eller ophører — som **webhook** (til fx Node-RED, Home Assistant, ntfy, Slack/Teams) og/eller **e-mail**. Som standard kun alarmer med høj prioritet.

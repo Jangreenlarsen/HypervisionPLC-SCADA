@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { get, post, put } from '../lib/api';
   import {
-    CHANNEL_TEXT, PRIORITY_TEXT, SECURITY_TEXT, buildBody, formFrom,
+    CHANNEL_TEXT, PRIORITY_TEXT, PROVIDER_TEXT, SECURITY_TEXT, buildBody, formFrom,
     type Form, type NotifyState, type Priority, type Security, type TestResults,
   } from '../lib/notifications';
 
@@ -97,18 +97,31 @@
 
       <h3>E-mail</h3>
       <label class="check"><input type="checkbox" bind:checked={form.em_enabled} disabled={busy} /> Slå e-mail til</label>
-      <label>SMTP-server <input bind:value={form.em_host} placeholder="smtp.laces.dk" disabled={busy} /></label>
-      <label>Port <input type="number" min="1" max="65535" bind:value={form.em_port} disabled={busy} /></label>
-      <label>Sikkerhed
-        <select bind:value={form.em_security} disabled={busy}>
-          {#each Object.entries(SECURITY_TEXT) as [value, text]}<option {value}>{text}</option>{/each}
+      <label>Udbyder
+        <select bind:value={form.em_provider} disabled={busy}>
+          {#each Object.entries(PROVIDER_TEXT) as [value, text]}<option {value}>{text}</option>{/each}
         </select>
       </label>
-      <label>Brugernavn (valgfrit) <input bind:value={form.em_username} disabled={busy} autocomplete="off" /></label>
-      <label>Adgangskode {#if info.config.email.has_password}<span class="badge ok">sat</span>{/if}
-        <input type="password" placeholder={info.config.email.has_password ? 'Skriv en ny adgangskode for at ændre den' : ''} bind:value={form.em_password} disabled={busy} autocomplete="new-password" />
-      </label>
-      {#if info.config.email.has_password}<label class="check"><input type="checkbox" bind:checked={form.clear_password} disabled={busy} /> Fjern adgangskoden</label>{/if}
+      {#if form.em_provider === 'resend'}
+        <label>Resend API-nøgle {#if info.config.email.has_resend_key}<span class="badge ok">sat</span>{:else}<span class="badge off">ikke sat</span>{/if}
+          <input type="password" placeholder={info.config.email.has_resend_key ? 'Skriv en ny nøgle for at ændre den' : 're_…'} bind:value={form.em_resend_key} disabled={busy} autocomplete="off" />
+        </label>
+        {#if info.config.email.has_resend_key}<label class="check"><input type="checkbox" bind:checked={form.clear_resend_key} disabled={busy} /> Fjern nøglen</label>{/if}
+        <p class="muted small">Resend sender via deres HTTPS-API (<span class="mono">api.resend.com</span>). Afsenderen skal være en adresse på et domæne, du har verificeret hos Resend.</p>
+      {:else}
+        <label>SMTP-server <input bind:value={form.em_host} placeholder="smtp.laces.dk" disabled={busy} /></label>
+        <label>Port <input type="number" min="1" max="65535" bind:value={form.em_port} disabled={busy} /></label>
+        <label>Sikkerhed
+          <select bind:value={form.em_security} disabled={busy}>
+            {#each Object.entries(SECURITY_TEXT) as [value, text]}<option {value}>{text}</option>{/each}
+          </select>
+        </label>
+        <label>Brugernavn (valgfrit) <input bind:value={form.em_username} disabled={busy} autocomplete="off" /></label>
+        <label>Adgangskode {#if info.config.email.has_password}<span class="badge ok">sat</span>{/if}
+          <input type="password" placeholder={info.config.email.has_password ? 'Skriv en ny adgangskode for at ændre den' : ''} bind:value={form.em_password} disabled={busy} autocomplete="new-password" />
+        </label>
+        {#if info.config.email.has_password}<label class="check"><input type="checkbox" bind:checked={form.clear_password} disabled={busy} /> Fjern adgangskoden</label>{/if}
+      {/if}
       <label>Afsender <input type="email" bind:value={form.em_sender} placeholder="scada@laces.dk" disabled={busy} /></label>
       <label>Modtagere (én pr. linje eller adskilt af komma)
         <textarea rows="3" bind:value={form.em_recipients} placeholder="jan@laces.dk" disabled={busy}></textarea>

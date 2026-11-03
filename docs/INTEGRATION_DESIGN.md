@@ -1,6 +1,6 @@
 # Integrationsmodel: SCADA ↔ andre systemer (Node-RED, Home Assistant, tredjepart) — designforslag 2026-11-03
 
-**Status:** besluttet af Jan 2026-11-03 — **C** (kerne-API + adaptere) · **kun læs først**, skriv som valgfrit trin 3 · **`aiomqtt` må tilføjes ved trin 4** · **afgrænsning pr. nøgle** (valgte tags/præfiks, intet nyt flag pr. tag). Trin 1 (3.20) er i gang.
+**Status:** besluttet af Jan 2026-11-03 — **C** (kerne-API + adaptere) · **kun læs først**, skriv som valgfrit trin 3 · **`aiomqtt` må tilføjes ved trin 4** · **afgrænsning pr. nøgle** (valgte tags/præfiks, intet nyt flag pr. tag). Trin 1 (3.21) er i gang.
 
 ## 1. Hvad skal det løse?
 
@@ -85,10 +85,10 @@ Pr. punkt: send ved ændring med **dødbånd**, **mindste interval** og **hjerte
 **Anbefaling: C.** Kernen (nøgler + REST + SSE) er nyttig for *alle* og kræver ingen nye pakker; MQTT/Home Assistant lægges oven på, når du vil have det. Dermed bliver intet opfundet to gange, og sikkerheden ligger ét sted.
 
 ## 5. Leveringsplan (hver version: tests, gennemgang af `reviewer`, manual)
-1. **3.20 — Nøgler og læse-API:** nøgle-godkendelse (egen principal), side *System › Integrationer*, `/points`, `/values`, `/history`, `/alarms`, OpenAPI, hastighedsgrænse, audit, `/metrics`-tællere, eksempler til Node-RED og Home Assistant (REST) i manualen.
-2. **3.21 — SSE-strøm** med øjebliksbillede, genoptagelse og hjerteslag.
-3. **3.22 — Styring (valgfri):** skriveliste pr. nøgle, gennem betjeningstjenesten.
-4. **3.23 — MQTT-adapter + Home Assistant Discovery** (kræver din accept af `aiomqtt`).
+1. **3.21 — Nøgler og læse-API:** nøgle-godkendelse (egen principal), side *System › Integrationer*, `/points`, `/values`, `/history`, `/alarms`, OpenAPI, hastighedsgrænse, audit, `/metrics`-tællere, eksempler til Node-RED og Home Assistant (REST) i manualen.
+2. **3.22 — SSE-strøm** med øjebliksbillede, genoptagelse og hjerteslag.
+3. **3.23 — Styring (valgfri):** skriveliste pr. nøgle, gennem betjeningstjenesten.
+4. **3.24 — MQTT-adapter + Home Assistant Discovery** (kræver din accept af `aiomqtt`).
 
 ## 6. Risici og afvejninger
 - **Eksponering:** hvert punkt, en nøgle må se, er en data-lækage, hvis nøglen stjæles → afgrænsning pr. nøgle, udløb, IP-liste, tilbagekald, HTTPS (nginx) og aldrig nøgler i URL'en.

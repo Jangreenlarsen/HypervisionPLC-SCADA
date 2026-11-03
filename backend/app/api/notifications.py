@@ -26,6 +26,7 @@ class WebhookBody(BaseModel):
 class EmailBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool | None = None
+    provider: str | None = None
     host: str | None = None
     port: int | None = None
     security: str | None = None
@@ -34,6 +35,8 @@ class EmailBody(BaseModel):
     recipients: list[str] | None = None
     password: str | None = None
     clear_password: bool = False
+    resend_key: str | None = None
+    clear_resend_key: bool = False
 
 
 class NotificationBody(BaseModel):
@@ -62,7 +65,7 @@ async def put_notifications(body: NotificationBody, request: Request) -> dict[st
     # audit: hvad der er ændret, aldrig værdierne (adresser, token og adgangskode er hemmeligheder)
     audit(request, "system.notifications.config", "", {"changed": sorted(k for k in data if k not in ("webhook", "email")) +
                                                       [f"{ch}.{k}" for ch in ("webhook", "email") for k in (data.get(ch) or {})
-                                                       if k not in ("url", "token", "password")],
+                                                       if k not in ("url", "token", "password", "resend_key")],
                                                       "secrets": result["secrets_changed"]})
     return result["public"]
 

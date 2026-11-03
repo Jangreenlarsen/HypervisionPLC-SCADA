@@ -2,7 +2,7 @@
 
 **Besluttet (Jan):** retning **C** (kerne-API + adaptere) · kun læs først (skriv = trin 3, valgfrit) · `aiomqtt` ved trin 4 · afgrænsning pr. nøgle. Fuldt design: [docs/INTEGRATION_DESIGN.md](docs/INTEGRATION_DESIGN.md).
 
-**Trin:** 3.20 nøgler + læse-API (`/api/v1/integration/{info,points,values,history,alarms,openapi.json}`, side *System › Integrationer*, hastighedsgrænse, audit, `/metrics`) → 3.21 SSE-strøm → 3.22 styring (valgfri, gennem betjeningstjenesten) → 3.23 MQTT + Home Assistant Discovery.
+**Trin:** 3.21 nøgler + læse-API (`/api/v1/integration/{info,points,values,history,alarms,openapi.json}`, side *System › Integrationer*, hastighedsgrænse, audit, `/metrics`) → 3.22 SSE-strøm → 3.23 styring (valgfri, gennem betjeningstjenesten) → 3.24 MQTT + Home Assistant Discovery.
 
 **Sikkerhedsprincipper:** nøgler genereres i browseren og gemmes kun som SHA-256 (serveren returnerer aldrig værdien); en nøgle er en egen principal, der aldrig kan bruge admin-/konfigurations-API'et eller en session; integrationer læser kun fra live-cachen (aldrig PLC'en direkte).
 

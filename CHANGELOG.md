@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.20.0 build 0317] — 2026-11-03 — Resend som e-mail-udbyder
+
+- `backend/app/services/notifier.py`: `provider` (`smtp` | `resend`) på e-mail-kanalen; `_send_resend` (POST `https://api.resend.com/emails`, Bearer-nøgle, fast adresse), Resends fejlbesked i prøvebeskeden; nøglen `resend_key` skriv-kun i `secrets.json` og skjult i fejltekster; krav pr. udbyder (Resend: nøgle + afsender + modtagere; SMTP-login-reglen gælder kun SMTP).
+- `backend/app/api/notifications.py`: `provider`, `resend_key`, `clear_resend_key`; audit uden nøglen.
+- `frontend/src/pages/Notifications.svelte`, `frontend/src/lib/notifications.ts`: udbyder-valg og Resend-nøgle (skriv-kun). Manual.
+- Tests: 16 nye i `backend/tests/test_notifier.py` (73 i alt), 1 i `notifications.test.ts`.
+
 ## [3.19.0 build 0316] — 2026-11-03 — Alarmnotifikation (webhook + e-mail)
 
 - `backend/app/services/notifier.py` (ny): `NotificationService` — lytter på alarmmotorens `raise`/`clear`, filtrerer på prioritet, samler i partier (`batch_s`), sender webhook (httpx) og e-mail (smtplib i tråd) med forsøg igen (5/30/120 s), husker de seneste 50 afsendelser, tællere, fejltekster uden hemmeligheder; `httpx`/`httpcore` sat til WARNING (en webhook-adresse er en hemmelighed og stod ellers i INFO-loggen).

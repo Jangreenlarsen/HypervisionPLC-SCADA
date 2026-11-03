@@ -40,6 +40,8 @@ for _name in ("httpx", "httpcore"):
     logging.getLogger(_name).setLevel(logging.WARNING)
 
 SECTION = "notifications"
+EMAIL_PROVIDERS = ("smtp", "resend")
+RESEND_URL = "https://api.resend.com/emails"   # fast adresse (ikke konfigurerbar: ingen SSRF via e-mail-kanalen)
 PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
 PRIORITY_TEXT = {"high": "HØJ", "medium": "MEDIUM", "low": "LAV"}
 MAX_PER_MESSAGE = 20          # flere alarmer i ét parti: de første vises, resten som "+N flere"
@@ -52,11 +54,12 @@ NEVER_NOTIFY = ("sys:notify",)      # notifikationsfejl må ikke selv give en no
 DEFAULTS: dict[str, Any] = {
     "enabled": False, "min_priority": "high", "on_clear": True, "batch_s": 20,
     "webhook": {"enabled": False},
-    "email": {"enabled": False, "host": "", "port": 587, "security": "starttls", "username": "", "sender": "", "recipients": []},
+    "email": {"enabled": False, "provider": "smtp", "host": "", "port": 587, "security": "starttls", "username": "", "sender": "", "recipients": []},
 }
 _EMAIL = re.compile(r"^[^@\s,;<>]+@[^@\s,;<>]+\.[^@\s,;<>]+$")
 _HOST = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$")
 _TOKEN = re.compile(r"^[\x21-\x7e]{8,300}$")      # printbare tegn uden mellemrum
+_RESEND_KEY = re.compile(r"^re_[A-Za-z0-9_-]{16,300}$")
 
 
 def _bad(message: str) -> ServiceError:
@@ -127,6 +130,7 @@ class NotificationService:
         cfg["webhook"]["host"] = (urlsplit(url).netloc.split("@")[-1] if url else "")
         cfg["webhook"]["has_token"] = self.secrets.has_secret(SECTION, "webhook_token")
         cfg["email"]["has_password"] = self.secrets.has_secret(SECTION, "smtp_password")
+        cfg["email"]["has_resend_key"] = self.secrets.has_secret(SECTION, "resend_key")
         return {"config": cfg, "deliveries": list(self.deliveries)[::-1], "queued": len(self.pending),
                 "sent": dict(self.sent), "failed": dict(self.failed), "dropped": self.dropped,
                 "failing": self.failing()}
@@ -165,6 +169,10 @@ class NotificationService:
             for k in ("enabled",):
                 if k in em:
                     cfg["email"][k] = _flag(em[k], f"email.{k}")
+            if "provider" in em:
+                if em["provider"] not in EMAIL_PROVIDERS:
+                    raise _bad("E-mail-udbyder skal være smtp eller resend")
+                cfg["email"]["provider"] = em["provider"]
             if "host" in em:
                 if not isinstance(em["host"], str) or (em["host"] and not _HOST.match(em["host"])):
                     raise _bad("Ugyldig SMTP-server (værtsnavn eller IP)")
@@ -190,6 +198,12 @@ class NotificationService:
                 if not isinstance(r, list) or len(r) > 10 or not all(isinstance(x, str) and _EMAIL.match(x) for x in r):
                     raise _bad("Modtagere skal være op til 10 gyldige e-mailadresser")
                 cfg["email"]["recipients"] = r
+            if em.get("resend_key") and em.get("clear_resend_key"):
+                raise _bad("Kan ikke både sætte og fjerne Resend-nøglen i samme gemning")
+            if em.get("resend_key"):
+                if not isinstance(em["resend_key"], str) or not _RESEND_KEY.match(em["resend_key"]):
+                    raise _bad("Resend API-nøglen skal starte med re_ (kopiér den fra Resend)")
+                changed_secrets.append("resend_key")
             if em.get("password") and em.get("clear_password"):
                 raise _bad("Kan ikke både sætte og fjerne adgangskoden i samme gemning")
             if em.get("password"):
@@ -203,10 +217,16 @@ class NotificationService:
         if cfg["webhook"]["enabled"] and wh.get("clear_url"):
             raise _bad("Webhook kan ikke slås til uden en adresse — slå den fra, når adressen fjernes")
         e = cfg["email"]
-        if e["enabled"] and not (e["host"] and e["sender"] and e["recipients"]):
+        has_resend = (self.secrets.has_secret(SECTION, "resend_key") and not em.get("clear_resend_key")) or em.get("resend_key")
+        if e["enabled"] and e["provider"] == "resend":
+            if not (e["sender"] and e["recipients"]):
+                raise _bad("Resend kræver afsender (en adresse på et domæne, du har verificeret hos Resend) og mindst én modtager")
+            if not has_resend:
+                raise _bad("Resend kræver en API-nøgle")
+        elif e["enabled"] and not (e["host"] and e["sender"] and e["recipients"]):
             raise _bad("E-mail kræver SMTP-server, afsender og mindst én modtager")
         has_pw = (self.secrets.has_secret(SECTION, "smtp_password") and not em.get("clear_password")) or em.get("password")
-        if e["security"] == "none" and (e["username"] or has_pw):
+        if e["provider"] == "smtp" and e["security"] == "none" and (e["username"] or has_pw):
             raise _bad("Login kræver STARTTLS eller SSL — med sikkerhed 'Ingen' ville adgangskoden blive sendt i klartekst")
         # alt er gyldigt — først nu skrives der
         if wh.get("url"):
@@ -215,12 +235,16 @@ class NotificationService:
             self.secrets.set_secret(SECTION, "webhook_token", wh["token"])
         if em.get("password"):
             self.secrets.set_secret(SECTION, "smtp_password", em["password"])
+        if em.get("resend_key"):
+            self.secrets.set_secret(SECTION, "resend_key", em["resend_key"])
         if wh.get("clear_url"):
             self.secrets.delete_secret(SECTION, "webhook_url"); changed_secrets.append("webhook_url (fjernet)")
         if wh.get("clear_token"):
             self.secrets.delete_secret(SECTION, "webhook_token"); changed_secrets.append("webhook_token (fjernet)")
         if em.get("clear_password"):
             self.secrets.delete_secret(SECTION, "smtp_password"); changed_secrets.append("smtp_password (fjernet)")
+        if em.get("clear_resend_key"):
+            self.secrets.delete_secret(SECTION, "resend_key"); changed_secrets.append("resend_key (fjernet)")
         sysconfig.save_section(self.data_dir, SECTION, cfg)
         self._cache = None                  # ny konfiguration læses ved næste brug
         for ch in ("webhook", "email"):     # en kanal der er slået fra (eller alt slået fra) har ingen fejl at melde
@@ -352,7 +376,7 @@ class NotificationService:
             for seg in [*parts.path.split("/"), *(kv.partition("=")[2] for kv in parts.query.split("&"))]:
                 if len(seg) >= 6:
                     out |= {seg, quote(seg, safe="")}
-        for name in ("webhook_token", "smtp_password"):
+        for name in ("webhook_token", "smtp_password", "resend_key"):
             v = self.secrets.get_secret(SECTION, name)
             if v:
                 out |= {v, quote(v, safe="")}
@@ -413,10 +437,31 @@ class NotificationService:
     async def _send_email(self, batch: list[dict[str, Any]], cfg: dict[str, Any]) -> None:
         e = cfg["email"]
         subject, text = self.subject_and_text(batch)
+        if e["provider"] == "resend":
+            await self._send_resend(e, subject, text)
+            return
         msg = EmailMessage()
         msg["Subject"], msg["From"], msg["To"] = subject, e["sender"], ", ".join(e["recipients"])
         msg.set_content(text)
         await asyncio.to_thread(self._smtp_send, {**e, "password": self.secrets.get_secret(SECTION, "smtp_password")}, "", msg)
+
+    async def _send_resend(self, e: dict[str, Any], subject: str, text: str) -> None:
+        """Resends HTTPS-API (POST /emails, Bearer-nøgle). Afsenderen skal være på et domæne, der er verificeret hos Resend."""
+        key = self.secrets.get_secret(SECTION, "resend_key")
+        if not key:
+            raise RuntimeError("Resend API-nøglen er ikke sat")
+        headers = {"Authorization": f"Bearer {key}", "User-Agent": "HypervisionPLC-SCADA"}
+        payload = {"from": e["sender"], "to": e["recipients"], "subject": subject, "text": text}
+        async with self._client_factory() as client:
+            r = await client.post(RESEND_URL, json=payload, headers=headers)
+        if not 200 <= r.status_code < 300:
+            detail = ""
+            try:
+                body = r.json()
+                detail = str(body.get("message") or body.get("error") or "")[:200] if isinstance(body, dict) else ""
+            except ValueError:
+                pass
+            raise RuntimeError(f"Resend svarede HTTP {r.status_code}" + (f": {detail}" if detail else ""))
 
     @staticmethod
     def _real_smtp_send(e: dict[str, Any], _unused: str, msg: EmailMessage) -> None:
