@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.16.2 build 0312] — 2026-11-03 — WiFi-strømbesparelse slås fra (Raspberry Pi)
+
+- `deploy/install.sh`: NetworkManager-maskiner får `/etc/NetworkManager/conf.d/90-hypervisionplc-wifi-powersave.conf` (`wifi.powersave = 2`), og strømbesparelsen slås fra straks på trådløse kort. Målt: `Power save: on` som standard på Pi'ens WiFi.
+- BUGS.md: undersøgelsen af "sleep mode" (WiFi-strømbesparelse + undervoltage).
+
 ## [3.16.1 build 0311] — 2026-11-02 — fix: fast IP på Raspberry Pi OS Trixie (netplan)
 
 - `deploy/apply-config.sh`: er NetworkManager-profilen skabt af netplan, arbejdes der på en kopi (`nmcli connection clone`); kopien gøres varig ved Bekræft og netplan-originalen slettes, ved Fortryd/timeout/`--recover` slettes kopien. Årsag: en varig `nmcli connection modify` på en netplan-profil fik NetworkManager til at skrive netplan-filer og begrave profilen, så netkortet mistede forbindelsen ved Bekræft.

@@ -2,6 +2,10 @@
 
 ---
 
+## v3.16.2 — 2026-11-03 — Mere stabilt WiFi på Raspberry Pi
+
+- Installationen slår WiFi-strømbesparelsen fra på Pi'en (den gav forsinkelser og udfald). Gælder ved installation og opdatering. Tjek også strømforsyningen: System › Status viser under *Strøm og varme*, om Pi'en har meldt for lav spænding.
+
 ## v3.16.1 — 2026-11-02 — Fast IP virker nu på nyere Raspberry Pi OS
 
 - Skifte til fast IP (System › Konfiguration) mistede forbindelsen, når du trykkede Bekræft, på Raspberry Pi OS Trixie (WiFi/netværk styret af netplan), så maskinen endte på DHCP. Nu virker det: forbindelsen holdes ved Bekræft, og Fortryd gendanner den gamle opsætning.

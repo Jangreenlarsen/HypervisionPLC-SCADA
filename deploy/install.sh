@@ -128,6 +128,17 @@ install -m 0755 "$SRC/deploy/net-detect.sh" /usr/local/lib/hypervisionplc-scada/
 /usr/local/lib/hypervisionplc-scada/net-detect.sh || true
 NETBACKEND=$(sed -n 's/^backend=//p' /var/lib/hypervisionplc-scada-net/capabilities 2>/dev/null | head -n 1)
 [ "$NETBACKEND" = none ] && echo "ADVARSEL: hverken NetworkManager eller ifupdown findes — netværk kan ikke ændres fra web" >&2
+# WiFi-strømbesparelse slås fra: på en server giver den forsinkelser og udfald (målt på en Pi: "Power save: on" som standard).
+# NetworkManager: gælder ved næste WiFi-forbindelse; her slås den også fra straks (best effort, kun trådløse kort).
+if [ "$NETBACKEND" = nm ]; then
+    install -d -m 0755 /etc/NetworkManager/conf.d
+    printf '[connection]\n# Sat af HypervisionPLC SCADA: ingen WiFi-strømbesparelse (2 = fra)\nwifi.powersave = 2\n' \
+        > /etc/NetworkManager/conf.d/90-hypervisionplc-wifi-powersave.conf
+    for w in /sys/class/net/*/wireless; do
+        [ -d "$w" ] || continue
+        iw dev "$(basename "$(dirname "$w")")" set power_save off 2>/dev/null || true
+    done
+fi
 
 echo "== systemd"
 install -m 0644 "$SRC/deploy/hypervisionplc-scada.service" /etc/systemd/system/
