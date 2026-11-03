@@ -1,6 +1,6 @@
 # System
 
-Under **System** ligger Status, Log, Brugere, Backup, Opdatering og Konfiguration. **Status** og **Log** kræver rollen tekniker; de øvrige kræver **admin**.
+Under **System** ligger Status, Log, Brugere, Backup, Opdatering, Notifikationer og Konfiguration. **Status** og **Log** kræver rollen tekniker; de øvrige kræver **admin**.
 
 ## Status
 
@@ -21,6 +21,18 @@ Adgangen sker med headeren `Authorization: Bearer <token>`; en almindelig login-
 ### HTTPS-certifikat (Let's Encrypt)
 
 Siden bruger HTTPS. Som standard med et **selvsigneret** certifikat (browsere advarer); et rigtigt **Let's Encrypt-certifikat** sættes op på maskinen med `hypervision-letsencrypt` (certbot + deSEC) — opskriften står i `docs/TLS_LETSENCRYPT.md`. På Status-siden viser kortet *HTTPS-certifikat udløber om* antal dage; **gul under 21 dage og rød under 7** betyder, at den automatiske fornyelse er stoppet og skal ses efter (`hypervision-letsencrypt status`). Det selvsignerede certifikat bliver liggende, hvis udstedelsen fejler, så siden kan altid åbnes.
+
+## Notifikationer
+
+Siden **Notifikationer** (admin) lader SCADA sende besked, når en alarm **rejses** eller **ophører** — som **webhook** (JSON til en adresse; virker med Node-RED, Home Assistant, ntfy, Slack/Teams og andre) og/eller **e-mail** (SMTP).
+
+- **Hvilke alarmer:** som standard kun *høj prioritet* (det kan ændres til medium og højere eller alle). *Send også når alarmen ophører* kan slås fra. Kvittering giver aldrig en besked.
+- **Samletid:** alarmer inden for samletiden (standard 20 sekunder) sendes som **én** besked, og en besked viser højst 20 alarmer ("… og N flere"), så en alarmstorm ikke fylder indbakken.
+- **Hemmeligheder er skriv-kun:** webhook-adressen (den kan indeholde en nøgle), et valgfrit Bearer-token og SMTP-adgangskoden gemmes kun på serveren; siden viser kun, *om* de er sat (og webhook-adressens vært). Skriv en ny værdi for at ændre dem, eller vælg *Fjern*.
+- **Send prøvebesked** sender straks en besked med den gemte opsætning og viser den præcise fejl pr. kanal (fx *HTTP 404* eller et afvist login).
+- **Fejl:** en mislykket afsendelse prøves igen (efter 5, 30 og 120 sekunder). Mislykkes flere afsendelser i træk, vises det her, på Status-siden og som en **SYS-alarm**. Tabellen *Status* viser de seneste 50 afsendelser; tællere findes også i `/metrics`. Beskeder, der venter på at blive sendt, ligger i hukommelsen og går tabt, hvis tjenesten genstarter. Adressen kan pege på en maskine på det lokale net (fx Node-RED); kun en admin kan sætte den, og med SMTP-login kræves STARTTLS eller SSL.
+
+Webhook-kroppen er `{"type":"alarm","instance":…,"version":…,"time":…,"events":[{"event":"raise"|"clear","key":…,"tag":…,"plc":…,"kind":…,"level":…,"priority":…,"message":…,"time":…}],"more":0}`; et Bearer-token sendes som `Authorization: Bearer <token>`.
 
 ## Log
 

@@ -2,6 +2,12 @@
 
 ---
 
+## v3.19.0 — 2026-11-03 — Få besked om alarmer (webhook og e-mail)
+
+- Ny side **System › Notifikationer** (admin): SCADA kan sende besked, når en alarm rejses eller ophører — som **webhook** (til fx Node-RED, Home Assistant, ntfy, Slack/Teams) og/eller **e-mail**. Som standard kun alarmer med høj prioritet.
+- Flere alarmer samles i én besked, og en mislykket afsendelse prøves igen. **Send prøvebesked** viser straks, om opsætningen virker. Adresser, token og adgangskode kan ikke læses igen efter de er gemt.
+- Virker noget ikke, ses det på siden, på Status og som en SYS-alarm.
+
 ## v3.18.1 — 2026-11-03 — Strømstatus virker på Raspberry Pi
 
 - **System › Status** viser nu rigtigt, om Pi'ens strømforsyning er for svag (*Strøm og varme*), og der kommer en SYS-alarm, mens spændingen er for lav. Det virkede ikke før på alle Pi-kerner.

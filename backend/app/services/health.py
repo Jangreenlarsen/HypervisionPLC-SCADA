@@ -182,6 +182,10 @@ def assess(d: dict[str, Any]) -> dict[str, Any]:
             hint = "" if tls["self_signed"] else " — tjek fornyelsen: hypervision-letsencrypt status"
             problems.append(_problem(level, "tls", f"{who} udløber om {days} dage{hint}"))
 
+    for channel, error in (d.get("notify") or {}).items():
+        label = {"webhook": "webhook", "email": "e-mail"}.get(channel, channel)
+        problems.append(_problem("warn", "notify", f"Notifikation via {label} kan ikke sendes: {error}", f"notify_{channel}"))
+
     backup = d.get("backup", {})
     interval_h = backup.get("interval_h") or 0
     if interval_h > 0:
@@ -263,6 +267,9 @@ class HealthService:
             "loop": {"lag_last_s": round(self.lag_last, 4), "lag_max_s": self.lag_max(lag_window_s)},
             "ws_clients": self.ws_clients, "alarms": state.alarm_service.summary(None),
             "trends": self._trends(state),
+            "notify": notifier.failing() if (notifier := getattr(state, "notifier", None)) else {},
+            "notifications": ({"sent": notifier.sent, "failed": notifier.failed, "dropped": notifier.dropped, "queued": len(notifier.pending)}
+                              if notifier else None),
         }
 
     def _thread_part(self, state: Any) -> dict[str, Any]:

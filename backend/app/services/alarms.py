@@ -119,6 +119,8 @@ class AlarmService:
         # Ekstra kilder til alarmer (fx symbolernes afvigelse): now → (betingelser, "frosne" tags hvis alarmer ikke må
         # ryddes fordi værdien er ukendt — en kommunikationsfejl må aldrig rydde en alarm)
         self.providers: list[Any] = []
+        # Lyttere på alarmhændelser (row, hændelse, tid) — fx notifikation. En fejl i en lytter må aldrig vælte alarmmotoren.
+        self.listeners: list[Any] = []
         self._published: set[str] = set()   # alarm:<tag>:active|unack i live-cachen (v0.74.0)
 
     # ------------------------------------------------------------ abonnenter
@@ -267,6 +269,11 @@ class AlarmService:
                                     "level": row["level"], "priority": row["priority"], "event": event,
                                     "value": row.get("value"), "username": username, "message": row["message"]},
                                    KEEP_EVENTS)
+        for listener in self.listeners:
+            try:
+                listener(row, event, now)
+            except Exception:
+                log.exception("Fejl i alarm-lytter")
 
     def _raise(self, c: Condition, now: float) -> bool:
         row = {"key": c.key, "tag": c.tag, "plc": c.plc, "kind": c.kind, "level": c.level,

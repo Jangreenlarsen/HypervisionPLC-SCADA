@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.19.0 build 0316] — 2026-11-03 — Alarmnotifikation (webhook + e-mail)
+
+- `backend/app/services/notifier.py` (ny): `NotificationService` — lytter på alarmmotorens `raise`/`clear`, filtrerer på prioritet, samler i partier (`batch_s`), sender webhook (httpx) og e-mail (smtplib i tråd) med forsøg igen (5/30/120 s), husker de seneste 50 afsendelser, tællere, fejltekster uden hemmeligheder; `httpx`/`httpcore` sat til WARNING (en webhook-adresse er en hemmelighed og stod ellers i INFO-loggen).
+- `backend/app/api/notifications.py` (ny, kun admin): `GET/PUT /api/system/notifications`, `POST /test`; audit uden værdier.
+- `backend/app/storage/secrets.py`: generelle skriv-kun hemmeligheder pr. afsnit. `backend/app/services/alarms.py`: `listeners` kaldt fra `_event`. `backend/app/services/health.py`, `metrics.py`: problem `notify_*` og `scada_notifications_*`. `backend/app/main.py`: tjeneste + opgave. `ARCHITECTURE.md`: undtagelse for udgående kald.
+- `frontend/src/pages/Notifications.svelte`, `frontend/src/lib/notifications.ts` (+ test), `nav.ts`, `App.svelte`; manualafsnit.
+- Tests: `backend/tests/test_notifier.py` (43), `frontend/src/lib/notifications.test.ts`.
+
 ## [3.18.1 build 0315] — 2026-11-03 — fix: strøm-/undervoltage-status virker på Raspberry Pi
 
 - `deploy/power-info.sh` (ny, root): `vcgencmd get_throttled` → `<state>/power.json`; kører i DHCP-vagtens timer (ExecStartPre i `hypervisionplc-scada-netwatch.service`) og ved installation.

@@ -64,6 +64,28 @@ class SecretStore:
             stored = self._load().get("metrics", {}).get("token_sha256")
         return bool(stored) and hmac.compare_digest(stored, self._digest(candidate))
 
+    # Generelle hemmeligheder pr. afsnit (fx notifikationernes webhook-adresse/-token og SMTP-adgangskode): skriv-kun, aldrig i svar.
+
+    def get_secret(self, section: str, name: str) -> str | None:
+        with self._lock:
+            value = self._load().get(section, {}).get(name)
+        return value if isinstance(value, str) and value else None
+
+    def has_secret(self, section: str, name: str) -> bool:
+        return self.get_secret(section, name) is not None
+
+    def set_secret(self, section: str, name: str, value: str) -> None:
+        with self._lock:
+            data = self._load()
+            data.setdefault(section, {})[name] = value
+            self._save(data)
+
+    def delete_secret(self, section: str, name: str) -> None:
+        with self._lock:
+            data = self._load()
+            if data.get(section, {}).pop(name, None) is not None:
+                self._save(data)
+
     def get_plc_password(self, key: str) -> str | None:
         with self._lock:
             return self._load().get("plc_passwords", {}).get(key)

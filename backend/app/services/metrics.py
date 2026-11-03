@@ -117,5 +117,12 @@ def render(d: dict[str, Any], auth_failures: int = 0) -> str:
     x.gauge("scada_tls_cert_expiry_seconds", "Sekunder til nginx' certifikat udløber (negativ = udløbet)",
             None if "not_after_ts" not in tls else tls["not_after_ts"] - d.get("now", 0))
     x.gauge("scada_tls_cert_self_signed", "Certifikatet er selvsigneret (1) eller fra en udsteder (0)", tls.get("self_signed"))
+    n = d.get("notifications") or {}
+    x.metric("scada_notifications_sent_total", "counter", "Afsendte notifikationer siden start pr. kanal",
+             [({"channel": c}, v) for c, v in (n.get("sent") or {}).items()])
+    x.metric("scada_notifications_failed_total", "counter", "Notifikationer der ikke kunne sendes (efter forsøg igen) pr. kanal",
+             [({"channel": c}, v) for c, v in (n.get("failed") or {}).items()])
+    x.counter("scada_notifications_dropped_total", "Notifikationer kasseret, fordi køen var fuld", n.get("dropped"))
+    x.gauge("scada_notification_queue", "Notifikationer der venter på at blive sendt", n.get("queued"))
     x.counter("scada_metrics_auth_failures_total", "Afviste forsøg på at hente /metrics (forkert eller manglende token)", auth_failures)
     return x.text()
