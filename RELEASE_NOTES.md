@@ -2,6 +2,12 @@
 
 ---
 
+## v3.17.0 — 2026-11-03 — Rigtigt HTTPS-certifikat (Let's Encrypt)
+
+- Siden kan få et rigtigt **Let's Encrypt-certifikat**, så browsere ikke længere advarer — også når maskinen kun står på det lokale net. Opsætningen gøres på maskinen med `hypervision-letsencrypt` (se `docs/TLS_LETSENCRYPT.md`); certifikatet fornyes automatisk.
+- **System › Status** viser, hvor mange dage der er til certifikatet udløber (gul/rød hvis fornyelsen er stoppet).
+- Slår udstedelsen fejl, bliver det nuværende certifikat liggende, så siden altid kan åbnes.
+
 ## v3.16.2 — 2026-11-03 — Mere stabilt WiFi på Raspberry Pi
 
 - Installationen slår WiFi-strømbesparelsen fra på Pi'en (den gav forsinkelser og udfald). Gælder ved installation og opdatering. Tjek også strømforsyningen: System › Status viser under *Strøm og varme*, om Pi'en har meldt for lav spænding.

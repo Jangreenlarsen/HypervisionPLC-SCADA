@@ -113,5 +113,9 @@ def render(d: dict[str, Any], auth_failures: int = 0) -> str:
     x.gauge("scada_host_throttled_since_boot", "Raspberry Pi har været undervolted/throttlet siden opstart",
             None if thr is None else bool(thr["past"]))
 
+    tls = d.get("tls") or {}
+    x.gauge("scada_tls_cert_expiry_seconds", "Sekunder til nginx' certifikat udløber (negativ = udløbet)",
+            None if "not_after_ts" not in tls else tls["not_after_ts"] - d.get("now", 0))
+    x.gauge("scada_tls_cert_self_signed", "Certifikatet er selvsigneret (1) eller fra en udsteder (0)", tls.get("self_signed"))
     x.counter("scada_metrics_auth_failures_total", "Afviste forsøg på at hente /metrics (forkert eller manglende token)", auth_failures)
     return x.text()

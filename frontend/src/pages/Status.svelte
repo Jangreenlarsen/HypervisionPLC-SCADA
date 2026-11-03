@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { get } from '../lib/api';
   import MetricsToken from '../lib/MetricsToken.svelte';
-  import { AREA_TEXT, LEVEL_TEXT, fmtBytes, fmtDuration, fmtMs, fmtPercent, levelClass, type Health } from '../lib/status';
+  import { AREA_TEXT, LEVEL_TEXT, certSummary, fmtBytes, fmtDuration, fmtMs, fmtPercent, levelClass, type Health } from '../lib/status';
 
   const REFRESH_MS = 5000;
   let health = $state<Health | null>(null);
@@ -95,6 +95,12 @@
       <div class="card"><div class="muted small">Seneste backup</div>
         <strong>{health.backup.last_age_s === null ? 'ingen' : `${fmtDuration(health.backup.last_age_s)} siden`}</strong>
         <div class="muted small">{health.backup.interval_h > 0 ? `automatisk hver ${health.backup.interval_h}. time · ${health.backup.count} gemt` : 'automatisk backup er slået fra'}</div></div>
+      {#if health.tls}
+        {@const cert = certSummary(health.tls)}
+        <div class="card"><div class="muted small">HTTPS-certifikat udløber om</div>
+          <strong class:bad={health.tls.days_left < 7} class:warnText={health.tls.days_left >= 7 && health.tls.days_left < 21}>{cert.big}</strong>
+          <div class="muted small">{cert.note}</div></div>
+      {/if}
     </div>
 
     <h3>Maskine</h3>

@@ -18,6 +18,10 @@ Samme tal som på siden kan hentes af Prometheus (og vises i Grafana) fra adress
 
 Adgangen sker med headeren `Authorization: Bearer <token>`; en almindelig login-session giver ikke adgang, og tokenet kan ikke sendes i adressen. Der udleveres kun systemtal (fx event-loop-lag, kald i sekundet til hver PLC, om en PLC svarer, alarmantal, disk, hukommelse, temperatur) — aldrig tag-værdier, tag- eller tegningsnavne, brugere eller adgangskoder. Afviste forsøg tælles og logges. Tokenet følger ikke med i en backup og skal sættes igen på en ny server.
 
+### HTTPS-certifikat (Let's Encrypt)
+
+Siden bruger HTTPS. Som standard med et **selvsigneret** certifikat (browsere advarer); et rigtigt **Let's Encrypt-certifikat** sættes op på maskinen med `hypervision-letsencrypt` (certbot + deSEC) — opskriften står i `docs/TLS_LETSENCRYPT.md`. På Status-siden viser kortet *HTTPS-certifikat udløber om* antal dage; **gul under 21 dage og rød under 7** betyder, at den automatiske fornyelse er stoppet og skal ses efter (`hypervision-letsencrypt status`). Det selvsignerede certifikat bliver liggende, hvis udstedelsen fejler, så siden kan altid åbnes.
+
 ## Log
 
 ![Log: tidspunkt, bruger, handling og resultat — med filter øverst](../../public/manual/log.png)

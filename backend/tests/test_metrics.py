@@ -132,3 +132,11 @@ def test_failure_log_table_is_bounded(api):
     st.metrics_last_log = {f"10.0.{i // 250}.{i % 250}": time.monotonic() - 3600 for i in range(m._MAX_LOG_IPS + 5)}
     _anon(api).get("/metrics", headers={"Authorization": "Bearer forkert-token-forkert-token"})
     assert len(st.metrics_last_log) < 10        # gamle poster ryddet; kun den nye er tilbage
+
+
+def test_render_tls_metrics():
+    d = _details(now=1000.0, tls={"not_after_ts": 1000.0 + 86400, "self_signed": False})
+    text = render(d)
+    assert "scada_tls_cert_expiry_seconds 86400.0" in text and "scada_tls_cert_self_signed 0" in text
+    assert "scada_tls_cert" not in render(_details())                 # uden certifikat-metadata udelades målingerne
+    assert "scada_tls_cert_expiry_seconds -60.0" in render(_details(now=1000.0, tls={"not_after_ts": 940.0, "self_signed": True}))

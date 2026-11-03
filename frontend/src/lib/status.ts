@@ -19,11 +19,13 @@ export interface Health {
           throttled: { now: string[]; past: string[] } | null };
   trends: { db_bytes: number | null; rows: number; flushes: number; rows_per_day: number | null };
   backup: { interval_h: number; count: number; last_age_s: number | null };
+  tls: Tls | null;
 }
+export interface Tls { issuer: string; subject: string; self_signed: boolean; fingerprint: string; not_after_ts: number; days_left: number }
 
 export const LEVEL_TEXT: Record<Level, string> = { ok: 'Alt i orden', warn: 'Opmærksomhed', error: 'Fejl' };
 export const AREA_TEXT: Record<string, string> = {
-  plc: "PLC'er", server: 'Server', database: 'Database', disk: 'Disk', host: 'Maskine', backup: 'Backup',
+  plc: "PLC'er", server: 'Server', database: 'Database', disk: 'Disk', host: 'Maskine', backup: 'Backup', tls: 'Certifikat',
 };
 
 export function fmtBytes(n: number | null | undefined): string {
@@ -52,3 +54,18 @@ export function fmtPercent(part: number | null | undefined, total: number | null
 
 /** Badge-klasse (app.css) ud fra niveau. */
 export const levelClass = (l: Level): string => (l === 'ok' ? 'ok' : l === 'error' ? 'error' : 'warn');
+
+/** Udstederens organisation eller fælles navn ("C=US, O=Let's Encrypt, CN=R11" → "Let's Encrypt"). */
+export function issuerName(issuer: string): string {
+  const part = (k: string) => new RegExp(`(?:^|,\\s*)${k}=([^,]+)`).exec(issuer)?.[1]?.trim();
+  return part('O') ?? part('CN') ?? issuer;
+}
+
+/** Kortets overskrift og forklaring: "42 dage" og hvem der har udstedt (selvsigneret fremhæves). */
+export function certSummary(tls: Tls): { big: string; note: string } {
+  const big = tls.days_left < 0 ? 'udløbet' : tls.days_left === 1 ? '1 dag' : `${tls.days_left} dage`;
+  const note = tls.self_signed
+    ? 'Selvsigneret — browsere advarer; se Let\'s Encrypt i manualen'
+    : `${issuerName(tls.issuer)} · ${tls.subject.replace(/^CN=/, '')}`;
+  return { big, note };
+}

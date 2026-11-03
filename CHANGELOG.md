@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.17.0 build 0313] — 2026-11-03 — Let's Encrypt (certbot + deSEC) og certifikatkort på Status
+
+- `deploy/desec-acme-hook.sh` (ny): certbot `--manual-auth-hook`/`--manual-cleanup-hook` mod deSEC's API; skriver TXT-posten i den zone, CNAME'en peger på (Debians `python3-certbot-dns-desec` 1.2.1 følger ikke CNAME'er); tokenet sendes kun via en 0600-headerfil til curl.
+- `deploy/tls-letsencrypt.sh` (ny, installeres som `hypervision-letsencrypt`): `install` (apt: certbot, curl), `set-token` (stdin, kun root-læsbar fil), `set-target <zone>`, `issue <navn> <mail> [--dry-run] [--force]` (staging-prøve uden at gemme noget), `status`, `renew-test`. Det selvsignerede certifikat bevares ved fejl.
+- `deploy/cert-deploy.sh` (ny): certbots deploy-hook — kun stier under `/etc/letsencrypt/live`, kontrollerer at nøglen passer (før og efter flytning), gemmer `*.prev`/`*.selfsigned`, flytter filerne, `nginx -t` (gendanner det forrige, ellers det selvsignerede par — aldrig et blandet par), genindlæser nginx, skriver `cert.json`. Gennemgået af `reviewer`.
+- `deploy/install.sh`: installerer begge scripts (så OTA-opdateringer bevarer dem) og opdaterer certifikat-metadata.
+- `backend/app/services/health.py`, `metrics.py`: `read_tls` (dage tilbage regnes ved aflæsning), gul under 21 / rød under 7 dage, `scada_tls_cert_expiry_seconds`, `scada_tls_cert_self_signed`.
+- `frontend/src/pages/Status.svelte`, `frontend/src/lib/status.ts`: kortet *HTTPS-certifikat udløber om*; manualafsnit; `docs/TLS_LETSENCRYPT.md`.
+- Tests: `backend/tests/test_letsencrypt.py` (60), `test_health.py`, `test_metrics.py`, `frontend/src/lib/status.test.ts`.
+
 ## [3.16.2 build 0312] — 2026-11-03 — WiFi-strømbesparelse slås fra (Raspberry Pi)
 
 - `deploy/install.sh`: NetworkManager-maskiner får `/etc/NetworkManager/conf.d/90-hypervisionplc-wifi-powersave.conf` (`wifi.powersave = 2`), og strømbesparelsen slås fra straks på trådløse kort. Målt: `Power save: on` som standard på Pi'ens WiFi.

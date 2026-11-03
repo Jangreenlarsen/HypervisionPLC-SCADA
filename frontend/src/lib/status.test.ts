@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fmtBytes, fmtDuration, fmtMs, fmtPercent, levelClass } from './status';
+import { certSummary, fmtBytes, fmtDuration, fmtMs, fmtPercent, issuerName, levelClass } from './status';
 
 describe('status-formatering', () => {
   it('bytes', () => {
@@ -28,5 +28,21 @@ describe('status-formatering', () => {
   });
   it('niveau → badge', () => {
     expect([levelClass('ok'), levelClass('warn'), levelClass('error')]).toEqual(['ok', 'warn', 'error']);
+  });
+});
+
+describe('certifikatkortet', () => {
+  const tls = { issuer: "C=US, O=Let's Encrypt, CN=R11", subject: 'CN=scada.laces.dk', self_signed: false, fingerprint: '', not_after_ts: 0, days_left: 42 };
+  it('udsteder', () => {
+    expect(issuerName(tls.issuer)).toBe("Let's Encrypt");
+    expect(issuerName('CN=Hypervision-SCADA')).toBe('Hypervision-SCADA');
+    expect(issuerName('uden felter')).toBe('uden felter');
+  });
+  it('overskrift og note', () => {
+    expect(certSummary(tls)).toEqual({ big: '42 dage', note: "Let's Encrypt · scada.laces.dk" });
+    expect(certSummary({ ...tls, days_left: 1 }).big).toBe('1 dag');
+    expect(certSummary({ ...tls, days_left: 0 }).big).toBe('0 dage');            // 0 er en gyldig værdi
+    expect(certSummary({ ...tls, days_left: -2 }).big).toBe('udløbet');
+    expect(certSummary({ ...tls, self_signed: true }).note).toContain('Selvsigneret');
   });
 });

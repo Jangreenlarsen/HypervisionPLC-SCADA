@@ -1,3 +1,42 @@
+# Plan: Let's Encrypt-certifikat på Pi'en (TLS trin 2) — 2026-11-03
+
+**Status:** i gang (scripts + tests bygges; udstedelse venter på Jans deSEC-token og CNAME).
+
+**Beslutninger (Jan, 2026-11-03):** hostnavn **scada.laces.dk** · DNS-01 via **deSEC** (one.com har intet API → CNAME-delegering) · værktøj **certbot** (Jans valg frem for lego). Tjekket: Raspberry Pi OS Trixie har `certbot` 4.0.0 (Apache-2.0) som apt-pakke; `certbot.timer` fornyer automatisk. **Rettelse (2026-11-03):** Debians `python3-certbot-dns-desec` er version **1.2.1**, som IKKE følger CNAME'er (kun den nyere PyPI-version 1.3.2 gør) — derfor bruges pluginet ikke; i stedet en lille `--manual-auth-hook` (`deploy/desec-acme-hook.sh`, curl mod deSEC's API) der skriver TXT-posten i den zone, CNAME'en peger på. Ingen pip, ingen plugin-afhængighed. Fundet af reviewer; bekræftet ved at hente pakken fra Pi'ens apt og læse koden.
+
+**Udgangspunkt:** Pi'en (10.1.1.33, Trixie, armv7, NTP i sync) kører nginx med TLS og et **selvsigneret** certifikat i `/etc/hypervisionplc-scada/tls/{fullchain,privkey}.pem` (nginx peger dér; ændres ikke).
+
+## Hvordan det virker
+Let's Encrypt kan ikke nå Pi'en (privat adresse), så ejerskab bevises med en **DNS-01**-udfordring: certbot (deSEC-pluginet) sætter en TXT-post `_acme-challenge.scada.laces.dk`. Fordi one.com ikke har et API, er den post en **CNAME** hos one.com til en zone, vi selv styrer hos **deSEC** (gratis, har API). pluginet følger CNAME'en og skriver TXT-posten i deSEC med et token. Certifikatet gælder 90 dage og fornyes automatisk.
+
+## Trin
+1. **`deploy/tls-letsencrypt.sh`** (ny, root): `install` (apt: `certbot curl`), `set-token`, `set-target <zone>`, `issue <hostnavn> <e-mail> [--dry-run]`, `status`, `renew-test`. `--dry-run` kører hele DNS-forløbet mod **Let's Encrypts staging** uden at gemme noget (og uden at røre nginx) — det er testen, før der udstedes rigtigt. Rigtig udstedelse: `certbot certonly --manual --preferred-challenges dns --manual-auth-hook "desec-acme-hook.sh auth" --manual-cleanup-hook "desec-acme-hook.sh cleanup" --cert-name hypervision-scada -d <hostnavn> --deploy-hook <deploy-hook>`.
+2. **Deploy-hook** `deploy/cert-deploy.sh` (kører som root efter udstedelse OG hver fornyelse, gemt i certbots fornyelsesopsætning): kopierer `fullchain.pem`/`privkey.pem` fra `/etc/letsencrypt/live/hypervision-scada/` til nginx-stierne **atomisk** (midlertidig fil → `mv`), `nginx -t`, derefter `systemctl reload nginx`; slår `nginx -t` fejl, gendannes det forrige certifikat — **ingen lockout** (det selvsignerede er tidligere kopieret til `*.selfsigned`).
+3. **Hemmeligheder:** deSEC-tokenet ligger i `/etc/hypervisionplc-scada/letsencrypt/desec.ini` (`dns_desec_token = …`, root, 0600, **uden for git**), aldrig i logs, web-API eller backup. Scriptet læser det fra stdin (ikke fra kommandolinjen).
+4. **Fornyelse:** Debians `certbot.timer` (to gange i døgnet) kører `certbot renew`; deploy-hooken sørger for nginx. Ingen egen timer.
+5. **System › Status (observability):** kort *Certifikat* — udsteder, udløb, dage tilbage; selvsigneret markeres; **gul under 21 dage, rød under 7**; `scada_tls_cert_expiry_seconds` i `/metrics`. Tjenesten (brugeren `scada`) kan ikke læse certifikatmappen (root 0750), så hooken/`install.sh` skriver **metadata** (udsteder, emne, udløb, selvsigneret, fingeraftryk) til `/var/lib/hypervisionplc-scada-net/cert.json` (root-ejet, 0644), og backend regner dage tilbage ved hver aflæsning. Fanger en fornyelse, der er stoppet.
+6. **HSTS** slås først til efter et gyldigt LE-certifikat (nginx-konfigurationens egen regel): valgfrit trin bagefter.
+7. **Dokumentation:** `docs/TLS_LETSENCRYPT.md` (deSEC + one.com trin for trin, fejlsøgning), manualafsnit, `README.md`, `FEATURES.md`.
+8. **Tests:** scripts med falsk `certbot`/`nginx`/`openssl`/`apt-get`: atomisk udskiftning, gendannelse ved fejlet `nginx -t`, token aldrig i log, hook idempotent; backend: udløbs-parsing + grænser, metrics-linje. **Prøves på Pi'en:** først `--dry-run` (staging), derefter produktion.
+
+## Versionering og lag
+MINOR (ny funktion): `3.17.0`. Ingen skemaændring. Lag: shell-scripts + systemd uden for programmappen (som netværkshjælperen); `services/health.py` får certifikat-læsningen (ingen PLC-kald). Ny afhængighed: **certbot** (Apache-2.0, apt-pakke; AGPL-kompatibel) — valgt af Jan; plus `curl` (allerede installeret).
+
+## Risici
+- **DNS/CNAME forkert** → udstedelse fejler (selvsigneret certifikat bevares; fejlen vises i scriptets udskrift og logfil).
+- **Let's Encrypts rate-limits** (5 fejl/time/navn, 50 certifikater/uge) → derfor `--dry-run` (staging) først.
+- **Navnet skal pege på Pi'en** for brugerne: `scada.laces.dk` → 10.1.1.33 i jeres interne DNS (eller en A-post til den private adresse hos one.com). Uden det virker certifikatet, men browseren finder ikke navnet.
+- **deSEC-forløbet** (TXT-post i zonen, 45 s ventetid, Let's Encrypt følger CNAME'en) kan kun bevises med `--dry-run` på Pi'en med en rigtig deSEC-konto — det er første trin, når tokenet er der.
+- **Pi'ens tid** skal være rigtig (NTP) — ellers afvises certifikatet.
+
+## Dit bidrag (det kan jeg ikke gøre for dig)
+1. Opret en gratis **deSEC**-konto (desec.io), opret en zone (fx `scada-laces.dedyn.io`) og et **token** (kun til DNS-ændringer).
+2. Hos **one.com**: opret CNAME `_acme-challenge.scada.laces.dk` → `_acme-challenge.scada.laces.dk.scada-laces.dedyn.io` (det præcise navn får du af `docs/TLS_LETSENCRYPT.md`, når den er skrevet).
+3. Sørg for, at `scada.laces.dk` peger på 10.1.1.33 i jeres DNS.
+4. Giv mig tokenet **på Pi'en** (jeg beder om det, når scriptet er klart; det skal aldrig i chatten eller git).
+
+---
+
 # Plan: oprydning, MQTT/direkte board-adgang og observability (2026-11-01)
 
 **Status:** udkast — afventer Jans valg (se "Beslutninger" nederst). Ingen kode ændret.

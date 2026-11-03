@@ -140,6 +140,13 @@ if [ "$NETBACKEND" = nm ]; then
     done
 fi
 
+echo "== Let's Encrypt (certbot + deSEC): hypervision-letsencrypt"
+# Hooken ligger på en fast sti (certbots fornyelsesopsætning peger på den); styringsscriptet er til en admin på maskinen.
+install -m 0755 "$SRC/deploy/cert-deploy.sh" /usr/local/lib/hypervisionplc-scada/cert-deploy.sh
+install -m 0755 "$SRC/deploy/desec-acme-hook.sh" /usr/local/lib/hypervisionplc-scada/desec-acme-hook.sh
+install -m 0755 "$SRC/deploy/tls-letsencrypt.sh" /usr/local/sbin/hypervision-letsencrypt
+/usr/local/lib/hypervisionplc-scada/cert-deploy.sh info || true    # certifikatets metadata til System › Status (ingen nginx = intet at beskrive)
+
 echo "== systemd"
 install -m 0644 "$SRC/deploy/hypervisionplc-scada.service" /etc/systemd/system/
 if [ "$WITH_MOCK" -eq 1 ]; then

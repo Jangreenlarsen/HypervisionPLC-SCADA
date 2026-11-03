@@ -8,11 +8,13 @@ Må ikke tale med PLC'er — kun læse, hvad runtimes allerede ved.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import shutil
 import sqlite3
 import time
 from collections import deque
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +33,7 @@ TEMP_WARN_C, TEMP_ERROR_C = 75.0, 85.0
 BACKUP_WARN_FACTOR = 1.5                      # ældre end 1,5 × backup-intervallet
 DB_WARN_S = 0.2
 THROTTLE_RECENT_S = 300.0
+CERT_WARN_DAYS, CERT_ERROR_DAYS = 21, 7   # certifikatets levetid (Let's Encrypt fornyes ved 30 dage; gul/rød er en fornyelse, der er stoppet)
 
 # Raspberry Pi `get_throttled`: bit 0 undervoltage, 1 frekvens begrænset, 2 throttlet, 3 blød temperaturgrænse;
 # bit 16-19 er det samme "har været" siden opstart.
@@ -72,6 +75,19 @@ def read_host() -> dict[str, Any]:
     except (OSError, ValueError):
         pass
     return host
+
+
+def read_tls(state_dir: Path, now: float | None = None) -> dict[str, Any] | None:
+    """Metadata om det certifikat nginx bruger (skrevet af deploy/cert-deploy.sh til <state>/cert.json). Dage tilbage regnes her,
+    så tallet er rigtigt, selv om filen er gammel. None hvis der ikke er en fil (ingen nginx/TLS) eller den ikke kan læses."""
+    try:
+        raw = json.loads((state_dir / "cert.json").read_text(encoding="utf-8"))
+        expires = datetime.strptime(str(raw["not_after"]), "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc).timestamp()
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    now = time.time() if now is None else now
+    return {"issuer": raw.get("issuer", ""), "subject": raw.get("subject", ""), "self_signed": bool(raw.get("self_signed")),
+            "fingerprint": raw.get("fingerprint", ""), "not_after_ts": expires, "days_left": int((expires - now) // 86400)}
 
 
 def _problem(level: str, area: str, message: str) -> dict[str, str]:
@@ -136,6 +152,17 @@ def assess(d: dict[str, Any]) -> dict[str, Any]:
             problems.append(_problem("error", "host", "Strøm/varme lige nu: " + ", ".join(thr["now"])))
         elif thr["past"]:
             problems.append(_problem("warn", "host", "Siden opstart: " + ", ".join(thr["past"])))
+
+    tls = d.get("tls")
+    if tls:
+        days = tls["days_left"]
+        who = "Selvsigneret certifikat" if tls["self_signed"] else "Certifikatet"
+        if days < 0:
+            problems.append(_problem("error", "tls", f"{who} er udløbet (browsere afviser siden)"))
+        elif days < CERT_WARN_DAYS:
+            level = "error" if days < CERT_ERROR_DAYS else "warn"
+            hint = "" if tls["self_signed"] else " — tjek fornyelsen: hypervision-letsencrypt status"
+            problems.append(_problem(level, "tls", f"{who} udløber om {days} dage{hint}"))
 
     backup = d.get("backup", {})
     interval_h = backup.get("interval_h") or 0
@@ -224,6 +251,7 @@ class HealthService:
             "db": self._db_probe(state.manager.db),
             "disk": self._disk(state.settings.data_dir), "host": read_host(),
             "backup": self._backup(state),
+            "tls": read_tls(state.settings.net_state_dir),
         }
 
     @staticmethod
