@@ -15,7 +15,7 @@
 # genstarter maskinen, mens der ventes, er den varige profil urørt → den gamle opsætning vender tilbage af sig selv;
 # ExecStopPost kører desuden `--recover`.
 #
-# Til test kan kommandoer og mapper overstyres: NMCLI, HOSTNAMECTL, DATA, STATE, TIMEOUT_CMD.
+# Til test kan kommandoer og mapper overstyres: NMCLI, HOSTNAMECTL, DATA, STATE, TIMEOUT_CMD, RUNNM.
 # Efter en bekræftet ændring skrives <state>/watchdog.conf til DHCP-vagten (deploy/net-watchdog.sh).
 set -u
 set -f   # ingen glob-udvidelse af uquotede variabler
@@ -41,6 +41,15 @@ IFFILE=${IFFILE:-/etc/network/interfaces}
 RESOLV=${RESOLV:-/etc/resolv.conf}
 HOSTS=${HOSTS:-/etc/hosts}
 CAPS=$W/capabilities     # skrives af install.sh: backend=nm|ifupdown og dhcp=0|1
+# NetworkManager på netplan-baserede systemer (Raspberry Pi OS Trixie, Ubuntu): profiler fra netplan ligger i /run (volatile) og
+# kendes på "#Netplan"-linjer. En VARIG `nmcli connection modify` på sådan en profil får NetworkManager til at skrive en netplan-fil
+# og begrave profilen (`.nmmeta -> /dev/null`) — netkortet står bagefter UDEN forbindelse (målt på en Pi 2026-11-01: wlan0 mistede
+# forbindelsen ved Bekræft). Derfor arbejdes der på en KOPI (nmcli connection clone → almindelig keyfile-profil), og først ved
+# bekræftelse fjernes netplan-originalen. Originalen er urørt, til brugeren har bekræftet → fortryd/timeout = slet kopien.
+RUNNM=${RUNNM:-/run/NetworkManager/system-connections}
+CLONEFILE=$W/nm-clone.state
+ORIG_UUID=
+CLONE_UUID=
 # ifup/ifdown starter DHCP-klienten som en baggrundsproces. Kørt direkte herfra ville den ligge i denne tjenestes cgroup/sandkasse og
 # blive dræbt, når tjenesten slutter (adressen forsvinder så, når leasen udløber). Derfor køres de i en transient enhed med
 # KillMode=process. Tom IFRUN (test) eller uden systemd-run = direkte kørsel.
@@ -63,6 +72,10 @@ status() {
 
 # Tilbage til den GEMTE profil (kasserer den midlertidige ændring)
 reload_saved() {
+    if [ -n "$CLONE_UUID" ]; then      # netplan-profil: kopien kasseres, originalen (urørt) tages i brug igen
+        if nm connection delete uuid "$CLONE_UUID" >> "$LOG" 2>&1; then rm -f "$CLONEFILE"; else log "Kopien kunne ikke slettes — ryddes ved næste ændring"; fi
+        UUID=$ORIG_UUID; CLONE_UUID=
+    fi
     nm connection reload >> "$LOG" 2>&1
     [ -n "${UUID:-}" ] && nm connection up uuid "$UUID" >> "$LOG" 2>&1
 }
@@ -86,6 +99,41 @@ apply_hostname() {
             && cat "$W/hosts.tmp" > "$HOSTS" || log "/etc/hosts kunne ikke opdateres"
         rm -f "$W/hosts.tmp"
     fi
+}
+
+# Præcis ét uuid (grep tester linje for linje, så flere linjer skal afvises særskilt)
+is_uuid() { [ "$(printf '%s\n' "$1" | wc -l)" -eq 1 ] && printf '%s' "$1" | grep -Eq '^[0-9A-Fa-f-]{8,40}$'; }
+
+# Er profilen $1 (uuid) skabt af netplan? Netplan lægger sine profiler som netplan-<navn>.nmconnection i $RUNNM (volatile); filen
+# har "#Netplan"-linjer, når der er særlige indstillinger (fx WiFi) — men ikke altid (en simpel profil har dem ikke), så
+# filnavnet tæller også. Målt på en Pi: kun "#Netplan"-linjen opdagede ikke en almindelig netplan-profil.
+is_netplan() {
+    set +f
+    for f in "$RUNNM"/*.nmconnection; do
+        [ -f "$f" ] || continue
+        grep -q "^uuid=$1\$" "$f" 2>/dev/null || continue
+        case "${f##*/}" in netplan-*) set -f; return 0 ;; esac
+        if grep -q '^#Netplan' "$f" 2>/dev/null; then set -f; return 0; fi
+    done
+    set -f
+    return 1
+}
+
+# Rester fra en tidligere afbrudt ændring på et netplan-system: kopien slettes — men KUN hvis netplan-originalen findes endnu.
+# Er originalen væk (strømsvigt lige efter bekræftelsen, før tilstandsfilen blev fjernet), ER kopien den bekræftede, aktive
+# profil og må ikke røres; så fjernes kun tilstandsfilen. Returnerer 0 hvis originalen skal tages i brug (stdout: dens uuid).
+drop_stale_clone() {
+    [ -f "$CLONEFILE" ] && [ ! -L "$CLONEFILE" ] || return 1
+    o=$(sed -n 's/^orig=//p' "$CLONEFILE" | head -n 1)
+    c=$(sed -n 's/^clone=//p' "$CLONEFILE" | head -n 1)
+    if is_uuid "$o" && is_uuid "$c" && nm connection show uuid "$o" > /dev/null 2>&1; then
+        if nm connection delete uuid "$c" >> "$LOG" 2>&1; then rm -f "$CLONEFILE"; fi
+        STALE_ORIG=$o
+        return 0
+    fi
+    log "Tilstandsfil fra en tidligere ændring ryddet (originalen findes ikke mere — kopien er den gældende profil)"
+    rm -f "$CLONEFILE"
+    return 1
 }
 
 # ifupdown: stanzaen for netkortet efter tilstand
@@ -180,8 +228,16 @@ if [ "${1:-}" = "--recover" ]; then
                 IFACE=$(sed -n 's/^iface_changed=//p' "$W/ifupdown.state" 2>/dev/null | head -n 1)
                 if printf '%s' "$IFACE" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}$' && [ -f "$NEWFILE" ]; then restore_if; fi
             else
-                nm connection reload >> "$LOG" 2>&1
-                for u in $(nm -g UUID connection show --active 2>/dev/null); do nm connection up uuid "$u" >> "$LOG" 2>&1; done
+                if [ -f "$CLONEFILE" ] && [ ! -L "$CLONEFILE" ]; then   # netplan-profil: slet kopien, tag originalen i brug
+                    STALE_ORIG=
+                    if drop_stale_clone; then
+                        nm connection reload >> "$LOG" 2>&1
+                        nm connection up uuid "$STALE_ORIG" >> "$LOG" 2>&1
+                    fi
+                else
+                    nm connection reload >> "$LOG" 2>&1
+                    for u in $(nm -g UUID connection show --active 2>/dev/null); do nm connection up uuid "$u" >> "$LOG" 2>&1; done
+                fi
             fi
             status reverted "Afbrudt — den gamle opsætning er gendannet" ;;
     esac
@@ -290,6 +346,28 @@ CON=$(nm -g GENERAL.CONNECTION device show "$IFACE" 2>>"$LOG") || fail "Netkorte
 { [ -n "$CON" ] && [ "$CON" != "--" ]; } || fail "Netkortet har ingen aktiv NetworkManager-profil"
 UUID=$(nm -g connection.uuid connection show "$CON" 2>>"$LOG") || fail "Profilen kunne ikke læses"
 printf '%s' "$UUID" | grep -Eq '^[0-9A-Fa-f-]{8,40}$' || fail "Profilens id er ugyldigt"
+STALE_ORIG=
+drop_stale_clone || true
+if is_netplan "$UUID"; then
+    ORIG_UUID=$UUID
+    # unikt navn (aldrig en sletning på navn: det kunne ramme en tidligere bekræftet profil)
+    CLONE_ID="hv-$IFACE-$(date +%s)"
+    log "Profilen styres af netplan — arbejder på en kopi ($CLONE_ID), originalen røres først ved bekræftelse"
+    nm connection clone uuid "$ORIG_UUID" "$CLONE_ID" >> "$LOG" 2>&1 || fail "Profilen kunne ikke kopieres — intet er ændret"
+    CLONE_UUID=$(nm -g connection.uuid connection show "$CLONE_ID" 2>>"$LOG") || CLONE_UUID=
+    if ! is_uuid "$CLONE_UUID"; then
+        nm connection delete id "$CLONE_ID" >> "$LOG" 2>&1
+        CLONE_UUID=; fail "Kopiens id kunne ikke læses — intet er ændret"
+    fi
+    printf 'orig=%s\nclone=%s\n' "$ORIG_UUID" "$CLONE_UUID" > "$CLONEFILE"
+    # Kopien er varig (almindelig keyfile), men må IKKE starte af sig selv, mens der ventes: går strømmen, skal originalen
+    # (urørt) gælde ved opstart — ikke en halvfærdig kopi. Slås til igen ved bekræftelsen.
+    if ! nm connection modify uuid "$CLONE_UUID" connection.autoconnect no >> "$LOG" 2>&1; then
+        nm connection delete uuid "$CLONE_UUID" >> "$LOG" 2>&1 && rm -f "$CLONEFILE"
+        CLONE_UUID=; fail "Kopien kunne ikke forberedes — intet er ændret"
+    fi
+    UUID=$CLONE_UUID
+fi
 log "Anmodet af $BY: $MODE ip=$IP/$PREFIX gw=$GATEWAY dns=$DNS host=$HOSTNAME_NEW iface=$IFACE profil=$CON"
 
 # ---------------------------------------------------------------- argumenter til nmcli
@@ -326,9 +404,21 @@ while [ "$(date +%s)" -lt "$DEADLINE" ]; do
     if [ -e "$CONFIRM" ]; then
         rm -f "$CONFIRM" "$REVERT"
         # Først nu gøres ændringen varig (samme argumenter, uden --temporary) og værtsnavnet sættes
+        if [ -n "$CLONE_UUID" ]; then set -- "$@" connection.autoconnect yes connection.autoconnect-priority 10; fi
         if ! nm connection modify uuid "$UUID" "$@" >> "$LOG" 2>&1; then
             log "Kunne ikke gemme varigt"
             reload_saved; status failed "Ændringen kunne ikke gemmes varigt — den gamle opsætning er gendannet"; exit 1
+        fi
+        if [ -n "$CLONE_UUID" ]; then
+            # kopien er nu den varige profil; netplan-originalen fjernes, så den ikke vinder ved næste opstart. Sletningen rører
+            # ikke den aktive forbindelse (målt: kopien bliver oppe, netplan-filen forsvinder)
+            # Tilstandsfilen fjernes FØR originalen slettes: går strømmen derimellem, må --recover/næste kørsel ikke tro, at kopien
+            # er en halvfærdig ændring og slette den aktive profil.
+            rm -f "$CLONEFILE"
+            if ! nm connection delete uuid "$ORIG_UUID" >> "$LOG" 2>&1; then
+                log "Netplan-profilen kunne ikke fjernes — kopien er stadig i brug og har højere prioritet"
+                CONFIRM_NOTE=" — ADVARSEL: den gamle netplan-profil kunne ikke fjernes (se loggen); den kan vinde ved næste opstart"
+            fi
         fi
         apply_hostname
         # DHCP-vagten (net-watchdog.sh) læser tilstanden her; skrevet atomisk i root-mappen
@@ -337,7 +427,7 @@ while [ "$(date +%s)" -lt "$DEADLINE" ]; do
         } > "$W/watchdog.conf.tmp" && mv "$W/watchdog.conf.tmp" "$W/watchdog.conf"
         rm -f "$W/watchdog.state"
         log "Bekræftet og gemt"
-        status confirmed "Netværksopsætningen er bekræftet og gemt"
+        status confirmed "Netværksopsætningen er bekræftet og gemt${CONFIRM_NOTE:-}"
         exit 0
     fi
     if [ -e "$REVERT" ]; then

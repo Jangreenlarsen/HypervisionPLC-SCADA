@@ -30,6 +30,12 @@ Testserveren (`10.1.1.31`) er en Debian 13-VM: netværk via `ifupdown` (`/etc/ne
 6. **Nødplan på VM'en:** ESXi-konsollen → log ind → `cp /etc/network/interfaces.hypervision-bak-<nyeste> /etc/network/interfaces && ifdown --force ens3; ifup ens3`. Under en afprøvning (før Bekræft) er filen urørt, så en genstart af VM'en giver den gamle opsætning.
 7. VM-hensyn: kortets navn er `ens3`/`ens192` (ikke `eth0`), MAC kan skifte ved kloning, og en VM har ingen USB-SSD — til flytning af trend-databasen (punkt 6) bruges i stedet en **ekstra virtuel disk** monteret på fx `/mnt/data` (`mkfs.ext4`, `mount`, `install -d -o scada -g scada`).
 
+## 0c. Raspberry Pi OS Trixie (netplan) — kendt fra en rigtig Pi (v3.16.1)
+
+På Trixie ligger netværksprofilerne i **netplan** (`/etc/netplan/90-NM-*.yaml`; NetworkManager-profilen hedder fx `netplan-wlan0-<ssid>`). Et skifte virker nu ved at arbejde på en **kopi** (`hv-<netkort>`), som bliver den varige profil ved Bekræft — se BUGS.md v3.16.1. Kontrol efter en bekræftet ændring: `nmcli -t connection show` viser `hv-<netkort>` på netkortet, og `ls /etc/netplan` har ikke længere `90-NM-*.yaml` for det netkort.
+
+**Oprydning efter et mislykket skifte i en ældre version** (to profiler på samme WiFi: en netplan-profil med den faste adresse og en manuelt oprettet DHCP-profil, hvor den ene vinder tilfældigt ved genstart): behold den ønskede, og slet den anden med `nmcli connection delete <navn>`; en rest i `/etc/netplan/90-NM-<uuid>.yaml` fjernes ved at slette profilen med `nmcli`, ikke med `rm`. Prøv derefter skiftet igen fra System › Konfiguration.
+
 ## 1. Installation og kontrol
 
 1. Byg pakken (`sh deploy/make-package.sh`) og installér via **System › Opdatering** — eller første gang som root: `sudo sh deploy/install.sh`.
