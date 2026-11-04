@@ -101,6 +101,29 @@ export function examples(base: string, key: string): { curl: string; stream: str
   };
 }
 
+/** Faste brugseksempler på siden (med pladsholder-nøgle): ét pr. endpoint plus typiske klienter. */
+export function usageExamples(base: string, key: string, tag: string): { title: string; text: string }[] {
+  const h = `-H "Authorization: Bearer ${key}"`;
+  const api = `${base}/api/v1/integration`;
+  return [
+    { title: 'Afprøv forbindelsen (anlæg og nøglens afgrænsning)', text: `curl -k ${h} ${api}/info` },
+    { title: 'Liste over de punkter nøglen må se', text: `curl -k ${h} ${api}/points` },
+    { title: 'Aktuelle værdier — alle eller udvalgte', text: `curl -k ${h} ${api}/values\ncurl -k ${h} "${api}/values?tags=${tag}"` },
+    { title: 'Historik for ét punkt (sidste 24 timer, 300 punkter)',
+      text: `END=$(date +%s); START=$((END-86400))\ncurl -k ${h} "${api}/history?tag=${tag}&start=$START&end=$END&points=300"` },
+    { title: 'Aktive og ukvitterede alarmer', text: `curl -k ${h} ${api}/alarms` },
+    { title: 'Strøm af ændringer (SSE) — hvert 2. sekund, med alarmer', text: `curl -k -N ${h} "${api}/stream?tags=${tag}&interval=2&alarms=true"` },
+    { title: 'Python (requests)',
+      text: `import requests\nr = requests.get("${api}/values", params={"tags": "${tag}"},\n                 headers={"Authorization": "Bearer ${key}"}, verify=False, timeout=10)\nr.raise_for_status()\nprint(r.json()["values"]["${tag}"]["v"])` },
+    { title: 'PowerShell',
+      text: `$h = @{ Authorization = "Bearer ${key}" }\n(Invoke-RestMethod -Uri "${api}/values?tags=${tag}" -Headers $h -SkipCertificateCheck).values.${tag}.v` },
+    { title: 'Node-RED (node "http request")',
+      text: `Metode: GET   URL: ${api}/values?tags=${tag}\nReturner: et parset JSON-objekt\nHeaders: Authorization = Bearer ${key}\nVærdien: msg.payload.values.${tag}.v` },
+    { title: 'Home Assistant (configuration.yaml)',
+      text: `sensor:\n  - platform: rest\n    name: ${tag}\n    resource: ${api}/values?tags=${tag}\n    headers:\n      Authorization: Bearer ${key}\n    verify_ssl: false\n    value_template: "{{ value_json.values.${tag}.v }}"\n    scan_interval: 30` },
+  ];
+}
+
 export interface TagInfo { name: string; description?: string; unit?: string }
 
 /** Hvad afgrænsningen giver: de tags nøglen ser, ukendte tag-navne og præfikser uden træffere (samme regel som serveren: navn ELLER præfiks). */

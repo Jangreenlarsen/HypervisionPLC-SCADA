@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createBody, dateFromExpiry, emptyForm, examples, expiryFromDate, formFrom, generateKey, keyStatus, parseList, patchBody, prefixSuggestions, scopeBody, scopePreview, scopeText, toggleInList,
+  createBody, dateFromExpiry, emptyForm, examples, usageExamples, expiryFromDate, formFrom, generateKey, keyStatus, parseList, patchBody, prefixSuggestions, scopeBody, scopePreview, scopeText, toggleInList,
   type ApiKey,
 } from './integration';
 
@@ -94,5 +94,12 @@ describe('integration – valg og forhåndsvisning', () => {
   it('slå til/fra i listen', () => {
     expect(toggleInList('a\nb', 'c')).toBe('a\nb\nc');
     expect(toggleInList('a, b', 'a')).toBe('b');
+  });
+  it('brugseksempler dækker alle endpoints og bruger nøgle og tag', () => {
+    const u = usageExamples('https://pi', 'NØGLE', 'kedel');
+    const all = u.map((x) => x.text).join('\n');
+    for (const ep of ['/info', '/points', '/values', '/history?tag=kedel', '/alarms', '/stream?tags=kedel']) expect(all).toContain(`https://pi/api/v1/integration${ep}`);
+    expect(all).toContain('Bearer NØGLE');
+    expect(all).toContain('value_json.values.kedel.v');
   });
 });

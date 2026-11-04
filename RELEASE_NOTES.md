@@ -2,6 +2,10 @@
 
 ---
 
+## v3.24.0 — 2026-11-04 — Eksempler på brug af integrations-API'et
+
+- **System › Integrationer** har fået en sektion **Eksempler på brug**: færdige kald for alle endpoints (curl), Python, PowerShell, Node-RED og Home Assistant.
+
 ## v3.23.0 — 2026-11-04 — Backup efter tidsplan og til andre servere
 
 - **System › Backup** har fået en **tidsplan**: med fast interval, dagligt på et bestemt klokkeslæt, på bestemte ugedage, eller slået fra. **Kør backup nu** tager en med det samme.
