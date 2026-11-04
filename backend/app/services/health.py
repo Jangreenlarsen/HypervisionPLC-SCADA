@@ -267,6 +267,7 @@ class HealthService:
             "loop": {"lag_last_s": round(self.lag_last, 4), "lag_max_s": self.lag_max(lag_window_s)},
             "ws_clients": self.ws_clients, "alarms": state.alarm_service.summary(None),
             "trends": self._trends(state),
+            "integration": (svc.metrics() if (svc := getattr(state, "integration_service", None)) else None),
             "notify": notifier.failing() if (notifier := getattr(state, "notifier", None)) else {},
             "notifications": ({"sent": notifier.sent, "failed": notifier.failed, "dropped": notifier.dropped, "queued": len(notifier.pending)}
                               if notifier else None),

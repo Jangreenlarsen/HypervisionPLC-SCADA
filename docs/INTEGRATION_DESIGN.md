@@ -1,6 +1,6 @@
 # Integrationsmodel: SCADA ↔ andre systemer (Node-RED, Home Assistant, tredjepart) — designforslag 2026-11-03
 
-**Status:** besluttet af Jan 2026-11-03 — **C** (kerne-API + adaptere) · **kun læs først**, skriv som valgfrit trin 3 · **`aiomqtt` må tilføjes ved trin 4** · **afgrænsning pr. nøgle** (valgte tags/præfiks, intet nyt flag pr. tag). Trin 1 (3.21) er i gang.
+**Status:** besluttet af Jan 2026-11-03 — **C** (kerne-API + adaptere) · **kun læs først**, skriv som valgfrit trin 3 · **`aiomqtt` må tilføjes ved trin 4** · **afgrænsning pr. nøgle** (valgte tags/præfiks, intet nyt flag pr. tag). Trin 1 (3.21) er leveret (nøgler + læse-API).
 
 ## 1. Hvad skal det løse?
 

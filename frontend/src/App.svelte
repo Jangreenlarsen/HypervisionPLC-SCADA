@@ -14,6 +14,7 @@
   import Audit from './pages/Audit.svelte';
   import Status from './pages/Status.svelte';
   import Notifications from './pages/Notifications.svelte';
+  import Integrations from './pages/Integrations.svelte';
   import Backup from './pages/Backup.svelte';
   import Update from './pages/Update.svelte';
   import SystemConfig from './pages/SystemConfig.svelte';
@@ -251,6 +252,8 @@
     <Status />
   {:else if page === 'notifications'}
     <Notifications />
+  {:else if page === 'integration'}
+    <Integrations />
   {:else if page === 'audit'}
     <Audit />
   {:else if page === 'backup'}

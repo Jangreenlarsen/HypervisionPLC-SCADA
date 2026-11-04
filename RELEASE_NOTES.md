@@ -2,6 +2,12 @@
 
 ---
 
+## v3.21.0 — 2026-11-04 — Integrationer: API-nøgler og læse-adgang for andre systemer
+
+- Ny side **System › Integrationer** (admin): opret **API-nøgler**, så Node-RED, Home Assistant, scripts og andre systemer kan **læse** værdier, historik og alarmer fra SCADA — uden at logge ind som en person. En nøgle kan afgrænses til bestemte tags (eller tags med et bestemt præfiks), låses til IP-adresser og få en udløbsdato, og kan deaktiveres eller tilbagekaldes.
+- Nøglen vises kun én gang og kan ikke læses igen. Den kan kun læse via integrations-API'et (aldrig ændre eller betjene noget), og der er en hastighedsgrænse på 20 kald i sekundet pr. nøgle.
+- Manualen har færdige eksempler til curl, Node-RED og Home Assistant.
+
 ## v3.20.0 — 2026-11-03 — Notifikationer kan sendes via Resend
 
 - Under **System › Notifikationer › E-mail** kan du nu vælge **Resend (API)** i stedet for en SMTP-server. Indsæt din Resend API-nøgle (den kan ikke læses igen), en afsender på et domæne, du har verificeret hos Resend, og modtagere. **Send prøvebesked** viser Resends egen fejlbesked, hvis noget er galt (fx et uverificeret domæne).
