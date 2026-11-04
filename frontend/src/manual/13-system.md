@@ -58,6 +58,21 @@ Siden **Integrationer** (admin) giver andre systemer — **Node-RED**, **Home As
 | `GET /api/v1/integration/stream` | **strøm** (Server-Sent Events): først `snapshot` (alle værdier + aktive alarmer), derefter `values` med kun ændringer (samlet, højst hvert `interval` s, standard 0,5) og `alarm` (`raise`/`clear`/`change`). Valgfrit `tags=…`, `alarms=false`, `max_events=N`. Hjerteslag hvert 15. s; `closed` hvis nøglen deaktiveres/tilbagekaldes; ved genforbindelse sendes et nyt `snapshot`. Højst 5 strømme pr. nøgle. Bag nginx: buffering er slået fra for strømmen |
 | `GET /api/v1/integration/openapi.json` | maskinlæsbar beskrivelse (uden nøgle), kan importeres i Postman og andre værktøjer |
 
+**Sådan læses svaret fra `/values`** — eksempel:
+
+```
+{"time":"2026-11-04T14:23:00+00:00","values":{"MBX1coil0":{"v":false,"q":"good","ts":1793802180.6}}}
+```
+
+| Felt | Betydning |
+|---|---|
+| `time` | hvornår svaret blev lavet (UTC) |
+| `values.<tag>.v` | værdien: tal eller `true`/`false` (en coil/digital = tændt/slukket). `null` = ingen gyldig værdi lige nu |
+| `values.<tag>.q` | kvaliteten: `good` = gyldig og frisk; `comm_error` = SCADA har ikke forbindelse til PLC'en; `bad` = PLC'en svarer, men værdien kan ikke bruges (fx svarer en Modbus-slave bag PLC'en ikke, eller variablen findes ikke/er ikke kompileret); `unknown` = endnu ikke læst |
+| `values.<tag>.ts` | hvornår værdien sidst blev læst, i Unix-sekunder (UTC) — ikke hvornår svaret blev lavet |
+
+Ved `comm_error` og `bad` er `v` typisk `null`. Når forbindelsen kommer igen, skifter tagget af sig selv tilbage til `good` med en ny værdi — et kort udfald ses altså som et øjeblik med `comm_error`. Brug altid `q` før `v`: en integration bør ignorere eller markere værdier, der ikke er `good`. Sker udfald tit, ses de på **Status** og i **Log**.
+
 **curl:** `curl -k -H "Authorization: Bearer hv_…" https://scada.laces.dk/api/v1/integration/values` (`-k` kun med selvsigneret certifikat).
 
 **Strøm med curl:** `curl -k -N -H "Authorization: Bearer hv_…" https://scada.laces.dk/api/v1/integration/stream`. I Node-RED kan en SSE-node (fx *node-red-contrib-sse-client*) bruges med samme header.
