@@ -2,6 +2,12 @@
 
 ---
 
+## v3.25.0 — 2026-11-04 — Certifikater fra web-siden
+
+- Ny side **System › Certifikater**: se det aktuelle HTTPS-certifikat, lav et **selvsigneret**, opret en **CSR** til din CA og læg det signerede certifikat ind, eller **importér** et certifikat som PKCS#12 (.p12/.pfx) eller PEM.
+- Et nyt certifikat kontrolleres, før det tages i brug, og det forrige gendannes automatisk, hvis noget går galt. **Gendan forrige** og **Tilbage til selvsigneret** er ét klik.
+- Let's Encrypt fra siden kommer i næste version.
+
 ## v3.24.2 — 2026-11-04 — Manualen forklarer integrations-svaret
 
 - Manualen (System › Integrationer) forklarer nu felterne i svaret fra `/values`: værdi, kvalitet og tidsstempel.

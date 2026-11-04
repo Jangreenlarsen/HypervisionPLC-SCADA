@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [ ] in-progress v3.25.0 — **System › Certifikater** (del 1 done v3.25.0: selvsigneret, CSR, import, gendan; del 2: Let's Encrypt) (ønske fra Jan 2026-11-04): selvsigneret, CSR + signeret certifikat, import af PKCS#12/PEM, Let's Encrypt (HTTP-01 og DNS-01/deSEC), gendan forrige — alt fra GUI'en med root-hjælper og ingen lockout. Styring via integrationer rykket til 3.26, MQTT til 3.27.
 - [x] done v3.24.0 — **Integrationer: eksempler på brug** (ønske fra Jan 2026-11-04): faste eksempler for alle endpoints og typiske klienter på siden. Styring via integrationer rykket til 3.25, MQTT til 3.26.
 - [x] done v3.23.0 — **Backup: tidsplan + eksterne destinationer** (ønske fra Jan 2026-11-04): samlet tidsplan (interval/dagligt/ugentligt/fra) og flere destinationer — SFTP, SCP, FTP/FTPS, HTTPS, SMB, NFS — med test, værtsnøgle-godkendelse, SSH-nøgle, oprydning, Status/SYS-alarm og `/metrics`. Styring via integrationer rykket til 3.24, MQTT til 3.25.
 - [x] done v3.22.0 — **Integrationer, trin 2: SSE-strøm + tag-vælger**: `GET /api/v1/integration/stream` (snapshot → values/alarm, hjerteslag, lukkes ved deaktiveret/tilbagekaldt nøgle, højst 5 pr. nøgle, tællere i `/metrics`). Ønske fra Jan 2026-11-04: tags/præfikser vælges fra tag-listen med live forhåndsvisning af resultatet.

@@ -1,0 +1,13 @@
+[Unit]
+Description=Installér/gendan nginx-certifikat efter anmodning fra HypervisionPLC SCADA (root)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/hypervisionplc-scada/apply-tls.sh
+TimeoutStartSec=60
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=yes
+# Kun certifikatmappen, egne arbejds-/statusmapper, anmodningsmappen og det nginx -t/reload skal bruge, kan skrives
+ProtectSystem=strict
+ReadWritePaths=-/etc/hypervisionplc-scada /var/lib/hypervisionplc-scada-net /var/lib/hypervisionplc-scada-tls /var/lib/hypervisionplc-scada/config -/var/log/nginx -/run

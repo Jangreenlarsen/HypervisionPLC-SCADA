@@ -274,6 +274,7 @@ class HealthService:
             "integration": (svc.metrics() if (svc := getattr(state, "integration_service", None)) else None),
             "backup_targets": bs.metrics() if (bs := getattr(state, "backup_scheduler", None)) else None,
             "backup_failing": bs.failing() if bs else {},
+            "tls_admin": ta.metrics() if (ta := getattr(state, "tls_admin", None)) else None,
             "notify": notifier.failing() if (notifier := getattr(state, "notifier", None)) else {},
             "notifications": ({"sent": notifier.sent, "failed": notifier.failed, "dropped": notifier.dropped, "queued": len(notifier.pending)}
                               if notifier else None),

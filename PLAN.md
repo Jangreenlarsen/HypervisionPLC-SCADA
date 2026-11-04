@@ -1,3 +1,42 @@
+# Plan: System › Certifikater (v3.25.0) — 2026-11-04
+
+**Besluttet (Jan, 2026-11-04):** én side, hvor alt med nginx' TLS-certifikat kan konfigureres: selvsigneret, CSR + indlæsning af det signerede certifikat, import af PKCS#12 (og PEM), Let's Encrypt med **både HTTP-01 og DNS-01 (deSEC)**. Selvsigneret er som standard gyldigt i 825 dage. Styring via integrationer rykkes til 3.26 og MQTT til 3.27.
+
+**Mål:** en admin kan skifte certifikat uden SSH, uden at kunne låse sig ude, og uden at en privat nøgle eller adgangskode nogensinde når browseren, loggen eller git.
+
+## Arkitektur (valgt)
+- **Kryptografi i tjenesten** med `cryptography` (findes allerede): nøgle, CSR, selvsigneret, parsing af PKCS#12/PEM og kontrol af parret. Alternativet var at lade root-hjælperen køre `openssl` med brugerinput; det er sværere at validere og giver dårligere fejltekster.
+- **Installation altid via root-hjælper** `deploy/apply-tls.sh` (.path-unit som power/config/backupmount): tjenesten lægger et færdigt par (`fullchain.pem` + `privkey.pem`, 0600) i `data/config/tls-request/`. Hjælperen flytter det ind i en root-mappe, afviser symlinks og kalder den eksisterende installationslogik fra `cert-deploy.sh`: kontrol af parret, `.prev`/`.selfsigned`, `nginx -t`, **gendannelse ved fejl**, reload og `cert.json`. `cert-deploy.sh` udvides med `install-dir <mappe>`, så der kun er én installationsvej.
+- **Let's Encrypt** via `hypervision-letsencrypt`, som udvides med `--method http|dns`. HTTP-01 bruger `certbot --webroot`: nginx' port-80-server får `location /.well-known/acme-challenge/` (webroot `/var/lib/hypervisionplc-scada-acme`) foran redirecten. DNS-01 bruger deSEC som i dag. Udstedelsen kører i baggrunden; status og log ligger i state-mappen, og siden følger med. Fornyelse sker af `certbot.timer` + deploy-hook, som i dag.
+
+## Siden (System › Certifikater, kun admin)
+1. **Aktuelt certifikat:** type (selvsigneret / Let's Encrypt / importeret / CA-signeret), emne, SAN-navne, udsteder, gyldighed, SHA-256-fingeraftryk og en advarsel, hvis den adresse, siden åbnes på, ikke står i SAN. Det offentlige certifikat kan hentes som PEM. Knapper: **Gendan forrige** og **Gå tilbage til selvsigneret**.
+2. **Selvsigneret:** CN, SAN-navne (forudfyldt med værtsnavn og IP'er), gyldighed (standard 825 dage, 1–3650), nøgletype (EC P-256 som standard, RSA 2048/4096).
+3. **CSR:** CN, O, OU, L, ST, C, e-mail, SAN-navne og nøgletype. **Hent CSR** (.csr). Den ventende nøgle gemmes på Pi'en (0600, skriv-kun) til det signerede certifikat lægges ind (PEM, kæde valgfri). Kontrollér, at det passer til den ventende nøgle, og installér. Den ventende CSR kan annulleres.
+4. **Import:** PKCS#12 (.p12/.pfx + adgangskode) eller PEM (certifikat + kæde + nøgle, evt. krypteret nøgle + adgangskode). Kontrollér: nøglen passer, certifikatet er gyldigt nu, kæden sorteres (leaf først), advar ved ukendt værtsnavn eller kort restlevetid. Højst 64 KB, aldrig gemt ud over installationen.
+5. **Let's Encrypt:** metode (HTTP-01 / DNS-01 deSEC), værtsnavn, e-mail, deSEC-token (skriv-kun) + zone/navn ved DNS-01. **Test (staging)** og **Udsted**, plus status for seneste udstedelse og fornyelse. Forudsætninger vises: HTTP-01 kræver port 80 udefra, DNS-01 kræver CNAME `_acme-challenge.<navn>`.
+
+## Sikkerhed
+- Kun admin. Alle handlinger skrives i auditloggen (uden nøgler og adgangskoder). Private nøgler, PKCS#12-adgangskoder og deSEC-token returneres aldrig og logges aldrig; fejltekster renses.
+- **Ingen lockout:** `nginx -t` + automatisk gendannelse findes allerede. Siden advarer, før der skiftes til et certifikat, hvis navn ikke passer til den adresse, man står på. HSTS slås ikke til.
+- Root-hjælperen validerer alt igen (PEM-form, størrelse, parret). Den kører aldrig brugerinput som argumenter.
+- Reviewer-agenten gennemgår ændringen før commit.
+
+## Observability
+Log pr. handling. `/metrics`: `scada_tls_operations_total{action,result}` (+ de eksisterende `scada_tls_cert_*`). Status: certifikatkortet viser typen, og en fejlet LE-fornyelse vises som Status-problem og SYS-alarm.
+
+## Berørte filer
+- **Backend:** `services/tls_admin.py` (ny), `api/tls.py` (ny), `main.py`, `services/health.py`, `services/metrics.py`, tests `test_tls_admin.py`.
+- **Deploy:** `apply-tls.sh` (ny) + `hypervisionplc-scada-tls.{path,service}`, `cert-deploy.sh` (install-dir), `tls-letsencrypt.sh` (HTTP-01, ikke-interaktiv brug fra hjælperen), `nginx-hypervisionplc-scada.conf` (acme-location), `install.sh`.
+- **Frontend:** `pages/Certificates.svelte`, `lib/certificates.ts` (+ test), menu og route i `App.svelte`, manual `13-system.md`.
+
+## Risici
+- Forkert nginx-konfiguration ved HTTP-01 kan bryde port 80. Mod det står `nginx -t` og at kun én `location` tilføjes.
+- Kan ikke testes fuldt mod Let's Encrypt, før Pi'en er public; afprøves med `--dry-run` mod staging, når DNS/porte er klar.
+- Lang opgave: implementeres i to commits. (a) Side + selvsigneret/CSR/import + hjælper. (b) Let's Encrypt-delen.
+
+---
+
 # Plan: backup-destinationer + tidsplan (v3.23.0) — 2026-11-04
 
 **Besluttet (Jan, 2026-11-04):** flere destinationer · indhold = konfiguration + trend-snapshot · "intern" = netværksshare (SMB/NFS) · paramiko (LGPL-2.1) godkendt til SFTP/SCP · samlet **scheduler** for backup. Styring via integrationer (tidl. 3.23) rykkes til 3.24, MQTT til 3.25.

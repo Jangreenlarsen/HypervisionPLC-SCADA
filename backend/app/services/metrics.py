@@ -132,6 +132,9 @@ def render(d: dict[str, Any], auth_failures: int = 0) -> str:
     x.metric("scada_notifications_failed_total", "counter", "Notifikationer der ikke kunne sendes (efter forsøg igen) pr. kanal",
              [({"channel": c}, v) for c, v in (n.get("failed") or {}).items()])
     x.counter("scada_notifications_dropped_total", "Notifikationer kasseret, fordi køen var fuld", n.get("dropped"))
+    ta = d.get("tls_admin") or {}
+    x.metric("scada_tls_operations_total", "counter", "Certifikat-handlinger fra System › Certifikater pr. handling og resultat",
+             [({"action": k.split("|")[0], "result": k.split("|")[1]}, v) for k, v in (ta.get("ops") or {}).items()])
     bk = d.get("backup_targets") or {}
     x.metric("scada_backup_runs_total", "counter", "Backup-kørsler siden start pr. resultat (ok/partial/error)",
              [({"result": r}, v) for r, v in (bk.get("runs") or {}).items()])

@@ -21,6 +21,7 @@ from .api.errors import install_error_handlers
 from .api.alarms import router as alarms_router
 from .api.auth import router as auth_router
 from .api.backup import router as backup_router
+from .api.tls import router as tls_router
 from .api.energy import router as energy_router
 from .api.health import router as health_router
 from .api.integration import admin_router as integration_admin_router, router as integration_router
@@ -48,6 +49,7 @@ from .services.audit import AuditService
 from .services.auth import AuthService
 from .services.backup import BackupService
 from .services.backup_targets import BackupScheduler
+from .services.tls_admin import TlsAdmin
 from .services.operate import OperateService
 from .services.drawings import DrawingService
 from .services.scope import ScopeService
@@ -190,6 +192,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         # Backup: én tidsplan (lokal backup + eksterne destinationer: SFTP/SCP/FTP(S)/HTTPS/SMB/NFS)
         app.state.backup_scheduler = BackupScheduler(settings.data_dir, secrets, app.state.backup_service,
                                                      default_hours=settings.backup_hours, state_dir=settings.net_state_dir)
+        app.state.tls_admin = TlsAdmin(settings.data_dir, settings.net_state_dir)   # System › Certifikater (root-hjælper installerer)
         backup_task = (asyncio.create_task(app.state.backup_scheduler.run(), name="backup")
                        if settings.start_runtimes else None)
         log.info("HypervisionPLC SCADA %s klar (data: %s)", read_version()["version"], settings.data_dir)
@@ -229,6 +232,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
 
     app.include_router(auth_router)
     app.include_router(backup_router)
+    app.include_router(tls_router)
     app.include_router(system_router)
     app.include_router(system_config_router)
     app.include_router(system_power_router)
