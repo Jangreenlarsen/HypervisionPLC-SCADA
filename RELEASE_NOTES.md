@@ -2,6 +2,11 @@
 
 ---
 
+## v3.22.0 — 2026-11-04 — Integrationer: live-strøm og nemmere valg af tags
+
+- Integrationer kan nu få ændringer **med det samme** via en strøm (`/api/v1/integration/stream`, Server-Sent Events) i stedet for at spørge igen og igen: først alle værdier, derefter kun det der ændrer sig, plus alarmer der kommer og går. Strømmen lukkes straks, hvis nøglen deaktiveres eller tilbagekaldes.
+- På **System › Integrationer** vælges tags nu ved at krydse af i en søgbar liste, præfikser foreslås som knapper, og du ser hele tiden præcis hvilke tags nøglen vil få adgang til.
+
 ## v3.21.0 — 2026-11-04 — Integrationer: API-nøgler og læse-adgang for andre systemer
 
 - Ny side **System › Integrationer** (admin): opret **API-nøgler**, så Node-RED, Home Assistant, scripts og andre systemer kan **læse** værdier, historik og alarmer fra SCADA — uden at logge ind som en person. En nøgle kan afgrænses til bestemte tags (eller tags med et bestemt præfiks), låses til IP-adresser og få en udløbsdato, og kan deaktiveres eller tilbagekaldes.

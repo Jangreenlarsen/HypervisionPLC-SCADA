@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.22.0 build 0319] — 2026-11-04 — Integrationer: SSE-strøm og tag-vælger
+
+- `backend/app/services/integration.py`: `open_stream`/`close_stream` (højst 5 pr. nøgle, 50 i alt → 429), `stream_events` (`snapshot`, `values` samlet pr. interval, `alarm`, `resync` ved overløb, `closed`, hjerteslag 15 s, nøglen genkontrolleres hvert 10. s), `on_alarm_event` (lytter på alarmmotoren; samme afgrænsning og skjulte PLC-fejltekster som `/alarms`), `revalidate`; tællere `streams`/`stream_events`.
+- `backend/app/api/integration.py`: `GET /api/v1/integration/stream` (`tags`, `interval`, `alarms`, `max_events`; `X-Accel-Buffering: no`). `backend/app/main.py`: lytter registreret. `backend/app/services/metrics.py`: `scada_integration_streams`, `scada_integration_stream_events_total`.
+- `frontend/src/pages/Integrations.svelte`, `frontend/src/lib/integration.ts` (+ test): tags vælges i en søgbar liste, præfiks-forslag som knapper, live forhåndsvisning af hvilke tags afgrænsningen giver (ukendte tags/tomme præfikser markeres); strøm-eksempel. Manual 13-system.
+- Efter gennemgang: pladsen frigives også hvis klienten afbryder før første byte (`_Stream`), øjebliksbilleder og genkontrol kører i en tråd, højst ét resync pr. 10 s.
+- `backend/tests/test_integration.py`: 8 nye tests for strømmen.
+
 ## [3.21.0 build 0318] — 2026-11-04 — Integrationer: API-nøgler og læse-API
 
 - `backend/app/services/integration.py` (ny): `IntegrationService` — nøgler (kun SHA-256, `hv_`+43 tegn genereret i browseren), validering (navn, afgrænsning med eksisterende tags/præfikser, IP-netværk, udløb, højst 50), godkendelse (401/403/429), hastighedsgrænse pr. nøgle, "sidst brugt" højst én skrivning pr. minut, tællere; læse-API `points`/`values`/`history`/`alarms`/`info` afgrænset til nøglen.

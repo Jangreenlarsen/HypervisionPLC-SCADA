@@ -12,6 +12,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..services.errors import ServiceError
@@ -126,6 +127,36 @@ async def history(request: Request, tag: str, start: float | None = Query(defaul
 @router.get("/alarms", response_model=list[AlarmEntry], summary="Aktive og ukvitterede alarmer inden for nøglens afgrænsning")
 async def alarms(request: Request, p: Principal = Depends(principal)) -> list[dict[str, Any]]:
     return _svc(request).alarms_for(p)
+
+
+class _Stream(StreamingResponse):
+    """Frigiver strømmens plads og cache-abonnement uanset hvad — også hvis klienten afbryder, før generatoren nogensinde startes."""
+
+    def __init__(self, svc: Any, s: Any, *args: Any, **kw: Any) -> None:
+        super().__init__(*args, **kw)
+        self._svc, self._s = svc, s
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            self._svc.close_stream(self._s)
+
+
+@router.get("/stream", summary="Strøm af ændringer (Server-Sent Events)",
+            responses={200: {"description": "text/event-stream: `snapshot`, `values`, `alarm`, `resync`, `closed`; kommentarlinjen `: heartbeat` hvert 15. sekund",
+                             "content": {"text/event-stream": {"schema": {"type": "string"}}}}})
+async def stream(request: Request, tags: str | None = Query(default=None, description="Kommasepareret liste; udeladt = alle tilladte"),
+                 interval: float = Query(default=0.5, ge=0.1, le=60, description="Ændringer samles og sendes højst så ofte (sekunder)"),
+                 alarms: bool = Query(default=True, description="Medtag alarmer (snapshot + hændelser)"),
+                 max_events: int | None = Query(default=None, ge=1, le=100000, description="Luk strømmen efter så mange hændelser (fx 1 = ét øjebliksbillede)"),
+                 p: Principal = Depends(principal)) -> StreamingResponse:
+    """Først et `snapshot` med alle værdier (og aktive alarmer), derefter kun ændringer. Ved genforbindelse sendes et nyt snapshot."""
+    svc = _svc(request)
+    names = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
+    s = svc.open_stream(p, client_ip(request))
+    return _Stream(svc, s, svc.stream_events(request, s, names, interval, max_events, alarms), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})   # nginx må ikke bufre strømmen
 
 
 _openapi_cache: dict[str, Any] = {}

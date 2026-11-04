@@ -6,7 +6,7 @@ export interface Scope { all: boolean; tags: string[]; prefixes: string[] }
 export interface ApiKey {
   id: string; name: string; prefix: string; scope: Scope; ip_allow: string[]; expires_at: number | null; disabled: boolean;
   created_at: number; created_by: string; last_used_at: number | null; last_ip: string; expired: boolean;
-  stats: { requests: number; errors: number; rate_limited: number };
+  stats: { requests: number; errors: number; rate_limited: number; stream_events?: number };
 }
 export interface KeyForm {
   name: string; scopeMode: 'all' | 'selected'; tags: string; prefixes: string; ips: string; expires: string;   // expires: YYYY-MM-DD eller tom
@@ -75,9 +75,11 @@ export type KeyStatus = 'aktiv' | 'deaktiveret' | 'udløbet';
 export const keyStatus = (k: ApiKey): KeyStatus => (k.disabled ? 'deaktiveret' : k.expired ? 'udløbet' : 'aktiv');
 
 /** Færdige eksempler med den netop oprettede nøgle (vises én gang). `base` = fx https://scada.laces.dk. */
-export function examples(base: string, key: string): { curl: string; nodered: string; homeassistant: string } {
+export function examples(base: string, key: string): { curl: string; stream: string; nodered: string; homeassistant: string } {
   return {
     curl: `curl -k -H "Authorization: Bearer ${key}" ${base}/api/v1/integration/values`,
+    stream: `curl -k -N -H "Authorization: Bearer ${key}" ${base}/api/v1/integration/stream
+# først et "snapshot", derefter "values" (ændringer) og "alarm"`,
     nodered:
       `Node-RED: node "http request"\n` +
       `  Metode: GET   URL: ${base}/api/v1/integration/values\n` +
@@ -97,4 +99,34 @@ export function examples(base: string, key: string): { curl: string; nodered: st
       `    unit_of_measurement: "°C"\n` +
       `    scan_interval: 30`,
   };
+}
+
+export interface TagInfo { name: string; description?: string; unit?: string }
+
+/** Hvad afgrænsningen giver: de tags nøglen ser, ukendte tag-navne og præfikser uden træffere (samme regel som serveren: navn ELLER præfiks). */
+export function scopePreview(tags: TagInfo[], f: KeyForm): { matched: string[]; unknown: string[]; emptyPrefixes: string[]; perPrefix: Record<string, number> } {
+  const names = tags.map((t) => t.name);
+  if (f.scopeMode === 'all') return { matched: [...names].sort(), unknown: [], emptyPrefixes: [], perPrefix: {} };
+  const s = scopeBody(f);
+  const known = new Set(names);
+  const perPrefix: Record<string, number> = {};
+  for (const p of s.prefixes) perPrefix[p] = names.filter((n) => n.startsWith(p)).length;
+  const matched = names.filter((n) => s.tags.includes(n) || s.prefixes.some((p) => n.startsWith(p))).sort();
+  return { matched, unknown: s.tags.filter((t) => !known.has(t)), emptyPrefixes: s.prefixes.filter((p) => !perPrefix[p]), perPrefix };
+}
+
+/** Forslag til præfikser ud fra tag-navnene: alt til og med første "_", "." eller "-" (kun når mindst 2 tags deler det). */
+export function prefixSuggestions(tags: TagInfo[]): { prefix: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const t of tags) {
+    const m = /^[^_.-]+[_.-]/.exec(t.name);
+    if (m) counts.set(m[0], (counts.get(m[0]) ?? 0) + 1);
+  }
+  return [...counts].filter(([, c]) => c >= 2).map(([prefix, count]) => ({ prefix, count })).sort((a, b) => a.prefix.localeCompare(b.prefix));
+}
+
+/** Slå et punkt til/fra i en liste-tekst (bruges af afkrydsning og præfiks-knapper); bevarer de øvrige punkter. */
+export function toggleInList(text: string, item: string): string {
+  const list = parseList(text);
+  return (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]).join('\n');
 }

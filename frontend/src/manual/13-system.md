@@ -39,10 +39,10 @@ Webhook-kroppen er `{"type":"alarm","instance":…,"version":…,"time":…,"eve
 
 Siden **Integrationer** (admin) giver andre systemer — **Node-RED**, **Home Assistant**, Excel/Power BI, scripts — **læseadgang** til anlægget med en **API-nøgle**, uden at de skal logge ind som en person.
 
-- **En nøgle** oprettes med et navn (hvem bruger den?) og en **afgrænsning**: *alle tags*, eller kun de tags og/eller **præfikser** (alle tags, der starter med fx `kedel_`), du vælger. Valgfrit kan nøglen låses til bestemte **IP-adresser/netværk** (fx `10.1.1.0/24`) og have en **udløbsdato**.
+- **En nøgle** oprettes med et navn (hvem bruger den?) og en **afgrænsning**: *alle tags*, eller kun de tags og/eller **præfikser** (alle tags, der starter med fx `kedel_`), du vælger. Tags kan **krydses af** i listen (med søgning), og ofte brugte præfikser foreslås som knapper; feltet *Nøglen ser …* viser hele tiden præcis hvilke tags afgrænsningen giver, hvor mange hvert præfiks rammer, og advarer om ukendte tags og præfikser uden træffere. Valgfrit kan nøglen låses til bestemte **IP-adresser/netværk** (fx `10.1.1.0/24`) og have en **udløbsdato**.
 - **Nøglen vises kun én gang** (lige efter oprettelsen, sammen med færdige eksempler). Serveren gemmer kun en kontrolsum og kan ikke give den tilbage — mistes den, tilbagekaldes den og en ny oprettes. Den kan også **deaktiveres** midlertidigt.
 - **Hvad en nøgle kan:** kun læse via `/api/v1/integration/…` — punkter, aktuelle værdier, historik og alarmer. Den kan aldrig bruge resten af SCADA (ingen konfiguration, ingen betjening), og en login-session giver heller ikke adgang dér. Der er **ingen styring** (skrivning) i denne version. Værdierne kommer fra SCADA's cache, så integrationer belaster ikke PLC'erne.
-- **Hastighedsgrænse:** 20 kald i sekundet pr. nøgle (kortvarigt 40); derefter svares *429* med `Retry-After`. Brug *Server-Sent Events*/MQTT, når de kommer, til hurtige opdateringer.
+- **Hastighedsgrænse:** 20 kald i sekundet pr. nøgle (kortvarigt 40); derefter svares *429* med `Retry-After`. Brug strømmen (nedenfor) til hurtige opdateringer i stedet for at spørge ofte.
 - Tabellen viser sidst brugt, fra hvilken IP, antal kald og afviste kald. Oprettelse, ændring og tilbagekaldelse står i auditloggen (aldrig nøglen). Tællere findes i `/metrics`.
 
 **Kald** (alle med headeren `Authorization: Bearer hv_…`):
@@ -54,9 +54,12 @@ Siden **Integrationer** (admin) giver andre systemer — **Node-RED**, **Home As
 | `GET /api/v1/integration/values?tags=a,b` | `{"time":…, "values": {"a": {"v": 42, "q": "good", "ts": 1760000000.0}}}` — `q` er kvaliteten (`good`, `comm_error`, `bad`, `unknown`) |
 | `GET /api/v1/integration/history?tag=a&start=…&end=…&points=600` | nedsamplet historik (`time`, `mean`, `min`, `max`); kræver at historik er slået til for tagget |
 | `GET /api/v1/integration/alarms` | aktive og ukvitterede alarmer inden for afgrænsningen |
+| `GET /api/v1/integration/stream` | **strøm** (Server-Sent Events): først `snapshot` (alle værdier + aktive alarmer), derefter `values` med kun ændringer (samlet, højst hvert `interval` s, standard 0,5) og `alarm` (`raise`/`clear`/`change`). Valgfrit `tags=…`, `alarms=false`, `max_events=N`. Hjerteslag hvert 15. s; `closed` hvis nøglen deaktiveres/tilbagekaldes; ved genforbindelse sendes et nyt `snapshot`. Højst 5 strømme pr. nøgle. Bag nginx: buffering er slået fra for strømmen |
 | `GET /api/v1/integration/openapi.json` | maskinlæsbar beskrivelse (uden nøgle), kan importeres i Postman og andre værktøjer |
 
 **curl:** `curl -k -H "Authorization: Bearer hv_…" https://scada.laces.dk/api/v1/integration/values` (`-k` kun med selvsigneret certifikat).
+
+**Strøm med curl:** `curl -k -N -H "Authorization: Bearer hv_…" https://scada.laces.dk/api/v1/integration/stream`. I Node-RED kan en SSE-node (fx *node-red-contrib-sse-client*) bruges med samme header.
 
 **Node-RED:** brug noden *http request* (GET, returnér et parset JSON-objekt) med headeren `Authorization` = `Bearer hv_…`; kobl den til en *inject*-node med et interval, og læs `msg.payload.values.<tag>.v`. Ved selvsigneret certifikat slås *Verify server certificate* fra i node-ens TLS-opsætning.
 
