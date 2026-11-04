@@ -30,7 +30,10 @@
   async function load(): Promise<void> {
     try {
       st = await get<TlsStatus>('/api/system/tls');
-      if (st.cert && subj.sans === host) subj.sans = [...new Set([host, ...st.cert.sans])].join(', ');
+      if (st.cert && subj.sans === host) {                     // forudfyld med det nuværende certifikats navne
+        subj.sans = [...new Set([...st.cert.sans, host])].join(', ');
+        if (st.cert.cn) subj.cn = st.cert.cn;
+      }
       error = '';
     } catch (e) {
       error = (e as Error).message;
@@ -192,7 +195,7 @@
       <button onclick={() => download(p.pem, `${(p.sans[0] || 'scada').replace(/[^a-z0-9.-]/gi, '_')}.csr`)}>Hent CSR</button>
       <button class="danger" onclick={cancelCsr} disabled={busy}>Annullér CSR</button>
     </div>
-    <label>Det signerede certifikat (PEM — gerne med mellemcertifikater)
+    <label class="stack">Det signerede certifikat (PEM — gerne med mellemcertifikater)
       <textarea rows="6" class="mono small" bind:value={signed} placeholder="-----BEGIN CERTIFICATE-----" disabled={busy}></textarea>
     </label>
     <div class="row">
@@ -231,4 +234,6 @@
   .bad { color: var(--danger, #c0392b); }
   .warn { color: var(--warn, #b7791f); }
   pre { white-space: pre-wrap; word-break: break-all; }
+  form.grid { display: grid; gap: 0.6rem; max-width: 36rem; }
+  form.grid label:not(.check), label.stack { display: flex; flex-direction: column; gap: 0.2rem; }
 </style>

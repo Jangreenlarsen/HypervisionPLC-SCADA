@@ -2,6 +2,10 @@
 
 ---
 
+## v3.25.1 — 2026-11-04 — Certifikater: pænere formular
+
+- Felterne på **System › Certifikater** står nu under hinanden og er udfyldt med det nuværende certifikats navne.
+
 ## v3.25.0 — 2026-11-04 — Certifikater fra web-siden
 
 - Ny side **System › Certifikater**: se det aktuelle HTTPS-certifikat, lav et **selvsigneret**, opret en **CSR** til din CA og læg det signerede certifikat ind, eller **importér** et certifikat som PKCS#12 (.p12/.pfx) eller PEM.

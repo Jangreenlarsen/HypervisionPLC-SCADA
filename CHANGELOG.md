@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.25.1 build 0325] — 2026-11-04 — Certifikater: formularens layout
+
+- `frontend/src/pages/Certificates.svelte`: felterne står under hinanden; navn og adresser forudfyldes fra det nuværende certifikat.
+
 ## [3.25.0 build 0324] — 2026-11-04 — System › Certifikater: selvsigneret, CSR, import (PKCS#12/PEM), gendan
 
 - `backend/app/services/tls_admin.py` (ny): `TlsAdmin` — selvsigneret (CN, SAN, 1-3650 dage, EC P-256/RSA), CSR med ventende nøgle (0600) + installation af det signerede certifikat, import af PKCS#12 og PEM (krypteret nøgle), kæde sorteres, udløbet afvises, gendan forrige/selvsigneret. Én handling ad gangen; installation via root-hjælper med svar-id. Tællere til `/metrics` (`scada_tls_operations_total`).
