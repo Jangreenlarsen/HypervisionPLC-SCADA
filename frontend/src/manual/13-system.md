@@ -40,6 +40,7 @@ Webhook-kroppen er `{"type":"alarm","instance":…,"version":…,"time":…,"eve
 Siden **Integrationer** (admin) giver andre systemer — **Node-RED**, **Home Assistant**, Excel/Power BI, scripts — **læseadgang** til anlægget med en **API-nøgle**, uden at de skal logge ind som en person.
 
 - **En nøgle** oprettes med et navn (hvem bruger den?) og en **afgrænsning**: *alle tags*, eller kun de tags og/eller **præfikser** (alle tags, der starter med fx `kedel_`), du vælger. Tags kan **krydses af** i listen (med søgning), og ofte brugte præfikser foreslås som knapper; feltet *Nøglen ser …* viser hele tiden præcis hvilke tags afgrænsningen giver, hvor mange hvert præfiks rammer, og advarer om ukendte tags og præfikser uden træffere. Valgfrit kan nøglen låses til bestemte **IP-adresser/netværk** (fx `10.1.1.0/24`) og have en **udløbsdato**.
+- **Tags eller præfikser?** Et **tag** er et præcist navn: `Akum` giver kun tagget `Akum`, og navnet skal findes. Et **præfiks** giver alle tags, hvis navn *starter med* teksten: `PLC1_` giver `PLC1_DI1`, `PLC1_DI2` osv. — også tags, der oprettes senere. Nøglen ser et tag, hvis det står i tag-listen **eller** matcher et præfiks. Brug **tags** til få, bestemte punkter (fx én temperatur til Home Assistant), så nye tags aldrig kommer med af sig selv; brug **præfikser**, når navnene følger anlægsdele (`fyrrum_`, `PLC1_`), så nøglen følger med, når anlægget udvides. Der skelnes mellem store og små bogstaver (`plc1_` ≠ `PLC1_`), og et kort præfiks kan fange mere, end det andet system skal se. *Alle tags* kun til betroede systemer.
 - **Nøglen vises kun én gang** (lige efter oprettelsen, sammen med færdige eksempler). Serveren gemmer kun en kontrolsum og kan ikke give den tilbage — mistes den, tilbagekaldes den og en ny oprettes. Den kan også **deaktiveres** midlertidigt.
 - **Hvad en nøgle kan:** kun læse via `/api/v1/integration/…` — punkter, aktuelle værdier, historik og alarmer. Den kan aldrig bruge resten af SCADA (ingen konfiguration, ingen betjening), og en login-session giver heller ikke adgang dér. Der er **ingen styring** (skrivning) i denne version. Værdierne kommer fra SCADA's cache, så integrationer belaster ikke PLC'erne.
 - **Hastighedsgrænse:** 20 kald i sekundet pr. nøgle (kortvarigt 40); derefter svares *429* med `Retry-After`. Brug strømmen (nedenfor) til hurtige opdateringer i stedet for at spørge ofte.
@@ -56,6 +57,21 @@ Siden **Integrationer** (admin) giver andre systemer — **Node-RED**, **Home As
 | `GET /api/v1/integration/alarms` | aktive og ukvitterede alarmer inden for afgrænsningen |
 | `GET /api/v1/integration/stream` | **strøm** (Server-Sent Events): først `snapshot` (alle værdier + aktive alarmer), derefter `values` med kun ændringer (samlet, højst hvert `interval` s, standard 0,5) og `alarm` (`raise`/`clear`/`change`). Valgfrit `tags=…`, `alarms=false`, `max_events=N`. Hjerteslag hvert 15. s; `closed` hvis nøglen deaktiveres/tilbagekaldes; ved genforbindelse sendes et nyt `snapshot`. Højst 5 strømme pr. nøgle. Bag nginx: buffering er slået fra for strømmen |
 | `GET /api/v1/integration/openapi.json` | maskinlæsbar beskrivelse (uden nøgle), kan importeres i Postman og andre værktøjer |
+
+**Sådan læses svaret fra `/values`** — eksempel:
+
+```
+{"time":"2026-11-04T14:23:00+00:00","values":{"MBX1coil0":{"v":false,"q":"good","ts":1793802180.6}}}
+```
+
+| Felt | Betydning |
+|---|---|
+| `time` | hvornår svaret blev lavet (UTC) |
+| `values.<tag>.v` | værdien: tal eller `true`/`false` (en coil/digital = tændt/slukket). `null` = ingen gyldig værdi lige nu |
+| `values.<tag>.q` | kvaliteten: `good` = gyldig og frisk; `comm_error` = SCADA har ikke forbindelse til PLC'en; `bad` = PLC'en svarer, men værdien kan ikke bruges (fx svarer en Modbus-slave bag PLC'en ikke, eller variablen findes ikke/er ikke kompileret); `unknown` = endnu ikke læst |
+| `values.<tag>.ts` | hvornår værdien sidst blev læst, i Unix-sekunder (UTC) — ikke hvornår svaret blev lavet |
+
+Ved `comm_error` og `bad` er `v` typisk `null`. Når forbindelsen kommer igen, skifter tagget af sig selv tilbage til `good` med en ny værdi — et kort udfald ses altså som et øjeblik med `comm_error`. Brug altid `q` før `v`: en integration bør ignorere eller markere værdier, der ikke er `good`. Sker udfald tit, ses de på **Status** og i **Log**.
 
 **curl:** `curl -k -H "Authorization: Bearer hv_…" https://scada.laces.dk/api/v1/integration/values` (`-k` kun med selvsigneret certifikat).
 

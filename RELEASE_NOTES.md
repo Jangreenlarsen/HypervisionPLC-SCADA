@@ -2,6 +2,14 @@
 
 ---
 
+## v3.24.2 — 2026-11-04 — Manualen forklarer integrations-svaret
+
+- Manualen (System › Integrationer) forklarer nu felterne i svaret fra `/values`: værdi, kvalitet og tidsstempel.
+
+## v3.24.1 — 2026-11-04 — Forklaring af tags og præfikser
+
+- **System › Integrationer** og manualen forklarer nu forskellen på at vælge tags og præfikser til en API-nøgle.
+
 ## v3.24.0 — 2026-11-04 — Eksempler på brug af integrations-API'et
 
 - **System › Integrationer** har fået en sektion **Eksempler på brug**: færdige kald for alle endpoints (curl), Python, PowerShell, Node-RED og Home Assistant.

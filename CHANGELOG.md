@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.24.2 build 0323] — 2026-11-04 — Manual: sådan læses svaret fra /values
+
+- `frontend/src/manual/13-system.md`: eksempel og felt-tabel (`time`, `v`, `q`, `ts`) med betydningen af `good`/`comm_error`/`bad`/`unknown`.
+
+## [3.24.1 build 0322] — 2026-11-04 — Integrationer: forklaring af tags og præfikser
+
+- `frontend/src/pages/Integrations.svelte`: foldbar hjælp *Tags eller præfikser — hvad er forskellen?* ved afgrænsningen. `frontend/src/manual/13-system.md`: samme forklaring.
+
 ## [3.24.0 build 0321] — 2026-11-04 — Integrationer: brugseksempler på siden
 
 - `frontend/src/lib/integration.ts`: `usageExamples()` — curl for alle endpoints (info, points, values, history, alarms, stream), Python, PowerShell, Node-RED og Home Assistant (+ test). `frontend/src/pages/Integrations.svelte`: foldbar sektion *Eksempler på brug* med pladsholder-nøgle og første tag.
