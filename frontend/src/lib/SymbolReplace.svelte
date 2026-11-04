@@ -123,10 +123,10 @@
             <legend class="small">Andre dele af samme slags</legend>
             <label class="opt"><input type="radio" name="similar" value="none" bind:group={similar} /> Kun denne del</label>
             {#if info.similar > 0}
-              <label class="opt"><input type="radio" name="similar" value="same" bind:group={similar} /> Også de <strong>{info.similar}</strong> lignende (samme opbygning og størrelse)</label>
+              <label class="opt"><input type="radio" name="similar" value="same" bind:group={similar} /> <span>Også de <strong>{info.similar}</strong> lignende (samme opbygning og størrelse)</span></label>
             {/if}
             {#if info.similarAny > info.similar}
-              <label class="opt"><input type="radio" name="similar" value="any" bind:group={similar} /> Alle <strong>{info.similarAny}</strong> af samme slags, uanset størrelse (fx etiketter med forskellig tekstlængde)</label>
+              <label class="opt"><input type="radio" name="similar" value="any" bind:group={similar} /> <span>Alle <strong>{info.similarAny}</strong> af samme slags, uanset størrelse (fx etiketter med forskellig tekstlængde)</span></label>
             {/if}
           </fieldset>
         {/if}

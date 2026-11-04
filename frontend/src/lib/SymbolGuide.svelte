@@ -983,20 +983,31 @@ import { AVERAGE_CHOICES } from './trendData';
           {#if viewLike}
             <p class="muted small">{passive ? 'Kun passiv visning — symbolet kan ikke betjenes, så her er intet at vælge. På Overview står der "Kun visning — kan ikke betjenes" som tooltip.' : 'Kun passiv visning — intet at betjene.'}</p>
           {:else}
-            <label class="opt"><input type="checkbox" bind:checked={cfg.confirm} /> Operatøren skal bekræfte før der skrives</label>
+            <fieldset class="box">
+              <legend>Bekræftelse</legend>
+              <label class="opt"><input type="checkbox" bind:checked={cfg.confirm} /> <span>Operatøren skal bekræfte, før der skrives</span></label>
+            </fieldset>
             {#if isPos}
-              <h4>Betjening på tegningen</h4>
-              <label class="opt"><input type="radio" name="clickmode" value="dialog" bind:group={cfg.click} /> <strong>Dialog</strong> — et tryk åbner en boks, hvor operatøren vælger position</label>
-              <label class="opt"><input type="radio" name="clickmode" value="step" bind:group={cfg.click} /> <strong>Interaktiv</strong> — tryk på <em>venstre</em> side for forrige og <em>højre</em> side for næste position (fx en omskifter med flere positioner)</label>
-              {#if cfg.click === 'step'}
-                <p class="small muted">Bekræftelse og nøglelås gælder som ellers: kræver positionen bekræftelse eller kode, åbnes boksen med den valgte position. Kendes den viste position ikke endnu, åbnes dialogen.</p>
-              {/if}
+              <fieldset class="box">
+                <legend>Betjening på tegningen</legend>
+                <label class="choice"><input type="radio" name="clickmode" value="dialog" bind:group={cfg.click} />
+                  <strong>Dialog</strong><span>Et tryk åbner en boks, hvor operatøren vælger position.</span></label>
+                <label class="choice"><input type="radio" name="clickmode" value="step" bind:group={cfg.click} />
+                  <strong>Interaktiv</strong><span>Tryk på venstre side for forrige og højre side for næste position (fx en omskifter med flere positioner).</span></label>
+                {#if cfg.click === 'step'}
+                  <p class="small muted note">Kræver positionen bekræftelse eller kode, åbnes boksen med den valgte position. Kendes den viste position ikke endnu, åbnes dialogen.</p>
+                {/if}
+              </fieldset>
             {/if}
             {#if cfg.op === 'pulse'}
-              <label class="field-row">Pulslængde (ms) <input class="n" type="number" min="100" max="10000" step="100" bind:value={cfg.pulse_ms} /></label>
+              <fieldset class="box">
+                <legend>Puls</legend>
+                <label class="field-row">Pulslængde (ms) <input class="n" type="number" min="100" max="10000" step="100" bind:value={cfg.pulse_ms} /></label>
+              </fieldset>
             {/if}
             {#if isPos}
-              <h4>Nøglelås</h4>
+              <fieldset class="box">
+              <legend>Nøglelås</legend>
               <div class="row wrap small"><span class="muted">Låste positioner:</span>
                 {#each cfg.positions as p, j}<label class="opt"><input type="checkbox" bind:checked={cfg.lock.positions[j]} /> {p.label}</label>{/each}
               </div>
@@ -1011,6 +1022,7 @@ import { AVERAGE_CHOICES } from './trendData';
               {:else if exists && hasPin}
                 <p class="small muted">Der er en kode, men ingen låste positioner. <button class="small danger" onclick={clearPin}>Fjern kode</button></p>
               {/if}
+              </fieldset>
             {/if}
           {/if}
         {:else if step === 5}
@@ -1158,6 +1170,12 @@ import { AVERAGE_CHOICES } from './trendData';
   .spacer { flex: 1; }
   .ops { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; margin: .4rem 0 .8rem; }
   .opt { display: inline-flex; align-items: center; gap: .3rem; }
+  /* Trin 5: én boks pr. emne; valgmuligheder som "knap · navn · forklaring" i faste kolonner (tekst i ét stykke, så den ombrydes pænt) */
+  .box { border: 1px solid var(--line); border-radius: var(--radius); padding: .35rem .7rem .55rem; margin: 0 0 .6rem; min-width: 0; }
+  .box legend { font-weight: 600; padding: 0 .3rem; }
+  .choice { display: grid; grid-template-columns: auto 6.5rem minmax(0, 1fr); gap: .15rem .5rem; align-items: baseline; padding: .2rem 0; cursor: pointer; }
+  .choice > span { color: var(--muted); }
+  .note { margin: .3rem 0 0 1.6rem; }
   .wrap { flex-wrap: wrap; gap: .35rem .6rem; align-items: center; }
   .grid { border-collapse: collapse; margin: .3rem 0; }
   .grid th, .grid td { border: 1px solid var(--line); padding: .2rem .35rem; text-align: left; }

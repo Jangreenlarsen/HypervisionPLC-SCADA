@@ -2,6 +2,10 @@
 
 ---
 
+## v3.26.2 — 2026-11-04 — Pænere trin 5 i symbolguiden
+
+- Trin 5 **Betjening** i *Opsæt symbol* er delt op i overskuelige bokse, og teksten ved *Dialog* og *Interaktiv* står nu samlet i stedet for at blive brudt op i småstykker.
+
 ## v3.26.1 — 2026-11-04 — Rettelse i Tegn
 
 - Værktøjslinjen over en markering i **Tegn** lagde sig foran dialoger som *Opsæt symbol*. Den bliver nu bag dem.

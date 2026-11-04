@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.26.2 build 0328] — 2026-11-04 — Guiden, trin 5 Betjening: ryddet op
+
+- `frontend/src/lib/SymbolGuide.svelte`: trin 5 i bokse (Bekræftelse, Betjening på tegningen, Puls, Nøglelås); *Dialog/Interaktiv* som knap · navn · forklaring i faste kolonner — teksten blev før brudt op af flex-layoutet. `frontend/src/lib/SymbolReplace.svelte`: samme fejl i valget af lignende symboler. BUGS.md.
+
 ## [3.26.1 build 0327] — 2026-11-04 — Tegn: værktøjslinjen lå foran dialoger
 
 - `frontend/src/lib/draw/DrawCanvas.svelte`: `.draw` får sit eget stablingslag (`isolation: isolate`), så værktøjslinje, højrekliksmenu og besked aldrig ligger over dialoger eller topmenuen. BUGS.md.
