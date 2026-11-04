@@ -2,6 +2,10 @@
 
 ---
 
+## v3.26.1 — 2026-11-04 — Rettelse i Tegn
+
+- Værktøjslinjen over en markering i **Tegn** lagde sig foran dialoger som *Opsæt symbol*. Den bliver nu bag dem.
+
 ## v3.26.0 — 2026-11-04 — Let's Encrypt fra Certifikater-siden
 
 - **System › Certifikater** kan nu udstede et **Let's Encrypt**-certifikat, som alle browsere stoler på, og som fornyes af sig selv. Vælg **HTTP-01** (port 80 åben udefra) eller **DNS-01 via deSEC** (ingen åbne porte). **Test (staging)** prøver hele forløbet uden at ændre noget.

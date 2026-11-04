@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.26.1 build 0327] — 2026-11-04 — Tegn: værktøjslinjen lå foran dialoger
+
+- `frontend/src/lib/draw/DrawCanvas.svelte`: `.draw` får sit eget stablingslag (`isolation: isolate`), så værktøjslinje, højrekliksmenu og besked aldrig ligger over dialoger eller topmenuen. BUGS.md.
+
 ## [3.26.0 build 0326] — 2026-11-04 — System › Certifikater: Let's Encrypt (HTTP-01 og DNS-01/deSEC) fra siden
 
 - `deploy/apply-letsencrypt.sh` (ny root-hjælper) + `hypervisionplc-scada-le.{path,service}` (ExecStopPost sætter en afbrudt kørsel til fejl): install / dns-config (token via fil → stdin, slettes straks) / issue (dns|http, live|dry) / info; status i `le-status.json`, overblik i `le-info.json`, log i `le-run.log`.
