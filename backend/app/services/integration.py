@@ -23,6 +23,7 @@ import secrets as _secrets
 import sqlite3
 import threading
 import time
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -49,6 +50,12 @@ LOG_EVERY_S = 60.0
 FAIL_WINDOW_S = 60.0
 FAIL_LIMIT = 30                # afviste kald pr. IP pr. minut, før der svares 429 uden at slå noget op (DoS-værn)
 MAX_ABS_TIME = 365 * 86400      # historik: tidspunkter højst et år ude i fremtiden
+STREAM_INTERVAL_S = 0.5         # SSE: ændringer samles og sendes højst så ofte (standard; 0,1-60 pr. forbindelse)
+STREAM_HEARTBEAT_S = 15.0       # kommentarlinje, når intet er sendt — holder forbindelsen åben gennem nginx og netværk
+STREAM_REVALIDATE_S = 10.0      # nøglen og afgrænsningen tjekkes igen så ofte under en åben strøm
+MAX_STREAMS_PER_KEY = 5
+MAX_STREAMS_TOTAL = 50
+STREAM_ALARM_QUEUE = 200
 
 
 def _bad(message: str, status: int = 400) -> ServiceError:
@@ -73,6 +80,21 @@ class KeyStats:
     requests: int = 0
     errors: int = 0
     rate_limited: int = 0
+    streams_opened: int = 0
+    stream_events: int = 0
+
+
+@dataclass
+class StreamState:
+    """En åben SSE-forbindelse: egen kø med værdi-ændringer (fra live-cachen) og alarmhændelser."""
+    id: str
+    key_id: str
+    principal: Principal
+    ip: str
+    allowed: set[str]
+    cache_q: Any
+    alarm_q: Any
+    overflow: bool = False
 
 
 @dataclass
@@ -101,6 +123,7 @@ class IntegrationService:
         self._last_touch: dict[str, float] = {}
         self._last_log: dict[str, float] = {}
         self._ip_fails: dict[str, list[float]] = {}     # ip → [antal, vinduets start]
+        self._streams: dict[str, StreamState] = {}
         self._lock = threading.Lock()   # kald godkendes i FastAPI's trådpulje: hastighedsgrænse og tællere er read-modify-write
 
     # ------------------------------------------------------------- nøgle-administration (admin)
@@ -344,8 +367,9 @@ class IntegrationService:
     def metrics(self) -> dict[str, Any]:
         """Tællere til /metrics og Status: nøgler (navn → tællere) og afviste kald."""
         names = {r["id"]: r["name"] for r in self.db.list_api_keys()}
-        return {"keys": len(names), "auth_failures": self.auth_failures,
-                "per_key": {names[i]: {"requests": s.requests, "errors": s.errors, "rate_limited": s.rate_limited}
+        return {"keys": len(names), "auth_failures": self.auth_failures, "streams": len(self._streams),
+                "per_key": {names[i]: {"requests": s.requests, "errors": s.errors, "rate_limited": s.rate_limited,
+                                       "stream_events": s.stream_events}
                             for i, s in self.stats.items() if i in names}}
 
     # ------------------------------------------------------------- læse-API
@@ -408,6 +432,13 @@ class IntegrationService:
                 "columns": ["time", "mean", "min", "max"],
                 "rows": [[_iso(r[0]), r[1], r[2], r[3]] for r in series]}
 
+    @staticmethod
+    def _alarm_texts(a: dict[str, Any]) -> tuple[str, str]:
+        """(plc, besked) til udlevering: en tag-løs kommunikationsalarm får en generisk tekst — PLC-fejlteksten udleveres aldrig."""
+        if not a["tag"] and a.get("kind") == "comm":
+            return a["plc"], f"PLC {a['plc']}: kommunikationsfejl"
+        return "", a["message"]
+
     def alarms_for(self, p: Principal) -> list[dict[str, Any]]:
         """Alarmer inden for nøglens afgrænsning. En nøgle med valgte tags ser kun alarmer på DE tags. Kun en nøgle med *alle tags* ser
         også tag-løse alarmer (PLC-kommunikation, serverens egne SYS-alarmer) — PLC-fejlteksten (navn, adresse, httpx-fejl) udleveres aldrig."""
@@ -417,12 +448,145 @@ class IntegrationService:
             rows = [a for a in rows if a["tag"] and a["tag"] in allowed]
         out = []
         for a in rows:
-            tagless_comm = not a["tag"] and a["kind"] == "comm"
-            out.append({"key": a["key"], "tag": a["tag"], "plc": a["plc"] if tagless_comm else "", "kind": a["kind"], "level": a["level"],
-                        "priority": a["priority"], "state": a["state"],
-                        "message": f"PLC {a['plc']}: kommunikationsfejl" if tagless_comm else a["message"],
-                        "raised_at": _iso(a["raised_at"]), "acknowledged": a["state"] == "active_ack"})
+            plc, message = self._alarm_texts(a)
+            out.append({"key": a["key"], "tag": a["tag"], "plc": plc, "kind": a["kind"], "level": a["level"], "priority": a["priority"],
+                        "state": a["state"], "message": message, "raised_at": _iso(a["raised_at"]), "acknowledged": a["state"] == "active_ack"})
         return out
+
+    # ------------------------------------------------------------- SSE-strøm (Server-Sent Events)
+
+    def open_stream(self, p: Principal, ip: str) -> StreamState:
+        """Registrér en strøm (loft pr. nøgle og i alt). Kaldes FØR svaret begynder, så en afvisning bliver en rigtig 429."""
+        mine = sum(1 for s in self._streams.values() if s.key_id == p.id)
+        if mine >= MAX_STREAMS_PER_KEY or len(self._streams) >= MAX_STREAMS_TOTAL:
+            with self._lock:
+                self.stats.setdefault(p.id, KeyStats()).errors += 1
+            raise ServiceError(429, f"For mange åbne strømme (højst {MAX_STREAMS_PER_KEY} pr. nøgle, {MAX_STREAMS_TOTAL} i alt)",
+                               headers={"Retry-After": "5"})
+        s = StreamState(id=_secrets.token_hex(6), key_id=p.id, principal=p, ip=ip, allowed=set(self.allowed_names(p)),
+                        cache_q=self.cache.subscribe(maxsize=100), alarm_q=asyncio.Queue(maxsize=STREAM_ALARM_QUEUE))
+        self._streams[s.id] = s
+        with self._lock:
+            self.stats.setdefault(p.id, KeyStats()).streams_opened += 1
+        return s
+
+    def close_stream(self, s: StreamState) -> None:
+        self.cache.unsubscribe(s.cache_q)
+        self._streams.pop(s.id, None)
+
+    def on_alarm_event(self, row: dict[str, Any], event: str, now: float) -> None:
+        """Lytter på alarmmotoren (kaldes på event-loopet): hændelsen lægges i køen hos de strømme, der må se den."""
+        if not self._streams or event not in ("raise", "clear", "change"):
+            return
+        plc, message = self._alarm_texts(row)
+        entry = {"event": event, "alarm": {"key": row["key"], "tag": row["tag"], "plc": plc, "kind": row.get("kind", ""), "level": row["level"],
+                                           "priority": row["priority"], "message": message, "at": _iso(now)}}
+        for s in list(self._streams.values()):
+            if not (s.principal.scope["all"] or (row["tag"] and row["tag"] in s.allowed)):
+                continue
+            try:
+                s.alarm_q.put_nowait(entry)
+            except asyncio.QueueFull:
+                s.overflow = True          # klienten er for langsom: den får et nyt øjebliksbillede i stedet for en afbrudt række
+
+    def revalidate(self, s: StreamState) -> str | None:
+        """Tjek nøglen igen under en åben strøm. → årsag hvis strømmen skal lukkes (tilbagekaldt/deaktiveret/udløbet/IP), ellers None;
+        afgrænsningen opdateres (nye tags kommer med, fjernede forsvinder)."""
+        row = self.db.get_api_key(s.key_id)
+        if row is None:
+            return "nøglen er tilbagekaldt"
+        if row["disabled"]:
+            return "nøglen er deaktiveret"
+        if row["expires_at"] is not None and row["expires_at"] <= time.time():
+            return "nøglen er udløbet"
+        if row["ip_allow"] and not self._ip_allowed(s.ip, row["ip_allow"]):
+            return "nøglen må ikke længere bruges fra denne IP-adresse"
+        s.principal = Principal(row["id"], row["name"], self._decode_scope(row["scope"]))
+        s.allowed = set(self.allowed_names(s.principal))
+        return None
+
+    async def stream_events(self, request: Any, s: StreamState, tags: list[str] | None, interval: float, max_events: int | None,
+                            with_alarms: bool) -> AsyncIterator[bytes]:
+        """SSE: `snapshot` (alle værdier + aktive alarmer), derefter `values` (ændringer, samlet pr. `interval`) og `alarm`; en
+        kommentarlinje som hjerteslag; `closed` når nøglen ikke længere gælder (eller `max_events` er nået). Ved genforbindelse sendes
+        altid et nyt øjebliksbillede (ingen afspilning af mistede hændelser — øjebliksbilledet er hele sandheden)."""
+        counter = 0
+
+        def frame(event: str, data: Any) -> bytes:
+            nonlocal counter
+            counter += 1
+            with self._lock:
+                self.stats.setdefault(s.key_id, KeyStats()).stream_events += 1
+            return f"event: {event}\nid: {counter}\ndata: {json.dumps(data, ensure_ascii=False, separators=(',', ':'))}\n\n".encode()
+
+        wanted = set(tags) if tags else None
+
+        def snapshot_data() -> dict[str, Any]:
+            names = sorted(n for n in s.allowed if wanted is None or n in wanted)
+            data: dict[str, Any] = self.values(s.principal, names)
+            if with_alarms:
+                data["alarms"] = self.alarms_for(s.principal)
+            return data
+
+        async def snapshot() -> bytes:            # DB-opslag i en tråd — event-loopet (polling, WebSocket) må ikke blokeres
+            return frame("snapshot", await asyncio.to_thread(snapshot_data))
+
+        def drain(q: Any) -> list[Any]:
+            out = []
+            while True:
+                try:
+                    out.append(q.get_nowait())
+                except asyncio.QueueEmpty:
+                    return out
+
+        try:
+            yield b"retry: 5000\n\n"
+            yield await snapshot()
+            pending: dict[str, Any] = {}
+            now = last_beat = last_check = time.monotonic()
+            last_resync = 0.0
+            while True:
+                if max_events is not None and counter >= max_events:
+                    yield frame("closed", {"reason": "max_events"})
+                    return
+                await asyncio.sleep(interval)
+                if await request.is_disconnected():
+                    return
+                now = time.monotonic()
+                if now - last_check >= STREAM_REVALIDATE_S:
+                    last_check = now
+                    reason = await asyncio.to_thread(self.revalidate, s)
+                    if reason:
+                        yield frame("closed", {"reason": reason})
+                        return
+                for delta in drain(s.cache_q):
+                    for name, v in delta.items():
+                        if name in s.allowed and (wanted is None or name in wanted):
+                            pending[name] = {"v": v["value"], "q": v["quality"], "ts": v["ts"]}
+                if pending:
+                    yield frame("values", {"time": _iso(time.time()), "values": pending})
+                    pending, last_beat = {}, now
+                if with_alarms:
+                    if s.overflow:                      # for langsom klient: nyt øjebliksbillede i stedet for en hullet række
+                        s.overflow = False
+                        drain(s.alarm_q)
+                        if now - last_resync < STREAM_REVALIDATE_S:   # højst ét nyt øjebliksbillede pr. 10 s
+                            s.overflow = True
+                            continue
+                        last_resync = now
+                        yield frame("resync", {"reason": "klienten var for langsom"})
+                        yield await snapshot()
+                        last_beat = now
+                    for item in drain(s.alarm_q):
+                        yield frame("alarm", item)
+                        last_beat = now
+                else:
+                    drain(s.alarm_q)
+                if now - last_beat >= STREAM_HEARTBEAT_S:
+                    yield b": heartbeat\n\n"
+                    last_beat = now
+        finally:
+            self.close_stream(s)
 
 
 def _iso(ts: float) -> str:

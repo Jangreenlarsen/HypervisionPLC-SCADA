@@ -172,6 +172,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         # Integrationer: API-nøgler og læse-API (kun fra live-cache, trend-DB og alarmmotor — aldrig direkte fra PLC'er)
         app.state.integration_service = IntegrationService(db, app.state.tag_service, manager.cache, app.state.alarm_service, trend_db,
                                                            instance=socket.gethostname())
+        app.state.alarm_service.listeners.append(app.state.integration_service.on_alarm_event)   # SSE: alarmhændelser
         app.state.backup_service.trend_db = trend_db
         app.state.trend_recorder = TrendRecorder(manager, trend_db, flush_s=settings.trend_flush_s,
                                                  retention_days=settings.trend_days,

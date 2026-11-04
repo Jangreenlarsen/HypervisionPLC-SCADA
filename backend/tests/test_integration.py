@@ -292,7 +292,7 @@ def test_openapi_describes_only_the_integration_api(api):
     r = anon(api).get(BASE + "/openapi.json")
     assert r.status_code == 200
     doc = r.json()
-    assert set(doc["paths"]) == {BASE + p for p in ("/info", "/points", "/values", "/history", "/alarms")}
+    assert set(doc["paths"]) == {BASE + p for p in ("/info", "/points", "/values", "/history", "/alarms", "/stream")}
     assert doc["components"]["securitySchemes"]["bearerAuth"] == {"type": "http", "scheme": "bearer"} and doc["security"] == [{"bearerAuth": []}]
     assert "Point" in doc["components"]["schemas"] and "ValuesResponse" in doc["components"]["schemas"]
     assert "/api/tags" not in json.dumps(doc) and "keys" not in " ".join(doc["paths"])               # ingen admin-/konfigurationsendpoints
@@ -463,3 +463,141 @@ def test_render_integration_metrics_with_escaped_labels():
 
 def test_hash_is_sha256_hex():
     assert hash_key("hv_x") == hashlib.sha256(b"hv_x").hexdigest()
+
+
+# ------------------------------------------------------------------ SSE-strøm (v3.22)
+
+def parse_sse(text: str) -> list[tuple[str, dict]]:
+    out = []
+    for block in text.split("\n\n"):
+        ev, data = None, None
+        for line in block.split("\n"):
+            if line.startswith("event: "):
+                ev = line[7:]
+            elif line.startswith("data: "):
+                data = json.loads(line[6:])
+        if ev:
+            out.append((ev, data))
+    return out
+
+
+def test_stream_requires_a_valid_key_and_sends_a_snapshot_first(api):
+    assert anon(api).get(BASE + "/stream?max_events=1").status_code == 401
+    key, _ = make_key(api, scope={"tags": ["kedel_temp"]})
+    r = get(api, "/stream?max_events=1&interval=0.1", key)
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
+    assert r.headers["cache-control"] == "no-cache" and r.headers["x-accel-buffering"] == "no"
+    events = parse_sse(r.text)
+    assert events[0][0] == "snapshot" and list(events[0][1]["values"]) == ["kedel_temp"]
+    assert events[-1] == ("closed", {"reason": "max_events"})
+    assert "tank_niveau" not in r.text
+
+
+def test_stream_scope_unknown_and_filtered_tags(api):
+    key, _ = make_key(api, scope={"tags": ["kedel_temp", "kedel_pumpe"]})
+    events = parse_sse(get(api, "/stream?max_events=1&tags=kedel_pumpe,tank_niveau", key).text)
+    assert list(events[0][1]["values"]) == ["kedel_pumpe"]          # tank_niveau er uden for nøglens afgrænsning
+
+
+@pytest.mark.anyio
+async def test_stream_sends_changes_and_alarm_events(api):
+    from app.services.live_cache import LiveValue
+
+    class Req:
+        async def is_disconnected(self):
+            return False
+
+    key, _ = make_key(api)
+    svc = api.app.state.integration_service
+    s = svc.open_stream(svc.authenticate(key, "1.1.1.1"), "1.1.1.1")
+    gen = svc.stream_events(Req(), s, None, 0.05, None, True)
+    assert (await gen.__anext__()) == b"retry: 5000\n\n"
+    assert parse_sse((await gen.__anext__()).decode())[0][0] == "snapshot"
+    api.app.state.cache.update({"tank_niveau": LiveValue(value=42.0, quality="good", ts=time.time())})
+    svc.on_alarm_event({"key": "kedel_temp:HH", "tag": "kedel_temp", "plc": "plc1", "kind": "limit", "level": "HH", "priority": "high",
+                        "message": "Kedeltemperatur for høj"}, "raise", time.time())
+    got = parse_sse((await gen.__anext__()).decode() + (await gen.__anext__()).decode())
+    kinds = [e for e, _ in got]
+    assert kinds == ["values", "alarm"]
+    assert "tank_niveau" in got[0][1]["values"]                       # værdien kan være overskrevet af polleren
+    assert got[1][1]["event"] == "raise" and got[1][1]["alarm"]["tag"] == "kedel_temp"
+    await gen.aclose()
+    assert svc.metrics()["streams"] == 0                                # lukning rydder op (abonnement + tæller)
+
+
+def test_stream_limits_per_key_and_total(api):
+    import app.services.integration as m
+    key, k = make_key(api)
+    svc = api.app.state.integration_service
+    p = svc.authenticate(key, "1.1.1.1")
+    opened = [svc.open_stream(p, "1.1.1.1") for _ in range(m.MAX_STREAMS_PER_KEY)]
+    r = get(api, "/stream?max_events=1", key)
+    assert r.status_code == 429 and r.headers["retry-after"] == "5" and "For mange" in r.json()["error"]
+    assert svc.metrics()["streams"] == m.MAX_STREAMS_PER_KEY
+    for s in opened:
+        svc.close_stream(s)
+    assert svc.metrics()["streams"] == 0
+    assert get(api, "/stream?max_events=1", key).status_code == 200
+
+
+def test_stream_is_closed_when_the_key_is_disabled_or_scope_shrinks(api):
+    key, k = make_key(api)
+    svc = api.app.state.integration_service
+    p = svc.authenticate(key, "1.1.1.1")
+    s = svc.open_stream(p, "1.1.1.1")
+    assert svc.revalidate(s) is None and "tank_niveau" in s.allowed
+    api.patch(f"/api/system/integration/keys/{k['id']}", json={"scope": {"all": False, "tags": ["kedel_temp"], "prefixes": []}})
+    assert svc.revalidate(s) is None and s.allowed == {"kedel_temp"}
+    api.patch(f"/api/system/integration/keys/{k['id']}", json={"disabled": True})
+    assert "deaktiveret" in svc.revalidate(s)
+    api.delete(f"/api/system/integration/keys/{k['id']}")
+    assert "tilbagekaldt" in svc.revalidate(s)
+    svc.close_stream(s)
+
+
+def test_stream_alarm_events_respect_scope_and_hide_plc_errors(api):
+    key_all, _ = make_key(api, "alle")
+    key_one, _ = make_key(api, "kun-tank", scope={"tags": ["tank_niveau"]})
+    svc = api.app.state.integration_service
+    a = svc.open_stream(svc.authenticate(key_all, "1.1.1.1"), "1.1.1.1")
+    b = svc.open_stream(svc.authenticate(key_one, "1.1.1.1"), "1.1.1.1")
+    row = {"key": "plc:plc1:comm", "tag": "", "plc": "plc1", "kind": "comm", "level": "COMM", "priority": "high",
+           "message": "PLC Kedel: ConnectError mod http://10.1.1.30:80"}
+    svc.on_alarm_event(row, "raise", time.time())
+    assert b.alarm_q.empty()                                          # begrænset nøgle ser ikke tag-løse alarmer
+    got = a.alarm_q.get_nowait()
+    assert got["alarm"]["message"] == "PLC plc1: kommunikationsfejl" and "10.1.1.30" not in json.dumps(got)
+    for _ in range(300):
+        svc.on_alarm_event(row, "change", time.time())
+    assert a.overflow                                                  # for langsom klient → resync i stedet for tab
+    svc.close_stream(a); svc.close_stream(b)
+
+
+def test_stream_metrics_are_exported(api):
+    key, _ = make_key(api, "metrikker")
+    get(api, "/stream?max_events=1", key)
+    text = render({"version": {"version": "1", "build": "1"}, "integration": api.app.state.integration_service.metrics()})
+    assert "scada_integration_streams 0" in text
+    assert 'scada_integration_stream_events_total{key="metrikker"}' in text
+
+
+@pytest.mark.anyio
+async def test_stream_slot_is_released_even_if_the_client_aborts_before_the_first_byte(api):
+    from app.api.integration import _Stream
+    key, _ = make_key(api, "afbrudt")
+    svc = api.app.state.integration_service
+    before = len(api.app.state.cache._subscribers)
+    s = svc.open_stream(svc.authenticate(key, "1.1.1.1"), "1.1.1.1")
+
+    async def never():
+        yield b""
+
+    async def send(msg):
+        raise OSError("klienten er væk")                               # fejler allerede ved http.response.start
+
+    async def receive():
+        return {"type": "http.disconnect"}
+
+    with pytest.raises(Exception):
+        await _Stream(svc, s, never(), media_type="text/event-stream")({"type": "http", "asgi": {"spec_version": "2.4"}}, receive, send)
+    assert svc.metrics()["streams"] == 0 and len(api.app.state.cache._subscribers) == before

@@ -3,8 +3,8 @@
   import { del, get, patch, post } from '../lib/api';
   import { ask } from '../lib/ask';
   import {
-    createBody, emptyForm, examples, formFrom, generateKey, keyStatus, patchBody, scopeText,
-    type ApiKey, type KeyForm,
+    createBody, emptyForm, examples, formFrom, generateKey, keyStatus, parseList, patchBody, prefixSuggestions, scopePreview, scopeText, toggleInList,
+    type ApiKey, type KeyForm, type TagInfo,
   } from '../lib/integration';
 
   let keys = $state<ApiKey[] | null>(null);
@@ -13,6 +13,14 @@
   let fresh = $state<{ key: string; name: string } | null>(null);   // den netop oprettede nøgle — vises kun her
   let busy = $state(false);
   let error = $state('');
+  let tags = $state<TagInfo[]>([]);
+  let filter = $state('');
+
+  const preview = $derived(scopePreview(tags, form));
+  const suggestions = $derived(prefixSuggestions(tags));
+  const chosen = $derived(new Set(parseList(form.tags)));
+  const chosenPrefixes = $derived(new Set(parseList(form.prefixes)));
+  const visible = $derived(tags.filter((t) => !filter.trim() || `${t.name} ${t.description ?? ''}`.toLowerCase().includes(filter.trim().toLowerCase())));
 
   const base = location.origin;
   const sample = $derived(fresh ? examples(base, fresh.key) : null);
@@ -25,7 +33,10 @@
       error = (e as Error).message;
     }
   }
-  onMount(load);
+  onMount(() => {
+    load();
+    get<TagInfo[]>('/api/tags').then((t) => (tags = t)).catch((e) => (error = `Tags kunne ikke hentes: ${(e as Error).message}`));
+  });
 
   function reset(): void {
     form = emptyForm();
@@ -106,6 +117,7 @@
       <input class="mono" readonly value={fresh.key} aria-label="Ny API-nøgle" onclick={(e) => e.currentTarget.select()} />
       <p class="small muted">Eksempler (adressen er den, du bruger nu — brug den adresse, som det andet system kan nå):</p>
       <p class="small"><strong>curl</strong></p><pre class="mono small">{sample.curl}</pre>
+      <p class="small"><strong>Strøm (Server-Sent Events)</strong></p><pre class="mono small">{sample.stream}</pre>
       <p class="small"><strong>Node-RED</strong></p><pre class="mono small">{sample.nodered}</pre>
       <p class="small"><strong>Home Assistant</strong></p><pre class="mono small">{sample.homeassistant}</pre>
       <button onclick={() => (fresh = null)}>Jeg har kopieret den</button>
@@ -121,13 +133,44 @@
       <label class="check"><input type="radio" bind:group={form.scopeMode} value="all" disabled={busy} /> Alle tags</label>
     </fieldset>
     {#if form.scopeMode === 'selected'}
+      <div class="picker">
+        <input type="search" placeholder="Søg i tags …" bind:value={filter} aria-label="Søg i tags" disabled={busy} />
+        <div class="taglist">
+          {#each visible as t (t.name)}
+            <label class="check" title={t.description ?? ''}>
+              <input type="checkbox" checked={chosen.has(t.name)} onchange={() => (form.tags = toggleInList(form.tags, t.name))} disabled={busy} />
+              <span class="mono">{t.name}</span>{#if t.description}<span class="muted small">{t.description}</span>{/if}
+            </label>
+          {:else}
+            <p class="muted small">{tags.length ? 'Ingen tags matcher søgningen.' : 'Ingen tags.'}</p>
+          {/each}
+        </div>
+      </div>
       <label>Tags (ét pr. linje eller adskilt af komma)
         <textarea rows="3" bind:value={form.tags} placeholder="kedel_temp" disabled={busy}></textarea>
       </label>
+      {#if suggestions.length}
+        <div class="chips small"><span class="muted">Præfikser:</span>
+          {#each suggestions as sg (sg.prefix)}
+            <button type="button" class:on={chosenPrefixes.has(sg.prefix)} onclick={() => (form.prefixes = toggleInList(form.prefixes, sg.prefix))} disabled={busy}>
+              <span class="mono">{sg.prefix}</span> ({sg.count})
+            </button>
+          {/each}
+        </div>
+      {/if}
       <label>Præfikser (alle tags, der starter med …)
         <textarea rows="2" bind:value={form.prefixes} placeholder="kedel_" disabled={busy}></textarea>
       </label>
     {/if}
+    <div class="preview small">
+      <strong>Nøglen ser {preview.matched.length} tag{preview.matched.length === 1 ? '' : 's'}</strong>
+      {#if form.scopeMode === 'selected'}
+        {#each Object.entries(preview.perPrefix) as [p, n] (p)}<span class="muted"> · <span class="mono">{p}</span> → {n}</span>{/each}
+      {:else}<span class="muted"> (også nye tags, der oprettes senere)</span>{/if}
+      {#if preview.matched.length}<div class="mono muted names">{preview.matched.join(', ')}</div>{/if}
+      {#if preview.unknown.length}<div class="error">Ukendte tags: {preview.unknown.join(', ')}</div>{/if}
+      {#if preview.emptyPrefixes.length}<div class="warn-text">Præfiks uden træffere: {preview.emptyPrefixes.join(', ')}</div>{/if}
+    </div>
     <label>Kun fra disse IP-adresser/netværk (valgfrit)
       <textarea rows="2" bind:value={form.ips} placeholder="10.1.1.0/24" disabled={busy}></textarea>
     </label>
@@ -180,4 +223,12 @@
   .notice input { width: 100%; box-sizing: border-box; margin: 0.4rem 0; }
   pre { background: var(--panel); border: 1px solid var(--line); padding: 0.5rem; overflow-x: auto; margin: 0.2rem 0 0.6rem; white-space: pre-wrap; }
   .nowrap { white-space: nowrap; }
+  .picker { display: grid; gap: 0.3rem; }
+  .taglist { max-height: 12rem; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius); padding: 0.3rem 0.5rem; }
+  .taglist label.check { display: flex; gap: 0.4rem; align-items: baseline; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+  .chips button.on { outline: 2px solid var(--accent, #2a6ebb); }
+  .preview { border: 1px dashed var(--line); border-radius: var(--radius); padding: 0.4rem 0.6rem; }
+  .preview .names { max-height: 5rem; overflow-y: auto; }
+  .warn-text { color: #a66a00; }
 </style>

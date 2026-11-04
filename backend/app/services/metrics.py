@@ -123,6 +123,8 @@ def render(d: dict[str, Any], auth_failures: int = 0) -> str:
     x.metric("scada_integration_requests_total", "counter", "Godkendte kald pr. API-nøgle siden start", [({"key": k}, v["requests"]) for k, v in pk.items()])
     x.metric("scada_integration_errors_total", "counter", "Kald med fejl (4xx) pr. API-nøgle", [({"key": k}, v["errors"]) for k, v in pk.items()])
     x.metric("scada_integration_rate_limited_total", "counter", "Kald afvist af hastighedsgrænsen pr. API-nøgle", [({"key": k}, v["rate_limited"]) for k, v in pk.items()])
+    x.gauge("scada_integration_streams", "Åbne SSE-strømme til integrationer", ig.get("streams"))
+    x.metric("scada_integration_stream_events_total", "counter", "Hændelser sendt på SSE-strømme pr. API-nøgle", [({"key": k}, v.get("stream_events")) for k, v in pk.items()])
     x.counter("scada_integration_auth_failures_total", "Afviste integrationskald (forkert/manglende/udløbet nøgle, forbudt IP)", ig.get("auth_failures"))
     n = d.get("notifications") or {}
     x.metric("scada_notifications_sent_total", "counter", "Afsendte notifikationer siden start pr. kanal",

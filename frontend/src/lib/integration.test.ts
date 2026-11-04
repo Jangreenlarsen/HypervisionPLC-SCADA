@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createBody, dateFromExpiry, emptyForm, examples, expiryFromDate, formFrom, generateKey, keyStatus, parseList, patchBody, scopeBody, scopeText,
+  createBody, dateFromExpiry, emptyForm, examples, expiryFromDate, formFrom, generateKey, keyStatus, parseList, patchBody, prefixSuggestions, scopeBody, scopePreview, scopeText, toggleInList,
   type ApiKey,
 } from './integration';
 
@@ -75,5 +75,24 @@ describe('integration', () => {
     }
     expect(e.curl).toContain('Authorization: Bearer hv_NØGLE');
     expect(e.homeassistant).toContain('value_template');
+  });
+});
+
+describe('integration – valg og forhåndsvisning', () => {
+  const tags = [{ name: 'kedel_temp' }, { name: 'kedel_pumpe' }, { name: 'tank_niveau' }, { name: 'alene' }];
+  it('forhåndsvisning: tags + præfikser, ukendte navne og tomme præfikser', () => {
+    const p = scopePreview(tags, { ...emptyForm(), tags: 'tank_niveau\nfindes_ikke', prefixes: 'kedel_\nxyz_' });
+    expect(p.matched).toEqual(['kedel_pumpe', 'kedel_temp', 'tank_niveau']);
+    expect(p.unknown).toEqual(['findes_ikke']);
+    expect(p.emptyPrefixes).toEqual(['xyz_']);
+    expect(p.perPrefix).toEqual({ kedel_: 2, xyz_: 0 });
+    expect(scopePreview(tags, { ...emptyForm(), scopeMode: 'all' }).matched).toHaveLength(4);
+  });
+  it('præfiks-forslag kræver mindst to tags', () => {
+    expect(prefixSuggestions(tags)).toEqual([{ prefix: 'kedel_', count: 2 }]);
+  });
+  it('slå til/fra i listen', () => {
+    expect(toggleInList('a\nb', 'c')).toBe('a\nb\nc');
+    expect(toggleInList('a, b', 'a')).toBe('b');
   });
 });
