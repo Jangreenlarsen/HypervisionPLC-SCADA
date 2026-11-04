@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [docs] — 2026-11-04 — Manual: guidens trin 5 med nyt layout
+
+- `frontend/src/manual/10-symboler-og-guiden.md` (trin 5 beskrevet som bokse) og nye skærmbilleder `frontend/public/manual/guide-5.png`, `guide-interaktiv.png`, `guide-noeglelaas.png`.
+
 ## [3.26.2 build 0328] — 2026-11-04 — Guiden, trin 5 Betjening: ryddet op
 
 - `frontend/src/lib/SymbolGuide.svelte`: trin 5 i bokse (Bekræftelse, Betjening på tegningen, Puls, Nøglelås); *Dialog/Interaktiv* som knap · navn · forklaring i faste kolonner — teksten blev før brudt op af flex-layoutet. `frontend/src/lib/SymbolReplace.svelte`: samme fejl i valget af lignende symboler. BUGS.md.
