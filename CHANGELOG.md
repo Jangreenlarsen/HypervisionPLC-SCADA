@@ -4,7 +4,7 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
-## [docs] — 2026-11-04 — Manual: guidens trin 5 med nyt layout
+## [3.26.3 build 0329] — 2026-11-04 — Manual: guidens trin 5 med nyt layout (med i appen)
 
 - `frontend/src/manual/10-symboler-og-guiden.md` (trin 5 beskrevet som bokse) og nye skærmbilleder `frontend/public/manual/guide-5.png`, `guide-interaktiv.png`, `guide-noeglelaas.png`.
 
