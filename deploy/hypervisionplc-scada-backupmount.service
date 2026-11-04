@@ -1,0 +1,11 @@
+[Unit]
+Description=Montér/afmontér NFS-shares til backup efter anmodning fra HypervisionPLC SCADA (root)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/hypervisionplc-scada/apply-backup-mounts.sh
+TimeoutStartSec=120
+# Ingen ProtectSystem/PrivateTmp: monteringen skal ske i værtens navnerum, så SCADA-tjenesten kan se den (se scriptets hoved)
+NoNewPrivileges=true

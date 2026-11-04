@@ -569,23 +569,3 @@ class BackupService:
                     # B5: symboler med nøglelås uden kode (fx gendannet på en ny server) — en tekniker skal sætte koden
                     "missing_pins": missing_pins,
                     "missing_passwords": missing, "pre_restore_backup": before}
-
-    # ------------------------------------------------------- automatisk backup
-
-    async def auto_backup_loop(self, interval_hours: float) -> None:
-        first_delay = 300.0  # første automatiske backup 5 min efter opstart
-        await asyncio.sleep(first_delay)
-        while True:
-            try:
-                # i en tråd: læser alle tegninger og skriver filen — må ikke stoppe polling og live-værdier (kodeanalyse F7)
-                name = await asyncio.to_thread(self.save_to_server, "auto", "system")
-                log.info("Automatisk backup gemt: %s", name)
-            except Exception:
-                log.exception("Automatisk backup fejlede")
-            if self.trend_db is not None and self.trend_keep > 0:
-                try:
-                    name = await asyncio.to_thread(self.save_trend_snapshot)
-                    log.info("Automatisk backup af trend-historik gemt: %s", name)
-                except Exception:
-                    log.exception("Automatisk backup af trend-historik fejlede")
-            await asyncio.sleep(interval_hours * 3600)

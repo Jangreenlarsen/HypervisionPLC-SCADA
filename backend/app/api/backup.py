@@ -119,3 +119,87 @@ async def merge_trends(request: Request, user: CurrentUser = Depends(require("ad
         return result
     finally:
         path.unlink(missing_ok=True)
+
+
+# ------------------------------------------------------------------ tidsplan og destinationer (v3.23.0)
+
+def _sched(request: Request) -> Any:
+    return request.app.state.backup_scheduler
+
+
+async def _json(request: Request) -> Any:
+    try:
+        return await request.json()
+    except ValueError:
+        raise ServiceError(400, "Ugyldig JSON") from None
+
+
+@router.get("/schedule", dependencies=[ADMIN])
+async def get_schedule(request: Request) -> dict[str, Any]:
+    return await asyncio.to_thread(_sched(request).schedule_public)
+
+
+@router.put("/schedule", dependencies=[ADMIN])
+async def put_schedule(request: Request) -> dict[str, Any]:
+    result = await asyncio.to_thread(_sched(request).set_schedule, await _json(request))
+    audit(request, "backup.schedule", "", {k: result[k] for k in ("mode", "every_h", "time", "days")})
+    return result
+
+
+@router.post("/run", dependencies=[ADMIN], status_code=202)
+async def run_now(request: Request) -> dict[str, Any]:
+    _sched(request).run_now()
+    audit(request, "backup.run", "", {})
+    return {"started": True}
+
+
+@router.get("/targets", dependencies=[ADMIN])
+async def list_targets(request: Request) -> list[dict[str, Any]]:
+    return await asyncio.to_thread(_sched(request).list_public)
+
+
+def _audit_target(t: dict[str, Any]) -> dict[str, Any]:
+    """Til auditloggen: aldrig adgangskoder/nøgler (de findes heller ikke i `t`)."""
+    return {k: t.get(k) for k in ("name", "method", "host", "port", "path", "share", "export", "url", "username", "enabled", "keep")}
+
+
+@router.post("/targets", dependencies=[ADMIN], status_code=201)
+async def create_target(request: Request) -> dict[str, Any]:
+    t = await asyncio.to_thread(_sched(request).create, await _json(request))
+    audit(request, "backup.target.create", t["id"], _audit_target(t))
+    return t
+
+
+@router.patch("/targets/{target_id}", dependencies=[ADMIN])
+async def update_target(target_id: str, request: Request) -> dict[str, Any]:
+    body = await _json(request)
+    t = await asyncio.to_thread(_sched(request).update, target_id, body)
+    detail = _audit_target(t)
+    if isinstance(body, dict) and (body.get("password") or body.get("clear_password")):
+        detail["password"] = "ændret"
+    audit(request, "backup.target.update", target_id, detail)
+    return t
+
+
+@router.delete("/targets/{target_id}", dependencies=[ADMIN], status_code=204)
+async def delete_target(target_id: str, request: Request) -> Response:
+    await asyncio.to_thread(_sched(request).delete, target_id)
+    audit(request, "backup.target.delete", target_id, {})
+    return Response(status_code=204)
+
+
+@router.post("/targets/{target_id}/ssh-key", dependencies=[ADMIN])
+async def make_ssh_key(target_id: str, request: Request) -> dict[str, Any]:
+    result = await asyncio.to_thread(_sched(request).make_ssh_key, target_id)
+    audit(request, "backup.target.ssh_key", target_id, {})
+    return result
+
+
+@router.post("/targets/{target_id}/test", dependencies=[ADMIN])
+async def test_target(target_id: str, request: Request) -> dict[str, Any]:
+    body = await _json(request) if await request.body() else {}
+    fp = body.get("trust_fingerprint") if isinstance(body, dict) else None
+    fp = fp if isinstance(fp, str) and 0 < len(fp) <= 200 else None
+    result = await _sched(request).test(target_id, trust_fingerprint=fp)
+    audit(request, "backup.target.test", target_id, {"ok": result["ok"], "trust_fingerprint": fp})
+    return result

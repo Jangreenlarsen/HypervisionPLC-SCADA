@@ -132,6 +132,15 @@ def render(d: dict[str, Any], auth_failures: int = 0) -> str:
     x.metric("scada_notifications_failed_total", "counter", "Notifikationer der ikke kunne sendes (efter forsøg igen) pr. kanal",
              [({"channel": c}, v) for c, v in (n.get("failed") or {}).items()])
     x.counter("scada_notifications_dropped_total", "Notifikationer kasseret, fordi køen var fuld", n.get("dropped"))
+    bk = d.get("backup_targets") or {}
+    x.metric("scada_backup_runs_total", "counter", "Backup-kørsler siden start pr. resultat (ok/partial/error)",
+             [({"result": r}, v) for r, v in (bk.get("runs") or {}).items()])
+    x.metric("scada_backup_upload_total", "counter", "Afsendelser til backup-destinationer pr. destination og resultat",
+             [({"target": t, "result": r}, v) for t, rv in (bk.get("uploads") or {}).items() for r, v in rv.items()])
+    x.metric("scada_backup_last_success_timestamp_seconds", "gauge", "Seneste vellykkede afsendelse pr. backup-destination (Unix-tid)",
+             [({"target": t}, v) for t, v in (bk.get("last_success") or {}).items()])
+    x.metric("scada_backup_target_failing", "gauge", "Backup-destinationen er fejlet flere gange i træk (1)",
+             [({"target": t}, v) for t, v in (bk.get("failing") or {}).items()])
     x.gauge("scada_notification_queue", "Notifikationer der venter på at blive sendt", n.get("queued"))
     x.counter("scada_metrics_auth_failures_total", "Afviste forsøg på at hente /metrics (forkert eller manglende token)", auth_failures)
     return x.text()

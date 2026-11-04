@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .backup_targets import expected_interval_h
 from ..config import read_version
 
 log = logging.getLogger(__name__)
@@ -186,6 +187,9 @@ def assess(d: dict[str, Any]) -> dict[str, Any]:
         label = {"webhook": "webhook", "email": "e-mail"}.get(channel, channel)
         problems.append(_problem("warn", "notify", f"Notifikation via {label} kan ikke sendes: {error}", f"notify_{channel}"))
 
+    for name, error in (d.get("backup_failing") or {}).items():
+        problems.append(_problem("warn", "backup", f"Backup til '{name}' fejler: {error}", f"backup_target_{name}"))
+
     backup = d.get("backup", {})
     interval_h = backup.get("interval_h") or 0
     if interval_h > 0:
@@ -268,6 +272,8 @@ class HealthService:
             "ws_clients": self.ws_clients, "alarms": state.alarm_service.summary(None),
             "trends": self._trends(state),
             "integration": (svc.metrics() if (svc := getattr(state, "integration_service", None)) else None),
+            "backup_targets": bs.metrics() if (bs := getattr(state, "backup_scheduler", None)) else None,
+            "backup_failing": bs.failing() if bs else {},
             "notify": notifier.failing() if (notifier := getattr(state, "notifier", None)) else {},
             "notifications": ({"sent": notifier.sent, "failed": notifier.failed, "dropped": notifier.dropped, "queued": len(notifier.pending)}
                               if notifier else None),
@@ -313,5 +319,7 @@ class HealthService:
     def _backup(state: Any) -> dict[str, Any]:
         autos = [b for b in state.backup_service.list_server_backups() if b["kind"] == "auto"]
         newest = max((b["created"] for b in autos), default=None)
-        return {"interval_h": state.settings.backup_hours, "count": len(autos),
+        sched = getattr(state, "backup_scheduler", None)
+        interval_h = expected_interval_h(sched.schedule()) if sched else state.settings.backup_hours
+        return {"interval_h": interval_h, "count": len(autos),
                 "last_age_s": round(time.time() - newest) if newest else None}
