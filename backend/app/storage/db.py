@@ -201,6 +201,21 @@ CREATE TABLE IF NOT EXISTS symbol_group_anims (
     updated_by  TEXT NOT NULL,
     PRIMARY KEY (group_id, element)
 );
+-- API-nøgler til integrationer (v3.21.0): kun SHA-256-kontrolsummen gemmes, aldrig nøglen; `scope` er JSON ({all, tags, prefixes})
+CREATE TABLE IF NOT EXISTS api_keys (
+    id           TEXT PRIMARY KEY,
+    name         TEXT NOT NULL UNIQUE,
+    key_hash     TEXT NOT NULL UNIQUE,
+    prefix       TEXT NOT NULL,
+    scope        TEXT NOT NULL DEFAULT '{}',
+    ip_allow     TEXT NOT NULL DEFAULT '',
+    expires_at   REAL,
+    disabled     INTEGER NOT NULL DEFAULT 0,
+    created_at   REAL NOT NULL,
+    created_by   TEXT NOT NULL,
+    last_used_at REAL,
+    last_ip      TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS user_drawings (
     username    TEXT NOT NULL,
     drawing_id  TEXT NOT NULL,
@@ -778,6 +793,44 @@ class Database:
             return int(self._conn.execute(
                 "SELECT COUNT(*) FROM bindings WHERE tag = ? OR (anim = 'flow' AND json_extract(params, '$.dir_tag') = ?)",
                 (tag, tag)).fetchone()[0])
+
+    # ------------------------------------------------------------- API-nøgler (integrationer)
+
+    def list_api_keys(self) -> list[dict[str, Any]]:
+        return self._query("SELECT * FROM api_keys ORDER BY name COLLATE NOCASE")
+
+    def get_api_key(self, key_id: str) -> dict[str, Any] | None:
+        rows = self._query("SELECT * FROM api_keys WHERE id = ?", (key_id,))
+        return rows[0] if rows else None
+
+    def get_api_key_by_hash(self, key_hash: str) -> dict[str, Any] | None:
+        rows = self._query("SELECT * FROM api_keys WHERE key_hash = ?", (key_hash,))
+        return rows[0] if rows else None
+
+    def count_api_keys(self) -> int:
+        with self._lock:
+            return int(self._conn.execute("SELECT COUNT(*) FROM api_keys").fetchone()[0])
+
+    def insert_api_key(self, row: dict[str, Any]) -> None:
+        self._execute(
+            "INSERT INTO api_keys(id, name, key_hash, prefix, scope, ip_allow, expires_at, disabled, created_at, created_by) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (row["id"], row["name"], row["key_hash"], row["prefix"], row["scope"], row["ip_allow"], row["expires_at"],
+             int(bool(row["disabled"])), row["created_at"], row["created_by"]))
+
+    def update_api_key(self, key_id: str, fields: dict[str, Any]) -> bool:
+        allowed = {"name", "scope", "ip_allow", "expires_at", "disabled"}
+        sets = [f for f in fields if f in allowed]
+        if not sets:
+            return False
+        values = [int(bool(fields[f])) if f == "disabled" else fields[f] for f in sets]
+        return self._execute(f"UPDATE api_keys SET {', '.join(f'{f} = ?' for f in sets)} WHERE id = ?", (*values, key_id)) > 0
+
+    def touch_api_key(self, key_id: str, ts: float, ip: str) -> None:
+        self._execute("UPDATE api_keys SET last_used_at = ?, last_ip = ? WHERE id = ?", (ts, ip[:64], key_id))
+
+    def delete_api_key(self, key_id: str) -> bool:
+        return self._execute("DELETE FROM api_keys WHERE id = ?", (key_id,)) > 0
 
     # ------------------------------------------------------------- brugere
 

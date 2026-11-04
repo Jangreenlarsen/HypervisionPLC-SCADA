@@ -58,9 +58,10 @@ Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.m
 - **Regler**: Ingen forretningslogik og ingen direkte DB- eller PLC-kald — alt går gennem service-laget.
 
 ### Lag 3 — Service-lag
+- **Integrationer** (`services/integration.py`, `api/integration.py`): API-nøgler til maskiner og et afgrænset læse-API; læser kun fra live-cache, trend-DB og alarmmotoren (aldrig PLC'er), godkendes kun med nøgle (aldrig session).
 - **Ansvar**: SVG-sanering og versioner, bindinger, tag-model og -skalering, live-cache (værdi + kvalitet + tid), abonnements-sæt, skrive-service (validering min/max, audit), brugere/roller (inkl. sidste-admin-beskyttelse), alarmer, trend-opsamling (ved ændring + keepalive, batch-skrivning, oprydning).
 - **Filer**: `backend/app/services/`
-- **Regler**: Kalder PLC-klient-laget og lager-laget; aldrig HTTP direkte til en PLC. Eneste undtagelse for andre HTTP-kald: `github_releases.py` (OTA fra GitHub Releases — kun `api.github.com`/`github.com` i det konfigurerede repo `SCADA_UPDATE_REPO`, kun admin, https, størrelses- og tidsgrænse, SHA256-kontrol).
+- **Regler**: Kalder PLC-klient-laget og lager-laget; aldrig HTTP direkte til en PLC. Undtagelser for andre udgående kald (aldrig til en PLC): `notifier.py` (alarmnotifikation — HTTP POST til den webhook-adresse og SMTP til den server, en admin har sat op; adresse/token/adgangskode skriv-kun i `secrets.json`, kun http/https, 10 s/15 s tidsgrænse, `httpx`/`httpcore` logger kun advarsler, så adressen aldrig står i loggen, `trust_env=False` (ingen proxy/netrc fra miljøet). Adressen er admin-sat og kan pege på LAN/localhost (fx Node-RED) — kun admin kan sætte den, og prøvebeskedens fejltekst kan derfor bruges til at afprøve interne adresser; det er accepteret) og `github_releases.py` (OTA fra GitHub Releases — kun `api.github.com`/`github.com` i det konfigurerede repo `SCADA_UPDATE_REPO`, kun admin, https, størrelses- og tidsgrænse, SHA256-kontrol).
 
 ### Lag 4a — PLC-klient
 - **Ansvar**: Én klient pr. PLC: login → Bearer-token, re-login ved 401, bulk-reads planlagt ud fra abonnements-sættet, SSE-lytter, rate-budget (≤ 5 req/s pr. PLC), backoff ved 429/timeout, skrivekald.

@@ -25,7 +25,7 @@ export interface Tls { issuer: string; subject: string; self_signed: boolean; fi
 
 export const LEVEL_TEXT: Record<Level, string> = { ok: 'Alt i orden', warn: 'Opmærksomhed', error: 'Fejl' };
 export const AREA_TEXT: Record<string, string> = {
-  plc: "PLC'er", server: 'Server', database: 'Database', disk: 'Disk', host: 'Maskine', backup: 'Backup', tls: 'Certifikat',
+  plc: "PLC'er", server: 'Server', database: 'Database', disk: 'Disk', host: 'Maskine', backup: 'Backup', tls: 'Certifikat', notify: 'Notifikation',
 };
 
 export function fmtBytes(n: number | null | undefined): string {

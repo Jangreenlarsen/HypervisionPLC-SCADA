@@ -1,3 +1,37 @@
+# Plan: integrationsmodel (Node-RED, Home Assistant, tredjepart) — 2026-11-03
+
+**Besluttet (Jan):** retning **C** (kerne-API + adaptere) · kun læs først (skriv = trin 3, valgfrit) · `aiomqtt` ved trin 4 · afgrænsning pr. nøgle. Fuldt design: [docs/INTEGRATION_DESIGN.md](docs/INTEGRATION_DESIGN.md).
+
+**Trin:** 3.21 nøgler + læse-API (`/api/v1/integration/{info,points,values,history,alarms,openapi.json}`, side *System › Integrationer*, hastighedsgrænse, audit, `/metrics`) → 3.22 SSE-strøm → 3.23 styring (valgfri, gennem betjeningstjenesten) → 3.24 MQTT + Home Assistant Discovery.
+
+**Sikkerhedsprincipper:** nøgler genereres i browseren og gemmes kun som SHA-256 (serveren returnerer aldrig værdien); en nøgle er en egen principal, der aldrig kan bruge admin-/konfigurations-API'et eller en session; integrationer læser kun fra live-cachen (aldrig PLC'en direkte).
+
+---
+
+# Plan: alarmnotifikation (webhook + e-mail) — 2026-11-03
+
+**Status:** i gang. **Beslutninger (Jan, 2026-11-03):** kanaler **webhook + e-mail** · beskeder for **høj prioritet, ny og ophørt** · merge til main gjort (v3.18.1).
+
+**Hvorfor:** SCADA kan i dag kun vise alarmer på siden. Ingen får besked, når en PLC mister forbindelsen, strømforsyningen er for svag (SYS-alarm), eller en høj-prioritets-alarm rejses, og det var den største mangel i sammenligningen med andre SCADA-systemer. Webhook'en er samtidig første skridt mod integrationsmodellen (Node-RED, Home Assistant, ntfy, Slack/Teams m.fl.).
+
+## Opbygning
+1. **Kilde:** `AlarmService._event` (det ene sted alle hændelser går igennem) kalder registrerede lyttere; notifikation reagerer på `raise` (også eskalering) og `clear`. `sys:notify` (selve notifikationsfejlen) og `ack` giver aldrig besked (ingen løkke).
+2. **`services/notifier.py`** — kø + arbejdsopgave: hændelser samles i **ét parti pr. `batch_s`** (standard 20 s, 5–300; stormbeskyttelse: højst 20 alarmer pr. besked, resten som "+N flere"), filtreres på **mindste prioritet** (standard høj) og "send også når den ophører", og sendes til de slåede-til kanaler. **Forsøg igen** 3 gange (5 s, 30 s, 120 s); hukommelse for de seneste 50 afsendelser (kanal, resultat, fejltekst — aldrig hemmeligheder) til siden; tællere til `/metrics`; struktureret log.
+3. **Webhook:** `POST` JSON `{type, event, time, instance, version, alarms:[{key, tag, plc, kind, level, priority, state, message, raised_at}]}`; valgfri `Authorization: Bearer <token>`; 10 s timeout; kun `http`/`https`. **Adressen er en hemmelighed** (Home Assistant-webhook-id, ntfy-emne, Slack-URL): skriv-kun, API'et viser kun værten og "sat".
+4. **E-mail:** stdlib `smtplib` i en tråd (ingen ny afhængighed); STARTTLS (standard) / SSL / ingen; fra/til (flere modtagere); dansk emne og tekst; adgangskode skriv-kun i `secrets.json`.
+5. **API (`api/notifications.py`, kun admin):** `GET /api/system/notifications` (konfiguration uden hemmeligheder + seneste afsendelser), `PUT` (validering; hemmeligheder kun hvis felterne er udfyldt; eksplicit "fjern"), `POST /test` (sender en prøvebesked til hver slået-til kanal og svarer med den præcise fejl pr. kanal). Alt i audit-loggen uden værdier.
+6. **Frontend:** siden **System › Notifikationer** (admin).
+7. **Observability:** mislykkede afsendelser i række → problem `notify` på Status + SYS-alarm; `scada_notifications_sent_total{channel}`, `scada_notifications_failed_total{channel}`, `scada_notification_queue` i `/metrics`.
+8. **Tests:** batching/filter/retry/formater, ingen hemmeligheder i svar/log/audit, httpx mock-transport og falsk SMTP, API-adgang (kun admin), validering, frontend-hjælpefunktion. Reviewer før commit.
+
+## Version og lag
+MINOR: `3.19.0`. Ingen skemaændring (konfiguration i `<data>/config/settings.json` via `sysconfig`, hemmeligheder i `secrets.json`). Lag: service-laget; udgående HTTP til en *ekstern* adresse (ikke en PLC) kræver en dokumenteret undtagelse i ARCHITECTURE.md (som OTA fra GitHub).
+
+## Risici
+- **Alarmstorm** → parti + loft pr. besked. **Ingen besked er garanteret** (netværk nede): derfor forsøg igen, status på siden og alarm ved gentagne fejl. **Hemmeligheder** i URL → skriv-kun. **SSRF**: kun admin kan sætte adressen, og kun http/https; LAN-adresser er tilladt (Node-RED).
+
+---
+
 # Plan: Let's Encrypt-certifikat på Pi'en (TLS trin 2) — 2026-11-03
 
 **Status:** værktøjet er bygget og installeret (v3.17.0), men **udstedelsen er parkeret** (Jan, 2026-11-03: "vi venter til vi er helt klar med at gå public"). Bemærk: movie.laces.dk bruger HTTP-01 (offentlig A-record + port 80/443 til proxy-VM'en, `certbot --nginx`) og har ingen deSEC-konto; når SCADA går public, vælges metoden igen (HTTP-01 eller DNS-01 via deSEC).

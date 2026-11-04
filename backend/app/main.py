@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
@@ -22,6 +23,8 @@ from .api.auth import router as auth_router
 from .api.backup import router as backup_router
 from .api.energy import router as energy_router
 from .api.health import router as health_router
+from .api.integration import admin_router as integration_admin_router, router as integration_router
+from .api.notifications import router as notifications_router
 from .api.metrics import admin_router as metrics_admin_router, router as metrics_router
 from .api.schedules import router as schedules_router
 from .api.trends import router as trends_router
@@ -57,6 +60,8 @@ from .services.schedules import ScheduleService
 from .services.trends import TrendRecorder
 from .services.live_cache import LiveCache
 from .services.health import HealthService
+from .services.integration import IntegrationService
+from .services.notifier import NotificationService
 from .services.health_alarms import HealthAlarms
 from .services.manager import PlcManager, TransportFactory
 from .services.plcs import PlcService
@@ -148,6 +153,10 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         symbol_task = asyncio.create_task(app.state.symbol_runtime.run(), name="symbols")
         alarm_task = asyncio.create_task(app.state.alarm_service.run(), name="alarms")
         lag_task = asyncio.create_task(app.state.health_service.run_lag_probe(), name="loop-lag")
+        # Alarmnotifikation (webhook/e-mail): lytter på alarmmotorens hændelser
+        app.state.notifier = NotificationService(settings.data_dir, secrets)
+        app.state.alarm_service.listeners.append(app.state.notifier.on_alarm_event)
+        notifier_task = asyncio.create_task(app.state.notifier.run(), name="notifier")
         # Interne alarmer om SCADA selv (system-helbredet → almindelige alarmer med kvittering og historik)
         app.state.health_alarms = HealthAlarms(app.state.health_service, app.state,
                                                sample_s=settings.health_alarm_sample_s, warmup_s=settings.health_alarm_warmup_s,
@@ -160,6 +169,9 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.trend_storage_warning = trend_warning
         trend_db = TrendDatabase(trend_path)
         app.state.trend_db = trend_db
+        # Integrationer: API-nøgler og læse-API (kun fra live-cache, trend-DB og alarmmotor — aldrig direkte fra PLC'er)
+        app.state.integration_service = IntegrationService(db, app.state.tag_service, manager.cache, app.state.alarm_service, trend_db,
+                                                           instance=socket.gethostname())
         app.state.backup_service.trend_db = trend_db
         app.state.trend_recorder = TrendRecorder(manager, trend_db, flush_s=settings.trend_flush_s,
                                                  retention_days=settings.trend_days,
@@ -182,6 +194,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         finally:
             alarm_task.cancel()
             lag_task.cancel()
+            notifier_task.cancel()
             if health_alarm_task is not None:
                 health_alarm_task.cancel()
             symbol_task.cancel()
@@ -220,6 +233,9 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(energy_router)
     app.include_router(schedules_router)
     app.include_router(health_router)
+    app.include_router(integration_router)
+    app.include_router(integration_admin_router)
+    app.include_router(notifications_router)
     app.include_router(metrics_router)
     app.include_router(metrics_admin_router)
     app.include_router(router)

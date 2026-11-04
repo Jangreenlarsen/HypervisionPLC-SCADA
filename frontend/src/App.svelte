@@ -13,6 +13,8 @@
   import DrawEditor from './pages/DrawEditor.svelte';
   import Audit from './pages/Audit.svelte';
   import Status from './pages/Status.svelte';
+  import Notifications from './pages/Notifications.svelte';
+  import Integrations from './pages/Integrations.svelte';
   import Backup from './pages/Backup.svelte';
   import Update from './pages/Update.svelte';
   import SystemConfig from './pages/SystemConfig.svelte';
@@ -248,6 +250,10 @@
     <Plcs isAdmin={me.role === 'admin'} />
   {:else if page === 'status'}
     <Status />
+  {:else if page === 'notifications'}
+    <Notifications />
+  {:else if page === 'integration'}
+    <Integrations />
   {:else if page === 'audit'}
     <Audit />
   {:else if page === 'backup'}

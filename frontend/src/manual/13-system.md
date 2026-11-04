@@ -1,6 +1,6 @@
 # System
 
-Under **System** ligger Status, Log, Brugere, Backup, Opdatering og Konfiguration. **Status** og **Log** kræver rollen tekniker; de øvrige kræver **admin**.
+Under **System** ligger Status, Log, Brugere, Backup, Opdatering, Notifikationer, Integrationer og Konfiguration. **Status** og **Log** kræver rollen tekniker; de øvrige kræver **admin**.
 
 ## Status
 
@@ -21,6 +21,60 @@ Adgangen sker med headeren `Authorization: Bearer <token>`; en almindelig login-
 ### HTTPS-certifikat (Let's Encrypt)
 
 Siden bruger HTTPS. Som standard med et **selvsigneret** certifikat (browsere advarer); et rigtigt **Let's Encrypt-certifikat** sættes op på maskinen med `hypervision-letsencrypt` (certbot + deSEC) — opskriften står i `docs/TLS_LETSENCRYPT.md`. På Status-siden viser kortet *HTTPS-certifikat udløber om* antal dage; **gul under 21 dage og rød under 7** betyder, at den automatiske fornyelse er stoppet og skal ses efter (`hypervision-letsencrypt status`). Det selvsignerede certifikat bliver liggende, hvis udstedelsen fejler, så siden kan altid åbnes.
+
+## Notifikationer
+
+Siden **Notifikationer** (admin) lader SCADA sende besked, når en alarm **rejses** eller **ophører** — som **webhook** (JSON til en adresse; virker med Node-RED, Home Assistant, ntfy, Slack/Teams og andre) og/eller **e-mail** (SMTP).
+
+- **Hvilke alarmer:** som standard kun *høj prioritet* (det kan ændres til medium og højere eller alle). *Send også når alarmen ophører* kan slås fra. Kvittering giver aldrig en besked.
+- **Samletid:** alarmer inden for samletiden (standard 20 sekunder) sendes som **én** besked, og en besked viser højst 20 alarmer ("… og N flere"), så en alarmstorm ikke fylder indbakken.
+- **E-mail kan sendes på to måder:** via en **SMTP-server** eller via **Resend** (deres HTTPS-API; vælg *Udbyder*). Med Resend indsætter du API-nøglen (`re_…`) og bruger en afsender på et domæne, du har verificeret hos Resend.
+- **Hemmeligheder er skriv-kun:** webhook-adressen (den kan indeholde en nøgle), et valgfrit Bearer-token, SMTP-adgangskoden og Resend-nøglen gemmes kun på serveren; siden viser kun, *om* de er sat (og webhook-adressens vært). Skriv en ny værdi for at ændre dem, eller vælg *Fjern*.
+- **Send prøvebesked** sender straks en besked med den gemte opsætning og viser den præcise fejl pr. kanal (fx *HTTP 404* eller et afvist login).
+- **Fejl:** en mislykket afsendelse prøves igen (efter 5, 30 og 120 sekunder). Mislykkes flere afsendelser i træk, vises det her, på Status-siden og som en **SYS-alarm**. Tabellen *Status* viser de seneste 50 afsendelser; tællere findes også i `/metrics`. Beskeder, der venter på at blive sendt, ligger i hukommelsen og går tabt, hvis tjenesten genstarter. Adressen kan pege på en maskine på det lokale net (fx Node-RED); kun en admin kan sætte den, og med SMTP-login kræves STARTTLS eller SSL.
+
+Webhook-kroppen er `{"type":"alarm","instance":…,"version":…,"time":…,"events":[{"event":"raise"|"clear","key":…,"tag":…,"plc":…,"kind":…,"level":…,"priority":…,"message":…,"time":…}],"more":0}`; et Bearer-token sendes som `Authorization: Bearer <token>`.
+
+## Integrationer
+
+Siden **Integrationer** (admin) giver andre systemer — **Node-RED**, **Home Assistant**, Excel/Power BI, scripts — **læseadgang** til anlægget med en **API-nøgle**, uden at de skal logge ind som en person.
+
+- **En nøgle** oprettes med et navn (hvem bruger den?) og en **afgrænsning**: *alle tags*, eller kun de tags og/eller **præfikser** (alle tags, der starter med fx `kedel_`), du vælger. Valgfrit kan nøglen låses til bestemte **IP-adresser/netværk** (fx `10.1.1.0/24`) og have en **udløbsdato**.
+- **Nøglen vises kun én gang** (lige efter oprettelsen, sammen med færdige eksempler). Serveren gemmer kun en kontrolsum og kan ikke give den tilbage — mistes den, tilbagekaldes den og en ny oprettes. Den kan også **deaktiveres** midlertidigt.
+- **Hvad en nøgle kan:** kun læse via `/api/v1/integration/…` — punkter, aktuelle værdier, historik og alarmer. Den kan aldrig bruge resten af SCADA (ingen konfiguration, ingen betjening), og en login-session giver heller ikke adgang dér. Der er **ingen styring** (skrivning) i denne version. Værdierne kommer fra SCADA's cache, så integrationer belaster ikke PLC'erne.
+- **Hastighedsgrænse:** 20 kald i sekundet pr. nøgle (kortvarigt 40); derefter svares *429* med `Retry-After`. Brug *Server-Sent Events*/MQTT, når de kommer, til hurtige opdateringer.
+- Tabellen viser sidst brugt, fra hvilken IP, antal kald og afviste kald. Oprettelse, ændring og tilbagekaldelse står i auditloggen (aldrig nøglen). Tællere findes i `/metrics`.
+
+**Kald** (alle med headeren `Authorization: Bearer hv_…`):
+
+| Kald | Svar |
+|---|---|
+| `GET /api/v1/integration/info` | anlæg, version og nøglens afgrænsning og grænser (til at afprøve forbindelsen) |
+| `GET /api/v1/integration/points` | de punkter nøglen må se: navn, beskrivelse, enhed, type (`number`/`bool`), område, om der findes historik |
+| `GET /api/v1/integration/values?tags=a,b` | `{"time":…, "values": {"a": {"v": 42, "q": "good", "ts": 1760000000.0}}}` — `q` er kvaliteten (`good`, `comm_error`, `bad`, `unknown`) |
+| `GET /api/v1/integration/history?tag=a&start=…&end=…&points=600` | nedsamplet historik (`time`, `mean`, `min`, `max`); kræver at historik er slået til for tagget |
+| `GET /api/v1/integration/alarms` | aktive og ukvitterede alarmer inden for afgrænsningen |
+| `GET /api/v1/integration/openapi.json` | maskinlæsbar beskrivelse (uden nøgle), kan importeres i Postman og andre værktøjer |
+
+**curl:** `curl -k -H "Authorization: Bearer hv_…" https://scada.laces.dk/api/v1/integration/values` (`-k` kun med selvsigneret certifikat).
+
+**Node-RED:** brug noden *http request* (GET, returnér et parset JSON-objekt) med headeren `Authorization` = `Bearer hv_…`; kobl den til en *inject*-node med et interval, og læs `msg.payload.values.<tag>.v`. Ved selvsigneret certifikat slås *Verify server certificate* fra i node-ens TLS-opsætning.
+
+**Home Assistant** (`configuration.yaml`):
+
+```yaml
+sensor:
+  - platform: rest
+    name: Kedeltemperatur
+    resource: https://scada.laces.dk/api/v1/integration/values?tags=kedel_temp
+    headers:
+      Authorization: Bearer hv_…
+    value_template: "{{ value_json.values.kedel_temp.v }}"
+    unit_of_measurement: "°C"
+    scan_interval: 30
+```
+
+Siden bruger Home Assistant REST-sensorer; en automatisk opdagelse (MQTT) kommer i en senere version.
 
 ## Log
 

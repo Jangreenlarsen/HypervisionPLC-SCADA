@@ -4,6 +4,30 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.21.0 build 0318] — 2026-11-04 — Integrationer: API-nøgler og læse-API
+
+- `backend/app/services/integration.py` (ny): `IntegrationService` — nøgler (kun SHA-256, `hv_`+43 tegn genereret i browseren), validering (navn, afgrænsning med eksisterende tags/præfikser, IP-netværk, udløb, højst 50), godkendelse (401/403/429), hastighedsgrænse pr. nøgle, "sidst brugt" højst én skrivning pr. minut, tællere; læse-API `points`/`values`/`history`/`alarms`/`info` afgrænset til nøglen.
+- `backend/app/api/integration.py` (ny): `/api/v1/integration/*` (kun Bearer-nøgle, OpenAPI for kun denne del på `/openapi.json`) og admin `/api/system/integration/keys` (kun admin, audit uden nøglen).
+- `backend/app/storage/db.py`: tabellen `api_keys`. `backend/app/services/errors.py`, `api/errors.py`: `headers` på `ServiceError` (Retry-After, WWW-Authenticate). `backend/app/main.py`, `services/health.py`, `services/metrics.py`: tjeneste, tællere (`scada_integration_*`).
+- `frontend/src/pages/Integrations.svelte`, `frontend/src/lib/integration.ts` (+ test), nav, App; manualafsnit med eksempler til curl, Node-RED og Home Assistant.
+- Gennemgået af `reviewer`: PLC-fejltekster og -navne udleveres aldrig (hverken i `values` eller alarmer; kun nøgler med *alle tags* ser kommunikationsalarmer, i generisk form); lås om hastighedsgrænse og tællere (trådpulje); afviste kald pr. IP begrænses (30/min → 429 uden databaseopslag); NaN/uendelig udløb og ekstreme historik-tidspunkter giver 400; samtidig oprettelse med samme navn giver 409; ændre-krop sender kun ændrede felter.
+- Tests: `backend/tests/test_integration.py` (60), `frontend/src/lib/integration.test.ts` (9).
+
+## [3.20.0 build 0317] — 2026-11-03 — Resend som e-mail-udbyder
+
+- `backend/app/services/notifier.py`: `provider` (`smtp` | `resend`) på e-mail-kanalen; `_send_resend` (POST `https://api.resend.com/emails`, Bearer-nøgle, fast adresse), Resends fejlbesked i prøvebeskeden; nøglen `resend_key` skriv-kun i `secrets.json` og skjult i fejltekster; krav pr. udbyder (Resend: nøgle + afsender + modtagere; SMTP-login-reglen gælder kun SMTP).
+- `backend/app/api/notifications.py`: `provider`, `resend_key`, `clear_resend_key`; audit uden nøglen.
+- `frontend/src/pages/Notifications.svelte`, `frontend/src/lib/notifications.ts`: udbyder-valg og Resend-nøgle (skriv-kun). Manual.
+- Tests: 16 nye i `backend/tests/test_notifier.py` (73 i alt), 1 i `notifications.test.ts`.
+
+## [3.19.0 build 0316] — 2026-11-03 — Alarmnotifikation (webhook + e-mail)
+
+- `backend/app/services/notifier.py` (ny): `NotificationService` — lytter på alarmmotorens `raise`/`clear`, filtrerer på prioritet, samler i partier (`batch_s`), sender webhook (httpx) og e-mail (smtplib i tråd) med forsøg igen (5/30/120 s), husker de seneste 50 afsendelser, tællere, fejltekster uden hemmeligheder; `httpx`/`httpcore` sat til WARNING (en webhook-adresse er en hemmelighed og stod ellers i INFO-loggen).
+- `backend/app/api/notifications.py` (ny, kun admin): `GET/PUT /api/system/notifications`, `POST /test`; audit uden værdier.
+- `backend/app/storage/secrets.py`: generelle skriv-kun hemmeligheder pr. afsnit. `backend/app/services/alarms.py`: `listeners` kaldt fra `_event`. `backend/app/services/health.py`, `metrics.py`: problem `notify_*` og `scada_notifications_*`. `backend/app/main.py`: tjeneste + opgave. `ARCHITECTURE.md`: undtagelse for udgående kald.
+- `frontend/src/pages/Notifications.svelte`, `frontend/src/lib/notifications.ts` (+ test), `nav.ts`, `App.svelte`; manualafsnit.
+- Tests: `backend/tests/test_notifier.py` (43), `frontend/src/lib/notifications.test.ts`.
+
 ## [3.18.1 build 0315] — 2026-11-03 — fix: strøm-/undervoltage-status virker på Raspberry Pi
 
 - `deploy/power-info.sh` (ny, root): `vcgencmd get_throttled` → `<state>/power.json`; kører i DHCP-vagtens timer (ExecStartPre i `hypervisionplc-scada-netwatch.service`) og ved installation.
