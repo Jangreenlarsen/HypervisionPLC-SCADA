@@ -4,6 +4,18 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.25.1 build 0325] — 2026-11-04 — Certifikater: formularens layout
+
+- `frontend/src/pages/Certificates.svelte`: felterne står under hinanden; navn og adresser forudfyldes fra det nuværende certifikat.
+
+## [3.25.0 build 0324] — 2026-11-04 — System › Certifikater: selvsigneret, CSR, import (PKCS#12/PEM), gendan
+
+- `backend/app/services/tls_admin.py` (ny): `TlsAdmin` — selvsigneret (CN, SAN, 1-3650 dage, EC P-256/RSA), CSR med ventende nøgle (0600) + installation af det signerede certifikat, import af PKCS#12 og PEM (krypteret nøgle), kæde sorteres, udløbet afvises, gendan forrige/selvsigneret. Én handling ad gangen; installation via root-hjælper med svar-id. Tællere til `/metrics` (`scada_tls_operations_total`).
+- `backend/app/api/tls.py` (ny): `/api/system/tls` (GET, `cert.pem`, `selfsigned`, `csr` POST/DELETE, `signed`, `import`, `restore`) — kun admin, audit uden nøgler/adgangskoder. `main.py`, `services/health.py`, `services/metrics.py`.
+- `deploy/apply-tls.sh` (ny root-hjælper) + `hypervisionplc-scada-tls.{path,service}` (hærdet: ProtectSystem=strict), `deploy/cert-deploy.sh` (offentligt certifikat + `has_prev`/`has_selfsigned` til state-mappen), `deploy/install.sh`.
+- `frontend/src/pages/Certificates.svelte`, `frontend/src/lib/certificates.ts` (+ test), `lib/nav.ts`, `App.svelte`; manual 13-system.
+- Tests: `backend/tests/test_tls_admin.py` (inkl. root-hjælperen ende til ende med sh/openssl).
+
 ## [3.24.2 build 0323] — 2026-11-04 — Manual: sådan læses svaret fra /values
 
 - `frontend/src/manual/13-system.md`: eksempel og felt-tabel (`time`, `v`, `q`, `ts`) med betydningen af `good`/`comm_error`/`bad`/`unknown`.

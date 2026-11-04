@@ -154,6 +154,11 @@ install -m 0755 "$SRC/deploy/cert-deploy.sh" /usr/local/lib/hypervisionplc-scada
 install -m 0755 "$SRC/deploy/desec-acme-hook.sh" /usr/local/lib/hypervisionplc-scada/desec-acme-hook.sh
 install -m 0755 "$SRC/deploy/tls-letsencrypt.sh" /usr/local/sbin/hypervision-letsencrypt
 /usr/local/lib/hypervisionplc-scada/cert-deploy.sh info || true    # certifikatets metadata til System › Status (ingen nginx = intet at beskrive)
+# System › Certifikater: root-hjælper installerer/gendanner certifikatet efter anmodning i <data>/config (bruger cert-deploy.sh)
+install -m 0755 "$SRC/deploy/apply-tls.sh" /usr/local/lib/hypervisionplc-scada/apply-tls.sh.new
+mv /usr/local/lib/hypervisionplc-scada/apply-tls.sh.new /usr/local/lib/hypervisionplc-scada/apply-tls.sh
+install -d -m 0700 /var/lib/hypervisionplc-scada-tls
+install -m 0644 "$SRC/deploy/hypervisionplc-scada-tls.service" "$SRC/deploy/hypervisionplc-scada-tls.path" /etc/systemd/system/
 
 echo "== systemd"
 install -m 0644 "$SRC/deploy/hypervisionplc-scada.service" /etc/systemd/system/
@@ -171,6 +176,8 @@ systemctl enable -q hypervisionplc-scada-power.path
 systemctl enable -q hypervisionplc-scada-backupmount.path
 systemctl restart hypervisionplc-scada-power.path
 systemctl restart hypervisionplc-scada-backupmount.path
+systemctl enable -q hypervisionplc-scada-tls.path
+systemctl restart hypervisionplc-scada-tls.path
 systemctl enable -q hypervisionplc-scada-netwatch.timer; systemctl restart hypervisionplc-scada-netwatch.timer   # kører også net-detect.sh (hold capabilities opdateret)
 if [ "$WITH_MOCK" -eq 1 ]; then
     systemctl enable -q hypervisionplc-mock-plc

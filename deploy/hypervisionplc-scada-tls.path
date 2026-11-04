@@ -1,0 +1,9 @@
+[Unit]
+Description=Venter på certifikat-anmodninger fra HypervisionPLC SCADA (System › Certifikater)
+
+[Path]
+PathExists=/var/lib/hypervisionplc-scada/config/tls.request
+Unit=hypervisionplc-scada-tls.service
+
+[Install]
+WantedBy=multi-user.target

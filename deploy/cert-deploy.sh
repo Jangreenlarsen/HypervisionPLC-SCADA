@@ -50,8 +50,13 @@ write_info() {
     selfsigned=false
     [ "$subject" = "$issuer" ] && selfsigned=true
     mkdir -p "$STATE" || fail "Kan ikke oprette $STATE"
-    printf '{"subject":"%s","issuer":"%s","not_before":"%s","not_after":"%s","fingerprint":"%s","self_signed":%s,"updated":%s}\n' \
-        "$(clean "$subject")" "$(clean "$issuer")" "$(clean "$not_before")" "$(clean "$not_after")" "$(clean "$fp")" "$selfsigned" "$(date +%s)" \
+    has_prev=false; has_ss=false
+    [ -f "$CERT.prev" ] && [ -f "$KEY.prev" ] && has_prev=true
+    [ -f "$CERT.selfsigned" ] && [ -f "$KEY.selfsigned" ] && has_ss=true
+    # Det OFFENTLIGE certifikat (inkl. kæde) til System › Certifikater — tjenesten kan ikke læse $TLSDIR
+    { cp "$CERT" "$STATE/cert.pem.tmp" && chmod 0644 "$STATE/cert.pem.tmp" && mv "$STATE/cert.pem.tmp" "$STATE/cert.pem"; } || rm -f "$STATE/cert.pem.tmp"
+    printf '{"subject":"%s","issuer":"%s","not_before":"%s","not_after":"%s","fingerprint":"%s","self_signed":%s,"has_prev":%s,"has_selfsigned":%s,"updated":%s}\n' \
+        "$(clean "$subject")" "$(clean "$issuer")" "$(clean "$not_before")" "$(clean "$not_after")" "$(clean "$fp")" "$selfsigned" "$has_prev" "$has_ss" "$(date +%s)" \
         > "$STATE/cert.json.tmp" && chmod 0644 "$STATE/cert.json.tmp" && mv "$STATE/cert.json.tmp" "$STATE/cert.json"
 }
 
