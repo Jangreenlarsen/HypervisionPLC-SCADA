@@ -5,7 +5,7 @@
 #   hypervision-letsencrypt set-token                     gem deSEC-tokenet (læses fra stdin, vises/logges aldrig)
 #   hypervision-letsencrypt set-target <zone> [navn]      deSEC-zonen og navnet, `_acme-challenge.<hostnavn>`-CNAME'en peger på
 #                                                         (<navn>.<zone>; standard-navn: scada-acme)
-#   hypervision-letsencrypt issue <hostnavn> <e-mail> [--dry-run] [--force]
+#   hypervision-letsencrypt issue <hostnavn> <e-mail> [--method dns|http] [--dry-run] [--force]
 #                                                         --dry-run: hele forløbet mod Let's Encrypts STAGING, intet gemmes
 #   hypervision-letsencrypt status                        certifikatet nginx bruger nu + certbots oversigt
 #   hypervision-letsencrypt renew-test                    `certbot renew --dry-run`
@@ -32,6 +32,7 @@ LIB=/usr/local/lib/hypervisionplc-scada
 HOOK=${HOOK:-$LIB/cert-deploy.sh}
 AUTH_HOOK=${AUTH_HOOK:-$LIB/desec-acme-hook.sh}
 CERTNAME=hypervision-scada
+WEBROOT=${WEBROOT:-/var/lib/hypervisionplc-scada-acme}     # HTTP-01: nginx' port 80 serverer /.well-known/acme-challenge/ herfra
 
 say() { printf '%s\n' "$*"; }
 fail() { say "FEJL: $*" >&2; exit 1; }
@@ -78,21 +79,37 @@ set-target)
 issue)
     HOST=${1:-}; EMAIL=${2:-}
     [ $# -ge 2 ] && shift 2
-    DRY=0; FORCE=0
-    for a in "$@"; do
-        case "$a" in --dry-run) DRY=1 ;; --force) FORCE=1 ;; *) fail "Ukendt valg: $a" ;; esac
+    DRY=0; FORCE=0; METHOD=dns
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --dry-run) DRY=1 ;;
+            --force) FORCE=1 ;;
+            --method) shift; METHOD=${1:-}; case "$METHOD" in dns|http) ;; *) fail "Ukendt metode (dns eller http)" ;; esac ;;
+            *) fail "Ukendt valg: $1" ;;
+        esac
+        shift
     done
     is_host "$HOST" || fail "Ugyldigt hostnavn (fx scada.laces.dk)"
     one_line "$EMAIL" && printf '%s' "$EMAIL" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._+-]*@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' || fail "Ugyldig e-mailadresse"
-    [ -f "$INI" ] || fail "Intet deSEC-token — kør først: hypervision-letsencrypt set-token"
-    [ -f "$TARGET" ] || fail "Ingen deSEC-zone — kør først: hypervision-letsencrypt set-target <zone>"
-    [ -x "$HOOK" ] && [ -x "$AUTH_HOOK" ] || fail "Hooks mangler eller er ikke kørbare ($HOOK, $AUTH_HOOK) — installér pakken igen"
+    if [ "$METHOD" = dns ]; then
+        [ -f "$INI" ] || fail "Intet deSEC-token — kør først: hypervision-letsencrypt set-token"
+        [ -f "$TARGET" ] || fail "Ingen deSEC-zone — kør først: hypervision-letsencrypt set-target <zone>"
+        [ -x "$AUTH_HOOK" ] || fail "DNS-hooken mangler eller er ikke kørbar ($AUTH_HOOK) — installér pakken igen"
+    else
+        [ -d "$WEBROOT" ] || fail "Webroot $WEBROOT mangler — installér pakken igen"
+    fi
+    [ -x "$HOOK" ] || fail "Hooken mangler eller er ikke kørbar ($HOOK) — installér pakken igen"
     if [ "$DRY" = 0 ] && [ ! -f "$TLSDIR/fullchain.pem" ]; then
         fail "nginx/TLS er ikke sat op (ingen $TLSDIR/fullchain.pem) — kør install.sh med --with-nginx <hostnavn> <ip> først"
     fi
-    set -- certonly --non-interactive --agree-tos --no-eff-email -m "$EMAIL" \
-        --manual --preferred-challenges dns --manual-auth-hook "$AUTH_HOOK auth" --manual-cleanup-hook "$AUTH_HOOK cleanup" \
-        --cert-name "$CERTNAME" -d "$HOST" --deploy-hook "$HOOK"
+    if [ "$METHOD" = dns ]; then
+        set -- certonly --non-interactive --agree-tos --no-eff-email -m "$EMAIL" \
+            --manual --preferred-challenges dns --manual-auth-hook "$AUTH_HOOK auth" --manual-cleanup-hook "$AUTH_HOOK cleanup" \
+            --cert-name "$CERTNAME" -d "$HOST" --deploy-hook "$HOOK"
+    else
+        set -- certonly --non-interactive --agree-tos --no-eff-email -m "$EMAIL" \
+            --webroot -w "$WEBROOT" --cert-name "$CERTNAME" -d "$HOST" --deploy-hook "$HOOK"
+    fi
     [ "$DRY" = 1 ] && set -- "$@" --dry-run
     [ "$FORCE" = 1 ] && set -- "$@" --force-renewal
     if [ "$DRY" = 1 ]; then say "== Prøveudstedelse mod Let's Encrypts STAGING (intet gemmes, nginx røres ikke)"; else say "== Udsteder certifikat til $HOST"; fi

@@ -117,3 +117,33 @@ async def restore(request: Request) -> dict[str, Any]:
     result = await asyncio.to_thread(_svc(request).restore, which)
     _audit_ok(request, f"tls.restore.{which}", result)
     return result
+
+
+# ------------------------------------------------------------------ Let's Encrypt (asynkront: 202 + følg /le)
+
+@router.get("/le")
+async def le_status(request: Request) -> dict[str, Any]:
+    return await asyncio.to_thread(_svc(request).le_status)
+
+
+@router.post("/le/install", status_code=202)
+async def le_install(request: Request) -> dict[str, Any]:
+    result = await asyncio.to_thread(_svc(request).le_install)
+    audit(request, "tls.le.install", "", {})
+    return result
+
+
+@router.post("/le/dns", status_code=202)
+async def le_dns(request: Request) -> dict[str, Any]:
+    body = await _json(request)
+    result = await asyncio.to_thread(_svc(request).le_dns, body)
+    audit(request, "tls.le.dns", str(body.get("zone", ""))[:253], {"sub": str(body.get("sub", ""))[:62], "token_set": bool(body.get("token"))})
+    return result
+
+
+@router.post("/le/issue", status_code=202)
+async def le_issue(request: Request) -> dict[str, Any]:
+    body = await _json(request)
+    result = await asyncio.to_thread(_svc(request).le_issue, body)
+    audit(request, "tls.le.issue", str(body.get("host", ""))[:253], {"method": body.get("method"), "dry_run": bool(body.get("dry_run"))})
+    return result

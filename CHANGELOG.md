@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.26.0 build 0326] — 2026-11-04 — System › Certifikater: Let's Encrypt (HTTP-01 og DNS-01/deSEC) fra siden
+
+- `deploy/apply-letsencrypt.sh` (ny root-hjælper) + `hypervisionplc-scada-le.{path,service}` (ExecStopPost sætter en afbrudt kørsel til fejl): install / dns-config (token via fil → stdin, slettes straks) / issue (dns|http, live|dry) / info; status i `le-status.json`, overblik i `le-info.json`, log i `le-run.log`.
+- `deploy/tls-letsencrypt.sh`: `issue … --method http|dns` — HTTP-01 med `certbot --webroot` (`/var/lib/hypervisionplc-scada-acme`).
+- `deploy/nginx-hypervisionplc-scada.conf`: `location ^~ /.well-known/acme-challenge/` på port 80, redirect flyttet ind i `location /`. `deploy/install.sh`: webroot, nye enheder, nginx-sitet opdateres ved opdatering (tidsstemplet backup, `nginx -t` → gammel tilbage; `# hypervisionplc: lokal` = røres ikke).
+- `backend/app/services/tls_admin.py`: `le_status`/`le_install`/`le_dns`/`le_issue` (validering, én ad gangen, glemt anmodning ryddes efter 2 min, token skrives først når 409 er udelukket). `backend/app/api/tls.py`: `/api/system/tls/le…` (202).
+- `frontend/src/pages/Certificates.svelte`: Let's Encrypt-sektion (metode, deSEC, test mod staging, udsted, status og log); SAN-feltet hedder nu "Gælder for — SAN". `frontend/src/lib/certificates.ts` (+ test). Manual 13-system.
+- Tests: `backend/tests/test_tls_admin.py`, `backend/tests/test_letsencrypt.py`.
+
 ## [3.25.1 build 0325] — 2026-11-04 — Certifikater: formularens layout
 
 - `frontend/src/pages/Certificates.svelte`: felterne står under hinanden; navn og adresser forudfyldes fra det nuværende certifikat.

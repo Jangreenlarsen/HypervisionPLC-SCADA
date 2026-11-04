@@ -164,6 +164,12 @@ Siden **Certifikater** (admin) styrer det certifikat, nginx bruger til HTTPS. Et
 - **CSR til en CA:** udfyld navn, adresser og evt. organisation, afdeling, by, region, land og e-mail, og tryk **Opret CSR**. Den private nøgle laves på serveren og forlader den aldrig. **Hent CSR** og send den til din CA (fx virksomhedens interne CA). Når certifikatet kommer tilbage, indsættes eller vælges det (PEM, gerne med mellemcertifikater), og **Installér** kontrollerer, at det passer til den ventende nøgle. **Annullér CSR** sletter den ventende nøgle.
 - **Importér:** **PKCS#12** (.p12/.pfx med adgangskode) eller **PEM** (certifikat + kæde og privat nøgle; adgangskode kun hvis nøglen er krypteret). Kæden sorteres automatisk. Et udløbet eller endnu ikke gyldigt certifikat afvises; en kort restlevetid giver en advarsel. Højst 64 KB pr. fil.
 
+- **Let's Encrypt:** gratis certifikat, som alle browsere stoler på, og som fornyes automatisk (certbot, ca. hver 60. dag; fornyelsen installeres med samme kontrol og gendannelse). Kræver et **offentligt DNS-navn** (fx `scada.laces.dk`, ikke en IP-adresse). Vælg metode:
+  - **HTTP-01 (port 80):** navnet skal pege på anlæggets offentlige IP, og port 80 skal være åben/viderestillet til Pi'en udefra. nginx svarer selv på Let's Encrypts kontrol (`/.well-known/acme-challenge/`); alt andet på port 80 sendes videre til HTTPS.
+  - **DNS-01 (deSEC):** virker uden åbne porte. Opret en konto hos deSEC, og læg en CNAME `_acme-challenge.<navn>` → `<navn i zonen>.<deSEC-zone>` hos din DNS-udbyder. Udfyld zone, navn og token og tryk **Gem deSEC-opsætning** — tokenet kan kun skrives, aldrig læses igen.
+
+  Er certbot ikke installeret, vises **Installér certbot** først (kræver internet). Udfyld værtsnavn og e-mail (Let's Encrypt skriver hertil, hvis fornyelsen svigter), kør **Test (staging)** — hele forløbet mod Let's Encrypts testserver, intet ændres — og derefter **Udsted og installér**. Siden følger med, mens det kører, og **Vis log** viser certbots output. Lykkes det ikke, er det nuværende certifikat urørt. En fornyelse, der går i stå, ses på **Status**, når certifikatet nærmer sig udløb.
+
 Alle skift står i auditloggen (uden nøgler og adgangskoder), og antallet af handlinger pr. resultat findes i `/metrics` (`scada_tls_operations_total`). Udløbsdatoen overvåges som før på **Status**. Installationen sker af en lille root-hjælper (`hypervisionplc-scada-tls.path`), som installeres af `install.sh` og ved opdatering.
 
 ## Konfiguration

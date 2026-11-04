@@ -23,3 +23,21 @@ describe('certificates', () => {
     expect(daysLeft(-1, 0)).toBe(-1);
   });
 });
+
+import { leBusy, leHostOk } from './certificates';
+
+describe("Let's Encrypt", () => {
+  it('kun offentlige DNS-navne', () => {
+    expect(leHostOk('scada.laces.dk')).toBe(true);
+    expect(leHostOk('10.1.1.31')).toBe(false);
+    expect(leHostOk('scada')).toBe(false);
+    expect(leHostOk('-x.dk')).toBe(false);
+  });
+  it('i gang, mens anmodningen venter eller hjælperen kører', () => {
+    expect(leBusy(null)).toBe(false);
+    expect(leBusy({ info: null, status: null, log: [], waiting: true })).toBe(true);
+    const st = { id: 'a', action: 'issue', state: 'running' as const, message: '', started: 0, ts: 0 };
+    expect(leBusy({ info: null, status: st, log: [], waiting: false })).toBe(true);
+    expect(leBusy({ info: null, status: { ...st, state: 'ok' }, log: [], waiting: false })).toBe(false);
+  });
+});

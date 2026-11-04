@@ -43,6 +43,7 @@ MAX_SANS = 20
 APPLY_TIMEOUT_S = 90
 SHORT_LIFE_DAYS = 14
 ACTIONS = ("install", "restore-prev", "restore-selfsigned")
+LE_STALE_REQUEST_S = 120
 
 
 def _now() -> datetime:
@@ -252,6 +253,7 @@ class TlsAdmin:
         self.state_dir = state_dir
         self.apply_timeout_s = apply_timeout_s
         self._lock = threading.Lock()
+        self._le_lock = threading.Lock()
         self.ops: dict[tuple[str, str], int] = {}
         self.last: dict[str, Any] | None = None
 
@@ -437,6 +439,87 @@ class TlsAdmin:
             raise ServiceError(400, f"Certifikatet blev ikke installeret: {msg}")
         log.info("Certifikat installeret (%s): %s", source, msg)
         return {**self.status(), "warnings": warnings, "message": msg}
+
+    # ---------- Let's Encrypt (asynkront: root-hjælperen apply-letsencrypt.sh kan bruge minutter; siden følger le-status.json)
+
+    def le_status(self) -> dict[str, Any]:
+        def read(name: str) -> Any:
+            try:
+                return json.loads((self.state_dir / name).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return None
+        info, status = read("le-info.json"), read("le-status.json")
+        if info is None and not (self.config_dir / "le.request").exists():
+            try:
+                self._le_request("info")                    # første besøg: bed hjælperen om et overblik
+            except (OSError, ServiceError):
+                pass
+        try:
+            lines = (self.state_dir / "le-run.log").read_text(encoding="utf-8", errors="replace").splitlines()[-40:]
+        except OSError:
+            lines = []
+        return {"info": info, "status": status, "log": [_clean(x) for x in lines],
+                "waiting": (self.config_dir / "le.request").exists()}
+
+    def le_install(self) -> dict[str, Any]:
+        return self._le_request("install")
+
+    def le_dns(self, body: Any) -> dict[str, Any]:
+        b = self._body(body)
+        zone, sub = _text(b, "zone", 253, True).lower(), (_text(b, "sub", 62) or "scada-acme").lower()
+        if not re.fullmatch(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+", zone):
+            raise ServiceError(400, "Ugyldig deSEC-zone (fx mitnavn.dedyn.io)")
+        if not re.fullmatch(r"[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?", sub):
+            raise ServiceError(400, "Ugyldigt navn (ét led, fx scada-acme)")
+        token = b.get("token")
+        prepare = None
+        if token not in (None, ""):
+            if not isinstance(token, str) or not re.fullmatch(r"[A-Za-z0-9_-]{20,100}", token.strip()):
+                raise ServiceError(400, "Tokenet ser ikke rigtigt ud (20-100 tegn: bogstaver, tal, _ og -)")
+            value = token.strip().encode() + b"\n"
+            prepare = lambda: self._write_private(self.config_dir / "le-token", value)  # noqa: E731 — først når 409 er udelukket
+        return self._le_request("dns-config", zone, sub, prepare=prepare)
+
+    def le_issue(self, body: Any) -> dict[str, Any]:
+        b = self._body(body)
+        method = b.get("method")
+        if method not in ("http", "dns"):
+            raise ServiceError(400, "Metode skal være 'http' eller 'dns'")
+        host = _text(b, "host", 253, True).lower()
+        if re.fullmatch(r"[0-9.]+", host) or not re.fullmatch(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+", host):
+            raise ServiceError(400, "Ugyldigt værtsnavn — Let's Encrypt kræver et offentligt DNS-navn (fx scada.laces.dk), ikke en IP-adresse")
+        email = _text(b, "email", 200, True)
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]*@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", email):
+            raise ServiceError(400, "Ugyldig e-mailadresse")
+        return self._le_request("issue", method, host, email, "dry" if b.get("dry_run") else "live")
+
+    def _le_request(self, action: str, *args: str, prepare: Any = None) -> dict[str, Any]:
+        with self._le_lock:
+            req = self.config_dir / "le.request"
+            try:
+                st = json.loads((self.state_dir / "le-status.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                st = None
+            try:                                              # ingen hjælper har hentet anmodningen i 2 min → glem den
+                if time.time() - req.stat().st_mtime > LE_STALE_REQUEST_S:
+                    req.unlink(missing_ok=True)
+                    (self.config_dir / "le-token").unlink(missing_ok=True)
+                    log.warning("Let's Encrypt: en anmodning blev ikke hentet af root-hjælperen (er hypervisionplc-scada-le.path installeret?)")
+            except OSError:
+                pass
+            if req.exists() or (st and st.get("state") == "running" and time.time() - float(st.get("ts", 0)) < 900):
+                raise ServiceError(409, "En Let's Encrypt-handling er allerede i gang")
+            req_id = pysecrets.token_hex(4)
+            self.config_dir.mkdir(parents=True, exist_ok=True)
+            if prepare:
+                prepare()
+            tmp = self.config_dir / "le.request.tmp"
+            tmp.write_text(" ".join((req_id, action, *args)) + "\n", encoding="utf-8")
+            tmp.replace(req)
+        if action != "info":
+            self._count(f"le_{action.replace('-', '_')}", "requested")
+            log.info("Let's Encrypt: %s %s", action, " ".join(a for a in args if "@" not in a))
+        return {"id": req_id}
 
     def metrics(self) -> dict[str, Any]:
         return {"ops": {f"{a}|{r}": n for (a, r), n in self.ops.items()}}
