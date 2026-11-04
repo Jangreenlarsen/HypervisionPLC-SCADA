@@ -2,6 +2,11 @@
 
 ---
 
+## v3.26.0 — 2026-11-04 — Let's Encrypt fra Certifikater-siden
+
+- **System › Certifikater** kan nu udstede et **Let's Encrypt**-certifikat, som alle browsere stoler på, og som fornyes af sig selv. Vælg **HTTP-01** (port 80 åben udefra) eller **DNS-01 via deSEC** (ingen åbne porte). **Test (staging)** prøver hele forløbet uden at ændre noget.
+- Feltet med certifikatets adresser hedder nu **Gælder for — SAN**.
+
 ## v3.25.1 — 2026-11-04 — Certifikater: pænere formular
 
 - Felterne på **System › Certifikater** står nu under hinanden og er udfyldt med det nuværende certifikats navne.

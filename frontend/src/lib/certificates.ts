@@ -59,3 +59,25 @@ export async function fileBase64(file: File): Promise<string> {
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(s);
 }
+
+// ---------- Let's Encrypt (asynkront: siden følger status, mens root-hjælperen arbejder)
+export interface LeInfo {
+  certbot: boolean; timer: boolean; token: boolean; zone: string; sub: string; lineage: boolean;
+  last: { method: 'http' | 'dns'; host: string; email: string; ts: number } | null;
+}
+export interface LeStatus {
+  info: LeInfo | null;
+  status: { id: string; action: string; state: 'running' | 'ok' | 'error'; message: string; started: number; ts: number } | null;
+  log: string[]; waiting: boolean;
+}
+
+export const LE_ACTION: Record<string, string> = {
+  install: 'Installér certbot', 'dns-config': 'Gem deSEC-opsætning', issue: 'Udstedelse', info: 'Overblik',
+};
+
+/** Er en handling i gang (anmodning ikke hentet endnu, eller hjælperen kører)? */
+export const leBusy = (s: LeStatus | null): boolean => !!s && (s.waiting || s.status?.state === 'running');
+
+/** Let's Encrypt kræver et offentligt DNS-navn (ikke IP, ikke ét led). */
+export const leHostOk = (h: string): boolean =>
+  !/^[0-9.]+$/.test(h) && /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(h.trim().toLowerCase());

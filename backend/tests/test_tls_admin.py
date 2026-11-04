@@ -281,3 +281,69 @@ def test_helper_installs_keeps_prev_restores_and_rejects_bad_pairs(tmp_path):
     (data / "config" / "tls.request").write_bytes(b"../x install\n")
     subprocess.run([SH, (REPO / "deploy" / "apply-tls.sh").as_posix()], env=env, capture_output=True, timeout=60)
     assert json.loads((state / "tls-apply.json").read_text())["id"] == "0000000f"
+
+
+# ------------------------------------------------------------------ Let's Encrypt (tjenesten + root-hjælperen)
+
+def test_le_requests_are_validated_queued_one_at_a_time_and_token_is_write_only(tmp_path):
+    s = TlsAdmin(tmp_path / "data", tmp_path)
+    cfg = tmp_path / "data" / "config"
+    with pytest.raises(ServiceError, match="offentligt DNS-navn"):
+        s.le_issue({"method": "http", "host": "10.1.1.31", "email": "a@b.dk"})
+    with pytest.raises(ServiceError, match="Metode"):
+        s.le_issue({"method": "ftp", "host": "a.dk", "email": "a@b.dk"})
+    with pytest.raises(ServiceError, match="Tokenet"):
+        s.le_dns({"zone": "x.dedyn.io", "token": "kort"})
+    s.le_issue({"method": "http", "host": "scada.laces.dk", "email": "jan@laces.dk", "dry_run": True})
+    rid, *rest = (cfg / "le.request").read_text().split()
+    assert rest == ["issue", "http", "scada.laces.dk", "jan@laces.dk", "dry"]
+    with pytest.raises(ServiceError, match="allerede i gang") as e:
+        s.le_install()
+    assert e.value.status == 409
+    with pytest.raises(ServiceError, match="allerede i gang"):
+        s.le_dns({"zone": "x.dedyn.io", "token": "TESTTOKEN_abcdefghijklmnop1234"})
+    assert not (cfg / "le-token").exists()                            # 409 → tokenet skrives slet ikke
+    old = time.time() - 300
+    os.utime(cfg / "le.request", (old, old))                          # en anmodning ingen hjælper henter, glemmes efter 2 min
+    s.le_dns({"zone": "Mitnavn.dedyn.io", "token": "TESTTOKEN_abcdefghijklmnop1234"})
+    assert (cfg / "le.request").read_text().split()[1:] == ["dns-config", "mitnavn.dedyn.io", "scada-acme"]
+    assert (cfg / "le-token").read_text().strip() == "TESTTOKEN_abcdefghijklmnop1234"
+    assert "TESTTOKEN" not in json.dumps(s.le_status())
+
+
+@pytest.mark.skipif(SH is None, reason="sh findes ikke")
+def test_le_helper_validates_runs_and_reports(tmp_path):
+    data, state, priv, conf = tmp_path / "data", tmp_path / "state", tmp_path / "priv", tmp_path / "conf"
+    (data / "config").mkdir(parents=True)
+    calls = tmp_path / "calls"
+    fake = tmp_path / "le.sh"
+    fake.write_bytes(b'#!/bin/sh\necho "$@" >> "' + calls.as_posix().encode() + b'"\n[ "$1" = set-token ] && cat >> "'
+                     + calls.as_posix().encode() + b'"\n[ "$2" = fail.dk ] && { echo "FEJL: certbot fejlede"; exit 1; }\necho "Done."\nexit 0\n')
+    fake.chmod(0o755)
+    env = {**os.environ, "DATA": data.as_posix(), "STATE": state.as_posix(), "PRIV": priv.as_posix(), "LE": fake.as_posix(),
+           "LE_CONF": conf.as_posix(), "CERTBOT_LIVE": (tmp_path / "live").as_posix(), "SYSTEMCTL": "false"}
+
+    def run(line, token=None):
+        if token is not None:
+            (data / "config" / "le-token").write_bytes(token)
+        (data / "config" / "le.request").write_bytes(line.encode() + b"\n")
+        r = subprocess.run([SH, (REPO / "deploy" / "apply-letsencrypt.sh").as_posix()], env=env, capture_output=True, timeout=60)
+        assert r.returncode == 0, r.stderr
+        return json.loads((state / "le-status.json").read_text())
+
+    st = run("0000000a issue http scada.laces.dk jan@laces.dk dry")
+    assert st["state"] == "ok" and st["id"] == "0000000a"
+    assert calls.read_text().splitlines()[-1] == "issue scada.laces.dk jan@laces.dk --method http --dry-run"
+    assert json.loads((state / "le-info.json").read_text())["last"] is None            # en prøve gemmes ikke som "seneste"
+    assert run("0000000b issue http fail.dk a@b.dk live")["state"] == "error"
+    assert "FEJL" in run("0000000c issue http fail.dk a@b.dk live")["message"]
+    for bad in ("0000000d issue http -d a@b.dk live", "0000000e issue smtp a.dk a@b.dk live", "0000000f issue http a.dk a@b.dk live extra",
+                "00000010 dns-config bad_zone x", "00000011 rm -rf"):
+        assert run(bad)["state"] == "error", bad
+    st = run("00000012 dns-config mitnavn.dedyn.io scada-acme", token=b"TESTTOKEN_abcdefghijklmnop1234\n")
+    assert st["state"] == "ok"
+    assert calls.read_text().splitlines()[-2:] == ["set-token", "TESTTOKEN_abcdefghijklmnop1234"] or "set-target mitnavn.dedyn.io scada-acme" in calls.read_text()
+    assert not (data / "config" / "le-token").exists() and not (priv / "le.token").exists()
+    assert "TESTTOKEN" not in (state / "le-run.log").read_text() + (state / "le-status.json").read_text()
+    assert run("00000013 issue dns scada.laces.dk jan@laces.dk live")["state"] == "ok"
+    assert json.loads((state / "le-info.json").read_text())["last"]["host"] == "scada.laces.dk"

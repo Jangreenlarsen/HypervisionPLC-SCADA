@@ -318,6 +318,22 @@ def test_issue_kraever_at_nginx_tls_er_sat_op_men_ikke_til_proeven(box):
 
 
 @needs_tools
+def test_issue_http01_bruger_webroot_og_kraever_hverken_token_eller_zone(box):
+    tmp, env, *_ = box
+    webroot = tmp / "acme"
+    webroot.mkdir()
+    env = {**env, "WEBROOT": webroot.as_posix()}
+    r = run(LE, env, "issue", "scada.laces.dk", "jan@laces.dk", "--method", "http", "--dry-run")
+    assert r.returncode == 0, r.stderr
+    call = next(c for c in calls(tmp) if c.startswith("certbot "))
+    assert f"--webroot -w {webroot.as_posix()}" in call and "--manual" not in call and "--dry-run" in call
+    assert run(LE, env, "issue", "scada.laces.dk", "jan@laces.dk", "--method", "ftp").returncode != 0
+    assert run(LE, env, "issue", "scada.laces.dk", "jan@laces.dk", "--method").returncode != 0
+    webroot.rmdir()
+    assert "Webroot" in run(LE, env, "issue", "scada.laces.dk", "jan@laces.dk", "--method", "http").stderr
+
+
+@needs_tools
 def test_issue_fejl_efterlader_det_nuvaerende_certifikat(box):
     tmp, env, tls, *_ = box
     configure(env)

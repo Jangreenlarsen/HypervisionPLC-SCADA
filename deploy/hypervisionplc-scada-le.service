@@ -1,0 +1,17 @@
+[Unit]
+Description=Let's Encrypt (certbot) efter anmodning fra HypervisionPLC SCADA (root)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/hypervisionplc-scada/apply-letsencrypt.sh
+# apt (installér certbot) og en udstedelse kan tage minutter; ingen ProtectSystem, fordi apt skal kunne skrive
+TimeoutStartSec=900
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=yes
+ExecStopPost=/usr/local/lib/hypervisionplc-scada/apply-letsencrypt.sh stop-post
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes

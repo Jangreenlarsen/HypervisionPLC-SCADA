@@ -3,8 +3,8 @@
   import { del, get, post } from '../lib/api';
   import { ask } from '../lib/ask';
   import {
-    KEY_TYPES, KIND_LABEL, daysLeft, emptySubject, fileBase64, fmtDate, hostCovered, parseSans, subjectBody,
-    type SubjectForm, type TlsStatus,
+    KEY_TYPES, KIND_LABEL, LE_ACTION, daysLeft, leBusy, leHostOk, emptySubject, fileBase64, fmtDate, hostCovered, parseSans, subjectBody,
+    type LeStatus, type SubjectForm, type TlsStatus,
   } from '../lib/certificates';
 
   const host = location.hostname;
@@ -39,7 +39,58 @@
       error = (e as Error).message;
     }
   }
-  onMount(load);
+  // ---------- Let's Encrypt
+  let le = $state<LeStatus | null>(null);
+  let leMethod = $state<'http' | 'dns'>('http');
+  let leHost = $state('');
+  let leEmail = $state('');
+  let leZone = $state('');
+  let leSub = $state('scada-acme');
+  let leToken = $state('');
+  let leError = $state('');
+  let showLog = $state(false);
+  let pollTimer: ReturnType<typeof setTimeout> | undefined;
+  let wasBusy = false;
+
+  async function loadLe(): Promise<void> {
+    clearTimeout(pollTimer);
+    try {
+      le = await get<LeStatus>('/api/system/tls/le');
+      const i = le.info;
+      if (i && !leZone && i.zone) { leZone = i.zone; leSub = i.sub || 'scada-acme'; }
+      if (i?.last && !leHost) { leHost = i.last.host; leEmail = i.last.email; leMethod = i.last.method; }
+      if (!leHost && cert?.cn && leHostOk(cert.cn)) leHost = cert.cn;
+    } catch (e) {
+      leError = (e as Error).message;
+    }
+    const busyNow = leBusy(le);
+    if (wasBusy && !busyNow) await load();          // færdig → det installerede certifikat kan være skiftet
+    wasBusy = busyNow;
+    if (busyNow || !le?.info) pollTimer = setTimeout(loadLe, 2000);
+  }
+
+  async function leRun(path: string, body: unknown): Promise<void> {
+    leError = '';
+    try {
+      await post(`/api/system/tls/le/${path}`, body);
+      showLog = true;
+    } catch (e) {
+      leError = (e as Error).message;
+    }
+    await loadLe();
+  }
+
+  const leInstall = () => leRun('install', {});
+  async function leDns(): Promise<void> {
+    await leRun('dns', { zone: leZone, sub: leSub, token: leToken || undefined });
+    leToken = '';
+  }
+  async function leIssue(dry: boolean): Promise<void> {
+    if (!dry && !(await ask(`Udsted et Let's Encrypt-certifikat til ${leHost} og tag det i brug?\n\nLykkes det, installeres det automatisk (med kontrol og gendannelse ved fejl) og fornys derefter af sig selv. Kør gerne "Test (staging)" først — Let's Encrypt har grænser for, hvor mange rigtige forsøg man må lave.`, { ok: 'Udsted' }))) return;
+    await leRun('issue', { method: leMethod, host: leHost.trim().toLowerCase(), email: leEmail.trim(), dry_run: dry });
+  }
+
+  onMount(() => { load().then(loadLe); return () => clearTimeout(pollTimer); });
 
   async function run(fn: () => Promise<TlsStatus | void>, done: string): Promise<void> {
     busy = true; error = ''; notice = ''; warnings = [];
@@ -165,7 +216,7 @@
     </p>
     <form class="grid" onsubmit={(e) => { e.preventDefault(); if (mode === 'selfsigned') makeSelfSigned(); else makeCsr(); }}>
       <label>Navn (CN) <input bind:value={subj.cn} required disabled={busy} /></label>
-      <label>Gælder for (værtsnavne og IP-adresser, adskilt af komma)
+      <label>Gælder for — SAN (værtsnavne og IP-adresser, adskilt af komma)
         <textarea rows="2" bind:value={subj.sans} disabled={busy}></textarea>
         {#if !newCovers}<span class="small warn">"{host}" er ikke med — browseren vil advare, når du bruger den adresse.</span>{/if}
       </label>
@@ -226,6 +277,64 @@
       <div><button class="primary" disabled={busy}>Importér og installér</button></div>
     </form>
   {/if}
+
+  <h3>Let's Encrypt</h3>
+  <p class="small muted">
+    Gratis certifikat, som alle browsere stoler på, og som fornyes automatisk (certbot, ca. hver 60. dag). Kræver et <strong>offentligt
+    DNS-navn</strong> (fx scada.laces.dk). <strong>HTTP-01</strong>: navnet skal pege på anlæggets offentlige IP, og port 80 skal nå frem til
+    Pi'en udefra. <strong>DNS-01 (deSEC)</strong>: virker uden åbne porte, men kræver en deSEC-konto og en CNAME-post
+    <span class="mono">_acme-challenge.&lt;navn&gt;</span> → <span class="mono">&lt;navn i deSEC&gt;.&lt;zone&gt;</span>.
+  </p>
+  {#if leError}<div class="error">{leError}</div>{/if}
+  {#if le?.info}
+    {@const i = le.info}
+    <ul class="small">
+      <li>certbot: {i.certbot ? 'installeret' : 'ikke installeret'}{i.certbot ? ` · automatisk fornyelse: ${i.timer ? 'slået til' : 'SLÅET FRA'}` : ''}</li>
+      <li>Let's Encrypt-certifikat på Pi'en: {i.lineage ? 'ja' : 'nej'}{i.last ? ` — seneste udstedelse ${fmtDate(i.last.ts)} til ${i.last.host} (${i.last.method === 'http' ? 'HTTP-01' : 'DNS-01'})` : ''}</li>
+      <li>deSEC: {i.token ? 'token gemt' : 'intet token'}{i.zone ? ` · ${i.sub}.${i.zone}` : ''}</li>
+    </ul>
+    {#if !i.certbot}
+      <button onclick={leInstall} disabled={leBusy(le)}>Installér certbot</button>
+    {:else}
+      <div class="row">
+        <label class="check"><input type="radio" bind:group={leMethod} value="http" /> HTTP-01 (port 80)</label>
+        <label class="check"><input type="radio" bind:group={leMethod} value="dns" /> DNS-01 (deSEC)</label>
+      </div>
+      {#if leMethod === 'dns'}
+        <form class="grid" onsubmit={(e) => { e.preventDefault(); leDns(); }}>
+          <label>deSEC-zone <input bind:value={leZone} placeholder="mitnavn.dedyn.io" required disabled={leBusy(le)} /></label>
+          <label>Navn i zonen <input bind:value={leSub} placeholder="scada-acme" disabled={leBusy(le)} /></label>
+          <label>deSEC-token {i.token ? '(gemt — udfyld kun for at skifte)' : ''}
+            <input type="password" autocomplete="off" bind:value={leToken} disabled={leBusy(le)} />
+          </label>
+          <div><button disabled={leBusy(le)}>Gem deSEC-opsætning</button></div>
+        </form>
+      {/if}
+      {@const blocked = leBusy(le) || !leHostOk(leHost) || !leEmail || (leMethod === 'dns' && !(i.token && i.zone))}
+      <form class="grid" onsubmit={(e) => e.preventDefault()}>
+        <label>Værtsnavn (offentligt DNS-navn) <input bind:value={leHost} placeholder="scada.laces.dk" disabled={leBusy(le)} />
+          {#if leHost && !leHostOk(leHost)}<span class="small warn">Skal være et DNS-navn som scada.laces.dk — ikke en IP-adresse.</span>{/if}
+        </label>
+        <label>E-mail (Let's Encrypt advarer her, hvis fornyelsen svigter) <input type="email" bind:value={leEmail} disabled={leBusy(le)} /></label>
+        <div class="row">
+          <button type="button" onclick={() => leIssue(true)} disabled={blocked}>Test (staging)</button>
+          <button type="button" class="primary" onclick={() => leIssue(false)} disabled={blocked}>Udsted og installér</button>
+        </div>
+        {#if leMethod === 'dns' && !(i.token && i.zone)}<span class="small muted">Gem først deSEC-zone og token.</span>{/if}
+      </form>
+    {/if}
+  {:else if le}
+    <p class="muted small">Henter overblik fra serveren … (kræver at hypervisionplc-scada-le.path er installeret)</p>
+  {/if}
+  {#if le?.status}
+    {@const ls = le.status}
+    <p class="small" class:bad={ls.state === 'error'}>
+      {LE_ACTION[ls.action] ?? ls.action}: {ls.state === 'running' ? 'i gang …' : ls.state === 'ok' ? 'lykkedes' : 'mislykkedes'}
+      {ls.message ? ` — ${ls.message}` : ''} <span class="muted">({fmtDate(ls.ts)})</span>
+      {#if le.log.length}<button class="link" onclick={() => (showLog = !showLog)}>{showLog ? 'Skjul log' : 'Vis log'}</button>{/if}
+    </p>
+    {#if showLog && le.log.length}<pre class="mono small log">{le.log.join('\n')}</pre>{/if}
+  {/if}
 </section>
 
 <style>
@@ -234,6 +343,8 @@
   .bad { color: var(--danger, #c0392b); }
   .warn { color: var(--warn, #b7791f); }
   pre { white-space: pre-wrap; word-break: break-all; }
+  pre.log { max-height: 16rem; overflow: auto; }
+  button.link { background: none; border: none; padding: 0 0 0 0.5rem; text-decoration: underline; cursor: pointer; color: inherit; }
   form.grid { display: grid; gap: 0.6rem; max-width: 36rem; }
   form.grid label:not(.check), label.stack { display: flex; flex-direction: column; gap: 0.2rem; }
 </style>
