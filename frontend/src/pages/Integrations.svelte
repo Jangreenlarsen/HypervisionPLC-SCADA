@@ -145,6 +145,14 @@
       <label class="check"><input type="radio" bind:group={form.scopeMode} value="all" disabled={busy} /> Alle tags</label>
     </fieldset>
     {#if form.scopeMode === 'selected'}
+      <details class="small help">
+        <summary>Tags eller præfikser — hvad er forskellen?</summary>
+        <ul>
+          <li><strong>Tags</strong> er præcise navne: <span class="mono">Akum</span> giver kun tagget <span class="mono">Akum</span>. Navnet skal findes. Brug dem til få, bestemte punkter (fx én temperatur til Home Assistant); nye tags kommer aldrig med af sig selv.</li>
+          <li><strong>Præfikser</strong> giver alle tags, hvis navn <em>starter med</em> teksten: <span class="mono">PLC1_</span> giver <span class="mono">PLC1_DI1</span>, <span class="mono">PLC1_DI2</span> osv. — også tags, der oprettes senere. Brug dem, når navnene følger anlægsdele (<span class="mono">fyrrum_</span>). Der skelnes mellem store og små bogstaver (<span class="mono">plc1_</span> ≠ <span class="mono">PLC1_</span>), og et kort præfiks kan fange mere end ønsket.</li>
+          <li>Nøglen ser et tag, hvis det står i tag-listen <strong>eller</strong> matcher et præfiks. <em>Nøglen ser N tags</em> viser resultatet.</li>
+        </ul>
+      </details>
       <div class="picker">
         <input type="search" placeholder="Søg i tags …" bind:value={filter} aria-label="Søg i tags" disabled={busy} />
         <div class="taglist">
