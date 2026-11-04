@@ -213,6 +213,8 @@
     background: #fff;
     overflow: hidden;
     position: relative;
+    /* Eget stablingslag: værktøjslinje/menu (z-index 60-70) gælder kun inde i tegnefladen — aldrig over dialoger eller topmenuen */
+    isolation: isolate;
   }
   .rail {
     display: flex;
