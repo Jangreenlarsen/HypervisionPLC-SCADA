@@ -2,6 +2,10 @@
 
 ---
 
+## v3.26.3 — 2026-11-04 — Opdateret manual
+
+- Manualens afsnit om symbolguidens trin 5 og skærmbillederne viser nu det nye layout.
+
 ## v3.26.2 — 2026-11-04 — Pænere trin 5 i symbolguiden
 
 - Trin 5 **Betjening** i *Opsæt symbol* er delt op i overskuelige bokse, og teksten ved *Dialog* og *Interaktiv* står nu samlet i stedet for at blive brudt op i småstykker.
