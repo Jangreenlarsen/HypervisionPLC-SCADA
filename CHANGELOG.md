@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.24.0 build 0321] — 2026-11-04 — Integrationer: brugseksempler på siden
+
+- `frontend/src/lib/integration.ts`: `usageExamples()` — curl for alle endpoints (info, points, values, history, alarms, stream), Python, PowerShell, Node-RED og Home Assistant (+ test). `frontend/src/pages/Integrations.svelte`: foldbar sektion *Eksempler på brug* med pladsholder-nøgle og første tag.
+
 ## [3.23.0 build 0320] — 2026-11-04 — Backup: tidsplan og eksterne destinationer
 
 - `backend/app/services/backup_targets.py` (ny): `BackupScheduler` — én tidsplan (interval/dagligt/ugentligt/fra, lokal tid, forsinket kørsel tages 5 min efter opstart), lokal backup + afsendelse parallelt i tråde til destinationer: SFTP/SCP (paramiko, værtsnøgle godkendes ved test og fastlåses, adgangskode eller Ed25519-nøgle lavet på serveren), FTP/FTPS (ftplib), HTTPS PUT (httpx), SMB (smbprotocol), NFS (root-hjælper monterer). `.part` → omdøb, 2 genforsøg, *behold N* rydder kun egne filnavne, fejltekster renses for hemmeligheder. Tællere, `failing()` → Status-problem/SYS-alarm efter 2 fejl i træk.

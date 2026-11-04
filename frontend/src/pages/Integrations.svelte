@@ -3,7 +3,7 @@
   import { del, get, patch, post } from '../lib/api';
   import { ask } from '../lib/ask';
   import {
-    createBody, emptyForm, examples, formFrom, generateKey, keyStatus, parseList, patchBody, prefixSuggestions, scopePreview, scopeText, toggleInList,
+    createBody, emptyForm, examples, usageExamples, formFrom, generateKey, keyStatus, parseList, patchBody, prefixSuggestions, scopePreview, scopeText, toggleInList,
     type ApiKey, type KeyForm, type TagInfo,
   } from '../lib/integration';
 
@@ -24,6 +24,7 @@
 
   const base = location.origin;
   const sample = $derived(fresh ? examples(base, fresh.key) : null);
+  const usage = $derived(usageExamples(base, 'DIN_NØGLE', tags[0]?.name ?? 'kedel_temp'));
 
   async function load(): Promise<void> {
     try {
@@ -123,6 +124,17 @@
       <button onclick={() => (fresh = null)}>Jeg har kopieret den</button>
     </div>
   {/if}
+
+  <details class="usage">
+    <summary><strong>Eksempler på brug</strong></summary>
+    <p class="small muted">
+      Erstat <span class="mono">DIN_NØGLE</span> med en nøgle og tag-navnet med et, nøglen må se. Alle svar er JSON; værdien ligger i
+      <span class="mono">values.&lt;tag&gt;.v</span>. <span class="mono">-k</span> / <span class="mono">verify=False</span> er kun nødvendigt ved selvsigneret certifikat.
+    </p>
+    {#each usage as u (u.title)}
+      <p class="small"><strong>{u.title}</strong></p><pre class="mono small">{u.text}</pre>
+    {/each}
+  </details>
 
   <h3>{editing ? 'Redigér nøgle' : 'Ny nøgle'}</h3>
   <form class="grid" onsubmit={(e) => { e.preventDefault(); save(); }}>
