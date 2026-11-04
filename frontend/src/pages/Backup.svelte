@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { api, get, post } from '../lib/api';
+  import BackupTargets from '../lib/BackupTargets.svelte';
 
   interface ServerFile { name: string; size: number; created: number; kind: string }
   interface Summary { created: string; created_by: string; app_version: string; plcs: number; tags: number; drawings: number; versions: number; bindings: number }
@@ -108,6 +109,8 @@
   <a class="btn" href="/api/backup" download>Hent backup</a>
 </section>
 
+<BackupTargets />
+
 <section class="panel">
   <h2>Gendan backup</h2>
   <p class="muted small">
@@ -194,7 +197,7 @@
             <td><a class="btn" href={`/api/backup/files/${encodeURIComponent(f.name)}`} download>Hent</a></td>
           </tr>
         {:else}
-          <tr><td colspan="5" class="muted">Ingen endnu — den første automatiske backup tages 5 minutter efter opstart.</td></tr>
+          <tr><td colspan="5" class="muted">Ingen endnu — den første automatiske backup tages efter tidsplanen (tidligst 5 minutter efter opstart).</td></tr>
         {/each}
       </tbody>
     </table>

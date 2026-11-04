@@ -6,3 +6,5 @@ pydantic>=2.7,<3
 defusedxml>=0.7,<1
 tzdata>=2024.1  # Apache-2.0 — dansk tid til energirapporter/ugeprogrammer (Windows/minimale images)
 websockets>=13,<17  # uvicorn kræver et WS-bibliotek — uden det giver /ws/live 404
+paramiko>=3.4,<4  # LGPL-2.1 — SFTP/SCP til backup-destinationer (godkendt af Jan 2026-11-04)
+smbprotocol>=1.13,<2  # MIT — SMB (Windows-share/NAS) til backup-destinationer (godkendt af Jan 2026-11-04)

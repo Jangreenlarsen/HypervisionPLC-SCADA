@@ -122,6 +122,11 @@ install -m 0755 "$SRC/deploy/apply-power.sh" /usr/local/lib/hypervisionplc-scada
 mv /usr/local/lib/hypervisionplc-scada/apply-power.sh.new /usr/local/lib/hypervisionplc-scada/apply-power.sh
 install -m 0644 "$SRC/deploy/hypervisionplc-scada-power.service" "$SRC/deploy/hypervisionplc-scada-power.path" /etc/systemd/system/
 : > /var/lib/hypervisionplc-scada-net/power-enabled
+# NFS-shares til backup (System › Backup › Destinationer): samme mønster — ønsket liste i <data>/config, root-hjælper monterer under /mnt/hv-backup
+install -m 0755 "$SRC/deploy/apply-backup-mounts.sh" /usr/local/lib/hypervisionplc-scada/apply-backup-mounts.sh.new
+mv /usr/local/lib/hypervisionplc-scada/apply-backup-mounts.sh.new /usr/local/lib/hypervisionplc-scada/apply-backup-mounts.sh
+install -m 0644 "$SRC/deploy/hypervisionplc-scada-backupmount.service" "$SRC/deploy/hypervisionplc-scada-backupmount.path" /etc/systemd/system/
+command -v mount.nfs >/dev/null 2>&1 || { [ "$UPDATE" -eq 1 ] && echo "BEMÆRK: nfs-common mangler — NFS-backup virker først efter 'sudo apt install nfs-common'" >&2 || apt-get install -y -qq nfs-common >/dev/null || true; }
 # Hvilket netværkssystem kører maskinen, og er der en brugbar DHCP-klient? (NetworkManager eller ifupdown; ingen af dem → netværk kan ikke ændres fra web)
 # net-detect.sh skriver capabilities + markørfiler, og køres igen af DHCP-vagtens timer, så en senere "apt install dhcpcd-base" slår igennem af sig selv.
 install -m 0755 "$SRC/deploy/net-detect.sh" /usr/local/lib/hypervisionplc-scada/net-detect.sh
@@ -163,7 +168,9 @@ systemctl restart hypervisionplc-scada-update.path
 systemctl enable -q hypervisionplc-scada-config.path
 systemctl restart hypervisionplc-scada-config.path
 systemctl enable -q hypervisionplc-scada-power.path
+systemctl enable -q hypervisionplc-scada-backupmount.path
 systemctl restart hypervisionplc-scada-power.path
+systemctl restart hypervisionplc-scada-backupmount.path
 systemctl enable -q hypervisionplc-scada-netwatch.timer; systemctl restart hypervisionplc-scada-netwatch.timer   # kører også net-detect.sh (hold capabilities opdateret)
 if [ "$WITH_MOCK" -eq 1 ]; then
     systemctl enable -q hypervisionplc-mock-plc

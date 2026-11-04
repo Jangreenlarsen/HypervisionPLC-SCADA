@@ -1,3 +1,30 @@
+# Plan: backup-destinationer + tidsplan (v3.23.0) — 2026-11-04
+
+**Besluttet (Jan, 2026-11-04):** flere destinationer · indhold = konfiguration + trend-snapshot · "intern" = netværksshare (SMB/NFS) · paramiko (LGPL-2.1) godkendt til SFTP/SCP · samlet **scheduler** for backup. Styring via integrationer (tidl. 3.23) rykkes til 3.24, MQTT til 3.25.
+
+**Mål:** System › Backup får en liste over destinationer (metode, adresse, mappe, login, hvad der sendes, hvor mange der beholdes) og én samlet tidsplan, der laver den lokale backup og sender den videre. Fejl ses på siden, på Status, i `/metrics` og som SYS-alarm.
+
+## Trin
+1. **Tidsplan (scheduler)** `services/backup_scheduler.py`: erstatter `auto_backup_loop` (fast interval fra `SCADA_BACKUP_HOURS`). Plan gemt i DB: *hver N. time* / *dagligt kl. HH:MM* / *ugentligt (dage + kl.)*; standard = nuværende (24 t), så intet ændrer sig ved opgradering. Næste kørsel vises; "Kør nu"-knap. Én kørsel ad gangen (lås); en kørsel, der er gået glip af (slukket Pi), tages ved opstart + 5 min.
+2. **Destinationer** (tabel `backup_targets`; hemmeligheder i `secrets.json`, skriv-kun):
+   - **SFTP / SCP** (paramiko): adgangskode eller SSH-nøgle (nøglen genereres på Pi'en; kun den offentlige del vises, så den kan lægges i `authorized_keys`). Værtsnøgle fastlåses ved "Test forbindelse" (TOFU), ændret nøgle = fejl.
+   - **FTP / FTPS** (stdlib `ftplib`, FTPS = eksplicit TLS, standard med certifikattjek).
+   - **HTTPS** (httpx, `PUT` eller `POST` multipart til en URL, valgfri Bearer/Basic) — fx Nextcloud/WebDAV eller egen modtager.
+   - **SMB** (Windows-share/NAS) — se spørgsmål nedenfor. **NFS**: monteres af root-helperen (`/usr/local/sbin/hypervision-backup-mount`, fast mountpunkt `/mnt/hv-backup/<id>`, kun `nfs`, ingen vilkårlige options) og afmonteres efter kørslen.
+   - Pr. destination: til/fra, hvad der sendes (konfig, trend), *behold N* (oprydning af egne filer på fjernsiden efter navnemønster), timeout, "Test forbindelse" (skriver og sletter en lille testfil).
+3. **Afsendelse:** efter lokal backup sendes filerne til hver destination parallelt i tråde (event-loopet blokeres ikke); skriv til `navn.part` → omdøb (ingen halve filer); SHA256 i filnavn/sidecar; 2 genforsøg. Resultat pr. destination (tid, størrelse, fejltekst uden hemmeligheder) gemmes og vises.
+4. **Observability:** log med kontekst (destination, metode, fil, varighed), tællere `scada_backup_runs_total{result}`, `scada_backup_upload_total{target,result}`, `scada_backup_last_success_timestamp{target}`; Status-kort; SYS-alarm `sys:backup-target` når en destination fejler to kørsler i træk (ophører ved næste succes). Audit ved ændring af destinationer (uden hemmeligheder).
+5. **UI** `pages/Backup.svelte` (+ `lib/backupTargets.ts` med tests): tidsplan, destinationsliste, formular pr. metode, test-knap, seneste resultater.
+6. **Deploy:** `install.sh` (paramiko via pip i venv; `nfs-common` + sudoers-linje for mount-helper), manual-afsnit, CHANGELOG/RELEASE_NOTES/FEATURES.
+
+## Risici
+- Store trend-snapshots over langsom forbindelse → upload i tråd med timeout, måles på Pi'en.
+- Hemmeligheder (adgangskoder, SSH-nøgle) må aldrig nå browser/log → skriv-kun, `_safe_error`.
+- NFS kræver root → smal helper, kun faste mountpunkter, reviewer.
+- Berørte filer: `services/backup.py`, ny `services/backup_targets.py` + `backup_scheduler.py`, `api/backup.py`, `storage/db.py`, `main.py`, `services/metrics.py`, `services/health*.py`, `deploy/install.sh` + ny helper, frontend Backup-side.
+
+---
+
 # Plan: integrationsmodel (Node-RED, Home Assistant, tredjepart) — 2026-11-03
 
 **Besluttet (Jan):** retning **C** (kerne-API + adaptere) · kun læs først (skriv = trin 3, valgfrit) · `aiomqtt` ved trin 4 · afgrænsning pr. nøgle. Fuldt design: [docs/INTEGRATION_DESIGN.md](docs/INTEGRATION_DESIGN.md).

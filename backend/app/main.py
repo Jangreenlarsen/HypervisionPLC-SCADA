@@ -47,6 +47,7 @@ from .services.trend_views import TrendViewService
 from .services.audit import AuditService
 from .services.auth import AuthService
 from .services.backup import BackupService
+from .services.backup_targets import BackupScheduler
 from .services.operate import OperateService
 from .services.drawings import DrawingService
 from .services.scope import ScopeService
@@ -186,9 +187,11 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.tag_service.schedule_usage = app.state.schedule_service.usage
         schedule_task = (asyncio.create_task(app.state.schedule_service.run(), name="schedules")
                          if settings.start_runtimes else None)
-        backup_task = None
-        if settings.backup_hours > 0 and settings.start_runtimes:
-            backup_task = asyncio.create_task(app.state.backup_service.auto_backup_loop(settings.backup_hours))
+        # Backup: én tidsplan (lokal backup + eksterne destinationer: SFTP/SCP/FTP(S)/HTTPS/SMB/NFS)
+        app.state.backup_scheduler = BackupScheduler(settings.data_dir, secrets, app.state.backup_service,
+                                                     default_hours=settings.backup_hours, state_dir=settings.net_state_dir)
+        backup_task = (asyncio.create_task(app.state.backup_scheduler.run(), name="backup")
+                       if settings.start_runtimes else None)
         log.info("HypervisionPLC SCADA %s klar (data: %s)", read_version()["version"], settings.data_dir)
         try:
             yield

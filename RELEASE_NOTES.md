@@ -2,6 +2,12 @@
 
 ---
 
+## v3.23.0 — 2026-11-04 — Backup efter tidsplan og til andre servere
+
+- **System › Backup** har fået en **tidsplan**: med fast interval, dagligt på et bestemt klokkeslæt, på bestemte ugedage, eller slået fra. **Kør backup nu** tager en med det samme.
+- Backuppen kan sendes til en eller flere **destinationer**: SFTP, SCP, FTPS/FTP, HTTPS (fx Nextcloud), Windows-share/NAS (SMB) og NFS. Vælg om konfigurationen og/eller trend-historikken skal med, og hvor mange der skal gemmes derude. **Test forbindelse** viser med det samme, om det virker.
+- Fejler en destination to gange i træk, ses det på **Status** og som en systemalarm.
+
 ## v3.22.0 — 2026-11-04 — Integrationer: live-strøm og nemmere valg af tags
 
 - Integrationer kan nu få ændringer **med det samme** via en strøm (`/api/v1/integration/stream`, Server-Sent Events) i stedet for at spørge igen og igen: først alle værdier, derefter kun det der ændrer sig, plus alarmer der kommer og går. Strømmen lukkes straks, hvis nøglen deaktiveres eller tilbagekaldes.

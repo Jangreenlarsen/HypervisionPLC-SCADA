@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.23.0 build 0320] — 2026-11-04 — Backup: tidsplan og eksterne destinationer
+
+- `backend/app/services/backup_targets.py` (ny): `BackupScheduler` — én tidsplan (interval/dagligt/ugentligt/fra, lokal tid, forsinket kørsel tages 5 min efter opstart), lokal backup + afsendelse parallelt i tråde til destinationer: SFTP/SCP (paramiko, værtsnøgle godkendes ved test og fastlåses, adgangskode eller Ed25519-nøgle lavet på serveren), FTP/FTPS (ftplib), HTTPS PUT (httpx), SMB (smbprotocol), NFS (root-hjælper monterer). `.part` → omdøb, 2 genforsøg, *behold N* rydder kun egne filnavne, fejltekster renses for hemmeligheder. Tællere, `failing()` → Status-problem/SYS-alarm efter 2 fejl i træk.
+- `backend/app/api/backup.py`: `/api/backup/schedule` (GET/PUT), `/run`, `/targets` (GET/POST/PATCH/DELETE), `/targets/{id}/test`, `/targets/{id}/ssh-key` — kun admin, audit uden hemmeligheder. `services/backup.py`: den gamle faste løkke fjernet. `main.py`, `services/health.py` (forventet interval fra tidsplanen, problemer pr. destination), `services/metrics.py` (`scada_backup_*`).
+- `deploy/apply-backup-mounts.sh` + `hypervisionplc-scada-backupmount.{path,service}` (ny root-hjælper), `deploy/install.sh` (installerer hjælperen, `nfs-common`). `backend/requirements.txt`: paramiko (LGPL-2.1), smbprotocol (MIT) — godkendt af Jan.
+- `frontend/src/lib/BackupTargets.svelte`, `frontend/src/lib/backupTargets.ts` (+ test), `pages/Backup.svelte`; manual 13-system.
+- Efter gennemgang: værtsnøgle gemmes kun hvis den matcher det fingeraftryk, administratoren så; NFS-sti kan ikke pege ud af monteringen (heller ikke via symlinks); root-hjælperen afviser eksporter, der starter med "-", og kalder mount med "--"; lås om ændringer af destinationslisten; fil-I/O i tråde.
+- Tests: `backend/tests/test_backup_targets.py` (22).
+
 ## [3.22.0 build 0319] — 2026-11-04 — Integrationer: SSE-strøm og tag-vælger
 
 - `backend/app/services/integration.py`: `open_stream`/`close_stream` (højst 5 pr. nøgle, 50 i alt → 429), `stream_events` (`snapshot`, `values` samlet pr. interval, `alarm`, `resync` ved overløb, `closed`, hjerteslag 15 s, nøglen genkontrolleres hvert 10. s), `on_alarm_event` (lytter på alarmmotoren; samme afgrænsning og skjulte PLC-fejltekster som `/alarms`), `revalidate`; tællere `streams`/`stream_events`.
