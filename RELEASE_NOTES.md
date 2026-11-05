@@ -2,6 +2,12 @@
 
 ---
 
+## v3.28.0 — 2026-11-05 — Egne symboler i biblioteket
+
+- I **Tegn** kan teknikere og admin gemme et objekt eller en gruppe som et **nyt symbol i biblioteket**: vælg det og tryk **Gem som symbol i biblioteket …**. Grafikken, de navngivne dele, gradienter og opsætningen fra guiden kommer med (tags kun hvis du vil). Symbolet står i den nye sektion **Egne symboler** og bruges som de indbyggede.
+- Gemmer du igen med samme navn, bliver det en **ny version**. Tegningerne ændres ikke; opdatér dem med **Erstat med symbol …**, hvor den nyeste version foreslås først.
+- Egne symboler kommer med i backup.
+
 ## v3.27.0 — 2026-11-05 — Demo-PLC med varmeanlæg
 
 - Ny **demo-PLC**: fire ST-programmer får en HypervisionPLC uden fysisk I/O til at opføre sig som varmeanlægget på tegningen *varme*. Det omfatter brændefyr med Laddomat, pillefyr, varmepumpe, akkumuleringstank i 6 lag, husets varmekreds, motorventiler, systemtryk med sikkerhedsventiler og alarmer. Tidsfaktor op til ×120 og scenarier: vinternat, sommer, lækage, pumpefejl, overophedning og fejl i pillefyr eller varmepumpe. Opsætning og liste over variable: `demo/varme-plc/README.md`.

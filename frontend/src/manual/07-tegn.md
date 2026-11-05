@@ -93,7 +93,7 @@ Vælg et eller flere symboler, så viser *Valgt element* feltet **Farver** med d
 
 ![Symbolbiblioteket i Tegn, sorteret i kategorier med søgning](../../public/manual/tegn-symboler.png)
 
-Sektionen **Symboler** til højre er **symbolbiblioteket**, sorteret i kategorier (*Betjening*, *Proces og visning*, *Rør og VVS*, *Elektrisk*, *Solcelleanlæg*, *Genveje*). Søg efter et symbol (fx *bøjning* eller *kontaktor*). **Klik** på det for at sætte det ind midt på tegningen, eller **træk** det ind, hvor det skal stå. Hvert indsat symbol får et **navn** (fx *Pumpe 2*), som du kan ændre.
+Sektionen **Symboler** til højre er **symbolbiblioteket**, sorteret i kategorier (*Betjening*, *Proces og visning*, *Rør og VVS*, *Elektrisk*, *Solcelleanlæg*, *Genveje* og *Egne symboler* — se nedenfor). Søg efter et symbol (fx *bøjning* eller *kontaktor*). **Klik** på det for at sætte det ind midt på tegningen, eller **træk** det ind, hvor det skal stå. Hvert indsat symbol får et **navn** (fx *Pumpe 2*), som du kan ændre.
 
 Et nyindsat symbol skal **sættes op**: vælg symbolet og tryk **Opsæt symbol (6 trin)**. Tegningen gemmes og udgives først (du bliver spurgt), fordi guiden arbejder på den aktive version. Se *Symboler og guiden*.
 
@@ -112,6 +112,27 @@ Et nyindsat symbol skal **sættes op**: vælg symbolet og tryk **Opsæt symbol (
 **Omskifter med egne positioner**: under *Betjening* kan du skrive positionernes navne (2–8, adskilt med komma, fx *Hånd, 0, Auto*) og indsætte en omskifter med lige det antal positioner.
 
 > Rør og fittings (bøjninger, T-stykker, kryds) i biblioteket er tegnet i samme tykkelse, så de passer sammen. T-stykker og kryds består af selvstændige rør, så hvert rør kan få sit eget løbelys; et ældre T-stykke/kryds (én sti) deles med **Del i rør** i *Valgt element*.
+
+## Egne symboler: gem et objekt som symbol
+
+![Gem som symbol: navn, forklaring, sektion og forhåndsvisning](../../public/manual/tegn-gem-som-symbol.png)
+
+Har du tegnet noget, du vil bruge igen (fx en pumpestation med kasse, pumpe og tekst), kan du gemme det som et **nyt symbol i biblioteket**. Det kræver rollen *tekniker* eller *admin*.
+
+1. Vælg objektet eller gruppen. Er det flere løse dele, så gruppér dem først (**Ctrl+G**) og vælg gruppen.
+2. Tryk **Gem som symbol i biblioteket …** i *Valgt element*. Tegningen gemmes og udgives først (du bliver spurgt).
+3. Giv symbolet et **navn** og evt. en **forklaring**, og vælg **sektion** (standard: *Egne symboler*).
+4. Tryk **Gem i biblioteket**.
+
+**Det kommer med:** grafikken, alle **dele med id** (de kan animeres hver for sig i guiden — en del, der kom fra et bibliotekssymbol, beholder sit navn, fx *loebehjul*), **gradienter og markører** som delene bruger, og **opsætningen fra guiden** — både gruppens egen og animationerne fra symboler inde i gruppen. **Tags** fjernes som standard, fordi de hører til anlægget; sæt hak i **Behold tags i opsætningen**, hvis de skal med. Nøglelås og kode kommer aldrig med.
+
+**Højst én betjening:** et symbol har én betjeningsform. Har flere symboler i gruppen hver deres betjening (fx to trykknapper), afvises det med en besked om hvilke. Gør de andre til *Kun passiv visning* i guiden, eller gem dem som hvert sit symbol.
+
+![Et eget symbol i sektionen Egne symboler i Tegn](../../public/manual/tegn-egne-symboler.png)
+
+**Brug symbolet:** det står i sektionen *Egne symboler* (eller den sektion, du valgte) og indsættes, søges og lægges i *Mine symboler* som de indbyggede. **Opsæt symbol (6 trin)** starter med symbolets egen opsætning — vælg tags i trin 2 og 4.
+
+**Ny version:** gemmer du igen med **samme navn**, bliver det en ny version af symbolet (dialogen siger *Gem som version 2*). Tegninger, der allerede bruger symbolet, **ændres ikke** — hvert symbol i en tegning er en kopi. Vil du opdatere dem, så vælg symbolet og tryk **Erstat med symbol …**: det første forslag er *Nyeste version* af symbolet (se *Opdatér gamle symboler* nedenfor).
 
 ## Grupper af symboler
 

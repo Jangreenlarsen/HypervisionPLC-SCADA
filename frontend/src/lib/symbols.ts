@@ -10,8 +10,11 @@ export interface SymbolDef {
   id: string;
   label: string;
   hint: string;
-  category: SymbolCategory;
+  /** 'egne' = et eget symbol gemt fra Tegn (v3.28.0, lib/library.ts) */
+  category: SymbolCategory | 'egne';
   svg: string;
+  /** Kun egne symboler: versionen i biblioteket */
+  version?: number;
 }
 
 export const CATEGORIES: { id: SymbolCategory; label: string }[] = [
