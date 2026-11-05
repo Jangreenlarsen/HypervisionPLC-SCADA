@@ -24,3 +24,6 @@ scada-*.tar
 
 # PC-test af demo-PLC'ens ST-programmer
 demo/varme-plc/test/build/
+
+# Bygget symbolgenerator (demo)
+demo/varme-plc/tools/build/

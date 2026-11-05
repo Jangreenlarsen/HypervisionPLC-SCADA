@@ -2,6 +2,10 @@
 
 ---
 
+## v3.28.1 — 2026-11-05 — Demo-opsætning
+
+- Demo-varmeanlæggets betjeningspanel kan nu sættes op igen uden at blive lagt ind flere gange (`demo/varme-plc/scada_setup.py`). Ingen ændringer i selve SCADA'en.
+
 ## v3.28.0 — 2026-11-05 — Egne symboler i biblioteket
 
 - I **Tegn** kan teknikere og admin gemme et objekt eller en gruppe som et **nyt symbol i biblioteket**: vælg det og tryk **Gem som symbol i biblioteket …**. Grafikken, de navngivne dele, gradienter og opsætningen fra guiden kommer med (tags kun hvis du vil). Symbolet står i den nye sektion **Egne symboler** og bruges som de indbyggede.
