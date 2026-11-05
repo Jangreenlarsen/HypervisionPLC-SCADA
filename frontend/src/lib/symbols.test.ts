@@ -16,7 +16,7 @@ describe('symbolbibliotek', () => {
   });
   it('unikke id-er, kendte kategorier og ingen tom kategori', () => {
     expect(new Set(SYMBOLS.map((s) => s.id)).size).toBe(SYMBOLS.length);
-    const cats = new Set(CATEGORIES.map((c) => c.id));
+    const cats = new Set<string>(CATEGORIES.map((c) => c.id));
     for (const s of SYMBOLS) expect(cats.has(s.category), s.id).toBe(true);
     for (const c of CATEGORIES) expect(SYMBOLS.some((s) => s.category === c.id), c.id).toBe(true);
   });

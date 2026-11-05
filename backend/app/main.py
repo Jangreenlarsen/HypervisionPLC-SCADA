@@ -34,6 +34,7 @@ from .api.live_ws import router as live_router
 from .api.operate import router as operate_router
 from .api.symbol_groups import router as symbol_groups_router
 from .api.symbol_ports import router as symbol_ports_router
+from .api.library import router as library_router
 from .api.symbols import router as symbols_router
 from .api.system import router as system_router
 from .api.system_config import router as system_config_router
@@ -56,6 +57,7 @@ from .services.scope import ScopeService
 from .services.drawing_activity import suspended_tags
 from .services.symbol_groups import SymbolGroupService
 from .services.symbol_ports import SymbolPortService
+from .services.library import LibraryService
 from .services.symbols import SymbolService
 from .services.symbol_runtime import SymbolRuntime
 from .services.symbol_operate import SymbolOperateService
@@ -127,6 +129,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.symbol_service = SymbolService(db, app.state.drawing_service)
         app.state.symbol_group_service = SymbolGroupService(db, app.state.symbol_service)
         app.state.symbol_port_service = SymbolPortService(db)
+        app.state.library_service = LibraryService(db, app.state.drawing_service, app.state.symbol_service)
         # Tags kun deaktiverede tegninger bruger pollas ikke (v1.6.0)
         manager.suspended_tags = lambda: suspended_tags(db, app.state.drawing_service, app.state.symbol_service)
         app.state.tag_service.symbol_usage = app.state.symbol_service.usage
@@ -251,6 +254,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(symbols_router)
     app.include_router(symbol_groups_router)
     app.include_router(symbol_ports_router)
+    app.include_router(library_router)
     app.include_router(live_router)
     app.include_router(operate_router)
     if settings.frontend_dir.is_dir():

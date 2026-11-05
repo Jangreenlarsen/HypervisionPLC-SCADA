@@ -466,9 +466,24 @@ export function createScada(host) {
     if (Array.isArray(lp) && lp.length) node.setAttribute('data-hv-ports', formatPorts(lp));
     else node.removeAttribute('data-hv-ports');
     // Børn får unikke id'er så flere kopier af samme symbol ikke kolliderer
+    const renamed = new Map();
     node.querySelectorAll('[id]').forEach((el) => {
-      el.setAttribute('data-hv-pid', el.id);
-      el.setAttribute('id', uniqueId(`${node.id}_${el.id}`));
+      const old = el.id;
+      el.setAttribute('data-hv-pid', old);
+      el.setAttribute('id', uniqueId(`${node.id}_${old}`));
+      renamed.set(old, el.id);
+    });
+    // Henvisninger til gradienter, markører m.m. i symbolet (egne symboler, v3.28.0) følger de nye id'er
+    const fix = (v) => v.replace(/url\(\s*['"]?#([^'")\s]+)['"]?\s*\)/g, (m, id) => (renamed.has(id) ? `url(#${renamed.get(id)})` : m));
+    [node, ...node.querySelectorAll('*')].forEach((el) => {
+      for (const a of [...el.attributes]) {
+        if ((a.localName === 'href') && a.value.startsWith('#') && renamed.has(a.value.slice(1))) {
+          el.setAttributeNS(a.namespaceURI, a.name, `#${renamed.get(a.value.slice(1))}`);
+        } else if (a.value.includes('url(')) {
+          const v = fix(a.value);
+          if (v !== a.value) el.setAttributeNS(a.namespaceURI, a.name, v);
+        }
+      }
     });
     return node;
   }
@@ -1657,6 +1672,26 @@ export function createScada(host) {
       const at = Math.round(axis === 'v' ? cx : cy);
       (axis === 'v' ? g.v : g.h).push(at);
       writeGuides(g, 'Ny hjælpelinje');   // bliver først aktiv, når man klikker på den
+    },
+
+    /** Elementets boks i forælderens koordinater, med elementets egen transform (til "Gem som symbol", v3.28.0). */
+    elementBox(id) {
+      const el = id ? canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`) : null;
+      if (!el || typeof el.getBBox !== 'function') return null;
+      let b;
+      try { b = el.getBBox(); } catch { return null; }
+      const m = el.transform?.baseVal?.consolidate()?.matrix;
+      const pts = [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]]
+        .map(([x, y]) => (m ? [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f] : [x, y]));
+      const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+      const r = (v) => Math.round(v * 100) / 100;
+      const x = Math.min(...xs), y = Math.min(...ys);
+      return { x: r(x), y: r(y), w: r(Math.max(...xs) - x), h: r(Math.max(...ys) - y) };
+    },
+    /** Elementets SVG-kode (til forhåndsvisningen i "Gem som symbol"). */
+    elementMarkup(id) {
+      const el = id ? canvas().getSvgContent().querySelector(`#${CSS.escape(id)}`) : null;
+      return el ? el.outerHTML : '';
     },
 
     /** Bibliotekets T-stykke ({ fragment, label }) — bruges, når et rør kobles på et andet rør. */

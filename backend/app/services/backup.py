@@ -32,6 +32,7 @@ from ..storage.files import DrawingFiles
 from .bindings import BindingError, binding_tags, validate_binding
 from .schedules import validate_schedule
 from .symbol_ports import MAX_TYPES, clean_ports, clean_type
+from . import library as lib
 from .trend_views import clean_view
 from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
 from .symbols import SymbolConfig, config_tags
@@ -150,6 +151,8 @@ class BackupService:
             "symbol_groups": data["symbol_groups"],
             "trend_views": data["trend_views"],
             "symbol_ports": data["symbol_ports"],
+            "library_symbols": data["library_symbols"],
+            "library_layout": data["library_layout"],
         }
 
     def save_to_server(self, kind: str, created_by: str) -> str:
@@ -501,6 +504,42 @@ class BackupService:
             except ServiceError as exc:
                 err(f"Tilslutningspunkter for '{sym_type}': {exc.message}")
 
+        # Egne symboler (v3.28.0) — ældre backups har dem ikke; så røres bibliotekets egne symboler ikke ved gendannelse
+        library: dict[str, Any] = {}
+        if "library_symbols" in backup:
+            raw_lib = backup.get("library_symbols")
+            if not isinstance(raw_lib, list) or len(raw_lib) > lib.MAX_SYMBOLS:
+                err(f"library_symbols skal være en liste med højst {lib.MAX_SYMBOLS} symboler")
+                raw_lib = []
+            lib_rows, lib_labels, lib_types = [], set(), set()
+            for i, ls in enumerate(raw_lib):
+                try:
+                    if not isinstance(ls, dict):
+                        raise ServiceError(400, "skal være et objekt")
+                    t = lib.clean_type(ls.get("type"))
+                    label = lib.clean_label(ls.get("label"))
+                    if label.casefold() in lib_labels:
+                        raise ServiceError(400, "navnet findes to gange")
+                    if t in lib_types:
+                        raise ServiceError(400, f"typen '{t}' findes to gange")
+                    lib_types.add(t)
+                    lib_labels.add(label.casefold())
+                    svg = lib.clean_fragment(str(ls.get("svg", "")), {"x": 0, "y": 0, "w": 100, "h": 100})
+                    version = ls.get("version", 1)
+                    if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+                        raise ServiceError(400, "ugyldig version")
+                    lib_rows.append({"type": t, "label": label, "hint": lib.clean_hint(ls.get("hint")), "svg": svg,
+                                     "preset": lib.check_preset(ls.get("preset"), svg), "version": version})
+                except ServiceError as exc:
+                    err(f"Eget symbol #{i + 1}: {exc.message}")
+            library["library_symbols"] = lib_rows
+            try:
+                raw_layout = backup.get("library_layout")
+                library["library_layout"] = (lib.clean_layout(raw_layout, {r["type"] for r in lib_rows})
+                                             if raw_layout else None)
+            except ServiceError as exc:
+                err(f"Bibliotekets opdeling: {exc.message}")
+
         schedules = []
         raw_schedules = backup.get("schedules", [])  # ældre backups har ingen ugeprogrammer
         if not isinstance(raw_schedules, list):
@@ -530,7 +569,7 @@ class BackupService:
                 "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
                 "schedules": schedules, "symbol_meta": symbol_meta, "symbol_config": symbol_config,
                 "symbol_groups": symbol_groups, "trend_views": trend_views,
-                "symbol_ports": symbol_ports}
+                "symbol_ports": symbol_ports, **library}
 
     # ---------------------------------------------------------------- restore
 

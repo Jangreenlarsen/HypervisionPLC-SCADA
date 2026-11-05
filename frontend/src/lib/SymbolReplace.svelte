@@ -1,14 +1,18 @@
 <script lang="ts">
   // "Erstat med symbol": vælg hvilket bibliotekssymbol den markerede tegnede del skal erstattes af. Forslag ud fra delens
   // form (symbolSuggest.ts), eller søg i hele biblioteket. Selve erstatningen sker i Tegn (host-API'et), i ét fortryd-trin.
-  import { CATEGORIES, previewViewBox, PIPE_IDS, SYMBOLS, type SymbolDef } from './symbols';
+  import { previewViewBox, PIPE_IDS, type SymbolDef } from './symbols';
+  import { sectionOf, sections } from './library';
+  import { defs, library } from './libraryStore.svelte';
   import { hasTextSlot, nameHint, NATIVE_AXIS, NATIVE_DIRECTION, stretchesByDefault, suggestSymbols, type SelectionInfo } from './symbolSuggest';
 
   export type SimilarMode = false | 'same' | 'any';
   export interface ReplaceOptions { symbol: SymbolDef; name: string; keepId: boolean; stretch: boolean; useText: boolean; similar: SimilarMode; apexNative: number | undefined; axisNative: number | undefined; mirror: boolean }
 
-  let { info, lostBindings, onreplace, onclose }: {
+  let { info, lostBindings, onreplace, onclose, currentType = '' }: {
     info: SelectionInfo;
+    /** Bibliotekstypen på det valgte symbol — er det et eget symbol, foreslås dets nyeste version først (v3.28.0) */
+    currentType?: string;
     lostBindings: { own: number; similarBound: number; similarBoundParts: number };   // bindinger på delens underelementer/tekster, som ikke følger med · lignende dele med bindinger (springes over)
     onreplace: (opts: ReplaceOptions) => void;
     onclose: () => void;
@@ -25,12 +29,18 @@
   let mirror = $state(false);
   let followAxis = $state(true);
 
-  const byId = new Map(SYMBOLS.map((s) => [s.id, s]));
-  const suggestions = $derived(suggestSymbols(info).flatMap((x) => (byId.has(x.id) ? [{ ...x, symbol: byId.get(x.id)! }] : [])));
+  const all = $derived(defs());
+  const byId = $derived(new Map(all.map((s) => [s.id, s])));
+  const suggestions = $derived.by(() => {
+    const own = currentType.startsWith('u_') ? byId.get(currentType) : undefined;
+    const list = suggestSymbols(info).flatMap((x) => (byId.has(x.id) && x.id !== own?.id ? [{ ...x, symbol: byId.get(x.id)! }] : []));
+    return own ? [{ id: own.id, why: `Nyeste version (v${own.version}) af dette symbol`, symbol: own }, ...list] : list;
+  });
+  const sectionLabel = (s: SymbolDef): string => sections(library.layout).find((x) => x.id === sectionOf(s, library.layout))?.label ?? '';
   const found = $derived.by(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
-    return SYMBOLS.filter((s) => s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q) || s.id.includes(q));
+    return all.filter((s) => s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q) || s.id.includes(q));
   });
   const lost = $derived(lostBindings.own);
   const skipped = $derived(similar === 'none' ? 0 : keepId ? lostBindings.similarBoundParts : lostBindings.similarBound);
@@ -100,7 +110,7 @@
               <button class="sym" class:sel={chosen?.id === s.id} onclick={() => choose(s)} title={s.hint}>
                 <svg viewBox="-4 -4 168 152" aria-hidden="true" {@attach fit(s.id)}>{@html s.svg}</svg>
                 <span>{s.label}</span>
-                <span class="why muted">{CATEGORIES.find((c) => c.id === s.category)?.label ?? ''}</span>
+                <span class="why muted">{sectionLabel(s)}</span>
               </button>
             {/each}
           </div>

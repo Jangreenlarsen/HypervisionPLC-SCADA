@@ -221,6 +221,21 @@ CREATE TABLE IF NOT EXISTS user_drawings (
     drawing_id  TEXT NOT NULL,
     PRIMARY KEY (username, drawing_id)
 );
+-- Egne symboler i biblioteket (v3.28.0, services/library.py): grafik (renset <g>-fragment) + standardopsætning (preset,
+-- dele som delnavne og uden tags). Tegninger har altid deres egen kopi; en ny version tages i brug med "Erstat med symbol".
+CREATE TABLE IF NOT EXISTS library_symbols (
+    type        TEXT PRIMARY KEY,
+    label       TEXT NOT NULL,
+    hint        TEXT NOT NULL DEFAULT '',
+    svg         TEXT NOT NULL,
+    preset      TEXT,
+    version     INTEGER NOT NULL DEFAULT 1,
+    created_at  REAL NOT NULL,
+    created_by  TEXT NOT NULL,
+    updated_at  REAL NOT NULL,
+    updated_by  TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS library_symbols_label_ci ON library_symbols(lower(label));
 """
 
 PLC_FIELDS = ("name", "base_url", "username", "enabled", "sse_enabled", "verify_tls")
@@ -393,6 +408,88 @@ class Database:
         self._execute("INSERT INTO meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                       (key, json.dumps(ports)))
         return True
+
+    # ------------------------------------------------------- egne symboler i biblioteket (v3.28.0)
+
+    _LIB_COLS = "type, label, hint, svg, preset, version, created_at, created_by, updated_at, updated_by"
+
+    def _lib_row(self, r: dict[str, Any]) -> dict[str, Any]:
+        try:
+            preset = json.loads(r["preset"]) if r.get("preset") else None
+        except ValueError:
+            preset = None   # beskadiget række — symbolet virker, men uden standardopsætning
+        return {**r, "preset": preset}
+
+    def list_library_symbols(self) -> list[dict[str, Any]]:
+        return [self._lib_row(r) for r in self._query(f"SELECT {self._LIB_COLS} FROM library_symbols ORDER BY lower(label)")]
+
+    def get_library_symbol(self, sym_type: str) -> dict[str, Any] | None:
+        rows = self._query(f"SELECT {self._LIB_COLS} FROM library_symbols WHERE type = ?", (sym_type,))
+        return self._lib_row(rows[0]) if rows else None
+
+    def save_library_symbol(self, sym_type: str, label: str, hint: str, svg: str, preset: dict[str, Any] | None,
+                            actor: str, replace: bool) -> dict[str, Any] | None:
+        """Opret (replace=False) eller gem ny version (replace=True; version +1 i SQL — ingen read-modify-write).
+        → rækken, eller None hvis den allerede findes (opret) / ikke findes (ny version)."""
+        now = time.time()
+        pj = json.dumps(preset, ensure_ascii=False) if preset is not None else None
+        with self._lock:
+            if replace:
+                n = self._conn.execute(
+                    "UPDATE library_symbols SET label = ?, hint = ?, svg = ?, preset = ?, version = version + 1, "
+                    "updated_at = ?, updated_by = ? WHERE type = ?", (label, hint, svg, pj, now, actor, sym_type)).rowcount
+            else:
+                n = self._conn.execute(
+                    "INSERT OR IGNORE INTO library_symbols(type, label, hint, svg, preset, version, created_at, created_by, "
+                    "updated_at, updated_by) VALUES (?,?,?,?,?,1,?,?,?,?)",
+                    (sym_type, label, hint, svg, pj, now, actor, now, actor)).rowcount
+        return self.get_library_symbol(sym_type) if n else None
+
+    def rename_library_symbol(self, sym_type: str, label: str | None, hint: str | None, actor: str) -> bool:
+        sets: list[str] = []
+        args: list[Any] = []
+        if label is not None:
+            sets.append("label = ?")
+            args.append(label)
+        if hint is not None:
+            sets.append("hint = ?")
+            args.append(hint)
+        if not sets:
+            return self.get_library_symbol(sym_type) is not None
+        args += [time.time(), actor, sym_type]
+        return self._execute(f"UPDATE library_symbols SET {', '.join(sets)}, updated_at = ?, updated_by = ? WHERE type = ?",
+                             tuple(args)) > 0
+
+    def delete_library_symbol(self, sym_type: str) -> bool:
+        return self._execute("DELETE FROM library_symbols WHERE type = ?", (sym_type,)) > 0
+
+    def get_library_layout(self) -> dict[str, Any] | None:
+        rows = self._query("SELECT value FROM meta WHERE key = 'library.layout'")
+        if not rows:
+            return None
+        try:
+            v = json.loads(rows[0]["value"])
+        except ValueError:
+            return None
+        return v if isinstance(v, dict) else None
+
+    def set_library_layout(self, layout: dict[str, Any], expect_rev: int | None) -> dict[str, Any] | None:
+        """Gem hele layoutet, hvis det gemte stadig har revisionen expect_rev (None = ingen kontrol). Læsning,
+        sammenligning og skrivning sker under samme lås, så to samtidige gem ikke overskriver hinanden.
+        → det gemte layout (rev +1), eller None ved konflikt."""
+        with self._lock:
+            row = self._conn.execute("SELECT value FROM meta WHERE key = 'library.layout'").fetchone()
+            try:
+                cur = json.loads(row[0]) if row else {}
+            except ValueError:
+                cur = {}
+            rev = int(cur.get("rev", 0)) if isinstance(cur, dict) else 0
+            if expect_rev is not None and expect_rev != rev:
+                return None
+            out = {**layout, "rev": rev + 1}
+            self._conn.execute("INSERT INTO meta(key, value) VALUES ('library.layout', ?) "
+                               "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (json.dumps(out, ensure_ascii=False),))
+        return out
 
     def list_trend_views(self) -> list[dict[str, Any]]:
         out = []
@@ -1035,6 +1132,9 @@ class Database:
             "symbol_groups": self._export_groups(),
             "trend_views": self.list_trend_views(),
             "symbol_ports": self.list_symbol_ports(),
+            "library_symbols": [{k: r[k] for k in ("type", "label", "hint", "svg", "preset", "version")}
+                                for r in self.list_library_symbols()],
+            "library_layout": self.get_library_layout(),
             "settings": {"start_drawing": self.get_setting("start_drawing")},
             "schedules": [{k: s[k] for k in ("name", "tag", "enabled", "default_value", "entries", "exceptions")}
                           for s in self.list_schedules()],
@@ -1136,6 +1236,25 @@ class Database:
                 cur.execute("DELETE FROM meta WHERE key LIKE 'symbolports.%'")
                 for sym_type, ports in (data.get("symbol_ports") or {}).items():
                     cur.execute("INSERT INTO meta(key, value) VALUES (?, ?)", (f"symbolports.{sym_type}", json.dumps(ports)))
+                # Egne symboler og bibliotekets opdeling (v3.28.0) — kun hvis backuppen har dem (ældre backups: uændret)
+                if "library_symbols" in data:
+                    cur.execute("DELETE FROM library_symbols")
+                    for ls in data["library_symbols"]:
+                        cur.execute(
+                            "INSERT INTO library_symbols(type, label, hint, svg, preset, version, created_at, created_by, "
+                            "updated_at, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                            (ls["type"], ls["label"], ls["hint"], ls["svg"],
+                             json.dumps(ls["preset"], ensure_ascii=False) if ls.get("preset") is not None else None,
+                             ls["version"], now, "restore", now, "restore"))
+                if "library_layout" in data:
+                    old = cur.execute("SELECT value FROM meta WHERE key = 'library.layout'").fetchone()
+                    try:
+                        old_rev = int(json.loads(old[0]).get("rev", 0)) if old else 0
+                    except (ValueError, AttributeError, TypeError):
+                        old_rev = 0
+                    cur.execute("DELETE FROM meta WHERE key = 'library.layout'")
+                    cur.execute("INSERT INTO meta(key, value) VALUES ('library.layout', ?)",
+                                (json.dumps({**(data["library_layout"] or {}), "rev": old_rev + 1}, ensure_ascii=False),))
                 for v in data.get("trend_views", []):
                     cur.execute("INSERT INTO meta(key, value) VALUES (?, ?)",
                                 (f"setting.{self._trendview_key(v['name'])}", json.dumps(v, ensure_ascii=False)))

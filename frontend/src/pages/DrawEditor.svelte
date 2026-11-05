@@ -20,10 +20,13 @@
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
+  import SymbolExport from '../lib/SymbolExport.svelte';
+  import { sections as libSections, symbolsIn as libSymbolsIn } from '../lib/library';
+  import { defs, library, loadLibrary } from '../lib/libraryStore.svelte';
   import { configGroups, pasteReport, pasteTargets, type ConfigClip, type ConfigGroup, type CopyResponse, type Member, type SymbolRow } from '../lib/symbolCopy';
   import type { SymbolConfig, SymbolInfo } from '../lib/symbolConfig';
   import type { SelectionInfo } from '../lib/symbolSuggest';
-  import { CATEGORIES, FITTING_LEGS, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
+  import { FITTING_LEGS, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
   import { MAX_DIGITS, MIN_DIGITS, segDisplaySvg } from '../lib/segDisplay';
   import { setLeaveGuard } from '../lib/leaveGuard';
 
@@ -68,6 +71,8 @@
     setLibraryPorts(map: Record<string, number[][]>): void;
     setTeeSymbol(def: { fragment: string; label: string } | null): void;
     splitFitting(id: string, legs: string): { ok?: boolean; removed?: string[]; parts?: string[]; error?: string };
+    elementBox(id: string): { x: number; y: number; w: number; h: number } | null;
+    elementMarkup(id: string): string;
   }
 
   let drawings = $state<{ id: string; name: string }[]>([]);
@@ -538,6 +543,25 @@
 
   // ---- Erstat med symbol (tegnet del → bibliotekssymbol)
   let replaceInfo = $state<SelectionInfo | null>(null);
+
+  // ---- Gem som symbol (v3.28.0): objektet/gruppen gemmes i biblioteket ud fra tegningens gemte version
+  let exportFor = $state<{ id: string; name: string; box: { x: number; y: number; w: number; h: number }; markup: string } | null>(null);
+  async function openExport(): Promise<void> {
+    const sel = selection.length === 1 ? selection[0] : null;
+    if (!ed || !sel) return;
+    error = '';
+    if (!sel.id) {
+      error = 'Elementet har intet id — giv det et id under Avanceret, eller gruppér det (Ctrl+G).';
+      return;
+    }
+    const box = ed.elementBox(sel.id);
+    if (!box || box.w <= 0 || box.h <= 0) {
+      error = 'Objektet har ingen størrelse og kan ikke gemmes som symbol.';
+      return;
+    }
+    if (!(await ensurePublished('objektet kan gemmes i biblioteket'))) return;
+    exportFor = { id: sel.id, name: sel.name ?? '', box, markup: ed.elementMarkup(sel.id) };
+  }
   let replaceLost = $state({ own: 0, similarBound: 0, similarBoundParts: 0 });
   let boundIds: string[] = [];        // elementer med bindinger i den gemte version — lignende dele med dem springes over
 
@@ -680,12 +704,12 @@
 
   let symbolFilter = $state('');
   // "Mine symboler" (v0.78.0): brugerens egen sektion øverst, gemt pr. bruger på serveren
-  const KNOWN = new Set(SYMBOLS.map((s) => s.id));
+  const known = (): Set<string> => new Set(defs().map((s) => s.id));
   let favorites = $state<string[]>([]);
   let favError = $state('');
   async function loadFavorites(): Promise<void> {
     try {
-      favorites = knownFavorites((await get<{ symbols: string[] }>('/api/auth/me/palette')).symbols, KNOWN);
+      favorites = knownFavorites((await get<{ symbols: string[] }>('/api/auth/me/palette')).symbols, known());
     } catch (e) {
       favError = `Mine symboler kunne ikke hentes: ${(e as Error).message}`;
     }
@@ -695,7 +719,7 @@
     favorites = next;   // vis ændringen med det samme; rul tilbage, hvis serveren afviser
     favError = '';
     try {
-      favorites = knownFavorites((await put<{ symbols: string[] }>('/api/auth/me/palette', { symbols: next })).symbols, KNOWN);
+      favorites = knownFavorites((await put<{ symbols: string[] }>('/api/auth/me/palette', { symbols: next })).symbols, known());
     } catch (e) {
       favorites = before;
       favError = `Mine symboler kunne ikke gemmes: ${(e as Error).message}`;
@@ -703,12 +727,11 @@
   }
   const mine = (): SymbolDef[] => {
     const q = symbolFilter.trim().toLowerCase();
-    return favorites.map((id) => SYMBOLS.find((s) => s.id === id)).filter((s): s is SymbolDef => !!s && (!q || s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q)));
+    const all = defs();
+    return favorites.map((id) => all.find((s) => s.id === id)).filter((s): s is SymbolDef => !!s && (!q || s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q)));
   };
-  const symbolsIn = (cat: string): SymbolDef[] => {
-    const q = symbolFilter.trim().toLowerCase();
-    return SYMBOLS.filter((s) => s.category === cat && (!q || s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q)));
-  };
+  // Sektionerne og rækkefølgen kommer fra bibliotekets opdeling (Opsætning › Symboler); egne symboler er med (v3.28.0)
+  const symbolsIn = (cat: string): SymbolDef[] => libSymbolsIn(defs(), library.layout, cat, symbolFilter);
 
   /** Forhåndsvisning: viewBox efter symbolets egen størrelse, så små og store symboler fylder knappen ens. */
   /** Rør og fittings vises i samme målestok, så rørtykkelsen ser ens ud på tværs af knapperne. */
@@ -752,7 +775,7 @@
   }
 
   function insert(symbolId: string, at: { x: number; y: number } | null = null): void {
-    const s = SYMBOLS.find((x) => x.id === symbolId);
+    const s = defs().find((x) => x.id === symbolId);
     if (!ed || !s) return;
     ed.insertSymbol(withName(s.svg, ed.uniqueName(s.label)), s.id, at);
     dirty = true;
@@ -779,7 +802,7 @@
   onMount(async () => {
     window.addEventListener('beforeunload', onBeforeUnload);
     removeLeaveGuard = setLeaveGuard(async () => !dirty || await askUser('Tegningen har ændringer, der ikke er gemt — de går tabt, hvis du forlader siden. Gem først med "Gem kladde", eller fortsæt og kassér dem.', { ok: 'Kassér og forlad', danger: true }));
-    loadFavorites();
+    void loadLibrary().then(loadFavorites);   // egne symboler skal kendes, før favoritterne filtreres
     fitFrame();
     stopLayout = onLayoutChange(fitFrame);
     try {
@@ -906,6 +929,7 @@
         {#if selection.length > 1}
           <div class="row"><button class="primary" onclick={() => guarded('Opsæt de valgte samlet', openGroupGuide)} disabled={!ready || busy} title="Rediger tag og animationer for alle de valgte på én gang — guiden redigerer ét af dem, og Gem giver alle opsætningen">Opsæt de valgte samlet ({selection.length})</button></div>
           <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat de valgte dele samlet med ét symbol — fx en ventil tegnet af flere løse figurer">Erstat markeringen med symbol …</button></div>
+          <p class="small muted">Skal de gemmes som ét symbol i biblioteket? Gruppér dem først (Ctrl+G), og vælg gruppen.</p>
           {@render clipRow(false)}
           {@render colorRow()}
         {/if}
@@ -937,6 +961,7 @@
           <div class="row"><button onclick={() => guarded('Del i rør', splitFitting)} disabled={!ready || busy} title="Del T-stykket/krydset i selvstændige rør, så hvert rør kan få sit eget løbelys">Del i rør</button></div>
         {/if}
         <div class="row"><button onclick={openReplace} disabled={!ready || busy} title="Erstat den tegnede del med et symbol fra biblioteket (samme placering, størrelse og drejning)">Erstat med symbol …</button></div>
+        <div class="row"><button onclick={() => guarded('Gem som symbol', openExport)} disabled={!ready || busy} title="Gem objektet/gruppen som et nyt symbol i biblioteket — med dele, gradienter og opsætningen fra guiden">Gem som symbol i biblioteket …</button></div>
         {#if single.type && SYMBOLS.some((x) => symbolType(x.id) === single.type)}
           <div class="row"><button onclick={() => gotoSymbols(single?.type ?? null)} title="Åbn symbol-editoren på dette symbol — ret tilslutningspunkterne for symboler, der indsættes fremover">Ret tilslutningspunkter …</button></div>
         {/if}
@@ -976,7 +1001,8 @@
           <p class="small muted">{favorites.length ? `Ingen af dine symboler matcher "${symbolFilter}".` : 'Tryk ☆ på et symbol for at lægge det her. Ordn dem med ◀ ▶.'}</p>
         {/if}
       </details>
-      {#each CATEGORIES as cat (cat.id)}
+      {#if library.error}<p class="small error">{library.error}</p>{/if}
+      {#each libSections(library.layout) as cat (cat.id)}
         {@const list = symbolsIn(cat.id)}
         {#if list.length}
           <details open>
@@ -1008,7 +1034,7 @@
           </details>
         {/if}
       {/each}
-      {#if CATEGORIES.every((c) => !symbolsIn(c.id).length)}<p class="small muted">Ingen symboler matcher "{symbolFilter}".</p>{/if}
+      {#if libSections(library.layout).every((c) => !symbolsIn(c.id).length)}<p class="small muted">Ingen symboler matcher "{symbolFilter}".</p>{/if}
       <p class="small muted">Symbolerne er grå i normaltilstand (ISA-101). Farve og animation kommer fra bindingerne.</p>
     </PanelSection>
   </aside>
@@ -1062,7 +1088,12 @@
 {/snippet}
 
 {#if replaceInfo}
-  <SymbolReplace info={replaceInfo} lostBindings={replaceLost} onreplace={doReplace} onclose={() => (replaceInfo = null)} />
+  <SymbolReplace info={replaceInfo} lostBindings={replaceLost} onreplace={doReplace} onclose={() => (replaceInfo = null)} currentType={single?.type ?? ''} />
+{/if}
+
+{#if exportFor && current}
+  <SymbolExport drawingId={current.id} version={loadedVersion} element={exportFor.id} box={exportFor.box} markup={exportFor.markup}
+    suggested={exportFor.name} onclose={() => (exportFor = null)} ondone={(msg) => { exportFor = null; info = msg; }} />
 {/if}
 
 {#if basisChoice}

@@ -23,6 +23,7 @@ export interface PoolBlock { element: string; symbol: string; id: string; name: 
 export interface LogicBlock { id: string; name: string; op: 'and' | 'or'; inputs: LogicInput[]; invert: boolean }
 import { defaultChart, type ChartCfg } from './chartGraphic';
 import { KNIV_LUKKET } from './symbols';
+import { presetFor } from './library';
 import { defaultDirs, leverAnims } from './toggleSwitch';
 
 export interface SymbolConfig {
@@ -133,9 +134,21 @@ export function partLabel(id: string, info: SymbolInfo | null): string {
  * 3-vejs motorventil: to positioner, AB → A og AB → B; AB er altid åben, og A eller B er åben efter positionen.
  * Statusfelt: farven følger et register (vælg tagget i trin 4).
  */
+/** Egne symbolers standardopsætning (v3.28.0) — sat af libraryStore, når biblioteket er hentet. */
+let ownPresets: Record<string, SymbolConfig | null> = {};
+export function setOwnPresets(map: Record<string, SymbolConfig | null>): void {
+  ownPresets = map;
+}
+
 export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfig; note: string } | null {
   if (!symbol) return null;
   const partOf = (pid: string) => Object.entries(symbol.parts).find(([, p]) => p.pid === pid)?.[0];
+  if (symbol.type.startsWith('u_')) {
+    const cfg = presetFor(ownPresets[symbol.type] ?? null, partOf);
+    if (!cfg) return null;
+    cfg.type = symbol.type;
+    return { config: cfg, note: 'Standardopsætningen fra dit eget symbol i biblioteket. Vælg tags under trin 2 og 4.' };
+  }
   const cfg = emptyConfig(symbol.type);
   if (symbol.type === 'trevejs_motorventil' || symbol.type === 'trevejs_motorventil_ab') {
     cfg.positions = [{ label: 'AB → A' }, { label: 'AB → B' }];
