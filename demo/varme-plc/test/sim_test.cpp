@@ -184,6 +184,11 @@ int main(int argc, char **argv) {
   ok(!strcmp(S(2, "MVS1_TXT"), "AB-B") && !strcmp(S(2, "MVS2_TXT"), "AB-B"), "MVS1/MVS2 er koert til AB-B (30 s)");
   hours(2); status("+2 t");
   ok(R(2, "T_RUM") > 18.5f, "huset forsynes direkte fra pillefyret");
+  setI(2, "cmd_mvs1", 1); scans(70);
+  ok(!strcmp(S(2, "MVS1_TXT"), "AB-A") && !strcmp(S(2, "MVS2_TXT"), "AB-B"), "haandbetjening: MVS1 koert til AB-A, MVS2 foelger styringen");
+  setI(2, "cmd_mvs1", 0); setI(2, "cmd_mvs2", 1); scans(70);
+  ok(!strcmp(S(2, "MVS2_TXT"), "AB-A") && R(2, "MVS1_POS") >= 99.9f, "haandbetjening: MVS2 AB-A, MVS1 tilbage paa Auto");
+  setI(2, "cmd_mvs2", 0);
   setI(3, "cmd_scenarie", 0);
   hours(12); status("normal igen");
 

@@ -2,6 +2,10 @@
 
 ---
 
+## v3.29.0 — 2026-11-06 — Demo: motorventilerne kan betjenes
+
+- På demo-varmeanlægget kan **motorventilerne MVS1 og MVS2** nu betjenes hver for sig: klik på ventilen og vælg **Auto**, **AB-A** eller **AB-B**. Ventilen kører over på 30 s. Ingen ændringer i selve SCADA'en.
+
 ## v3.28.1 — 2026-11-05 — Demo-opsætning
 
 - Demo-varmeanlæggets betjeningspanel kan nu sættes op igen uden at blive lagt ind flere gange (`demo/varme-plc/scada_setup.py`). Ingen ændringer i selve SCADA'en.

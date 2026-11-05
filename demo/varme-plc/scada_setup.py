@@ -6,7 +6,7 @@ Brug:
     python demo/varme-plc/scada_setup.py https://scada.example [--cafile=server.pem] [--plc=http://10.1.1.34] [--drawing=varme]
 
   --cafile: serverens eget (selvsignerede) certifikat som eneste CA — forbindelsen tjekkes stadig, også værtsnavnet.
-  --dry-run=fil.svg: skriv kun den nye SVG, gem intet. --skip-plc: spring PLC og tags over.
+  --dry-run=fil.svg: skriv kun den nye SVG, gem intet. --skip-plc: spring PLC og tags over. --only-configs: lad tegningen være og sæt kun tags og symboler op.
 
 Trin (alle kan køres igen, intet dobbelt):
   1. PLC'en `demo` oprettes eller opdateres.
@@ -95,6 +95,10 @@ TAGS: list[tuple[str, int, str, str, int | None, dict[str, Any]]] = [
     ("MVS2_TXT", 3, "MVS2_TXT", "", None, {"description": "Motorventil MVS2"}),
     ("MVS1_POS", 3, "MVS1_POS", "%", 0, {"description": "Motorventil MVS1 position (0 = AB-A, 100 = AB-B)"}),
     ("MVS2_POS", 3, "MVS2_POS", "%", 0, {"description": "Motorventil MVS2 position (0 = AB-A, 100 = AB-B)"}),
+    ("cmd_mvs1", 3, "cmd_mvs1", "", 0, {"description": "Håndbetjening MVS1: 0 Auto, 1 AB-A, 2 AB-B", "writable": True,
+                                         "min": 0, "max": 2, "confirm_write": True}),
+    ("cmd_mvs2", 3, "cmd_mvs2", "", 0, {"description": "Håndbetjening MVS2: 0 Auto, 1 AB-A, 2 AB-B", "writable": True,
+                                         "min": 0, "max": 2, "confirm_write": True}),
     # Logic4 — system, demo, varmepumpe
     ("FFS_TXT", 4, "FFS_TXT", "", None, {"description": "Brændefyrets status"}),
     ("sp_speed", 4, "sp_speed", "×", 0, {"description": "Tidsfaktor (1 = realtid, 60 = en time pr. minut)", "writable": True,
@@ -390,11 +394,16 @@ def configs(index: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
     out["svg_271"] = view("kedel", [anim(pid(index, "svg_271", "flamme"), "flicker", "FF_KW", **flick)])
     out["svg_4"] = view("varmepumpe", [anim(pid(index, "svg_4", "rotor"), "spin", "VP_RUN", invert=False),
                                        anim(pid(index, "svg_4", "lampe"), "fill", "VP_RUN", on=ON, off=GREY, thresholds=[])])
-    for el, pos in (("trevejs_motorventil", "MVS1_POS"), ("trevejs_motorventil_2", "MVS2_POS")):
-        out[el] = view("trevejs_motorventil", [
+    # Motorventilerne kan betjenes (håndbetjening på motoren): Auto / AB-A / AB-B → cmd_mvsN. Portfarverne følger den
+    # faktiske position (MVSn_POS), så man ser ventilen køre i de 30 s.
+    for el, pos, cmd in (("trevejs_motorventil", "MVS1_POS", "cmd_mvs1"), ("trevejs_motorventil_2", "MVS2_POS", "cmd_mvs2")):
+        out[el] = {**view("trevejs_motorventil", [
             anim(pid(index, el, "port_a"), "fill", pos, on=BLUE, off=GREY, thresholds=[{"value": 0, "color": BLUE}, {"value": 100, "color": GREY}]),
             anim(pid(index, el, "port_b"), "fill", pos, on=BLUE, off=GREY, thresholds=[{"value": 1, "color": BLUE}]),
-            anim(pid(index, el, "port_ab"), "fill", "PS1", on=BLUE, off=GREY, thresholds=[])])
+            anim(pid(index, el, "port_ab"), "fill", "PS1", on=BLUE, off=GREY, thresholds=[])]),
+            "op": "positions", "positions": [{"label": "Auto"}, {"label": "AB-A"}, {"label": "AB-B"}],
+            "signals": [{"id": "S1", "tag": cmd, "fb": cmd, "write": "set"}], "planes": [{"signal": "S1", "values": [0, 1, 2]}],
+            "display": "remote", "confirm": True, "click": "dialog", "badge": False}
     out["trevejsventil_2"] = view("trevejsventil", [anim("all", "fill", "LADDOMAT", on=WARM, off=GREY, thresholds=[])])
     for el in ("svg_179", "svg_285"):
         out[el] = view("sikkerhedsventil", [anim("all", "blink", "SV_AABEN", invert=False, speed="fast")])
@@ -486,6 +495,12 @@ def main() -> None:
         setup_tags(api)
 
     old = api.req("GET", f"/api/drawings/{drawing}/svg")
+    if flags.get("--only-configs"):   # tegningen er uændret: sæt kun symbolerne op på den aktive version
+        cfgs = configs(symbol_index(old))
+        for el, cfg in cfgs.items():
+            api.req("PUT", f"/api/drawings/{drawing}/symbols/{el}/config", {"config": cfg})
+        print(f"Bindinger: {len(cfgs)} symboler opsat (tegningen uændret)")
+        return
     svg = new_svg(old, syms)
     if flags.get("--dry-run"):
         Path(str(flags["--dry-run"]) if flags["--dry-run"] is not True else "varme-demo.svg").write_text(svg, encoding="utf-8")
