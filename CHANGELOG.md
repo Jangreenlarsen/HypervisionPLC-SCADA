@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.28.1 build 0332] — 2026-11-05 — Demo: opsætning af demo-SCADA'en + fix af dobbelte betjeningspaneler
+
+- Nyt `demo/varme-plc/scada_setup.py` (PLC, 87 tags, betjeningspanel og symbolopsætninger på tegningen `varme` via SCADA'ens REST API), `demo/varme-plc/syms.json` + `tools/symgen.ts` (panelets symboler genereret fra frontendens bibliotek), `.gitignore`.
+- Fix: scriptet fjernede det tidligere panel via kommentarmarkører, som serveren fjerner ved gem — hver kørsel lagde et panel mere ovenpå (4 på demo-SCADA'en), og klik ramte kopierne uden opsætning. Panelet kendes nu på sin baggrund; alle tidligere paneler (også kopier med nye id'er) fjernes. Demo-SCADA'en rettet (tegningen `varme` version 131). `demo/varme-plc/README.md`, BUGS.md.
+
 ## [3.28.0 build 0331] — 2026-11-05 — Egne symboler: gem et objekt fra Tegn i symbolbiblioteket (del 1)
 
 - Backend: ny tabel `library_symbols` (additiv, `storage/db.py`) og opdelingen i meta-nøglen `library.layout` (gemmes med revision — samtidige gem afvises med 409). `services/library.py`: udtræk af objektet fra tegningens gemte version (flyttes til 0,0, dele navngives efter bibliotekets delnavn/id, gradienter/markører følger med under nye navne, instans-attributter fjernes, renses igen med `svg_sanitize`), standardopsætning samlet fra objektets og de indlejrede symbolers opsætninger (delnavne, tags fjernet som standard, nøglelås aldrig med, højst én betjening), versioner, omdøb/slet (svaret siger hvilke tegninger der bruger symbolet) og opdeling. `api/library.py`: `GET /api/library` (viewer), `POST /api/library/symbols`, `PATCH`/`DELETE /api/library/symbols/{type}`, `PUT /api/library/layout` (tekniker/admin, audit-log). Med i backup/gendan (`services/backup.py`; ældre backups lader biblioteket være). `main.py`. Tests: `tests/test_library.py`.

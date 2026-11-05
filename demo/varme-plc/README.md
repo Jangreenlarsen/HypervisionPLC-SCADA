@@ -22,6 +22,14 @@ PLC_USER=admin PLC_PASS=... python demo/varme-plc/load.py http://<plc-ip> --chec
 
 Kræver en PLC **med PSRAM**. Demoen fylder ca. 18 KB, og kildepuljen er 64 KB med PSRAM, men kun 8 KB uden. Alle fire programmer kører med et interval på 500 ms. Fysikken regner med `dt = 0,5 s × sp_speed`, så intervallet skal stå på 500 ms.
 
+## Opsætning af SCADA'en
+
+```bash
+SCADA_USER=... SCADA_PASS=... PLC_USER=... PLC_PASS=... python demo/varme-plc/scada_setup.py https://<scada> --cafile=<cert.pem> [--plc=http://<plc-ip>] [--drawing=varme] [--dry-run=ny.svg]
+```
+
+Scriptet opretter PLC'en (nøgle `demo`) og alle tags, lægger betjeningspanelet nederst på tegningen (ny version, udgives) og sætter alle symboler op. Det kan køres igen: tidligere paneler fjernes først. Panelet kendes på sin baggrund, fordi serveren fjerner kommentarer ved gem. `--dry-run` skriver kun den nye SVG til en fil. Panelets symboler kommer fra `syms.json`, som genereres fra frontendens symbolbibliotek med `tools/symgen.ts` (se filens top). Adgangskoder angives kun som miljøvariabler.
+
 ## Variable til SCADA (tag-kind `logic`)
 
 Navnene svarer til felterne på tegningen. **Fed** = skrivbar fra SCADA.
