@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [ ] in-progress v3.27.0 (PLC-delen kører på 10.1.1.241; mangler opsætning i demo-SCADA) — **Demo-PLC: varmeanlæg emuleret i ST** (ønske fra Jan 2026-11-05, PLAN.md; ny PLC, tolkningen af tegningen `varme` godkendt): fire ST-programmer (styring + procesmodel for brændefyr/Laddomat, pillefyr, varmepumpe, 6-lags tank, husets kreds, tryk/sikkerhedsventiler, scenarier og tidsacceleration) i `demo/varme-plc/`, testet på PC med PLC'ens host-harness og indlæst via REST.
 - [x] done v3.26.0 — **System › Certifikater** (del 1 v3.25.0: selvsigneret, CSR, import, gendan; del 2 v3.26.0: Let's Encrypt HTTP-01/DNS-01) (ønske fra Jan 2026-11-04): selvsigneret, CSR + signeret certifikat, import af PKCS#12/PEM, Let's Encrypt (HTTP-01 og DNS-01/deSEC), gendan forrige — alt fra GUI'en med root-hjælper og ingen lockout. Styring via integrationer rykket til 3.26, MQTT til 3.27.
 - [x] done v3.24.0 — **Integrationer: eksempler på brug** (ønske fra Jan 2026-11-04): faste eksempler for alle endpoints og typiske klienter på siden. Styring via integrationer rykket til 3.25, MQTT til 3.26.
 - [x] done v3.23.0 — **Backup: tidsplan + eksterne destinationer** (ønske fra Jan 2026-11-04): samlet tidsplan (interval/dagligt/ugentligt/fra) og flere destinationer — SFTP, SCP, FTP/FTPS, HTTPS, SMB, NFS — med test, værtsnøgle-godkendelse, SSH-nøgle, oprydning, Status/SYS-alarm og `/metrics`. Styring via integrationer rykket til 3.24, MQTT til 3.25.

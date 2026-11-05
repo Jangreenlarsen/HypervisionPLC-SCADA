@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.27.0 build 0330] — 2026-11-05 — Demo-PLC: varmeanlægget emuleret i ST
+
+- Nyt `demo/varme-plc/`: `globals.st` (16 GLOBAL_VAR), `logic1_styring.st` (styring, alarmer), `logic2_kilder.st` (brændefyr/Laddomat, pillefyr), `logic3_tank_hus.st` (tank i 6 lag, husets kreds, MVS1/MVS2), `logic4_system.st` (tryk, sikkerhedsventiler, udetemp, tidsfaktor, scenarier/fejl, varmepumpe), `load.py` (indlæsning via PLC'ens REST API), `test/run.sh` + `test/sim_test.cpp` (PC-test med PLC'ens egen compiler/VM: AST-noder, scenarier, fysiske grænser), `README.md` (variabel-/bindingstabel).
+- Indlæst og verificeret på demo-PLC'en (firmware v7.9.68.166): alle fire programmer kører uden fejl, ca. 1 ms pr. scan.
+- Fundet i PLC-firmwaren og omgået: CASE med flere værdier pr. gren rammer ingen, negative startværdier i VAR bliver 0, STRING-startværdier sættes ikke.
+- `PLAN.md`, `FEATURES.md`, `.gitignore`.
+
 ## [3.26.3 build 0329] — 2026-11-04 — Manual: guidens trin 5 med nyt layout (med i appen)
 
 - `frontend/src/manual/10-symboler-og-guiden.md` (trin 5 beskrevet som bokse) og nye skærmbilleder `frontend/public/manual/guide-5.png`, `guide-interaktiv.png`, `guide-noeglelaas.png`.
