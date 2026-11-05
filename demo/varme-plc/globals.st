@@ -1,0 +1,18 @@
+GLOBAL_VAR
+  g_cmd    : INT;   (* L1: b0-3 P1-P4, b4 MVS1, b5 MVS2, b6 pille, b7 VP *)
+  g_fb     : INT;   (* L2: b0-3 pumpe koerer, b6 pilleflamme, b9 FF-flamme, b10 Laddomat, b11 pillefejl *)
+  g_fault  : INT;   (* L4: b0-3 pumpefejl, b4 pille, b5 laekage, b7 VP; b12 VP-fejlsignal *)
+  g_speed  : REAL;  (* L4: tidsfaktor *)
+  g_tude   : REAL;  (* L4: udetemp *)
+  g_att1   : REAL;  (* L3: tank top *)
+  g_att3   : REAL;  (* L3: tank midt *)
+  g_att6   : REAL;  (* L3: tank bund *)
+  g_fftf   : REAL;  (* L2 *)
+  g_pftf   : REAL;  (* L2 *)
+  g_mch    : REAL;  (* L2: ladeflow til tank kg/s *)
+  g_tch    : REAL;  (* L2: ladetemp *)
+  g_str    : REAL;  (* L3 *)
+  g_vptf   : REAL;  (* L4: VP-fremloeb til tanken *)
+  g_stf_sp : REAL;  (* L1: fremloebssetpunkt *)
+  g_tryk   : REAL;  (* L4: bar *)
+END_VAR

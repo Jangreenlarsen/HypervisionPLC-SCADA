@@ -2,6 +2,10 @@
 
 ---
 
+## v3.27.0 — 2026-11-05 — Demo-PLC med varmeanlæg
+
+- Ny **demo-PLC**: fire ST-programmer får en HypervisionPLC uden fysisk I/O til at opføre sig som varmeanlægget på tegningen *varme*. Det omfatter brændefyr med Laddomat, pillefyr, varmepumpe, akkumuleringstank i 6 lag, husets varmekreds, motorventiler, systemtryk med sikkerhedsventiler og alarmer. Tidsfaktor op til ×120 og scenarier: vinternat, sommer, lækage, pumpefejl, overophedning og fejl i pillefyr eller varmepumpe. Opsætning og liste over variable: `demo/varme-plc/README.md`.
+
 ## v3.26.3 — 2026-11-04 — Opdateret manual
 
 - Manualens afsnit om symbolguidens trin 5 og skærmbillederne viser nu det nye layout.

@@ -21,3 +21,6 @@ desktop.ini
 
 # Opdateringspakker bygget af deploy/make-package.sh
 scada-*.tar
+
+# PC-test af demo-PLC'ens ST-programmer
+demo/varme-plc/test/build/
