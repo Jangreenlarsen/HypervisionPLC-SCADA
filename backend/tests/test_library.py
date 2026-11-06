@@ -214,3 +214,94 @@ def test_backup_rejects_duplicate_types(api):
     rev = api.get("/api/library").json()["layout"]["rev"]
     assert api.post("/api/backup/restore", json=backup).status_code == 200
     assert api.get("/api/library").json()["layout"]["rev"] > rev   # revisionen fortsætter efter gendannelse
+
+
+# ------------------------------------------------------------------ import af SVG-filer og pakker (v3.31.0)
+
+FILE_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 20 100 50" fill="#336">'
+            '<style>.st0{fill:#f00;stroke:#000} .st1{stroke-width:3} svg rect{fill:blue}</style>'
+            '<defs><linearGradient id="g"><stop offset="0" stop-color="#fff"/></linearGradient></defs>'
+            '<rect id="Kasse" class="st0 st1" x="10" y="20" width="100" height="50"/>'
+            '<circle id="lampe" cx="60" cy="45" r="10" fill="url(#g)"/>'
+            '<script>alert(1)</script><a href="https://x.dk"><rect id="link" width="1" height="1"/></a></svg>')
+
+
+def imp(api, files, **over):
+    body = {"files": files, "on_conflict": "rename"}
+    body.update(over)
+    return api.post("/api/library/import", json=body)
+
+
+def test_import_svg_files(api):
+    r = imp(api, [{"name": "Min ventil.svg", "svg": FILE_SVG},
+                  {"name": "stor.svg", "svg": '<svg xmlns="http://www.w3.org/2000/svg" width="960px" height="480">'
+                                                '<path id="p" d="M0 0L960 480"/></svg>'},
+                  {"name": "tom.svg", "svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><title>x</title></svg>'},
+                  {"name": "uden-str.svg", "svg": '<svg xmlns="http://www.w3.org/2000/svg"><rect width="5" height="5"/></svg>'},
+                  {"name": "ikke-svg.svg", "svg": "<html>hej</html>"}])
+    assert r.status_code == 200, r.text
+    res = r.json()["results"]
+    assert [x["status"] for x in res] == ["created", "created", "error", "error", "error"]
+    assert res[0]["label"] == "Min ventil" and res[0]["type"] == "u_min_ventil"
+    assert set(res[0]["parts"]) == {"kasse", "lampe"}   # <a> (og indholdet) fjernes af rensningen
+    assert any("CSS-reglen" in w for w in res[0]["warnings"])
+    assert "ingen grafik" in res[2]["error"] and "viewBox" in res[3]["error"]
+    lib_ = api.get("/api/library").json()
+    svg = next(s for s in lib_["symbols"] if s["type"] == "u_min_ventil")["svg"]
+    assert "translate(-10 -20)" in svg and 'fill="#336"' in svg               # flyttet til (0,0), arvet fyld bevaret
+    assert "fill:#f00" in svg and "stroke-width:3" in svg and "<style" not in svg and "class=" not in svg
+    assert 'id="def_g"' in svg and "url(#def_g)" in svg
+    assert "script" not in svg and "https://" not in svg
+    big = next(s for s in lib_["symbols"] if s["type"] == "u_stor")["svg"]
+    assert "scale(0.25)" in big                                               # 960 → 240
+    assert lib_["layout"]["items"]["u_min_ventil"][0] == "egne"
+
+
+def test_import_conflicts_and_section(api):
+    f = [{"name": "Lampe.svg", "svg": FILE_SVG}]
+    assert imp(api, f).json()["results"][0]["status"] == "created"
+    r2 = imp(api, f).json()["results"][0]
+    assert r2["status"] == "renamed" and r2["label"] == "Lampe 2"
+    r3 = imp(api, f, on_conflict="version").json()["results"][0]
+    assert r3["status"] == "version" and r3["type"] == "u_lampe" and r3["version"] == 2
+    assert imp(api, f, on_conflict="skip").json()["results"][0]["status"] == "skipped"
+    r5 = imp(api, [{"name": "x.svg", "svg": FILE_SVG}], section="Ventiler").json()
+    t = r5["results"][0]["type"]
+    lay = api.get("/api/library").json()["layout"]
+    sec = next(s for s in lay["sections"] if s["label"] == "Ventiler")
+    assert lay["items"][t][0] == sec["id"]
+    assert imp(api, f, on_conflict="bad").status_code in (400, 422)
+    assert imp(api, []).status_code in (400, 422)
+
+
+def test_import_limits_and_roles(api):
+    huge = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="1" height="1"/>' + "<!--" + "x" * 300_000 + "--></svg>"
+    r = imp(api, [{"name": "a.svg", "svg": huge}] * 45)
+    assert r.status_code == 413
+    api.post("/api/users", json={"username": "op", "password": "op-pw-123456", "role": "operator"})
+    api.post("/api/auth/logout")
+    api.post("/api/auth/login", json={"username": "op", "password": "op-pw-123456"})
+    assert imp(api, [{"name": "a.svg", "svg": FILE_SVG}]).status_code == 403
+    assert api.get("/api/library/package").status_code == 403
+
+
+def test_package_roundtrip(api):
+    export(api, keep_tags=True)
+    imp(api, [{"name": "Lampe.svg", "svg": FILE_SVG}], section="Ventiler")
+    pkg = api.get("/api/library/package").json()
+    assert pkg["format"] == "hvlib" and len(pkg["symbols"]) == 2
+    ps = next(s for s in pkg["symbols"] if s["label"] == "Pumpestation")
+    assert ps["preset"] and all(a["src"] == "" for a in ps["preset"]["anims"])   # ingen tags i pakken
+    assert next(s for s in pkg["symbols"] if s["label"] == "Lampe")["section"] == "Ventiler"
+    # samme installation: navnene findes → nyt navn / ny version / spring over
+    r = api.post("/api/library/package", json={"package": pkg, "on_conflict": "version"}).json()
+    assert r["count"]["version"] == 2
+    r = api.post("/api/library/package", json={"package": pkg, "on_conflict": "skip"}).json()
+    assert r["count"]["skipped"] == 2
+    # ugyldigt preset (del findes ikke) fejler kun det symbol
+    bad = {**pkg, "symbols": [{**ps, "label": "Ny", "preset": {**ps["preset"], "anims": [{"part": "findes_ikke", "type": "spin", "src": "", "params": {}}]}},
+                              {**ps, "label": "Ny 2"}]}
+    r = api.post("/api/library/package", json={"package": bad, "on_conflict": "rename"}).json()
+    assert [x["status"] for x in r["results"]] == ["error", "created"] and "findes_ikke" in r["results"][0]["error"]
+    assert api.post("/api/library/package", json={"package": {"format": "andet"}}).status_code == 400
+    assert api.post("/api/library/package", json={"package": {**pkg, "format_version": 9}}).status_code == 400

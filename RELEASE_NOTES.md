@@ -2,6 +2,16 @@
 
 ---
 
+## v3.31.0 — 2026-11-06 — Importér SVG-symboler og organisér biblioteket
+
+- **Importér SVG-filer som symboler:** Vælg en eller flere `.svg`-filer i Tegn eller på siden *Symboler*. Hver fil bliver ét symbol, og elementer med id bliver dele, der kan animeres. Filerne renses for scripts og eksterne links.
+- **Organisér biblioteket** på siden *Symboler* under fanen *Bibliotek*:
+  - opret, omdøb, slet og sortér sektioner;
+  - flyt og ordn symboler, også de indbyggede;
+  - omdøb og slet egne symboler.
+- **Bibliotekspakke:** Du kan eksportere egne symboler som én fil og importere dem på en anden SCADA, med grafik og opsætning, men uden tags.
+- Egne symboler kan bruges i **Symboltest** og under **Tilslutningspunkter**.
+
 ## v3.30.0 — 2026-11-06 — Demo: tre driftsmodes
 
 - Demo-varmeanlægget kører nu i én af tre modes: **1 Hus + pillefyr**, **2 Hus + pillefyr + tank** og **3 Hus + tank**. Motorventilerne, pumperne og strømningen i rørene følger den valgte mode.

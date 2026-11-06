@@ -4,6 +4,20 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.31.0 build 0335] — 2026-11-06 — Import af SVG-symboler, bibliotekspakke og organisering af symbolbiblioteket
+
+- **Backend** (`backend/app/services/library.py`, `backend/app/api/library.py`):
+  - `import_fragment` laver en hel SVG-fil om til et bibliotekssymbol. Filen renses med tegningernes regler og flyttes til (0,0) ud fra viewBox eller width/height. Er den større end 240, skaleres den ned. Arvede præsentationsattributter fra `<svg>` bevares. CSS-klasser skrives ind på elementerne, og `<style>` fjernes, fordi den ellers ville gælde hele tegningen. Id'er bliver til dele, og defs bliver til `def_*`.
+  - `import_files`, `export_package`/`import_package` (`.hvlib.json`, format 1, tags fjernes) og `_section_id` (en manglende sektion fra en pakke oprettes). Ved navnekonflikt vælges *nyt navn*, *ny version* eller *spring over*.
+  - Endpoints: `POST /api/library/import`, `GET`/`POST /api/library/package` (engineer). Kroppen læses i bidder med et loft på 12 MB (413), der er højst 50 filer og 10 MB pr. import, og resultatet gives pr. fil. Hvert importeret symbol auditeres.
+- **Frontend:**
+  - Ny `LibraryImport.svelte` (dialog til SVG-filer og pakker med resultatet pr. fil).
+  - Ny `SymbolLibrary.svelte`: siden *Symboler* får fanerne **Bibliotek** (sektioner opret/omdøb/slet/rækkefølge, flyt og ordn symboler, omdøb/slet egne, import/eksport) og **Tilslutningspunkter**.
+  - Egne symboler er med i tilslutningspunkt-editoren og i Symboltest.
+  - Tegn: *Importér SVG-symboler …* og *Organisér …* i paletten. `libraryStore.svelte.ts`: import-, pakke-, omdøb- og slet-hjælpere.
+- **Tests:** `backend/tests/test_library.py` har 4 nye tests (import, konflikter og sektion, grænser og roller, pakke-roundtrip).
+- **Manual:** `07-tegn.md` har et nyt afsnit og billederne `symboler-bibliotek.png` og `symboler-import.png`. `08-forbindelser.md` er opdateret.
+
 ## [3.30.0 build 0334] — 2026-11-06 — Demo: ny driftsstruktur med 3 modes (Auto / manuel mode 1-3)
 
 - `demo/varme-plc/logic1_styring.st`: driftsform `cmd_mode` 0 Auto, 1-3 manuel mode. Mode 1 Hus + pille (M1 AB-A, M2 AB-A, P1), mode 2 Hus + pille + tank (M1 AB-A, M2 AB-B, P1), mode 3 Hus + tank (M1 AB-B, M2 AB-B, P2). Auto kobler tanken ind (mode 3) ved ATT1 ≥ `sp_tank_ind` (60 °C) og ud (mode 1) under `sp_tank_ud` (45 °C). Varmepumpen startes manuelt (`cmd_vp`). Nye `MODE`, `TANK_IND` og flow-flag pr. kredsdel (`F_HUS`, `F_PILLE`, `F_TANK`, `F_BYPASS`). Fjernet: Fra/Sommer/Kun pille/Manuel, `man_*`, `sp_tank_min`/`sp_tank_hyst`, `sp_sommer`.

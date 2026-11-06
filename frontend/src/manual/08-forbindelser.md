@@ -57,7 +57,7 @@ Et **T-stykke** er et biblioteks-symbol med tre ben (*tilløb 1*, *tilløb 2* og
 
 ## Tilslutningspunkter (siden Symboler)
 
-På siden **Symboler** (rollen tekniker, under **Opsætning**) kan du rette tilslutningspunkterne for et symbol i biblioteket:
+På siden **Symboler** (rollen tekniker, under **Opsætning**), fanen **Tilslutningspunkter**, kan du rette tilslutningspunkterne for et symbol i biblioteket — også egne symboler:
 
 - Vælg symbolet i listen. Symboler med rettede punkter er mærket **rettet**.
 - **Klik** for at tilføje et punkt — det fanger til rørender og kantmidter. **Træk** et punkt for at flytte det. **Højreklik** eller **Delete** fjerner det valgte.

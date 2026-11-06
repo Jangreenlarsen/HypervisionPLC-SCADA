@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
-  import { CATEGORIES, SYMBOLS, SYMBOL_COLORS, type SymbolCategory } from '../lib/symbols';
+  import { onMount, untrack } from 'svelte';
+  import { CATEGORIES, SYMBOL_COLORS, type SymbolCategory } from '../lib/symbols';
+  import { OWN_LABEL, OWN_SECTION } from '../lib/library';
+  import { defs, loadLibrary } from '../lib/libraryStore.svelte';
   import { ANIM_TXT, type AnimType, type SrcKind } from '../lib/symbolConfig';
   import { ROOT, librarySetup, testParts } from '../lib/symbolTest';
   import {
@@ -10,9 +12,11 @@
   } from '../lib/symbolSim';
   import SimParams from '../lib/SimParams.svelte';
 
-  let category = $state<SymbolCategory | 'alle'>('alle');
+  let category = $state<SymbolCategory | typeof OWN_SECTION | 'alle'>('alle');
+  const ALL = $derived(defs());   // indbyggede + egne symboler (v3.31.0)
+  onMount(() => { void loadLibrary(); });
   let search = $state('');
-  let selected = $state(SYMBOLS[0].id);
+  let selected = $state(defs()[0].id);
   let background = $state<'lys' | 'moerk' | 'skak'>('lys');
   let zoom = $state(3);
   let host = $state<HTMLElement>();
@@ -40,9 +44,9 @@
   }
   const fitting = (node: SVGSVGElement) => fit(node);
 
-  const shown = $derived(SYMBOLS.filter((s) => (category === 'alle' || s.category === category)
+  const shown = $derived(ALL.filter((s) => (category === 'alle' || s.category === category)
     && (!search.trim() || `${s.label} ${s.id}`.toLowerCase().includes(search.trim().toLowerCase()))));
-  const def = $derived(SYMBOLS.find((s) => s.id === selected) ?? SYMBOLS[0]);
+  const def = $derived(ALL.find((s) => s.id === selected) ?? ALL[0]);
   const parts = $derived(testParts(def.svg, def.id));
   const setup = $derived(librarySetup(def.svg, def.id));
   const ownCount = $derived(parts.reduce((n, p) => n + p.own.length, 0));
@@ -53,7 +57,8 @@
 
   /** Et nyt symbol: bibliotekets opsætning hvis den findes, ellers ét til/fra-tag med en farveanimation på hele symbolet. */
   function initial(symbolId: string): { tags: SimTag[]; anims: SimAnim[] } {
-    const s = SYMBOLS.find((x) => x.id === symbolId) ?? SYMBOLS[0];
+    const all = defs();
+    const s = all.find((x) => x.id === symbolId) ?? all[0];
     const su = librarySetup(s.svg, s.id);
     if (su) return fromSetup(su);
     const t = newTag([], 'bool');
@@ -155,7 +160,7 @@
   }
 
   // ---- tegning og anvendelse
-  { const l = initial(SYMBOLS[0].id); tags = l.tags; anims = l.anims; }
+  { const l = initial(defs()[0].id); tags = l.tags; anims = l.anims; }
   $effect(() => {
     if (!host) return;
     host.innerHTML = `<svg viewBox="-10 -10 260 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;overflow:visible">${def.svg}</svg>`;
@@ -188,8 +193,9 @@
     <div class="list">
       <div class="row">
         <select bind:value={category} aria-label="Kategori">
-          <option value="alle">Alle ({SYMBOLS.length})</option>
+          <option value="alle">Alle ({ALL.length})</option>
           {#each CATEGORIES as c}<option value={c.id}>{c.label}</option>{/each}
+          <option value={OWN_SECTION}>{OWN_LABEL}</option>
         </select>
         <input type="search" placeholder="Søg symbol" bind:value={search} />
       </div>

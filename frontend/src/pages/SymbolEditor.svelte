@@ -5,7 +5,10 @@
   import { del, get, put } from '../lib/api';
   import { ask } from '../lib/ask';
   import { setLeaveGuard } from '../lib/leaveGuard';
-  import { CATEGORIES, SYMBOLS, type SymbolCategory } from '../lib/symbols';
+  import { CATEGORIES, type SymbolCategory } from '../lib/symbols';
+  import SymbolLibrary from '../lib/SymbolLibrary.svelte';
+  import { OWN_LABEL, OWN_SECTION } from '../lib/library';
+  import { defs, loadLibrary } from '../lib/libraryStore.svelte';
   import { drawHref, parseSymbolRoute } from '../lib/symbolRoute';
   // @ts-expect-error — ren JS uden typer (deles med Tegn)
   import { autoPorts, boxOfRoot, snapCandidates, symbolType } from '../../svgedit-host/symbolPorts.js';
@@ -18,9 +21,13 @@
   type Box = { x: number; y: number; w: number; h: number };
 
   let saved = $state<Record<string, Pt[]>>({});   // serverens rettede punkter pr. type
-  let category = $state<SymbolCategory | 'alle'>('alle');
+  // Fanerne: biblioteket (organisering/import, v3.31.0) og tilslutningspunkterne; fra Tegn åbnes punkterne direkte
+  // svelte-ignore state_referenced_locally
+  let tab = $state<'bibliotek' | 'punkter'>(from.fromDraw || from.type ? 'punkter' : 'bibliotek');
+  let category = $state<SymbolCategory | typeof OWN_SECTION | 'alle'>('alle');
   let search = $state('');
-  let selectedId = $state(SYMBOLS[0].id);
+  const all = $derived(defs());
+  let selectedId = $state(defs()[0].id);
   let ports = $state<Pt[]>([]);        // det der redigeres (brøkdele af symbolets boks)
   let auto = $state<Pt[]>([]);
   let candidates: Pt[] = [];
@@ -34,16 +41,17 @@
   let svgEl = $state<SVGSVGElement>();
   let holder = $state<SVGGElement>();
 
-  const def = $derived(SYMBOLS.find((s) => s.id === selectedId) ?? SYMBOLS[0]);
+  const def = $derived(all.find((s) => s.id === selectedId) ?? all[0]);
   const type = $derived(symbolType(def.id) as string);
   const isCustom = $derived(!!saved[type]);
-  const list = $derived(SYMBOLS.filter((s) =>
+  const list = $derived(all.filter((s) =>
     (category === 'alle' || s.category === category) && (!search.trim() || s.label.toLowerCase().includes(search.trim().toLowerCase()))));
 
   const removeLeaveGuard = setLeaveGuard(async () => !dirty || await ask('Du har ændringer, der ikke er gemt. Kassér dem og forlad siden?', { ok: 'Kassér og forlad', danger: true }));
   onDestroy(removeLeaveGuard);
 
   onMount(async () => {
+    await loadLibrary();   // egne symboler kan også have rettede punkter
     try {
       saved = await get<Record<string, Pt[]>>('/api/symbol-ports');
     } catch (e) {
@@ -55,7 +63,7 @@
         backName = (await get<{ id: string; name: string }[]>('/api/drawings')).find((d) => d.id === from.drawing)?.name ?? '';
       } catch { /* knappen viser så bare "tegningen" */ }
     }
-    const start = from.type ? SYMBOLS.find((x) => symbolType(x.id) === from.type) : null;
+    const start = from.type ? defs().find((x) => symbolType(x.id) === from.type) : null;
     await show(start?.id ?? selectedId);
   });
 
@@ -186,9 +194,18 @@
 <svelte:window onkeydown={onKey} onmouseup={up} />
 
 <div class="row title">
-  <h2>Symboler — tilslutningspunkter</h2>
+  <h2>Symboler</h2>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected={tab === 'bibliotek'} class:on={tab === 'bibliotek'} onclick={() => (tab = 'bibliotek')}>Bibliotek</button>
+    <button role="tab" aria-selected={tab === 'punkter'} class:on={tab === 'punkter'} onclick={() => (tab = 'punkter')}>Tilslutningspunkter</button>
+  </div>
   {#if from.fromDraw}<button class="back" onclick={back}>← Tilbage til {backName ? `"${backName}"` : 'tegningen'}</button>{/if}
 </div>
+{#if tab === 'bibliotek'}
+<p class="muted small">Organisér symbolbiblioteket, som det vises i <a href="#draw">Tegn</a>: egne sektioner, rækkefølge og hvilke symboler
+  der står hvor. Egne symboler kan omdøbes og slettes, og SVG-filer og bibliotekspakker kan importeres.</p>
+<SymbolLibrary />
+{:else}
 <p class="muted small">
   Tilslutningspunkterne er de grønne prikker, forbindelser (rør og ledninger) i <a href="#draw">Tegn</a> sættes fast i. Vælg et symbol, og ret punkterne.
   <strong>Ændringen gælder symboler, du indsætter fremover</strong> — symboler, der allerede står i en tegning, beholder deres punkter.
@@ -200,6 +217,7 @@
     <select bind:value={category} aria-label="Kategori">
       <option value="alle">Alle kategorier</option>
       {#each CATEGORIES as c}<option value={c.id}>{c.label}</option>{/each}
+      <option value={OWN_SECTION}>{OWN_LABEL}</option>
     </select>
     <ul class="list">
       {#each list as s (s.id)}
@@ -239,11 +257,15 @@
     {#if info}<p class="notice">{info}</p>{/if}
   </section>
 </div>
+{/if}
 
 <style>
   .title { align-items: center; gap: 1rem; flex-wrap: wrap; }
   .title h2 { margin: 0; }
   .back { margin-left: auto; }
+  .tabs { display: flex; gap: 2px; }
+  .tabs button { border-radius: 6px 6px 0 0; border-bottom: 0; }
+  .tabs button.on { background: #dbe8ff; font-weight: 600; }
   .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 1rem; align-items: start; }
   @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
   aside { display: flex; flex-direction: column; gap: .4rem; max-height: 75vh; }

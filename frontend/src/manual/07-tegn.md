@@ -134,6 +134,29 @@ Har du tegnet noget, du vil bruge igen (fx en pumpestation med kasse, pumpe og t
 
 **Ny version:** gemmer du igen med **samme navn**, bliver det en ny version af symbolet (dialogen siger *Gem som version 2*). Tegninger, der allerede bruger symbolet, **ændres ikke** — hvert symbol i en tegning er en kopi. Vil du opdatere dem, så vælg symbolet og tryk **Erstat med symbol …**: det første forslag er *Nyeste version* af symbolet (se *Opdatér gamle symboler* nedenfor).
 
+## Importér SVG-symboler og organisér biblioteket
+
+![Siden Symboler, fanen Bibliotek: sektioner til venstre, sektionens symboler til højre](../../public/manual/symboler-bibliotek.png)
+
+**Importér SVG-filer:** tryk **Importér SVG-symboler …** øverst i *Symboler* i Tegn, eller **Importér SVG …** på siden **Symboler** (*Opsætning*, fanen *Bibliotek*). Vælg en eller flere `.svg`-filer (højst 50 og 10 MB i alt) og en **sektion**, og vælg hvad der skal ske, hvis et symbol med samme navn findes: *Opret med nyt navn* ("Navn 2"), *Gem som ny version* eller *Spring over*. Hver fil bliver **ét symbol** med filnavnet som navn.
+
+![Importér SVG-symboler: filer, sektion, navnekonflikt og resultatet pr. fil](../../public/manual/symboler-import.png)
+
+- **Dele:** elementer med `id` i filen bliver dele, der kan animeres hver for sig i guiden (fx en *lampe* eller en *rotor*).
+- **Rensning:** filen renses som en uploadet tegning — scripts, eksterne links og ukendte elementer fjernes. CSS-klasser (fra fx Illustrator eller Inkscape) skrives ind på elementerne; andre CSS-regler kan ikke bruges og giver en advarsel.
+- **Størrelse:** filen skal have `viewBox` eller `width`/`height`. Grafik større end 240 punkter skaleres ned.
+- Resultatet vises pr. fil: *Oprettet*, *Ny version*, *Sprunget over* eller *Fejl* med begrundelsen. En fil med fejl stopper ikke de andre.
+
+**Organisér biblioteket** (siden *Symboler*, fanen *Bibliotek*, rollen tekniker):
+
+- **Sektioner:** opret en sektion med navn og **Opret**, flyt sektioner op og ned med **▲ ▼**, og omdøb (**✎**) eller slet (**🗑**) dine egne sektioner. Sletter du en sektion, flyttes egne symboler til *Egne symboler* og indbyggede tilbage til deres kategori.
+- **Symboler:** vælg en sektion til venstre. Flyt et symbol op og ned med **▲ ▼**, eller til en anden sektion med **Flyt til …** — det gælder også de indbyggede symboler. Egne symboler kan omdøbes og have en forklaring (**✎**) og slettes (**🗑**). Tegninger, der bruger et slettet symbol, beholder deres kopi; siden siger hvilke.
+- Rækkefølgen er den samme i Tegn for alle brugere. Ændrer to personer opdelingen samtidig, afvises den sidste med en besked — prøv igen.
+
+**Bibliotekspakke** (flyt egne symboler til en anden SCADA): **Eksportér pakke** henter alle egne symboler som én fil (`.hvlib.json`) med grafik, standardopsætning og sektion — **uden tags**, fordi de hører til anlægget. På den anden SCADA trykker du **Importér pakke …**, vælger filen og hvad der skal ske ved samme navn. Sektioner, der mangler, oprettes.
+
+**Symboltest** og **tilslutningspunkterne** (fanen *Tilslutningspunkter*) virker også for egne symboler — vælg *Egne symboler* i listen over kategorier.
+
 ## Grupper af symboler
 
 ![Grupper i Tegn: gem markeringen som gruppe og vælg en eksisterende gruppe](../../public/manual/tegn-grupper.png)
