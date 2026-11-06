@@ -84,6 +84,23 @@ async def update_symbol(sym_type: str, body: UpdateBody, request: Request) -> di
     return result
 
 
+class DeleteManyBody(_Model):
+    types: list[str] = Field(min_length=1, max_length=1000)
+
+
+@router.post("/symbols/delete", dependencies=[ENGINEER])
+async def delete_symbols(body: DeleteManyBody, request: Request) -> dict[str, Any]:
+    """Slet flere egne symboler i én handling (alt eller intet)."""
+    try:
+        result = _svc(request).delete_many(request.state.user, body.types)
+    except ServiceError as e:
+        audit(request, "library.delete_many", f"{len(body.types)} symboler", {"error": e.message, "types": body.types[:50]})
+        raise
+    audit(request, "library.delete_many", f"{result['deleted']} symboler",
+          {"types": body.types[:50], "labels": result["labels"][:50], "used_in": {k: v[:20] for k, v in list(result["used_in"].items())[:50]}})
+    return result
+
+
 @router.delete("/symbols/{sym_type}", dependencies=[ENGINEER])
 async def delete_symbol(sym_type: str, request: Request) -> dict[str, Any]:
     """Slet et eget symbol. Tegninger, der bruger det, beholder deres kopi (svaret siger hvilke)."""

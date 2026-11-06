@@ -182,6 +182,7 @@ Har du tegnet noget, du vil bruge igen (fx en pumpestation med kasse, pumpe og t
 
 - **Sektioner:** opret en sektion med navn og **Opret**, flyt sektioner op og ned med **▲ ▼**, og omdøb (**✎**) eller slet (**🗑**) dine egne sektioner. Sletter du en sektion, flyttes egne symboler til *Egne symboler* og indbyggede tilbage til deres kategori.
 - **Symboler:** vælg en sektion til venstre. Flyt et symbol op og ned med **▲ ▼**, eller til en anden sektion med **Flyt til …** — det gælder også de indbyggede symboler. Egne symboler kan omdøbes og have en forklaring (**✎**) og slettes (**🗑**). Tegninger, der bruger et slettet symbol, beholder deres kopi; siden siger hvilke.
+- **Flere på én gang:** afkryds symbolerne (eller **Vælg alle**; **Shift**-klik vælger alle mellem to afkrydsninger). Over listen kan du så **Flyt valgte til …** en anden sektion eller **Slet valgte**. Kun egne symboler kan slettes; indbyggede i valget bliver stående. Sletningen sker samlet: findes et af symbolerne ikke længere, slettes intet.
 - Rækkefølgen er den samme i Tegn for alle brugere. Ændrer to personer opdelingen samtidig, afvises den sidste med en besked — prøv igen.
 
 **Bibliotekspakke** (flyt egne symboler til en anden SCADA): **Eksportér pakke** henter alle egne symboler som én fil (`.hvlib.json`) med grafik, standardopsætning og sektion — **uden tags**, fordi de hører til anlægget. På den anden SCADA trykker du **Importér pakke …**, vælger filen og hvad der skal ske ved samme navn. Sektioner, der mangler, oprettes.

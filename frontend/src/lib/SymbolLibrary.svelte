@@ -5,8 +5,8 @@
   import { onMount } from 'svelte';
   import { ask } from './ask';
   import LibraryImport from './LibraryImport.svelte';
-  import { moveSymbol, newSectionId, sections, symbolsIn, type Layout } from './library';
-  import { defs, deleteOwn, exportPackage, library, loadLibrary, saveLayout, updateOwn } from './libraryStore.svelte';
+  import { moveSymbol, moveSymbols, newSectionId, sections, symbolsIn, type Layout } from './library';
+  import { defs, deleteOwn, deleteOwnMany, exportPackage, library, loadLibrary, saveLayout, updateOwn } from './libraryStore.svelte';
 
   let current = $state('egne');
   let busy = $state(false);
@@ -23,6 +23,50 @@
   const list = $derived(cur ? symbolsIn(defs(), library.layout, cur.id) : []);
   const own = (id: string) => id.startsWith('u_');
   const ownRow = (id: string) => library.own.find((s) => s.type === id);
+
+  // Flervalg (v3.35.0): afkryds symboler i sektionen (Shift-klik vælger et interval) og flyt eller slet dem samlet.
+  let selected = $state<string[]>([]);
+  let lastPick = -1;
+  const sel = $derived(selected.filter((id) => list.some((d) => d.id === id)));
+  const selOwn = $derived(sel.filter(own));
+  const allOn = $derived(list.length > 0 && sel.length === list.length);
+  $effect(() => { void current; selected = []; lastPick = -1; });   // ny sektion → nyt valg
+
+  function pick(id: string, i: number, e: MouseEvent): void {
+    const on = !selected.includes(id);
+    const ids = e.shiftKey && lastPick >= 0 ? list.slice(Math.min(lastPick, i), Math.max(lastPick, i) + 1).map((d) => d.id) : [id];
+    selected = on ? [...new Set([...selected, ...ids])] : selected.filter((x) => !ids.includes(x));
+    lastPick = i;
+  }
+
+  async function moveSelected(section: string): Promise<void> {
+    const n = sel.length;
+    if (await commit(moveSymbols(defs(), library.layout, sel, section), `${n} symbol${n === 1 ? '' : 'er'} flyttet til ${secs.find((s) => s.id === section)?.label ?? section}`)) {
+      selected = [];
+    }
+  }
+
+  async function removeSelected(): Promise<void> {
+    const n = selOwn.length;
+    const skip = sel.length - n;
+    const names = selOwn.map((id) => list.find((d) => d.id === id)?.label ?? id);
+    if (!(await ask(`Slet ${n} eg${n === 1 ? 'et symbol' : 'ne symboler'} fra biblioteket (${names.slice(0, 8).join(', ')}${n > 8 ? ' …' : ''})?`
+      + (skip ? ` ${skip} indbygget symbol${skip === 1 ? '' : 'er'} i valget kan ikke slettes og bliver stående.` : '')
+      + ' Tegninger, der bruger dem, beholder deres kopi.', { ok: `Slet ${n}`, danger: true }))) return;
+    busy = true;
+    error = info = '';
+    try {
+      const r = await deleteOwnMany(selOwn);
+      const used = Object.values(r.used_in).flat();
+      const drawings = new Set(used).size;
+      info = `${r.deleted} symbol${r.deleted === 1 ? '' : 'er'} er slettet.${drawings ? ` ${Object.keys(r.used_in).length} af dem står stadig i ${drawings} tegning${drawings === 1 ? '' : 'er'} — som en kopi.` : ''}`;
+      selected = [];
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
 
   onMount(() => { void loadLibrary(); });
 
@@ -185,11 +229,32 @@
 
   <section class="panel">
     <h3>{cur?.label} <span class="muted small">— {list.length} symboler</span></h3>
+    {#if list.length}
+      <div class="row selbar">
+        <label class="chk"><input type="checkbox" checked={allOn} indeterminate={sel.length > 0 && !allOn} disabled={busy}
+                                  onchange={() => { selected = allOn ? [] : list.map((d) => d.id); lastPick = -1; }} /> Vælg alle</label>
+        {#if sel.length}
+          <span class="small"><strong>{sel.length}</strong> valgt</span>
+          <select aria-label="Flyt de valgte til sektion" disabled={busy} value=""
+                  onchange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; (e.currentTarget as HTMLSelectElement).value = ''; if (v) void moveSelected(v); }}>
+            <option value="">Flyt valgte til …</option>
+            {#each secs as s (s.id)}{#if s.id !== cur.id}<option value={s.id}>{s.label}</option>{/if}{/each}
+          </select>
+          <button class="danger-btn" onclick={removeSelected} disabled={busy || !selOwn.length}
+                  title={selOwn.length ? 'Slet de valgte egne symboler' : 'Kun egne symboler kan slettes'}>Slet valgte ({selOwn.length})</button>
+          <button onclick={() => (selected = [])} disabled={busy}>Fravælg</button>
+        {:else}
+          <span class="muted small">Afkryds symboler for at flytte eller slette flere på én gang (Shift-klik vælger et interval).</span>
+        {/if}
+      </div>
+    {/if}
     {#if !list.length}<p class="muted small">Ingen symboler i sektionen. Flyt symboler hertil fra en anden sektion, eller importér SVG-filer.</p>{/if}
     <ul class="syms">
       {#each list as d, i (d.id)}
         {@const row = ownRow(d.id)}
-        <li>
+        <li class:picked={sel.includes(d.id)}>
+          <input type="checkbox" class="pick" checked={sel.includes(d.id)} disabled={busy} aria-label="Vælg {d.label}"
+                 onclick={(e) => pick(d.id, i, e)} />
           <svg class="pv" viewBox="0 0 100 100" aria-hidden="true" use:fit={d.svg}>{@html d.svg}</svg>
           <div class="info">
             {#if renaming === d.id}
@@ -244,5 +309,11 @@
   .info input { width: 100%; box-sizing: border-box; }
   .acts { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
   .acts select { max-width: 9rem; font-size: .8rem; }
+  .selbar { gap: .5rem; align-items: center; flex-wrap: wrap; padding: 4px 2px 6px; border-bottom: 1px solid var(--line); }
+  .selbar select { font-size: .85rem; }
+  .chk { display: inline-flex; gap: .3rem; align-items: center; }
+  .pick { flex: 0 0 auto; width: 1rem; height: 1rem; }
+  .syms li.picked { background: #eef4ff; }
+  .danger-btn:not(:disabled) { background: #b3261e; border-color: #b3261e; color: #fff; }
   .tag { font-size: .7rem; padding: 0 6px; border-radius: 8px; background: #e7f3e8; color: #2e7d32; border: 1px solid #a9d3ab; align-self: flex-start; }
 </style>

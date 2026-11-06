@@ -872,6 +872,34 @@ class LibraryService:
                  actor.username)
         return {"type": t, "label": row["label"], "used_in": self.used_in(t)}
 
+    def delete_many(self, actor: CurrentUser, raw: list[Any]) -> dict[str, Any]:
+        """Slet flere egne symboler samlet (v3.35.0): alle findes, ellers slettes intet (404 med navnene)."""
+        types = list(dict.fromkeys(raw))
+        if not types:
+            raise ServiceError(400, "Vælg mindst ét symbol")
+        bad = [t for t in types if not isinstance(t, str) or not TYPE_RE.match(t)]
+        rows = {t: self.db.get_library_symbol(t) for t in types if t not in bad}
+        missing = bad + [t for t, r in rows.items() if r is None]
+        if missing:
+            raise ServiceError(404, f"{len(missing)} af de valgte symboler findes ikke i biblioteket (indbyggede kan ikke "
+                                    "slettes) — intet er slettet", {"missing": [str(t)[:60] for t in missing[:50]]})
+        if not self.db.delete_library_symbols(types):
+            raise ServiceError(409, "Biblioteket er ændret imens — intet er slettet. Prøv igen.")
+        used: dict[str, list[str]] = {}
+        needles = {t: f'data-hv-type="{t}"' for t in types}
+        for d in self.db.list_drawings():
+            try:
+                svg = self.drawings.svg(d["id"])
+            except ServiceError:
+                continue
+            for t, n in needles.items():
+                if n in svg:
+                    used.setdefault(t, []).append(d["id"])
+        labels = [rows[t]["label"] for t in types]  # type: ignore[index]
+        log.info("%d bibliotekssymboler slettet af %s: %s — tegninger beholder deres kopi", len(types), actor.username,
+                 ", ".join(labels[:20]))
+        return {"deleted": len(types), "labels": labels, "used_in": used}
+
     def used_in(self, sym_type: str) -> list[str]:
         """Tegninger, hvis aktive version indeholder symbolet (til advarslen ved sletning)."""
         out: list[str] = []

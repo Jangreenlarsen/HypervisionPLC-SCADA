@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { ask as askUser } from '../lib/ask';
+  import { ask as askUser, askText } from '../lib/ask';
+  import { suggestName } from '../lib/draw/naming';
   import { get, patch, post, put } from '../lib/api';
   import { SELECTOR_TYPES, selectorMismatch, withSelectorAngles } from '../lib/selectorRedraw';
   import { parseSize, presetFor, SIZE_PRESETS, sizeText } from '../lib/drawingSize';
@@ -341,6 +342,32 @@
       return;
     }
     guideFor = { id: sel.id, name: sel.name };
+  }
+
+  /**
+   * Opsæt et element UDEN navn (v3.36.0): spørg efter et navn (forslag "Rør 1", "Linje 2" …), sæt det, og åbn guiden.
+   * Før stod kun en tekst om at give elementet et navn — let at overse, især for rør.
+   */
+  async function nameAndGuide(): Promise<void> {
+    const sel = selection.length === 1 ? selection[0] : null;
+    if (!ed || !sel || sel.name) return;
+    const items = (ed as unknown as TreeApi).objectList().flatMap((l) => l.items);
+    const me = items.find((it) => it.id === sel.id);
+    const label = sel.type ? SYMBOLS.find((x) => symbolType(x.id) === sel.type)?.label : undefined;
+    const name = await askText('Elementet skal have et navn for at kunne sættes op som symbol (vises fx i alarmer og i Bindinger).', {
+      value: suggestName({ tag: sel.tag, pipe: me?.pipe, label }, items.map((it) => it.name).filter(Boolean)),
+      ok: 'Videre til guiden',
+    });
+    if (!name) return;
+    const err = ed.setSelectedText('data-hv-name', name);
+    if (err) {
+      error = err;
+      return;
+    }
+    nameInput = name;
+    dirty = true;
+    selection = selection.map((x) => (x.id === sel.id ? { ...x, name } : x));
+    await openGuide();
   }
 
   /**
@@ -981,7 +1008,8 @@
           {@render clipRow(true)}
           <p class="small muted">Tag, positioner, animationer og nøglelås sættes i guiden — samme guide findes under <strong>Bindinger</strong>.{!current || dirty ? ' Tegningen gemmes og udgives først.' : ''}</p>
         {:else}
-          <p class="small muted">Giv elementet et <strong>navn</strong> for at gøre det til et symbol, der kan konfigureres under <strong>Bindinger</strong>. Uden navn er det kun tegning.</p>
+          <div class="row"><button class="primary" onclick={nameAndGuide} disabled={busy || !ready} title="Elementet får et navn, og guiden åbnes">Opsæt symbol (6 trin) …</button></div>
+          <p class="small muted">Uden <strong>navn</strong> er elementet kun tegning. Knappen giver det et navn og åbner guiden — eller skriv navnet i feltet ovenfor.</p>
           {#if clip}{@render clipRow(false)}{/if}
         {/if}
         {#if single.tag === 'g' && !single.name && (single.children ?? 0) > 20}

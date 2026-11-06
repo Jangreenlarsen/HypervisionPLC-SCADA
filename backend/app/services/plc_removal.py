@@ -18,13 +18,15 @@ import logging
 from typing import Any, Callable
 
 from ..storage.db import Database
-from .auth import CurrentUser
+from .auth import CurrentUser, role_at_least
 from .errors import ServiceError
 from .symbols import config_tags, parse_alarm_ref
 
 log = logging.getLogger("scada.plcs")
 
 BACKUP_KIND = "foer-plc-fjern"
+TAG_BACKUP_KIND = "foer-tag-slet"
+MAX_TAGS = 1000
 
 
 def _hit(src: Any, names: set[str]) -> bool:
@@ -164,6 +166,103 @@ class PlcRemovalService:
                         for p in self.db.list_plcs() if p["key"] != key],
         }
 
+    # ------------------------------------------------------------ slet tags, der er i brug (v3.35.0)
+
+    def _tag_names(self, raw: list[Any]) -> list[str]:
+        names = list(dict.fromkeys(raw))
+        if not names:
+            raise ServiceError(400, "Vælg mindst ét tag")
+        if len(names) > MAX_TAGS:
+            raise ServiceError(400, f"Højst {MAX_TAGS} tags ad gangen")
+        missing = [n for n in names if not isinstance(n, str) or self.db.get_tag(n) is None]
+        if missing:
+            raise ServiceError(404, f"Tag findes ikke: {', '.join(str(m)[:60] for m in missing[:10])}"
+                                    f"{' …' if len(missing) > 10 else ''} — intet er slettet", {"missing": missing[:100]})
+        return names
+
+    @staticmethod
+    def _in_use(scan: dict[str, Any]) -> bool:
+        return bool(scan["drawings"] or scan["schedules"] or scan["views"] or scan["api"])
+
+    def tag_usage(self, raw: list[Any]) -> dict[str, Any]:
+        """Hvad sletning af tagsene rammer (samme oversigt som ved Fjern PLC) + automatiske visninger (B6)."""
+        names = self._tag_names(raw)
+        wanted = set(names)
+        scan = self._scan(wanted)
+        auto: list[str] = []
+        auto_usage = getattr(self.tags, "auto_usage", None)
+        if auto_usage is not None:
+            for n in names:
+                auto += [f"{n} ({p})" for p in auto_usage(n)]
+        tags = [self.db.get_tag(n) or {} for n in names]
+        return {
+            "tags": len(names),
+            "history": sum(1 for t in tags if t.get("trend")),
+            "in_use": self._in_use(scan),
+            "drawings": scan["drawings"],
+            "symbols": len(scan["configs"]) + len(scan["groups"]),
+            "schedules": [x["name"] for x in scan["schedules"]],
+            "trend_views": sorted(scan["views"]),
+            "api_keys": scan["api_names"],
+            "alarms": sum(1 for a in self.db.list_alarm_states() if a.get("tag") in wanted),
+            "auto": auto[:50],
+        }
+
+    async def remove_tags(self, actor: CurrentUser, raw: list[Any]) -> dict[str, Any]:
+        """Slet tagsene og alle henvisninger til dem i én transaktion. Bruges de, eller har de historik, tages backup
+        først; ubrugte tags uden historik slettes direkte."""
+        names = self._tag_names(raw)
+        scan = self._scan(set(names))
+        self._check_api_keys(actor, scan)
+        trend = any((self.db.get_tag(n) or {}).get("trend") for n in names)
+        backup = history_backup = None
+        needs_backup = self._in_use(scan) or trend
+        if needs_backup:
+            try:   # uden backup ingen destruktiv handling — i en tråd, så live-data ikke står stille
+                backup = await asyncio.to_thread(self.backup.save_to_server, TAG_BACKUP_KIND, actor.username)
+                if trend and getattr(self.backup, "trend_db", None) is not None:
+                    history_backup = await asyncio.to_thread(self.backup.save_trend_snapshot, TAG_BACKUP_KIND)
+            except Exception as exc:
+                log.error("Backup før sletning af tags %s fejlede: %s", names[:10], exc)
+                raise ServiceError(500, f"Backup før sletningen fejlede ({exc}) — intet er slettet") from None
+        # VIGTIGT: ingen `await` mellem _scan og transaktionen (se remove_all). Er tagsene taget i brug (eller fået
+        # historik) under backuppen, og blev der ikke taget backup → afvis hellere end at slette uden backup.
+        names = self._tag_names(names)
+        scan = self._scan(set(names))
+        self._check_api_keys(actor, scan)
+        if not needs_backup and (self._in_use(scan) or any((self.db.get_tag(n) or {}).get("trend") for n in names)):
+            raise ServiceError(409, "Tagget er taget i brug imens — intet er slettet. Prøv igen.")
+        counts = self.db.remove_tags_cascade(names, scan["configs"], scan["groups"], [x["id"] for x in scan["schedules"]],
+                                             scan["views"], scan["api"], actor.username)
+        if counts is None:
+            raise ServiceError(409, "Et af tagsene er slettet imens — intet er slettet. Prøv igen.")
+        self.manager.reload_tags(removed=names)
+        if self.alarms is not None:
+            counts["alarms"] = max(counts["alarms"], self.alarms.forget(set(names)))   # samme rækker — tæl dem én gang
+        if self.on_changed:
+            self.on_changed()
+        failed = await asyncio.to_thread(self._forget_all, names) if self.forget_history else 0
+        log.info("%d tag(s) slettet af %s (backup %s, historik %s): %s — %s", len(names), actor.username, backup,
+                 history_backup, ", ".join(names[:20]), counts)
+        return {"backup": backup, "history_backup": history_backup, **counts, "history_failed": failed}
+
+    @staticmethod
+    def _check_api_keys(actor: CurrentUser, scan: dict[str, Any]) -> None:
+        """API-nøgler kan kun ændres af admin — en tekniker må ikke indsnævre deres adgang via en tag-sletning."""
+        if scan["api"] and not role_at_least(actor.role, "admin"):
+            raise ServiceError(403, f"Tagget bruges af API-nøgle: {', '.join(scan['api_names'][:5])} — kun en admin kan "
+                                    "slette det (eller fjern tagget fra nøglen under Integration først)")
+
+    def _forget_all(self, names: list[str]) -> int:
+        bad = 0
+        for n in names:
+            try:
+                self.forget_history(n)  # type: ignore[misc]
+            except Exception as exc:   # historikken ligger i sin egen database — fejl her ruller ikke resten tilbage
+                bad += 1
+                log.warning("Historikken for %s kunne ikke slettes: %s", n, exc)
+        return bad
+
     async def move(self, actor: CurrentUser, key: str, target: str) -> dict[str, Any]:
         self._plc(key)
         if target == key:
@@ -225,20 +324,11 @@ class PlcRemovalService:
         await self.manager.reload_plc(key)
         self.manager.reload_tags(removed=names)
         if self.alarms is not None:
-            counts["alarms"] += self.alarms.forget(set(names), plc=key)
+            counts["alarms"] = max(counts["alarms"], self.alarms.forget(set(names), plc=key))
         if self.on_changed:
             self.on_changed()
         failed = 0
         if self.forget_history and names:
-            def forget_all() -> int:
-                bad = 0
-                for n in names:
-                    try:
-                        self.forget_history(n)
-                    except Exception as exc:   # historikken ligger i sin egen database — fejl her ruller ikke resten tilbage
-                        bad += 1
-                        log.warning("Historikken for %s kunne ikke slettes: %s", n, exc)
-                return bad
-            failed = await asyncio.to_thread(forget_all)
+            failed = await asyncio.to_thread(self._forget_all, names)
         log.info("PLC %s fjernet med alt af %s (backup %s, historik %s): %s", key, actor.username, backup, history_backup, counts)
         return {"mode": "all", "backup": backup, "history_backup": history_backup, **counts, "history_failed": failed}

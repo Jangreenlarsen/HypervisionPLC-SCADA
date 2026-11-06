@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { ask as askUser } from '../lib/ask';
-  import { del, get, patch, post, type LiveValue } from '../lib/api';
+  import { get, patch, post, type LiveValue } from '../lib/api';
   import { formatValue } from '../lib/animate';
   import { SOURCE_LABEL, sourceKind } from '../lib/tagSource';
+  import { usageText, type TagUsage } from '../lib/tagUsage';
   import { LiveClient } from '../lib/live';
 
   let { canEdit = false }: { canEdit?: boolean } = $props();
@@ -120,26 +121,24 @@
 
   // Fejl ved sletning vises lige under tagget (listen er lang — en fejl øverst på siden overses nemt, og tagget bare bliver stående)
   let deleteErrors = $state<Record<string, string>>({});
+  // v3.35.0: et tag i brug kan slettes direkte — dialogen viser hvad der rammes, og serveren fjerner tagget og alle
+  // henvisninger (bindinger, symbolopsætninger, ugeprogrammer, trendvisninger, API-nøgler) i én transaktion, med backup.
   async function remove(t: Tag): Promise<void> {
-    if (!await askUser(`Slet tagget ${t.name}?`)) return;
     const { [t.name]: _gone, ...rest } = deleteErrors;
     deleteErrors = rest;
     try {
-      await del(`/api/tags/${encodeURIComponent(t.name)}`);
+      const u = await post<TagUsage>('/api/tags/usage', { names: [t.name] });
+      const lines = usageText(u);
+      const text = lines.length
+        ? `Tagget ${t.name} bruges her:\n${lines.join('\n')}\n\nSlettes tagget, fjernes det også alle disse steder${u.symbols ? ' (symbolerne skal sættes op igen)' : ''}. `
+          + `Der tages backup først (System › Backup).${u.history ? ' Historikken slettes.' : ''}`
+        : `Slet tagget ${t.name}?${u.history ? ' Historikken slettes (der tages backup først).' : ''}`;
+      if (!await askUser(text, { ok: lines.length ? 'Slet tag og henvisninger' : 'Slet', danger: true })) return;
+      const r = await post<{ backup: string | null; history_failed: number }>('/api/tags/remove', { names: [t.name] });
+      if (r.history_failed) deleteErrors = { ...deleteErrors, [t.name]: 'Tagget er slettet, men historikken kunne ikke slettes (se loggen)' };
       await refresh();
     } catch (e) {
-      const msg = (e as Error).message;
-      // B6: tagget vises automatisk i en tegning — spørg, og slet først efter bekræftelse
-      if (msg.includes('vises automatisk') && await askUser(msg, { ok: 'Slet alligevel', danger: true })) {
-        try {
-          await del(`/api/tags/${encodeURIComponent(t.name)}?force=true`);
-          await refresh();
-        } catch (e2) {
-          deleteErrors = { ...deleteErrors, [t.name]: (e2 as Error).message };
-        }
-        return;
-      }
-      deleteErrors = { ...deleteErrors, [t.name]: msg };
+      deleteErrors = { ...deleteErrors, [t.name]: (e as Error).message };
     }
   }
 

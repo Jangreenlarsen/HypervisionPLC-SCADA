@@ -149,3 +149,63 @@ def test_move_warns_about_disabled_target_and_audits_failures(api):
     assert api.post("/api/plcs/plc2/remove", json={"mode": "all", "confirm": "nej"}).status_code == 400
     fails = [a for a in api.get("/api/audit").json() if a["action"] == "plc.remove" and "error" in a["detail"]]
     assert fails and "bekræfte" in fails[0]["detail"]["error"]
+
+
+def test_remove_tags_in_use_cleans_references(api, tmp_path):
+    """v3.35.0: et tag i brug kan slettes direkte — tagget og alle henvisninger forsvinder i én transaktion (backup først)."""
+    u = api.post("/api/tags/usage", json={"names": ["Drift", "Temp"]}).json()
+    assert u["in_use"] and u["tags"] == 2 and u["history"] == 1
+    assert u["drawings"] == [{"id": api.did, "name": "Anlæg", "bindings": 1, "symbols": 1}]
+    assert sorted(u["trend_views"]) == ["Kun temp", "Tank"] and u["api_keys"] == ["Måler"] and u["schedules"] == []
+    assert api.post("/api/tags/usage", json={"names": ["Drift", "findes_ikke"]}).status_code == 404
+    assert api.post("/api/tags/remove", json={"names": ["Drift", "findes_ikke"]}).status_code == 404
+    assert {t["name"] for t in api.get("/api/tags").json()} == {"Drift", "Start", "Temp", "Andet"}   # intet slettet
+    r = api.post("/api/tags/remove", json={"names": ["Drift", "Temp"]})
+    assert r.status_code == 200, r.text
+    res = r.json()
+    assert res["tags"] == 2 and res["bindings"] == 1 and res["symbols"] == 1 and res["views"] == 2 and res["api_keys"] == 1
+    assert res["backup"].startswith("scada-foer-tag-slet-") and (tmp_path / "backups" / res["backup"]).exists()
+    assert {t["name"] for t in api.get("/api/tags").json()} == {"Start", "Andet"}
+    assert api.get("/api/plcs/plc1").status_code == 200                                   # PLC'en bliver
+    assert [b["tag"] for b in api.get(f"/api/drawings/{api.did}/bindings").json()] == ["Andet"]
+    assert [a["src"] for a in api.db.get_symbol_config(api.did, "P1")["config"]["anims"]] == ["Andet"]
+    views = {v["name"]: v for v in api.db.list_trend_views()}
+    assert set(views) == {"Tank"} and views["Tank"]["tags"] == ["Andet"]
+    assert json.loads(api.db.get_api_key("k_1")["scope"])["tags"] == ["Andet"]
+    assert [s["name"] for s in api.db.list_schedules()] == ["Nat"]                         # bruger Start, ikke slettet
+    kinds = {f["name"]: f["kind"] for f in api.get("/api/backup/files").json()}
+    assert kinds[res["backup"]] == "før tags slettet"
+    assert any(a["action"] == "tag.remove" for a in api.get("/api/audit").json())
+
+
+def test_remove_unused_tag_without_backup_and_schedule_tag(api):
+    api.post("/api/tags", json={"name": "Loes", "source": "plc2:hr:3"})
+    r = api.post("/api/tags/remove", json={"names": ["Loes"]}).json()
+    assert r["tags"] == 1 and r["backup"] is None
+    assert api.post("/api/tags/usage", json={"names": ["Start"]}).json()["schedules"] == ["Nat"]
+    r = api.post("/api/tags/remove", json={"names": ["Start"]}).json()
+    assert r["schedules"] == 1 and api.db.list_schedules() == []
+    assert api.post("/api/tags/remove", json={"names": []}).status_code == 422
+
+
+def test_remove_tags_roles_api_keys_and_backup_failure(api, monkeypatch):
+    """Review v3.35.0: kun admin må indsnævre API-nøgler; backup-fejl → intet slettet; operatør har ingen adgang."""
+    def boom(*a, **k):
+        raise OSError("disken er fuld")
+    monkeypatch.setattr(api.app.state.backup_service, "save_to_server", boom)
+    r = api.post("/api/tags/remove", json={"names": ["Drift"]})
+    assert r.status_code == 500 and "intet er slettet" in r.json()["error"]
+    assert any(t["name"] == "Drift" for t in api.get("/api/tags").json())
+    monkeypatch.undo()
+    for user, role in (("tek", "engineer"), ("op", "operator")):
+        api.post("/api/users", json={"username": user, "password": f"{user}-pw-123456", "role": role})
+    api.post("/api/auth/logout")
+    api.post("/api/auth/login", json={"username": "op", "password": "op-pw-123456"})
+    assert api.post("/api/tags/usage", json={"names": ["Drift"]}).status_code == 403
+    assert api.post("/api/tags/remove", json={"names": ["Drift"]}).status_code == 403
+    api.post("/api/auth/logout")
+    api.post("/api/auth/login", json={"username": "tek", "password": "tek-pw-123456"})
+    api.post("/api/auth/password", json={"old_password": "tek-pw-123456", "new_password": "tek-pw-123456-ny"})
+    r = api.post("/api/tags/remove", json={"names": ["Temp"]})                  # bruges af API-nøglen "Måler"
+    assert r.status_code == 403 and "Måler" in r.json()["error"]
+    assert api.post("/api/tags/remove", json={"names": ["Drift"]}).status_code == 200   # ingen API-nøgle → tekniker må

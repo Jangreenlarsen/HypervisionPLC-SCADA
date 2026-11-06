@@ -363,6 +363,19 @@ class Database:
                            groups: list[tuple[int, str, list[dict[str, Any]]]], schedule_ids: list[int],
                            views: dict[str, dict[str, Any] | None], api_scopes: dict[str, dict[str, Any]],
                            actor: str) -> dict[str, int] | None:
+        return self._remove_tags_cascade(key, names, configs, groups, schedule_ids, views, api_scopes, actor)
+
+    def remove_tags_cascade(self, names: list[str], configs: list[tuple[str, str, dict[str, Any]]],
+                            groups: list[tuple[int, str, list[dict[str, Any]]]], schedule_ids: list[int],
+                            views: dict[str, dict[str, Any] | None], api_scopes: dict[str, dict[str, Any]],
+                            actor: str) -> dict[str, int] | None:
+        """Som remove_plc_cascade, men kun tagsene `names` (v3.35.0: slet tags i brug). Er et af dem væk → None."""
+        return self._remove_tags_cascade(None, names, configs, groups, schedule_ids, views, api_scopes, actor)
+
+    def _remove_tags_cascade(self, key: str | None, names: list[str], configs: list[tuple[str, str, dict[str, Any]]],
+                             groups: list[tuple[int, str, list[dict[str, Any]]]], schedule_ids: list[int],
+                             views: dict[str, dict[str, Any] | None], api_scopes: dict[str, dict[str, Any]],
+                             actor: str) -> dict[str, int] | None:
         """Fjern PLC'en, dens tags (`names`) og alle henvisninger til dem i én transaktion: bindinger (også løbelysets
         retnings-tag), rensede symbolopsætninger og gruppe-animationer, ugeprogrammer, trendvisninger, API-nøglers scope og
         aktuelle alarmtilstande. Alarmhændelserne bevares (historik). Har PLC'en fået tags imens → rul tilbage, None."""
@@ -373,7 +386,10 @@ class Database:
             cur = self._conn.cursor()
             cur.execute("BEGIN IMMEDIATE")
             try:
-                current = {r[0] for r in cur.execute("SELECT name FROM tags WHERE plc = ?", (key,)).fetchall()}
+                if key is not None:
+                    current = {r[0] for r in cur.execute("SELECT name FROM tags WHERE plc = ?", (key,)).fetchall()}
+                else:
+                    current = {n for n in wanted if cur.execute("SELECT 1 FROM tags WHERE name = ?", (n,)).fetchone()}
                 if current != wanted:
                     cur.execute("ROLLBACK")
                     return None
@@ -413,8 +429,11 @@ class Database:
                     counts["views"] += 1
                 for kid, scope in api_scopes.items():
                     counts["api_keys"] += cur.execute("UPDATE api_keys SET scope = ? WHERE id = ?", (json.dumps(scope), kid)).rowcount
-                counts["tags"] = cur.execute("DELETE FROM tags WHERE plc = ?", (key,)).rowcount
-                cur.execute("DELETE FROM plcs WHERE key = ?", (key,))
+                if key is not None:
+                    counts["tags"] = cur.execute("DELETE FROM tags WHERE plc = ?", (key,)).rowcount
+                    cur.execute("DELETE FROM plcs WHERE key = ?", (key,))
+                else:
+                    counts["tags"] = sum(cur.execute("DELETE FROM tags WHERE name = ?", (n,)).rowcount for n in names)
                 cur.execute("COMMIT")
                 return counts
             except Exception:
@@ -552,6 +571,22 @@ class Database:
 
     def delete_library_symbol(self, sym_type: str) -> bool:
         return self._execute("DELETE FROM library_symbols WHERE type = ?", (sym_type,)) > 0
+
+    def delete_library_symbols(self, types: list[str]) -> bool:
+        """Slet flere egne symboler i én transaktion. Mangler et af dem (fx slettet imens), rulles alt tilbage → False."""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                for t in types:
+                    if cur.execute("DELETE FROM library_symbols WHERE type = ?", (t,)).rowcount != 1:
+                        cur.execute("ROLLBACK")
+                        return False
+                cur.execute("COMMIT")
+                return True
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
 
     def get_library_layout(self) -> dict[str, Any] | None:
         rows = self._query("SELECT value FROM meta WHERE key = 'library.layout'")
