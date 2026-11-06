@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.29.0 build 0333] — 2026-11-06 — Demo: motorventilerne MVS1/MVS2 kan betjenes
+
+- `demo/varme-plc/logic3_tank_hus.st`: håndbetjening pr. ventil `cmd_mvs1`/`cmd_mvs2` (0 Auto, 1 AB-A, 2 AB-B) — overstyrer styringens kommando i alle driftsformer; gangtiden er stadig 30 s (471/512 AST-noder, 46 variable). `test/sim_test.cpp`: test af begge ventiler og tilbage til Auto.
+- `demo/varme-plc/scada_setup.py`: tags `cmd_mvs1`/`cmd_mvs2` (skrivbare 0–2, bekræftelse) og de to 3-vejs motorventiler på tegningen som betjening med positionerne Auto / AB-A / AB-B (portfarverne følger den faktiske position); `--only-configs` (opdatér tags og opsætninger uden ny tegningsversion). `load.py --only=3` (indlæs kun udvalgte programmer). `README.md`.
+- Indlæst på demo-PLC'en (kun Logic3) og sat op på demo-SCADA'en; afprøvet i browseren: MVS1 kørt AB-A → AB-B på ca. 30 s og tilbage til Auto.
+
 ## [3.28.1 build 0332] — 2026-11-05 — Demo: opsætning af demo-SCADA'en + fix af dobbelte betjeningspaneler
 
 - Nyt `demo/varme-plc/scada_setup.py` (PLC, 87 tags, betjeningspanel og symbolopsætninger på tegningen `varme` via SCADA'ens REST API), `demo/varme-plc/syms.json` + `tools/symgen.ts` (panelets symboler genereret fra frontendens bibliotek), `.gitignore`.

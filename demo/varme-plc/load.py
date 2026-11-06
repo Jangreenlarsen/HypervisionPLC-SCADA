@@ -2,7 +2,8 @@
 """Indlæs demo-varmeanlægget (GLOBAL_VAR + Logic1-4) på en HypervisionPLC via dens REST API.
 
 Brug:  PLC_USER=admin PLC_PASS=... python demo/varme-plc/load.py http://10.1.1.40
-       (--check = kun læs status, skriv intet)
+       (--check = kun læs status, skriv intet; --only=3[,4] = indlæs kun de programmer — de andre og GLOBAL_VAR
+       røres ikke, så styring, setpunkter og globale værdier bevares)
 
 Rækkefølge: log ind (Bearer) → tjek kildepuljen → stop Logic1-4 → GLOBAL_VAR → kilde pr. program
 → interval 500 ms → start → kontrollér at alt er kompileret og kører. Kun Python-standardbiblioteket.
@@ -67,6 +68,13 @@ def main() -> None:
         sys.stdout.reconfigure(encoding="utf-8")   # Windows-konsol
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     check_only = "--check" in sys.argv
+    only_arg = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only=")), "")
+    try:
+        only = {int(x) for x in only_arg.split(",") if x.strip()} if only_arg else set(PROGRAMS)
+    except ValueError:
+        raise SystemExit("--only skal være programnumre, fx --only=3 eller --only=3,4") from None
+    if not only <= set(PROGRAMS):
+        raise SystemExit(f"--only: ukendt program (findes: {', '.join(str(p) for p in PROGRAMS)})")
     if len(args) != 1:
         raise SystemExit(__doc__)
     user, password = os.environ.get("PLC_USER", ""), os.environ.get("PLC_PASS", "")
@@ -88,19 +96,22 @@ def main() -> None:
                   f"interval={p.get('interval_ms')} fejl={p.get('error_count')}")
         return
 
-    for pid in PROGRAMS:
+    for pid in only:
         plc.post(f"/api/logic/{pid}/disable")
-    r = plc.post("/api/logic/globals/source", {"source": globals_src})
-    if not r.get("compiled", True) or r.get("compile_error"):
-        raise SystemExit(f"GLOBAL_VAR: {r.get('compile_error') or r}")
-    print(f"GLOBAL_VAR: {r.get('count')} variable")
+    if only == set(PROGRAMS):
+        r = plc.post("/api/logic/globals/source", {"source": globals_src})
+        if not r.get("compiled", True) or r.get("compile_error"):
+            raise SystemExit(f"GLOBAL_VAR: {r.get('compile_error') or r}")
+        print(f"GLOBAL_VAR: {r.get('count')} variable")
     for pid, f in PROGRAMS.items():
+        if pid not in only:
+            continue
         r = plc.post(f"/api/logic/{pid}/source", {"source": sources[pid]})
         if not r.get("compiled") or r.get("compile_error"):
             raise SystemExit(f"Logic{pid} ({f}): kompileringsfejl: {r.get('compile_error') or r}")
         plc.post(f"/api/logic/{pid}/interval", {"interval_ms": INTERVAL_MS})
         print(f"Logic{pid} ({f}): kompileret, {r.get('instr_count')} instruktioner")
-    for pid in PROGRAMS:
+    for pid in only:
         plc.post(f"/api/logic/{pid}/enable")
 
     time.sleep(3)

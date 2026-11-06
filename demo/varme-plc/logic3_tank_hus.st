@@ -24,7 +24,10 @@ VAR
   E_HUS    : REAL;
   MVS1_POS : REAL;
   MVS2_POS : REAL;
+  cmd_mvs1 : INT;
+  cmd_mvs2 : INT;
   init     : BOOL;
+  w        : BOOL;
   i        : INT;
   dt       : REAL;
   k        : REAL;
@@ -50,8 +53,13 @@ BEGIN
   dt := 0.5 * MAX(g_speed, 1.0);
 
   (* Motorventiler: ON = AB-B (pillefyr direkte til huset), OFF = AB-A (fra tanken) *)
-  IF BIT_TST(g_cmd, 4) THEN MVS1_POS := MIN(100.0, MVS1_POS + 1.667); ELSE MVS1_POS := MAX(0.0, MVS1_POS - 1.667); END_IF;
-  IF BIT_TST(g_cmd, 5) THEN MVS2_POS := MIN(100.0, MVS2_POS + 1.667); ELSE MVS2_POS := MAX(0.0, MVS2_POS - 1.667); END_IF;
+  (* Haandbetjening paa motoren: cmd_mvsN 0 = Auto (styringen), 1 = AB-A, 2 = AB-B *)
+  w := BIT_TST(g_cmd, 4);
+  IF cmd_mvs1 = 1 THEN w := FALSE; ELSIF cmd_mvs1 = 2 THEN w := TRUE; END_IF;
+  IF w THEN MVS1_POS := MIN(100.0, MVS1_POS + 1.667); ELSE MVS1_POS := MAX(0.0, MVS1_POS - 1.667); END_IF;
+  w := BIT_TST(g_cmd, 5);
+  IF cmd_mvs2 = 1 THEN w := FALSE; ELSIF cmd_mvs2 = 2 THEN w := TRUE; END_IF;
+  IF w THEN MVS2_POS := MIN(100.0, MVS2_POS + 1.667); ELSE MVS2_POS := MAX(0.0, MVS2_POS - 1.667); END_IF;
   IF MVS1_POS >= 100.0 THEN MVS1_TXT := 'AB-B'; ELSIF MVS1_POS <= 0.0 THEN MVS1_TXT := 'AB-A'; ELSE MVS1_TXT := 'Kører'; END_IF;
   IF MVS2_POS >= 100.0 THEN MVS2_TXT := 'AB-B'; ELSIF MVS2_POS <= 0.0 THEN MVS2_TXT := 'AB-A'; ELSE MVS2_TXT := 'Kører'; END_IF;
 
