@@ -4,6 +4,30 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.35.0 build 0340] — 2026-11-06 — Flervalg i symbolbiblioteket og sletning af tags i brug
+
+- **Flervalg i Symboler › Bibliotek:**
+  - `SymbolLibrary.svelte`: afkrydsning pr. symbol, *Vælg alle* og Shift-interval. *Flyt valgte til …* og *Slet valgte* (kun egne symboler).
+  - `library.ts`: `moveSymbols`.
+  - `libraryStore.svelte.ts`: `deleteOwnMany`.
+  - Backend:
+    - `POST /api/library/symbols/delete` (`api/library.py`, tekniker, auditeres som `library.delete_many`);
+    - `LibraryService.delete_many`;
+    - `db.delete_library_symbols` i én transaktion: mangler et symbol, slettes intet.
+- **Slet tags i brug:**
+  - `pages/Tags.svelte` + ny `lib/tagUsage.ts`: *Slet* viser, hvor tagget bruges, og sletter det med alle henvisninger.
+  - Backend:
+    - `POST /api/tags/usage` og `POST /api/tags/remove` (`api/routes.py`, tekniker, auditeres som `tag.remove`);
+    - `PlcRemovalService.tag_usage`/`remove_tags` (`services/plc_removal.py`). Backup (`scada-foer-tag-slet-…`, og af historikken ved trend) tages, når tagget bruges eller har historik. Scan og transaktion kører uden `await` imellem. Tags, der bruges af API-nøgler, kan kun slettes af admin;
+    - `db._remove_tags_cascade` er fælles for Fjern PLC og sletning af tags;
+    - `backup.py`: slagsen "før tags slettet".
+  - Alarmer tælles ikke længere dobbelt i svaret fra Fjern PLC.
+- **Tests:**
+  - `test_library.py`: `test_delete_many_all_or_nothing`.
+  - `test_plc_removal.py`: 3 nye tests.
+  - `tagUsage.test.ts`; `library.test.ts`: `moveSymbols`.
+- **Manual:** `05-plcer-og-tags.md` (Slet tag) og `07-tegn.md` (flervalg).
+
 ## [3.34.0 build 0339] — 2026-11-06 — Fjern PLC: flyt tagsene til en anden PLC eller fjern alt
 
 - **Backend:**

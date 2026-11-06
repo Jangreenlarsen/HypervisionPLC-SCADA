@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allDefs, emptyLayout, moveSymbol, newSectionId, OWN_SECTION, ownDef, presetFor, sectionOf, sections, symbolsIn, type Layout, type OwnSymbol } from './library';
+import { allDefs, emptyLayout, moveSymbol, moveSymbols, newSectionId, OWN_SECTION, ownDef, presetFor, sectionOf, sections, symbolsIn, type Layout, type OwnSymbol } from './library';
 import { emptyConfig, libraryDefault, setOwnPresets, type SymbolInfo } from './symbolConfig';
 import { CATEGORIES, SYMBOLS } from './symbols';
 
@@ -42,6 +42,16 @@ describe('symbolbiblioteket med egne symboler', () => {
     const gone: Layout = { ...lay, sections: [] };
     expect(sectionOf(all.find((s) => s.id === 'pumpe')!, gone)).toBe('proces');
     expect(symbolsIn(all, lay, 's1', 'pum').map((s) => s.id)).toEqual(['pumpe']);
+  });
+
+  it('flyt flere symboler på én gang', () => {
+    const all = allDefs([own('u_a', 'A'), own('u_b', 'B'), own('u_c', 'C')]);
+    let lay: Layout = { ...emptyLayout(), sections: [{ id: 's1', label: 'Varme' }] };
+    lay = moveSymbol(all, lay, 'pumpe', 's1', 0);
+    lay = moveSymbols(all, lay, ['u_c', 'u_a'], 's1');
+    expect(symbolsIn(all, lay, 's1').map((s) => s.id)).toEqual(['pumpe', 'u_a', 'u_c']);
+    expect(symbolsIn(all, lay, 'egne').map((s) => s.id)).toEqual(['u_b']);
+    expect(moveSymbols(all, lay, ['findes_ikke'], 's1')).toBe(lay);
   });
 
   it('guidens standardopsætning for et eget symbol bruger delene i tegningen', () => {

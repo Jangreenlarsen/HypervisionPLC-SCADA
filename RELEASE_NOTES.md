@@ -2,6 +2,11 @@
 
 ---
 
+## v3.35.0 — 2026-11-06 — Flervalg af symboler og sletning af tags i brug
+
+- **Symboler › Bibliotek:** afkryds flere symboler (eller *Vælg alle*; Shift-klik vælger et interval) og flyt dem til en anden sektion eller slet de egne på én gang.
+- **Tags:** et tag, der bruges, kan nu slettes direkte. Bekræftelsen viser hvor det bruges, og tagget fjernes alle de steder (bindinger, symbolopsætninger, ugeprogrammer, trendvisninger) i én handling. Der tages backup først. Bruges tagget af en API-nøgle, kræver det admin.
+
 ## v3.34.0 — 2026-11-06 — Fjern en PLC
 
 - **Fjern** på siden PLC'er viser nu, hvad PLC'en bruges til, og giver to valg:

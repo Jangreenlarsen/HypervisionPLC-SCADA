@@ -65,6 +65,15 @@ export async function updateOwn(type: string, label: string, hint: string): Prom
   await loadLibrary();
 }
 
+/** Slet flere egne symboler i én handling (alt eller intet). Svarer med hvilke tegninger der stadig har en kopi. */
+export async function deleteOwnMany(types: string[]): Promise<{ deleted: number; used_in: Record<string, string[]> }> {
+  try {
+    return await api<{ deleted: number; used_in: Record<string, string[]> }>('POST', '/api/library/symbols/delete', { types });
+  } finally {
+    await loadLibrary();   // også ved fejl: vis bibliotekets faktiske tilstand
+  }
+}
+
 /** Slet et eget symbol → de tegninger, der stadig har en kopi. */
 export async function deleteOwn(type: string): Promise<string[]> {
   const r = await api<{ used_in: string[] }>('DELETE', `/api/library/symbols/${encodeURIComponent(type)}`);

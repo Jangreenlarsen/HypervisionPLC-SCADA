@@ -218,6 +218,28 @@ async def update_tag(name: str, body: TagUpdate, request: Request) -> dict[str, 
     return result
 
 
+class TagNamesBody(BaseModel):
+    names: list[str] = Field(min_length=1, max_length=1000)
+
+
+@router.post("/tags/usage", dependencies=[ENGINEER])
+async def tags_usage(body: TagNamesBody, request: Request) -> dict[str, Any]:
+    """Hvad sletning af tagsene rammer: tegninger (bindinger, symbolopsætninger), ugeprogrammer, visninger, API-nøgler."""
+    return request.app.state.plc_removal.tag_usage(body.names)
+
+
+@router.post("/tags/remove", dependencies=[ENGINEER])
+async def remove_tags(body: TagNamesBody, request: Request) -> dict[str, Any]:
+    """Slet tags OG alle henvisninger til dem i én transaktion (backup først, hvis de bruges eller har historik)."""
+    try:
+        result = await request.app.state.plc_removal.remove_tags(request.state.user, body.names)
+    except ServiceError as e:
+        audit(request, "tag.remove", ", ".join(body.names[:20]), {"error": e.message, "names": body.names[:100]})
+        raise
+    audit(request, "tag.remove", ", ".join(body.names[:20]), {"names": body.names[:100], **result})
+    return result
+
+
 @router.delete("/tags/{name}", status_code=204, dependencies=[ENGINEER])
 async def delete_tag(name: str, request: Request, force: bool = False) -> None:
     _tags(request).delete(name, force=force)

@@ -114,6 +114,24 @@ def test_rename_delete_and_used_in(api):
     assert api.delete("/api/library/symbols/pumpe").status_code == 404   # indbyggede kan ikke slettes
 
 
+def test_delete_many_all_or_nothing(api):
+    """Flervalg (v3.35.0): flere egne symboler slettes samlet — mangler ét, slettes intet."""
+    a = export(api).json()["type"]
+    b = export(api, element="Andet", box={"x": 300, "y": 200, "w": 10, "h": 10}, label="Firkant").json()["type"]
+    used = SVG.replace('<rect id="Andet"', f'<g id="X1" data-hv-type="{b}"><rect x="0" y="0" width="5" height="5"/></g><rect id="Andet"')
+    did2 = api.post("/api/drawings", json={"name": "Bruger", "svg": used}).json()["drawing"]["id"]
+    r = api.post("/api/library/symbols/delete", json={"types": [a, "pumpe"]})
+    assert r.status_code == 404 and r.json()["missing"] == ["pumpe"]
+    assert {s["type"] for s in api.get("/api/library").json()["symbols"]} >= {a, b}      # intet slettet
+    assert api.post("/api/library/symbols/delete", json={"types": []}).status_code == 422
+    r = api.post("/api/library/symbols/delete", json={"types": [a, b, a]})
+    assert r.status_code == 200, r.text
+    assert r.json()["deleted"] == 2 and r.json()["used_in"] == {b: [did2]}
+    assert not {s["type"] for s in api.get("/api/library").json()["symbols"]} & {a, b}
+    logs = [x for x in api.get("/api/audit").json() if x["action"] == "library.delete_many"]
+    assert len(logs) == 2 and sum("error" in x["detail"] for x in logs) == 1
+
+
 def test_layout_sections_and_conflict(api):
     t = export(api).json()["type"]
     lay = api.get("/api/library").json()["layout"]

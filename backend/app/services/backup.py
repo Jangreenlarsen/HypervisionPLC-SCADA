@@ -50,10 +50,10 @@ MAX_TREND_DB_BYTES = 2 * 1024 * 1024 * 1024  # udpakket historik ved indlæsning
 FORMAT_VERSION = 1
 MAX_RESTORE_BYTES = 64 * 1024 * 1024
 _DRAWING_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}\Z")
-_BACKUP_NAME = re.compile(r"^(scada-(auto|foer-restore|foer-plc-fjern|pre-update)-\d{8}-\d{6}\.json"
-                          r"|trends-(auto|foer-plc-fjern)-\d{8}-\d{6}\.db\.gz)\Z")
+_BACKUP_NAME = re.compile(r"^(scada-(auto|foer-restore|foer-plc-fjern|foer-tag-slet|pre-update)-\d{8}-\d{6}\.json"
+                          r"|trends-(auto|foer-plc-fjern|foer-tag-slet)-\d{8}-\d{6}\.db\.gz)\Z")
 # Slags → tekst på siden Backup (filnavnet scada-<slags>-…)
-_KIND_TEXT = {"auto": "auto", "foer-restore": "før restore", "foer-plc-fjern": "før PLC fjernet", "pre-update": "før opdatering"}
+_KIND_TEXT = {"auto": "auto", "foer-restore": "før restore", "foer-plc-fjern": "før PLC fjernet", "foer-tag-slet": "før tags slettet", "pre-update": "før opdatering"}
 MAX_ERRORS = 25
 
 

@@ -74,6 +74,19 @@ export function moveSymbol(defs: SymbolDef[], layout: Layout, id: string, sectio
   return { ...layout, items };
 }
 
+/** Flyt flere symboler sidst i en sektion, i den rækkefølge de har nu (flervalg, v3.35.0). */
+export function moveSymbols(defs: SymbolDef[], layout: Layout, ids: string[], section: string): Layout {
+  const pick = new Set(ids);
+  const moving = defs.filter((d) => pick.has(d.id));
+  if (!moving.length) return layout;
+  const items = { ...layout.items };
+  const order = (d: SymbolDef) => items[d.id]?.[1] ?? 0;
+  moving.sort((a, b) => order(a) - order(b));
+  const list = [...symbolsIn(defs, layout, section).filter((d) => !pick.has(d.id)), ...moving];
+  list.forEach((d, i) => (items[d.id] = [section, i]));
+  return { ...layout, items };
+}
+
 /** Standardopsætningen for et eget symbol, med delene oversat fra delnavn til id'et i tegningen. */
 export function presetFor(preset: SymbolConfig | null, partOf: (pid: string) => string | undefined): SymbolConfig | null {
   if (!preset) return null;
