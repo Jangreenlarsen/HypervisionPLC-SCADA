@@ -68,6 +68,11 @@ Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.m
 - **Filer**: `backend/app/plc/`
 - **Regler**: Eneste sted i koden der laver netværkskald til en PLC. Returnerer typede resultater/fejl — aldrig rå httpx-exceptions op til service-laget.
 
+### Lag 4c — LLM-klient (v4.0.0, valgfri)
+- **Ansvar**: Kald til den lokale LLM-tjeneste (llama.cpp `llama-server`, OpenAI-kompatibelt API): `health`, `chat`, `chat_json` (svar efter et JSON-skema).
+- **Filer**: `backend/app/llm/client.py`; tjenesten `deploy/hypervisionplc-scada-llm.service` (bruger `scada-llm`, kun 127.0.0.1, lav CPU-vægt, `MemoryMax` fra hardwareprofilen). Installation og til/fra udføres af root-hjælperen `deploy/apply-llm.sh` (anmodning i `<data>/llm/`, samme mønster som genstart). Hardwareprofil: `services/hwprofile.py`; service-lag: `services/assistant.py`.
+- **Regler**: Eneste sted i koden der laver netværkskald til LLM'en. Kun loopback-adresser accepteres; `trust_env=False`; faste tidsgrænser og størrelsesgrænse på svaret; returnerer `Completion` eller `LlmError` (aldrig rå httpx-fejl). Logger aldrig prompt- eller svartekst. LLM'en får aldrig hemmeligheder, PLC-adresser eller skriveadgang — den svarer kun med data, som service-laget validerer.
+
 ### Lag 4b — Lager
 - **Ansvar**: SQLite-tabeller (plcs, tags, drawings, drawing_versions, bindings, users, audit, alarmer), SVG-filer pr. version, secrets. Trend-historik ligger i en separat `trends.db` (samples uden rowid, PK tag+tid), så store datamængder ikke belaster konfigurationsdatabasen.
 - **Filer**: `backend/app/storage/`, data i `data/` (git-ignoreret)

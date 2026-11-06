@@ -20,6 +20,7 @@ export interface Health {
   trends: { db_bytes: number | null; rows: number; flushes: number; rows_per_day: number | null };
   backup: { interval_h: number; count: number; last_age_s: number | null };
   tls: Tls | null;
+  assist?: { requests: number; errors: number; busy: number; waiting: number; last_ms: number } | null;
 }
 export interface Tls { issuer: string; subject: string; self_signed: boolean; fingerprint: string; not_after_ts: number; days_left: number }
 

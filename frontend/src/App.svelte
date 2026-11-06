@@ -18,6 +18,7 @@
   import Certificates from './pages/Certificates.svelte';
   import Backup from './pages/Backup.svelte';
   import Update from './pages/Update.svelte';
+  import SystemAssist from './pages/SystemAssist.svelte';
   import SystemConfig from './pages/SystemConfig.svelte';
   import Manual from './pages/Manual.svelte';
   import Alarms from './pages/Alarms.svelte';
@@ -261,6 +262,8 @@
     <Audit />
   {:else if page === 'backup'}
     <Backup />
+  {:else if page === 'assist'}
+    <SystemAssist />
   {:else if page === 'update'}
     <Update />
   {:else if page === 'config'}

@@ -70,6 +70,8 @@ class Settings:
     energy_days: float = field(default_factory=lambda: _env_float("SCADA_ENERGY_DAYS", 400.0))
     # Root-ejet mappe med status/log for netværksændringer (deploy/apply-config.sh); tjenesten kun læser den
     net_state_dir: Path = field(default_factory=lambda: Path(os.environ.get("SCADA_NET_STATE_DIR", "/var/lib/hypervisionplc-scada-net")))
+    # LLM-hjælperen (v3.37.0): llama-server lytter kun på 127.0.0.1:<port> (deploy/hypervisionplc-scada-llm.service)
+    llm_port: int = field(default_factory=lambda: int(os.environ.get("SCADA_LLM_PORT", "8091")))
     start_runtimes: bool = True
 
     def __post_init__(self) -> None:

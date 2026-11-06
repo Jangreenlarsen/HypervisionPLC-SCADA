@@ -4,6 +4,37 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.0.0 build 0342] — 2026-11-06 — LLM-hjælper fase 0: hardwareprofil, lokal LLM-tjeneste, LLM-pakke og System › Hjælper
+
+- **Backend:**
+  - Nyt lag 4c `app/llm/client.py`: kun loopback, `trust_env=False`, typede fejl, `json_schema`. Qwen3.x's "tænkning" slås fra.
+  - `services/hwprofile.py`: finder arkitektur, kerner, RAM, AVX2 og Pi-model. Profilerne pi4/lille/pi5/vm-8/vm-16/vm-32 gemmes i `config/hw.json`.
+  - `services/assistant.py`:
+    - kontrol af LLM-pakken: sikre stier, kun filer og mapper, manifest, arkitektur, modelfil, licenser og diskplads;
+    - anmodninger til root-hjælperen (install/start/stop/remove);
+    - højst ét kald ad gangen; selvtest; tællere.
+  - `api/assist.py`:
+    - `GET /api/assist/available` (alle roller);
+    - `GET /status`, `PUT /profile`, `POST/DELETE /package` (streamet, SHA256 beregnes undervejs), `POST /service`, `POST /test` (admin);
+    - alle handlinger auditeres som `assist.*`.
+  - `main.py`, `config.py` (`SCADA_LLM_PORT`), `health.py`, `metrics.py` (`scada_assist_*`).
+- **Deploy:**
+  - `hypervisionplc-scada-llm.service`: llama-server som `scada-llm` med `Nice`, `CPUWeight=20`, `MemoryMax`, uden swap og med fuld hærdning. Kun 127.0.0.1.
+  - `apply-llm.sh` (root) og `hypervisionplc-scada-llm-apply.path`/`.service`:
+    - flytter anmodning og pakke ind i rootens mappe og tjekker SHA256 igen;
+    - tar-listen skal kunne læses, ellers afvises pakken;
+    - modelfilens SHA256 tjekkes mod manifestet;
+    - tal valideres, og ældre installationer ryddes.
+  - `install.sh`: `--hw <profil>`, brugeren `scada-llm` og hjælper-enhederne.
+  - nginx: `/api/assist/package` (16 GB, streamet).
+  - `make-llm-package.sh` + `llm-models.json`: bygger én samlet LLM-pakke af llama.cpp b12179 (MIT) og Qwen3.5-4B Q4_K_M eller Ministral-3-8B (Apache-2.0), med faste adresser og SHA256.
+- **Frontend:**
+  - ny side *System › Hjælper (LLM)* (`pages/SystemAssist.svelte`);
+  - `lib/upload.ts` (upload med fremdrift);
+  - kort på *Status*; menupunkt i `nav.ts`.
+- **Tests:** `test_assist.py` (13, inkl. root-hjælperen med falsk systemctl), `upload.test.ts`, `nav.test.ts`.
+- **Dokumentation:** `ARCHITECTURE.md` (lag 4c), manualen (*System › Hjælper*), `PLAN.md`, `docs/LLM_ANALYSE.md`.
+
 ## [3.36.0 build 0341] — 2026-11-06 — Opsæt symbol direkte på et element uden navn
 
 - `pages/DrawEditor.svelte`: *Valgt element* viser **Opsæt symbol (6 trin) …** også for elementer uden navn. `nameAndGuide` spørger efter et navn og åbner guiden. Før stod kun en tekst om at give elementet et navn, og den var let at overse for rør.

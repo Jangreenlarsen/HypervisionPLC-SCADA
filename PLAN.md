@@ -1,4 +1,4 @@
-# Plan: LLM-hjælper integreret i SCADA'en — 2026-11-06 — ⏳ afventer godkendelse
+# Plan: LLM-hjælper integreret i SCADA'en — 2026-11-06 — godkendt (Jan: lokal, én samlet pakke, til/fra) — fase 0 ✅ v4.0.0
 
 Baggrund og modelvalg: [docs/LLM_ANALYSE.md](docs/LLM_ANALYSE.md). Ønske fra Jan: en lokal LLM som **hjælper** i SCADA'en, der kører på VM'en (16 GB / 4 vCPU, kun CPU). Hardwaren angives ved installationen og åbner for LLM-funktionerne.
 

@@ -1,7 +1,9 @@
 #!/bin/sh
 # Installér/opdatér HypervisionPLC SCADA på Debian / Raspberry Pi OS. Køres som root
 # fra roden af en udpakket kopi af repoet:
-#   sh deploy/install.sh [--with-mock-plc] [--with-nginx <hostnavn> [ip]] [--update]
+#   sh deploy/install.sh [--with-mock-plc] [--with-nginx <hostnavn> [ip]] [--update] [--hw <profil>]
+# --hw: hardwareprofil (pi4, lille, pi5, vm-8, vm-16, vm-32) — afgør om LLM-hjælperen kan slås til. Uden: foreslås ud fra maskinen
+#       og kan rettes under System › Hjælper.
 # --update: bruges af OTA-opdateringen — springer apt og pip-opgradering over (virker uden internet når alt er installeret).
 # --with-nginx: nginx med TLS foran SCADA (selvsigneret certifikat hvis intet findes) og Secure-cookie.
 #
@@ -19,12 +21,15 @@ WITH_MOCK=0
 UPDATE=0
 NGINX_HOST=""
 NGINX_IP=""
+HW=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --with-mock-plc) WITH_MOCK=1 ;;
         --update) UPDATE=1 ;;
         --with-nginx) NGINX_HOST=${2:?--with-nginx kræver et hostnavn}; shift
                       case "${2:-}" in --*|"") ;; *) NGINX_IP=$2; shift ;; esac ;;
+        --hw) HW=${2:?--hw kræver en profil (pi4, lille, pi5, vm-8, vm-16, vm-32)}; shift
+              case "$HW" in pi4|lille|pi5|vm-8|vm-16|vm-32) ;; *) echo "Ukendt hardwareprofil: $HW" >&2; exit 2 ;; esac ;;
         *) echo "Ukendt parameter: $1" >&2; exit 2 ;;
     esac
     shift
@@ -40,7 +45,12 @@ if [ "$UPDATE" -eq 1 ] && python3 -c 'import venv, ensurepip' 2>/dev/null; then
     echo "(--update: apt springes over)"
 else
     apt-get update -qq
-    apt-get install -y -qq python3 python3-venv >/dev/null
+    apt-get install -y -qq python3 python3-venv libgomp1 >/dev/null   # libgomp1: OpenMP til LLM-hjælperen (llama-server)
+fi
+
+# LLM-hjælperens llama-server kræver OpenMP (libgomp1). Ved OTA (--update) kun hvis den mangler, og uden at fejle offline
+if [ "$UPDATE" -eq 1 ] && ! dpkg -s libgomp1 >/dev/null 2>&1; then
+    apt-get install -y -qq libgomp1 >/dev/null 2>&1 || echo "BEMÆRK: libgomp1 mangler — LLM-hjælperen kræver 'sudo apt install libgomp1'" >&2
 fi
 
 echo "== Bruger og mapper"
@@ -182,6 +192,20 @@ install -m 0755 "$SRC/deploy/apply-letsencrypt.sh" /usr/local/lib/hypervisionplc
 mv /usr/local/lib/hypervisionplc-scada/apply-letsencrypt.sh.new /usr/local/lib/hypervisionplc-scada/apply-letsencrypt.sh
 install -m 0644 "$SRC/deploy/hypervisionplc-scada-le.service" "$SRC/deploy/hypervisionplc-scada-le.path" /etc/systemd/system/
 
+echo "== LLM-hjælper (System › Hjælper) — valgfri; selve tjenesten startes først, når en LLM-pakke er installeret og slået til"
+id scada-llm >/dev/null 2>&1 || useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin scada-llm
+install -d -o scada -g scada -m 0750 "$DATA/llm"
+install -m 0755 "$SRC/deploy/apply-llm.sh" /usr/local/lib/hypervisionplc-scada/apply-llm.sh.new
+mv /usr/local/lib/hypervisionplc-scada/apply-llm.sh.new /usr/local/lib/hypervisionplc-scada/apply-llm.sh
+install -m 0644 "$SRC/deploy/hypervisionplc-scada-llm.service" "$SRC/deploy/hypervisionplc-scada-llm-apply.service"     "$SRC/deploy/hypervisionplc-scada-llm-apply.path" /etc/systemd/system/
+: > /var/lib/hypervisionplc-scada-net/llm-enabled
+if [ -n "$HW" ]; then
+    printf '{"profile": "%s", "by": "install.sh"}
+' "$HW" > "$DATA/config/hw.json"
+    chown scada:scada "$DATA/config/hw.json"
+    echo "Hardwareprofil: $HW"
+fi
+
 echo "== systemd"
 install -m 0644 "$SRC/deploy/hypervisionplc-scada.service" /etc/systemd/system/
 if [ "$WITH_MOCK" -eq 1 ]; then
@@ -195,6 +219,9 @@ systemctl restart hypervisionplc-scada-update.path
 systemctl enable -q hypervisionplc-scada-config.path
 systemctl restart hypervisionplc-scada-config.path
 systemctl enable -q hypervisionplc-scada-power.path
+systemctl enable -q hypervisionplc-scada-llm-apply.path
+systemctl restart hypervisionplc-scada-llm-apply.path
+systemctl try-restart hypervisionplc-scada-llm.service 2>/dev/null || true   # kun hvis hjælperen er slået til
 systemctl enable -q hypervisionplc-scada-backupmount.path
 systemctl restart hypervisionplc-scada-power.path
 systemctl restart hypervisionplc-scada-backupmount.path

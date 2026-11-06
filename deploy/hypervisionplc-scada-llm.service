@@ -1,0 +1,50 @@
+[Unit]
+Description=HypervisionPLC SCADA — LLM-hjælper (llama-server, kun 127.0.0.1)
+# Valgfri: slås til/fra under System › Hjælper (root-hjælperen apply-llm.sh). SCADA'en virker uden.
+After=network.target
+
+[Service]
+Type=simple
+User=scada-llm
+Group=scada-llm
+# Model, tråde og kontekst skrives af apply-llm.sh; hukommelsesloftet i drop-in'en limits.conf (fra hardwareprofilen)
+EnvironmentFile=/etc/hypervisionplc-scada-llm.env
+Environment=LD_LIBRARY_PATH=/opt/hypervisionplc-scada-llm/current/llama
+WorkingDirectory=/opt/hypervisionplc-scada-llm/current/llama
+ExecStart=/opt/hypervisionplc-scada-llm/current/llama/llama-server --host 127.0.0.1 --port ${LLM_PORT} \
+    --model ${LLM_MODEL} --threads ${LLM_THREADS} --ctx-size ${LLM_CTX} --parallel 1 --jinja --no-webui
+Restart=on-failure
+RestartSec=15
+
+# SCADA'en går ALTID først: lav CPU- og IO-vægt, lav prioritet, fast loft over hukommelsen og ingen swap
+Nice=10
+CPUWeight=20
+IOWeight=20
+MemoryMax=6G
+MemorySwapMax=0
+OOMScoreAdjust=500
+
+# Hærdning: kun loopback, ingen skrivning, ingen privilegier
+NoNewPrivileges=true
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+[Install]
+WantedBy=multi-user.target

@@ -27,3 +27,6 @@ demo/varme-plc/test/build/
 
 # Bygget symbolgenerator (demo)
 demo/varme-plc/tools/build/
+
+# LLM-pakker: hentede filer (deploy/make-llm-package.sh)
+.llm-cache/

@@ -1,0 +1,123 @@
+"""Klient til den lokale LLM-tjeneste (llama.cpp `llama-server`, OpenAI-kompatibelt API) — lag 4c.
+
+Regler (ARCHITECTURE.md):
+- kun loopback (127.0.0.1/::1) — adressen kan ikke pege ud af maskinen;
+- `trust_env=False` (ingen proxy/netrc fra miljøet), faste tidsgrænser og størrelsesgrænse på svaret;
+- returnerer typede resultater eller `LlmError` — aldrig rå httpx-undtagelser op til service-laget;
+- logger aldrig prompt- eller svartekst (kun tider og antal tokens).
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import time
+from dataclasses import dataclass
+from typing import Any
+from urllib.parse import urlparse
+
+import httpx
+
+log = logging.getLogger("scada.llm")
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+MAX_RESPONSE_BYTES = 512 * 1024
+LOOPBACK = {"127.0.0.1", "::1", "localhost"}
+
+
+class LlmError(Exception):
+    """`kind`: 'unavailable' (tjenesten svarer ikke), 'timeout', 'bad_response', 'busy'."""
+
+    def __init__(self, kind: str, message: str):
+        super().__init__(message)
+        self.kind = kind
+        self.message = message
+
+
+@dataclass
+class Completion:
+    text: str
+    tokens_in: int
+    tokens_out: int
+    ms: float
+    model: str
+
+    @property
+    def tokens_per_s(self) -> float:
+        return round(self.tokens_out / (self.ms / 1000), 2) if self.ms > 0 and self.tokens_out else 0.0
+
+
+class LlmClient:
+    def __init__(self, base_url: str = "http://127.0.0.1:8091", transport: httpx.AsyncBaseTransport | None = None):
+        host = urlparse(base_url).hostname or ""
+        if host not in LOOPBACK:
+            raise ValueError(f"LLM-tjenesten skal ligge på loopback, ikke '{host}'")
+        self.base_url = base_url.rstrip("/")
+        self._transport = transport
+
+    def _client(self, timeout: float) -> httpx.AsyncClient:
+        return httpx.AsyncClient(base_url=self.base_url, timeout=httpx.Timeout(timeout, connect=3.0), trust_env=False,
+                                 transport=self._transport)
+
+    async def health(self) -> dict[str, Any]:
+        """{'ok': bool, 'status': 'ok'|'loading'|'unavailable', 'model': str|None}. Kaster aldrig."""
+        try:
+            async with self._client(3.0) as c:
+                r = await c.get("/health")
+                if r.status_code == 503:
+                    return {"ok": False, "status": "loading", "model": None}
+                if r.status_code != 200:
+                    return {"ok": False, "status": "unavailable", "model": None}
+                model = None
+                try:
+                    m = await c.get("/v1/models")
+                    data = m.json().get("data") if m.status_code == 200 else None
+                    model = data[0].get("id") if isinstance(data, list) and data else None
+                except (httpx.HTTPError, ValueError, AttributeError):
+                    pass
+                return {"ok": True, "status": "ok", "model": model}
+        except httpx.HTTPError:
+            return {"ok": False, "status": "unavailable", "model": None}
+
+    async def chat(self, messages: list[dict[str, str]], *, schema: dict[str, Any] | None = None, max_tokens: int = 400,
+                   temperature: float = 0.0, timeout: float = 90.0) -> Completion:
+        """Ét svar (ikke strømmet). `schema`: JSON-skema, som svaret SKAL følge (llama-server håndhæver det med grammatik)."""
+        body: dict[str, Any] = {
+            "messages": messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False,
+            # Qwen3.x m.fl. "tænker" ellers højt før svaret — det koster minutter på CPU og bruges ikke
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        if schema is not None:
+            body["response_format"] = {"type": "json_schema", "json_schema": {"name": "svar", "schema": schema, "strict": True}}
+        t0 = time.monotonic()
+        try:
+            async with self._client(timeout) as c:
+                r = await c.post("/v1/chat/completions", json=body)
+        except httpx.TimeoutException:
+            raise LlmError("timeout", f"LLM-tjenesten svarede ikke inden for {int(timeout)} s") from None
+        except httpx.HTTPError as exc:
+            raise LlmError("unavailable", f"LLM-tjenesten kan ikke nås ({type(exc).__name__})") from None
+        ms = (time.monotonic() - t0) * 1000
+        if r.status_code == 503:
+            raise LlmError("busy", "LLM-tjenesten indlæser modellen eller er optaget — prøv igen om lidt")
+        if r.status_code != 200:
+            raise LlmError("bad_response", f"LLM-tjenesten svarede {r.status_code}")
+        if len(r.content) > MAX_RESPONSE_BYTES:
+            raise LlmError("bad_response", "LLM-svaret er for stort")
+        try:
+            data = r.json()
+            text = data["choices"][0]["message"]["content"] or ""
+            usage = data.get("usage") or {}
+            done = Completion(text=text, tokens_in=int(usage.get("prompt_tokens") or 0),
+                              tokens_out=int(usage.get("completion_tokens") or 0), ms=ms, model=str(data.get("model") or ""))
+        except (ValueError, KeyError, IndexError, TypeError):
+            raise LlmError("bad_response", "LLM-svaret kunne ikke læses") from None
+        log.info("LLM-svar: %d→%d tokens på %.0f ms (%.1f tok/s)", done.tokens_in, done.tokens_out, ms, done.tokens_per_s)
+        return done
+
+    async def chat_json(self, messages: list[dict[str, str]], schema: dict[str, Any], **kw: Any) -> tuple[Any, Completion]:
+        done = await self.chat(messages, schema=schema, **kw)
+        try:
+            return json.loads(done.text), done
+        except ValueError:
+            raise LlmError("bad_response", "LLM-svaret var ikke gyldig JSON") from None

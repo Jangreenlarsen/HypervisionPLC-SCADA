@@ -92,6 +92,11 @@
         <strong>{health.alarms.active} aktive</strong><div class="muted small">{health.alarms.unacked} ukvitterede · {health.alarms.high} høj prioritet</div></div>
       <div class="card"><div class="muted small">Trend-historik</div>
         <strong>{fmtBytes(health.trends.db_bytes)}</strong><div class="muted small">{health.trends.rows} rækker skrevet siden start{health.trends.rows_per_day !== null ? ` · ca. ${health.trends.rows_per_day}/døgn` : ''}</div></div>
+      {#if health.assist && (health.assist.requests || health.assist.busy)}
+        <div class="card"><div class="muted small">Hjælper (LLM)</div>
+          <strong>{health.assist.busy ? 'arbejder' : 'klar'}{health.assist.waiting ? ` · ${health.assist.waiting} venter` : ''}</strong>
+          <div class="muted small">{health.assist.requests} kald, {health.assist.errors} fejl siden start · seneste {(health.assist.last_ms / 1000).toFixed(1)} s</div></div>
+      {/if}
       <div class="card"><div class="muted small">Seneste backup</div>
         <strong>{health.backup.last_age_s === null ? 'ingen' : `${fmtDuration(health.backup.last_age_s)} siden`}</strong>
         <div class="muted small">{health.backup.interval_h > 0 ? `automatisk hver ${health.backup.interval_h}. time · ${health.backup.count} gemt` : 'automatisk backup er slået fra'}</div></div>
