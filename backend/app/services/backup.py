@@ -50,7 +50,10 @@ MAX_TREND_DB_BYTES = 2 * 1024 * 1024 * 1024  # udpakket historik ved indlæsning
 FORMAT_VERSION = 1
 MAX_RESTORE_BYTES = 64 * 1024 * 1024
 _DRAWING_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}\Z")
-_BACKUP_NAME = re.compile(r"^(scada-(auto|foer-restore)-\d{8}-\d{6}\.json|trends-auto-\d{8}-\d{6}\.db\.gz)\Z")
+_BACKUP_NAME = re.compile(r"^(scada-(auto|foer-restore|foer-plc-fjern|pre-update)-\d{8}-\d{6}\.json"
+                          r"|trends-(auto|foer-plc-fjern)-\d{8}-\d{6}\.db\.gz)\Z")
+# Slags → tekst på siden Backup (filnavnet scada-<slags>-…)
+_KIND_TEXT = {"auto": "auto", "foer-restore": "før restore", "foer-plc-fjern": "før PLC fjernet", "pre-update": "før opdatering"}
 MAX_ERRORS = 25
 
 
@@ -173,11 +176,12 @@ class BackupService:
         out = []
         for p in sorted(self.backup_dir.glob("scada-*.json"), reverse=True):
             st = p.stat()
-            out.append({"name": p.name, "size": st.st_size, "created": st.st_mtime,
-                        "kind": "auto" if "-auto-" in p.name else "før restore"})
-        for p in sorted(self.backup_dir.glob("trends-auto-*.db.gz"), reverse=True):
+            kind = p.name[len("scada-"):-len("-YYYYmmdd-HHMMSS.json")]
+            out.append({"name": p.name, "size": st.st_size, "created": st.st_mtime, "kind": _KIND_TEXT.get(kind, kind)})
+        for p in sorted(self.backup_dir.glob("trends-*.db.gz"), reverse=True):
             st = p.stat()
-            out.append({"name": p.name, "size": st.st_size, "created": st.st_mtime, "kind": "historik"})
+            out.append({"name": p.name, "size": st.st_size, "created": st.st_mtime,
+                        "kind": "historik" if p.name.startswith("trends-auto-") else "historik før PLC fjernet"})
         return sorted(out, key=lambda f: f["created"], reverse=True)
 
     # ------------------------------------------------------- trend-historik
@@ -198,11 +202,13 @@ class BackupService:
             tmp.unlink(missing_ok=True)
         return dest_gz.stat().st_size
 
-    def save_trend_snapshot(self) -> str:
-        name = f"trends-auto-{datetime.now().strftime('%Y%m%d-%H%M%S')}.db.gz"
+    def save_trend_snapshot(self, kind: str = "auto") -> str:
+        """Øjebliksbillede af historikken. `kind` "foer-plc-fjern": før en PLC fjernes med historik (egen slags, så de
+        automatiske ikke ryddes af den — og omvendt). Blokerende (kør i en tråd)."""
+        name = f"trends-{kind}-{datetime.now().strftime('%Y%m%d-%H%M%S')}.db.gz"
         self.write_trend_snapshot(self.backup_dir / name)
-        files = sorted(self.backup_dir.glob("trends-auto-*.db.gz"))
-        for old in files[: max(0, len(files) - self.trend_keep)]:
+        files = sorted(self.backup_dir.glob(f"trends-{kind}-*.db.gz"))
+        for old in files[: max(0, len(files) - max(self.trend_keep, 1 if kind != "auto" else 0))]:
             old.unlink(missing_ok=True)
         return name
 

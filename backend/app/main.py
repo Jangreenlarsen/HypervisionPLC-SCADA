@@ -70,6 +70,7 @@ from .services.notifier import NotificationService
 from .services.health_alarms import HealthAlarms
 from .services.manager import PlcManager, TransportFactory
 from .services.plcs import PlcService
+from .services.plc_removal import PlcRemovalService
 from .services.tags import TagService
 from .services.updates import UpdateService
 from .services.github_releases import GitHubReleases
@@ -190,6 +191,11 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         trend_task = asyncio.create_task(app.state.trend_recorder.run(), name="trends")
         app.state.schedule_service = ScheduleService(db, app.state.operate_service, manager)
         app.state.tag_service.schedule_usage = app.state.schedule_service.usage
+        # Fjern PLC: flyt tags eller fjern alt (v3.34.0)
+        app.state.plc_removal = PlcRemovalService(db, manager, app.state.tag_service, app.state.backup_service,
+                                                  alarms=app.state.alarm_service,
+                                                  forget_history=app.state.trend_recorder.forget,
+                                                  on_changed=app.state.symbol_runtime.reload)
         schedule_task = (asyncio.create_task(app.state.schedule_service.run(), name="schedules")
                          if settings.start_runtimes else None)
         # Backup: én tidsplan (lokal backup + eksterne destinationer: SFTP/SCP/FTP(S)/HTTPS/SMB/NFS)

@@ -1,7 +1,8 @@
 // REST-klient mod SCADA-serveren. Viser ALTID serverens specifikke fejltekst (CLAUDE.md regel 12).
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  /** `body`: serverens fejlsvar (fx `problems` pr. tag, når en PLC ikke kan fjernes) */
+  constructor(public status: number, message: string, public body?: unknown) {
     super(message);
   }
 }
@@ -51,7 +52,7 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
     // Ikke-JSON (fx en proxy-fejlside) — teksten bruges som fejlbesked nedenfor.
   }
   if (resp.status === 401 && !path.startsWith('/api/auth/')) notifyUnauthorized();
-  if (!resp.ok) throw new ApiError(resp.status, errorText(resp.status, data, resp.statusText));
+  if (!resp.ok) throw new ApiError(resp.status, errorText(resp.status, data, resp.statusText), data);
   return data as T;
 }
 

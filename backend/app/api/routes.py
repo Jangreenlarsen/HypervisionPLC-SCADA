@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -132,6 +132,40 @@ async def update_plc(key: str, body: PlcUpdate, request: Request) -> dict[str, A
     data = body.model_dump(exclude_unset=True)
     result = await _plcs(request).update(key, data)
     audit(request, "plc.update", key, data)
+    return result
+
+
+class PlcRemoveBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    mode: Literal["move", "all"]
+    target: str | None = Field(default=None, max_length=64)
+    confirm: str = Field(default="", max_length=64)
+
+
+@router.get("/plcs/{key}/usage", dependencies=[ADMIN])
+async def plc_usage(key: str, request: Request) -> dict[str, Any]:
+    """Hvad en fjernelse af PLC'en rammer: tags, tegninger, symboler, ugeprogrammer, visninger, API-nøgler og alarmer."""
+    return request.app.state.plc_removal.usage(key)
+
+
+@router.post("/plcs/{key}/remove", dependencies=[ADMIN])
+async def remove_plc(key: str, body: PlcRemoveBody, request: Request) -> dict[str, Any]:
+    """Fjern PLC'en: `move` flytter tagsene til `target`; `all` fjerner tags og alle henvisninger (backup først,
+    `confirm` skal være PLC'ens nøgle)."""
+    svc = request.app.state.plc_removal
+    try:
+        if body.mode == "move":
+            if not body.target:
+                raise ServiceError(400, "Vælg den PLC, tagsene skal flyttes til")
+            result = await svc.move(request.state.user, key, body.target)
+        else:
+            if body.confirm != key:
+                raise ServiceError(400, f"Skriv PLC'ens nøgle ('{key}') for at bekræfte, at alt fjernes")
+            result = await svc.remove_all(request.state.user, key)
+    except ServiceError as exc:   # også afviste/fejlede forsøg står i loggen
+        audit(request, "plc.remove", key, {"mode": body.mode, "target": body.target, "error": exc.message, "status": exc.status})
+        raise
+    audit(request, "plc.remove", key, result)
     return result
 
 

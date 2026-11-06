@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { ask as askUser } from '../lib/ask';
-  import { del, get, patch, post } from '../lib/api';
+  import { get, patch, post } from '../lib/api';
+  import PlcRemove from '../lib/PlcRemove.svelte';
 
   let { isAdmin = false }: { isAdmin?: boolean } = $props();
 
@@ -51,14 +51,12 @@
     }
   }
 
-  async function remove(p: Plc): Promise<void> {
-    if (!await askUser(`Fjern PLC'en ${p.name}?`)) return;
-    try {
-      await del(`/api/plcs/${encodeURIComponent(p.key)}`);
-      await refresh();
-    } catch (e) {
-      error = (e as Error).message;
-    }
+  // Fjern (v3.34.0): dialogen viser, hvad der rammes, og lader tagsene flytte til en anden PLC eller fjerne alt
+  let removing = $state<Plc | null>(null);
+  let info = $state('');
+  function remove(p: Plc): void {
+    error = info = '';
+    removing = p;
   }
 
   const ago = (ts: number | null) => (ts ? `${Math.max(0, Math.round(Date.now() / 1000 - ts))} s siden` : 'aldrig');
@@ -71,6 +69,10 @@
 </script>
 
 {#if error}<div class="error">{error}</div>{/if}
+{#if info}<div class="notice">{info}</div>{/if}
+{#if removing}
+  <PlcRemove plc={removing} onclose={() => (removing = null)} ondone={(m) => { removing = null; info = m; void refresh(); }} />
+{/if}
 
 {#each plcs as p (p.key)}
   <section class="panel">
