@@ -244,7 +244,7 @@ def test_import_svg_files(api):
     assert [x["status"] for x in res] == ["created", "created", "error", "error", "error"]
     assert res[0]["label"] == "Min ventil" and res[0]["type"] == "u_min_ventil"
     assert set(res[0]["parts"]) == {"kasse", "lampe"}   # <a> (og indholdet) fjernes af rensningen
-    assert any("CSS-reglen" in w for w in res[0]["warnings"])
+    assert any("CSS-reglerne" in w and "svg rect" in w for w in res[0]["warnings"])
     assert "ingen grafik" in res[2]["error"] and "viewBox" in res[3]["error"]
     lib_ = api.get("/api/library").json()
     svg = next(s for s in lib_["symbols"] if s["type"] == "u_min_ventil")["svg"]
@@ -348,3 +348,36 @@ def test_new_version_from_file_keeps_preset(api):
     assert sym["preset"] is not None
     r = imp(api, [{"name": "Pumpestation.svg", "svg": FILE_SVG}], on_conflict="version").json()["results"][0]
     assert any("fjernet" in w for w in r["warnings"])
+
+
+# Jans P&ID-filer (2026-11-06): CSS på elementtyper (path,rect,…{fill:none;stroke:…}) og klasser (.w) i samme <style>
+PID_STYLE = ('<style>path,rect,circle,ellipse{fill:none;stroke:#141517;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}'
+             '.f{fill:#141517}.w{fill:#fff}text{fill:#141517;stroke:none;font-family:Inter,Arial,sans-serif;font-weight:500}</style>')
+DCS = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 64" width="96" height="64" role="img" aria-label="DCS">'
+       '<title>DCS shared display P&amp;ID symbol</title>' + PID_STYLE +
+       '<rect x="31" y="13" width="34" height="34" class="w"/><circle cx="48" cy="30" r="17"/><path d="M31 30H65"/>'
+       '<path d="M6 32H90" stroke-dasharray="8 5" style="stroke:#f00"/>'
+       '<text x="48" y="22.5" font-size="9.5" text-anchor="middle" dominant-baseline="central">FIC</text></svg>')
+
+
+def test_import_css_type_selectors():
+    frag, _parts, warnings = lib.import_fragment(DCS)
+    assert not any("CSS" in w for w in warnings), warnings
+    root = lib._parse(frag)
+    st = {lib._local(e.tag)[1] + str(i): e.attrib.get("style", "") for i, e in enumerate(root.iter()) if isinstance(e.tag, str)}
+    rect = next(v for k, v in st.items() if k.startswith("rect"))
+    assert rect.index("fill:none") < rect.index("fill:#fff")                    # klassen (.w) vinder over typen
+    circle = next(v for k, v in st.items() if k.startswith("circle"))
+    assert "fill:none" in circle and "stroke:#141517" in circle
+    red = [v for k, v in st.items() if k.startswith("path") and "stroke:#f00" in v][0]
+    assert red.index("stroke:#141517") < red.index("stroke:#f00")              # egen style vinder
+    text = next(v for k, v in st.items() if k.startswith("text"))
+    assert "stroke:none" in text and "font-family:Inter" in text and "FIC" in frag
+    assert "<style" not in frag and "class=" not in frag
+
+
+def test_import_css_unsupported_selectors_one_warning():
+    svg = DCS.replace("</style>", "svg rect{fill:red}a:hover{fill:red}g > path{x:1}#id{y:1}</style>")
+    _f, _p, warnings = lib.import_fragment(svg)
+    css = [w for w in warnings if "CSS" in w]
+    assert len(css) == 1 and "og 1 til" in css[0]

@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.33.1 build 0338] — 2026-11-06 — Fix: SVG-import ignorerede CSS på elementtyper
+
+- `backend/app/services/library.py` `_inline_css`:
+  - Regler på elementtyper (`path,rect,circle{…}`, `text{…}`, `*`) og type.klasse (`rect.w{…}`) skrives nu ind på elementerne ligesom klasse-regler.
+  - Rækkefølgen er type < klasse < egen style, som i CSS.
+  - Selektorer, der ikke kan bruges, giver én samlet advarsel pr. fil i stedet for én pr. regel.
+- `backend/tests/test_library.py`: 2 nye tests med Jans P&ID-filer.
+- Manual: `07-tegn.md`.
+- Koden kom med i commit `3a34a7f`. Versionsbump og dokumentation fulgte i den næste commit, fordi dokumentationsscriptet fejlede.
+
 ## [3.33.0 build 0337] — 2026-11-06 — Nye tegneredskaber i Tegn: polygon, stjerne, n-kant, bue, billede, streg, pile, gradient, skygge og lag
 
 - **Nyt `frontend/svgedit-host/shapes.js`** (ren logik og DOM-hjælpere):

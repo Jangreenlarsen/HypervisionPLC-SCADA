@@ -1,3 +1,52 @@
+# Plan: Fjern PLC — flyt tags til en anden PLC eller fjern alt — 2026-11-06
+
+**Problem (Jan):** En PLC kan ikke fjernes. `PlcService.delete` afviser med 409, så længe PLC'en har tags. Hvert tag kan igen kun slettes, når ingen binding, symbolopsætning eller ugeprogram bruger det. Det er umuligt i praksis.
+
+**Ønske:** Fjern-dialogen skal give to valg (Jan: "begge muligheder"):
+1. **Flyt tags til en anden PLC**, fx når en PLC er udskiftet. Tags, bindinger, opsætninger og historik bevares, og kun kilden skifter fra `plcA:…` til `plcB:…`.
+2. **Fjern alt:** PLC'en, dens tags og alle henvisninger til dem fjernes i én handling, efter en oversigt over konsekvenserne og en backup.
+
+En PLC uden tags fjernes som i dag.
+
+## Trin
+1. **Backend** (`services/plc_removal.py`, ny; lag 2):
+   - **`usage(key)`** giver tags (antal og navne), tegninger med bindinger, symbolopsætninger (også grupper), ugeprogrammer, trendvisninger, API-nøgler med tagsene i scope, aktive alarmer, antal tags med historik og de andre PLC'er, der kan flyttes til.
+   - **`move(key, target)`:**
+     - Hver kilde valideres med `TagService._validate` (skrivbarhed, energi og alarm). Ved fejl afbrydes der, før noget ændres, og listen over problemer vises.
+     - Derefter opdateres `tags.source`/`plc` i én transaktion, og PLC'en og dens adgangskode slettes.
+     - Til sidst `reload_plc` (begge PLC'er) og `reload_tags`.
+   - **`remove_all(key)`:**
+     - Først backup (`save_to_server("foer-plc-fjern")`). Fejler den, afbrydes der.
+     - Derefter i én transaktion:
+       - bindinger med tagsene (også `dir_tag`) slettes;
+       - i symbolopsætninger og grupper fjernes animationer, der bruger tagsene, og signal-, fejl-, logik- og graf-henvisninger tømmes (symbolet skal sættes op igen);
+       - ugeprogrammer på tagsene slettes;
+       - tagsene fjernes fra trendvisninger og API-nøglers scope;
+       - `alarm_state` slettes (alarmhændelser bevares som historik);
+       - tags og PLC slettes.
+     - Efter commit: trendhistorikken glemmes (`trend_recorder.forget`), adgangskoden slettes, og der reloades.
+   - Alt logges og auditeres med optælling.
+2. **API** (kun admin):
+   - `GET /api/plcs/{key}/usage`;
+   - `POST /api/plcs/{key}/remove` med `{mode: "move" | "all", target?, confirm: "<key>"}`. Ved "all" skal PLC'ens nøgle tastes som bekræftelse.
+3. **Frontend:** `PlcRemove.svelte`, en dialog fra knappen *Fjern* på siden PLC'er:
+   - en oversigt over konsekvenserne;
+   - valget *Flyt tags til* (rulleliste med PLC'er) eller *Fjern alt* (tast nøglen);
+   - resultat og fejl vises som tekst.
+4. **Tests:**
+   - flyt (kilder, bindinger og historik intakte; valideringsfejl ændrer intet);
+   - fjern alt (alle henvisninger væk, backup-fil skrevet, alarmhændelser bevaret);
+   - uden tags, roller og forkert bekræftelse;
+   - frontend: hjælpefunktioner.
+5. **Dokumentation:** manual (kapitlet om PLC'er og tags), CHANGELOG, RELEASE_NOTES, FEATURES og version 3.34.0.
+
+## Risici
+- Hovedbasen og trend-databasen er adskilte. Historikken slettes derfor først efter commit; fejler det, logges det, og en senere oprydning tager resten.
+- Symboler, der mister animationer eller signaler, viser derefter "ikke sat op" og kan sættes op igen med guiden. Oversigten siger hvilke.
+- Flyt til en PLC af en anden type (fx uden RTU/MBX): valideringen afviser samlet, før noget ændres.
+
+---
+
 # Plan: SVG-import af symboler + flere tegneredskaber i Tegn — 2026-11-06
 
 **Mål (Jan 2026-11-06):**

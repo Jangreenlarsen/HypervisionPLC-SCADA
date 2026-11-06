@@ -2,6 +2,10 @@
 
 ---
 
+## v3.33.1 — 2026-11-06 — Rettelse: import af SVG-symboler med CSS
+
+- SVG-filer, der styler elementerne med CSS (fx `path,rect{fill:none;stroke:…}`), importeres nu med deres rigtige udseende. Før blev stregerne væk, og figurerne blev fyldt sorte. Symboler, der allerede er importeret, rettes ved at importere filerne igen med *Gem som ny version af det eksisterende*.
+
 ## v3.33.0 — 2026-11-06 — Flere tegneredskaber i Tegn
 
 - **Nye former:** **polygon** (klik hjørnerne), **stjerne** og **regulær polygon** (træk fra midten, og antal spidser/hjørner kan ændres bagefter), **bue** (midte, start og slut) og **billede** (PNG, JPG, WebP eller GIF).

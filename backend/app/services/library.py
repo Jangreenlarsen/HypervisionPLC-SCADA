@@ -250,7 +250,8 @@ MAX_CSS = 64 * 1024          # <style>-tekst der skrives ind på elementerne; me
 MAX_CSS_RULE = 4 * 1024      # én regels krop
 MAX_IDS = 5000               # elementer med id i én fil
 FULL = "library_full"        # fejlkode: biblioteket har MAX_SYMBOLS egne symboler
-_CLASS_SEL = re.compile(r"^\.([A-Za-z_][\w-]*)$")
+_TYPE_SEL = re.compile(r"^[A-Za-z][\w-]*$")
+_TYPE_CLASS_SEL = re.compile(r"^([A-Za-z][\w-]*)?\.([A-Za-z_][\w-]*)$")
 _SKIP_ROOT = ("title", "desc", "metadata", "style")
 # Præsentations-attributter på <svg>-roden, som børnene arver — de flyttes til symbolets gruppe
 _INHERITED = ("fill", "fill-opacity", "fill-rule", "stroke", "stroke-width", "stroke-opacity", "stroke-linecap",
@@ -307,48 +308,57 @@ def _css_rules(css: str) -> list[tuple[str, str]]:
 
 
 def _inline_css(root: ET.Element, warnings: list[str]) -> None:
-    """Simple klasse-regler (`.st0{fill:#f00}`, som Illustrator/Inkscape laver) skrives ind på elementerne. Et symbols
-    <style> ville gælde hele tegningen, så den fjernes; andre selektorer kan ikke bruges og giver en advarsel.
-    Lofter: MAX_CSS tekst i alt, MAX_CSS_RULE pr. regel og MAX_SVG_BYTES indskrevet i alt (ellers kan få bytes CSS
-    pustes op til gigabytes via mange elementer/klasser)."""
-    rules: dict[str, str] = {}
+    """Simple CSS-regler skrives ind på elementerne: elementtyper (`path,rect{fill:none}`, `*`), klasser (`.st0{…}`, som
+    Illustrator/Inkscape laver) og type.klasse (`rect.w{…}`). Rækkefølgen følger CSS: type < klasse < elementets egen
+    style. Et symbols <style> ville gælde hele tegningen, så den fjernes; andre selektorer (fx `svg rect`, `a:hover`)
+    kan ikke bruges og giver én samlet advarsel. Lofter: MAX_CSS tekst i alt, MAX_CSS_RULE pr. regel og MAX_SVG_BYTES
+    indskrevet i alt (ellers kan få bytes CSS pustes op til gigabytes via mange elementer/klasser)."""
+    by_type: dict[str, str] = {}      # elementtype (eller "*") → krop
+    by_class: dict[tuple[str, str], str] = {}   # (type eller "", klasse) → krop
     styles = [e for e in root.iter() if isinstance(e.tag, str) and _local(e.tag)[1] == "style"]
     css = "\n".join(st.text or "" for st in styles)
-    ignored = 0
+    ignored: list[str] = []
     if len(css) > MAX_CSS:
-        warnings.append(f"CSS'en er større end {MAX_CSS // 1024} KB og er ikke brugt — klasserne mister deres udseende")
+        warnings.append(f"CSS'en er større end {MAX_CSS // 1024} KB og er ikke brugt — elementerne mister deres udseende")
         css = ""
+    add = lambda d, k, body: d.__setitem__(k, (d.get(k, "") + ";" + body).strip(";"))  # noqa: E731
     for sel, body in _css_rules(css):
         body = body.strip()
         if len(body) > MAX_CSS_RULE:
-            ignored += 1
+            ignored.append(sel.strip()[:30])
             continue
-        for one in sel.split(","):
-            m = _CLASS_SEL.match(one.strip())
-            if m:
-                rules[m.group(1)] = (rules.get(m.group(1), "") + ";" + body).strip(";")
-            elif one.strip():
-                ignored += 1
-                if ignored <= 5:
-                    warnings.append(f"CSS-reglen '{one.strip()[:40]}' kan ikke bruges i et symbol og er ignoreret")
-    if ignored > 5:
-        warnings.append(f"… i alt {ignored} CSS-regler er ignoreret")
+        for one in (x.strip() for x in sel.split(",")):
+            if not one:
+                continue
+            if one == "*" or _TYPE_SEL.match(one):
+                add(by_type, one, body)
+            elif m := _TYPE_CLASS_SEL.match(one):
+                add(by_class, (m.group(1) or "", m.group(2)), body)
+            else:
+                ignored.append(one[:30])
+    if ignored:
+        shown = ", ".join(f"'{x}'" for x in list(dict.fromkeys(ignored))[:3])
+        more = f" og {len(set(ignored)) - 3} til" if len(set(ignored)) > 3 else ""
+        warnings.append(f"CSS-reglerne {shown}{more} kan ikke bruges i et symbol og er ignoreret")
     for parent in list(root.iter()):
         for c in list(parent):
             if isinstance(c.tag, str) and _local(c.tag)[1] == "style":
                 parent.remove(c)
-    if not rules:
-        for e in root.iter():
-            if isinstance(e.tag, str):
-                e.attrib.pop("class", None)
-        return
     total = 0
     for e in root.iter():
         if not isinstance(e.tag, str):
             continue
         cls = e.attrib.pop("class", "")
-        css = ";".join(rules[c] for c in dict.fromkeys(cls.split()) if c in rules)
-        if css:   # elementets egen style vinder over klassen, som i CSS
+        if not by_type and not by_class:
+            continue
+        tag = _local(e.tag)[1]
+        if e is root or tag in ("defs", "title", "desc", "metadata"):
+            continue
+        parts = [by_type[k] for k in ("*", tag) if k in by_type]
+        for c in dict.fromkeys(cls.split()):
+            parts += [by_class[k] for k in (("", c), (tag, c)) if k in by_class]
+        css = ";".join(parts)
+        if css:   # elementets egen style vinder, som i CSS
             e.attrib["style"] = (css + ";" + e.attrib.get("style", "")).strip(";")
             total += len(css)
             if total > MAX_SVG_BYTES:

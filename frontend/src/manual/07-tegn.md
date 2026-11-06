@@ -172,7 +172,7 @@ Har du tegnet noget, du vil bruge igen (fx en pumpestation med kasse, pumpe og t
 ![Importér SVG-symboler: filer, sektion, navnekonflikt og resultatet pr. fil](../../public/manual/symboler-import.png)
 
 - **Dele:** elementer med `id` i filen bliver dele, der kan animeres hver for sig i guiden (fx en *lampe* eller en *rotor*).
-- **Rensning:** filen renses som en uploadet tegning — scripts, eksterne links og ukendte elementer fjernes. CSS-klasser (fra fx Illustrator eller Inkscape) skrives ind på elementerne; andre CSS-regler kan ikke bruges og giver en advarsel.
+- **Rensning:** filen renses som en uploadet tegning — scripts, eksterne links og ukendte elementer fjernes. CSS i filen (fx `path,rect{fill:none;stroke:#000}`, `.st0{…}` eller `rect.w{…}` fra Illustrator, Inkscape og andre symbolsæt) skrives ind på elementerne. Andre regler (fx `svg rect` eller `a:hover`) kan ikke bruges og giver én samlet advarsel.
 - **Størrelse:** filen skal have `viewBox` eller `width`/`height`. Grafik større end 240 punkter skaleres ned.
 - Resultatet vises pr. fil: *Oprettet*, *Ny version*, *Sprunget over* eller *Fejl* med begrundelsen. En fil med fejl stopper ikke de andre.
 
