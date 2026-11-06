@@ -5,11 +5,12 @@ from __future__ import annotations
 from typing import Any, Literal, TypeVar
 
 from fastapi import APIRouter, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ..services.auth import role_at_least
 from ..services.errors import ServiceError
-from ..services.library import MAX_HINT, MAX_IMPORT_BYTES, MAX_IMPORT_FILES, MAX_LABEL, LibraryService
+from ..services.library import MAX_HINT, MAX_IMPORT_BYTES, MAX_IMPORT_FILES, MAX_LABEL, LibraryService, import_fragment
 from ..services.svg_sanitize import MAX_SVG_BYTES
 from .auth import ENGINEER, VIEWER, audit
 
@@ -147,10 +148,24 @@ def _summary(results: list[dict[str, Any]]) -> dict[str, Any]:
 async def import_svg(request: Request) -> dict[str, Any]:
     """Importér SVG-filer som egne symboler (én fil = ét symbol). Svaret har resultatet pr. fil."""
     body = await _body(request, ImportBody)
-    results = _svc(request).import_files(request.state.user, [f.model_dump() for f in body.files], body.section,
-                                         body.on_conflict)
+    # rensning og parsning af op til 10 MB SVG må ikke blokere event-loopet (live-data, WebSocket)
+    results = await run_in_threadpool(_svc(request).import_files, request.state.user, [f.model_dump() for f in body.files],
+                                      body.section, body.on_conflict)
     _audit_results(request, "library.import", results)
     return _summary(results)
+
+
+class FragmentBody(_Model):
+    svg: str = Field(min_length=1, max_length=MAX_SVG_BYTES)
+
+
+@router.post("/fragment", dependencies=[ENGINEER])
+async def svg_fragment(request: Request) -> dict[str, Any]:
+    """Rens en SVG-fil til indsættelse i en tegning i Tegn (v3.32.0): ét `<g>` flyttet til (0,0), id'er som dele og
+    defs som `def_*`. Intet gemmes — tegningen renses igen, når den gemmes."""
+    body = await _body(request, FragmentBody)
+    fragment, parts, warnings = await run_in_threadpool(import_fragment, body.svg, None)
+    return {"svg": fragment, "parts": parts, "warnings": warnings}
 
 
 @router.get("/package", dependencies=[ENGINEER])
@@ -165,7 +180,7 @@ async def export_package(request: Request, types: str = "") -> dict[str, Any]:
 @router.post("/package", dependencies=[ENGINEER])
 async def import_package(request: Request) -> dict[str, Any]:
     body = await _body(request, PackageBody)
-    results = _svc(request).import_package(request.state.user, body.package, body.on_conflict)
+    results = await run_in_threadpool(_svc(request).import_package, request.state.user, body.package, body.on_conflict)
     _audit_results(request, "library.package.import", results)
     return _summary(results)
 

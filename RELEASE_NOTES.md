@@ -2,6 +2,11 @@
 
 ---
 
+## v3.32.0 — 2026-11-06 — Sæt en SVG-fil ind i tegningen
+
+- **Indsæt SVG-fil …** i Tegn (eller træk en `.svg`-fil ind på tegnefladen) sætter filen ind som én gruppe. Den renses på serveren og skaleres, så den passer i tegningen. Bagefter kan den redigeres eller gemmes som symbol.
+- **Sikrere SVG-import:** Meget store eller skævt opbyggede filer kan ikke længere gøre serveren langsom. En ny version af et symbol fra en SVG-fil beholder symbolets opsætning, når den stadig passer.
+
 ## v3.31.0 — 2026-11-06 — Importér SVG-symboler og organisér biblioteket
 
 - **Importér SVG-filer som symboler:** Vælg en eller flere `.svg`-filer i Tegn eller på siden *Symboler*. Hver fil bliver ét symbol, og elementer med id bliver dele, der kan animeres. Filerne renses for scripts og eksterne links.

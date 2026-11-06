@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import math
 import re
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -245,7 +246,10 @@ MAX_IMPORT_FILES = 50
 MAX_IMPORT_BYTES = 10 * 1024 * 1024   # alle filer i én import
 IMPORT_FIT = 240.0                     # større grafik skaleres ned, så den største side er dette
 _NUM = re.compile(r"^\s*([0-9.]+(?:e[-+]?\d+)?)\s*(px)?\s*$", re.I)
-_CSS_RULE = re.compile(r"([^{}]+)\{([^{}]*)\}")
+MAX_CSS = 64 * 1024          # <style>-tekst der skrives ind på elementerne; mere springes over (advarsel)
+MAX_CSS_RULE = 4 * 1024      # én regels krop
+MAX_IDS = 5000               # elementer med id i én fil
+FULL = "library_full"        # fejlkode: biblioteket har MAX_SYMBOLS egne symboler
 _CLASS_SEL = re.compile(r"^\.([A-Za-z_][\w-]*)$")
 _SKIP_ROOT = ("title", "desc", "metadata", "style")
 # Præsentations-attributter på <svg>-roden, som børnene arver — de flyttes til symbolets gruppe
@@ -268,44 +272,94 @@ def _size_of(root: ET.Element) -> tuple[float, float, float, float]:
             x, y, w, h = (float(v) for v in vb.replace(",", " ").split())
         except ValueError:
             raise ServiceError(400, f"Ugyldig viewBox: {vb!r}") from None
-        if w > 0 and h > 0:
+        if all(math.isfinite(v) and abs(v) < 1e6 for v in (x, y, w, h)) and w > 0 and h > 0:
             return x, y, w, h
+        raise ServiceError(400, f"viewBox {vb!r} er ugyldig — bredde og højde skal være positive tal under 1.000.000")
     m_w, m_h = _NUM.match(root.attrib.get("width", "")), _NUM.match(root.attrib.get("height", ""))
-    if m_w and m_h and float(m_w.group(1)) > 0 and float(m_h.group(1)) > 0:
+    if m_w and m_h and all(0 < float(m.group(1)) < 1e6 for m in (m_w, m_h)):
         return 0.0, 0.0, float(m_w.group(1)), float(m_h.group(1))
     raise ServiceError(400, "Filen har hverken viewBox eller width/height i pixels — symbolets størrelse kan ikke bestemmes")
 
 
+def _strip_comments(css: str) -> str:
+    """Fjern /* … */ i lineær tid (en regex med .*? er kvadratisk på "/*/*/*…")."""
+    out, i = [], 0
+    while True:
+        j = css.find("/*", i)
+        if j < 0:
+            out.append(css[i:])
+            return "".join(out)
+        out.append(css[i:j])
+        k = css.find("*/", j + 2)
+        if k < 0:
+            return "".join(out)
+        i = k + 2
+
+
+def _css_rules(css: str) -> list[tuple[str, str]]:
+    """`sel{krop}`-par i lineær tid. Indlejrede blokke (@media m.m.) giver tomme/skæve selektorer, der ignoreres."""
+    rules = []
+    for chunk in _strip_comments(css).split("}"):
+        sel, sep, body = chunk.rpartition("{")
+        if sep:
+            rules.append((sel.split("{")[-1], body))
+    return rules
+
+
 def _inline_css(root: ET.Element, warnings: list[str]) -> None:
     """Simple klasse-regler (`.st0{fill:#f00}`, som Illustrator/Inkscape laver) skrives ind på elementerne. Et symbols
-    <style> ville gælde hele tegningen, så den fjernes; andre selektorer kan ikke bruges og giver en advarsel."""
+    <style> ville gælde hele tegningen, så den fjernes; andre selektorer kan ikke bruges og giver en advarsel.
+    Lofter: MAX_CSS tekst i alt, MAX_CSS_RULE pr. regel og MAX_SVG_BYTES indskrevet i alt (ellers kan få bytes CSS
+    pustes op til gigabytes via mange elementer/klasser)."""
     rules: dict[str, str] = {}
-    for st in [e for e in root.iter() if isinstance(e.tag, str) and _local(e.tag)[1] == "style"]:
-        for sel, body in _CSS_RULE.findall(re.sub(r"/\*.*?\*/", "", st.text or "", flags=re.S)):
-            for one in sel.split(","):
-                m = _CLASS_SEL.match(one.strip())
-                if m:
-                    rules[m.group(1)] = rules.get(m.group(1), "") + ";" + body.strip()
-                elif one.strip():
+    styles = [e for e in root.iter() if isinstance(e.tag, str) and _local(e.tag)[1] == "style"]
+    css = "\n".join(st.text or "" for st in styles)
+    ignored = 0
+    if len(css) > MAX_CSS:
+        warnings.append(f"CSS'en er større end {MAX_CSS // 1024} KB og er ikke brugt — klasserne mister deres udseende")
+        css = ""
+    for sel, body in _css_rules(css):
+        body = body.strip()
+        if len(body) > MAX_CSS_RULE:
+            ignored += 1
+            continue
+        for one in sel.split(","):
+            m = _CLASS_SEL.match(one.strip())
+            if m:
+                rules[m.group(1)] = (rules.get(m.group(1), "") + ";" + body).strip(";")
+            elif one.strip():
+                ignored += 1
+                if ignored <= 5:
                     warnings.append(f"CSS-reglen '{one.strip()[:40]}' kan ikke bruges i et symbol og er ignoreret")
+    if ignored > 5:
+        warnings.append(f"… i alt {ignored} CSS-regler er ignoreret")
     for parent in list(root.iter()):
         for c in list(parent):
             if isinstance(c.tag, str) and _local(c.tag)[1] == "style":
                 parent.remove(c)
     if not rules:
+        for e in root.iter():
+            if isinstance(e.tag, str):
+                e.attrib.pop("class", None)
         return
+    total = 0
     for e in root.iter():
         if not isinstance(e.tag, str):
             continue
         cls = e.attrib.pop("class", "")
-        css = ";".join(rules[c] for c in cls.split() if c in rules)
+        css = ";".join(rules[c] for c in dict.fromkeys(cls.split()) if c in rules)
         if css:   # elementets egen style vinder over klassen, som i CSS
             e.attrib["style"] = (css + ";" + e.attrib.get("style", "")).strip(";")
+            total += len(css)
+            if total > MAX_SVG_BYTES:
+                raise ServiceError(400, f"Filens CSS fylder mere end {MAX_SVG_BYTES // 1024} KB, når den skrives ind på "
+                                        "elementerne — forenkl tegningen")
 
 
-def import_fragment(svg: str | bytes) -> tuple[str, list[str], list[str]]:
+def import_fragment(svg: str | bytes, fit: float | None = IMPORT_FIT) -> tuple[str, list[str], list[str]]:
     """En hel SVG-fil → bibliotekssymbol-fragment. → (fragment, delnavne, advarsler).
-    Filen renses med tegningernes regler; den flyttes til (0,0) og skaleres ned, hvis den er større end IMPORT_FIT."""
+    Filen renses med tegningernes regler; den flyttes til (0,0) og skaleres ned, hvis den er større end `fit`
+    (None = behold størrelsen, fx når filen sættes ind i en tegning, hvor Tegn selv tilpasser den)."""
     warnings: list[str] = []
     try:
         res = sanitize_svg(svg)
@@ -326,18 +380,21 @@ def import_fragment(svg: str | bytes) -> tuple[str, list[str], list[str]]:
         if isinstance(d.tag, str) and _local(d.tag)[1] == "defs":
             in_defs.update(id(e) for e in d.iter())
     refs = _refs(root)
+    with_id = [e for e in root.iter() if e is not root and isinstance(e.tag, str) and e.attrib.get("id")]
+    if len(with_id) > MAX_IDS:
+        raise ServiceError(400, f"Filen har {len(with_id)} elementer med id — højst {MAX_IDS}")
     used: set[str] = {"all"}
+    next_n: dict[str, int] = {}   # næste nummer pr. navn — ellers kvadratisk ved mange ens id'er
     mapping: dict[str, str] = {}
     parts: list[str] = []
-    for e in root.iter():
-        if e is root or not isinstance(e.tag, str) or not e.attrib.get("id"):
-            continue
+    for e in with_id:
         old = e.attrib["id"]
         is_def = id(e) in in_defs or old in refs
         base = ("def_" + (slug(old, 26) or "x")) if is_def else (slug(e.attrib.get("data-hv-pid") or old, 30) or "del")
-        name, n = base, 2
+        name, n = base, next_n.get(base, 2)
         while name in used:
             name, n = f"{base}_{n}", n + 1
+        next_n[base] = n
         used.add(name)
         mapping.setdefault(old, name)
         e.attrib["id"] = name
@@ -351,7 +408,7 @@ def import_fragment(svg: str | bytes) -> tuple[str, list[str], list[str]]:
                     e.attrib.pop(a, None)
             e.attrib.pop("data-hv-pid", None)
 
-    scale = min(1.0, IMPORT_FIT / max(w, h))
+    scale = min(1.0, fit / max(w, h)) if fit else 1.0
     ET.register_namespace("", SVG_NS)
     ET.register_namespace("xlink", XLINK_NS)
     outer = ET.Element(f"{{{SVG_NS}}}g")
@@ -624,16 +681,30 @@ class LibraryService:
         if target is None:
             return {"status": "skipped", "label": label}
         sym_type, final, replace = target
+        full = ServiceError(400, f"Biblioteket har allerede {MAX_SYMBOLS} egne symboler", {"code": FULL})
         if not replace and len(rows) >= MAX_SYMBOLS:
-            raise ServiceError(400, f"Biblioteket har allerede {MAX_SYMBOLS} egne symboler")
+            raise full
+        notes: list[str] = []
+        if replace and preset is None:
+            # En ny version uden opsætning (fx en SVG-fil) beholder den gamle standardopsætning, hvis delene findes endnu
+            old = next((r for r in rows if r["type"] == sym_type), None)
+            if old and old.get("preset"):
+                try:
+                    preset = check_preset(old["preset"], fragment)
+                    notes.append("Standardopsætningen fra den forrige version er beholdt")
+                except ServiceError:
+                    notes.append("Standardopsætningen fra den forrige version er fjernet — den brugte dele, der ikke findes i den nye grafik")
         if preset is not None:
             preset = {**preset, "type": sym_type}
-        row = self.db.save_library_symbol(sym_type, final, hint, fragment, preset, actor.username, replace)
+        row = self.db.save_library_symbol(sym_type, final, hint, fragment, preset, actor.username, replace,
+                                          max_count=MAX_SYMBOLS)
         if row is None:
+            if not replace and len(self.db.list_library_symbols()) >= MAX_SYMBOLS:
+                raise full
             raise ServiceError(409, f"Symbolet '{final}' blev ændret samtidig af en anden — prøv igen")
         self._place(sym_type, section)
         status = "version" if replace else ("renamed" if final != label else "created")
-        return {"status": status, "type": sym_type, "label": final, "version": row["version"]}
+        return {"status": status, "type": sym_type, "label": final, "version": row["version"], "notes": notes}
 
     def import_files(self, actor: CurrentUser, files: list[dict[str, Any]], section: Any, mode: str) -> list[dict[str, Any]]:
         """Importér SVG-filer som symboler (én fil = ét symbol, navnet er filnavnet). Hver fil lykkes eller fejler for
@@ -654,13 +725,13 @@ class LibraryService:
                 fragment, parts, warnings = import_fragment(str(f.get("svg", "")))
                 res = self._store(actor, f.get("label") or label_from_filename(name), f"Importeret fra {name}"[:MAX_HINT],
                                   fragment, None, sec, mode)
-                out.append({"file": name, **res, "parts": parts, "warnings": warnings})
+                out.append({"file": name, **res, "parts": parts, "warnings": warnings + res.pop("notes", [])})
                 if res["status"] != "skipped":
                     log.info("SVG-fil %s importeret som %s (version %s, %d dele) af %s", name, res["type"],
                              res["version"], len(parts), actor.username)
             except ServiceError as exc:
                 out.append({"file": name, "status": "error", "error": exc.message})
-                if exc.message.startswith("Biblioteket har allerede"):
+                if exc.extra.get("code") == FULL:
                     break   # biblioteket er fuldt — resten fejler af samme grund
         return out
 
@@ -694,6 +765,10 @@ class LibraryService:
             raise ServiceError(400, "Pakken indeholder ingen symboler")
         if len(syms) > MAX_SYMBOLS:
             raise ServiceError(400, f"Pakken har mere end {MAX_SYMBOLS} symboler")
+        names = list(dict.fromkeys(s.get("section") for s in syms if isinstance(s, dict) and isinstance(s.get("section"), str)))
+        if len(names) > MAX_SECTIONS + len(BUILTIN_SECTIONS) + 1:
+            raise ServiceError(400, f"Pakken har mere end {MAX_SECTIONS} sektioner")
+        sec_of = {n: self._section_id(n, by_label_only=True) for n in names}
         out: list[dict[str, Any]] = []
         for s in syms:
             label = s.get("label") if isinstance(s, dict) else None
@@ -704,17 +779,21 @@ class LibraryService:
                 preset = check_preset(s.get("preset"), fragment)
                 if preset:
                     _strip_tags(preset)   # tags hører til anlægget, pakken er til en anden installation
-                res = self._store(actor, label, s.get("hint", ""), fragment, preset, self._section_id(s.get("section")), mode)
-                out.append({"file": str(label)[:60], **res})
+                res = self._store(actor, label, s.get("hint", ""), fragment, preset,
+                                  sec_of.get(s.get("section"), OWN_SECTION), mode)
+                out.append({"file": str(label)[:60], **res, "warnings": res.pop("notes", [])})
                 if res["status"] != "skipped":
                     log.info("Bibliotekssymbol %s importeret fra pakke (version %s) af %s", res["type"], res["version"],
                              actor.username)
             except ServiceError as exc:
                 out.append({"file": str(label)[:60], "status": "error", "error": exc.message})
+                if exc.extra.get("code") == FULL:
+                    break
         return out
 
-    def _section_id(self, section: Any) -> str:
-        """Sektion ud fra id eller navn; en ukendt egen sektion (fra en pakke) oprettes. Tom → "Egne symboler"."""
+    def _section_id(self, section: Any, by_label_only: bool = False) -> str:
+        """Sektion ud fra id eller navn; en ukendt egen sektion (fra en pakke) oprettes. Tom → "Egne symboler".
+        `by_label_only`: sektioner fra en pakke kendes kun på navnet (et id som "s1" betyder noget andet her)."""
         if not isinstance(section, str) or not section.strip():
             return OWN_SECTION
         section = " ".join(section.split())[:MAX_SECTION_LABEL]
@@ -723,7 +802,7 @@ class LibraryService:
         for _ in range(5):
             lay = self._layout()
             for s in lay["sections"]:
-                if s["id"] == section or s["label"].casefold() == section.casefold():
+                if (s["id"] == section and not by_label_only) or s["label"].casefold() == section.casefold():
                     return s["id"]
             if len(lay["sections"]) >= MAX_SECTIONS:
                 return OWN_SECTION

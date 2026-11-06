@@ -29,7 +29,7 @@
    - frontend: hjælpere til opdelingen.
 7. **Manual:** afsnit + skærmbilleder.
 
-## Del B — v3.32.0: SVG ind i en åben tegning
+## Del B — v3.32.0: SVG ind i en åben tegning — ✅ færdig (endpoint: `POST /api/library/fragment`)
 1. **Backend:** `POST /api/svg/sanitize` (engineer) returnerer en saneret SVG og advarsler, så frontenden aldrig indsætter usaneret SVG. Den gemte version saneres igen ved gem.
 2. **Tegn:** *Indsæt › SVG-fil…* og træk og slip af en .svg på lærredet indsætter filen som én gruppe ved musen og skaleret til at passe. Defs-id'er omdøbes, så de ikke kolliderer med tegningens egne. Kan fortrydes. Gruppen kan derefter gemmes som symbol (del 1).
 3. **Tests:** sanitize-endpointet, id-omdøbning (frontend-test).

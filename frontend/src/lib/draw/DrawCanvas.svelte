@@ -5,7 +5,7 @@
   import { onDestroy, onMount, type Snippet } from 'svelte';
   import { createEngine, type Engine } from './engine';
 
-  let { onready, onupdate, height = 600, status, hint = '', dropType = '', ondropsymbol }: {
+  let { onready, onupdate, height = 600, status, hint = '', dropType = '', ondropsymbol, ondropfiles }: {
     onready: (api: unknown) => void;
     /** markering/tegning kan være ændret — panelet til højre læser igen */
     onupdate?: () => void;
@@ -16,9 +16,12 @@
     /** træk-og-slip: dataTransfer-typen, og hvad der skal ske, når et symbol slippes (skærmpunkt) */
     dropType?: string;
     ondropsymbol?: (id: string, clientX: number, clientY: number) => void;
+    /** træk-og-slip af filer (fx .svg) fra computeren (v3.32.0) */
+    ondropfiles?: (files: File[], clientX: number, clientY: number) => void;
   } = $props();
   let dropping = $state(false);
-  const isSymbolDrag = (e: DragEvent): boolean => !!dropType && !!e.dataTransfer?.types.includes(dropType);
+  const isFileDrag = (e: DragEvent): boolean => !!ondropfiles && !!e.dataTransfer?.types.includes('Files');
+  const isSymbolDrag = (e: DragEvent): boolean => (!!dropType && !!e.dataTransfer?.types.includes(dropType)) || isFileDrag(e);
 
   let workarea: HTMLDivElement;
   let textInput: HTMLInputElement;
@@ -136,7 +139,9 @@
       <div class="workarea" class:dropping bind:this={workarea}
            ondragover={(e) => { if (!isSymbolDrag(e)) return; e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; dropping = true; }}
            ondragleave={() => (dropping = false)}
-           ondrop={(e) => { if (!isSymbolDrag(e)) return; e.preventDefault(); dropping = false; const id = e.dataTransfer?.getData(dropType); if (id) { engine?.setMode('select'); ondropsymbol?.(id, e.clientX, e.clientY); } }}></div>
+           ondrop={(e) => { if (!isSymbolDrag(e)) return; e.preventDefault(); dropping = false;
+             if (isFileDrag(e)) { const files = Array.from(e.dataTransfer?.files ?? []); if (files.length) { engine?.setMode('select'); ondropfiles?.(files, e.clientX, e.clientY); } return; }
+             const id = e.dataTransfer?.getData(dropType); if (id) { engine?.setMode('select'); ondropsymbol?.(id, e.clientX, e.clientY); } }}></div>
 
       {#if count > 0}
         <div class="selbar" role="toolbar" aria-label="Det markerede">

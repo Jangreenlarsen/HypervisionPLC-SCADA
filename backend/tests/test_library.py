@@ -305,3 +305,46 @@ def test_package_roundtrip(api):
     assert [x["status"] for x in r["results"]] == ["error", "created"] and "findes_ikke" in r["results"][0]["error"]
     assert api.post("/api/library/package", json={"package": {"format": "andet"}}).status_code == 400
     assert api.post("/api/library/package", json={"package": {**pkg, "format_version": 9}}).status_code == 400
+
+
+def test_svg_fragment_for_drawing(api):
+    r = api.post("/api/library/fragment", json={"svg": FILE_SVG.replace('viewBox="10 20 100 50"', 'viewBox="10 20 1000 500"')})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert "scale(" not in d["svg"] and "translate(-10 -20)" in d["svg"]   # størrelsen bevares — Tegn tilpasser
+    assert "script" not in d["svg"] and set(d["parts"]) == {"kasse", "lampe"}
+    assert api.post("/api/library/fragment", json={"svg": "<html/>"}).status_code == 400
+    assert lib.import_fragment(FILE_SVG.replace('viewBox="10 20 100 50"', 'viewBox="0 0 960 480"'))[0].count("scale(0.25)") == 1
+
+
+def test_import_dos_limits_are_fast():
+    """Kodeanalyse af v3.31.0: CSS og id'er må ikke give kvadratisk tid eller hukommelse."""
+    import time
+    t = time.monotonic()
+    css = "a" * 60_000 + "/*" * 2000
+    svg = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><style>{css}</style><rect width="1" height="1"/></svg>'
+    lib.import_fragment(svg)
+    ids = "".join(f'<rect id="x" width="1" height="1"/>' for _ in range(4000))
+    lib.import_fragment(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">{ids}</svg>')
+    assert time.monotonic() - t < 5
+    many = "".join('<rect id="x" width="1" height="1"/>' for _ in range(lib.MAX_IDS + 1))
+    with pytest.raises(ServiceError, match="elementer med id"):
+        lib.import_fragment(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">{many}</svg>')
+    blow = '<style>.a{fill:#' + "0" * 3000 + '}</style>' + '<rect class="a a a" width="1" height="1"/>' * 200
+    with pytest.raises(ServiceError, match="CSS"):
+        lib.import_fragment(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">{blow}</svg>')
+    with pytest.raises(ServiceError, match="viewBox"):
+        lib.import_fragment('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1e308 10"><rect width="1" height="1"/></svg>')
+
+
+def test_new_version_from_file_keeps_preset(api):
+    export(api)   # Pumpestation med opsætning (delen loebehjul)
+    pkg = api.get("/api/library/package").json()
+    svg = pkg["symbols"][0]["svg"]
+    doc = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 40">{svg}</svg>'
+    r = imp(api, [{"name": "Pumpestation.svg", "svg": doc}], on_conflict="version").json()["results"][0]
+    assert r["status"] == "version" and any("beholdt" in w for w in r["warnings"])
+    sym = next(s for s in api.get("/api/library").json()["symbols"] if s["type"] == "u_pumpestation")
+    assert sym["preset"] is not None
+    r = imp(api, [{"name": "Pumpestation.svg", "svg": FILE_SVG}], on_conflict="version").json()["results"][0]
+    assert any("fjernet" in w for w in r["warnings"])

@@ -147,6 +147,8 @@ Har du tegnet noget, du vil bruge igen (fx en pumpestation med kasse, pumpe og t
 - **Størrelse:** filen skal have `viewBox` eller `width`/`height`. Grafik større end 240 punkter skaleres ned.
 - Resultatet vises pr. fil: *Oprettet*, *Ny version*, *Sprunget over* eller *Fejl* med begrundelsen. En fil med fejl stopper ikke de andre.
 
+**Sæt en SVG-fil ind i tegningen:** tryk **Indsæt SVG-fil …** i *Symboler* (eller træk en `.svg`-fil fra computeren ind på tegnefladen). Filen bliver **én gruppe** i tegningen med filnavnet som navn — ikke et bibliotekssymbol — og skaleres ned, så den højst fylder 60 % af tegningen. Den renses på serveren (som ved import), og gradienter og andre id'er får nye navne, så de ikke støder sammen med tegningens egne. Fortryd med **Ctrl+Z**. Gruppen kan redigeres som alt andet og bagefter gemmes som symbol (*Gem som symbol i biblioteket …*).
+
 **Organisér biblioteket** (siden *Symboler*, fanen *Bibliotek*, rollen tekniker):
 
 - **Sektioner:** opret en sektion med navn og **Opret**, flyt sektioner op og ned med **▲ ▼**, og omdøb (**✎**) eller slet (**🗑**) dine egne sektioner. Sletter du en sektion, flyttes egne symboler til *Egne symboler* og indbyggede tilbage til deres kategori.

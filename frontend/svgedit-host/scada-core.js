@@ -2392,6 +2392,34 @@ export function createScada(host) {
       return { x, y };
     },
 
+    /**
+     * Indsæt en importeret SVG-fil (renset på serveren, v3.32.0) som én almindelig gruppe — ikke et bibliotekssymbol.
+     * Id'erne gøres unikke (gradienter m.m. følger med), og gruppen skaleres ned, så den højst fylder `maxFrac` af
+     * tegningen. `at`: gruppens midte lægges dér (træk-og-slip), ellers midt på tegningen. Kan fortrydes.
+     */
+    insertGraphic(fragment, name = '', at = null, maxFrac = 0.6, nth = 0) {
+      const c = canvas();
+      const node = buildSymbolNode(fragment, 'svg');
+      if (!node) return '';
+      node.removeAttribute('data-hv-type');
+      node.removeAttribute('data-hv-ports');
+      node.querySelectorAll('[data-hv-pid]').forEach((el) => el.removeAttribute('data-hv-pid'));
+      if (name) node.setAttribute('data-hv-name', uniqueNameIn(String(name).slice(0, 60)));
+      c.getCurrentDrawing().getCurrentLayer().appendChild(node);
+      const res = c.getResolution();
+      const box = boxOfRoot(node) || { x: 0, y: 0, w: 80, h: 80 };
+      const k = Math.min(1, (res.w * maxFrac) / Math.max(box.w, 1), (res.h * maxFrac) / Math.max(box.h, 1));
+      const cx = (at && Number.isFinite(at.x) ? at.x : res.w / 2) + nth * 40;   // flere filer forskydes, så de ikke ligger oven i hinanden
+      const cy = (at && Number.isFinite(at.y) ? at.y : res.h / 2) + nth * 40;
+      const r = (v) => Math.round(v * 100) / 100;
+      node.setAttribute('transform', `translate(${r(cx - (box.x + box.w / 2) * k)} ${r(cy - (box.y + box.h / 2) * k)})${k < 1 ? ` scale(${Number(k.toFixed(4))})` : ''}`);
+      c.undoMgr.addCommandToHistory(new c.history.InsertElementCommand(node));
+      c.clearSelection();
+      c.addToSelection([node]);
+      if (changeListener) changeListener();
+      return node.id;
+    },
+
     /** Indsæt et bibliotekssymbol. `at` (tegningens koordinater): symbolets midte lægges dér (træk-og-slip). */
     insertSymbol(fragment, baseId, at = null) {
       const c = canvas();

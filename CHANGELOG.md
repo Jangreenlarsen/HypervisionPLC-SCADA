@@ -4,6 +4,25 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.32.0 build 0336] — 2026-11-06 — SVG-fil ind i en åben tegning + rettelser fra review af SVG-importen
+
+- **SVG ind i tegningen (del B):**
+  - Nyt `POST /api/library/fragment` (engineer) renser en SVG-fil til ét `<g>` uden at gemme noget. Det kører i en trådpulje.
+  - `scada-core.js` har `insertGraphic`: filen bliver én almindelig gruppe med unikke id'er (gradienter følger med), højst 60 % af tegningen, og kan fortrydes.
+  - `DrawCanvas.svelte` tager imod træk og slip af filer.
+  - `DrawEditor.svelte` har knappen *Indsæt SVG-fil …* i *Symboler* og viser fejl og advarsler pr. fil.
+- **Rettelser fra review af v3.31.0** (`services/library.py`, `storage/db.py`, `api/library.py`):
+  - CSS i importerede filer gennemgås nu i lineær tid. Før var regex'erne kvadratiske, så 40 KB `<style>` tog 8 s og kunne blokere serveren. Der er nu et loft på 64 KB CSS og 4 KB pr. regel.
+  - Når CSS-klasser skrives ind på elementerne, fjernes dubletter, og der er et samlet loft (256 KB), så hukommelsen ikke kan pustes op.
+  - Omdøbningen af id'er bruger en tæller pr. navn (før kvadratisk ved ens id'er), og der er højst 5000 elementer med id.
+  - Viewbox med `inf`/`1e308` afvises med en præcis besked.
+  - Importen kører i en trådpulje, så live-data ikke blokeres.
+  - En ny version fra en SVG-fil beholder den forrige standardopsætning, hvis delene stadig findes. Ellers står der en advarsel i resultatet (før blev den slettet uden besked).
+  - Loftet på 500 symboler håndhæves under databaselåsen.
+  - Import af en pakke stopper, når biblioteket er fuldt (fejlkode i stedet for teksttjek), og pakkens sektioner kendes kun på navnet og oprettes én gang.
+- **Tests:** 3 nye i `test_library.py` (fragment, DoS-lofter og tid, ny version beholder opsætningen).
+- **Manual:** `07-tegn.md`.
+
 ## [3.31.0 build 0335] — 2026-11-06 — Import af SVG-symboler, bibliotekspakke og organisering af symbolbiblioteket
 
 - **Backend** (`backend/app/services/library.py`, `backend/app/api/library.py`):
