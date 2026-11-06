@@ -25,6 +25,9 @@ export const CANVAS_CONFIG = {
   show_outside_canvas: true,
 };
 
+/** Formværktøjerne (scada-core setShapeTool, v3.33.0). */
+export const SHAPE_TOOLS = ['polygon', 'star', 'regpoly', 'arc'];
+
 export const ZOOM_MIN = 0.05;
 export const ZOOM_MAX = 20;
 export const clampZoom = (z: number): number => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
@@ -89,13 +92,16 @@ export function shortcutFor(e: { key: string; ctrlKey: boolean; metaKey: boolean
     if (k === '0') return 'zoomFit';
     if (k === '+' || k === '=') return 'zoomIn';
     if (k === '-') return 'zoomOut';
+    if (k === ']') return 'raise';   // ét trin frem (v3.33.0)
+    if (k === '[') return 'lower';
     return null;
   }
   if (e.altKey) return null;
   if (k === 'Delete' || k === 'Backspace') return 'delete';
   if (k === 'Escape') return 'escape';
   if (k.startsWith('Arrow')) return `nudge${k.slice(5)}${e.shiftKey ? '10' : '1'}`;
-  const tools: Record<string, string> = { v: 'select', o: 'pipe', l: 'line', r: 'rect', e: 'ellipse', p: 'path', t: 'text', f: 'fhpath' };
+  const tools: Record<string, string> = { v: 'select', o: 'pipe', l: 'line', r: 'rect', e: 'ellipse', p: 'path', t: 'text', f: 'fhpath',
+    y: 'polygon', s: 'star', n: 'regpoly', b: 'arc' };
   return !e.shiftKey && tools[k] ? `tool:${tools[k]}` : null;
 }
 
@@ -111,6 +117,14 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
   workarea.appendChild(host);
   const canvas: Canvas = new SvgCanvas(host, structuredClone(CANVAS_CONFIG) as any);
   canvas.textActions.setInputElem(textInput);
+  // Lærredet kopierer det valgte elements stil (fill, stroke, stroke-dasharray …) over i stilen for nye figurer, når
+  // musen slippes — også attributter elementet ikke har (null). Så tegnede nye figurer med stroke="null" (usynlig
+  // streg) efter et klik på fx baggrunden (BUGS.md v3.33.0). Manglende værdier ændrer derfor ikke den aktuelle stil.
+  const setCurProperties = canvas.setCurProperties.bind(canvas);
+  canvas.setCurProperties = (key: string, value: unknown) => {
+    if (value === null || value === undefined || value === 'null') return;
+    setCurProperties(key, value);
+  };
   textInput.addEventListener('input', () => canvas.setTextContent(textInput.value));
 
   /** Rullefladens indhold er lærredet × 3 (som SVG-Edit), tegningen i midten; rulningen bevarer midtpunktet. */
@@ -173,10 +187,13 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
   });
   canvas.bind('selected', () => hooks.onHistory?.());
 
-  // 'pipe' er vores eget værktøj (scada-core): lærredet står i Vælg, og værktøjet tager musen
+  // 'pipe' og formerne (polygon, stjerne, regulær polygon) er vores egne værktøjer (scada-core): lærredet står i Vælg,
+  // og værktøjet tager musen
+  const OWN_TOOLS = new Set(['pipe', ...SHAPE_TOOLS]);
   const setMode = (mode: string): void => {
-    canvas.setMode(mode === 'pipe' ? 'select' : mode);
+    canvas.setMode(OWN_TOOLS.has(mode) ? 'select' : mode);
     api?.setPipeTool?.(mode === 'pipe');
+    api?.setShapeTool?.(SHAPE_TOOLS.includes(mode) ? mode : null);
     hooks.onMode?.(mode);
   };
 
@@ -268,6 +285,8 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
         case 'zoomFit': zoomFit(); break;
         case 'zoomIn': zoomTo(zoomStep(canvas.getZoom(), 1)); break;
         case 'zoomOut': zoomTo(zoomStep(canvas.getZoom(), -1)); break;
+        case 'raise': if (!needs(1)) return false; api.order('up'); break;
+        case 'lower': if (!needs(1)) return false; api.order('down'); break;
         default: return false;
       }
     }

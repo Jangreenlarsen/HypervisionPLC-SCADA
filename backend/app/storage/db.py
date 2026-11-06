@@ -428,9 +428,10 @@ class Database:
         return self._lib_row(rows[0]) if rows else None
 
     def save_library_symbol(self, sym_type: str, label: str, hint: str, svg: str, preset: dict[str, Any] | None,
-                            actor: str, replace: bool) -> dict[str, Any] | None:
+                            actor: str, replace: bool, max_count: int | None = None) -> dict[str, Any] | None:
         """Opret (replace=False) eller gem ny version (replace=True; version +1 i SQL — ingen read-modify-write).
-        → rækken, eller None hvis den allerede findes (opret) / ikke findes (ny version)."""
+        `max_count`: et nyt symbol oprettes kun, hvis der er færre end så mange (tjekket under låsen).
+        → rækken, eller None hvis den allerede findes (opret) / ikke findes (ny version) / loftet er nået."""
         now = time.time()
         pj = json.dumps(preset, ensure_ascii=False) if preset is not None else None
         with self._lock:
@@ -439,7 +440,9 @@ class Database:
                     "UPDATE library_symbols SET label = ?, hint = ?, svg = ?, preset = ?, version = version + 1, "
                     "updated_at = ?, updated_by = ? WHERE type = ?", (label, hint, svg, pj, now, actor, sym_type)).rowcount
             else:
-                n = self._conn.execute(
+                full = max_count is not None and self._conn.execute(
+                    "SELECT COUNT(*) FROM library_symbols").fetchone()[0] >= max_count
+                n = 0 if full else self._conn.execute(
                     "INSERT OR IGNORE INTO library_symbols(type, label, hint, svg, preset, version, created_at, created_by, "
                     "updated_at, updated_by) VALUES (?,?,?,?,?,1,?,?,?,?)",
                     (sym_type, label, hint, svg, pj, now, actor, now, actor)).rowcount

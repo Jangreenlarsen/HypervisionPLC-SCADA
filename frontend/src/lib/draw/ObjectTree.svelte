@@ -9,16 +9,36 @@
     selectByIds(ids: string[]): number;
     toggleSelected(id: string): void;
     order(where: 'up' | 'down' | 'top' | 'bottom'): void;
+    layers(): Layer[];
+    layerOp(op: 'new' | 'rename' | 'visible' | 'lock' | 'current' | 'delete' | 'moveSel', name: string, arg?: unknown): { ok?: boolean; error?: string };
   }
+  interface Layer { name: string; visible: boolean; locked: boolean; current: boolean; count: number }
 
   let { api, rev, onchange, count = $bindable(0) }: { api: TreeApi | null; rev: number; onchange?: () => void; count?: number } = $props();
   let layers = $state<{ layer: string; items: Item[] }[]>([]);
   let filter = $state('');
+  let layerInfo = $state<Layer[]>([]);
+  let layerError = $state('');
+  let newLayer = $state('');
+  let renaming = $state<string | null>(null);
+  let renameText = $state('');
 
   $effect(() => {
     void rev;
     layers = api?.objectList() ?? [];
+    layerInfo = api?.layers?.() ?? [];
   });
+
+  /** Lag-handling (v3.33.0) — fejlen vises under lagene; træet og panelerne læses igen. */
+  function layerOp(op: Parameters<TreeApi['layerOp']>[0], name: string, arg?: unknown): boolean {
+    if (!api) return false;
+    const r = api.layerOp(op, name, arg);
+    layerError = r?.error ?? '';
+    layers = api.objectList();
+    layerInfo = api.layers();
+    onchange?.();
+    return !r?.error;
+  }
 
   const TAG_LABEL: Record<string, string> = {
     rect: 'Rektangel', ellipse: 'Ellipse', circle: 'Cirkel', line: 'Linje', path: 'Sti', polyline: 'Linje', polygon: 'Polygon',
@@ -49,6 +69,32 @@
 </script>
 
 <div class="tree">
+  <details class="layers" open={layerInfo.length > 1}>
+    <summary>Lag <span class="muted small">({layerInfo.length})</span></summary>
+    {#each layerInfo as l (l.name)}
+      <div class="lrow" class:cur={l.current}>
+        {#if renaming === l.name}
+          <input bind:value={renameText} maxlength="40" aria-label="Lagets navn" onkeydown={(e) => { if (e.key === 'Enter' && layerOp('rename', l.name, renameText)) renaming = null; if (e.key === 'Escape') renaming = null; }} />
+          <button class="small" onclick={() => { if (layerOp('rename', l.name, renameText)) renaming = null; }}>Gem</button>
+        {:else}
+          <button class="lname" onclick={() => layerOp('current', l.name)} title="Gør til det aktive lag — nye elementer tegnes her">
+            {l.current ? '●' : '○'} {l.name} <span class="muted small">({l.count})</span>
+          </button>
+          <button class="ic" class:off={!l.visible} onclick={() => layerOp('visible', l.name, !l.visible)} title={l.visible ? 'Skjul laget i Tegn' : 'Vis laget'} aria-label={l.visible ? `Skjul ${l.name}` : `Vis ${l.name}`}>{l.visible ? 'Vis' : 'Skjult'}</button>
+          <button class="ic" class:on={l.locked} onclick={() => layerOp('lock', l.name, !l.locked)} title={l.locked ? 'Lås op' : 'Lås laget — elementerne kan ikke vælges i Tegn'} aria-label={l.locked ? `Lås ${l.name} op` : `Lås ${l.name}`}>{l.locked ? 'Låst' : 'Lås'}</button>
+          {#if anySelected && !l.current}<button class="ic" onclick={() => layerOp('moveSel', l.name)} title="Flyt det valgte til dette lag">Flyt hertil</button>{/if}
+          <button class="ic" onclick={() => { renaming = l.name; renameText = l.name; }} title="Omdøb" aria-label="Omdøb {l.name}">Omdøb</button>
+          {#if layerInfo.length > 1 && !l.count}<button class="ic danger" onclick={() => layerOp('delete', l.name)} title="Slet det tomme lag" aria-label="Slet {l.name}">Slet</button>{/if}
+        {/if}
+      </div>
+    {/each}
+    <div class="lrow">
+      <input bind:value={newLayer} maxlength="40" placeholder="Nyt lag" aria-label="Navn på nyt lag" onkeydown={(e) => { if (e.key === 'Enter' && layerOp('new', '', newLayer)) newLayer = ''; }} />
+      <button class="small" onclick={() => { if (layerOp('new', '', newLayer)) newLayer = ''; }}>Opret</button>
+    </div>
+    {#if layerError}<p class="error small" role="alert">{layerError}</p>{/if}
+    <p class="muted small">Skjul og lås gælder kun i Tegn. Den gemte tegning og Overview viser altid alle lag.</p>
+  </details>
   <div class="top">
     {#if count > 8}<input class="filter" placeholder="Find element" bind:value={filter} aria-label="Find element" />{/if}
     {#if anySelected}
@@ -73,6 +119,16 @@
 </div>
 
 <style>
+  .layers { margin-bottom: .4rem; border-bottom: 1px solid var(--line); padding-bottom: .3rem; }
+  .layers summary { cursor: pointer; font-size: .85rem; font-weight: 600; }
+  .lrow { display: flex; gap: 2px; align-items: center; flex-wrap: wrap; padding: 1px 2px; border-radius: 4px; }
+  .lrow.cur { background: #eef4ff; }
+  .lrow input { flex: 1; min-width: 0; font-size: .85rem; }
+  .lname { flex: 1; text-align: left; border: 0; background: transparent; padding: 2px 4px; font-size: .85rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ic { font-size: .72rem; padding: 1px 5px; }
+  .ic.off { opacity: .6; font-style: italic; }
+  .ic.on { background: #fff3cd; border-color: #e0b84c; }
+  .ic.danger { color: #b3261e; }
   .top { display: flex; gap: .4rem; align-items: center; margin-bottom: .3rem; }
   .ord { margin-left: auto; display: flex; gap: 2px; }
   .filter { flex: 1; min-width: 0; }

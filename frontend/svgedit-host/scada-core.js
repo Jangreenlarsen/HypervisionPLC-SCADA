@@ -9,6 +9,8 @@ import { duplicateNames, nextFreeName, numberedNames, uniqueRenames } from './na
 import { boxMapping, distribute as distributeBoxes, editBox, round2, textLines } from './edit.js';
 import { alignToGuide, formatGuides, guideLines, parseGuides, snapBoxToGuides, snapHint, snapPointToGuides } from './guides.js';
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
+import { XLINK, angleTo, arcPath, cleanupDefs, dashArray, dashKind, ensureArrow, ensureGradient, ensureShadow, fitImage, gradientOf, parsePoints, pointsAttr,
+  regenerate, regularPoints, shadowOf, shapeParams, starPoints } from './shapes.js';
 import { PIPE_STYLE, alignDelta, ensureOrthogonal, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
 
 /**
@@ -351,6 +353,8 @@ export function createScada(host) {
     }
     // bind() returnerer editorens egen handler — kald den først, så editoren virker uændret.
     const prevSelected = c.bind('selected', (win, elems) => {
+      const locked = (elems || []).filter((el) => el?.closest?.('g.layer[data-hv-locked]'));
+      if (locked.length) c.removeFromSelection(locked);
       if (prevSelected) prevSelected(win, elems);
       rememberBoxes();
       if (selectionListener) selectionListener(currentSelection());
@@ -1466,6 +1470,126 @@ export function createScada(host) {
     drawPipeOverlay();
   }
 
+  // ---- formværktøjer (v3.33.0): polygon (klik punkter) og stjerne/regulær polygon (træk fra midten)
+  const shapeTool = { kind: null, life: null, el: null, pts: [], opts: { n: 5, inner: 0.5 } };
+  function shapeStyle(el) {
+    for (const [k, v] of Object.entries({ fill: '#ffffff', stroke: '#000000', 'stroke-width': '2' })) el.setAttribute(k, v);
+  }
+  function finishShape(keep) {
+    const c = canvas();
+    const el = shapeTool.el;
+    shapeTool.el = null;
+    shapeTool.pts = [];
+    if (!el) return;
+    if (!keep) { el.remove(); return; }
+    c.undoMgr.addCommandToHistory(new c.history.InsertElementCommand(el));
+    c.clearSelection();
+    c.addToSelection([el]);
+    if (changeListener) changeListener();
+  }
+  function setShapeTool(kind, opts) {
+    if (opts) shapeTool.opts = { n: Number(opts.n) || 5, inner: Number(opts.inner) || 0.5 };
+    if (kind === shapeTool.kind) return;
+    finishShape(false);
+    shapeTool.life?.abort();
+    shapeTool.kind = kind || null;
+    if (!kind) return;
+    modeListener(kind);
+    const c = canvas();
+    c.clearSelection();
+    const life = new AbortController();
+    shapeTool.life = life;
+    const area = host.gridHost();
+    const o = { capture: true, signal: life.signal };
+    const swallow = (e) => { e.stopPropagation(); e.preventDefault(); };
+    const snapP = (e) => { const [x, y] = docPoint(e); return [round2(x), round2(y)]; };
+    const newEl = () => {
+      const el = document.createElementNS(NS, kind === 'arc' ? 'path' : 'polygon');
+      el.setAttribute('id', c.getNextId());
+      shapeStyle(el);
+      if (kind === 'arc') el.setAttribute('fill', 'none');
+      c.getCurrentDrawing().getCurrentLayer().appendChild(el);
+      return el;
+    };
+    area.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      swallow(e);
+      const p = snapP(e);
+      if (kind === 'arc') {
+        // bue: 1) midten, 2) startpunktet (radius og startvinkel), 3) slutpunktet (med uret)
+        if (!shapeTool.el) { shapeTool.el = newEl(); shapeTool.pts = [p]; shapeTool.el.setAttribute('d', `M${p[0]},${p[1]} L${p[0]},${p[1]}`); }
+        else if (shapeTool.pts.length === 1) {
+          const [cx, cy] = shapeTool.pts[0];
+          const rad = Math.hypot(p[0] - cx, p[1] - cy);
+          if (rad < 2) return;
+          shapeTool.pts.push(p, [rad, angleTo(cx, cy, p[0], p[1], e.shiftKey ? 15 : 0)]);
+        } else {
+          finishShape(true);
+        }
+        return;
+      }
+      if (kind === 'polygon') {
+        if (!shapeTool.el) { shapeTool.el = newEl(); shapeTool.pts = [p, p]; }
+        else if (e.detail >= 2) {   // dobbeltklik: afslut (det sidste flydende punkt fjernes)
+          const pts = shapeTool.pts.slice(0, -1);
+          const uniq = pts.filter((q, i) => i === 0 || Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) > 0.5);
+          shapeTool.el.setAttribute('points', pointsAttr(uniq));
+          finishShape(uniq.length >= 3);
+          return;
+        } else shapeTool.pts.push(p);
+        shapeTool.el.setAttribute('points', pointsAttr(shapeTool.pts));
+      } else {
+        shapeTool.el = newEl();
+        shapeTool.pts = [p];
+        shapeTool.el.setAttribute('data-hv-shape', JSON.stringify({ k: kind, n: shapeTool.opts.n, ri: shapeTool.opts.inner }));
+      }
+    }, o);
+    area.addEventListener('mousemove', (e) => {
+      if (!shapeTool.el) return;
+      const p = snapP(e);
+      if (kind === 'arc') {
+        const [cx, cy] = shapeTool.pts[0];
+        if (shapeTool.pts.length === 1) shapeTool.el.setAttribute('d', `M${cx},${cy} L${p[0]},${p[1]}`);   // radius-linje
+        else {
+          const [rad, a0] = shapeTool.pts[2];
+          shapeTool.el.setAttribute('d', arcPath(cx, cy, rad, a0, angleTo(cx, cy, p[0], p[1], e.shiftKey ? 15 : 0)));
+        }
+        return;
+      }
+      if (kind === 'polygon') {
+        shapeTool.pts[shapeTool.pts.length - 1] = p;
+        shapeTool.el.setAttribute('points', pointsAttr(shapeTool.pts));
+        return;
+      }
+      const [cx, cy] = shapeTool.pts[0];
+      const rad = Math.hypot(p[0] - cx, p[1] - cy);
+      // Shift: fri drejning; ellers står formen lige (første hjørne opad)
+      const ang = e.shiftKey ? (Math.atan2(p[0] - cx, cy - p[1]) * 180) / Math.PI : 0;
+      const { n, inner } = shapeTool.opts;
+      shapeTool.el.setAttribute('points', pointsAttr(kind === 'star' ? starPoints(cx, cy, rad, n, inner, ang) : regularPoints(cx, cy, rad, n, ang)));
+    }, o);
+    area.addEventListener('mouseup', (e) => {
+      if (e.button !== 0) return;
+      swallow(e);
+      if (kind !== 'polygon' && kind !== 'arc' && shapeTool.el) {
+        const pts = parsePoints(shapeTool.el.getAttribute('points'));
+        const big = pts.length && Math.hypot(pts[0][0] - shapeTool.pts[0][0], pts[0][1] - shapeTool.pts[0][1]) >= 3;
+        finishShape(big);
+      }
+    }, o);
+    for (const t of ['click', 'dblclick']) area.addEventListener(t, (e) => { if (e.button === 0) swallow(e); }, o);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && shapeTool.el) { finishShape(false); }   // første Esc: drop formen; næste: tilbage til Vælg
+      else if (e.key === 'Enter' && kind === 'polygon' && shapeTool.el) {
+        const pts = shapeTool.pts.slice(0, -1);
+        shapeTool.el.setAttribute('points', pointsAttr(pts));
+        finishShape(pts.length >= 3);
+      } else return;
+      e.preventDefault();
+      e.stopPropagation();
+    }, o);
+  }
+
   function setPipeTool(on) {
     if (on === pipeTool.on) return;
     pipeTool.on = on;
@@ -1655,8 +1779,17 @@ export function createScada(host) {
       // teksten: linjer fra tspan'er (flere linjer) eller selve teksten
       text: TEXTY.has(el.tagName) ? ([...el.children].filter((c) => c.tagName === 'tspan').map((t) => t.textContent).join(String.fromCharCode(10)) || el.textContent) : null,
       rx: el.tagName === 'rect' ? num(el.getAttribute('rx'), 0) : null,
+      // v3.33.0: streg, pile, gradient, skygge og formens parametre
+      dash: dashKind(el.getAttribute('stroke-dasharray'), num(g('stroke-width'), 1)),
+      cap: el.getAttribute('stroke-linecap') || 'butt',
+      join: el.getAttribute('stroke-linejoin') || 'miter',
+      arrows: LINEY.has(el.tagName) ? { start: !!el.getAttribute('marker-start'), end: !!el.getAttribute('marker-end') } : null,
+      gradient: gradientOf(canvas().getSvgContent(), el.getAttribute('fill')),
+      shadow: shadowOf(canvas().getSvgContent(), el.getAttribute('filter')),
+      shape: el.tagName === 'polygon' ? shapeParams(el) : null,
     };
   }
+  const LINEY = new Set(['line', 'path', 'polyline']);
 
   const scada = {
     /** Hjælpelinjerne i tegningen + den aktive: { every, v, h, active } */
@@ -1809,6 +1942,186 @@ export function createScada(host) {
       return { ok: true };
     },
 
+    /** Stregtype på det valgte (fuld/stiplet/prikket/stiplet-prikket) — mønstret skaleres med stregens tykkelse. */
+    setDash(kind) {
+      const sel = selectedEls();
+      if (!sel.length) return { error: 'Intet valgt' };
+      const snap = snapshot(sel);
+      for (const el of sel) {
+        const d = dashArray(kind, num(el.getAttribute('stroke-width') || getComputedStyle(el).strokeWidth, 1));
+        if (d) el.setAttribute('stroke-dasharray', d); else el.removeAttribute('stroke-dasharray');
+      }
+      commitSnapshot(snap, 'Stregtype');
+      afterEdit();
+      return { ok: true };
+    },
+
+    /** Linjeender/hjørner: attr = 'stroke-linecap' | 'stroke-linejoin'. */
+    setLineStyle(attr, value) {
+      const sel = selectedEls();
+      const ok = { 'stroke-linecap': ['butt', 'round', 'square'], 'stroke-linejoin': ['miter', 'round', 'bevel'] }[attr];
+      if (!sel.length) return { error: 'Intet valgt' };
+      if (!ok || !ok.includes(value)) return { error: 'Ukendt værdi' };
+      const snap = snapshot(sel);
+      for (const el of sel) {
+        if (value === ok[0]) el.removeAttribute(attr); else el.setAttribute(attr, value);
+      }
+      commitSnapshot(snap, attr === 'stroke-linecap' ? 'Linjeender' : 'Hjørner');
+      afterEdit();
+      return { ok: true };
+    },
+
+    /** Pil i start/slut af en linje/sti (markør i stregens farve). */
+    setArrow(which, on) {
+      const sel = selectedEls().filter((el) => LINEY.has(el.tagName));
+      if (!sel.length) return { error: 'Vælg en linje eller sti' };
+      const attr = which === 'start' ? 'marker-start' : 'marker-end';
+      const snap = snapshot(sel);
+      for (const el of sel) {
+        if (!on) { el.removeAttribute(attr); continue; }
+        const color = el.getAttribute('stroke') || getComputedStyle(el).stroke || '#000000';
+        el.setAttribute(attr, `url(#${ensureArrow(canvas().getSvgContent(), color)})`);
+      }
+      commitSnapshot(snap, 'Pil');
+      afterEdit();
+      return { ok: true };
+    },
+
+    /** Fyld: 'solid' (farve c1), 'linear' eller 'radial' gradient mellem c1 og c2 (angle i grader for lineær). */
+    setFillKind(kind, c1, c2, angle = 90) {
+      const sel = selectedEls().filter((el) => el.tagName !== 'g');
+      if (!sel.length) return { error: 'Vælg en figur (ikke en gruppe)' };
+      const snap = snapshot(sel);
+      for (const el of sel) {
+        if (kind === 'solid') el.setAttribute('fill', c1 || '#ffffff');
+        else el.setAttribute('fill', `url(#${ensureGradient(canvas().getSvgContent(), el.id, kind, c1 || '#ffffff', c2 || '#9e9e9e', angle)})`);
+      }
+      commitSnapshot(snap, 'Fyld');
+      afterEdit();
+      return { ok: true };
+    },
+
+    /** Skygge til/fra (null = fra) med forskydning, sløring og farve. */
+    setShadow(opts) {
+      const sel = selectedEls();
+      if (!sel.length) return { error: 'Intet valgt' };
+      const snap = snapshot(sel);
+      for (const el of sel) {
+        if (!opts) el.removeAttribute('filter');
+        else el.setAttribute('filter', `url(#${ensureShadow(canvas().getSvgContent(), el.id, opts)})`);
+      }
+      commitSnapshot(snap, 'Skygge');
+      afterEdit();
+      return { ok: true };
+    },
+
+    /** Stjerne/regulær polygon: nyt antal hjørner/spidser og indre radius (stjerne) — midte og størrelse bevares. */
+    setShapeParams(n, inner) {
+      const el = selectedEls().length === 1 ? selectedEls()[0] : null;
+      const p = el ? shapeParams(el) : null;
+      if (!el || !p) return { error: 'Vælg en stjerne eller regulær polygon' };
+      const k = Math.round(Number(n));
+      const ri = Number(inner);
+      if (!Number.isFinite(k) || k < 3 || k > 64) return { error: 'Antal hjørner skal være 3-64' };
+      if (p.k === 'star' && (!Number.isFinite(ri) || ri < 0.1 || ri > 0.95)) return { error: 'Indre radius skal være 10-95 %' };
+      const next = { ...p, n: k, ri: p.k === 'star' ? ri : p.ri };
+      const pts = regenerate(el.getAttribute('points'), p, next);
+      if (!pts) return { error: 'Formen kan ikke tegnes om' };
+      const snap = snapshot([el]);
+      el.setAttribute('points', pts);
+      el.setAttribute('data-hv-shape', JSON.stringify({ k: next.k, n: next.n, ri: next.ri }));
+      commitSnapshot(snap, 'Form');
+      afterEdit();
+      return { ok: true };
+    },
+
+    /** Indsæt et billede (data-URI, PNG/JPG/WebP/GIF) midt i tegningen, højst 60 % af den. */
+    insertImage(dataUrl, w, h, name = '') {
+      if (!/^data:image\/(png|jpeg|webp|gif);base64,/.test(String(dataUrl))) return { error: 'Kun PNG, JPG, WebP og GIF' };
+      const c = canvas();
+      const res = c.getResolution();
+      const size = fitImage(Number(w) || 100, Number(h) || 100, res.w, res.h);
+      const el = document.createElementNS(NS, 'image');
+      el.setAttribute('id', c.getNextId());
+      for (const [k, v] of Object.entries({ x: Math.round((res.w - size.w) / 2), y: Math.round((res.h - size.h) / 2), width: size.w, height: size.h,
+        preserveAspectRatio: 'xMidYMid meet' })) el.setAttribute(k, String(v));
+      el.setAttributeNS(XLINK, 'xlink:href', dataUrl);
+      if (name) el.setAttribute('data-hv-name', uniqueNameIn(String(name).slice(0, 60)));
+      c.getCurrentDrawing().getCurrentLayer().appendChild(el);
+      c.undoMgr.addCommandToHistory(new c.history.InsertElementCommand(el));
+      c.clearSelection();
+      c.addToSelection([el]);
+      if (changeListener) changeListener();
+      return { ok: true, id: el.id };
+    },
+
+    /** Lagene, øverste først: navn, synlig, låst, aktivt og antal elementer. */
+    layers() {
+      const c = canvas();
+      const cur = c.getCurrentDrawing().getCurrentLayerName();
+      return [...c.getSvgContent().querySelectorAll(':scope > g.layer')].reverse().map((g) => {
+        const name = g.querySelector(':scope > title')?.textContent?.trim() || 'Lag';
+        return {
+          name,
+          visible: g.getAttribute('display') !== 'none' && g.style.display !== 'none',
+          locked: g.hasAttribute('data-hv-locked'),
+          current: name === cur,
+          count: [...g.children].filter((el) => !RESERVED.has(el.tagName.toLowerCase())).length,
+        };
+      });
+    },
+
+    /** Lag-handlinger: new, rename, visible, lock, current, delete (kun tomt lag), moveSel (flyt det valgte hertil). */
+    layerOp(op, name, arg) {
+      const c = canvas();
+      const d = c.getCurrentDrawing();
+      const names = this.layers().map((l) => l.name);
+      const clean = (v) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
+      const g = [...c.getSvgContent().querySelectorAll(':scope > g.layer')].find((l) => (l.querySelector(':scope > title')?.textContent?.trim() || 'Lag') === name);
+      if (op !== 'new' && !g) return { error: `Laget "${name}" findes ikke` };
+      switch (op) {
+        case 'new': {
+          let n = clean(arg) || 'Nyt lag';
+          for (let i = 2; names.includes(n); i++) n = `${clean(arg) || 'Nyt lag'} ${i}`;
+          c.createLayer(n);
+          break;
+        }
+        case 'rename': {
+          const n = clean(arg);
+          if (!n) return { error: 'Laget skal have et navn' };
+          if (n !== name && names.includes(n)) return { error: `Der er allerede et lag, der hedder "${n}"` };
+          c.setCurrentLayer(name);
+          c.renameCurrentLayer(n);
+          break;
+        }
+        case 'visible': c.setLayerVisibility(name, !!arg); if (!arg) c.clearSelection(); break;
+        case 'lock':
+          if (arg) { g.setAttribute('data-hv-locked', '1'); c.removeFromSelection(selectedEls().filter((el) => g.contains(el))); } else g.removeAttribute('data-hv-locked');
+          if (changeListener) changeListener();
+          break;
+        case 'current': c.setCurrentLayer(name); break;
+        case 'delete': {
+          if (names.length < 2) return { error: 'Tegningen skal have mindst ét lag' };
+          if ([...g.children].some((el) => !RESERVED.has(el.tagName.toLowerCase()))) return { error: 'Laget er ikke tomt — flyt eller slet elementerne først' };
+          c.setCurrentLayer(name);
+          c.deleteCurrentLayer();
+          break;
+        }
+        case 'moveSel':
+          if (!selectedEls().length) return { error: 'Vælg det, der skal flyttes' };
+          c.moveSelectedToLayer(name);
+          break;
+        default: return { error: `Ukendt handling ${op}` };
+      }
+      void d;
+      afterEdit();
+      return { ok: true };
+    },
+
+    /** Formværktøjerne (v3.33.0): 'polygon' (klik punkter, dobbeltklik/Enter afslutter), 'star' og 'regpoly' (træk fra
+     *  midten), 'arc' (klik midte, start og slut); null slår dem fra. opts: { n, inner } for stjerne/regulær polygon. */
+    setShapeTool(kind, opts) { setShapeTool(kind, opts); },
+
     /** Ret teksten i det valgte tekst-element (flere linjer = én linje pr. tspan). Ét fortryd-trin; id og opsætning bevares. */
     setText(value) {
       const sel = selectedEls();
@@ -1914,12 +2227,21 @@ export function createScada(host) {
 
     getSvg() {
       canvas().clearSelection();
+      cleanupDefs(canvas().getSvgContent());   // pile/gradienter/skygger, intet længere bruger (v3.33.0)
       // Tomme navne/forklaringer (felterne tømt i Tegn) gemmes ikke
       canvas().getSvgContent().querySelectorAll('[data-hv-name=""],[data-hv-desc=""]').forEach((el) => {
         if (el.getAttribute('data-hv-name') === '') el.removeAttribute('data-hv-name');
         if (el.getAttribute('data-hv-desc') === '') el.removeAttribute('data-hv-desc');
       });
-      return canvas().getSvgString();
+      // Skjulte lag er kun skjult i Tegn, mens man tegner — den gemte tegning (og Overview) viser alle lag
+      const hidden = [...canvas().getSvgContent().querySelectorAll(':scope > g.layer[display="none"], :scope > g.layer[style*="display"]')]
+        .map((g) => [g, g.getAttribute('display'), g.getAttribute('style')]);
+      for (const [g] of hidden) { g.removeAttribute('display'); g.style.removeProperty('display'); if (!g.getAttribute('style')) g.removeAttribute('style'); }
+      try {
+        return canvas().getSvgString();
+      } finally {
+        for (const [g, d, st] of hidden) { if (d !== null) g.setAttribute('display', d); if (st !== null) g.setAttribute('style', st); }
+      }
     },
 
     /** Gitter, fang til gitter (trin i tegningens enheder) og fang til objekter — sættes fra Tegn-siden. */
@@ -2390,6 +2712,34 @@ export function createScada(host) {
     docPointAt(clientX, clientY) {
       const [x, y] = screenToDoc(clientX, clientY);
       return { x, y };
+    },
+
+    /**
+     * Indsæt en importeret SVG-fil (renset på serveren, v3.32.0) som én almindelig gruppe — ikke et bibliotekssymbol.
+     * Id'erne gøres unikke (gradienter m.m. følger med), og gruppen skaleres ned, så den højst fylder `maxFrac` af
+     * tegningen. `at`: gruppens midte lægges dér (træk-og-slip), ellers midt på tegningen. Kan fortrydes.
+     */
+    insertGraphic(fragment, name = '', at = null, maxFrac = 0.6, nth = 0) {
+      const c = canvas();
+      const node = buildSymbolNode(fragment, 'svg');
+      if (!node) return '';
+      node.removeAttribute('data-hv-type');
+      node.removeAttribute('data-hv-ports');
+      node.querySelectorAll('[data-hv-pid]').forEach((el) => el.removeAttribute('data-hv-pid'));
+      if (name) node.setAttribute('data-hv-name', uniqueNameIn(String(name).slice(0, 60)));
+      c.getCurrentDrawing().getCurrentLayer().appendChild(node);
+      const res = c.getResolution();
+      const box = boxOfRoot(node) || { x: 0, y: 0, w: 80, h: 80 };
+      const k = Math.min(1, (res.w * maxFrac) / Math.max(box.w, 1), (res.h * maxFrac) / Math.max(box.h, 1));
+      const cx = (at && Number.isFinite(at.x) ? at.x : res.w / 2) + nth * 40;   // flere filer forskydes, så de ikke ligger oven i hinanden
+      const cy = (at && Number.isFinite(at.y) ? at.y : res.h / 2) + nth * 40;
+      const r = (v) => Math.round(v * 100) / 100;
+      node.setAttribute('transform', `translate(${r(cx - (box.x + box.w / 2) * k)} ${r(cy - (box.y + box.h / 2) * k)})${k < 1 ? ` scale(${Number(k.toFixed(4))})` : ''}`);
+      c.undoMgr.addCommandToHistory(new c.history.InsertElementCommand(node));
+      c.clearSelection();
+      c.addToSelection([node]);
+      if (changeListener) changeListener();
+      return node.id;
     },
 
     /** Indsæt et bibliotekssymbol. `at` (tegningens koordinater): symbolets midte lægges dér (træk-og-slip). */

@@ -1,3 +1,70 @@
+# Plan: SVG-import af symboler + flere tegneredskaber i Tegn — 2026-11-06
+
+**Mål (Jan 2026-11-06):**
+- **Import af SVG-symboler:** flere filer ad gangen til biblioteket, SVG ind i en åben tegning, og bibliotekspakke (eksport/import af egne symboler med opsætning).
+- **Nye tegneredskaber i Tegn:** polygon, stjerne og billede. Desuden stiplet streg, pile og linjeender, gradient og skygge, samt lag og z-orden.
+
+**Rammer:**
+- Al SVG saneres i backend (`svg_sanitize.py` tillader allerede `image` med raster-data-URI, `marker`, gradienter og `filter`/`feDropShadow`).
+- Egne symboler følger reglerne fra del 1 (`library.py`: ét `<g>`, højst 256 KB, defs omdøbes til `def_*`).
+- Ingen nye afhængigheder. Pakken er **JSON** (`.hvlib.json`), ikke zip, så der er ingen zip-bomber og ingen ny pakke.
+
+## Del A — v3.31.0: import til biblioteket + Opsætning › Symboler (= del 2 af egne symboler) — ✅ færdig
+
+1. **Backend `library.py`:**
+   - `import_svg(user, filename, svg, label, section, replace)` gør hele filen til ét symbol. Den saneres, og viewBox (eller width/height) bliver til `translate`/`scale` ind i et 0-baseret `<g>`. Elementer med id bliver dele (`data-hv-pid`), og defs omdøbes. Der er ingen standardopsætning, kun grafik og dele.
+   - Labelkonflikt giver en ny version (`replace`) eller et nyt navn med `_2`, som ved eksport.
+2. **API:**
+   - `POST /api/library/import` (engineer): multipart med én eller flere filer, højst 50 filer og 5 MB i alt. Svaret giver en status pr. fil (oprettet, ny version eller fejl med begrundelse). Hver fil auditeres.
+   - `GET /api/library/package?types=…` (engineer) eksporterer egne symboler med grafik, preset, version og deres placering i opdelingen.
+   - `POST /api/library/package` (engineer) importerer en pakke. Alt valideres som i backup (clean_fragment, check_preset), og der vælges mellem *spring over*, *ny version* og *nyt navn* ved konflikter. Pakkens tags medtages ikke.
+3. **Frontend, Opsætning › Symboler (ny side):**
+   - sektioner: opret, omdøb, slet, rækkefølge;
+   - symboler: flyt og ordn, omdøb og slet egne symboler med "bruges i"-advarsel;
+   - knapperne *Importér SVG…* (flere filer, vælg sektion, resultattabel), *Eksportér pakke* og *Importér pakke*.
+4. **Tegn-paletten:** *Importér SVG…* i sektionen Egne symboler.
+5. **Symboltest/symbol-editoren:** egne symboler kan vælges (rest fra del 1).
+6. **Tests:**
+   - backend: import af én og flere filer, viewBox-normalisering, script/ekstern href fjernet, for stor fil, labelkonflikt, pakke-roundtrip, pakke med ugyldigt preset;
+   - frontend: hjælpere til opdelingen.
+7. **Manual:** afsnit + skærmbilleder.
+
+## Del B — v3.32.0: SVG ind i en åben tegning — ✅ færdig (endpoint: `POST /api/library/fragment`)
+1. **Backend:** `POST /api/svg/sanitize` (engineer) returnerer en saneret SVG og advarsler, så frontenden aldrig indsætter usaneret SVG. Den gemte version saneres igen ved gem.
+2. **Tegn:** *Indsæt › SVG-fil…* og træk og slip af en .svg på lærredet indsætter filen som én gruppe ved musen og skaleret til at passe. Defs-id'er omdøbes, så de ikke kolliderer med tegningens egne. Kan fortrydes. Gruppen kan derefter gemmes som symbol (del 1).
+3. **Tests:** sanitize-endpointet, id-omdøbning (frontend-test).
+
+## Del C — v3.33.0: nye tegneredskaber — ✅ færdig (+ bue-værktøj efter ønske fra Jan)
+1. **Former:**
+   - **polygon:** klik punkt for punkt, dobbeltklik afslutter;
+   - **stjerne og regulær polygon:** træk, med antal hjørner og indre radius i Inspector;
+   - **billede:** PNG/JPG/WebP/GIF indlejret som data-URI, højst 2 MB, med bevaret proportion.
+   SVG-Edit's egne moduser (`polygon`/`star` via udvidelse, `image`) bruges, hvor de findes, ellers eget værktøj i `scada-core.js`.
+2. **Streg** (Inspector):
+   - stiplet/prikket/stiplet-prikket med `stroke-dasharray` (skaleres med stregtykkelsen);
+   - pile i start og slut via `marker`, som oprettes i tegningens `<defs>` pr. farve;
+   - `stroke-linecap` og `stroke-linejoin`.
+3. **Gradient og skygge:**
+   - fyld: ensfarvet, lineær (vinkel og 2 farver) eller radial;
+   - skygge: til/fra, forskydning, sløring og farve via `filter`/`feDropShadow`.
+   Defs genbruges og ryddes op, når de ikke længere bruges.
+4. **Lag og z-orden:**
+   - lagpanel i objekttræet: opret, omdøb, skjul, lås, slet (tomt lag) og flyt markerede til lag;
+   - z-orden: ét trin op eller ned (+ Ctrl+[ ]).
+5. **Hvidlisten** i `scada-core.js:1789` udvides med `stroke-dasharray`, `stroke-linecap`, `stroke-linejoin`, `marker-start`/`marker-end`, `filter` og `fill-opacity`. Kopiér, indsæt, symbol-eksport og Erstat med symbol tager markører, gradienter og filtre med, hvilket del 1's def-kopiering allerede håndterer.
+6. **Tests:** engine-hjælpere (dash-skalering, markør-/gradient-defs, oprydning, lag-operationer), backend roundtrip af en tegning med alle nye elementer gennem sanitizeren.
+7. **Manual:** afsnit om værktøjerne, opdaterede skærmbilleder af værktøjslinjen og Inspector.
+
+## Risici
+- **SVG-Edit 7's polygon/stjerne** er udvidelser, der måske ikke er med i `@svgedit/svgcanvas`. I så fald bygges et eget værktøj (mere arbejde i C1).
+- **Billeder gør tegningerne store** (grænsen er 5 MB pr. tegning). Derfor maks 2 MB pr. billede og en tydelig fejl ved for stor tegning.
+- **Lag:** symbolkonfigurationer er knyttet til element-id, ikke lag, så det er sikkert at flytte mellem lag. Låste lag skal også respekteres af markering med træk.
+- **Overview's live-binding** skal tåle `filter`/`marker` på bundne elementer (fill-animationer må ikke overskrive gradient-fyld utilsigtet). Det tjekkes visuelt.
+
+Rækkefølge: A → B → C. Hver del er sin egen MINOR-version med commit, OTA og merge-spørgsmål.
+
+---
+
 # Plan: Egne symboler — eksport fra Tegn til symbolbiblioteket — 2026-11-05
 
 **Mål:** en tekniker/admin kan markere et objekt eller en gruppe i Tegn og gemme det som et nyt symbol i biblioteket — med alt hvad et bibliotekssymbol har: grafik, navngivne dele, tilslutningspunkter og standardopsætning (betjeningsform, positioner, signaler, kontaktplaner, animationer, graf). Symbolet kan derefter indsættes, sættes op med guiden og afprøves i Symboltest som de indbyggede. Biblioteket kan organiseres: egne sektioner, flytte symboler (også indbyggede) mellem sektioner og ordne dem.

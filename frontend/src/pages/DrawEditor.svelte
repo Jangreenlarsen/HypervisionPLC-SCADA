@@ -21,6 +21,7 @@
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
   import SymbolExport from '../lib/SymbolExport.svelte';
+  import LibraryImport from '../lib/LibraryImport.svelte';
   import { sections as libSections, symbolsIn as libSymbolsIn } from '../lib/library';
   import { defs, library, loadLibrary } from '../lib/libraryStore.svelte';
   import { configGroups, pasteReport, pasteTargets, type ConfigClip, type ConfigGroup, type CopyResponse, type Member, type SymbolRow } from '../lib/symbolCopy';
@@ -48,6 +49,7 @@
     setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
     uniqueName(base: string): string;
     insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
+    insertGraphic(fragment: string, name?: string, at?: { x: number; y: number } | null, maxFrac?: number, nth?: number): string;
     docPointAt(clientX: number, clientY: number): { x: number; y: number };
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean }): void;
     getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
@@ -545,6 +547,7 @@
   let replaceInfo = $state<SelectionInfo | null>(null);
 
   // ---- Gem som symbol (v3.28.0): objektet/gruppen gemmes i biblioteket ud fra tegningens gemte version
+  let importOpen = $state(false);   // Importér SVG-symboler (v3.31.0)
   let exportFor = $state<{ id: string; name: string; box: { x: number; y: number; w: number; h: number }; markup: string } | null>(null);
   async function openExport(): Promise<void> {
     const sel = selection.length === 1 ? selection[0] : null;
@@ -774,6 +777,34 @@
     }
   }
 
+  /** SVG-filer fra computeren ind i tegningen som grupper (v3.32.0). Serveren renser filen; tegningen renses igen ved gem. */
+  async function insertSvgFiles(files: File[], at: { x: number; y: number } | null = null): Promise<void> {
+    if (!ed) return;
+    const svgs = files.filter((f) => /\.svg$/i.test(f.name) || f.type === 'image/svg+xml');
+    if (!svgs.length) { error = 'Kun SVG-filer kan sættes ind (.svg)'; return; }
+    error = info = '';
+    const done: string[] = [];
+    const warn: string[] = [];    // advarsler (filen er sat ind)
+    const failed: string[] = [];  // filer der ikke kunne sættes ind
+    for (const [i, f] of svgs.entries()) {
+      if (f.size > 5 * 1024 * 1024) { failed.push(`${f.name}: filen er større end 5 MB`); continue; }
+      try {
+        const r = await post<{ svg: string; parts: string[]; warnings: string[] }>('/api/library/fragment', { svg: await f.text() });
+        if (ed.insertGraphic(r.svg, f.name.replace(/\.svg$/i, ''), at, 0.6, i)) {
+          done.push(f.name);
+          dirty = true;
+        }
+        warn.push(...r.warnings.map((w) => `${f.name}: ${w}`));
+      } catch (e) {
+        failed.push(`${f.name}: ${(e as Error).message}`);
+      }
+    }
+    if (done.length) info = `${done.join(', ')} er sat ind som ${done.length === 1 ? 'en gruppe' : 'grupper'}. Fortryd med Ctrl+Z.`
+      + (warn.length ? ` ⚠ ${warn.join(' · ')}` : '');
+    if (failed.length) error = failed.join(' · ');
+  }
+  let svgFileInput = $state<HTMLInputElement>();
+
   function insert(symbolId: string, at: { x: number; y: number } | null = null): void {
     const s = defs().find((x) => x.id === symbolId);
     if (!ed || !s) return;
@@ -916,7 +947,7 @@
 
 <div class="layout">
   <div class="frame" bind:this={frameBox}>
-    <DrawCanvas height={editorHeight} dropType={SYMBOL_DRAG} ondropsymbol={(id, x, y) => ed && insert(id, ed.docPointAt(x, y))} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++}
+    <DrawCanvas height={editorHeight} dropType={SYMBOL_DRAG} ondropsymbol={(id, x, y) => ed && insert(id, ed.docPointAt(x, y))} ondropfiles={(files, x, y) => ed && insertSvgFiles(files, ed.docPointAt(x, y))} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++}
                 hint="{hint.name}: {hint.how} · Drejning i 15°-trin, Shift = fri" status={guidesUi} />
   </div>
 
@@ -1002,6 +1033,13 @@
         {/if}
       </details>
       {#if library.error}<p class="small error">{library.error}</p>{/if}
+      <div class="row lib-import">
+        <button class="small" onclick={() => (importOpen = true)} title="Hver SVG-fil bliver ét symbol i biblioteket">Importér SVG-symboler …</button>
+        <button class="small" onclick={() => svgFileInput?.click()} disabled={!ready} title="Sæt en SVG-fil ind i tegningen som en gruppe — eller træk filen ind på tegnefladen">Indsæt SVG-fil …</button>
+        <input type="file" accept=".svg,image/svg+xml" multiple hidden bind:this={svgFileInput}
+               onchange={(e) => { const el = e.currentTarget as HTMLInputElement; void insertSvgFiles(Array.from(el.files ?? [])); el.value = ''; }} />
+        <a class="small" href="#symbols">Organisér …</a>
+      </div>
       {#each libSections(library.layout) as cat (cat.id)}
         {@const list = symbolsIn(cat.id)}
         {#if list.length}
@@ -1091,6 +1129,7 @@
   <SymbolReplace info={replaceInfo} lostBindings={replaceLost} onreplace={doReplace} onclose={() => (replaceInfo = null)} currentType={single?.type ?? ''} />
 {/if}
 
+{#if importOpen}<LibraryImport onclose={() => (importOpen = false)} />{/if}
 {#if exportFor && current}
   <SymbolExport drawingId={current.id} version={loadedVersion} element={exportFor.id} box={exportFor.box} markup={exportFor.markup}
     suggested={exportFor.name} onclose={() => (exportFor = null)} ondone={(msg) => { exportFor = null; info = msg; }} />
@@ -1150,6 +1189,7 @@
   .field :global(select), .field input { width: 100%; }
   /* minmax(0, 1fr): lange navne må ikke gøre en kolonne bredere end panelet */
   .symbols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+  .lib-import { gap: .4rem .6rem; align-items: center; flex-wrap: wrap; margin: .2rem 0 .4rem; }
   .symbols .tile { position: relative; min-width: 0; display: flex; }
   .symbols .ins { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .3rem; font-size: .72rem; line-height: 1.15; }
   .symbols span { max-width: 100%; overflow-wrap: anywhere; hyphens: auto; text-align: center; }

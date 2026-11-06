@@ -4,6 +4,60 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.33.0 build 0337] — 2026-11-06 — Nye tegneredskaber i Tegn: polygon, stjerne, n-kant, bue, billede, streg, pile, gradient, skygge og lag
+
+- **Nyt `frontend/svgedit-host/shapes.js`** (ren logik og DOM-hjælpere):
+  - former: regulær polygon og stjerne, `regenerate` (nye spidser/hjørner, midte og størrelse bevares) og bue (`arcPath`, `angleTo`);
+  - streg: `dashArray`/`dashKind` (skaleret med tykkelsen);
+  - defs: pile `hv_pil_<farve>`, gradient `hv_grad_<id>` og skygge `hv_skygge_<id>` (feDropShadow), med `cleanupDefs` ved gem;
+  - billeder: kontrol af type og størrelse (højst 2 MB) samt skalering.
+- **`scada-core.js`:**
+  - formværktøjerne polygon, stjerne, regulær polygon og bue (`setShapeTool`);
+  - `setDash`, `setLineStyle`, `setArrow`, `setFillKind`, `setShadow`, `setShapeParams`, `insertImage`, `layers`, `layerOp` (ny, omdøb, vis, lås, aktiv, slet tomt, flyt valgte);
+  - `paintOf` med streg, pile, gradient, skygge og form;
+  - et låst lag kan ikke vælges, heller ikke med en ramme;
+  - `getSvg` rydder ubrugte egne defs op og gemmer skjulte lag som synlige, så Overview altid viser alle lag.
+- **`engine.ts`:** formværktøjerne og genvejene Y, S, N, B samt Ctrl+]/[ (ét trin frem/tilbage). Lærredet kopierer ikke længere manglende stil-værdier (`null`) over i stilen for nye figurer (se BUGS.md).
+- **Brugerflade:**
+  - `DrawCanvas.svelte`: knapper til de nye værktøjer og Billede, en linje med spidser og indre radius, og ét trin frem/tilbage over det markerede;
+  - `Inspector.svelte`: fyldtype og gradient, stregtype, ender, hjørner, pile, skygge, spidser og indre radius;
+  - `ObjectTree.svelte`: lagpanel.
+- **Tests:** `src/lib/draw/shapes.test.ts` (14) og `backend/tests/test_draw_tools_svg.py` (alle nye elementer overlever serverens rensning, og SVG-/eksterne billeder fjernes stadig).
+- **Manual:** `07-tegn.md` har et nyt afsnit og billederne `tegn-vaerktoejer.png` og `tegn-lag.png`.
+
+## [3.32.0 build 0336] — 2026-11-06 — SVG-fil ind i en åben tegning + rettelser fra review af SVG-importen
+
+- **SVG ind i tegningen (del B):**
+  - Nyt `POST /api/library/fragment` (engineer) renser en SVG-fil til ét `<g>` uden at gemme noget. Det kører i en trådpulje.
+  - `scada-core.js` har `insertGraphic`: filen bliver én almindelig gruppe med unikke id'er (gradienter følger med), højst 60 % af tegningen, og kan fortrydes.
+  - `DrawCanvas.svelte` tager imod træk og slip af filer.
+  - `DrawEditor.svelte` har knappen *Indsæt SVG-fil …* i *Symboler* og viser fejl og advarsler pr. fil.
+- **Rettelser fra review af v3.31.0** (`services/library.py`, `storage/db.py`, `api/library.py`):
+  - CSS i importerede filer gennemgås nu i lineær tid. Før var regex'erne kvadratiske, så 40 KB `<style>` tog 8 s og kunne blokere serveren. Der er nu et loft på 64 KB CSS og 4 KB pr. regel.
+  - Når CSS-klasser skrives ind på elementerne, fjernes dubletter, og der er et samlet loft (256 KB), så hukommelsen ikke kan pustes op.
+  - Omdøbningen af id'er bruger en tæller pr. navn (før kvadratisk ved ens id'er), og der er højst 5000 elementer med id.
+  - Viewbox med `inf`/`1e308` afvises med en præcis besked.
+  - Importen kører i en trådpulje, så live-data ikke blokeres.
+  - En ny version fra en SVG-fil beholder den forrige standardopsætning, hvis delene stadig findes. Ellers står der en advarsel i resultatet (før blev den slettet uden besked).
+  - Loftet på 500 symboler håndhæves under databaselåsen.
+  - Import af en pakke stopper, når biblioteket er fuldt (fejlkode i stedet for teksttjek), og pakkens sektioner kendes kun på navnet og oprettes én gang.
+- **Tests:** 3 nye i `test_library.py` (fragment, DoS-lofter og tid, ny version beholder opsætningen).
+- **Manual:** `07-tegn.md`.
+
+## [3.31.0 build 0335] — 2026-11-06 — Import af SVG-symboler, bibliotekspakke og organisering af symbolbiblioteket
+
+- **Backend** (`backend/app/services/library.py`, `backend/app/api/library.py`):
+  - `import_fragment` laver en hel SVG-fil om til et bibliotekssymbol. Filen renses med tegningernes regler og flyttes til (0,0) ud fra viewBox eller width/height. Er den større end 240, skaleres den ned. Arvede præsentationsattributter fra `<svg>` bevares. CSS-klasser skrives ind på elementerne, og `<style>` fjernes, fordi den ellers ville gælde hele tegningen. Id'er bliver til dele, og defs bliver til `def_*`.
+  - `import_files`, `export_package`/`import_package` (`.hvlib.json`, format 1, tags fjernes) og `_section_id` (en manglende sektion fra en pakke oprettes). Ved navnekonflikt vælges *nyt navn*, *ny version* eller *spring over*.
+  - Endpoints: `POST /api/library/import`, `GET`/`POST /api/library/package` (engineer). Kroppen læses i bidder med et loft på 12 MB (413), der er højst 50 filer og 10 MB pr. import, og resultatet gives pr. fil. Hvert importeret symbol auditeres.
+- **Frontend:**
+  - Ny `LibraryImport.svelte` (dialog til SVG-filer og pakker med resultatet pr. fil).
+  - Ny `SymbolLibrary.svelte`: siden *Symboler* får fanerne **Bibliotek** (sektioner opret/omdøb/slet/rækkefølge, flyt og ordn symboler, omdøb/slet egne, import/eksport) og **Tilslutningspunkter**.
+  - Egne symboler er med i tilslutningspunkt-editoren og i Symboltest.
+  - Tegn: *Importér SVG-symboler …* og *Organisér …* i paletten. `libraryStore.svelte.ts`: import-, pakke-, omdøb- og slet-hjælpere.
+- **Tests:** `backend/tests/test_library.py` har 4 nye tests (import, konflikter og sektion, grænser og roller, pakke-roundtrip).
+- **Manual:** `07-tegn.md` har et nyt afsnit og billederne `symboler-bibliotek.png` og `symboler-import.png`. `08-forbindelser.md` er opdateret.
+
 ## [3.30.0 build 0334] — 2026-11-06 — Demo: ny driftsstruktur med 3 modes (Auto / manuel mode 1-3)
 
 - `demo/varme-plc/logic1_styring.st`: driftsform `cmd_mode` 0 Auto, 1-3 manuel mode. Mode 1 Hus + pille (M1 AB-A, M2 AB-A, P1), mode 2 Hus + pille + tank (M1 AB-A, M2 AB-B, P1), mode 3 Hus + tank (M1 AB-B, M2 AB-B, P2). Auto kobler tanken ind (mode 3) ved ATT1 ≥ `sp_tank_ind` (60 °C) og ud (mode 1) under `sp_tank_ud` (45 °C). Varmepumpen startes manuelt (`cmd_vp`). Nye `MODE`, `TANK_IND` og flow-flag pr. kredsdel (`F_HUS`, `F_PILLE`, `F_TANK`, `F_BYPASS`). Fjernet: Fra/Sommer/Kun pille/Manuel, `man_*`, `sp_tank_min`/`sp_tank_hyst`, `sp_sommer`.
