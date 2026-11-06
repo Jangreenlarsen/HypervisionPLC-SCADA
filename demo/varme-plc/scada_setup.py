@@ -41,20 +41,26 @@ TAGS: list[tuple[str, int, str, str, int | None, dict[str, Any]]] = [
     # Logic1 — styring
     ("SMS_TXT", 1, "SMS_TXT", "", None, {"description": "Driftstilstand (tekst)"}),
     ("SMS", 1, "SMS", "", 0, {"description": "Driftstilstand (kode)"}),
-    ("cmd_mode", 1, "cmd_mode", "", 0, {"description": "Driftsform: 0 Fra, 1 Auto, 2 Sommer, 3 Kun pille, 4 Manuel",
-                                        "writable": True, "min": 0, "max": 4, "confirm_write": True}),
+    ("cmd_mode", 1, "cmd_mode", "", 0, {"description": "Driftsform: 0 Auto, 1 Manuel mode 1 (hus + pille), 2 Manuel mode 2 "
+                                                       "(hus + pille + tank), 3 Manuel mode 3 (hus + tank)",
+                                        "writable": True, "min": 0, "max": 3, "confirm_write": True}),
+    ("MODE", 1, "MODE", "", 0, {"description": "Aktiv mode: 1 Hus + pille, 2 Hus + pille + tank, 3 Hus + tank"}),
+    ("TANK_IND", 1, "TANK_IND", "", None, {"description": "Auto: tanken er koblet ind i kredsen"}),
+    ("cmd_vp", 1, "cmd_vp", "", None, {"description": "Varmepumpen startet (manuelt)", "writable": True, "confirm_write": False}),
     ("cmd_kvitter", 1, "cmd_kvitter", "", None, {"description": "Kvittér alarmer i PLC'en", "writable": True, "confirm_write": False}),
-    *[(f"man_{n}", 1, f"man_{n}", "", None, {"description": f"Manuel: {d}", "writable": True, "confirm_write": False})
-      for n, d in (("P1", "pumpe 1"), ("P2", "pumpe 2"), ("P3", "pumpe 3"), ("P4", "pumpe 4"),
-                   ("MVS", "motorventiler AB-B"), ("pille", "pillefyr"), ("VP", "varmepumpe"))],
     ("sp_rum", 1, "sp_rum", T, 1, {"description": "Setpunkt rumtemperatur", "writable": True, "min": 15, "max": 25, "confirm_write": True}),
     ("sp_kurve", 1, "sp_kurve", "", 1, {"description": "Vejrkurvens hældning", "writable": True, "min": 0.2, "max": 3, "confirm_write": True}),
-    ("sp_tank_min", 1, "sp_tank_min", T, 0, {"description": "Tankens minimumtemperatur (start af varmekilde)", "writable": True,
-                                            "min": 30, "max": 70, "confirm_write": True}),
+    ("sp_tank_ind", 1, "sp_tank_ind", T, 0, {"description": "Auto: tanken kobles ind, når toppen når denne temperatur", "writable": True,
+                                            "min": 35, "max": 90, "confirm_write": True}),
+    ("sp_tank_ud", 1, "sp_tank_ud", T, 0, {"description": "Auto: tanken kobles ud under denne temperatur", "writable": True,
+                                          "min": 25, "max": 85, "confirm_write": True}),
     ("STF_SP", 1, "STF_SP", T, 1, {"description": "Beregnet fremløbssetpunkt", "trend": True}),
     *[(f"PS{i}", 1, f"PS{i}", "", None, {"description": f"Pumpe {i} kører"}) for i in range(1, 5)],
-    ("AL_P1", 1, "AL_P1", "", None, {"description": "Pumpefejl P1 (husets kreds)", "alarm_on": "true"}),
-    ("AL_P2", 1, "AL_P2", "", None, {"description": "Pumpefejl P2 (pillefyr)", "alarm_on": "true"}),
+    *[(f"F_{n}", 1, f"F_{n}", "", None, {"description": f"Flow: {d}"})
+      for n, d in (("HUS", "husets kreds"), ("PILLE", "pillefyrets sløjfe (P1)"), ("TANK", "gennem tanken (mode 2 og 3)"),
+                   ("BYPASS", "retur uden om tanken (mode 1)"))],
+    ("AL_P1", 1, "AL_P1", "", None, {"description": "Pumpefejl P1 (pillefyrets sløjfe)", "alarm_on": "true"}),
+    ("AL_P2", 1, "AL_P2", "", None, {"description": "Pumpefejl P2 (fra tanken)", "alarm_on": "true"}),
     ("AL_P3", 1, "AL_P3", "", None, {"description": "Pumpefejl P3 (varmepumpe)", "alarm_on": "true"}),
     ("AL_P4", 1, "AL_P4", "", None, {"description": "Pumpefejl P4 (Laddomat)", "alarm_on": "true"}),
     ("AL_VP", 1, "AL_VP", "", None, {"description": "Varmepumpefejl", "alarm_on": "true"}),
@@ -62,7 +68,7 @@ TAGS: list[tuple[str, int, str, str, int | None, dict[str, Any]]] = [
     ("AL_TRYK_LAV", 1, "AL_TRYK_LAV", "", None, {"description": "Lavt systemtryk (< 1,0 bar)", "alarm_on": "true"}),
     ("AL_TRYK_HOEJ", 1, "AL_TRYK_HOEJ", "", None, {"description": "Højt systemtryk (> 2,4 bar)", "alarm_on": "true"}),
     ("AL_FF_TEMP", 1, "AL_FF_TEMP", "", None, {"description": "Overtemperatur i brændefyret (> 95 °C)", "alarm_on": "true"}),
-    ("AL_TANK_KOLD", 1, "AL_TANK_KOLD", "", None, {"description": "Akkumuleringstanken er kold (< 35 °C)", "alarm_on": "true"}),
+    ("AL_TANK_KOLD", 1, "AL_TANK_KOLD", "", None, {"description": "Manuel mode 3, men tanken er for kold til huset", "alarm_on": "true"}),
     ("ALARMER", 1, "ALARMER", "", 0, {"description": "Antal aktive alarmer i PLC'en"}),
     # Logic2 — brændefyr og pillefyr
     ("cmd_fyr_op", 2, "cmd_fyr_op", "", None, {"description": "Læg 15 kg brænde i brændefyret", "writable": True, "confirm_write": False}),
@@ -125,6 +131,12 @@ TAGS: list[tuple[str, int, str, str, int | None, dict[str, Any]]] = [
 ]
 
 
+# Tags fra tidligere versioner af demoen, som scriptet sletter (kun demo-PLC'ens egne)
+_OLD_MAN = ("P1", "P2", "P3", "P4", "MVS", "pille", "VP")
+OBSOLETE_TAGS = [*(f"man_{n}" for n in _OLD_MAN), "sp_tank_min"]
+OBSOLETE_ELEMENTS = [f"dp_man_{n}" for n in _OLD_MAN]
+
+
 # ------------------------------------------------------------------ HTTP
 class Api:
     def __init__(self, base: str, cafile: str | None) -> None:
@@ -181,6 +193,17 @@ def setup_tags(api: Api) -> None:
             api.req("PATCH", f"/api/tags/{name}", data)
             changed += 1
     print(f"Tags: {made} oprettet, {changed} opdateret")
+
+
+def drop_obsolete(api: Api, drawing: str) -> None:
+    """Fjern tidligere versioners panelsymboler (deres opsætning) og de tags, de brugte — kun demo-PLC'ens egne tags."""
+    for el in OBSOLETE_ELEMENTS:
+        api.req("DELETE", f"/api/drawings/{drawing}/symbols/{el}/config", ok404=True)
+    existing = {t["name"]: t for t in api.req("GET", "/api/tags")}
+    for name in OBSOLETE_TAGS:
+        if name in existing and existing[name]["source"].startswith(f"{PLC_KEY}:"):
+            api.req("DELETE", f"/api/tags/{name}")
+            print(f"Tag '{name}' slettet (findes ikke længere i PLC-programmet)")
 
 
 # ------------------------------------------------------------------ 3: tegningen
@@ -249,6 +272,8 @@ def build_panel(svg: Svg) -> None:
     y0 = PANEL_Y + 4
     # Driftsform og scenarie (omskiftere, 140 × 140)
     svg.frame("dp_f_mode", 10, y0, 180, 232, "Driftsform")
+    for i, txt in enumerate(("Manuel: M1 Hus + pille", "M2 Hus + pille + tank", "M3 Hus + tank")):
+        svg.label(f"dp_mode_hint{i}", 20, y0 + 196 + i * 13, txt, 11, 400)
     sym("omskifter_mode", "dp_mode", "Driftsform", "cmd_mode", 30, y0 + 50, typ="omskifter")
     svg.frame("dp_f_scen", 200, y0, 180, 232, "Scenarie")
     sym("omskifter_scen", "dp_scen", "Scenarie", "cmd_scenarie", 220, y0 + 50, typ="omskifter")
@@ -261,7 +286,7 @@ def build_panel(svg: Svg) -> None:
     # Setpunkter (150 × 40)
     svg.frame("dp_f_sp", 690, y0, 360, 232, "Setpunkter")
     for i, (eid, txt, tag) in enumerate((("dp_sp_rum", "Rumtemperatur", "sp_rum"), ("dp_sp_kurve", "Vejrkurve", "sp_kurve"),
-                                         ("dp_sp_tank", "Tank minimum", "sp_tank_min"), ("dp_sp_speed", "Tidsfaktor", "sp_speed"))):
+                                         ("dp_sp_tank", "Tank ind (Auto)", "sp_tank_ind"), ("dp_sp_tank_ud", "Tank ud (Auto)", "sp_tank_ud"))):
         x, y = 705 + (i % 2) * 175, y0 + 60 + (i // 2) * 85
         svg.label(f"{eid}_l", x, y - 8, txt)
         sym("setpunkt", eid, txt, tag, x, y)
@@ -272,13 +297,14 @@ def build_panel(svg: Svg) -> None:
         x, y = 1075 + (i % 4) * 92, y0 + 60 + (i // 4) * 85
         svg.label(f"dp_fejl_{n}_l", x + 32, y - 8, txt, 12, 600, "middle")
         sym("vippekontakt", f"dp_fejl_{n}", f"Fejl {txt}", f"f_{n}", x, y)
-    # Manuel drift
-    svg.frame("dp_f_man", 1450, y0, 380, 232, "Manuel drift (driftsform Manuel)")
-    man = (("P1", "Pumpe 1"), ("P2", "Pumpe 2"), ("P3", "Pumpe 3"), ("P4", "Pumpe 4"), ("MVS", "MVS1+2"), ("pille", "Pillefyr"), ("VP", "Varmepumpe"))
-    for i, (n, txt) in enumerate(man):
-        x, y = 1465 + (i % 4) * 92, y0 + 60 + (i // 4) * 85
-        svg.label(f"dp_man_{n}_l", x + 32, y - 8, txt, 12, 600, "middle")
-        sym("vippekontakt", f"dp_man_{n}", f"Manuel {txt}", f"man_{n}", x, y)
+    # Kilder og tid: varmepumpen startes manuelt; brændefyret fyres op under Betjening
+    svg.frame("dp_f_kilder", 1450, y0, 380, 232, "Kilder og tid")
+    svg.label("dp_vp_l", 1497, y0 + 52, "Varmepumpe", 12, 600, "middle")
+    sym("vippekontakt", "dp_vp", "Varmepumpe til/fra", "cmd_vp", 1465, y0 + 60)
+    svg.label("dp_sp_speed_l", 1620, y0 + 52, "Tidsfaktor")
+    sym("setpunkt", "dp_sp_speed", "Tidsfaktor", "sp_speed", 1620, y0 + 60)
+    svg.label("dp_kilder_hint", 1465, y0 + 160, "Varmepumpen lader tanken til højst 65 °C,", 11, 400)
+    svg.label("dp_kilder_hint2", 1465, y0 + 176, "brændefyret (Fyr op) til ca. 90 °C.", 11, 400)
     # Infofelt øverst til venstre (statusfelter, 80 × 30)
     for i, (eid, txt, tag) in enumerate((("dp_i_ude", "Ude", "T_UDE"), ("dp_i_rum", "Rum", "T_RUM"),
                                          ("dp_i_klokke", "Klokke", "KLOKKE"), ("dp_i_alarm", "Alarmer", "ALARMER"))):
@@ -288,18 +314,17 @@ def build_panel(svg: Svg) -> None:
         PANEL[eid] = (tag, "statusfelt")
 
 
-def _drop_old_panels(old: str, size: int) -> str:
-    """Fjern tidligere paneler (kan køres igen). Serveren fjerner kommentarer ved gem, så panelet kendes på sin
-    baggrund (rect 1840 bred, #e6e9ec) efterfulgt af `size` elementer — også kopier, hvor Tegn har givet nye id'er."""
+def _drop_old_panels(old: str) -> str:
+    """Fjern tidligere paneler (kan køres igen). Serveren fjerner kommentarer ved gem, så panelet kendes på sine id'er
+    (`dp_…`) og baggrunden (rect 1840 bred, #e6e9ec). Tæl ikke elementer: panelet skifter størrelse mellem versioner."""
     ET.register_namespace("", "http://www.w3.org/2000/svg")
     ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
     ET.register_namespace("inkscape", "http://www.inkscape.org/namespaces/inkscape")
     root = ET.fromstring(old)
     for layer in root.iter():
-        kids = list(layer)
-        starts = [i for i, c in enumerate(kids) if c.tag.endswith("rect") and c.get("width") == "1840" and c.get("fill") == "#e6e9ec"]
-        for i in reversed(starts):
-            for c in kids[i:i + size]:
+        for c in list(layer):
+            bg = c.tag.endswith("rect") and c.get("width") == "1840" and c.get("fill") == "#e6e9ec"
+            if bg or (c.get("id") or "").startswith("dp_"):
                 layer.remove(c)
     return ET.tostring(root, encoding="unicode")
 
@@ -307,7 +332,7 @@ def _drop_old_panels(old: str, size: int) -> str:
 def new_svg(old: str, syms: dict[str, str]) -> str:
     svg = Svg(syms)
     build_panel(svg)
-    s = _drop_old_panels(old, len(svg.parts))
+    s = _drop_old_panels(old)
     s = re.sub(r'(<svg[^>]*?)height="\d+"', rf'\1height="{H_NEW}"', s, count=1)
     s = re.sub(r'viewBox="0 0 1840 \d+"', f'viewBox="0 0 1840 {H_NEW}"', s, count=1)
     block = "\n  " + "\n  ".join(svg.parts) + "\n"
@@ -347,20 +372,30 @@ FIELDS = {
     "svg_288": "FFTR", "svg_195": "FFS_TXT", "svg_130": "PS1", "svg_128": "PS2", "svg_143": "PS3", "svg_178": "PS4",
     "svg_252": "MVT2", "svg_260": "MVS1_TXT", "svg_267": "MVS2_TXT", "statusfelt": "FMTR",
 }
-# Rør og fittings pr. kreds (efter geometrien på tegningen), farvet som varmt/koldt vand
+# Rør og fittings pr. kredsdel (efter geometrien på tegningen), farvet som varmt/koldt vand. Kredsdelens flow-flag
+# (Logic1) følger den aktive mode: F_HUS altid, F_PILLE mode 1-2 (P1), F_TANK mode 2-3, F_BYPASS mode 1, PS2 mode 3.
 PIPES = {
-    "PS1": ["svg_28", "t_stykke_11", "roer_v_4", "svg_16", "t_stykke_10", "boejning90_17", "svg_29", "svg_30", "boejning90_15",
-            "svg_31", "roer_l_2", "boejning90_16", "svg_25", "boejning90_18", "svg_26", "svg_77", "svg_17", "t_stykke_2", "svg_5",
-            "svg_84", "svg_85", "boejning90", "t_stykke", "roer_v", "roer_v_2", "boejning90_12", "svg_19", "t_stykke_3",
-            "svg_21", "boejning90_2", "svg_32"],
-    "PS2": ["svg_12", "t_stykke_9", "svg_63", "boejning90_13", "svg_62"],
+    "F_HUS": ["svg_28", "t_stykke_11", "roer_v_4", "t_stykke_9", "svg_77", "t_stykke_2", "svg_5", "t_stykke_3", "svg_21",
+              "boejning90_2", "svg_32"],
+    "F_PILLE": ["svg_12", "svg_16", "t_stykke_10", "boejning90_17", "svg_29", "svg_30", "boejning90_15", "svg_31", "roer_l_2",
+                "boejning90_16", "svg_25", "boejning90_18", "svg_26"],
+    "F_TANK": ["svg_85", "boejning90", "t_stykke", "roer_v", "roer_v_2", "boejning90_12", "svg_84", "svg_19"],
+    "F_BYPASS": ["svg_17"],
+    "PS2": ["svg_63", "boejning90_13", "svg_62"],
     "PS3": ["boejning90_10", "t_stykke_7", "boejning90_11", "t_stykke_6", "svg_103", "boejning90_4", "svg_104", "boejning90_5", "svg_102"],
     "PS4": ["t_stykke_8", "boejning90_9", "t_stykke_5", "roer_l", "svg_135", "svg_160", "svg_134", "svg_172", "roer_l_3",
             "boejning90_8", "roer_v_3", "boejning90_7", "roer_v_5", "svg_157", "boejning90_6", "svg_156", "boejning90_3", "svg_155"],
 }
+# T-stykker, hvor grenene hører til hver sin kredsdel (tilloeb1/tilloeb2 = gennemløbet, midte = afgreningen)
+PART_SRC = {
+    ("t_stykke_9", "tilloeb2"): "PS2", ("t_stykke_9", "midte"): "F_PILLE",      # udløb: P2-grenen / pillefyrets top
+    ("t_stykke_11", "midte"): "F_PILLE",                                         # AVTB's blanding fra pillesløjfen
+    ("t_stykke_2", "tilloeb1"): "F_BYPASS", ("t_stykke_2", "midte"): "F_TANK",  # retur til M2 A / Blande Temp.
+    ("t_stykke_3", "tilloeb2"): "F_TANK",                                        # retur op i tankens bund
+}
 WARM_PIPES = {"svg_28", "t_stykke_11", "roer_v_4", "svg_12", "t_stykke_9", "svg_63", "boejning90_13", "svg_62", "t_stykke_8",
               "boejning90_9", "t_stykke_5", "roer_l", "boejning90_8", "roer_v_3", "roer_v", "roer_v_2", "boejning90_12", "t_stykke",
-              "boejning90_10", "t_stykke_7", "boejning90_11", "t_stykke_6", "svg_16"}
+              "boejning90_10", "t_stykke_7", "boejning90_11", "t_stykke_6", "svg_16", "svg_85"}
 
 
 def configs(index: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -382,7 +417,8 @@ def configs(index: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
             light = WARM if el in WARM_PIPES else BLUE
             if typ == "t_stykke":
                 parts = [index[el]["pids"][n] for n in ("tilloeb1", "tilloeb2", "midte") if n in index[el]["pids"]] or ["all"]
-                out[el] = view(typ, [flow(p, src, light) for p in parts])
+                pids = {v: k for k, v in index[el]["pids"].items()}
+                out[el] = view(typ, [flow(p, PART_SRC.get((el, pids.get(p, "")), src), light) for p in parts])
             else:
                 out[el] = view(typ, [flow("all", src, light)])
     out["svg_48"] = view("pumpe", [anim("all", "spin", "PS1", invert=False)])
@@ -400,7 +436,7 @@ def configs(index: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
         out[el] = {**view("trevejs_motorventil", [
             anim(pid(index, el, "port_a"), "fill", pos, on=BLUE, off=GREY, thresholds=[{"value": 0, "color": BLUE}, {"value": 100, "color": GREY}]),
             anim(pid(index, el, "port_b"), "fill", pos, on=BLUE, off=GREY, thresholds=[{"value": 1, "color": BLUE}]),
-            anim(pid(index, el, "port_ab"), "fill", "PS1", on=BLUE, off=GREY, thresholds=[])]),
+            anim(pid(index, el, "port_ab"), "fill", "F_HUS", on=BLUE, off=GREY, thresholds=[])]),
             "op": "positions", "positions": [{"label": "Auto"}, {"label": "AB-A"}, {"label": "AB-B"}],
             "signals": [{"id": "S1", "tag": cmd, "fb": cmd, "write": "set"}], "planes": [{"signal": "S1", "values": [0, 1, 2]}],
             "display": "remote", "confirm": True, "click": "dialog", "badge": False}
@@ -438,10 +474,11 @@ def configs(index: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
                                  anim(pid(index, el, "tekst"), "text", tag, true_text="TIL", false_text="FRA", show_unit=False,
                                       decimals=None, prefix="", suffix="", expression="")]}
         else:   # omskiftere
-            n = 5
+            labels = MODE_LABELS if tag == "cmd_mode" else SCEN_LABELS
+            n = len(labels)
             angles = SELECTOR_ANGLES[n]
             out[el] = {"type": "omskifter", "op": "positions",
-                       "positions": [{"label": l} for l in (MODE_LABELS if tag == "cmd_mode" else SCEN_LABELS)],
+                       "positions": [{"label": l} for l in labels],
                        "signals": [{"id": "S1", "tag": tag, "fb": tag, "write": "set"}],
                        "planes": [{"signal": "S1", "values": list(range(n))}],
                        "display": "remote", "confirm": True, "click": "dialog",
@@ -449,9 +486,9 @@ def configs(index: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return out
 
 
-MODE_LABELS = ["Fra", "Auto", "Sommer", "Pille", "Manuel"]
+MODE_LABELS = ["Auto", "M1", "M2", "M3"]
 SCEN_LABELS = ["Normal", "Vinter", "Sommer", "Lækage", "P1-fejl"]
-SELECTOR_ANGLES = {5: [-90, -45, 0, 45, 90]}
+SELECTOR_ANGLES = {4: [-67.5, -22.5, 22.5, 67.5], 5: [-90, -45, 0, 45, 90]}   # = selectorAngles() i symbols.ts
 
 
 def symbol_index(svg: str) -> dict[str, dict[str, Any]]:
@@ -500,6 +537,7 @@ def main() -> None:
         for el, cfg in cfgs.items():
             api.req("PUT", f"/api/drawings/{drawing}/symbols/{el}/config", {"config": cfg})
         print(f"Bindinger: {len(cfgs)} symboler opsat (tegningen uændret)")
+        drop_obsolete(api, drawing)
         return
     svg = new_svg(old, syms)
     if flags.get("--dry-run"):
@@ -519,6 +557,7 @@ def main() -> None:
             bad += 1
             print(f"  {el}: {'; '.join(str(w) for w in warn)[:300]}")
     print(f"Bindinger: {len(cfgs)} symboler opsat{f', {bad} med advarsler' if bad else ''}")
+    drop_obsolete(api, drawing)
 
 
 if __name__ == "__main__":

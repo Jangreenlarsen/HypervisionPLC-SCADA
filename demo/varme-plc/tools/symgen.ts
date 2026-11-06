@@ -7,7 +7,7 @@ const pick = (id: string) => SYMBOLS.find((s) => s.id === id)!.svg;
 const out: Record<string, string> = {
   trykknap_puls: pick('trykknap_puls'), setpunkt: pick('setpunkt'), vippekontakt: pick('vippekontakt'),
   startstop: pick('startstop'), lampe: pick('lampe'), statusfelt: pick('statusfelt'), vaerdi: pick('vaerdi'),
-  omskifter_mode: selectorSymbol(['Fra', 'Auto', 'Sommer', 'Pille', 'Manuel']),
+  omskifter_mode: selectorSymbol(['Auto', 'M1', 'M2', 'M3']),
   omskifter_scen: selectorSymbol(['Normal', 'Vinter', 'Sommer', 'Lækage', 'P1-fejl']),
 };
 console.log(JSON.stringify(out));

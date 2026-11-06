@@ -11,7 +11,7 @@ GLOBAL_VAR
   g_pftf   : REAL;  (* L2 *)
   g_mch    : REAL;  (* L2: ladeflow til tank kg/s *)
   g_tch    : REAL;  (* L2: ladetemp *)
-  g_str    : REAL;  (* L3 *)
+  g_str    : REAL;  (* L3: vandet til M1 = pillefyrets indloeb (STR eller tanktop) *)
   g_vptf   : REAL;  (* L4: VP-fremloeb til tanken *)
   g_stf_sp : REAL;  (* L1: fremloebssetpunkt *)
   g_tryk   : REAL;  (* L4: bar *)
