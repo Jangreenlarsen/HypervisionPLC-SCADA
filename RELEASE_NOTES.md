@@ -2,6 +2,10 @@
 
 ---
 
+## v3.36.0 — 2026-11-06 — Opsæt symbol uden at give navn først
+
+- **Tegn:** et rør eller et andet element uden navn har nu også knappen **Opsæt symbol (6 trin) …**. Den foreslår et navn (fx *Rør 1*), som kan rettes, og åbner guiden.
+
 ## v3.35.0 — 2026-11-06 — Flervalg af symboler og sletning af tags i brug
 
 - **Symboler › Bibliotek:** afkryds flere symboler (eller *Vælg alle*; Shift-klik vælger et interval) og flyt dem til en anden sektion eller slet de egne på én gang.

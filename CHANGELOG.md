@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.36.0 build 0341] — 2026-11-06 — Opsæt symbol direkte på et element uden navn
+
+- `pages/DrawEditor.svelte`: *Valgt element* viser **Opsæt symbol (6 trin) …** også for elementer uden navn. `nameAndGuide` spørger efter et navn og åbner guiden. Før stod kun en tekst om at give elementet et navn, og den var let at overse for rør.
+- Ny `lib/draw/naming.ts` (`suggestName`) foreslår første ledige navn: "Rør 1" for forbindelser, symbolets navn eller elementtypen. Test: `naming.test.ts`.
+- **Manual:** `08-forbindelser` (Løbelys og animation).
+
 ## [3.35.0 build 0340] — 2026-11-06 — Flervalg i symbolbiblioteket og sletning af tags i brug
 
 - **Flervalg i Symboler › Bibliotek:**
