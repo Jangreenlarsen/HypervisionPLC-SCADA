@@ -2,6 +2,11 @@
 
 ---
 
+## v4.0.1 — 2026-11-07 — Hjælper: rettelser
+
+- En VM med 16 GB RAM får nu det rigtige forslag (*VM/PC med 16 GB RAM*).
+- Installationen af LLM-pakken kræver mindre fri diskplads (ca. pakkens størrelse + 1 GB).
+
 ## v4.0.0 — 2026-11-06 — LLM-hjælper (fase 0)
 
 - **System › Hjælper (LLM):** en lokal sprogmodel, der kører på SCADA-serveren (kun CPU, intet internet). Den installeres fra én samlet LLM-pakke og kan slås til og fra. Slået fra bruger den hverken CPU eller RAM.

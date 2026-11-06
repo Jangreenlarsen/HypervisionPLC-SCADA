@@ -212,9 +212,10 @@ class AssistantService:
             raise ServiceError(409, "Hardwareprofilen tillader ikke hjælperen — vælg en profil med LLM (System › Hjælper)")
         info = inspect_package(received, sha256, machine_arch)
         free = _free_bytes(self.dir)
-        if free is not None and free < info["size"] * 2.2:      # pakken + udpakket kopi + lidt luft
-            raise ServiceError(507, f"For lidt diskplads: LLM-pakken kræver ca. {info['size'] * 2.2 / 1e9:.1f} GB fri, "
-                                    f"der er {free / 1e9:.1f} GB")
+        need = info["size"] + 1024 ** 3     # installationen: én pakkestørrelse mere ad gangen (se apply-llm.sh) + 1 GB luft
+        if free is not None and free < need:
+            raise ServiceError(507, f"For lidt diskplads til installationen: kræver ca. {need / 1e9:.1f} GB fri ud over "
+                                    f"pakken, der er {free / 1e9:.1f} GB")
         received.replace(self.incoming)
         info["by"] = actor
         info["at"] = time.time()

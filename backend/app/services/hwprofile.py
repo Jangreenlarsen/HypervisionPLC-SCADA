@@ -57,9 +57,10 @@ def suggest(arch: str, cpus: int, ram_mb: int, pi_model: str) -> str:
         return "pi4"
     if "Raspberry Pi 5" in pi_model:
         return "pi5" if ram_mb >= LLM_MIN_RAM_MB else "pi4"
-    if ram_mb >= 30000:
+    # Kernen reserverer noget af RAM'en: en "16 GB"-VM melder ca. 15.000 MB — derfor ca. 90 % af det nominelle
+    if ram_mb >= 28000:
         return "vm-32"
-    if ram_mb >= 15000:
+    if ram_mb >= 14000:
         return "vm-16"
     if ram_mb >= LLM_MIN_RAM_MB:
         return "vm-8"

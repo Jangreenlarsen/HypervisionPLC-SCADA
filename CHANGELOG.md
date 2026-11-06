@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.0.1 build 0343] — 2026-11-07 — Hjælper: profilforslag for "16 GB"-VM og korrekt pladsberegning
+
+- `services/hwprofile.py`: grænserne er sat ned til ca. 90 % af nominel RAM (7/14/28 GB). En "16 GB"-VM melder 14.985 MB og fik før forslaget vm-8.
+- `deploy/apply-llm.sh` og `services/assistant.py` (`stage`): installationen kræver kun én pakkestørrelse ekstra ad gangen (kilden slettes, før der pakkes ud) plus den gamle installation og 1 GB. Før blev der krævet 2–2,2 gange pakken, og det afviste demo-VM'en (10 GB disk).
+- Test: `test_assist.py`.
+
 ## [4.0.0 build 0342] — 2026-11-06 — LLM-hjælper fase 0: hardwareprofil, lokal LLM-tjeneste, LLM-pakke og System › Hjælper
 
 - **Backend:**

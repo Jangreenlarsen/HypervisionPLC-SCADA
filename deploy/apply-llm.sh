@@ -138,13 +138,16 @@ esac
 [ ${#sha} -eq 64 ] || fail "anmodningen mangler pakkens SHA256"
 SRCPKG=$DATA/llm/incoming.tar
 if [ -L "$SRCPKG" ] || [ ! -f "$SRCPKG" ]; then fail "LLM-pakken mangler eller er ikke en almindelig fil"; fi
-# Plads: rootens kopi + udpakket + den gamle installation, indtil den nye virker (ca. 3x pakken)
+# Plads ud over den uploadede fil: rootens kopi (kilden slettes bagefter), så den udpakkede (kopien slettes bagefter) —
+# højst én pakkestørrelse ekstra ad gangen — plus den gamle installation, der først fjernes til sidst, og 1 GB luft
 size=$(stat -c %s "$SRCPKG" 2>/dev/null || echo 0)
 mkdir -p "$OPT"
-need_kb=$((size / 1024 * 2 + 1048576))
+old_kb=$(du -skL "$OPT/current" 2>/dev/null | awk '{ print $1 }')
+case "$old_kb" in ''|*[!0-9]*) old_kb=0 ;; esac
+need_kb=$((size / 1024 + old_kb + 1048576))
 free_kb=$(df -Pk "$OPT" 2>/dev/null | awk 'NR==2 { print $4 }')
 case "$free_kb" in ''|*[!0-9]*) free_kb=0 ;; esac
-[ "$free_kb" -ge "$need_kb" ] || fail "for lidt diskplads til installationen (kræver ca. $((need_kb / 1048576 + 1)) GB fri ud over pakken)"
+[ "$free_kb" -ge "$need_kb" ] || fail "for lidt diskplads til installationen (kræver ca. $((need_kb / 1048576 + 1)) GB fri, der er $((free_kb / 1048576)) GB)"
 status installing "kontrollerer LLM-pakken"
 # Pakken ejes af scada (også efter en flytning: samme inode, og scada kan stadig skrive i den). Derfor laver root sin EGEN
 # kopi og beregner SHA256 af præcis de bytes, der skrives i kopien — alt videre arbejde sker kun på kopien.

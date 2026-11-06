@@ -69,6 +69,7 @@ def test_detection_parsing_and_suggestions():
     assert hwprofile.suggest("aarch64", 4, 8000, "Raspberry Pi 4 Model B Rev 1.5") == "pi4"
     assert hwprofile.suggest("aarch64", 4, 16000, "Raspberry Pi 5 Model B") == "pi5"
     assert hwprofile.suggest("x86_64", 4, 16000, "") == "vm-16"
+    assert hwprofile.suggest("x86_64", 4, 14985, "") == "vm-16"   # demo-VM'en: "16 GB" melder 14.985 MB
     assert hwprofile.suggest("x86_64", 8, 64000, "") == "vm-32"
     assert hwprofile.suggest("x86_64", 2, 1967, "") == "lille"    # testserveren: ingen hjælper
     assert hwprofile.suggest("x86_64", 4, 0, "") == "lille"       # RAM ukendt: hellere uden hjælper
