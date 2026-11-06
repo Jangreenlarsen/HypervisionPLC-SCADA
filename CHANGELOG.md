@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.0.2 build 0344] — 2026-11-07 — Hjælper: selvtestens svar blev klippet
+
+- `services/assistant.py`: selvtestens JSON-skema tillod kun 80 tegn, så svaret blev afbrudt midt i et ord. Nu 240 tegn og 160 tokens.
+- `docs/LLM_ANALYSE.md`: første måling på demo-VM'en (3,6 tokens/s, 2 GB RAM, ingen påvirkning af SCADA'en).
+
 ## [4.0.1 build 0343] — 2026-11-07 — Hjælper: profilforslag for "16 GB"-VM og korrekt pladsberegning
 
 - `services/hwprofile.py`: grænserne er sat ned til ca. 90 % af nominel RAM (7/14/28 GB). En "16 GB"-VM melder 14.985 MB og fik før forslaget vm-8.

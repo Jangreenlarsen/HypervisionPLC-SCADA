@@ -2,6 +2,10 @@
 
 ---
 
+## v4.0.2 — 2026-11-07 — Hjælper: afprøvningen viser hele svaret
+
+- *Afprøv hjælperen* viste et afkortet svar. Nu vises hele svaret.
+
 ## v4.0.1 — 2026-11-07 — Hjælper: rettelser
 
 - En VM med 16 GB RAM får nu det rigtige forslag (*VM/PC med 16 GB RAM*).

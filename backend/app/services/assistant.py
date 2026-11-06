@@ -291,12 +291,12 @@ class AssistantService:
 
     async def selftest(self) -> dict[str, Any]:
         """Lille afprøvning med fast JSON-svar: virker modellen, og hvor hurtig er den?"""
-        schema = {"type": "object", "properties": {"ok": {"type": "boolean"}, "svar": {"type": "string", "maxLength": 80}},
+        schema = {"type": "object", "properties": {"ok": {"type": "boolean"}, "svar": {"type": "string", "maxLength": 240}},
                   "required": ["ok", "svar"], "additionalProperties": False}
         data, done = await self.complete([
             {"role": "system", "content": "Du er en hjælper i et SCADA-system. Svar kort på dansk i JSON."},
             {"role": "user", "content": "Hvad bruges en cirkulationspumpe til i et varmeanlæg? Én sætning."},
-        ], schema=schema, max_tokens=120, timeout=120)
+        ], schema=schema, max_tokens=160, timeout=120)
         return {"answer": data.get("svar") if isinstance(data, dict) else None, "ms": round(done.ms),
                 "tokens_in": done.tokens_in, "tokens_out": done.tokens_out, "tokens_per_s": done.tokens_per_s, "model": done.model}
 

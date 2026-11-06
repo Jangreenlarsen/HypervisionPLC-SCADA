@@ -134,6 +134,20 @@ Ved installation (og under *System › Konfiguration*) angives hardwaren. Backen
    - SCADA'ens svartider og WebSocket-forsinkelse **mens** modellen arbejder.
 4. **Vælg** den mindste model, der har mindst 85 % korrekte udkast og under 30 s pr. vej. Resultaterne skrives ind her.
 
+### Første måling — demo-VM'en (2026-11-07, v4.0.1)
+
+Maskinen: VM med 4 vCPU (AMD Ryzen Embedded V1500B, AVX2) og 15 GB RAM. Profil vm-16: 3 tråde og MemoryMax 9 GB. Model: Qwen3.5-4B Q4_K_M og llama.cpp b12179.
+
+| Måling | Resultat |
+|---|---|
+| Selvtest (58 → 38 tokens, JSON-skema, dansk) | 10,4–10,5 s (første kald efter start: 18 s) — ca. 3,6 tokens/s samlet |
+| RAM i LLM-tjenesten | 2,0 GB (loft 9 GB); VM'en havde 12,5 GB ledigt |
+| SCADA'ens event-loop-lag under kaldet | maks. 0,052 s (0,043 s uden) — ingen mærkbar påvirkning |
+| PLC-polling under kaldet | ok, ingen fejl |
+| Gyldigt JSON-svar på dansk | ja, 5/5 |
+
+**Konklusion:** V1500B er en svag CPU, så hastigheden ligger under skønnet i § 2. Hjælperens svar skal derfor være korte, og prompts små. Et typisk svar på 100–150 tokens tager 30–45 s. Qwen3.5-4B er det rigtige valg på denne maskine: en 8B-model ville give ca. 1,5 tokens/s. Er hastigheden for lav i praksis, kan Qwen3.5-2B prøves (ca. dobbelt så hurtig).
+
 ## 8. Anbefaling og rækkefølge
 
 1. **Trin 1, uden AI (alle profiler):** signalvej-guide.
