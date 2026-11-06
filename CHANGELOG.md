@@ -4,6 +4,27 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.34.0 build 0339] — 2026-11-06 — Fjern PLC: flyt tagsene til en anden PLC eller fjern alt
+
+- **Backend:**
+  - Nyt `backend/app/services/plc_removal.py`:
+    - `usage` viser, hvad en fjernelse rammer;
+    - `move` validerer alle tags først (`TagService._validate`) og ændrer derefter kilderne i én transaktion; runtimes for begge PLC'er genstartes, og live-værdier ryddes;
+    - `remove_all` tager backup først (`scada-foer-plc-fjern-…`). Derefter fjernes i én transaktion bindinger (løbelysets retnings-tag tømmes), tagsene i symbolopsætninger og gruppe-animationer, ugeprogrammer, trendvisninger (tomme visninger slettes), API-nøglers scope, `alarm_state`, tags og PLC. Trendhistorikken glemmes bagefter, og alarmhændelserne bevares.
+  - `storage/db.py`: `move_plc_tags` og `remove_plc_cascade`. Begge ruller tilbage, hvis PLC'en har fået tags imens.
+  - `api/routes.py`: `GET /api/plcs/{key}/usage` og `POST /api/plcs/{key}/remove` (admin; ved "all" skal nøglen bekræftes). Handlingen auditeres som `plc.remove` med optælling. `main.py`.
+- **Frontend:** ny `PlcRemove.svelte` (oversigt, valg og bekræftelse; problemer pr. tag vises). `Plcs.svelte` åbner dialogen fra *Fjern*. `api.ts`: `ApiError.body` (serverens fejlsvar).
+- **Rettelser fra review før commit:**
+  - Backuppen før fjernelsen kunne ikke hentes (filnavnet blev afvist). `backup.py` kender nu `foer-plc-fjern` og `pre-update` (også opdateringernes backup) og viser deres slags.
+  - Historikken tages med i et eget snapshot (`trends-foer-plc-fjern-…`), før den slettes.
+  - Alarmerne glemmes også i hukommelsen, så næste evaluering ikke skriver dem tilbage. Det gælder også PLC'ens kommunikationsalarmer (`AlarmService.forget`). Ved flyt følger `alarm_state.plc` med.
+  - Backup og sletning af historik kører i en tråd.
+  - Mål-PLC'en advarer, hvis den er slået fra eller mangler adgangskode.
+  - Fejlede forsøg auditeres også.
+  - `dir_tag` læses sikkert, og en forkert kilde samles med de andre problemer.
+- **Tests:** `backend/tests/test_plc_removal.py` (7).
+- **Manual:** `05-plcer-og-tags.md` og billedet `plc-fjern.png`.
+
 ## [3.33.1 build 0338] — 2026-11-06 — Fix: SVG-import ignorerede CSS på elementtyper
 
 - `backend/app/services/library.py` `_inline_css`:

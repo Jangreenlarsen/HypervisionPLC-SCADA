@@ -2,6 +2,13 @@
 
 ---
 
+## v3.34.0 — 2026-11-06 — Fjern en PLC
+
+- **Fjern** på siden PLC'er viser nu, hvad PLC'en bruges til, og giver to valg:
+  - **Flyt tagsene til en anden PLC**, fx efter en udskiftning. Alt andet bevares.
+  - **Fjern alt**: PLC'en, dens tags og alt, der bruger dem. Der tages backup først.
+- Før kunne en PLC kun fjernes, når alle dens tags var slettet, og tagsene kunne ikke slettes, så længe noget brugte dem.
+
 ## v3.33.1 — 2026-11-06 — Rettelse: import af SVG-symboler med CSS
 
 - SVG-filer, der styler elementerne med CSS (fx `path,rect{fill:none;stroke:…}`), importeres nu med deres rigtige udseende. Før blev stregerne væk, og figurerne blev fyldt sorte. Symboler, der allerede er importeret, rettes ved at importere filerne igen med *Gem som ny version af det eksisterende*.

@@ -295,6 +295,25 @@ class AlarmService:
         self._event(row, "raise" if worse else "change", now)
         return True
 
+    def forget(self, tags: set[str], plc: str | None = None, moved_to: str | None = None) -> int:
+        """En PLC er fjernet (v3.34.0): tagsenes alarmer — og PLC'ens egne kommunikationsalarmer — fjernes fra tilstanden
+        i hukommelsen og databasen (ellers skrev næste evaluate dem tilbage som "rtn_unack"). `moved_to`: tagsene er
+        flyttet til en anden PLC — deres alarmer bevares og peger på den nye PLC. Hændelseshistorikken røres ikke.
+        → antal fjernede."""
+        gone = 0
+        for key, row in list(self.state.items()):
+            tag = row.get("tag") or ""
+            if tag in tags and moved_to:
+                row["plc"] = moved_to
+                self.db.upsert_alarm_state(row)
+            elif tag in tags or (plc and not tag and row.get("plc") == plc):
+                self.state.pop(key, None)
+                self._pending.pop(key, None)
+                self.db.delete_alarm_state(key)
+                gone += 1
+        self.publish()
+        return gone
+
     def _clear(self, row: dict[str, Any], now: float) -> bool:
         self._event(row, "clear", now)
         if row["state"] == "active_unack":

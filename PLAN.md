@@ -1,4 +1,4 @@
-# Plan: Fjern PLC — flyt tags til en anden PLC eller fjern alt — 2026-11-06
+# Plan: Fjern PLC — flyt tags til en anden PLC eller fjern alt — 2026-11-06 — ✅ færdig (v3.34.0)
 
 **Problem (Jan):** En PLC kan ikke fjernes. `PlcService.delete` afviser med 409, så længe PLC'en har tags. Hvert tag kan igen kun slettes, når ingen binding, symbolopsætning eller ugeprogram bruger det. Det er umuligt i praksis.
 

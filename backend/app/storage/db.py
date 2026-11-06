@@ -334,6 +334,93 @@ class Database:
     def delete_plc(self, key: str) -> bool:
         return self._execute("DELETE FROM plcs WHERE key = ?", (key,)) > 0
 
+    # ---------------------------------------------------- fjern PLC (v3.34.0, services/plc_removal.py)
+
+    def move_plc_tags(self, key: str, target: str, sources: dict[str, str]) -> bool:
+        """Flyt alle PLC'ens tags til `target` (ny kilde pr. tag) og slet PLC'en — i én transaktion. Har PLC'en fået flere
+        tags imens (dem `sources` ikke kender), rulles alt tilbage → False."""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                if cur.execute("SELECT 1 FROM plcs WHERE key = ?", (target,)).fetchone() is None:
+                    cur.execute("ROLLBACK")
+                    return False
+                for name, source in sources.items():
+                    cur.execute("UPDATE tags SET source = ?, plc = ? WHERE name = ? AND plc = ?", (source, target, name, key))
+                    cur.execute("UPDATE alarm_state SET plc = ? WHERE tag = ?", (target, name))
+                if cur.execute("SELECT COUNT(*) FROM tags WHERE plc = ?", (key,)).fetchone()[0]:
+                    cur.execute("ROLLBACK")
+                    return False
+                cur.execute("DELETE FROM plcs WHERE key = ?", (key,))
+                cur.execute("COMMIT")
+                return True
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
+    def remove_plc_cascade(self, key: str, names: list[str], configs: list[tuple[str, str, dict[str, Any]]],
+                           groups: list[tuple[int, str, list[dict[str, Any]]]], schedule_ids: list[int],
+                           views: dict[str, dict[str, Any] | None], api_scopes: dict[str, dict[str, Any]],
+                           actor: str) -> dict[str, int] | None:
+        """Fjern PLC'en, dens tags (`names`) og alle henvisninger til dem i én transaktion: bindinger (også løbelysets
+        retnings-tag), rensede symbolopsætninger og gruppe-animationer, ugeprogrammer, trendvisninger, API-nøglers scope og
+        aktuelle alarmtilstande. Alarmhændelserne bevares (historik). Har PLC'en fået tags imens → rul tilbage, None."""
+        wanted = set(names)
+        counts = {"bindings": 0, "symbols": 0, "groups": 0, "schedules": 0, "views": 0, "api_keys": 0, "alarms": 0, "tags": 0}
+        now = time.time()
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                current = {r[0] for r in cur.execute("SELECT name FROM tags WHERE plc = ?", (key,)).fetchall()}
+                if current != wanted:
+                    cur.execute("ROLLBACK")
+                    return None
+                for n in names:
+                    counts["bindings"] += cur.execute("DELETE FROM bindings WHERE tag = ?", (n,)).rowcount
+                    counts["alarms"] += cur.execute("DELETE FROM alarm_state WHERE tag = ?", (n,)).rowcount
+                for did, el, pos, params in cur.execute(
+                        "SELECT drawing_id, element, position, params FROM bindings WHERE anim = 'flow'").fetchall():
+                    try:
+                        p = json.loads(params or "{}")
+                    except ValueError:
+                        continue
+                    if isinstance(p, dict) and p.get("dir_tag") in wanted:
+                        p["dir_tag"] = ""
+                        cur.execute("UPDATE bindings SET params = ? WHERE drawing_id = ? AND element = ? AND position = ?",
+                                    (json.dumps(p, ensure_ascii=False), did, el, pos))
+                        counts["bindings"] += 1
+                for did, el, cfg in configs:
+                    cur.execute("UPDATE symbol_config SET config = ?, updated_at = ?, updated_by = ? WHERE drawing_id = ? AND element = ?",
+                                (json.dumps(cfg, ensure_ascii=False), now, actor, did, el))
+                    counts["symbols"] += 1
+                for gid, el, anims in groups:
+                    if anims:
+                        cur.execute("UPDATE symbol_group_anims SET anims = ?, updated_at = ?, updated_by = ? WHERE group_id = ? AND element = ?",
+                                    (json.dumps(anims, ensure_ascii=False), now, actor, gid, el))
+                    else:
+                        cur.execute("DELETE FROM symbol_group_anims WHERE group_id = ? AND element = ?", (gid, el))
+                    counts["groups"] += 1
+                for sid in schedule_ids:
+                    counts["schedules"] += cur.execute("DELETE FROM schedules WHERE id = ?", (sid,)).rowcount
+                for name, view in views.items():
+                    k = f"setting.{self._trendview_key(name)}"
+                    if view is None:
+                        cur.execute("DELETE FROM meta WHERE key = ?", (k,))
+                    else:
+                        cur.execute("UPDATE meta SET value = ? WHERE key = ?", (json.dumps(view, ensure_ascii=False), k))
+                    counts["views"] += 1
+                for kid, scope in api_scopes.items():
+                    counts["api_keys"] += cur.execute("UPDATE api_keys SET scope = ? WHERE id = ?", (json.dumps(scope), kid)).rowcount
+                counts["tags"] = cur.execute("DELETE FROM tags WHERE plc = ?", (key,)).rowcount
+                cur.execute("DELETE FROM plcs WHERE key = ?", (key,))
+                cur.execute("COMMIT")
+                return counts
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
     # ------------------------------------------------------------------- tags
 
     def list_tags(self, plc: str | None = None) -> list[dict[str, Any]]:

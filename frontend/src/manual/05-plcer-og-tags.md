@@ -21,6 +21,22 @@ Statusen (*ok*, *ikke tilgængelig*) vises ud for hver PLC. SCADA'en bruger PLC'
 
 **Eksterne registre** (RS485-slaver og expansion boards) kommer også via SSE, når PLC'ens firmware understøtter det (FEAT-447): en ny værdi i PLC'ens Modbus-cache vises straks. SCADA'en spørger desuden PLC'en hvert 2. sekund, så PLC'en også læser de registre, ST-programmerne ikke selv læser. Under **PLC'er** står der *eksterne registre via SSE: RS485 N, expansion boards M* — antallet af modtagne ændringer fra hver slags.
 
+### Fjern en PLC
+
+![Fjern PLC: hvad der rammes, og valget mellem at flytte tagsene og at fjerne alt](../../public/manual/plc-fjern.png)
+
+Tryk **Fjern** ud for PLC'en (kun admin). Dialogen viser først, hvad der hører til PLC'en: antal tags, tegninger med bindinger og symbolopsætninger, ugeprogrammer, trendvisninger, API-nøgler og aktive alarmer. Vælg så:
+
+- **Flyt tagsene til en anden PLC**, fx når PLC'en er skiftet ud. Hvert tag får samme adresse eller variabel på den valgte PLC (`gammel:coil:1` → `ny:coil:1`). Navne, bindinger, symbolopsætninger, ugeprogrammer og historik bevares. Kan et tag ikke flyttes (fx et skrivbart tag til en kilde, der ikke kan skrives), ændres **intet**, og dialogen viser hvilke tags og hvorfor. Er den valgte PLC slået fra eller mangler adgangskode, advarer dialogen.
+- **Fjern alt**: Skriv PLC'ens nøgle for at bekræfte. Der tages først en **backup** af opsætningen og af historikken (*System › Backup*, filerne `scada-foer-plc-fjern-…` og `trends-foer-plc-fjern-…`). Derefter fjernes i én handling:
+  - PLC'en og dens tags;
+  - bindinger, ugeprogrammer og historik for tagsene;
+  - tagsene i symbolopsætninger, trendvisninger og API-nøgler.
+
+  Symboler, der brugte tagsene, skal sættes op igen. Alarmhændelserne bevares i alarmhistorikken.
+
+En PLC uden tags fjernes direkte.
+
 ## Tags
 
 ![Siden Tags: alle tags med kilde, værdi og knapper til at redigere](../../public/manual/tags.png)
