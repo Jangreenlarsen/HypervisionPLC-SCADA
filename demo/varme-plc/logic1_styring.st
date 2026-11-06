@@ -1,31 +1,33 @@
 PROGRAM Styring
 (* Demo-varmeanlaeg, Logic1: styringen (det en rigtig PLC ville goere).
    Laeser anlaeggets tilstand fra GLOBAL_VAR og skriver kommandoer i g_cmd.
-   cmd_mode: 0 Fra, 1 Auto, 2 Sommer (kun VP), 3 Kun pille, 4 Manuel. Interval 500 ms. *)
+   cmd_mode: 0 Auto, 1 Manuel mode 1, 2 Manuel mode 2, 3 Manuel mode 3.
+   MODE 1 Hus + pille (M1 AB-A, M2 AB-A, P1) - 2 Hus + pille + tank (M1 AB-A, M2 AB-B, P1)
+   - 3 Hus + tank (M1 AB-B, M2 AB-B, P2). Auto: tanken ind (mode 3) ved ATT1 >= sp_tank_ind,
+   ud (mode 1) under sp_tank_ud. Varmepumpen startes manuelt (cmd_vp). Interval 500 ms. *)
 VAR
   SMS_TXT      : STRING;
-  cmd_mode     : INT := 1;
+  cmd_mode     : INT;
   cmd_kvitter  : BOOL;
-  man_P1       : BOOL;
-  man_P2       : BOOL;
-  man_P3       : BOOL;
-  man_P4       : BOOL;
-  man_MVS      : BOOL;
-  man_pille    : BOOL;
-  man_VP       : BOOL;
+  cmd_vp       : BOOL;
   sp_rum       : REAL := 21.0;
   sp_kurve     : REAL := 1.0;
   sp_stf_max   : REAL := 55.0;
-  sp_tank_min  : REAL := 45.0;
-  sp_tank_hyst : REAL := 8.0;
+  sp_tank_ind  : REAL := 60.0;
+  sp_tank_ud   : REAL := 45.0;
   sp_vp_min    : REAL;          (* -5,0 saettes ved foerste scan: negative startvaerdier bliver 0 i firmwaren *)
-  sp_sommer    : REAL := 17.0;
+  MODE         : INT := 1;
   SMS          : INT;
   STF_SP       : REAL;
+  TANK_IND     : BOOL;
   PS1          : BOOL;
   PS2          : BOOL;
   PS3          : BOOL;
   PS4          : BOOL;
+  F_HUS        : BOOL;
+  F_PILLE      : BOOL;
+  F_TANK       : BOOL;
+  F_BYPASS     : BOOL;
   AL_P1        : BOOL;
   AL_P2        : BOOL;
   AL_P3        : BOOL;
@@ -42,11 +44,6 @@ VAR
   cmd          : INT;
   tude         : REAL;
   t1           : REAL;
-  heat         : BOOL;
-  ff_akt       : BOOL;
-  need         : BOOL;
-  vp_ok        : BOOL;
-  direct       : BOOL;
   trykstop     : BOOL;
   c_p1         : BOOL;
   c_p2         : BOOL;
@@ -54,9 +51,6 @@ VAR
   c_p4         : BOOL;
   c_pille      : BOOL;
   c_vp         : BOOL;
-  p4_hot       : BOOL;
-  p2_hot       : BOOL;
-  i            : INT;
   init         : BOOL;
 END_VAR
 BEGIN
@@ -79,60 +73,30 @@ BEGIN
   AL_FF_TEMP := g_fftf > 95.0;
   trykstop := g_tryk < 0.6;
 
-  heat := tude < sp_sommer;
   STF_SP := LIMIT(20.0, sp_rum + sp_kurve * (sp_rum - tude), sp_stf_max);
   g_stf_sp := STF_SP;
-  IF t1 < sp_tank_min THEN
-    need := TRUE;
-  ELSIF g_att3 >= sp_tank_min + sp_tank_hyst THEN
-    need := FALSE;
+
+  (* Tanken i kredsen (Auto): ind ved sp_tank_ind, ud under sp_tank_ud *)
+  IF t1 >= sp_tank_ind THEN
+    TANK_IND := TRUE;
+  ELSIF t1 < sp_tank_ud THEN
+    TANK_IND := FALSE;
   END_IF;
-  vp_ok := (tude >= sp_vp_min) AND NOT AL_VP AND NOT AL_P3;
-  AL_TANK_KOLD := heat AND (cmd_mode = 1) AND (t1 < 35.0) AND NOT direct;
-
-  c_p1 := FALSE; c_p2 := FALSE; c_p3 := FALSE; c_p4 := FALSE;
-  c_pille := FALSE; c_vp := FALSE;
-  p4_hot := HYSTERESIS(g_fftf, 60.0, 55.0);
-  p2_hot := HYSTERESIS(g_pftf, 60.0, 50.0);
-  ff_akt := BIT_TST(fb, 9) OR p4_hot;   (* braende i fyret, eller det er varmt nok til Laddomat-pumpen *)
-
-  IF cmd_mode = 4 THEN
-    c_p1 := man_P1; c_p2 := man_P2; c_p3 := man_P3; c_p4 := man_P4;
-    c_pille := man_pille; c_vp := man_VP; direct := man_MVS;
-    SMS := 9;
-  ELSIF cmd_mode = 0 THEN
-    direct := FALSE;
-    c_p1 := tude < 2.0;
-    IF c_p1 THEN SMS := 8; ELSE SMS := 0; END_IF;
+  IF cmd_mode = 0 THEN
+    IF TANK_IND THEN MODE := 3; ELSE MODE := 1; END_IF;
   ELSE
-    c_p1 := heat AND (cmd_mode <> 2);
-    IF need AND NOT ff_akt THEN
-      IF cmd_mode = 3 THEN
-        c_pille := TRUE;
-      ELSE
-        c_vp := vp_ok;
-        c_pille := (cmd_mode = 1) AND ((NOT vp_ok) OR (t1 < sp_tank_min - 5.0));
-      END_IF;
-    END_IF;
-    c_pille := c_pille AND NOT AL_PILLE;
-    IF c_pille AND c_p1 AND (t1 < STF_SP - 5.0) THEN
-      direct := TRUE;
-    ELSIF (NOT c_pille) OR (NOT c_p1) OR (t1 >= STF_SP) THEN
-      direct := FALSE;
-    END_IF;
-    c_p2 := p2_hot AND NOT direct;
-    c_p3 := c_vp;
-    IF ff_akt THEN SMS := 2;
-    ELSIF direct THEN SMS := 6;
-    ELSIF c_pille THEN SMS := 4;
-    ELSIF c_vp THEN SMS := 3;
-    ELSE SMS := 1;
-    END_IF;
+    MODE := LIMIT(1, cmd_mode, 3);
   END_IF;
+  AL_TANK_KOLD := (cmd_mode = 3) AND (t1 < STF_SP - 5.0);
 
-  (* Sikkerhed: Laddomat-pumpen koerer altid naar braendefyret er varmt, P2 ved overtemp *)
-  c_p4 := c_p4 OR p4_hot;
-  c_p2 := c_p2 OR (g_pftf > 90.0);
+  c_p1 := MODE < 3;                 (* P1 i pillefyrets sloejfe: mode 1 og 2 *)
+  c_p2 := MODE = 3;                 (* P2 fra tanken: mode 3 *)
+  c_pille := c_p1 AND NOT AL_PILLE;
+  c_vp := cmd_vp AND (tude >= sp_vp_min) AND NOT AL_VP AND NOT AL_P3;
+  c_p3 := c_vp;
+  c_p4 := HYSTERESIS(g_fftf, 60.0, 55.0);   (* Laddomat-pumpen koerer altid naar braendefyret er varmt *)
+
+  SMS := MODE;
   IF trykstop THEN
     c_p1 := FALSE; c_p2 := FALSE; c_p3 := FALSE; c_pille := FALSE; c_vp := FALSE;
     SMS := 10;
@@ -148,28 +112,28 @@ BEGIN
   IF c_p2 THEN cmd := BIT_SET(cmd, 1); END_IF;
   IF c_p3 THEN cmd := BIT_SET(cmd, 2); END_IF;
   IF c_p4 THEN cmd := BIT_SET(cmd, 3); END_IF;
-  IF direct THEN cmd := BIT_SET(cmd, 4); cmd := BIT_SET(cmd, 5); END_IF;
+  IF MODE = 3 THEN cmd := BIT_SET(cmd, 4); END_IF;    (* MVS1 AB-B *)
+  IF MODE >= 2 THEN cmd := BIT_SET(cmd, 5); END_IF;   (* MVS2 AB-B *)
   IF c_pille THEN cmd := BIT_SET(cmd, 6); END_IF;
   IF c_vp THEN cmd := BIT_SET(cmd, 7); END_IF;
   g_cmd := cmd;
 
-  (* SMS: 0 Stop, 1 Tank, 2 Braendefyr, 3 VP, 4 Pille, 6 Pille direkte, 8 Frost, 9 Manuel, 10 Trykstop *)
-  i := SMS;
-  IF i = 6 THEN i := 4; END_IF;   (* CASE med flere vaerdier pr. gren ("4, 6:") virker ikke i firmwaren *)
-  CASE i OF
-    0: SMS_TXT := 'Stop';
-    1: SMS_TXT := 'Tank';
-    2: SMS_TXT := 'Brændefyr';
-    3: SMS_TXT := 'Varmepumpe';
-    4: SMS_TXT := 'Pillefyr';
-    8: SMS_TXT := 'Frostsikring';
-    9: SMS_TXT := 'Manuel';
+  (* SMS: 1-3 mode, 10 trykstop *)
+  CASE SMS OF
+    1: SMS_TXT := 'Hus + pille';
+    2: SMS_TXT := 'Hus + pille + tank';
+    3: SMS_TXT := 'Hus + tank';
     10: SMS_TXT := 'TRYKSTOP';
   END_CASE;
   PS1 := BIT_TST(fb, 0);
   PS2 := BIT_TST(fb, 1);
   PS3 := BIT_TST(fb, 2);
   PS4 := BIT_TST(fb, 3);
+  (* Kredsdele med flow (roerene paa tegningen) *)
+  F_HUS := PS1 OR PS2;
+  F_PILLE := PS1;
+  F_TANK := F_HUS AND (MODE >= 2);
+  F_BYPASS := PS1 AND (MODE = 1);
   ALARMER := BOOL_TO_INT(AL_P1) + BOOL_TO_INT(AL_P2) + BOOL_TO_INT(AL_P3) + BOOL_TO_INT(AL_P4)
            + BOOL_TO_INT(AL_VP) + BOOL_TO_INT(AL_PILLE) + BOOL_TO_INT(AL_TRYK_LAV)
            + BOOL_TO_INT(AL_TRYK_HOEJ) + BOOL_TO_INT(AL_FF_TEMP) + BOOL_TO_INT(AL_TANK_KOLD);

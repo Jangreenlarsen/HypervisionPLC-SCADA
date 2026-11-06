@@ -1,3 +1,47 @@
+# Plan: Demo — ny driftsstruktur med 3 modes — 2026-11-06
+
+**Status:** gennemført i v3.30.0 (indlæst, tegningen `varme` er version 135, alle tre modes er set i browseren). Rest: T-stykke 11 ved AVTB er ét samlet element, så stubben mod AVTB viser husets flow, også i mode 3.
+
+**Mål:** Husets kreds kører i én af tre modes (Jan 2026-11-06). Auto vælger selv ud fra tanken. Varmepumpen og brændefyret er kilder, man sætter ind efter behov.
+
+| Mode | Kreds | M1 | M2 | Husets pumpe |
+|---|---|---|---|---|
+| 1 | Hus + pillefyr (tanken uden for kredsen) | AB-A | AB-A | P1 (P2 stop) |
+| 2 | Hus + pillefyr + tank (retur → tankbund → tanktop → pillefyr → hus) | AB-A | AB-B | P1 (P2 stop) |
+| 3 | Hus + tank (tanktop → M2 B → M1 B → P2 → hus, pillefyret uden for) | AB-B | AB-B | P2 (P1 stop) |
+
+**Omskifter (cmd_mode):** 0 Auto · 1 Manuel mode 1 · 2 Manuel mode 2 · 3 Manuel mode 3. Det erstatter Fra/Auto/Sommer/Kun pille/Manuel og vippekontakterne `man_*`.
+
+**Auto:** Tanken kobles ind (mode 3), når ATT1 ≥ `sp_tank_ind` (60 °C). Den kobles ud igen (mode 1), når ATT1 < `sp_tank_ud` (45 °C). Begge er setpunkter. Mode 2 bruges kun manuelt.
+
+**Kilder:**
+- **Varmepumpe:** startes og stoppes manuelt med `cmd_vp` (vippekontakt). Den lader tanken til højst 65 °C fremløb og stopper selv, når tanken er fuld. P3 kører sammen med den.
+- **Brændefyr:** manuelt med *Fyr op* som i dag. Det lader tanken via Laddomat og P4 op til ca. 90 °C.
+- **Pillefyr:** i drift i mode 1 og 2 og varmer husets vand direkte. Fremløbet følger STF_SP + 5 og er højst `sp_pille`. Det lader ikke længere tanken.
+
+**Pumper og rør:** P1–P4 drejer, når deres del af kredsen er aktiv. Rørene får flow pr. kredsdel (nye BOOL-variable i Logic3: husets kreds, pillesløjfe, tankkreds, P2-gren) i stedet for pr. pumpe, så strømningen på tegningen følger valgt mode.
+
+## Trin
+1. **Logic1:** ny mode-logik (`MODE` = aktiv mode, auto-hysterese, `SMS_TXT` "Hus + pille" / "Hus + pille + tank" / "Hus + tank" / TRYKSTOP, `cmd_vp`). Fjern direct/need/sommer/frost/man_*. Alarmer bevares (`AL_TANK_KOLD` = mode 3 og ATT1 < STF_SP − 5).
+2. **Logic2:** pillefyrets flow = P1, indløb = `g_str` (genbrugt som "returvand til M1": STR eller ATT1 afhængigt af M2). Tankladning kun fra brændefyret.
+3. **Logic3:** husets flow fra P1 eller P2. Kilden afhænger af M1/M2-position (som beskrevet ovenfor). Tankgennemstrømning i mode 2 og 3. Flow-flag til rørene.
+4. **Logic4:** VP-fremløb højst 65 °C, stop ved tankbund ≥ 60 °C.
+5. **Test** (`test/sim_test.cpp`): de tre modes (ventilstillinger, pumper), auto ind/ud, VP stopper ved fuld tank, brændefyret når over 85 °C. Node-budget ≤ 512.
+6. **scada_setup.py:**
+   - tags: + `cmd_vp`, `sp_tank_ind`, `sp_tank_ud`, `MODE`, flow-flag; − `man_*`, `sp_tank_hyst`, `sp_tank_min` (de slettes på demo-SCADA'en);
+   - omskifteren får 4 stillinger;
+   - panelet "Manuel drift" erstattes af "Kilder" (VP til/fra, Tank ind / Tank ud);
+   - rør bindes pr. kredsdel.
+7. **Indlæsning:** alle 4 programmer på demo-PLC'en. Ny tegningsversion med panelet. Visuel kontrol af alle tre modes i browseren.
+8. **Dokumentation:** README (variabeltabel, "Hvad demoen viser"), CHANGELOG, RELEASE_NOTES, version (MINOR), commit og OTA.
+
+## Risici
+- 512 AST-noder pr. program (Logic3 er på 471). Flow-flagene kan blive nødt til at flyttes til Logic1.
+- `GLOBAL_VAR` er fuldt (16). Derfor genbruges `g_str`, og der er ingen nye globale.
+- At finde rørene pr. kredsdel sker ud fra tegningens geometri og kontrolleres visuelt.
+
+---
+
 # Plan: Demo-PLC — ST-program der emulerer varmeanlægget — 2026-11-05
 
 **Mål:** en HypervisionPLC, der uden fysisk I/O opfører sig som varmeanlægget på tegningen `varme` (v121 på 10.1.1.31), så SCADA-demoen viser levende temperaturer, flow, tryk, pumper, ventiler, alarmer, trends og betjening — og reagerer realistisk når operatøren griber ind.

@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.30.0 build 0334] — 2026-11-06 — Demo: ny driftsstruktur med 3 modes (Auto / manuel mode 1-3)
+
+- `demo/varme-plc/logic1_styring.st`: driftsform `cmd_mode` 0 Auto, 1-3 manuel mode. Mode 1 Hus + pille (M1 AB-A, M2 AB-A, P1), mode 2 Hus + pille + tank (M1 AB-A, M2 AB-B, P1), mode 3 Hus + tank (M1 AB-B, M2 AB-B, P2). Auto kobler tanken ind (mode 3) ved ATT1 ≥ `sp_tank_ind` (60 °C) og ud (mode 1) under `sp_tank_ud` (45 °C). Varmepumpen startes manuelt (`cmd_vp`). Nye `MODE`, `TANK_IND` og flow-flag pr. kredsdel (`F_HUS`, `F_PILLE`, `F_TANK`, `F_BYPASS`). Fjernet: Fra/Sommer/Kun pille/Manuel, `man_*`, `sp_tank_min`/`sp_tank_hyst`, `sp_sommer`.
+- `logic2_kilder.st`: pillefyret sidder i husets kreds (flow fra P1, indløb = vandet til M1 via `g_str`, fremløb STF_SP + 5, højst `sp_pille`) og lader ikke længere tanken. `logic3_tank_hus.st`: husets flow fra P1 eller P2, kilden efter M1/M2's position, tanken gennemstrømmes i mode 2 og 3. `logic4_system.st`: varmepumpen højst 65 °C fremløb. `globals.st`: `g_str` = pillefyrets indløb.
+- `test/sim_test.cpp`: skrevet om til de tre modes (ventiler, pumper, flow-flag), auto ind/ud, VP ≤ 65 °C, brændefyret > 80 °C, manuel mode 1-3, håndbetjening og de øvrige fejl-scenarier.
+- `scada_setup.py`: nye tags (og sletning af de forældede), omskifter med 4 stillinger (Auto/M1/M2/M3), panelet "Kilder og tid" (varmepumpe til/fra, tidsfaktor) i stedet for "Manuel drift", setpunkterne Tank ind/Tank ud, rør bundet pr. kredsdel (også T-stykkernes grene), og panelet kendes nu på `dp_`-id'erne (det tidligere element-antal efterlod dubletter af infofelterne, da panelet blev mindre). `syms.json`, `tools/symgen.ts`, `README.md`, `PLAN.md`.
+- Indlæst på demo-PLC'en og demo-SCADA'en (tegningen `varme` version 135). Alle tre modes er set i browseren.
+
 ## [3.29.0 build 0333] — 2026-11-06 — Demo: motorventilerne MVS1/MVS2 kan betjenes
 
 - `demo/varme-plc/logic3_tank_hus.st`: håndbetjening pr. ventil `cmd_mvs1`/`cmd_mvs2` (0 Auto, 1 AB-A, 2 AB-B) — overstyrer styringens kommando i alle driftsformer; gangtiden er stadig 30 s (471/512 AST-noder, 46 variable). `test/sim_test.cpp`: test af begge ventiler og tilbage til Auto.

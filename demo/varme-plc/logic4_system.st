@@ -71,9 +71,9 @@ BEGIN
   IF f_laek OR (cmd_scenarie = 3) THEN flt := BIT_SET(flt, 5); END_IF;
   IF f_vp THEN flt := BIT_SET(flt, 7); END_IF;
 
-  (* ---- Varmepumpe: ca. 8 kW, COP efter udetemp og fremloeb, stopper ved retur > 52 C ---- *)
+  (* ---- Varmepumpe: ca. 8 kW, COP efter udetemp og fremloeb, maks 65 C fremloeb, stopper ved retur >= 58 C ---- *)
   r_p3 := BIT_TST(g_cmd, 2) AND NOT f_P3;
-  VP_RUN := BIT_TST(g_cmd, 7) AND r_p3 AND NOT f_vp AND (g_att6 < 52.0);
+  VP_RUN := BIT_TST(g_cmd, 7) AND r_p3 AND NOT f_vp AND (g_att6 < 58.0);
   IF BIT_TST(g_cmd, 7) AND f_vp THEN flt := BIT_SET(flt, 12); END_IF;
   g_fault := flt;
   vq := 0.0;
@@ -85,7 +85,7 @@ BEGIN
   VP_KW := VP_KW + (vq - VP_KW) * MIN(1.0, dt / 120.0);
   IF r_p3 THEN
     VPTR := g_att6;
-    VPTF := g_att6 + VP_KW / 1.2558;
+    VPTF := MIN(65.0, g_att6 + VP_KW / 1.2558);
   ELSE
     VP_KW := 0.0;
     VPTF := VPTF + (20.0 - VPTF) * kf;

@@ -2,6 +2,12 @@
 
 ---
 
+## v3.30.0 — 2026-11-06 — Demo: tre driftsmodes
+
+- Demo-varmeanlægget kører nu i én af tre modes: **1 Hus + pillefyr**, **2 Hus + pillefyr + tank** og **3 Hus + tank**. Motorventilerne, pumperne og strømningen i rørene følger den valgte mode.
+- Omskifteren *Driftsform* har stillingerne **Auto**, **M1**, **M2** og **M3**. I Auto kobles tanken ind ved **Tank ind** (60 °C) og ud igen under **Tank ud** (45 °C). Begge kan sættes i panelet.
+- **Varmepumpen** startes og stoppes manuelt under *Kilder og tid* og lader tanken til højst 65 °C. **Brændefyret** (*Fyr op*) kan lade tanken til ca. 90 °C. Ingen ændringer i selve SCADA'en.
+
 ## v3.29.0 — 2026-11-06 — Demo: motorventilerne kan betjenes
 
 - På demo-varmeanlægget kan **motorventilerne MVS1 og MVS2** nu betjenes hver for sig: klik på ventilen og vælg **Auto**, **AB-A** eller **AB-B**. Ventilen kører over på 30 s. Ingen ændringer i selve SCADA'en.

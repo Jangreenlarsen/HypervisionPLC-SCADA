@@ -1,7 +1,8 @@
 PROGRAM Kilder
 (* Demo-varmeanlaeg, Logic2: procesmodel for braendefyr (+ Laddomat/P4) og
-   pillefyr (P2); varmepumpen og braendefyrets statustekst ligger i Logic4. Leverer ladeflow/-temp til tanken
-   (g_mch/g_tch) og tilbagemeldinger i g_fb. Interval 500 ms. *)
+   pillefyr (i husets kreds med P1, mode 1 og 2); varmepumpen og braendefyrets statustekst ligger i Logic4.
+   Leverer braendefyrets ladeflow/-temp til tanken (g_mch/g_tch) og tilbagemeldinger i g_fb.
+   Pillefyrets indloeb: g_str (vandet til M1, fra Logic3). Interval 500 ms. *)
 VAR
   PILLE_TXT  : STRING;
   cmd_fyr_op : BOOL;
@@ -26,7 +27,6 @@ VAR
   r_p1       : BOOL;
   r_p2       : BOOL;
   r_p4       : BOOL;
-  direct     : BOOL;
   ff_q       : REAL;
   ff_mt      : REAL;
   psp        : REAL;
@@ -34,8 +34,6 @@ VAR
   p_q        : REAL;
   pm         : REAL;
   pret       : REAL;
-  m_ch       : REAL;
-  e_ch       : REAL;
   en         : BOOL;
 END_VAR
 BEGIN
@@ -51,7 +49,6 @@ BEGIN
   IF r_p2 THEN fb := BIT_SET(fb, 1); END_IF;
   IF BIT_TST(cmd, 2) AND NOT BIT_TST(flt, 2) THEN fb := BIT_SET(fb, 2); END_IF;
   IF r_p4 THEN fb := BIT_SET(fb, 3); END_IF;
-  direct := BIT_TST(cmd, 4);
 
   (* ---- Braendefyr: 15 kg pr. ilaegning, maks 30 kg, 25 kW, spjaeld over 88 C ---- *)
   IF cmd_fyr_op THEN FF_KG := MIN(FF_KG + 15.0, 30.0); END_IF;
@@ -83,8 +80,7 @@ BEGIN
 
   (* ---- Pillefyr: 0 Stop, 1 Taending, 2 Drift (5-15 kW), 3 Udbraending, 4 Fejl ---- *)
   en := BIT_TST(cmd, 6);
-  psp := sp_pille;
-  IF direct THEN psp := g_stf_sp + 5.0; END_IF;
+  psp := MIN(sp_pille, g_stf_sp + 5.0);   (* varmer husets vand direkte *)
   CASE PILLE_ST OF
     0: PILLE_KW := 0.0;
        IF en AND (PFTF < psp - 5.0) THEN PILLE_ST := 1; ps_t := 0.0; PILLE_STARTS := PILLE_STARTS + 1; END_IF;
@@ -104,12 +100,7 @@ BEGIN
        IF NOT en THEN PILLE_ST := 0; END_IF;
   END_CASE;
   pm := 0.0; pret := PFTR;
-  IF direct THEN
-    IF r_p1 THEN pm := 0.15; END_IF;
-    pret := g_str;
-  ELSIF r_p2 THEN
-    pm := 0.25; pret := g_att6;
-  END_IF;
+  IF r_p1 THEN pm := 0.25; pret := g_str; END_IF;   (* P1: 15 L/min gennem pillefyret *)
   IF pm > 0.0 THEN
     PFTR := pret;
   ELSE
@@ -128,15 +119,9 @@ BEGIN
     4: PILLE_TXT := 'Fejl';
   END_CASE;
 
-  (* ---- Ladning af tanken (blanding af kilderne) ---- *)
-  m_ch := ff_mt;
-  e_ch := ff_mt * FFTF;
-  IF r_p2 AND NOT direct THEN
-    m_ch := m_ch + 0.25;
-    e_ch := e_ch + 0.25 * PFTF;
-  END_IF;
-  g_mch := m_ch;
-  IF m_ch > 0.001 THEN g_tch := e_ch / m_ch; ELSE g_tch := g_att1; END_IF;
+  (* ---- Ladning af tanken fra braendefyret (Laddomat) ---- *)
+  g_mch := ff_mt;
+  g_tch := FFTF;
 
   IF PILLE_ST = 2 THEN fb := BIT_SET(fb, 6); END_IF;
   IF FF_KG > 0.0 THEN fb := BIT_SET(fb, 9); END_IF;

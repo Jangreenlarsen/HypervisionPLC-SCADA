@@ -44,6 +44,7 @@ VAR
   tsrc     : REAL;
   sum      : REAL;
   tch      : REAL;
+  tin      : REAL;
 END_VAR
 BEGIN
   IF NOT init THEN
@@ -52,7 +53,7 @@ BEGIN
   END_IF;
   dt := 0.5 * MAX(g_speed, 1.0);
 
-  (* Motorventiler: ON = AB-B (pillefyr direkte til huset), OFF = AB-A (fra tanken) *)
+  (* Motorventiler: ON = AB-B, OFF = AB-A. MVS1 AB-B = P2-grenen (uden om pillefyret), MVS2 AB-B = tanken i kredsen *)
   (* Haandbetjening paa motoren: cmd_mvsN 0 = Auto (styringen), 1 = AB-A, 2 = AB-B *)
   w := BIT_TST(g_cmd, 4);
   IF cmd_mvs1 = 1 THEN w := FALSE; ELSIF cmd_mvs1 = 2 THEN w := TRUE; END_IF;
@@ -63,10 +64,13 @@ BEGIN
   IF MVS1_POS >= 100.0 THEN MVS1_TXT := 'AB-B'; ELSIF MVS1_POS <= 0.0 THEN MVS1_TXT := 'AB-A'; ELSE MVS1_TXT := 'Kører'; END_IF;
   IF MVS2_POS >= 100.0 THEN MVS2_TXT := 'AB-B'; ELSIF MVS2_POS <= 0.0 THEN MVS2_TXT := 'AB-A'; ELSE MVS2_TXT := 'Kører'; END_IF;
 
-  (* Husets kreds: P1 = 15 L/min, AVTB blander ned til fremloebssetpunktet *)
+  (* Husets kreds: P1 eller P2 = 15 L/min. M2: retur direkte (AB-A) eller gennem tanken (AB-B);
+     M1: gennem pillefyret (AB-A) eller uden om (AB-B). AVTB blander ned til fremloebssetpunktet *)
   m_h := 0.0;
-  IF BIT_TST(g_fb, 0) THEN m_h := 0.25; END_IF;
-  tsrc := SEL(MVS1_POS > 50.0, T[1], g_pftf);
+  IF BIT_TST(g_fb, 0) OR BIT_TST(g_fb, 1) THEN m_h := 0.25; END_IF;
+  tin := SEL(MVS2_POS > 50.0, STR, T[1]);
+  g_str := tin;   (* pillefyrets indloeb *)
+  tsrc := SEL(MVS1_POS > 50.0, g_pftf, tin);
   frac := 1.0;
   IF tsrc > STR + 0.5 THEN frac := LIMIT(0.0, (g_stf_sp - STR) / (tsrc - STR), 1.0); END_IF;
   IF m_h > 0.0 THEN
@@ -83,7 +87,7 @@ BEGIN
   MVT2 := STR;
   E_HUS := E_HUS + Q_HUS * dt / 3600.0;
   m_ht := 0.0;
-  IF MVS1_POS < 50.0 THEN m_ht := m_h * frac; END_IF;
+  IF MVS2_POS > 50.0 THEN m_ht := m_h * frac; END_IF;   (* gennem tanken: retur i bunden, ud i toppen *)
 
   (* Tank: ladning i toppen fra kilderne, husets retur i bunden, lagdelt strømning *)
   m_ch := g_mch;
@@ -125,5 +129,4 @@ BEGIN
   g_att1 := T[1];
   g_att3 := T[3];
   g_att6 := T[6];
-  g_str := STR;
 END_PROGRAM

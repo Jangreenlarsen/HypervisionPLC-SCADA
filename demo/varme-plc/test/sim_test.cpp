@@ -145,52 +145,87 @@ int main(int argc, char **argv) {
   scans(1);
   ok(fabsf(R(0, "sp_vp_min") + 5.0f) < 0.01f, "sp_vp_min = -5 efter foerste scan");
 
-  printf("\n-- Normal drift, Auto, et doegn x60 --\n");
-  for (int h = 0; h < 24; h += 4) { hours(4); status("normal"); }
+  auto tank = [](float t) { for (int i = 1; i <= 6; i++) P[2]->variables[vi(P[2], "T[1]") + i - 1].real_val = t; };
+  auto valves = [](const char *m1, const char *m2) { return !strcmp(S(2, "MVS1_TXT"), m1) && !strcmp(S(2, "MVS2_TXT"), m2); };
+  float tmax = 0;
+
+  printf("\n-- Auto, tank lunken: mode 1 (hus + pille), et doegn x60 --\n");
+  for (int h = 0; h < 24; h += 6) { hours(6); status("auto"); }
   ok(!vm_err, "ingen VM-fejl");
   ok(sane, "temperaturer og tryk holder sig fysisk");
-  ok(R(2, "ATT1") >= 40.0f, "tanken holdes varm (ATT1 >= 40) i Auto");
-  ok(fabsf(R(2, "T_RUM") - 21.0f) < 2.0f, "rumtemperatur ca. 21 C");
+  ok(I(0, "MODE") == 1 && !strcmp(S(0, "SMS_TXT"), "Hus + pille"), "Auto: mode 1 naar tanken er under Tank ind");
+  ok(valves("AB-A", "AB-A") && B(0, "PS1") && !B(0, "PS2"), "mode 1: M1 AB-A, M2 AB-A, P1 koerer, P2 staar");
+  ok(B(0, "F_PILLE") && B(0, "F_BYPASS") && !B(0, "F_TANK"), "mode 1: flow i pillesloejfen og uden om tanken");
+  ok(fabsf(R(2, "T_RUM") - 21.0f) < 1.5f, "rumtemperatur ca. 21 C fra pillefyret");
+  ok(R(1, "E_PILLE") > 5.0f, "pillefyret har leveret varmen");
   ok(I(0, "ALARMER") == 0, "ingen alarmer i normal drift");
-  ok(R(3, "E_VP") > 1.0f, "varmepumpen har leveret energi");
+  ok(!B(3, "VP_RUN"), "varmepumpen staar, til den startes manuelt");
 
-  printf("\n-- Fyr op i braendefyret --\n");
-  float tank_ts0 = R(2, "TS");
-  setB(1, "cmd_fyr_op", true);
-  hours(0.5); status("+0,5 t");
-  ok(strcmp(S(3, "FFS_TXT"), "Slukket") != 0, "braendefyret er taendt");
-  hours(1.5); status("+2 t");
-  ok(B(1, "LADDOMAT") && B(0, "PS4"), "Laddomat aaben og P4 koerer");
-  ok(I(0, "SMS") == 2, "styringen viser braendefyr som kilde");
-  hours(2); status("+4 t");
-  ok(R(2, "TS") > tank_ts0 + 20.0f, "tanken lades af braendefyret");
-  hours(8); status("+12 t");
-  ok(strcmp(S(3, "FFS_TXT"), "Slukket") == 0, "braendet er brændt ud igen");
-  ok(sane && !vm_err, "stadig fysisk og uden VM-fejl");
+  printf("\n-- Varmepumpe startet manuelt: lader tanken, Auto kobler tanken ind (mode 3) --\n");
+  setB(0, "cmd_vp", true);
+  for (int k = 0; k < 48 && I(0, "MODE") != 3; k++) { hours(0.5); if (R(2, "ATT1") > tmax) tmax = R(2, "ATT1"); }
+  status("tank ind");
+  ok(B(0, "TANK_IND") && I(0, "MODE") == 3, "tanken kobles ind ved Tank ind (60 C)");
+  ok(R(3, "E_VP") > 1.0f, "varmepumpen har leveret energi");
+  scans(70); status("+35 s");
+  ok(valves("AB-B", "AB-B") && B(0, "PS2") && !B(0, "PS1") && !strcmp(S(0, "SMS_TXT"), "Hus + tank"),
+     "mode 3: M1 AB-B, M2 AB-B, P2 koerer, P1 staar");
+  ok(B(0, "F_TANK") && !B(0, "F_PILLE"), "mode 3: flow gennem tanken, ikke pillefyret");
+  for (int k = 0; k < 12; k++) { hours(0.5); if (R(2, "ATT1") > tmax) tmax = R(2, "ATT1"); }
+  status("VP fuld");
+  ok(tmax <= 66.0f, "varmepumpen lader hoejst til ca. 65 C");
+  ok(R(1, "PILLE_KW") == 0.0f && fabsf(R(2, "T_RUM") - 21.0f) < 1.5f, "huset forsynes fra tanken, pillefyret staar");
+
+  printf("\n-- VP stoppet: tanken aflades, Auto kobler den ud under Tank ud (45 C) --\n");
+  setB(0, "cmd_vp", false);
+  int g = 0;
+  while (I(0, "MODE") != 1 && g++ < 200) hours(0.25);
+  status("tank ud");
+  ok(I(0, "MODE") == 1 && R(2, "ATT1") < 45.5f, "tanken kobles ud igen, mode 1");
+  scans(70);
+  ok(valves("AB-A", "AB-A") && B(0, "PS1"), "ventilerne tilbage i AB-A, P1 koerer");
+
+  printf("\n-- Fyr op i braendefyret: lader tanken til over 80 C --\n");
+  setB(1, "cmd_fyr_op", true); scans(2); setB(1, "cmd_fyr_op", true);
+  tmax = 0;
+  bool p4 = false;
+  for (int k = 0; k < 16; k++) { hours(0.5); if (R(2, "ATT1") > tmax) tmax = R(2, "ATT1"); p4 = p4 || B(0, "PS4"); }
+  status("+8 t");
+  ok(p4, "Laddomat-pumpen P4 har koert");
+  ok(tmax > 80.0f, "braendefyret lader tanken over 80 C (VP kan kun 65)");
+  ok(I(0, "MODE") == 3, "Auto har koblet tanken ind");
+  hours(12); status("+20 t");
+  ok(strcmp(S(3, "FFS_TXT"), "Slukket") == 0, "braendet er braendt ud igen");
+
+  printf("\n-- Manuel mode 2: hus + pille + tank --\n");
+  setI(0, "cmd_mode", 2); tank(40.0f);
+  scans(70); status("mode 2");
+  ok(valves("AB-A", "AB-B") && B(0, "PS1") && !B(0, "PS2") && !strcmp(S(0, "SMS_TXT"), "Hus + pille + tank"),
+     "mode 2: M1 AB-A, M2 AB-B, P1 koerer, P2 staar");
+  ok(B(0, "F_PILLE") && B(0, "F_TANK") && !B(0, "F_BYPASS"), "mode 2: flow gennem tanken og pillefyret");
+  hours(2); status("+2 t");
+  ok(fabsf(R(2, "T_RUM") - 21.0f) < 1.5f, "pillefyret holder huset med tanken i kredsen");
+  setI(0, "cmd_mode", 3); scans(70);
+  ok(valves("AB-B", "AB-B") && B(0, "PS2") && !B(0, "PS1"), "manuel mode 3");
+  setI(0, "cmd_mode", 1); scans(70);
+  ok(valves("AB-A", "AB-A") && B(0, "PS1") && !B(0, "PS2"), "manuel mode 1");
+
+  printf("\n-- Haandbetjening af motorventilerne --\n");
+  setI(2, "cmd_mvs1", 2); scans(70);
+  ok(valves("AB-B", "AB-A"), "haandbetjening: MVS1 koert til AB-B, MVS2 foelger styringen");
+  setI(2, "cmd_mvs1", 0); setI(2, "cmd_mvs2", 2); scans(70);
+  ok(valves("AB-A", "AB-B"), "haandbetjening: MVS2 AB-B, MVS1 tilbage paa Auto");
+  setI(2, "cmd_mvs2", 0); scans(70);
+  setI(0, "cmd_mode", 0);
 
   printf("\n-- Vinternat (-15..-9 C): VP blokeret, pillefyr --\n");
-  setI(3, "cmd_scenarie", 1);
+  setI(3, "cmd_scenarie", 1); setB(0, "cmd_vp", true); tank(40.0f);
   for (int h = 0; h < 12; h += 3) { hours(3); status("vinter"); }
   ok(!B(3, "VP_RUN"), "VP koerer ikke under sp_vp_min");
-  ok(R(1, "E_PILLE") > 1.0f, "pillefyret har leveret varme");
-  ok(R(2, "T_RUM") > 19.0f, "huset holdes over 19 C");
+  ok(R(2, "T_RUM") > 19.0f, "huset holdes over 19 C af pillefyret");
   ok(I(0, "ALARMER") == 0, "ingen alarmer i vinternat");
-
-  printf("\n-- Pillefyr direkte: tank kold, motorventiler skifter --\n");
-  for (int i = 1; i <= 6; i++) P[2]->variables[vi(P[2], "T[1]") + i - 1].real_val = 30.0f;
-  scans(2); status("tank 30 C");
-  ok(I(0, "SMS") == 6 || B(0, "direct"), "styringen gaar i pille direkte");
-  scans(70); status("efter 35 s");
-  ok(!strcmp(S(2, "MVS1_TXT"), "AB-B") && !strcmp(S(2, "MVS2_TXT"), "AB-B"), "MVS1/MVS2 er koert til AB-B (30 s)");
-  hours(2); status("+2 t");
-  ok(R(2, "T_RUM") > 18.5f, "huset forsynes direkte fra pillefyret");
-  setI(2, "cmd_mvs1", 1); scans(70);
-  ok(!strcmp(S(2, "MVS1_TXT"), "AB-A") && !strcmp(S(2, "MVS2_TXT"), "AB-B"), "haandbetjening: MVS1 koert til AB-A, MVS2 foelger styringen");
-  setI(2, "cmd_mvs1", 0); setI(2, "cmd_mvs2", 1); scans(70);
-  ok(!strcmp(S(2, "MVS2_TXT"), "AB-A") && R(2, "MVS1_POS") >= 99.9f, "haandbetjening: MVS2 AB-A, MVS1 tilbage paa Auto");
-  setI(2, "cmd_mvs2", 0);
-  setI(3, "cmd_scenarie", 0);
-  hours(12); status("normal igen");
+  setB(0, "cmd_vp", false); setI(3, "cmd_scenarie", 0);
+  hours(6); status("normal igen");
 
   printf("\n-- Laekage: trykket falder --\n");
   setI(3, "cmd_scenarie", 3);
@@ -200,14 +235,15 @@ int main(int argc, char **argv) {
   ok(B(0, "AL_TRYK_LAV"), "alarm for lavt tryk");
   while (I(0, "SMS") != 10 && guard++ < 40000) scans(1);
   scans(2); status("trykstop");
-  ok(I(0, "SMS") == 10 && !B(0, "PS1"), "trykstop stopper pumperne");
+  ok(I(0, "SMS") == 10 && !B(0, "PS1") && !B(0, "PS2"), "trykstop stopper pumperne");
   setI(3, "cmd_scenarie", 0);
   setB(3, "cmd_efterfyld", true);
   scans(4); status("efterfyldt");
   ok(!B(0, "AL_TRYK_LAV") && I(0, "SMS") != 10, "efterfyldning genopretter trykket");
   printf("   (lavt tryk efter %.0f s realtid ved x60)\n", t0);
 
-  printf("\n-- Pumpefejl P1 + kvittering --\n");
+  printf("\n-- Pumpefejl P1 + kvittering (mode 1) --\n");
+  setI(0, "cmd_mode", 1);
   setI(3, "cmd_scenarie", 4);
   scans(30); status("P1 fejl");
   ok(B(0, "AL_P1") && !B(0, "PS1"), "AL_P1 efter 10 s, P1 staar");
@@ -218,6 +254,7 @@ int main(int argc, char **argv) {
   ok(!B(0, "AL_P1") && B(0, "PS1"), "kvittering nulstiller, P1 koerer igen");
 
   printf("\n-- Overophedning: P4 i fejl mens braendefyret braender --\n");
+  setI(0, "cmd_mode", 0);   /* Auto: tanken kobles ind og aflades igen */
   setB(3, "f_P4", true);
   setB(1, "cmd_fyr_op", true); scans(2);
   setB(1, "cmd_fyr_op", true);
@@ -231,27 +268,21 @@ int main(int argc, char **argv) {
   hours(6); setB(3, "cmd_efterfyld", true); scans(4); status("koelet ned");
   ok(!B(3, "SV_AABEN") && R(1, "FFTF") < 95.0f, "fyret koeler ned efter fejlen er vaek");
 
-  printf("\n-- Pillefyr taender ikke (kun pille-form) --\n");
-  setI(0, "cmd_mode", 3); setB(3, "f_pille", true);
-  for (int i = 1; i <= 6; i++) P[2]->variables[vi(P[2], "T[1]") + i - 1].real_val = 38.0f;
+  printf("\n-- Pillefyr taender ikke (mode 1) --\n");
+  setI(0, "cmd_mode", 1); setI(1, "PILLE_ST", 0);   /* fyret starter forfra */
+  setB(3, "f_pille", true); setB(0, "cmd_kvitter", true); scans(2);
   hours(1); status("pillefejl");
   ok(B(0, "AL_PILLE"), "alarm for pillefyr-taendingsfejl");
   setB(3, "f_pille", false); setB(0, "cmd_kvitter", true); hours(1); status("efter kvit.");
   ok(!B(0, "AL_PILLE"), "kvitteret, pillefyret starter igen");
 
-  printf("\n-- Varmepumpefejl (Auto) --\n");
-  setI(0, "cmd_mode", 1); setB(3, "f_vp", true);
-  for (int i = 1; i <= 6; i++) P[2]->variables[vi(P[2], "T[1]") + i - 1].real_val = 40.0f;
+  printf("\n-- Varmepumpefejl --\n");
+  setB(0, "cmd_vp", true); setB(3, "f_vp", true);
   scans(20); status("VP fejl");
-  ok(B(0, "AL_VP"), "alarm for varmepumpefejl");
-  hours(2); status("+2 t");
-  ok(R(2, "ATT1") > 38.0f, "pillefyret overtager");
+  ok(B(0, "AL_VP") && !B(3, "VP_RUN"), "alarm for varmepumpefejl, VP staar");
   setB(3, "f_vp", false); setB(0, "cmd_kvitter", true); scans(4);
-
-  printf("\n-- Sommer: kun VP, ingen husvarme --\n");
-  setI(0, "cmd_mode", 2); setI(3, "cmd_scenarie", 2);
-  hours(12); status("sommer");
-  ok(!B(0, "PS1") && R(1, "PILLE_KW") == 0.0f, "P1 og pillefyr staar om sommeren");
+  ok(!B(0, "AL_VP"), "kvitteret");
+  setB(0, "cmd_vp", false); setI(0, "cmd_mode", 0);
 
   printf("\nMaks VM-instruktioner pr. scan: L1 %d, L2 %d, L3 %d, L4 %d (graense 10000)\n", max_steps[0], max_steps[1], max_steps[2], max_steps[3]);
   ok(max_steps[0] < 5000 && max_steps[1] < 5000 && max_steps[2] < 5000 && max_steps[3] < 5000, "god margin til instruktionsloftet");
