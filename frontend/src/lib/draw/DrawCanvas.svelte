@@ -4,6 +4,8 @@
   // Giver Tegn-siden det samme API som den gamle iframe (onready), så resten af Tegn er uændret.
   import { onDestroy, onMount, type Snippet } from 'svelte';
   import { createEngine, type Engine } from './engine';
+  // @ts-expect-error — ren JS uden typer (delt med scada-core)
+  import { imageProblem } from '../../../svgedit-host/shapes.js';
 
   let { onready, onupdate, height = 600, status, hint = '', dropType = '', ondropsymbol, ondropfiles }: {
     onready: (api: unknown) => void;
@@ -47,7 +49,32 @@
     { mode: 'path', label: 'Sti — klik punkter, klik på startpunktet for at lukke', key: 'P', icon: 'M4 18 L9 7 L15 15 L20 5' },
     { mode: 'fhpath', label: 'Frihånd', key: 'F', icon: 'M3 16 C7 4 10 22 14 10 S19 8 21 12' },
     { mode: 'text', label: 'Tekst — klik og skriv', key: 'T', icon: 'M5 5 H19 M12 5 V20' },
+    { mode: 'polygon', label: 'Polygon — klik hjørnerne, dobbeltklik eller Enter afslutter', key: 'Y', icon: 'M5 19 L3 9 L12 3 L21 9 L18 19 Z' },
+    { mode: 'star', label: 'Stjerne — træk fra midten (Shift drejer)', key: 'S', icon: 'M12 2 L14.6 8.6 L21.5 8.9 L16.2 13.4 L18 20.3 L12 16.5 L6 20.3 L7.8 13.4 L2.5 8.9 L9.4 8.6 Z' },
+    { mode: 'regpoly', label: 'Regulær polygon (n-kant) — træk fra midten (Shift drejer)', key: 'N', icon: 'M12 3 L20 7.5 V16.5 L12 21 L4 16.5 V7.5 Z' },
+    { mode: 'arc', label: 'Bue — klik midten, så startpunktet og slutpunktet (med uret, Shift = 15°-trin)', key: 'B', icon: 'M4 18 A9 9 0 0 1 20 9' },
   ];
+  // Stjerne/n-kant: antal hjørner og indre radius for den næste form (ændres bagefter under Egenskaber)
+  let shapeN = $state(5);
+  let shapeInner = $state(50);
+  const pushShapeOpts = (): void => { if (mode === 'star' || mode === 'regpoly') api?.setShapeTool?.(mode, { n: shapeN, inner: shapeInner / 100 }); };
+
+  // Billede (PNG/JPG/WebP/GIF ≤ 2 MB) — indlejres i tegningen som data-URI
+  let imageInput: HTMLInputElement;
+  async function insertImage(e: Event): Promise<void> {
+    const el = e.currentTarget as HTMLInputElement;
+    const f = el.files?.[0];
+    el.value = '';
+    if (!f || !api) return;
+    const problem = imageProblem(f);
+    if (problem) { message = problem; return; }
+    const url = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(f); });
+    const size = await new Promise<{ w: number; h: number }>((res) => { const i = new Image(); i.onload = () => res({ w: i.naturalWidth, h: i.naturalHeight }); i.onerror = () => res({ w: 200, h: 150 }); i.src = url; });
+    engine?.setMode('select');
+    const r = api.insertImage(url, size.w, size.h, f.name.replace(/\.[a-z]+$/i, ''));
+    message = r?.error ?? '';
+    sync();
+  }
 
   // Den svævende linje: ikoner som stier i et 24×24-felt
   const ALIGN: { t: string; label: string; icon: string }[] = [
@@ -119,10 +146,14 @@
     </button>
     <span class="rsep"></span>
     {#each TOOLS as t}
-      <button class:on={mode === t.mode} onclick={() => tool(t.mode)} title="{t.label} ({t.key})" aria-label={t.label} aria-pressed={mode === t.mode}>
+      <button class:on={mode === t.mode} onclick={() => { tool(t.mode); pushShapeOpts(); }} title="{t.label} ({t.key})" aria-label={t.label} aria-pressed={mode === t.mode}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d={t.icon} /></svg>
       </button>
     {/each}
+    <button onclick={() => imageInput.click()} title="Billede — PNG, JPG, WebP eller GIF (højst 2 MB) indlejres i tegningen" aria-label="Billede">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5 H21 V19 H3 Z M3 16 L9 10 L14 15 L17 12 L21 16" /><circle cx="16" cy="8.5" r="1.6" /></svg>
+    </button>
+    <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden bind:this={imageInput} onchange={insertImage} />
   </nav>
   <div class="main">
     <!-- zoom, tegnehjælp og hjælpelinjer øverst over tegnefladen (Jan, v3.11.2) -->
@@ -143,7 +174,13 @@
              if (isFileDrag(e)) { const files = Array.from(e.dataTransfer?.files ?? []); if (files.length) { engine?.setMode('select'); ondropfiles?.(files, e.clientX, e.clientY); } return; }
              const id = e.dataTransfer?.getData(dropType); if (id) { engine?.setMode('select'); ondropsymbol?.(id, e.clientX, e.clientY); } }}></div>
 
-      {#if count > 0}
+      {#if mode === 'star' || mode === 'regpoly'}
+        <div class="selbar shapeopts" role="toolbar" aria-label="Formens indstillinger">
+          <label>{mode === 'star' ? 'Spidser' : 'Hjørner'} <input type="number" min="3" max="64" bind:value={shapeN} onchange={pushShapeOpts} /></label>
+          {#if mode === 'star'}<label>Indre radius <input type="number" min="10" max="95" step="5" bind:value={shapeInner} onchange={pushShapeOpts} /> %</label>{/if}
+          <span class="muted">Træk fra midten · Shift drejer</span>
+        </div>
+      {:else if count > 0}
         <div class="selbar" role="toolbar" aria-label="Det markerede">
           {#if guideAxis}<span class="gchip" title="En hjælpelinje er valgt — Esc slipper den">til {guideAxis === 'v' ? 'lodret' : 'vandret'} hjælpelinje:</span>{/if}
           {#each ALIGN as a}
@@ -163,6 +200,12 @@
           <span class="sep"></span>
           <button onclick={() => call(() => api?.order('top'))} title="Læg øverst" aria-label="Læg øverst">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 9 H20 V20 H8 Z M4 4 H16 V9" /><path class="fill" d="M8 9 H20 V20 H8 Z" /></svg>
+          </button>
+          <button onclick={() => call(() => api?.order('up'))} title="Ét trin frem (Ctrl+])" aria-label="Ét trin frem">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 V20 M6 10 L12 4 L18 10" /></svg>
+          </button>
+          <button onclick={() => call(() => api?.order('down'))} title="Ét trin tilbage (Ctrl+[)" aria-label="Ét trin tilbage">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 V20 M6 14 L12 20 L18 14" /></svg>
           </button>
           <button onclick={() => call(() => api?.order('bottom'))} title="Læg nederst" aria-label="Læg nederst">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 4 H16 V15 H4 Z" /><path d="M8 9 H20 V20 H8 Z" /></svg>
@@ -257,6 +300,9 @@
   .workarea.dropping { outline: 3px dashed #2e7d32; outline-offset: -3px; }
   /* Drejegrebets forbindelsesstreg tager ikke imod musen (BUGS.md v0.65.0) */
   .workarea :global(#selectorGrip_rotateconnector) { pointer-events: none; }
+  .workarea :global(g.layer[data-hv-locked]) { pointer-events: none; }   /* låst lag (v3.33.0): kan ikke vælges i Tegn */
+  .shapeopts { gap: .6rem; font-size: .85rem; padding: 4px 10px; }
+  .shapeopts input { width: 4rem; }
 
   .selbar {
     position: absolute;

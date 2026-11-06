@@ -9,7 +9,11 @@
     box: { x: number; y: number; w: number; h: number };
     angle: number;
     pipeRadius: number | null;
-    paint: { fill: string; stroke: string; strokeWidth: number; opacity: number; fontSize: number | null; fontFamily: string | null; bold: boolean | null; italic: boolean | null; underline: boolean | null; anchor: string | null; text: string | null; rx: number | null } | null;
+    paint: { fill: string; stroke: string; strokeWidth: number; opacity: number; fontSize: number | null; fontFamily: string | null; bold: boolean | null; italic: boolean | null; underline: boolean | null; anchor: string | null; text: string | null; rx: number | null;
+      dash?: string; cap?: string; join?: string; arrows?: { start: boolean; end: boolean } | null;
+      gradient?: { kind: 'linear' | 'radial'; c1: string; c2: string; angle: number } | null;
+      shadow?: { dx: number; dy: number; blur: number; color: string } | null;
+      shape?: { k: 'star' | 'regpoly'; n: number; ri: number } | null } | null;
   }
   export interface InspectApi {
     inspect(): Inspect | null;
@@ -19,7 +23,14 @@
     setText(value: string): { ok?: boolean; error?: string };
     setPipeRadius(value: string): { ok?: boolean; error?: string };
     straightenPipe(): { ok?: boolean; error?: string };
+    setDash(kind: string): R;
+    setLineStyle(attr: 'stroke-linecap' | 'stroke-linejoin', value: string): R;
+    setArrow(which: 'start' | 'end', on: boolean): R;
+    setFillKind(kind: 'solid' | 'linear' | 'radial', c1: string, c2?: string, angle?: number): R;
+    setShadow(opts: { dx: number; dy: number; blur: number; color: string } | null): R;
+    setShapeParams(n: string | number, inner: string | number): R;
   }
+  type R = { ok?: boolean; error?: string };
 
   let { api, rev, keepRatio = false }: { api: InspectApi | null; rev: number; keepRatio?: boolean } = $props();
 
@@ -38,6 +49,10 @@
     { v: 'end', label: 'Højrestillet', d: 'M4 6 H20 M10 10 H20 M4 14 H20 M12 18 H20' },
   ];
   const isNone = (c: string | undefined) => !c || c === 'none' || c === 'transparent';
+  const DASHES = [['solid', 'Fuld'], ['dash', 'Stiplet'], ['dot', 'Prikket'], ['dashdot', 'Stiplet-prikket']];
+  const CAPS = [['butt', 'Lige'], ['round', 'Runde'], ['square', 'Firkantede']];
+  const JOINS = [['miter', 'Skarpe'], ['round', 'Runde'], ['bevel', 'Afskårne']];
+  const SHADOW = { dx: 3, dy: 3, blur: 2, color: '#000000' };
 
   function run(r: { ok?: boolean; error?: string } | undefined): void {
     error = r?.error ?? '';
@@ -86,6 +101,12 @@
         <span class="lbl">{p.fontSize !== null ? 'Farve' : 'Fyld'}</span>
         {#if isNone(p.fill)}
           <button class="small" onclick={() => run(api?.setStyle('fill', '#ffffff'))}>Ingen — tilføj</button>
+        {:else if p.gradient}
+          {@const gr = p.gradient}
+          <ColorField value={gr.c1} label="fyld fra" onchange={(c) => run(api?.setFillKind(gr.kind, c, gr.c2, gr.angle))} />
+          <span class="small">→</span>
+          <ColorField value={gr.c2} label="fyld til" onchange={(c) => run(api?.setFillKind(gr.kind, gr.c1, c, gr.angle))} />
+          <button class="small" onclick={() => run(api?.setStyle('fill', 'none'))} title="Intet fyld">✕</button>
         {:else}
           <ColorField value={p.fill} label="fyld" onchange={(c) => run(api?.setStyle('fill', c))} />
           <button class="small" onclick={() => run(api?.setStyle('fill', 'none'))} title="Intet fyld">✕</button>
@@ -109,6 +130,73 @@
           </select>
         </label>
       </div>
+      {#if p.fontSize === null && !isNone(p.fill)}
+        <div class="grid">
+          <label>Fyldtype
+            <select value={p.gradient?.kind ?? 'solid'}
+                    onchange={(e) => run(api?.setFillKind(e.currentTarget.value as 'solid', p.gradient?.c1 ?? p.fill, p.gradient?.c2 ?? '#9e9e9e', p.gradient?.angle ?? 90))}>
+              <option value="solid">Ensfarvet</option><option value="linear">Lineær gradient</option><option value="radial">Radial gradient</option>
+            </select>
+          </label>
+          {#if p.gradient?.kind === 'linear'}
+            {@const gr = p.gradient}
+            <label>Retning ° <input inputmode="decimal" value={gr.angle} onkeydown={key} title="0 = nedefra og op, 90 = venstre mod højre"
+                                    onchange={(e) => onField(e, (v) => api?.setFillKind('linear', gr.c1, gr.c2, Number(v)))} /></label>
+          {/if}
+        </div>
+      {/if}
+      {#if p.fontSize === null && !isNone(p.stroke)}
+        <div class="grid">
+          <label>Stregtype
+            <select value={p.dash ?? 'solid'} onchange={(e) => run(api?.setDash(e.currentTarget.value))}>
+              {#each DASHES as [v, l]}<option value={v}>{l}</option>{/each}
+              {#if p.dash === 'custom'}<option value="custom" disabled>Andet mønster</option>{/if}
+            </select>
+          </label>
+          <label>Ender
+            <select value={p.cap ?? 'butt'} onchange={(e) => run(api?.setLineStyle('stroke-linecap', e.currentTarget.value))}>
+              {#each CAPS as [v, l]}<option value={v}>{l}</option>{/each}
+            </select>
+          </label>
+          <label>Hjørner
+            <select value={p.join ?? 'miter'} onchange={(e) => run(api?.setLineStyle('stroke-linejoin', e.currentTarget.value))}>
+              {#each JOINS as [v, l]}<option value={v}>{l}</option>{/each}
+            </select>
+          </label>
+        </div>
+        {#if p.arrows}
+          <div class="row paint">
+            <span class="lbl">Pile</span>
+            <label class="chk"><input type="checkbox" checked={p.arrows.start} onchange={(e) => run(api?.setArrow('start', e.currentTarget.checked))} /> i starten</label>
+            <label class="chk"><input type="checkbox" checked={p.arrows.end} onchange={(e) => run(api?.setArrow('end', e.currentTarget.checked))} /> i slutningen</label>
+          </div>
+        {/if}
+      {/if}
+      {#if p.shape}
+        {@const sh = p.shape}
+        <div class="grid">
+          <label>{sh.k === 'star' ? 'Spidser' : 'Hjørner'} <input inputmode="numeric" value={sh.n} onkeydown={key} onchange={(e) => onField(e, (v) => api?.setShapeParams(v, sh.ri))} /></label>
+          {#if sh.k === 'star'}
+            <label>Indre radius % <input inputmode="numeric" value={Math.round(sh.ri * 100)} onkeydown={key} onchange={(e) => onField(e, (v) => api?.setShapeParams(sh.n, Number(v) / 100))} /></label>
+          {/if}
+        </div>
+      {/if}
+      <div class="row paint">
+        <span class="lbl">Skygge</span>
+        <label class="chk"><input type="checkbox" checked={!!p.shadow} onchange={(e) => run(api?.setShadow(e.currentTarget.checked ? SHADOW : null))} /> til</label>
+        {#if p.shadow}
+          {@const sd = p.shadow}
+          <ColorField value={sd.color} label="skyggens farve" onchange={(c) => run(api?.setShadow({ ...sd, color: c }))} />
+        {/if}
+      </div>
+      {#if p.shadow}
+        {@const sd = p.shadow}
+        <div class="grid">
+          <label>Forskydning X <input inputmode="decimal" value={sd.dx} onkeydown={key} onchange={(e) => onField(e, (v) => api?.setShadow({ ...sd, dx: Number(v) }))} /></label>
+          <label>Forskydning Y <input inputmode="decimal" value={sd.dy} onkeydown={key} onchange={(e) => onField(e, (v) => api?.setShadow({ ...sd, dy: Number(v) }))} /></label>
+          <label>Sløring <input inputmode="decimal" value={sd.blur} onkeydown={key} onchange={(e) => onField(e, (v) => api?.setShadow({ ...sd, blur: Number(v) }))} /></label>
+        </div>
+      {/if}
       {#if p.fontSize !== null}
         <div class="textbox">
           <label class="full">Tekst
@@ -164,4 +252,5 @@
   .tsep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
   .paint { align-items: center; gap: .4rem; margin-bottom: .35rem; flex-wrap: wrap; }
   .paint .lbl { width: 2.6rem; font-size: .85rem; }
+  .chk { display: flex; gap: .25rem; align-items: center; font-size: .85rem; }
 </style>

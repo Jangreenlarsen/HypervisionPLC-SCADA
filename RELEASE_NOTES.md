@@ -2,6 +2,14 @@
 
 ---
 
+## v3.33.0 — 2026-11-06 — Flere tegneredskaber i Tegn
+
+- **Nye former:** **polygon** (klik hjørnerne), **stjerne** og **regulær polygon** (træk fra midten, og antal spidser/hjørner kan ændres bagefter), **bue** (midte, start og slut) og **billede** (PNG, JPG, WebP eller GIF).
+- **Streg:** stiplet, prikket og stiplet-prikket, runde eller firkantede ender og hjørner, samt **pile** i starten og/eller slutningen af en linje.
+- **Fyld og skygge:** lineær og radial **gradient** og **skygge** på figurer.
+- **Lag:** opret, omdøb, skjul, lås og slet lag, og flyt det valgte mellem lag. Objekter kan nu flyttes **ét trin** frem eller tilbage (Ctrl+] / Ctrl+[).
+- **Rettet:** Efter et klik på baggrunden kunne nye figurer blive tegnet uden synlig streg.
+
 ## v3.32.0 — 2026-11-06 — Sæt en SVG-fil ind i tegningen
 
 - **Indsæt SVG-fil …** i Tegn (eller træk en `.svg`-fil ind på tegnefladen) sætter filen ind som én gruppe. Den renses på serveren og skaleres, så den passer i tegningen. Bagefter kan den redigeres eller gemmes som symbol.

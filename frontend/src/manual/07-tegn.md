@@ -8,7 +8,7 @@
 
 - **Øverst**: vælg tegning og version, **Gem kladde**, **Gem og udgiv**, **Bindinger**, **Slet tegning** og **Størrelse**.
 - **Linjen over tegnefladen**: zoom (−, +, **Tilpas**), **tegnehjælp** (gitter og fang) og **hjælpelinjer**.
-- **Værktøjslinjen til venstre**: **Fortryd** og **Gentag** øverst, derefter værktøjerne **Vælg** (V), **Forbindelse** (O), **Linje** (L), **Rektangel** (R), **Ellipse** (E), **Sti** (P), **Frihånd** (F) og **Tekst** (T). Bogstavet er genvejstasten.
+- **Værktøjslinjen til venstre**: **Fortryd** og **Gentag** øverst, derefter værktøjerne **Vælg** (V), **Forbindelse** (O), **Linje** (L), **Rektangel** (R), **Ellipse** (E), **Sti** (P), **Frihånd** (F), **Tekst** (T), **Polygon** (Y), **Stjerne** (S), **Regulær polygon** (N), **Bue** (B) og **Billede**. Bogstavet er genvejstasten.
 - **Tegnefladen** i midten. **Ctrl + musehjul** zoomer, og **mellemrum** eller **midterknappen** + træk flytter udsnittet.
 - **Linjen i bunden** forklarer, hvordan det valgte værktøj bruges (fx *Rektangel: træk for at tegne · Shift = kvadrat · Esc = tilbage til Vælg*).
 - **Panelet til højre** med foldbare sektioner (se *Panelet til højre*).
@@ -23,24 +23,53 @@
 
 Er der ændringer, du ikke har gemt, spørger systemet, før de kasseres.
 
+## Flere former, streg, gradient og skygge
+
+![Tegn med stjerne, n-kant, polygon, bue, stiplet linje med pile og et rektangel med gradient og skygge](../../public/manual/tegn-vaerktoejer.png)
+
+- **Polygon** (Y): klik hjørnerne et ad gangen. **Dobbeltklik** eller **Enter** afslutter (mindst 3 hjørner), og **Esc** dropper den.
+- **Stjerne** (S) og **Regulær polygon** (N): træk fra midten og ud. Mens værktøjet er valgt, sætter du antal **spidser/hjørner** og stjernens **indre radius** i linjen over tegningen. Formen står lige; hold **Shift** for at dreje den med musen. Bagefter kan du ændre spidser og indre radius under *Egenskaber*. Formen bliver stående samme sted og i samme størrelse.
+- **Bue** (B): klik **midten**, så **startpunktet** (det giver radius) og så **slutpunktet**. Buen går med uret. Hold **Shift** for vinkler i trin på 15°.
+- **Billede** (knappen med billedet nederst i værktøjslinjen): vælg en PNG, JPG, WebP eller GIF på højst 2 MB. Billedet indlejres i tegningen og skaleres til højst 60 % af den. Store billeder gør tegningen tung, så brug små billeder.
+
+Under **Egenskaber** for en figur:
+
+- **Fyldtype**: *Ensfarvet*, *Lineær gradient* (med **retning** i grader, 90 = fra venstre mod højre) eller *Radial gradient*. Farverne vælges som *fra* → *til* ud for *Fyld*.
+- **Stregtype** (*Fuld*, *Stiplet*, *Prikket*, *Stiplet-prikket*). Mønstret følger stregens tykkelse. Desuden **Ender** (lige, runde eller firkantede) og **Hjørner** (skarpe, runde eller afskårne).
+- **Pile** på en linje eller sti: *i starten* og/eller *i slutningen*, i stregens farve.
+- **Skygge**: sæt hak i *til*, og ret farve, forskydning og sløring.
+
+**Lag** (øverst i *Objekter*): opret et lag med navn og **Opret**. Klik på et lag for at gøre det **aktivt**, så nye elementer tegnes dér (●). For hvert lag er der knapperne:
+
+- **Vis/Skjult** skjuler laget i Tegn.
+- **Lås** gør, at lagets elementer ikke kan vælges. Det er praktisk til en baggrund.
+- **Flyt hertil** flytter det valgte til laget.
+- **Omdøb** og **Slet** (kun et tomt lag).
+
+Skjul og lås gælder kun i Tegn. Den gemte tegning og Overview viser altid alle lag.
+
+![Lag i Objekter: aktivt lag, vis/skjul, lås, omdøb og slet](../../public/manual/tegn-lag.png)
+
+**Rækkefølge:** **↑** og **↓** i knaplinjen over det markerede (eller **Ctrl+]** og **Ctrl+[**) flytter det valgte ét trin frem eller tilbage. *Læg øverst* og *Læg nederst* flytter helt op eller ned.
+
 ## Vælg, flyt og markér
 
 - **Klik** vælger et element; **Shift+klik** eller en **ramme** vælger flere. Træk for at flytte, træk i et hjørne for at ændre størrelsen, og træk i den grønne prik for at dreje.
 - **Symboler oven i hinanden:** hold **Alt** nede og klik — så vælges elementet, der ligger *bagved* det valgte på samme sted; klik igen med Alt for at gå et lag længere ned. Du kan også vælge elementet i **Objekter**.
-- **Knaplinjen over det markerede**: justér (venstre, midte, højre, top, midte, bund), fordel vandret/lodret (mindst 3), læg øverst/nederst, spejl, **Gruppér**/**Opløs**, **Dupliker** og **Slet**.
+- **Knaplinjen over det markerede**: justér (venstre, midte, højre, top, midte, bund), fordel vandret/lodret (mindst 3), ét trin frem/tilbage, læg øverst/nederst, spejl, **Gruppér**/**Opløs**, **Dupliker** og **Slet**.
 - **Højreklik** giver klip, kopiér, indsæt, dupliker, gruppér, rækkefølge og slet.
 
 ## Taster
 
-Alt kan fortrydes med **Ctrl+Z** (**Ctrl+Y** gentager). **Delete** sletter, **Ctrl+C/X/V** kopierer/klipper/indsætter, **Ctrl+D** duplikerer, **Ctrl+G** grupperer (**Ctrl+Shift+G** opløser), **Ctrl+A** vælger alt, piletasterne flytter 1 (med **Shift** 10), **Ctrl+0** tilpasser zoom, og **Esc** går tilbage til Vælg. Tasterne virker ikke, mens du skriver i et felt — klik i tegningen først.
+Alt kan fortrydes med **Ctrl+Z** (**Ctrl+Y** gentager). **Delete** sletter, **Ctrl+C/X/V** kopierer/klipper/indsætter, **Ctrl+D** duplikerer, **Ctrl+G** grupperer (**Ctrl+Shift+G** opløser), **Ctrl+A** vælger alt, piletasterne flytter 1 (med **Shift** 10), **Ctrl+0** tilpasser zoom, **Ctrl+]**/**Ctrl+[** flytter ét trin frem/tilbage, og **Esc** går tilbage til Vælg. Tasterne virker ikke, mens du skriver i et felt — klik i tegningen først.
 
 ## Panelet til højre
 
 Panelet består af foldbare sektioner. Klik på en overskrift for at folde den ud — de andre foldes så sammen, undtagen dem du har **fastgjort med 📌** (de står altid åbne; valget huskes i browseren). Fra start er *Valgt element* og *Egenskaber* fastgjort.
 
 - **Valgt element**: navn, **Opsæt symbol (6 trin)**, **Kopiér opsætning**, **Erstat med symbol …**, **Ret tilslutningspunkter …** og **Farver**.
-- **Egenskaber**: placering (X/Y), størrelse (B/H), drejning, hjørner, fyld, streg, tykkelse og synlighed — skriv en værdi og tryk **Enter**. For tekster og forbindelser er der flere felter (se *Tekst* og kapitlet *Forbindelser*).
-- **Objekter**: alle elementer i tegningen, forrest øverst. Klik vælger (også et element, der ligger skjult under et andet), **Ctrl-klik** vælger flere, og **▲▼** flytter det valgte frem eller tilbage.
+- **Egenskaber**: placering (X/Y), størrelse (B/H), drejning, hjørner, fyld (også gradient), streg (type, ender, hjørner, pile), tykkelse, synlighed og skygge — skriv en værdi og tryk **Enter**. For tekster og forbindelser er der flere felter (se *Tekst* og kapitlet *Forbindelser*).
+- **Objekter**: tegningens **lag** (se ovenfor) og alle elementer, forrest øverst. Klik vælger (også et element, der ligger skjult under et andet), **Ctrl-klik** vælger flere, og **▲▼** flytter det valgte frem eller tilbage.
 - **Symboler**: symbolbiblioteket og grupper (se *Symbolbiblioteket* og *Grupper af symboler*).
 
 ## Tekst

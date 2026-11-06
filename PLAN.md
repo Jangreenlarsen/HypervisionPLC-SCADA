@@ -34,7 +34,7 @@
 2. **Tegn:** *Indsæt › SVG-fil…* og træk og slip af en .svg på lærredet indsætter filen som én gruppe ved musen og skaleret til at passe. Defs-id'er omdøbes, så de ikke kolliderer med tegningens egne. Kan fortrydes. Gruppen kan derefter gemmes som symbol (del 1).
 3. **Tests:** sanitize-endpointet, id-omdøbning (frontend-test).
 
-## Del C — v3.33.0: nye tegneredskaber
+## Del C — v3.33.0: nye tegneredskaber — ✅ færdig (+ bue-værktøj efter ønske fra Jan)
 1. **Former:**
    - **polygon:** klik punkt for punkt, dobbeltklik afslutter;
    - **stjerne og regulær polygon:** træk, med antal hjørner og indre radius i Inspector;

@@ -4,6 +4,27 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [3.33.0 build 0337] — 2026-11-06 — Nye tegneredskaber i Tegn: polygon, stjerne, n-kant, bue, billede, streg, pile, gradient, skygge og lag
+
+- **Nyt `frontend/svgedit-host/shapes.js`** (ren logik og DOM-hjælpere):
+  - former: regulær polygon og stjerne, `regenerate` (nye spidser/hjørner, midte og størrelse bevares) og bue (`arcPath`, `angleTo`);
+  - streg: `dashArray`/`dashKind` (skaleret med tykkelsen);
+  - defs: pile `hv_pil_<farve>`, gradient `hv_grad_<id>` og skygge `hv_skygge_<id>` (feDropShadow), med `cleanupDefs` ved gem;
+  - billeder: kontrol af type og størrelse (højst 2 MB) samt skalering.
+- **`scada-core.js`:**
+  - formværktøjerne polygon, stjerne, regulær polygon og bue (`setShapeTool`);
+  - `setDash`, `setLineStyle`, `setArrow`, `setFillKind`, `setShadow`, `setShapeParams`, `insertImage`, `layers`, `layerOp` (ny, omdøb, vis, lås, aktiv, slet tomt, flyt valgte);
+  - `paintOf` med streg, pile, gradient, skygge og form;
+  - et låst lag kan ikke vælges, heller ikke med en ramme;
+  - `getSvg` rydder ubrugte egne defs op og gemmer skjulte lag som synlige, så Overview altid viser alle lag.
+- **`engine.ts`:** formværktøjerne og genvejene Y, S, N, B samt Ctrl+]/[ (ét trin frem/tilbage). Lærredet kopierer ikke længere manglende stil-værdier (`null`) over i stilen for nye figurer (se BUGS.md).
+- **Brugerflade:**
+  - `DrawCanvas.svelte`: knapper til de nye værktøjer og Billede, en linje med spidser og indre radius, og ét trin frem/tilbage over det markerede;
+  - `Inspector.svelte`: fyldtype og gradient, stregtype, ender, hjørner, pile, skygge, spidser og indre radius;
+  - `ObjectTree.svelte`: lagpanel.
+- **Tests:** `src/lib/draw/shapes.test.ts` (14) og `backend/tests/test_draw_tools_svg.py` (alle nye elementer overlever serverens rensning, og SVG-/eksterne billeder fjernes stadig).
+- **Manual:** `07-tegn.md` har et nyt afsnit og billederne `tegn-vaerktoejer.png` og `tegn-lag.png`.
+
 ## [3.32.0 build 0336] — 2026-11-06 — SVG-fil ind i en åben tegning + rettelser fra review af SVG-importen
 
 - **SVG ind i tegningen (del B):**
