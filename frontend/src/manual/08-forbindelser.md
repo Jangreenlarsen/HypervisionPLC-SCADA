@@ -55,6 +55,32 @@ Et rør sættes op som et symbol: vælg røret, og tryk **Opsæt symbol (6 trin)
 
 Et **T-stykke** er et biblioteks-symbol med tre ben (*tilløb 1*, *tilløb 2* og *midte*): sæt det op med **Opsæt symbol**, og giv hvert ben sit eget løbelys. Samme opsætning på flere rør: **Kopiér opsætning** og **Indsæt opsætning**.
 
+## Signalveje: løbelys på en hel rørvej på én gang
+
+En **signalvej** sætter løbelys på *alle* rør mellem to symboler, fx fra kedlen til radiatorerne, styret af ventilerne og pumperne undervejs. Du skal ikke sætte hvert rør, hver bøjning og hvert T-stykke op for sig.
+
+Åbn sektionen **Signalveje** i panelet til højre (rollen tekniker), og tryk **Ny signalvej …**. Tegningen gemmes og udgives først, hvis den har ændringer.
+
+1. **Start og slut:** vælg de to symboler i listerne, eller vælg symbolet i tegningen og tryk **← valgt**. Tryk **Find vej**.
+2. **Vejen:** vejen markeres med **orange** i tegningen. Er der flere veje (fx en omløbsledning), kan du vælge mellem op til tre. Vejen findes ud fra, hvordan delene hænger sammen:
+   - rør, der sidder fast i symbolerne;
+   - symboler, hvis tilslutningspunkter rører hinanden;
+   - et rør, der ender midt på et andet (en afgrening uden T-stykke).
+
+   Vejen går aldrig gennem statusfelter, knapper eller løse tekster.
+3. **Hvornår går der flow?** For hver ventil, 3-vejsventil, pumpe og kontakt på vejen vælger du et tag og hvornår:
+   - et til/fra-tag: *når tagget er til* eller *fra*;
+   - et tal-tag: en sammenligning som ≥ 50.
+
+   Symbolets egne tags (fra dets opsætning) står øverst og foreslås. Vælg *ingen betingelse*, hvis symbolet ikke skal tælle med. Alle betingelser skal være opfyldt (OG). Bøjninger, T-stykker og kontraventiler spørges der ikke om.
+4. **Navn og udseende:** giv signalvejen et navn, vælg lysfarve og fart, og tryk **Gem signalvej**.
+
+Når du gemmer, lægges betingelsen som en logikblok (*Signalvej: <navn>*) på vejens første rør, og hvert rør på vejen får et løbelys i vejens retning. Er et rør tegnet "baglæns", vendes lyset automatisk. Rørenes øvrige opsætning, fx en farve-animation, bevares. Har et rør allerede løbelys, spørger Tegn, om det skal erstattes. Et rør kan kun høre til én signalvej ad gangen.
+
+Under **Signalveje** står de gemte signalveje med **Ret** og **Slet**. *Slet* fjerner løbelyset og betingelsen igen og intet andet. Mangler dele af en vej, fordi rør er slettet eller tegnet om, står der en advarsel. Tryk **Ret** og **Find vej** igen.
+
+> Finder Tegn ingen vej, så tjek, at rørene sidder fast (grønne ender, når røret er valgt), og at rørene rører hinanden, hvor de mødes.
+
 ## Tilslutningspunkter (siden Symboler)
 
 På siden **Symboler** (rollen tekniker, under **Opsætning**), fanen **Tilslutningspunkter**, kan du rette tilslutningspunkterne for et symbol i biblioteket — også egne symboler:

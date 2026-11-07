@@ -16,7 +16,7 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 14   # 14: tags.priority (FEATURE_TAG_PRIORITET)
+SCHEMA_VERSION = 15   # 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -236,6 +236,17 @@ CREATE TABLE IF NOT EXISTS library_symbols (
     updated_by  TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS library_symbols_label_ci ON library_symbols(lower(label));
+-- Signalveje i Tegn (v4.2.0, services/signal_paths.py): en navngiven vej gennem tegningen (start, slut, elementer, betingelser).
+-- Løbelys og logikblokke ligger som almindelig symbolopsætning (symbol_config); `data` husker hvilke dele der hører til vejen.
+CREATE TABLE IF NOT EXISTS signal_paths (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    data        TEXT NOT NULL,
+    updated_at  REAL NOT NULL,
+    updated_by  TEXT NOT NULL,
+    UNIQUE (drawing_id, name)
+);
 """
 
 PLC_FIELDS = ("name", "base_url", "username", "enabled", "sse_enabled", "verify_tls")
@@ -937,6 +948,67 @@ class Database:
             return None
         return {**rows[0], "config": json.loads(rows[0]["config"])}
 
+    # ----------------------------------------------------------------- signalveje (v4.2.0)
+
+    def list_signal_paths(self, drawing_id: str | None = None) -> list[dict[str, Any]]:
+        sql = "SELECT id, drawing_id, name, data, updated_at, updated_by FROM signal_paths"
+        rows = (self._query(sql + " WHERE drawing_id = ? ORDER BY name", (drawing_id,)) if drawing_id is not None
+                else self._query(sql + " ORDER BY drawing_id, name"))
+        for r in rows:
+            r["data"] = json.loads(r["data"])
+        return rows
+
+    def get_signal_path(self, drawing_id: str, path_id: int) -> dict[str, Any] | None:
+        return next((r for r in self.list_signal_paths(drawing_id) if r["id"] == path_id), None)
+
+    def write_signal_path(self, drawing_id: str, path_id: int | None, name: str | None, data: dict[str, Any] | None,
+                          configs: dict[str, dict[str, Any] | None], username: str,
+                          expect: dict[str, dict[str, Any] | None] | None = None) -> int | None:
+        """Gem (path_id None = ny) eller slet (data None) en signalvej OG de berørte symbolopsætninger i én transaktion.
+        `configs`: {element: ny opsætning, eller None = slet opsætningen}. `expect`: opsætningerne som de var, da ændringen
+        blev beregnet — er en af dem ændret imens (af en anden), rulles alt tilbage. → id; None hvis vejen er væk eller
+        navnet taget; -1 hvis en opsætning er ændret imens."""
+        now = time.time()
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                for element, want in (expect or {}).items():
+                    row = cur.execute("SELECT config FROM symbol_config WHERE drawing_id = ? AND element = ?",
+                                      (drawing_id, element)).fetchone()
+                    if (json.loads(row[0]) if row else None) != want:
+                        cur.execute("ROLLBACK")
+                        return -1
+                if data is None:
+                    if cur.execute("DELETE FROM signal_paths WHERE id = ? AND drawing_id = ?", (path_id, drawing_id)).rowcount != 1:
+                        cur.execute("ROLLBACK")
+                        return None
+                elif path_id is None:
+                    path_id = cur.execute("INSERT INTO signal_paths(drawing_id, name, data, updated_at, updated_by) "
+                                          "VALUES (?,?,?,?,?)", (drawing_id, name, json.dumps(data, ensure_ascii=False),
+                                                                 now, username)).lastrowid
+                elif cur.execute("UPDATE signal_paths SET name = ?, data = ?, updated_at = ?, updated_by = ? "
+                                 "WHERE id = ? AND drawing_id = ?", (name, json.dumps(data, ensure_ascii=False), now,
+                                                                     username, path_id, drawing_id)).rowcount != 1:
+                    cur.execute("ROLLBACK")
+                    return None
+                for element, cfg in configs.items():
+                    if cfg is None:
+                        cur.execute("DELETE FROM symbol_config WHERE drawing_id = ? AND element = ?", (drawing_id, element))
+                    else:
+                        cur.execute("INSERT INTO symbol_config(drawing_id, element, config, updated_at, updated_by) "
+                                    "VALUES (?,?,?,?,?) ON CONFLICT(drawing_id, element) DO UPDATE SET "
+                                    "config = excluded.config, updated_at = excluded.updated_at, updated_by = excluded.updated_by",
+                                    (drawing_id, element, json.dumps(cfg, ensure_ascii=False), now, username))
+                cur.execute("COMMIT")
+                return path_id
+            except sqlite3.IntegrityError:
+                cur.execute("ROLLBACK")
+                return None
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
     def list_symbol_configs(self, drawing_id: str | None = None) -> list[dict[str, Any]]:
         sql = "SELECT drawing_id, element, config, updated_at, updated_by FROM symbol_config"
         rows = (self._query(sql + " WHERE drawing_id = ? ORDER BY element", (drawing_id,)) if drawing_id is not None
@@ -1255,6 +1327,7 @@ class Database:
             "symbol_config": [{"drawing_id": r["drawing_id"], "element": r["element"], "config": r["config"]}
                               for r in self.list_symbol_configs()],
             "symbol_groups": self._export_groups(),
+            "signal_paths": [{k: r[k] for k in ("drawing_id", "name", "data")} for r in self.list_signal_paths()],
             "trend_views": self.list_trend_views(),
             "symbol_ports": self.list_symbol_ports(),
             "library_symbols": [{k: r[k] for k in ("type", "label", "hint", "svg", "preset", "version")}
@@ -1412,6 +1485,9 @@ class Database:
                     for el, anims in (g.get("anims") or {}).items():
                         cur.execute("INSERT INTO symbol_group_anims(group_id, element, anims, updated_at, updated_by) "
                                     "VALUES (?,?,?,?,?)", (gid, el, json.dumps(anims, ensure_ascii=False), now, "restore"))
+                for sp in data.get("signal_paths", []):   # signalveje (v4.2.0); slettet ovenfor via tegningerne
+                    cur.execute("INSERT INTO signal_paths(drawing_id, name, data, updated_at, updated_by) VALUES (?,?,?,?,?)",
+                                (sp["drawing_id"], sp["name"], json.dumps(sp["data"], ensure_ascii=False), now, "restore"))
                 for b in data["bindings"]:
                     cur.execute("INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
                                 (b["drawing_id"], b["element"], b["position"], b["tag"], b["anim"],

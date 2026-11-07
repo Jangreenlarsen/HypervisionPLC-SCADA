@@ -33,6 +33,8 @@ from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
 from .api.operate import router as operate_router
 from .api.symbol_groups import router as symbol_groups_router
+from .api.signal_paths import router as signal_paths_router
+from .services.signal_paths import SignalPathService
 from .api.symbol_ports import router as symbol_ports_router
 from .api.library import router as library_router
 from .api.symbols import router as symbols_router
@@ -135,6 +137,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.drawing_service = DrawingService(db, drawing_files, manager.cache)
         app.state.symbol_service = SymbolService(db, app.state.drawing_service)
         app.state.symbol_group_service = SymbolGroupService(db, app.state.symbol_service)
+        app.state.signal_path_service = SignalPathService(db, app.state.symbol_service)   # signalveje i Tegn (v4.2.0)
         app.state.symbol_port_service = SymbolPortService(db)
         app.state.library_service = LibraryService(db, app.state.drawing_service, app.state.symbol_service)
         # Tags kun deaktiverede tegninger bruger pollas ikke (v1.6.0)
@@ -274,6 +277,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(drawings_router)
     app.include_router(symbols_router)
     app.include_router(symbol_groups_router)
+    app.include_router(signal_paths_router)
     app.include_router(symbol_ports_router)
     app.include_router(library_router)
     app.include_router(live_router)
