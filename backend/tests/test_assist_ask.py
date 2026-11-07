@@ -99,6 +99,9 @@ def test_client_stream_yields_parts_and_a_completion():
     assert out[:2] == ["Pumpen ", "kører."] and isinstance(out[2], Completion)
     assert out[2].text == "Pumpen kører." and out[2].tokens_in == 900 and out[2].prompt_ms == 4000.0
     assert seen["stream"] is True and seen["chat_template_kwargs"] == {"enable_thinking": False}
+    # Skrivehastigheden regnes uden tiden til at læse prompten (målt: 82 s af 154 s på demo-VM'en)
+    assert Completion("", 643, 180, 154000, "m", prompt_ms=82000).tokens_per_s == 2.5
+    assert Completion("", 10, 20, 10000, "m").tokens_per_s == 2.0
     with pytest.raises(LlmError) as e:
         asyncio.run(run(lambda req: httpx.Response(503)))
     assert e.value.kind == "busy"

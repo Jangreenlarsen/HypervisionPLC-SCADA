@@ -27,8 +27,8 @@ MAX_TAGS = 6
 MAX_ALARMS = 8
 MAX_SYMBOLS = 30
 MANUAL_HITS = 2
-MANUAL_CHARS = 700
-DATA_BUDGET = 3200        # tegn i alt til data — prompten skal være kort på CPU (ca. 1000 tokens)
+MANUAL_CHARS = 500
+DATA_BUDGET = 2000        # tegn i alt til data — målt på demo-VM: ca. 6–8 tokens/s til at læse prompten
 PERIODS = (("uge", 7 * 86400, "den seneste uge"), ("døgn", 86400, "det seneste døgn"), ("24 t", 86400, "det seneste døgn"),
            ("i dag", 86400, "det seneste døgn"), ("time", 3600, "den seneste time"))
 # Søgeord til manualen pr. alarmtype (alarmteksten alene rammer ofte forkert afsnit)

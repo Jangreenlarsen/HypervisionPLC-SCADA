@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.1.1 build 0346] — 2026-11-07 — Hjælper: kortere prompt og korrekt tokens/s
+
+- `services/assist_tools.py`: data i prompten højst 2000 tegn (før 3200), manualuddrag 500 tegn (før 700). Målt på demo-VM'en tog prompten 80–120 s at læse.
+- `services/assistant.py`: svar højst ca. 80 ord / 220 tokens (før 120 ord / 320).
+- `llm/client.py`: `Completion.tokens_per_s` er nu skrivehastigheden (uden `prompt_ms`).
+- `lib/AssistPanel.svelte`, manual *Drift › Hjælperen*: svartid 1–2 minutter.
+- `docs/LLM_ANALYSE.md`: anden måling (hjælper-panelet på demo-VM'en). Test: `test_assist_ask.py`.
+
 ## [4.1.0 build 0345] — 2026-11-07 — Hjælper-panel (LLM-hjælper fase 1)
 
 - Nyt `services/assist_knowledge.py`: manualen opdelt i `##`-afsnit med samme ankre som Manual-siden og søgt med BM25 i ren Python (danske stopord og endelser, ingen ny afhængighed). Indekset bygges igen, når filerne ændres.

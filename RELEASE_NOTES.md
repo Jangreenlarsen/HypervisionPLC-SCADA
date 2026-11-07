@@ -2,6 +2,11 @@
 
 ---
 
+## v4.1.1 — 2026-11-07 — Hjælper: hurtigere svar
+
+- Hjælperen sender kortere data til modellen og svarer kortere. Det giver hurtigere svar på maskiner med svag CPU.
+- Hastigheden (tokens/s) i hjælperens status er nu rigtig.
+
 ## v4.1.0 — 2026-11-07 — Hjælper-panel
 
 - Knappen **Hjælper** i topbjælken åbner et panel i højre side, hvor du kan spørge om anlægget og SCADA'en med dine egne ord. Den vises, når hjælperen er slået til, og kræver rollen operatør eller højere.

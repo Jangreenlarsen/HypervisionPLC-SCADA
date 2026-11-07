@@ -107,7 +107,7 @@
       {#if !turns.length}
         <p class="muted small">Spørg om anlægget eller om hvordan SCADA'en bruges. Hjælperen ser det samme som dig (alarmer, tags og
           tegninger du har adgang til) og manualen. Den ændrer aldrig noget — den fortæller, hvor du selv kan gøre det. Et svar tager
-          typisk ½–1½ minut.</p>
+          typisk 1–2 minutter.</p>
         <div class="sugg">
           {#each suggestions as s (s)}<button class="small" onclick={() => send(s)}>{s}</button>{/each}
         </div>

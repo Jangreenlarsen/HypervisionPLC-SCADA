@@ -45,7 +45,9 @@ class Completion:
 
     @property
     def tokens_per_s(self) -> float:
-        return round(self.tokens_out / (self.ms / 1000), 2) if self.ms > 0 and self.tokens_out else 0.0
+        """Skrivehastighed: tokens pr. sekund efter at prompten er læst (prompt_ms), ellers over hele tiden."""
+        gen_ms = self.ms - self.prompt_ms if 0 < self.prompt_ms < self.ms else self.ms
+        return round(self.tokens_out / (gen_ms / 1000), 2) if gen_ms > 0 and self.tokens_out else 0.0
 
 
 class LlmClient:
