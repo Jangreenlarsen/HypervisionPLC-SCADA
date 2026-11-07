@@ -2,6 +2,10 @@
 
 ---
 
+## v4.6.2 — 2026-11-07 — Hjælper: rettelse for modellen *Stor*
+
+- Med modellen *Stor* (Ministral-3-8B) gav hjælperen fejlen "LLM-tjenesten svarede 500". Det er rettet.
+
 ## v4.6.1 — 2026-11-07 — Rettelser i Tegn og hjælperen
 
 - Et symbol, du har valgt bag et andet (Alt+klik), kan nu trækkes direkte, uden at det forreste bliver valgt i stedet. Et klik uden at trække vælger det forreste igen.

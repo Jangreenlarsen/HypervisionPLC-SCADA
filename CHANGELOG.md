@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.6.2 build 0356] — 2026-11-07 — Hjælper: fejl 500 med Ministral (roller skal skifte)
+
+- `services/assistant.py`: ny `alternating` sørger for, at samtalen, der sendes til modellen, skifter mellem bruger og assistent (beskeder i træk slås sammen, start med bruger, slut med assistent). Ministral-3-8B's chat-skabelon afviste ellers kaldet med 500.
+- Tests: `test_assist_ask.py` (`alternating` og hele kaldet).
+
 ## [4.6.1 build 0355] — 2026-11-07 — Tag fat i et symbol bag et andet; hjælperens manual-søgning finder mere
 
 - `src/lib/draw/engine.ts`:

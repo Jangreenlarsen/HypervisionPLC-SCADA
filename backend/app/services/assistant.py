@@ -141,6 +141,24 @@ def inspect_package(path: Path, sha256: str, machine_arch: str) -> dict[str, Any
     return {"manifest": man, "sha256": sha256, "size": size, "files": len(names)}
 
 
+def alternating(history: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Samtalen før det nye spørgsmål, så rollerne skifter: bruger, assistent, bruger, assistent … (v4.6.2).
+    Nogle modellers chat-skabelon (fx Ministral) afviser ellers kaldet med fejl 500 — og et fejlet svar, der er sorteret
+    fra, giver netop to bruger-beskeder i træk. Beskeder i træk med samme rolle slås sammen; historikken skal starte med
+    brugeren og slutte med assistenten (det nye spørgsmål er en bruger-besked)."""
+    out: list[dict[str, str]] = []
+    for m in history:
+        if out and out[-1]["role"] == m["role"]:
+            out[-1] = {"role": m["role"], "content": f"{out[-1]['content']}\n\n{m['content']}"}
+        else:
+            out.append(dict(m))
+    while out and out[0]["role"] != "user":
+        out.pop(0)
+    while out and out[-1]["role"] != "assistant":
+        out.pop()
+    return out
+
+
 class AssistantService:
     def __init__(self, data_dir: Path, hw: HwProfileService, client: LlmClient, state_dir: Path | None = None):
         self.dir = data_dir / "llm"                                              # ejes af tjenesten: upload + anmodning
@@ -384,9 +402,10 @@ class AssistantService:
             self.finish(user.username)
             raise
         msgs: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
-        for h in history[-MAX_HISTORY:]:
-            if h.get("role") in ("user", "assistant") and isinstance(h.get("content"), str) and h["content"].strip():
-                msgs.append({"role": h["role"], "content": clean(h["content"], HISTORY_CHARS)})
+        msgs += alternating([{"role": h["role"], "content": clean(h["content"], HISTORY_CHARS)}
+                             for h in history[-MAX_HISTORY:]
+                             if h.get("role") in ("user", "assistant") and isinstance(h.get("content"), str)
+                             and h["content"].strip()])
         data = g.render()
         msgs.append({"role": "user", "content": (f"<data>\n{data}\n</data>\n\n" if data else "") + f"Spørgsmål: {question}"})
         return {"messages": msgs, "sources": g.sources, "tools": g.tools, "data_chars": len(data)}
