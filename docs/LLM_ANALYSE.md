@@ -162,6 +162,23 @@ Spørgsmålet *"Hvordan kvitterer jeg en alarm?"* fra siden Alarmer: 643 tokens 
 - **Qwen3.5-2B:** ca. dobbelt så hurtig, men svagere på dansk.
 - **Flere vCPU:** både læsning og skrivning skalerer næsten lineært med kernerne.
 
+### Tredje måling — årsagen til den langsomme prompt (2026-11-07)
+
+Mistanken var Qwen3.5's nye opmærksomhedslag, så **Qwen3-4B-Instruct-2507** (Apache-2.0, klassisk arkitektur; pakke `qwen3-4b-2507-q4_k_m` i `deploy/llm-models.json`) blev installeret og målt.
+
+| Måling (demo-VM, 3 tråde) | Læsning af prompt | Skrivning |
+|---|---|---|
+| Hjælper-panelet, Qwen3-4B-2507, 682 tokens (koldt / varmt) | 126 s / 68 s | 2,5 tokens/s |
+| `llama-bench` pp256 / tg32, 3 tråde | 5,5 tokens/s | 3,3 tokens/s |
+| `llama-bench` pp256 / tg32, 4 tråde | 5,6 tokens/s | 3,1 tokens/s |
+| `llama-bench` pp128 med / uden ompakning (`--repack`) | 5,8 / 6,0 tokens/s | 3,1 / 2,9 tokens/s |
+
+Varianten `libggml-cpu-haswell` (AVX2/FMA/F16C) indlæses korrekt, og CPU-steal er ca. 7 %.
+
+**Konklusion:** grænsen er hverken modellen eller opsætningen, men CPU'en. Ryzen Embedded V1500B er en lavenergi-CPU, og VM'en regner ca. 50 GFLOPS. Svar på 1–2½ minut er det realistiske på denne maskine. For hurtigere svar er der to muligheder:
+- **Mindre model:** Qwen3-1.7B, ca. 2½ gang hurtigere, men svagere på dansk.
+- **Kraftigere vært:** en moderne 8-kernet CPU giver typisk 10× hurtigere læsning af prompten.
+
 ## 8. Anbefaling og rækkefølge
 
 1. **Trin 1, uden AI (alle profiler):** signalvej-guide.
