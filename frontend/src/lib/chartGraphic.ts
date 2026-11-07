@@ -83,13 +83,20 @@ export const textWidth = (s: string, font: number): number => s.length * font * 
 
 /** Runde værdier til Y-aksen (1, 2, 2,5 eller 5 × 10^n), højst `max` stk., inden for [lo, hi]. */
 export function niceTicks(lo: number, hi: number, max = 5): number[] {
-  if (!(hi > lo)) return [lo];
+  // Et spænd, der kun er afrundingsstøj (fx 20,124689999999998 → 20,124690000000005), er fladt — ellers bliver trinet
+  // mindre end tallets egen præcision, og løkken nedenfor laver millioner af "inddelinger" (BUGS v4.4.3)
+  if (!(hi > lo) || hi - lo <= Math.max(Math.abs(lo), Math.abs(hi)) * 1e-9) return [lo];
   const raw = (hi - lo) / Math.max(1, max - 1);
   const p = 10 ** Math.floor(Math.log10(raw));
   const step = [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => (hi - lo) / s <= max - 1 + 1e-9) ?? 10 * p;
   const out: number[] = [];
-  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) out.push(Math.round(v / step) * step);
-  return out.map((v) => Math.round(v * 1e6) / 1e6 || 0);   // || 0: aldrig "-0"
+  const first = Math.ceil(lo / step - 1e-9);
+  for (let k = 0; k <= max; k++) {            // højst max+1 inddelinger — aldrig en uendelig række
+    const v = (first + k) * step;
+    if (v > hi + 1e-9 * Math.max(1, Math.abs(hi))) break;
+    out.push(v);
+  }
+  return [...new Set(out.map((v) => Math.round(v * 1e6) / 1e6 || 0))];   // || 0: aldrig "-0"; ens efter afrunding → én
 }
 
 /** Tidsinddelinger (sekunder) — runde tider i dansk tid (minutter, timer, døgn). */
@@ -122,17 +129,31 @@ export function wrapLegend(items: string[], font: number, maxW: number, maxLines
       cur.push(i);
     });
     if (cur.length) lines.push(cur);
-    const widest = Math.max(0, ...items.map((s) => textWidth(s, f)));
+    const widest = maxOf(items.map((s) => textWidth(s, f)), 0);
     if ((lines.length <= maxLines && widest <= maxW) || f <= 6) return { font: r1(f), lines };
     f = Math.max(6, f * 0.9);
   }
 }
 
+/** Største/mindste i en liste uden `Math.max(...liste)` (som sprænger stakken ved lange lister). */
+export function maxOf(xs: number[], empty: number, floor = -Infinity): number {
+  let m = floor;
+  for (const x of xs) if (x > m) m = x;
+  return xs.length ? m : Math.max(empty, floor);
+}
+export function minOf(xs: number[], empty: number): number {
+  let m = Infinity;
+  for (const x of xs) if (x < m) m = x;
+  return xs.length ? m : empty;
+}
+
 /** Y-aksen: den valgte, ellers fra data (søjler altid med 0); et fladt forløb får lidt luft. */
 export function yRange(series: Point[][], cfg: Pick<ChartCfg, 'style' | 'y_min' | 'y_max'>): [number, number] {
   const vals = series.flat().map((p) => p[1]).filter((v): v is number => v !== null && Number.isFinite(v));
-  let lo = cfg.y_min ?? (vals.length ? Math.min(...vals) : 0);
-  let hi = cfg.y_max ?? (vals.length ? Math.max(...vals) : 1);
+  let lo = cfg.y_min ?? (vals.length ? minOf(vals, 0) : 0);
+  let hi = cfg.y_max ?? (vals.length ? maxOf(vals, 1) : 1);
+  // Kun afrundingsstøj imellem: et fladt forløb (ellers bliver aksen 0,000000000000007 bred)
+  if (hi > lo && hi - lo <= Math.max(Math.abs(lo), Math.abs(hi)) * 1e-9 && cfg.y_min === null && cfg.y_max === null) hi = lo;
   if (cfg.style === 'bar') {
     if (cfg.y_min === null) lo = Math.min(lo, 0);
     if (cfg.y_max === null) hi = Math.max(hi, 0);
@@ -161,7 +182,7 @@ export function chartLayout(box: Box, series: Point[][], start: number, end: num
   const [yMin, yMax] = yRange(series, cfg);
   const yVals = niceTicks(yMin, yMax, Math.max(2, Math.min(8, Math.floor(box.h / (font * 3)))));
   const yLabels = yVals.map(axisNumber);
-  const left = Math.max(...yLabels.map((s) => textWidth(s, font * 0.85)), font) + font * 0.7;
+  const left = maxOf(yLabels.map((s) => textWidth(s, font * 0.85)), font, font) + font * 0.7;
   const top = lg.place === 'top' ? legendH + font * 0.4 : font * 0.8;
   const bottom = font * 1.7 + (lg.place === 'bottom' ? legendH : 0);
   const plot: Box = { x: r1(box.x + left), y: r1(box.y + top), w: r1(Math.max(10, box.w - left - pad)), h: r1(Math.max(10, box.h - top - bottom)) };

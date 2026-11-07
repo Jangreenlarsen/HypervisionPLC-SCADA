@@ -2,6 +2,10 @@
 
 ---
 
+## v4.4.3 — 2026-11-07 — Trendgrafer: rettelse
+
+- En trendgraf, hvis værdier står helt stille, viste fejlen "Maximum call stack size exceeded" i stedet for kurven. Den vises nu som en vandret linje.
+
 ## v4.4.2 — 2026-11-07 — Hurtigere svar ved betjening
 
 - Når du sætter en værdi eller starter/stopper noget, vises PLC'ens nye værdi straks. Før kunne der gå et par sekunder, især når PLC'ens push-forbindelse ikke kan bruges.

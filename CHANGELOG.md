@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.4.3 build 0352] — 2026-11-07 — Trendgraf: "Maximum call stack size exceeded" ved et fladt forløb
+
+- `lib/chartGraphic.ts`:
+  - `niceTicks` og `yRange` behandler et spænd, der kun er afrundingsstøj, som fladt;
+  - `niceTicks` laver højst max+1 inddelinger og fjerner dubletter;
+  - nye `maxOf`/`minOf` erstatter `Math.max/min(...liste)` (y-akse, forklaring).
+- Test: `chartGraphic.test.ts` (fladt forløb med støj som på demo'en, loft over inddelinger, lange lister).
+
 ## [4.4.2 build 0351] — 2026-11-07 — Betjening: den skrevne værdi vises med det samme
 
 - `services/operate.py`:
