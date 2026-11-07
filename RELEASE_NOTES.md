@@ -2,6 +2,10 @@
 
 ---
 
+## v4.7.0 — 2026-11-07 — Tags: slet flere på én gang
+
+- På siden **Tags** kan du afkrydse flere tags og trykke **Slet valgte**. *Vælg alle* og Shift+klik for et interval virker som under Symboler.
+
 ## v4.6.2 — 2026-11-07 — Hjælper: rettelse for modellen *Stor*
 
 - Med modellen *Stor* (Ministral-3-8B) gav hjælperen fejlen "LLM-tjenesten svarede 500". Det er rettet.

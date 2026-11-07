@@ -5,6 +5,7 @@
   import { formatValue } from '../lib/animate';
   import { SOURCE_LABEL, sourceKind } from '../lib/tagSource';
   import { usageText, type TagUsage } from '../lib/tagUsage';
+  import { pickInList } from '../lib/multiPick';
   import { LiveClient } from '../lib/live';
 
   let { canEdit = false }: { canEdit?: boolean } = $props();
@@ -139,6 +140,46 @@
       await refresh();
     } catch (e) {
       deleteErrors = { ...deleteErrors, [t.name]: (e as Error).message };
+    }
+  }
+
+  // Flervalg (v4.7.0): afkryds tags, Shift+klik for et interval, og slet dem samlet (samme endpoint og transaktion)
+  let selected = $state<string[]>([]);
+  let lastPick = -1;
+  let bulkError = $state('');
+  let bulkBusy = $state(false);
+  const names = $derived(tags.map((t) => t.name));
+  const sel = $derived(selected.filter((n) => names.includes(n)));
+  const allOn = $derived(names.length > 0 && sel.length === names.length);
+  function pick(name: string, i: number, e: MouseEvent): void {
+    selected = pickInList(names, sel, name, i, lastPick, e.shiftKey);
+    lastPick = i;
+  }
+
+  async function removeSelected(): Promise<void> {
+    const list = [...sel];
+    if (!list.length) return;
+    bulkError = '';
+    try {
+      const u = await post<TagUsage>('/api/tags/usage', { names: list });
+      const lines = usageText(u);
+      const what = list.length === 1 ? `tagget ${list[0]}` : `${list.length} tags`;
+      const text = (lines.length
+        ? `De valgte tags bruges her:\n${lines.join('\n')}\n\nSlettes ${what}, fjernes de også alle disse steder${u.symbols ? ' (symbolerne skal sættes op igen)' : ''}. `
+          + `Der tages backup først (System › Backup).${u.history ? ' Historikken slettes.' : ''}`
+        : `Slet ${what}?${u.history ? ' Historikken slettes (der tages backup først).' : ''}`)
+        + (list.length > 1 ? `\n\n${list.slice(0, 12).join(', ')}${list.length > 12 ? ` … (+${list.length - 12})` : ''}` : '');
+      if (!await askUser(text, { ok: lines.length ? `Slet ${list.length} tags og henvisninger` : `Slet ${list.length} tags`, danger: true })) return;
+      bulkBusy = true;
+      const r = await post<{ backup: string | null; history_failed: number }>('/api/tags/remove', { names: list });
+      if (r.history_failed) bulkError = `Tagsene er slettet, men historikken for ${r.history_failed} kunne ikke slettes (se loggen)`;
+      selected = [];
+      lastPick = -1;
+      await refresh();
+    } catch (e) {
+      bulkError = (e as Error).message;   // alt eller intet: intet er slettet
+    } finally {
+      bulkBusy = false;
     }
   }
 
@@ -325,13 +366,29 @@
 
 <section class="panel">
   <h2>Tags ({tags.length})</h2>
+  {#if canEdit && tags.length}
+    <div class="row bulk">
+      <label class="small"><input type="checkbox" checked={allOn} indeterminate={sel.length > 0 && !allOn}
+        onchange={() => { selected = allOn ? [] : [...names]; lastPick = -1; }} /> Vælg alle</label>
+      {#if sel.length}
+        <span class="small muted">{sel.length} valgt</span>
+        <button class="danger" onclick={removeSelected} disabled={bulkBusy}>Slet valgte ({sel.length})</button>
+        <button class="small" onclick={() => { selected = []; lastPick = -1; }}>Fravælg</button>
+      {:else}
+        <span class="small muted">Afkryds tags for at slette flere på én gang (Shift+klik vælger et interval).</span>
+      {/if}
+    </div>
+    {#if bulkError}<p class="error" role="alert">{bulkError}</p>{/if}
+  {/if}
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Navn</th><th>Kilde</th><th>Værdi</th><th>Kvalitet</th><th>Beskrivelse</th><th></th></tr></thead>
+      <thead><tr>{#if canEdit}<th class="pickcol"></th>{/if}<th>Navn</th><th>Kilde</th><th>Værdi</th><th>Kvalitet</th><th>Beskrivelse</th><th></th></tr></thead>
       <tbody>
-        {#each tags as t}
+        {#each tags as t, i (t.name)}
           {@const v = values[t.name]}
-          <tr class:editing={edit?.name === t.name}>
+          <tr class:editing={edit?.name === t.name} class:picked={sel.includes(t.name)}>
+            {#if canEdit}<td class="pickcol"><input type="checkbox" checked={sel.includes(t.name)} aria-label="Vælg {t.name}"
+              onclick={(e) => pick(t.name, i, e)} /></td>{/if}
             <td class="mono"><span class:tag-writable={t.writable}>{t.name}</span>{#if t.writable} <span class="badge writable" title="Kan skrives fra Overview">skrivbar</span>{/if}</td>
             <td class="mono">{t.source}{#if sourceKind(t.source) !== 'intern'} <span class="badge" title="Hentes via PLC'ens /api/ext">{SOURCE_LABEL[sourceKind(t.source)]}</span>{/if}{#if t.priority === 'high'} <span class="badge" title="Læses med høj prioritet i PLC'ens Modbus-kø">høj prioritet</span>{/if}</td>
             <td>{formatValue(v?.value, { unit: t.unit, decimals: t.decimals, description: '', plc: t.plc })}</td>
@@ -340,7 +397,7 @@
             <td>{#if canEdit}<div class="row"><button onclick={() => startEdit(t)}>Redigér</button><button class="danger" onclick={() => remove(t)}>Slet</button></div>{/if}</td>
           </tr>
           {#if deleteErrors[t.name]}
-            <tr class="del-error"><td colspan="6">
+            <tr class="del-error"><td colspan={canEdit ? 7 : 6}>
               <div class="error row" style="justify-content: space-between" role="alert"><span><strong>{t.name} kan ikke slettes:</strong> {deleteErrors[t.name]}</span>
                 <button class="small" onclick={() => { const { [t.name]: _g, ...r } = deleteErrors; deleteErrors = r; }}>OK</button></div>
             </td></tr>
@@ -352,6 +409,9 @@
 </section>
 
 <style>
+  .bulk { gap: .6rem; align-items: center; margin-bottom: .4rem; }
+  .pickcol { width: 1.6rem; }
+  tr.picked td { background: #e8f1fb; }
   .edit-panel {
     position: sticky;
     top: .5rem;

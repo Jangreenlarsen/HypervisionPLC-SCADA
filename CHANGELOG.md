@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.7.0 build 0357] — 2026-11-07 — Tags: vælg flere og slet dem samlet
+
+- `pages/Tags.svelte`:
+  - afkrydsning pr. tag, *Vælg alle* (delvist markeret) og *Fravælg*;
+  - *Slet valgte (n)* viser samlet brug (`/api/tags/usage`) og sletter alle i én transaktion med backup (`/api/tags/remove`, samme som et enkelt tag);
+  - fejl vises over listen (alt eller intet).
+- Ny `lib/multiPick.ts` (`pickInList`: klik og Shift-interval) med test.
+- Manual: *PLC'er og tags › Tags*. Set i browseren (Shift-interval, slet 3 af 5).
+
 ## [4.6.2 build 0356] — 2026-11-07 — Hjælper: fejl 500 med Ministral (roller skal skifte)
 
 - `services/assistant.py`: ny `alternating` sørger for, at samtalen, der sendes til modellen, skifter mellem bruger og assistent (beskeder i træk slås sammen, start med bruger, slut med assistent). Ministral-3-8B's chat-skabelon afviste ellers kaldet med 500.

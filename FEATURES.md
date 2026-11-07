@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v4.7.0 — **Flervalg i Tags** (ønske fra Jan 2026-11-07): afkryds flere tags (Vælg alle, Shift for et interval) og slet dem samlet; dialogen viser samlet, hvad der rammes, og sletningen sker i én transaktion med backup (samme endpoint som et enkelt tag).
 - [x] done v4.6.0 — **Rør følger med under trækket og fanges snorlige** (ønske fra Jan 2026-11-07): mens et symbol trækkes, vises rørene, som de kommer til at ligge; flugter tilslutningspunktet næsten med rørets næste knæk, fanges symbolet, så røret står snorlige (blå stiplet linje; *Fang rør lige*).
 - [x] done v4.5.0 — **Signalvej: vælg start og slut ved at klikke i tegningen** (ønske fra Jan 2026-11-07): *Vælg på tegningen* → klik startsymbolet → klik slutsymbolet → vejen findes af sig selv; valget vises med orange ramme, rør og visning afvises med en forklaring.
 - [x] done v4.4.0 — **Vælg LLM-model fra en liste** (ønske fra Jan 2026-11-07): tre varianter (Hurtig/Standard/Stor) udgivet som GitHub releases; administratoren henter og installerer under System › Hjælper uden selv at hente fra Hugging Face. Upload bevares til lukkede net.
