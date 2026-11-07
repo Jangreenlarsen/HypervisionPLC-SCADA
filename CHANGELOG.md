@@ -4,6 +4,21 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.6.1 build 0355] — 2026-11-07 — Tag fat i et symbol bag et andet; hjælperens manual-søgning finder mere
+
+- `src/lib/draw/engine.ts`:
+  - `blockersAbove` + klik-igennem ved museklik på et valgt element, der ligger bag andre, så det trækkes i stedet for at det forreste bliver valgt;
+  - et klik uden bevægelse vælger det forreste.
+
+  Test i `engine.test.ts`; afprøvet i browseren.
+- `services/assist_knowledge.py`:
+  - prefiks-match for sjældne ord og stillings-synonymer (bag/bagved, foran/forrest …);
+  - ekstra vægt til overskriftens ord (`HEAD_BOOST`);
+  - accenter (é) normaliseres;
+  - stammen kører to gange og fjerner dobbelt konsonant; "s" fjernes fra korte ord.
+- `services/assist_tools.py`: 3 manualafsnit à 380 tegn (før 2 à 500), så prompten ikke vokser.
+- Test: `test_assist_ask.py` (danske varianter, overskrifter). Manual: *Tegn › Vælg, flyt og markér*.
+
 ## [4.6.0 build 0354] — 2026-11-07 — Tegn: rør følger med under trækket og fanges snorlige
 
 - `svgedit-host/pipes.js`:

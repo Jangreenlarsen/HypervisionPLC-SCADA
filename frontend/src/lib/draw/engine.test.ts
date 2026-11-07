@@ -84,3 +84,13 @@ describe('cycleNext (Alt+klik)', async () => {
     expect(cycleNext([], 'a')).toBeNull();
   });
 });
+
+describe('blockersAbove (tag fat i det valgte bag andre, v4.6.1)', async () => {
+  const { blockersAbove } = await import('./engine');
+  it('returns the elements in front of the selected one, or null', () => {
+    expect(blockersAbove(['top', 'mid', 'bund'], 'bund')).toEqual(['top', 'mid']);
+    expect(blockersAbove(['top', 'mid'], 'top')).toBeNull();          // det valgte er forrest: som før
+    expect(blockersAbove(['top', 'mid'], 'andet')).toBeNull();        // ikke under musen: som før (vælg det forreste)
+    expect(blockersAbove(['top'], null)).toBeNull();
+  });
+});

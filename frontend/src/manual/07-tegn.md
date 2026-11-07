@@ -55,7 +55,9 @@ Skjul og lås gælder kun i Tegn. Den gemte tegning og Overview viser altid alle
 ## Vælg, flyt og markér
 
 - **Klik** vælger et element; **Shift+klik** eller en **ramme** vælger flere. Træk for at flytte, træk i et hjørne for at ændre størrelsen, og træk i den grønne prik for at dreje.
-- **Symboler oven i hinanden:** hold **Alt** nede og klik — så vælges elementet, der ligger *bagved* det valgte på samme sted; klik igen med Alt for at gå et lag længere ned. Du kan også vælge elementet i **Objekter**.
+- **Symboler oven i hinanden:** hold **Alt** nede og klik. Så vælges elementet, der ligger *bagved* det valgte på samme sted; klik igen med Alt for at gå et lag længere ned. Du kan også vælge elementet i **Objekter**.
+  - **Træk** derefter (uden Alt) for at flytte det valgte. Det forreste bliver liggende.
+  - Et **klik uden at trække** vælger det forreste igen.
 - **Knaplinjen over det markerede**: justér (venstre, midte, højre, top, midte, bund), fordel vandret/lodret (mindst 3), ét trin frem/tilbage, læg øverst/nederst, spejl, **Gruppér**/**Opløs**, **Dupliker** og **Slet**.
 - **Højreklik** giver klip, kopiér, indsæt, dupliker, gruppér, rækkefølge og slet.
 

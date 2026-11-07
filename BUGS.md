@@ -5,6 +5,25 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v4.6.1 — Tegn (Jan 2026-11-07): et symbol valgt bag et andet med Alt+klik skiftede til det forreste, så snart man tog fat for at flytte det. **Årsag:** lærredet (SVG-Edit) vælger altid det forreste element under musen ved et museklik. **Løsning:** `engine.ts`/`blockersAbove`:
+  - ligger det valgte under musen bag andre, gøres de forreste midlertidigt "klik-igennem" (`pointer-events: none`), og klikket sendes igen, så det valgte trækkes;
+  - alt slås tilbage ved slip;
+  - et klik uden bevægelse vælger det forreste som før.
+
+  Afprøvet i browseren (klik, Alt+klik, træk, klik).
+- [fixed] v4.6.1 — Hjælper (Jan 2026-11-07): svarede forkert på "hvordan vælger jeg et symbol bag et andet, som er foran", selv om manualen forklarer det. **Årsag:** manual-søgningen (BM25) fandt ikke afsnittet:
+  - manualen skriver "bagved"/"forrest", ikke "bag"/"foran";
+  - "Kvittér" blev delt ved é;
+  - "sletter"/"slet" og "brugere"/"bruger" fik forskellig stamme;
+  - kun 2 afsnit kom med.
+
+  **Løsning (`assist_knowledge.py`):**
+  - prefiks-match for sjældne ord ("bag" → "bagved") og få stillings-synonymer;
+  - ekstra vægt til ord i afsnittets overskrift;
+  - accenter normaliseres, og stammen fjerner endelser to gange og dobbelt konsonant ("tags" → "tag");
+  - 3 kortere afsnit.
+
+  I en prøve med 15 spørgsmål: 13 rigtige mod 8 før.
 - [fixed] v4.4.3 — Trendgraf (Jan 2026-11-07, skærmbillede): den store graf viste "Maximum call stack size exceeded" for alle tre trendgrafer på demo'en (Akkumuleringstank, Husets kreds, Systemtryk). **Årsag:**
   - tankens temperaturer stod helt stille, men middelværdien havde afrundingsstøj (20,124689999999998 → 20,124690000000005);
   - y-aksen fik derfor et spænd på ca. 7·10⁻¹⁵, og `niceTicks` lavede et trin under tallets egen præcision;
