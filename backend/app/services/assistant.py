@@ -53,6 +53,7 @@ HISTORY_CHARS = 400
 ASKS_PER_HOUR = 30                          # pr. bruger — modellen er en fælles, langsom ressource
 QUEUE_WAIT_S = 120.0
 ANSWER_TOKENS = 220
+ANSWER_TOTAL_S = 420.0                      # hele svaret (v4.10.1: 240 s var for kort til døgnets alarmer på 4 vCPU)
 WARMUP_TIMEOUT_S = 600.0                    # første indlæsning af en stor model fra disk kan tage minutter
 # En brugers markering 'spørgsmål i gang' udløber først efter den længst mulige ventetid (kø + opvarmning + svar),
 # så samme bruger ikke kan starte et nyt spørgsmål, mens det første stadig venter (review v4.10.0)
@@ -520,7 +521,7 @@ class AssistantService:
             self.stats["requests"] += 1
             self.stats["last_at"] = time.time()
             try:
-                async for part in self.client.stream(prepared["messages"], max_tokens=ANSWER_TOKENS):
+                async for part in self.client.stream(prepared["messages"], max_tokens=ANSWER_TOKENS, total_timeout=ANSWER_TOTAL_S):
                     if isinstance(part, Completion):
                         self.stats["last_ms"] = round(part.ms)
                         self.stats["last_tokens_per_s"] = part.tokens_per_s

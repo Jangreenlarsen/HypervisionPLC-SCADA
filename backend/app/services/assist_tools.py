@@ -26,7 +26,7 @@ log = logging.getLogger("scada.assist")
 MAX_TAGS = 6
 MAX_ALARMS = 8
 MAX_SYMBOLS = 30
-MAX_SUMMARY = 12         # alarmer i døgnets opsummering (de hyppigste først)
+MAX_SUMMARY = 10         # alarmer i døgnets opsummering (de hyppigste først)
 SUMMARY_HOURS = 24
 MANUAL_HITS = 3          # v4.6.1: 3 korte afsnit rammer det rigtige oftere end 2 lange (13/15 mod 10/15 i en prøve)
 MANUAL_CHARS = 480        # v4.9.0: LLM-manualens stykker er højst ~110 ord, så det meste af stykket kommer med
@@ -325,7 +325,6 @@ class AssistTools:
         if ctx.summary:
             g.add("Alarmer det seneste døgn", self.alarm_summary(user, now), "alarm_resume",
                   {"label": "Alarmer › Historik", "href": "#alarms"})
-            alarm_query = "alarm historik kvittér prioritet"
         if ctx.alarm:
             text, alarm_tag, alarm_query = self.alarm(user, ctx.alarm, now)
             g.add("Alarmen", text, "alarm", {"label": "Alarmer", "href": "#alarms"})
@@ -350,6 +349,10 @@ class AssistTools:
         if ctx.drawing and (ctx.page in ("overview", "draw", "editor") or any(w in q for w in ("tegning", "symbol", "anlæg"))):
             text, name = self.drawing_overview(user, ctx.drawing)
             g.add("Tegningen", text, "tegning_oversigt")
+        if ctx.summary:
+            # Døgnets alarmer: tallene er hele svaret — manualuddrag gør kun prompten længere (på demoens 4 vCPU tog
+            # det 175 s at læse, og svaret blev afbrudt; v4.10.1)
+            return g
         # Ved "Forklar" er spørgsmålet altid det samme — alarmens type og tekst siger, hvad der skal slås op
         query = alarm_query or question
         for title, text, src in self.manual_hits(query):

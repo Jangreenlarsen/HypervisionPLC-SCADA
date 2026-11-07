@@ -140,6 +140,7 @@ def test_summary_context_adds_the_day_to_the_data():
     g = tools.gather(_User(), "opsummér døgnet", Context(page="alarms", summary=True), now)
     assert "alarm_resume" in g.tools and ("Alarmer det seneste døgn", tools.alarm_summary(_User(), now)) in g.blocks
     assert {"label": "Alarmer › Historik", "href": "#alarms"} in g.sources
+    assert "soeg_manual" not in g.tools                                           # kun tallene (kort prompt)
 
 
 class _User:

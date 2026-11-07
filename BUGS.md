@@ -5,6 +5,10 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v4.10.1 — Hjælperen › *Opsummér døgnet* på demoen: svaret blev afbrudt ("Svaret tog mere end 240 s"), selvom modellen var varmet op. **Årsag:** prompten med døgnets alarmer og tre manualuddrag tog 175 s at læse på 4 vCPU, og grænsen for hele svaret var 240 s. **Løsning:**
+  - opsummeringen sender kun alarmtallene, ikke manualuddrag;
+  - højst 10 alarmer;
+  - grænsen for hele svaret er 420 s (`ANSWER_TOTAL_S`) — Jan har accepteret langsomme svar.
 - [fixed] v4.10.0 — Hjælperen (fundet 2026-11-07 efter opdatering af demoen): det første spørgsmål efter en genstart tog over 240 s og blev afbrudt ("Svaret tog mere end 240 s"). Det næste tog 87 s. **Årsag:** modellen (5,2 GB) læses fra disken ved første kald, og systemprompten beregnes (167 s før første ord). **Løsning:** SCADA'en varmer modellen op med et lille kald, så snart LLM-tjenesten er klar (`AssistantService.keep_warm`). Et spørgsmål, der kommer under opvarmningen, venter på den i stedet for at blive afvist, og panelet viser *Hjælperen starter op*. Afprøvet lokalt (opvarmning 1 gang ved start; igen ved ny model eller genstart af tjenesten).
 - [fixed] v4.10.0 — Manual: kapitlet *Kom i gang › Menuen* sagde, at menuerne åbner, når musen føres hen over dem; siden v3.12.1 åbner de ved klik. Skærmbillederne af menuerne viste derfor ingen åben menu. Teksten og screenshot-scriptet er rettet.
 - [fixed] v4.9.0 — Manual (fundet under gennemgangen 2026-11-07): søgeordets gule markering blev stående i teksten, når søgefeltet blev tømt eller ændret (indtil der blev skiftet kapitel). **Årsag:** markeringen lægges direkte i den viste HTML, og den blev ikke tegnet forfra, når kun søgningen ændrede sig. **Løsning:** teksten tegnes forfra ved hver ny søgning (`{#key}` i `Manual.svelte`). Afprøvet i browseren.

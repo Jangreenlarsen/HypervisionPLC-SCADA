@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.10.1 build 0361] — 2026-11-07 — fix: Opsummér døgnet blev afbrudt på demoen
+
+- `assist_tools.gather`: ved `summary` sendes kun alarmtallene (ingen manualuddrag); `MAX_SUMMARY` 12 → 10.
+- `assistant.py`: hele svaret må tage 420 s (`ANSWER_TOTAL_S`, før 240 s).
+- Manual: *Alarmer › Opsummér døgnet*. Test: `test_assist_setup.py`. BUGS.md.
+
 ## [4.10.0 build 0360] — 2026-11-07 — Hjælperen fase 3 (tag-beskrivelser, signal-forslag, døgnets alarmer), opvarmning og Raspberry Pi-pakker
 
 - **Fase 3** — `services/assist_setup.py` (ny):

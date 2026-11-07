@@ -2,6 +2,10 @@
 
 ---
 
+## v4.10.1 — 2026-11-07 — Opsummér døgnet virker på langsomme maskiner
+
+- *Alarmer › Opsummér døgnet* blev afbrudt på maskiner med en svag CPU. Opsummeringen er gjort kortere, og hjælperen må bruge længere tid på et svar.
+
 ## v4.10.0 — 2026-11-07 — Hjælperen hjælper med opsætningen
 
 - **Tags fra PLC'en** kan få en dansk beskrivelse og enhed foreslået af hjælperen (*✦ Beskriv med hjælperen*). Ret dem, og importér.
