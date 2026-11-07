@@ -1,3 +1,113 @@
+# Plan: LLM-hjælper integreret i SCADA'en — 2026-11-06 — godkendt (Jan: lokal, én samlet pakke, til/fra) — fase 0 ✅ v4.0.0
+
+Baggrund og modelvalg: [docs/LLM_ANALYSE.md](docs/LLM_ANALYSE.md). Ønske fra Jan: en lokal LLM som **hjælper** i SCADA'en, der kører på VM'en (16 GB / 4 vCPU, kun CPU). Hardwaren angives ved installationen og åbner for LLM-funktionerne.
+
+## Mål
+- En **Hjælper** (sidepanel), der svarer på spørgsmål om anlægget og systemet, forklarer alarmer og trends, og hjælper i Tegn. Den foreslår fx signal- og rørveje ud fra en forklaring med egne ord.
+- **Kun læsning og forslag.** Hjælperen skriver aldrig til en PLC og ændrer aldrig opsætning selv. Forslag anvendes af brugeren med de normale knapper, API'er og rettigheder.
+- SCADA'en virker uændret uden LLM (Pi 4, lille VM, model ikke hentet).
+
+## Arkitektur — alternativer
+| | Alternativ | Fordele | Ulemper |
+|---|---|---|---|
+| **A** | **llama.cpp `llama-server` som egen systemd-service** på `127.0.0.1`; styres af en root-hjælper via `.path` (samme mønster som power/update) | Hurtigst på CPU, MIT, ét binært program, OpenAI-kompatibelt API, `json_schema`, fuld kontrol over CPU og RAM (cgroups) | Binært program og model skal installeres og opdateres |
+| B | Ollama som service | Nem modelstyring (`pull`) | Større, ekstra dæmon, mindre kontrol over versioner og ressourcer |
+| C | llama-cpp-python i SCADA-processen | Ingen ekstra service | Deler proces med live-data og alarmer. **Fravalgt** |
+
+**Valg: A.** Klientlaget taler "OpenAI-kompatibelt", så en admin også kan pege på en **ekstern** server i LAN'et (URL + nøgle i `secrets.json`) med den samme kode, hvis VM'en er for lille. Ekstern kræver et eksplicit valg, fordi data så forlader maskinen.
+
+### Lag
+```
+Frontend: Hjælper-panel (Tegn, Alarmer, Trends, Overview) ── /api/assist/* (+ SSE-strøm)
+API-lag:  api/assist.py (rolle-tjek, pydantic)
+Service:  services/assistant.py — samtale, værktøjer (kun læsning), validering, kø (1 ad gangen), tællere
+          services/assist_tools.py — værktøjer, der kalder EKSISTERENDE services med brugerens rettigheder
+          services/signal_path.py — grafsøgning i tegningen (deterministisk, ingen LLM)
+Lag 4c:   backend/app/llm/client.py — ENESTE sted med HTTP til LLM'en (timeout, størrelsesgrænse, ingen hemmeligheder i log)
+Service:  scada-llm.service (llama-server, 127.0.0.1:8091, lav prioritet, MemoryMax)
+```
+`ARCHITECTURE.md` får lag 4c (LLM-klient) med samme regler som undtagelserne for notifier/github: kun den konfigurerede adresse, `trust_env=False` og tidsgrænser.
+
+## Trin
+**Fase 0: hardwareprofil og LLM-service (infrastruktur)**
+1. Hardwareprofil:
+   - `install.sh --hw <pi4|pi5|vm-8|vm-16|vm-32>`;
+   - uden parameteren foreslås en profil ud fra `nproc`, `MemTotal` og AVX2, og den skrives i `config/hw.json`;
+   - *System › Konfiguration* viser og retter profilen (admin);
+   - profilen bestemmer, om LLM kan slås til, og hvilken model der er standard.
+2. `deploy/scada-llm.service` + `deploy/apply-llm.sh` (root, `.path`-udløst, samme sikkerhed som apply-power: flyt anmodningen, afvis symlinks, kendte handlinger):
+   - **install:** hent llama-server-binær og model fra en fast liste med SHA256, eller brug en fil uploadet til `data/models/` (lukkede net);
+   - **start**, **stop**, **skift model**;
+   - systemd: bruger `scada-llm` (ikke `scada`), `CPUWeight=20`, `Nice=10`, `MemoryMax` efter profil, `--threads` = vCPU−1, `--parallel 1`.
+3. `backend/app/llm/client.py` + `services/assistant.py` grundlag: `health`, `complete(json_schema)` og `stream`. Status, model, svartider og fejl vises på *Status* og i metrics (observability).
+4. *System › Hjælper (LLM)* (admin): profil, slå til/fra, model (hentet/mangler, størrelse), lokal/ekstern, test-knap med svartid.
+
+**Fase 1: Hjælper-panel med viden og læse-værktøjer**
+5. Viden: manualen (`frontend/src/manual/*.md`) opdelt i afsnit og søgt med BM25 i ren Python. Det kræver ingen embeddings-model og ingen ny afhængighed. Bedste afsnit lægges i prompten, og svaret viser kilden ("Manual › Tags").
+6. Værktøjer (kun læsning, med brugerens rolle og tegningsadgang som i `api/trends.py::_allowed`):
+   - `aktive_alarmer`;
+   - `tag_vaerdi(navne)`;
+   - `trend_resume(tag, periode)`: min/max/middel/ændringer, ingen rådata;
+   - `tegning_oversigt(id)`: symboler, navne, typer, bindinger;
+   - `soeg_manual(tekst)`.
+
+   Højst 4 værktøjstrin pr. spørgsmål og 60 s i alt. Svar strømmes til panelet.
+7. Panelet (Svelte):
+   - kontekst følger siden (valgt alarm, åben tegning, valgt trend);
+   - knappen *Forklar* ved en alarm;
+   - samtalen gemmes kun i browserens session (ikke i DB). Audit `assist.ask` logger kun metadata: bruger, side, svartid og tokens.
+
+**Fase 2: signalvej i Tegn**
+8. `signal_path.py`:
+   - graf fra `data-hv-from`/`data-hv-to` og symbolernes tilslutningspunkter;
+   - korteste veje mellem start og slut;
+   - symboler på vejen, der skal tolkes (ventil, 3-vejs motorventil, pumpe, kontraventil, forgrening).
+9. Signalvej-guide **uden LLM**:
+   - vælg start og slut, og vejen fremhæves;
+   - spørgsmål pr. symbol (tag, stilling, retning);
+   - løbelys/farve på rørene med en samlet betingelse (logik-blokke);
+   - gemmes som en navngiven signalvej, der kan rettes.
+10. *Forklar med egne ord*: LLM'en får vejen og kandidat-tags (kort prompt) og svarer i fast JSON-skema. Backend validerer (tags findes, stillinger gyldige, symboler på vejen), og svarene udfyldes i guiden, hvor brugeren godkender.
+
+**Fase 3 (senere, efter måling):** forslag til tags ud fra ST-variabler, hjælp i symbolguiden, opsummering af døgnets alarmer.
+
+## Sikkerhed
+- Ingen PLC-skrivning og ingen konfigurationsændringer fra LLM'en. Værktøjerne er rene læsefunktioner, der kalder services med brugerens rettigheder.
+- Ingen hemmeligheder i prompts: PLC-adresser, adgangskoder, tokens og API-nøgler sendes aldrig med. Tags sendes med navn og enhed, ikke kilde.
+- Prompt-injektion via elementnavne og alarmtekster: alt data fra anlægget markeres som data. Værktøjerne har ingen sideeffekter, og output valideres.
+- Hvem må hvad:
+  - operatør: hjælper med læse-værktøjer inden for egne tegninger;
+  - tekniker: også signalvej;
+  - admin: også opsætning.
+- Rate-grænse pr. bruger og kø (1 ad gangen). Status viser kø og belastning.
+- Ekstern LLM kun via eksplicit admin-valg, med advarsel. URL og nøgle er skriv-kun i `secrets.json`.
+
+## Afhængigheder (kræver godkendelse)
+- llama.cpp (`llama-server`, MIT) som binær fil på serveren, ikke i Python. Ingen nye Python-pakker; `httpx` findes.
+- Modelfiler (GGUF), fx Qwen3.5-4B Q4_K_M (Apache-2.0) med Ministral-3-8B (Apache-2.0) som alternativ. Hentes separat, ikke i git eller OTA.
+
+## Berørte filer (cirka)
+- **Nye:**
+  - `deploy/`: `scada-llm.service`, `hypervisionplc-scada-llm.path`/`.service`, `apply-llm.sh`, `llm-models.json`;
+  - backend: `backend/app/llm/client.py`, `services/assistant.py`, `services/assist_tools.py`, `services/assist_knowledge.py`, `services/signal_path.py`, `api/assist.py`;
+  - frontend: `frontend/src/lib/AssistPanel.svelte`, `pages/SystemAssist.svelte`, `lib/SignalPathGuide.svelte`.
+- **Ændres:**
+  - `deploy/install.sh` (`--hw`), `make-package.sh`;
+  - `main.py`, `config.py`, `sysconfig.py`, `health.py`/`metrics.py`;
+  - `App.svelte` (panel og menupunkt), `DrawEditor.svelte`;
+  - `ARCHITECTURE.md`, manualen (nyt kapitel *Hjælperen*).
+
+## Risici
+- Svartid på 4 vCPU (15–40 s): korte prompts, strømmede svar, 4B-model og kø.
+- Forkerte svar: kildehenvisninger, kun forslag, validering og brugerens godkendelse.
+- RAM og CPU-konkurrence med SCADA: egen service med cgroup-grænser. Måles i fase 0, inden noget mere bygges.
+- Mamba/MoE-modellers understøttelse i llama.cpp: standardmodellen er tæt (Qwen3.5-4B).
+
+## Rækkefølge og versioner
+Fase 0 → måling på VM'en (`docs/LLM_ANALYSE.md` § 7) → fase 1 → fase 2. Hver fase er sin egen MINOR-version med test, review (reviewer: sikkerhed, rettigheder, root-hjælperen) og OTA-pakke.
+
+---
+
 # Plan: Fjern PLC — flyt tags til en anden PLC eller fjern alt — 2026-11-06 — ✅ færdig (v3.34.0)
 
 **Problem (Jan):** En PLC kan ikke fjernes. `PlcService.delete` afviser med 409, så længe PLC'en har tags. Hvert tag kan igen kun slettes, når ingen binding, symbolopsætning eller ugeprogram bruger det. Det er umuligt i praksis.

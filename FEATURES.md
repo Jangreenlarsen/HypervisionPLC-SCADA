@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v4.0.0 (fase 0) — **LLM-hjælper** (ønske fra Jan 2026-11-06, plan: PLAN.md, analyse: docs/LLM_ANALYSE.md): hardwareprofil ved installation, lokal LLM-tjeneste (llama.cpp, kun CPU) installeret fra én samlet LLM-pakke, kan slås til/fra, System › Hjælper med afprøvning. Fase 1 (hjælper-panel) og fase 2 (signalvej i Tegn) følger.
 - [x] done v3.36.0 — **Opsæt symbol på element uden navn** (ønske fra Jan 2026-11-06, efter "kan ikke editere en forbindelse med 6 trin"): knappen vises altid; navn foreslås ("Rør 1") og guiden åbnes.
 - [x] done v3.35.0 — **Flervalg i Symboler › Bibliotek** (ønske fra Jan 2026-11-06): afkryds flere symboler (Vælg alle, Shift-interval) og flyt dem til en anden sektion eller slet de egne samlet (alt eller intet).
 - [x] done v3.35.0 — **Slet tags i brug uden at fjerne bindinger først** (ønske fra Jan 2026-11-06): bekræftelsen viser hvor tagget bruges; tagget og alle henvisninger fjernes i én transaktion med backup først (API-nøgler kræver admin).

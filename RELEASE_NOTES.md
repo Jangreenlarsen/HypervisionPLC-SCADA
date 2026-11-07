@@ -2,6 +2,22 @@
 
 ---
 
+## v4.0.2 — 2026-11-07 — Hjælper: afprøvningen viser hele svaret
+
+- *Afprøv hjælperen* viste et afkortet svar. Nu vises hele svaret.
+
+## v4.0.1 — 2026-11-07 — Hjælper: rettelser
+
+- En VM med 16 GB RAM får nu det rigtige forslag (*VM/PC med 16 GB RAM*).
+- Installationen af LLM-pakken kræver mindre fri diskplads (ca. pakkens størrelse + 1 GB).
+
+## v4.0.0 — 2026-11-06 — LLM-hjælper (fase 0)
+
+- **System › Hjælper (LLM):** en lokal sprogmodel, der kører på SCADA-serveren (kun CPU, intet internet). Den installeres fra én samlet LLM-pakke og kan slås til og fra. Slået fra bruger den hverken CPU eller RAM.
+- **Hardwareprofil:** SCADA'en foreslår en profil ud fra maskinen (eller `install.sh --hw vm-16`), og profilen afgør, om hjælperen kan bruges, og hvor mange ressourcer den må tage.
+- **Afprøvning:** svartid og hastighed på netop jeres maskine. Hjælperen kører med lav prioritet og fast hukommelsesloft, så SCADA'en altid går først.
+- Hjælperens funktioner i Overview, Alarmer og Tegn kommer i de næste versioner.
+
 ## v3.36.0 — 2026-11-06 — Opsæt symbol uden at give navn først
 
 - **Tegn:** et rør eller et andet element uden navn har nu også knappen **Opsæt symbol (6 trin) …**. Den foreslår et navn (fx *Rør 1*), som kan rettes, og åbner guiden.

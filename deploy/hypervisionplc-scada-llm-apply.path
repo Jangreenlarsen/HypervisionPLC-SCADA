@@ -1,0 +1,9 @@
+[Unit]
+Description=Venter på en anmodning om LLM-hjælperen fra HypervisionPLC SCADA
+
+[Path]
+PathExists=/var/lib/hypervisionplc-scada/llm/llm.request
+Unit=hypervisionplc-scada-llm-apply.service
+
+[Install]
+WantedBy=multi-user.target

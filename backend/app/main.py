@@ -39,12 +39,16 @@ from .api.symbols import router as symbols_router
 from .api.system import router as system_router
 from .api.system_config import router as system_config_router
 from .api.system_power import router as system_power_router
+from .api.assist import router as assist_router
 from .api.routes import router
 from .config import Settings, read_version
 from .services.alarms import AlarmService
 from .services import sysconfig
 from .services.netconfig import NetworkService
 from .services.power import PowerService
+from .services.hwprofile import HwProfileService
+from .services.assistant import AssistantService
+from .llm.client import LlmClient
 from .services.trend_views import TrendViewService
 from .services.audit import AuditService
 from .services.auth import AuthService
@@ -145,6 +149,9 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.github_releases = GitHubReleases(settings.update_repo)
         app.state.network_service = NetworkService(settings.data_dir, settings.net_state_dir)
         app.state.power_service = PowerService(settings.data_dir, settings.net_state_dir)
+        app.state.hw_profile = HwProfileService(settings.data_dir)
+        app.state.assistant = AssistantService(settings.data_dir, app.state.hw_profile,
+                                               LlmClient(f"http://127.0.0.1:{settings.llm_port}"), settings.net_state_dir)
         app.state.trend_view_service = TrendViewService(db)
         await manager.start_all()
         app.state.alarm_service = AlarmService(manager, db, tick_s=settings.alarm_tick_s,
@@ -245,6 +252,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(system_router)
     app.include_router(system_config_router)
     app.include_router(system_power_router)
+    app.include_router(assist_router)
     app.include_router(alarms_router)
     app.include_router(trends_router)
     app.include_router(energy_router)

@@ -144,6 +144,13 @@ def render(d: dict[str, Any], auth_failures: int = 0) -> str:
              [({"target": t}, v) for t, v in (bk.get("last_success") or {}).items()])
     x.metric("scada_backup_target_failing", "gauge", "Backup-destinationen er fejlet flere gange i træk (1)",
              [({"target": t}, v) for t, v in (bk.get("failing") or {}).items()])
+    asst = d.get("assist") or {}
+    if asst:
+        x.counter("scada_assist_requests_total", "Kald til LLM-hjælperen siden start", asst.get("requests"))
+        x.counter("scada_assist_errors_total", "Fejlede kald til LLM-hjælperen siden start", asst.get("errors"))
+        x.gauge("scada_assist_busy", "LLM-hjælperen arbejder lige nu (1)", asst.get("busy"))
+        x.gauge("scada_assist_waiting", "Kald der venter på LLM-hjælperen", asst.get("waiting"))
+        x.gauge("scada_assist_last_seconds", "Svartid for seneste kald til LLM-hjælperen", (asst.get("last_ms") or 0) / 1000)
     x.gauge("scada_notification_queue", "Notifikationer der venter på at blive sendt", n.get("queued"))
     x.counter("scada_metrics_auth_failures_total", "Afviste forsøg på at hente /metrics (forkert eller manglende token)", auth_failures)
     return x.text()

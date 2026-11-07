@@ -1,0 +1,42 @@
+{
+  "_note": "LLM-pakkens indhold (deploy/make-llm-package.sh). Kun Apache-2.0/MIT (AGPL-kompatibelt). Alt hentes med fast adresse og kontrolleres med SHA256 — ret begge ved en ny version. Se docs/LLM_ANALYSE.md.",
+  "llama": {
+    "build": "b12179",
+    "license": "MIT",
+    "license_url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/b12179/LICENSE",
+    "x86_64": {
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12179/llama-b12179-bin-ubuntu-x64.tar.gz",
+      "sha256": "5646c599b1dfdbdb3634f35ab634857639a830a66d1f9f13380673921348a2d2"
+    },
+    "aarch64": {
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12179/llama-b12179-bin-ubuntu-arm64.tar.gz",
+      "sha256": "900970cce91b11cd13abe9582cf0e7e589e75db07e15b7833afef62bb2430148"
+    }
+  },
+  "models": {
+    "qwen3.5-4b-q4_k_m": {
+      "name": "Qwen3.5-4B",
+      "quant": "Q4_K_M",
+      "license": "Apache-2.0",
+      "license_url": "https://huggingface.co/Qwen/Qwen3.5-4B/resolve/main/LICENSE",
+      "file": "Qwen3.5-4B-Q4_K_M.gguf",
+      "url": "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf",
+      "sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+      "size": 2740937888,
+      "ctx": 8192,
+      "profiles": ["pi5", "vm-8", "vm-16", "vm-32"]
+    },
+    "ministral-3-8b-q4_k_m": {
+      "name": "Ministral-3-8B-Instruct-2512",
+      "quant": "Q4_K_M",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "file": "Ministral-3-8B-Instruct-2512-Q4_K_M.gguf",
+      "url": "https://huggingface.co/mistralai/Ministral-3-8B-Instruct-2512-GGUF/resolve/main/Ministral-3-8B-Instruct-2512-Q4_K_M.gguf",
+      "sha256": "33e7a72cf5e6e2cfc2f2847075acc013d68bba023e35310cef86b5cf8fdca761",
+      "size": 5198911904,
+      "ctx": 8192,
+      "profiles": ["vm-16", "vm-32"]
+    }
+  }
+}
