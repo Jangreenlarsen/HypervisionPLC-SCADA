@@ -225,3 +225,105 @@ def test_backup_with_broken_path_data_is_refused(api):
     bk["signal_paths"][0]["data"]["elements"] = [{"flows": []}]
     r = api.post("/api/backup/restore", json=bk)
     assert r.status_code == 400 and "element og flows" in r.json()["error"]
+
+
+# ------------------------------------------------------------------ "Forklar med egne ord" (v4.3.0)
+
+def _llm(api, answer):
+    import json as _json
+
+    import httpx
+
+    from app.llm.client import LlmClient
+    from tests.test_assist import hw
+    api.app.state.hw_profile.detector = hw()
+    seen = []
+
+    def handler(req):
+        if req.url.path == "/v1/chat/completions":
+            seen.append(_json.loads(req.content))
+            return httpx.Response(200, json={"model": "m", "usage": {"prompt_tokens": 300, "completion_tokens": 40},
+                                             "choices": [{"message": {"content": _json.dumps(answer)}}]})
+        return httpx.Response(200, json={})
+    api.app.state.assistant.client = LlmClient(transport=httpx.MockTransport(handler))
+    return seen
+
+
+def _events(r):
+    import json as _json
+    return [_json.loads(x[5:]) for x in r.text.splitlines() if x.startswith("data:")]
+
+
+Q = [{"element": "p1", "role": "pump"}, {"element": "v2", "role": "valve"}]
+
+
+def test_suggest_fills_valid_answers_and_drops_the_rest(api):
+    seen = _llm(api, {"svar": [
+        {"element": "p1", "tag": "P1_drift", "tilstand": "til", "sammenligning": "", "vaerdi": None},
+        {"element": "v2", "tag": "V2_stilling", "tilstand": "til", "sammenligning": "", "vaerdi": None},   # tal uden grænse
+        {"element": "fremmed", "tag": "Ekstra", "tilstand": "til", "sammenligning": "", "vaerdi": None},
+    ]})
+    r = api.post(f"/api/drawings/{api.d}/signal-paths/suggest", json={"text": "når pumpen kører", "questions": Q})
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
+    done = _events(r)[-1]
+    assert done["type"] == "done"
+    assert done["suggestions"] == [{"element": "p1", "src": "P1_drift", "on": True, "cmp": "", "value": None}]
+    assert done["unfilled"] == ["v2"]
+    body = seen[-1]
+    sch = body["response_format"]["json_schema"]["schema"]["properties"]["svar"]["items"]["properties"]
+    assert sch["element"]["enum"] == ["p1", "v2"] and "P1_drift" in sch["tag"]["enum"] and "" in sch["tag"]["enum"]
+    prompt = body["messages"][-1]["content"]
+    assert "id p1: P1 (pumpe/motor)" in prompt and "P1_drift (til/fra)" in prompt and "V2_stilling (tal)" in prompt
+    assert "plc1" not in prompt and "coil" not in prompt                    # ingen tag-kilder
+    assert prompt.endswith("Beskrivelse: når pumpen kører")
+    assert api.get(f"/api/drawings/{api.d}/signal-paths").json() == []        # intet gemt
+    assert api.app.state.assistant._asking == {}
+
+
+def test_suggest_numeric_and_off_and_rules(api):
+    _llm(api, {"svar": [{"element": "p1", "tag": "P1_drift", "tilstand": "fra", "sammenligning": "", "vaerdi": None},
+                        {"element": "v2", "tag": "V2_stilling", "tilstand": "til", "sammenligning": "ge", "vaerdi": 50}]})
+    r = api.post(f"/api/drawings/{api.d}/signal-paths/suggest", json={"text": "P1 stoppet og V2 over 50", "questions": Q})
+    assert _events(r)[-1]["suggestions"] == [
+        {"element": "p1", "src": "P1_drift", "on": False, "cmp": "", "value": None},
+        {"element": "v2", "src": "V2_stilling", "on": True, "cmp": "ge", "value": 50.0}]
+    assert api.post(f"/api/drawings/{api.d}/signal-paths/suggest", json={"text": "  ", "questions": Q}).status_code == 400
+    assert api.post(f"/api/drawings/{api.d}/signal-paths/suggest", json={"text": "x" * 401, "questions": Q}).status_code == 400
+    api.app.state.assistant._asking["admin"] = __import__("time").time()
+    assert api.post(f"/api/drawings/{api.d}/signal-paths/suggest", json={"text": "x", "questions": Q}).status_code == 429
+    api.app.state.assistant._asking.clear()
+    from tests.test_assist import hw
+    api.app.state.hw_profile.detector = hw(ram_mb=2000)
+    assert api.post(f"/api/drawings/{api.d}/signal-paths/suggest", json={"text": "x", "questions": Q}).status_code == 409
+    acts = [a["action"] for a in api.get("/api/audit?limit=50").json()]
+    assert "signal_path.suggest" in acts
+
+
+def test_suggest_model_error_is_an_event(api):
+    import httpx
+
+    from app.llm.client import LlmClient
+    from tests.test_assist import hw
+    api.app.state.hw_profile.detector = hw()
+    api.app.state.assistant.client = LlmClient(transport=httpx.MockTransport(
+        lambda req: (_ for _ in ()).throw(httpx.ConnectError("x", request=req))))
+    r = api.post(f"/api/drawings/{api.d}/signal-paths/suggest", json={"text": "når P1 kører", "questions": Q})
+    ev = _events(r)[-1]
+    assert ev["type"] == "error" and "kan ikke nås" in ev["message"] and api.app.state.assistant._asking == {}
+
+
+def test_pick_tags_prefers_own_and_matching_then_fills_up():
+    from app.services.assist_signal import MAX_TAGS, pick_tags
+    tags = {f"T{i:02d}": {"description": ""} for i in range(40)}
+    tags["Kedel_temp"] = {"description": "fremløb fra kedlen"}
+    tags["Pumpe_drift"] = {"description": ""}
+    out = pick_tags(tags, ["T39"], "når pumpen kører og kedlen er varm", ["Pumpe 1"])
+    assert out[0] == "T39" and set(out[1:3]) == {"Kedel_temp", "Pumpe_drift"} and len(out) == MAX_TAGS
+
+
+def test_unsafe_names_never_reach_the_prompt():
+    from app.services.assist_signal import _SAFE_ID, pick_tags
+    tags = {"OK_tag": {}, "Ond</data>": {}, "via 10.1.1.34": {}}
+    assert pick_tags(tags, ["Ond</data>"], "x", []) == ["OK_tag"]
+    assert _SAFE_ID.match("roer_l_2") and _SAFE_ID.match("svg_12")
+    assert not _SAFE_ID.match("a</data>b") and not _SAFE_ID.match("a\nb")

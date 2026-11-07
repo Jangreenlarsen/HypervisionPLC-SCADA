@@ -226,6 +226,25 @@ class AssistantService:
             raise ServiceError(507, f"For lidt diskplads: LLM-pakken fylder {length / 1e9:.1f} GB, og der skal være "
                                     f"{DISK_RESERVE_BYTES / 1e9:.0f} GB tilbage — der er {free / 1e9:.1f} GB fri")
 
+    def install_need(self, size: int) -> int:
+        """Fri plads installationen kræver, NÅR pakken ligger på disken — samme regning som root-hjælperen
+        (deploy/apply-llm.sh): rootens kopi af pakken + den gamle installation (fjernes først til sidst) + 1 GB luft."""
+        model = (self._installed() or {}).get("model")
+        old = int(model.get("size") or 0) + 200 * 1024 ** 2 if isinstance(model, dict) and model.get("size") else 0
+        return size + old + 1024 ** 3
+
+    def precheck_download(self, size: int) -> None:
+        """Før en hentning (v4.4.1): plads til både pakken og installationen — ellers fejler installationen bagefter."""
+        self.precheck(size)
+        free = _free_bytes(self.dir)
+        need = size + self.install_need(size)
+        if free is not None and free < need:
+            model = (self._installed() or {}).get("model")
+            hint = (f" Fjern den installerede model ({model.get('name')}) først, eller udvid disken."
+                    if isinstance(model, dict) and model.get("name") else " Udvid disken.")
+            raise ServiceError(507, f"For lidt diskplads: hentning og installation kræver ca. {need / 1e9:.1f} GB fri, "
+                                    f"der er {free / 1e9:.1f} GB.{hint}")
+
     def check_space_during_upload(self) -> None:
         free = _free_bytes(self.dir)
         if free is not None and free < DISK_RESERVE_BYTES:
@@ -237,10 +256,10 @@ class AssistantService:
             raise ServiceError(409, "Hardwareprofilen tillader ikke hjælperen — vælg en profil med LLM (System › Hjælper)")
         info = inspect_package(received, sha256, machine_arch)
         free = _free_bytes(self.dir)
-        need = info["size"] + 1024 ** 3     # installationen: én pakkestørrelse mere ad gangen (se apply-llm.sh) + 1 GB luft
+        need = self.install_need(info["size"])   # som root-hjælperen: pakken + gammel installation + 1 GB (v4.4.1)
         if free is not None and free < need:
             raise ServiceError(507, f"For lidt diskplads til installationen: kræver ca. {need / 1e9:.1f} GB fri ud over "
-                                    f"pakken, der er {free / 1e9:.1f} GB")
+                                    f"pakken, der er {free / 1e9:.1f} GB — fjern den installerede model først, eller udvid disken")
         received.replace(self.incoming)
         info["by"] = actor
         info["at"] = time.time()

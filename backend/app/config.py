@@ -41,6 +41,10 @@ class Settings:
     manual_dir: Path = field(default_factory=lambda: Path(os.environ.get("SCADA_MANUAL_DIR") or next(
         (p for p in (REPO_ROOT / "frontend" / "src" / "manual", REPO_ROOT / "frontend" / "manual") if p.is_dir()),
         REPO_ROOT / "frontend" / "manual")))
+    # LLM-kataloget: i udviklingen deploy/llm-models.json, installeret <app>/llm-models.json
+    llm_catalog: Path = field(default_factory=lambda: Path(os.environ.get("SCADA_LLM_CATALOG") or next(
+        (p for p in (REPO_ROOT / "deploy" / "llm-models.json", REPO_ROOT / "llm-models.json") if p.is_file()),
+        REPO_ROOT / "llm-models.json")))
     # AGPL §13: brugere over netværket skal tilbydes kildekoden — peg på jeres egen fork ved ændringer.
     source_url: str = field(default_factory=lambda: os.environ.get(
         "SCADA_SOURCE_URL", "https://github.com/Jangreenlarsen/HypervisionPLC-SCADA"))

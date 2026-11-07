@@ -262,7 +262,13 @@ Er disken ved at blive fuld, kan du rydde op **på maskinen** — også selv om 
 **Hjælper (LLM)** (kun admin) er en lokal sprogmodel, der kører på selve SCADA-serveren, kun på CPU og uden internet. Den skal hjælpe med at forklare og opsætte anlægget. Siden her styrer hardware, installation, til/fra og afprøvning. Selve hjælperen bruges fra knappen **Hjælper** i topbjælken (se *Drift › Hjælperen*). Hjælperen skriver aldrig til en PLC.
 
 - **Hardware:** siden viser maskinen (kerner, RAM, AVX2) og foreslår en **hardwareprofil**. Profilen afgør, om hjælperen må slås til, hvor mange tråde den får (kerner minus én), og loftet for dens hukommelse. *Raspberry Pi 4* og *Lille VM/PC* (under 8 GB RAM) har ingen hjælper. Vælg profil og tryk **Gem profil**. Profilen kan også sættes ved installationen med `install.sh --hw vm-16`.
-- **LLM-pakke:** hjælperen installeres fra **én samlet fil**, `scada-llm-<arkitektur>-<model>-<build>.tar` (ca. 3–6 GB), med llama.cpp og modellen. Tryk **Vælg LLM-pakke …**. Filen kontrolleres (indhold, arkitektur, licenser) og vises som *Klar til installation*. **Installér og slå til** installerer den. Kontrollen af SHA256 og udpakningen tager nogle minutter.
+- **Vælg model:** vælg en variant, og tryk **Hent og installér**. Varianterne er:
+  - *Hurtig* (Qwen3.5-2B, 1,3 GB): ca. dobbelt så hurtig, lidt svagere på dansk;
+  - *Standard* (Qwen3.5-4B, 2,7 GB): anbefalet;
+  - *Stor* (Ministral-3-8B, 5,2 GB): bedst på dansk, men ca. halvt så hurtig, og kræver mindst 16 GB RAM.
+
+  Serveren henter pakken fra projektets udgivelser på GitHub og kontrollerer den (SHA256) her og igen før installationen. Fremdriften vises, og **Afbryd** stopper hentningen. Varianter, der ikke passer til hardwareprofilen, kan ikke vælges. En ny variant erstatter den installerede. Serveren skal kunne nå github.com. Kontrolsummen beskytter mod fejl under hentningen, men ikke mod en kompromitteret GitHub-konto (samme niveau som opdatering fra GitHub).
+- **LLM-pakke (lukket net):** uden internet installeres hjælperen fra **én samlet fil**, `scada-llm-<arkitektur>-<model>-<build>.tar` (ca. 3–6 GB), med llama.cpp og modellen. Tryk **Vælg LLM-pakke …**. Filen kontrolleres (indhold, arkitektur, licenser) og vises som *Klar til installation*. **Installér og slå til** installerer den. Kontrollen af SHA256 og udpakningen tager nogle minutter.
 - **Slå til / Slå fra:** slået fra bruger hjælperen hverken CPU eller RAM. Brug det på maskiner med få ressourcer. **Fjern** sletter modellen fra maskinen.
 - **Afprøv:** stiller et kort spørgsmål og viser svartid og hastighed (tokens/s) på netop denne maskine.
 - **Hensyn til SCADA'en:** hjælperen kører som sin egen tjeneste med lav prioritet og et fast hukommelsesloft. Live-data, alarmer og betjening går altid først, og kun ét spørgsmål behandles ad gangen.

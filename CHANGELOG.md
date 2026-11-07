@@ -4,6 +4,54 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.4.1 build 0350] — 2026-11-07 — Hjælper: pladstjekket regner som root-hjælperen
+
+- `services/assistant.py`:
+  - `install_need` (pakken + den installerede model + 1 GB, som `deploy/apply-llm.sh`) bruges i `stage`;
+  - ny `precheck_download` kræver plads til både hentning og installation, før en hentning startes, og foreslår at fjerne den installerede model.
+- `api/assist.py`: hentningen bruger `precheck_download`.
+- Test: `test_llm_catalog.py` (pladsregningen). Fundet på demo-VM'en (BUGS.md).
+
+## [4.4.0 build 0349] — 2026-11-07 — Vælg LLM-model fra en liste (hentes fra GitHub releases)
+
+- Ny `services/llm_catalog.py`:
+  - kataloget fra `deploy/llm-models.json` (variant, beskrivelse, profiler, `published`-arkitekturer);
+  - GitHub-klient: kun api.github.com/github.com/GitHubs download-domæner, også efter omdirigering, `trust_env=False`;
+  - `download`: delene (`.partNN`) skrives i én fil, mens SHA256 beregnes; størrelse og diskplads tjekkes undervejs; kan afbrydes. Passer kontrolsummen ikke, kasseres pakken.
+- `api/assist.py`:
+  - `GET /api/assist/catalog` og `POST`/`DELETE /api/assist/download` (admin);
+  - hentningen kører i baggrunden og klargøres med `stage` (samme kontrol som upload), hvorefter installationen bestilles;
+  - audit `assist.download`/`assist.package`.
+- `deploy/publish-llm-release.sh`: deler pakken i dele på 1900 MiB og udgiver dem med `.sha256` som release `llm-<model>-<build>` (prerelease, aldrig "latest", så SCADA-OTA'en ikke påvirkes).
+- `deploy/llm-models.json`: tre varianter, Hurtig (Qwen3.5-2B, ny), Standard (Qwen3.5-4B) og Stor (Ministral-3-8B), med beskrivelse og profiler. `install.sh` installerer kataloget; `config.py` har `llm_catalog` (`SCADA_LLM_CATALOG`).
+- `pages/SystemAssist.svelte`: *Vælg model* med kort pr. variant, *Hent og installér*, fremdrift og *Afbryd*. Upload står under *LLM-pakke (lukket net)*.
+- **Review (reviewer-agent) rettet:**
+  - pakkens SHA256 er låst fast i kataloget pr. arkitektur (`published: {arch: sha}`), så en ændret udgivelse på GitHub afvises;
+  - højst 16 GB pr. pakke;
+  - afbrydelse kan ikke gå tabt (nulstilles ved start) og stopper også klargøring og installation;
+  - audit `assist.download.cancel` med den, der afbrød;
+  - hentningen stoppes ved nedlukning, og en halv pakke ryddes op ved opstart;
+  - intet katalog og ingen hentning, når `SCADA_UPDATE_REPO` er tom eller ugyldig;
+  - udgivelses-scriptet fjerner gamle dele og opdaterer noterne.
+- Tests: `backend/tests/test_llm_catalog.py` (11, falsk GitHub: dele, omdirigering, forkert SHA, fremmed vært, afbrudt, API, roller). Set i browseren.
+- Manual: *System › Hjælper (LLM)*.
+
+## [4.3.0 build 0348] — 2026-11-07 — Signalvej: forklar med egne ord (LLM-hjælper fase 2b)
+
+- **Ny `services/assist_signal.py`:**
+  - prompten indeholder kun symbolerne på vejen (navn og rolle) og højst 30 kandidat-tags: symbolernes egne først, så dem der deler ord med beskrivelsen, så resten. Hvert tag har navn, til/fra eller tal, enhed og beskrivelse, renset med `clean` og uden kilder eller adresser;
+  - svaret skal følge et fast JSON-skema, hvor symbol-id'er og tag-navne er låst til listerne (`enum`, håndhævet af llama-server);
+  - `validate`: symbolet skal være på vejen, tagget skal findes og være synligt, til/fra → til/fra, tal → ≥/≤/= og en endelig værdi; resten bliver *ikke udfyldt*;
+  - deler kø, rate-grænse og ét-ad-gangen pr. bruger med hjælper-panelet.
+- `api/signal_paths.py`: `POST /api/drawings/{id}/signal-paths/suggest` (tekniker og op) som server-sent events. Audit `signal_path.suggest` logger kun antal og svartid. Gemmer intet.
+- Ny `api/sse.py`: fælles SSE med keepalive og oprydning. `/api/assist/ask` bruger den nu også.
+- Frontend:
+  - `lib/assist.ts`: `postStream`;
+  - `lib/SignalPathGuide.svelte`: *Forklar med egne ord* i trin 3 med *Udfyld med hjælperen*/*Stop*, tid, mærket *forslag* og *ikke udfyldt*. Vises kun, når hjælperen er slået til.
+- Review rettet: element-id'er og tag-navne, der ikke kan stå uændret i prompten, sendes ikke med (kan ikke bryde ud af `<data>`); højst 25 spørgsmål i API'et.
+- Tests: `test_signal_paths.py` (+5: gyldige/ugyldige forslag, skema og prompt uden tag-kilder, regler, fejl som hændelse, valg af kandidat-tags, usikre navne). Set i browseren med en falsk LLM.
+- Manual: *Forbindelser › Signalveje*.
+
 ## [4.2.0 build 0347] — 2026-11-07 — Signalvej i Tegn (LLM-hjælper fase 2a)
 
 - **Ny tabel `signal_paths`** (skema 15, additiv) og `storage/db.py`: `list_signal_paths`, `get_signal_path`, `write_signal_path` (signalvejen og alle berørte symbolopsætninger i ÉN transaktion). Backup eksporterer og gendanner signalveje (`services/backup.py` validerer dem).

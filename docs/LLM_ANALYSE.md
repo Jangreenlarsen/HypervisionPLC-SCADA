@@ -179,6 +179,19 @@ Varianten `libggml-cpu-haswell` (AVX2/FMA/F16C) indlæses korrekt, og CPU-steal 
 - **Mindre model:** Qwen3-1.7B, ca. 2½ gang hurtigere, men svagere på dansk.
 - **Kraftigere vært:** en moderne 8-kernet CPU giver typisk 10× hurtigere læsning af prompten.
 
+### Fjerde måling — varianten *Hurtig* (Qwen3.5-2B) via *Vælg model* (2026-11-07, v4.4.1)
+
+Hentet af demo-VM'en fra GitHub-udgivelsen (1,36 GB på 30 s) og installeret fra listen. Spørgsmålet er det samme som før: *"Hvordan kvitterer jeg en alarm?"* (643 tokens ind).
+
+| | Qwen3-4B / Qwen3.5-4B | **Qwen3.5-2B (Hurtig)** |
+|---|---|---|
+| Læsning af prompten (koldt / varmt) | 86–126 s / 44–68 s | **31 s / 21 s** |
+| Skrivning | ca. 2,5–3,8 tokens/s | **ca. 8 tokens/s** |
+| Svar i alt | 67–162 s | **40–55 s** |
+| Kvalitet | korrekt, præcis | forståelig, men med fejl: opfundet knapnavn ("Kvittér en alarm"), forveksler driftpanel og Alarmer, sproglige fejl |
+
+**Konklusion:** *Hurtig* er 2–3 gange hurtigere og egner sig til korte svar og forslag, hvor brugeren alligevel kontrollerer resultatet (signalvejens forslag valideres). Til forklaringer i hjælper-panelet er *Standard* tydeligt bedst. Det vises i varianternes beskrivelse.
+
 ## 8. Anbefaling og rækkefølge
 
 1. **Trin 1, uden AI (alle profiler):** signalvej-guide.

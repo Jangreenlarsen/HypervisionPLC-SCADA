@@ -5,6 +5,8 @@
   import { onDestroy } from 'svelte';
   import { ApiError, del, get, post, put } from './api';
   import { ask as askUser } from './ask';
+  import { postStream } from './assist';
+  import { assist } from './assistStore.svelte';
   import {
     ASKS, QUESTION, answerFrom, conditionsFrom, describe, endpoints, findPaths, suggestAnswer, summary,
     type Answer, type Condition, type Graph, type PathRow, type Pt, type Step, type TagInfo,
@@ -43,6 +45,54 @@
   let allTags = $state<TagInfo[]>([]);
   let answers = $state<Answer[]>([]);
   let searched = $state(false);
+  // "Forklar med egne ord" (v4.3.0): hjælperen udfylder svarene som forslag — intet gemmes, før brugeren trykker Gem
+  let explain = $state('');
+  let thinking = $state(false);
+  let thinkStart = $state(0);
+  let thinkSecs = $state(0);
+  let thinkNote = $state('');
+  let aiSet = $state<Set<string>>(new Set());
+  let unfilled = $state<string[]>([]);
+  let thinkCtl: AbortController | null = null;
+  $effect(() => {
+    if (!thinking) return;
+    const t = setInterval(() => (thinkSecs = Math.round((Date.now() - thinkStart) / 1000)), 1000);
+    return () => clearInterval(t);
+  });
+
+  type SuggestEvent = { type: 'queued'; waiting: number } | { type: 'error'; message: string }
+    | { type: 'done'; suggestions: Answer[]; unfilled: string[]; ms: number };
+
+  async function suggest(): Promise<void> {
+    error = '';
+    if (!explain.trim() || !asked.length) return;
+    thinking = true;
+    thinkStart = Date.now();
+    thinkSecs = 0;
+    thinkNote = 'Hjælperen læser vejen og din beskrivelse …';
+    thinkCtl = new AbortController();
+    try {
+      await postStream<SuggestEvent>(`${base}/suggest`, {
+        text: explain.trim(), questions: asked.map((r) => ({ element: r.id, role: r.role })),
+      }, (ev) => {
+        if (ev.type === 'queued') thinkNote = `I kø — ${ev.waiting} foran …`;
+        else if (ev.type === 'error') error = ev.message;
+        else if (ev.type === 'done') {
+          const got = new Map(ev.suggestions.map((a) => [a.element, a]));
+          answers = answers.map((a) => got.get(a.element) ?? a);
+          aiSet = new Set(got.keys());
+          unfilled = ev.unfilled;
+          thinkNote = `Udfyldt på ${Math.round(ev.ms / 1000)} s — tjek forslagene, før du gemmer.`;
+        }
+      }, thinkCtl.signal);
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') error = (e as Error).message;
+      else thinkNote = 'Stoppet.';
+    } finally {
+      thinking = false;
+      thinkCtl = null;
+    }
+  }
 
   const base = $derived(`/api/drawings/${encodeURIComponent(drawingId)}/signal-paths`);
   const ends = $derived(g ? endpoints(g) : []);
@@ -94,6 +144,10 @@
     rows = [];
     searched = false;
     answers = (p?.conditions ?? []).map(answerFrom);
+    explain = '';
+    thinkNote = '';
+    aiSet = new Set();
+    unfilled = [];
     if (p) await find(p.elements.map((e) => e.element));
   }
 
@@ -265,12 +319,33 @@
     <div class="step">
       <h4>3. Hvornår går der flow?</h4>
       {#if !asked.length}<p class="small muted">Ingen ventiler eller pumper på vejen — løbelyset kører altid.</p>{/if}
+      {#if asked.length && assist.available && assist.canAsk}
+        <div class="explain">
+          <label class="field">Forklar med egne ord <span class="small muted">(hjælperen udfylder forslag)</span>
+            <textarea bind:value={explain} rows="2" maxlength="400" disabled={thinking}
+                      placeholder="fx når pumpe 5 kører og MVS1 står over 50 %"></textarea>
+          </label>
+          <div class="row">
+            {#if thinking}
+              <button onclick={() => thinkCtl?.abort()}>Stop</button>
+              <span class="small muted">{thinkNote} {thinkSecs} s</span>
+            {:else}
+              <button onclick={suggest} disabled={!explain.trim() || busy}>Udfyld med hjælperen</button>
+              {#if thinkNote}<span class="small muted">{thinkNote}</span>{:else}<span class="small muted">tager typisk 1–3 min</span>{/if}
+            {/if}
+          </div>
+          {#if unfilled.length && !thinking}
+            <p class="small warn">Ikke udfyldt af hjælperen: {unfilled.map((id) => rows.find((r) => r.id === id)?.name || id).join(', ')} — vælg selv.</p>
+          {/if}
+        </div>
+      {/if}
       {#each answers as a (a.element)}
         {@const r = rows.find((x) => x.id === a.element)}
         {@const own = info.get(a.element)?.tags ?? []}
         {@const t = tagOf(a.src)}
         <div class="q">
-          <div><strong>{r?.name || a.element}</strong> <span class="small muted">{r ? QUESTION[r.role] : ''}</span></div>
+          <div><strong>{r?.name || a.element}</strong> <span class="small muted">{r ? QUESTION[r.role] : ''}</span>
+            {#if aiSet.has(a.element)}<span class="ai" title="Udfyldt af hjælperen — tjek det">forslag</span>{/if}</div>
           <select bind:value={a.src} aria-label="Tag for {r?.name || a.element}">
             <option value="">— ingen betingelse (altid) —</option>
             {#if own.length}<optgroup label="Symbolets egne tags">{#each own as o (o.name)}<option value={o.name}>{o.name}</option>{/each}</optgroup>{/if}
@@ -320,4 +395,7 @@
   .q { display: flex; flex-direction: column; gap: .25rem; padding: .35rem 0; border-bottom: 1px dashed var(--line); }
   .q input[type='number'] { width: 6rem; }
   .warn { color: var(--warn); }
+  .explain { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem; margin-bottom: .4rem; }
+  .explain textarea { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; }
+  .ai { font-size: .7rem; background: var(--accent); color: #fff; border-radius: 3px; padding: 0 .3rem; margin-left: .3rem; }
 </style>

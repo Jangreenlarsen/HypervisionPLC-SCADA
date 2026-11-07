@@ -21,6 +21,13 @@
     service: { ok: boolean; status: string; model: string | null };
     stats: { requests: number; errors: number; last_ms: number | null; last_tokens_per_s: number | null; last_error: string | null };
   }
+  interface Entry {
+    id: string; name: string; variant: string; about: string; quant: string; license: string; size: number;
+    profiles: string[]; fits: boolean; installed: boolean; release: string; url: string;
+  }
+  interface Job { state: string; model?: string; name?: string; done?: number; total?: number; part?: number; parts?: number;
+    error?: string; install_error?: string; installing?: boolean; started?: number }
+  interface Catalog { arch: string; profile: string; llm_allowed: boolean; repo: string; entries: Entry[]; job: Job }
   interface TestResult { answer: string | null; ms: number; tokens_in: number; tokens_out: number; tokens_per_s: number; model: string }
 
   let st = $state<Status | null>(null);
@@ -31,6 +38,7 @@
   let profile = $state('');
   let test = $state<TestResult | null>(null);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let cat = $state<Catalog | null>(null);
 
   const STATE: Record<string, string> = {
     running: 'Kører', stopped: 'Slået fra', installing: 'Installerer …', error: 'Fejl', removed: 'Fjernet',
@@ -38,7 +46,8 @@
 
   async function refresh(): Promise<void> {
     try {
-      st = await get<Status>('/api/assist/status');
+      [st, cat] = await Promise.all([get<Status>('/api/assist/status'), get<Catalog>('/api/assist/catalog')]);
+      if (cat.job.state !== 'running' && info.endsWith('hentes …')) info = '';   // resultatet står ved listen
       if (!profile) profile = st.hw.profile;
       error = error.startsWith('Kunne ikke hente') ? '' : error;
     } catch (e) {
@@ -46,7 +55,7 @@
     }
     clearTimeout(timer);
     // Følg med, mens en handling er i gang (installation af flere GB tager minutter)
-    timer = setTimeout(refresh, st?.pending || st?.installed?.state === 'installing' ? 2000 : 10000);
+    timer = setTimeout(refresh, st?.pending || st?.installed?.state === 'installing' || cat?.job.state === 'running' ? 2000 : 10000);
   }
   onMount(refresh);
   onDestroy(() => clearTimeout(timer));
@@ -82,6 +91,16 @@
       }
     });
   }
+
+  // Hent en variant fra GitHub (v4.4.0): klargøres som en uploadet pakke og installeres
+  const fetchModel = (e: Entry) => run('download', async () => {
+    const replace = st?.installed?.model ? ` Den installerede model (${st.installed.model.name}) erstattes.` : '';
+    if (!(await ask(`Hent ${e.name} (${e.variant}, ${formatBytes(e.size)}) fra GitHub og installér den?${replace}`, { ok: 'Hent og installér' }))) return;
+    await post('/api/assist/download', { model: e.id });
+    info = `${e.name} hentes …`;
+  });
+  const cancelFetch = () => run('cancel', async () => { await del('/api/assist/download'); });
+  const pct = (j: Job) => (j.total ? Math.min(1, (j.done ?? 0) / j.total) : 0);
 
   const action = (a: 'install' | 'start' | 'stop' | 'remove') => run(a, async () => {
     if (a === 'remove' && !(await ask('Fjern LLM-hjælperen og modellen fra maskinen? Den kan installeres igen med LLM-pakken.', { ok: 'Fjern', danger: true }))) return;
@@ -147,9 +166,41 @@
       </div>
       <p class="small muted">Slået fra bruger hjælperen ingen CPU eller RAM. På maskiner med få ressourcer (fx Raspberry Pi 4) kan den ikke slås til.</p>
 
-      <h3>LLM-pakke</h3>
-      <p class="small muted">Én fil (<code>scada-llm-&lt;arkitektur&gt;-&lt;model&gt;-&lt;build&gt;.tar</code>, 3–6 GB) med llama.cpp og modellen —
-        bygges med <code>deploy/make-llm-package.sh</code>. Den kontrolleres her og igen før installationen (SHA256).</p>
+      <h3>Vælg model</h3>
+      {#if cat && cat.entries.length}
+        <p class="small muted">Varianterne hentes som færdige LLM-pakker fra projektets udgivelser på GitHub
+          (<a href="https://github.com/{cat.repo}/releases" target="_blank" rel="noopener">{cat.repo}</a>) og kontrolleres med SHA256.
+          Serveren skal kunne nå github.com.</p>
+        <div class="models">
+          {#each cat.entries as e (e.id)}
+            <div class="model" class:on={e.installed}>
+              <div class="mhead"><strong>{e.variant || e.name}</strong> <span class="muted small">{e.name} {e.quant} · {formatBytes(e.size)} · {e.license}</span></div>
+              <p class="small">{e.about}</p>
+              {#if e.installed}<p class="small ok">✓ Installeret</p>
+              {:else if !e.fits}<p class="small muted">Passer ikke til hardwareprofilen.</p>
+              {:else}
+                <button onclick={() => fetchModel(e)} disabled={!!busy || !!st.pending || cat.job.state === 'running' || !hw.llm_allowed}>Hent og installér</button>
+              {/if}
+            </div>
+          {/each}
+        </div>
+        {#if cat.job.state === 'running'}
+          <p class="small">Henter {cat.job.name} … {formatBytes(cat.job.done ?? 0)} af {formatBytes(cat.job.total ?? 0)}
+            {#if (cat.job.parts ?? 0) > 1}(del {cat.job.part} af {cat.job.parts}){/if}
+            <progress max="1" value={pct(cat.job)}></progress>
+            <button class="small" onclick={cancelFetch} disabled={busy === 'cancel'}>Afbryd</button></p>
+        {:else if cat.job.state === 'error'}<p class="small error">Hentningen af {cat.job.name} fejlede: {cat.job.error}</p>
+        {:else if cat.job.state === 'cancelled'}<p class="small muted">Hentningen af {cat.job.name} blev afbrudt.</p>
+        {:else if cat.job.state === 'done' && cat.job.install_error}<p class="small warn">{cat.job.name} er hentet, men installationen kunne ikke bestilles: {cat.job.install_error}</p>
+        {/if}
+      {:else if cat}
+        <p class="small muted">Der er ingen varianter udgivet til {cat.arch} endnu — brug en LLM-pakke nedenfor.</p>
+      {/if}
+
+      <h3>LLM-pakke (lukket net)</h3>
+      <p class="small muted">Uden internet: upload én fil (<code>scada-llm-&lt;arkitektur&gt;-&lt;model&gt;-&lt;build&gt;.tar</code>) med llama.cpp og
+        modellen — hent den fra udgivelsen på GitHub (sæt delene sammen med <code>cat …tar.part* &gt; …tar</code>) eller byg den med
+        <code>deploy/make-llm-package.sh</code>. Den kontrolleres her og igen før installationen (SHA256).</p>
       {#if st.staged}
         {@const m = st.staged.manifest}
         <p class="notice small">Klar til installation: <strong>{m.model.name} {m.model.quant}</strong> ({m.arch}, llama.cpp {m.llama_build}, {formatBytes(st.staged.size)}, licens {m.model.license})
@@ -185,6 +236,11 @@
 {/if}
 
 <style>
+  .models { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: .5rem; margin-bottom: .5rem; }
+  .model { border: 1px solid var(--line); border-radius: var(--radius); padding: .5rem .6rem; background: #fff; }
+  .model.on { border-color: var(--ok); }
+  .model p { margin: .3rem 0; }
+  .mhead { display: flex; flex-wrap: wrap; gap: .4rem; align-items: baseline; }
   section { margin-bottom: 1rem; }
   h2 { margin-top: 0; }
   .row { gap: .6rem; align-items: flex-end; flex-wrap: wrap; }

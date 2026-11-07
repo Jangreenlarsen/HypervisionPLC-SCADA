@@ -73,6 +73,13 @@ En **signalvej** sætter løbelys på *alle* rør mellem to symboler, fx fra ked
    - et tal-tag: en sammenligning som ≥ 50.
 
    Symbolets egne tags (fra dets opsætning) står øverst og foreslås. Vælg *ingen betingelse*, hvis symbolet ikke skal tælle med. Alle betingelser skal være opfyldt (OG). Bøjninger, T-stykker og kontraventiler spørges der ikke om.
+
+   **Forklar med egne ord:** er hjælperen slået til (*System › Hjælper (LLM)*), kan du i stedet skrive, hvornår der går flow, fx *"når pumpe 5 kører og AVTB står åben"*, og trykke **Udfyld med hjælperen**.
+   - Hjælperen får kun symbolerne på vejen og en kort liste af tags (navn, type og beskrivelse) og udfylder svarene som forslag, mærket **forslag**.
+   - Hvert forslag kontrolleres, før det vises: tagget skal findes, og et tal-tag skal have en sammenligning.
+   - Forslag, der ikke holder, udfyldes ikke, og de symboler står under *Ikke udfyldt af hjælperen*.
+   - Det tager typisk 1–3 minutter; **Stop** afbryder.
+   - Tjek forslagene, før du gemmer. Intet gemmes, før du trykker **Gem signalvej**.
 4. **Navn og udseende:** giv signalvejen et navn, vælg lysfarve og fart, og tryk **Gem signalvej**.
 
 Når du gemmer, lægges betingelsen som en logikblok (*Signalvej: <navn>*) på vejens første rør, og hvert rør på vejen får et løbelys i vejens retning. Er et rør tegnet "baglæns", vendes lyset automatisk. Rørenes øvrige opsætning, fx en farve-animation, bevares. Har et rør allerede løbelys, spørger Tegn, om det skal erstattes. Et rør kan kun høre til én signalvej ad gangen.

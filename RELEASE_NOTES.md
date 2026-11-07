@@ -2,6 +2,24 @@
 
 ---
 
+## v4.4.1 — 2026-11-07 — Hjælper: tydelig besked om diskplads
+
+- Er der ikke plads til at hente og installere en ny model ved siden af den installerede, siger siden det med det samme: fjern den installerede model først, eller udvid disken. Før blev modellen hentet, og installationen fejlede bagefter.
+
+## v4.4.0 — 2026-11-07 — Vælg LLM-model fra en liste
+
+- Under *System › Hjælper* vælger administratoren en af tre varianter og trykker *Hent og installér*:
+  - *Hurtig* (Qwen3.5-2B);
+  - *Standard* (Qwen3.5-4B);
+  - *Stor* (Ministral-3-8B).
+- Serveren henter selv pakken fra projektets udgivelser på GitHub og kontrollerer den. Fremdriften vises, og hentningen kan afbrydes.
+- Uden internet kan en LLM-pakke stadig uploades som før.
+
+## v4.3.0 — 2026-11-07 — Signalvej: forklar med egne ord
+
+- I signalvejens trin 3 kan du skrive, hvornår der går flow, fx *"når pumpe 5 kører og AVTB står åben"*. Hjælperen udfylder svarene som forslag, mærket *forslag*.
+- Forslagene kontrolleres, og intet gemmes, før du selv trykker *Gem signalvej*. Det tager typisk 1–3 minutter og kræver, at hjælperen er slået til.
+
 ## v4.2.0 — 2026-11-07 — Signalvej i Tegn
 
 - Ny sektion **Signalveje** i Tegn: vælg et start- og et slutsymbol, så finder Tegn rørvejen imellem og viser den med orange. Vejen kan gå gennem rør, bøjninger, T-stykker og afgreninger.
