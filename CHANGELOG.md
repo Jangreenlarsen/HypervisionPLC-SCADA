@@ -4,7 +4,38 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
-## [4.9.0 build 0359] — 2026-11-07 — Manualen gennemgået; skjult LLM-manual til hjælperen; nyt manual-indeks
+## [4.10.0 build 0360] — 2026-11-07 — Hjælperen fase 3 (tag-beskrivelser, signal-forslag, døgnets alarmer), opvarmning og Raspberry Pi-pakker
+
+- **Fase 3** — `services/assist_setup.py` (ny):
+  - `TagDescriber`: beskrivelse (≤ 60 tegn) og enhed (fast liste) ud fra ST-variablernes navne;
+  - `SignalHelper`: kommando (kun skrivbare) og tilbagemelding pr. signal; kandidat-tags som i signalvejen (`pick_tags`);
+  - begge med JSON-skema og validering, ingen kilder eller adresser i prompten.
+- Endpoints `POST /api/assist/describe-tags` og `POST /api/assist/symbol-signals` (tekniker, SSE). Den sidste tjekker tegningsadgang og synlige tags. Audit logger kun metadata.
+- **Døgnets alarmer** — `assist_tools.alarm_summary`: deterministisk optælling af historikken (antal, aktiv tid, kvitteringstid, stadig aktive). Den bruges, når `context.summary` er sat (*Alarmer › Opsummér døgnet*). `dur()`.
+- **Opvarmning** — `AssistantService.warm_up`/`keep_warm` (baggrundsopgave i `main.py`):
+  - et kald med systemprompten og `max_tokens=1`, når tjenesten bliver klar, og igen ved ny model eller genstart;
+  - spørgsmål venter på opvarmningen (`warming`), og hændelsen `queued` har `warming`;
+  - metrics `scada_assist_warm` og `scada_assist_warmups_total`.
+- **Raspberry Pi** — LLM-pakker til aarch64 (Hurtig og Standard) er udgivet og låst fast i `deploy/llm-models.json`:
+  - glibc pr. arkitektur i kataloget (aarch64 2.38, x86_64 2.34) og i pakkens manifest (`make-llm-package.sh`);
+  - `machine_glibc`/`glibc_problem`: kataloget markerer varianter `blocked`, og en pakke til en nyere glibc afvises.
+- **Frontend:**
+  - `Tags.svelte`: *✦ Beskriv med hjælperen*, og beskrivelse og enhed kan rettes før import;
+  - `SymbolGuide.svelte`: boksen *Foreslå tags* i trin 2;
+  - `Alarms.svelte`: *Opsummér døgnet*;
+  - `AssistPanel`: *Hjælperen starter op*;
+  - `SystemAssist`: viser årsagen, når en variant er blokeret.
+- **Manual:** tekst i 03, 05, 10 og 13, og *Menuen* er rettet (klik, ikke hover). Skærmbillederne er taget om på testserveren med v4.9.0 (56 af 58; *tegn-erstat* og *guide-former* er de gamle).
+- `manual-screenshots.mjs`: `SKIP`, og menuerne åbnes med klik.
+- **BUGS.md:** v0.111.2 lukket; v1.12.1 noteret (plc1 svarer ikke).
+- **Review (reviewer-agent), rettet:**
+  - markeringen af et spørgsmål i gang udløber først efter den længste ventetid (`ASK_STALE_S`);
+  - `complete()` venter også på opvarmningen;
+  - fejlet opvarmning prøves igen med stigende pause (højst 30 min);
+  - ugyldig `llama[arch]` i kataloget giver ikke fejl 500;
+  - ældre ARM-pakker uden glibc-felt behandles som 2.38.
+- Tests: `test_assist_setup.py` (ny) og `test_assist.py` (opvarmning, glibc). Set i browseren mod en falsk LLM.
+ — 2026-11-07 — Manualen gennemgået; skjult LLM-manual til hjælperen; nyt manual-indeks
 
 - **LLM-manual** — `services/manual_compiler.py` (ny):
   - kompilerer `frontend/src/manual/*.md` til stykker på højst 110 ord med sti-overskrift (`##` og `###`);

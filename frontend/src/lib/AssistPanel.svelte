@@ -37,7 +37,7 @@
     const req = assist.request;
     if (req && !busy) {
       assist.request = null;
-      send(req.question, { alarm: req.alarm, tags: req.tags, label: req.label });
+      send(req.question, { alarm: req.alarm, tags: req.tags, label: req.label, summary: req.summary });
     }
   });
   $effect(() => { if (assist.open) tick().then(() => input?.focus()); });
@@ -47,7 +47,7 @@
     list?.scrollTo({ top: list.scrollHeight });
   }
 
-  async function send(text: string, extra: { alarm?: string; tags?: string[]; label?: string } = {}): Promise<void> {
+  async function send(text: string, extra: { alarm?: string; tags?: string[]; label?: string; summary?: boolean } = {}): Promise<void> {
     const q = text.trim();
     if (!q || busy) return;
     const history = historyFor(turns);
@@ -62,10 +62,10 @@
     controller = new AbortController();
     scrollDown();
     try {
-      await ask({ question: q, context: { ...contextFromRoute(route, page), alarm: extra.alarm ?? null, tags: extra.tags ?? [] }, history },
+      await ask({ question: q, context: { ...contextFromRoute(route, page), alarm: extra.alarm ?? null, tags: extra.tags ?? [], summary: !!extra.summary }, history },
         (ev) => {
           if (ev.type === 'sources') answer.sources = ev.sources;
-          else if (ev.type === 'queued') phase = `I kø — ${ev.waiting} spørgsmål foran …`;
+          else if (ev.type === 'queued') phase = ev.warming ? 'Hjælperen starter op (modellen indlæses) — dit spørgsmål venter …' : `I kø — ${ev.waiting} spørgsmål foran …`;
           else if (ev.type === 'delta') { phase = 'Skriver …'; answer.content += ev.text; scrollDown(); }
           else if (ev.type === 'done') answer.ms = ev.ms;
           else if (ev.type === 'error') { answer.error = true; answer.content = answer.content ? `${answer.content}\n\n${ev.message}` : ev.message; }

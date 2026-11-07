@@ -44,8 +44,8 @@ Som admin: nederst på **System › Konfiguration**, sektionen **Genstart**: **G
 Se **System › Status** (ledig disk). Ryd op på maskinen som root med `scada-maint`: `scada-maint status` viser hvad der fylder, `scada-maint emergency` rydder trin for trin, til der er plads nok (logfiler, gamle backups, gammel trend-historik). Trend-databasen kan også flyttes til en anden disk (*System › Konfiguration*).
 
 ## Hvordan vælger og installerer jeg en model til hjælperen (LLM)?
-<!-- kilde: 13-system#m-hjaelper-llm sha:6b9a9172 -->
-Som admin: **System › Hjælper (LLM)**. Vælg hardwareprofil, og tryk **Hent og installér** ved en variant: *Hurtig*, *Standard* (anbefalet) eller *Stor* (kræver 16 GB RAM). Uden internet installeres en samlet LLM-pakke med **Vælg LLM-pakke …**.
+<!-- kilde: 13-system#m-hjaelper-llm sha:193192b2 -->
+Som admin: **System › Hjælper (LLM)**. Vælg hardwareprofil, og tryk **Hent og installér** ved en variant: *Hurtig*, *Standard* (anbefalet) eller *Stor* (kræver 16 GB RAM). Uden internet installeres en samlet LLM-pakke med **Vælg LLM-pakke …**. På Raspberry Pi 5 findes Hurtig og Standard; de kræver Raspberry Pi OS 13 "Trixie".
 
 ## Hvordan ser jeg, hvem der har ændret noget eller skrevet til PLC'en (revisionsspor, audit, hvem gjorde hvad)?
 <!-- kilde: 13-system#m-log sha:cdf6c0de -->

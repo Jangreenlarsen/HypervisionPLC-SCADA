@@ -14,7 +14,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..services.assist_tools import Context
-from ..services.assistant import ARCH_ALIASES, DISK_CHECK_BYTES, MAX_PACKAGE_BYTES, WRITE_BUFFER_BYTES, AssistantService
+from ..services.assistant import (ARCH_ALIASES, DISK_CHECK_BYTES, MAX_PACKAGE_BYTES, WRITE_BUFFER_BYTES, AssistantService,
+                                  machine_glibc)
 from ..services.llm_catalog import Cancelled, LlmCatalog
 from ..services.auth import CurrentUser, role_at_least
 from ..services.errors import ServiceError
@@ -47,6 +48,7 @@ class AskContext(_Model):
     drawing: str | None = Field(None, max_length=80)
     alarm: str | None = Field(None, max_length=200)
     tags: list[str] = Field(default_factory=list, max_length=10)
+    summary: bool = False
 
 
 class Turn(_Model):
@@ -58,6 +60,25 @@ class AskBody(_Model):
     question: str = Field(max_length=2000)
     context: AskContext = Field(default_factory=AskContext)
     history: list[Turn] = Field(default_factory=list, max_length=20)
+
+
+class TagItem(_Model):
+    name: str = Field(min_length=1, max_length=80)
+    datatype: str = Field("", max_length=20)
+    origin: str = Field("", max_length=60)
+
+
+class DescribeBody(_Model):
+    items: list[TagItem] = Field(min_length=1, max_length=30)
+
+
+class SignalsBody(_Model):
+    drawing: str = Field(min_length=1, max_length=80)
+    element: str = Field(min_length=1, max_length=120)
+    text: str = Field("", max_length=2000)
+    signals: list[str] = Field(min_length=1, max_length=8)
+    op: Literal["positions", "pulse", "entry", "view"] = "positions"
+    positions: list[str] = Field(default_factory=list, max_length=8)
 
 
 def _svc(request: Request) -> AssistantService:
@@ -78,7 +99,7 @@ async def ask(body: AskBody, request: Request, user: CurrentUser = Depends(requi
     `error`. Audit logger kun metadata (side, værktøjer, svartid, tokens) — aldrig spørgsmål eller svar."""
     svc = _svc(request)
     c = body.context
-    ctx = Context(page=c.page, drawing=c.drawing, alarm=c.alarm, tags=[t[:80] for t in c.tags])
+    ctx = Context(page=c.page, drawing=c.drawing, alarm=c.alarm, tags=[t[:80] for t in c.tags], summary=c.summary)
     prepared = await asyncio.to_thread(svc.prepare, user, body.question, ctx, [t.model_dump() for t in body.history])
     t0 = time.monotonic()
 
@@ -90,6 +111,45 @@ async def ask(body: AskBody, request: Request, user: CurrentUser = Depends(requi
             "result": "ok" if last.get("type") == "done" else ("error" if last else "afbrudt")})
 
     return sse_response(lambda: svc.answer(user, prepared), close)
+
+
+@router.post("/describe-tags")
+async def describe_tags(body: DescribeBody, request: Request, user: CurrentUser = Depends(require("engineer"))) -> StreamingResponse:
+    """Tags › Foreslå tags fra PLC (fase 3): beskrivelse og enhed som forslag ud fra variablernes navne. SSE (`queued`,
+    `done` med forslag, `error`). Gemmer intet. Audit: kun antal og tid."""
+    svc = request.app.state.tag_describer
+    prepared = await asyncio.to_thread(svc.prepare, user, [i.model_dump() for i in body.items])
+    t0 = time.monotonic()
+
+    def close(last: dict[str, Any]) -> None:
+        if not last:
+            svc.assistant.finish(user.username)
+        audit(request, "assist.describe_tags", "", {"asked": prepared["asked"], "filled": len(last.get("suggestions", [])),
+                                                    "ms": round((time.monotonic() - t0) * 1000), "result": last.get("type") or "afbrudt"})
+
+    return sse_response(lambda: svc.run(user, prepared), close)
+
+
+@router.post("/symbol-signals")
+async def symbol_signals(body: SignalsBody, request: Request, user: CurrentUser = Depends(require("engineer"))) -> StreamingResponse:
+    """Symbolguidens trin 2 (fase 3): kommando- og tilbagemeldings-tags som forslag. Kun tags og tegninger, brugeren må
+    se. SSE som /describe-tags. Gemmer intet."""
+    scope = request.app.state.scope_service
+    if not scope.can_see_drawing(user, body.drawing):
+        raise ServiceError(404, f"Tegningen '{body.drawing}' findes ikke")
+    svc = request.app.state.signal_helper
+    prepared = await asyncio.to_thread(svc.prepare, user, body.drawing, body.element, body.text, body.signals, body.op,
+                                       body.positions, scope.visible_tags(user))
+    t0 = time.monotonic()
+
+    def close(last: dict[str, Any]) -> None:
+        if not last:
+            svc.assistant.finish(user.username)
+        audit(request, "assist.symbol_signals", f"{body.drawing}/{body.element}", {
+            "asked": prepared["asked"], "filled": len(last.get("suggestions", [])),
+            "ms": round((time.monotonic() - t0) * 1000), "result": last.get("type") or "afbrudt"})
+
+    return sse_response(lambda: svc.run(user, prepared), close)
 
 
 def _arch() -> str:
@@ -109,7 +169,7 @@ async def catalog(request: Request) -> dict[str, Any]:
     model = (svc._installed() or {}).get("model")
     installed = model.get("id") if isinstance(model, dict) else None
     return {"arch": _arch(), "profile": hw["profile"], "llm_allowed": hw["llm_allowed"], "repo": cat.repo,
-            "entries": cat.entries(_arch(), hw["profile"], installed), "job": dict(cat.job)}
+            "entries": cat.entries(_arch(), hw["profile"], installed, machine_glibc()), "job": dict(cat.job)}
 
 
 @router.post("/download")
@@ -122,9 +182,11 @@ async def start_download(body: DownloadBody, request: Request,
     hw = request.app.state.hw_profile.status()
     if not hw["llm_allowed"]:
         raise ServiceError(409, "Hardwareprofilen tillader ikke hjælperen — vælg en profil med LLM ovenfor")
-    entry = next((e for e in cat.entries(_arch(), hw["profile"], None) if e["id"] == body.model), None)
+    entry = next((e for e in cat.entries(_arch(), hw["profile"], None, machine_glibc()) if e["id"] == body.model), None)
     if entry is None:
         raise ServiceError(404, f"Modellen '{body.model}' findes ikke til {_arch()} i listen")
+    if entry["blocked"]:
+        raise ServiceError(409, f"{entry['name']}: {entry['blocked']}")
     if not entry["fits"]:
         raise ServiceError(409, f"{entry['name']} passer ikke til hardwareprofilen ({hw['profile']})")
     cat.start({"state": "running", "model": entry["id"], "name": entry["name"], "by": user.username,

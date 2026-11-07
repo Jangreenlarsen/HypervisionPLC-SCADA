@@ -2,6 +2,14 @@
 
 ---
 
+## v4.10.0 — 2026-11-07 — Hjælperen hjælper med opsætningen
+
+- **Tags fra PLC'en** kan få en dansk beskrivelse og enhed foreslået af hjælperen (*✦ Beskriv med hjælperen*). Ret dem, og importér.
+- **Symbolguiden** kan foreslå kommando- og tilbagemeldings-tags i trin 2 (*Foreslå tags*).
+- **Alarmer › Opsummér døgnet:** hjælperen opsummerer de seneste 24 timers alarmer — hvad der skete, hvad der gentog sig, og hvad der bør undersøges.
+- Hjælperen **varmes op**, når den starter, så det første spørgsmål ikke tager flere minutter.
+- **Raspberry Pi 5** kan nu hente hjælperen (*Hurtig* og *Standard*). Det kræver Raspberry Pi OS 13 "Trixie".
+
 ## v4.9.0 — 2026-11-07 — Bedre manual og en hjælper, der finder svarene
 
 - **Manualen** har fået mere tekst og 11 nye skærmbilleder:

@@ -265,7 +265,7 @@ Service:  scada-llm.service (llama-server, 127.0.0.1:8091, lav prioritet, Memory
    - gemmes som en navngiven signalvej, der kan rettes.
 10. *Forklar med egne ord*: LLM'en får vejen og kandidat-tags (kort prompt) og svarer i fast JSON-skema. Backend validerer (tags findes, stillinger gyldige, symboler på vejen), og svarene udfyldes i guiden, hvor brugeren godkender.
 
-**Fase 3 (senere, efter måling):** forslag til tags ud fra ST-variabler, hjælp i symbolguiden, opsummering af døgnets alarmer.
+**Fase 3 — ✅ v4.10.0 (Jan 2026-11-07: "lave det"):** forslag til tags ud fra ST-variabler (beskrivelse + enhed), hjælp i symbolguiden (trin 2: kommando/tilbagemelding), opsummering af døgnets alarmer (tal beregnes deterministisk). Samme mønster som signalvejen: JSON-skema, validering, intet gemmes.
 
 ## Sikkerhed
 - Ingen PLC-skrivning og ingen konfigurationsændringer fra LLM'en. Værktøjerne er rene læsefunktioner, der kalder services med brugerens rettigheder.

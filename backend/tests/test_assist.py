@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.llm.client import LlmClient, LlmError
 from app.main import create_app
-from app.services import hwprofile
+from app.services import assistant, hwprofile
 
 ADMIN_PW = "test-admin-pw-1"
 SH = shutil.which("sh")
@@ -291,3 +291,144 @@ def test_upload_refused_before_streaming_when_disk_is_short(api, monkeypatch):
     r = api.post("/api/assist/package", content=data, headers={"Content-Type": "application/octet-stream"})
     assert r.status_code == 507 and "diskplads" in r.json()["error"]
     assert not (api.dir / "incoming.tar").exists() and not (api.dir / "receiving.tar").exists()
+
+
+# ------------------------------------------------------------------ opvarmning (v4.10.0)
+
+def test_warm_up_runs_when_the_service_is_ready_and_again_for_a_new_model(api):
+    a = api.app.state.assistant
+    (api.state / "llm-enabled").write_text("", encoding="utf-8")
+    seen = {"model": "m1", "ok": True, "chats": []}
+
+    def handler(req):
+        if req.url.path == "/health":
+            return httpx.Response(200 if seen["ok"] else 503, json={})
+        if req.url.path == "/v1/models":
+            return httpx.Response(200, json={"data": [{"id": seen["model"]}]})
+        body = json.loads(req.content)
+        seen["chats"].append(body)
+        return httpx.Response(200, json={"model": seen["model"], "choices": [{"message": {"content": "H"}}],
+                                         "usage": {"prompt_tokens": 400, "completion_tokens": 1}})
+    a.client = LlmClient(transport=httpx.MockTransport(handler))
+
+    async def run(rounds):
+        task = asyncio.create_task(a.keep_warm(interval=0.01))
+        for _ in range(rounds):
+            await asyncio.sleep(0.03)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    asyncio.run(run(5))
+    assert len(seen["chats"]) == 1                                    # én gang, ikke i hver runde
+    first = seen["chats"][0]
+    assert first["max_tokens"] == 1 and first["messages"][0]["content"] == assistant.SYSTEM_PROMPT
+    assert a.stats["warmups"] == 1 and a.stats["warm_model"] == "m1" and a.metrics()["warm"] == 1
+    seen["model"] = "m2"                                              # ny model installeret
+    asyncio.run(run(5))
+    assert len(seen["chats"]) == 2 and a.stats["warm_model"] == "m2"
+    seen["ok"] = False                                                # tjenesten genstarter …
+    asyncio.run(run(3))
+    assert a.metrics()["warm"] == 0
+    seen["ok"] = True                                                 # … og varmes op igen, selv med samme model
+    asyncio.run(run(3))
+    assert len(seen["chats"]) >= 3
+
+
+def test_warm_up_is_skipped_while_the_model_is_busy(api):
+    a = api.app.state.assistant
+
+    async def busy():
+        async with a._sem:
+            return await a.warm_up()
+    assert asyncio.run(busy()) is False and a.stats["warmups"] == 0
+
+
+# ------------------------------------------------------------------ glibc (Raspberry Pi, v4.10.0)
+
+def test_glibc_requirement_blocks_old_systems_with_a_clear_reason():
+    assert assistant.parse_glibc("2.38") == (2, 38) and assistant.parse_glibc("x") is None and assistant.parse_glibc(None) is None
+    assert assistant.glibc_problem((2, 38), (2, 41)) is None
+    assert assistant.glibc_problem((2, 38), None) is None                       # ukendt (fx Windows): ikke blokeret
+    p = assistant.glibc_problem((2, 38), (2, 36))
+    assert "2.38" in p and "2.36" in p and "Trixie" in p
+
+
+def test_catalog_marks_arm_variants_blocked_on_bookworm(tmp_path):
+    from app.services.llm_catalog import LlmCatalog
+    cat_file = tmp_path / "llm-models.json"
+    cat_file.write_text(json.dumps({"llama": {"build": "b1", "aarch64": {"glibc": "2.38"}, "x86_64": {"glibc": "2.34"}},
+                                    "models": {"m": {"name": "M", "size": 1, "profiles": ["pi5"], "variant": "Hurtig",
+                                                     "published": {"aarch64": "a" * 64}}}}), encoding="utf-8")
+    cat = LlmCatalog(cat_file, "owner/repo")
+    old = cat.entries("aarch64", "pi5", None, (2, 36))[0]
+    assert old["fits"] is False and "Trixie" in old["blocked"]
+    new = cat.entries("aarch64", "pi5", None, (2, 41))[0]
+    assert new["fits"] is True and new["blocked"] is None
+
+
+def test_package_built_for_newer_glibc_is_rejected(tmp_path):
+    man = {"format": "hv-llm", "format_version": 1, "arch": "aarch64", "llama_build": "b1", "ctx": 4096, "glibc": "2.38",
+           "model": {"id": "m", "name": "M", "file": "m.gguf", "license": "Apache-2.0", "sha256": "a" * 64, "size": 3}}
+    root = "scada-llm"
+    files = {f"{root}/manifest.json": json.dumps(man).encode(), f"{root}/model/m.gguf": b"abc",
+             f"{root}/llama/llama-server": b"#!/bin/sh\n", f"{root}/LICENSES/README.txt": b"MIT"}
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as tar:
+        for name, data in files.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    pkg = tmp_path / "p.tar"
+    pkg.write_bytes(buf.getvalue())
+    with pytest.raises(Exception) as e:
+        assistant.inspect_package(pkg, "x" * 64, "aarch64", (2, 36))
+    assert "glibc 2.38" in str(e.value.detail if hasattr(e.value, "detail") else e.value)
+    assert assistant.inspect_package(pkg, "x" * 64, "aarch64", (2, 41))["manifest"]["glibc"] == (2, 38)
+
+
+def test_failed_warm_up_backs_off_instead_of_retrying_every_round(api):
+    a = api.app.state.assistant
+    (api.state / "llm-enabled").write_text("", encoding="utf-8")
+    chats = []
+
+    def handler(req):
+        if req.url.path == "/health":
+            return httpx.Response(200, json={})
+        if req.url.path == "/v1/models":
+            return httpx.Response(200, json={"data": [{"id": "m"}]})
+        chats.append(1)
+        return httpx.Response(500, json={})                              # opvarmningen fejler
+    a.client = LlmClient(transport=httpx.MockTransport(handler))
+
+    async def run():
+        task = asyncio.create_task(a.keep_warm(interval=0.01))
+        await asyncio.sleep(0.25)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    asyncio.run(run())
+    assert 2 <= len(chats) <= 6                                          # 10 ms, 20, 40, 80, 160 … ikke 25 gange
+    assert a.stats["warmups"] == 0
+
+
+def test_old_arm_package_without_glibc_field_is_rejected_on_bookworm(tmp_path):
+    man = {"format": "hv-llm", "format_version": 1, "arch": "aarch64", "llama_build": "b1", "ctx": 4096,
+           "model": {"id": "m", "name": "M", "file": "m.gguf", "license": "Apache-2.0", "sha256": "a" * 64, "size": 3}}
+    files = {"scada-llm/manifest.json": json.dumps(man).encode(), "scada-llm/model/m.gguf": b"abc",
+             "scada-llm/llama/llama-server": b"#!/bin/sh\n", "scada-llm/LICENSES/README.txt": b"MIT"}
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as tar:
+        for name, data in files.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    pkg = tmp_path / "p.tar"
+    pkg.write_bytes(buf.getvalue())
+    with pytest.raises(Exception, match="glibc 2.38"):
+        assistant.inspect_package(pkg, "x" * 64, "aarch64", (2, 36))
+    assert assistant.inspect_package(pkg, "x" * 64, "aarch64", (2, 41))["manifest"]["glibc"] is None

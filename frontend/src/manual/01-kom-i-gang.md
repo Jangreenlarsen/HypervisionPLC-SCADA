@@ -21,11 +21,11 @@ Skriv brugernavn og adgangskode. Er det første gang, eller har en administrator
 
 ## Menuen
 
-![Menuen Opsætning foldet ud, når musen peger på punktet](../../public/manual/menu-opsaetning.png)
+![Menuen Opsætning foldet ud efter et klik på punktet](../../public/manual/menu-opsaetning.png)
 
 ![Menuen Bruger yderst til højre: navn og rolle, Manual, Skift adgangskode, Log ud og version](../../public/manual/menu-bruger.png)
 
-Øverst står fire menupunkter. Før musen hen over et punkt, så folder menuen sig ud af sig selv — vælg siden direkte. På en touch-skærm trykker du på punktet; **Escape** eller et klik udenfor lukker menuen igen.
+Øverst står fire menupunkter. **Klik** på et punkt, så folder menuen sig ud over siden — vælg derefter siden. Et nyt klik på punktet, **Escape** eller et klik udenfor lukker menuen igen.
 
 | Punkt | Indhold | Hvem |
 | --- | --- | --- |

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import platform
 import logging
 import re
 import secrets
@@ -52,6 +53,12 @@ HISTORY_CHARS = 400
 ASKS_PER_HOUR = 30                          # pr. bruger — modellen er en fælles, langsom ressource
 QUEUE_WAIT_S = 120.0
 ANSWER_TOKENS = 220
+WARMUP_TIMEOUT_S = 600.0                    # første indlæsning af en stor model fra disk kan tage minutter
+# En brugers markering 'spørgsmål i gang' udløber først efter den længst mulige ventetid (kø + opvarmning + svar),
+# så samme bruger ikke kan starte et nyt spørgsmål, mens det første stadig venter (review v4.10.0)
+ASK_STALE_S = QUEUE_WAIT_S + WARMUP_TIMEOUT_S + 600
+ARM_GLIBC = (2, 38)                         # llama.cpp's færdige ARM-filer (Ubuntu 24.04)
+WARMUP_RETRY_MAX_S = 1800.0                 # efter fejlet opvarmning: 40 s, 80 s, 160 s … højst 30 min
 # Fast systemprompt (først i hver samtale): llama-server genbruger den allerede læste del (cache_prompt)
 SYSTEM_PROMPT = (
     "Du er hjælperen i HypervisionPLC SCADA, et system der overvåger og betjener et teknisk anlæg (fx varme og ventilation) "
@@ -74,13 +81,41 @@ def _safe_name(name: str) -> tuple[str, ...]:
     return parts
 
 
+def machine_glibc() -> tuple[int, ...] | None:
+    """Maskinens glibc-version, fx (2, 36) — None, hvor den ikke kan findes (fx Windows i udviklingen)."""
+    lib, ver = platform.libc_ver()
+    try:
+        return tuple(int(x) for x in ver.split(".")[:2]) if lib == "glibc" and ver else None
+    except ValueError:
+        return None
+
+
+def glibc_text(v: tuple[int, ...]) -> str:
+    return ".".join(str(x) for x in v)
+
+
+def parse_glibc(text: Any) -> tuple[int, ...] | None:
+    """"2.38" → (2, 38); alt andet → None."""
+    m = re.fullmatch(r"(\d{1,2})\.(\d{1,3})", str(text or ""))
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def glibc_problem(need: tuple[int, ...] | None, have: tuple[int, ...] | None) -> str | None:
+    """Kan llama.cpp køre her? llama.cpp's færdige ARM-filer er bygget på Ubuntu 24.04 og kræver glibc 2.38, dvs.
+    Raspberry Pi OS 13 (Trixie) — på Bookworm (glibc 2.36) starter llama-server slet ikke (v4.10.0)."""
+    if need is None or have is None or have >= need:
+        return None
+    return (f"Kræver glibc {glibc_text(need)} eller nyere, men maskinen har {glibc_text(have)} — opgradér styresystemet "
+            f"(fx Raspberry Pi OS 13 \"Trixie\" / Debian 13)")
+
+
 def parse_manifest(raw: bytes) -> dict[str, Any]:
     try:
         m = json.loads(raw)
         model = m["model"]
         out = {
             "format_version": int(m["format_version"]), "arch": ARCH_ALIASES.get(str(m["arch"]).lower(), ""),
-            "llama_build": str(m["llama_build"]), "ctx": int(m.get("ctx", 8192)),
+            "llama_build": str(m["llama_build"]), "ctx": int(m.get("ctx", 8192)), "glibc": parse_glibc(m.get("glibc")),
             "model": {"id": str(model["id"]), "name": str(model["name"])[:80], "file": str(model["file"]),
                       "quant": str(model.get("quant", ""))[:20], "license": str(model["license"])[:40],
                       "sha256": str(model["sha256"]).lower(), "size": int(model["size"])},
@@ -102,7 +137,7 @@ def parse_manifest(raw: bytes) -> dict[str, Any]:
     return out
 
 
-def inspect_package(path: Path, sha256: str, machine_arch: str) -> dict[str, Any]:
+def inspect_package(path: Path, sha256: str, machine_arch: str, have_glibc: tuple[int, ...] | None = None) -> dict[str, Any]:
     """Kontrollér en LLM-pakke uden at pakke den ud → {manifest, sha256, size, files}. SHA256 er beregnet under upload."""
     size = path.stat().st_size
     if size == 0:
@@ -131,6 +166,9 @@ def inspect_package(path: Path, sha256: str, machine_arch: str) -> dict[str, Any
     want = ARCH_ALIASES.get(machine_arch.lower(), machine_arch)
     if man["arch"] != want:
         raise ServiceError(400, f"LLM-pakken er bygget til {man['arch']}, men maskinen er {want} — byg en pakke til {want}")
+    need = man["glibc"] or (ARM_GLIBC if man["arch"] == "aarch64" else None)   # ældre pakker uden feltet
+    if problem := glibc_problem(need, have_glibc):
+        raise ServiceError(400, f"LLM-pakken kan ikke køre på denne maskine: {problem}")
     model_path = f"model/{man['model']['file']}"
     if names.get(model_path) != man["model"]["size"]:
         raise ServiceError(400, f"LLM-pakken mangler modelfilen {model_path} (eller størrelsen passer ikke med manifestet)")
@@ -168,12 +206,13 @@ class AssistantService:
         self._receiving = threading.Lock()
         self._sem = asyncio.Semaphore(1)
         self.waiting = 0
+        self.warming = False                       # opvarmningen kører (et spørgsmål må så vente længere)
         self.tools: AssistTools | None = None      # sættes i main.py, når alarmer, trends m.m. findes
         self._asking: dict[str, float] = {}       # bruger → hvornår spørgsmålet startede
         self._admit_lock = threading.Lock()   # _asking og _recent ændres fra tråde (prepare kører i to_thread)
         self._recent: dict[str, deque[float]] = {}
         self.stats = {"asks": 0, "requests": 0, "errors": 0, "last_ms": None, "last_tokens_per_s": None, "last_error": None,
-                      "last_at": None}
+                      "last_at": None, "warm_at": None, "warm_ms": None, "warm_model": None, "warmups": 0}
 
     # ------------------------------------------------------------------ filer og status
     @property
@@ -220,7 +259,57 @@ class AssistantService:
 
     def metrics(self) -> dict[str, Any]:
         return {"asks": self.stats["asks"], "requests": self.stats["requests"], "errors": self.stats["errors"], "busy": int(self._sem.locked()),
-                "waiting": self.waiting, "last_ms": self.stats["last_ms"] or 0}
+                "waiting": self.waiting, "last_ms": self.stats["last_ms"] or 0, "warmups": self.stats["warmups"],
+                "warm": int(self.stats["warm_model"] is not None)}
+
+    # ------------------------------------------------------------------ opvarmning (v4.10.0)
+    async def warm_up(self) -> bool:
+        """Ét lille kald med hjælperens systemprompt, så modellen ligger i RAM og prompten er læst, før det første
+        rigtige spørgsmål kommer. Uden det tog det første svar efter en genstart over 240 s (modellen læses fra disken,
+        og systemprompten beregnes) og blev afbrudt. Springes over, hvis modellen er optaget (prøves igen senere)."""
+        if self._sem.locked():
+            return False
+        async with self._sem:
+            self.warming = True
+            t0 = time.monotonic()
+            try:
+                done = await self.client.chat([{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": "Hej"}],
+                                              max_tokens=1, timeout=WARMUP_TIMEOUT_S)
+            except LlmError as exc:
+                log.warning("Opvarmning af hjælperens model fejlede (%s): %s", exc.kind, exc.message)
+                return False
+            finally:
+                self.warming = False
+        ms = round((time.monotonic() - t0) * 1000)
+        self.stats.update(warm_at=time.time(), warm_ms=ms, warm_model=done.model or "?", warmups=self.stats["warmups"] + 1)
+        log.info("Hjælperens model er varmet op (%s) på %d ms", done.model or "?", ms)
+        return True
+
+    async def keep_warm(self, interval: float = 20.0) -> None:
+        """Baggrundsopgave: når LLM-tjenesten bliver klar (efter opstart, genstart eller en ny model), varmes den op."""
+        warmed: str | None = None
+        fails, retry_at = 0, 0.0      # fejlet opvarmning prøves igen med stigende pause (hænger tjenesten, holdes
+                                      # modellen ellers optaget i op til WARMUP_TIMEOUT_S hvert 20. sekund)
+        while True:
+            try:
+                if self.enabled and self.hw.status()["llm_allowed"]:
+                    h = await self.client.health()
+                    if not h["ok"]:
+                        warmed = None
+                        self.stats["warm_model"] = None
+                    elif h["model"] != warmed and time.monotonic() >= retry_at:
+                        if await self.warm_up():
+                            warmed, fails = h["model"], 0
+                        elif not self._sem.locked():   # fejlede (ikke bare optaget): vent længere næste gang
+                            fails += 1
+                            retry_at = time.monotonic() + min(WARMUP_RETRY_MAX_S, interval * 2 ** fails)
+                else:
+                    warmed = None
+            except asyncio.CancelledError:
+                raise
+            except Exception:   # noqa: BLE001 — opvarmningen må aldrig stoppe
+                log.exception("Opvarmning af hjælperen fejlede")
+            await asyncio.sleep(interval)
 
     # ------------------------------------------------------------------ LLM-pakke
     @contextmanager
@@ -272,7 +361,7 @@ class AssistantService:
         """En modtaget pakke kontrolleres og lægges klar til installation (`incoming.tar` + `staged.json`)."""
         if not self.hw.status()["llm_allowed"]:
             raise ServiceError(409, "Hardwareprofilen tillader ikke hjælperen — vælg en profil med LLM (System › Hjælper)")
-        info = inspect_package(received, sha256, machine_arch)
+        info = inspect_package(received, sha256, machine_arch, machine_glibc())
         free = _free_bytes(self.dir)
         need = self.install_need(info["size"])   # som root-hjælperen: pakken + gammel installation + 1 GB (v4.4.1)
         if free is not None and free < need:
@@ -327,7 +416,7 @@ class AssistantService:
             raise ServiceError(409, "Hjælperen er ikke slået til på denne hardware")
         self.waiting += 1
         try:
-            await asyncio.wait_for(self._sem.acquire(), timeout=timeout)
+            await asyncio.wait_for(self._sem.acquire(), timeout=timeout + (WARMUP_TIMEOUT_S if self.warming else 0))
         except asyncio.TimeoutError:
             raise ServiceError(503, "Hjælperen er optaget — prøv igen om lidt") from None
         finally:
@@ -369,7 +458,7 @@ class AssistantService:
         samtidige anmodninger (fx to faner) ikke begge slipper igennem. Frigives med `finish`."""
         with self._admit_lock:
             started = self._asking.get(username)
-            if started is not None and now - started < QUEUE_WAIT_S + 300:   # ældre = glemt markering: udløbet
+            if started is not None and now - started < ASK_STALE_S:   # ældre = glemt markering: udløbet
                 raise ServiceError(429, "Du har allerede et spørgsmål i gang — vent på svaret")
             q = self._recent.setdefault(username, deque())
             while q and now - q[0] > 3600:
@@ -416,10 +505,11 @@ class AssistantService:
         try:
             yield {"type": "sources", "sources": prepared["sources"], "tools": prepared["tools"]}
             if self._sem.locked():
-                yield {"type": "queued", "waiting": self.waiting + 1}
+                yield {"type": "queued", "waiting": self.waiting + 1, "warming": self.warming}
             self.waiting += 1
             try:
-                await asyncio.wait_for(self._sem.acquire(), timeout=QUEUE_WAIT_S)
+                # Varmes modellen op (lige efter en genstart), venter spørgsmålet på det i stedet for at blive afvist
+                await asyncio.wait_for(self._sem.acquire(), timeout=QUEUE_WAIT_S + (WARMUP_TIMEOUT_S if self.warming else 0))
                 acquired = True
             except asyncio.TimeoutError:
                 yield {"type": "error", "message": "Hjælperen er optaget af andre spørgsmål — prøv igen om lidt"}

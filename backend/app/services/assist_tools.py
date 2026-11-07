@@ -26,6 +26,8 @@ log = logging.getLogger("scada.assist")
 MAX_TAGS = 6
 MAX_ALARMS = 8
 MAX_SYMBOLS = 30
+MAX_SUMMARY = 12         # alarmer i døgnets opsummering (de hyppigste først)
+SUMMARY_HOURS = 24
 MANUAL_HITS = 3          # v4.6.1: 3 korte afsnit rammer det rigtige oftere end 2 lange (13/15 mod 10/15 i en prøve)
 MANUAL_CHARS = 480        # v4.9.0: LLM-manualens stykker er højst ~110 ord, så det meste af stykket kommer med
 DATA_BUDGET = 2000        # tegn i alt til data — målt på demo-VM: ca. 6–8 tokens/s til at læse prompten
@@ -48,6 +50,16 @@ def clean(text: Any, limit: int = 160) -> str:
     netværksadresser, kort."""
     s = _ADDR.sub("(adresse)", _SAFE.sub(" ", str(text if text is not None else ""))).strip()
     return s[:limit] + ("…" if len(s) > limit else "")
+
+
+def dur(seconds: float) -> str:
+    """Varighed på dansk: "45 s", "12 min", "3 t 5 min"."""
+    s = max(0, int(seconds))
+    if s < 90:
+        return f"{s} s"
+    if s < 5400:
+        return f"{round(s / 60)} min"
+    return f"{s // 3600} t {(s % 3600) // 60} min"
 
 
 def ago(ts: float | None, now: float) -> str:
@@ -90,6 +102,7 @@ class Context:
     drawing: str | None = None
     alarm: str | None = None
     tags: list[str] = field(default_factory=list)
+    summary: bool = False         # "Opsummér døgnet" fra Alarmer (fase 3, v4.10.0)
 
 
 @dataclass
@@ -138,6 +151,49 @@ class AssistTools:
         return configured if visible is None else configured & visible
 
     # ------------------------------------------------------------------ værktøjerne
+    def alarm_summary(self, user: CurrentUser, now: float, hours: int = SUMMARY_HOURS) -> str:
+        """Døgnets alarmer talt op (deterministisk — modellen skriver kun teksten): hvor mange gange hver alarm kom,
+        hvor længe den var aktiv, om og hvor hurtigt den blev kvitteret, og hvad der stadig er aktivt. Kun de alarmer,
+        brugeren må se (som Alarmer › Historik)."""
+        since = now - hours * 3600
+        rows = sorted((r for r in self.alarms.history(2000, self._visible(user)) if (r.get("ts") or 0) >= since),
+                      key=lambda r: (r["ts"], r.get("id") or 0))
+        if not rows:
+            return f"Ingen alarmhændelser de seneste {hours} timer."
+        per: dict[str, dict[str, Any]] = {}
+        for r in rows:
+            p = per.setdefault(r["key"], {"msg": r.get("message") or r["key"], "prio": r.get("priority") or "", "raised": 0,
+                                          "acked": 0, "active_s": 0.0, "open": None, "last": None, "ack_s": []})
+            ev = r.get("event")
+            if ev == "raise":
+                p.update(raised=p["raised"] + 1, open=r["ts"], last=r["ts"], msg=r.get("message") or p["msg"],
+                         prio=r.get("priority") or p["prio"])
+            elif ev == "clear" and p["open"] is not None:
+                p["active_s"] += r["ts"] - p["open"]
+                p["open"] = None
+            elif ev == "ack":
+                p["acked"] += 1
+                if p["last"] is not None:
+                    p["ack_s"].append(r["ts"] - p["last"])
+        still = 0
+        for p in per.values():
+            if p["open"] is not None:
+                p["active_s"] += now - p["open"]
+                still += 1
+        ranked = sorted(per.values(), key=lambda p: (-p["raised"], -p["active_s"]))
+        total = sum(p["raised"] for p in per.values())
+        high = sum(p["raised"] for p in per.values() if p["prio"] == "high")
+        head = (f"De seneste {hours} timer: {total} alarmer opstod, fordelt på {len(per)} forskellige "
+                f"({high} med høj prioritet). {still} er stadig aktive.")
+        lines = []
+        for p in ranked[:MAX_SUMMARY]:
+            ack = (f", kvitteret efter gns. {dur(sum(p['ack_s']) / len(p['ack_s']))}" if p["ack_s"] else ", ikke kvitteret")
+            lines.append(f"- {clean(p['msg'])} (prioritet {p['prio'] or '?'}): opstod {p['raised']} gang(e), aktiv i alt "
+                         f"{dur(p['active_s'])}{ack}{', stadig aktiv' if p['open'] is not None else ''}")
+        if len(ranked) > MAX_SUMMARY:
+            lines.append(f"- … og {len(ranked) - MAX_SUMMARY} andre alarmer")
+        return head + "\n" + "\n".join(lines)
+
     def active_alarms(self, user: CurrentUser, now: float) -> str:
         rows = self.alarms.active(self._visible(user))
         if not rows:
@@ -266,6 +322,10 @@ class AssistTools:
             g.add("Side", f"Brugeren står på siden {page}.", "side")
         alarm_tag = None
         alarm_query = ""
+        if ctx.summary:
+            g.add("Alarmer det seneste døgn", self.alarm_summary(user, now), "alarm_resume",
+                  {"label": "Alarmer › Historik", "href": "#alarms"})
+            alarm_query = "alarm historik kvittér prioritet"
         if ctx.alarm:
             text, alarm_tag, alarm_query = self.alarm(user, ctx.alarm, now)
             g.add("Alarmen", text, "alarm", {"label": "Alarmer", "href": "#alarms"})

@@ -13,6 +13,7 @@ const USER = process.env.SCADA_USER ?? 'admin';
 const PASS = process.env.SCADA_PASS;
 const OUT = join(process.cwd(), 'public', 'manual');
 const ONLY = process.env.ONLY ? new Set(process.env.ONLY.split(',')) : null;   // fx ONLY=overview,tags
+const SKIP = new Set((process.env.SKIP ?? '').split(',').filter(Boolean));   // fx de billeder, der tages på en anden server
 if (!PASS) {
   console.error('Sæt SCADA_PASS (og evt. SCADA_URL, SCADA_USER)');
   process.exit(2);
@@ -50,7 +51,7 @@ const go = async (hash, ready) => {
   await settle();
 };
 const shot = async (name, fn, opts = {}) => {
-  if (ONLY && !ONLY.has(name)) return;
+  if ((ONLY && !ONLY.has(name)) || SKIP.has(name)) return;
   try {
     await fn();
     const path = join(OUT, `${name}.png`);
@@ -72,7 +73,8 @@ const shot = async (name, fn, opts = {}) => {
     console.log(`FEJL ${name}: ${e.message.split('\n')[0]}`);
   }
 };
-const hover = async (text) => { await page.locator('.menu', { hasText: text }).first().hover(); await page.waitForTimeout(350); };
+// Menuerne åbner ved klik (siden v3.12.1, ikke når musen føres hen over)
+const hover = async (text) => { await page.locator('.menu .top', { hasText: text }).first().click(); await page.waitForTimeout(350); };
 const openGuide = async (drawing, element) => {
   await go(`editor/${drawing}/${element}`, '.symbol-cfg');
   await page.getByRole('button', { name: /Opsæt symbol|Ret symbol/ }).first().click();

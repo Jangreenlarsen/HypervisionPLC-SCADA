@@ -23,7 +23,7 @@
   }
   interface Entry {
     id: string; name: string; variant: string; about: string; quant: string; license: string; size: number;
-    profiles: string[]; fits: boolean; installed: boolean; release: string; url: string;
+    profiles: string[]; fits: boolean; installed: boolean; release: string; url: string; blocked?: string | null;
   }
   interface Job { state: string; model?: string; name?: string; done?: number; total?: number; part?: number; parts?: number;
     error?: string; install_error?: string; installing?: boolean; started?: number }
@@ -177,6 +177,7 @@
               <div class="mhead"><strong>{e.variant || e.name}</strong> <span class="muted small">{e.name} {e.quant} · {formatBytes(e.size)} · {e.license}</span></div>
               <p class="small">{e.about}</p>
               {#if e.installed}<p class="small ok">✓ Installeret</p>
+              {:else if e.blocked}<p class="small error">{e.blocked}</p>
               {:else if !e.fits}<p class="small muted">Passer ikke til hardwareprofilen.</p>
               {:else}
                 <button onclick={() => fetchModel(e)} disabled={!!busy || !!st.pending || cat.job.state === 'running' || !hw.llm_allowed}>Hent og installér</button>

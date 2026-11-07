@@ -70,6 +70,10 @@
       <BackToDrawing />
       <button class:primary={tab === 'active'} onclick={() => (tab = 'active')}>Aktive ({summary.active})</button>
       <button class:primary={tab === 'history'} onclick={loadHistory}>Historik</button>
+      {#if assist.available && assist.canAsk}
+        <button title="Hjælperen opsummerer alarmerne fra de seneste 24 timer: hvad skete der, hvad gentog sig, og hvad bør undersøges"
+                onclick={() => askAssist({ question: 'Opsummér alarmerne fra det seneste døgn: hvad skete der, hvad gentog sig, og hvad bør jeg undersøge?', label: 'Døgnets alarmer', summary: true })}>Opsummér døgnet</button>
+      {/if}
     </div>
     {#if tab === 'active' && canAck && unacked.length}
       <button class="primary" onclick={() => ack(null)}>Kvittér alle ({unacked.length})</button>

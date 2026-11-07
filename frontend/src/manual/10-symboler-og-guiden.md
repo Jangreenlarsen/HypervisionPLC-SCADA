@@ -42,6 +42,13 @@ Et **signal** er én ting, symbolet styrer — fx *Start* eller *Mode*. For hver
 
 Et valgfrit **Fejlsignal** (et til/fra-tag) **spærrer betjeningen**, så længe det er Til — fx motorværn udløst. Har en position brug for at skrive til flere tags, får symbolet flere signaler (én række pr. signal).
 
+**✦ Foreslå tags med hjælperen:** er hjælperen slået til, står en boks under signalerne. Skriv evt. kort, hvad symbolet skal (fx *"Pumpe P1: start/stop og driftmelding fra motorværnet"*), og tryk **Foreslå tags**. Hjælperen vælger ud fra symbolets navn, din beskrivelse og tagenes beskrivelser:
+
+- **Kommando** — kun blandt de skrivbare tags;
+- **Tilbagemelding** — blandt alle tags, du har adgang til.
+
+Signaler med et forslag mærkes ✦. Tjek dem, før du gemmer — intet gemmes, før du trykker **Gem**. Finder hjælperen intet, der passer, står felterne urørt.
+
 ### Trin 3 — Kontakter
 
 ![Trin 3 — Kontakter: hvad hver position sætter (kontaktdiagrammet)](../../public/manual/guide-3.png)
