@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  axisNumber, axisTime, chartFont, chartLayout, chartPoints, defaultChart, legendOf, niceTicks, refreshSeconds, textWidth,
-  timeTicks, wrapLegend, yRange, type Point,
+  axisNumber, axisTime, chartFont, chartLayout, chartPoints, defaultChart, legendOf, maxOf, minOf, niceTicks, refreshSeconds, textWidth, timeTicks, type Point, wrapLegend, yRange,
 } from './chartGraphic';
 
 const box = { x: 0, y: 0, w: 240, h: 130 };
@@ -111,5 +110,31 @@ describe('opløsning, diagramlinjer og tekst på to linjer (v0.95.0)', () => {
     for (const t of l.yTicks) expect(t.y).toBeGreaterThanOrEqual(l.plot.y - 0.1);
     expect(l.xTicks.length).toBeGreaterThanOrEqual(2);
     for (const t of l.xTicks) expect(t.x).toBeGreaterThan(l.plot.x);
+  });
+});
+
+describe('flat series with rounding noise (BUGS v4.4.3)', () => {
+  // Demo-tankens tre temperaturer stod stille, men middelværdien havde afrundingsstøj — den store graf viste
+  // "Maximum call stack size exceeded" (millioner af akse-inddelinger)
+  const noisy = [[0, 20.124689999999998], [60, 20.124690000000005], [120, 20.12469]] as [number, number][];
+  it('is treated as flat and gives a few ticks', () => {
+    const cfg = { tags: ['a', 'b', 'c'], range_s: 3600, style: 'line' as const, bars: 24, y_min: null, y_max: null, title: '' };
+    const l = chartLayout({ x: 0, y: 0, w: 1150, h: 650 }, [noisy, noisy, noisy], 0, 3600, cfg, ['a', 'b', 'c']);
+    expect(l.yTicks.length).toBeGreaterThanOrEqual(2);
+    expect(l.yTicks.length).toBeLessThanOrEqual(10);
+    const [lo, hi] = yRange([noisy], cfg);
+    expect(hi - lo).toBeGreaterThan(1);                 // luft omkring det flade forløb
+  });
+  it('niceTicks never returns more than a few ticks', () => {
+    expect(niceTicks(20.124689999999998, 20.124690000000005, 8)).toHaveLength(1);
+    expect(niceTicks(0, 1e-300, 8).length).toBeLessThanOrEqual(10);
+    expect(niceTicks(0, 100, 5)).toEqual([0, 25, 50, 75, 100]);
+  });
+  it('maxOf/minOf handle long lists without blowing the stack', () => {
+    const big = Array.from({ length: 300000 }, (_, i) => i);
+    expect(maxOf(big, 0)).toBe(299999);
+    expect(minOf(big, 0)).toBe(0);
+    expect(maxOf([], 7)).toBe(7);
+    expect(maxOf([1, 2], 0, 5)).toBe(5);
   });
 });

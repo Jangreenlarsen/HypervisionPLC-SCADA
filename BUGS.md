@@ -5,6 +5,17 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v4.4.3 — Trendgraf (Jan 2026-11-07, skærmbillede): den store graf viste "Maximum call stack size exceeded" for alle tre trendgrafer på demo'en (Akkumuleringstank, Husets kreds, Systemtryk). **Årsag:**
+  - tankens temperaturer stod helt stille, men middelværdien havde afrundingsstøj (20,124689999999998 → 20,124690000000005);
+  - y-aksen fik derfor et spænd på ca. 7·10⁻¹⁵, og `niceTicks` lavede et trin under tallets egen præcision;
+  - løkken lavede en enorm række inddelinger, og `Math.max(...liste)` sprængte stakken.
+
+  **Løsning (`lib/chartGraphic.ts`):**
+  - et spænd under 10⁻⁹ af værdien er fladt;
+  - `niceTicks` laver højst max+1 inddelinger, uden dubletter;
+  - `maxOf`/`minOf` (løkker) i stedet for `Math.max/min(...liste)`.
+
+  Testet med demo'ens rigtige data.
 - [fixed] v4.4.2 — Betjening føltes langsom på demo'en (Jan 2026-11-07: "selve hjemmesiden man interagerer med er langsom"). **Målt:**
   - selve siden er hurtig: menuer og sideskift 34–80 ms, 60 billeder/s også med CPU÷4, ingen blokerende JavaScript, API ca. 30 ms;
   - men efter et klik (fx start pumpe) gik der 2–5 s, før symbolet skiftede.
