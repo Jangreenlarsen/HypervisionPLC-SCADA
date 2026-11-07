@@ -4,25 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 import platform
 import time
-from typing import Any, AsyncIterator, Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
-from starlette.background import BackgroundTask
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..services.assist_tools import Context
 from ..services.assistant import DISK_CHECK_BYTES, MAX_PACKAGE_BYTES, WRITE_BUFFER_BYTES, AssistantService
-from ..services.auth import CurrentUser
+from ..services.auth import CurrentUser, role_at_least
 from ..services.errors import ServiceError
-from ..services.auth import role_at_least
 from .auth import ADMIN, audit, require
+from .sse import sse_response
 
 router = APIRouter(prefix="/api/assist")
-KEEPALIVE_S = 10.0
 
 
 class _Model(BaseModel):
@@ -76,57 +73,15 @@ async def ask(body: AskBody, request: Request, user: CurrentUser = Depends(requi
     ctx = Context(page=c.page, drawing=c.drawing, alarm=c.alarm, tags=[t[:80] for t in c.tags])
     prepared = await asyncio.to_thread(svc.prepare, user, body.question, ctx, [t.model_dump() for t in body.history])
     t0 = time.monotonic()
-    outcome: dict[str, Any] = {"last": {}, "closed": False}
 
-    def close() -> None:
-        """Én gang pr. spørgsmål: frigiv brugeren og skriv audit. Kaldes når strømmen slutter OG som baggrundsopgave
-        efter svaret — så det også sker, hvis browseren afbryder, før strømmen nåede at starte."""
-        if outcome["closed"]:
-            return
-        outcome["closed"] = True
+    def close(last: dict[str, Any]) -> None:
         svc.finish(user.username)
-        last = outcome["last"]
         audit(request, "assist.ask", c.page or "", {
             "tools": prepared["tools"], "data_chars": prepared["data_chars"], "ms": round((time.monotonic() - t0) * 1000),
             "tokens_in": last.get("tokens_in"), "tokens_out": last.get("tokens_out"),
             "result": "ok" if last.get("type") == "done" else ("error" if last else "afbrudt")})
 
-    async def events() -> AsyncIterator[bytes]:
-        # Modellen kan tænke i over et minut før første ord (prompten læses på CPU): en kommentarlinje hvert
-        # KEEPALIVE_S holder forbindelsen åben gennem nginx og proxyer (proxy_read_timeout er typisk 60 s).
-        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
-
-        async def produce() -> None:
-            try:
-                async for ev in svc.answer(user, prepared):
-                    await queue.put(ev)
-            finally:
-                await queue.put(None)
-
-        task = asyncio.create_task(produce())
-        try:
-            while True:
-                try:
-                    ev = await asyncio.wait_for(queue.get(), timeout=KEEPALIVE_S)
-                except asyncio.TimeoutError:
-                    yield b": venter\n\n"
-                    continue
-                if ev is None:
-                    break
-                if ev["type"] in ("done", "error"):
-                    outcome["last"] = ev
-                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n".encode()
-        finally:
-            if not task.done():
-                task.cancel()   # brugeren lukkede: stop modellen (forbindelsen til llama-server lukkes)
-                try:
-                    await task
-                except (asyncio.CancelledError, Exception):   # noqa: BLE001
-                    pass
-            close()
-
-    return StreamingResponse(events(), media_type="text/event-stream", background=BackgroundTask(close),
-                             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+    return sse_response(lambda: svc.answer(user, prepared), close)
 
 
 @router.get("/status", dependencies=[ADMIN])

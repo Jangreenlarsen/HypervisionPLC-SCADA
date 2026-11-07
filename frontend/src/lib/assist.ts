@@ -75,11 +75,17 @@ export function saveTurns(turns: Turn[]): void {
 }
 
 /** Stil et spørgsmål; `onEvent` kaldes for hver hændelse. Kaster ved HTTP-fejl (serverens tekst). */
-export async function ask(body: { question: string; context: AskContext; history: { role: string; content: string }[] },
+export function ask(body: { question: string; context: AskContext; history: { role: string; content: string }[] },
   onEvent: (ev: AssistEvent) => void, signal?: AbortSignal): Promise<void> {
+  return postStream('/api/assist/ask', body, onEvent, signal);
+}
+
+/** POST, hvis svar strømmes som server-sent events (hjælperens lange svar). Kaster ved HTTP-fejl (serverens tekst). */
+export async function postStream<E extends { type: string }>(url: string, body: unknown, onEvent: (ev: E) => void,
+  signal?: AbortSignal): Promise<void> {
   let resp: Response;
   try {
-    resp = await fetch('/api/assist/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal });
+    resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal });
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e;
     throw new Error(`Ingen forbindelse til SCADA-serveren (${(e as Error).message})`);
@@ -100,8 +106,8 @@ export async function ask(body: { question: string; context: AskContext; history
     buf += dec.decode(value, { stream: true });
     const { events, rest } = parseSse(buf);
     buf = rest;
-    events.forEach(onEvent);
+    (events as unknown as E[]).forEach(onEvent);
   }
   const { events } = parseSse(buf + '\n\n');
-  events.forEach(onEvent);
+  (events as unknown as E[]).forEach(onEvent);
 }

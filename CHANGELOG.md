@@ -4,6 +4,22 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.3.0 build 0348] — 2026-11-07 — Signalvej: forklar med egne ord (LLM-hjælper fase 2b)
+
+- **Ny `services/assist_signal.py`:**
+  - prompten indeholder kun symbolerne på vejen (navn og rolle) og højst 30 kandidat-tags: symbolernes egne først, så dem der deler ord med beskrivelsen, så resten. Hvert tag har navn, til/fra eller tal, enhed og beskrivelse, renset med `clean` og uden kilder eller adresser;
+  - svaret skal følge et fast JSON-skema, hvor symbol-id'er og tag-navne er låst til listerne (`enum`, håndhævet af llama-server);
+  - `validate`: symbolet skal være på vejen, tagget skal findes og være synligt, til/fra → til/fra, tal → ≥/≤/= og en endelig værdi; resten bliver *ikke udfyldt*;
+  - deler kø, rate-grænse og ét-ad-gangen pr. bruger med hjælper-panelet.
+- `api/signal_paths.py`: `POST /api/drawings/{id}/signal-paths/suggest` (tekniker og op) som server-sent events. Audit `signal_path.suggest` logger kun antal og svartid. Gemmer intet.
+- Ny `api/sse.py`: fælles SSE med keepalive og oprydning. `/api/assist/ask` bruger den nu også.
+- Frontend:
+  - `lib/assist.ts`: `postStream`;
+  - `lib/SignalPathGuide.svelte`: *Forklar med egne ord* i trin 3 med *Udfyld med hjælperen*/*Stop*, tid, mærket *forslag* og *ikke udfyldt*. Vises kun, når hjælperen er slået til.
+- Review rettet: element-id'er og tag-navne, der ikke kan stå uændret i prompten, sendes ikke med (kan ikke bryde ud af `<data>`); højst 25 spørgsmål i API'et.
+- Tests: `test_signal_paths.py` (+5: gyldige/ugyldige forslag, skema og prompt uden tag-kilder, regler, fejl som hændelse, valg af kandidat-tags, usikre navne). Set i browseren med en falsk LLM.
+- Manual: *Forbindelser › Signalveje*.
+
 ## [4.2.0 build 0347] — 2026-11-07 — Signalvej i Tegn (LLM-hjælper fase 2a)
 
 - **Ny tabel `signal_paths`** (skema 15, additiv) og `storage/db.py`: `list_signal_paths`, `get_signal_path`, `write_signal_path` (signalvejen og alle berørte symbolopsætninger i ÉN transaktion). Backup eksporterer og gendanner signalveje (`services/backup.py` validerer dem).

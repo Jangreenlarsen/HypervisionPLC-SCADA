@@ -2,6 +2,11 @@
 
 ---
 
+## v4.3.0 — 2026-11-07 — Signalvej: forklar med egne ord
+
+- I signalvejens trin 3 kan du skrive, hvornår der går flow, fx *"når pumpe 5 kører og AVTB står åben"*. Hjælperen udfylder svarene som forslag, mærket *forslag*.
+- Forslagene kontrolleres, og intet gemmes, før du selv trykker *Gem signalvej*. Det tager typisk 1–3 minutter og kræver, at hjælperen er slået til.
+
 ## v4.2.0 — 2026-11-07 — Signalvej i Tegn
 
 - Ny sektion **Signalveje** i Tegn: vælg et start- og et slutsymbol, så finder Tegn rørvejen imellem og viser den med orange. Vejen kan gå gennem rør, bøjninger, T-stykker og afgreninger.

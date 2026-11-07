@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
+import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..services.bindings import _color
 from ..services.errors import ServiceError
 from ..services.signal_paths import MAX_CONDITIONS, MAX_ELEMENTS, SignalPathService
 from .auth import ENGINEER, audit
+from .sse import sse_response
 
 router = APIRouter(prefix="/api/drawings")
 
@@ -111,3 +115,34 @@ async def delete(drawing_id: str, path_id: int, request: Request) -> dict[str, A
     result = _svc(request).delete(request.state.user, drawing_id, path_id)
     audit(request, "signal_path.delete", f"{drawing_id}/{path_id}", {"changed": result["changed"][:50]})
     return result
+
+
+class Question(_M):
+    element: str = Field(min_length=1, max_length=120)
+    role: Literal["valve", "threeway", "pump", "switch"] = "valve"
+
+
+class SuggestBody(_M):
+    text: str = Field(max_length=2000)
+    questions: list[Question] = Field(min_length=1, max_length=25)
+
+
+@router.post("/{drawing_id}/signal-paths/suggest", dependencies=[ENGINEER])
+async def suggest(drawing_id: str, body: SuggestBody, request: Request) -> StreamingResponse:
+    """"Forklar med egne ord" (v4.3.0): hjælperen udfylder betingelserne som forslag. Strømmes som server-sent events
+    (`queued`, `done` med forslag, eller `error`) — modellen kan bruge minutter. Gemmer intet. Audit: kun metadata."""
+    _check(request, drawing_id)
+    user = request.state.user
+    svc = request.app.state.signal_suggester
+    prepared = await asyncio.to_thread(svc.prepare, user, drawing_id, [q.model_dump() for q in body.questions], body.text,
+                                       request.app.state.scope_service.visible_tags(user))
+    t0 = time.monotonic()
+
+    def close(last: dict[str, Any]) -> None:
+        if not last:
+            svc.assistant.finish(user.username)   # afbrudt før start: frigiv brugeren
+        audit(request, "signal_path.suggest", drawing_id, {
+            "questions": len(prepared["questions"]), "filled": len(last.get("suggestions", [])),
+            "ms": round((time.monotonic() - t0) * 1000), "result": last.get("type") or "afbrudt"})
+
+    return sse_response(lambda: svc.run(user, prepared), close)

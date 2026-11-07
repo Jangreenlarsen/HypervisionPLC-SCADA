@@ -1,4 +1,44 @@
-# Plan: Signalvej i Tegn (LLM-hjælper fase 2) — 2026-11-07 — godkendt (Jan) — fase 2a ✅ v4.2.0
+# Plan: Vælg LLM-model fra en liste — hentes fra GitHub releases (v4.4.0) — 2026-11-07 — afventer OK
+
+Ønske fra Jan: en administrator skal kunne vælge en model fra en liste under *System › Hjælper* uden selv at hente filer fra Hugging Face. LLM-pakkerne udgives derfor som **GitHub releases** i projektets repo, som SCADA-opdateringerne allerede er.
+
+## Valg
+| | Alternativ | + | − |
+|---|---|---|---|
+| **A** | **Færdige LLM-pakker som GitHub releases** (tag `llm-<model>-<llama-build>`), hentet af serveren | samme sted og samme sikkerhed som OTA (SHA256 i releasen); én kendt kilde; virker uden Hugging Face | GitHub tillader højst 2 GiB pr. fil, så pakkerne deles i dele |
+| B | Serveren henter llama.cpp og modellen direkte fra GitHub og Hugging Face (`llm-models.json`) | ingen udgivelse | to eksterne kilder, Hugging Face-adresser kan forsvinde, og pakken bygges på serveren |
+| C | Kun upload som nu | intet internet | det Jan vil undgå |
+
+**Valg: A.** Upload (C) bevares til lukkede net.
+
+## Trin
+1. **Udgivelse:** `deploy/publish-llm-release.sh <arkitektur> <model-id>`:
+   - bygger pakken med `make-llm-package.sh` og deler den i dele på 1,9 GB (`….tar.part01`, `….part02`);
+   - lægger `….tar.sha256` (hele pakken) og `….tar.json` (manifest: model, størrelse, dele) ved siden af;
+   - `gh release create llm-<model>-<build> --latest=false` (prerelease), så SCADA-opdateringerne (`/releases/latest`) aldrig forveksles med en LLM-pakke.
+2. **Katalog:** `deploy/llm-models.json` følger med SCADA'en og er listen i UI'et: navn, størrelse, licens, anbefalet RAM/profil og release-tag pr. arkitektur. Kun modeller, der passer til profilen og arkitekturen, kan vælges.
+3. **Backend** (`services/llm_catalog.py` + `api/assist.py`):
+   - `GET /api/assist/catalog`: listen med status pr. model (installeret / kan hentes / passer ikke til hardwaren).
+   - `POST /api/assist/download {model}` (admin):
+     - tjekker diskplads (pakke + 1 GB + reserve);
+     - henter delene fra GitHub (kun `github.com` og GitHubs download-domæner, ingen proxy fra miljøet, tidsgrænse) og sætter dem sammen i én fil, mens SHA256 beregnes;
+     - sammenligner med `.sha256`;
+     - klargør pakken som en uploadet pakke (`stage`, samme kontrol);
+     - foregår i baggrunden med fremdrift (bytes/s, del x af y) og kan afbrydes. Audit `assist.download`.
+   - Installation som i dag: *Installér og slå til* (root-hjælperen tjekker SHA256 igen).
+4. **Frontend** (*System › Hjælper*): listen over modeller med størrelse, licens, anbefaling og hastighedsskøn; **Hent og installér** med fremdrift og **Afbryd**. *Upload LLM-pakke …* står under *Lukket net*.
+5. **Første udgivelser:** Qwen3.5-4B og Qwen3-4B-Instruct-2507 til x86_64 (begge Apache-2.0; licenserne ligger i pakken). aarch64 (Pi 5) senere.
+6. Manual, tests (falsk GitHub via MockTransport: dele, forkert SHA, for lidt plads, afbrudt), review, OTA og afprøvning på demo-VM'en.
+
+## Risici
+- **2 GiB pr. fil på GitHub:** løses med dele. Samlet SHA256 tjekkes to gange (SCADA og root-hjælperen).
+- **Disk** (demo-VM: 10 GB): delene skrives direkte i den samlede fil, så den kun fylder én gang. Under installationen skal der være plads til både pakken og den udpakkede model. Det tjekkes før hentning, og ellers vises: *fjern den installerede model først*.
+- **Kompromitteret GitHub-konto:** samme niveau som OTA i dag (SHA256 fra samme release). Noteres i manualen.
+- **Licens:** Apache-2.0 tillader videreudgivelse med licensteksten, og den ligger i pakken (`LICENSES/`).
+
+---
+
+# Plan: Signalvej i Tegn (LLM-hjælper fase 2) — 2026-11-07 — godkendt (Jan) — fase 2a ✅ v4.2.0 — fase 2b ✅ v4.3.0
 
 Mål: brugeren vælger **start** og **slut** i en tegning. Systemet finder rørvejen imellem og spørger om hvert symbol undervejs (ventil, pumpe, kontraventil …): *hvornår går der flow igennem?* Svarene samles til én betingelse, og alle rør på vejen får løbelys, der kører, når betingelsen er opfyldt. Brugeren skal ikke sætte hvert rør op for sig. Til sidst kan man **forklare med egne ord**, og hjælperen (LLM) udfylder svarene som forslag.
 
