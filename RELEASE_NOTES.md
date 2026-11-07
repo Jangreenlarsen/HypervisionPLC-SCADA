@@ -2,6 +2,11 @@
 
 ---
 
+## v4.8.0 — 2026-11-07 — Redigér symbolernes grafik
+
+- Under *Symboler › Bibliotek* har hvert symbol nu **Redigér**. Symbolet åbnes i Tegn, hvor du retter grafikken og trykker *Gem i biblioteket*.
+- Egne symboler får en ny version; indbyggede gemmes som en kopi, du selv kan rette.
+
 ## v4.7.0 — 2026-11-07 — Tags: slet flere på én gang
 
 - På siden **Tags** kan du afkrydse flere tags og trykke **Slet valgte**. *Vælg alle* og Shift+klik for et interval virker som under Symboler.

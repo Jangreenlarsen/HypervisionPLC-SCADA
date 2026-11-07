@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.8.0 build 0358] — 2026-11-07 — Symboler › Bibliotek: Redigér grafikken
+
+- `lib/SymbolLibrary.svelte`: *Redigér* ved hvert symbol opretter en arbejdstegning ("Symbol – …") og åbner Tegn på `#draw/<tegning>/sym:<type>`.
+- `pages/DrawEditor.svelte`:
+  - redigeringstilstand: symbolet indsættes og vælges, og et banner viser *Gem i biblioteket (ny version / som kopi)* og *← Tilbage til biblioteket*;
+  - navnet foreslås: et eget symbol får samme navn (ny version), et indbygget "… (egen)";
+  - bagefter tilbydes at slette arbejdstegningen og gå tilbage.
+- `services/library.py` (`export_from_drawing`): en ny version uden opsætning på symbolet beholder den forrige standardopsætning, når delene findes endnu (som ved import). Ellers fjernes den med en besked.
+- Test: `test_library.py`. Set i browseren (indbygget → kopi, eget → version 2, arbejdstegningen slettet). Manual: *Tegn › Organisér biblioteket*.
+
 ## [4.7.0 build 0357] — 2026-11-07 — Tags: vælg flere og slet dem samlet
 
 - `pages/Tags.svelte`:

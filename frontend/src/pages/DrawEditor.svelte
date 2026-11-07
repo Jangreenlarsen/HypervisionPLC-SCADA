@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { ask as askUser, askText } from '../lib/ask';
   import { suggestName } from '../lib/draw/naming';
-  import { get, patch, post, put } from '../lib/api';
+  import { del, get, patch, post, put } from '../lib/api';
   import { SELECTOR_TYPES, selectorMismatch, withSelectorAngles } from '../lib/selectorRedraw';
   import { parseSize, presetFor, SIZE_PRESETS, sizeText } from '../lib/drawingSize';
   import { toolHint } from '../lib/toolHints';
@@ -179,8 +179,47 @@
     const [, fromRoute, wantSelector] = route.split('/');
     if (fromRoute && drawings.some((d) => d.id === fromRoute)) {
       await open(fromRoute);
-      if (wantSelector) await guarded('Tegn omskifteren', () => redrawFromRoute(wantSelector));   // fra Bindinger: #draw/<tegning>/<omskifter>
+      if (wantSelector?.startsWith('sym:')) startSymbolEdit(decodeURIComponent(wantSelector.slice(4)));   // fra Symboler › Bibliotek
+      else if (wantSelector) await guarded('Tegn omskifteren', () => redrawFromRoute(wantSelector));   // fra Bindinger: #draw/<tegning>/<omskifter>
     } else startNew(true);
+  }
+
+  // ---- Redigér et biblioteks-symbols grafik (v4.7.1): arbejdstegning fra Symboler › Bibliotek
+  let symbolEdit = $state<{ type: string; label: string; own: boolean } | null>(null);
+  function startSymbolEdit(type: string): void {
+    const d = defs().find((x) => x.id === type);
+    if (!ed || !d) { info = `Symbolet '${type}' findes ikke i biblioteket.`; return; }
+    const own = library.own.some((s) => s.type === type);
+    symbolEdit = { type, label: d.label, own };
+    const items = (ed as unknown as TreeApi).objectList().flatMap((l) => l.items);
+    if (!items.length) {   // en ny arbejdstegning: læg symbolet ind og vælg det
+      const id = ed.insertSymbol(withName(d.svg, d.label), d.id);
+      if (id) ed.selectByIds([id]);
+      dirty = true;
+    }
+  }
+  async function saveSymbolEdit(): Promise<void> {
+    if (selection.length !== 1) {
+      error = 'Vælg det samlede symbol (gruppér delene med Ctrl+G, hvis du har opløst det), og tryk igen.';
+      return;
+    }
+    await openExport();
+  }
+  async function afterSymbolSaved(msg: string): Promise<void> {
+    exportFor = null;
+    info = msg;
+    const id = current?.id;
+    if (!id) return;
+    if (await askUser(`${msg}\n\nSlet arbejdstegningen "${current?.name}" og gå tilbage til biblioteket?`, { ok: 'Slet og gå tilbage' })) {
+      try {
+        await del(`/api/drawings/${encodeURIComponent(id)}`);
+        dirty = false;
+        symbolEdit = null;
+        location.hash = '#symbols';
+      } catch (e) {
+        error = (e as Error).message;
+      }
+    }
   }
 
   /** Åbnet fra Bindinger med "Gem og tegn omskifteren om": vælg omskifteren og tegn den om med opsætningens positioner (v2.11.0). */
@@ -913,6 +952,14 @@
   <button onclick={openSize} disabled={!ready} aria-expanded={sizeOpen} title="Tegningens bredde og højde">Størrelse: {sizeText(size.w, size.h)}</button>
   {#if dirty}<span class="badge">ikke gemt</span>{/if}
 </div>
+{#if symbolEdit}
+  <div class="notice row sym-edit" role="status">
+    <span>Du retter grafikken for <strong>{symbolEdit.label}</strong>{symbolEdit.own ? '' : ' (indbygget — gemmes som en kopi)'}.
+      Ret stregerne og farverne (<em>Opløs</em> gruppen for at rette enkelte dele, <em>Gruppér</em> igen med Ctrl+G), vælg det samlede symbol, og gem.</span>
+    <button class="primary" onclick={saveSymbolEdit} disabled={busy || !ready}>Gem i biblioteket{symbolEdit.own ? ' (ny version)' : ' som kopi'}</button>
+    <a class="btn" href="#symbols">← Tilbage til biblioteket</a>
+  </div>
+{/if}
 {#if sizeOpen}
   <div class="panel size-panel" role="group" aria-label="Tegningens størrelse">
     <strong>Tegningens størrelse</strong>
@@ -1176,7 +1223,8 @@
 {#if importOpen}<LibraryImport onclose={() => (importOpen = false)} />{/if}
 {#if exportFor && current}
   <SymbolExport drawingId={current.id} version={loadedVersion} element={exportFor.id} box={exportFor.box} markup={exportFor.markup}
-    suggested={exportFor.name} onclose={() => (exportFor = null)} ondone={(msg) => { exportFor = null; info = msg; }} />
+    suggested={symbolEdit ? (symbolEdit.own ? symbolEdit.label : `${symbolEdit.label} (egen)`) : exportFor.name}
+    onclose={() => (exportFor = null)} ondone={(msg) => (symbolEdit ? afterSymbolSaved(msg) : (() => { exportFor = null; info = msg; })())} />
 {/if}
 
 {#if basisChoice}
