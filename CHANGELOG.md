@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.4.1 build 0350] — 2026-11-07 — Hjælper: pladstjekket regner som root-hjælperen
+
+- `services/assistant.py`:
+  - `install_need` (pakken + den installerede model + 1 GB, som `deploy/apply-llm.sh`) bruges i `stage`;
+  - ny `precheck_download` kræver plads til både hentning og installation, før en hentning startes, og foreslår at fjerne den installerede model.
+- `api/assist.py`: hentningen bruger `precheck_download`.
+- Test: `test_llm_catalog.py` (pladsregningen). Fundet på demo-VM'en (BUGS.md).
+
 ## [4.4.0 build 0349] — 2026-11-07 — Vælg LLM-model fra en liste (hentes fra GitHub releases)
 
 - Ny `services/llm_catalog.py`:

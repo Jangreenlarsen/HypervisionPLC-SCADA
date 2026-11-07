@@ -133,7 +133,7 @@ async def start_download(body: DownloadBody, request: Request,
 
     def work() -> dict[str, Any]:
         with svc.receiving() as received:
-            sha, _size = cat.download(entry["id"], _arch(), received, svc.precheck, svc.check_space_during_upload)
+            sha, _size = cat.download(entry["id"], _arch(), received, svc.precheck_download, svc.check_space_during_upload)
             if cat.cancelled():   # afbrudt lige efter sidste del: klargør ikke
                 raise Cancelled()
             return svc.stage(user.username, received, sha, platform.machine())

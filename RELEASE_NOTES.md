@@ -2,6 +2,10 @@
 
 ---
 
+## v4.4.1 — 2026-11-07 — Hjælper: tydelig besked om diskplads
+
+- Er der ikke plads til at hente og installere en ny model ved siden af den installerede, siger siden det med det samme: fjern den installerede model først, eller udvid disken. Før blev modellen hentet, og installationen fejlede bagefter.
+
 ## v4.4.0 — 2026-11-07 — Vælg LLM-model fra en liste
 
 - Under *System › Hjælper* vælger administratoren en af tre varianter og trykker *Hent og installér*:

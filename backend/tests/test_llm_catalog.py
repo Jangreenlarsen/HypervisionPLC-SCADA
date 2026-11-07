@@ -203,3 +203,17 @@ def test_cancel_right_after_start_is_not_lost(tmp_path):
         cat.download("lille-2b", "x86_64", tmp_path / "ud.tar", lambda n: None, lambda: None)
     cat.start({"state": "running"})                                    # næste hentning starter forfra
     assert not cat.cancelled()
+
+
+def test_download_needs_room_for_the_install_too(api, monkeypatch):
+    """BUGS v4.4.1: hentningen lykkedes, men root-hjælperen afviste installationen (pakke + gammel model + 1 GB)."""
+    svc = api.app.state.assistant
+    api.state.joinpath("llm.json").write_text(json.dumps({"state": "running", "model": {"id": "gammel", "name": "Gammel 4B",
+                                                                                         "size": 2_500_000_000}}))
+    monkeypatch.setattr("app.services.assistant._free_bytes", lambda p: 6_000_000_000)
+    assert svc.install_need(1_400_000_000) == 1_400_000_000 + 2_500_000_000 + 200 * 1024 ** 2 + 1024 ** 3
+    with pytest.raises(ServiceError) as e:
+        svc.precheck_download(1_400_000_000)                       # 1,4 + 1,4 + 2,7 + 1,07 > 6 GB
+    assert e.value.status == 507 and "Fjern den installerede model (Gammel 4B)" in e.value.message
+    monkeypatch.setattr("app.services.assistant._free_bytes", lambda p: 9_000_000_000)
+    svc.precheck_download(1_400_000_000)                           # nok plads
