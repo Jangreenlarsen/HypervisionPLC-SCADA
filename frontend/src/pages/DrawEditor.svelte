@@ -56,7 +56,7 @@
     insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
     insertGraphic(fragment: string, name?: string, at?: { x: number; y: number } | null, maxFrac?: number, nth?: number): string;
     docPointAt(clientX: number, clientY: number): { x: number; y: number };
-    setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean }): void;
+    setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
     getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
     setGuideEvery(n: number): void;
     addGuide(axis: 'v' | 'h'): void;
@@ -99,12 +99,12 @@
   let ready = $state(false);
   // Tegnehjælp: gitter, fang til gitter/objekter. Huskes pr. browser (ikke pr. tegning).
   const GUIDE_STEPS = [5, 10, 20, 25, 50];
-  function loadGuides(): { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean } {
-    const fallback = { grid: false, snapGrid: false, snapObjects: false, keepRatio: false, step: 10, showGuides: true, snapGuides: true };
+  function loadGuides(): { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean } {
+    const fallback = { grid: false, snapGrid: false, snapObjects: false, keepRatio: false, step: 10, showGuides: true, snapGuides: true, snapPipes: true };
     try {
       const raw = JSON.parse(localStorage.getItem('draw.guides') ?? '{}');
       return { grid: !!raw.grid, snapGrid: !!raw.snapGrid, snapObjects: !!raw.snapObjects, keepRatio: !!raw.keepRatio, step: GUIDE_STEPS.includes(Number(raw.step)) ? Number(raw.step) : 10,
-               showGuides: raw.showGuides !== false, snapGuides: raw.snapGuides !== false };
+               showGuides: raw.showGuides !== false, snapGuides: raw.snapGuides !== false, snapPipes: raw.snapPipes !== false };
     } catch {
       return fallback; // ingen eller ødelagt localStorage: standardværdier
     }
@@ -943,6 +943,7 @@
     <select bind:value={guides.step} aria-label="Gitterafstand">{#each GUIDE_STEPS as s}<option value={s}>{s}</option>{/each}</select>
   </label>
   <label class="opt" title="Når du slipper et objekt, lægges det kant mod kant eller midte mod midte med nærmeste objekt, hvis det er tæt på"><input type="checkbox" bind:checked={guides.snapObjects} /> Fang til objekter</label>
+  <label class="opt" title="Når du flytter et symbol med rør, fanges det, så røret står snorlige ud af det (blå stiplet linje under trækket)"><input type="checkbox" bind:checked={guides.snapPipes} /> Fang rør lige</label>
   <label class="opt" title="Træk i et hjørne: bredde og højde ændres i samme forhold. Hold Shift nede for at skalere frit"><input type="checkbox" bind:checked={guides.keepRatio} /> Skalér symmetrisk</label>
   <span class="gsep"></span>
   <label class="opt" title="Hjælpelinjerne gemmes i tegningen, men vises kun her i Tegn — aldrig i Overview"><input type="checkbox" bind:checked={guides.showGuides} /> Hjælpelinjer</label>

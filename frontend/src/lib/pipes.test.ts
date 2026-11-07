@@ -1,6 +1,6 @@
 // Rør-værktøjets beregninger (svgedit-host/pipes.js).
 // @ts-expect-error — ren JS uden typer
-import { axisOf, connect, formatRef, fromFrac, moveEnd, nearest, orthoLeg, parseRef, pathD, portsFrom, simplify, toFrac } from '../../svgedit-host/pipes.js';
+import { axisOf, connect, straightEnd, straightTarget, formatRef, fromFrac, moveEnd, nearest, orthoLeg, parseRef, pathD, portsFrom, simplify, toFrac } from '../../svgedit-host/pipes.js';
 import { describe, expect, it } from 'vitest';
 
 type P = [number, number];
@@ -370,5 +370,25 @@ describe('v3.12.2: ingen ophobning af knæk, når et symbol flyttes igen og igen
     }
     r = m.reroute(r, 'start', [100, 100], [1, 0]);
     expect(r).toEqual([[100, 100], [600, 100]]);   // tilbage på linje: lige igen
+  });
+});
+
+
+describe('snorlige rør (v4.6.0)', () => {
+  // Rør fra et symbol med punktet nedad (dir 0,1): stub, hak og videre til knækket (110,100)
+  const jog = [[100, 0], [100, 10], [110, 10], [110, 100], [300, 100]];
+  it('finds the corner ahead to snap to, across the exit direction', () => {
+    expect(straightTarget(jog, 'start', [104, 3], [0, 1], 8)).toEqual({ k: 3, dx: 6, dy: null });   // ikke stubben (100,10)
+    expect(straightTarget(jog, 'start', [130, 3], [0, 1], 8)).toBeNull();          // for langt væk
+    // den anden ende (vandret ind i (300,100) fra venstre: punktets retning peger mod venstre)
+    expect(straightTarget(jog, 'end', [302, 104], [-1, 0], 8)).toEqual({ k: 1, dx: null, dy: -4 });
+  });
+  it('replaces the stub and jog by one straight leg when aligned', () => {
+    expect(straightEnd(jog, 'start', [110, 3], [0, 1])).toEqual([[110, 3], [110, 100], [300, 100]]);
+    expect(straightEnd(jog, 'start', [104, 3], [0, 1])).toBeNull();               // flugter ikke: lægges om som før
+    // knækket ligger BAG punktet: ingen genvej gennem symbolet
+    expect(straightEnd([[100, 50], [110, 10], [110, 0]], 'start', [110, 60], [0, 1])).toBeNull();
+    // et lige rør mellem to symboler
+    expect(straightEnd([[0, 0], [0, 100]], 'end', [0, 120], [0, -1])).toEqual([[0, 0], [0, 120]]);
   });
 });

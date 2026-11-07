@@ -2,6 +2,11 @@
 
 ---
 
+## v4.6.0 — 2026-11-07 — Tegn: rør følger med, mens du trækker
+
+- Når du trækker et symbol med rør, vises rørene med det samme, som de kommer til at ligge. Du skal ikke længere slippe for at se dem.
+- **Fang rør lige:** kommer symbolet tæt på at stå på linje med røret, vises en blå stiplet linje. Slipper du, står røret snorlige ud af symbolet.
+
 ## v4.5.0 — 2026-11-07 — Signalvej: klik start og slut i tegningen
 
 - Under *Signalveje* i Tegn: tryk **Vælg på tegningen**, klik på startsymbolet og derefter på slutsymbolet, så findes vejen af sig selv.

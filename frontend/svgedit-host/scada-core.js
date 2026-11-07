@@ -11,7 +11,7 @@ import { alignToGuide, formatGuides, guideLines, parseGuides, snapBoxToGuides, s
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
 import { XLINK, angleTo, arcPath, cleanupDefs, dashArray, dashKind, ensureArrow, ensureGradient, ensureShadow, fitImage, gradientOf, parsePoints, pointsAttr,
   regenerate, regularPoints, shadowOf, shapeParams, starPoints } from './shapes.js';
-import { PIPE_STYLE, alignDelta, ensureOrthogonal, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, turnDir } from './pipes.js';
+import { PIPE_STYLE, alignDelta, ensureOrthogonal, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, straightEnd, straightTarget, turnDir } from './pipes.js';
 
 /**
  * @param {{ canvas(): any, loadFromString(svg: string): unknown, updateCanvas(): void, gridHost(): HTMLElement | null,
@@ -22,7 +22,7 @@ export function createScada(host) {
 
   // ---------------------------------------------------------------- hjælpelinjer: gitter, fang til gitter, fang til objekter
   // Gitteret tegnes af os selv (SVG-Edits eget gitter kan kun 10/100/…-inddelinger og matcher ikke fangtrinnet).
-  const guides = { grid: false, snapGrid: false, step: 10, snapObjects: false, showGuides: true, snapGuides: true };
+  const guides = { grid: false, snapGrid: false, step: 10, snapObjects: false, showGuides: true, snapGuides: true, snapPipes: true };
   const SNAP_PX = 8;                       // fang inden for så mange skærm-pixel
   let lastBoxes = new Map();               // valgte elementer → deres boks ved forrige 'selected'/'changed' (til at se en flytning)
   let snapping = false;
@@ -176,6 +176,12 @@ export function createScada(host) {
       if (hit.guideX !== null) dx = hit.dx;
       if (hit.guideY !== null) dy = hit.dy;
     }
+    // snorlige rør (v4.6.0): flytter symbolet det sidste stykke, så et rør går lige ud af det — vinder over gitter og objekter
+    if (dragged && pipeDrag.orig.size && guides.snapPipes !== false) {
+      const ps = pipeStraightSnap(SNAP_PX / (canvas().getZoom() || 1));
+      if (ps.dx !== null) dx = ps.dx;
+      if (ps.dy !== null) dy = ps.dy;
+    }
     // hjælpelinjer vinder over gitter og objekter (de er sat med vilje, v3.10.0)
     if (guides.snapGuides && guides.showGuides) {
       const g = snapBoxToGuides(now, guideLinesNow(), SNAP_PX / (canvas().getZoom() || 1));
@@ -198,6 +204,9 @@ export function createScada(host) {
 
   /** Efter et museslip: var det et træk (samme størrelse, ny placering), så fang; var det en strækning, så ryd op i drejede grupper. */
   function settleAfterMouseUp() {
+    try { settleAfterMouseUpInner(); } finally { clearPipeDrag(); }
+  }
+  function settleAfterMouseUpInner() {
     const sel = selectedEls();
     const now = unionBox(sel.map(boxOf));
     const before = unionBox(sel.map((el) => lastBoxes.get(el)));
@@ -715,11 +724,16 @@ export function createScada(host) {
         }
       } else {
         if (el.getAttribute('transform')) continue;   // et transformeret rør (sjældent): rør det ikke
-        let pts = pipePoints(el);
+        // Under et træk: tag udgangspunkt i rørets forløb fra FØR trækket (v4.6.0) — så giver et fang til snorlige
+        // et lige rør, også efter at enden først er lagt om med et hak
+        let pts = pipeDrag.orig.get(el) ?? pipePoints(el);
         if (pts.length < 2) continue;
         const from = endTarget(el, 'data-hv-from');
         const to = endTarget(el, 'data-hv-to');
         const off = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) > 0.01;
+        // flugter en flyttet ende med et knæk foran sig: ét lige stykke derhen (ingen stub og hak)
+        if (from && off(from.p, pts[0])) pts = straightEnd(pts, 'start', from.p, from.dir) ?? pts;
+        if (to && off(to.p, pts[pts.length - 1])) pts = straightEnd(pts, 'end', to.p, to.dir) ?? pts;
         // går det sidste stykke ind i punktet fra den forkerte side (fx efter drejning), lægges enden også om
         const wrongWay = (end, prev, dir) => {
           const dx = end[0] - prev[0], dy = end[1] - prev[1];
@@ -734,6 +748,120 @@ export function createScada(host) {
       if (changed) batch.addSubCommand(new c.history.ChangeElementCommand(el, before));
     }
     return batch.isEmpty() ? null : batch;
+  }
+
+  // ---- rør under et træk (v4.6.0): forhåndsvisning af rørene, mens symbolet trækkes, og fang til snorlige rør
+  // pipeDrag.orig: rørets punkter fra FØR trækket (bruges af followPipes og fanget, til trækket er slut)
+  const pipeDrag = { orig: new Map(), ends: [], layer: null, dimmed: [], snap: null, active: false };
+
+  /** Rør, der sidder fast i de valgte elementer (ikke rør, der selv er valgt): [{ el, attr, which }]. */
+  function attachedEnds(sel) {
+    const ids = new Set();
+    for (const s of sel) {
+      if (s.id) ids.add(s.id);
+      s.querySelectorAll?.('[id]').forEach((k) => ids.add(k.id));
+    }
+    const out = [];
+    for (const el of canvas().getSvgContent().querySelectorAll('[data-hv-pipe]')) {
+      if (sel.includes(el) || el.getAttribute('transform')) continue;
+      for (const [attr, which] of [['data-hv-from', 'start'], ['data-hv-to', 'end']]) {
+        const ref = parseRef(el.getAttribute(attr));
+        if (ref && ids.has(ref.id)) out.push({ el, attr, which });
+      }
+    }
+    return out;
+  }
+
+  /** Bedste fang: den mindste flytning på tværs, der får et rør til at stå snorlige ud af symbolet. → { dx, dy, hints } */
+  function pipeStraightSnap(tol) {
+    let best = { dx: null, dy: null, hints: [] };
+    for (const e of pipeDrag.ends) {
+      const t = endTarget(e.el, e.attr);
+      const pts = pipeDrag.orig.get(e.el);
+      if (!t || !pts) continue;
+      const hit = straightTarget(pts, e.which, t.p, t.dir, tol);
+      if (!hit) continue;
+      const q = (e.which === 'start' ? pts : [...pts].reverse())[hit.k];
+      if (hit.dx !== null && (best.dx === null || Math.abs(hit.dx) < Math.abs(best.dx))) best.dx = hit.dx;
+      if (hit.dy !== null && (best.dy === null || Math.abs(hit.dy) < Math.abs(best.dy))) best.dy = hit.dy;
+      best.hints.push({ from: [t.p[0] + (hit.dx ?? 0), t.p[1] + (hit.dy ?? 0)], to: q });
+    }
+    return best;
+  }
+
+  /** Rørenes forløb, hvis man slap nu (samme regel som followPipes, uden at ændre tegningen). */
+  function previewRoute(el) {
+    let pts = pipeDrag.orig.get(el) ?? pipePoints(el);
+    const from = endTarget(el, 'data-hv-from');
+    const to = endTarget(el, 'data-hv-to');
+    const off = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) > 0.01;
+    if (from && off(from.p, pts[0])) pts = straightEnd(pts, 'start', from.p, from.dir) ?? reroute(pts, 'start', from.p, from.dir);
+    const n = pts.length;
+    if (to && off(to.p, pts[n - 1])) pts = straightEnd(pts, 'end', to.p, to.dir) ?? reroute(pts, 'end', to.p, to.dir);
+    return pts;
+  }
+
+  function drawPipePreview() {
+    const gridHost = host.gridHost();
+    const content = canvas()?.getSvgContent?.();
+    if (!gridHost || !content || !pipeDrag.active) { pipeDrag.layer?.remove(); pipeDrag.layer = null; return; }
+    let layer = pipeDrag.layer;
+    if (!layer) {
+      layer = document.createElementNS(NS, 'svg');
+      layer.setAttribute('id', 'hvPipePreview');
+      layer.style.cssText = 'position:absolute; pointer-events:none; z-index:54; overflow:visible;';
+      gridHost.appendChild(layer);
+      pipeDrag.layer = layer;
+    }
+    const hr = gridHost.getBoundingClientRect();
+    const cr = contentRect(content);
+    const vb = (content.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    layer.style.left = `${cr.left - hr.left + gridHost.scrollLeft}px`;
+    layer.style.top = `${cr.top - hr.top + gridHost.scrollTop}px`;
+    layer.setAttribute('width', cr.width);
+    layer.setAttribute('height', cr.height);
+    if (vb.length === 4) layer.setAttribute('viewBox', vb.join(' '));
+    const z = canvas().getZoom() || 1;
+    const r2 = (v) => Math.round(v * 10) / 10;
+    const pts2 = (pts) => pts.map((q) => `${r2(q[0])},${r2(q[1])}`).join(' ');
+    let out = '';
+    const seen = new Set();
+    for (const e of pipeDrag.ends) {
+      if (seen.has(e.el)) continue;
+      seen.add(e.el);
+      let pts;
+      try { pts = previewRoute(e.el); } catch { continue; }
+      const w = Number(e.el.getAttribute('stroke-width')) || 10;
+      out += `<polyline points="${pts2(pts)}" fill="none" stroke="${e.el.getAttribute('stroke') || '#555'}" stroke-opacity="0.85" ` +
+        `stroke-width="${w}" stroke-linejoin="round"/>`;
+    }
+    // snorlige-fang: stiplet linje langs det lige stykke, symbolet fanges til, når det slippes
+    for (const h of pipeDrag.snap?.hints ?? []) {
+      out += `<line x1="${r2(h.from[0])}" y1="${r2(h.from[1])}" x2="${r2(h.to[0])}" y2="${r2(h.to[1])}" stroke="#1e88e5" ` +
+        `stroke-width="${Math.max(2, 2 / z)}" stroke-dasharray="${8 / z} ${5 / z}"/>`;
+    }
+    layer.innerHTML = out;
+  }
+
+  function startPipeDrag(sel) {
+    pipeDrag.ends = attachedEnds(sel);
+    pipeDrag.orig = new Map(pipeDrag.ends.map((e) => [e.el, pipePoints(e.el)]));
+    pipeDrag.active = pipeDrag.ends.length > 0;
+    // de rigtige rør dæmpes, mens forhåndsvisningen tegnes ovenpå (style, ikke en del af fortryd/gem — fjernes ved slip)
+    pipeDrag.dimmed = [...new Set(pipeDrag.ends.map((e) => e.el))];
+    pipeDrag.dimmed.forEach((el) => { el.style.opacity = '0.25'; });
+  }
+  function endPipePreview() {
+    pipeDrag.active = false;
+    pipeDrag.dimmed.forEach((el) => { el.style.removeProperty('opacity'); if (!el.getAttribute('style')) el.removeAttribute('style'); });
+    pipeDrag.dimmed = [];
+    drawPipePreview();
+  }
+  function clearPipeDrag() {
+    endPipePreview();
+    pipeDrag.orig = new Map();
+    pipeDrag.ends = [];
+    pipeDrag.snap = null;
   }
 
   /** Hver ny ændring i fortryd-historikken: rørene følger med i samme trin. */
@@ -851,6 +979,23 @@ export function createScada(host) {
     drawGuides();
     setTimeout(() => { if (guideLayer.flash === token) { guideLayer.hot = null; drawGuides(); } }, 700);
   }
+
+  // Mens et symbol trækkes: rørene vises, som de kommer til at ligge, og om røret fanges til snorlige (v4.6.0)
+  document.addEventListener('mousemove', () => {
+    const c = canvas();
+    if (!c?.getStarted?.() || c.getMode() !== 'select' || handles.busy) return;
+    const sel = selectedEls();
+    if (!sel.length || sel.every(isPipe)) return;
+    if (!pipeDrag.active) startPipeDrag(sel);
+    if (!pipeDrag.active) return;
+    pipeDrag.snap = guides.snapPipes === false ? null : pipeStraightSnap(SNAP_PX / (c.getZoom() || 1));
+    drawPipePreview();
+  }, { signal: life.signal });
+  document.addEventListener('mouseup', () => {
+    if (!pipeDrag.active && !pipeDrag.orig.size) return;
+    endPipePreview();
+    setTimeout(clearPipeDrag, 60);   // efter fanget (settleAfterMouseUp kører i setTimeout 0) — også hvis det ikke kører
+  }, { capture: true, signal: life.signal });
 
   // Mens et symbol trækkes: vis hvilke hjælpelinjer det vil blive fanget til, når det slippes
   document.addEventListener('mousemove', () => {
@@ -2294,6 +2439,7 @@ export function createScada(host) {
       guides.keepRatio = !!opts.keepRatio;
       guides.showGuides = opts.showGuides !== false;
       guides.snapGuides = opts.snapGuides !== false;
+      guides.snapPipes = opts.snapPipes !== false;   // fang rør lige (v4.6.0)
       if (!guides.showGuides) activeGuide = null;
       const step = Number(opts.step);
       guides.step = Number.isFinite(step) && step >= 1 ? step : 10;
