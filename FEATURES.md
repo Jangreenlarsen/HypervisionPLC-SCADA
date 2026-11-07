@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v4.6.0 — **Rør følger med under trækket og fanges snorlige** (ønske fra Jan 2026-11-07): mens et symbol trækkes, vises rørene, som de kommer til at ligge; flugter tilslutningspunktet næsten med rørets næste knæk, fanges symbolet, så røret står snorlige (blå stiplet linje; *Fang rør lige*).
 - [x] done v4.5.0 — **Signalvej: vælg start og slut ved at klikke i tegningen** (ønske fra Jan 2026-11-07): *Vælg på tegningen* → klik startsymbolet → klik slutsymbolet → vejen findes af sig selv; valget vises med orange ramme, rør og visning afvises med en forklaring.
 - [x] done v4.4.0 — **Vælg LLM-model fra en liste** (ønske fra Jan 2026-11-07): tre varianter (Hurtig/Standard/Stor) udgivet som GitHub releases; administratoren henter og installerer under System › Hjælper uden selv at hente fra Hugging Face. Upload bevares til lukkede net.
 - [x] done v4.3.0 (fase 2b) — **Forklar signalvejen med egne ord** (PLAN.md): i signalvejens trin 3 skriver man fx "når P1 kører og V2 er åben", og hjælperen (lokal LLM) udfylder svarene som forslag i et fast JSON-skema; backend kontrollerer forslagene (symbol på vejen, tag findes og må ses, gyldig sammenligning), og intet gemmes, før brugeren trykker Gem.

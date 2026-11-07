@@ -4,6 +4,22 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.6.0 build 0354] — 2026-11-07 — Tegn: rør følger med under trækket og fanges snorlige
+
+- `svgedit-host/pipes.js`:
+  - `straightTarget`: det første lodrette/vandrette stykke foran tilslutningspunktet, som enden flugter med inden for tolerancen; stubben springes over;
+  - `straightEnd`: ét lige stykke i stedet for stub og hak, når enden flugter.
+- `svgedit-host/scada-core.js`:
+  - under et træk: forhåndsvisning af de tilsluttede rør (eget overlay) og dæmpning af de rigtige rør;
+  - blå stiplet linje, når der vil blive fanget;
+  - ved slip fanges symbolet, så røret står snorlige. Det vinder over gitter og objekter; hjælpelinjer vinder stadig;
+  - `followPipes` bruger rørets forløb fra før trækket, så resultatet bliver lige uden hak.
+
+  Fortryd fungerer som før: ét trin, og forhåndsvisningen er aldrig en del af tegningen.
+- `pages/DrawEditor.svelte`: *Fang rør lige* (gemmes som de andre indstillinger).
+- Tests: `pipes.test.ts` (fang og lige ende, stub springes over, knæk bag punktet, lige rør mellem to symboler). Set i browseren med en testtegning (lille træk fanges, stort træk følger med med knæk, Ctrl+Z).
+- Manual: *Forbindelser › Tilslutningspunkter og retning*.
+
 ## [4.5.0 build 0353] — 2026-11-07 — Signalvej: vælg start og slut ved at klikke i tegningen
 
 - `lib/SignalPathGuide.svelte`:

@@ -577,3 +577,42 @@ export function ensureOrthogonal(points) {
   }
   return simplify(out);
 }
+
+// ---------------------------------------------------------------- snorlige rør (v4.6.0)
+const axisOfDirection = (dir) => (Math.abs(dir[0]) > Math.abs(dir[1]) ? 'h' : 'v');
+const oriented = (points, which) => (which === 'start' ? [...points] : [...points].reverse());
+
+/**
+ * Det første knæk foran enden (i punktets retning `dir`), som enden flugter med på tværs inden for `tol`, hvis den
+ * flyttes til `p`. → { k, dx, dy } (k = knækkets nummer regnet fra enden; dx/dy = flytningen på tværs, den anden null)
+ * eller null. Bruges til at fange et symbol, så røret står snorlige ud af det.
+ */
+export function straightTarget(points, which, p, dir, tol) {
+  if (!points || points.length < 2) return null;
+  const pts = oriented(points, which);
+  const axis = dir ? axisOfDirection(dir) : axisOf(pts[0], pts[1]);
+  if (!axis) return null;
+  // Målet er et stykke i punktets retning; det korte stykke lige ud af punktet (stubben, som lægges automatisk) tæller
+  // ikke — ellers ville symbolet bare blive trukket tilbage, hvor det kom fra
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], q = pts[i + 1];
+    if (axisOf(a, q) !== axis) continue;
+    if (i === 0 && pts.length > 2 && Math.hypot(q[0] - a[0], q[1] - a[1]) <= STUB * 1.5) continue;
+    if (dir && (q[0] - p[0]) * dir[0] + (q[1] - p[1]) * dir[1] <= EPS) continue;   // stykket ligger ikke foran punktet
+    const d = axis === 'v' ? q[0] - p[0] : q[1] - p[1];
+    if (Math.abs(d) <= tol) return { k: i + 1, dx: axis === 'v' ? d : null, dy: axis === 'h' ? d : null };
+  }
+  return null;
+}
+
+/**
+ * Flyt enden til `p` uden hak: flugter `p` (inden for `eps`) med et knæk foran sig, går røret lige fra `p` til det knæk,
+ * og resten bevares. → de nye punkter, eller null (så lægges enden om som før med `reroute`).
+ */
+export function straightEnd(points, which, p, dir, eps = 0.01) {
+  const hit = straightTarget(points, which, p, dir, eps);
+  if (!hit) return null;
+  const pts = oriented(points, which);
+  const out = simplify([p, ...pts.slice(hit.k)]);
+  return which === 'start' ? out : out.reverse();
+}
