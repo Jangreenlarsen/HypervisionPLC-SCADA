@@ -2,6 +2,18 @@
 
 ---
 
+## v4.9.0 — 2026-11-07 — Bedre manual og en hjælper, der finder svarene
+
+- **Manualen** har fået mere tekst og 11 nye skærmbilleder:
+  - *De seks trin* forklarer hvert trin for sig;
+  - logikblokke har en vejledning trin for trin;
+  - alarmer, rør, signalveje, hjælperen og System-siderne er udvidet.
+- **Nyt indeks:**
+  - kapitlerne står i grupper med ikoner;
+  - det afsnit, du læser, er markeret;
+  - et søgetræf åbner præcis det afsnit, hvor ordet står.
+- **Hjælperen finder svarene bedre.** Den søger i en særlig udgave af manualen, som serveren laver ud fra den rigtige manual og derfor altid er opdateret, og den henviser til afsnittet, svaret bygger på.
+
 ## v4.8.0 — 2026-11-07 — Redigér symbolernes grafik
 
 - Under *Symboler › Bibliotek* har hvert symbol nu **Redigér**. Symbolet åbnes i Tegn, hvor du retter grafikken og trykker *Gem i biblioteket*.

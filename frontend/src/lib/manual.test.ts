@@ -1,6 +1,6 @@
 // Brugermanualen (v0.52.0): opbygning, rendering, søgning — og at alle menusider og symboler er omtalt.
 import { describe, expect, it } from 'vitest';
-import { buildChapters, highlight, manualImageSrc, renderMarkdown, searchChapters, slugify } from './manual';
+import { buildChapters, groupChapters, highlight, manualImageSrc, renderMarkdown, searchChapters, slugify } from './manual';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { NAV } from './nav';
@@ -66,6 +66,21 @@ describe('søgning', () => {
     const hits = searchChapters(c, 'LOGIKBLOK');
     expect(hits.map((h) => [h.chapter.slug, h.count])).toEqual([['b', 2], ['a', 1]]);
     expect(hits[0].snippets.length).toBeGreaterThan(0);
+  });
+  it('hvert uddrag kender sit afsnit, med samme anker som renderMarkdown (v4.9.0)', () => {
+    const md = '# K\n\n## Kvittér en alarm\n\nTryk Kvittér.\n\n### Flere\n\nKvittér alle.\n\n## Kvittér en alarm\n\nKvittér igen.';
+    const [hit] = searchChapters(buildChapters({ '../manual/03-k.md': md }), 'kvittér');
+    expect(hit.snippets.map((s) => [s.heading, s.anchor])).toEqual([
+      ['', 'm-kvitt-r-en-alarm'], ['Kvittér en alarm', 'm-kvitt-r-en-alarm'], ['Flere', 'm3-flere'],
+      ['', 'm-kvitt-r-en-alarm-2']]);   // overskriften selv står uden "hvor"
+    const ids = [...renderMarkdown(md).matchAll(/id="([^"]+)"/g)].map((m) => m[1]);
+    for (const s of hit.snippets) expect(ids).toContain(s.anchor);
+  });
+  it('kapitlerne grupperes i indekset; ukendte havner i "Andet"', () => {
+    const g = groupChapters(buildChapters({ '../manual/01-kom-i-gang.md': '# Kom', '../manual/03-alarmer.md': '# Al', '../manual/99-ny.md': '# Ny' }));
+    expect(g.map((x) => [x.name, x.chapters.map((c) => c.slug)])).toEqual([['Kom i gang', ['kom-i-gang']], ['Drift', ['alarmer']], ['Andet', ['ny']]]);
+    expect(groupChapters(chapters).flatMap((x) => x.chapters).length).toBe(chapters.length);   // alle rigtige kapitler har en gruppe
+    expect(chapters.every((c) => c.group !== 'Andet' && c.blurb)).toBe(true);
   });
   it('for korte eller tomme søgninger giver ingenting', () => {
     expect(searchChapters(c, '')).toEqual([]);

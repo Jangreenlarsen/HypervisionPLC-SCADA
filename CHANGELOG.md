@@ -4,7 +4,34 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
-## [4.8.0 build 0358] — 2026-11-07 — Symboler › Bibliotek: Redigér grafikken
+## [4.9.0 build 0359] — 2026-11-07 — Manualen gennemgået; skjult LLM-manual til hjælperen; nyt manual-indeks
+
+- **LLM-manual** — `services/manual_compiler.py` (ny):
+  - kompilerer `frontend/src/manual/*.md` til stykker på højst 110 ord med sti-overskrift (`##` og `###`);
+  - tabeller foldes ud til sætninger (store tabeller giver et stykke pr. række), billedtekster tages med, og interne links slås op til afsnittets navn;
+  - hvert stykke henviser til afsnittet i den store manual (frontendens ankre, også `m3-` for `###`).
+- **Tillæg** — `frontend/src/manual/llm/*.md` (nye, vises ikke i Manual-siden): spørgsmål/svar med `<!-- kilde: fil#anker sha:… -->`.
+  - `check()`/`sync()` og CLI'en `python -m app.services.manual_compiler --check|--sync|--anchors|--dump`;
+  - `make-package.sh` kører `--check`.
+- `services/assist_knowledge.py`:
+  - søger i den kompilerede manual og tillæggene (spørgsmålet tæller som overskrift);
+  - højst ét stykke pr. afsnit i træffene;
+  - sammensatte ord, manualen ikke har, deles ("energiforbrug" → energi + forbrug);
+  - nye stopord (se, ser, pr, gør).
+- `services/assist_tools.py`: `MANUAL_CHARS` 380 → 480.
+- **Måling** (top 3 af 45 typiske spørgsmål): 34 → 45. 15 nye formuleringer: 10 → 13 (de to sidste rammer det rigtige afsnit under et andet navn).
+- **Manual:**
+  - mere tekst i 01, 02, 03, 05, 08, 10 og 13 — *De seks trin* er delt i *Trin 1–6*, og *Logikblokke* har en trin-for-trin-vejledning;
+  - fejl rettet: alarmprioriteten følger niveauet, versionen står i topbjælken, og menutabellen er opdateret.
+- **11 nye skærmbilleder** — `tools/manual-screenshots.mjs`, taget fra demoen: guide-logik-udfyldt, guide-logik-test, forbindelse-haandtag, signalveje, hjaelper-panel, tags-flere, status, notifikationer, integrationer, certifikater og system-hjaelper.
+- **Manual-siden** (`pages/Manual.svelte`, `lib/manual.ts`):
+  - kapitlerne i grupper med ikon og undertekst (`GROUPS`, `groupChapters`);
+  - afsnittet, man læser, markeres;
+  - søgetræf viser afsnit og fører direkte til det;
+  - *Til toppen*, brødkrumme og en sammenfoldelig menu på smal skærm;
+  - markeringen af søgeordet forsvinder, når søgningen ændres (BUGS.md).
+- Tests: `test_manual_compiler.py` (ny) og `manual.test.ts`. Manual-siden er set i browseren, bred og smal.
+ — 2026-11-07 — Symboler › Bibliotek: Redigér grafikken
 
 - `lib/SymbolLibrary.svelte`: *Redigér* ved hvert symbol opretter en arbejdstegning ("Symbol – …") og åbner Tegn på `#draw/<tegning>/sym:<type>`.
 - `pages/DrawEditor.svelte`:

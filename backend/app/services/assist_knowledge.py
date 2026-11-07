@@ -12,8 +12,9 @@ import math
 import re
 import threading
 from collections import Counter
-from dataclasses import dataclass
 from pathlib import Path
+
+from .manual_compiler import Section, compile_manual, plain, slugify  # noqa: F401 — slugify/plain bruges af andre
 
 log = logging.getLogger("scada.assist")
 
@@ -25,6 +26,7 @@ og i at er en et den det de der som på til med for af har kan ikke du man eller
 hvad hvor hvordan hvorfor hvem jeg mig min mit vi os sig sin sit være været blive bliver blev var have havde få får
 denne dette disse dem dig din dit han hun her nu kun alle alt meget mere mest noget nogle ingen over under ved efter
 før mod uden igennem gennem ind ud op ned the a an of to is in it what how
+se ser pr gør gøre
 """.split())
 # Endelser der fjernes (længste først), så "alarmerne", "alarmen" og "alarmer" bliver samme ord
 SUFFIXES = ("erne", "ene", "ers", "ens", "ets", "er", "en", "et", "es", "e", "s")
@@ -37,23 +39,7 @@ SYNONYMS = {
 PREFIX_WEIGHT = 0.5     # ord, der begynder med søgeordet ("bag" → "bagved"), tæller halvt
 HEAD_BOOST = 1.5        # et søgeord i afsnittets overskrift tæller ekstra ("Tags", "Brugere", "Kvittér en alarm")
 SYN_WEIGHT = 0.6
-
-
-def slugify(text: str) -> str:
-    """Som `slugify` i frontend/src/lib/manual.ts."""
-    s = text.lower().replace("æ", "ae").replace("ø", "oe").replace("å", "aa")
-    s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
-    return s or "afsnit"
-
-
-def plain(md: str) -> str:
-    """Markdown → læsbar tekst (billeder, links, fremhævning og tabelstreger fjernes)."""
-    s = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", md)
-    s = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", s)
-    s = re.sub(r"<!--.*?-->", "", s, flags=re.S)
-    s = re.sub(r"[*_`>#|]", "", s)
-    s = re.sub(r"-{3,}", "", s)
-    return re.sub(r"[ \t]+", " ", re.sub(r"\n\s*\n+", "\n", s)).strip()
+COMPOUND_WEIGHT = 0.7   # delene af et sammensat ord, manualen ikke har ("energiforbrug")
 
 
 def _strip(word: str) -> str:
@@ -78,47 +64,14 @@ def tokens(text: str) -> list[str]:
     return [stem(w) for w in _WORD.findall(text.lower().translate(_ACCENTS)) if w not in STOP and len(w) > 1]
 
 
-@dataclass
-class Section:
-    chapter: str        # kapitlets titel
-    heading: str        # afsnittets overskrift ("" = kapitlets indledning)
-    slug: str           # kapitlets slug (filnavn uden nummer)
-    anchor: str         # m-<slug> eller ""
-    text: str           # ren tekst
-
-    @property
-    def source(self) -> str:
-        return f"Manual › {self.chapter}" + (f" › {self.heading}" if self.heading else "")
-
-    @property
-    def href(self) -> str:
-        return f"#manual/{self.slug}" + (f"/{self.anchor}" if self.anchor else "")
-
-
 def split_chapter(name: str, raw: str) -> list[Section]:
-    md = raw.replace("\r\n", "\n")
-    slug = re.sub(r"^\d+-", "", name)
-    m = re.search(r"^#\s+(.+)$", md, re.M)
-    title = plain(m.group(1)) if m else slug
-    parts = re.split(r"^##\s+(.+)$", md, flags=re.M)   # [intro, h1, body1, h2, body2, ...]
-    out: list[Section] = []
-    intro = plain(re.sub(r"^#\s+.+$", "", parts[0], count=1, flags=re.M))
-    if intro:
-        out.append(Section(title, "", slug, "", intro))
-    seen: Counter[str] = Counter()
-    for i in range(1, len(parts) - 1, 2):
-        heading = plain(parts[i])
-        base = slugify(heading)
-        seen[base] += 1
-        anchor = f"m-{base}" if seen[base] == 1 else f"m-{base}-{seen[base]}"
-        body = plain(parts[i + 1])
-        if body:
-            out.append(Section(title, heading, slug, anchor, body))
-    return out
+    """Ét kapitel kompileret (som i LLM-manualen)."""
+    return compile_manual([(name, raw)])
 
 
 class ManualIndex:
-    """BM25 over manualens afsnit. Bygges første gang der søges (og igen, hvis filerne ændres)."""
+    """BM25 over LLM-manualen (manual_compiler: den store manual kompileret + tillæg i llm/). Bygges første gang der
+    søges, og igen hvis en fil ændres."""
 
     def __init__(self, manual_dir: Path):
         self.dir = manual_dir
@@ -133,33 +86,50 @@ class ManualIndex:
 
     def _files(self) -> list[Path]:
         try:
-            return sorted(self.dir.glob("*.md"))
+            return sorted(self.dir.glob("*.md")) + sorted((self.dir / "llm").glob("*.md"))
         except OSError:
             return []
 
     def _ensure(self) -> None:
         files = self._files()
-        stamp = tuple((f.name, int(f.stat().st_mtime)) for f in files)
+        stamp = tuple((f"{f.parent.name}/{f.name}", int(f.stat().st_mtime)) for f in files)
         if stamp == self._stamp:
             return
-        sections: list[Section] = []
+        main: list[tuple[str, str]] = []
+        extras: list[tuple[str, str]] = []
         for f in files:
             try:
-                sections += split_chapter(f.stem, f.read_text(encoding="utf-8"))
+                (extras if f.parent.name == "llm" else main).append((f.stem, f.read_text(encoding="utf-8")))
             except (OSError, UnicodeDecodeError):
                 log.warning("Manual-fil kunne ikke læses: %s", f.name)
+        sections = compile_manual(main, extras)
         tf, lengths, df, head = [], [], Counter(), []
         for s in sections:
             # Overskriften tæller dobbelt: den siger hvad afsnittet handler om
-            c = Counter(tokens(f"{s.chapter} {s.heading} {s.heading} {s.text}"))
+            c = Counter(tokens(f"{s.chapter} {s.heading} {s.heading} {s.keys} {s.keys} {s.text}"))
             tf.append(c)
-            head.append(set(tokens(s.heading or s.chapter)))
+            head.append(set(tokens(f"{s.heading or s.chapter} {s.keys}")))
             lengths.append(sum(c.values()))
             df.update(c.keys())
         self.sections, self._tf, self._len, self._df, self._head = sections, tf, lengths, df, head
         self._avg = (sum(lengths) / len(lengths)) if lengths else 1.0
         self._stamp = stamp
-        log.info("Manual indekseret: %d afsnit fra %d filer", len(sections), len(files))
+        log.info("LLM-manual kompileret og indekseret: %d stykker (%d tillæg) fra %d filer",
+                 len(sections), sum(s.extra for s in sections), len(files))
+
+    def _split_compound(self, t: str) -> list[str]:
+        """Et sammensat ord, manualen ikke har, delt i to ord, den har (evt. med binde-s): "energiforbrug" → energi +
+        forbrug, "alarmgrænse" → alarm + grænse. Tomt, hvis ordet findes, eller ingen deling passer."""
+        if self._df.get(t) or len(t) < 8:
+            return []
+        for i in range(len(t) - 4, 3, -1):           # længste forled først
+            head, tail = t[:i], t[i:]
+            if head.endswith("s") and head[:-1] in self._df and len(head) > 4:
+                head = head[:-1]
+            tail = stem(tail)
+            if head in self._df and tail in self._df:
+                return [head, tail]
+        return []
 
     def expand(self, query: str) -> dict[str, float]:
         """Søgeordene med vægt: ordet selv (1), synonymer (SYN_WEIGHT) og manualens ord, der begynder med det
@@ -172,6 +142,8 @@ class ManualIndex:
             put(t, 1.0)
             for syn in SYNONYMS.get(t, []):
                 put(stem(syn), SYN_WEIGHT)
+            for part in self._split_compound(t):   # "energiforbrug" → "energi" + "forbrug" (v4.9.0)
+                put(part, COMPOUND_WEIGHT)
         for t, w in list(weights.items()):
             if len(t) >= 3 and self._df.get(t, 0) <= 2:   # kun sjældne/ukendte ord ("bag") — ikke "alarm" (alarmklokken …)
                 for term in self._df:
@@ -200,7 +172,19 @@ class ManualIndex:
                 if score > 0:
                     scored.append((score, i))
             scored.sort(reverse=True)
-            return [(self.sections[i], round(s, 3)) for s, i in scored[:k]]
+            # Højst ét stykke pr. afsnit i den store manual (v4.9.0): ellers fylder tre stykker af samme lange afsnit
+            # (eller tabelrækker) alle pladser, og modellen får kun én kilde
+            out: list[tuple[Section, float]] = []
+            seen: set[str] = set()
+            for s, i in scored:
+                sec = self.sections[i]
+                if sec.href in seen:
+                    continue
+                seen.add(sec.href)
+                out.append((sec, round(s, 3)))
+                if len(out) == k:
+                    break
+            return out
 
     def count(self) -> int:
         with self._lock:

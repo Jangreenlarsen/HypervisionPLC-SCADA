@@ -1,3 +1,70 @@
+# Plan: Manualen gennemgås — mere tekst, flere skærmbilleder, pænere indeks og en skjult LLM-manual (v4.9.0) — 2026-11-07 — godkendt (Jan) — ✅ v4.9.0
+
+Ønske fra Jan: flere afsnit mangler skærmbilleder (fx logikblok), "De seks trin" har næsten ingen tekst, og den lokale LLM fejler, når manualen er for tynd. Indekset skal være pænere. Derudover (Jan): **en særlig manual til LLM'en, som brugerne ikke ser, men som holdes opdateret, når den store manual ændres.**
+
+Måling (`manualstat.py`): 25.132 ord og 79 billeder. Ca. 35 afsnit har under 60 ord. Kap. 08 (Forbindelser) og 15 (Fejlfinding) har 0 billeder; i kap. 13 (System) mangler billeder til Status, Notifikationer, Integrationer, Certifikater og Hjælper.
+
+## Valg: hvordan får LLM'en nok tekst? (3 alternativer)
+1. **Kun skrive den store manual tykkere.** Det er godt for brugerne, men LLM'en har brug for korte "sådan gør du"-svar og synonymer. Det gør den læsbare manual tung.
+2. **En separat LLM-manual, skrevet uafhængigt.** Den kan løbe ud af trit med den rigtige manual og give forkerte svar, og det var præcis fejlen med "symbol bag et andet".
+3. **Valgt: en skjult LLM-manual, som *kompileres automatisk* ud fra den store manual (præcisering fra Jan).** Ingen håndskrevet kopi; den bygges ved hver build/OTA-pakke og er derfor altid opdateret.
+   - Kompileren er `tools/compile-llm-manual` (Python i `backend/app/services/manual_compiler.py`, så serveren også kan bygge ved opstart). Den skriver `llm-manual.json`.
+   - Hver del er selvstændig:
+     - Den har **sti-kontekst** ("Tegn › Vælg › Symbol bag et andet").
+     - **Tabeller er foldet ud** til sætninger, så "De seks trin" bliver ét stykke pr. trin.
+     - Billedernes alt-tekster og knapnavne er med.
+     - Interne links er slået op til navnet på målafsnittet.
+     - Der er nøgleord/synonymer.
+   - Hver del har en **reference** til afsnittet i den store manual (`07-tegn.md#anker`), så hjælperen altid kan henvise brugeren dertil.
+   - Valgfrie **tillæg** i `manual/llm/*.md`: korte spørgsmål og svar pr. afsnit, bundet med `kilde:`+sha. En test fejler, når kildeafsnittet ændres, så tillæggene ikke kan løbe ud af trit.
+   - Brugerne ser kun den store manual.
+
+## Trin
+1. **Store manual, tekst.** Udvid de tynde afsnit, størst først:
+   - kap. 10 "De seks trin" deles i *Trin 1–6* med egen tekst og eget billede pr. trin;
+   - kap. 10 "Logikblokke";
+   - kap. 03 Alarmer;
+   - kap. 08 Forbindelser;
+   - kap. 13 System;
+   - kap. 02 og 04.
+2. **Skærmbilleder.** Udvid `tools/manual-screenshots.mjs` med:
+   - logikblok-editoren;
+   - De seks trin (ét billede pr. trin);
+   - Forbindelser/Signalveje;
+   - Hjælper-panelet;
+   - System › Status/Notifikationer/Integrationer/Certifikater/Hjælper;
+   - Alarmer › Forklar.
+
+   De tages på den lokale testserver med demo-data. Den eksisterende test sikrer, at ingen billeder mangler eller er forældreløse.
+3. **Indeks.** Manual-siden får:
+   - kapitler grupperet (*Kom i gang · Drift · Opsætning · Tegning · System · Reference*) med ikon og en kort undertekst;
+   - kun det aktive kapitels underafsnit foldet ud;
+   - markering af det afsnit, man læser (scroll-spy), og "Til toppen";
+   - søgning med resultater, der viser kapitel og uddrag;
+   - på smal skærm: indekset som en udfoldelig menu.
+4. **Kompileret LLM-manual.**
+   - `manual_compiler.py`: opdeling, tabel→tekst, sti-kontekst, links og referencer. Den har tests.
+   - `assist_knowledge` søger i de kompilerede dele og svarer med reference til den store manual.
+   - Kompileringen køres i `make-package.sh` og ved opstart, hvis manualen er nyere.
+   - Tillæg med sha-test, og de første tillæg skrives til spørgsmål, der fejlede.
+5. **Måling.** `evalsearch.py` udvides til ca. 40 typiske spørgsmål, og træfprocenten (top 3) måles før og efter. Til sidst testes nogle spørgsmål mod Ministral på demoen.
+6. Tests og build, visuel kontrol af Manual-siden (bred og smal), docs, version og OTA.
+
+## Berørte filer (ca.)
+- `frontend/src/manual/*.md` og ny `frontend/src/manual/llm/`
+- `frontend/public/manual/*.png`
+- `frontend/tools/manual-screenshots.mjs`
+- `frontend/src/pages/Manual.svelte`
+- `backend/app/services/assist_knowledge.py` og en ny test
+- `deploy/install.sh` og `deploy/make-package.sh`
+
+## Risici
+- Det er meget tekst. Det deles i 2–3 commits (tekst+billeder → indeks → LLM-manual), så hver del kan ses for sig.
+- sha-testen kan føles irriterende ved små rettelser i den store manual. Sync-scriptet gør det til ét kald, og det er netop meningen, at man skal se efter.
+- Skærmbillederne skal tages med samme data og vinduesstørrelse som de eksisterende, så billederne ligner hinanden.
+
+---
+
 # Plan: Vælg LLM-model fra en liste — hentes fra GitHub releases (v4.4.0) — 2026-11-07 — godkendt (Jan: "to-tre varianter på GitHub") — ✅ v4.4.0
 
 Ønske fra Jan: en administrator skal kunne vælge en model fra en liste under *System › Hjælper* uden selv at hente filer fra Hugging Face. LLM-pakkerne udgives derfor som **GitHub releases** i projektets repo, som SCADA-opdateringerne allerede er.
