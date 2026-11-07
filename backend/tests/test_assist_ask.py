@@ -257,3 +257,25 @@ def test_search_finds_danish_variants_and_headings(tmp_path):
     idx = ManualIndex(tmp_path)
     assert idx.search("hvordan vælger jeg et symbol bag et andet som er foran", 1)[0][0].heading == "Vælg, flyt og markér"
     assert idx.search("hvordan opretter jeg en bruger", 1)[0][0].heading == "Brugere"
+
+
+def test_history_always_alternates_roles():
+    """v4.6.2: Ministral-3-8B's chat-skabelon gav fejl 500 ("roles must alternate"), når et fejlet svar var sorteret fra."""
+    from app.services.assistant import alternating
+    u = lambda t: {"role": "user", "content": t}
+    a = lambda t: {"role": "assistant", "content": t}
+    assert alternating([u("1"), u("2"), a("svar")]) == [u("1\n\n2"), a("svar")]
+    assert alternating([a("gammelt svar"), u("1"), a("x"), u("2")]) == [u("1"), a("x")]   # starter med bruger, slutter med assistent
+    assert alternating([u("kun spørgsmål")]) == []
+    assert alternating([]) == []
+    roles = [m["role"] for m in alternating([u("a"), a("b"), a("c"), u("d"), u("e"), a("f")])]
+    assert roles == ["user", "assistant", "user", "assistant"]
+
+
+def test_ask_sends_alternating_messages(setup):
+    c, a, _ = setup
+    hist = [{"role": "user", "content": "første"}, {"role": "user", "content": "andet (svaret fejlede)"},
+            {"role": "assistant", "content": "svar"}, {"role": "user", "content": "uden svar"}]
+    c.post("/api/assist/ask", json={"question": "nyt", "history": hist})
+    roles = [m["role"] for m in c.prompts[-1]]
+    assert roles == ["system", "user", "assistant", "user"]
