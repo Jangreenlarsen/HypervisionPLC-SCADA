@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.5.0 build 0353] — 2026-11-07 — Signalvej: vælg start og slut ved at klikke i tegningen
+
+- `lib/SignalPathGuide.svelte`:
+  - *Vælg på tegningen*: første klik på et symbol = start (orange ramme), andet klik = slut, og vejen findes af sig selv;
+  - rør, tekster og visninger afvises med en forklaring;
+  - *Afbryd valg*/Esc stopper.
+
+  Listerne og *← valgt* findes stadig.
+- `lib/signalPath.ts`: `pickNext` (reglen, med test i `signalPath.test.ts`).
+- Manual: *Forbindelser › Signalveje*. Set i browseren på demo-tegningen.
+
 ## [4.4.3 build 0352] — 2026-11-07 — Trendgraf: "Maximum call stack size exceeded" ved et fladt forløb
 
 - `lib/chartGraphic.ts`:

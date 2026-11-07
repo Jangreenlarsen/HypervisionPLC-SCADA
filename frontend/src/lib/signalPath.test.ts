@@ -1,5 +1,5 @@
 import { describe as group, expect, it } from 'vitest';
-import { answerFrom, conditionsFrom, contacts, describe, endpoints, findPaths, flowsFor, roleOf, suggestAnswer, summary, type GNode, type Graph, type Pt, type TagInfo } from './signalPath';
+import { answerFrom, conditionsFrom, contacts, describe, endpoints, findPaths, flowsFor, pickNext, roleOf, suggestAnswer, summary, type GNode, type Graph, type Pt, type TagInfo } from './signalPath';
 
 const pipe = (id: string, a: Pt, b: Pt, refs: (string | null)[] = [null, null]): GNode =>
   ({ id, name: '', type: '', pipe: true, terminals: [a, b], lines: [{ part: 'all', a, b }], refs });
@@ -149,5 +149,15 @@ group('passable', () => {
     ] };
     expect(findPaths(g, 'a', 'b')).toEqual([]);
     expect(endpoints(g).map((e) => e.label)).toEqual(['A', 'B']);
+  });
+});
+
+group('pickNext', () => {
+  const allowed = new Set(['kedel', 'rad']);
+  it('takes the first allowed symbol in the selection and explains the rest', () => {
+    expect(pickNext('start', ['r1', 'kedel'], allowed, '')).toEqual({ id: 'kedel' });
+    expect(pickNext('start', ['r1'], allowed, '').error).toMatch(/rør/);
+    expect(pickNext('end', ['kedel'], allowed, 'kedel').error).toMatch(/startsymbolet/);
+    expect(pickNext('end', ['rad'], allowed, 'kedel')).toEqual({ id: 'rad' });
   });
 });

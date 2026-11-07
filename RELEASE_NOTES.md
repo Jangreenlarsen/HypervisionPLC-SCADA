@@ -2,6 +2,10 @@
 
 ---
 
+## v4.5.0 — 2026-11-07 — Signalvej: klik start og slut i tegningen
+
+- Under *Signalveje* i Tegn: tryk **Vælg på tegningen**, klik på startsymbolet og derefter på slutsymbolet, så findes vejen af sig selv.
+
 ## v4.4.3 — 2026-11-07 — Trendgrafer: rettelse
 
 - En trendgraf, hvis værdier står helt stille, viste fejlen "Maximum call stack size exceeded" i stedet for kurven. Den vises nu som en vandret linje.

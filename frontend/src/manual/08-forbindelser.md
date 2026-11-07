@@ -61,7 +61,7 @@ En **signalvej** sætter løbelys på *alle* rør mellem to symboler, fx fra ked
 
 Åbn sektionen **Signalveje** i panelet til højre (rollen tekniker), og tryk **Ny signalvej …**. Tegningen gemmes og udgives først, hvis den har ændringer.
 
-1. **Start og slut:** vælg de to symboler i listerne, eller vælg symbolet i tegningen og tryk **← valgt**. Tryk **Find vej**.
+1. **Start og slut:** tryk **Vælg på tegningen**, klik på startsymbolet og derefter på slutsymbolet — så findes vejen af sig selv. Klikker du på et rør, en tekst eller en visning, står der, hvorfor det ikke kan bruges; **Esc** eller **Afbryd valg** stopper. Du kan også vælge i listerne (eller vælge symbolet og trykke **← valgt**) og trykke **Find vej**.
 2. **Vejen:** vejen markeres med **orange** i tegningen. Er der flere veje (fx en omløbsledning), kan du vælge mellem op til tre. Vejen findes ud fra, hvordan delene hænger sammen:
    - rør, der sidder fast i symbolerne;
    - symboler, hvis tilslutningspunkter rører hinanden;
