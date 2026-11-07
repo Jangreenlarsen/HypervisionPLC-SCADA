@@ -399,3 +399,17 @@ def test_import_css_unsupported_selectors_one_warning():
     _f, _p, warnings = lib.import_fragment(svg)
     css = [w for w in warnings if "CSS" in w]
     assert len(css) == 1 and "og 1 til" in css[0]
+
+
+def test_new_version_from_working_drawing_keeps_preset(api):
+    """v4.7.1 (Symboler › Bibliotek › Redigér grafik): en ny version fra en tegning UDEN opsætning på symbolet beholder
+    den forrige standardopsætning, når delene findes endnu — ellers fjernes den med en besked."""
+    assert export(api).status_code == 201                                  # version 1 med opsætning (løbehjulet drejer)
+    assert api.delete(f"/api/drawings/{api.did}/symbols/P1/config").status_code == 204
+    r = export(api, replace=True)                                          # som fra arbejdstegningen: ingen opsætning
+    assert r.status_code == 201 and r.json()["version"] == 2
+    assert r.json()["preset"]["anims"][0]["part"] == "loebehjul"
+    assert any("beholdt" in w for w in r.json()["warnings"])
+    # grafik uden løbehjulet: opsætningen kan ikke bruges længere
+    r = export(api, replace=True, element="K1", box={"x": 50, "y": 5, "w": 20, "h": 10})
+    assert r.status_code == 201 and r.json()["preset"] is None and any("fjernet" in w for w in r.json()["warnings"])

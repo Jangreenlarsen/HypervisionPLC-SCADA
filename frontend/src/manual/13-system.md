@@ -4,6 +4,8 @@ Under **System** ligger Status, Log, Brugere, Backup, Opdatering, Notifikationer
 
 ## Status
 
+![Status: samlet billede øverst (her Opmærksomhed), PLC'erne med kald pr. sekund, serverens og maskinens tal](../../public/manual/status.png)
+
 Siden **Status** viser på ét sted, hvordan serveren og PLC'erne har det — og opdaterer sig selv hvert 5. sekund. Øverst står et samlet billede: **Alt i orden** (grøn), **Opmærksomhed** (gul) eller **Fejl** (rød), og under det en liste over det, der er galt, med en forklaring.
 
 - **PLC'er**: forbindelsen pr. PLC (også *delvis fejl*, hvis kun et område eller en ekstern slave svarer dårligt), hvor længe siden PLC'en sidst svarede, hvor mange kald i sekundet SCADA sender (loftet er 5) og hvor mange gange PLC'en har bedt om færre kald (429).
@@ -24,6 +26,8 @@ Siden bruger HTTPS. Som standard med et **selvsigneret** certifikat (browsere ad
 
 ## Notifikationer
 
+![Notifikationer: hvilke alarmer, samletid, webhook og e-mail (hemmeligheder vises aldrig)](../../public/manual/notifikationer.png)
+
 Siden **Notifikationer** (admin) lader SCADA sende besked, når en alarm **rejses** eller **ophører** — som **webhook** (JSON til en adresse; virker med Node-RED, Home Assistant, ntfy, Slack/Teams og andre) og/eller **e-mail** (SMTP).
 
 - **Hvilke alarmer:** som standard kun *høj prioritet* (det kan ændres til medium og højere eller alle). *Send også når alarmen ophører* kan slås fra. Kvittering giver aldrig en besked.
@@ -36,6 +40,8 @@ Siden **Notifikationer** (admin) lader SCADA sende besked, når en alarm **rejse
 Webhook-kroppen er `{"type":"alarm","instance":…,"version":…,"time":…,"events":[{"event":"raise"|"clear","key":…,"tag":…,"plc":…,"kind":…,"level":…,"priority":…,"message":…,"time":…}],"more":0}`; et Bearer-token sendes som `Authorization: Bearer <token>`.
 
 ## Integrationer
+
+![Integrationer: ny API-nøgle med navn og hvilke tags eller præfikser den må se](../../public/manual/integrationer.png)
 
 Siden **Integrationer** (admin) giver andre systemer — **Node-RED**, **Home Assistant**, Excel/Power BI, scripts — **læseadgang** til anlægget med en **API-nøgle**, uden at de skal logge ind som en person.
 
@@ -157,6 +163,8 @@ Siden bruger Home Assistant REST-sensorer; en automatisk opdagelse (MQTT) kommer
 
 ## Certifikater
 
+![Certifikater: det aktuelle certifikat og valget mellem selvsigneret, CSR til en CA og import](../../public/manual/certifikater.png)
+
 Siden **Certifikater** (admin) styrer det certifikat, nginx bruger til HTTPS. Et nyt certifikat kontrolleres, før det tages i brug: passer den private nøgle til certifikatet, er det gyldigt nu, og accepterer nginx det? Går noget galt, gendannes det forrige automatisk, så man ikke kan låse sig ude. Private nøgler og adgangskoder sendes kun til serveren; de vises aldrig igen og står aldrig i loggen.
 
 - **Aktuelt certifikat:** type (selvsigneret, Let's Encrypt eller udstedt af en CA), navn, de adresser det gælder for, udsteder, gyldighed og SHA-256-fingeraftryk. Står den adresse, du bruger nu, ikke i certifikatet, vises en advarsel. **Hent certifikat (PEM)** giver det offentlige certifikat (fx til at lægge ind som betroet på pc'er). **Gendan forrige** skifter tilbage til certifikatet før det sidste skift, og **Tilbage til selvsigneret** til det selvsignerede fra installationen.
@@ -259,6 +267,8 @@ Er disken ved at blive fuld, kan du rydde op **på maskinen** — også selv om 
 
 ## Hjælper (LLM)
 
+![System › Hjælper (LLM): hardwareprofil, tjenestens status og valg af model (Hurtig, Standard, Stor)](../../public/manual/system-hjaelper.png)
+
 **Hjælper (LLM)** (kun admin) er en lokal sprogmodel, der kører på selve SCADA-serveren, kun på CPU og uden internet. Den skal hjælpe med at forklare og opsætte anlægget. Siden her styrer hardware, installation, til/fra og afprøvning. Selve hjælperen bruges fra knappen **Hjælper** i topbjælken (se *Drift › Hjælperen*). Hjælperen skriver aldrig til en PLC.
 
 - **Hardware:** siden viser maskinen (kerner, RAM, AVX2) og foreslår en **hardwareprofil**. Profilen afgør, om hjælperen må slås til, hvor mange tråde den får (kerner minus én), og loftet for dens hukommelse. *Raspberry Pi 4* og *Lille VM/PC* (under 8 GB RAM) har ingen hjælper. Vælg profil og tryk **Gem profil**. Profilen kan også sættes ved installationen med `install.sh --hw vm-16`.
@@ -279,4 +289,6 @@ Er disken ved at blive fuld, kan du rydde op **på maskinen** — også selv om 
 
 ## Bruger
 
-Under **Bruger** i topmenuen ser du dit navn og din rolle, kan **Skifte adgangskode**, åbne **Manual** og **Logge ud**. Versionen af programmet står nederst i menuen.
+Under **Bruger** i topmenuen ser du dit navn og din rolle, kan **Skifte adgangskode**, åbne **Manual** og **Logge ud**. Den installerede version står yderst til højre i topmenuen (*v4.9.0 · b0359*).
+
+**Skift adgangskode:** skriv den nuværende adgangskode og den nye to gange (mindst 10 tegn), og tryk **Gem**. Har du glemt adgangskoden, kan en administrator nulstille den under *System › Brugere*; så skal du vælge en ny ved næste login.

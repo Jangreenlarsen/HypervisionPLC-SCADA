@@ -5,6 +5,14 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v4.9.0 — **Manualen gennemgået + skjult LLM-manual til hjælperen** (ønske fra Jan 2026-11-07).
+  - **Mere tekst:** tynde afsnit er udvidet (bl.a. *De seks trin* med ét afsnit og billede pr. trin, *Logikblokke* trin for trin, Alarmer, Forbindelser og Hjælperen).
+  - **11 nye skærmbilleder:** bl.a. logikblok, rør, signalveje, hjælper-panel, Tags-flervalg og System-siderne.
+  - **Nyt indeks på Manual-siden:** grupper med ikoner og en kort undertekst, markering af det afsnit, man læser, søgetræf med afsnit, *Til toppen* og en sammenfoldet menu på smal skærm.
+  - **LLM-manual (Jans idé):** serveren kompilerer den store manual til små, selvstændige stykker til hjælperens søgning, med tabeller foldet ud, links slået op og henvisning til afsnittet. Kortere spørgsmål/svar-tillæg i `manual/llm/` er bundet til afsnit, og en test fejler, når kilden ændres.
+  - Søgningen rammer 45/45 typiske spørgsmål (før 34/45).
+- [x] done v4.8.0 — **Redigér et symbols grafik fra Symboler › Bibliotek** (ønske fra Jan 2026-11-07): *Redigér* åbner en arbejdstegning i Tegn med symbolet; *Gem i biblioteket* gemmer et eget symbol som ny version (standardopsætningen beholdes) og et indbygget som en kopi ("… (egen)"); arbejdstegningen kan slettes bagefter.
+- [x] done v4.7.0 — **Flervalg i Tags** (ønske fra Jan 2026-11-07): afkryds flere tags (Vælg alle, Shift for et interval) og slet dem samlet; dialogen viser samlet, hvad der rammes, og sletningen sker i én transaktion med backup (samme endpoint som et enkelt tag).
 - [x] done v4.6.0 — **Rør følger med under trækket og fanges snorlige** (ønske fra Jan 2026-11-07): mens et symbol trækkes, vises rørene, som de kommer til at ligge; flugter tilslutningspunktet næsten med rørets næste knæk, fanges symbolet, så røret står snorlige (blå stiplet linje; *Fang rør lige*).
 - [x] done v4.5.0 — **Signalvej: vælg start og slut ved at klikke i tegningen** (ønske fra Jan 2026-11-07): *Vælg på tegningen* → klik startsymbolet → klik slutsymbolet → vejen findes af sig selv; valget vises med orange ramme, rør og visning afvises med en forklaring.
 - [x] done v4.4.0 — **Vælg LLM-model fra en liste** (ønske fra Jan 2026-11-07): tre varianter (Hurtig/Standard/Stor) udgivet som GitHub releases; administratoren henter og installerer under System › Hjælper uden selv at hente fra Hugging Face. Upload bevares til lukkede net.

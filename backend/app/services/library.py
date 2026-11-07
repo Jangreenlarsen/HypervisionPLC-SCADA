@@ -641,6 +641,14 @@ class LibraryService:
                  if isinstance(e.tag, str) and e.attrib.get("id")}
         preset, w2 = build_preset(self.symbols.configs(drawing_id), mapping, keep_tags, names)
         warnings += w2
+        if replace and preset is None and existing and existing.get("preset"):
+            # v4.7.1: grafikken rettet i en arbejdstegning (Symboler › Bibliotek › Redigér grafik) har ingen opsætning på
+            # symbolet — behold den forrige versions standardopsætning, hvis delene findes endnu (som ved import)
+            try:
+                preset = check_preset(existing["preset"], fragment)
+                warnings.append("Standardopsætningen fra den forrige version er beholdt")
+            except ServiceError:
+                warnings.append("Standardopsætningen fra den forrige version er fjernet — den brugte dele, der ikke findes i den nye grafik")
         if preset is not None:
             preset["type"] = sym_type
         row = self.db.save_library_symbol(sym_type, label, hint, fragment, preset, actor.username, replace)

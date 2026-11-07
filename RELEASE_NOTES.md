@@ -2,6 +2,27 @@
 
 ---
 
+## v4.9.0 — 2026-11-07 — Bedre manual og en hjælper, der finder svarene
+
+- **Manualen** har fået mere tekst og 11 nye skærmbilleder:
+  - *De seks trin* forklarer hvert trin for sig;
+  - logikblokke har en vejledning trin for trin;
+  - alarmer, rør, signalveje, hjælperen og System-siderne er udvidet.
+- **Nyt indeks:**
+  - kapitlerne står i grupper med ikoner;
+  - det afsnit, du læser, er markeret;
+  - et søgetræf åbner præcis det afsnit, hvor ordet står.
+- **Hjælperen finder svarene bedre.** Den søger i en særlig udgave af manualen, som serveren laver ud fra den rigtige manual og derfor altid er opdateret, og den henviser til afsnittet, svaret bygger på.
+
+## v4.8.0 — 2026-11-07 — Redigér symbolernes grafik
+
+- Under *Symboler › Bibliotek* har hvert symbol nu **Redigér**. Symbolet åbnes i Tegn, hvor du retter grafikken og trykker *Gem i biblioteket*.
+- Egne symboler får en ny version; indbyggede gemmes som en kopi, du selv kan rette.
+
+## v4.7.0 — 2026-11-07 — Tags: slet flere på én gang
+
+- På siden **Tags** kan du afkrydse flere tags og trykke **Slet valgte**. *Vælg alle* og Shift+klik for et interval virker som under Symboler.
+
 ## v4.6.2 — 2026-11-07 — Hjælper: rettelse for modellen *Stor*
 
 - Med modellen *Stor* (Ministral-3-8B) gav hjælperen fejlen "LLM-tjenesten svarede 500". Det er rettet.

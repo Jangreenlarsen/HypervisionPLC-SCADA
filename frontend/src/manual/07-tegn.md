@@ -184,6 +184,12 @@ Har du tegnet noget, du vil bruge igen (fx en pumpestation med kasse, pumpe og t
 
 - **Sektioner:** opret en sektion med navn og **Opret**, flyt sektioner op og ned med **▲ ▼**, og omdøb (**✎**) eller slet (**🗑**) dine egne sektioner. Sletter du en sektion, flyttes egne symboler til *Egne symboler* og indbyggede tilbage til deres kategori.
 - **Symboler:** vælg en sektion til venstre. Flyt et symbol op og ned med **▲ ▼**, eller til en anden sektion med **Flyt til …** — det gælder også de indbyggede symboler. Egne symboler kan omdøbes og have en forklaring (**✎**) og slettes (**🗑**). Tegninger, der bruger et slettet symbol, beholder deres kopi; siden siger hvilke.
+- **Redigér grafikken:** tryk **Redigér** ved et symbol. Der åbnes en lille arbejdstegning i Tegn med symbolet valgt og en gul linje øverst.
+  1. Ret stregerne og farverne. *Opløs* gruppen for at rette enkelte dele, og *Gruppér* dem igen med **Ctrl+G**.
+  2. Vælg det samlede symbol.
+  3. Tryk **Gem i biblioteket**.
+
+  Et **eget** symbol gemmes som en ny version med samme navn; standardopsætningen beholdes, så længe delene findes endnu. Et **indbygget** symbol kan ikke ændres, så det gemmes som en kopi, "… (egen)". Bagefter tilbydes at slette arbejdstegningen og gå tilbage til biblioteket. Tegninger med den gamle version ændres ikke — opdatér dem med *Erstat med symbol*.
 - **Flere på én gang:** afkryds symbolerne (eller **Vælg alle**; **Shift**-klik vælger alle mellem to afkrydsninger). Over listen kan du så **Flyt valgte til …** en anden sektion eller **Slet valgte**. Kun egne symboler kan slettes; indbyggede i valget bliver stående. Sletningen sker samlet: findes et af symbolerne ikke længere, slettes intet.
 - Rækkefølgen er den samme i Tegn for alle brugere. Ændrer to personer opdelingen samtidig, afvises den sidste med en besked — prøv igen.
 

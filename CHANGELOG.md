@@ -4,6 +4,52 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.9.0 build 0359] — 2026-11-07 — Manualen gennemgået; skjult LLM-manual til hjælperen; nyt manual-indeks
+
+- **LLM-manual** — `services/manual_compiler.py` (ny):
+  - kompilerer `frontend/src/manual/*.md` til stykker på højst 110 ord med sti-overskrift (`##` og `###`);
+  - tabeller foldes ud til sætninger (store tabeller giver et stykke pr. række), billedtekster tages med, og interne links slås op til afsnittets navn;
+  - hvert stykke henviser til afsnittet i den store manual (frontendens ankre, også `m3-` for `###`).
+- **Tillæg** — `frontend/src/manual/llm/*.md` (nye, vises ikke i Manual-siden): spørgsmål/svar med `<!-- kilde: fil#anker sha:… -->`.
+  - `check()`/`sync()` og CLI'en `python -m app.services.manual_compiler --check|--sync|--anchors|--dump`;
+  - `make-package.sh` kører `--check`.
+- `services/assist_knowledge.py`:
+  - søger i den kompilerede manual og tillæggene (spørgsmålet tæller som overskrift);
+  - højst ét stykke pr. afsnit i træffene;
+  - sammensatte ord, manualen ikke har, deles ("energiforbrug" → energi + forbrug);
+  - nye stopord (se, ser, pr, gør).
+- `services/assist_tools.py`: `MANUAL_CHARS` 380 → 480.
+- **Måling** (top 3 af 45 typiske spørgsmål): 34 → 45. 15 nye formuleringer: 10 → 13 (de to sidste rammer det rigtige afsnit under et andet navn).
+- **Manual:**
+  - mere tekst i 01, 02, 03, 05, 08, 10 og 13 — *De seks trin* er delt i *Trin 1–6*, og *Logikblokke* har en trin-for-trin-vejledning;
+  - fejl rettet: alarmprioriteten følger niveauet, versionen står i topbjælken, og menutabellen er opdateret.
+- **11 nye skærmbilleder** — `tools/manual-screenshots.mjs`, taget fra demoen: guide-logik-udfyldt, guide-logik-test, forbindelse-haandtag, signalveje, hjaelper-panel, tags-flere, status, notifikationer, integrationer, certifikater og system-hjaelper.
+- **Manual-siden** (`pages/Manual.svelte`, `lib/manual.ts`):
+  - kapitlerne i grupper med ikon og undertekst (`GROUPS`, `groupChapters`);
+  - afsnittet, man læser, markeres;
+  - søgetræf viser afsnit og fører direkte til det;
+  - *Til toppen*, brødkrumme og en sammenfoldelig menu på smal skærm;
+  - markeringen af søgeordet forsvinder, når søgningen ændres (BUGS.md).
+- Tests: `test_manual_compiler.py` (ny) og `manual.test.ts`. Manual-siden er set i browseren, bred og smal.
+ — 2026-11-07 — Symboler › Bibliotek: Redigér grafikken
+
+- `lib/SymbolLibrary.svelte`: *Redigér* ved hvert symbol opretter en arbejdstegning ("Symbol – …") og åbner Tegn på `#draw/<tegning>/sym:<type>`.
+- `pages/DrawEditor.svelte`:
+  - redigeringstilstand: symbolet indsættes og vælges, og et banner viser *Gem i biblioteket (ny version / som kopi)* og *← Tilbage til biblioteket*;
+  - navnet foreslås: et eget symbol får samme navn (ny version), et indbygget "… (egen)";
+  - bagefter tilbydes at slette arbejdstegningen og gå tilbage.
+- `services/library.py` (`export_from_drawing`): en ny version uden opsætning på symbolet beholder den forrige standardopsætning, når delene findes endnu (som ved import). Ellers fjernes den med en besked.
+- Test: `test_library.py`. Set i browseren (indbygget → kopi, eget → version 2, arbejdstegningen slettet). Manual: *Tegn › Organisér biblioteket*.
+
+## [4.7.0 build 0357] — 2026-11-07 — Tags: vælg flere og slet dem samlet
+
+- `pages/Tags.svelte`:
+  - afkrydsning pr. tag, *Vælg alle* (delvist markeret) og *Fravælg*;
+  - *Slet valgte (n)* viser samlet brug (`/api/tags/usage`) og sletter alle i én transaktion med backup (`/api/tags/remove`, samme som et enkelt tag);
+  - fejl vises over listen (alt eller intet).
+- Ny `lib/multiPick.ts` (`pickInList`: klik og Shift-interval) med test.
+- Manual: *PLC'er og tags › Tags*. Set i browseren (Shift-interval, slet 3 af 5).
+
 ## [4.6.2 build 0356] — 2026-11-07 — Hjælper: fejl 500 med Ministral (roller skal skifte)
 
 - `services/assistant.py`: ny `alternating` sørger for, at samtalen, der sendes til modellen, skifter mellem bruger og assistent (beskeder i træk slås sammen, start med bruger, slut med assistent). Ministral-3-8B's chat-skabelon afviste ellers kaldet med 500.

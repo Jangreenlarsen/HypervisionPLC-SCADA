@@ -30,11 +30,11 @@ Skriv brugernavn og adgangskode. Er det første gang, eller har en administrator
 | Punkt | Indhold | Hvem |
 | --- | --- | --- |
 | **Drift** | Overview, Alarmer, Trends, Energi | alle |
-| **Opsætning** | Tegninger, Tegn, Bindinger, Tags, Ugeprogrammer, PLC'er, Symboltest | se *Roller* |
-| **System** | Log, Brugere, Backup, Opdatering, Konfiguration | tekniker og admin |
+| **Opsætning** | Tegninger, Tegn, Bindinger, Tags, Ugeprogrammer, PLC'er, Symboler, Symboltest | se *Roller* |
+| **System** | Status, Log, Brugere, Backup, Opdatering, Notifikationer, Integrationer, Certifikater, Konfiguration, Hjælper (LLM) | tekniker (Status, Log) og admin |
 | **Bruger** | Dit navn og din rolle, Skift adgangskode, Log ud, Manual, version | alle |
 
-Ud for menuerne står hvor du er (**Drift › Overview**), og til højre en **alarmklokke** med antal aktive alarme. Den blinker, når der er alarmer, du endnu ikke har kvitteret. Linket **AGPL · kildekode** peger på programmets kildekode (programmet er fri software under AGPL-3.0).
+Ud for menuerne står hvor du er (**Drift › Overview**). Til højre står knappen **Hjælper** (når hjælperen er slået til), en **alarmklokke** med antal aktive alarmer og linket **AGPL · kildekode**. Klokken blinker, når der er alarmer, du endnu ikke har kvitteret. Linket peger på programmets kildekode (programmet er fri software under AGPL-3.0). Yderst til højre står den installerede **version**, fx *v4.9.0 · b0359* — oplys den, hvis du melder en fejl.
 
 ## Roller
 
@@ -54,4 +54,8 @@ Alt der skrives til PLC'en er sikret flere gange: serveren tjekker din rolle, at
 
 ## Hjælp i programmet
 
-Denne manual finder du under **Bruger › Manual**. Peg på et symbol på Overview for at se en kort **forklaring** (tooltip), hvis teknikeren har skrevet en.
+Der er tre steder at få hjælp:
+
+- **Manualen** — under **Bruger › Manual**. Kapitlerne står i venstre side, grupperet efter emne. Søg med feltet øverst; træffene vises med kapitel og afsnit, og et klik åbner afsnittet med søgeordet fremhævet. Klik på et skærmbillede for at se det stort.
+- **Hjælperen** — knappen **Hjælper** i topbjælken (når den er slået til). Spørg med dine egne ord, fx *"Hvordan kvitterer jeg en alarm?"*. Den svarer ud fra manualen og det, du har adgang til, og viser de afsnit, svaret bygger på. Se *Drift › Hjælperen*.
+- **Tooltips** — peg på et symbol på Overview for at se en kort **forklaring**, hvis teknikeren har skrevet en. Mange knapper viser også en forklaring, når du peger på dem.

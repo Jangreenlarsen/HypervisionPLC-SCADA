@@ -62,7 +62,8 @@ const shot = async (name, fn, opts = {}) => {
       const b = await page.locator(opts.locator).first().boundingBox();
       const x = Math.max(0, b.x - opts.pad), y = Math.max(opts.minY ?? 0, b.y - opts.pad);
       await page.screenshot({ path, clip: { x, y, width: b.width + 2 * opts.pad, height: b.y + b.height + opts.pad - y } });
-    } else if (opts.locator) await page.locator(opts.locator).first().screenshot({ path });
+    } else if (opts.clipFn) await page.screenshot({ path, clip: await opts.clipFn() });   // udsnit, der først kendes bagefter
+    else if (opts.locator) await page.locator(opts.locator).first().screenshot({ path });
     else await page.screenshot({ path, clip: opts.clip });
     results.push([name, 'ok']);
     console.log(`ok   ${name}`);
@@ -333,6 +334,92 @@ await shot('netvaerk', async () => {
   await page.locator('h3', { hasText: 'Netværk' }).scrollIntoViewIfNeeded();
   await settle(500);
 }, { locator: '.panel:has(h3:text-is("Netværk"))' });
+
+// ------------------------------------------------------------------ flere billeder (v4.9.0: manualen gennemgået)
+// Kan tages mod en anden server end resten (fx demoen med v4-funktioner): ONLY=guide-logik-udfyldt,… SCADA_URL=…
+const findLogic = async () => {
+  for (const d of drawings) {
+    for (const sy of await api(`/api/drawings/${d.id}/symbols`)) {
+      const c = await cfgOf(d.id, sy.element);
+      if (c?.logic?.some((l) => l.inputs?.filter((i) => i.src).length >= 2)) return [d.id, sy.element];
+    }
+  }
+  return null;
+};
+const logicAt = (!ONLY || ONLY.has('guide-logik-udfyldt') || ONLY.has('guide-logik-test')) ? await findLogic() : null;
+if (logicAt) {
+  await shot('guide-logik-udfyldt', async () => {
+    await openGuide(...logicAt);
+    await guideStep(4);
+    await page.locator('.guide .logic').first().scrollIntoViewIfNeeded();
+    await settle(600);
+  }, { locator: GUIDE });
+  await shot('guide-logik-test', async () => {
+    if (!(await page.locator('.guide').count())) await openGuide(...logicAt);
+    await guideStep(6);
+    await settle(2000);
+    await page.locator('.guide', { hasText: /Logik/ }).locator('text=/Logik/').last().scrollIntoViewIfNeeded().catch(() => {});
+    await settle(400);
+  }, { locator: GUIDE });
+}
+const openDraw = async (id) => { await go(`draw/${id}`, '.workarea svg'); await settle(3500); };
+const openSection = async (title) => {
+  const head = page.locator(`section[aria-label="${title}"] button.head`);
+  if ((await head.getAttribute('aria-expanded')) !== 'true') await head.click();
+  await settle(600);
+};
+let pipeId = null;
+await shot('forbindelse-haandtag', async () => {
+  await openDraw(startDrawing);
+  // et rør, der sidder fast i begge ender, med håndtagene vist (kun valgt i browseren — intet gemmes)
+  const id = await page.evaluate(() => {
+    const els = [...document.querySelectorAll('#svgcontent [data-hv-pipe][data-hv-from][data-hv-to]')];
+    const el = els.find((e) => { const b = e.getBBox(); return b.width > 80 || b.height > 80; }) ?? els[0];
+    if (el) window.scada.selectById(el.id);
+    return el?.id ?? null;
+  });
+  if (!id) throw new Error('ingen rør med to tilslutninger på tegningen');
+  // zoom ind om røret (Ctrl+hjul om markøren — kun visningen ændres)
+  const b0 = await page.locator(`#${id}`).first().boundingBox();
+  await page.mouse.move(b0.x + b0.width / 2, b0.y + b0.height / 2);
+  for (let i = 0; i < 4; i++) { await page.keyboard.down('Control'); await page.mouse.wheel(0, -120); await page.keyboard.up('Control'); await settle(250); }
+  await settle(700);
+  pipeId = id;
+}, { clipFn: async () => {
+  const b = await page.locator(`#${pipeId}`).first().boundingBox();
+  const w = await page.locator('.workarea').first().boundingBox();   // kun tegnefladen, ikke sidepanelet
+  const x = Math.max(w.x, b.x - 120), y = Math.max(w.y, b.y - 90);
+  return { x, y, width: Math.min(b.x + b.width + 120, w.x + w.width - 16) - x, height: Math.min(b.y + b.height + 90, w.y + w.height - 16) - y };
+} });
+await shot('signalveje', async () => {
+  if (!page.url().includes('#draw/')) await openDraw(startDrawing);
+  await openSection('Signalveje');
+  // sidepanelet ruller normalt for sig selv — fold det ud, så hele afsnittet kan fotograferes
+  await page.addStyleTag({ content: 'aside, .psec, .psec .body { max-height: none !important; height: auto !important; overflow: visible !important; }' });
+  await settle(400);
+  await page.locator('section[aria-label="Signalveje"]').getByRole('button', { name: /Ny signalvej/ }).click();   // guiden åbner kun i browseren
+  await settle(800);
+  await page.locator('section[aria-label="Signalveje"]').scrollIntoViewIfNeeded();
+}, { locator: 'section[aria-label="Signalveje"]' });
+await shot('hjaelper-panel', async () => {
+  await go(`overview/${startDrawing}`, 'svg');
+  await page.getByRole('button', { name: /Hjælper/ }).first().click();
+  await page.waitForSelector('aside.assist');
+  await settle(800);
+}, { locator: 'aside.assist' });
+await shot('tags-flere', async () => {
+  await go('tags', 'text=Nyt tag');
+  const boxes = page.locator('tbody tr input[type=checkbox]');
+  await boxes.nth(1).click();
+  await boxes.nth(4).click({ modifiers: ['Shift'] });   // Shift-klik vælger intervallet (kun i browseren)
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await settle(400);
+});
+await shot('status', async () => { await go('status', 'h1, h2'); await settle(2500); });
+await shot('notifikationer', async () => { await go('notifications', 'h1, h2'); await settle(1000); });
+await shot('integrationer', async () => { await go('integration', 'h1, h2'); await settle(1000); });
+await shot('certifikater', async () => { await go('certificates', 'h1, h2'); await settle(1000); });
+await shot('system-hjaelper', async () => { await go('assist', 'h1, h2'); await settle(1500); });
 
 await browser.close();
 const failed = results.filter(([, r]) => r !== 'ok');

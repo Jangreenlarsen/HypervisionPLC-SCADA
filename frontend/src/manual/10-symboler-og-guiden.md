@@ -4,26 +4,92 @@ Alle symboler i biblioteket sættes op på samme måde: med **guiden i 6 trin**.
 
 ## De seks trin
 
-| Trin | Hvad du gør |
+Guiden har seks faneblade øverst: **1. Symbol**, **2. Signaler**, **3. Kontakter**, **4. Visning**, **5. Betjening** og **6. Test og gem**. Du kan klikke frem og tilbage mellem dem i vilkårlig rækkefølge, eller bruge **Næste** og **Tilbage** nederst. Et trin, der ikke bruges af den valgte betjeningsform, er gråt (fx *3. Kontakter* for en trykknap).
+
+| Trin | Hvad du gør — kort |
 | --- | --- |
-| **1. Symbol** | Vælg **betjeningsform** (se nedenfor). Kun de former, der giver mening for symbolet, vises; **Vis alle betjeningsformer** åbner for resten. Knappen *Foreslå ud fra symbolet* henter et forslag ud fra de gamle bindinger |
-| **2. Signaler** | Vælg de tags symbolet skriver (**Kommando**) og evt. læser tilbage (**Tilbagemelding**). **Skrives som**: *Sæt* (til/fra eller værdi) eller *Puls* (kort impuls med en fast **hvile**-værdi bagefter). Et valgfrit **Fejlsignal** spærrer betjeningen, når det er Til |
-| **3. Kontakter** | Kun for positioner. Et **kontaktdiagram** fortæller, hvad hver position sætter: hver *plan* styrer ét signal, og hver celle er *Til*, *Fra*, *røres ikke* (til/fra) eller en **værdi** (register). Skabeloner A–D laver typiske mønstre: A = tallet 0,1,2 …; B = ét signal pr. position; C = bit-mønster; D = tal omsat til binære signaler |
-| **4. Visning** | **Vis**: *PLC'ens position* (tilbagemeldingen — kræver en tilbagemelding på alle signaler i kontaktplanerne) eller *valgt position* (standard for nye symboler). **Tid til at bekræfte**: hvor længe PLC'en må om at følge efter. **Alarm ved afvigelse/fejl**. Her laver du også **logikblokke** og **animationer** |
-| **5. Betjening** | Opdelt i bokse: **Bekræftelse** (operatøren skal bekræfte, før der skrives), **Betjening på tegningen** (*Dialog* eller *Interaktiv*, kun symboler med positioner), **Puls** (pulslængde for trykknapper) og **Nøglelås** (hvilke positioner der kræver en **kode** på 4 cifre) |
-| **6. Test og gem** | Se **live** værdier for signalerne og hvilken position PLC'en står på lige nu. En **skriveplan** viser præcis, hvad hver position vil skrive. Advarsler vises; **Gem** er kun muligt uden fejl |
+| **1. Symbol** | Vælg **betjeningsform**: kun visning, positioner, trykknap eller setpunkt |
+| **2. Signaler** | Vælg de tags, symbolet skriver (**Kommando**) og læser tilbage (**Tilbagemelding**) |
+| **3. Kontakter** | Kun for positioner: hvad hver position skriver (**kontaktdiagrammet**) |
+| **4. Visning** | Hvad symbolet viser: position, **logikblokke** og **animationer** |
+| **5. Betjening** | Bekræftelse, dialog eller venstre/højre, pulslængde og **nøglelås** |
+| **6. Test og gem** | Live-værdier, skriveplan, alarmer og historik — og **Gem** |
+
+Nederst i guiden står antallet af fejl (*2 fejl* / *Ingen fejl*). **Gem og anvend på flere …** gemmer og kopierer opsætningen til andre symboler af samme slags (se *Samme opsætning på flere symboler*). **Fjern konfiguration** sletter symbolets opsætning.
+
+### Trin 1 — Symbol
 
 ![Trin 1 — Symbol: vælg betjeningsform](../../public/manual/guide-1.png)
 
+Her vælger du, **hvordan symbolet betjenes**. Valget styrer resten af guiden.
+
+- **Kun passiv visning** — symbolet viser, men kan ikke betjenes (lampe, tank, måler). Sæt hak ved *Symbolet har trin*, hvis det skal vise et trin, fx en omskifter, PLC'en styrer.
+- **Interaktiv betjening** — 2–8 navngivne positioner (*Hånd/0/Auto*, *Åben/Lukket*). Navnene skrives her; antallet bestemmer kolonnerne i trin 3.
+- **Trykknap (puls)** — tagget sættes Til en kort tid og derefter Fra.
+- **Setpunkt** — operatøren skriver et tal.
+
+Kun de former, der giver mening for symbolet, vises; **Vis alle betjeningsformer** åbner for resten. *Foreslå ud fra symbolet* henter et forslag ud fra symbolets gamle bindinger. Se *Betjeningsformer* nedenfor for eksempler.
+
+### Trin 2 — Signaler
+
 ![Trin 2 — Signaler: kommando, tilbagemelding og hvordan der skrives](../../public/manual/guide-2.png)
+
+Et **signal** er én ting, symbolet styrer — fx *Start* eller *Mode*. For hvert signal vælger du:
+
+- **Kommando** — det tag, der **skrives** til, når operatøren betjener symbolet. Kun skrivbare tags kan vælges.
+- **Tilbagemelding** (valgfri) — det tag, PLC'en **melder tilbage** i (fx en kontakt på motoren). Den bruges til at vise, hvad PLC'en faktisk gør.
+- **Skrives som** — *Sæt* skriver værdien og lader den stå; *Puls* skriver værdien kort og derefter **hvile**-værdien (fx 0).
+
+Et valgfrit **Fejlsignal** (et til/fra-tag) **spærrer betjeningen**, så længe det er Til — fx motorværn udløst. Har en position brug for at skrive til flere tags, får symbolet flere signaler (én række pr. signal).
+
+### Trin 3 — Kontakter
 
 ![Trin 3 — Kontakter: hvad hver position sætter (kontaktdiagrammet)](../../public/manual/guide-3.png)
 
+Kun for symboler med positioner. **Kontaktdiagrammet** er en tabel: én **række** (*plan*) pr. signal og én **kolonne** pr. position. Hver celle siger, hvad signalet skal være i den position:
+
+- **Til** / **Fra** — for til/fra-signaler;
+- **røres ikke** — positionen skriver ikke til dette signal;
+- **en værdi** — for tal-signaler (registre), fx 0, 1 eller 2.
+
+Skabelonerne laver de typiske mønstre med ét klik: **A** = tallet 0, 1, 2 … i ét register; **B** = ét signal Til pr. position; **C** = bit-mønster; **D** = tallet omsat til binære signaler. To positioner må ikke have samme mønster, ellers kan PLC'ens position ikke findes. Se *Positioner og kontaktplaner* for eksempler.
+
+### Trin 4 — Visning
+
 ![Trin 4 — Visning: hurtig opsætning, logikblokke og animationer](../../public/manual/guide-4.png)
+
+Her bestemmer du, **hvad symbolet viser** på tegningen:
+
+- **Vis** — *Valgt position* (det operatøren valgte; standard) eller *PLC'ens position* (det tilbagemeldingerne viser — kræver en tilbagemelding på alle signaler i kontaktplanerne).
+- **Tid til at bekræfte (s)** — hvor længe PLC'en har til at følge et valg, før symbolet viser *afvigelse*.
+- **Alarm ved afvigelse/fejl** — nej, eller ja med prioritet (lav, medium, høj).
+- **Logik** — logikblokke, der samler flere tags i én betingelse (se *Logikblokke* nedenfor).
+- **Animationer** — hvilken del af symbolet der skifter farve, drejer, blinker, viser en værdi osv., og hvad der styrer det (se *Animationer i guiden*). Til højre viser **Preview** symbolet med animationerne.
+
+### Trin 5 — Betjening
 
 ![Trin 5 — Betjening: bekræftelse og nøglelås](../../public/manual/guide-5.png)
 
+Trinnet er delt i bokse:
+
+- **Bekræftelse** — operatøren skal bekræfte i en dialog, før der skrives. Brug det til alt, der kan gøre skade, fx stop af en pumpe.
+- **Betjening på tegningen** — *Dialog* (klik åbner en liste over positionerne) eller *Interaktiv* (klik til venstre/højre på symbolet skifter til forrige/næste position). Kun symboler med positioner.
+- **Puls** — hvor længe en trykknap er Til (100–10000 ms).
+- **Nøglelås** — hvilke positioner der kræver en **kode** på 4 cifre. Positionen får en hængelås på tegningen.
+
+### Trin 6 — Test og gem
+
 ![Trin 6 — Test og gem: live-værdier, fundet position og skriveplan](../../public/manual/guide-6.png)
+
+Før du gemmer, kan du se, at opsætningen passer til virkeligheden:
+
+- **Live-værdier** for alle signaler og den position, PLC'en står i lige nu.
+- **Skriveplanen** — præcis hvad hver position vil skrive til hvilke tags.
+- **Logik (live)** — hver logikblok og dens værdi lige nu.
+- **Alarmer på symbolets tags** — med **Ret alarm**, så du kan sætte grænser uden at forlade guiden.
+- **Historik (Trends)** — sæt hak for at gemme historik for symbolets tags (kræves af en trendgraf).
+
+Fejl og advarsler står øverst. **Gem** kan kun trykkes, når der ingen fejl er; opsætningen virker på Overview med det samme. Der skrives intet til PLC'en, når du gemmer.
 
 ## Betjeningsformer
 
@@ -134,7 +200,7 @@ Preview'et er kun til at se på: det gemmer ikke noget, og der skrives intet til
 
 ### Logikblokke (betingelser på flere tags)
 
-![Sektionen Logik i trin 4 med en ny logikblok (AND/OR, NOT og op til 4 indgange)](../../public/manual/guide-logik.png)
+![En udfyldt logikblok i trin 4: L1 "Venstre_RØR" er AND over to tags, og animationen Løbelys på hele symbolet styres af blokken](../../public/manual/guide-logik-udfyldt.png)
 
 Vil du have en animation, der kun er aktiv, når **flere ting er sande** — fx *pumpen kører OG ventilen er åben* — laver du en **logikblok** i trin 4, sektionen **Logik**:
 
@@ -145,6 +211,30 @@ Vil du have en animation, der kun er aktiv, når **flere ting er sande** — fx 
 - **Ukendt værdi** (fx kommunikationsfejl): en afgørende indgang vinder alligevel (AND med en *Fra* er *Fra*, OR med en *Til* er *Til*). Ellers er resultatet *ukendt*, og delen vises som tegnet.
 - Vælg blokken som **kilde** i en animation (*en logikblok*), eller som **Retning fra** for et løbelys.
 - Trin 6 viser hver blok og dens værdi lige nu.
+
+**Sådan laver du en logikblok** (eksempel: løbelys i røret, når pumpen kører **og** ventilen er åben):
+
+1. Åbn guiden for røret og gå til **4. Visning**.
+2. Tryk **+ Logikblok**. Der kommer en blok *L1* med to tomme indgange.
+
+   ![En ny, tom logikblok: navn, AND/OR, NOT og to indgange](../../public/manual/guide-logik.png)
+
+3. Giv blokken et **navn**, fx *Pumpe kører og ventil åben*. Navnet ses i valglisterne og i trin 6.
+4. Vælg **AND — alle skal være Til**.
+5. Vælg pumpens drift-tag i den første indgang og ventilens åben-tag i den anden. Ved siden af **+ Indgang** står betingelsen som tekst, fx *P1_DRIFT AND V1_AABEN*.
+6. Under **Animationer**: vælg delen (fx *Hele symbolet*), typen **Løbelys** og **styres af: en logikblok**, og vælg *L1*.
+7. Gå til **6. Test og gem** og se blokkens værdi under **Logik (live)** — *Til* eller *Fra*. Tryk **Gem**.
+
+![Trin 6 — Logik (live): blokken L1 med betingelsen og dens værdi lige nu (Fra)](../../public/manual/guide-logik-test.png)
+
+**Flere eksempler:**
+
+- *Alarmlampe, når én af tre pumper har fejl:* **OR** over de tre fejl-tags.
+- *Grøn, når temperaturen er over 60 °C og pumpen kører:* indgang 1 = temperaturen **≥** 60, indgang 2 = pumpens drift-tag, **AND**.
+- *Vis "Stoppet", når pumpen IKKE kører:* én indgang med **NOT**.
+- *Brug samme betingelse i flere symboler:* lav blokken i ét symbol og vælg den i de andre under *Andre symboler* — se *Eksempler trin for trin › 11*.
+
+Højst 8 blokke pr. symbol (*Logik (1/8)*) og 4 indgange pr. blok (*+ Indgang (2/4)*).
 
 ## Betjening på tegningen: dialog eller venstre/højre
 

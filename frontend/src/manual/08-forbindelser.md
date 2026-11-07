@@ -24,10 +24,14 @@ Punkterne findes automatisk ud fra symbolets **streger** (rørender på kanten; 
 
 ## Vælg et rør: håndtag
 
+![Et valgt rør mellem en pumpe og et fyr: grønne ender (sidder fast) og blå håndtag midt på hvert lige stykke](../../public/manual/forbindelse-haandtag.png)
+
 Vælg røret med **Vælg** — så får det håndtag:
 
 - **Enderne**: **grønt** = sidder fast, **orange** = fri.
 - **Midt på hvert lige stykke**: et lille **blåt** håndtag.
+
+Er røret svært at ramme, fordi et symbol ligger ovenpå, så **Alt+klik** for at vælge det, der ligger bagved, eller vælg røret i panelet **Objekter**. I *Egenskaber* til højre står rørets **Navn**, **Bøjningsradius** og knappen **Ret forbindelsen ud**.
 
 ## Flyt dele af et rør
 
@@ -41,9 +45,13 @@ Træk et **blåt håndtag** på tværs for at flytte det stykke; nabostykkerne s
 
 Flytter du hele røret væk fra symbolet, slipper det (enderne bliver **orange**). Træk et ende-håndtag hen på et tilslutningspunkt (grøn prik), så sættes enden fast igen, og det sidste stykke lægges om. Slipper du et andet sted, bliver enden fri. Flytter du et helt rør, så en ende lander på et tilslutningspunkt, sættes den fast af sig selv.
 
+**Røret følger ikke med symbolet?** Så sidder enden ikke fast. Vælg røret og se på enderne: en **orange** ende er fri. Træk den hen på symbolets grønne prik, til den bliver grøn. Et rør, der er tegnet før symbolet blev flyttet eller erstattet (*Erstat med symbol*), kan have mistet sin tilslutning på denne måde.
+
 ## Saml rør ende mod ende
 
 Trækker du et ende-håndtag hen på **et andet rørs ende** (orange prik), lægges de to rør sammen til ét. Det samme gælder med værktøjet **Forbindelse**: start eller slut på et rørs ende for at forlænge røret. Har begge rør en opsætning (et navn), lægges de ikke sammen — så går ingen opsætning tabt.
+
+Brug det til at rydde op i en tegning med mange korte rørstykker: ét langt rør er lettere at flytte, og et løbelys løber jævnt hele vejen. Har kun det ene rør en opsætning, beholder det samlede rør den.
 
 ## T-stykker
 
@@ -51,7 +59,9 @@ Starter eller slutter du et rør **midt på** et eksisterende rør (en **orange 
 
 ## Bøjningsradius
 
-Vælg et rør, og skriv en **Bøjningsradius** i *Egenskaber* — så får knækkene bløde bøjninger i stedet for skarpe 90°-hjørner. Nye rør får den senest brugte radius.
+Vælg et rør, og skriv en **Bøjningsradius** i *Egenskaber* — så får knækkene bløde bøjninger i stedet for skarpe 90°-hjørner. Nye rør får den senest brugte radius. **0** giver skarpe hjørner igen.
+
+Radius er i tegningens enheder (samme som X/Y). Er et lige stykke kortere end to gange radius, bliver bøjningen mindre, så røret stadig passer. Løbelys og farve følger bøjningerne.
 
 ## Løbelys og animation
 
@@ -64,6 +74,8 @@ Et **T-stykke** er et biblioteks-symbol med tre ben (*tilløb 1*, *tilløb 2* og
 En **signalvej** sætter løbelys på *alle* rør mellem to symboler, fx fra kedlen til radiatorerne, styret af ventilerne og pumperne undervejs. Du skal ikke sætte hvert rør, hver bøjning og hvert T-stykke op for sig.
 
 Åbn sektionen **Signalveje** i panelet til højre (rollen tekniker), og tryk **Ny signalvej …**. Tegningen gemmes og udgives først, hvis den har ændringer.
+
+![Sektionen Signalveje efter Ny signalvej: Vælg på tegningen, eller vælg start og slut i listerne og tryk Find vej](../../public/manual/signalveje.png)
 
 1. **Start og slut:** tryk **Vælg på tegningen**, klik på startsymbolet og derefter på slutsymbolet — så findes vejen af sig selv. Klikker du på et rør, en tekst eller en visning, står der, hvorfor det ikke kan bruges; **Esc** eller **Afbryd valg** stopper. Du kan også vælge i listerne (eller vælge symbolet og trykke **← valgt**) og trykke **Find vej**.
 2. **Vejen:** vejen markeres med **orange** i tegningen. Er der flere veje (fx en omløbsledning), kan du vælge mellem op til tre. Vejen findes ud fra, hvordan delene hænger sammen:

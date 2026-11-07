@@ -10,6 +10,9 @@ if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
     git status --short --untracked-files=no >&2
     exit 1
 fi
+# Hjælperens LLM-manual kompileres af serveren ud fra manualen; tillæggene (frontend/src/manual/llm) skal passe til den
+PY=backend/.venv/Scripts/python.exe; [ -x "$PY" ] || PY=backend/.venv/bin/python
+if [ -x "$PY" ]; then (cd backend && "../$PY" -m app.services.manual_compiler --check); fi
 (cd frontend && npm run build)
 VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' version.json)
 BUILD=$(sed -n 's/.*"build": *"\([^"]*\)".*/\1/p' version.json)

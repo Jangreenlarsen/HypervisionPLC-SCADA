@@ -5,6 +5,7 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v4.9.0 — Manual (fundet under gennemgangen 2026-11-07): søgeordets gule markering blev stående i teksten, når søgefeltet blev tømt eller ændret (indtil der blev skiftet kapitel). **Årsag:** markeringen lægges direkte i den viste HTML, og den blev ikke tegnet forfra, når kun søgningen ændrede sig. **Løsning:** teksten tegnes forfra ved hver ny søgning (`{#key}` i `Manual.svelte`). Afprøvet i browseren.
 - [fixed] v4.6.2 — Hjælper (Jan 2026-11-07): hvert spørgsmål gav "LLM-tjenesten svarede 500", efter at modellen var skiftet til *Stor* (Ministral-3-8B). **Årsag:** llama-serverens log viste "Jinja Exception: conversation roles must alternate user and assistant". Ministrals chat-skabelon kræver strengt skiftende roller, men hjælperens samtalehistorik kan have to bruger-beskeder i træk (et fejlet svar sorteres fra), og så fejlede alle de følgende spørgsmål. Qwen-modellerne er ikke så strenge. **Løsning:** `assistant.alternating` slår beskeder i træk med samme rolle sammen; historikken starter med brugeren og slutter med assistenten.
 - [fixed] v4.6.1 — Tegn (Jan 2026-11-07): et symbol valgt bag et andet med Alt+klik skiftede til det forreste, så snart man tog fat for at flytte det. **Årsag:** lærredet (SVG-Edit) vælger altid det forreste element under musen ved et museklik. **Løsning:** `engine.ts`/`blockersAbove`:
   - ligger det valgte under musen bag andre, gøres de forreste midlertidigt "klik-igennem" (`pointer-events: none`), og klikket sendes igen, så det valgte trækkes;

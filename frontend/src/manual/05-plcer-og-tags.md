@@ -43,6 +43,10 @@ En PLC uden tags fjernes direkte.
 
 Et **tag** er en navngivet værdi. Siden **Tags** viser dem alle. **Nyt tag** opretter et; **Redigér** ændrer det; **Slet** fjerner det. Bruges tagget (bindinger i tegninger, symbolopsætninger, ugeprogrammer, trendvisninger, API-nøgler), viser bekræftelsen hvor. Sletter du alligevel, fjernes tagget alle disse steder i én handling: bindingerne slettes, tagget tages ud af symbolopsætningerne (symbolerne skal sættes op igen), ugeprogrammer for tagget slettes, og aktive alarmer ryddes. Der tages først en **backup** (*System › Backup*, filen `scada-foer-tag-slet-…`), som også tages, når tagget har historik.
 
+**Slet flere på én gang:** afkryds tagsene i venstre kolonne (**Vælg alle** øverst; **Shift**+klik vælger alle mellem det forrige og dette), og tryk **Slet valgte (n)**. Bekræftelsen viser samlet, hvad de valgte tags bruges til. Sletningen sker i én handling med backup først — lykkes den ikke, slettes intet.
+
+![Tags med fire tags valgt med afkrydsning og Shift-klik; Slet valgte står over listen](../../public/manual/tags-flere.png)
+
 ### Kilde
 
 Feltet **Kilde** peger på værdien i PLC'en: `plc1:<type>:<adresse>`.

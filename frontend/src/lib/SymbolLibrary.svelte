@@ -3,6 +3,7 @@
   // rækkefølge), flyt og ordn symboler, omdøb/slet egne symboler — og importér/eksportér (SVG-filer, bibliotekspakke).
   // Opdelingen gemmes samlet med revision (services/library.py), så samtidige ændringer afvises i stedet for at overskrive.
   import { onMount } from 'svelte';
+  import { ApiError, post } from './api';
   import { ask } from './ask';
   import LibraryImport from './LibraryImport.svelte';
   import { moveSymbol, moveSymbols, newSectionId, sections, symbolsIn, type Layout } from './library';
@@ -31,6 +32,31 @@
   const selOwn = $derived(sel.filter(own));
   const allOn = $derived(list.length > 0 && sel.length === list.length);
   $effect(() => { void current; selected = []; lastPick = -1; });   // ny sektion → nyt valg
+
+  /**
+   * Redigér grafikken (v4.7.1): en lille arbejdstegning med symbolet åbnes i Tegn (#draw/<tegning>/sym:<type>). Der rettes
+   * grafikken og gemmes med "Gem i biblioteket" — et eget symbol som ny version, et indbygget som en kopi ("… (egen)").
+   */
+  async function editGraphic(type: string, label: string): Promise<void> {
+    busy = true;
+    try {
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"></svg>';
+      let made: { drawing: { id: string } } | null = null;
+      for (let n = 1; n <= 20 && !made; n++) {
+        try {
+          made = await post<{ drawing: { id: string } }>('/api/drawings', { name: `Symbol – ${label}${n > 1 ? ` ${n}` : ''}`, svg });
+        } catch (e) {
+          if (!(e instanceof ApiError) || e.status !== 409) throw e;   // navnet er taget: prøv med et nummer
+        }
+      }
+      if (!made) throw new Error('Kunne ikke oprette en arbejdstegning');
+      location.hash = `#draw/${encodeURIComponent(made.drawing.id)}/sym:${encodeURIComponent(type)}`;
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
 
   function pick(id: string, i: number, e: MouseEvent): void {
     const on = !selected.includes(id);
@@ -275,6 +301,8 @@
                     onchange={(e) => moveTo(d.id, (e.currentTarget as HTMLSelectElement).value, 100000)}>
               {#each secs as s (s.id)}<option value={s.id}>{s.id === cur.id ? 'Flyt til …' : s.label}</option>{/each}
             </select>
+            <button class="ic" title={own(d.id) ? 'Ret grafikken i Tegn og gem den som ny version' : 'Indbygget: ret en kopi i Tegn og gem den som eget symbol'}
+                    aria-label="Redigér grafikken for {d.label}" onclick={() => editGraphic(d.id, d.label)} disabled={busy}>Redigér</button>
             {#if own(d.id) && row}
               <button class="ic" title="Omdøb" aria-label="Omdøb {d.label}" onclick={() => { renaming = d.id; renameText = row.label; renameHint = row.hint; }} disabled={busy}>Omdøb</button>
               <button class="ic" title="Slet" aria-label="Slet {d.label}" onclick={() => removeOwn(d.id, d.label)} disabled={busy}>Slet</button>
