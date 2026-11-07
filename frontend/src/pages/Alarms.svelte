@@ -3,6 +3,7 @@
   import BackToDrawing from '../lib/BackToDrawing.svelte';
   import { get, post, type Alarm, type AlarmSummary } from '../lib/api';
   import { LiveClient } from '../lib/live';
+  import { askAssist, assist } from '../lib/assistStore.svelte';
 
   let { canAck = false }: { canAck?: boolean } = $props();
 
@@ -89,7 +90,13 @@
                 {STATE_TEXT[a.state]}
                 {#if a.acked_by}<div class="muted">af {a.acked_by} {fmt(a.acked_at)}</div>{/if}
               </td>
-              <td>{#if canAck && a.state !== 'active_ack'}<button onclick={() => ack([a.key])}>Kvittér</button>{/if}</td>
+              <td class="nowrap">
+                {#if canAck && a.state !== 'active_ack'}<button onclick={() => ack([a.key])}>Kvittér</button>{/if}
+                {#if assist.available && assist.canAsk}
+                  <button title="Spørg hjælperen: hvad betyder alarmen, og hvad kan man gøre?"
+                          onclick={() => askAssist({ question: 'Forklar alarmen: hvad betyder den, og hvad bør jeg tjekke?', label: a.message, alarm: a.key })}>Forklar</button>
+                {/if}
+              </td>
             </tr>
           {:else}
             <tr><td colspan="5" class="muted">Ingen aktive alarmer.</td></tr>

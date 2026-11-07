@@ -4,6 +4,19 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.1.0 build 0345] — 2026-11-07 — Hjælper-panel (LLM-hjælper fase 1)
+
+- Nyt `services/assist_knowledge.py`: manualen opdelt i `##`-afsnit med samme ankre som Manual-siden og søgt med BM25 i ren Python (danske stopord og endelser, ingen ny afhængighed). Indekset bygges igen, når filerne ændres.
+- Nyt `services/assist_tools.py`: læse-værktøjer med brugerens rettigheder (aktive alarmer, én alarm, tag-værdier, trend-resumé, tegningens symboler og elementer, manual-søgning). Værktøjerne vælges ud fra siden og ordene i spørgsmålet, ikke af modellen: det giver ét LLM-kald pr. spørgsmål og ingen værktøjskald fra tekst i anlægget. Tekst fra anlægget renses for styretegn, `<`/`>` og netværksadresser. Tag-kilder og PLC-adresser sendes aldrig med.
+- `llm/client.py`: `stream()` med strømmede svar (SSE fra llama-server), `cache_prompt`, tidsgrænse til første stykke og for hele svaret, og `prompt_ms`.
+- `services/assistant.py`: `prepare` (validering, rate-grænse 30 pr. time og ét ad gangen pr. bruger, data samles før strømmen) og `answer` (kø, hændelser `sources`/`queued`/`delta`/`done`/`error`). Ny tæller `asks`.
+- `api/assist.py`: `POST /api/assist/ask` (operatør og op) som server-sent events med keepalive hvert 10. sekund (nginx/proxy-timeout) og `X-Accel-Buffering: no`. Lukker browseren, stoppes modellen. Audit `assist.ask` logger kun side, værktøjer, svartid og tokens. `/available` har nu `can_ask`.
+- `config.py`: `manual_dir` (`SCADA_MANUAL_DIR`). `deploy/install.sh` kopierer `frontend/src/manual` til `<app>/frontend/manual`.
+- `main.py`: kobler læse-værktøjerne på hjælperen. `services/metrics.py`: `scada_assist_asks_total`.
+- Frontend: nyt `lib/AssistPanel.svelte` (panel i højre side, forslag pr. side, strømmet svar, kilder som links, Stop, Ryd, samtalen kun i sessionStorage), `lib/assist.ts` (SSE-tolkning, kontekst fra adressen, sikker markdown uden links/billeder), `lib/assistStore.svelte.ts`. `App.svelte`: knappen **Hjælper** i topbjælken, og indholdet rykker til side på brede skærme. `pages/Alarms.svelte`: knappen **Forklar**. `pages/Status.svelte`: antal spørgsmål.
+- Tests: `backend/tests/test_assist_ask.py` (11), `frontend/src/lib/assist.test.ts` (6).
+- Manual: *Drift › Hjælperen*, *Alarmer › Forklar en alarm*, *System › Hjælper (LLM)*.
+
 ## [4.0.2 build 0344] — 2026-11-07 — Hjælper: selvtestens svar blev klippet
 
 - `services/assistant.py`: selvtestens JSON-skema tillod kun 80 tegn, så svaret blev afbrudt midt i et ord. Nu 240 tegn og 160 tokens.

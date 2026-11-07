@@ -1,4 +1,4 @@
-# Plan: LLM-hjælper integreret i SCADA'en — 2026-11-06 — godkendt (Jan: lokal, én samlet pakke, til/fra) — fase 0 ✅ v4.0.0
+# Plan: LLM-hjælper integreret i SCADA'en — 2026-11-06 — godkendt (Jan: lokal, én samlet pakke, til/fra) — fase 0 ✅ v4.0.0 — fase 1 ✅ v4.1.0
 
 Baggrund og modelvalg: [docs/LLM_ANALYSE.md](docs/LLM_ANALYSE.md). Ønske fra Jan: en lokal LLM som **hjælper** i SCADA'en, der kører på VM'en (16 GB / 4 vCPU, kun CPU). Hardwaren angives ved installationen og åbner for LLM-funktionerne.
 
@@ -52,6 +52,8 @@ Service:  scada-llm.service (llama-server, 127.0.0.1:8091, lav prioritet, Memory
    - `soeg_manual(tekst)`.
 
    Højst 4 værktøjstrin pr. spørgsmål og 60 s i alt. Svar strømmes til panelet.
+
+   **Beslutning (v4.1.0, efter målingen på 2–4 tokens/s):** værktøjerne vælges deterministisk ud fra siden og spørgsmålets ord, ikke af modellen. Det giver ét LLM-kald i stedet for op til fire, og tekst fra anlægget kan ikke udløse værktøjskald. Tidsgrænsen er 90 s til første ord og 240 s i alt.
 7. Panelet (Svelte):
    - kontekst følger siden (valgt alarm, åben tegning, valgt trend);
    - knappen *Forklar* ved en alarm;

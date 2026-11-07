@@ -37,6 +37,10 @@ class Settings:
     poll_ext_s: float = field(default_factory=lambda: _env_float("SCADA_POLL_EXT_S", 2.0))
     plc_timeout_s: float = field(default_factory=lambda: _env_float("SCADA_PLC_TIMEOUT_S", 5.0))
     frontend_dir: Path = field(default_factory=lambda: Path(os.environ.get("SCADA_FRONTEND_DIR", REPO_ROOT / "frontend" / "dist")))
+    # Manualens markdown (hjælperens viden): i udviklingen frontend/src/manual, installeret <app>/frontend/manual
+    manual_dir: Path = field(default_factory=lambda: Path(os.environ.get("SCADA_MANUAL_DIR") or next(
+        (p for p in (REPO_ROOT / "frontend" / "src" / "manual", REPO_ROOT / "frontend" / "manual") if p.is_dir()),
+        REPO_ROOT / "frontend" / "manual")))
     # AGPL §13: brugere over netværket skal tilbydes kildekoden — peg på jeres egen fork ved ændringer.
     source_url: str = field(default_factory=lambda: os.environ.get(
         "SCADA_SOURCE_URL", "https://github.com/Jangreenlarsen/HypervisionPLC-SCADA"))

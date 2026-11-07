@@ -91,7 +91,7 @@ def test_profile_status_warnings_and_admin_only(api):
     api.post("/api/auth/logout")
     api.post("/api/auth/login", json={"username": "op", "password": "op-pw-1234567"})
     api.post("/api/auth/password", json={"old_password": "op-pw-1234567", "new_password": "op-pw-1234567-ny"})
-    assert api.get("/api/assist/available").json() == {"available": False, "busy": False, "waiting": 0}
+    assert api.get("/api/assist/available").json() == {"available": False, "busy": False, "waiting": 0, "can_ask": True}
     for m, u, b in (("GET", "/api/assist/status", None), ("PUT", "/api/assist/profile", {"profile": "vm-16"}),
                     ("POST", "/api/assist/service", {"action": "start"}), ("POST", "/api/assist/test", {})):
         assert api.request(m, u, json=b).status_code == 403, u

@@ -60,6 +60,18 @@ Et symbol kan vise tre tilstande efter en positionsændring: **bekræftet** (PLC
 
 Alarmer og kurver har hver sit kapitel: se *Alarmer* og *Trends*.
 
+## Hjælperen
+
+Er hjælperen slået til (*System › Hjælper (LLM)*), står knappen **Hjælper** i topbjælken for operatører, teknikere og administratorer. Den åbner et panel i højre side, hvor du kan spørge med dine egne ord, fx *"Hvad viser denne tegning?"*, *"Hvordan har temperaturen været det seneste døgn?"* eller *"Hvordan kvitterer jeg en alarm?"*.
+
+- **Hvad hjælperen ved:** manualen og det, du selv har adgang til: aktive alarmer, tag-værdier (nævn tagget ved navn), et resumé af trenden (min, max, middel) og symbolerne i den tegning, du står i. Brugere, der er begrænset til udvalgte tegninger, får kun svar ud fra dem.
+- **Kun læsning og forslag:** hjælperen ændrer aldrig noget og skriver aldrig til en PLC. Den fortæller, hvilken side og knap du selv kan bruge.
+- **Kilder:** under svaret står de afsnit af manualen, svaret bygger på, som links.
+- **Svartid:** modellen kører på serverens CPU. Et svar tager typisk ½–1½ minut og skrives frem efterhånden. Kun ét spørgsmål behandles ad gangen; andre venter i kø. **Stop** afbryder.
+- **Samtalen** gemmes kun i browserfanen (ikke på serveren) og forsvinder, når fanen lukkes. **Ryd** starter forfra. Loggen registrerer kun, *at* der er spurgt (side og svartid), aldrig spørgsmålet eller svaret.
+
+Hjælperen kan tage fejl. Tjek vigtige oplysninger på anlægget eller i manualen, før du handler.
+
 ## Energi
 
 ![Energi: forbrug pr. dag for et energi-tag, med tabel under søjlerne](../../public/manual/energi.png)

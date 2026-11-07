@@ -259,7 +259,7 @@ Er disken ved at blive fuld, kan du rydde op **på maskinen** — også selv om 
 
 ## Hjælper (LLM)
 
-**Hjælper (LLM)** (kun admin) er en lokal sprogmodel, der kører på selve SCADA-serveren, kun på CPU og uden internet. Den skal hjælpe med at forklare og opsætte anlægget. Den første version indeholder grundlaget: hardware, installation, til/fra og en afprøvning. Hjælperen skriver aldrig til en PLC.
+**Hjælper (LLM)** (kun admin) er en lokal sprogmodel, der kører på selve SCADA-serveren, kun på CPU og uden internet. Den skal hjælpe med at forklare og opsætte anlægget. Siden her styrer hardware, installation, til/fra og afprøvning. Selve hjælperen bruges fra knappen **Hjælper** i topbjælken (se *Drift › Hjælperen*). Hjælperen skriver aldrig til en PLC.
 
 - **Hardware:** siden viser maskinen (kerner, RAM, AVX2) og foreslår en **hardwareprofil**. Profilen afgør, om hjælperen må slås til, hvor mange tråde den får (kerner minus én), og loftet for dens hukommelse. *Raspberry Pi 4* og *Lille VM/PC* (under 8 GB RAM) har ingen hjælper. Vælg profil og tryk **Gem profil**. Profilen kan også sættes ved installationen med `install.sh --hw vm-16`.
 - **LLM-pakke:** hjælperen installeres fra **én samlet fil**, `scada-llm-<arkitektur>-<model>-<build>.tar` (ca. 3–6 GB), med llama.cpp og modellen. Tryk **Vælg LLM-pakke …**. Filen kontrolleres (indhold, arkitektur, licenser) og vises som *Klar til installation*. **Installér og slå til** installerer den. Kontrollen af SHA256 og udpakningen tager nogle minutter.
@@ -267,7 +267,7 @@ Er disken ved at blive fuld, kan du rydde op **på maskinen** — også selv om 
 - **Afprøv:** stiller et kort spørgsmål og viser svartid og hastighed (tokens/s) på netop denne maskine.
 - **Hensyn til SCADA'en:** hjælperen kører som sin egen tjeneste med lav prioritet og et fast hukommelsesloft. Live-data, alarmer og betjening går altid først, og kun ét spørgsmål behandles ad gangen.
 
-*Status* viser antal kald, fejl og seneste svartid, og */metrics* har `scada_assist_*`.
+*Status* viser antal spørgsmål, kald, fejl og seneste svartid, og */metrics* har `scada_assist_*`. Hver bruger kan stille højst 30 spørgsmål i timen.
 
 > VM: sæt CPU-typen til *host* (eller en type med AVX2). Ellers bliver modellen flere gange langsommere, og siden viser en advarsel.
 

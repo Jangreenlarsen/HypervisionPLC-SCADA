@@ -95,7 +95,7 @@
       {#if health.assist && (health.assist.requests || health.assist.busy)}
         <div class="card"><div class="muted small">Hjælper (LLM)</div>
           <strong>{health.assist.busy ? 'arbejder' : 'klar'}{health.assist.waiting ? ` · ${health.assist.waiting} venter` : ''}</strong>
-          <div class="muted small">{health.assist.requests} kald, {health.assist.errors} fejl siden start · seneste {(health.assist.last_ms / 1000).toFixed(1)} s</div></div>
+          <div class="muted small">{health.assist.asks ?? 0} spørgsmål, {health.assist.requests} kald, {health.assist.errors} fejl siden start · seneste {(health.assist.last_ms / 1000).toFixed(1)} s</div></div>
       {/if}
       <div class="card"><div class="muted small">Seneste backup</div>
         <strong>{health.backup.last_age_s === null ? 'ingen' : `${fmtDuration(health.backup.last_age_s)} siden`}</strong>
