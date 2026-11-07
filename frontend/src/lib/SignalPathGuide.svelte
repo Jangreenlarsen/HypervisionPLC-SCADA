@@ -2,13 +2,13 @@
   // Signalveje i Tegn (v4.2.0, PLAN.md › Signalvej): vælg start og slut, find rørvejen, svar på ét spørgsmål pr. ventil/pumpe
   // på vejen, og alle rør på vejen får løbelys, der kører, når betingelsen er opfyldt. Grafen og vejen beregnes her ud fra
   // tegningen (signalPath.ts); backend validerer og gemmer opsætningerne samlet (api/signal_paths.py).
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { ApiError, del, get, post, put } from './api';
   import { ask as askUser } from './ask';
   import { postStream } from './assist';
   import { assist } from './assistStore.svelte';
   import {
-    ASKS, QUESTION, answerFrom, conditionsFrom, describe, endpoints, findPaths, suggestAnswer, summary,
+    ASKS, QUESTION, answerFrom, conditionsFrom, describe, endpoints, findPaths, pickNext, suggestAnswer, summary,
     type Answer, type Condition, type Graph, type PathRow, type Pt, type Step, type TagInfo,
   } from './signalPath';
 
@@ -151,6 +151,49 @@
     if (p) await find(p.elements.map((e) => e.element));
   }
 
+  // Vælg start og slut ved at klikke i tegningen (v4.5.0): første klik = start, andet = slut, så findes vejen af sig selv
+  let picking = $state<'start' | 'end' | null>(null);
+  let pickNote = $state('');
+  let pickBase = '';
+  function startPick(): void {
+    error = '';
+    candidates = [];
+    rows = [];
+    searched = false;
+    start = end = '';
+    picking = 'start';
+    pickBase = selected.join(',');   // det, der allerede er valgt, tæller ikke — kun et nyt klik
+    pickNote = 'Klik på startsymbolet i tegningen …';
+    highlight([], []);
+  }
+  function stopPick(): void {
+    picking = null;
+    pickNote = '';
+  }
+  $effect(() => {
+    const sel = selected;
+    const key = sel.join(',');
+    untrack(() => {
+      if (!picking || !sel.length || key === pickBase) return;
+      pickBase = key;
+      const r = pickNext(picking, sel, new Set(ends.map((e) => e.id)), start);
+      if (r.error) {
+        pickNote = r.error;
+        return;
+      }
+      if (picking === 'start') {
+        start = r.id!;
+        picking = 'end';
+        pickNote = `Start: ${label(start)} — klik nu på slutsymbolet …`;
+        highlight([], [start]);
+      } else {
+        end = r.id!;
+        stopPick();
+        void find();
+      }
+    });
+  });
+
   function fromSelection(which: 'start' | 'end'): void {
     const id = selected.find((s) => ends.some((e) => e.id === s));
     if (!id) {
@@ -282,6 +325,15 @@
 {:else}
   <div class="step">
     <h4>1. Start og slut</h4>
+    <div class="row">
+      {#if picking}
+        <button onclick={stopPick}>Afbryd valg</button>
+      {:else}
+        <button class="primary" onclick={startPick} disabled={busy} title="Klik på startsymbolet og derefter slutsymbolet i tegningen">Vælg på tegningen</button>
+      {/if}
+    </div>
+    {#if pickNote}<p class="small pick" role="status">{pickNote}</p>{/if}
+    <p class="small muted">… eller vælg i listerne:</p>
     <label class="field">Start
       <span class="row nowrap">
         <select bind:value={start}><option value="">— vælg —</option>{#each ends as e (e.id)}<option value={e.id}>{e.label}</option>{/each}</select>
@@ -382,7 +434,10 @@
   {/if}
 {/if}
 
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && picking) stopPick(); }} />
+
 <style>
+  .pick { background: #fff4e0; border: 1px solid #ff8f00; border-radius: var(--radius); padding: .3rem .45rem; }
   .item { display: flex; align-items: center; gap: .4rem; padding: .35rem 0; border-top: 1px solid var(--line); }
   .grow { flex: 1; min-width: 0; }
   .step { border-top: 1px solid var(--line); padding: .4rem 0; }
