@@ -148,6 +148,20 @@ Maskinen: VM med 4 vCPU (AMD Ryzen Embedded V1500B, AVX2) og 15 GB RAM. Profil v
 
 **Konklusion:** V1500B er en svag CPU, så hastigheden ligger under skønnet i § 2. Hjælperens svar skal derfor være korte, og prompts små. Et typisk svar på 100–150 tokens tager 30–45 s. Qwen3.5-4B er det rigtige valg på denne maskine: en 8B-model ville give ca. 1,5 tokens/s. Er hastigheden for lav i praksis, kan Qwen3.5-2B prøves (ca. dobbelt så hurtig).
 
+### Anden måling — hjælper-panelet (2026-11-07, v4.1.0)
+
+Spørgsmålet *"Hvordan kvitterer jeg en alarm?"* fra siden Alarmer: 643 tokens ind (systemprompt, 5 aktive alarmer, 2 manualafsnit), 177–183 tokens ud. Svaret var korrekt og på godt dansk med kilde.
+
+| Måling | 1. kald | 2. kald |
+|---|---|---|
+| Læsning af prompten | 120 s | 82 s (systemprompten genbrugt) |
+| I alt | 191 s | 154 s |
+| Skrivehastighed | ca. 2,5 tokens/s | ca. 2,5 tokens/s |
+
+**Læsningen af prompten dominerer** (ca. 6–8 tokens/s på denne CPU). Det er langt under skønnet i § 2. v4.1.1 halverer derfor data i prompten (højst 2000 tegn), og svaret begrænses til ca. 80 ord. Det forventede resultat er ca. 1–1½ minut. Vil man hurtigere, er der to muligheder:
+- **Qwen3.5-2B:** ca. dobbelt så hurtig, men svagere på dansk.
+- **Flere vCPU:** både læsning og skrivning skalerer næsten lineært med kernerne.
+
 ## 8. Anbefaling og rækkefølge
 
 1. **Trin 1, uden AI (alle profiler):** signalvej-guide.

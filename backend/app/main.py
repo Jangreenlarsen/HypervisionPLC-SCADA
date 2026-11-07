@@ -48,6 +48,8 @@ from .services.netconfig import NetworkService
 from .services.power import PowerService
 from .services.hwprofile import HwProfileService
 from .services.assistant import AssistantService
+from .services.assist_knowledge import ManualIndex
+from .services.assist_tools import AssistTools
 from .llm.client import LlmClient
 from .services.trend_views import TrendViewService
 from .services.audit import AuditService
@@ -188,6 +190,11 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                                                            instance=socket.gethostname())
         app.state.alarm_service.listeners.append(app.state.integration_service.on_alarm_event)   # SSE: alarmhændelser
         app.state.backup_service.trend_db = trend_db
+        # Hjælperens læse-værktøjer (kun læsning, med brugerens rettigheder) og manual-søgning
+        app.state.assistant.tools = AssistTools(
+            alarms=app.state.alarm_service, tags=app.state.tag_service, cache=manager.cache, trend_db=trend_db,
+            scope=app.state.scope_service, symbols=app.state.symbol_service, drawings=app.state.drawing_service,
+            manual=ManualIndex(settings.manual_dir))
         app.state.trend_recorder = TrendRecorder(manager, trend_db, flush_s=settings.trend_flush_s,
                                                  retention_days=settings.trend_days,
                                                  energy_days=settings.energy_days)

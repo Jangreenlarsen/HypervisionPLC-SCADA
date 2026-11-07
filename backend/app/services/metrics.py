@@ -146,6 +146,7 @@ def render(d: dict[str, Any], auth_failures: int = 0) -> str:
              [({"target": t}, v) for t, v in (bk.get("failing") or {}).items()])
     asst = d.get("assist") or {}
     if asst:
+        x.counter("scada_assist_asks_total", "Spørgsmål til LLM-hjælperen (hjælper-panelet) siden start", asst.get("asks"))
         x.counter("scada_assist_requests_total", "Kald til LLM-hjælperen siden start", asst.get("requests"))
         x.counter("scada_assist_errors_total", "Fejlede kald til LLM-hjælperen siden start", asst.get("errors"))
         x.gauge("scada_assist_busy", "LLM-hjælperen arbejder lige nu (1)", asst.get("busy"))

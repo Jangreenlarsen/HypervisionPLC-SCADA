@@ -12,6 +12,10 @@ Fanen **Aktive** viser de alarmer, der er i gang lige nu — med tag, tekst, pri
 
 Tryk **Kvittér** på en alarm for at sige, at du har set den, eller **Kvittér alle**. En kvitteret alarm er **stadig aktiv**, indtil årsagen er væk — så forsvinder den fra *Aktive* og står i *Historik*. Alle kvitteringer gemmes med bruger og tidspunkt.
 
+## Forklar en alarm
+
+Er hjælperen slået til, har hver alarm knappen **Forklar**. Hjælperen får alarmen, tagget med dets aktuelle værdi og trenden for den seneste time samt de relevante afsnit af manualen. Den svarer i panelet til højre med, hvad alarmen betyder, og hvad du kan tjekke. Se *Drift › Hjælperen*.
+
 ## Historik
 
 ![Alarmer — fanen Historik: hvornår hver alarm opstod, ophørte og blev kvitteret](../../public/manual/alarmer-historik.png)

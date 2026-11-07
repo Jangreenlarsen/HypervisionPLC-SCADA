@@ -2,6 +2,19 @@
 
 ---
 
+## v4.1.1 — 2026-11-07 — Hjælper: hurtigere svar
+
+- Hjælperen sender kortere data til modellen og svarer kortere. Det giver hurtigere svar på maskiner med svag CPU.
+- Hastigheden (tokens/s) i hjælperens status er nu rigtig.
+
+## v4.1.0 — 2026-11-07 — Hjælper-panel
+
+- Knappen **Hjælper** i topbjælken åbner et panel i højre side, hvor du kan spørge om anlægget og SCADA'en med dine egne ord. Den vises, når hjælperen er slået til, og kræver rollen operatør eller højere.
+- Hjælperen svarer ud fra manualen og det, du selv har adgang til: aktive alarmer, tag-værdier, trenden og symbolerne i tegningen. Kilderne vises som links.
+- **Forklar** ved hver alarm: hjælperen forklarer, hvad alarmen betyder, og hvad du kan tjekke.
+- Svaret skrives frem efterhånden og kan stoppes. Samtalen gemmes kun i browserfanen.
+- Hjælperen ændrer aldrig noget og skriver aldrig til en PLC.
+
 ## v4.0.2 — 2026-11-07 — Hjælper: afprøvningen viser hele svaret
 
 - *Afprøv hjælperen* viste et afkortet svar. Nu vises hele svaret.

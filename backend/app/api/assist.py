@@ -4,18 +4,25 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import platform
-from typing import Any, Literal
+import time
+from typing import Any, AsyncIterator, Literal
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, ConfigDict
+from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask
+from pydantic import BaseModel, ConfigDict, Field
 
+from ..services.assist_tools import Context
 from ..services.assistant import DISK_CHECK_BYTES, MAX_PACKAGE_BYTES, WRITE_BUFFER_BYTES, AssistantService
 from ..services.auth import CurrentUser
 from ..services.errors import ServiceError
-from .auth import ADMIN, VIEWER, audit, require
+from ..services.auth import role_at_least
+from .auth import ADMIN, audit, require
 
 router = APIRouter(prefix="/api/assist")
+KEEPALIVE_S = 10.0
 
 
 class _Model(BaseModel):
@@ -30,15 +37,96 @@ class ActionBody(_Model):
     action: Literal["install", "start", "stop", "remove"]
 
 
+class AskContext(_Model):
+    page: str = Field("", max_length=40)
+    drawing: str | None = Field(None, max_length=80)
+    alarm: str | None = Field(None, max_length=200)
+    tags: list[str] = Field(default_factory=list, max_length=10)
+
+
+class Turn(_Model):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=4000)
+
+
+class AskBody(_Model):
+    question: str = Field(max_length=2000)
+    context: AskContext = Field(default_factory=AskContext)
+    history: list[Turn] = Field(default_factory=list, max_length=20)
+
+
 def _svc(request: Request) -> AssistantService:
     return request.app.state.assistant
 
 
-@router.get("/available", dependencies=[VIEWER])
-async def available(request: Request) -> dict[str, Any]:
-    """Til alle roller: må hjælper-funktionerne vises? (ingen detaljer om maskinen)."""
+@router.get("/available")
+async def available(request: Request, user: CurrentUser = Depends(require("viewer"))) -> dict[str, Any]:
+    """Til alle roller: må hjælper-funktionerne vises? (ingen detaljer om maskinen). `can_ask`: operatør og op."""
     st = await _svc(request).status()
-    return {"available": st["available"], "busy": st["busy"], "waiting": st["waiting"]}
+    return {"available": st["available"], "busy": st["busy"], "waiting": st["waiting"],
+            "can_ask": role_at_least(user.role, "operator")}
+
+
+@router.post("/ask")
+async def ask(body: AskBody, request: Request, user: CurrentUser = Depends(require("operator"))) -> StreamingResponse:
+    """Spørg hjælperen (operatør og op). Svaret strømmes som server-sent events: `sources`, `queued`, `delta`…, `done` eller
+    `error`. Audit logger kun metadata (side, værktøjer, svartid, tokens) — aldrig spørgsmål eller svar."""
+    svc = _svc(request)
+    c = body.context
+    ctx = Context(page=c.page, drawing=c.drawing, alarm=c.alarm, tags=[t[:80] for t in c.tags])
+    prepared = await asyncio.to_thread(svc.prepare, user, body.question, ctx, [t.model_dump() for t in body.history])
+    t0 = time.monotonic()
+    outcome: dict[str, Any] = {"last": {}, "closed": False}
+
+    def close() -> None:
+        """Én gang pr. spørgsmål: frigiv brugeren og skriv audit. Kaldes når strømmen slutter OG som baggrundsopgave
+        efter svaret — så det også sker, hvis browseren afbryder, før strømmen nåede at starte."""
+        if outcome["closed"]:
+            return
+        outcome["closed"] = True
+        svc.finish(user.username)
+        last = outcome["last"]
+        audit(request, "assist.ask", c.page or "", {
+            "tools": prepared["tools"], "data_chars": prepared["data_chars"], "ms": round((time.monotonic() - t0) * 1000),
+            "tokens_in": last.get("tokens_in"), "tokens_out": last.get("tokens_out"),
+            "result": "ok" if last.get("type") == "done" else ("error" if last else "afbrudt")})
+
+    async def events() -> AsyncIterator[bytes]:
+        # Modellen kan tænke i over et minut før første ord (prompten læses på CPU): en kommentarlinje hvert
+        # KEEPALIVE_S holder forbindelsen åben gennem nginx og proxyer (proxy_read_timeout er typisk 60 s).
+        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+
+        async def produce() -> None:
+            try:
+                async for ev in svc.answer(user, prepared):
+                    await queue.put(ev)
+            finally:
+                await queue.put(None)
+
+        task = asyncio.create_task(produce())
+        try:
+            while True:
+                try:
+                    ev = await asyncio.wait_for(queue.get(), timeout=KEEPALIVE_S)
+                except asyncio.TimeoutError:
+                    yield b": venter\n\n"
+                    continue
+                if ev is None:
+                    break
+                if ev["type"] in ("done", "error"):
+                    outcome["last"] = ev
+                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n".encode()
+        finally:
+            if not task.done():
+                task.cancel()   # brugeren lukkede: stop modellen (forbindelsen til llama-server lukkes)
+                try:
+                    await task
+                except (asyncio.CancelledError, Exception):   # noqa: BLE001
+                    pass
+            close()
+
+    return StreamingResponse(events(), media_type="text/event-stream", background=BackgroundTask(close),
+                             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
 @router.get("/status", dependencies=[ADMIN])

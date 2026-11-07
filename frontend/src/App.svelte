@@ -31,6 +31,8 @@
   import Login from './pages/Login.svelte';
   import ChangePassword from './pages/ChangePassword.svelte';
   import AskDialog from './lib/AskDialog.svelte';
+  import AssistPanel from './lib/AssistPanel.svelte';
+  import { assist, refreshAssist, resetAssist } from './lib/assistStore.svelte';
 
 
   let route = $state(location.hash.slice(1) || 'overview');
@@ -55,6 +57,16 @@
     }
   });
   let error = $state('');
+
+  // Hjælperen (LLM): knappen vises kun, når den er slået til og brugeren må spørge (operatør og op)
+  $effect(() => {
+    if (me && !me.must_change_password) {
+      refreshAssist();
+      const t = setInterval(refreshAssist, 60_000);
+      return () => clearInterval(t);
+    }
+    resetAssist();
+  });
 
   async function loadMe(): Promise<void> {
     try {
@@ -176,6 +188,10 @@
     </nav>
     <span class="crumb"><span class="grp">{groupOf(page)?.label}</span> <span class="sep">›</span> <strong>{current.label}</strong></span>
     <span class="spacer"></span>
+    {#if assist.available && assist.canAsk}
+      <button class="helper" class:on={assist.open} onclick={() => (assist.open = !assist.open)} aria-pressed={assist.open}
+              title="Hjælper: spørg om anlægget eller SCADA'en (lokal LLM)">{@render icon('assist')}<span class="hname">Hjælper</span></button>
+    {/if}
     <a href="#alarms" class="bell {alarmSummary.unacked ? 'unacked' : ''} {alarmSummary.high ? 'high' : alarmSummary.active ? 'medium' : ''}"
        title="{alarmSummary.active} aktive alarmer, {alarmSummary.unacked} ukvitterede">
       {@render icon('alarms')}<span class="count">{alarmSummary.active}</span>{#if alarmSummary.unacked}<span class="unack">· {alarmSummary.unacked} ny</span>{/if}
@@ -215,7 +231,10 @@
   <span class="ver" title="HypervisionPLC SCADA v{v.version} build {v.build}">v{v.version}<span class="verbuild">{' · b'}{v.build}</span></span>
 {/snippet}
 
-<main>
+{#if me && !me.must_change_password && !isPanel && assist.available}<AssistPanel {route} {page} />{/if}
+
+<!-- Åbent hjælper-panel: på brede skærme rykker indholdet til side (panelet må ikke dække fx Kvittér/Forklar) -->
+<main class:with-assist={assist.open && assist.available}>
   {#if stale}{@render staleBanner()}{/if}
   {#if error}<div class="error">{error}</div>{/if}
   {#if !checked}
@@ -328,6 +347,12 @@
     display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap;
     color: #ddd; text-decoration: none; padding: .15rem .55rem; border-radius: 4px; border: 1px solid #666; font-size: .9rem;
   }
+  .helper {
+    display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; background: transparent;
+    color: #ddd; padding: .15rem .55rem; border-radius: 4px; border: 1px solid #666; font-size: .9rem; cursor: pointer;
+  }
+  .helper:hover { color: #fff; border-color: #999; }
+  .helper.on { background: var(--accent); color: #fff; border-color: var(--accent); }
   .bell .count { font-weight: 700; font-variant-numeric: tabular-nums; }
   .bell.medium { background: #b26a00; color: #fff; border-color: #b26a00; }
   .bell.high { background: #c62828; color: #fff; border-color: #c62828; }
@@ -339,11 +364,13 @@
   /* Ingen breddegrænse: SCADA bruges også på store kontrolrumsskærme */
   main { padding: .75rem 1rem 1rem; }
   main.panel-mode { padding: .5rem; }
+  @media (min-width: 1000px) { main.with-assist { margin-right: min(26rem, 100vw); } }
   @media (max-width: 640px) {
     main { padding: .75rem 16px; }
-    header { padding: 0 .5rem; gap: .45rem; }
-    .crumb, .menu.user .name, .srcfull, .caret { display: none; }   /* alle fire menupunkter, klokken og AGPL-linket skal være på én linje */
+    header { padding: 0 .5rem; gap: .35rem; }
+    .crumb, .menu.user .name, .srcfull, .caret, .hname { display: none; }   /* alle fire menupunkter, klokken og AGPL-linket skal være på én linje */
     .top { padding: 0 .4rem; font-size: .88rem; }
+    .helper, .bell { padding: .15rem .35rem; }   /* plads til Hjælper-knappen: versionen skal stadig stå yderst til højre */
     .menubar { gap: 0; }
     .menu.user { margin-left: 0; padding-left: .25rem; }
     .src, .ver { font-size: .7rem; }
