@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
 import platform
 import time
 from typing import Any, Literal
@@ -13,13 +14,15 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..services.assist_tools import Context
-from ..services.assistant import DISK_CHECK_BYTES, MAX_PACKAGE_BYTES, WRITE_BUFFER_BYTES, AssistantService
+from ..services.assistant import ARCH_ALIASES, DISK_CHECK_BYTES, MAX_PACKAGE_BYTES, WRITE_BUFFER_BYTES, AssistantService
+from ..services.llm_catalog import Cancelled, LlmCatalog
 from ..services.auth import CurrentUser, role_at_least
 from ..services.errors import ServiceError
 from .auth import ADMIN, audit, require
 from .sse import sse_response
 
 router = APIRouter(prefix="/api/assist")
+log = logging.getLogger("scada.assist")
 
 
 class _Model(BaseModel):
@@ -28,6 +31,11 @@ class _Model(BaseModel):
 
 class ProfileBody(_Model):
     profile: str
+
+
+class DownloadBody(_Model):
+    model: str = Field(min_length=1, max_length=64)
+    install: bool = True          # installér og slå til, når pakken er hentet og kontrolleret
 
 
 class ActionBody(_Model):
@@ -82,6 +90,88 @@ async def ask(body: AskBody, request: Request, user: CurrentUser = Depends(requi
             "result": "ok" if last.get("type") == "done" else ("error" if last else "afbrudt")})
 
     return sse_response(lambda: svc.answer(user, prepared), close)
+
+
+def _arch() -> str:
+    m = platform.machine()
+    return ARCH_ALIASES.get(m.lower(), m)
+
+
+def _cat(request: Request) -> LlmCatalog:
+    return request.app.state.llm_catalog
+
+
+@router.get("/catalog", dependencies=[ADMIN])
+async def catalog(request: Request) -> dict[str, Any]:
+    """Varianterne, der kan hentes fra GitHub (v4.4.0), og en evt. igangværende hentning."""
+    svc, cat = _svc(request), _cat(request)
+    hw = request.app.state.hw_profile.status()
+    model = (svc._installed() or {}).get("model")
+    installed = model.get("id") if isinstance(model, dict) else None
+    return {"arch": _arch(), "profile": hw["profile"], "llm_allowed": hw["llm_allowed"], "repo": cat.repo,
+            "entries": cat.entries(_arch(), hw["profile"], installed), "job": dict(cat.job)}
+
+
+@router.post("/download")
+async def start_download(body: DownloadBody, request: Request,
+                         user: CurrentUser = Depends(require("admin"))) -> dict[str, Any]:
+    """Hent en variant fra GitHub i baggrunden (fremdrift i /catalog). Klargøres som en uploadet pakke og installeres."""
+    svc, cat = _svc(request), _cat(request)
+    if cat.busy():
+        raise ServiceError(409, "En model hentes allerede — vent, eller afbryd den")
+    hw = request.app.state.hw_profile.status()
+    if not hw["llm_allowed"]:
+        raise ServiceError(409, "Hardwareprofilen tillader ikke hjælperen — vælg en profil med LLM ovenfor")
+    entry = next((e for e in cat.entries(_arch(), hw["profile"], None) if e["id"] == body.model), None)
+    if entry is None:
+        raise ServiceError(404, f"Modellen '{body.model}' findes ikke til {_arch()} i listen")
+    if not entry["fits"]:
+        raise ServiceError(409, f"{entry['name']} passer ikke til hardwareprofilen ({hw['profile']})")
+    cat.start({"state": "running", "model": entry["id"], "name": entry["name"], "by": user.username,
+               "started": time.time(), "done": 0, "total": entry["size"], "part": 0, "parts": 0})
+    audit(request, "assist.download", entry["id"], {"release": entry["release"], "install": body.install})
+
+    def work() -> dict[str, Any]:
+        with svc.receiving() as received:
+            sha, _size = cat.download(entry["id"], _arch(), received, svc.precheck, svc.check_space_during_upload)
+            if cat.cancelled():   # afbrudt lige efter sidste del: klargør ikke
+                raise Cancelled()
+            return svc.stage(user.username, received, sha, platform.machine())
+
+    async def runner() -> None:
+        try:
+            info = await asyncio.to_thread(work)
+            cat.job.update(state="done", finished=time.time(), sha256=info["sha256"])
+            audit(request, "assist.package", entry["name"], {"sha256": info["sha256"], "size": info["size"],
+                                                             "source": entry["release"]})
+            if body.install and not cat.cancelled():
+                try:   # pakken er hentet og klar — en fejl her vises særskilt (kan installeres med knappen)
+                    svc.request("install", user.username)
+                    cat.job["installing"] = True
+                    audit(request, "assist.service", "install")
+                except ServiceError as exc:
+                    cat.job["install_error"] = exc.message
+        except Cancelled:
+            cat.job.update(state="cancelled", finished=time.time())
+            audit(request, "assist.download", entry["id"], {"result": "afbrudt"})
+        except ServiceError as exc:
+            cat.job.update(state="error", error=exc.message, finished=time.time())
+            audit(request, "assist.download", entry["id"], {"error": exc.message[:300]})
+        except Exception:   # noqa: BLE001 — fejlen skal ses på siden, ikke forsvinde i en baggrundsopgave
+            log.exception("Hentning af LLM-model fejlede")
+            cat.job.update(state="error", error="Uventet fejl under hentningen — se loggen", finished=time.time())
+
+    request.app.state.llm_download_task = asyncio.create_task(runner())   # reference, så opgaven ikke ryddes væk
+    return dict(cat.job)
+
+
+@router.delete("/download", dependencies=[ADMIN])
+async def cancel_download(request: Request) -> dict[str, Any]:
+    cat = _cat(request)
+    ok = cat.cancel()
+    if ok:
+        audit(request, "assist.download.cancel", str(cat.job.get("model") or ""))
+    return {"cancelled": ok}
 
 
 @router.get("/status", dependencies=[ADMIN])

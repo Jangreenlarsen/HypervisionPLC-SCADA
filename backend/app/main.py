@@ -36,6 +36,7 @@ from .api.symbol_groups import router as symbol_groups_router
 from .api.signal_paths import router as signal_paths_router
 from .services.signal_paths import SignalPathService
 from .services.assist_signal import SignalSuggester
+from .services.llm_catalog import LlmCatalog
 from .api.symbol_ports import router as symbol_ports_router
 from .api.library import router as library_router
 from .api.symbols import router as symbols_router
@@ -200,6 +201,9 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
             scope=app.state.scope_service, symbols=app.state.symbol_service, drawings=app.state.drawing_service,
             manual=ManualIndex(settings.manual_dir))
         app.state.signal_suggester = SignalSuggester(app.state.assistant, app.state.signal_path_service)   # v4.3.0
+        app.state.llm_catalog = LlmCatalog(settings.llm_catalog, settings.update_repo)   # varianter fra GitHub (v4.4.0)
+        # En hentning/upload, der blev afbrudt af en genstart, efterlader en halv pakke (op til 16 GB): ryd op
+        (settings.data_dir / "llm" / "receiving.tar").unlink(missing_ok=True)
         app.state.trend_recorder = TrendRecorder(manager, trend_db, flush_s=settings.trend_flush_s,
                                                  retention_days=settings.trend_days,
                                                  energy_days=settings.energy_days)
@@ -227,6 +231,14 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         try:
             yield
         finally:
+            # En LLM-hentning i gang stoppes, så nedlukningen ikke venter på flere GB (tråden ser afbrydelsen pr. 4 MB)
+            if app.state.llm_catalog.cancel():
+                task = getattr(app.state, "llm_download_task", None)
+                if task is not None:
+                    try:
+                        await asyncio.wait_for(task, timeout=20)
+                    except (asyncio.TimeoutError, Exception):   # noqa: BLE001
+                        pass
             alarm_task.cancel()
             lag_task.cancel()
             notifier_task.cancel()

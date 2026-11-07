@@ -4,6 +4,30 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.4.0 build 0349] — 2026-11-07 — Vælg LLM-model fra en liste (hentes fra GitHub releases)
+
+- Ny `services/llm_catalog.py`:
+  - kataloget fra `deploy/llm-models.json` (variant, beskrivelse, profiler, `published`-arkitekturer);
+  - GitHub-klient: kun api.github.com/github.com/GitHubs download-domæner, også efter omdirigering, `trust_env=False`;
+  - `download`: delene (`.partNN`) skrives i én fil, mens SHA256 beregnes; størrelse og diskplads tjekkes undervejs; kan afbrydes. Passer kontrolsummen ikke, kasseres pakken.
+- `api/assist.py`:
+  - `GET /api/assist/catalog` og `POST`/`DELETE /api/assist/download` (admin);
+  - hentningen kører i baggrunden og klargøres med `stage` (samme kontrol som upload), hvorefter installationen bestilles;
+  - audit `assist.download`/`assist.package`.
+- `deploy/publish-llm-release.sh`: deler pakken i dele på 1900 MiB og udgiver dem med `.sha256` som release `llm-<model>-<build>` (prerelease, aldrig "latest", så SCADA-OTA'en ikke påvirkes).
+- `deploy/llm-models.json`: tre varianter, Hurtig (Qwen3.5-2B, ny), Standard (Qwen3.5-4B) og Stor (Ministral-3-8B), med beskrivelse og profiler. `install.sh` installerer kataloget; `config.py` har `llm_catalog` (`SCADA_LLM_CATALOG`).
+- `pages/SystemAssist.svelte`: *Vælg model* med kort pr. variant, *Hent og installér*, fremdrift og *Afbryd*. Upload står under *LLM-pakke (lukket net)*.
+- **Review (reviewer-agent) rettet:**
+  - pakkens SHA256 er låst fast i kataloget pr. arkitektur (`published: {arch: sha}`), så en ændret udgivelse på GitHub afvises;
+  - højst 16 GB pr. pakke;
+  - afbrydelse kan ikke gå tabt (nulstilles ved start) og stopper også klargøring og installation;
+  - audit `assist.download.cancel` med den, der afbrød;
+  - hentningen stoppes ved nedlukning, og en halv pakke ryddes op ved opstart;
+  - intet katalog og ingen hentning, når `SCADA_UPDATE_REPO` er tom eller ugyldig;
+  - udgivelses-scriptet fjerner gamle dele og opdaterer noterne.
+- Tests: `backend/tests/test_llm_catalog.py` (11, falsk GitHub: dele, omdirigering, forkert SHA, fremmed vært, afbrudt, API, roller). Set i browseren.
+- Manual: *System › Hjælper (LLM)*.
+
 ## [4.3.0 build 0348] — 2026-11-07 — Signalvej: forklar med egne ord (LLM-hjælper fase 2b)
 
 - **Ny `services/assist_signal.py`:**

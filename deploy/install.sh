@@ -64,6 +64,8 @@ cp -r "$SRC/backend" "$SRC/version.json" "$SRC/LICENSE" "$APP.new/"
 [ -d "$SRC/frontend/dist" ] && mkdir -p "$APP.new/frontend" && cp -r "$SRC/frontend/dist" "$APP.new/frontend/"
 # Manualens markdown: hjælperens viden (services/assist_knowledge.py) — selve manualen i UI'et ligger i dist
 [ -d "$SRC/frontend/src/manual" ] && mkdir -p "$APP.new/frontend" && cp -r "$SRC/frontend/src/manual" "$APP.new/frontend/"
+# LLM-kataloget (System › Hjælper: varianter og deres GitHub-udgivelser, services/llm_catalog.py)
+[ -f "$SRC/deploy/llm-models.json" ] && cp "$SRC/deploy/llm-models.json" "$APP.new/"
 rm -rf "$APP.new/backend/.venv" "$APP.new/backend/tests" "$APP.new/backend/.pytest_cache"
 find "$APP.new" -name __pycache__ -type d -prune -exec rm -rf {} +
 if [ -d "$APP/venv" ]; then mv "$APP/venv" "$APP.new/venv"; fi

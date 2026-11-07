@@ -1,4 +1,4 @@
-# Plan: Vælg LLM-model fra en liste — hentes fra GitHub releases (v4.4.0) — 2026-11-07 — afventer OK
+# Plan: Vælg LLM-model fra en liste — hentes fra GitHub releases (v4.4.0) — 2026-11-07 — godkendt (Jan: "to-tre varianter på GitHub") — ✅ v4.4.0
 
 Ønske fra Jan: en administrator skal kunne vælge en model fra en liste under *System › Hjælper* uden selv at hente filer fra Hugging Face. LLM-pakkerne udgives derfor som **GitHub releases** i projektets repo, som SCADA-opdateringerne allerede er.
 

@@ -2,6 +2,15 @@
 
 ---
 
+## v4.4.0 — 2026-11-07 — Vælg LLM-model fra en liste
+
+- Under *System › Hjælper* vælger administratoren en af tre varianter og trykker *Hent og installér*:
+  - *Hurtig* (Qwen3.5-2B);
+  - *Standard* (Qwen3.5-4B);
+  - *Stor* (Ministral-3-8B).
+- Serveren henter selv pakken fra projektets udgivelser på GitHub og kontrollerer den. Fremdriften vises, og hentningen kan afbrydes.
+- Uden internet kan en LLM-pakke stadig uploades som før.
+
 ## v4.3.0 — 2026-11-07 — Signalvej: forklar med egne ord
 
 - I signalvejens trin 3 kan du skrive, hvornår der går flow, fx *"når pumpe 5 kører og AVTB står åben"*. Hjælperen udfylder svarene som forslag, mærket *forslag*.

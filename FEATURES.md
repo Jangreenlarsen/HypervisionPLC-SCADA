@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v4.4.0 — **Vælg LLM-model fra en liste** (ønske fra Jan 2026-11-07): tre varianter (Hurtig/Standard/Stor) udgivet som GitHub releases; administratoren henter og installerer under System › Hjælper uden selv at hente fra Hugging Face. Upload bevares til lukkede net.
 - [x] done v4.3.0 (fase 2b) — **Forklar signalvejen med egne ord** (PLAN.md): i signalvejens trin 3 skriver man fx "når P1 kører og V2 er åben", og hjælperen (lokal LLM) udfylder svarene som forslag i et fast JSON-skema; backend kontrollerer forslagene (symbol på vejen, tag findes og må ses, gyldig sammenligning), og intet gemmes, før brugeren trykker Gem.
 - [x] done v4.2.0 (fase 2a) — **Signalvej i Tegn** (PLAN.md): vælg start og slut, rørvejen findes ud fra tegningen (rør, T-stykker, bøjninger, symboler der rører hinanden), ét spørgsmål pr. ventil/pumpe på vejen, og alle rør på vejen får løbelys styret af én samlet betingelse. Gemmes som en navngiven signalvej, der kan rettes og slettes.
 - [x] done v4.1.0 (fase 1) — **Hjælper-panel** (PLAN.md fase 1): spørg hjælperen fra alle sider (operatør og op); svaret strømmes og bygger på manualen (BM25-søgning) og læse-værktøjer (aktive alarmer, tag-værdier, trend-resumé, tegningens symboler) inden for brugerens rettigheder; knappen *Forklar* ved hver alarm; kilder vises med link.
