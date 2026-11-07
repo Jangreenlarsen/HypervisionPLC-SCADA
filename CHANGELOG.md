@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.4.2 build 0351] — 2026-11-07 — Betjening: den skrevne værdi vises med det samme
+
+- `services/operate.py`:
+  - `_show` lægger PLC'ens tilbagelæste værdi i live-cachen lige efter en skrivning eller et skift, så den ikke venter på næste polling-runde (2–5 s uden SSE);
+  - `write_value` (symbolernes betjening) læser én gang tilbage; fejler det, tager pollingen over som før.
+- Test: `test_operate.py` (polling sat til 30 s: værdien står alligevel på skærmen straks).
+- Fundet ved måling på demo'en (BUGS.md): selve websiden er hurtig, det var PLC-værdierne, der kom sent.
+
 ## [4.4.1 build 0350] — 2026-11-07 — Hjælper: pladstjekket regner som root-hjælperen
 
 - `services/assistant.py`:

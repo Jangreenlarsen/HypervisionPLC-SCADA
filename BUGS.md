@@ -5,6 +5,15 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v4.4.2 — Betjening føltes langsom på demo'en (Jan 2026-11-07: "selve hjemmesiden man interagerer med er langsom"). **Målt:**
+  - selve siden er hurtig: menuer og sideskift 34–80 ms, 60 billeder/s også med CPU÷4, ingen blokerende JavaScript, API ca. 30 ms;
+  - men efter et klik (fx start pumpe) gik der 2–5 s, før symbolet skiftede.
+
+  **Årsag:** PLC'ens push (SSE, port 81) er blokeret af routeren mellem demo-net og PLC'en, så nye værdier kom kun med polling. En runde er 12 kald à højst 5 pr. sekund (ca. 2,4 s), og skrivningens egen tilbagelæsning blev ikke brugt til visningen. **Løsning:**
+  - `OperateService._show`: den tilbagelæste værdi (PLC'ens egen, ikke den ønskede) lægges straks i live-cachen og sendes til browserne;
+  - symbolernes skrivninger (`write_value`) læser én gang tilbage og gør det samme.
+
+  Resten (fx en pumpes driftsmelding, som PLC-programmet sætter bagefter) kommer stadig med næste runde. Den kan først blive øjeblikkelig, når port 81 åbnes i routeren.
 - [fixed] v4.4.1 — Vælg model (fundet på demo-VM'en 2026-11-07): *Hurtig* blev hentet fra GitHub (1,36 GB på 30 s), men installationen blev afvist af root-hjælperen med "for lidt diskplads (kræver ca. 5 GB fri, der er 3 GB)". Den gamle model kørte videre. **Årsag:** SCADA'ens tjek (`stage`) krævede kun pakken + 1 GB, men root-hjælperen kræver også plads til den installerede model, som først fjernes til sidst. **Løsning:**
   - `install_need` regner som root-hjælperen og bruges både ved klargøring og før en hentning (`precheck_download`: plads til hentning og installation);
   - mangler der plads, afvises hentningen straks med "fjern den installerede model først, eller udvid disken".

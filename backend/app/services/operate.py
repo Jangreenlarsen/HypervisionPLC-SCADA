@@ -25,6 +25,7 @@ from ..plc.errors import PlcApiError, PlcAuthError, PlcError, PlcForbidden, PlcR
 from .audit import AuditService
 from .auth import CurrentUser
 from .errors import ServiceError
+from .live_cache import LiveValue
 from .manager import PlcManager
 from .tagsource import ST_TYPE_MAP, TagSource, apply_scaling, decode_words, parse_source
 
@@ -204,6 +205,12 @@ class OperateService:
             await runtime.client.write_hr(addr + i, w, "uint", urgent=urgent)
         return f"HR {addr}" + (f"–{addr + len(words) - 1}" if len(words) > 1 else "")
 
+    def _show(self, tag_name: str, value: Any) -> None:
+        """Vis PLC'ens tilbagelæste værdi med det samme (v4.4.2): uden SSE ville den først nå skærmen ved næste
+        polling-runde (op til et par sekunder). Det er PLC'ens egen værdi — ikke den ønskede — så intet bliver vist forkert."""
+        if value is not None:
+            self.manager.cache.update({tag_name: LiveValue(value=value, quality="good", ts=time.time())})
+
     async def _readback(self, runtime: Any, source: TagSource, tag: dict[str, Any]) -> Any:
         if source.kind in ("logic", "global"):
             if source.kind == "logic":
@@ -296,6 +303,7 @@ class OperateService:
                             readback = await self._readback(runtime, source, tag)
                 except PlcError as exc:
                     raise _plc_error(exc, "Skrivning fejlede") from exc
+                self._show(tag_name, readback)
             runtime.poke()
         except ServiceError as exc:
             self._log(actor, ip, action, tag_name, detail, error=exc)
@@ -334,6 +342,10 @@ class OperateService:
                 self.stuck.pop(tag_name, None)
             except PlcError as exc:
                 raise _plc_error(exc, f"Skrivning til {tag_name} fejlede") from exc
+            try:   # én tilbagelæsning, så symbolet skifter med det samme (v4.4.2) — fejler den, gør pollingen det
+                self._show(tag_name, await self._readback(runtime, source, tag))
+            except PlcError:
+                pass
         runtime.poke()
         return actual
 
