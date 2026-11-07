@@ -76,6 +76,17 @@ export function cycleNext<T>(stack: T[], current: T | null | undefined): T | nul
   return stack[(i + 1) % stack.length];
 }
 
+/**
+ * Et almindeligt klik på et valgt element, der ligger BAG andre (valgt med Alt+klik): elementerne foran skal "klikkes
+ * igennem", ellers vælger lærredet det forreste, så snart man tager fat (v4.6.1). `stack`: elementerne under musen,
+ * forrest først. → elementerne foran det valgte, eller null (det valgte er forrest, eller ikke under musen).
+ */
+export function blockersAbove<T>(stack: T[], selected: T | null | undefined): T[] | null {
+  if (!selected) return null;
+  const i = stack.indexOf(selected);
+  return i > 0 ? stack.slice(0, i) : null;
+}
+
 /** Tastaturgenvej → handling. Ren funktion (testet), så tasterne er de samme overalt. */
 export function shortcutFor(e: { key: string; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean; altKey: boolean }): string | null {
   const mod = e.ctrlKey || e.metaKey;
@@ -351,6 +362,50 @@ export function createEngine(workarea: HTMLElement, textInput: HTMLInputElement,
     canvas.clearSelection();
     canvas.addToSelection([next], true);
     hooks.onHistory?.();
+  }, { signal: life.signal, capture: true });
+
+  // Tag fat i det valgte, selv om det ligger bag andre (v4.6.1): elementerne foran gøres midlertidigt "klik-igennem",
+  // og klikket sendes igen, så lærredet trækker det valgte. Alt slås tilbage, når musen slippes.
+  workarea.addEventListener('mousedown', (e) => {
+    if (e.altKey || e.shiftKey || e.ctrlKey || e.metaKey || e.button !== 0 || canvas.getMode() !== 'select' || !e.isTrusted) return;
+    const content = canvas.getSvgContent() as SVGSVGElement;
+    const hits = document.elementsFromPoint(e.clientX, e.clientY);
+    if (!hits.length || !content.contains(hits[0])) return;   // et håndtag eller noget uden for tegningen: som før
+    const stack: Element[] = [];
+    for (const hit of hits) {
+      if (!content.contains(hit)) continue;
+      const top = hit.closest('g.layer > *');
+      if (top && !stack.includes(top) && top.id !== 'baggrund') stack.push(top);
+    }
+    const sel = (canvas.getSelectedElements() || []).filter(Boolean);
+    const blockers = blockersAbove(stack, sel.length === 1 ? sel[0] : null);
+    if (!blockers) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const saved = blockers.map((el) => [el, (el as SVGElement).style.pointerEvents] as const);
+    blockers.forEach((el) => { (el as SVGElement).style.pointerEvents = 'none'; });
+    const restore = () => {
+      for (const [el, v] of saved) {
+        const st = (el as SVGElement).style;
+        st.pointerEvents = v;
+        if (!el.getAttribute('style')) el.removeAttribute('style');
+      }
+    };
+    // Et træk flytter det valgte; et klik UDEN bevægelse vælger det forreste som før (så man kan komme tilbage til det)
+    const x0 = e.clientX, y0 = e.clientY;
+    document.addEventListener('mouseup', (up) => setTimeout(() => {
+      restore();
+      if (Math.hypot(up.clientX - x0, up.clientY - y0) < 3) {
+        canvas.clearSelection();
+        canvas.addToSelection([blockers[0]], true);
+        hooks.onHistory?.();
+      }
+    }, 0), { once: true, capture: true });
+    const target = document.elementFromPoint(e.clientX, e.clientY) ?? sel[0];
+    target.dispatchEvent(new MouseEvent('mousedown', {
+      bubbles: true, cancelable: true, view: window, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY,
+      button: 0, buttons: 1,
+    }));
   }, { signal: life.signal, capture: true });
 
   document.addEventListener('keydown', onKey, o);

@@ -2,6 +2,11 @@
 
 ---
 
+## v4.6.1 — 2026-11-07 — Rettelser i Tegn og hjælperen
+
+- Et symbol, du har valgt bag et andet (Alt+klik), kan nu trækkes direkte, uden at det forreste bliver valgt i stedet. Et klik uden at trække vælger det forreste igen.
+- Hjælperen finder det rigtige sted i manualen oftere, også når du skriver med andre ord end manualen (fx "bag" og "foran").
+
 ## v4.6.0 — 2026-11-07 — Tegn: rør følger med, mens du trækker
 
 - Når du trækker et symbol med rør, vises rørene med det samme, som de kommer til at ligge. Du skal ikke længere slippe for at se dem.

@@ -28,6 +28,15 @@ før mod uden igennem gennem ind ud op ned the a an of to is in it what how
 """.split())
 # Endelser der fjernes (længste først), så "alarmerne", "alarmen" og "alarmer" bliver samme ord
 SUFFIXES = ("erne", "ene", "ers", "ens", "ets", "er", "en", "et", "es", "e", "s")
+# Ord i spørgsmål, som manualen siger med et andet ord (v4.6.1: "et symbol bag et andet, som er foran" fandt ikke
+# afsnittet om Alt+klik, fordi manualen skriver "bagved" og "forrest"). Begge retninger, efter stem().
+SYNONYMS = {
+    "bag": ["bagved", "bagerst", "under", "skjult"], "foran": ["forrest", "øverst"], "forrest": ["foran", "øverst"],
+    "bagerst": ["bag", "bagved", "nederst"], "skjul": ["skjult", "bag"], "under": ["bagved", "bag"],
+}
+PREFIX_WEIGHT = 0.5     # ord, der begynder med søgeordet ("bag" → "bagved"), tæller halvt
+HEAD_BOOST = 1.5        # et søgeord i afsnittets overskrift tæller ekstra ("Tags", "Brugere", "Kvittér en alarm")
+SYN_WEIGHT = 0.6
 
 
 def slugify(text: str) -> str:
@@ -47,15 +56,26 @@ def plain(md: str) -> str:
     return re.sub(r"[ \t]+", " ", re.sub(r"\n\s*\n+", "\n", s)).strip()
 
 
-def stem(word: str) -> str:
+def _strip(word: str) -> str:
     for suf in SUFFIXES:
-        if word.endswith(suf) and len(word) - len(suf) >= 4:
+        if word.endswith(suf) and len(word) - len(suf) >= (3 if suf == "s" else 4):   # "tags" → "tag"
             return word[: -len(suf)]
     return word
 
 
+def stem(word: str) -> str:
+    """To gange, så bøjningerne lander samme sted: "brugere" → "bruger" → "brug" = "bruger" → "brug"."""
+    w = _strip(_strip(word))
+    # dobbelt konsonant før endelsen: "sletter" → "slett" → "slet", "opretter" → "opret"
+    if len(w) >= 4 and w[-1] == w[-2] and w[-1] not in "aeiouyæøå":
+        w = w[:-1]
+    return w
+
+
+_ACCENTS = str.maketrans("éèêáàâíìóòôúùü", "eeeaaaiiooouuu")   # "Kvittér" = "kvitter" (ellers deles ordet ved é)
+
 def tokens(text: str) -> list[str]:
-    return [stem(w) for w in _WORD.findall(text.lower()) if w not in STOP and len(w) > 1]
+    return [stem(w) for w in _WORD.findall(text.lower().translate(_ACCENTS)) if w not in STOP and len(w) > 1]
 
 
 @dataclass
@@ -106,6 +126,7 @@ class ManualIndex:
         self._stamp: tuple[tuple[str, int], ...] | None = None
         self.sections: list[Section] = []
         self._tf: list[Counter[str]] = []
+        self._head: list[set[str]] = []
         self._len: list[int] = []
         self._df: Counter[str] = Counter()
         self._avg = 1.0
@@ -127,34 +148,55 @@ class ManualIndex:
                 sections += split_chapter(f.stem, f.read_text(encoding="utf-8"))
             except (OSError, UnicodeDecodeError):
                 log.warning("Manual-fil kunne ikke læses: %s", f.name)
-        tf, lengths, df = [], [], Counter()
+        tf, lengths, df, head = [], [], Counter(), []
         for s in sections:
             # Overskriften tæller dobbelt: den siger hvad afsnittet handler om
             c = Counter(tokens(f"{s.chapter} {s.heading} {s.heading} {s.text}"))
             tf.append(c)
+            head.append(set(tokens(s.heading or s.chapter)))
             lengths.append(sum(c.values()))
             df.update(c.keys())
-        self.sections, self._tf, self._len, self._df = sections, tf, lengths, df
+        self.sections, self._tf, self._len, self._df, self._head = sections, tf, lengths, df, head
         self._avg = (sum(lengths) / len(lengths)) if lengths else 1.0
         self._stamp = stamp
         log.info("Manual indekseret: %d afsnit fra %d filer", len(sections), len(files))
 
+    def expand(self, query: str) -> dict[str, float]:
+        """Søgeordene med vægt: ordet selv (1), synonymer (SYN_WEIGHT) og manualens ord, der begynder med det
+        (PREFIX_WEIGHT; kun for ord, manualen næsten ikke bruger, på mindst 3 bogstaver, og højst 6 bogstaver længere)."""
+        weights: dict[str, float] = {}
+        def put(t: str, w: float) -> None:
+            if w > weights.get(t, 0.0):
+                weights[t] = w
+        for t in tokens(query):
+            put(t, 1.0)
+            for syn in SYNONYMS.get(t, []):
+                put(stem(syn), SYN_WEIGHT)
+        for t, w in list(weights.items()):
+            if len(t) >= 3 and self._df.get(t, 0) <= 2:   # kun sjældne/ukendte ord ("bag") — ikke "alarm" (alarmklokken …)
+                for term in self._df:
+                    if term != t and term.startswith(t) and len(term) <= len(t) + 6:
+                        put(term, w * PREFIX_WEIGHT)
+        return weights
+
     def search(self, query: str, k: int = 2) -> list[tuple[Section, float]]:
         with self._lock:
             self._ensure()
-            q = set(tokens(query))
+            q = self.expand(query)
             if not q or not self.sections:
                 return []
             n = len(self.sections)
             scored = []
             for i, tf in enumerate(self._tf):
                 score = 0.0
-                for t in q:
+                for t, w in q.items():
                     f = tf.get(t)
                     if not f:
                         continue
                     idf = math.log(1 + (n - self._df[t] + 0.5) / (self._df[t] + 0.5))
-                    score += idf * f * (K1 + 1) / (f + K1 * (1 - B + B * self._len[i] / self._avg))
+                    score += w * idf * f * (K1 + 1) / (f + K1 * (1 - B + B * self._len[i] / self._avg))
+                    if t in self._head[i]:
+                        score += w * idf * HEAD_BOOST
                 if score > 0:
                     scored.append((score, i))
             scored.sort(reverse=True)

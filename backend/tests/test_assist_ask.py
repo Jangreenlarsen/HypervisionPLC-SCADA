@@ -241,3 +241,19 @@ def test_explain_alarm_uses_the_alarm_its_tag_and_the_manual(setup):
     # En alarm fra en anden tegning kan ikke slås op
     c.post("/api/assist/ask", json={"question": "Forklar alarmen", "context": {"page": "alarms", "alarm": "tag:Niveau_B:H"}})
     assert "Niveau_B" not in c.prompts[-1][-1]["content"].split("</data>")[0]
+
+
+def test_search_finds_danish_variants_and_headings(tmp_path):
+    """v4.6.1: "et symbol bag et andet, som er foran" fandt ikke afsnittet om Alt+klik (manualen skriver "bagved")."""
+    from app.services.assist_knowledge import stem
+    assert stem("sletter") == stem("slet") and stem("opretter") == stem("opret")
+    assert stem("brugere") == stem("bruger") and tokens("Tags") == tokens("tag")
+    assert tokens("Kvittér") == tokens("kvitter")
+    (tmp_path / "07-tegn.md").write_text(
+        "# Tegn\n\n## Vælg, flyt og markér\n\nSymboler oven i hinanden: hold Alt og klik — så vælges det, der ligger bagved.\n\n"
+        "## Farver\n\nVælg en farve til symbolet. Symbolet får farven. Et symbol kan have mange farver.\n", encoding="utf-8")
+    (tmp_path / "13-system.md").write_text("# System\n\n## Brugere\n\nOpret en ny konto med rolle.\n\n"
+                                            "## Log\n\nSystemet bruger loggen, som brugeren kan læse.\n", encoding="utf-8")
+    idx = ManualIndex(tmp_path)
+    assert idx.search("hvordan vælger jeg et symbol bag et andet som er foran", 1)[0][0].heading == "Vælg, flyt og markér"
+    assert idx.search("hvordan opretter jeg en bruger", 1)[0][0].heading == "Brugere"
