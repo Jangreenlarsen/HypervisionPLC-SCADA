@@ -2,6 +2,10 @@
 
 ---
 
+## v4.4.2 — 2026-11-07 — Hurtigere svar ved betjening
+
+- Når du sætter en værdi eller starter/stopper noget, vises PLC'ens nye værdi straks. Før kunne der gå et par sekunder, især når PLC'ens push-forbindelse ikke kan bruges.
+
 ## v4.4.1 — 2026-11-07 — Hjælper: tydelig besked om diskplads
 
 - Er der ikke plads til at hente og installere en ny model ved siden af den installerede, siger siden det med det samme: fjern den installerede model først, eller udvid disken. Før blev modellen hentet, og installationen fejlede bagefter.

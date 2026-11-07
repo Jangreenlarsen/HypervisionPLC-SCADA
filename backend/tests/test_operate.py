@@ -420,3 +420,18 @@ def test_pulse_off_that_never_succeeds_raises_alarm_until_written(api, mock_plc,
     _wait(lambda: api.post("/api/tags/Motor/write", json={"value": False}).status_code == 200, timeout=40)
     _wait(lambda: not any(a.get("state") == "active_unack" and "hvileværdien" in a.get("message", "")
                           for a in api.get("/api/alarms").json()["active"]))
+
+
+def test_written_value_is_shown_at_once_without_waiting_for_polling(api, mock_plc):
+    """v4.4.2: uden SSE kom en ændring først på skærmen ved næste polling-runde (2–5 s på demo'en). Her er pollingen
+    sat til hvert 30. s, så en ny værdi på skærmen kun kan komme fra skrivningens egen tilbagelæsning."""
+    for rt in api.app.state.manager.runtimes.values():
+        rt.fast_interval = rt.slow_interval = 30.0
+        rt.poke = lambda *a, **k: None
+    time.sleep(0.3)                                                       # den igangværende runde bliver færdig
+    live = lambda n: api.get(f"/api/live?tags={n}").json()["values"][n]["value"]
+    before = live("Motor")
+    assert api.post("/api/tags/Motor/toggle", json={}).status_code == 200
+    assert live("Motor") is (not before)                                  # straks — ingen polling imellem
+    assert api.post("/api/tags/Setpunkt/write", json={"value": 42.5}).status_code == 200
+    assert live("Setpunkt") == pytest.approx(42.5)
