@@ -1028,7 +1028,49 @@ export function createScada(host) {
   }
 
   /** Tegn håndtagene (og under træk: punkterne og det nye forløb). */
+  // ---- fremhævning af en signalvej (v4.2.0): orange streger langs vejens rør og rammer om symbolerne — kun på skærmen,
+  // aldrig i tegningen (eget <svg> over lærredet som rørhåndtagene)
+  const highlight = { lines: [], boxes: [], layer: null };
+  function drawHighlight() {
+    const gridHost = host.gridHost();
+    const content = canvas()?.getSvgContent?.();
+    if (!gridHost || !content || (!highlight.lines.length && !highlight.boxes.length)) {
+      highlight.layer?.remove();
+      highlight.layer = null;
+      return;
+    }
+    let layer = highlight.layer;
+    if (!layer) {
+      layer = document.createElementNS(NS, 'svg');
+      layer.setAttribute('id', 'hvPathHighlight');
+      layer.style.cssText = 'position:absolute; pointer-events:none; z-index:55; overflow:visible;';
+      gridHost.appendChild(layer);
+      highlight.layer = layer;
+    }
+    const hr = gridHost.getBoundingClientRect();
+    const cr = contentRect(content);
+    const vb = (content.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    layer.style.left = `${cr.left - hr.left + gridHost.scrollLeft}px`;
+    layer.style.top = `${cr.top - hr.top + gridHost.scrollTop}px`;
+    layer.setAttribute('width', cr.width);
+    layer.setAttribute('height', cr.height);
+    if (vb.length === 4) layer.setAttribute('viewBox', vb.join(' '));
+    const z = canvas().getZoom() || 1;
+    const w = Math.max(14, 8 / z);
+    const r2 = (v) => Math.round(v * 10) / 10;
+    let out = highlight.lines.map((pts) => `<polyline points="${pts.map((p) => `${r2(p[0])},${r2(p[1])}`).join(' ')}" fill="none" ` +
+      `stroke="#ff8f00" stroke-opacity="0.55" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+    for (const id of highlight.boxes) {
+      const el = content.querySelector(`[id="${CSS.escape(id)}"]`);
+      const bb = el && boxOf(el);
+      if (bb) out += `<rect x="${r2(bb.x - 4)}" y="${r2(bb.y - 4)}" width="${r2(bb.w + 8)}" height="${r2(bb.h + 8)}" rx="6" fill="#ff8f00" ` +
+        `fill-opacity="0.12" stroke="#ff8f00" stroke-width="${Math.max(3, 2 / z)}"/>`;
+    }
+    layer.innerHTML = out;
+  }
+
   function drawHandles() {
+    drawHighlight();
     const gridHost = host.gridHost();
     const content = canvas()?.getSvgContent?.();
     if (!gridHost || !content) return;
@@ -2481,6 +2523,97 @@ export function createScada(host) {
       if (!el) return;
       if (selectedEls().includes(el)) c.removeFromSelection([el]);
       else c.addToSelection([el]);
+    },
+
+    /**
+     * Forbindelserne i tegningen til signalveje (v4.2.0, src/lib/signalPath.ts): for hvert element (symboler, figurer og
+     * rør) dets tilslutningspunkter (`terminals`), dets streger med endepunkter (`lines` — løbelys kan lægges på dem) og
+     * hvilke symboler et rørs ender sidder fast i (`refs`). Alt i tegningens koordinater. Ændrer intet.
+     */
+    connectionGraph() {
+      const content = canvas().getSvgContent();
+      const LINE_TAGS = new Set(['path', 'line', 'polyline', 'rect']);
+      const tp = (m, p) => (m ? toPoint(m, p) : p);
+      /** Første og sidste punkt af en streg-figur (et rektangel: midten af de korte sider) + punkter langs den (`pts`),
+       *  så et rør, der ender midt på et andet (afgrening uden T-stykke), også kan findes. */
+      const SAMPLES = 24;
+      function ends(shape) {
+        const tag = shape.tagName.toLowerCase();
+        const m = toDocMatrix(shape);
+        try {
+          if (tag === 'line') {
+            const n = (a) => Number(shape.getAttribute(a)) || 0;
+            const e = [tp(m, [n('x1'), n('y1')]), tp(m, [n('x2'), n('y2')])];
+            return [e[0], e[1], e];
+          }
+          if (tag === 'rect') {
+            const bb = shape.getBBox();
+            const long = bb.width >= bb.height;
+            const a = long ? [bb.x, bb.y + bb.height / 2] : [bb.x + bb.width / 2, bb.y];
+            const b = long ? [bb.x + bb.width, bb.y + bb.height / 2] : [bb.x + bb.width / 2, bb.y + bb.height];
+            return [tp(m, a), tp(m, b), [tp(m, a), tp(m, b)]];
+          }
+          const len = shape.getTotalLength();
+          if (!(len > 0)) return null;
+          const pts = [];
+          for (let i = 0; i <= SAMPLES; i++) {
+            const q = shape.getPointAtLength((len * i) / SAMPLES);
+            pts.push(tp(m, [q.x, q.y]));
+          }
+          return [pts[0], pts[SAMPLES], pts];
+        } catch {
+          return null;
+        }
+      }
+      const isLine = (s) => LINE_TAGS.has(s.tagName.toLowerCase()) &&
+        (s.tagName.toLowerCase() === 'rect' || ((s.getAttribute('stroke') ?? '') !== '' && s.getAttribute('stroke') !== 'none'));
+      /** Streger i et element: dele med id (som guiden kan animere), ellers hele elementet ("all"). */
+      function linesOf(el) {
+        if (isPipe(el) || LINE_TAGS.has(el.tagName.toLowerCase())) {
+          const e = ends(el);
+          return e ? [{ part: 'all', a: e[0], b: e[1], pts: e[2] }] : [];
+        }
+        const out = [];
+        for (const part of el.querySelectorAll('[id]')) {
+          const shape = isLine(part) ? part : [...part.querySelectorAll('*')].find(isLine);
+          const e = shape && ends(shape);
+          if (e && !out.some((o) => o.part === part.id)) out.push({ part: part.id, a: e[0], b: e[1], pts: e[2] });
+        }
+        if (!out.length) {
+          const shape = [...el.querySelectorAll('*')].find(isLine);
+          const e = shape && ends(shape);
+          if (e) out.push({ part: 'all', a: e[0], b: e[1], pts: e[2] });
+        }
+        return out;
+      }
+      const pipes = [...content.querySelectorAll('[data-hv-pipe]')].filter((el) => el.id && el.getAttribute('display') !== 'none');
+      const nodes = [...pipeTargets(), ...pipes].map((el) => {
+        const pipe = isPipe(el);
+        const lines = linesOf(el);
+        let terminals;
+        if (pipe) {
+          const m = toDocMatrix(el);
+          const pts = pipePoints(el).map((p) => tp(m, p));
+          terminals = pts.length >= 2 ? [pts[0], pts[pts.length - 1]] : [];
+        } else {
+          terminals = portsOf(el).map((q) => q.doc);
+          // symboler uden fundne punkter (fx et rør-symbol uden streg): stregernes ender
+          if (!terminals.length) terminals = lines.flatMap((l) => [l.a, l.b]);
+        }
+        return {
+          id: el.id, name: el.getAttribute('data-hv-name') ?? '', type: el.getAttribute('data-hv-type') ?? '', pipe,
+          terminals, lines,
+          refs: pipe ? ['data-hv-from', 'data-hv-to'].map((a) => parseRef(el.getAttribute(a))?.id ?? null) : [],
+        };
+      });
+      return { nodes };
+    },
+
+    /** Fremhæv en signalvej på skærmen: `lines` = punkter langs rørene, `boxes` = id'er på symboler. Tomt = fjern. */
+    highlightPath(lines = [], boxes = []) {
+      highlight.lines = Array.isArray(lines) ? lines.filter((l) => Array.isArray(l) && l.length >= 2) : [];
+      highlight.boxes = Array.isArray(boxes) ? boxes : [];
+      drawHighlight();
     },
 
     selectByIds(ids) {

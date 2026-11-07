@@ -3,7 +3,7 @@
 
 export interface PanelState { open: string[]; pinned: string[] }
 
-export const PANEL_IDS = ['valgt', 'egenskaber', 'objekter', 'symboler'] as const;
+export const PANEL_IDS = ['valgt', 'egenskaber', 'objekter', 'signalveje', 'symboler'] as const;
 export const DEFAULT_PANELS: PanelState = { open: ['valgt', 'egenskaber', 'symboler'], pinned: ['valgt', 'egenskaber'] };
 const KEY = 'draw.panels';
 

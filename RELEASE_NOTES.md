@@ -2,6 +2,13 @@
 
 ---
 
+## v4.2.0 — 2026-11-07 — Signalvej i Tegn
+
+- Ny sektion **Signalveje** i Tegn: vælg et start- og et slutsymbol, så finder Tegn rørvejen imellem og viser den med orange. Vejen kan gå gennem rør, bøjninger, T-stykker og afgreninger.
+- For hver ventil og pumpe på vejen vælger du, hvornår der går flow (fx *når pumpe P1 kører* og *ventil V2 ≥ 50 %*). Symbolets egne tags foreslås.
+- Gem, og alle rør på vejen får løbelys i den rigtige retning. Rørenes øvrige opsætning bevares.
+- Signalveje kan rettes og slettes samlet og kommer med i backup.
+
 ## v4.1.1 — 2026-11-07 — Hjælper: hurtigere svar
 
 - Hjælperen sender kortere data til modellen og svarer kortere. Det giver hurtigere svar på maskiner med svag CPU.

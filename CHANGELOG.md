@@ -4,6 +4,38 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.2.0 build 0347] — 2026-11-07 — Signalvej i Tegn (LLM-hjælper fase 2a)
+
+- **Ny tabel `signal_paths`** (skema 15, additiv) og `storage/db.py`: `list_signal_paths`, `get_signal_path`, `write_signal_path` (signalvejen og alle berørte symbolopsætninger i ÉN transaktion). Backup eksporterer og gendanner signalveje (`services/backup.py` validerer dem).
+- **Ny `services/signal_paths.py`:**
+  - betingelserne bliver til logikblokke (OG, højst 4 indgange pr. blok, kædet via `@L1`, højst 25 betingelser) på vejens første element med løbelys;
+  - hver del på vejen får et løbelys (kilde = blokken, `reverse` efter vejens retning, `when`);
+  - alt valideres med `validate_config`;
+  - ret/slet fjerner kun vejens egne løbelys og blokke (genkendt på kilde og del), og opsætninger, som vejen selv oprettede, slettes igen, når de er tomme;
+  - konflikter: løbelys, der allerede ligger på et rør, kræver `replace`, og et rør i en anden signalvej afvises.
+- **Ny `api/signal_paths.py`** (tekniker og op): `GET`/`POST /api/drawings/{id}/signal-paths`, `PUT`/`DELETE …/{sid}`, `POST …/info` (symbolernes egne tags som forslag + alle tags med til/fra-type). Audit `signal_path.save`/`delete`.
+- **Frontend:**
+  - `svgedit-host/scada-core.js`:
+    - `connectionGraph()`: tilslutningspunkter, streger med punkter langs dem, og rørenes faste ender;
+    - `highlightPath()`: orange overlay, kun på skærmen.
+  - Ny `lib/signalPath.ts` (ren logik):
+    - naboer ud fra sammenfaldende punkter, faste rør-ender og ender midt på en streg (afgrening uden T-stykke);
+    - korteste vej + op til 3 alternativer, ikke gennem statusfelter/visning;
+    - rolle pr. symbol og løbelysets retning pr. del;
+    - svar → betingelser.
+  - Ny `lib/SignalPathGuide.svelte` som sektionen *Signalveje* i Tegn (`pages/DrawEditor.svelte`, `lib/draw/panels.ts`).
+- **Plan-ændring:** grafen bygges i frontend (geometrien kendes kun i browseren; demo-tegningen bruger rør-symboler og tegnede streger, ikke kun `data-hv-pipe`). Noteret i PLAN.md.
+- **Review (reviewer-agent) rettet:**
+  - scope-tjek på alle signalvej-endpoints (værn; teknikere er i dag aldrig begrænset);
+  - `write_signal_path` tjekker i transaktionen, at opsætningerne ikke er ændret imens (409);
+  - en opsætning, vejen har oprettet, slettes kun, når den er helt som standarden;
+  - kun vejens egne blokke fjernes (id + navnet "Signalvej: …");
+  - backup-data for signalveje valideres;
+  - ejerens opsætning kan ikke slettes uden om signalvejen (`SymbolService.delete`/`delete_many`);
+  - `info` viser kun tags, brugeren må se.
+- **Tests:** `backend/tests/test_signal_paths.py` (12), `frontend/src/lib/signalPath.test.ts` (12). Afprøvet i browseren på demo-varmeanlægget.
+- **Manual:** *Forbindelser › Signalveje*.
+
 ## [4.1.1 build 0346] — 2026-11-07 — Hjælper: kortere prompt og korrekt tokens/s
 
 - `services/assist_tools.py`: data i prompten højst 2000 tegn (før 3200), manualuddrag 500 tegn (før 700). Målt på demo-VM'en tog prompten 80–120 s at læse.

@@ -34,6 +34,7 @@ from .schedules import validate_schedule
 from .symbol_ports import MAX_TYPES, clean_ports, clean_type
 from . import library as lib
 from .trend_views import clean_view
+from .signal_paths import valid_data as valid_path_data
 from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
 from .symbols import SymbolConfig, config_tags
 from .errors import ServiceError
@@ -152,6 +153,7 @@ class BackupService:
             "symbol_meta": data["symbol_meta"],
             "symbol_config": data["symbol_config"],
             "symbol_groups": data["symbol_groups"],
+            "signal_paths": data["signal_paths"],
             "trend_views": data["trend_views"],
             "symbol_ports": data["symbol_ports"],
             "library_symbols": data["library_symbols"],
@@ -478,6 +480,30 @@ class BackupService:
             symbol_groups.append({"drawing_id": g["drawing_id"], "name": g["name"], "kind": g["kind"],
                                   "members": members, "anims": anims})
 
+        signal_paths = []
+        raw_paths = backup.get("signal_paths", [])   # signalveje (v4.2.0); ældre backups har ingen
+        if not isinstance(raw_paths, list):
+            err("signal_paths skal være en liste")
+            raw_paths = []
+        seen_paths: set[tuple[str, str]] = set()
+        for sp in raw_paths:
+            if not isinstance(sp, dict) or not isinstance(sp.get("name"), str) or not sp["name"].strip() \
+                    or not isinstance(sp.get("data"), dict):
+                err("Signalvej: navn og data mangler")
+                continue
+            if problem := valid_path_data(sp["data"]):
+                err(f"Signalvej '{sp['name']}': {problem}")
+                continue
+            if sp.get("drawing_id") not in drawing_ids:
+                err(f"Signalvej '{sp['name']}': tegningen '{sp.get('drawing_id')}' findes ikke i backuppen")
+                continue
+            key = (sp["drawing_id"], sp["name"].strip()[:60])
+            if key in seen_paths:
+                err(f"Signalvej '{key[1]}' findes to gange i tegningen '{key[0]}'")
+                continue
+            seen_paths.add(key)
+            signal_paths.append({"drawing_id": key[0], "name": key[1], "data": sp["data"]})
+
         trend_views = []
         raw_views = backup.get("trend_views", [])   # ældre backups har ingen gemte trend-visninger
         if not isinstance(raw_views, list):
@@ -574,7 +600,7 @@ class BackupService:
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
                 "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
                 "schedules": schedules, "symbol_meta": symbol_meta, "symbol_config": symbol_config,
-                "symbol_groups": symbol_groups, "trend_views": trend_views,
+                "symbol_groups": symbol_groups, "signal_paths": signal_paths, "trend_views": trend_views,
                 "symbol_ports": symbol_ports, **library}
 
     # ---------------------------------------------------------------- restore

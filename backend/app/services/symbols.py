@@ -1280,8 +1280,17 @@ class SymbolService:
                 out.append({"element": other, "symbol": info.get("name") or other, "id": b["id"], "name": b.get("name") or ""})
         return out
 
+    def _path_owner(self, drawing_id: str, elements: set[str]) -> None:
+        """En signalvejs betingelse ligger på dens første rør (ejeren, v4.2.0) — den opsætning kan ikke fjernes alene."""
+        for r in self.db.list_signal_paths(drawing_id):
+            owner = r["data"].get("owner")
+            if owner in elements:
+                raise ServiceError(409, f"'{owner}' bærer betingelsen for signalvejen '{r['name']}' — slet eller ret "
+                                        "signalvejen under Tegn › Signalveje først")
+
     def delete(self, drawing_id: str, element: str) -> None:
         self.drawings._require(drawing_id)
+        self._path_owner(drawing_id, {element})
         old = self.db.get_symbol_config(drawing_id, element)
         if old is not None:
             users = self._logic_users(drawing_id, element, {b["id"] for b in old["config"].get("logic", [])})
@@ -1300,6 +1309,7 @@ class SymbolService:
         targets = list(dict.fromkeys(e for e in elements if e))
         have = {e: self.db.get_symbol_config(drawing_id, e) for e in targets}
         doomed = {e for e, row in have.items() if row is not None}
+        self._path_owner(drawing_id, doomed)
         for e in sorted(doomed):
             blocks = {b["id"] for b in have[e]["config"].get("logic", [])}
             if remaining := [u for u in self._logic_users(drawing_id, e, blocks) if u[0] not in doomed]:

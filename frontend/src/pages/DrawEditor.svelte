@@ -19,6 +19,8 @@
   // @ts-expect-error — ren JS uden typer
   import { symbolType } from '../../svgedit-host/symbolPorts.js';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
+  import SignalPathGuide from '../lib/SignalPathGuide.svelte';
+  import type { Graph } from '../lib/signalPath';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
   import SymbolExport from '../lib/SymbolExport.svelte';
@@ -47,6 +49,8 @@
     onChange(fn: () => void): void;
     setSelectedId(id: string): string;
     selectByIds(ids: string[]): number;
+    connectionGraph(): Graph;
+    highlightPath(lines: [number, number][][], boxes: string[]): void;
     setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
     uniqueName(base: string): string;
     insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
@@ -1038,6 +1042,17 @@
     </PanelSection>
     <PanelSection id="objekter" title="Objekter" badge={objBadge} {...sec('objekter')}>
       <ObjectTree api={ready ? (ed as unknown as TreeApi) : null} rev={inspectRev} onchange={() => inspectRev++} />
+    </PanelSection>
+    <PanelSection id="signalveje" title="Signalveje" {...sec('signalveje')}>
+      {#if current}
+        <SignalPathGuide drawingId={current.id} {ready} selected={selection.map((x) => x.id)}
+          graph={() => (ed ? ed.connectionGraph() : null)}
+          highlight={(lines, boxes) => ed?.highlightPath(lines, boxes)}
+          ensureSaved={() => ensurePublished('signalvejen kan findes')}
+          onchanged={(text) => { info = text; refreshReservedIds(); }} />
+      {:else}
+        <p class="small muted">Gem tegningen først — en signalvej hører til en gemt tegning.</p>
+      {/if}
     </PanelSection>
     <PanelSection id="symboler" title="Symboler" grow {...sec('symboler')}>
       <div class="sym-head">

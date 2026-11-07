@@ -1,4 +1,4 @@
-# Plan: Signalvej i Tegn (LLM-hjælper fase 2) — 2026-11-07 — afventer OK
+# Plan: Signalvej i Tegn (LLM-hjælper fase 2) — 2026-11-07 — godkendt (Jan) — fase 2a ✅ v4.2.0
 
 Mål: brugeren vælger **start** og **slut** i en tegning. Systemet finder rørvejen imellem og spørger om hvert symbol undervejs (ventil, pumpe, kontraventil …): *hvornår går der flow igennem?* Svarene samles til én betingelse, og alle rør på vejen får løbelys, der kører, når betingelsen er opfyldt. Brugeren skal ikke sætte hvert rør op for sig. Til sidst kan man **forklare med egne ord**, og hjælperen (LLM) udfylder svarene som forslag.
 
@@ -18,6 +18,11 @@ Mål: brugeren vælger **start** og **slut** i en tegning. Systemet finder rørv
 
 ## Trin
 **Fase 2a, v4.2.0: signalvej uden LLM**
+
+> **Ændring under implementeringen:**
+> - Grafen bygges i frontend (`scada-core.js connectionGraph` + `lib/signalPath.ts`), ikke i `services/signal_path.py`. Tilslutningspunkterne findes automatisk ud fra symbolernes geometri, og den kendes kun i browseren. Demo-tegningen bruger desuden rør-symboler og håndtegnede streger, ikke kun `data-hv-pipe`. Grafen skal derfor også kende sammenfaldende punkter og afgreninger midt på en streg.
+> - Backend validerer alt (elementer, dele, tags) og gemmer.
+> - Betingelserne er tags (til/fra eller sammenligning), fordi logikblokke ikke kan bruge pseudo-tags. Symbolets egne tags foreslås.
 1. `services/signal_path.py` (deterministisk, testes grundigt):
    - graf fra tegningens aktive version: symboler = knuder, rør = kanter (begge ender fast);
    - korteste veje mellem start og slut: op til 3 alternativer og højst 40 led;
