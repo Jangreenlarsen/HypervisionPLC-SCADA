@@ -1,3 +1,85 @@
+# Plan: Signalvej i Tegn (LLM-hjælper fase 2) — 2026-11-07 — afventer OK
+
+Mål: brugeren vælger **start** og **slut** i en tegning. Systemet finder rørvejen imellem og spørger om hvert symbol undervejs (ventil, pumpe, kontraventil …): *hvornår går der flow igennem?* Svarene samles til én betingelse, og alle rør på vejen får løbelys, der kører, når betingelsen er opfyldt. Brugeren skal ikke sætte hvert rør op for sig. Til sidst kan man **forklare med egne ord**, og hjælperen (LLM) udfylder svarene som forslag.
+
+## Hvad findes allerede (grundlaget)
+- Rør er `<path data-hv-pipe>` med enderne i `data-hv-from`/`data-hv-to` = `"<symbol-id>@fx,fy[,side]"` (svgedit-host/pipes.js). Et T-stykke er et symbol (`t_stykke`) med tre rør. Grafen kan altså bygges ud fra tegningen, deterministisk og uden LLM.
+- Løbelys (`flow`) og logikblokke (AND/OR, op til 4 indgange, op til 8 blokke pr. element, kæder via `@L1`) findes i symbolopsætningen. Et løbelys kan have en logikblok som kilde (`@<element>:<blok>`), også fra et andet element.
+- Symbolernes egne tilstande findes som pseudo-tags (position, tilstand), så en ventils *åben* kan bruges direkte, hvis ventilen er sat op.
+
+## Valg: hvor gemmes signalvejen? (3 alternativer)
+| | Alternativ | + | − |
+|---|---|---|---|
+| A | Kun som opsætning på rørene (logikblok på første rør, løbelys på alle) | ingen ny tabel | kan ikke vises/rettes som én signalvej; start/slut og svar går tabt |
+| **B** | **Ny tabel `signal_paths`** (navn, tegning, start, slut, vej, svar) **+ opsætningen på rørene genereres ud fra den** | kan listes, rettes, slettes samlet; svar kan genåbnes; additiv tabel (MINOR) | to steder at holde i takt (løses: rørenes genererede dele mærkes `sp:<id>` og genskabes ved hver gem) |
+| C | Egen runtime-motor for signalveje (uden rør-opsætning) | uafhængig | dobbelt logik ved siden af symbol-runtime; **fravalgt** |
+
+**Valg: B.**
+
+## Trin
+**Fase 2a, v4.2.0: signalvej uden LLM**
+1. `services/signal_path.py` (deterministisk, testes grundigt):
+   - graf fra tegningens aktive version: symboler = knuder, rør = kanter (begge ender fast);
+   - korteste veje mellem start og slut: op til 3 alternativer og højst 40 led;
+   - rollen for hvert symbol på vejen ud fra type:
+     - **ventil** (kugleventil, magnetventil, motorventil, regventil): *åben?*;
+     - **3-vejs** (trevejs_motorventil): *hvilken stilling leder fra indgang til udgang?*;
+     - **pumpe/motor**: *kører?*;
+     - **kontraventil**: retning, intet spørgsmål;
+     - **T-stykke/bøjning/reduktion/flange**: passiv, intet spørgsmål;
+     - **ukendt**: valgfrit spørgsmål;
+   - rørets tegneretning mod vejens retning giver `reverse` pr. rør.
+2. Tabel `signal_paths` (additiv) + `services/signal_paths.py` (CRUD). Ved gem:
+   - **betingelsen:** svarene bliver til logikblokke på startrøret (op til 4 indgange pr. blok; flere kædes) med navnet *Signalvej: <navn>*;
+   - **rørene:** hvert rør på vejen får et løbelys (kilde = blokken, retning efter vejen), mærket `sp:<id>`. Rørets øvrige opsætning bevares;
+   - **validering og samtidighed:** alt valideres med den eksisterende `validate_config` og gemmes i én transaktion;
+   - **ret og slet:** ved rettelse fjernes og genskabes de mærkede dele; ved sletning fjernes de.
+3. API (`api/signal_paths.py`, tekniker og op, audit):
+   - `POST /api/drawings/{id}/signal-paths/find` {start, slut} → veje + spørgsmål;
+   - `GET`/`POST`/`PUT`/`DELETE` på `/signal-paths`.
+4. Tegn: knappen **Signalvej …** og `lib/SignalPathGuide.svelte`:
+   - (1) klik start- og slutsymbol;
+   - (2) vejen fremhæves, og man kan vælge mellem alternativer;
+   - (3) ét spørgsmål pr. symbol: tag/stilling/"altid", med svar foreslået ud fra symbolets egen opsætning;
+   - (4) navn, farve og fart på løbelyset, forhåndsvisning, *Gem*;
+   - listen over signalveje med *Ret* og *Slet*.
+
+   Som *Ret tilslutningspunkter* kræver guiden, at tegningen er gemt (ingen kladde-ændringer). Ellers spørges der først.
+5. Manual (*Tegn › Signalvej*, + skærmbilleder), tests, review (opsætning af mange elementer samlet = data-integritet), OTA.
+
+**Fase 2b, v4.3.0: "Forklar med egne ord"**
+
+6. I trin 3: et tekstfelt, fx *"vand fra kedlen til radiatorerne, når pumpe P1 kører og ventil V2 er åben"*.
+7. Backend sender kun vejen (symbolernes navne og typer i rækkefølge) og kandidat-tags (navn, beskrivelse, enhed) til LLM'en og beder om et fast JSON-skema: `{element, kilde: tag|stilling|altid, tag?, cmp?, værdi?, stilling?}` pr. symbol.
+8. Svaret valideres:
+   - **symbol:** skal være på vejen;
+   - **tag:** skal findes og være synligt;
+   - **værdier:** stillinger og sammenligninger skal være gyldige.
+
+   Ugyldige forslag kasseres og vises som *"ikke udfyldt"*. Forslagene udfyldes i guiden og markeres *forslag fra hjælperen*; **intet gemmes, før brugeren trykker Gem**. Svartiden er 1–3 min (kø, Stop). Uden LLM er knappen der ikke.
+
+## Sikkerhed / integritet
+- Kun tekniker og op. Alt skrives gennem den eksisterende validering af opsætninger. Én transaktion pr. gem, og audit på `signal_path.save`/`delete`.
+- Kun læsning af tegningen. SVG'en ændres ikke; kun symbolopsætninger og den nye tabel.
+- En kopi/backup før en signalvej overskriver eksisterende løbelys på et rør: guiden viser *"rør X har allerede løbelys — erstattes"*, og man skal bekræfte.
+- LLM-delen: samme regler som fase 1 (data markeret som data, ingen adresser, kun forslag, rate-grænse).
+
+## Risici
+- **Rodede tegninger** (løse rørender, rør der rører hinanden uden T-stykke): de giver ingen kant i grafen. Guiden viser *"vejen stopper ved <rør> (løs ende)"* og peger på det.
+- **Tegningen ændres efter en signalvej er gemt** (rør slettes eller tegnes om): ved åbning valideres vejen. Manglende rør markeres, og man kan *Find vejen igen*.
+- **Grænser i logikken** (4 indgange, 8 blokke): højst 28 betingelser pr. signalvej. Det er rigeligt; guiden afviser flere.
+- **Små modeller misforstår dansk fritekst:** kun forslag, valideres, brugeren godkender.
+
+## Berørte filer (ca.)
+- **Nye:**
+  - backend: `services/signal_path.py`, `services/signal_paths.py`, `api/signal_paths.py`, `tests/test_signal_path*.py`;
+  - frontend: `lib/SignalPathGuide.svelte`, `lib/signalPath.ts` + test.
+- **Ændres:**
+  - `storage/db.py` (tabel), `main.py`, `services/symbols.py` (fjern/genskab mærkede dele), `services/assistant.py` (2b);
+  - `pages/DrawEditor.svelte`, manual 08/10, dokumentation.
+
+---
+
 # Plan: LLM-hjælper integreret i SCADA'en — 2026-11-06 — godkendt (Jan: lokal, én samlet pakke, til/fra) — fase 0 ✅ v4.0.0 — fase 1 ✅ v4.1.0
 
 Baggrund og modelvalg: [docs/LLM_ANALYSE.md](docs/LLM_ANALYSE.md). Ønske fra Jan: en lokal LLM som **hjælper** i SCADA'en, der kører på VM'en (16 GB / 4 vCPU, kun CPU). Hardwaren angives ved installationen og åbner for LLM-funktionerne.
