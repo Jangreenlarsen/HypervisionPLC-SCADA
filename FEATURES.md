@@ -5,6 +5,9 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v4.11.0 — **SCADA'en bruger samme Let's Encrypt-certifikat som proxyen** (ønske fra Jan 2026-11-08: "så klienter i 10.1.0.0/16 også kan stole på TLS").
+  - Proxyens certbot sender certifikatet videre efter hver fornyelse (`deploy/proxy-cert-push.sh`) over SSH med en nøgle, der kun kan aflevere certifikater (forced command).
+  - SCADA'en kontrollerer det og installerer det (`deploy/cert-receive.sh` → `cert-deploy.sh`).
 - [x] done v4.10.0 — **Hjælperen fase 3 + Raspberry Pi** (ønske fra Jan 2026-11-07).
   - **Tags › Foreslå tags fra PLC:** *✦ Beskriv med hjælperen* foreslår dansk beskrivelse og enhed ud fra variablernes navne.
   - **Symbolguidens trin 2:** *Foreslå tags* — kommando (kun skrivbare tags) og tilbagemelding.

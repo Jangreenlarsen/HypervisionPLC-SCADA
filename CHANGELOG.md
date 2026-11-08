@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.11.0 build 0362] — 2026-11-08 — Samme Let's Encrypt-certifikat på SCADA'en som på proxyen
+
+- `deploy/cert-receive.sh` (ny, root, sshd forced command): tager imod en tar med fullchain.pem + privkey.pem på stdin.
+  - Kontrol: kun de to navne, almindelige filer, PEM ≤ 64 KB, gælder SCADA'ens navn (`-checkhost`), ikke udløbet; et uændret certifikat springes over.
+  - Filerne lægges i `/etc/letsencrypt/live/hypervision-scada` og installeres med `cert-deploy.sh` (parkontrol, `nginx -t`, gendannelse).
+  - Log i `<state>/cert-receive.log`.
+- `deploy/proxy-cert-push.sh` (ny): certbot deploy-hook på proxyen, der sender certifikatet med en dedikeret ed25519-nøgle (`BatchMode`, `StrictHostKeyChecking`).
+- `install.sh` installerer `cert-receive.sh`. `docs/TLS_LETSENCRYPT.md` har et nyt afsnit.
+- Test: `test_cert_receive.py` (rigtig openssl og rigtig cert-deploy.sh).
+
 ## [4.10.1 build 0361] — 2026-11-07 — fix: Opsummér døgnet blev afbrudt på demoen
 
 - `assist_tools.gather`: ved `summary` sendes kun alarmtallene (ingen manualuddrag); `MAX_SUMMARY` 12 → 10.
