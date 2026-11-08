@@ -2,6 +2,10 @@
 
 ---
 
+## v4.12.0 — 2026-11-08 — Hurtigere for begrænsede brugere
+
+- Brugere, der kun må se nogle tegninger, får hurtigere svar på store tegninger med mange symboler: SCADA'en regner ikke længere hele tegningen forfra ved hvert kald, kun når noget er ændret.
+
 ## v4.11.0 — 2026-11-08 — Rigtigt certifikat på SCADA'en bag en proxy
 
 - Står SCADA'en bag en reverse proxy med et Let's Encrypt-certifikat, kan proxyen nu give SCADA'en det samme certifikat efter hver fornyelse. Så stoler browsere også på forbindelsen, når de går direkte til SCADA'en. Se `docs/TLS_LETSENCRYPT.md`.

@@ -17,10 +17,14 @@ from .bindings import WRITE_CLICKS, binding_tags
 from .drawings import DrawingService
 
 
+CACHE_MAX = 256    # se drawings.CACHE_MAX
+
+
 class ScopeService:
     def __init__(self, drawings: DrawingService, symbols: Any = None):
         self.drawings = drawings
         self.db = drawings.db
+        self._visible: dict[tuple[str, ...], tuple[tuple[Any, ...], frozenset[str]]] = {}   # gemte synlige tags (v4.12.0)
         self.symbols = symbols  # SymbolService: symbol-konfigurationernes tags og pseudo-tags hører til tegningen
 
     def drawing_ids(self, user: CurrentUser) -> set[str] | None:
@@ -35,13 +39,24 @@ class ScopeService:
         return [d["id"] for d in self.db.list_drawings() if allowed is None or d["id"] in allowed]
 
     def visible_tags(self, user: CurrentUser) -> set[str] | None:
+        """Tags en begrænset bruger må se. Gemmes pr. sæt tegninger, til konfigurationen eller en tegning ændres (v4.12.0):
+        hvert REST-kald og hver live-forbindelse (hvert 10. sekund) spørger, og beregningen læser alle brugerens tegninger."""
         if user.drawings is None:
             return None
+        ids = self._ids(user)
+        key = tuple(ids)
+        stamp = tuple(self.drawings.stamp(did) for did in ids)    # taget FØR beregningen (se effective_bindings)
+        hit = self._visible.get(key)
+        if hit is not None and hit[0] == stamp:
+            return set(hit[1])
         tags: set[str] = set()
-        for did in self._ids(user):
+        for did in ids:
             tags.update(t for b in self.drawings.effective_bindings(did) for t in binding_tags(b))
             if self.symbols is not None:
                 tags.update(self.symbols.tags_for_drawing(did))
+        if len(self._visible) >= CACHE_MAX:
+            self._visible.clear()
+        self._visible[key] = (stamp, frozenset(tags))
         return tags
 
     # Hvilke klik-handlinger der giver ret til hvilken betjening (operatører)

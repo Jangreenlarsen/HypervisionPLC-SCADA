@@ -31,6 +31,14 @@ class DrawingFiles:
         path = self._dir(drawing_id) / f"v{version}.svg"
         return path.read_text(encoding="utf-8") if path.exists() else None
 
+    def stamp(self, drawing_id: str, version: int) -> tuple[int, int]:
+        """(ændringstid, størrelse) for en versions fil — (0, 0) hvis den mangler. Til gemte beregninger (v4.12.0)."""
+        try:
+            st = (self._dir(drawing_id) / f"v{version}.svg").stat()
+        except OSError:
+            return (0, 0)
+        return (st.st_mtime_ns, st.st_size)
+
     def delete(self, drawing_id: str) -> None:
         shutil.rmtree(self._dir(drawing_id), ignore_errors=True)
 

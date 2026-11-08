@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sqlite3
 import threading
 import time
@@ -272,12 +273,24 @@ _BOOL_FIELDS = {"enabled", "sse_enabled", "verify_tls", "writable", "confirm_wri
 USER_FIELDS = ("password_hash", "role", "disabled", "must_change_password", "scoped")
 
 
+# Tabeller, hvis indhold bestemmer, hvilke bindinger/tags en tegning har (v4.12.0: gemte beregninger er gyldige, så længe
+# ingen af dem er skrevet til — se Database.config_gen)
+CONFIG_TABLES = frozenset({"tags", "drawings", "drawing_versions", "bindings", "symbol_meta", "symbol_config", "symbol_groups",
+                           "symbol_group_members", "symbol_group_anims", "library_symbols"})
+_WRITE = re.compile(r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`\[]?(\w+)',
+                    re.I)
+
+
 class Database:
     def __init__(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(path), check_same_thread=False, isolation_level=None)
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.Lock()
+        # Tæller skrivninger til konfigurationen. Hver SQL-sætning ses (også dem i egne transaktioner og kaskader), så
+        # en ny skrivevej aldrig kan glemme at ugyldiggøre en gemt beregning. Sessioner, audit og alarmer tæller ikke med.
+        self.config_gen = 0
+        self._conn.set_trace_callback(self._trace)
         with self._lock:
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA foreign_keys=ON")
@@ -286,6 +299,11 @@ class Database:
             self._conn.execute(
                 "INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', ?)", (str(SCHEMA_VERSION),)
             )
+
+    def _trace(self, sql: str) -> None:
+        m = _WRITE.match(sql)
+        if m and m.group(1).lower() in CONFIG_TABLES:
+            self.config_gen += 1
 
     def _migrate(self) -> None:
         """Tilføj kolonner til eksisterende databaser (CREATE TABLE IF NOT EXISTS ændrer ikke gamle tabeller)."""

@@ -31,11 +31,16 @@ def _report(result: Any) -> dict[str, Any]:
     }
 
 
+CACHE_MAX = 256    # gemte beregninger (tegninger / kombinationer af tegninger) — ved flere tømmes de og bygges op igen
+
+
 class DrawingService:
     def __init__(self, db: Database, files: DrawingFiles, cache: LiveCache):
         self.db = db
         self.files = files
         self.cache = cache
+        self._eff: dict[str, tuple[tuple[Any, ...], list[dict[str, Any]]]] = {}   # gemte effektive bindinger pr. tegning
+        self.cache_stats = {"hits": 0, "misses": 0}
 
     # ------------------------------------------------------------- tegninger
 
@@ -287,9 +292,28 @@ class DrawingService:
 
     # ----------------------------------------------------------------- visning
 
+    def stamp(self, drawing_id: str) -> tuple[Any, ...]:
+        """Hvad den aktive tegnings beregnede bindinger afhænger af: konfigurationens skrivetæller og SVG-filens stempel.
+        Er stemplet uændret, er en gemt beregning stadig rigtig (v4.12.0)."""
+        d = self.db.get_drawing(drawing_id)
+        return (self.db.config_gen, self.files.stamp(drawing_id, d["active_version"]) if d else None)
+
     def effective_bindings(self, drawing_id: str) -> list[dict[str, Any]]:
-        """Eksplicitte + automatiske bindinger for den aktive version (uden forældreløse)."""
-        return self._compute(drawing_id)[2]
+        """Eksplicitte + automatiske bindinger for den aktive version (uden forældreløse). Gemmes, til konfigurationen eller
+        tegningen ændres: en begrænset bruger udløser den ved hvert kald, hvert 10. sekund pr. live-forbindelse (v4.12.0).
+        Svaret må kun læses (dets ordbøger deles)."""
+        stamp = self.stamp(drawing_id)
+        hit = self._eff.get(drawing_id)
+        if hit is not None and hit[0] == stamp:
+            self.cache_stats["hits"] += 1
+            return list(hit[1])
+        self.cache_stats["misses"] += 1
+        # Stemplet er taget FØR beregningen: skrives der imens, er det gamle stempel i cachen, og næste kald beregner forfra
+        result = self._compute(drawing_id)[2]
+        if len(self._eff) >= CACHE_MAX:     # slettede tegninger efterlader poster: hold størrelsen nede
+            self._eff.clear()
+        self._eff[drawing_id] = (stamp, result)
+        return list(result)
 
     def view(self, drawing_id: str, visible_drawings: set[str] | None = None) -> dict[str, Any]:
         """Alt Overview behøver: SVG, effektive bindinger (eksplicitte + auto) og tag-metadata.

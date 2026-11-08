@@ -144,6 +144,11 @@ def render(d: dict[str, Any], auth_failures: int = 0) -> str:
              [({"target": t}, v) for t, v in (bk.get("last_success") or {}).items()])
     x.metric("scada_backup_target_failing", "gauge", "Backup-destinationen er fejlet flere gange i træk (1)",
              [({"target": t}, v) for t, v in (bk.get("failing") or {}).items()])
+    bc = d.get("bindings_cache") or {}
+    if bc:
+        x.counter("scada_bindings_cache_hits_total", "Tegningernes effektive bindinger hentet fra den gemte beregning", bc.get("hits"))
+        x.counter("scada_bindings_cache_misses_total", "Tegningernes effektive bindinger beregnet forfra (tegning eller opsætning ændret)",
+                  bc.get("misses"))
     asst = d.get("assist") or {}
     if asst:
         x.counter("scada_assist_asks_total", "Spørgsmål til LLM-hjælperen (hjælper-panelet) siden start", asst.get("asks"))
