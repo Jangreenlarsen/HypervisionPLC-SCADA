@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.12.0 build 0363] — 2026-11-08 — Gemt beregning af bindinger og synlige tags (hurtigere for begrænsede brugere)
+
+- `storage/db.py`: `Database.config_gen` stiger, når en SQL-sætning skriver til en konfigurationstabel (`CONFIG_TABLES`). Det sker via en sqlite-trace-funktion, så ingen skrivevej kan glemme det, heller ikke kaskader og egne transaktioner.
+- `storage/files.py`: `DrawingFiles.stamp` (ændringstid og størrelse).
+- `services/drawings.py`: `stamp()` (`config_gen` og SVG-stempel) og gemt `effective_bindings` (en kopi af listen returneres; stemplet tages før beregningen).
+- `services/scope.py`: gemt `visible_tags` pr. sæt af tegninger.
+- Måling: 11 ms beregnet og 0,21 ms gemt (tegningen "varme"). `/metrics`: `scada_bindings_cache_hits_total` og `scada_bindings_cache_misses_total`.
+- Tests: `test_bindings_cache.py`. De eksisterende scope-, tegnings-, symbol- og backup-tests er uændrede og bestået.
+
 ## [4.11.0 build 0362] — 2026-11-08 — Samme Let's Encrypt-certifikat på SCADA'en som på proxyen
 
 - `deploy/cert-receive.sh` (ny, root, sshd forced command): tager imod en tar med fullchain.pem + privkey.pem på stdin.
