@@ -7,6 +7,8 @@
   import { usageText, type TagUsage } from '../lib/tagUsage';
   import { pickInList } from '../lib/multiPick';
   import { LiveClient } from '../lib/live';
+  import { postStream } from '../lib/assist';
+  import { assist } from '../lib/assistStore.svelte';
 
   let { canEdit = false }: { canEdit?: boolean } = $props();
 
@@ -26,7 +28,8 @@
     alarm_delay_s: string; alarm_on: '' | 'true' | 'false'; trend: boolean; trend_interval_s: string;
     energy: '' | 'counter' | 'power'; energy_factor: string; priority: 'normal' | 'high';
   }
-  interface Suggestion { name: string; source: string; datatype: string; description: string; exists: boolean; pick?: boolean }
+  interface Suggestion { name: string; source: string; datatype: string; description: string; exists: boolean; pick?: boolean;
+    unit?: string; ai?: boolean }
 
   let tags = $state<Tag[]>([]);
   let plcKeys = $state<string[]>([]);
@@ -194,11 +197,49 @@
     }
   }
 
+  // Hjælperen (fase 3, v4.10.0): dansk beskrivelse og enhed som forslag ud fra variablernes navne — rettes og importeres som
+  // normalt. Gælder de valgte (eller, hvis ingen er valgt, de første 30 nye).
+  let describing = $state(false);
+  let describeNote = $state('');
+  let describeCtl: AbortController | null = null;
+  type DescribeEvent = { type: 'queued'; waiting: number; warming?: boolean } | { type: 'error'; message: string }
+    | { type: 'done'; suggestions: { name: string; description: string; unit: string }[]; asked: number; ms: number };
+  async function describeWithAssist(): Promise<void> {
+    const fresh = suggestions.filter((s) => !s.exists);
+    const chosen = (fresh.some((s) => s.pick) ? fresh.filter((s) => s.pick) : fresh).slice(0, 30);
+    if (!chosen.length) return;
+    describing = true;
+    describeNote = `Hjælperen beskriver ${chosen.length} variabler — det kan tage et par minutter …`;
+    describeCtl = new AbortController();
+    try {
+      await postStream<DescribeEvent>('/api/assist/describe-tags', {
+        items: chosen.map((s) => ({ name: s.name, datatype: s.datatype, origin: s.description })),
+      }, (ev) => {
+        if (ev.type === 'queued') describeNote = ev.warming ? 'Hjælperen starter op — venter …' : `I kø — ${ev.waiting} foran …`;
+        else if (ev.type === 'error') error = ev.message;
+        else if (ev.type === 'done') {
+          const got = new Map(ev.suggestions.map((x) => [x.name, x]));
+          for (const s of suggestions) {
+            const g = got.get(s.name);
+            if (g) { s.description = g.description; s.unit = g.unit; s.ai = true; }
+          }
+          describeNote = `${got.size} af ${ev.asked} beskrevet på ${Math.round(ev.ms / 1000)} s — tjek og ret forslagene (mærket ✦), før du importerer.`;
+        }
+      }, describeCtl.signal);
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') error = (e as Error).message;
+      else describeNote = 'Stoppet.';
+    } finally {
+      describing = false;
+      describeCtl = null;
+    }
+  }
+
   async function importPicked(): Promise<void> {
     const picked = suggestions.filter((s) => s.pick && !s.exists);
     try {
       const res = await post<{ created: string[]; skipped: { name: string; reason: string }[] }>('/api/tags/import', {
-        tags: picked.map((s) => ({ name: s.name, source: s.source, description: s.description })),
+        tags: picked.map((s) => ({ name: s.name, source: s.source, description: s.description, ...(s.unit ? { unit: s.unit } : {}) })),
       });
       importResult = `Oprettet: ${res.created.length}` +
         (res.skipped.length ? ` · Sprunget over: ${res.skipped.map((s) => `${s.name} (${s.reason})`).join(', ')}` : '');
@@ -244,12 +285,17 @@
     <select bind:value={discoverPlc}>{#each plcKeys as k}<option value={k}>{k}</option>{/each}</select>
     <button onclick={discover} disabled={!discoverPlc}>Hent ST-variabler</button>
     {#if suggestions.length}<button class="primary" onclick={importPicked}>Importér valgte</button>{/if}
+    {#if suggestions.some((s) => !s.exists) && assist.available}
+      {#if describing}<button onclick={() => describeCtl?.abort()}>Stop</button>
+      {:else}<button onclick={describeWithAssist} title="Hjælperen foreslår en dansk beskrivelse og enhed ud fra navnene (de valgte, ellers de første 30 nye). Intet gemmes, før du importerer.">✦ Beskriv med hjælperen</button>{/if}
+    {/if}
   </div>
+  {#if describeNote}<p class="small muted">{describeNote}</p>{/if}
   {#if importResult}<div class="notice">{importResult}</div>{/if}
   {#if suggestions.length}
     <div class="table-wrap">
       <table>
-        <thead><tr><th></th><th>Tag-navn</th><th>Kilde</th><th>Type</th><th>Beskrivelse</th></tr></thead>
+        <thead><tr><th></th><th>Tag-navn</th><th>Kilde</th><th>Type</th><th>Beskrivelse</th><th>Enhed</th></tr></thead>
         <tbody>
           {#each suggestions as s}
             <tr>
@@ -257,7 +303,8 @@
               <td class="mono">{s.name}{s.exists ? ' (findes)' : ''}</td>
               <td class="mono">{s.source}</td>
               <td>{s.datatype}</td>
-              <td>{s.description}</td>
+              <td>{#if s.exists}{s.description}{:else}<input class="desc" bind:value={s.description} aria-label="Beskrivelse af {s.name}" />{#if s.ai}<span class="ai" title="Forslag fra hjælperen">✦</span>{/if}{/if}</td>
+              <td>{#if s.exists}—{:else}<input class="unit" bind:value={s.unit} placeholder="—" aria-label="Enhed for {s.name}" />{/if}</td>
             </tr>
           {/each}
         </tbody>
@@ -409,6 +456,9 @@
 </section>
 
 <style>
+  input.desc { width: 100%; min-width: 14rem; }
+  input.unit { width: 5rem; }
+  .ai { color: var(--accent); margin-left: .25rem; }
   .bulk { gap: .6rem; align-items: center; margin-bottom: .4rem; }
   .pickcol { width: 1.6rem; }
   tr.picked td { background: #e8f1fb; }

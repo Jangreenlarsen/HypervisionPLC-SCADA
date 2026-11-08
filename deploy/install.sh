@@ -165,6 +165,8 @@ fi
 echo "== Let's Encrypt (certbot + deSEC): hypervision-letsencrypt"
 # Hooken ligger på en fast sti (certbots fornyelsesopsætning peger på den); styringsscriptet er til en admin på maskinen.
 install -m 0755 "$SRC/deploy/cert-deploy.sh" /usr/local/lib/hypervisionplc-scada/cert-deploy.sh
+# Certifikat fra en reverse proxy (v4.11.0): forced command for proxyens nøgle i root's authorized_keys (se scriptet)
+install -m 0755 "$SRC/deploy/cert-receive.sh" /usr/local/lib/hypervisionplc-scada/cert-receive.sh
 install -m 0755 "$SRC/deploy/desec-acme-hook.sh" /usr/local/lib/hypervisionplc-scada/desec-acme-hook.sh
 install -m 0755 "$SRC/deploy/tls-letsencrypt.sh" /usr/local/sbin/hypervision-letsencrypt
 install -d -m 0755 /var/lib/hypervisionplc-scada-acme       # webroot til Let's Encrypt HTTP-01 (læses af nginx)

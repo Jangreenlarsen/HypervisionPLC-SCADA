@@ -9,6 +9,8 @@
   import { expressionError } from './expression';
   import { pasteReport, type CopyResponse } from './symbolCopy';
   import { LiveClient } from './live';
+  import { postStream } from './assist';
+  import { assist } from './assistStore.svelte';
   import SymbolCopy from './SymbolCopy.svelte';
   import TagAlarm from './TagAlarm.svelte';
   import TagSelect from './TagSelect.svelte';
@@ -291,6 +293,49 @@ import { AVERAGE_CHOICES } from './trendData';
   const passive = $derived(!!cfg.passive);
   const viewLike = $derived(cfg.op === 'view' || passive);
   const offersPassive = $derived(passive || opList.includes('positions'));
+
+  // Hjælperen i trin 2 (fase 3, v4.10.0): kommando- og tilbagemeldings-tags som forslag (✦), ud fra symbolets navn og
+  // evt. en kort beskrivelse. Intet gemmes, før der trykkes Gem.
+  let sigText = $state('');
+  let sigBusy = $state(false);
+  let sigNote = $state('');
+  let sigAi = $state<Set<string>>(new Set());
+  let sigCtl: AbortController | null = null;
+  type SigEvent = { type: 'queued'; waiting: number; warming?: boolean } | { type: 'error'; message: string }
+    | { type: 'done'; suggestions: { id: string; tag: string; fb: string }[]; asked: number; ms: number };
+  async function suggestSignals(): Promise<void> {
+    if (!cfg.signals.length) return;
+    sigBusy = true;
+    sigNote = 'Hjælperen læser symbolet og tags — det kan tage et par minutter …';
+    sigCtl = new AbortController();
+    try {
+      await postStream<SigEvent>('/api/assist/symbol-signals', {
+        drawing: drawingId, element, text: sigText.trim(), signals: cfg.signals.map((s) => s.id),
+        op: passive ? 'view' : cfg.op, positions: cfg.positions.map((p) => p.label),
+      }, (ev) => {
+        if (ev.type === 'queued') sigNote = ev.warming ? 'Hjælperen starter op — venter …' : `I kø — ${ev.waiting} foran …`;
+        else if (ev.type === 'error') sigNote = ev.message;
+        else if (ev.type === 'done') {
+          const got = new Map(ev.suggestions.map((x) => [x.id, x]));
+          for (const s of cfg.signals) {
+            const g = got.get(s.id);
+            if (!g) continue;
+            if (g.tag && !passive) s.tag = g.tag;
+            if (g.fb) s.fb = g.fb;
+          }
+          sigAi = new Set(got.keys());
+          sigNote = got.size
+            ? `${got.size} af ${ev.asked} signaler udfyldt på ${Math.round(ev.ms / 1000)} s — tjek forslagene (✦), før du gemmer.`
+            : 'Hjælperen fandt ingen tags, der passer — vælg dem selv, eller beskriv symbolet nærmere.';
+        }
+      }, sigCtl.signal);
+    } catch (e) {
+      sigNote = (e as Error).name === 'AbortError' ? 'Stoppet.' : (e as Error).message;
+    } finally {
+      sigBusy = false;
+      sigCtl = null;
+    }
+  }
   function changePassive(on: boolean): void {
     setPassive(cfg, on);
     if (on) step = 1;   // kommandoerne er ryddet — vælg tilbagemeldingerne
@@ -665,7 +710,7 @@ import { AVERAGE_CHOICES } from './trendData';
               <tbody>
                 {#each cfg.signals as s, i (s.id)}
                   <tr>
-                    <td><strong>{s.id}</strong></td>
+                    <td><strong>{s.id}</strong>{#if sigAi.has(s.id)}<span class="ai" title="Forslag fra hjælperen">✦</span>{/if}</td>
                     <td>{#if passive}<select disabled class="greyed" aria-label="Kommando bruges ikke"><option>— bruges ikke —</option></select>{:else}<TagSelect bind:value={s.tag} {tags} writableOnly />{/if}</td>
                     <td><TagSelect bind:value={s.fb} {tags} placeholder={passive ? '— vælg tilbagemelding —' : '— ingen —'} /></td>
                     <td class="skriv" class:greyed={passive}>
@@ -687,6 +732,18 @@ import { AVERAGE_CHOICES } from './trendData';
               <p class="small notice">Ingen signaler. Et symbol med positioner skal have mindst ét — tilføj et med <strong>+ Signal</strong>, eller vælg <em>Kun passiv visning</em> i trin 1, hvis symbolet ikke skal betjenes.</p>
             {/if}
             <button class="small" onclick={addSignal} disabled={cfg.signals.length >= 8}>+ Signal</button>
+          {/if}
+          {#if assist.available && cfg.op !== 'view' && cfg.signals.length}
+            <div class="assist-box">
+              <label class="field-row small">✦ Foreslå tags med hjælperen — beskriv evt. symbolet (valgfrit)
+                <input bind:value={sigText} maxlength="400" placeholder="fx Pumpe P1: start/stop og driftmelding fra motorværnet" />
+              </label>
+              <div class="row">
+                {#if sigBusy}<button onclick={() => sigCtl?.abort()}>Stop</button>
+                {:else}<button onclick={suggestSignals}>Foreslå tags</button>{/if}
+                {#if sigNote}<span class="small muted">{sigNote}</span>{/if}
+              </div>
+            </div>
           {/if}
           {#if cfg.op !== 'view' && !passive}
             <label class="field-row">Fejlsignal (valgfrit — betjening spærres når det er sat)
@@ -1143,6 +1200,9 @@ import { AVERAGE_CHOICES } from './trendData';
 {/snippet}
 <style>
   table.lever { width: auto; margin-bottom: 6px; }
+  .assist-box { margin: .6rem 0; padding: .5rem .6rem; border: 1px dashed var(--line); border-radius: var(--radius); }
+  .assist-box input { width: 100%; }
+  .ai { color: var(--accent); margin-left: .25rem; }
   table.lever td { padding: 3px 14px 3px 0; }
   .members-note { margin: .2rem 0 .4rem; }
   .gchip { display: inline-block; margin: 0 .25rem; padding: 0 .5rem; border: 1px solid var(--c); border-left-width: 5px; border-radius: var(--radius); background: color-mix(in srgb, var(--c) 10%, transparent); }

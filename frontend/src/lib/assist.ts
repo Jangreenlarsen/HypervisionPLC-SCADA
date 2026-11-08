@@ -14,12 +14,12 @@ export function answerHtml(text: string): string {
 export interface Source { label: string; href: string }
 export type AssistEvent =
   | { type: 'sources'; sources: Source[]; tools: string[] }
-  | { type: 'queued'; waiting: number }
+  | { type: 'queued'; waiting: number; warming?: boolean }
   | { type: 'delta'; text: string }
   | { type: 'done'; ms: number; prompt_ms: number; tokens_in: number; tokens_out: number; tokens_per_s: number }
   | { type: 'error'; message: string };
 
-export interface AskContext { page: string; drawing?: string | null; alarm?: string | null; tags?: string[] }
+export interface AskContext { page: string; drawing?: string | null; alarm?: string | null; tags?: string[]; summary?: boolean }
 export interface Turn { role: 'user' | 'assistant'; content: string; sources?: Source[]; error?: boolean; ms?: number; label?: string }
 
 /** Del en SSE-buffer i hændelser. Returnerer hændelserne og resten (en ufærdig hændelse venter på mere). */

@@ -63,6 +63,8 @@ Feltet **Kilde** peger på værdien i PLC'en: `plc1:<type>:<adresse>`.
 
 Et tal kan have en **datatype** til sidst (fx `:float`) hvis det fylder mere end ét register. Knappen **Foreslå tags fra PLC** henter forslag fra PLC'en, og du vælger, hvilke der skal oprettes med **Importér valgte**.
 
+**Beskriv med hjælperen:** er hjælperen slået til, står knappen **✦ Beskriv med hjælperen** ved forslagene. Hjælperen læser variablernes navne (fx `T_FREMLOEB`) og foreslår en dansk **beskrivelse** (*Fremløbstemperatur*) og en **enhed** (°C). Den beskriver de variabler, du har sat hak ved — eller, hvis ingen er valgt, de første 30 nye. Forslagene er mærket ✦ og kan rettes direkte i tabellen; intet oprettes, før du trykker **Importér valgte**. Hjælperen får kun navnene og typerne — aldrig PLC'ens adresse eller værdier. Det tager typisk 1–3 minutter.
+
 > Eksternt udstyr (rtu/mbx) læses via PLC'en. Læsning og skrivning kan tage et øjeblik længere end PLC'ens egne registre.
 
 ### Felter

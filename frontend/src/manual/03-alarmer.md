@@ -38,6 +38,12 @@ Er hjælperen slået til, har hver alarm knappen **Forklar**. Hjælperen får al
 - Hjælperen kører på serveren selv (en lokal sprogmodel), så et svar kan tage 1–2 minutter. Imens kan du bruge SCADA'en som normalt.
 - Ser du ikke **Forklar**, er hjælperen slået fra under *System › Hjælper (LLM)*, eller din rolle må ikke spørge.
 
+## Opsummér døgnet
+
+Er hjælperen slået til, står knappen **Opsummér døgnet** ved fanerne. Den åbner hjælperen med en opsummering af alarmerne fra de seneste 24 timer: hvad der skete, hvad der gentog sig, og hvad der bør undersøges.
+
+Tallene beregnes af SCADA'en selv ud fra alarmhistorikken — hvor mange gange hver alarm kom, hvor længe den var aktiv, hvor hurtigt den blev kvitteret, og hvad der stadig er aktivt — og hjælperen skriver dem sammen til en kort tekst. De hyppigste 10 alarmer kommer med. Du ser kun de alarmer, du selv har adgang til. Spørg videre i panelet, fx *"Hvorfor kommer trykalarmen så tit?"*.
+
 ## Historik
 
 ![Alarmer — fanen Historik: hvornår hver alarm opstod, ophørte og blev kvitteret](../../public/manual/alarmer-historik.png)

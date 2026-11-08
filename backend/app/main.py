@@ -35,6 +35,7 @@ from .api.operate import router as operate_router
 from .api.symbol_groups import router as symbol_groups_router
 from .api.signal_paths import router as signal_paths_router
 from .services.signal_paths import SignalPathService
+from .services.assist_setup import SignalHelper, TagDescriber
 from .services.assist_signal import SignalSuggester
 from .services.llm_catalog import LlmCatalog
 from .api.symbol_ports import router as symbol_ports_router
@@ -200,7 +201,14 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
             alarms=app.state.alarm_service, tags=app.state.tag_service, cache=manager.cache, trend_db=trend_db,
             scope=app.state.scope_service, symbols=app.state.symbol_service, drawings=app.state.drawing_service,
             manual=ManualIndex(settings.manual_dir))
+        # Hjælperens model varmes op, når LLM-tjenesten er klar, så det første spørgsmål ikke venter på disken (v4.10.0)
+        warm_task = (asyncio.create_task(app.state.assistant.keep_warm(), name="assist-warm")
+                     if settings.start_runtimes else None)
         app.state.signal_suggester = SignalSuggester(app.state.assistant, app.state.signal_path_service)   # v4.3.0
+        # Fase 3 (v4.10.0): beskrivelser til nye tags og forslag til symbolguidens signaler
+        app.state.tag_describer = TagDescriber(app.state.assistant)
+        app.state.signal_helper = SignalHelper(app.state.assistant, db, app.state.symbol_service.drawings,
+                                               app.state.symbol_service)
         app.state.llm_catalog = LlmCatalog(settings.llm_catalog, settings.update_repo)   # varianter fra GitHub (v4.4.0)
         # En hentning/upload, der blev afbrudt af en genstart, efterlader en halv pakke (op til 16 GB): ryd op
         (settings.data_dir / "llm" / "receiving.tar").unlink(missing_ok=True)
@@ -239,6 +247,8 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                         await asyncio.wait_for(task, timeout=20)
                     except (asyncio.TimeoutError, Exception):   # noqa: BLE001
                         pass
+            if warm_task is not None:
+                warm_task.cancel()
             alarm_task.cancel()
             lag_task.cancel()
             notifier_task.cancel()

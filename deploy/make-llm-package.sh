@@ -27,6 +27,7 @@ if model not in c["models"]:
     sys.exit(f"Ukendt model '{model}' — kendte: {', '.join(c['models'])}")
 m = c["models"][model]
 v = {"BUILD": l["build"], "LLAMA_URL": l[arch]["url"], "LLAMA_SHA": l[arch]["sha256"], "LLAMA_LIC": l["license_url"],
+     "LLAMA_GLIBC": l[arch].get("glibc", ""),
      "M_NAME": m["name"], "M_QUANT": m["quant"], "M_LICENSE": m["license"], "M_LIC_URL": m["license_url"],
      "M_FILE": m["file"], "M_URL": m["url"], "M_SHA": m["sha256"], "M_SIZE": str(m["size"]), "M_CTX": str(m["ctx"])}
 print("\n".join(f"{k}={shlex.quote(x)}" for k, x in v.items()))
@@ -88,6 +89,7 @@ printf '%s\n' "Model: $M_NAME ($M_QUANT), licens $M_LICENSE — $M_URL" "llama.c
 "$PY" - "$STAGE/scada-llm/manifest.json" <<EOF
 import json, sys
 json.dump({"format": "hv-llm", "format_version": 1, "arch": "$ARCH", "llama_build": "$BUILD", "ctx": int("$M_CTX"),
+           "glibc": "$LLAMA_GLIBC",
            "model": {"id": "$MODEL", "name": "$M_NAME", "file": "$M_FILE", "quant": "$M_QUANT", "license": "$M_LICENSE",
                      "sha256": "$M_SHA", "size": int("$M_SIZE")}}, open(sys.argv[1], "w"), indent=1)
 EOF

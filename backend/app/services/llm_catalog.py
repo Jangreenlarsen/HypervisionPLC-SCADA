@@ -28,6 +28,7 @@ import httpx
 
 from .errors import ServiceError
 from .github_releases import _REPO
+from .assistant import glibc_problem, parse_glibc
 from .hwprofile import PROFILES
 
 log = logging.getLogger("scada.assist")
@@ -97,10 +98,14 @@ class LlmCatalog:
     def enabled(self) -> bool:
         return bool(_REPO.match(self.repo))
 
-    def entries(self, arch: str, profile: str, installed_model: str | None) -> list[dict[str, Any]]:
-        """Varianterne til listen: kun dem der er udgivet til denne arkitektur. `fits`: passer til hardwareprofilen."""
+    def entries(self, arch: str, profile: str, installed_model: str | None,
+                glibc: tuple[int, ...] | None = None) -> list[dict[str, Any]]:
+        """Varianterne til listen: kun dem der er udgivet til denne arkitektur. `fits`: passer til hardwareprofilen og
+        styresystemet (`blocked` siger hvorfor ikke, når det er styresystemet)."""
         c = self.load()
         build = str(c["llama"].get("build") or "")
+        la = c["llama"].get(arch)
+        blocked = glibc_problem(parse_glibc(la.get("glibc") if isinstance(la, dict) else None), glibc)
         out = []
         if not self.enabled:
             return []
@@ -111,7 +116,8 @@ class LlmCatalog:
             out.append({
                 "id": mid, "name": str(m.get("name") or mid), "variant": str(m.get("variant") or ""),
                 "about": str(m.get("about") or ""), "quant": str(m.get("quant") or ""), "license": str(m.get("license") or ""),
-                "size": int(m.get("size") or 0), "profiles": profiles, "fits": profile in profiles,
+                "size": int(m.get("size") or 0), "profiles": profiles, "fits": profile in profiles and not blocked,
+                "blocked": blocked,
                 "installed": installed_model == mid, "release": release_tag(mid, build),
                 "url": f"https://github.com/{self.repo}/releases/tag/{release_tag(mid, build)}",
                 "pinned": bool(published(m)[arch]),

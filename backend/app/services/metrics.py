@@ -151,6 +151,8 @@ def render(d: dict[str, Any], auth_failures: int = 0) -> str:
         x.counter("scada_assist_errors_total", "Fejlede kald til LLM-hjælperen siden start", asst.get("errors"))
         x.gauge("scada_assist_busy", "LLM-hjælperen arbejder lige nu (1)", asst.get("busy"))
         x.gauge("scada_assist_waiting", "Kald der venter på LLM-hjælperen", asst.get("waiting"))
+        x.gauge("scada_assist_warm", "LLM-hjælperens model er varmet op og klar (1)", asst.get("warm"))
+        x.counter("scada_assist_warmups_total", "Opvarmninger af LLM-hjælperens model siden start", asst.get("warmups"))
         x.gauge("scada_assist_last_seconds", "Svartid for seneste kald til LLM-hjælperen", (asst.get("last_ms") or 0) / 1000)
     x.gauge("scada_notification_queue", "Notifikationer der venter på at blive sendt", n.get("queued"))
     x.counter("scada_metrics_auth_failures_total", "Afviste forsøg på at hente /metrics (forkert eller manglende token)", auth_failures)

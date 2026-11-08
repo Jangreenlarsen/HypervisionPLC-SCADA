@@ -6,11 +6,13 @@
     "license_url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/b12179/LICENSE",
     "x86_64": {
       "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12179/llama-b12179-bin-ubuntu-x64.tar.gz",
-      "sha256": "5646c599b1dfdbdb3634f35ab634857639a830a66d1f9f13380673921348a2d2"
+      "sha256": "5646c599b1dfdbdb3634f35ab634857639a830a66d1f9f13380673921348a2d2",
+      "glibc": "2.34"
     },
     "aarch64": {
       "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12179/llama-b12179-bin-ubuntu-arm64.tar.gz",
-      "sha256": "900970cce91b11cd13abe9582cf0e7e589e75db07e15b7833afef62bb2430148"
+      "sha256": "900970cce91b11cd13abe9582cf0e7e589e75db07e15b7833afef62bb2430148",
+      "glibc": "2.38"
     }
   },
   "models": {
@@ -33,7 +35,8 @@
       "variant": "Hurtig",
       "about": "Lille og hurtig (ca. dobbelt så hurtig som Standard). God til korte svar og maskiner med 8 GB RAM; lidt svagere på dansk.",
       "published": {
-        "x86_64": "a72408ffb55c8000272b77d584251f4d1a40d7e538f8ec246e1c9b603e73d635"
+        "x86_64": "a72408ffb55c8000272b77d584251f4d1a40d7e538f8ec246e1c9b603e73d635",
+        "aarch64": "8906c98ff32331c6a495f2172b15618967f85c86d5d0445be690d5fb31a6fd9f"
       }
     },
     "qwen3.5-4b-q4_k_m": {
@@ -55,7 +58,8 @@
       "variant": "Standard",
       "about": "Anbefalet: gode svar på dansk. Ca. 1–3 minutter pr. svar på en svag CPU (4 vCPU), hurtigere på en kraftig.",
       "published": {
-        "x86_64": "4cc679a27abbd7affdcc023e13656f403b1be00b367f82bb18bea2dc5c97ffb2"
+        "x86_64": "4cc679a27abbd7affdcc023e13656f403b1be00b367f82bb18bea2dc5c97ffb2",
+        "aarch64": "b1e7f4ecff9154f796896d1cbf0d60b57351d39b186ae8af5ff6438fa42ecdcb"
       }
     },
     "ministral-3-8b-q4_k_m": {

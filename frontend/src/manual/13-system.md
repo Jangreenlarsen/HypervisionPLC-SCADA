@@ -281,6 +281,8 @@ Er disken ved at blive fuld, kan du rydde op **på maskinen** — også selv om 
 - **LLM-pakke (lukket net):** uden internet installeres hjælperen fra **én samlet fil**, `scada-llm-<arkitektur>-<model>-<build>.tar` (ca. 3–6 GB), med llama.cpp og modellen. Tryk **Vælg LLM-pakke …**. Filen kontrolleres (indhold, arkitektur, licenser) og vises som *Klar til installation*. **Installér og slå til** installerer den. Kontrollen af SHA256 og udpakningen tager nogle minutter.
 - **Slå til / Slå fra:** slået fra bruger hjælperen hverken CPU eller RAM. Brug det på maskiner med få ressourcer. **Fjern** sletter modellen fra maskinen.
 - **Afprøv:** stiller et kort spørgsmål og viser svartid og hastighed (tokens/s) på netop denne maskine.
+- **Opvarmning:** når tjenesten er startet (efter en genstart, opdatering eller ny model), sender SCADA'en selv et lille spørgsmål, så modellen ligger klar i hukommelsen. Uden det kan det første rigtige spørgsmål tage flere minutter. Imens står der *Hjælperen starter op* i panelet, og spørgsmålet venter. `/metrics` har `scada_assist_warm` (1 = klar) og `scada_assist_warmups_total`.
+- **Raspberry Pi 5:** varianterne *Hurtig* og *Standard* findes også til Pi (aarch64). De kræver **Raspberry Pi OS 13 "Trixie"** (Debian 13) eller nyere. På den ældre *Bookworm* kan llama.cpp ikke starte, og siden siger det i stedet for at hente pakken. *Stor* kræver mere RAM, end en Pi har.
 - **Hensyn til SCADA'en:** hjælperen kører som sin egen tjeneste med lav prioritet og et fast hukommelsesloft. Live-data, alarmer og betjening går altid først, og kun ét spørgsmål behandles ad gangen.
 
 *Status* viser antal spørgsmål, kald, fejl og seneste svartid, og */metrics* har `scada_assist_*`. Hver bruger kan stille højst 30 spørgsmål i timen.

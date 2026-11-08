@@ -2,7 +2,7 @@
 // (fx knappen *Forklar* ved en alarm). Panelet (AssistPanel.svelte) stiller selve spørgsmålene.
 import { get } from './api';
 
-export interface AssistRequest { question: string; label: string; alarm?: string; tags?: string[] }
+export interface AssistRequest { question: string; label: string; alarm?: string; tags?: string[]; summary?: boolean }
 
 export const assist = $state<{ available: boolean; canAsk: boolean; open: boolean; request: AssistRequest | null }>({
   available: false, canAsk: false, open: false, request: null,

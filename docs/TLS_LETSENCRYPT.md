@@ -56,3 +56,18 @@ Tokenet og certifikatet følger **ikke** med i en SCADA-backup. På en ny maskin
 ## HSTS
 
 nginx sender endnu **ikke** `Strict-Transport-Security`. Det slås først til, når certifikatet er fra Let's Encrypt og har kørt fornyelse en gang — ellers kan browsere låses ude, hvis certifikatet skiftes.
+
+## Alternativ: samme certifikat som en reverse proxy (v4.11.0)
+
+Står SCADA'en bag en reverse proxy, der allerede har et Let's Encrypt-certifikat for SCADA'ens navn (fx `certbot --nginx` på proxyen, som for scada.laces.dk), kan proxyen sende certifikatet videre efter hver fornyelse. SCADA'en bruger så **samme certifikat**, og klienter på LAN, der går direkte til SCADA'en, kan stole på TLS. Der skal hverken deSEC eller certbot på SCADA'en.
+
+- **Proxyen:** `deploy/proxy-cert-push.sh` installeres som certbot deploy-hook og sender `fullchain.pem` + `privkey.pem` som tar over SSH med en dedikeret nøgle.
+- **SCADA'en:** nøglen står i root's `authorized_keys` med `from="<proxyens IP>",command="/usr/local/lib/hypervisionplc-scada/cert-receive.sh",restrict`. Nøglen kan derfor kun aflevere et certifikat.
+- **`cert-receive.sh` kontrollerer filerne:**
+  - kun de to navne og almindelige filer;
+  - PEM, højst 64 KB;
+  - certifikatet gælder SCADA'ens navn og er ikke udløbet.
+- Derefter installerer `cert-deploy.sh` certifikatet: nøgle og certifikat skal passe sammen, `nginx -t` skal godkende, og det forrige gendannes ved fejl.
+- Log: `/var/lib/hypervisionplc-scada-net/cert-receive.log`. *System › Status* viser certifikatets udløb som sædvanligt.
+
+Opskriften står øverst i `deploy/proxy-cert-push.sh`. Prøv i hånden på proxyen med `RENEWED_LINEAGE=/etc/letsencrypt/live/scada.laces.dk /etc/letsencrypt/renewal-hooks/deploy/scada-cert-push.sh`.
