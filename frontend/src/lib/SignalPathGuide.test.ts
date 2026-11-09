@@ -105,4 +105,24 @@ describe('Signalvej-guiden: vælg start og slut', () => {
     expect(text()).toContain('rør, en tekst eller en visning');
     expect(text()).not.toContain('2. Vejen');
   });
+
+  it('"← valgt" under Flere slutpunkter tilføjer et ekstra slutpunkt (en gren mere)', async () => {
+    await open();
+    startSelect().value = 'kedel';
+    startSelect().dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    ui.selected = ['rad'];
+    await settle();
+    const underSlut = [...target.querySelectorAll<HTMLElement>('label.field')].find((l) => (l.textContent ?? '').trim().startsWith('Slut'))!;
+    await click([...underSlut.querySelectorAll<HTMLElement>('button')].find((b) => (b.textContent ?? '').includes('valgt')));
+    const more = [...target.querySelectorAll<HTMLElement>('label.field')].find((l) => (l.textContent ?? '').includes('Flere slutpunkter'))!;
+    expect(more, 'rækken Flere slutpunkter findes').toBeTruthy();
+    // ingen andre slutpunkter at vælge her (kun Ventilen): vælg den som gren 2
+    ui.selected = ['ven'];
+    await settle();
+    await click([...more.querySelectorAll<HTMLElement>('button')].find((b) => (b.textContent ?? '').includes('valgt')));
+    expect(text()).toContain('Slut 1');
+    expect(text()).toContain('Slut 2');
+    expect(text()).toContain('Gren 2');
+  });
 });

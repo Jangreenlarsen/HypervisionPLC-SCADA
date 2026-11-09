@@ -73,7 +73,7 @@ Et **T-stykke** er et biblioteks-symbol med tre ben (*tilløb 1*, *tilløb 2* og
 
 En **signalvej** sætter løbelys på *alle* rør mellem symboler på én gang, fx fra kedlen til radiatorerne, styret af ventilerne og pumperne undervejs. Du skal ikke sætte hvert rør, hver bøjning og hvert T-stykke op for sig. Vejen kan **dele sig i flere grene**, og den følger **pumpens retning** og **3-vejsventilens vej**.
 
-Åbn sektionen **Signalveje** i panelet til højre (rollen tekniker), og tryk **Ny signalvej …**. Tegningen gemmes og udgives først, hvis den har ændringer. Guiden har fire trin, og vejen er **markeret i tegningen hele tiden** — den ændrer sig, mens du vælger.
+Åbn sektionen **Signalveje** i panelet til højre (rollen tekniker), og tryk **Ny signalvej …**. Tegningen gemmes og udgives først, hvis den har ændringer. Guiden har fem trin, og vejen er **markeret i tegningen hele tiden** — den ændrer sig, mens du vælger.
 
 ![Sektionen Signalveje med to grene: Gren 1 til AVTA 1 og Gren 2 til AVTB, med 3-vejsventilernes vej, der kan skiftes](../../public/manual/signalvej-vej.png)
 
@@ -117,11 +117,33 @@ Symbolets egne tags (fra dets opsætning) står øverst og foreslås. Vælg *ing
   - Forslag, der ikke holder, udfyldes ikke, og de symboler står under *Ikke udfyldt af hjælperen*. Et symbol med flere veje (3-vejsventil) udfyldes ikke af hjælperen.
   - Det tager typisk 1–3 minutter; **Stop** afbryder. Intet gemmes, før du trykker **Gem signalvej**.
 
-### 4. Navn og udseende
+### 4. Udseende — hvilke animationer?
 
-Giv signalvejen et navn, vælg lysfarve og fart, og tryk **Gem signalvej**.
+![Trin 4: animationer pr. slags element — løbelys på rør, farve og blink på ventiler, farve på portene i en 3-vejsventil](../../public/manual/signalvej-udseende.png)
 
-Når du gemmer, lægges betingelserne som logikblokke (*Signalvej: <navn>*) på vejens første rør — en kæde pr. gren og en blok, der samler grenene for stammen — og hvert rør på vejen får et løbelys i vejens retning. Er et rør tegnet "baglæns", vendes lyset automatisk. Rørenes øvrige opsætning, fx en farve-animation, bevares. Har et rør allerede løbelys, spørger Tegn, om det skal erstattes. Et rør kan kun høre til én signalvej ad gangen. Der kan højst bruges 8 logikblokke pr. signalvej; guiden siger, hvis vejen kræver flere (vælg så færre betingelser eller grene).
+Her bestemmer du, **hvad vejen gør ved hver slags element**, når den er aktiv. Der er et kort for hver slags element, der findes på vejen: *Rør, bøjninger og T-stykker*, *Ventiler*, *3-vejsventiler*, *Pumper* og *Kontakter*. Sæt hak ved de animationer, du vil have:
+
+| Animation | Hvad den gør | Findes for |
+| --- | --- | --- |
+| **Løbelys** | Et lys løber langs røret i vejens retning. Lysfarve og fart vælges her | rør |
+| **Farve** | Delen får en farve | alle |
+| **Stregfarve** | Stregen får en farve | alle |
+| **Blink** | Delen blinker (langsomt, normalt eller hurtigt) | alle |
+| **Vises kun når vejen er aktiv** | Delen er skjult, når vejen ikke er aktiv | ventiler, pumper, kontakter |
+| **Roterer** | Delen drejer rundt, fx pumpens løbehjul | pumper |
+
+- **Standard:** løbelys på rørene og intet andet — som før. Du kan slå løbelys fra og fx kun give ventilerne farve.
+- **Hvilken del:** for ventiler, pumper og kontakter vælger du, om animationen gælder **Hele symbolet** eller en bestemt del (fx *Kugle* eller *Løbehjul*). For rør gælder den de dele, der får løbelys.
+- **3-vejsventiler:** som standard gælder animationen kun **portene i den vej, signalvejen bruger** (fx *AB* og *A*), så ventilen viser, hvilken vej den leder. Går to grene gennem samme ventil med hver sin vej, får begge veje farve. Du kan i stedet vælge *Hele symbolet*.
+- **Aktiv/passiv:** er vejen ikke aktiv, rører animationerne ikke delen, så den ser ud, som den er tegnet (undtagen *Vises kun når vejen er aktiv*).
+- *Gennemsigtighed* kan ikke vælges: den kræver et tal-tag og kan ikke styres af en betingelse. Brug *Vises kun når vejen er aktiv*.
+- Valgene gemmes sammen med signalvejen og står, som du satte dem, når du retter vejen.
+
+### 5. Navn og gem
+
+Giv signalvejen et navn, og tryk **Gem signalvej**.
+
+Når du gemmer, lægges betingelserne som logikblokke (*Signalvej: <navn>*) på vejens første rør — en kæde pr. gren og en blok, der samler grenene for stammen — og delene får de animationer, du valgte, styret af betingelserne. Er et rør tegnet "baglæns", vendes løbelyset automatisk. Delenes øvrige opsætning bevares. Har en del allerede en animation af samme type (fx et rør, der allerede har løbelys), spørger Tegn, om den skal erstattes. En del kan kun høre til én signalvej ad gangen. Der kan højst bruges 8 logikblokke pr. signalvej; guiden siger, hvis vejen kræver flere (vælg så færre betingelser eller grene).
 
 Under **Signalveje** står de gemte signalveje med **Ret** og **Slet**. *Slet* fjerner løbelyset og betingelserne igen og intet andet. Mangler dele af en vej, fordi rør er slettet eller tegnet om, står der en advarsel. Tryk **Ret** og find vejen igen.
 

@@ -1,4 +1,31 @@
-# Plan: Signalveje 2 — valgfrie animationer, grene og porte på 3-vejsventiler (v4.13.0 + v4.14.0) — 2026-11-09 — godkendt (Jan) — leverance 1 (grene, ind/ud, veje, interaktiv guide) ✅ v4.13.0; leverance 2 (valg af animationer) mangler
+# Plan: Signalveje 3 — klik i tegningen: tilføj rør til vejen, skift en 3-vejsventils vej, og "gå via" ekstra symboler (v4.15.0) — 2026-11-09 — afventer OK
+
+Ønsker fra Jan (2026-11-09): (1) **tryk på de enkelte forbindelser** i tegningen og på den måde tilføje dem til signalvejen; (2) **tryk på symboler med flere veje** (3-vejsventil) og skifte mellem symbolets muligheder; (3) **ekstra symboler** i listerne skal have de samme valg som start og slut (rullemenu, *← valgt* og klik i tegningen). *(Punktet om *← valgt* under *Flere slutpunkter* er allerede lavet i v4.14.0.)*
+
+## Design
+1. **Gå via** (pr. gren): en liste af elementer, vejen skal gå igennem — rør, symboler, hvad som helst på vejen. Vejen beregnes som start → via 1 → via 2 → … → slut (korteste vej mellem hvert par, i den rækkefølge elementerne ligger fra start). Retningen, ventilvalg og ind/ud virker som før (de gælder hele den samlede vej). Findes der ingen vej gennem et via-punkt, står der hvilket, og vejen vises uden det.
+2. **Klik i tegningen** (en tilstand i guidens trin 2: *Ret vejen i tegningen*, slået til som standard, mens trin 2 er åbent):
+   - klik på et **rør eller et symbol, der ikke er på vejen** → det tilføjes som via-punkt (vejen omlægges, så den går igennem det);
+   - klik på et **via-punkt** (eller *✕* i listen) → det fjernes igen;
+   - klik på en **3-vejsventil på vejen** → ventilens vej skifter: *automatisk → AB → A → AB → B → automatisk …*; tegningen viser den nye vej med det samme, og en kort besked siger hvilken vej der er valgt;
+   - **Esc** eller *Færdig* slår tilstanden fra (så almindeligt valg i tegningen virker igen).
+   - Med flere grene gælder et klik på en 3-vejsventil den gren, der er markeret i listen (klik på en grens overskrift for at vælge den; gren 1 som standard); et via-punkt tilføjes til grenen, som røret ligger nærmest.
+3. **Ekstra symboler (gå via)** i trin 1: en række *Gå via* med de samme valg som Start og Slut — rullemenu, *← valgt* og *Vælg på tegningen* — og *✕* pr. punkt.
+4. **Gemmes** i `ui.via` (så *Ret* viser dem igen). Backend uændret (via er kun en hjælp til at finde vejen; selve vejen gemmes som før).
+
+## Trin
+1. `lib/signalPath.ts`: `findViaPath` (start → via → slut, sorteret efter afstand fra start; første ikke-mulige via-punkt returneres), enhedstests.
+2. `SignalPathGuide.svelte`: via-liste, klik-tilstand (valg af rør/symbol, 3-vejsventil-vejskift), gren-valg, rækken *Gå via*; komponenttest af klik-forløbene.
+3. Manual (kap. 08) og LLM-tillæg, skærmbillede, docs, version 4.15.0, OTA.
+
+## Risici
+- Et klik på et rør skal ikke forveksles med at vælge det til anden brug i Tegn: tilstanden er kun til, mens guidens trin 2 er åbent, og vises tydeligt (en bjælke øverst: *Klik på rør og symboler for at ændre vejen — Esc afslutter*).
+- Via-punkter kan gøre vejen lang eller umulig → besked med navn, og vejen vises uden det punkt.
+- Grafen ændres, mens man klikker (rev-opdatering): via-punkter, der forsvinder fra tegningen, fjernes stille og meldes.
+
+---
+
+# Plan: Signalveje 2 — valgfrie animationer, grene og porte på 3-vejsventiler (v4.13.0 + v4.14.0) — 2026-11-09 — godkendt (Jan) — leverance 1 (grene, ind/ud, veje, interaktiv guide) ✅ v4.13.0; leverance 2 (valg af animationer) ✅ v4.14.0
 
 Ønske fra Jan (2026-11-09): i *Tegn › Signalveje* kan man ikke (1) vælge hvilke animationer vejen skal give, (2) bestemme hvad vej signalet tager ved T-kryds, eller (3) bestemme, hvordan en 3-vejsventils dele skal stå. Svar: **alle animationstyper, forskellige pr. element-type · vejen må dele sig · vælg ind- og udgang på 3-vejsventilen**.
 Tillæg (Jan, samme dag): **VVS-symboler skal have en ind- og udgang**, så fx en pumpe alene bestemmer retningen gennem systemet, når den sidder i en signalvej.

@@ -27,27 +27,31 @@ I Tegn: vælg værktøjet **Forbindelse** (tast **O**). Klik på det første sym
 Slå **Fang rør lige** til (standard). Træk symbolet: når tilslutningspunktet næsten flugter med røret, vises en blå stiplet linje; slip, så fanges symbolet, og røret står snorlige. Rørene vises i deres nye forløb, mens du trækker.
 
 ## Hvordan sætter jeg løbelys på mange rør på én gang (flow fra kedel til radiator, signalvej)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:2102fa12 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 Brug en **signalvej**: i Tegn, panelet **Signalveje**, tryk **Ny signalvej …**, **Vælg på tegningen**, klik på start- og slutsymbolet. Vejen vises i tegningen med det samme. Tryk **Brug denne vej →**, vælg for hver ventil og pumpe hvornår der går flow, giv vejen et navn og tryk **Gem signalvej**.
 
 ## Hvordan deler jeg en signalvej i flere grene (T-kryds, flere radiatorer, flere slutpunkter)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:2102fa12 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 I signalvej-guiden: vælg start og første slutpunkt, tryk **+ Slutpunkt** (højst 4) og klik på det næste slutsymbol, eller vælg i listen *Flere slutpunkter*. Hver gren får sin egen farve i tegningen. Inden for en gren skal alle betingelser være opfyldt; et fælles stykke lyser, når mindst én gren er aktiv.
 
 ## Hvordan vælger jeg, hvilken vej signalet tager gennem en 3-vejsventil (AB → A eller AB → B)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:2102fa12 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 I signalvej-guidens trin 2 står der en rullemenu ved hver 3-vejsventil på vejen: *automatisk*, *AB → A* eller *AB → B*. Vælger du en vej, beregnes signalvejen forfra med det samme, og tegningen viser den nye vej. I trin 3 får ventilen ét spørgsmål pr. vej (typisk dens position).
 
 ## Hvordan bestemmer pumpen retningen på en signalvej (ind og ud, flowretning)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:2102fa12 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 Sidder en pumpe eller kontraventil på signalvejen, løber flowet fra dens udgang mod resten, uanset hvilket symbol du valgte som start (guiden skriver "Vejen er vendt, så flowet følger …"). Ind/ud-punkterne på symbolerne kan rettes under **Opsætning › Symboler › Ind/ud og veje**.
 
 ## Hvordan definerer jeg ind, ud, fælles port og veje på et symbol (3-vejs, 4-vejs ventil)?
 <!-- kilde: 08-forbindelser#m-tilslutningspunkter-siden-symboler sha:74cfc3e7 -->
 Opsætning › Symboler › fanen **Ind/ud og veje**: vælg symbolet, giv punkterne navn og rolle (Ind, Ud, Begge), markér det **fælles** punkt (AB) og ret evt. **vejene** (AB → A, AB → B; en 4-vejsventil fx P → A, P → B). Klik tilføjer et punkt, træk flytter det. Det bruges kun af signalveje.
 
+## Hvordan vælger jeg, hvilke animationer en signalvej skal give (farve, blink, løbelys, roterer)?
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+I signalvej-guidens trin 4 (**Udseende**) står der et kort for hver slags element på vejen. Sæt hak ved **Løbelys** (rør), **Farve**, **Stregfarve**, **Blink**, **Vises kun når vejen er aktiv** eller **Roterer** (pumper), og vælg farve og del. På en 3-vejsventil gælder animationen som standard kun portene i den vej, signalvejen bruger.
+
 ## Hvorfor finder signalvejen ikke en vej (ingen sammenhængende vej, tynde streger)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:2102fa12 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 Tjek at rørene sidder fast i symbolerne (grønne ender), at de rører hinanden, hvor de mødes, og at de er tykke nok: tynde streger (under 5 bred) og stiplede streger regnes som føler- og signallinjer og er ikke rør. Med en 3-vejsventil: prøv *automatisk* eller en anden vej.
 
 ## Hvordan laver jeg en betingelse med flere tags (pumpe kører OG ventil åben, AND, OR)?
