@@ -37,7 +37,7 @@ const trendTags = tags.filter((t) => t.trend).slice(0, 3).map((t) => t.name);
 // /preview, ændrer intet og slipper igennem) — så et klik på et symbol aldrig kan skrive til en PLC.
 await ctx.route('**/api/**', (r) => {
   const q = r.request();
-  return q.method() === 'GET' || q.method() === 'HEAD' || q.url().endsWith('/preview') ? r.continue() : r.abort();
+  return q.method() === 'GET' || q.method() === 'HEAD' || q.url().endsWith('/preview') || q.url().endsWith('/signal-paths/info') ? r.continue() : r.abort();   // /info læser kun (signalvej-guiden)
 });
 const page = await ctx.newPage();
 await page.addInitScript((sel) => { try { localStorage.setItem('trend.selected', JSON.stringify(sel)); } catch { /* ingen localStorage */ } }, trendTags);
@@ -393,16 +393,6 @@ await shot('forbindelse-haandtag', async () => {
   const x = Math.max(w.x, b.x - 120), y = Math.max(w.y, b.y - 90);
   return { x, y, width: Math.min(b.x + b.width + 120, w.x + w.width - 16) - x, height: Math.min(b.y + b.height + 90, w.y + w.height - 16) - y };
 } });
-await shot('signalveje', async () => {
-  if (!page.url().includes('#draw/')) await openDraw(startDrawing);
-  await openSection('Signalveje');
-  // sidepanelet ruller normalt for sig selv — fold det ud, så hele afsnittet kan fotograferes
-  await page.addStyleTag({ content: 'aside, .psec, .psec .body { max-height: none !important; height: auto !important; overflow: visible !important; }' });
-  await settle(400);
-  await page.locator('section[aria-label="Signalveje"]').getByRole('button', { name: /Ny signalvej/ }).click();   // guiden åbner kun i browseren
-  await settle(800);
-  await page.locator('section[aria-label="Signalveje"]').scrollIntoViewIfNeeded();
-}, { locator: 'section[aria-label="Signalveje"]' });
 await shot('hjaelper-panel', async () => {
   await go(`overview/${startDrawing}`, 'svg');
   await page.getByRole('button', { name: /Hjælper/ }).first().click();
@@ -422,6 +412,41 @@ await shot('notifikationer', async () => { await go('notifications', 'h1, h2'); 
 await shot('integrationer', async () => { await go('integration', 'h1, h2'); await settle(1000); });
 await shot('certifikater', async () => { await go('certificates', 'h1, h2'); await settle(1000); });
 await shot('system-hjaelper', async () => { await go('assist', 'h1, h2'); await settle(1500); });
+
+// ------------------------------------------------------------------ signalveje med grene og ind/ud (v4.13.0)
+// Guiden gemmer intet, før man trykker Gem (blokeret her): vejen vælges og beregnes i browseren.
+const spGuide = async (steps) => {
+  await go(`draw/${startDrawing}`, '.workarea svg');
+  await settle(3500);
+  const sec = page.locator('section[aria-label="Signalveje"]');
+  if ((await sec.locator('button.head').getAttribute('aria-expanded')) !== 'true') await sec.locator('button.head').click();
+  await sec.getByRole('button', { name: /Ny signalvej/ }).click();
+  await settle(1500);
+  await page.addStyleTag({ content: 'aside, .psec, .psec .body { max-height: none !important; height: auto !important; overflow: visible !important; }' });
+  await sec.locator('select').first().selectOption({ label: 'Kedel/fyr Pille' });
+  await settle(300);
+  await sec.locator('label.field', { hasText: 'Slut' }).locator('select').first().selectOption({ label: 'Reguleringsventil AVTA 1' });
+  await settle(900);
+  await sec.locator('select[aria-label="Tilføj slutpunkt"]').selectOption({ label: 'Reguleringsventil AVTB' });
+  await settle(1500);
+  await steps?.(sec);
+  return sec;
+};
+await shot('signalvej-vej', async () => { await spGuide(); }, { locator: 'section[aria-label="Signalveje"]' });
+await shot('signalvej-tegning', async () => { await spGuide(); await page.mouse.move(5, 5); await settle(600); }, { clipFn: async () => {
+  const w = await page.locator('.workarea').first().boundingBox();
+  return { x: w.x, y: w.y, width: w.width, height: Math.min(w.height, 560) };
+} });
+await shot('signalvej-betingelser', async () => {
+  await spGuide(async (sec) => { await sec.getByRole('button', { name: /Brug denne vej/ }).click(); await settle(1500); });
+}, { locator: 'section[aria-label="Signalveje"]' });
+await shot('symbol-ind-ud', async () => {
+  await go('symbols', 'text=Tilslutningspunkter');
+  await page.getByRole('tab', { name: 'Ind/ud og veje' }).click();
+  await settle(500);
+  await page.locator('.list button', { hasText: '3-vejs motorventil' }).first().click();
+  await settle(1500);
+}, { locator: '.layout' });
 
 await browser.close();
 const failed = results.filter(([, r]) => r !== 'ok');

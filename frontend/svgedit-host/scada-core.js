@@ -1175,11 +1175,11 @@ export function createScada(host) {
   /** Tegn håndtagene (og under træk: punkterne og det nye forløb). */
   // ---- fremhævning af en signalvej (v4.2.0): orange streger langs vejens rør og rammer om symbolerne — kun på skærmen,
   // aldrig i tegningen (eget <svg> over lærredet som rørhåndtagene)
-  const highlight = { lines: [], boxes: [], layer: null };
+  const highlight = { lines: [], boxes: [], focus: [], layer: null };
   function drawHighlight() {
     const gridHost = host.gridHost();
     const content = canvas()?.getSvgContent?.();
-    if (!gridHost || !content || (!highlight.lines.length && !highlight.boxes.length)) {
+    if (!gridHost || !content || (!highlight.lines.length && !highlight.boxes.length && !highlight.focus.length)) {
       highlight.layer?.remove();
       highlight.layer = null;
       return;
@@ -1203,14 +1203,27 @@ export function createScada(host) {
     const z = canvas().getZoom() || 1;
     const w = Math.max(14, 8 / z);
     const r2 = (v) => Math.round(v * 10) / 10;
-    let out = highlight.lines.map((pts) => `<polyline points="${pts.map((p) => `${r2(p[0])},${r2(p[1])}`).join(' ')}" fill="none" ` +
-      `stroke="#ff8f00" stroke-opacity="0.55" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
-    for (const id of highlight.boxes) {
+    // Streger: { pts, color, flow } — flow 1/-1 = hvilken vej løbelyset kører (en animeret forhåndsvisning), 0 = ingen retning.
+    // Kasser: { id, color }. Fokus: elementer, der skal stå tydeligt frem (fx rækken, musen peger på).
+    let out = highlight.lines.map(({ pts, color, flow }) => {
+      const pl = pts.map((p) => `${r2(p[0])},${r2(p[1])}`).join(' ');
+      let s = `<polyline points="${pl}" fill="none" stroke="${color}" stroke-opacity="0.5" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      if (flow) {
+        const dash = Math.max(10, 6 / z);
+        s += `<polyline points="${pl}" fill="none" stroke="#fff" stroke-opacity="0.9" stroke-width="${Math.max(3, w / 4)}" ` +
+          `stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="${dash} ${dash * 1.8}">` +
+          `<animate attributeName="stroke-dashoffset" from="0" to="${flow > 0 ? -dash * 2.8 : dash * 2.8}" dur="0.9s" repeatCount="indefinite"/></polyline>`;
+      }
+      return s;
+    }).join('');
+    const box = (id, color, fillOp, sw) => {
       const el = content.querySelector(`[id="${CSS.escape(id)}"]`);
       const bb = el && boxOf(el);
-      if (bb) out += `<rect x="${r2(bb.x - 4)}" y="${r2(bb.y - 4)}" width="${r2(bb.w + 8)}" height="${r2(bb.h + 8)}" rx="6" fill="#ff8f00" ` +
-        `fill-opacity="0.12" stroke="#ff8f00" stroke-width="${Math.max(3, 2 / z)}"/>`;
-    }
+      return bb ? `<rect x="${r2(bb.x - 4)}" y="${r2(bb.y - 4)}" width="${r2(bb.w + 8)}" height="${r2(bb.h + 8)}" rx="6" fill="${color}" ` +
+        `fill-opacity="${fillOp}" stroke="${color}" stroke-width="${sw}"/>` : '';
+    };
+    for (const { id, color } of highlight.boxes) out += box(id, color, 0.12, Math.max(3, 2 / z));
+    for (const id of highlight.focus) out += box(id, '#1565c0', 0.18, Math.max(5, 4 / z));
     layer.innerHTML = out;
   }
 
@@ -2686,18 +2699,24 @@ export function createScada(host) {
       function ends(shape) {
         const tag = shape.tagName.toLowerCase();
         const m = toDocMatrix(shape);
+        // Stregens tykkelse (i tegningens enheder) og om den er stiplet: en tynd eller stiplet streg er en føler-/signallinje, ikke
+        // et rør (v4.13.0) — signalveje går ikke gennem dem
+        const k = m ? Math.hypot(m.a, m.b) || 1 : 1;
+        const dashAttr = (shape.getAttribute('stroke-dasharray') ?? '').trim();
+        const dash = dashAttr !== '' && dashAttr !== 'none' && dashAttr !== '0';
+        const strokeW = (Number(shape.getAttribute('stroke-width')) || parseFloat(getComputedStyle(shape).strokeWidth) || 0) * k;
         try {
           if (tag === 'line') {
             const n = (a) => Number(shape.getAttribute(a)) || 0;
             const e = [tp(m, [n('x1'), n('y1')]), tp(m, [n('x2'), n('y2')])];
-            return [e[0], e[1], e];
+            return [e[0], e[1], e, strokeW, dash];
           }
           if (tag === 'rect') {
             const bb = shape.getBBox();
             const long = bb.width >= bb.height;
             const a = long ? [bb.x, bb.y + bb.height / 2] : [bb.x + bb.width / 2, bb.y];
             const b = long ? [bb.x + bb.width, bb.y + bb.height / 2] : [bb.x + bb.width / 2, bb.y + bb.height];
-            return [tp(m, a), tp(m, b), [tp(m, a), tp(m, b)]];
+            return [tp(m, a), tp(m, b), [tp(m, a), tp(m, b)], Math.min(bb.width, bb.height) * k, dash];   // et rektangel: den korte side
           }
           const len = shape.getTotalLength();
           if (!(len > 0)) return null;
@@ -2706,7 +2725,7 @@ export function createScada(host) {
             const q = shape.getPointAtLength((len * i) / SAMPLES);
             pts.push(tp(m, [q.x, q.y]));
           }
-          return [pts[0], pts[SAMPLES], pts];
+          return [pts[0], pts[SAMPLES], pts, strokeW, dash];
         } catch {
           return null;
         }
@@ -2717,18 +2736,18 @@ export function createScada(host) {
       function linesOf(el) {
         if (isPipe(el) || LINE_TAGS.has(el.tagName.toLowerCase())) {
           const e = ends(el);
-          return e ? [{ part: 'all', a: e[0], b: e[1], pts: e[2] }] : [];
+          return e ? [{ part: 'all', a: e[0], b: e[1], pts: e[2], w: e[3], dash: e[4] }] : [];
         }
         const out = [];
         for (const part of el.querySelectorAll('[id]')) {
           const shape = isLine(part) ? part : [...part.querySelectorAll('*')].find(isLine);
           const e = shape && ends(shape);
-          if (e && !out.some((o) => o.part === part.id)) out.push({ part: part.id, a: e[0], b: e[1], pts: e[2] });
+          if (e && !out.some((o) => o.part === part.id)) out.push({ part: part.id, a: e[0], b: e[1], pts: e[2], w: e[3], dash: e[4] });
         }
         if (!out.length) {
           const shape = [...el.querySelectorAll('*')].find(isLine);
           const e = shape && ends(shape);
-          if (e) out.push({ part: 'all', a: e[0], b: e[1], pts: e[2] });
+          if (e) out.push({ part: 'all', a: e[0], b: e[1], pts: e[2], w: e[3], dash: e[4] });
         }
         return out;
       }
@@ -2737,18 +2756,21 @@ export function createScada(host) {
         const pipe = isPipe(el);
         const lines = linesOf(el);
         let terminals;
+        let fracs = null;   // symbolets punkter som brøkdele af dets egen boks (samme rækkefølge som terminals) — til navne/roller (v4.13.0)
         if (pipe) {
           const m = toDocMatrix(el);
           const pts = pipePoints(el).map((p) => tp(m, p));
           terminals = pts.length >= 2 ? [pts[0], pts[pts.length - 1]] : [];
         } else {
-          terminals = portsOf(el).map((q) => q.doc);
+          const ports = portsOf(el);
+          terminals = ports.map((q) => q.doc);
+          if (terminals.length) fracs = ports.map((q) => q.frac);
           // symboler uden fundne punkter (fx et rør-symbol uden streg): stregernes ender
           if (!terminals.length) terminals = lines.flatMap((l) => [l.a, l.b]);
         }
         return {
           id: el.id, name: el.getAttribute('data-hv-name') ?? '', type: el.getAttribute('data-hv-type') ?? '', pipe,
-          terminals, lines,
+          terminals, fracs, lines,
           refs: pipe ? ['data-hv-from', 'data-hv-to'].map((a) => parseRef(el.getAttribute(a))?.id ?? null) : [],
         };
       });
@@ -2756,9 +2778,14 @@ export function createScada(host) {
     },
 
     /** Fremhæv en signalvej på skærmen: `lines` = punkter langs rørene, `boxes` = id'er på symboler. Tomt = fjern. */
-    highlightPath(lines = [], boxes = []) {
-      highlight.lines = Array.isArray(lines) ? lines.filter((l) => Array.isArray(l) && l.length >= 2) : [];
-      highlight.boxes = Array.isArray(boxes) ? boxes : [];
+    highlightPath(lines = [], boxes = [], focus = []) {
+      const orange = '#ff8f00';
+      // ældre kald: streger som punktlister og kasser som id'er — nyere: objekter med farve og retning (v4.13.0)
+      highlight.lines = (Array.isArray(lines) ? lines : []).map((l) => (Array.isArray(l) ? { pts: l, color: orange, flow: 0 } : l))
+        .filter((l) => l && Array.isArray(l.pts) && l.pts.length >= 2).map((l) => ({ pts: l.pts, color: l.color || orange, flow: l.flow || 0 }));
+      highlight.boxes = (Array.isArray(boxes) ? boxes : []).map((b) => (typeof b === 'string' ? { id: b, color: orange } : b))
+        .filter((b) => b && typeof b.id === 'string').map((b) => ({ id: b.id, color: b.color || orange }));
+      highlight.focus = Array.isArray(focus) ? focus.filter((x) => typeof x === 'string') : [];
       drawHighlight();
     },
 

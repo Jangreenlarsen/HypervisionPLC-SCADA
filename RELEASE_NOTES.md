@@ -2,6 +2,15 @@
 
 ---
 
+## v4.13.0 — 2026-11-09 — Signalveje med grene, pumpens retning og 3-vejsventilens vej
+
+- **Signalvejen kan dele sig:** vælg op til 4 slutpunkter. Hver gren har sin farve i tegningen, og et fælles stykke lyser, når mindst én gren er aktiv.
+- **Pumpen bestemmer retningen.** Sidder der en pumpe eller kontraventil på vejen, løber flowet fra dens udgang, uanset hvad du valgte som start.
+- **3-vejsventiler:** vælg, hvilken vej signalet tager (AB → A eller AB → B). Skifter du vejen, beregnes signalvejen forfra med det samme. Du får ét spørgsmål pr. vej.
+- **Ny fane *Symboler › Ind/ud og veje*:** giv et symbols punkter navn og rolle, markér det fælles punkt og ret vejene (også til 4-vejsventiler).
+- **Mere interaktiv guide:** vejen vises i tegningen, mens du vælger, med animeret retning. Peg på en række for at se symbolet. Vejen låses med *Brug denne vej*.
+- **Rettelse:** tynde og stiplede streger (føler- og signallinjer) regnes ikke længere som rør.
+
 ## v4.12.0 — 2026-11-08 — Hurtigere for begrænsede brugere
 
 - Brugere, der kun må se nogle tegninger, får hurtigere svar på store tegninger med mange symboler: SCADA'en regner ikke længere hele tegningen forfra ved hvert kald, kun når noget er ændret.

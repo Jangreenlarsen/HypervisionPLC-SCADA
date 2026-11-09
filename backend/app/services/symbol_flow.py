@@ -1,0 +1,108 @@
+"""Ind/ud, navne og veje på VVS-symboler (v4.13.0, PLAN.md › Signalveje 2).
+
+Hvert tilslutningspunkt på en symboltype kan have et navn (A, B, AB …), en rolle (ind, ud, begge) og være "fælles". Et symbol har
+desuden en liste af veje — de forbindelser, det kan lave (AB → A, AB → B). Bruges kun af signalveje (retning fra en pumpe,
+vejvalg på en 3-vejsventil). Standarderne for de indbyggede symboler ligger i frontend (lib/symbolFlow.ts); her gemmes de
+RETTEDE definitioner pr. symboltype, som går forud for dem.
+
+Punkterne er brøkdele [x, y] af symbolets egen boks (som symbol_ports). Gemmes i `meta` (nøgle `symbolflow.<type>`) og følger med
+i backup og gendannelse.
+"""
+
+from __future__ import annotations
+
+import logging
+import math
+import re
+from typing import Any
+
+from ..storage.db import Database
+from .errors import ServiceError
+from .symbol_ports import MAX_TYPES, clean_type
+
+log = logging.getLogger("scada.symbol_flow")
+
+NAME_RE = re.compile(r"^[A-Za-z0-9_+-]{1,12}$")
+PART_RE = re.compile(r"^[a-z0-9_]{1,40}$")
+ROLES = ("in", "out", "both")
+MAX_PORTS = 12
+MAX_WAYS = 24
+
+
+def _num(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and 0 <= v <= 1
+
+
+def clean_def(raw: Any) -> dict[str, Any]:
+    """Kontrol og normalisering af en definition ({ports, ways}). Fejl → ServiceError(400) med en forståelig tekst."""
+    if not isinstance(raw, dict):
+        raise ServiceError(400, "Definitionen skal være et objekt med ports (og evt. ways)")
+    ports_in = raw.get("ports")
+    if not isinstance(ports_in, list) or not ports_in:
+        raise ServiceError(400, "Angiv mindst ét punkt")
+    if len(ports_in) > MAX_PORTS:
+        raise ServiceError(400, f"Højst {MAX_PORTS} punkter pr. symbol")
+    ports: list[dict[str, Any]] = []
+    names: set[str] = set()
+    for i, p in enumerate(ports_in, 1):
+        if not isinstance(p, dict) or not _num(p.get("x")) or not _num(p.get("y")):
+            raise ServiceError(400, f"Punkt {i}: x og y skal være tal mellem 0 og 1 (brøkdel af symbolets boks)")
+        name = p.get("name")
+        if not isinstance(name, str) or not NAME_RE.match(name):
+            raise ServiceError(400, f"Punkt {i}: navnet må kun have bogstaver, tal og _ + - (højst 12 tegn)")
+        if name in names:
+            raise ServiceError(400, f"Navnet '{name}' er brugt to gange")
+        names.add(name)
+        role = p.get("role", "both")
+        if role not in ROLES:
+            raise ServiceError(400, f"Punkt '{name}': rollen skal være ind, ud eller begge")
+        out: dict[str, Any] = {"x": round(float(p["x"]), 4), "y": round(float(p["y"]), 4), "name": name, "role": role}
+        if p.get("common"):
+            out["common"] = True
+        part = p.get("part")
+        if part not in (None, ""):
+            if not isinstance(part, str) or not PART_RE.match(part):
+                raise ServiceError(400, f"Punkt '{name}': delen skal være et id (små bogstaver, tal og _)")
+            out["part"] = part
+        ports.append(out)
+    ways_in = raw.get("ways", [])
+    if not isinstance(ways_in, list) or len(ways_in) > MAX_WAYS:
+        raise ServiceError(400, f"ways skal være en liste (højst {MAX_WAYS} veje)")
+    ways: list[list[str]] = []
+    for w in ways_in:
+        if not (isinstance(w, (list, tuple)) and len(w) == 2 and all(isinstance(x, str) for x in w)):
+            raise ServiceError(400, "En vej skal være to punktnavne")
+        a, b = w
+        if a not in names or b not in names or a == b:
+            raise ServiceError(400, f"Vejen {a} → {b} bruger et ukendt punkt")
+        if [a, b] not in ways and [b, a] not in ways:
+            ways.append([a, b])
+    result: dict[str, Any] = {"ports": ports}
+    if ways:
+        result["ways"] = ways
+    return result
+
+
+class SymbolFlowService:
+    def __init__(self, db: Database):
+        self.db = db
+
+    def list(self) -> dict[str, dict[str, Any]]:
+        return self.db.list_symbol_flow()
+
+    def set(self, sym_type: str, raw: Any) -> dict[str, Any]:
+        t = clean_type(sym_type)
+        clean = clean_def(raw)
+        existing = self.db.list_symbol_flow()
+        if t not in existing and len(existing) >= MAX_TYPES:
+            raise ServiceError(400, f"Højst {MAX_TYPES} symboler kan have rettede ind/ud-definitioner")
+        self.db.set_symbol_flow(t, clean)
+        log.info("Ind/ud-definition for %s gemt (%d punkter, %d veje)", t, len(clean["ports"]), len(clean.get("ways", [])))
+        return clean
+
+    def reset(self, sym_type: str) -> bool:
+        t = clean_type(sym_type)
+        had = self.db.set_symbol_flow(t, None)
+        if had:
+            log.info("Ind/ud-definition for %s nulstillet til standarden", t)
+        return had

@@ -38,6 +38,7 @@ from .services.signal_paths import SignalPathService
 from .services.assist_setup import SignalHelper, TagDescriber
 from .services.assist_signal import SignalSuggester
 from .services.llm_catalog import LlmCatalog
+from .api.symbol_flow import router as symbol_flow_router
 from .api.symbol_ports import router as symbol_ports_router
 from .api.library import router as library_router
 from .api.symbols import router as symbols_router
@@ -67,6 +68,7 @@ from .services.drawings import DrawingService
 from .services.scope import ScopeService
 from .services.drawing_activity import suspended_tags
 from .services.symbol_groups import SymbolGroupService
+from .services.symbol_flow import SymbolFlowService
 from .services.symbol_ports import SymbolPortService
 from .services.library import LibraryService
 from .services.symbols import SymbolService
@@ -142,6 +144,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.symbol_group_service = SymbolGroupService(db, app.state.symbol_service)
         app.state.signal_path_service = SignalPathService(db, app.state.symbol_service)   # signalveje i Tegn (v4.2.0)
         app.state.symbol_port_service = SymbolPortService(db)
+        app.state.symbol_flow_service = SymbolFlowService(db)   # ind/ud og veje på symboler (v4.13.0)
         app.state.library_service = LibraryService(db, app.state.drawing_service, app.state.symbol_service)
         # Tags kun deaktiverede tegninger bruger pollas ikke (v1.6.0)
         manager.suspended_tags = lambda: suspended_tags(db, app.state.drawing_service, app.state.symbol_service)
@@ -303,6 +306,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(symbol_groups_router)
     app.include_router(signal_paths_router)
     app.include_router(symbol_ports_router)
+    app.include_router(symbol_flow_router)
     app.include_router(library_router)
     app.include_router(live_router)
     app.include_router(operate_router)

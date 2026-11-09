@@ -544,6 +544,27 @@ class Database:
                       (key, json.dumps(ports)))
         return True
 
+    def list_symbol_flow(self) -> dict[str, dict[str, Any]]:
+        """Rettede ind/ud-definitioner pr. symboltype (v4.13.0): {type: {ports, ways}}."""
+        out: dict[str, dict[str, Any]] = {}
+        for r in self._query("SELECT key, value FROM meta WHERE key LIKE 'symbolflow.%' ORDER BY key"):
+            try:
+                d = json.loads(r["value"])
+            except ValueError:
+                continue   # beskadiget række — symbolet bruger standarden
+            if isinstance(d, dict) and isinstance(d.get("ports"), list):
+                out[r["key"][len("symbolflow."):]] = d
+        return out
+
+    def set_symbol_flow(self, sym_type: str, flow: dict[str, Any] | None) -> bool:
+        """Gem (flow) eller slet (None). → om der var noget (ved gem altid True)."""
+        key = f"symbolflow.{sym_type}"
+        if flow is None:
+            return self._execute("DELETE FROM meta WHERE key = ?", (key,)) > 0
+        self._execute("INSERT INTO meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                      (key, json.dumps(flow)))
+        return True
+
     # ------------------------------------------------------- egne symboler i biblioteket (v3.28.0)
 
     _LIB_COLS = "type, label, hint, svg, preset, version, created_at, created_by, updated_at, updated_by"
@@ -1348,6 +1369,7 @@ class Database:
             "signal_paths": [{k: r[k] for k in ("drawing_id", "name", "data")} for r in self.list_signal_paths()],
             "trend_views": self.list_trend_views(),
             "symbol_ports": self.list_symbol_ports(),
+            "symbol_flow": self.list_symbol_flow(),
             "library_symbols": [{k: r[k] for k in ("type", "label", "hint", "svg", "preset", "version")}
                                 for r in self.list_library_symbols()],
             "library_layout": self.get_library_layout(),
@@ -1452,6 +1474,11 @@ class Database:
                 cur.execute("DELETE FROM meta WHERE key LIKE 'symbolports.%'")
                 for sym_type, ports in (data.get("symbol_ports") or {}).items():
                     cur.execute("INSERT INTO meta(key, value) VALUES (?, ?)", (f"symbolports.{sym_type}", json.dumps(ports)))
+                # Ind/ud-definitioner (v4.13.0) — kun hvis backuppen har dem (ældre backups: uændret)
+                if "symbol_flow" in data:
+                    cur.execute("DELETE FROM meta WHERE key LIKE 'symbolflow.%'")
+                    for sym_type, flow in (data.get("symbol_flow") or {}).items():
+                        cur.execute("INSERT INTO meta(key, value) VALUES (?, ?)", (f"symbolflow.{sym_type}", json.dumps(flow)))
                 # Egne symboler og bibliotekets opdeling (v3.28.0) — kun hvis backuppen har dem (ældre backups: uændret)
                 if "library_symbols" in data:
                     cur.execute("DELETE FROM library_symbols")

@@ -1,3 +1,73 @@
+# Plan: Signalveje 2 — valgfrie animationer, grene og porte på 3-vejsventiler (v4.13.0 + v4.14.0) — 2026-11-09 — godkendt (Jan) — leverance 1 (grene, ind/ud, veje, interaktiv guide) ✅ v4.13.0; leverance 2 (valg af animationer) mangler
+
+Ønske fra Jan (2026-11-09): i *Tegn › Signalveje* kan man ikke (1) vælge hvilke animationer vejen skal give, (2) bestemme hvad vej signalet tager ved T-kryds, eller (3) bestemme, hvordan en 3-vejsventils dele skal stå. Svar: **alle animationstyper, forskellige pr. element-type · vejen må dele sig · vælg ind- og udgang på 3-vejsventilen**.
+Tillæg (Jan, samme dag): **VVS-symboler skal have en ind- og udgang**, så fx en pumpe alene bestemmer retningen gennem systemet, når den sidder i en signalvej.
+Tillæg 2 (Jan): **for 3- og 4-vejsventiler m.fl. skal man kunne definere, hvad der er fælles**, fx AB → A eller AB → B.
+Tillæg 3 (Jan): **ved beregningen af vejen skal man kunne skifte flervejs-ventilernes vej og se en ny signalvej; først når vejen er rigtig, sætter man animationer op og gemmer.**
+
+## Nu (v4.2.0–v4.5.0)
+- Kun **løbelys**, kun på rør, bøjninger og T-stykkets ben (`flowsFor`). Ventiler, pumper og 3-vejsventiler får ingen animation, kun et spørgsmål om hvornår de leder.
+- Vejen er **lineær** (start → slut); T-kryds følger den fundne vej (op til 3 forslag).
+- Alle betingelser OG'es i én logikblok på det første rør; alle rør lyser kun, når alle er sande.
+
+## Design
+1. **Animationer pr. element-type** (data: `anims` pr. gruppe — rør, ventil, pumpe, kontakt, 3-vejsventil, andet):
+   - typer: *Løbelys* (som nu), *Farve* (til/fra-farver), *Blink*, *Gennemsigtighed*;
+   - parametrene er de samme som i symbolguidens trin 4 og valideres af `validate_config`;
+   - ikke-rør vælger del: *Hele symbolet* eller en navngiven del (fx *Port A*);
+   - en gammel vej uden `anims` får løbelys på rør, præcis som i dag.
+2. **Grene** (vejen må dele sig): ét **startpunkt** og op til **4 slutpunkter**.
+   - Vejen er foreningen af de korteste veje start → hver slut; fælles stykker (stammen) deles.
+   - Et T-stykke lyser de ben, som mindst én gren bruger, hver i sin retning.
+   - **Betingelser:** gren *i* = OG af betingelserne på dens vej. Et stykke lyser, når **mindst én** gren, der går igennem det, er aktiv (ELLER). For én gren er det præcis som i dag.
+   - Logikblokke: en OG-kæde pr. gren og en ELLER-blok til fælles stykker; højst 8 blokke på ejeren (ellers en klar fejl).
+   - Tegn markerer hver gren med sin farve.
+3. **3-vejsventil:** ind- og udgang (fx AB → A) aflæses fra, hvor vejen rører ventilens tilslutninger, og kan rettes (se punkt 7: vejene er en del af symbolet). Animationen lægges på de valgte porte (`port_ab`, `port_a`) med retning ind → ud. Betingelsen er ventilens position (eller et tag). En anden signalvej kan bruge AB → B.
+4. **Ejerskab og oprydning:** `data.elements[].anims` husker det, vejen har lagt på, så *Ret* og *Slet* fjerner præcis det og intet af brugerens egne animationer (`_strip` og konfliktkontrollen udvides fra kun løbelys til alle typer).
+5. **Bagudkompatibel:** `data` er JSON (ingen skemaændring i databasen). Gamle veje, backup og gendannelse virker uændret (`valid_data` accepterer begge former).
+
+6. **Ind og ud på VVS-symboler** (Jans tillæg):
+   - Hvert tilslutningspunkt får en **rolle**: *ind*, *ud* eller *begge* (standard). Rollen gemmes sammen med punktet i symbolbiblioteket (`symbol_ports`: `[fx, fy, rolle]`; gamle punkter uden rolle = *begge*) og kan rettes under *Symboler › Tilslutningspunkter*.
+   - Standarder for de indbyggede VVS-symboler: **pumper** (pumpe, varmepumpe, motor) har én indgang og én udgang efter den tegnede retning; **kontraventil** ind/ud; ventiler, T-stykker og 3-vejsventiler *begge* (3-vejsventilen styres af valget ind/ud i punkt 3).
+   - Rollen følger symbolet, når det drejes eller spejles (samme omregning som punkterne).
+   - **Kun i en signalvej:** retningen bruges, når symbolet sidder i en signalvej. Resten af tegningen ændres ikke.
+   - Vejen får sin **retning fra symbolerne**: sidder der en pumpe (eller kontraventil) på vejen, løber flowet fra dens udgang mod resten, uanset hvilket symbol du valgte som start. Vælger du start og slut i omvendt rækkefølge, vendes løbelyset automatisk.
+   - Er symbolerne uenige (to pumper modsat hinanden, en kontraventil mod strømmen), siger guiden det med navn i stedet for at gætte; Gem er stadig muligt, når du bekræfter.
+   - Med grene: en pumpe på stammen giver retningen til alle grene efter den. Uden noget retningsgivende symbol på vejen gælder start → slut, som nu.
+
+7. **Fælles port og veje på flervejs-ventiler** (Jans tillæg 2):
+   - Tilslutningspunkterne får et **navn** (A, B, AB, P, T …), og et eller flere punkter kan markeres **fælles**. Punkterne og navnene rettes under *Symboler › Tilslutningspunkter*.
+   - Symbolet får en liste af **veje**: de forbindelser, ventilen kan lave, fx 3-vejs: *AB → A* og *AB → B*; 4-vejs: fx *P → A*, *P → B*, *A → T*, *B → T*. Som standard laves vejene automatisk: hver ikke-fælles port parres med hver fælles port; vejene kan rettes.
+   - Standarder for de indbyggede symboler: 3-vejs motorventil (begge varianter) har AB som fælles og vejene AB → A og AB → B; en 4-vejsventil, hvis den findes i biblioteket, får to fælles porte.
+   - I signalvejen vælger du for hver flervejs-ventil **hvilken vej** den bruges til (listen over symbolets veje; forvalgt efter, hvor vejen rører ventilen). Kun de to porte i den vej lyser, og betingelsen bliver ventilens position for netop den vej. En anden signalvej kan bruge den anden vej gennem samme ventil.
+   - Vælger du en vej, der ikke passer til, hvor vejen faktisk rører ventilen, siger guiden det.
+
+8. **Arbejdsgang i guiden** (Jans tillæg 3): vejen fastlægges først, udseendet bagefter.
+   1. **Start og slutpunkter** (klik i tegningen, som nu).
+   2. **Vejen:** beregnes med det samme og vises i tegningen (en farve pr. gren). Hver flervejs-ventil på vejen har en liste over sine veje (*AB → A*, *AB → B* …). **Skifter du ventilens vej, beregnes vejen forfra med det samme** og tegningen viser den nye vej; ventilens valg tvinger vejen igennem netop de to porte. Ligger der ingen vej med det valg, står det der i stedet for en tom tegning. De øvrige forslag (op til 3 pr. slutpunkt) kan stadig vælges.
+   3. **Lås vejen:** *Brug denne vej* låser vejen; først da åbnes de næste trin. Vil du ændre vejen bagefter, går du tilbage (animationer og betingelser, der stadig passer, bevares).
+   4. **Betingelser:** hvornår går der flow (ventiler, pumper, kontakter; flervejs-ventilen pr. valgt vej).
+   5. **Animationer** pr. element-type (punkt 1) med forhåndsvisning.
+   6. **Navn og gem.**
+   - Beregningen (`findPaths`) får de valgte veje som krav (`forced`: ventil → vej), så den kun går gennem de valgte porte; den kører i browseren og er hurtig nok til at køre ved hvert skift.
+
+## Trin
+1. `lib/symbolPorts` + navne, fælles og veje på punkter; `lib/symbolPorts` + `lib/signalPath.ts`: roller på punkter (standarder, omregning ved drejning), retning fra pumpe/kontraventil, `lib/signalPath.ts`: net med flere slutpunkter (`mergePaths`), grene og betingelser pr. gren, porte for 3-vejsventiler, animationsvalg (`ANIM_CHOICES`) — enhedstests.
+2. Backend `services/signal_paths.py` + `api/signal_paths.py`: ny krop (ends, branches, anims), blokke pr. gren + ELLER, ejerskab/oprydning, validering, backup-kontrol — tests. De eksisterende tests skal bestå uændret.
+3. `SignalPathGuide.svelte` (guiden): arbejdsgangen i punkt 8 — *Start og slutpunkter* → *Vejen* (ventilvalg og ny beregning, farver pr. gren) → *Brug denne vej* → *Betingelser* → *Animationer* → *Navn og gem*.
+4. Hjælperens forslag (v4.3.0) følger med (spørger pr. gren). Manual (kap. 08 og LLM-tillæg), skærmbilleder, docs.
+5. Tests, build, **set i browseren** (T-kryds med to grene, 3-vejsventil AB → A/B, farve og blink), reviewer (skriver symbolopsætninger), version 4.13.0, OTA.
+
+## Risici
+- Blokgrænsen (8) og 4 indgange pr. blok kan ramme store net → klar fejlbesked og forslag til færre betingelser.
+- Flervejs-ventiler i en tegning, der er tegnet af løse figurer uden symbol, har ingen navngivne porte → vejen kan ikke vælges; guiden siger, at symbolet skal sættes ind fra biblioteket.
+- Retning ud fra et symbols punkter hænger på, at punkterne er rigtige: findes der ingen rettede punkter, bruges de automatiske, og roller kan da ikke afgøres → vejen bruger start → slut og siger det.
+- Samme del med to veje med hver sin retning (modsat flow) → advarsel, første vej vinder.
+- Ændring af en del, som brugeren selv har animeret → eksisterende konfliktdialog ("erstat?") udvides til alle typer.
+- Stor ændring i én fil (guiden) → bygges i to commits: (a) grene og 3-vejsventil, (b) animationsvalg.
+
+---
+
 # Plan: Manualen gennemgås — mere tekst, flere skærmbilleder, pænere indeks og en skjult LLM-manual (v4.9.0) — 2026-11-07 — godkendt (Jan) — ✅ v4.9.0
 
 Ønske fra Jan: flere afsnit mangler skærmbilleder (fx logikblok), "De seks trin" har næsten ingen tekst, og den lokale LLM fejler, når manualen er for tynd. Indekset skal være pænere. Derudover (Jan): **en særlig manual til LLM'en, som brugerne ikke ser, men som holdes opdateret, når den store manual ændres.**
