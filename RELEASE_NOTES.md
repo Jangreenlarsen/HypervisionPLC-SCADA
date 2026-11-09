@@ -2,6 +2,12 @@
 
 ---
 
+## v4.15.0 — 2026-11-09 — Ret signalvejen ved at klikke i tegningen
+
+- Klik på et **rør eller symbol** i tegningen for at lade signalvejen gå igennem det; klik igen for at fjerne det. Der er også en **Gå via**-række i trin 1.
+- Klik på en **3-vejsventil** på vejen for at skifte dens vej (automatisk, AB → A, AB → B). Med flere grene gælder det den valgte gren.
+- Via-punkterne gemmes med signalvejen.
+
 ## v4.14.0 — 2026-11-09 — Vælg animationer til signalvejen
 
 - Nyt trin **Udseende** i signalvej-guiden: vælg, hvad vejen gør ved hver slags element — løbelys på rør, og farve, blink, "vises kun når aktiv" eller roterer på ventiler, pumper og kontakter.

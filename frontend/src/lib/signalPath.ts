@@ -232,6 +232,60 @@ export function findPaths(g: Graph, start: string, end: string, k = 3, tol = TOL
   return found.sort((a, b) => a.length - b.length).slice(0, k);
 }
 
+// ---------------------------------------------------------------- gå via (v4.15.0)
+export interface ViaResult { path: Step[] | null; missing: string[] }
+
+/**
+ * Vejen fra start til slut, der går igennem `via` — elementer, brugeren har klikket på (rør eller symboler). Punkterne tages i
+ * den rækkefølge, de ligger fra start (færrest elementer), og vejen er den korteste mellem hvert par. Et punkt, der ikke kan nås,
+ * eller som ville få vejen til at vende om (samme element to gange), springes over og returneres i `missing`. Uden brugbare
+ * punkter er det den almindelige korteste vej.
+ */
+export function findViaPath(g: Graph, start: string, end: string, via: string[], tol = TOL, opts: PathOpts = {}): ViaResult {
+  const missing: string[] = [];
+  const first = (a: string, b: string): Step[] | null => findPaths(g, a, b, 1, tol, opts)[0] ?? null;
+  const dist = new Map<string, number>();
+  for (const v of via) {
+    const p = v === start || v === end ? null : first(start, v);
+    if (p) dist.set(v, p.length);
+    else missing.push(v);
+  }
+  const stops = [...dist.keys()].sort((a, b) => dist.get(a)! - dist.get(b)!);
+
+  /** Vejen gennem punkterne i rækkefølge, eller hvilket punkt (indeks) der ikke kan bruges (stops.length = slutpunktet). */
+  const build = (list: string[]): { path: Step[] } | { bad: number } => {
+    let chain: Step[] = [];
+    let last = start;
+    for (let i = 0; i <= list.length; i++) {
+      const stop = i < list.length ? list[i] : end;
+      const seg = first(last, stop);
+      if (!seg) return { bad: i };
+      const used = new Set(chain.map((x) => x.id));
+      // krydser vejen sig selv (et punkt på en blindgyde, eller en vej tilbage gennem det samme), kan punktet ikke bruges
+      if (chain.length && (seg.slice(1, -1).some((x) => used.has(x.id)) || (i < list.length && used.has(stop)))) return { bad: i };
+      if (!chain.length) chain = seg.map((x) => ({ ...x }));
+      else {
+        const join = chain[chain.length - 1];          // elementet, de to stykker mødes i: ind fra det første, ud af det andet
+        join.exit = seg[0].exit;
+        chain.push(...seg.slice(1).map((x) => ({ ...x })));
+      }
+      last = stop;
+    }
+    return { path: chain };
+  };
+
+  let list = stops;
+  for (;;) {
+    const r = build(list);
+    if ('path' in r) return { path: r.path.length <= MAX_STEPS ? r.path : null, missing };
+    if (!list.length) return { path: null, missing };
+    // slutpunktet kan ikke nås fra det sidste punkt: det er det sidste punkt, der er i vejen
+    const drop = Math.min(r.bad, list.length - 1);
+    missing.push(list[drop]);
+    list = list.filter((_, i) => i !== drop);
+  }
+}
+
 /** Løbelys for et rør-element på vejen: de streger der rører ind- eller udgangen, i vejens retning. */
 export function flowsFor(n: GNode, entry: Pt | null, exit: Pt | null, tol = TOL * 2): Flow[] {
   if (roleOf(n) !== 'pipe') return [];

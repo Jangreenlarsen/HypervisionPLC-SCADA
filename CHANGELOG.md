@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.15.0 build 0368] — 2026-11-09 — Signalveje: ret vejen ved at klikke i tegningen
+
+- `lib/signalPath.ts`: `findViaPath` — en vej fra start til slut gennem via-punkter (sorteret efter afstand fra start); et punkt, der ikke kan bruges (blindgyde, vej ville vende om), droppes og meldes som `missing`.
+- `lib/SignalPathGuide.svelte`: "Gå via" (rullemenu, ← valgt, *Vælg via på tegningen*, chips med ✕); klik på rør/symbol i tegningen tilføjer/fjerner et via-punkt; klik på en 3-vejsventil skifter vej for den valgte gren (klik på grenens overskrift vælger gren); klik-tilstand kun mens trin 2 er åbent (*Færdig* / Esc slår den fra); via-punkter gemmes i `ui.via`. Markeringen ryddes efter hvert klik, så det samme element kan klikkes igen, og et tomt valg nulstiller klik-sporingen. En ventil, hvis valgte vej har ødelagt vejen, kan stadig skiftes tilbage, og klik-linjen/beskeden vises også uden gyldig vej.
+- Backend uændret.
+- Manual (kap. 08) og LLM-tillæg. Tests: `signalFlow.test.ts` (via), `SignalPathGuideClick.test.ts` (7). Set i browseren: klik på rør tilføjer via-punkt og vejen følger det.
+
 ## [4.14.0 build 0367] — 2026-11-09 — Signalveje: vælg animationer pr. slags element
 
 - `lib/pathLook.ts` (ny): grupper (rør, ventiler, 3-vejsventiler, pumper, kontakter), animationstyper pr. gruppe (løbelys kun på rør; farve, stregfarve, blink, vises kun når aktiv, roterer), `animsFor` (rør: på de dele, der får løbelys; 3-vejsventil: kun portene i den vej, vejen bruger — via symbolets port-dele; andre: hele symbolet eller en valgt del), `restoreLook`.
