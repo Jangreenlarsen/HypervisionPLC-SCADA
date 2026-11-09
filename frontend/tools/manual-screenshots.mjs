@@ -440,6 +440,20 @@ await shot('signalvej-tegning', async () => { await spGuide(); await page.mouse.
 await shot('signalvej-betingelser', async () => {
   await spGuide(async (sec) => { await sec.getByRole('button', { name: /Brug denne vej/ }).click(); await settle(1500); });
 }, { locator: 'section[aria-label="Signalveje"]' });
+await shot('signalvej-udseende', async () => {
+  await spGuide(async (sec) => {
+    await sec.getByRole('button', { name: /Brug denne vej/ }).click();
+    await settle(1200);
+    // kun visning i browseren (gemmes ikke): farve og blink på ventilerne, farve på portene i 3-vejsventilerne
+    await sec.getByLabel('Farve på Ventiler', { exact: true }).check();
+    await sec.getByLabel('Blink på Ventiler', { exact: true }).check();
+    await sec.getByLabel('Farve på 3-vejsventiler', { exact: true }).check();
+    await settle(400);
+  });
+}, { clipFn: async () => {
+  const b = await page.locator('.step', { hasText: '4. Udseende' }).first().boundingBox();
+  return { x: b.x - 8, y: b.y - 6, width: b.width + 16, height: Math.min(b.height + 12, 760 - b.y) };
+} });
 await shot('symbol-ind-ud', async () => {
   await go('symbols', 'text=Tilslutningspunkter');
   await page.getByRole('tab', { name: 'Ind/ud og veje' }).click();

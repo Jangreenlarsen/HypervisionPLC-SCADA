@@ -227,3 +227,84 @@ def test_backup_with_bad_signal_path_data_is_rejected(net):
     assert "block" in valid_data({**base, "elements": [{"element": "r1", "flows": [], "block": "L9"}]})
     assert "branches" in valid_data({**base, "conditions": [{"element": "r1", "branches": [7]}]})
     assert "ui" in valid_data({**base, "ui": {"x": "y" * 9000}})
+
+
+# ------------------------------------------------------------------ animationer pr. element-type (v4.14.0)
+
+def _cfg_anims(c, el):
+    return (cfg(c, el) or {}).get("anims", [])
+
+
+def test_a_path_can_put_other_animations_on_valves_and_pipes(net):
+    c = net
+    body = net_body([{"element": "vA", "src": "P1_drift", "branches": [0]}])
+    body["ends"] = []
+    body["elements"] = [{**e, "branches": [0]} for e in body["elements"] if e["branches"] != [1]]
+    for e in body["elements"]:
+        if e["element"] == "vA":
+            e["anims"] = [{"part": "vA_hus", "type": "fill", "params": {"on": "#00aa00", "off": "#888888"}},
+                          {"part": "vA_hus", "type": "blink", "params": {"speed": "fast"}}]
+        if e["element"] == "rA":
+            e["anims"] = [{"part": "all", "type": "fill", "params": {"on": "#ff0000"}}]
+    r = c.post(f"/api/drawings/{c.nd}/signal-paths", json=body)
+    assert r.status_code == 201, r.text
+    va = {(a["type"], a["part"]): a for a in _cfg_anims(c, "vA")}
+    assert va[("fill", "vA_hus")]["params"]["on"] == "#00aa00" and va[("blink", "vA_hus")]["params"]["speed"] == "fast"
+    assert va[("fill", "vA_hus")]["when"] is True and va[("fill", "vA_hus")]["src"].startswith("@")      # aktiv/passiv, styret af blokken
+    types_ra = sorted((a["type"], a["part"]) for a in _cfg_anims(c, "rA"))
+    assert types_ra == [("fill", "all"), ("flow", "all")]                          # løbelys + farve på samme rør
+    # ret til kun løbelys: farve- og blink-animationerne er væk, og ventilens egen opsætning er ryddet op
+    pid = c.get(f"/api/drawings/{c.nd}/signal-paths").json()[0]["id"]
+    for e in body["elements"]:
+        e["anims"] = []
+    assert c.put(f"/api/drawings/{c.nd}/signal-paths/{pid}", json=body).status_code == 200
+    assert _cfg_anims(c, "vA") == []
+    assert [a["type"] for a in _cfg_anims(c, "rA")] == ["flow"]
+    assert c.delete(f"/api/drawings/{c.nd}/signal-paths/{pid}").status_code == 200
+    assert c.get(f"/api/drawings/{c.nd}/symbols/rA/config").json()["config"] is None
+
+
+def test_animations_without_flow_and_the_rules(net):
+    c = net
+    url = f"/api/drawings/{c.nd}/signal-paths"
+    only_color = net_body([])
+    only_color["ends"] = []
+    only_color["elements"] = [{"element": "vA", "flows": [], "branches": [0],
+                               "anims": [{"part": "vA_hus", "type": "fill", "params": {"on": "#00aa00"}}]},
+                              {"element": "radA", "flows": [], "branches": [0]}]
+    assert c.post(url, json=only_color).status_code == 201                          # ingen løbelys: farven alene er nok
+    nothing = net_body([])
+    nothing["ends"] = []
+    nothing["name"] = "ingenting"
+    nothing["elements"] = [{"element": "vB", "flows": [], "branches": [0]}, {"element": "radB", "flows": [], "branches": [0]}]
+    r = c.post(url, json=nothing)
+    assert r.status_code == 400 and "mindst én animation" in r.json()["error"]
+    bad_type = {**only_color, "name": "x", "elements": [{"element": "vA", "branches": [0], "anims": [{"part": "all", "type": "opacity"}]}]}
+    assert c.post(url, json=bad_type).status_code == 422                            # opacity kræver et tal-tag
+    bad_part = {**only_color, "name": "y", "elements": [{"element": "vB", "branches": [0], "anims": [{"part": "findes_ikke", "type": "fill"}]}]}
+    assert c.post(url, json=bad_part).status_code == 400
+    bad_params = {**only_color, "name": "z", "elements": [{"element": "vB", "branches": [0],
+                                                          "anims": [{"part": "vB_hus", "type": "fill", "params": {"on": "ikke-en-farve"}}]}]}
+    assert c.post(url, json=bad_params).status_code == 400
+
+
+def test_same_type_on_the_same_part_asks_before_it_is_replaced(net):
+    c = net
+    url = f"/api/drawings/{c.nd}/signal-paths"
+    mine = lambda name: {"name": name, "start": "kedel", "end": "radA", "elements": [  # noqa: E731
+        {"element": "vA", "flows": [], "branches": [0], "anims": [{"part": "vA_hus", "type": "fill", "params": {"on": "#00aa00"}}]},
+        {"element": "radA", "flows": [], "branches": [0]}], "conditions": [], "style": {}}
+    c.put(f"/api/drawings/{c.nd}/symbols/vA/config", json={"config": {"op": "view", "anims": [
+        {"part": "vA_hus", "type": "fill", "when": False, "src": "P1_drift", "params": {"on": "#123456"}}]}})
+    r = c.post(url, json=mine("første"))
+    assert r.status_code == 409 and r.json()["conflicts"][0]["element"] == "vA"
+    assert c.post(url, json={**mine("første"), "replace": True}).status_code == 201
+    r2 = c.post(url, json=mine("anden"))                                            # en anden signalvej må ikke tage den
+    assert r2.status_code == 409
+
+
+def test_info_lists_the_parts_of_a_symbol(net):
+    c = net
+    r = c.post(f"/api/drawings/{c.nd}/signal-paths/info", json={"elements": ["vA", "t1"]}).json()
+    vA = next(e for e in r["elements"] if e["element"] == "vA")
+    assert vA["parts"] == [{"id": "vA_hus", "pid": "", "line": False, "text": ""}] or vA["parts"][0]["id"] == "vA_hus"

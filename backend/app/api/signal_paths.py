@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..services.bindings import _color
 from ..services.errors import ServiceError
-from ..services.signal_paths import MAX_CONDITIONS, MAX_ELEMENTS, MAX_ENDS, MAX_UI_CHARS, SignalPathService
+from ..services.signal_paths import MAX_ANIMS, MAX_CONDITIONS, MAX_ELEMENTS, MAX_ENDS, MAX_UI_CHARS, PATH_ANIMS, SignalPathService
 from .auth import ENGINEER, audit
 from .sse import sse_response
 
@@ -29,9 +29,18 @@ class Flow(_M):
     reverse: bool = False
 
 
+class PartAnim(_M):
+    """En animation (ud over løbelys) signalvejen lægger på en del (v4.14.0). Parametrene valideres af symbolvalideringen."""
+    part: str = Field(min_length=1, max_length=120)
+    type: Literal["fill", "stroke", "blink", "visible", "spin"]
+    params: dict[str, Any] = Field(default_factory=dict)
+    when: bool = True      # True: aktiv/passiv (er vejen ikke aktiv, røres delen ikke); False: viser sin fra-tilstand (fx skjult)
+
+
 class PathElement(_M):
     element: str = Field(min_length=1, max_length=120)
     flows: list[Flow] = Field(default_factory=list, max_length=8)
+    anims: list[PartAnim] = Field(default_factory=list, max_length=MAX_ANIMS)
     branches: list[int] = Field(default_factory=lambda: [0], max_length=MAX_ENDS)   # hvilke grene (slutpunkter) går gennem elementet
 
 

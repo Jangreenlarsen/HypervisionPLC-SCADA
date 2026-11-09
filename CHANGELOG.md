@@ -4,6 +4,18 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.14.0 build 0367] — 2026-11-09 — Signalveje: vælg animationer pr. slags element
+
+- `lib/pathLook.ts` (ny): grupper (rør, ventiler, 3-vejsventiler, pumper, kontakter), animationstyper pr. gruppe (løbelys kun på rør; farve, stregfarve, blink, vises kun når aktiv, roterer), `animsFor` (rør: på de dele, der får løbelys; 3-vejsventil: kun portene i den vej, vejen bruger — via symbolets port-dele; andre: hele symbolet eller en valgt del), `restoreLook`.
+- Backend — `services/signal_paths.py` og `api/signal_paths.py`:
+  - `PathElement.anims` ({part, type, params, when}); animationerne lægges på med vejens blok som kilde (aktiv/passiv, "vises kun når aktiv" som aktiv/ikke aktiv);
+  - konflikter, `_strip` og `_owned` gælder alle typer (same type + del), så *Ret* og *Slet* fjerner præcis det, vejen har lagt på;
+  - `info` giver symbolets dele (id, bibliotek-id, tekst); `valid_data` kontrollerer `anims`;
+  - en vej uden nogen animation afvises med en forklaring. Gennemsigtighed (opacity) tilbydes ikke: den kræver et tal-tag.
+- Guiden: nyt trin *4. Udseende* (kort pr. slags element med hak, farve, blinkhastighed og del) og *5. Navn og gem*; valgene gemmes i `ui.look` og kommer tilbage ved *Ret*. *Flere slutpunkter* har *← valgt*. `scrollIntoView` er beskyttet.
+- Manual (kap. 08) med nyt skærmbillede (`signalvej-udseende`) og LLM-tillæg.
+- Tests: `pathLook.test.ts`, `test_signal_branches.py` (animationer, konflikter, regler, info), `SignalPathGuide.test.ts`. Set i browseren: farve på portene i 3-vejsventilerne, farve og blink på ventilen, gem, ret igen.
+
 ## [4.13.2 build 0366] — 2026-11-09 — fix: vælg slut i tegningen; "Vælg på tegningen" virker igen
 
 - `SignalPathGuide.svelte`: under *Slut* (første slutpunkt) står nu *← valgt* og *Vælg slut på tegningen*; markeringen fjernes ved start af valget; `picking === null` i stedet for `!picking` (slutpunkt 0 var "falsk").

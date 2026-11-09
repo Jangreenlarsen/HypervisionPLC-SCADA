@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v4.14.0 — **Signalveje: vælg animationer pr. slags element** (ønske fra Jan 2026-11-09; leverance 2 af 2). Løbelys på rør, og farve, stregfarve, blink, "vises kun når aktiv" og roterer på ventiler, pumper, kontakter og 3-vejsventiler (kun portene i vejen). Valgene gemmes med vejen. *Flere slutpunkter* har nu også *← valgt*.
 - [x] done v4.13.0 — **Signalveje 2: grene, ind/ud fra symbolerne, vej gennem 3-vejsventiler og en interaktiv editor** (ønsker fra Jan 2026-11-09). Leverance 1 af 2; valg af animationer pr. element-type (løbelys, farve, blink, gennemsigtighed) kommer i v4.14.0.
   - **Grene:** ét start og op til 4 slutpunkter; hver gren i sin farve, fælles stykker lyser, når mindst én gren er aktiv.
   - **Ind/ud:** symbolernes punkter kan have navn, rolle (ind/ud/begge) og være *fælles*; pumpe og kontraventil bestemmer vejens retning, og vejen vendes automatisk.

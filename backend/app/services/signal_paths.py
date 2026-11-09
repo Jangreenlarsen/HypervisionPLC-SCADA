@@ -34,6 +34,10 @@ log = logging.getLogger("scada.signalpath")
 MAX_CONDITIONS = MAX_LOGIC_INPUTS + (MAX_LOGIC - 1) * (MAX_LOGIC_INPUTS - 1)   # 4 + 7·3 = 25 (8 blokke i kæde)
 MAX_ELEMENTS = 200
 MAX_ENDS = 4          # slutpunkter (grene) pr. signalvej (v4.13.0)
+MAX_ANIMS = 16        # ekstra animationer pr. element (v4.14.0)
+# Animationer en signalvej kan lægge på delene (v4.14.0): løbelys kommer fra `flows` (rør), de øvrige fra `anims`. "Gennemsigtighed"
+# (opacity) kræver et tal-tag og kan derfor ikke styres af en logikblok — brug Synlig.
+PATH_ANIMS = ("flow", "fill", "stroke", "blink", "visible", "spin")
 MAX_UI_CHARS = 8000   # guidens valg (vejvalg m.m.) gemmes sammen med vejen — samme grænse i API og backup
 _BLOCK = re.compile(r"^L(\d+)\Z")
 
@@ -96,6 +100,10 @@ def valid_data(d: Any) -> str | None:
             return "hvert element skal have element og flows"
         if not all(isinstance(f, dict) and isinstance(f.get("part"), str) for f in e.get("flows", [])):
             return "hver flow skal have en del (part)"
+        an = e.get("anims", [])
+        if not isinstance(an, list) or not all(isinstance(a, dict) and isinstance(a.get("part"), str) and a.get("type") in PATH_ANIMS
+                                               and isinstance(a.get("params", {}), dict) for a in an):
+            return "anims skal være en liste af {part, type, params}"
     if not isinstance(d.get("conditions", []), list) or not isinstance(d.get("style", {}), dict):
         return "conditions skal være en liste og style et objekt"
     ends = d.get("ends", [])
@@ -159,8 +167,10 @@ class SignalPathService:
                     "description": tags[t].get("description") or ""} for t in config_tags(cfg) if t in tags]
             flows = [a.get("part") for a in cfg.get("anims", []) if a.get("type") == "flow"
                      and (el, a.get("part"), a.get("src")) not in owned]
+            parts = [{"id": pid, "pid": p.get("pid") or "", "line": bool(p.get("line")), "text": p.get("text") or ""}
+                     for pid, p in list((d.get("parts") or {}).items())[:60]]
             out.append({"element": el, "name": d.get("name") or "", "type": d["type"], "configured": bool(cfg),
-                        "tags": own, "flows": flows})
+                        "tags": own, "flows": flows, "parts": parts})
         all_tags = [{"name": t["name"], "is_bool": _TagInfo(t).is_bool, "unit": t.get("unit") or "",
                      "description": t.get("description") or ""} for t in tags.values()]
         return {"elements": out, "max_conditions": MAX_CONDITIONS, "tags": all_tags}
@@ -173,9 +183,9 @@ class SignalPathService:
                 continue
             d = r["data"]
             for e in d.get("elements", []):
-                for f in e.get("flows", []):
-                    out.add((e.get("element"), f.get("part"),
-                             _ref(d.get("owner", ""), e.get("element"), e.get("block", d.get("final", "")))))
+                ref = _ref(d.get("owner", ""), e.get("element"), e.get("block", d.get("final", "")))
+                for part in [f.get("part") for f in e.get("flows", [])] + [a.get("part") for a in e.get("anims", [])]:
+                    out.add((e.get("element"), part, ref))
         return out
 
     # ------------------------------------------------------------------ fjern en vejs dele fra opsætningerne
@@ -190,9 +200,8 @@ class SignalPathService:
             if not cfg:
                 continue
             ref = _ref(owner, el, e.get("block", final))     # ældre veje har én slutblok (final) til alle
-            parts = {f.get("part") for f in e.get("flows", [])}
-            keep = [a for a in cfg.get("anims", []) if not (a.get("type") == "flow" and a.get("src") == ref
-                                                             and a.get("part") in parts)]
+            made = {("flow", f.get("part")) for f in e.get("flows", [])} | {(a.get("type"), a.get("part")) for a in e.get("anims", [])}
+            keep = [a for a in cfg.get("anims", []) if not (a.get("src") == ref and (a.get("type"), a.get("part")) in made)]
             if len(keep) != len(cfg.get("anims", [])):
                 configs[el] = {**cfg, "anims": keep}
                 changed.add(el)
@@ -249,6 +258,7 @@ class SignalPathService:
             raise ServiceError(400, "Start og slut må ikke være det samme symbol")
         nb = len(ends)
         for e in elements:
+            e["anims"] = e.get("anims") or []
             e["branches"] = sorted({int(b) for b in (e.get("branches") or [0])})
             if e["branches"][0] < 0 or e["branches"][-1] >= nb:
                 raise ServiceError(400, f"'{e['element']}' hører til en gren, der ikke findes")
@@ -274,9 +284,10 @@ class SignalPathService:
         bad = [c["element"] for c in conds if c["element"] not in path_ids | {body["start"], *ends}]
         if bad:
             raise ServiceError(400, f"Betingelsen for '{bad[0]}' hører ikke til et symbol på vejen")
-        flowing = [e for e in elements if e["flows"]]
+        flowing = [e for e in elements if e["flows"] or e["anims"]]      # elementer, der får en animation
         if not flowing:
-            raise ServiceError(400, "Ingen af delene på vejen kan vise løbelys (rør, bøjninger, T-stykker)")
+            raise ServiceError(400, "Vælg mindst én animation, og sørg for, at der er dele på vejen at sætte den på "
+                                    "(rør, bøjninger og T-stykker kan få løbelys)")
 
         before = self.symbols.configs(drawing_id)
         configs = {k: dict(v) for k, v in before.items()}
@@ -284,25 +295,26 @@ class SignalPathService:
             self._strip(configs, old["data"])
         owner = flowing[0]["element"]
 
-        # Løbelys, der allerede ligger på de samme dele (brugerens egne eller fra en anden signalvej)
+        # Animationer, der allerede ligger på de samme dele med samme type (brugerens egne eller fra en anden signalvej)
+        made_by: dict[str, set[tuple[str, str]]] = {
+            e["element"]: {("flow", f["part"]) for f in e["flows"]} | {(a["type"], a["part"]) for a in e["anims"]} for e in flowing}
         conflicts = []
         for e in flowing:
             cfg = configs.get(e["element"]) or {}
-            parts = {f["part"] for f in e["flows"]}
-            hits = [a for a in cfg.get("anims", []) if a.get("type") == "flow" and a.get("part") in parts]
+            hits = [a for a in cfg.get("anims", []) if (a.get("type"), a.get("part")) in made_by[e["element"]]]
             if hits:
                 conflicts.append({"element": e["element"], "parts": sorted({a["part"] for a in hits})})
         if conflicts and not body.get("replace"):
-            raise ServiceError(409, f"{len(conflicts)} rør har allerede løbelys — bekræft at det skal erstattes",
+            raise ServiceError(409, f"{len(conflicts)} dele har allerede en animation af samme type — bekræft at den skal erstattes",
                                {"conflicts": conflicts})
         other_owned = self._owned(drawing_id, skip=path_id)
         for c in conflicts:
             el = c["element"]
-            if any((el, p, a.get("src")) in other_owned for a in configs[el].get("anims", []) for p in c["parts"]
-                   if a.get("type") == "flow" and a.get("part") == p):
+            if any((el, a.get("part"), a.get("src")) in other_owned for a in configs[el].get("anims", [])
+                   if (a.get("type"), a.get("part")) in made_by[el]):
                 raise ServiceError(409, f"'{el}' er en del af en anden signalvej — ret eller slet den først")
             configs[el] = {**configs[el], "anims": [a for a in configs[el].get("anims", [])
-                                                    if not (a.get("type") == "flow" and a.get("part") in c["parts"])]}
+                                                    if (a.get("type"), a.get("part")) not in made_by[el]]}
 
         # Betingelsen → logikblokke på ejeren: en OG-kæde pr. gren, og en ELLER over grenenes slutblokke for de stykker, flere
         # grene går igennem. Én gren giver præcis de samme blokke som før (v4.13.0).
@@ -365,10 +377,14 @@ class SignalPathService:
             cfg = dict(configs.get(el) or {})
             e["block"] = block_of(e["branches"])
             src = _ref(owner, el, e["block"])
-            cfg["anims"] = [*cfg.get("anims", []), *[
-                {"part": f["part"], "type": "flow", "when": True, "src": src,
-                 "params": {"reverse": bool(f["reverse"]), "light": style["light"], "speed": style["speed"],
-                            "dash": style["dash"]}} for f in e["flows"]]]
+            cfg["anims"] = [*cfg.get("anims", []),
+                            *[{"part": f["part"], "type": "flow", "when": True, "src": src,
+                               "params": {"reverse": bool(f["reverse"]), "light": style["light"], "speed": style["speed"],
+                                          "dash": style["dash"]}} for f in e["flows"]],
+                            # øvrige animationer: aktive, når vejen er aktiv — ellers rører de ikke delen ("aktiv/passiv")
+                            *[{"part": a["part"], "type": a["type"], "when": bool(a.get("when", True)), "src": src,
+                               "params": dict(a.get("params") or {})}
+                              for a in e["anims"]]]
             configs[el] = cfg
 
         # Fjernede blokke (gammel ejer) må ikke bruges af andre
@@ -401,8 +417,8 @@ class SignalPathService:
             configs[el] = normalized
         data = {"start": body["start"], "end": body["end"], "ends": ends, "owner": owner, "blocks": ids_new,
                 "final": final[0] if nb == 1 else "",
-                "elements": [{"element": e["element"], "flows": e["flows"], "branches": e["branches"], "block": e.get("block", "")}
-                             for e in elements],
+                "elements": [{"element": e["element"], "flows": e["flows"], "anims": e["anims"], "branches": e["branches"],
+                              "block": e.get("block", "")} for e in elements],
                 "conditions": conds, "style": style, "ui": body.get("ui") or {}, "created": sorted(created & set(configs))}
         sid = self.db.write_signal_path(drawing_id, path_id, name, data, result, actor.username,
                                         expect={el: before.get(el) for el in result})

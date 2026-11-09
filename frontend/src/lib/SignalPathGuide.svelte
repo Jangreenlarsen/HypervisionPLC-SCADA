@@ -13,13 +13,19 @@
     type Answer, type Condition, type Graph, type Net, type NetRow, type Pt, type Question, type Step, type TagInfo,
   } from './signalPath';
   import { mergeDefs, parseWay, wayKey, wayLabel, waysOf, type FlowDefs } from './symbolFlow';
+  import {
+    GROUPS, GROUP_LABEL, TYPE_LABEL, WAYS_PART, WHOLE, animsFor, anyChosen, defaultLook, groupOf, restoreLook, type Look, type LookGroup,
+  } from './pathLook';
 
   interface Saved {
     id: number; name: string; start: string; end: string; ends: string[]; ui: { forced?: Record<string, Record<string, string>>; picks?: number[] };
     elements: { element: string; flows: { part: string; reverse: boolean }[]; branches?: number[] }[];
     conditions: (Condition & { branches?: number[] })[]; style: { light: string; speed: number; dash: number }; missing: string[]; updated_by: string;
   }
-  interface ElInfo { element: string; name?: string; type?: string; configured?: boolean; tags?: TagInfo[]; flows?: string[]; missing?: boolean }
+  interface ElInfo {
+    element: string; name?: string; type?: string; configured?: boolean; tags?: TagInfo[]; flows?: string[]; missing?: boolean;
+    parts?: { id: string; pid: string; line: boolean; text: string }[];
+  }
   type QAnswer = Answer & { key: string; branches: number[] };
 
   let { drawingId, ready, rev = 0, selected, graph, highlight, select, ensureSaved, onchanged }: {
@@ -47,6 +53,7 @@
   let endIds = $state<string[]>([]);
   let light = $state('#8fc8ea');
   let speed = $state(40);
+  let look = $state<Look>(defaultLook());     // hvilke animationer vejen lægger på hvilke slags elementer (v4.14.0)
   let g = $state<Graph | null>(null);
   let defs = $state<FlowDefs>(mergeDefs(null));
   let forced = $state<Record<number, Record<string, string>>>({});   // gren → knude → vej ("AB>A")
@@ -81,6 +88,8 @@
   const missingEnds = $derived(endIds.map((e, b) => ({ e, b })).filter(({ b }) => !cands[b]?.length));
   const complete = $derived(!!net && endIds.length > 0 && !missingEnds.length);
   /** Elementer, AI-forslag kan udfylde: kun dem med ét spørgsmål (en flervejs-ventil har ét pr. vej). */
+  /** Hvilke slags elementer der er på vejen (og hvor mange af hver), til udseende-trinnet. */
+  const present = $derived(new Map<LookGroup, number>(GROUPS.map((g) => [g, (net?.rows ?? []).filter((r) => groupOf(r.role) === g).length] as [LookGroup, number]).filter(([, n]) => n > 0)));
   const askedOnce = $derived(questions.filter((q) => questions.filter((x) => x.element === q.element).length === 1));
 
   $effect(() => { void drawingId; load(); });
@@ -237,7 +246,7 @@
         const hit = sel.length === 1 ? net?.rows.find((r) => r.id === sel[0]) : undefined;
         if (hit) {
           activeRow = hit.id;
-          document.getElementById(`sp-row-${hit.id}`)?.scrollIntoView({ block: 'nearest' });
+          document.getElementById(`sp-row-${hit.id}`)?.scrollIntoView?.({ block: 'nearest' });
         }
         return;
       }
@@ -318,6 +327,7 @@
     name = p?.name ?? '';
     light = p?.style.light ?? '#8fc8ea';
     speed = p?.style.speed ?? 40;
+    look = restoreLook((p?.ui as { look?: unknown } | undefined)?.look);
     start = p?.start ?? '';
     endIds = p ? (p.ends?.length ? p.ends : [p.end]) : [];
     forced = Object.fromEntries(Object.entries(p?.ui?.forced ?? {}).map(([k, v]) => [Number(k), v]));
@@ -389,17 +399,25 @@
       error = 'Giv signalvejen et navn';
       return;
     }
+    if (!anyChosen(look, new Set(present.keys()))) {
+      error = 'Vælg mindst én animation under Udseende';
+      return;
+    }
     const body = {
       name: name.trim(), start, end: endIds[0], ends: endIds.slice(1), replace, conditions,
-      elements: net.rows.map((r) => ({ element: r.id, flows: r.flows, branches: r.branches })),
-      style: { light, speed, dash: 12 }, ui: { forced, picks },
+      elements: net.rows.map((r) => {
+        const x = animsFor(r, look, defs, info.get(r.id)?.parts ?? []);
+        return { element: r.id, flows: x.flows, anims: x.anims, branches: r.branches };
+      }),
+      style: { light, speed, dash: 12 }, ui: { forced, picks, look },
     };
     busy = true;
     try {
       const id = editing?.id;
       if (id) await put(`${base}/${id}`, body);
       else await post(base, body);
-      onchanged?.(`Signalvejen "${body.name}" er gemt — ${net.rows.filter((r) => r.flows.length).length} dele har fået løbelys.`);
+      const n = body.elements.filter((e) => e.flows.length || e.anims.length).length;
+      onchanged?.(`Signalvejen "${body.name}" er gemt — ${n} dele har fået animationer.`);
       editing = null;
       highlight([], []);
       await load();
@@ -408,7 +426,7 @@
       if (conflicts?.length && !replace) {
         busy = false;
         const which = conflicts.map((c) => label(c.element)).join(', ');
-        if (await askUser(`${conflicts.length} rør har allerede løbelys (${which}). Skal det erstattes af signalvejens løbelys?`,
+        if (await askUser(`${conflicts.length} dele har allerede en animation af samme type (${which}). Skal den erstattes af signalvejens?`,
           { ok: 'Erstat' })) await save(true);
         return;
       }
@@ -519,9 +537,12 @@
     {/each}
     {#if endIds.length && endIds.length < MAX_ENDS}
       <label class="field">Flere slutpunkter (vejen deler sig)
-        <select value="" onchange={(e) => { addEnd(e.currentTarget.value); e.currentTarget.value = ''; }} aria-label="Tilføj slutpunkt">
-          <option value="">+ tilføj et slutpunkt …</option>{#each choices.filter((c) => c.id !== start && !endIds.includes(c.id)) as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
-        </select>
+        <span class="row nowrap">
+          <select value="" onchange={(e) => { addEnd(e.currentTarget.value); e.currentTarget.value = ''; }} aria-label="Tilføj slutpunkt">
+            <option value="">+ tilføj et slutpunkt …</option>{#each choices.filter((c) => c.id !== start && !endIds.includes(c.id)) as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
+          </select>
+          <button class="small" onclick={() => { const id = fromSelection(); if (id) addEnd(id); }} title="Tilføj symbolet, der er valgt i tegningen, som slutpunkt">← valgt</button>
+        </span>
       </label>
     {/if}
     {#if !endIds.length && start}
@@ -643,12 +664,43 @@
     </div>
 
     <div class="step">
-      <h4>4. Navn og udseende</h4>
+      <h4>4. Udseende — hvilke animationer?</h4>
+      <p class="small muted">Vælg, hvad vejen skal gøre ved hver slags element, når den er aktiv. Er den ikke aktiv, røres delen ikke.</p>
+      {#each GROUPS.filter((x) => present.has(x)) as g (g)}
+        {@const first = net?.rows.find((r) => groupOf(r.role) === g)}
+        {@const parts = info.get(first?.id ?? '')?.parts ?? []}
+        <fieldset class="look">
+          <legend>{GROUP_LABEL[g]} <span class="small muted">({present.get(g)})</span></legend>
+          {#each look[g] as a (a.type)}
+            <div class="lrow">
+              <label class="opt"><input type="checkbox" bind:checked={a.on} aria-label="{TYPE_LABEL[a.type]} på {GROUP_LABEL[g]}" /> {TYPE_LABEL[a.type]}</label>
+              {#if a.on}
+                {#if a.type === 'flow'}
+                  <input type="color" bind:value={light} aria-label="Lysfarve" title="Lysfarve" />
+                  <input class="num" type="number" min="5" max="500" bind:value={speed} aria-label="Fart" title="Fart" />
+                {:else if a.type === 'fill' || a.type === 'stroke'}
+                  <input type="color" bind:value={a.color} aria-label="Farve for {TYPE_LABEL[a.type]}" title="Farve, når vejen er aktiv" />
+                {:else if a.type === 'blink'}
+                  <select bind:value={a.speed} aria-label="Blinkhastighed"><option value="slow">langsomt</option><option value="normal">normalt</option><option value="fast">hurtigt</option></select>
+                {/if}
+                {#if g !== 'pipe' && a.type !== 'flow'}
+                  <select class="part" bind:value={a.part} aria-label="Del for {TYPE_LABEL[a.type]} på {GROUP_LABEL[g]}">
+                    {#if g === 'threeway'}<option value={WAYS_PART}>Portene i vejen</option>{/if}
+                    <option value={WHOLE}>Hele symbolet</option>
+                    {#each parts as p (p.id)}<option value={p.id}>{p.text ? `${p.text} (${p.pid || p.id})` : (p.pid || p.id)}</option>{/each}
+                  </select>
+                {/if}
+              {/if}
+            </div>
+          {/each}
+        </fieldset>
+      {/each}
+      {#if !anyChosen(look, new Set(present.keys()))}<p class="small warn">Vælg mindst én animation.</p>{/if}
+    </div>
+
+    <div class="step">
+      <h4>5. Navn og gem</h4>
       <label class="field">Navn <input bind:value={name} maxlength="60" placeholder="fx Kedel → radiatorer" /></label>
-      <span class="row nowrap">
-        <label class="field">Lysfarve <input type="color" bind:value={light} /></label>
-        <label class="field">Fart <input type="number" min="5" max="500" bind:value={speed} /></label>
-      </span>
       <div class="row">
         <button class="primary" onclick={() => save(false)} disabled={busy || !name.trim()}>Gem signalvej</button>
         <button onclick={cancel} disabled={busy}>Annullér</button>
@@ -687,5 +739,12 @@
   .pipes { display: block; margin-left: -.9rem; font-size: .72rem; }
   .link { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; font: inherit; }
   .way { font-size: .8rem; max-width: 100%; margin-left: .3rem; }
+  .look { border: 1px solid var(--line); border-radius: var(--radius); margin: .3rem 0; padding: .2rem .5rem .4rem; }
+  .look legend { font-size: .82rem; font-weight: 600; padding: 0 .3rem; }
+  .lrow { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem .5rem; }
+  .lrow .opt { margin: .1rem 0; min-width: 9rem; }
+  .lrow input[type='color'] { width: 2rem; height: 1.5rem; padding: 0; }
+  .lrow .num { width: 4rem; }
+  .lrow .part { max-width: 100%; font-size: .8rem; }
   .chip { font-size: .72rem; background: #eceff1; border: 1px solid var(--line); border-radius: 999px; padding: 0 .4rem; margin: 0 .2rem; }
 </style>

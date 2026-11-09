@@ -2,6 +2,12 @@
 
 ---
 
+## v4.14.0 — 2026-11-09 — Vælg animationer til signalvejen
+
+- Nyt trin **Udseende** i signalvej-guiden: vælg, hvad vejen gør ved hver slags element — løbelys på rør, og farve, blink, "vises kun når aktiv" eller roterer på ventiler, pumper og kontakter.
+- På en **3-vejsventil** får kun portene i den vej, signalvejen bruger, farve, så ventilen viser, hvilken vej den leder.
+- Valgene gemmes med signalvejen. **Flere slutpunkter** har nu også **← valgt**.
+
 ## v4.13.2 — 2026-11-09 — Vælg slutpunktet i tegningen
 
 - Under *Slut* i signalvej-guiden er der nu **← valgt** og **Vælg slut på tegningen**, så du også kan klikke slutpunktet, når start allerede er valgt.
