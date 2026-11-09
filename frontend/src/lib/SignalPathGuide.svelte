@@ -60,6 +60,7 @@
   // Klik i tegningen (v4.15.0): "gå via"-punkter pr. gren (rør og symboler, vejen skal igennem), og hvilken gren et klik gælder
   let via = $state<Record<number, string[]>>({});
   let viaMissing = $state<Record<number, string[]>>({});
+  let flips = $state<Record<number, boolean>>({});     // gren → brugeren har vendt flowets retning (v4.16.0)
   let activeBranch = $state(0);
   let clicking = $state(true);                  // et klik på et rør/symbol i tegningen ændrer vejen (så længe trin 2 er åbent)
   let clickNote = $state('');
@@ -199,7 +200,7 @@
   function refresh(): void {
     if (!g) return;
     const chosen = cands.map((c, b) => c[picks[b]] ?? []);
-    net = chosen.some((p) => p.length) ? describeNet(g, chosen, defs) : null;
+    net = chosen.some((p) => p.length) ? describeNet(g, chosen, defs, endIds.map((_, b) => !!flips[b])) : null;
     void loadInfo();
   }
 
@@ -257,6 +258,7 @@
       endIds = [];
       forced = {};
       via = {};
+      flips = {};
       recompute();
       pickNote = 'Klik på startsymbolet i tegningen …';
     } else if (what === 'via') pickNote = 'Klik på et rør eller symbol, vejen skal gå igennem …';
@@ -317,6 +319,7 @@
       stopPick();
       forced = {};
       via = {};
+      flips = {};
       recompute();
     });
   });
@@ -398,18 +401,25 @@
     addVia(id);
     return done(clickNote);
   }
+  /** Vend flowets retning på en gren (hvis symbolerne ikke giver den rigtige, eller ingen giver en). */
+  function flipBranch(b: number): void {
+    flips = { ...flips, [b]: !flips[b] };
+    refresh();
+  }
   const rowOfNet = (id: string) => net?.rows.find((r) => r.id === id);
 
   function setEnd(i: number, id: string): void {
     endIds = id ? endIds.map((e, k) => (k === i ? id : e)) : endIds.filter((_, k) => k !== i);
     forced = {};
     via = {};
+    flips = {};
     recompute();
   }
   function removeEnd(i: number): void {
     endIds = endIds.filter((_, k) => k !== i);
     forced = {};
     via = {};
+    flips = {};
     recompute();
   }
   function addEnd(id: string): void {
@@ -422,12 +432,14 @@
     [start, endIds[0]] = [endIds[0], start];
     forced = {};
     via = {};
+    flips = {};
     recompute();
   }
   function setStart(id: string): void {
     start = id;
     forced = {};
     via = {};
+    flips = {};
     recompute();
   }
   function fromSelection(): string | null {
@@ -461,6 +473,7 @@
     endIds = p ? (p.ends?.length ? p.ends : [p.end]) : [];
     forced = Object.fromEntries(Object.entries(p?.ui?.forced ?? {}).map(([k, v]) => [Number(k), v]));
     via = Object.fromEntries(Object.entries((p?.ui as { via?: Record<string, string[]> } | undefined)?.via ?? {}).map(([k, v]) => [Number(k), v]));
+    flips = Object.fromEntries(Object.entries((p?.ui as { flips?: Record<string, boolean> } | undefined)?.flips ?? {}).map(([k, v]) => [Number(k), !!v]));
     viaMissing = {};
     activeBranch = 0;
     clicking = true;
@@ -541,7 +554,7 @@
         const x = animsFor(r, look, defs, info.get(r.id)?.parts ?? []);
         return { element: r.id, flows: x.flows, anims: x.anims, branches: r.branches };
       }),
-      style: { light, speed, dash: 12 }, ui: { forced, picks, look, via },
+      style: { light, speed, dash: 12 }, ui: { forced, picks, look, via, flips },
     };
     busy = true;
     try {
@@ -659,8 +672,10 @@
         {#if cands[b]?.length}
           <div class="branch" class:activeb={endIds.length > 1 && activeBranch === b} style="border-left-color:{branchColor(b)}">
             {#if endIds.length > 1}<div class="small"><button class="link" onclick={() => (activeBranch = b)} title="Klik i tegningen gælder denne gren"><strong>Gren {b + 1}</strong></button> → {label(e)}{#if activeBranch === b && clicking && !locked} <span class="chip">klik gælder her</span>{/if}</div>{/if}
-            {#if net?.flipped[b]}<div class="small ok">↻ Vejen er vendt, så flowet følger {net.by[b].join(', ')} (ind → ud).</div>
+            {#if net?.manual[b]}<div class="small ok">⇄ Du har vendt flowets retning.</div>
+            {:else if net?.flipped[b]}<div class="small ok">↻ Vejen er vendt, så flowet følger {net.by[b].join(', ')} (ind → ud).</div>
             {:else if net?.by[b]?.length}<div class="small ok">Flowet følger {net.by[b].join(', ')} (ind → ud).</div>{/if}
+            {#if !locked}<div class="row"><button class="small" onclick={() => flipBranch(b)} title="Vend flowets retning på {endIds.length > 1 ? `gren ${b + 1}` : 'vejen'} (pilene i tegningen vender)">⇄ Vend flowet</button></div>{/if}
             {#if !locked}
               {#each cands[b] as _, i (i)}
                 <!-- forslag, der nævner de samme symboler (de ligger bare i andre rørstykker), vises kun én gang -->

@@ -54,6 +54,10 @@ I signalvej-guidens trin 4 (**Udseende**) står der et kort for hver slags eleme
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 Mens trin 2 i signalvej-guiden er åbent, klik på et rør eller symbol uden for vejen for at lade vejen gå via det (klik igen fjerner det). Klik på en 3-vejsventil på vejen for at skifte dens vej (automatisk, AB → A, AB → B). *Færdig* eller Esc slår klik-tilstanden fra. Via kan også vælges i trin 1 (*Gå via*).
 
+## Hvordan vender jeg flowets retning i en signalvej?
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+Tryk **⇄ Vend flowet** under grenen i signalvej-guidens trin 2. Løbelyset vender med det samme, og valget gemmes med signalvejen. Ellers følger retningen pumpen eller kontraventilen på vejen.
+
 ## Hvorfor finder signalvejen ikke en vej (ingen sammenhængende vej, tynde streger)?
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 Tjek at rørene sidder fast i symbolerne (grønne ender), at de rører hinanden, hvor de mødes, og at de er tykke nok: tynde streger (under 5 bred) og stiplede streger regnes som føler- og signallinjer og er ikke rør. Med en 3-vejsventil: prøv *automatisk* eller en anden vej.

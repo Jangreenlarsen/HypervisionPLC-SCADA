@@ -178,4 +178,17 @@ describe('Signalvej-guiden: klik i tegningen', () => {
     expect(text()).toContain('5. Navn og gem');
     expect(button('Gem signalvej')!.hasAttribute('disabled')).toBe(true);                          // uden navn
   });
+
+  it('Vend flowet vender retningen på grenen i tegningen', async () => {
+    open(LOOP);
+    await chooseStartEnd('kedel', 'rad');
+    const dirs = () => (highlight.mock.calls.at(-1)![0] as { flow: number }[]).map((l) => l.flow);
+    const before = dirs();
+    expect(before.every((f) => f === 1)).toBe(true);
+    await click(button('⇄ Vend flowet'));
+    expect(text()).toContain('Du har vendt flowets retning');
+    expect(dirs().every((f) => f === -1)).toBe(true);
+    await click(button('⇄ Vend flowet'));
+    expect(dirs()).toEqual(before);
+  });
 });

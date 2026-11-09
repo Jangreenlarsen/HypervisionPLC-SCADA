@@ -24,20 +24,25 @@ export const MAX_ENDS = 4;
 /** Hvordan en gren bruger et element: hvilken vej gennem en flervejs-ventil, og hvor den går ind og ud. */
 export interface Use { branch: number; way: string | null; entry: Pt | null; exit: Pt | null }
 export interface NetRow extends PathRow { branches: number[]; uses: Use[] }
-export interface Net { rows: NetRow[]; warnings: string[]; flipped: boolean[]; by: string[][] }   // by: hvem gav grenens retning
+export interface Net { rows: NetRow[]; warnings: string[]; flipped: boolean[]; by: string[][]; manual: boolean[] }   // by: hvem gav grenens retning; manual: brugeren har vendt den
 
 /**
  * Grenene (en vej pr. slutpunkt) samlet til ét net. Hvert element står én gang med de dele, mindst én gren bruger, hver i sin
- * retning. Grenenes retning følger symbolernes ind/ud (`orient`). To grene, der bruger samme del i hver sin retning, nævnes.
+ * retning. Grenenes retning følger symbolernes ind/ud (`orient`); `flips[b]` vender grenens retning efter brugerens ønske (v4.16.0).
+ * To grene, der bruger samme del i hver sin retning, nævnes.
  */
-export function describeNet(g: Graph, paths: Step[][], defs?: FlowDefs): Net {
+export function describeNet(g: Graph, paths: Step[][], defs?: FlowDefs, flips: boolean[] = []): Net {
   const byId = new Map(g.nodes.map((n) => [n.id, n]));
   const rows = new Map<string, NetRow>();
   const warnings: string[] = [];
   const flipped: boolean[] = [];
   const by: string[][] = [];
+  const manual: boolean[] = [];
   paths.forEach((path, b) => {
-    const o = orient(g, path, defs);
+    let o = orient(g, path, defs);
+    const flip = !!flips[b];
+    if (flip) o = { ...o, flipped: !o.flipped, steps: o.steps.slice().reverse().map((s) => ({ id: s.id, entry: s.exit, exit: s.entry })) };
+    manual.push(flip);
     flipped.push(o.flipped);
     by.push(o.by);
     warnings.push(...(paths.length === 1 ? o.warnings : o.warnings.map((w) => `Gren ${b + 1}: ${w}`)));
@@ -59,7 +64,7 @@ export function describeNet(g: Graph, paths: Step[][], defs?: FlowDefs): Net {
       row.uses.push({ branch: b, way: wayUsed(n, st, defs), entry: st.entry, exit: st.exit });
     }
   });
-  return { rows: [...rows.values()], warnings: [...new Set(warnings)], flipped, by };
+  return { rows: [...rows.values()], warnings: [...new Set(warnings)], flipped, by, manual };
 }
 
 /** Et spørgsmål i guiden: "hvornår går der flow gennem V1?" — for en flervejs-ventil ét pr. vej, der bruges. */

@@ -81,6 +81,21 @@ group('orient — retning fra pumpen', () => {
     expect(net.flipped).toEqual([true]);
   });
 
+  it('lets the user flip a branch by hand, also without direction-giving symbols', () => {
+    const g = pumpLine();
+    const [p] = findPaths(g, 'kedel', 'rad', 3, 8, { defs: DEFS });
+    const flipped = describeNet(g, [p], DEFS, [true]);
+    expect(flipped.manual).toEqual([true]);
+    expect(flipped.flipped).toEqual([true]);                                          // mod pumpen
+    expect(flipped.rows.find((r) => r.id === 'r1')!.flows).toEqual([{ part: 'all', reverse: true }]);
+    expect(describeNet(g, [p], DEFS, [true, true]).manual).toEqual([true]);          // kun grenene, der findes
+    expect(describeNet(g, [p], DEFS).manual).toEqual([false]);
+    const plain: Graph = { nodes: g.nodes.map((n) => (n.id === 'p1' ? { ...n, fracs: null } : n)) };
+    expect(describeNet(plain, [p], DEFS, [true]).rows.find((r) => r.id === 'r2')!.flows).toEqual([{ part: 'all', reverse: true }]);
+    // to gange er tilbage til udgangspunktet
+    expect(describeNet(g, [p], DEFS, [false]).rows.find((r) => r.id === 'r1')!.flows).toEqual([{ part: 'all', reverse: false }]);
+  });
+
   it('does nothing without direction-giving symbols or without definitions', () => {
     const g = pumpLine();
     const [p] = findPaths(g, 'rad', 'kedel');
