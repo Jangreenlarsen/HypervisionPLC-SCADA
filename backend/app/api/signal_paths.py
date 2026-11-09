@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from typing import Any, Literal
 
@@ -12,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..services.bindings import _color
 from ..services.errors import ServiceError
-from ..services.signal_paths import MAX_CONDITIONS, MAX_ELEMENTS, SignalPathService
+from ..services.signal_paths import MAX_CONDITIONS, MAX_ELEMENTS, MAX_ENDS, MAX_UI_CHARS, SignalPathService
 from .auth import ENGINEER, audit
 from .sse import sse_response
 
@@ -31,6 +32,7 @@ class Flow(_M):
 class PathElement(_M):
     element: str = Field(min_length=1, max_length=120)
     flows: list[Flow] = Field(default_factory=list, max_length=8)
+    branches: list[int] = Field(default_factory=lambda: [0], max_length=MAX_ENDS)   # hvilke grene (slutpunkter) går gennem elementet
 
 
 class Condition(_M):
@@ -39,6 +41,7 @@ class Condition(_M):
     neg: bool = False
     cmp: Literal["", "ge", "le", "eq"] = ""
     value: float | None = None
+    branches: list[int] | None = Field(default=None, max_length=MAX_ENDS)   # tom = alle grene, der går gennem elementet
 
 
 class Style(_M):
@@ -53,10 +56,19 @@ class Body(_M):
     name: str = Field(min_length=1, max_length=60)
     start: str = Field(min_length=1, max_length=120)
     end: str = Field(min_length=1, max_length=120)
+    ends: list[str] = Field(default_factory=list, max_length=MAX_ENDS)     # flere slutpunkter: end + disse (v4.13.0)
+    ui: dict[str, Any] = Field(default_factory=dict)                      # guidens valg (vejvalg, forslag) — så vejen kan rettes
     elements: list[PathElement] = Field(min_length=1, max_length=MAX_ELEMENTS)
     conditions: list[Condition] = Field(default_factory=list, max_length=MAX_CONDITIONS)
     style: Style = Field(default_factory=Style)
     replace: bool = False                                 # erstat løbelys, der allerede ligger på rørene
+
+    @field_validator("ui")
+    @classmethod
+    def _ui_small(cls, v: dict[str, Any]) -> dict[str, Any]:
+        if len(json.dumps(v, default=str)) > MAX_UI_CHARS:
+            raise ValueError(f"ui må højst fylde {MAX_UI_CHARS} tegn")
+        return v
 
 
 class InfoBody(_M):

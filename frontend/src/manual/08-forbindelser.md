@@ -71,38 +71,61 @@ Et **T-stykke** er et biblioteks-symbol med tre ben (*tilløb 1*, *tilløb 2* og
 
 ## Signalveje: løbelys på en hel rørvej på én gang
 
-En **signalvej** sætter løbelys på *alle* rør mellem to symboler, fx fra kedlen til radiatorerne, styret af ventilerne og pumperne undervejs. Du skal ikke sætte hvert rør, hver bøjning og hvert T-stykke op for sig.
+En **signalvej** sætter løbelys på *alle* rør mellem symboler på én gang, fx fra kedlen til radiatorerne, styret af ventilerne og pumperne undervejs. Du skal ikke sætte hvert rør, hver bøjning og hvert T-stykke op for sig. Vejen kan **dele sig i flere grene**, og den følger **pumpens retning** og **3-vejsventilens vej**.
 
-Åbn sektionen **Signalveje** i panelet til højre (rollen tekniker), og tryk **Ny signalvej …**. Tegningen gemmes og udgives først, hvis den har ændringer.
+Åbn sektionen **Signalveje** i panelet til højre (rollen tekniker), og tryk **Ny signalvej …**. Tegningen gemmes og udgives først, hvis den har ændringer. Guiden har fire trin, og vejen er **markeret i tegningen hele tiden** — den ændrer sig, mens du vælger.
 
-![Sektionen Signalveje efter Ny signalvej: Vælg på tegningen, eller vælg start og slut i listerne og tryk Find vej](../../public/manual/signalveje.png)
+![Sektionen Signalveje med to grene: Gren 1 til AVTA 1 og Gren 2 til AVTB, med 3-vejsventilernes vej, der kan skiftes](../../public/manual/signalvej-vej.png)
 
-1. **Start og slut:** tryk **Vælg på tegningen**, klik på startsymbolet og derefter på slutsymbolet — så findes vejen af sig selv. Klikker du på et rør, en tekst eller en visning, står der, hvorfor det ikke kan bruges; **Esc** eller **Afbryd valg** stopper. Du kan også vælge i listerne (eller vælge symbolet og trykke **← valgt**) og trykke **Find vej**.
-2. **Vejen:** vejen markeres med **orange** i tegningen. Er der flere veje (fx en omløbsledning), kan du vælge mellem op til tre. Vejen findes ud fra, hvordan delene hænger sammen:
-   - rør, der sidder fast i symbolerne;
-   - symboler, hvis tilslutningspunkter rører hinanden;
-   - et rør, der ender midt på et andet (en afgrening uden T-stykke).
+### 1. Start og slutpunkter
 
-   Vejen går aldrig gennem statusfelter, knapper eller løse tekster.
-3. **Hvornår går der flow?** For hver ventil, 3-vejsventil, pumpe og kontakt på vejen vælger du et tag og hvornår:
-   - et til/fra-tag: *når tagget er til* eller *fra*;
-   - et tal-tag: en sammenligning som ≥ 50.
+- Tryk **Vælg på tegningen**, klik på startsymbolet og derefter på slutsymbolet — så findes vejen af sig selv. Klikker du på et rør, en tekst eller en visning, står der, hvorfor det ikke kan bruges; **Esc** eller **Afbryd valg** stopper. Du kan også vælge i listerne (eller vælge symbolet i tegningen og trykke **← valgt**).
+- Har du valgt start, kan du vælge slutpunktet med **Vælg slut på tegningen** (klik på symbolet), i listen under **Slut**, eller ved at vælge symbolet i tegningen og trykke **← valgt** ud for **Slut**.
+- **Vejen deler sig:** tryk **+ Slutpunkt** (og klik i tegningen), eller vælg i listen **Flere slutpunkter**. Der kan være op til **4 slutpunkter**, og hver gren får sin egen farve. **✕** fjerner et slutpunkt, og **⇄ Byt om** bytter start og slut.
 
-   Symbolets egne tags (fra dets opsætning) står øverst og foreslås. Vælg *ingen betingelse*, hvis symbolet ikke skal tælle med. Alle betingelser skal være opfyldt (OG). Bøjninger, T-stykker og kontraventiler spørges der ikke om.
+### 2. Vejen
 
-   **Forklar med egne ord:** er hjælperen slået til (*System › Hjælper (LLM)*), kan du i stedet skrive, hvornår der går flow, fx *"når pumpe 5 kører og AVTB står åben"*, og trykke **Udfyld med hjælperen**.
-   - Hjælperen får kun symbolerne på vejen og en kort liste af tags (navn, type og beskrivelse) og udfylder svarene som forslag, mærket **forslag**.
-   - Hvert forslag kontrolleres, før det vises: tagget skal findes, og et tal-tag skal have en sammenligning.
-   - Forslag, der ikke holder, udfyldes ikke, og de symboler står under *Ikke udfyldt af hjælperen*.
-   - Det tager typisk 1–3 minutter; **Stop** afbryder.
-   - Tjek forslagene, før du gemmer. Intet gemmes, før du trykker **Gem signalvej**.
-4. **Navn og udseende:** giv signalvejen et navn, vælg lysfarve og fart, og tryk **Gem signalvej**.
+Vejen beregnes med det samme og vises i tegningen: **hver gren i sin farve**, de stykker flere grene går igennem (stammen) i brun, og de **hvide streger viser, hvilken vej flowet løber** (de kører, så du ser retningen).
 
-Når du gemmer, lægges betingelsen som en logikblok (*Signalvej: <navn>*) på vejens første rør, og hvert rør på vejen får et løbelys i vejens retning. Er et rør tegnet "baglæns", vendes lyset automatisk. Rørenes øvrige opsætning, fx en farve-animation, bevares. Har et rør allerede løbelys, spørger Tegn, om det skal erstattes. Et rør kan kun høre til én signalvej ad gangen.
+![Tegningen med vejen markeret: den orange gren går op til AVTA 1, den blå til AVTB, og stammen er brun](../../public/manual/signalvej-tegning.png)
 
-Under **Signalveje** står de gemte signalveje med **Ret** og **Slet**. *Slet* fjerner løbelyset og betingelsen igen og intet andet. Mangler dele af en vej, fordi rør er slettet eller tegnet om, står der en advarsel. Tryk **Ret** og **Find vej** igen.
+- **Forslag:** er der flere veje til et slutpunkt, kan du vælge mellem op til tre. Forslag, der nævner de samme symboler, vises kun én gang.
+- **Retningen følger symbolerne.** Sidder der en **pumpe** (eller en **kontraventil**) på vejen, løber flowet fra dens udgang mod resten — uanset hvilket symbol du valgte som start. Guiden skriver det: *"Vejen er vendt, så flowet følger Pumpe 5 (ind → ud)"*. Er symbolerne uenige (to pumper mod hinanden), står der hvilke, i stedet for at guiden gætter.
+- **3-vejsventiler:** for hver 3-vejsventil på vejen kan du vælge dens **vej** (*AB → A* eller *AB → B*). **Skifter du vejen, beregnes signalvejen forfra med det samme**, og tegningen viser den nye vej. Findes der ingen vej med det valg, står det der. **Automatisk** lader programmet vælge, og viser hvilken vej der blev brugt.
+- **Peg og klik:** peg på en række i listen, så fremhæves symbolet i tegningen; klik på navnet for at vælge det i tegningen. Klikker du på et symbol på vejen i tegningen, markeres dets række i listen.
+- Vejen går **ikke** gennem statusfelter, knapper eller løse tekster, og heller ikke gennem **tynde streger (under 5 bred) eller stiplede streger** — de regnes som føler- og signallinjer, ikke som rør.
 
-> Finder Tegn ingen vej, så tjek, at rørene sidder fast (grønne ender, når røret er valgt), og at rørene rører hinanden, hvor de mødes.
+Er vejen rigtig, så tryk **Brug denne vej →**. Først derefter åbnes de næste trin. **Ret vejen** går tilbage; betingelserne, der stadig passer, bevares.
+
+Hvad vejen går igennem, afgør de dele, der får løbelys: rør, bøjninger og T-stykkets ben. Vejen går aldrig gennem et symbol uden for dets egne veje: en 3-vejsventil kan kun passeres mellem to porte, den har en vej imellem.
+
+### 3. Hvornår går der flow?
+
+![Trin 3: en betingelse pr. ventil, og pr. vej for en 3-vejsventil](../../public/manual/signalvej-betingelser.png)
+
+For hver ventil, 3-vejsventil, pumpe og kontakt på vejen vælger du et tag og hvornår:
+
+- et til/fra-tag: *når tagget er til* eller *fra*;
+- et tal-tag: en sammenligning som ≥ 50.
+
+Symbolets egne tags (fra dets opsætning) står øverst og foreslås. Vælg *ingen betingelse*, hvis symbolet ikke skal tælle med. En **3-vejsventil får ét spørgsmål pr. vej**, der bruges (*AB → A* og *AB → B*) — typisk ventilens position. Bøjninger, T-stykker og kontraventiler spørges der ikke om.
+
+- **Inden for en gren** skal alle betingelser være opfyldt (OG). **Et fælles stykke** (stammen) lyser, når **mindst én gren** er aktiv. Har en gren ingen betingelser, lyser stammen altid.
+- **Forklar med egne ord:** er hjælperen slået til (*System › Hjælper (LLM)*), kan du i stedet skrive, hvornår der går flow, fx *"når pumpe 5 kører og AVTB står åben"*, og trykke **Udfyld med hjælperen**.
+  - Hjælperen får kun symbolerne på vejen og en kort liste af tags (navn, type og beskrivelse) og udfylder svarene som forslag, mærket **forslag**.
+  - Hvert forslag kontrolleres, før det vises: tagget skal findes, og et tal-tag skal have en sammenligning.
+  - Forslag, der ikke holder, udfyldes ikke, og de symboler står under *Ikke udfyldt af hjælperen*. Et symbol med flere veje (3-vejsventil) udfyldes ikke af hjælperen.
+  - Det tager typisk 1–3 minutter; **Stop** afbryder. Intet gemmes, før du trykker **Gem signalvej**.
+
+### 4. Navn og udseende
+
+Giv signalvejen et navn, vælg lysfarve og fart, og tryk **Gem signalvej**.
+
+Når du gemmer, lægges betingelserne som logikblokke (*Signalvej: <navn>*) på vejens første rør — en kæde pr. gren og en blok, der samler grenene for stammen — og hvert rør på vejen får et løbelys i vejens retning. Er et rør tegnet "baglæns", vendes lyset automatisk. Rørenes øvrige opsætning, fx en farve-animation, bevares. Har et rør allerede løbelys, spørger Tegn, om det skal erstattes. Et rør kan kun høre til én signalvej ad gangen. Der kan højst bruges 8 logikblokke pr. signalvej; guiden siger, hvis vejen kræver flere (vælg så færre betingelser eller grene).
+
+Under **Signalveje** står de gemte signalveje med **Ret** og **Slet**. *Slet* fjerner løbelyset og betingelserne igen og intet andet. Mangler dele af en vej, fordi rør er slettet eller tegnet om, står der en advarsel. Tryk **Ret** og find vejen igen.
+
+> Finder Tegn ingen vej, så tjek, at rørene sidder fast (grønne ender, når røret er valgt), at rørene rører hinanden, hvor de mødes, og at rørene er tykke nok (føler- og stiplede linjer tæller ikke). Med en 3-vejsventil: prøv *automatisk* eller en anden vej.
 
 ## Tilslutningspunkter (siden Symboler)
 
@@ -115,3 +138,17 @@ På siden **Symboler** (rollen tekniker, under **Opsætning**), fanen **Tilslutn
 **Genvej fra Tegn:** vælg et bibliotekssymbol og tryk **Ret tilslutningspunkter …** under *Valgt element* (eller linket øverst i *Symboler*). Symbol-editoren åbner på symbolet, og **← Tilbage til "<tegning>"** fører dig tilbage. Har tegningen ændringer, der ikke er gemt, spørger Tegn først — gem med *Gem kladde*, før du skifter.
 
 > Ændringen gælder **symboler, du indsætter fremover**. Symboler, der allerede står i en tegning, beholder deres punkter — så eksisterende rør flytter sig ikke.
+
+### Ind/ud og veje (til signalveje)
+
+![Fanen Ind/ud og veje: 3-vejsmotorventilens punkter A, B og AB med roller, det fælles punkt og vejene](../../public/manual/symbol-ind-ud.png)
+
+Fanen **Ind/ud og veje** (samme side) bestemmer, hvordan et symbol opfører sig **i en signalvej**. Den ændrer ikke noget andet i tegningen, og den gælder alle tegninger med symbolet med det samme.
+
+- **Navn:** giv hvert punkt et navn (A, B, AB, P, T …).
+- **Rolle:** *Ind*, *Ud* eller *Begge*. En **pumpe** har *IND* og *UD*; en **kontraventil** også. En signalvej løber fra pumpens udgang mod resten.
+- **Fælles:** markér det fælles punkt på en flervejs-ventil (AB på en 3-vejsventil).
+- **Del:** delens id i symbolet (fx `port_ab`), så netop den port kan få en animation.
+- **Veje:** de forbindelser symbolet kan lave. De laves som standard automatisk — hvert fælles punkt parret med hvert af de andre (*AB → A*, *AB → B*) — men kan skrives selv med **+ Vej**, fx til en 4-vejsventil (*P → A*, *P → B*, *A → T*, *B → T*).
+- **Klik** for at tilføje et punkt, **træk** for at flytte det, **højreklik** fjerner det. **Gem** gemmer; **Brug standarden** går tilbage. De indbyggede symboler har standarder (pumpe, kontraventil og 3-vejs ventilerne); **Start fra tilslutningspunkterne** hjælper med andre symboler.
+- Ind/ud-definitionerne følger med i backup.

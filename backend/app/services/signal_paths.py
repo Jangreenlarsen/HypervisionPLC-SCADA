@@ -1,4 +1,4 @@
-"""Signalveje i Tegn (v4.2.0, PLAN.md › Signalvej fase 2a).
+"""Signalveje i Tegn (v4.2.0, PLAN.md › Signalvej fase 2a; v4.13.0: grene).
 
 En signalvej er en navngiven vej gennem tegningen: fra et startsymbol til et slutsymbol gennem rør, T-stykker, bøjninger,
 ventiler og pumper. Vejen findes i Tegn ud fra geometrien (frontend/src/lib/signalPath.ts) — her gemmes den:
@@ -6,6 +6,9 @@ ventiler og pumper. Vejen findes i Tegn ud fra geometrien (frontend/src/lib/sign
 - **Betingelsen** (svarene på "hvornår går der flow gennem ventil V2 / kører pumpe P1?") bliver til logikblokke (AND) på
   vejens første element med løbelys (ejeren). Mere end 4 betingelser kædes: L2 = @L1 OG næste 3 …
 - **Løbelys** lægges på hver del på vejen (rør, bøjning, T-stykkets ben) med blokken som kilde og retning efter vejen.
+- **Grene** (v4.13.0): én vej kan have flere slutpunkter. Hver gren får sin egen OG-kæde af de betingelser, der ligger på den; et
+  stykke, flere grene går igennem, lyser, når mindst én af dem er aktiv (en ELLER-blok over grenenes slutblokke). Én gren giver
+  præcis de samme blokke som før.
 - Alt valideres med den almindelige symbolvalidering (`validate_config`) og gemmes i ÉN transaktion sammen med signalvejen.
   `data` husker ejeren, blokkene og delene, så vejen kan rettes og slettes uden at røre brugerens egen opsætning.
 
@@ -14,6 +17,7 @@ ventiler og pumper. Vejen findes i Tegn ud fra geometrien (frontend/src/lib/sign
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from typing import Any
@@ -29,6 +33,8 @@ log = logging.getLogger("scada.signalpath")
 
 MAX_CONDITIONS = MAX_LOGIC_INPUTS + (MAX_LOGIC - 1) * (MAX_LOGIC_INPUTS - 1)   # 4 + 7·3 = 25 (8 blokke i kæde)
 MAX_ELEMENTS = 200
+MAX_ENDS = 4          # slutpunkter (grene) pr. signalvej (v4.13.0)
+MAX_UI_CHARS = 8000   # guidens valg (vejvalg m.m.) gemmes sammen med vejen — samme grænse i API og backup
 _BLOCK = re.compile(r"^L(\d+)\Z")
 
 
@@ -92,6 +98,25 @@ def valid_data(d: Any) -> str | None:
             return "hver flow skal have en del (part)"
     if not isinstance(d.get("conditions", []), list) or not isinstance(d.get("style", {}), dict):
         return "conditions skal være en liste og style et objekt"
+    ends = d.get("ends", [])
+    if not isinstance(ends, list) or len(ends) > MAX_ENDS or not all(isinstance(x, str) for x in ends):
+        return f"ends skal være en liste af højst {MAX_ENDS} element-id'er"
+    for e in els:
+        br = e.get("branches", [0])
+        if not isinstance(br, list) or not all(isinstance(b, int) and not isinstance(b, bool) and 0 <= b < MAX_ENDS for b in br):
+            return "branches skal være en liste af gren-numre"
+        if not isinstance(e.get("block", ""), str):
+            return "block skal være tekst"
+    if not isinstance(d.get("ui", {}), dict) or len(json.dumps(d.get("ui", {}), default=str)) > MAX_UI_CHARS:
+        return "ui skal være et lille objekt"
+    blocks = set(d.get("blocks", []))
+    for e in els:
+        if e.get("block", "") not in blocks | {""}:
+            return "block skal være tom eller en af vejens blokke"
+    for c in d.get("conditions", []):
+        br = c.get("branches") if isinstance(c, dict) else None
+        if br is not None and (not isinstance(br, list) or not all(isinstance(b, int) and not isinstance(b, bool) and 0 <= b < MAX_ENDS for b in br)):
+            return "conditions[].branches skal være en liste af gren-numre"
     return None
 
 
@@ -110,6 +135,7 @@ class SignalPathService:
             d = r["data"]
             missing = [e.get("element") for e in d.get("elements", []) if e.get("element") not in ids]
             out.append({"id": r["id"], "name": r["name"], "start": d.get("start"), "end": d.get("end"),
+                        "ends": d.get("ends") or ([d["end"]] if d.get("end") else []), "ui": d.get("ui", {}),
                         "elements": d.get("elements", []), "conditions": d.get("conditions", []), "style": d.get("style", {}),
                         "missing": missing, "updated_at": r["updated_at"], "updated_by": r["updated_by"]})
         return out
@@ -148,7 +174,8 @@ class SignalPathService:
             d = r["data"]
             for e in d.get("elements", []):
                 for f in e.get("flows", []):
-                    out.add((e.get("element"), f.get("part"), _ref(d.get("owner", ""), e.get("element"), d.get("final", ""))))
+                    out.add((e.get("element"), f.get("part"),
+                             _ref(d.get("owner", ""), e.get("element"), e.get("block", d.get("final", "")))))
         return out
 
     # ------------------------------------------------------------------ fjern en vejs dele fra opsætningerne
@@ -162,7 +189,7 @@ class SignalPathService:
             cfg = configs.get(el)
             if not cfg:
                 continue
-            ref = _ref(owner, el, final)
+            ref = _ref(owner, el, e.get("block", final))     # ældre veje har én slutblok (final) til alle
             parts = {f.get("part") for f in e.get("flows", [])}
             keep = [a for a in cfg.get("anims", []) if not (a.get("type") == "flow" and a.get("src") == ref
                                                              and a.get("part") in parts)]
@@ -215,17 +242,36 @@ class SignalPathService:
         ids = index_svg(svg)
         elements = body["elements"]
         conds = body["conditions"]
+        ends = list(dict.fromkeys([body["end"], *(body.get("ends") or [])]))
+        if len(ends) > MAX_ENDS:
+            raise ServiceError(400, f"Højst {MAX_ENDS} slutpunkter pr. signalvej")
+        if body["start"] in ends:
+            raise ServiceError(400, "Start og slut må ikke være det samme symbol")
+        nb = len(ends)
+        for e in elements:
+            e["branches"] = sorted({int(b) for b in (e.get("branches") or [0])})
+            if e["branches"][0] < 0 or e["branches"][-1] >= nb:
+                raise ServiceError(400, f"'{e['element']}' hører til en gren, der ikke findes")
+        on_branches = {e["element"]: e["branches"] for e in elements}
+        # start gælder alle grene, et slutpunkt kun sin egen (en betingelse på dem, uden at de står som element)
+        on_branches.setdefault(body["start"], list(range(nb)))
+        for k, end_id in enumerate(ends):
+            on_branches.setdefault(end_id, [k])
+        for c in conds:
+            c["branches"] = sorted({int(b) for b in c["branches"]}) if c.get("branches") else on_branches.get(c["element"], [0])
+            if not c["branches"] or c["branches"][0] < 0 or c["branches"][-1] >= nb:
+                raise ServiceError(400, f"Betingelsen for '{c['element']}' hører til en gren, der ikke findes")
         if len(elements) > MAX_ELEMENTS:
             raise ServiceError(400, f"Signalvejen er for lang (højst {MAX_ELEMENTS} elementer)")
         if len(conds) > MAX_CONDITIONS:
             raise ServiceError(400, f"Højst {MAX_CONDITIONS} betingelser pr. signalvej")
         missing = [e["element"] for e in elements if e["element"] not in ids]
-        missing += [x for x in (body["start"], body["end"]) if x not in ids]
+        missing += [x for x in (body["start"], *ends) if x not in ids]
         if missing:
             raise ServiceError(400, f"Elementet '{missing[0]}' findes ikke i den gemte tegning — gem tegningen og find "
                                     "vejen igen")
         path_ids = {e["element"] for e in elements}
-        bad = [c["element"] for c in conds if c["element"] not in path_ids | {body["start"], body["end"]}]
+        bad = [c["element"] for c in conds if c["element"] not in path_ids | {body["start"], *ends}]
         if bad:
             raise ServiceError(400, f"Betingelsen for '{bad[0]}' hører ikke til et symbol på vejen")
         flowing = [e for e in elements if e["flows"]]
@@ -258,32 +304,67 @@ class SignalPathService:
             configs[el] = {**configs[el], "anims": [a for a in configs[el].get("anims", [])
                                                     if not (a.get("type") == "flow" and a.get("part") in c["parts"])]}
 
-        # Betingelsen → logikblokke på ejeren
+        # Betingelsen → logikblokke på ejeren: en OG-kæde pr. gren, og en ELLER over grenenes slutblokke for de stykker, flere
+        # grene går igennem. Én gren giver præcis de samme blokke som før (v4.13.0).
+        bconds = [[c for c in conds if br in c["branches"]] for br in range(nb)]
+        chains = [_chunks(bc) for bc in bconds]
+        or_sets = sorted({tuple(e["branches"]) for e in flowing
+                          if len(e["branches"]) > 1 and all(chains[br] for br in e["branches"])})
+        total = sum(len(c) for c in chains) + len(or_sets)
         owner_cfg = dict(configs.get(owner) or {})
         used = {b["id"] for b in owner_cfg.get("logic", [])}
-        chunks = _chunks(conds)
-        if len(used) + len(chunks) > MAX_LOGIC:
-            raise ServiceError(400, f"'{owner}' har ikke plads til flere logikblokke (højst {MAX_LOGIC}) — vælg færre "
-                                    "betingelser, eller fjern nogle af elementets egne blokke")
+        if len(used) + total > MAX_LOGIC:
+            raise ServiceError(400, f"'{owner}' har ikke plads til flere logikblokke (højst {MAX_LOGIC}; vejen skal bruge {total}) — "
+                                    "vælg færre betingelser eller grene, eller fjern nogle af elementets egne blokke")
         reuse = [b for b in (old["data"].get("blocks", []) if old and old["data"].get("owner") == owner else [])
                  if b not in used]
-        ids_new = (reuse + _free_ids(used | set(reuse), len(chunks)))[:len(chunks)]
+        ids_new = (reuse + _free_ids(used | set(reuse), total))[:total]
         label = f"{BLOCK_PREFIX}{name}"[:40]
         blocks = []
-        for i, chunk in enumerate(chunks):
-            inputs = [{"src": f"@{ids_new[i - 1]}"}] if i else []
-            inputs += [{"src": c["src"], "neg": bool(c.get("neg")), "cmp": c.get("cmp") or "",
-                        "value": c.get("value")} for c in chunk]
-            blocks.append({"id": ids_new[i], "name": label if i == 0 else f"{label[:35]} ({i + 1})", "op": "and",
-                           "inputs": inputs})
+        final: list[str] = []
+        k = 0
+        for br, chain in enumerate(chains):
+            prev = ""
+            for i, chunk in enumerate(chain):
+                bid = ids_new[k]
+                inputs = [{"src": f"@{prev}"}] if prev else []
+                inputs += [{"src": c["src"], "neg": bool(c.get("neg")), "cmp": c.get("cmp") or "",
+                            "value": c.get("value")} for c in chunk]
+                if k == 0:
+                    nm = label
+                elif nb == 1:
+                    nm = f"{label[:35]} ({i + 1})"
+                else:
+                    nm = f"{label[:33]} (g{br + 1}.{i + 1})"
+                blocks.append({"id": bid, "name": nm, "op": "and", "inputs": inputs})
+                prev = bid
+                k += 1
+            final.append(prev)
+        or_id: dict[tuple[int, ...], str] = {}
+        for n_or, sset in enumerate(or_sets, 1):
+            bid = ids_new[k]
+            k += 1
+            srcs = list(dict.fromkeys(final[br] for br in sset))
+            blocks.append({"id": bid, "name": f"{label[:28]} (eller {n_or})", "op": "or",
+                           "inputs": [{"src": f"@{x}"} for x in srcs]})
+            or_id[sset] = bid
         owner_cfg["logic"] = [*owner_cfg.get("logic", []), *blocks]
         configs[owner] = owner_cfg
-        final = ids_new[-1] if ids_new else ""
+
+        def block_of(br: list[int]) -> str:
+            """Slutblokken for et stykke: grenens egen, en ELLER over flere, eller "" (altid) hvis en af dem er uden betingelser."""
+            if len(br) == 1:
+                return final[br[0]]
+            if any(not final[x] for x in br):
+                return ""
+            return or_id[tuple(br)]
+
         style = body["style"]
         for e in flowing:
             el = e["element"]
             cfg = dict(configs.get(el) or {})
-            src = _ref(owner, el, final)
+            e["block"] = block_of(e["branches"])
+            src = _ref(owner, el, e["block"])
             cfg["anims"] = [*cfg.get("anims", []), *[
                 {"part": f["part"], "type": "flow", "when": True, "src": src,
                  "params": {"reverse": bool(f["reverse"]), "light": style["light"], "speed": style["speed"],
@@ -318,9 +399,11 @@ class SignalPathService:
                 raise ServiceError(400, f"Signalvejen kan ikke gemmes — {who}: {res.first()}", {"element": el})
             result[el] = normalized
             configs[el] = normalized
-        data = {"start": body["start"], "end": body["end"], "owner": owner, "blocks": ids_new, "final": final,
-                "elements": [{"element": e["element"], "flows": e["flows"]} for e in elements],
-                "conditions": conds, "style": style, "created": sorted(created & set(configs))}
+        data = {"start": body["start"], "end": body["end"], "ends": ends, "owner": owner, "blocks": ids_new,
+                "final": final[0] if nb == 1 else "",
+                "elements": [{"element": e["element"], "flows": e["flows"], "branches": e["branches"], "block": e.get("block", "")}
+                             for e in elements],
+                "conditions": conds, "style": style, "ui": body.get("ui") or {}, "created": sorted(created & set(configs))}
         sid = self.db.write_signal_path(drawing_id, path_id, name, data, result, actor.username,
                                         expect={el: before.get(el) for el in result})
         if sid is None:

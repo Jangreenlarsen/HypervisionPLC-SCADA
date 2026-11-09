@@ -4,6 +4,36 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.13.2 build 0366] — 2026-11-09 — fix: vælg slut i tegningen; "Vælg på tegningen" virker igen
+
+- `SignalPathGuide.svelte`: under *Slut* (første slutpunkt) står nu *← valgt* og *Vælg slut på tegningen*; markeringen fjernes ved start af valget; `picking === null` i stedet for `!picking` (slutpunkt 0 var "falsk").
+- Test: `SignalPathGuide.test.ts` (ny komponenttest) og `signalGuideHarness.svelte.ts`. BUGS.md. Manual kap. 08.
+
+## [4.13.1 build 0365] — 2026-11-09 — fix: signalvejens markering følger tegningen, når du flytter noget
+
+- `SignalPathGuide.svelte`: ny prop `rev` (tælles op ved hver ændring i tegningen). Guiden henter grafen igen og beregner vejen forfra, samlet over 300 ms og kun hvis `graphKey(graph)` er ændret. Den valgte vej huskes (`wantSig`) og kommer tilbage efter fortryd.
+- `lib/signalPath.ts`: `graphKey`. `pages/DrawEditor.svelte` sender `inspectRev`.
+- Test: `signalFlow.test.ts` (`graphKey`). BUGS.md.
+
+## [4.13.0 build 0364] — 2026-11-09 — Signalveje 2: grene, ind/ud fra symbolerne, veje gennem 3-vejsventiler og en interaktiv editor
+
+- **Symbolernes ind/ud og veje** — `lib/symbolFlow.ts` (ny): porte med navn, rolle (ind/ud/begge) og *fælles*; veje (*AB → A*, *AB → B*), standarder for pumpe, kontraventil og 3-vejs ventilerne (målt på symbolerne), matchning af punkter efter position.
+  - Backend: `services/symbol_flow.py` og `api/symbol_flow.py` (`/api/symbol-flow`, tekniker; gemmes i `meta` som `symbolflow.<type>`, i backup og gendannelse; ældre backups røres ikke).
+  - `SymbolFlowEditor.svelte` og fanen *Symboler › Ind/ud og veje*.
+- **Beregning** — `lib/signalPath.ts`:
+  - `portAt` (også via delens streg, når et rør ender på ventilens streg), `passAllowed` (en 3-vejsventil kan kun passeres gennem en af sine veje, eller den tvungne);
+  - `orient` (retning fra pumpe/kontraventil; uenige symboler nævnes), `describeNet` (grene, retning, vej pr. gren), `questionsOf` (ét spørgsmål pr. vej gennem en flervejs-ventil).
+  - `connectionGraph` giver nu hvert punkts placering på symbolet (`fracs`) og hver strengs tykkelse og stiplethed.
+- **Tynde og stiplede streger er ikke rør** (BUGS.md).
+- **Backend** — `services/signal_paths.py` og `api/signal_paths.py`:
+  - flere slutpunkter (`ends`, højst 4): en OG-kæde pr. gren og en ELLER-blok over grenene for fælles stykker; én gren giver præcis de samme blokke som før;
+  - hvert element husker sin slutblok (`block`) og sine grene (`branches`), og betingelser kan gælde bestemte grene;
+  - `ui` (guidens valg) med samme størrelsesgrænse i API og backup; `valid_data` kontrollerer grene og blokke; betingelser på start/slut får de rigtige grene.
+- **Guiden** — `SignalPathGuide.svelte` omskrevet: arbejdsgang *Start/slutpunkter → Vejen → Brug denne vej → Betingelser → Navn og gem*, live beregning ved hver ændring, ventilens vej som rullemenu, farve pr. gren, animeret retning i tegningen (`highlightPath` med farver, retning og fokus), peg og klik mellem liste og tegning, valg i tegningen af flere slutpunkter.
+- **Manual** (kap. 08) og LLM-tillæg: nye afsnit og 4 nye skærmbilleder (`signalvej-vej`, `signalvej-tegning`, `signalvej-betingelser`, `symbol-ind-ud`).
+- Review (reviewer-agent), rettet: størrelsesgrænse på `ui`, betingelser på start/slut, kontrol af data fra backup.
+- Tests: `signalFlow.test.ts`, `test_signal_branches.py`. Set i browseren (grene, ventilvej, lås, Ind/ud-fanen).
+
 ## [4.12.0 build 0363] — 2026-11-08 — Gemt beregning af bindinger og synlige tags (hurtigere for begrænsede brugere)
 
 - `storage/db.py`: `Database.config_gen` stiger, når en SQL-sætning skriver til en konfigurationstabel (`CONFIG_TABLES`). Det sker via en sqlite-trace-funktion, så ingen skrivevej kan glemme det, heller ikke kaskader og egne transaktioner.

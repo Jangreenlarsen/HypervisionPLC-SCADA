@@ -50,7 +50,7 @@
     setSelectedId(id: string): string;
     selectByIds(ids: string[]): number;
     connectionGraph(): Graph;
-    highlightPath(lines: [number, number][][], boxes: string[]): void;
+    highlightPath(lines: { pts: [number, number][]; color: string; flow: number }[], boxes: { id: string; color: string }[], focus?: string[]): void;
     setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
     uniqueName(base: string): string;
     insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
@@ -1093,9 +1093,10 @@
     </PanelSection>
     <PanelSection id="signalveje" title="Signalveje" {...sec('signalveje')}>
       {#if current}
-        <SignalPathGuide drawingId={current.id} {ready} selected={selection.map((x) => x.id)}
+        <SignalPathGuide drawingId={current.id} {ready} rev={inspectRev} selected={selection.map((x) => x.id)}
           graph={() => (ed ? ed.connectionGraph() : null)}
-          highlight={(lines, boxes) => ed?.highlightPath(lines, boxes)}
+          highlight={(lines, boxes, focus) => ed?.highlightPath(lines, boxes, focus)}
+          select={(ids) => ed?.selectByIds(ids)}
           ensureSaved={() => ensurePublished('signalvejen kan findes')}
           onchanged={(text) => { info = text; refreshReservedIds(); }} />
       {:else}

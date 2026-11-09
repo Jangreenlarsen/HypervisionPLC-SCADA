@@ -5,6 +5,13 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v4.13.0 — **Signalveje 2: grene, ind/ud fra symbolerne, vej gennem 3-vejsventiler og en interaktiv editor** (ønsker fra Jan 2026-11-09). Leverance 1 af 2; valg af animationer pr. element-type (løbelys, farve, blink, gennemsigtighed) kommer i v4.14.0.
+  - **Grene:** ét start og op til 4 slutpunkter; hver gren i sin farve, fælles stykker lyser, når mindst én gren er aktiv.
+  - **Ind/ud:** symbolernes punkter kan have navn, rolle (ind/ud/begge) og være *fælles*; pumpe og kontraventil bestemmer vejens retning, og vejen vendes automatisk.
+  - **3-vejsventiler:** en vej kan kun passere gennem ventilens veje (*AB → A*, *AB → B*); skift vejen i guiden, og vejen beregnes forfra med det samme. Ét spørgsmål pr. vej.
+  - **Ny fane *Symboler › Ind/ud og veje*** med standarder for pumpe, kontraventil og 3-vejsventilerne; følger med i backup.
+  - **Interaktiv guide:** live beregning, animeret retning i tegningen, farver pr. gren, peg/klik mellem liste og tegning, *Brug denne vej*.
+  - **Tynde og stiplede streger (under 5 bred) er føler-/signallinjer og regnes ikke som rør** (fundet af Jan).
 - [x] done v4.12.0 — **Hurtigere for begrænsede brugere** (Jan 2026-11-08, "fiks det" om BUGS v0.131.4): tegningernes bindinger og brugerens synlige tags gemmes, til noget ændres (ca. 50 gange hurtigere ved gentagne kald).
 - [x] done v4.11.0 — **SCADA'en bruger samme Let's Encrypt-certifikat som proxyen** (ønske fra Jan 2026-11-08: "så klienter i 10.1.0.0/16 også kan stole på TLS").
   - Proxyens certbot sender certifikatet videre efter hver fornyelse (`deploy/proxy-cert-push.sh`) over SSH med en nøgle, der kun kan aflevere certifikater (forced command).

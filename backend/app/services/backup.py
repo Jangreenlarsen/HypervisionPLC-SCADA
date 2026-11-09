@@ -31,6 +31,7 @@ from ..config import read_version
 from ..storage.files import DrawingFiles
 from .bindings import BindingError, binding_tags, validate_binding
 from .schedules import validate_schedule
+from .symbol_flow import clean_def
 from .symbol_ports import MAX_TYPES, clean_ports, clean_type
 from . import library as lib
 from .trend_views import clean_view
@@ -156,6 +157,7 @@ class BackupService:
             "signal_paths": data["signal_paths"],
             "trend_views": data["trend_views"],
             "symbol_ports": data["symbol_ports"],
+            "symbol_flow": data["symbol_flow"],
             "library_symbols": data["library_symbols"],
             "library_layout": data["library_layout"],
         }
@@ -536,6 +538,19 @@ class BackupService:
             except ServiceError as exc:
                 err(f"Tilslutningspunkter for '{sym_type}': {exc.message}")
 
+        symbol_flow: dict[str, Any] | None = None
+        if "symbol_flow" in backup:   # ældre backups har ingen ind/ud-definitioner: så røres de ikke ved gendannelse
+            raw_flow = backup["symbol_flow"]
+            symbol_flow = {}
+            if not isinstance(raw_flow, dict) or len(raw_flow) > MAX_TYPES:
+                err("symbol_flow skal være et objekt med højst %d symboler" % MAX_TYPES)
+                raw_flow = {}
+            for sym_type, d in raw_flow.items():
+                try:
+                    symbol_flow[clean_type(sym_type)] = clean_def(d)
+                except ServiceError as exc:
+                    err(f"Ind/ud for '{sym_type}': {exc.message}")
+
         # Egne symboler (v3.28.0) — ældre backups har dem ikke; så røres bibliotekets egne symboler ikke ved gendannelse
         library: dict[str, Any] = {}
         if "library_symbols" in backup:
@@ -601,7 +616,7 @@ class BackupService:
                 "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
                 "schedules": schedules, "symbol_meta": symbol_meta, "symbol_config": symbol_config,
                 "symbol_groups": symbol_groups, "signal_paths": signal_paths, "trend_views": trend_views,
-                "symbol_ports": symbol_ports, **library}
+                "symbol_ports": symbol_ports, **({"symbol_flow": symbol_flow} if symbol_flow is not None else {}), **library}
 
     # ---------------------------------------------------------------- restore
 

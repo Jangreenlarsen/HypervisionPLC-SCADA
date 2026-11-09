@@ -7,6 +7,8 @@
   import { setLeaveGuard } from '../lib/leaveGuard';
   import { CATEGORIES, type SymbolCategory } from '../lib/symbols';
   import SymbolLibrary from '../lib/SymbolLibrary.svelte';
+  import SymbolFlowEditor from '../lib/SymbolFlowEditor.svelte';
+  import { FLOW_DEFAULTS, type FlowDef } from '../lib/symbolFlow';
   import { OWN_LABEL, OWN_SECTION } from '../lib/library';
   import { defs, loadLibrary } from '../lib/libraryStore.svelte';
   import { drawHref, parseSymbolRoute } from '../lib/symbolRoute';
@@ -23,7 +25,9 @@
   let saved = $state<Record<string, Pt[]>>({});   // serverens rettede punkter pr. type
   // Fanerne: biblioteket (organisering/import, v3.31.0) og tilslutningspunkterne; fra Tegn åbnes punkterne direkte
   // svelte-ignore state_referenced_locally
-  let tab = $state<'bibliotek' | 'punkter'>(from.fromDraw || from.type ? 'punkter' : 'bibliotek');
+  let tab = $state<'bibliotek' | 'punkter' | 'flow'>(from.fromDraw || from.type ? 'punkter' : 'bibliotek');
+  let savedFlow = $state<Record<string, FlowDef>>({});   // rettede ind/ud-definitioner pr. type (v4.13.0)
+  let flowDirty = $state(false);
   let category = $state<SymbolCategory | typeof OWN_SECTION | 'alle'>('alle');
   let search = $state('');
   const all = $derived(defs());
@@ -47,7 +51,7 @@
   const list = $derived(all.filter((s) =>
     (category === 'alle' || s.category === category) && (!search.trim() || s.label.toLowerCase().includes(search.trim().toLowerCase()))));
 
-  const removeLeaveGuard = setLeaveGuard(async () => !dirty || await ask('Du har ændringer, der ikke er gemt. Kassér dem og forlad siden?', { ok: 'Kassér og forlad', danger: true }));
+  const removeLeaveGuard = setLeaveGuard(async () => !(dirty || flowDirty) || await ask('Du har ændringer, der ikke er gemt. Kassér dem og forlad siden?', { ok: 'Kassér og forlad', danger: true }));
   onDestroy(removeLeaveGuard);
 
   onMount(async () => {
@@ -57,6 +61,9 @@
     } catch (e) {
       error = `Kunne ikke hente de rettede punkter: ${(e as Error).message}`;
     }
+    try {
+      savedFlow = await get<Record<string, FlowDef>>('/api/symbol-flow');
+    } catch { /* uden rettede definitioner bruges standarderne */ }
     // åbnet fra Tegn: vis tegningens navn på tilbage-knappen, og start på det valgte symbol
     if (from.drawing) {
       try {
@@ -91,6 +98,9 @@
   }
 
   async function choose(id: string): Promise<void> {
+    if (flowDirty && !(await ask('Du har ændringer i ind/ud, der ikke er gemt. Kassér dem?', { ok: 'Kassér', danger: true }))) return;
+    flowDirty = false;
+    if (tab !== 'punkter') { selectedId = id; return; }
     if (dirty && !(await ask('Du har ændringer, der ikke er gemt. Kassér dem?', { ok: 'Kassér', danger: true }))) return;
     await show(id);
   }
@@ -197,7 +207,9 @@
   <h2>Symboler</h2>
   <div class="tabs" role="tablist">
     <button role="tab" aria-selected={tab === 'bibliotek'} class:on={tab === 'bibliotek'} onclick={() => (tab = 'bibliotek')}>Bibliotek</button>
-    <button role="tab" aria-selected={tab === 'punkter'} class:on={tab === 'punkter'} onclick={() => (tab = 'punkter')}>Tilslutningspunkter</button>
+    <button role="tab" aria-selected={tab === 'punkter'} class:on={tab === 'punkter'} onclick={() => { tab = 'punkter'; void show(selectedId); }}>Tilslutningspunkter</button>
+    <button role="tab" aria-selected={tab === 'flow'} class:on={tab === 'flow'} onclick={() => (tab = 'flow')}
+            title="Ind/ud, navne og veje på punkterne — bruges af signalveje">Ind/ud og veje</button>
   </div>
   {#if from.fromDraw}<button class="back" onclick={back}>← Tilbage til {backName ? `"${backName}"` : 'tegningen'}</button>{/if}
 </div>
@@ -205,6 +217,30 @@
 <p class="muted small">Organisér symbolbiblioteket, som det vises i <a href="#draw">Tegn</a>: egne sektioner, rækkefølge og hvilke symboler
   der står hvor. Egne symboler kan omdøbes og slettes, og SVG-filer og bibliotekspakker kan importeres.</p>
 <SymbolLibrary />
+{:else if tab === 'flow'}
+<div class="layout">
+  <aside class="panel">
+    <input placeholder="Søg symbol" bind:value={search} aria-label="Søg symbol" />
+    <select bind:value={category} aria-label="Kategori">
+      <option value="alle">Alle kategorier</option>
+      {#each CATEGORIES as c}<option value={c.id}>{c.label}</option>{/each}
+      <option value={OWN_SECTION}>{OWN_LABEL}</option>
+    </select>
+    <ul class="list">
+      {#each list as s (s.id)}
+        <li>
+          <button class:on={s.id === selectedId} onclick={() => choose(s.id)}>
+            {s.label}{#if savedFlow[symbolType(s.id)]}<span class="tag" title="Ind/ud er rettet">rettet</span>{:else if FLOW_DEFAULTS[symbolType(s.id)]}<span class="tag std" title="Har en standard-definition">ind/ud</span>{/if}
+          </button>
+        </li>
+      {/each}
+    </ul>
+  </aside>
+  <section class="panel edit">
+    <SymbolFlowEditor svg={def.svg} label={def.label} {type} custom={savedFlow[type]} ondirty={(d) => (flowDirty = d)}
+      onsaved={(t, d) => { if (d) savedFlow = { ...savedFlow, [t]: d }; else { const { [t]: _g, ...rest } = savedFlow; savedFlow = rest; } }} />
+  </section>
+</div>
 {:else}
 <p class="muted small">
   Tilslutningspunkterne er de grønne prikker, forbindelser (rør og ledninger) i <a href="#draw">Tegn</a> sættes fast i. Vælg et symbol, og ret punkterne.
@@ -273,6 +309,7 @@
   .list button { width: 100%; text-align: left; border: 0; background: transparent; padding: 4px 6px; border-radius: 4px; display: flex; justify-content: space-between; gap: .5rem; }
   .list button:hover { background: #eef2f8; }
   .list button.on { background: #dbe8ff; }
+  .tag.std { background: #eceff1; color: #546e7a; border-color: #cfd8dc; }
   .tag { font-size: .7rem; padding: 0 6px; border-radius: 8px; background: #e7f3e8; color: #2e7d32; border: 1px solid #a9d3ab; align-self: center; }
   .stage { width: 100%; max-width: 640px; height: 440px; background: #f6f6f6; border: 1px solid var(--line); border-radius: var(--radius); cursor: crosshair; display: block; }
   .bbox { fill: none; stroke: #9db8e8; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
