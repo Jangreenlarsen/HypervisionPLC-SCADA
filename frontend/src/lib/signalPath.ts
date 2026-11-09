@@ -12,6 +12,13 @@ export interface GNode {
 }
 export interface Graph { nodes: GNode[] }
 export interface Contact { to: string; p: Pt }
+
+/** Et fingeraftryk af grafens geometri (id'er, punkter, streger): uændret = tegningen er den samme, og vejen skal ikke regnes forfra. */
+export function graphKey(g: Graph): string {
+  const r = (v: number) => Math.round(v * 10) / 10;
+  return g.nodes.map((n) => `${n.id}|${n.type}|${n.terminals.map((t) => `${r(t[0])},${r(t[1])}`).join(';')}|` +
+    n.lines.map((l) => `${l.part}:${r(l.a[0])},${r(l.a[1])}-${r(l.b[0])},${r(l.b[1])}:${l.w ?? ''}${l.dash ? 'd' : ''}`).join(';')).join('\n');
+}
 export interface Step { id: string; entry: Pt | null; exit: Pt | null }
 export type Role = 'pipe' | 'valve' | 'threeway' | 'pump' | 'switch' | 'check' | 'unit';
 export interface Flow { part: string; reverse: boolean }

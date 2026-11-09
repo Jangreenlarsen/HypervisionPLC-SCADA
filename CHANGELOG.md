@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.13.1 build 0365] — 2026-11-09 — fix: signalvejens markering følger tegningen, når du flytter noget
+
+- `SignalPathGuide.svelte`: ny prop `rev` (tælles op ved hver ændring i tegningen). Guiden henter grafen igen og beregner vejen forfra, samlet over 300 ms og kun hvis `graphKey(graph)` er ændret. Den valgte vej huskes (`wantSig`) og kommer tilbage efter fortryd.
+- `lib/signalPath.ts`: `graphKey`. `pages/DrawEditor.svelte` sender `inspectRev`.
+- Test: `signalFlow.test.ts` (`graphKey`). BUGS.md.
+
 ## [4.13.0 build 0364] — 2026-11-09 — Signalveje 2: grene, ind/ud fra symbolerne, veje gennem 3-vejsventiler og en interaktiv editor
 
 - **Symbolernes ind/ud og veje** — `lib/symbolFlow.ts` (ny): porte med navn, rolle (ind/ud/begge) og *fælles*; veje (*AB → A*, *AB → B*), standarder for pumpe, kontraventil og 3-vejs ventilerne (målt på symbolerne), matchning af punkter efter position.

@@ -9,7 +9,7 @@
   import { postStream } from './assist';
   import { assist } from './assistStore.svelte';
   import {
-    MAX_ENDS, QUESTION, TOL, answerFrom, conditionsFrom, describeNet, endpoints, findPaths, pickNext, questionsOf, suggestAnswer,
+    MAX_ENDS, QUESTION, TOL, answerFrom, conditionsFrom, describeNet, endpoints, findPaths, graphKey, pickNext, questionsOf, suggestAnswer,
     type Answer, type Condition, type Graph, type Net, type NetRow, type Pt, type Question, type Step, type TagInfo,
   } from './signalPath';
   import { mergeDefs, parseWay, wayKey, wayLabel, waysOf, type FlowDefs } from './symbolFlow';
@@ -22,9 +22,10 @@
   interface ElInfo { element: string; name?: string; type?: string; configured?: boolean; tags?: TagInfo[]; flows?: string[]; missing?: boolean }
   type QAnswer = Answer & { key: string; branches: number[] };
 
-  let { drawingId, ready, selected, graph, highlight, select, ensureSaved, onchanged }: {
+  let { drawingId, ready, rev = 0, selected, graph, highlight, select, ensureSaved, onchanged }: {
     drawingId: string;
     ready: boolean;
+    rev?: number;           // tælles op, hver gang tegningen ændres (flyt, ret, fortryd): vejen regnes så forfra
     selected: string[];
     graph: () => Graph | null;
     highlight: (lines: { pts: Pt[]; color: string; flow: number }[], boxes: { id: string; color: string }[], focus?: string[]) => void;
@@ -83,7 +84,28 @@
   const askedOnce = $derived(questions.filter((q) => questions.filter((x) => x.element === q.element).length === 1));
 
   $effect(() => { void drawingId; load(); });
-  onDestroy(() => highlight([], []));
+  onDestroy(() => { clearTimeout(revTimer); highlight([], []); });
+
+  // Flytter man et rør eller et symbol, mens guiden er åben, er grafen (og markeringen i tegningen) forældet: regn vejen forfra.
+  // Samlet over et kort øjeblik (flere ændringer i træk), og kun hvis tegningens geometri faktisk er ændret.
+  let revTimer: ReturnType<typeof setTimeout> | undefined;
+  let seenKey = '';
+  $effect(() => {
+    void rev;
+    untrack(() => {
+      if (!editing) return;
+      clearTimeout(revTimer);
+      revTimer = setTimeout(() => {
+        const fresh = graph();
+        if (!fresh || !editing) return;
+        const key = graphKey(fresh);
+        if (key === seenKey) return;
+        seenKey = key;
+        g = fresh;
+        recompute(null, true);
+      }, 300);
+    });
+  });
 
   // ---------------------------------------------------------------- tegningen: grene i hver sin farve, retning som animation
   function show(): void {
@@ -114,22 +136,25 @@
 
   // ---------------------------------------------------------------- beregning (hver ændring beregner forfra, med det samme)
   const sig = (p: Step[] | undefined) => p?.map((s) => s.id).sort().join('>') ?? '';
+  let wantSig: string[] = [];     // den vej, brugeren selv har valgt pr. gren — kommer tilbage, når tegningen igen tillader den
 
   /** Find vejene (en pr. slutpunkt) og vælg forslag: det, der var valgt, ellers det, der ligner `prefer`, ellers det korteste. */
-  function recompute(prefer: (string[] | null)[] | null = null): void {
+  function recompute(prefer: (string[] | null)[] | null = null, fromDrawing = false): void {
     if (!g || !start || !endIds.length) {
       cands = [];
       picks = [];
       net = null;
       return;
     }
-    const keep = picks.map((i, b) => sig(cands[b]?.[i]));
+    // Efter en ændring i tegningen (flyt/fortryd) søges det, brugeren valgte — ikke det, der blev valgt, da vejen en kort stund var brudt
+    const keep = fromDrawing ? wantSig.slice() : picks.map((i, b) => sig(cands[b]?.[i]));
     cands = endIds.map((e, b) => (e && e !== start ? findPaths(g!, start, e, 3, TOL, { defs, forced: forced[b] ?? {} }) : []));
     picks = cands.map((c, b) => {
       const want = prefer?.[b]?.slice().sort().join('>') ?? keep[b];
       const i = want ? c.findIndex((x) => sig(x) === want) : -1;
       return i >= 0 ? i : 0;
     });
+    if (!fromDrawing) wantSig = picks.map((i, b) => sig(cands[b]?.[i]));
     refresh();
   }
 
@@ -167,6 +192,7 @@
 
   function choose(b: number, i: number): void {
     picks = picks.map((p, k) => (k === b ? i : p));
+    wantSig[b] = sig(cands[b]?.[i]);
     refresh();
   }
 
@@ -287,6 +313,7 @@
       defs = mergeDefs(null);      // uden rettede definitioner bruges standarderne
     }
     editing = { id: p?.id ?? null };
+    seenKey = graphKey(g);
     name = p?.name ?? '';
     light = p?.style.light ?? '#8fc8ea';
     speed = p?.style.speed ?? 40;

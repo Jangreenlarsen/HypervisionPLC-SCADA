@@ -1,6 +1,6 @@
 import { describe as group, expect, it } from 'vitest';
 import { FLOW_DEFAULTS, matchPorts, mergeDefs, parseWay, sameWay, validateDef, waysOf, wayKey, wayLabel } from './symbolFlow';
-import { describeNet, endpoints, findPaths, orient, passable, portAt, questionsOf, roleOf, wayUsed, type GNode, type Graph, type Pt } from './signalPath';
+import { describeNet, endpoints, findPaths, graphKey, orient, passable, portAt, questionsOf, roleOf, wayUsed, type GNode, type Graph, type Pt } from './signalPath';
 
 const pipe = (id: string, a: Pt, b: Pt): GNode => ({ id, name: '', type: '', pipe: true, terminals: [a, b], lines: [{ part: 'all', a, b }], refs: [null, null] });
 const sym = (id: string, name: string, type: string, terminals: Pt[], fracs: Pt[] | null = null): GNode =>
@@ -182,5 +182,18 @@ group('tynde og stiplede streger er ikke rør', () => {
     expect(findPaths(net(3), 'a', 'c')).toEqual([]);
     expect(findPaths(net(10), 'a', 'c')[0].map((s) => s.id)).toEqual(['a', 'l', 'b', 'm', 'c']);
     expect(endpoints(net(3)).map((e) => e.id)).not.toContain('l');                  // den tynde streg kan heller ikke vælges
+  });
+});
+
+group('graphKey', () => {
+  it('changes when something moves, and not otherwise', () => {
+    const a = pumpLine();
+    const b = pumpLine();
+    expect(graphKey(a)).toBe(graphKey(b));
+    b.nodes[1] = pipe('r1', [40, 30], [100, 70]);                                    // røret er flyttet
+    expect(graphKey(a)).not.toBe(graphKey(b));
+    const c = pumpLine();
+    c.nodes[0] = { ...c.nodes[0], terminals: [[40.04, 30.03]] };                      // under en tiendedel: samme tegning
+    expect(graphKey(a)).toBe(graphKey(c));
   });
 });

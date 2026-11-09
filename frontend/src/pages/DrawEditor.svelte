@@ -1093,7 +1093,7 @@
     </PanelSection>
     <PanelSection id="signalveje" title="Signalveje" {...sec('signalveje')}>
       {#if current}
-        <SignalPathGuide drawingId={current.id} {ready} selected={selection.map((x) => x.id)}
+        <SignalPathGuide drawingId={current.id} {ready} rev={inspectRev} selected={selection.map((x) => x.id)}
           graph={() => (ed ? ed.connectionGraph() : null)}
           highlight={(lines, boxes, focus) => ed?.highlightPath(lines, boxes, focus)}
           select={(ids) => ed?.selectByIds(ids)}

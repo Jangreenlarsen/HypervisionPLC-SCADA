@@ -2,6 +2,10 @@
 
 ---
 
+## v4.13.1 — 2026-11-09 — Signalvejen følger med, når du flytter noget
+
+- Flytter du et rør eller et symbol, mens du laver en signalvej, opdateres vejen og markeringen i tegningen nu af sig selv. Fortryder du, kommer den vej, du valgte, tilbage.
+
 ## v4.13.0 — 2026-11-09 — Signalveje med grene, pumpens retning og 3-vejsventilens vej
 
 - **Signalvejen kan dele sig:** vælg op til 4 slutpunkter. Hver gren har sin farve i tegningen, og et fælles stykke lyser, når mindst én gren er aktiv.
