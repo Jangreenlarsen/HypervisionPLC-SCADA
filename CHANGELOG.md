@@ -4,6 +4,20 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.16.0 build 0370] — 2026-11-09 — Signalveje: vend flowets retning
+
+- `lib/signalpath/net.ts`: `describeNet(g, paths, defs, flips)` vender en gren efter brugerens ønske (efter `orient`); `Net.manual` fortæller hvilke grene. Ny test i `signalFlow.test.ts`.
+- `SignalPathGuide.svelte`: knappen *⇄ Vend flowet* pr. gren (trin 2), besked *Du har vendt flowets retning*, `flips` gemmes i `ui` og kommer tilbage ved *Ret*; nulstilles, når start/slut ændres. Komponenttest. Set i browseren: knappen vises, og pilene vender.
+- Manual (kap. 08) og LLM-tillæg. Backend uændret.
+
+## [4.15.1 build 0369] — 2026-11-09 — Refaktorering af signalvejs-koden (ingen funktionsændring)
+
+- `frontend/src/lib/signalPath.ts` (482 linjer) delt i `signalpath/graph.ts`, `flow.ts`, `route.ts`, `net.ts`, `answers.ts`; `signalPath.ts` re-eksporterer, så imports og tests er uændrede.
+- `SignalPathGuide.svelte` (890 → ~750 linjer): trin 1 → `SpStart.svelte`, trin 3 → `SpConditions.svelte`, trin 4 → `SpLook.svelte`, listen over gemte veje → `SpSaved.svelte`. Via-handlingerne i guiden er samlet i `viaFromList` / `viaFromSelection`. Ubrugt CSS fjernet.
+- `backend/app/services/signal_paths.py` (464 linjer) → pakken `signal_paths/` (`validate.py`, `blocks.py`, `service.py`); `save()` bruger nu `plan_chains` / `make_blocks` / `block_of` til logikblokkene. Importstier uændrede.
+- ARCHITECTURE.md: afsnit om signalvejs-lagene. Ny komponenttest for trin 3–5. Set i browseren: trin 1 og klik på rør er uændret.
+- Alle tests grønne (frontend 1002, backend uændret antal).
+
 ## [4.15.0 build 0368] — 2026-11-09 — Signalveje: ret vejen ved at klikke i tegningen
 
 - `lib/signalPath.ts`: `findViaPath` — en vej fra start til slut gennem via-punkter (sorteret efter afstand fra start); et punkt, der ikke kan bruges (blindgyde, vej ville vende om), droppes og meldes som `missing`.

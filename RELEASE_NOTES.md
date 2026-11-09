@@ -2,6 +2,14 @@
 
 ---
 
+## v4.16.0 — 2026-11-09 — Vend flowets retning
+
+- Ny knap **⇄ Vend flowet** i signalvej-guiden (trin 2, pr. gren): vender løbelysets retning, hvis symbolerne ikke giver den rigtige. Valget gemmes med signalvejen.
+
+## v4.15.1 — 2026-11-09 — Oprydning i signalvejs-koden
+
+- Intern oprydning: signalvejs-koden er delt i mindre dele i frontend og backend. Ingen ændringer i, hvordan signalveje virker eller ser ud.
+
 ## v4.15.0 — 2026-11-09 — Ret signalvejen ved at klikke i tegningen
 
 - Klik på et **rør eller symbol** i tegningen for at lade signalvejen gå igennem det; klik igen for at fjerne det. Der er også en **Gå via**-række i trin 1.

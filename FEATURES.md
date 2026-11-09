@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v4.16.0 — **Signalveje: vend flowets retning med ét klik** (ønske fra Jan 2026-11-09, billede med pile). *⇄ Vend flowet* pr. gren i trin 2 vender løbelysets retning, uanset hvad pumpen/kontraventilen giver; valget gemmes med vejen.
 - [x] done v4.15.0 — **Signalveje: ret vejen ved at klikke i tegningen** (ønske fra Jan 2026-11-09). Klik på et rør eller symbol, der ikke er på vejen, for at lade vejen gå via det (klik igen fjerner); klik på en 3-vejsventil på vejen for at skifte dens vej (automatisk → AB→A → AB→B). "Gå via"-række i trin 1 med ← valgt og *Vælg via på tegningen*. Via-punkterne gemmes med vejen.
 - [x] done v4.14.0 — **Signalveje: vælg animationer pr. slags element** (ønske fra Jan 2026-11-09; leverance 2 af 2). Løbelys på rør, og farve, stregfarve, blink, "vises kun når aktiv" og roterer på ventiler, pumper, kontakter og 3-vejsventiler (kun portene i vejen). Valgene gemmes med vejen. *Flere slutpunkter* har nu også *← valgt*.
 - [x] done v4.13.0 — **Signalveje 2: grene, ind/ud fra symbolerne, vej gennem 3-vejsventiler og en interaktiv editor** (ønsker fra Jan 2026-11-09). Leverance 1 af 2; valg af animationer pr. element-type (løbelys, farve, blink, gennemsigtighed) kommer i v4.14.0.
