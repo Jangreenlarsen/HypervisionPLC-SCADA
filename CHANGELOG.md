@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.13.2 build 0366] — 2026-11-09 — fix: vælg slut i tegningen; "Vælg på tegningen" virker igen
+
+- `SignalPathGuide.svelte`: under *Slut* (første slutpunkt) står nu *← valgt* og *Vælg slut på tegningen*; markeringen fjernes ved start af valget; `picking === null` i stedet for `!picking` (slutpunkt 0 var "falsk").
+- Test: `SignalPathGuide.test.ts` (ny komponenttest) og `signalGuideHarness.svelte.ts`. BUGS.md. Manual kap. 08.
+
 ## [4.13.1 build 0365] — 2026-11-09 — fix: signalvejens markering følger tegningen, når du flytter noget
 
 - `SignalPathGuide.svelte`: ny prop `rev` (tælles op ved hver ændring i tegningen). Guiden henter grafen igen og beregner vejen forfra, samlet over 300 ms og kun hvis `graphKey(graph)` er ændret. Den valgte vej huskes (`wantSig`) og kommer tilbage efter fortryd.

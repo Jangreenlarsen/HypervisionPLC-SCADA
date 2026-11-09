@@ -2,6 +2,11 @@
 
 ---
 
+## v4.13.2 — 2026-11-09 — Vælg slutpunktet i tegningen
+
+- Under *Slut* i signalvej-guiden er der nu **← valgt** og **Vælg slut på tegningen**, så du også kan klikke slutpunktet, når start allerede er valgt.
+- **Rettelse:** *Vælg på tegningen* (klik på start og så på slut) virkede ikke i v4.13.0 og v4.13.1; det gør det nu igen.
+
 ## v4.13.1 — 2026-11-09 — Signalvejen følger med, når du flytter noget
 
 - Flytter du et rør eller et symbol, mens du laver en signalvej, opdateres vejen og markeringen i tegningen nu af sig selv. Fortryder du, kommer den vej, du valgte, tilbage.

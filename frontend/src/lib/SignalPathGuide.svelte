@@ -213,7 +213,8 @@
   function startPick(what: Pick): void {
     error = '';
     picking = what;
-    pickBase = selected.join(',');
+    select?.([]);        // markeringen fjernes, så et klik på netop det symbol, der var valgt, også tæller som et valg
+    pickBase = '';
     if (what === 'start') {
       start = '';
       endIds = [];
@@ -232,7 +233,7 @@
     untrack(() => {
       if (!sel.length || key === pickBase) return;
       pickBase = key;
-      if (!picking) {      // ikke i gang med at vælge: et klik på et element på vejen vælger dets række
+      if (picking === null) {      // ikke i gang med at vælge (OBS: 0 = det første slutpunkt er i gang): et klik på et element på vejen vælger dets række
         const hit = sel.length === 1 ? net?.rows.find((r) => r.id === sel[0]) : undefined;
         if (hit) {
           activeRow = hit.id;
@@ -525,8 +526,12 @@
     {/if}
     {#if !endIds.length && start}
       <label class="field">Slut
-        <select value="" onchange={(e) => addEnd(e.currentTarget.value)}><option value="">— vælg —</option>{#each choices.filter((c) => c.id !== start) as c (c.id)}<option value={c.id}>{c.label}</option>{/each}</select>
+        <span class="row nowrap">
+          <select value="" onchange={(e) => addEnd(e.currentTarget.value)} aria-label="Slut"><option value="">— vælg —</option>{#each choices.filter((c) => c.id !== start) as c (c.id)}<option value={c.id}>{c.label}</option>{/each}</select>
+          <button class="small" onclick={() => { const id = fromSelection(); if (id) addEnd(id); }} title="Brug symbolet, der er valgt i tegningen">← valgt</button>
+        </span>
       </label>
+      {#if picking === null}<div class="row"><button onclick={() => startPick(0)} disabled={busy} title="Klik på slutsymbolet i tegningen">Vælg slut på tegningen</button></div>{/if}
     {/if}
     {#if start && endIds.length === 1}<div class="row"><button class="small" onclick={swap} title="Byt start og slut (retningen følger i øvrigt pumpen)">⇄ Byt om</button></div>{/if}
   </div>

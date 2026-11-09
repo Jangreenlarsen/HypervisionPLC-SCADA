@@ -80,6 +80,7 @@ En **signalvej** sætter løbelys på *alle* rør mellem symboler på én gang, 
 ### 1. Start og slutpunkter
 
 - Tryk **Vælg på tegningen**, klik på startsymbolet og derefter på slutsymbolet — så findes vejen af sig selv. Klikker du på et rør, en tekst eller en visning, står der, hvorfor det ikke kan bruges; **Esc** eller **Afbryd valg** stopper. Du kan også vælge i listerne (eller vælge symbolet i tegningen og trykke **← valgt**).
+- Har du valgt start, kan du vælge slutpunktet med **Vælg slut på tegningen** (klik på symbolet), i listen under **Slut**, eller ved at vælge symbolet i tegningen og trykke **← valgt** ud for **Slut**.
 - **Vejen deler sig:** tryk **+ Slutpunkt** (og klik i tegningen), eller vælg i listen **Flere slutpunkter**. Der kan være op til **4 slutpunkter**, og hver gren får sin egen farve. **✕** fjerner et slutpunkt, og **⇄ Byt om** bytter start og slut.
 
 ### 2. Vejen
