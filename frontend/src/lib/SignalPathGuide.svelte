@@ -7,7 +7,10 @@
   import { ApiError, del, get, post, put } from './api';
   import { ask as askUser } from './ask';
   import { postStream } from './assist';
-  import { assist } from './assistStore.svelte';
+  import SpConditions, { type AiState, type QAnswer } from './SpConditions.svelte';
+  import SpLook from './SpLook.svelte';
+  import SpSaved from './SpSaved.svelte';
+  import SpStart, { type PickMode } from './SpStart.svelte';
   import {
     MAX_ENDS, QUESTION, TOL, answerFrom, conditionsFrom, describeNet, endpoints, findPaths, findViaPath, graphKey, passable, pickNext,
     questionsOf, suggestAnswer,
@@ -27,7 +30,6 @@
     element: string; name?: string; type?: string; configured?: boolean; tags?: TagInfo[]; flows?: string[]; missing?: boolean;
     parts?: { id: string; pid: string; line: boolean; text: string }[];
   }
-  type QAnswer = Answer & { key: string; branches: number[] };
 
   let { drawingId, ready, rev = 0, selected, graph, highlight, select, ensureSaved, onchanged }: {
     drawingId: string;
@@ -74,7 +76,7 @@
   let saved = $state<Saved['conditions']>([]);                         // betingelserne fra en gemt vej, der rettes
   let focusId = $state('');                                            // rækken, musen peger på
   let activeRow = $state('');                                          // rækken, der er valgt i tegningen
-  let ai = $state({ text: '', thinking: false, start: 0, secs: 0, note: '', set: new Set<string>(), unfilled: [] as string[] });
+  let ai = $state<AiState>({ text: '', thinking: false, start: 0, secs: 0, note: '', set: new Set<string>(), unfilled: [] });
   let thinkCtl: AbortController | null = null;
   $effect(() => {
     if (!ai.thinking) return;
@@ -242,11 +244,10 @@
   }
 
   // ---------------------------------------------------------------- start og slutpunkter (klik i tegningen)
-  type Pick = 'start' | number | 'add' | 'via' | null;
-  let picking = $state<Pick>(null);
+  let picking = $state<PickMode>(null);
   let pickNote = $state('');
   let pickBase = '';
-  function startPick(what: Pick): void {
+  function startPick(what: PickMode): void {
     error = '';
     picking = what;
     select?.([]);        // markeringen fjernes, så et klik på netop det symbol, der var valgt, også tæller som et valg
@@ -339,6 +340,25 @@
       via = { ...via, [b]: via[b].filter((x) => x !== id) };
       recompute();
     } else clickNote = `${label(id)} er tilføjet: vejen går nu igennem det. Klik på det igen for at fjerne det.`;
+  }
+  /** Et via-punkt valgt i rullemenuen. */
+  function viaFromList(id: string): void {
+    const why = viaProblem(byId.get(id));
+    if (why) error = why;
+    else {
+      error = '';
+      addVia(id);
+    }
+  }
+  /** Brug det, der er valgt i tegningen, som via-punkt. */
+  function viaFromSelection(): void {
+    const id = selected.find((x) => byId.has(x));
+    const why = viaProblem(id ? byId.get(id) : undefined);
+    if (why || !id) error = why ?? 'Vælg et rør eller symbol i tegningen først';
+    else {
+      error = '';
+      addVia(id);
+    }
   }
   function removeVia(id: string): void {
     via = Object.fromEntries(Object.entries(via).map(([k, v]) => [k, v.filter((x) => x !== id)]));
@@ -490,8 +510,6 @@
     }
   }
 
-  const tagOf = (n: string) => allTags.find((t) => t.name === n);
-
   async function save(replace = false): Promise<void> {
     error = '';
     if (!net || !complete) {
@@ -602,7 +620,6 @@
     const named = describeNet(g, [p], defs).rows.filter((r, k, all) => k === 0 || k === all.length - 1 || (r.role !== 'pipe' && r.name));
     return `${named.map((r) => r.name || r.id).join(' → ')} (${p.length} dele)`;
   };
-  const asked = $derived(answers);
   const rowOf = (id: string) => net?.rows.find((r) => r.id === id);
 </script>
 
@@ -611,80 +628,15 @@
 {#if !editing}
   <p class="small muted">En signalvej sætter løbelys på alle rør mellem symboler på én gang — styret af ventiler og pumper undervejs. Vejen kan dele sig i flere grene.</p>
   <div class="row"><button class="primary" onclick={() => begin(null)} disabled={!ready || busy}>Ny signalvej …</button></div>
-  {#each paths as p (p.id)}
-    <div class="item">
-      <div class="grow">
-        <strong>{p.name}</strong>
-        <div class="small muted">{p.elements.length} dele · {(p.ends?.length ?? 1) > 1 ? `${p.ends.length} grene · ` : ''}{p.conditions.length} betingelser</div>
-        {#if p.missing.length}<div class="small warn">{p.missing.length} dele findes ikke længere — ret vejen</div>{/if}
-      </div>
-      <button class="small" onclick={() => begin(p)} disabled={!ready || busy}>Ret</button>
-      <button class="small" onclick={() => remove(p)} disabled={busy} aria-label="Slet {p.name}">Slet</button>
-    </div>
-  {/each}
+  <SpSaved {paths} {ready} {busy} onedit={(p) => begin(p as Saved)} onremove={(p) => remove(p as Saved)} />
 {:else}
   <div class="step">
     <h4>1. Start og slutpunkter</h4>
-    <div class="row">
-      {#if picking !== null}
-        <button onclick={stopPick}>Afbryd valg</button>
-      {:else}
-        <button class="primary" onclick={() => startPick('start')} disabled={busy} title="Klik på startsymbolet og derefter slutsymbolet i tegningen">Vælg på tegningen</button>
-        {#if start && endIds.length}<button onclick={() => startPick('add')} disabled={busy || endIds.length >= MAX_ENDS} title="Vejen deler sig: tilføj endnu et slutpunkt">+ Slutpunkt</button>{/if}
-      {/if}
-    </div>
-    {#if pickNote}<p class="small pick" role="status">{pickNote}</p>{/if}
-    <label class="field">Start
-      <span class="row nowrap">
-        <select value={start} onchange={(e) => setStart(e.currentTarget.value)}><option value="">— vælg —</option>{#each choices as e (e.id)}<option value={e.id}>{e.label}</option>{/each}</select>
-        <button class="small" onclick={() => { const id = fromSelection(); if (id) setStart(id); }} title="Brug symbolet, der er valgt i tegningen">← valgt</button>
-      </span>
-    </label>
-    {#each endIds as e, i (i)}
-      <label class="field"><span><span class="dot" style="background:{branchColor(i)}"></span>{endIds.length > 1 ? `Slut ${i + 1}` : 'Slut'}</span>
-        <span class="row nowrap">
-          <select value={e} onchange={(ev) => setEnd(i, ev.currentTarget.value)}><option value="">— fjern —</option>{#each choices as c (c.id)}<option value={c.id}>{c.label}</option>{/each}</select>
-          <button class="small" onclick={() => { const id = fromSelection(); if (id) setEnd(i, id); }} title="Brug symbolet, der er valgt i tegningen">← valgt</button>
-          {#if endIds.length > 1}<button class="small" onclick={() => removeEnd(i)} aria-label="Fjern slutpunkt {i + 1}" title="Fjern slutpunktet">✕</button>{/if}
-        </span>
-      </label>
-    {/each}
-    {#if endIds.length && endIds.length < MAX_ENDS}
-      <label class="field">Flere slutpunkter (vejen deler sig)
-        <span class="row nowrap">
-          <select value="" onchange={(e) => { addEnd(e.currentTarget.value); e.currentTarget.value = ''; }} aria-label="Tilføj slutpunkt">
-            <option value="">+ tilføj et slutpunkt …</option>{#each choices.filter((c) => c.id !== start && !endIds.includes(c.id)) as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
-          </select>
-          <button class="small" onclick={() => { const id = fromSelection(); if (id) addEnd(id); }} title="Tilføj symbolet, der er valgt i tegningen, som slutpunkt">← valgt</button>
-        </span>
-      </label>
-    {/if}
-    {#if !endIds.length && start}
-      <label class="field">Slut
-        <span class="row nowrap">
-          <select value="" onchange={(e) => addEnd(e.currentTarget.value)} aria-label="Slut"><option value="">— vælg —</option>{#each choices.filter((c) => c.id !== start) as c (c.id)}<option value={c.id}>{c.label}</option>{/each}</select>
-          <button class="small" onclick={() => { const id = fromSelection(); if (id) addEnd(id); }} title="Brug symbolet, der er valgt i tegningen">← valgt</button>
-        </span>
-      </label>
-      {#if picking === null}<div class="row"><button onclick={() => startPick(0)} disabled={busy} title="Klik på slutsymbolet i tegningen">Vælg slut på tegningen</button></div>{/if}
-    {/if}
-    {#if start && endIds.length}
-      <label class="field">Gå via (valgfrit) <span class="small muted">— rør eller symboler, vejen skal igennem</span>
-        <span class="row nowrap">
-          <select value="" onchange={(e) => { const id = e.currentTarget.value; e.currentTarget.value = ''; const n = byId.get(id); const why = viaProblem(n); if (why) error = why; else { error = ''; addVia(id); } }} aria-label="Gå via">
-            <option value="">+ gå via …</option>{#each choices.filter((c) => c.id !== start && !endIds.includes(c.id) && !hasWays(byId.get(c.id)?.type ?? '')) as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
-          </select>
-          <button class="small" onclick={() => { const id = selected.find((x) => byId.has(x)); const why = viaProblem(id ? byId.get(id) : undefined); if (why || !id) error = why ?? 'Vælg et rør eller symbol i tegningen først'; else { error = ''; addVia(id); } }} title="Gå via det, der er valgt i tegningen">← valgt</button>
-        </span>
-      </label>
-      {#if picking === null}<div class="row"><button class="small" onclick={() => startPick('via')} disabled={busy} title="Klik på et rør eller symbol i tegningen">Vælg via på tegningen</button></div>{/if}
-      {#each allVia as v (v.id)}
-        <div class="viarow small"><span class="dot" style="background:#6a1b9a"></span>Via {label(v.id)}{endIds.length > 1 ? ` (gren ${v.b + 1})` : ''}
-          {#if viaMissing[v.b]?.includes(v.id)}<span class="warn"> — ingen vej gennem det</span>{/if}
-          <button class="small" onclick={() => removeVia(v.id)} aria-label="Fjern via {label(v.id)}">✕</button></div>
-      {/each}
-    {/if}
-    {#if start && endIds.length === 1}<div class="row"><button class="small" onclick={swap} title="Byt start og slut (retningen følger i øvrigt pumpen)">⇄ Byt om</button></div>{/if}
+    <SpStart {choices} {start} {endIds} {picking} {pickNote} {busy} {branchColor} {label}
+      via={allVia.map((v) => ({ ...v, missing: !!viaMissing[v.b]?.includes(v.id) }))}
+      viaChoices={choices.filter((c) => c.id !== start && !endIds.includes(c.id) && !hasWays(byId.get(c.id)?.type ?? ''))}
+      onpick={startPick} onstoppick={stopPick} onstart={setStart} onend={setEnd} onremoveend={removeEnd} onaddend={addEnd}
+      onviapick={viaFromList} onviaselected={viaFromSelection} onremovevia={removeVia} onswap={swap} {fromSelection} />
   </div>
 
   {#if start && endIds.length}
@@ -749,90 +701,13 @@
   {#if complete && locked}
     <div class="step">
       <h4>3. Hvornår går der flow?</h4>
-      {#if !questions.length}<p class="small muted">Ingen ventiler eller pumper på vejen — løbelyset kører altid.</p>{/if}
-      {#if askedOnce.length && assist.available && assist.canAsk}
-        <div class="explain">
-          <label class="field">Forklar med egne ord <span class="small muted">(hjælperen udfylder forslag)</span>
-            <textarea bind:value={ai.text} rows="2" maxlength="400" disabled={ai.thinking}
-                      placeholder="fx når pumpe 5 kører og MVS1 står over 50 %"></textarea>
-          </label>
-          <div class="row">
-            {#if ai.thinking}
-              <button onclick={() => thinkCtl?.abort()}>Stop</button>
-              <span class="small muted">{ai.note} {ai.secs} s</span>
-            {:else}
-              <button onclick={suggest} disabled={!ai.text.trim() || busy}>Udfyld med hjælperen</button>
-              {#if ai.note}<span class="small muted">{ai.note}</span>{:else}<span class="small muted">tager typisk 1–3 min</span>{/if}
-            {/if}
-          </div>
-          {#if ai.unfilled.length && !ai.thinking}
-            <p class="small warn">Ikke udfyldt af hjælperen: {ai.unfilled.map((id) => rowOf(id)?.name || id).join(', ')} — vælg selv.</p>
-          {/if}
-        </div>
-      {/if}
-      {#each asked as a (a.key)}
-        {@const r = rowOf(a.element)}
-        {@const q = questions.find((x) => x.key === a.key)}
-        {@const own = info.get(a.element)?.tags ?? []}
-        {@const t = tagOf(a.src)}
-        <div class="q" onmouseenter={() => (focusId = a.element)} onmouseleave={() => (focusId = '')} role="group" aria-label="Betingelse for {r?.name || a.element}">
-          <div><strong>{r?.name || a.element}</strong>
-            {#if q?.way}<span class="chip">{wayLabel(parseWay(q.way)!)}</span>{/if}
-            {#each a.branches as b (b)}{#if endIds.length > 1}<span class="dot" style="background:{branchColor(b)}" title="Gren {b + 1}"></span>{/if}{/each}
-            <span class="small muted">{q ? (q.way ? `Hvornår leder ventilen ${wayLabel(parseWay(q.way)!)}?` : QUESTION[q.role]) : ''}</span>
-            {#if ai.set.has(a.element)}<span class="ai" title="Udfyldt af hjælperen — tjek det">forslag</span>{/if}</div>
-          <select bind:value={a.src} aria-label="Tag for {r?.name || a.element}">
-            <option value="">— ingen betingelse (altid) —</option>
-            {#if own.length}<optgroup label="Symbolets egne tags">{#each own as o (o.name)}<option value={o.name}>{o.name}</option>{/each}</optgroup>{/if}
-            <optgroup label="Alle tags">{#each allTags as o (o.name)}<option value={o.name}>{o.name}{o.unit ? ` [${o.unit}]` : ''}</option>{/each}</optgroup>
-          </select>
-          {#if t?.is_bool}
-            <select bind:value={a.on} aria-label="Tilstand"><option value={true}>når tagget er til</option><option value={false}>når tagget er fra</option></select>
-          {:else if t}
-            <span class="row nowrap">
-              <select bind:value={a.cmp} aria-label="Sammenligning"><option value="">—</option><option value="ge">≥</option><option value="le">≤</option><option value="eq">=</option></select>
-              <input type="number" step="any" bind:value={a.value} aria-label="Grænseværdi" />
-              <span class="small muted">{t.unit}</span>
-            </span>
-          {/if}
-        </div>
-      {/each}
-      {#if questions.length}<p class="small muted">{endIds.length > 1 ? 'Inden for en gren skal alle betingelser være opfyldt (OG); et fælles stykke lyser, når mindst én gren er aktiv.' : 'Alle betingelser skal være opfyldt (OG).'}</p>{/if}
+      <SpConditions bind:answers bind:ai bind:focusId {questions} {askedOnce} rows={net?.rows ?? []} tagsOf={(id) => info.get(id)?.tags ?? []} {allTags}
+        branchCount={endIds.length} {branchColor} {busy} onsuggest={suggest} onstop={() => thinkCtl?.abort()} />
     </div>
 
     <div class="step">
       <h4>4. Udseende — hvilke animationer?</h4>
-      <p class="small muted">Vælg, hvad vejen skal gøre ved hver slags element, når den er aktiv. Er den ikke aktiv, røres delen ikke.</p>
-      {#each GROUPS.filter((x) => present.has(x)) as g (g)}
-        {@const first = net?.rows.find((r) => groupOf(r.role) === g)}
-        {@const parts = info.get(first?.id ?? '')?.parts ?? []}
-        <fieldset class="look">
-          <legend>{GROUP_LABEL[g]} <span class="small muted">({present.get(g)})</span></legend>
-          {#each look[g] as a (a.type)}
-            <div class="lrow">
-              <label class="opt"><input type="checkbox" bind:checked={a.on} aria-label="{TYPE_LABEL[a.type]} på {GROUP_LABEL[g]}" /> {TYPE_LABEL[a.type]}</label>
-              {#if a.on}
-                {#if a.type === 'flow'}
-                  <input type="color" bind:value={light} aria-label="Lysfarve" title="Lysfarve" />
-                  <input class="num" type="number" min="5" max="500" bind:value={speed} aria-label="Fart" title="Fart" />
-                {:else if a.type === 'fill' || a.type === 'stroke'}
-                  <input type="color" bind:value={a.color} aria-label="Farve for {TYPE_LABEL[a.type]}" title="Farve, når vejen er aktiv" />
-                {:else if a.type === 'blink'}
-                  <select bind:value={a.speed} aria-label="Blinkhastighed"><option value="slow">langsomt</option><option value="normal">normalt</option><option value="fast">hurtigt</option></select>
-                {/if}
-                {#if g !== 'pipe' && a.type !== 'flow'}
-                  <select class="part" bind:value={a.part} aria-label="Del for {TYPE_LABEL[a.type]} på {GROUP_LABEL[g]}">
-                    {#if g === 'threeway'}<option value={WAYS_PART}>Portene i vejen</option>{/if}
-                    <option value={WHOLE}>Hele symbolet</option>
-                    {#each parts as p (p.id)}<option value={p.id}>{p.text ? `${p.text} (${p.pid || p.id})` : (p.pid || p.id)}</option>{/each}
-                  </select>
-                {/if}
-              {/if}
-            </div>
-          {/each}
-        </fieldset>
-      {/each}
-      {#if !anyChosen(look, new Set(present.keys()))}<p class="small warn">Vælg mindst én animation.</p>{/if}
+      <SpLook bind:look bind:light bind:speed {present} rows={net?.rows ?? []} parts={(id) => info.get(id)?.parts ?? []} />
     </div>
 
     <div class="step">
@@ -851,23 +726,12 @@
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') { if (picking !== null) stopPick(); else if (clicking && editing) clicking = false; } }} />
 
 <style>
-  .pick { background: #fff4e0; border: 1px solid #ff8f00; border-radius: var(--radius); padding: .3rem .45rem; }
-  .item { display: flex; align-items: center; gap: .4rem; padding: .35rem 0; border-top: 1px solid var(--line); }
-  .grow { flex: 1; min-width: 0; }
   .step { border-top: 1px solid var(--line); padding: .4rem 0; }
   .step h4 { margin: .1rem 0 .35rem; font-size: .9rem; display: flex; align-items: center; gap: .5rem; }
   .field { display: flex; flex-direction: column; gap: .15rem; font-size: .85rem; margin-bottom: .35rem; }
-  .field select, .field input:not([type='color']) { min-width: 0; }
-  .nowrap { flex-wrap: nowrap; gap: .3rem; display: flex; align-items: center; }
-  .nowrap select { flex: 1; min-width: 0; }
   .opt { display: flex; gap: .35rem; align-items: flex-start; font-size: .85rem; margin: .2rem 0; }
-  .q { display: flex; flex-direction: column; gap: .25rem; padding: .35rem 0; border-bottom: 1px dashed var(--line); }
-  .q input[type='number'] { width: 6rem; }
   .warn { color: var(--warn); }
   .ok { color: #2e7d32; }
-  .explain { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem; margin-bottom: .4rem; }
-  .explain textarea { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; }
-  .ai { font-size: .7rem; background: var(--accent); color: #fff; border-radius: 3px; padding: 0 .3rem; margin-left: .3rem; }
   .dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; margin-right: .3rem; vertical-align: middle; }
   .branch { border-left: 4px solid var(--line); padding: .15rem 0 .15rem .5rem; margin: .35rem 0; }
   .steps { margin: .25rem 0; padding-left: 1.1rem; font-size: .85rem; }
@@ -876,15 +740,7 @@
   .pipes { display: block; margin-left: -.9rem; font-size: .72rem; }
   .link { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; font: inherit; }
   .way { font-size: .8rem; max-width: 100%; margin-left: .3rem; }
-  .look { border: 1px solid var(--line); border-radius: var(--radius); margin: .3rem 0; padding: .2rem .5rem .4rem; }
-  .look legend { font-size: .82rem; font-weight: 600; padding: 0 .3rem; }
-  .lrow { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem .5rem; }
-  .lrow .opt { margin: .1rem 0; min-width: 9rem; }
-  .lrow input[type='color'] { width: 2rem; height: 1.5rem; padding: 0; }
-  .lrow .num { width: 4rem; }
-  .lrow .part { max-width: 100%; font-size: .8rem; }
   .clickbar { background: #f3e5f5; border: 1px solid #6a1b9a; border-radius: var(--radius); padding: .3rem .45rem; margin: .3rem 0; }
-  .viarow { display: flex; align-items: center; gap: .3rem; margin: .15rem 0; }
   .activeb { background: #fafafa; }
   .chip { font-size: .72rem; background: #eceff1; border: 1px solid var(--line); border-radius: 999px; padding: 0 .4rem; margin: 0 .2rem; }
 </style>

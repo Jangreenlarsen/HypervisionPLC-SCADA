@@ -166,4 +166,16 @@ describe('Signalvej-guiden: klik i tegningen', () => {
     expect(text()).toContain('V3: AB → A — gren 2');             // gren 2 går til radB: AB → A fører ikke dertil
     expect(text()).toContain('Der er ingen sammenhængende vej til Radiator B');
   });
+
+  it('Brug denne vej åbner betingelser og udseende, og gem kræver et navn', async () => {
+    open(WAYS);
+    await chooseStartEnd('src', 'radA');
+    await click(button('Brug denne vej →'));
+    expect(text()).toContain('3. Hvornår går der flow?');
+    expect(target.querySelector('[role="group"][aria-label="Betingelse for V3"]')).toBeTruthy();   // et spørgsmål for ventilen
+    expect(text()).toContain('4. Udseende');
+    expect(target.querySelectorAll('fieldset.look').length).toBeGreaterThan(1);                    // rør og 3-vejsventil
+    expect(text()).toContain('5. Navn og gem');
+    expect(button('Gem signalvej')!.hasAttribute('disabled')).toBe(true);                          // uden navn
+  });
 });

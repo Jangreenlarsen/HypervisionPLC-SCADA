@@ -108,3 +108,9 @@ Baggrund og begrundelser: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.m
 ├── deploy/                     # install.sh + systemd-units (SCADA, mock-PLC)
 └── data/                       # runtime-data på Pi'en (git-ignoreret)
 ```
+
+## Signalveje (delt i v4.15.1)
+
+- **Frontend, rene beregninger** (`frontend/src/lib/signalpath/`, samlet af `signalPath.ts`): `graph` (typer, geometri, roller, naboer), `flow` (porte, veje gennem flervejs-symboler, løbelys, retning), `route` (korteste vej og via), `net` (grene og spørgsmål), `answers` (svar → betingelser, valg ved klik). Ingen DOM og ingen netværk; testes uden browser.
+- **Guiden** (`SignalPathGuide.svelte`) ejer tilstanden og alle handlinger; trinene vises af `SpStart` (1), `SpConditions` (3), `SpLook` (4) og `SpSaved` (listen) med props og callbacks. Trin 2 (vejen, klik i tegningen) og 5 ligger i guiden, fordi de er tæt knyttet til beregningen.
+- **Backend** (`backend/app/services/signal_paths/`): `validate` (grænser, `valid_data`), `blocks` (betingelser → logikblokke), `service` (læs, gem, slet i én transaktion). Offentligt API uændret (`from app.services.signal_paths import …`).

@@ -1,3 +1,22 @@
+# Plan: Refaktorér signalvejs-koden (v4.15.1, ingen funktionsændring) — 2026-11-09 — ✅ udført (trin 1–5; guidens trin 2 og 5 blev i komponenten)
+
+Mål: gøre signalvejen overskuelig uden at ændre adfærd. Nu: `SignalPathGuide.svelte` 890 linjer (~40 state-variabler, 36 funktioner, 5 trin, klik/via/pick/AI/gem blandet), `signalPath.ts` 482 linjer (graf, rutesøgning, retning, spørgsmål, svar i én fil), `signal_paths.py` 464 linjer.
+
+## Trin (hvert trin: tests grønne før næste; ét commit pr. trin-gruppe)
+1. **Sikkerhedsnet**: frontend-tests er dækkende (guide 12, flow 21, look 7); backend `test_signal_branches.py`. Ingen ny adfærd.
+2. **`signalPath.ts` deles** i `signalpath/` : `graph.ts` (typer, graphKey, contacts, onLine, roleOf), `route.ts` (shortest, findPaths, findViaPath), `flow.ts` (portAt, passAllowed, orient, flowsFor, wayUsed), `net.ts` (describe, describeNet, questionsOf), `answers.ts` (conditionsFrom, answerFrom, suggestAnswer, pickNext). `signalPath.ts` bliver en re-export, så imports og tests virker uændret.
+3. **Guiden deles**: logik ud af komponenten i en store `signalGuideState.svelte.ts` (via/klik/pick/forced/cands/net/recompute) og små komponenter: `SpStart.svelte` (trin 1), `SpRoute.svelte` (trin 2), `SpConditions.svelte` (trin 3), `SpLook.svelte` (trin 4), `SpSave.svelte` (trin 5) + `SpList.svelte` (gemte veje). `SignalPathGuide.svelte` bliver ~150 linjer, der binder dem sammen.
+4. **Backend `signal_paths.py`**: del i `signal_paths/` (`chains.py` blokke/OR-kæder, `anims.py` animationer/strip/owned, `validate.py` valid_data, `service.py`); offentlig API uændret.
+5. Død kode og dubletter ryddes undervejs (fx gentagne `rowOfNet`/`net?.rows.find`). Ingen nye afhængigheder.
+
+## Berørte filer
+`frontend/src/lib/signalPath.ts`, `SignalPathGuide.svelte` (+ nye filer), `backend/app/services/signal_paths.py`, ARCHITECTURE.md (kort note), CHANGELOG/RELEASE_NOTES, version 4.15.1 / b0369.
+
+## Risici
+- Svelte 5 runes i delt state-fil: kræver `.svelte.ts` og getters; komponenttests fanger regressioner (klik, pick, via).
+- Import-stier: re-export holder dem stabile.
+- Visuel verifikation i browseren efter trin 3 (layout uændret).
+
 # Plan: Signalveje 3 — klik i tegningen: tilføj rør til vejen, skift en 3-vejsventils vej, og "gå via" ekstra symboler (v4.15.0) — 2026-11-09 — ✅ v4.15.0
 
 Ønsker fra Jan (2026-11-09): (1) **tryk på de enkelte forbindelser** i tegningen og på den måde tilføje dem til signalvejen; (2) **tryk på symboler med flere veje** (3-vejsventil) og skifte mellem symbolets muligheder; (3) **ekstra symboler** i listerne skal have de samme valg som start og slut (rullemenu, *← valgt* og klik i tegningen). *(Punktet om *← valgt* under *Flere slutpunkter* er allerede lavet i v4.14.0.)*
