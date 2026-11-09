@@ -1,6 +1,6 @@
 import { describe as group, expect, it } from 'vitest';
 import { FLOW_DEFAULTS, matchPorts, mergeDefs, parseWay, sameWay, validateDef, waysOf, wayKey, wayLabel } from './symbolFlow';
-import { describeNet, endpoints, findPaths, graphKey, orient, passable, portAt, questionsOf, roleOf, wayUsed, type GNode, type Graph, type Pt } from './signalPath';
+import { describeNet, endpoints, findPaths, findViaPath, graphKey, orient, passable, portAt, questionsOf, roleOf, wayUsed, type GNode, type Graph, type Pt } from './signalPath';
 
 const pipe = (id: string, a: Pt, b: Pt): GNode => ({ id, name: '', type: '', pipe: true, terminals: [a, b], lines: [{ part: 'all', a, b }], refs: [null, null] });
 const sym = (id: string, name: string, type: string, terminals: Pt[], fracs: Pt[] | null = null): GNode =>
@@ -195,5 +195,61 @@ group('graphKey', () => {
     const c = pumpLine();
     c.nodes[0] = { ...c.nodes[0], terminals: [[40.04, 30.03]] };                      // under en tiendedel: samme tegning
     expect(graphKey(a)).toBe(graphKey(c));
+  });
+});
+
+group('gå via', () => {
+  /** Kedel →(øverste rør r1, r2)→ T → radiator, og en længere vej nedenom (n1, n2) til samme T, plus en blindgyde (b1). */
+  function loop(): Graph {
+    return { nodes: [
+      sym('kedel', 'Kedel', 'kedel', [[0, 0]]),
+      pipe('r1', [0, 0], [50, 0]), pipe('r2', [50, 0], [100, 0]),
+      pipe('n1', [0, 0], [0, 40]), pipe('n2', [0, 40], [100, 40]), pipe('n3', [100, 40], [100, 0]),
+      sym('t', 'T', 't_stykke', [[100, 0], [150, 0], [100, 40]]),
+      pipe('r3', [150, 0], [200, 0]), sym('rad', 'Radiator', 'radiator', [[200, 0]]),
+      pipe('b1', [50, 0], [50, -30]), sym('stub', 'Blindgyde', 'ekspansion', [[50, -30]]),
+    ] };
+  }
+
+  it('without via points it is the shortest path', () => {
+    const r = findViaPath(loop(), 'kedel', 'rad', []);
+    expect(r.missing).toEqual([]);
+    expect(r.path!.map((s) => s.id)).toEqual(findPaths(loop(), 'kedel', 'rad', 1)[0].map((s) => s.id));
+  });
+
+  it('a pipe on the longer route forces the path that way', () => {
+    const plain = findViaPath(loop(), 'kedel', 'rad', []).path!.map((s) => s.id);
+    expect(plain).toContain('r1');
+    const r = findViaPath(loop(), 'kedel', 'rad', ['n2']);
+    expect(r.missing).toEqual([]);
+    const ids = r.path!.map((s) => s.id);
+    expect(ids).toContain('n2');
+    expect(ids).not.toContain('r1');
+    expect(ids[0]).toBe('kedel');
+    expect(ids[ids.length - 1]).toBe('rad');
+    expect(ids.filter((x) => x === 'n2')).toHaveLength(1);                         // elementet, stykkerne mødes i, står kun én gang
+    expect(r.path!.every((s, i, a) => i === 0 || a[i - 1].exit !== null)).toBe(true);   // indgang/udgang hænger sammen hele vejen
+  });
+
+  it('takes the points in the order they lie from the start, whatever order they were given in', () => {
+    const a = findViaPath(loop(), 'kedel', 'rad', ['n3', 'n1']).path!.map((s) => s.id);
+    const b = findViaPath(loop(), 'kedel', 'rad', ['n1', 'n3']).path!.map((s) => s.id);
+    expect(a).toEqual(b);
+    expect(a.indexOf('n1')).toBeLessThan(a.indexOf('n3'));
+  });
+
+  it('skips a point it cannot use and says which', () => {
+    const r = findViaPath(loop(), 'kedel', 'rad', ['stub']);                       // en blindgyde: vejen skulle vende om
+    expect(r.missing).toEqual(['stub']);
+    expect(r.path!.map((s) => s.id)).toContain('r1');
+    const unknown = findViaPath(loop(), 'kedel', 'rad', ['findes-ikke', 'n2']);
+    expect(unknown.missing).toEqual(['findes-ikke']);
+    expect(unknown.path!.map((s) => s.id)).toContain('n2');
+  });
+
+  it('start and end as via points are ignored, and no path gives null', () => {
+    expect(findViaPath(loop(), 'kedel', 'rad', ['kedel', 'rad']).missing).toEqual(['kedel', 'rad']);
+    const cut: Graph = { nodes: [sym('a', 'A', 'kedel', [[0, 0]]), sym('b', 'B', 'radiator', [[500, 500]])] };
+    expect(findViaPath(cut, 'a', 'b', []).path).toBeNull();
   });
 });

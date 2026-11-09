@@ -9,7 +9,8 @@
   import { postStream } from './assist';
   import { assist } from './assistStore.svelte';
   import {
-    MAX_ENDS, QUESTION, TOL, answerFrom, conditionsFrom, describeNet, endpoints, findPaths, graphKey, pickNext, questionsOf, suggestAnswer,
+    MAX_ENDS, QUESTION, TOL, answerFrom, conditionsFrom, describeNet, endpoints, findPaths, findViaPath, graphKey, passable, pickNext,
+    questionsOf, suggestAnswer,
     type Answer, type Condition, type Graph, type Net, type NetRow, type Pt, type Question, type Step, type TagInfo,
   } from './signalPath';
   import { mergeDefs, parseWay, wayKey, wayLabel, waysOf, type FlowDefs } from './symbolFlow';
@@ -54,6 +55,12 @@
   let light = $state('#8fc8ea');
   let speed = $state(40);
   let look = $state<Look>(defaultLook());     // hvilke animationer vejen lægger på hvilke slags elementer (v4.14.0)
+  // Klik i tegningen (v4.15.0): "gå via"-punkter pr. gren (rør og symboler, vejen skal igennem), og hvilken gren et klik gælder
+  let via = $state<Record<number, string[]>>({});
+  let viaMissing = $state<Record<number, string[]>>({});
+  let activeBranch = $state(0);
+  let clicking = $state(true);                  // et klik på et rør/symbol i tegningen ændrer vejen (så længe trin 2 er åbent)
+  let clickNote = $state('');
   let g = $state<Graph | null>(null);
   let defs = $state<FlowDefs>(mergeDefs(null));
   let forced = $state<Record<number, Record<string, string>>>({});   // gren → knude → vej ("AB>A")
@@ -120,8 +127,10 @@
   function show(): void {
     const lines: { pts: Pt[]; color: string; flow: number }[] = [];
     const boxes: { id: string; color: string }[] = [];
+    const viaBoxes = Object.values(via).flat().map((id) => ({ id, color: '#6a1b9a' }));      // via-punkter: lilla
     if (!net) {
-      highlight([], [start, ...endIds].filter(Boolean).map((id, i) => ({ id, color: i ? branchColor(i - 1) : '#455a64' })), focusId ? [focusId] : []);
+      highlight([], [...[start, ...endIds].filter(Boolean).map((id, i) => ({ id, color: i ? branchColor(i - 1) : '#455a64' })), ...viaBoxes],
+        focusId ? [focusId] : []);
       return;
     }
     for (const r of net.rows) {
@@ -131,9 +140,9 @@
       if (parts.length) for (const { f, l } of parts) lines.push({ pts: l!.pts ?? [l!.a, l!.b], color, flow: f.reverse ? -1 : 1 });
       else boxes.push({ id: r.id, color });
     }
-    highlight(lines, boxes, focusId ? [focusId] : []);
+    highlight(lines, [...boxes, ...viaBoxes], focusId ? [focusId] : []);
   }
-  $effect(() => { void focusId; void net; untrack(show); });
+  $effect(() => { void focusId; void net; void via; untrack(show); });
 
   async function load(): Promise<void> {
     try {
@@ -157,7 +166,25 @@
     }
     // Efter en ændring i tegningen (flyt/fortryd) søges det, brugeren valgte — ikke det, der blev valgt, da vejen en kort stund var brudt
     const keep = fromDrawing ? wantSig.slice() : picks.map((i, b) => sig(cands[b]?.[i]));
-    cands = endIds.map((e, b) => (e && e !== start ? findPaths(g!, start, e, 3, TOL, { defs, forced: forced[b] ?? {} }) : []));
+    // via-punkter, der ikke længere findes i tegningen, fjernes (meldes)
+    const here = new Set(g.nodes.map((n) => n.id));
+    const gone = Object.values(via).flat().filter((id) => !here.has(id));
+    if (gone.length) {
+      via = Object.fromEntries(Object.entries(via).map(([k, v]) => [k, v.filter((id) => here.has(id))]));
+      clickNote = `${gone.map(label).join(', ')} findes ikke længere i tegningen og er fjernet fra vejen.`;
+    }
+    const missed: Record<number, string[]> = {};
+    cands = endIds.map((e, b) => {
+      if (!e || e === start) return [];
+      const opts = { defs, forced: forced[b] ?? {} };
+      if (via[b]?.length) {
+        const r = findViaPath(g!, start, e, via[b], TOL, opts);
+        missed[b] = r.missing;
+        if (r.path) return [r.path];
+      }
+      return findPaths(g!, start, e, 3, TOL, opts);
+    });
+    viaMissing = missed;
     picks = cands.map((c, b) => {
       const want = prefer?.[b]?.slice().sort().join('>') ?? keep[b];
       const i = want ? c.findIndex((x) => sig(x) === want) : -1;
@@ -215,7 +242,7 @@
   }
 
   // ---------------------------------------------------------------- start og slutpunkter (klik i tegningen)
-  type Pick = 'start' | number | 'add' | null;
+  type Pick = 'start' | number | 'add' | 'via' | null;
   let picking = $state<Pick>(null);
   let pickNote = $state('');
   let pickBase = '';
@@ -228,9 +255,11 @@
       start = '';
       endIds = [];
       forced = {};
+      via = {};
       recompute();
       pickNote = 'Klik på startsymbolet i tegningen …';
-    } else pickNote = what === 'add' ? 'Klik på det nye slutpunkt i tegningen …' : 'Klik på slutsymbolet i tegningen …';
+    } else if (what === 'via') pickNote = 'Klik på et rør eller symbol, vejen skal gå igennem …';
+    else pickNote = what === 'add' ? 'Klik på det nye slutpunkt i tegningen …' : 'Klik på slutsymbolet i tegningen …';
   }
   function stopPick(): void {
     picking = null;
@@ -240,13 +269,28 @@
     const sel = selected;
     const key = sel.join(',');
     untrack(() => {
-      if (!sel.length || key === pickBase) return;
+      if (!sel.length) {
+        pickBase = '';
+        return;
+      }
+      if (key === pickBase) return;
       pickBase = key;
       if (picking === null) {      // ikke i gang med at vælge (OBS: 0 = det første slutpunkt er i gang): et klik på et element på vejen vælger dets række
+        if (clicking && !locked && sel.length === 1 && clickElement(sel[0])) return;
         const hit = sel.length === 1 ? net?.rows.find((r) => r.id === sel[0]) : undefined;
         if (hit) {
           activeRow = hit.id;
           document.getElementById(`sp-row-${hit.id}`)?.scrollIntoView?.({ block: 'nearest' });
+        }
+        return;
+      }
+      if (picking === 'via') {
+        const n = sel.length === 1 ? byId.get(sel[0]) : undefined;
+        const why = viaProblem(n);
+        if (why) pickNote = why;
+        else {
+          addVia(n!.id);
+          stopPick();
         }
         return;
       }
@@ -271,18 +315,81 @@
       else endIds = endIds.map((e, i) => (i === at ? r.id! : e));
       stopPick();
       forced = {};
+      via = {};
       recompute();
     });
   });
 
+  // ---------------------------------------------------------------- gå via og klik i tegningen (v4.15.0)
+  /** Hvorfor et element ikke kan bruges som via-punkt (tekst), eller null. */
+  function viaProblem(n: Graph['nodes'][number] | undefined): string | null {
+    if (!n) return 'Klik på et rør eller symbol i tegningen';
+    if (n.id === start || endIds.includes(n.id)) return `${label(n.id)} er allerede start eller slutpunkt`;
+    if (!passable(n)) return 'Det valgte er en tekst eller en visning — klik på et rør eller et anlægssymbol';
+    if (hasWays(n.type)) return `${label(n.id)} har flere veje — klik på den på vejen for at skifte vej`;
+    return null;
+  }
+  const allVia = $derived(Object.entries(via).flatMap(([b, ids]) => ids.map((id) => ({ b: Number(b), id }))));
+
+  function addVia(id: string, b = activeBranch < endIds.length ? activeBranch : 0): void {
+    via = { ...via, [b]: [...(via[b] ?? []), id].filter((x, i, a) => a.indexOf(x) === i) };
+    recompute();
+    if (viaMissing[b]?.includes(id)) {
+      clickNote = `${label(id)} kan ikke bruges: der er ingen vej gennem det uden at vende om (en blindgyde?).`;
+      via = { ...via, [b]: via[b].filter((x) => x !== id) };
+      recompute();
+    } else clickNote = `${label(id)} er tilføjet: vejen går nu igennem det. Klik på det igen for at fjerne det.`;
+  }
+  function removeVia(id: string): void {
+    via = Object.fromEntries(Object.entries(via).map(([k, v]) => [k, v.filter((x) => x !== id)]));
+    recompute();
+    clickNote = `${label(id)} er fjernet fra vejen.`;
+  }
+
+  /** Et klik på et rør eller symbol i tegningen, mens trin 2 er åbent: skift en flervejs-ventils vej, tilføj/fjern et via-punkt. */
+  function clickElement(id: string): boolean {
+    const n = byId.get(id);
+    if (!n || id === start || endIds.includes(id) || !endIds.length) return false;
+    const done = (note: string): true => {
+      clickNote = note;
+      select?.([]);          // markeringen fjernes, så det samme element kan klikkes igen
+      pickBase = '';
+      return true;
+    };
+    const on = net?.rows.find((r) => r.id === id);
+    // en 3-vejsventil på vejen — eller en, hvis valgte vej midlertidigt har ødelagt vejen: skift mellem automatisk og symbolets veje
+    const forcedIn = Number(Object.keys(forced).find((k) => forced[Number(k)]?.[id] !== undefined));
+    if (hasWays(n.type) && (on || !Number.isNaN(forcedIn))) {
+      const b = on ? (on.branches.includes(activeBranch) ? activeBranch : on.branches[0]) : forcedIn;
+      const options = ['', ...waysOf(defs[n.type]).map(wayKey)];
+      const next = options[(options.indexOf(forced[b]?.[id] ?? '') + 1) % options.length];
+      setWay(b, id, next);
+      const used = rowOfNet(id)?.uses.find((u) => u.branch === b)?.way;
+      return done(`${label(id)}: ${next ? wayLabel(parseWay(next)!) : `automatisk${used ? ` (${wayLabel(parseWay(used)!)})` : ''}`}${endIds.length > 1 ? ` — gren ${b + 1}` : ''}`);
+    }
+    const mine = Object.entries(via).find(([, ids]) => ids.includes(id));
+    if (mine) {
+      removeVia(id);
+      return done(`${label(id)} er fjernet fra vejen.`);
+    }
+    if (on) return false;             // et almindeligt element på vejen: vælg dets række som før
+    const why = viaProblem(n);
+    if (why) return done(why);
+    addVia(id);
+    return done(clickNote);
+  }
+  const rowOfNet = (id: string) => net?.rows.find((r) => r.id === id);
+
   function setEnd(i: number, id: string): void {
     endIds = id ? endIds.map((e, k) => (k === i ? id : e)) : endIds.filter((_, k) => k !== i);
     forced = {};
+    via = {};
     recompute();
   }
   function removeEnd(i: number): void {
     endIds = endIds.filter((_, k) => k !== i);
     forced = {};
+    via = {};
     recompute();
   }
   function addEnd(id: string): void {
@@ -294,11 +401,13 @@
     if (endIds.length !== 1) return;
     [start, endIds[0]] = [endIds[0], start];
     forced = {};
+    via = {};
     recompute();
   }
   function setStart(id: string): void {
     start = id;
     forced = {};
+    via = {};
     recompute();
   }
   function fromSelection(): string | null {
@@ -331,6 +440,11 @@
     start = p?.start ?? '';
     endIds = p ? (p.ends?.length ? p.ends : [p.end]) : [];
     forced = Object.fromEntries(Object.entries(p?.ui?.forced ?? {}).map(([k, v]) => [Number(k), v]));
+    via = Object.fromEntries(Object.entries((p?.ui as { via?: Record<string, string[]> } | undefined)?.via ?? {}).map(([k, v]) => [Number(k), v]));
+    viaMissing = {};
+    activeBranch = 0;
+    clicking = true;
+    clickNote = '';
     picks = [];
     cands = [];
     net = null;
@@ -409,7 +523,7 @@
         const x = animsFor(r, look, defs, info.get(r.id)?.parts ?? []);
         return { element: r.id, flows: x.flows, anims: x.anims, branches: r.branches };
       }),
-      style: { light, speed, dash: 12 }, ui: { forced, picks, look },
+      style: { light, speed, dash: 12 }, ui: { forced, picks, look, via },
     };
     busy = true;
     try {
@@ -554,6 +668,22 @@
       </label>
       {#if picking === null}<div class="row"><button onclick={() => startPick(0)} disabled={busy} title="Klik på slutsymbolet i tegningen">Vælg slut på tegningen</button></div>{/if}
     {/if}
+    {#if start && endIds.length}
+      <label class="field">Gå via (valgfrit) <span class="small muted">— rør eller symboler, vejen skal igennem</span>
+        <span class="row nowrap">
+          <select value="" onchange={(e) => { const id = e.currentTarget.value; e.currentTarget.value = ''; const n = byId.get(id); const why = viaProblem(n); if (why) error = why; else { error = ''; addVia(id); } }} aria-label="Gå via">
+            <option value="">+ gå via …</option>{#each choices.filter((c) => c.id !== start && !endIds.includes(c.id) && !hasWays(byId.get(c.id)?.type ?? '')) as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
+          </select>
+          <button class="small" onclick={() => { const id = selected.find((x) => byId.has(x)); const why = viaProblem(id ? byId.get(id) : undefined); if (why || !id) error = why ?? 'Vælg et rør eller symbol i tegningen først'; else { error = ''; addVia(id); } }} title="Gå via det, der er valgt i tegningen">← valgt</button>
+        </span>
+      </label>
+      {#if picking === null}<div class="row"><button class="small" onclick={() => startPick('via')} disabled={busy} title="Klik på et rør eller symbol i tegningen">Vælg via på tegningen</button></div>{/if}
+      {#each allVia as v (v.id)}
+        <div class="viarow small"><span class="dot" style="background:#6a1b9a"></span>Via {label(v.id)}{endIds.length > 1 ? ` (gren ${v.b + 1})` : ''}
+          {#if viaMissing[v.b]?.includes(v.id)}<span class="warn"> — ingen vej gennem det</span>{/if}
+          <button class="small" onclick={() => removeVia(v.id)} aria-label="Fjern via {label(v.id)}">✕</button></div>
+      {/each}
+    {/if}
     {#if start && endIds.length === 1}<div class="row"><button class="small" onclick={swap} title="Byt start og slut (retningen følger i øvrigt pumpen)">⇄ Byt om</button></div>{/if}
   </div>
 
@@ -566,10 +696,17 @@
             Tjek ellers at rørene sidder fast i symbolerne (grønne ender, når røret er valgt), og at T-stykker er sat ind, hvor rør mødes.</p>
         {/each}
       {/if}
+      {#if !locked && start && endIds.length}
+        {#if clicking}
+          <p class="clickbar small" role="status">Klik på <strong>rør og symboler i tegningen</strong> for at ændre vejen: klik på et rør for at gå via det (klik igen fjerner det), og klik på en <strong>3-vejsventil</strong> for at skifte vej.
+            <button class="small" onclick={() => (clicking = false)}>Færdig (Esc)</button></p>
+        {:else}<div class="row"><button class="small" onclick={() => (clicking = true)}>Ret vejen i tegningen</button></div>{/if}
+        {#if clickNote}<p class="small ok" role="status">{clickNote}</p>{/if}
+      {/if}
       {#each endIds as e, b (b)}
         {#if cands[b]?.length}
-          <div class="branch" style="border-left-color:{branchColor(b)}">
-            {#if endIds.length > 1}<div class="small"><strong>Gren {b + 1}</strong> → {label(e)}</div>{/if}
+          <div class="branch" class:activeb={endIds.length > 1 && activeBranch === b} style="border-left-color:{branchColor(b)}">
+            {#if endIds.length > 1}<div class="small"><button class="link" onclick={() => (activeBranch = b)} title="Klik i tegningen gælder denne gren"><strong>Gren {b + 1}</strong></button> → {label(e)}{#if activeBranch === b && clicking && !locked} <span class="chip">klik gælder her</span>{/if}</div>{/if}
             {#if net?.flipped[b]}<div class="small ok">↻ Vejen er vendt, så flowet følger {net.by[b].join(', ')} (ind → ud).</div>
             {:else if net?.by[b]?.length}<div class="small ok">Flowet følger {net.by[b].join(', ')} (ind → ud).</div>{/if}
             {#if !locked}
@@ -711,7 +848,7 @@
   {/if}
 {/if}
 
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && picking !== null) stopPick(); }} />
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape') { if (picking !== null) stopPick(); else if (clicking && editing) clicking = false; } }} />
 
 <style>
   .pick { background: #fff4e0; border: 1px solid #ff8f00; border-radius: var(--radius); padding: .3rem .45rem; }
@@ -746,5 +883,8 @@
   .lrow input[type='color'] { width: 2rem; height: 1.5rem; padding: 0; }
   .lrow .num { width: 4rem; }
   .lrow .part { max-width: 100%; font-size: .8rem; }
+  .clickbar { background: #f3e5f5; border: 1px solid #6a1b9a; border-radius: var(--radius); padding: .3rem .45rem; margin: .3rem 0; }
+  .viarow { display: flex; align-items: center; gap: .3rem; margin: .15rem 0; }
+  .activeb { background: #fafafa; }
   .chip { font-size: .72rem; background: #eceff1; border: 1px solid var(--line); border-radius: 999px; padding: 0 .4rem; margin: 0 .2rem; }
 </style>

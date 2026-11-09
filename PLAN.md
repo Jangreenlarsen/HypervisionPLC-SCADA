@@ -1,4 +1,4 @@
-# Plan: Signalveje 3 — klik i tegningen: tilføj rør til vejen, skift en 3-vejsventils vej, og "gå via" ekstra symboler (v4.15.0) — 2026-11-09 — afventer OK
+# Plan: Signalveje 3 — klik i tegningen: tilføj rør til vejen, skift en 3-vejsventils vej, og "gå via" ekstra symboler (v4.15.0) — 2026-11-09 — ✅ v4.15.0
 
 Ønsker fra Jan (2026-11-09): (1) **tryk på de enkelte forbindelser** i tegningen og på den måde tilføje dem til signalvejen; (2) **tryk på symboler med flere veje** (3-vejsventil) og skifte mellem symbolets muligheder; (3) **ekstra symboler** i listerne skal have de samme valg som start og slut (rullemenu, *← valgt* og klik i tegningen). *(Punktet om *← valgt* under *Flere slutpunkter* er allerede lavet i v4.14.0.)*
 
