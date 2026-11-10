@@ -2,6 +2,12 @@
 
 ---
 
+## v5.0.0 — 2026-11-10 — Signalveje bygget om
+
+- En signalvej er nu **sit eget objekt**: serveren regner selv, hvornår vejen og hver gren er aktiv, og Overview viser vejens animationer. **Symbolernes egen opsætning røres ikke længere** — ingen logikblokke på rørene, ingen "Erstat"-spørgsmål, og et rør kan høre til flere signalveje.
+- Op til 64 betingelser pr. signalvej (før: højst 8 logikblokke).
+- **Bemærk:** signalveje lavet før v5.0.0 slettes ved opgraderingen, og det, de havde lagt i symbolerne, fjernes. Lav dem igen i Tegn › Signalveje.
+
 ## v4.22.0 — 2026-11-10 — Punkter og symboler, der ikke er i brug, i Tjek forbindelser
 
 - I **Tjek forbindelser** kan du klikke på en rød prik for at markere et tilslutningspunkt som **ikke i brug** (det giver så ikke en fejl), og **Skift+klik** eller **Udelad valgte fra tjekket** for at udelade et helt symbol. Markeringerne gemmes i tegningen, når du trykker Gem kladde eller Gem og udgiv, og kan fortrydes.

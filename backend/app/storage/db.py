@@ -17,7 +17,7 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 15   # 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv)
+SCHEMA_VERSION = 16   # 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS library_symbols (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS library_symbols_label_ci ON library_symbols(lower(label));
 -- Signalveje i Tegn (v4.2.0, services/signal_paths.py): en navngiven vej gennem tegningen (start, slut, elementer, betingelser).
--- Løbelys og logikblokke ligger som almindelig symbolopsætning (symbol_config); `data` husker hvilke dele der hører til vejen.
+-- v5.0.0: vejen er sit eget objekt (`data`, se services/signal_paths/validate.py) — intet ligger i symbol_config.
 CREATE TABLE IF NOT EXISTS signal_paths (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
@@ -276,7 +276,8 @@ USER_FIELDS = ("password_hash", "role", "disabled", "must_change_password", "sco
 # Tabeller, hvis indhold bestemmer, hvilke bindinger/tags en tegning har (v4.12.0: gemte beregninger er gyldige, så længe
 # ingen af dem er skrevet til — se Database.config_gen)
 CONFIG_TABLES = frozenset({"tags", "drawings", "drawing_versions", "bindings", "symbol_meta", "symbol_config", "symbol_groups",
-                           "symbol_group_members", "symbol_group_anims", "library_symbols"})
+                           "symbol_group_members", "symbol_group_anims", "library_symbols",
+                           "signal_paths"})
 _WRITE = re.compile(r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`\[]?(\w+)',
                     re.I)
 
@@ -325,7 +326,99 @@ class Database:
             self._conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_username_ci ON users(lower(username))")
         except sqlite3.IntegrityError:
             log.warning("Brugernavne med forskellig store/små bogstaver findes allerede — unikt indeks springes over")
+        self._drop_old_signal_paths()
         self._conn.execute("UPDATE meta SET value = ? WHERE key = 'schema_version'", (str(SCHEMA_VERSION),))
+
+    def _drop_old_signal_paths(self) -> None:
+        """v5.0.0: signalveje i det gamle format (før v5.0.0 skrev de logikblokke og animationer ind i symbolernes opsætning)
+        slettes — og det, de lagde i opsætningerne, fjernes, så der ikke står dobbelte animationer tilbage. Henvisninger til
+        de fjernede blokke andre steder på tegningen (egne animationer, løbelysets retning, egne blokkes indgange) fjernes også,
+        så symbolerne stadig kan gemmes. Én transaktion pr. vej; en vej, der ikke kan læses, logges og springes over (serveren
+        starter altid). Idempotent: kører, så længe der findes gamle veje."""
+        rows = self._conn.execute("SELECT id, drawing_id, name, data FROM signal_paths").fetchall()
+        for r in rows:
+            try:
+                d = json.loads(r["data"])
+            except (TypeError, ValueError):
+                log.error("Signalvejen '%s' (%s) kan ikke læses og springes over ved opgraderingen", r["name"], r["drawing_id"])
+                continue
+            if not isinstance(d, dict) or not ("owner" in d or "blocks" in d):
+                continue
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                self._drop_one_old_path(r["id"], r["drawing_id"], d)
+                self._conn.execute("COMMIT")
+                log.warning("Signalvejen '%s' (%s) havde det gamle format og er slettet (v5.0.0) — lav den igen i Tegn",
+                            r["name"], r["drawing_id"])
+            except Exception:
+                self._conn.execute("ROLLBACK")
+                log.exception("Signalvejen '%s' (%s) kunne ikke fjernes ved opgraderingen — springes over", r["name"], r["drawing_id"])
+
+    def _drop_one_old_path(self, pid: int, did: str, d: dict[str, Any]) -> None:
+        owner = d.get("owner") if isinstance(d.get("owner"), str) else ""
+        final = d.get("final") if isinstance(d.get("final"), str) else ""
+        blocks = {b for b in (d.get("blocks") or []) if isinstance(b, str)}
+        created = {e for e in (d.get("created") or []) if isinstance(e, str)}
+        configs = {row[0]: json.loads(row[1]) for row in self._conn.execute(
+            "SELECT element, config FROM symbol_config WHERE drawing_id = ?", (did,)).fetchall()}
+        changed: set[str] = set()
+        # vejens egne animationer (samme kilde, type og del); "@on" (vej uden betingelser) kun én pr. type og del
+        for e in d.get("elements") or []:
+            el = e.get("element") if isinstance(e, dict) else None
+            cfg = configs.get(el) if isinstance(el, str) else None
+            if not isinstance(cfg, dict):
+                continue
+            block = e.get("block", final) or ""
+            src = "@on" if not block else f"@{block}" if el == owner else f"@{owner}:{block}"
+            made = [("flow", f.get("part")) for f in e.get("flows") or [] if isinstance(f, dict)]
+            made += [(a.get("type"), a.get("part")) for a in e.get("anims") or [] if isinstance(a, dict)]
+            keep = []
+            for an in cfg.get("anims", []):
+                key = (an.get("type"), an.get("part"))
+                if an.get("src") == src and key in made:
+                    made.remove(key)          # én forekomst pr. animation, vejen lagde på
+                    continue
+                keep.append(an)
+            if len(keep) != len(cfg.get("anims", [])):
+                cfg["anims"] = keep
+                changed.add(el)
+        # vejens logikblokke på ejeren, og alle henvisninger til dem på tegningen
+        if owner in configs and blocks:
+            ocfg = configs[owner]
+            gone = {b.get("id") for b in ocfg.get("logic", []) if b.get("id") in blocks and str(b.get("name", "")).startswith("Signalvej: ")}
+            if gone:
+                ocfg["logic"] = [b for b in ocfg.get("logic", []) if b.get("id") not in gone]
+                changed.add(owner)
+                refs = {f"@{owner}:{b}" for b in gone}
+
+                def dead(src: Any, el: str) -> bool:
+                    return isinstance(src, str) and (src in refs or (el == owner and src in {f"@{b}" for b in gone}))
+
+                for el, cfg in configs.items():
+                    if not isinstance(cfg, dict):
+                        continue
+                    before = json.dumps(cfg, sort_keys=True)
+                    cfg["anims"] = [an for an in cfg.get("anims", []) if not dead(an.get("src"), el)]
+                    for an in cfg["anims"]:
+                        if dead((an.get("params") or {}).get("dir_tag"), el):
+                            an["params"].pop("dir_tag", None)
+                    for b in cfg.get("logic", []):
+                        b["inputs"] = [i for i in b.get("inputs", []) if not dead(i.get("src"), el)]
+                    cfg["logic"] = [b for b in cfg.get("logic", []) if b.get("inputs")]
+                    if json.dumps(cfg, sort_keys=True) != before:
+                        changed.add(el)
+                        if el != owner:
+                            log.warning("Opgradering v5.0.0: %s/%s henviste til signalvejens blokke — henvisningen er fjernet", did, el)
+        now = time.time()
+        for el in changed:
+            cfg = configs[el]
+            empty = not cfg.get("anims") and not cfg.get("logic") and not cfg.get("signals") and not cfg.get("positions")
+            if el in created and empty:
+                self._conn.execute("DELETE FROM symbol_config WHERE drawing_id = ? AND element = ?", (did, el))
+            else:
+                self._conn.execute("UPDATE symbol_config SET config = ?, updated_at = ?, updated_by = ? WHERE drawing_id = ? AND element = ?",
+                                   (json.dumps(cfg, ensure_ascii=False), now, "opgradering v5.0.0", did, el))
+        self._conn.execute("DELETE FROM signal_paths WHERE id = ?", (pid,))
 
     def close(self) -> None:
         with self._lock:

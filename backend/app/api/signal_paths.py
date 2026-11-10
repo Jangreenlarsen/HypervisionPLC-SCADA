@@ -1,4 +1,4 @@
-"""Signalveje i Tegn (lag 2, v4.2.0) — se services/signal_paths.py. Kun tekniker og op (ændrer symbolopsætninger)."""
+"""Signalveje i Tegn (lag 2, v4.2.0; v5.0.0: vejen er sit eget objekt) — se services/signal_paths/. Kun tekniker og op."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ class Flow(_M):
 
 
 class PartAnim(_M):
-    """En animation (ud over løbelys) signalvejen lægger på en del (v4.14.0). Parametrene valideres af symbolvalideringen."""
+    """En animation (ud over løbelys) signalvejen lægger på en del (v4.14.0). Parametrene renses i services/signal_paths."""
     part: str = Field(min_length=1, max_length=120)
     type: Literal["fill", "stroke", "blink", "visible", "spin"]
     params: dict[str, Any] = Field(default_factory=dict)
@@ -70,7 +70,6 @@ class Body(_M):
     elements: list[PathElement] = Field(min_length=1, max_length=MAX_ELEMENTS)
     conditions: list[Condition] = Field(default_factory=list, max_length=MAX_CONDITIONS)
     style: Style = Field(default_factory=Style)
-    replace: bool = False                                 # erstat løbelys, der allerede ligger på rørene
 
     @field_validator("ui")
     @classmethod
@@ -120,13 +119,13 @@ async def update(drawing_id: str, path_id: int, body: Body, request: Request) ->
 def _save(drawing_id: str, body: Body, request: Request, path_id: int | None) -> dict[str, Any]:
     _check(request, drawing_id)
     try:
-        result = _svc(request).save(request.state.user, drawing_id, body.model_dump(), path_id)
+        result = _svc(request).save(request.state.user, drawing_id, body.model_dump(), path_id,
+                                    request.app.state.scope_service.visible_tags(request.state.user))
     except ServiceError as exc:
         audit(request, "signal_path.save", f"{drawing_id}/{body.name}", {"error": exc.message[:300]})
         raise
     audit(request, "signal_path.save", f"{drawing_id}/{body.name}",
-          {"id": result["id"], "elements": len(body.elements), "conditions": len(body.conditions),
-           "changed": result["changed"][:50], "replaced": len(result["conflicts_replaced"])})
+          {"id": result["id"], "elements": result["elements"], "conditions": result["conditions"]})
     return result
 
 
@@ -134,7 +133,7 @@ def _save(drawing_id: str, body: Body, request: Request, path_id: int | None) ->
 async def delete(drawing_id: str, path_id: int, request: Request) -> dict[str, Any]:
     _check(request, drawing_id)
     result = _svc(request).delete(request.state.user, drawing_id, path_id)
-    audit(request, "signal_path.delete", f"{drawing_id}/{path_id}", {"changed": result["changed"][:50]})
+    audit(request, "signal_path.delete", f"{drawing_id}/{path_id}", {"name": result["name"]})
     return result
 
 

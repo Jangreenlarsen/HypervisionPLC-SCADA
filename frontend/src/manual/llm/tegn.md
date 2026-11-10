@@ -30,6 +30,10 @@ Slå **Fang rør lige** til (standard). Træk symbolet: når tilslutningspunktet
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 Brug en **signalvej**: i Tegn, panelet **Signalveje**, tryk **Ny signalvej …**, **Vælg på tegningen**, klik på start- og slutsymbolet. Vejen vises i tegningen med det samme. Tryk **Brug denne vej →**, vælg for hver ventil og pumpe hvornår der går flow, giv vejen et navn og tryk **Gem signalvej**.
 
+## Ændrer en signalvej symbolernes opsætning (logikblokke, animationer)? Kan et rør høre til flere signalveje?
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+Nej (siden v5.0.0). En signalvej gemmes som sit eget objekt, og serveren regner selv, hvornår hver gren er aktiv. Symbolernes egen opsætning røres ikke, så Ret og Slet påvirker kun vejen. Et rør kan godt høre til flere signalveje; har en del flere animationer af samme slags, vinder den aktive.
+
 ## Hvordan deler jeg en signalvej i flere grene (T-kryds, flere radiatorer, flere slutpunkter)?
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 I signalvej-guiden: vælg start og første slutpunkt, tryk **+ Slutpunkt** (højst 4) og klik på det næste slutsymbol, eller vælg i listen *Flere slutpunkter*. Hver gren får sin egen farve i tegningen. Inden for en gren skal alle betingelser være opfyldt; et fælles stykke lyser, når mindst én gren er aktiv.

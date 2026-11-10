@@ -145,9 +145,13 @@ Her bestemmer du, **hvad vejen gør ved hver slags element**, når den er aktiv.
 
 Giv signalvejen et navn, og tryk **Gem signalvej**.
 
-Når du gemmer, lægges betingelserne som logikblokke (*Signalvej: <navn>*) på vejens første rør — en kæde pr. gren og en blok, der samler grenene for stammen — og delene får de animationer, du valgte, styret af betingelserne. Er et rør tegnet "baglæns", vendes løbelyset automatisk. Delenes øvrige opsætning bevares. Har en del allerede en animation af samme type (fx et rør, der allerede har løbelys), spørger Tegn, om den skal erstattes. En del kan kun høre til én signalvej ad gangen. Der kan højst bruges 8 logikblokke pr. signalvej; guiden siger, hvis vejen kræver flere (vælg så færre betingelser eller grene).
+Når du gemmer, gemmes signalvejen som **ét samlet objekt** — der skrives intet i symbolernes egen opsætning. Serveren regner vejen hvert halve sekund: **en gren er aktiv, når alle dens betingelser er opfyldt**, og et stykke, flere grene går igennem, er aktivt, når mindst én af dem er det. Er en betingelses tag ukendt (fx kommunikationsfejl), og afgør det resultatet, viser vejen sin passive tilstand. I Overview får delene de animationer, du valgte, mens vejen er aktiv. Er et rør tegnet "baglæns", vendes løbelyset automatisk.
 
-Under **Signalveje** står de gemte signalveje med **Ret** og **Slet**. *Slet* fjerner løbelyset og betingelserne igen og intet andet. Mangler dele af en vej, fordi rør er slettet eller tegnet om, står der en advarsel. Tryk **Ret** og find vejen igen.
+- Delenes **egen opsætning røres ikke**. Har en del allerede en animation af samme slags (fx sit eget løbelys), gælder den almindelige regel i Overview: den aktive vinder; er begge aktive, gælder symbolets egen.
+- En del kan høre til **flere signalveje**, og der er ingen grænse fra logikblokke: op til 64 betingelser pr. signalvej.
+- Et tag, en signalvej bruger i en betingelse, kan ikke slettes, før vejen er rettet.
+
+Under **Signalveje** står de gemte signalveje med **Ret** og **Slet**. *Slet* fjerner signalvejen og dermed dens animationer — symbolernes egen opsætning er urørt. Mangler dele af en vej, fordi rør er slettet eller tegnet om, står der en advarsel. Tryk **Ret** og find vejen igen.
 
 > Finder Tegn ingen vej, så tjek, at rørene sidder fast (grønne ender, når røret er valgt), at rørene rører hinanden, hvor de mødes, og at rørene er tykke nok (føler- og stiplede linjer tæller ikke). Med en 3-vejsventil: prøv *automatisk* eller en anden vej.
 

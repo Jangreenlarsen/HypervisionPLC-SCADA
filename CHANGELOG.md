@@ -4,6 +4,18 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.0.0 build 0377] — 2026-11-10 — Signalveje 4: signalvejen som selvstændigt runtime-objekt (MAJOR, skema 16)
+
+- **Model** (`services/signal_paths/validate.py`): vejen er ét objekt `{start, end, ends, elements[{element, branches, flows, anims}], conditions[{element, src, neg, cmp, value, branches}], style, ui}`. `blocks.py` er fjernet; `service.py` gemmer kun objektet (ingen `_strip`/`_owned`/`_check_refs`, ingen 409-konflikter, ingen `created`), renser animationernes parametre, kræver sammenligning på tal-tags og at tags og dele findes. Højst 64 betingelser pr. vej.
+- **Runtime** (`services/signal_paths/runtime.py`, `SymbolRuntime._evaluate_paths`): gren = OG over dens betingelser (tre-værdi-logik som logikblokke; ingen betingelser = altid), stykker = ELLER over grenene; pseudo-tags `path:<tegning>:<id>:<grene>` i live-cachen; slettede veje ryddes; signaturen omfatter `signal_paths` og tegningernes deaktivering; `path_stats` i `/api/health`-metrics (`signal_paths`).
+- **Overview** (`DrawingService._path_bindings`): vejens løbelys og animationer som almindelige bindinger på pseudo-tagget (efter symbolernes og gruppernes, så den eksisterende prioritetsregel gælder). `signal_paths` er med i `CONFIG_TABLES` (gemte bindinger regnes forfra).
+- **Adgang og tags**: `tags_for_drawing()` medtager vejenes pseudo-tags; `SymbolService.usage()` nævner signalveje, så et tag i brug ikke kan slettes. Vagten mod at slette en "ejer"-opsætning er fjernet.
+- **Opgradering** (`Database._drop_old_signal_paths`, skema 16): veje i det gamle format slettes, og deres logikblokke ("Signalvej: …") og animationer fjernes fra symbolerne (tomme opsætninger, vejen havde oprettet, slettes). Backup: gamle veje springes over.
+- **Review** (reviewer-agent): betingelsestags holder pollingen i gang (`drawing_activity`), opgraderingen kører i en transaktion pr. vej, overlever en beskadiget række og fjerner også andre henvisninger til de gamle blokke (egne animationer, retning, egne blokkes indgange); "@on"-løbelys fjernes kun én gang pr. del; ugyldige veje springes over i Overview og runtime (logges); grænseværdien skal være et endeligt tal; en begrænset bruger kan kun bruge tags, han må se.
+- **Guiden** (`SignalPathGuide.svelte`): gem-body uden `replace`; "Erstat"-dialogen og "har allerede løbelys"-advarslen er fjernet.
+- Tests: `test_signal_paths.py`, `test_signal_branches.py` (gem/ret/slet, view-bindinger, runtime med grene/ELLER/ukendt, gamle veje, backup, tag i brug, valid_data), `SignalPathGuideClick.test.ts` (gem-body). Set i browseren mod mock-PLC: vej gemt, intet i symbolerne, løbelys 0 → 11 → 0 rør, når tagget skiftes.
+- Manual (kap. 08), LLM-tillæg, ARCHITECTURE.md.
+
 ## [4.22.0 build 0376] — 2026-11-10 — Tjek forbindelser: punkter og symboler, der ikke er i brug
 
 - `svgedit-host/scada-core.js`: attributten `data-hv-unused="nøgle;nøgle"` på symbolet/røret (nøgle = rørets ende `s`/`e`, symbolpunktets placering i boksen med to decimaler, eller `#i`; `*` = hele symbolet). `connectionGraph()` giver `keys`, `unused` og `exempt`; `toggleUnused(id, key)` og `exemptSymbols(ids, on)` ændrer attributten som ét fortryd-trin (så den gemmes med tegningen); overlayet har klikbare prikker (klik = punktet, Skift+klik = hele symbolet), grå stiplede ringe for punkter ikke i brug og grå rammer med et ⊘-mærke for udeladte symboler.

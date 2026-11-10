@@ -20,6 +20,8 @@ def suspended_tags(db: Any, drawings: Any, symbols: Any) -> set[str]:
     for d in db.list_drawings():
         did = d["id"]
         names = {t for b in drawings.effective_bindings(did) for t in binding_tags(b)} | symbols.tags_for_drawing(did)
+        # signalvejenes betingelser (v5.0.0) skal pollas, så længe tegningen er aktiv — de er ikke i tags_for_drawing
+        names |= {c.get("src") for r in db.list_signal_paths(did) for c in r["data"].get("conditions", []) if c.get("src")}
         (used_off if did in off else used_on).update(names)
     candidates = used_off - used_on
     if not candidates:

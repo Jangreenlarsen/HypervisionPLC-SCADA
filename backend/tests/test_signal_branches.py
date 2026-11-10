@@ -1,5 +1,5 @@
-"""Signalveje 2 (v4.13.0): grene (flere slutpunkter) med OG-kæde pr. gren og ELLER over fælles stykker, og ind/ud-definitioner
-pr. symboltype (symbol_flow) med backup."""
+"""Signalveje med grene (flere slutpunkter): OG pr. gren og ELLER over fælles stykker — regnet af serveren (v5.0.0) —
+animationer pr. element, og ind/ud-definitioner pr. symboltype (symbol_flow) med backup."""
 
 import pytest
 
@@ -38,79 +38,23 @@ def net(api):
     return api
 
 
-def blocks(c):
-    return {b["id"]: b for b in cfg(c, "r1")["logic"]}
+def runtime_values(c, values):
+    """Sæt tag-værdier i live-cachen, beregn signalvejene, og giv {pseudo-tag: værdi} for vejene."""
+    from app.services.live_cache import LiveValue
+    rt = c.app.state.symbol_runtime
+    rt.cache.update({k: (v if isinstance(v, LiveValue) else LiveValue(value=v, quality="good", ts=1.0)) for k, v in values.items()})
+    rt.evaluate()
+    return {t: rt.cache.get(t).value for t in rt._path_published}
 
 
-def test_branches_get_their_own_chain_and_the_shared_stretch_gets_an_or(net):
-    c = net
-    r = c.post(f"/api/drawings/{c.nd}/signal-paths", json=net_body([
-        {"element": "vA", "src": "P1_drift", "branches": [0]},
-        {"element": "vB", "src": "V2_stilling", "cmp": "ge", "value": 50, "branches": [1]}]))
-    assert r.status_code == 201, r.text
-    lg = blocks(c)
-    assert [(b["id"], b["op"]) for b in lg.values()] == [("L1", "and"), ("L2", "and"), ("L3", "or")]
-    assert lg["L1"]["inputs"][0]["src"] == "P1_drift" and lg["L2"]["inputs"][0]["src"] == "V2_stilling"
-    assert [i["src"] for i in lg["L3"]["inputs"]] == ["@L1", "@L2"]
-    ref = lambda el, part=0: cfg(c, el)["anims"][part]["src"]  # noqa: E731
-    assert ref("r1") == "@L3" and ref("t1") == "@r1:L3"                        # stammen: ELLER over begge grene
-    assert ref("rA") == "@r1:L1" and ref("rA2") == "@r1:L1"                    # gren A: sin egen kæde
-    assert ref("rB") == "@r1:L2" and ref("rB2") == "@r1:L2"
-    p = c.get(f"/api/drawings/{c.nd}/signal-paths").json()[0]
-    assert p["ends"] == ["radA", "radB"] and p["elements"][1]["branches"] == [0, 1] and p["elements"][1]["block"] == "L3"
 
 
-def test_a_branch_without_conditions_makes_the_shared_stretch_always_on(net):
-    c = net
-    assert c.post(f"/api/drawings/{c.nd}/signal-paths", json=net_body(
-        [{"element": "vA", "src": "P1_drift", "branches": [0]}])).status_code == 201
-    assert [b["id"] for b in blocks(c).values()] == ["L1"]                      # gren B har ingen betingelser → ingen blok
-    assert cfg(c, "r1")["anims"][0]["src"] == "@on"                            # stammen lyser altid (ELLER med "altid")
-    assert cfg(c, "rA")["anims"][0]["src"] == "@r1:L1" and cfg(c, "rB")["anims"][0]["src"] == "@on"
 
 
-def test_one_branch_gives_the_same_blocks_as_before(net):
-    c = net
-    body = net_body([{"element": "vA", "src": "P1_drift"}])
-    body["ends"] = []
-    body["elements"] = [e for e in body["elements"] if e["branches"] != [1]]
-    for e in body["elements"]:
-        e["branches"] = [0]
-    assert c.post(f"/api/drawings/{c.nd}/signal-paths", json=body).status_code == 201
-    assert [(b["id"], b["name"]) for b in blocks(c).values()] == [("L1", "Signalvej: Kedel → radiatorer")]
-    assert cfg(c, "rA")["anims"][0]["src"] == "@r1:L1"
 
 
-def test_edit_and_delete_remove_exactly_what_the_path_made(net):
-    c = net
-    r = c.post(f"/api/drawings/{c.nd}/signal-paths", json=net_body([
-        {"element": "vA", "src": "P1_drift", "branches": [0]}, {"element": "vB", "src": "V2_stilling", "cmp": "ge", "value": 5,
-                                                                "branches": [1]}]))
-    pid = r.json()["id"]
-    # ret til én gren: de gamle blokke og løbelys er væk, og de nye ligger der
-    one = net_body([{"element": "vA", "src": "P1_drift"}], ends=[])
-    one["ends"] = []
-    one["elements"] = [{**e, "branches": [0]} for e in one["elements"] if e["element"] not in ("rB", "vB", "rB2", "radB")]
-    assert c.put(f"/api/drawings/{c.nd}/signal-paths/{pid}", json=one).status_code == 200
-    assert [b["id"] for b in blocks(c).values()] == ["L1"]
-    assert cfg(c, "r1")["anims"][0]["src"] == "@L1"
-    assert c.delete(f"/api/drawings/{c.nd}/signal-paths/{pid}").status_code == 200
-    for el in ("r1", "rA", "t1"):
-        assert c.get(f"/api/drawings/{c.nd}/symbols/{el}/config").json()["config"] is None
 
 
-def test_the_same_valve_can_have_a_condition_per_branch(net):
-    """En 3-vejsventil, der deler vejen: samme element, en betingelse pr. vej (gren)."""
-    c = net
-    body = net_body([{"element": "vA", "src": "P1_drift", "branches": [0]}, {"element": "vA", "src": "V2_stilling", "cmp": "ge",
-                                                                                "value": 5, "branches": [1]}])
-    # vA på begge grene (som 3-vejsventilen ville være)
-    for e in body["elements"]:
-        if e["element"] == "vA":
-            e["branches"] = [0, 1]
-    assert c.post(f"/api/drawings/{c.nd}/signal-paths", json=body).status_code == 201
-    lg = blocks(c)
-    assert lg["L1"]["inputs"][0]["src"] == "P1_drift" and lg["L2"]["inputs"][0]["src"] == "V2_stilling"
 
 
 def test_branch_rules(net):
@@ -134,18 +78,6 @@ def test_branch_rules(net):
     assert c.post(url, json=missing).status_code == 400
 
 
-def test_too_many_blocks_gives_a_clear_error(net):
-    c = net
-    many = [{"element": "vA", "src": "P1_drift", "branches": [0]} for _ in range(4)]
-    many += [{"element": "vB", "src": "V2_stilling", "cmp": "ge", "value": 1, "branches": [1]} for _ in range(4)]
-    first = c.post(f"/api/drawings/{c.nd}/signal-paths", json=net_body(many))
-    assert first.status_code == 201                                                                   # 2 kæder + ELLER = 3 blokke
-    assert c.delete(f"/api/drawings/{c.nd}/signal-paths/{first.json()['id']}").status_code == 200
-    # 25 betingelser i den ene gren = 8 blokke, plus den anden gren og ELLER → for mange
-    huge = [{"element": "vA", "src": "P1_drift", "branches": [0]} for _ in range(24)] + \
-           [{"element": "vB", "src": "V2_stilling", "cmp": "ge", "value": 1, "branches": [1]}]
-    r = c.post(f"/api/drawings/{c.nd}/signal-paths", json=net_body(huge, name="stor"))
-    assert r.status_code in (400, 409) and ("logikblokke" in r.text or "betingelser" in r.text)
 
 
 # ------------------------------------------------------------------ symbol_flow
@@ -208,25 +140,8 @@ def test_ui_has_a_size_limit_and_the_path_survives_a_backup(net):
     assert p["ui"]["picks"] == [0, 0] and p["ends"] == ["radA", "radB"]
 
 
-def test_start_and_end_conditions_get_the_right_branches(net):
-    """En betingelse på startsymbolet gælder alle grene; på et slutpunkt kun dets egen gren (uden branches i kaldet)."""
-    c = net
-    body = net_body([{"element": "kedel", "src": "P1_drift"}, {"element": "radB", "src": "V2_stilling", "cmp": "ge", "value": 5}])
-    body["elements"] = [e for e in body["elements"] if e["element"] not in ("kedel", "radB")]
-    assert c.post(f"/api/drawings/{c.nd}/signal-paths", json=body).status_code == 201
-    lg = {b["id"]: [i["src"] for i in b["inputs"]] for b in blocks(c).values()}
-    assert lg["L1"] == ["P1_drift"]                                                  # gren 0: kun startbetingelsen
-    assert lg["L2"] == ["P1_drift", "V2_stilling"]                                   # gren 1: start + sit eget slutpunkt
 
 
-def test_backup_with_bad_signal_path_data_is_rejected(net):
-    from app.services.signal_paths import valid_data
-    base = {"start": "a", "end": "b", "owner": "r1", "blocks": ["L1"], "final": "", "elements": [
-        {"element": "r1", "flows": [], "branches": [0], "block": "L1"}], "conditions": [], "style": {}}
-    assert valid_data(base) is None
-    assert "block" in valid_data({**base, "elements": [{"element": "r1", "flows": [], "block": "L9"}]})
-    assert "branches" in valid_data({**base, "conditions": [{"element": "r1", "branches": [7]}]})
-    assert "ui" in valid_data({**base, "ui": {"x": "y" * 9000}})
 
 
 # ------------------------------------------------------------------ animationer pr. element-type (v4.14.0)
@@ -235,33 +150,6 @@ def _cfg_anims(c, el):
     return (cfg(c, el) or {}).get("anims", [])
 
 
-def test_a_path_can_put_other_animations_on_valves_and_pipes(net):
-    c = net
-    body = net_body([{"element": "vA", "src": "P1_drift", "branches": [0]}])
-    body["ends"] = []
-    body["elements"] = [{**e, "branches": [0]} for e in body["elements"] if e["branches"] != [1]]
-    for e in body["elements"]:
-        if e["element"] == "vA":
-            e["anims"] = [{"part": "vA_hus", "type": "fill", "params": {"on": "#00aa00", "off": "#888888"}},
-                          {"part": "vA_hus", "type": "blink", "params": {"speed": "fast"}}]
-        if e["element"] == "rA":
-            e["anims"] = [{"part": "all", "type": "fill", "params": {"on": "#ff0000"}}]
-    r = c.post(f"/api/drawings/{c.nd}/signal-paths", json=body)
-    assert r.status_code == 201, r.text
-    va = {(a["type"], a["part"]): a for a in _cfg_anims(c, "vA")}
-    assert va[("fill", "vA_hus")]["params"]["on"] == "#00aa00" and va[("blink", "vA_hus")]["params"]["speed"] == "fast"
-    assert va[("fill", "vA_hus")]["when"] is True and va[("fill", "vA_hus")]["src"].startswith("@")      # aktiv/passiv, styret af blokken
-    types_ra = sorted((a["type"], a["part"]) for a in _cfg_anims(c, "rA"))
-    assert types_ra == [("fill", "all"), ("flow", "all")]                          # løbelys + farve på samme rør
-    # ret til kun løbelys: farve- og blink-animationerne er væk, og ventilens egen opsætning er ryddet op
-    pid = c.get(f"/api/drawings/{c.nd}/signal-paths").json()[0]["id"]
-    for e in body["elements"]:
-        e["anims"] = []
-    assert c.put(f"/api/drawings/{c.nd}/signal-paths/{pid}", json=body).status_code == 200
-    assert _cfg_anims(c, "vA") == []
-    assert [a["type"] for a in _cfg_anims(c, "rA")] == ["flow"]
-    assert c.delete(f"/api/drawings/{c.nd}/signal-paths/{pid}").status_code == 200
-    assert c.get(f"/api/drawings/{c.nd}/symbols/rA/config").json()["config"] is None
 
 
 def test_animations_without_flow_and_the_rules(net):
@@ -288,19 +176,6 @@ def test_animations_without_flow_and_the_rules(net):
     assert c.post(url, json=bad_params).status_code == 400
 
 
-def test_same_type_on_the_same_part_asks_before_it_is_replaced(net):
-    c = net
-    url = f"/api/drawings/{c.nd}/signal-paths"
-    mine = lambda name: {"name": name, "start": "kedel", "end": "radA", "elements": [  # noqa: E731
-        {"element": "vA", "flows": [], "branches": [0], "anims": [{"part": "vA_hus", "type": "fill", "params": {"on": "#00aa00"}}]},
-        {"element": "radA", "flows": [], "branches": [0]}], "conditions": [], "style": {}}
-    c.put(f"/api/drawings/{c.nd}/symbols/vA/config", json={"config": {"op": "view", "anims": [
-        {"part": "vA_hus", "type": "fill", "when": False, "src": "P1_drift", "params": {"on": "#123456"}}]}})
-    r = c.post(url, json=mine("første"))
-    assert r.status_code == 409 and r.json()["conflicts"][0]["element"] == "vA"
-    assert c.post(url, json={**mine("første"), "replace": True}).status_code == 201
-    r2 = c.post(url, json=mine("anden"))                                            # en anden signalvej må ikke tage den
-    assert r2.status_code == 409
 
 
 def test_info_lists_the_parts_of_a_symbol(net):
@@ -308,3 +183,103 @@ def test_info_lists_the_parts_of_a_symbol(net):
     r = c.post(f"/api/drawings/{c.nd}/signal-paths/info", json={"elements": ["vA", "t1"]}).json()
     vA = next(e for e in r["elements"] if e["element"] == "vA")
     assert vA["parts"] == [{"id": "vA_hus", "pid": "", "line": False, "text": ""}] or vA["parts"][0]["id"] == "vA_hus"
+
+
+def test_each_branch_is_an_and_and_the_shared_stretch_an_or(net):
+    c = net
+    sid = c.post(f"/api/drawings/{c.nd}/signal-paths", json=net_body([
+        {"element": "vA", "src": "P1_drift", "branches": [0]},
+        {"element": "vB", "src": "V2_stilling", "cmp": "ge", "value": 50, "branches": [1]}])).json()["id"]
+    t = lambda s: f"path:{c.nd}:{sid}:{s}"   # noqa: E731
+    v = runtime_values(c, {"P1_drift": True, "V2_stilling": 10})
+    assert v == {t("0"): True, t("1"): False, t("0,1"): True}                         # gren A aktiv, B ikke; fælles stykke lyser
+    v = runtime_values(c, {"P1_drift": False, "V2_stilling": 60})
+    assert v == {t("0"): False, t("1"): True, t("0,1"): True}
+    v = runtime_values(c, {"P1_drift": False, "V2_stilling": 0})
+    assert v[t("0,1")] is False
+    from app.services.live_cache import LiveValue
+    v = runtime_values(c, {"P1_drift": LiveValue(value=None, quality="comm_error", ts=1.0), "V2_stilling": 0})
+    assert v[t("0")] is None and v[t("0,1")] is None                                # ukendt: vejen viser sin passive tilstand
+    v = runtime_values(c, {"P1_drift": LiveValue(value=None, quality="comm_error", ts=1.0), "V2_stilling": 99})
+    assert v[t("0,1")] is True                                                       # en aktiv gren afgør ELLER
+    rt = c.app.state.symbol_runtime
+    assert rt.path_stats["paths"] == 1 and rt.path_stats["errors"] == 0
+    # slettes vejen, forsvinder dens pseudo-tags fra live-cachen
+    c.delete(f"/api/drawings/{c.nd}/signal-paths/{sid}")
+    assert runtime_values(c, {}) == {}
+    assert rt.cache.get(t("0")).quality == "unknown"
+
+
+def test_no_conditions_means_always_on_and_neg_and_start_end_conditions(net):
+    c = net
+    body = net_body([{"element": "kedel", "src": "P1_drift", "neg": True}, {"element": "radB", "src": "V2_stilling", "cmp": "ge", "value": 5}])
+    body["elements"] = [e for e in body["elements"] if e["element"] not in ("kedel", "radB")]
+    sid = c.post(f"/api/drawings/{c.nd}/signal-paths", json=body).json()["id"]
+    p = c.get(f"/api/drawings/{c.nd}/signal-paths").json()[0]
+    assert [x["branches"] for x in p["conditions"]] == [[0, 1], [1]]               # start: alle grene; slutpunkt: kun sin egen
+    t = lambda s: f"path:{c.nd}:{sid}:{s}"   # noqa: E731
+    assert runtime_values(c, {"P1_drift": False, "V2_stilling": 9}) == {t("0"): True, t("1"): True, t("0,1"): True}
+    assert runtime_values(c, {"P1_drift": True, "V2_stilling": 9}) == {t("0"): False, t("1"): False, t("0,1"): False}
+    free = net_body([], name="altid")
+    sid2 = c.post(f"/api/drawings/{c.nd}/signal-paths", json=free).json()["id"]
+    v = runtime_values(c, {})
+    assert v[f"path:{c.nd}:{sid2}:0,1"] is True                                     # ingen betingelser: altid aktiv
+
+
+def test_many_conditions_are_fine_without_logic_blocks(net):
+    c = net
+    many = [{"element": "vA", "src": "P1_drift", "branches": [0]} for _ in range(30)]
+    many += [{"element": "vB", "src": "V2_stilling", "cmp": "ge", "value": 1, "branches": [1]} for _ in range(30)]
+    assert c.post(f"/api/drawings/{c.nd}/signal-paths", json=net_body(many)).status_code == 201
+    too = many + [{"element": "vB", "src": "P1_drift", "branches": [1]} for _ in range(5)]
+    assert c.post(f"/api/drawings/{c.nd}/signal-paths", json=net_body(too, name="for mange")).status_code == 422
+
+
+def test_valid_data_rules():
+    from app.services.signal_paths import valid_data
+    base = {"start": "a", "end": "b", "ends": [], "elements": [{"element": "r1", "branches": [0], "flows": [{"part": "all", "reverse": False}],
+                                                                 "anims": []}],
+            "conditions": [{"element": "r1", "src": "T", "neg": False, "cmp": "", "value": None, "branches": [0]}],
+            "style": {"light": "#8fc8ea", "speed": 40, "dash": 12}, "ui": {}}
+    assert valid_data(base) is None
+    assert "gamle format" in valid_data({**base, "owner": "r1"})
+    assert "branches" in valid_data({**base, "elements": [{**base["elements"][0], "branches": [1]}]})       # kun én gren
+    assert "betingelse" in valid_data({**base, "conditions": [{**base["conditions"][0], "src": "@L1"}]})
+    assert "grænseværdi" in valid_data({**base, "conditions": [{**base["conditions"][0], "cmp": "ge"}]})
+    assert "anims" in valid_data({**base, "elements": [{**base["elements"][0], "anims": [{"part": "all", "type": "fill", "params": {}}]}]})
+    assert "ui" in valid_data({**base, "ui": {"x": "y" * 9000}})
+    assert "style.light" in valid_data({**base, "style": {"light": "rød"}})
+
+
+def test_a_path_can_put_other_animations_on_valves_and_pipes(net):
+    c = net
+    body = net_body([{"element": "vA", "src": "P1_drift", "branches": [0]}])
+    body["ends"] = []
+    body["elements"] = [{**e, "branches": [0]} for e in body["elements"] if e["branches"] != [1]]
+    for e in body["elements"]:
+        if e["element"] == "vA":
+            e["anims"] = [{"part": "vA_hus", "type": "fill", "params": {"on": "#00aa00", "off": "#888888"}},
+                          {"part": "vA_hus", "type": "visible", "params": {}, "when": False}]
+        if e["element"] == "rA":
+            e["anims"] = [{"part": "all", "type": "fill", "params": {"on": "#ff0000"}}]
+    sid = c.post(f"/api/drawings/{c.nd}/signal-paths", json=body).json()["id"]
+    assert cfg(c, "vA") is None and cfg(c, "rA") is None
+    mine = [b for b in c.get(f"/api/drawings/{c.nd}/view").json()["bindings"] if b.get("source") == "path"]
+    va = {b["anim"]: b for b in mine if b["element"] == "vA_hus"}
+    assert va["fill"]["params"] == {"on": "#00aa00", "when": True}                  # renset (kun farven), aktiv/passiv
+    assert va["visible"]["params"] == {}                                             # "vises kun når aktiv": ingen aktiv/passiv
+    assert sorted(b["anim"] for b in mine if b["element"] == "rA") == ["fill", "flow"]
+    assert all(b["tag"] == f"path:{c.nd}:{sid}:0" for b in mine)
+
+
+def test_the_paths_animations_come_after_the_symbols_own(net):
+    c = net
+    c.put(f"/api/drawings/{c.nd}/symbols/vA/config", json={"config": {"op": "view", "anims": [
+        {"part": "vA_hus", "type": "fill", "when": True, "src": "P1_drift", "params": {"on": "#123456"}}]}})
+    body = {"name": "x", "start": "kedel", "end": "radA", "elements": [
+        {"element": "vA", "flows": [], "branches": [0], "anims": [{"part": "vA_hus", "type": "fill", "params": {"on": "#00aa00"}}]},
+        {"element": "radA", "flows": [], "branches": [0]}], "conditions": [], "style": {}}
+    assert c.post(f"/api/drawings/{c.nd}/signal-paths", json=body).status_code == 201   # ingen "erstat"-spørgsmål (v5.0.0)
+    fills = [b for b in c.get(f"/api/drawings/{c.nd}/view").json()["bindings"] if b["element"] == "vA_hus" and b["anim"] == "fill"]
+    assert [b["source"] for b in sorted(fills, key=lambda b: b["position"])] == ["symbol", "path"]
+    assert cfg(c, "vA")["anims"][0]["params"]["on"] == "#123456"                     # symbolets egen bevaret

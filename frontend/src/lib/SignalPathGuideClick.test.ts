@@ -191,4 +191,25 @@ describe('Signalvej-guiden: klik i tegningen', () => {
     await click(button('⇄ Vend flowet'));
     expect(dirs()).toEqual(before);
   });
+
+  it('Gem sender vejen som ét objekt: ingen "replace", betingelser med grene, animationer pr. del', async () => {
+    open(WAYS);
+    await chooseStartEnd('src', 'radA');
+    await click(button('Brug denne vej →'));
+    const name = target.querySelector<HTMLInputElement>('input[placeholder^="fx Kedel"]')!;
+    name.value = 'Testvej';
+    name.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    await click(button('Gem signalvej'));
+    const calls = (fetch as unknown as { mock: { calls: [string, { method?: string; body?: string }][] } }).mock.calls;
+    const saved = calls.find(([u, i]) => u.endsWith('/signal-paths') && i?.method === 'POST');
+    expect(saved, 'POST til signal-paths').toBeTruthy();
+    const body = JSON.parse(saved![1].body!);
+    expect(body.name).toBe('Testvej');
+    expect(body).not.toHaveProperty('replace');
+    expect(body.start).toBe('src');
+    expect(body.end).toBe('radA');
+    expect(body.elements.some((e: { flows: unknown[] }) => e.flows.length)).toBe(true);
+    expect(body.elements.every((e: { branches: number[] }) => Array.isArray(e.branches))).toBe(true);
+  });
 });

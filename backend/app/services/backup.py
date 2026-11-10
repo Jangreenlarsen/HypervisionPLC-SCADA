@@ -493,6 +493,8 @@ class BackupService:
                     or not isinstance(sp.get("data"), dict):
                 err("Signalvej: navn og data mangler")
                 continue
+            if "owner" in sp["data"] or "blocks" in sp["data"]:
+                continue     # det gamle format (før v5.0.0) gendannes ikke — vejen laves igen i Tegn
             if problem := valid_path_data(sp["data"]):
                 err(f"Signalvej '{sp['name']}': {problem}")
                 continue
