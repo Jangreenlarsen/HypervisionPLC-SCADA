@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.20.0 build 0374] — 2026-11-10 — Tegn: samlet værktøjslinje
+
+- `lib/draw/Menu.svelte` (ny): lille rullemenu (knap + panel; lukker ved klik udenfor og Esc).
+- `lib/draw/DrawCanvas.svelte`: `bar`-prop (Tegn skjuler linjen over tegnefladen), `onzoom` og `perform(name)` (zoom udefra).
+- `pages/DrawEditor.svelte`: zoom (−, %, +, Tilpas) og menuerne **Vis** (gitter + afstand, hjælpelinjer + inddeling/+ Lodret/+ Vandret, navne i tegningen, Tjek forbindelser + Ret N) og **Fang** (gitter, objekter, rør lige, hjælpelinjer, skalér symmetrisk) i den øverste linje; kommentarfeltet er `15rem` (før: fyldte resten); *Størrelse* er kortet til `⤢ 1840 × 850`; en kort opsummering af tjek-forbindelser står i linjen, når det er slået til. Tegnefladen er højere (linjen fjernet).
+- Manual (kap. 07), tre skærmbilleder (`tegn`, `tegn-gitter`, `tegn-hjaelp`) og `manual-screenshots.mjs` (åbner menuerne). Set i browseren ved 2569, 1600 og 1000 px bredde.
+
 ## [4.19.0 build 0373] — 2026-11-10 — Tegn: ret brudte forbindelser
 
 - `lib/signalpath/graph.ts`: `planFixes(g, items, maxGap)` — for hver åben ende på et rør (eller lige rør-symbol `roer_l`/`roer_v`): den nærmeste anden ende/tilslutningspunkt 8–25 enheder væk (en ende, der selv er åben, foretrækkes ved lige afstand). Et lige rør-symbol foreslås kun, hvis målet ligger på dets akse. Symboler foreslås aldrig flyttet.

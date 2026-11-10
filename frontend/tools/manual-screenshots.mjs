@@ -123,11 +123,14 @@ await shot('tegn', async () => { await go(`draw/${startDrawing}`, '.workarea svg
 await shot('tegn-gitter', async () => {
   await go(`draw/${startDrawing}`, '.workarea svg');
   await settle(3500);
-  await page.getByLabel('Vis gitter').check();     // kun visning i browseren (localStorage) — gemmer intet på serveren
+  // kun visning i browseren (localStorage) — gemmer intet på serveren. Valgene ligger i menuerne Vis og Fang (v4.20.0)
+  await page.getByRole('button', { name: /^Vis ▾/ }).click();
+  await page.getByLabel('Vis gitter').check();
+  await page.getByRole('button', { name: /^Fang ▾/ }).click();
   await page.getByLabel('Fang til gitter').check();
   await page.getByLabel('Fang til objekter').check();
   await settle(800);
-}, { clip: { x: 0, y: 84, width: 1180, height: 480 } });
+}, { clip: { x: 0, y: 44, width: 1180, height: 480 } });
 await shot('tegn-erstat', async () => {
   // Opløs den store gruppe i browseren (gemmer ikke), vælg en pille-etiket og åbn "Erstat med symbol" med Statusfelt valgt
   await go(`draw/${startDrawing}`, '.workarea svg');
@@ -289,9 +292,10 @@ await shot('tegninger-upload', async () => { await go('drawings', 'text=Upload t
 await shot('tegn-hjaelp', async () => {
   await go(`draw/${startDrawing}`, '.workarea svg');
   await settle(3000);
+  await page.getByRole('button', { name: /^Fang ▾/ }).click();
   await page.getByLabel('Skalér symmetrisk').check();
   await settle(300);
-}, { locator: 'label:has-text("Skalér symmetrisk") >> xpath=..' });
+}, { locator: '[role="group"][aria-label="Fang"]' });
 await shot('tegn-grupper', async () => { await go(`draw/${startDrawing}`, '.workarea svg'); await settle(3000); }, { locator: 'details:has(> summary:text-is("Grupper"))' });
 for (const [id, label] of [['betjening', 'Betjening'], ['proces', 'Proces og visning'], ['vvs', 'Rør og VVS'], ['el', 'Elektrisk'], ['sol', 'Solcelleanlæg'], ['genveje', 'Genveje']]) {
   await shot(`bibliotek-${id}`, async () => {

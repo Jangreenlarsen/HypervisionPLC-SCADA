@@ -11,6 +11,7 @@
   import { deleteDrawingFlow } from '../lib/drawingDelete';
   import GroupBasis from '../lib/GroupBasis.svelte';
   import DrawCanvas from '../lib/draw/DrawCanvas.svelte';
+  import Menu from '../lib/draw/Menu.svelte';
   import Inspector, { type InspectApi } from '../lib/draw/Inspector.svelte';
   import ObjectTree, { type TreeApi } from '../lib/draw/ObjectTree.svelte';
   import PanelSection from '../lib/draw/PanelSection.svelte';
@@ -194,6 +195,8 @@
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let tags = $state<{ name: string; source: string; unit: string; writable: boolean; plc: string }[]>([]);
   let ed: ScadaApi | null = null;
+  let canvasRef = $state<{ perform(name: string): void } | null>(null);
+  let zoomLevel = $state(1);
 
   // Tegne-editoren (v3.0.0): SVG-Edits tegnemotor (@svgedit/svgcanvas) direkte i siden med vores egen brugerflade
   // (lib/draw/*). Al Tegn-logik ligger i svgedit-host/scada-core.js.
@@ -1013,6 +1016,22 @@
     <input bind:value={newName} placeholder="Navn på ny tegning" maxlength="80" />
   {/if}
   <input bind:value={comment} placeholder="Kommentar til versionen" maxlength="200" class="comment" />
+  <span class="zoombar" role="group" aria-label="Zoom">
+    <button onclick={() => canvasRef?.perform('zoomOut')} disabled={!ready} title="Zoom ud (Ctrl+−)" aria-label="Zoom ud">−</button>
+    <span class="zoom">{Math.round(zoomLevel * 100)} %</span>
+    <button onclick={() => canvasRef?.perform('zoomIn')} disabled={!ready} title="Zoom ind (Ctrl++)" aria-label="Zoom ind">+</button>
+    <button onclick={() => canvasRef?.perform('zoomFit')} disabled={!ready} title="Tilpas til vinduet (Ctrl+0)">Tilpas</button>
+  </span>
+  <Menu label="Vis" title="Gitter, hjælpelinjer, navne og tjek af forbindelser">{@render viewMenu()}</Menu>
+  <Menu label="Fang" title="Fang til gitter, objekter, rør og hjælpelinjer">{@render snapMenu()}</Menu>
+  {#if checkConn && connSummary}
+    {#if connSummary.open || connSummary.isolated}
+      <span class="small" style="color:var(--warn)" title={connSummary.names.join(', ')}>{connSummary.open} åbne, {connSummary.isolated} uden forbindelse</span>
+      {#if connMoves.length}
+        <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt, så de sidder sammen. Symboler flyttes aldrig. Kan fortrydes med Ctrl+Z">Ret {connMoves.length}</button>
+      {/if}
+    {:else}<span class="small" style="color:#2e7d32">alt hænger sammen</span>{/if}
+  {/if}
   {#if current}
     <button onclick={() => save(false)} disabled={busy || !ready}>Gem kladde</button>
     <button class="primary" onclick={() => save(true)} disabled={busy || !ready}>Gem og udgiv</button>
@@ -1021,7 +1040,7 @@
   {:else}
     <button class="primary" onclick={() => save(true)} disabled={busy || !ready}>Opret tegning</button>
   {/if}
-  <button onclick={openSize} disabled={!ready} aria-expanded={sizeOpen} title="Tegningens bredde og højde">Størrelse: {sizeText(size.w, size.h)}</button>
+  <button onclick={openSize} disabled={!ready} aria-expanded={sizeOpen} title="Tegningens bredde og højde — tryk for at ændre">⤢ {sizeText(size.w, size.h)}</button>
   {#if dirty}<span class="badge">ikke gemt</span>{/if}
 </div>
 {#if symbolEdit}
@@ -1055,43 +1074,51 @@
   </div>
 {/if}
 
-{#snippet guidesUi()}
-  <label class="opt"><input type="checkbox" bind:checked={guides.grid} /> Vis gitter</label>
-  <span class="opt" title="Markerer, hvad der hænger fast i resten af tegningen: grønt = forbundet, rødt = åbne ender (røde prikker). Kun visning i Tegn">
-    <label class="opt"><input type="checkbox" bind:checked={checkConn} /> Tjek forbindelser</label>
-    {#if checkConn && connSummary}
-      {#if connSummary.open || connSummary.isolated}
-        <span class="small" style="color:var(--warn)" title={connSummary.names.join(', ')}>{connSummary.open} med åbne ender, {connSummary.isolated} uden forbindelse</span>
-      {:else}<span class="small" style="color:#2e7d32">alt hænger sammen</span>{/if}
-      {#if connMoves.length}
-        <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt, så de sidder sammen. Symboler flyttes aldrig. Kan fortrydes med Ctrl+Z">Ret {connMoves.length} forbindelse{connMoves.length === 1 ? '' : 'r'}</button>
-      {/if}
-    {/if}
-  </span>
-  <span class="opt" title="Viser navnene oven på tegningen (kun her i Tegn — aldrig i Overview, og de gemmes ikke i tegningen)">Vis navne:
+{#snippet viewMenu()}
+  <span class="mhead">Gitter</span>
+  <div class="mrow">
+    <label class="opt"><input type="checkbox" bind:checked={guides.grid} /> Vis gitter</label>
+    <label class="opt">afstand
+      <select bind:value={guides.step} aria-label="Gitterafstand">{#each GUIDE_STEPS as s}<option value={s}>{s}</option>{/each}</select>
+    </label>
+  </div>
+  <span class="mhead">Hjælpelinjer</span>
+  <div class="mrow">
+    <label class="opt" title="Hjælpelinjerne gemmes i tegningen, men vises kun her i Tegn — aldrig i Overview"><input type="checkbox" bind:checked={guides.showGuides} /> Vis hjælpelinjer</label>
+  </div>
+  {#if guides.showGuides}
+    <div class="mrow">
+      <label class="opt" title="Faste hjælpelinjer med denne afstand over hele tegningen (gemmes i tegningen)">Inddeling
+        <select value={guideEvery} onchange={(e) => { ed?.setGuideEvery(Number(e.currentTarget.value)); guideEvery = ed?.getGuides().every ?? 0; }} disabled={!ready} aria-label="Fast inddeling">
+          {#each [0, 50, 100, 200, 250] as n}<option value={n}>{n ? n : 'Fra'}</option>{/each}
+        </select>
+      </label>
+      <button class="small" onclick={() => ed?.addGuide('v')} disabled={!ready} title="Ny lodret hjælpelinje midt i det, du ser — træk den på plads">+ Lodret</button>
+      <button class="small" onclick={() => ed?.addGuide('h')} disabled={!ready} title="Ny vandret hjælpelinje midt i det, du ser — træk den på plads">+ Vandret</button>
+    </div>
+  {/if}
+  <span class="mhead">Navne i tegningen</span>
+  <div class="mrow" title="Viser navnene oven på tegningen (kun her i Tegn — aldrig i Overview, og de gemmes ikke i tegningen)">
     <label class="opt"><input type="checkbox" bind:checked={showNames.symbols} /> symboler</label>
     <label class="opt"><input type="checkbox" bind:checked={showNames.pipes} /> forbindelser</label>
     <label class="opt"><input type="checkbox" bind:checked={showNames.paths} /> signalveje</label>
-  </span>
+  </div>
+  <span class="mhead">Kontrol</span>
+  <div class="mrow" title="Markerer, hvad der hænger fast i resten af tegningen: grønt = forbundet, rødt = åbne ender (røde prikker). Kun visning i Tegn">
+    <label class="opt"><input type="checkbox" bind:checked={checkConn} /> Tjek forbindelser</label>
+    {#if checkConn && connSummary && connMoves.length}
+      <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt. Symboler flyttes aldrig. Ctrl+Z fortryder">Ret {connMoves.length}</button>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet snapMenu()}
   <label class="opt"><input type="checkbox" bind:checked={guides.snapGrid} /> Fang til gitter</label>
-  <label class="opt">Gitterafstand
-    <select bind:value={guides.step} aria-label="Gitterafstand">{#each GUIDE_STEPS as s}<option value={s}>{s}</option>{/each}</select>
-  </label>
   <label class="opt" title="Når du slipper et objekt, lægges det kant mod kant eller midte mod midte med nærmeste objekt, hvis det er tæt på"><input type="checkbox" bind:checked={guides.snapObjects} /> Fang til objekter</label>
   <label class="opt" title="Når du flytter et symbol med rør, fanges det, så røret står snorlige ud af det (blå stiplet linje under trækket)"><input type="checkbox" bind:checked={guides.snapPipes} /> Fang rør lige</label>
+  <label class="opt" title="Symboler, rør og rør-stykker fanges til hjælpelinjerne"><input type="checkbox" bind:checked={guides.snapGuides} /> Fang til hjælpelinjer</label>
+  <hr class="mrule" />
   <label class="opt" title="Træk i et hjørne: bredde og højde ændres i samme forhold. Hold Shift nede for at skalere frit"><input type="checkbox" bind:checked={guides.keepRatio} /> Skalér symmetrisk</label>
-  <span class="gsep"></span>
-  <label class="opt" title="Hjælpelinjerne gemmes i tegningen, men vises kun her i Tegn — aldrig i Overview"><input type="checkbox" bind:checked={guides.showGuides} /> Hjælpelinjer</label>
-  {#if guides.showGuides}
-    <label class="opt" title="Faste hjælpelinjer med denne afstand over hele tegningen (gemmes i tegningen)">Inddeling
-      <select value={guideEvery} onchange={(e) => { ed?.setGuideEvery(Number(e.currentTarget.value)); guideEvery = ed?.getGuides().every ?? 0; }} disabled={!ready} aria-label="Fast inddeling">
-        {#each [0, 50, 100, 200, 250] as n}<option value={n}>{n ? n : 'Fra'}</option>{/each}
-      </select>
-    </label>
-    <button class="small" onclick={() => ed?.addGuide('v')} disabled={!ready} title="Ny lodret hjælpelinje midt i det, du ser — træk den på plads">+ Lodret</button>
-    <button class="small" onclick={() => ed?.addGuide('h')} disabled={!ready} title="Ny vandret hjælpelinje midt i det, du ser — træk den på plads">+ Vandret</button>
-    <label class="opt" title="Symboler, rør og rør-stykker fanges til hjælpelinjerne"><input type="checkbox" bind:checked={guides.snapGuides} /> Fang til hjælpelinjer</label>
-  {/if}
 {/snippet}
 
 
@@ -1114,8 +1141,8 @@
 
 <div class="layout">
   <div class="frame" bind:this={frameBox}>
-    <DrawCanvas height={editorHeight} dropType={SYMBOL_DRAG} ondropsymbol={(id, x, y) => ed && insert(id, ed.docPointAt(x, y))} ondropfiles={(files, x, y) => ed && insertSvgFiles(files, ed.docPointAt(x, y))} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++}
-                hint="{hint.name}: {hint.how} · Drejning i 15°-trin, Shift = fri" status={guidesUi} />
+    <DrawCanvas height={editorHeight} dropType={SYMBOL_DRAG} ondropsymbol={(id, x, y) => ed && insert(id, ed.docPointAt(x, y))} ondropfiles={(files, x, y) => ed && insertSvgFiles(files, ed.docPointAt(x, y))} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++} onzoom={(z) => (zoomLevel = z)} bind:this={canvasRef} bar={false}
+                hint="{hint.name}: {hint.how} · Drejning i 15°-trin, Shift = fri" />
   </div>
 
   <aside bind:this={aside}>
@@ -1345,7 +1372,10 @@
 
 <style>
   .toolbar { margin-bottom: .35rem; }
-  .comment { flex: 1; min-width: 12rem; }
+  .comment { flex: 0 1 15rem; min-width: 8rem; }      /* en kommentar behøver ikke fylde linjen (v4.20.0) */
+  .zoombar { display: inline-flex; align-items: center; gap: 4px; }
+  .zoombar .zoom { min-width: 3.6em; text-align: center; font-variant-numeric: tabular-nums; }
+  .toolbar { position: relative; z-index: 60; }
   .layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 280px;
@@ -1364,7 +1394,6 @@
     aside > :global(.psec.open.grow) { flex: 1 1 0; max-height: none; min-height: 8rem; }
     .sym-head { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: .2rem 0 .4rem; }
   }
-  .gsep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; display: inline-block; }
   .linkish { border: 0; background: none; padding: 0 0 .3rem; color: var(--accent); text-decoration: underline; cursor: pointer; }
   .field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
   .field :global(select), .field input { width: 100%; }

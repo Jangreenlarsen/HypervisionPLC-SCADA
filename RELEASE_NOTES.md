@@ -2,6 +2,10 @@
 
 ---
 
+## v4.20.0 — 2026-11-10 — Samlet værktøjslinje i Tegn
+
+- Zoom og tegnehjælp ligger nu i den øverste linje, og afkrydsningerne er samlet i to menuer: **Vis** (gitter, hjælpelinjer, navne, tjek forbindelser) og **Fang**. Kommentarfeltet er blevet smallere, så alt er på én linje, og tegnefladen er højere.
+
 ## v4.19.0 — 2026-11-10 — Ret brudte forbindelser
 
 - Ved **Tjek forbindelser** står der nu en knap **Ret N forbindelser**: rør-ender, der ligger klods op ad en anden ende eller et tilslutningspunkt (op til 25 enheder fra), flyttes, så de sidder sammen. Symboler flyttes aldrig. Det er ét fortryd-trin (Ctrl+Z).

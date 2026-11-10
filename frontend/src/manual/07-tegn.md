@@ -6,8 +6,7 @@
 
 ## Skærmen
 
-- **Øverst**: vælg tegning og version, **Gem kladde**, **Gem og udgiv**, **Bindinger**, **Slet tegning** og **Størrelse**.
-- **Linjen over tegnefladen**: zoom (−, +, **Tilpas**), **tegnehjælp** (gitter og fang) og **hjælpelinjer**.
+- **Øverst**: vælg tegning og version, skriv en kommentar til versionen, **zoom** (−, +, **Tilpas**), menuerne **Vis** (gitter, hjælpelinjer, navne i tegningen, tjek af forbindelser) og **Fang** (fang til gitter, objekter, rør og hjælpelinjer, skalér symmetrisk), og knapperne **Gem kladde**, **Gem og udgiv**, **Bindinger**, **Slet tegning** og tegningens **størrelse**.
 - **Værktøjslinjen til venstre**: **Fortryd** og **Gentag** øverst, derefter værktøjerne **Vælg** (V), **Forbindelse** (O), **Linje** (L), **Rektangel** (R), **Ellipse** (E), **Sti** (P), **Frihånd** (F), **Tekst** (T), **Polygon** (Y), **Stjerne** (S), **Regulær polygon** (N), **Bue** (B) og **Billede**. Bogstavet er genvejstasten.
 - **Tegnefladen** i midten. **Ctrl + musehjul** zoomer, og **mellemrum** eller **midterknappen** + træk flytter udsnittet.
 - **Linjen i bunden** forklarer, hvordan det valgte værktøj bruges (fx *Rektangel: træk for at tegne · Shift = kvadrat · Esc = tilbage til Vælg*).
@@ -86,13 +85,13 @@ Vælg værktøjet **Tekst** (T), klik og skriv; dobbeltklik på en tekst for at 
 
 ## Tegningens størrelse
 
-Knappen **Størrelse: 1200 × 700** øverst viser og ændrer tegningens bredde og højde. Vælg et **fast valg** (fx *Full HD-skærm 1920 × 1080* eller *Panel 1280 × 800*) eller skriv bredde og højde (100–10000), og tryk **Brug størrelsen**. **Tilpas til indholdet** flytter tegningen op i hjørnet og gør den præcis stor nok med den valgte margen. En baggrund, der fyldte hele tegningen, følger med. Nye tegninger starter på 1200 × 700, og Overview skalerer altid tegningen til skærmen.
+Knappen med tegningens størrelse (**⤢ 1200 × 700**) øverst viser og ændrer tegningens bredde og højde. Vælg et **fast valg** (fx *Full HD-skærm 1920 × 1080* eller *Panel 1280 × 800*) eller skriv bredde og højde (100–10000), og tryk **Brug størrelsen**. **Tilpas til indholdet** flytter tegningen op i hjørnet og gør den præcis stor nok med den valgte margen. En baggrund, der fyldte hele tegningen, følger med. Nye tegninger starter på 1200 × 700, og Overview skalerer altid tegningen til skærmen.
 
 ## Tegnehjælp: gitter, fang og drejning
 
 ![Tegnehjælpen over tegnefladen: gitter, fang, gitterafstand og Skalér symmetrisk](../../public/manual/tegn-hjaelp.png)
 
-Linjen over tegnefladen har **tegnehjælpen**:
+Tegnehjælpen ligger i menuerne **Vis** og **Fang** i den øverste linje (tryk på menuen, sæt hak, og klik udenfor eller tryk Esc for at lukke den):
 
 - **Vis gitter** viser et net **ovenpå** tegningen (det ændrer ikke tegningen). Linjerne ligger med den valgte **gitterafstand** (5, 10, 20, 25 eller 50 enheder), og hver 5. linje er kraftigere.
 - **Tjek forbindelser** markerer alle symboler og rør oven på tegningen, så du kan se, om alt hænger sammen: **grønt** = alle tilslutningspunkter sidder fast i noget, **rødt** med røde prikker = der er åbne ender (**stiplet kant** = intet er forbundet). Ved siden af afkrydsningen står, hvor mange der har åbne ender (peg på teksten for navnene). Ubrugte tilslutningspunkter på et symbol (fx en pumpes ekstra port) vises også som røde prikker — det er ikke nødvendigvis en fejl. Samme regler som signalvejene bruger, så en rød ende er også et sted, en signalvej ikke kan gå igennem. Det er kun en visning, der ikke gemmes.
