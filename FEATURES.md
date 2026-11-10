@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v4.19.0 — **Tegn: ret brudte forbindelser** (ønske fra Jan 2026-11-10). Knappen *Ret N forbindelser* ved *Tjek forbindelser* flytter rør-ender, der ligger klods op ad en anden ende eller et tilslutningspunkt (8–25 enheder), så de sidder sammen: tegnede rør lægges om og sættes fast; lige rør-symboler forlænges/forkortes i deres egen retning. Symboler flyttes aldrig; ét fortryd-trin.
 - [x] done v4.18.0 — **Tegn: tjek forbindelser** (ønske fra Jan 2026-11-10). Til/fra i værktøjslinjen: alle symboler og rør markeres i tegningen — grønt, hvis alle deres tilslutningspunkter sidder fast i noget; rødt med røde prikker ved de åbne ender, hvis ikke (og *isoleret*, hvis intet sidder fast). Samme forbindelsesregler som signalvejene. Kun visning i Tegn.
 - [x] done v4.17.0 — **Tegn: vis navne i tegningen** (ønske fra Jan 2026-11-10). Global til/fra i værktøjslinjen (*Vis navne*: symboler, forbindelser, signalveje) — navnene tegnes som mærkater oven på tegningen (kun i Tegn, gemmes ikke i tegningen, huskes pr. browser), så man kan se, hvad man vælger i signalveje og bindinger.
 - [x] done v4.16.0 — **Signalveje: vend flowets retning med ét klik** (ønske fra Jan 2026-11-09, billede med pile). *⇄ Vend flowet* pr. gren i trin 2 vender løbelysets retning, uanset hvad pumpen/kontraventilen giver; valget gemmes med vejen.

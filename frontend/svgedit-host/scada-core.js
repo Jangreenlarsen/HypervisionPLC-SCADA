@@ -2584,6 +2584,71 @@ export function createScada(host) {
       }
     },
 
+    /**
+     * Ret brudte forbindelser (v4.19.0): flyt rør-ender hen, hvor de tydeligvis skal sidde sammen med noget. `moves` kommer fra
+     * Tegn-siden (`planFixes`): [{ id, from, to }] — enden `from` på elementet `id` flyttes til `to`. Rør (data-hv-pipe) lægges om
+     * og sættes fast, hvis `to` er et tilslutningspunkt; et lige rørstykke (rør-symbol, vandret eller lodret) forlænges/forkortes
+     * i sin egen retning. Symboler flyttes aldrig; alt andet springes over. Ét fortryd-trin. → { fixed, details, skipped }
+     */
+    fixConnections(moves = []) {
+      const c = canvas();
+      const content = c.getSvgContent();
+      const hyp = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const before = new Map();      // element → attributter før (til fortryd)
+      const details = [];
+      let skipped = 0;
+      const keep = (el, attrs) => { if (!before.has(el)) before.set(el, Object.fromEntries(attrs.map((k) => [k, el.getAttribute(k)]))); };
+      for (const mv of Array.isArray(moves) ? moves : []) {
+        const el = content.querySelector(`[id="${CSS.escape(String(mv?.id))}"]`);
+        const from = mv?.from, to = mv?.to;
+        const okPt = (p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite);
+        if (!el || !okPt(from) || !okPt(to)) { skipped++; continue; }
+        if (isPipe(el) && !el.getAttribute('transform')) {
+          const pts = pipePoints(el);
+          if (pts.length < 2) { skipped++; continue; }
+          const which = hyp(from, pts[0]) <= hyp(from, pts[pts.length - 1]) ? 'start' : 'end';
+          const attr = which === 'start' ? 'data-hv-from' : 'data-hv-to';
+          if (el.hasAttribute(attr)) { skipped++; continue; }       // sidder allerede fast i et symbol
+          keep(el, ['d', 'data-hv-from', 'data-hv-to']);
+          const port = portNear(to, RECONNECT_TOL);
+          if (port) {
+            el.setAttribute(attr, formatRef(port.id, port.frac, port.side));
+            drawPipe(el, reroute(pipePoints(el), which, port.doc, port.dir));
+          } else drawPipe(el, reroute(pts, which, to, null));
+          details.push({ id: el.id, to: mv.toId ?? '', gap: Math.round(hyp(from, to) * 10) / 10 });
+          continue;
+        }
+        // et lige rørstykke: matrix(a 0 0 d e f) om et enkelt rektangel/streg — forlæng eller forkort i dets egen retning
+        const t = (el.getAttribute('transform') || '').match(/^matrix\(\s*([-\d.e]+)[ ,]+([-\d.e]+)[ ,]+([-\d.e]+)[ ,]+([-\d.e]+)[ ,]+([-\d.e]+)[ ,]+([-\d.e]+)\s*\)$/);
+        let bb = null;
+        try { bb = el.getBBox(); } catch { /* ikke vist */ }
+        if (!t || !bb || !(bb.width > 0) || !(bb.height > 0)) { skipped++; continue; }
+        const [a, b2, c2, d, e, f] = t.slice(1).map(Number);
+        if (Math.abs(b2) > 1e-9 || Math.abs(c2) > 1e-9 || !(a > 0) || !(d > 0)) { skipped++; continue; }
+        const horizontal = bb.width * a >= bb.height * d;
+        // enderne i tegningens koordinater langs rørets akse (den anden akse er tværs)
+        const lo = horizontal ? a * bb.x + e : d * bb.y + f;
+        const hi = horizontal ? a * (bb.x + bb.width) + e : d * (bb.y + bb.height) + f;
+        const mid = horizontal ? d * (bb.y + bb.height / 2) + f : a * (bb.x + bb.width / 2) + e;
+        const at = horizontal ? from[0] : from[1], target = horizontal ? to[0] : to[1], across = horizontal ? to[1] : to[0];
+        if (Math.abs(across - mid) > 8 * 2 || Math.abs(Math.min(Math.abs(at - lo), Math.abs(at - hi)) ) > 8) { skipped++; continue; }
+        const isLo = Math.abs(at - lo) <= Math.abs(at - hi);
+        const nlo = isLo ? target : lo, nhi = isLo ? hi : target;
+        if (!(nhi - nlo > 1)) { skipped++; continue; }              // vil vende røret eller gøre det til ingenting
+        const size = horizontal ? bb.width : bb.height, origin = horizontal ? bb.x : bb.y;
+        const scale = (nhi - nlo) / size, off = nlo - scale * origin;
+        keep(el, ['transform']);
+        el.setAttribute('transform', horizontal ? `matrix(${scale}, 0, 0, ${d}, ${off}, ${f})` : `matrix(${a}, 0, 0, ${scale}, ${e}, ${off})`);
+        details.push({ id: el.id, to: mv.toId ?? '', gap: Math.round(hyp(from, to) * 10) / 10 });
+      }
+      if (!before.size) return { fixed: 0, details, skipped };
+      commitCmds('Ret forbindelser', [...before].map(([el, attrs]) => new c.history.ChangeElementCommand(el, attrs)));
+      if (changeListener) changeListener();
+      if (selectionListener) selectionListener(currentSelection());
+      drawHandles();
+      return { fixed: details.length, details, skipped };
+    },
+
     /** Tjek af forbindelser (v4.18.0): markér symboler og rør efter `items` ([{ id, status, open }]); tom liste fjerner markeringen. */
     markConnections(items = []) {
       conn.items = (Array.isArray(items) ? items : []).filter((i) => i && typeof i.id === 'string')

@@ -54,12 +54,16 @@ I signalvej-guidens trin 4 (**Udseende**) står der et kort for hver slags eleme
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 Mens trin 2 i signalvej-guiden er åbent, klik på et rør eller symbol uden for vejen for at lade vejen gå via det (klik igen fjerner det). Klik på en 3-vejsventil på vejen for at skifte dens vej (automatisk, AB → A, AB → B). *Færdig* eller Esc slår klik-tilstanden fra. Via kan også vælges i trin 1 (*Gå via*).
 
+## Hvordan retter jeg brudte forbindelser automatisk (rør, der ligger tæt på hinanden)?
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:da3c0243 -->
+Slå **Tjek forbindelser** til og tryk **Ret N forbindelser**. Rør-ender, der ligger klods op ad en anden ende eller et tilslutningspunkt (højst 25 enheder), flyttes, så de sidder sammen. Symboler flyttes aldrig, og det kan fortrydes med Ctrl+Z.
+
 ## Hvordan tjekker jeg, om alle symboler og rør hænger sammen i tegningen?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:1d6adcc1 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:da3c0243 -->
 Slå **Tjek forbindelser** til i Tegn-værktøjslinjen. Symboler og rør, hvis tilslutningspunkter alle sidder fast, bliver grønne; dem med åbne ender bliver røde med røde prikker ved enderne (stiplet kant = intet er forbundet). Det er kun en visning.
 
 ## Hvordan kan jeg se, hvad symboler, forbindelser og signalveje hedder i tegningen?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:1d6adcc1 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:da3c0243 -->
 Slå **Vis navne** til i Tegn-værktøjslinjen og vælg symboler, forbindelser og/eller signalveje. Navnene står som mærkater oven på tegningen (kun i Tegn, de gemmes ikke).
 
 ## Hvordan vender jeg flowets retning i en signalvej?

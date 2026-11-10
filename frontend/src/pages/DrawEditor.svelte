@@ -20,7 +20,7 @@
   import { symbolType } from '../../svgedit-host/symbolPorts.js';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SignalPathGuide from '../lib/SignalPathGuide.svelte';
-  import { connectionCheck, type Graph } from '../lib/signalPath';
+  import { connectionCheck, planFixes, type FixMove, type Graph } from '../lib/signalPath';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
   import SymbolExport from '../lib/SymbolExport.svelte';
@@ -56,6 +56,7 @@
     insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
     insertGraphic(fragment: string, name?: string, at?: { x: number; y: number } | null, maxFrac?: number, nth?: number): string;
     docPointAt(clientX: number, clientY: number): { x: number; y: number };
+    fixConnections(moves: { id: string; from: [number, number]; to: [number, number]; toId: string }[]): { fixed: number; details: { id: string; to: string; gap: number }[]; skipped: number };
     markConnections(items: { id: string; status: string; open: [number, number][] }[]): void;
     setNameLabels(opts: { symbols: boolean; pipes: boolean; paths: { name: string; elements: string[] }[] }): void;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
@@ -157,6 +158,16 @@
   // Tjek forbindelser (v4.18.0): markér, hvad der hænger fast i resten af tegningen (grønt) og hvad der har åbne ender (rødt). Kun visning.
   let checkConn = $state(false);
   let connSummary = $state<{ open: number; isolated: number; names: string[] } | null>(null);
+  let connMoves = $state<FixMove[]>([]);       // rettelserne, det seneste tjek foreslår (til *Ret forbindelser*)
+  const FIX_GAP = 25;      // en fri rør-ende højst så langt fra et punkt/en anden ende regnes for "tydeligvis skal sidde sammen"
+  function fixConnectionsNow(): void {
+    if (!ed) return;
+    const r = ed.fixConnections(connMoves);
+    info = r.fixed
+      ? `${r.fixed} forbindelse${r.fixed === 1 ? '' : 'r'} rettet (fortryd med Ctrl+Z).${r.skipped ? ` ${r.skipped} åbne ender er for langt fra noget til at blive rettet automatisk.` : ''}`
+      : `Ingen forbindelser at rette automatisk — de åbne ender ligger mere end ${FIX_GAP} enheder fra noget, de kan sættes fast i.`;
+    inspectRev++;
+  }
   let connTimer: ReturnType<typeof setTimeout> | undefined;
   $effect(() => {
     const on = checkConn;
@@ -173,6 +184,7 @@
       if (!g || !checkConn) return;
       const items = connectionCheck(g);
       ed?.markConnections(items.map((i) => ({ id: i.id, status: i.status, open: i.open })));
+      connMoves = planFixes(g, items, FIX_GAP);
       const bad = items.filter((i) => i.status !== 'ok');
       connSummary = { open: bad.filter((i) => i.status === 'open').length, isolated: bad.filter((i) => i.status === 'isolated').length,
         names: bad.slice(0, 30).map((i) => i.name || i.id) };
@@ -1051,6 +1063,9 @@
       {#if connSummary.open || connSummary.isolated}
         <span class="small" style="color:var(--warn)" title={connSummary.names.join(', ')}>{connSummary.open} med åbne ender, {connSummary.isolated} uden forbindelse</span>
       {:else}<span class="small" style="color:#2e7d32">alt hænger sammen</span>{/if}
+      {#if connMoves.length}
+        <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt, så de sidder sammen. Symboler flyttes aldrig. Kan fortrydes med Ctrl+Z">Ret {connMoves.length} forbindelse{connMoves.length === 1 ? '' : 'r'}</button>
+      {/if}
     {/if}
   </span>
   <span class="opt" title="Viser navnene oven på tegningen (kun her i Tegn — aldrig i Overview, og de gemmes ikke i tegningen)">Vis navne:

@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.19.0 build 0373] — 2026-11-10 — Tegn: ret brudte forbindelser
+
+- `lib/signalpath/graph.ts`: `planFixes(g, items, maxGap)` — for hver åben ende på et rør (eller lige rør-symbol `roer_l`/`roer_v`): den nærmeste anden ende/tilslutningspunkt 8–25 enheder væk (en ende, der selv er åben, foretrækkes ved lige afstand). Et lige rør-symbol foreslås kun, hvis målet ligger på dets akse. Symboler foreslås aldrig flyttet.
+- `svgedit-host/scada-core.js`: `fixConnections(moves)` — tegnede rør (`data-hv-pipe`) lægges om og sættes fast i punktet (`data-hv-from/-to`); lige rør-symboler (`matrix(a 0 0 d e f)`) forlænges/forkortes i deres retning; alt andet springes over og tælles. Ét fortryd-trin (*Ret forbindelser*).
+- `pages/DrawEditor.svelte`: knappen *Ret N forbindelser* ved *Tjek forbindelser* (N = foreslåede rettelser) og en besked bagefter; tjekket køres forfra.
+- Manual (kap. 07) og LLM-tillæg. Tests: `connectionCheck.test.ts` (8). Set i browseren: et lige rør forkortet 15 enheder → knappen vises → rettet (længden næsten som før), åbne ender 25 → 23, Ctrl+Z → 25.
+
 ## [4.18.0 build 0372] — 2026-11-10 — Tegn: tjek forbindelser
 
 - `lib/signalpath/graph.ts`: `connectionCheck(g)` — for hvert symbol og rør: `ok` (alle tilslutningspunkter sidder fast), `open` (nogle er åbne) eller `isolated` (intet sidder fast), med de åbne punkter. Samme regler som signalvejene (`contacts`). Bøjninger og T-stykker tæller kun deres egentlige ender (kurvepunkter og midtpunkt ignoreres); visning og løse figurer springes over.

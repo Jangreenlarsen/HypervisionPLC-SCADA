@@ -2,6 +2,10 @@
 
 ---
 
+## v4.19.0 — 2026-11-10 — Ret brudte forbindelser
+
+- Ved **Tjek forbindelser** står der nu en knap **Ret N forbindelser**: rør-ender, der ligger klods op ad en anden ende eller et tilslutningspunkt (op til 25 enheder fra), flyttes, så de sidder sammen. Symboler flyttes aldrig. Det er ét fortryd-trin (Ctrl+Z).
+
 ## v4.18.0 — 2026-11-10 — Tjek forbindelser i Tegn
 
 - Ny afkrydsning **Tjek forbindelser** i Tegn: alle symboler og rør markeres — grønt, hvis alle deres tilslutningspunkter sidder fast i noget, og rødt med røde prikker ved de åbne ender, hvis ikke (stiplet kant = intet er forbundet). Øverst står, hvor mange der har åbne ender. Det er kun en visning; tegningen ændres ikke.

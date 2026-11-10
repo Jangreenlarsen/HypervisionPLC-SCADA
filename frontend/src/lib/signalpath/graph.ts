@@ -175,3 +175,46 @@ export function connectionCheck(g: Graph, tol = TOL): ConnItem[] {
   }
   return out;
 }
+
+const STRAIGHT_PIPES = new Set(['roer_l', 'roer_v']);      // lige rør-symboler (kan forlænges/forkortes)
+/** En foreslået rettelse: flyt enden `from` på elementet `id` hen til `to` (en ende/et punkt på elementet `toId`). */
+export interface FixMove { id: string; from: Pt; to: Pt; toId: string; gap: number }
+
+/**
+ * Brudte forbindelser, der tydeligvis skal sidde sammen: en åben ende på et rør (eller rørstykke), der ligger tæt (over en
+ * almindelig forbindelses afstand, men højst `maxGap`) på en anden ende eller et tilslutningspunkt. Den nærmeste vælges (en
+ * ende, der selv er åben, foretrækkes ved næsten lige afstand). Kun rørene flyttes — aldrig symbolerne.
+ */
+export function planFixes(g: Graph, items: ConnItem[], maxGap = 25, tol = TOL): FixMove[] {
+  const byId = new Map(g.nodes.map((n) => [n.id, n]));
+  const openAt = new Map(items.map((i) => [i.id, i.open]));
+  const moves: FixMove[] = [];
+  for (const it of items) {
+    const me = byId.get(it.id);
+    if (!me || !it.open.length || !(me.pipe || STRAIGHT_PIPES.has(me.type))) continue;     // kun rør og lige rør-symboler kan flyttes
+    for (const p of it.open) {
+      // et lige rør-symbol kan kun forlænges/forkortes i sin egen retning: målet skal ligge på dets akse
+      const l = !me.pipe ? me.lines[0] : null;
+      const u: Pt | null = l ? [l.b[0] - l.a[0], l.b[1] - l.a[1]] : null;
+      const len = u ? Math.hypot(u[0], u[1]) : 0;
+      let best: FixMove | null = null;
+      let bestOpen = false;
+      for (const o of g.nodes) {
+        if (o.id === it.id || !passable(o) || !byId.has(o.id)) continue;
+        const theirOpen = openAt.get(o.id) ?? [];
+        for (const q of realEnds(o, tol)) {
+          const d = dist(p, q);
+          if (d <= tol || d > maxGap) continue;           // inden for en almindelig forbindelse er der intet at rette
+          if (u && len > 0 && Math.abs(((q[0] - p[0]) * u[1] - (q[1] - p[1]) * u[0]) / len) > tol * 2) continue;   // ikke på rørets akse
+          const open = theirOpen.some((x) => dist(x, q) <= 0.5);
+          if (!best || d < best.gap - 1 || (Math.abs(d - best.gap) <= 1 && open && !bestOpen)) {
+            best = { id: it.id, from: p, to: q, toId: o.id, gap: Math.round(d * 10) / 10 };
+            bestOpen = open;
+          }
+        }
+      }
+      if (best) moves.push(best);
+    }
+  }
+  return moves;
+}
