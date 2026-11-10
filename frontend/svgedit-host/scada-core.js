@@ -1178,6 +1178,8 @@ export function createScada(host) {
   const highlight = { lines: [], boxes: [], focus: [], layer: null };
   // Navne oven på tegningen (v4.17.0): kun visning i Tegn, gemmes ikke i tegningen. paths: [{ name, elements: [id] }]
   const names = { symbols: false, pipes: false, paths: [], layer: null };
+  // Tjek af forbindelser (v4.18.0): [{ id, status: 'ok'|'open'|'isolated', open: [[x, y]] }] — beregnes af Tegn-siden, tegnes her
+  const conn = { items: [], layer: null };
   function drawHighlight() {
     const gridHost = host.gridHost();
     const content = canvas()?.getSvgContent?.();
@@ -1312,9 +1314,61 @@ export function createScada(host) {
     layer.innerHTML = out;
   }
 
+  /** Markerer symboler og rør efter om de hænger fast i resten af tegningen: grønt = ok, rødt = åbne ender (røde prikker). */
+  function drawConn() {
+    const gridHost = host.gridHost();
+    const content = canvas()?.getSvgContent?.();
+    if (!gridHost || !content || !conn.items.length) {
+      conn.layer?.remove();
+      conn.layer = null;
+      return;
+    }
+    let layer = conn.layer;
+    if (!layer) {
+      layer = document.createElementNS(NS, 'svg');
+      layer.setAttribute('id', 'hvConnCheck');
+      layer.style.cssText = 'position:absolute; pointer-events:none; z-index:53; overflow:visible;';
+      gridHost.appendChild(layer);
+      conn.layer = layer;
+    }
+    const hr = gridHost.getBoundingClientRect();
+    const cr = contentRect(content);
+    const vb = (content.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    layer.style.left = `${cr.left - hr.left + gridHost.scrollLeft}px`;
+    layer.style.top = `${cr.top - hr.top + gridHost.scrollTop}px`;
+    layer.setAttribute('width', cr.width);
+    layer.setAttribute('height', cr.height);
+    if (vb.length === 4) layer.setAttribute('viewBox', vb.join(' '));
+    const z = canvas().getZoom() || 1;
+    const r1 = (v) => Math.round(v * 10) / 10;
+    const w = Math.max(6, 5 / z);
+    let out = '';
+    let dots = '';
+    for (const it of conn.items) {
+      const el = content.querySelector(`[id="${CSS.escape(it.id)}"]`);
+      if (!el) continue;
+      const bad = it.status !== 'ok';
+      const color = !bad ? '#2e7d32' : it.status === 'isolated' ? '#b71c1c' : '#e53935';
+      if (isPipe(el)) {
+        const m = toDocMatrix(el);
+        const pts = pipePoints(el).map((p) => (m ? toPoint(m, p) : p));
+        out += `<polyline points="${pts.map((p) => `${r1(p[0])},${r1(p[1])}`).join(' ')}" fill="none" stroke="${color}" stroke-opacity="${bad ? 0.55 : 0.3}" ` +
+          `stroke-width="${r1(bad ? w * 1.4 : w)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      } else {
+        const bb = boxOf(el);
+        if (bb) out += `<rect x="${r1(bb.x - 3)}" y="${r1(bb.y - 3)}" width="${r1(bb.w + 6)}" height="${r1(bb.h + 6)}" rx="5" fill="${color}" ` +
+          `fill-opacity="${bad ? 0.18 : 0.1}" stroke="${color}" stroke-opacity="0.8" stroke-width="${r1(bad ? Math.max(3, 3 / z) : Math.max(1.5, 1.5 / z))}"` +
+          `${it.status === 'isolated' ? ` stroke-dasharray="${r1(8 / z)} ${r1(4 / z)}"` : ''}/>`;
+      }
+      for (const p of it.open) dots += `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="${r1(Math.max(5, 6 / z))}" fill="#d32f2f" stroke="#fff" stroke-width="${r1(Math.max(1.5, 1.5 / z))}"/>`;
+    }
+    layer.innerHTML = out + dots;
+  }
+
   function drawHandles() {
     drawHighlight();
     drawNames();
+    drawConn();
     const gridHost = host.gridHost();
     const content = canvas()?.getSvgContent?.();
     if (!gridHost || !content) return;
@@ -2528,6 +2582,14 @@ export function createScada(host) {
       } finally {
         for (const [g, d, st] of hidden) { if (d !== null) g.setAttribute('display', d); if (st !== null) g.setAttribute('style', st); }
       }
+    },
+
+    /** Tjek af forbindelser (v4.18.0): markér symboler og rør efter `items` ([{ id, status, open }]); tom liste fjerner markeringen. */
+    markConnections(items = []) {
+      conn.items = (Array.isArray(items) ? items : []).filter((i) => i && typeof i.id === 'string')
+        .map((i) => ({ id: i.id, status: i.status === 'open' || i.status === 'isolated' ? i.status : 'ok',
+          open: (Array.isArray(i.open) ? i.open : []).filter((p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)) }));
+      drawConn();
     },
 
     /** Navne oven på tegningen (v4.17.0): symboler, forbindelser og signalveje ({ name, elements }) — kun visning i Tegn. */

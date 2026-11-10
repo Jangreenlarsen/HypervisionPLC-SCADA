@@ -2,6 +2,10 @@
 
 ---
 
+## v4.18.0 — 2026-11-10 — Tjek forbindelser i Tegn
+
+- Ny afkrydsning **Tjek forbindelser** i Tegn: alle symboler og rør markeres — grønt, hvis alle deres tilslutningspunkter sidder fast i noget, og rødt med røde prikker ved de åbne ender, hvis ikke (stiplet kant = intet er forbundet). Øverst står, hvor mange der har åbne ender. Det er kun en visning; tegningen ændres ikke.
+
 ## v4.17.0 — 2026-11-10 — Vis navne i tegningen
 
 - I Tegn kan du slå **Vis navne** til for **symboler**, **forbindelser** og **signalveje**: navnene står som mærkater oven på tegningen, så du kan se, hvad du vælger i signalveje og bindinger. Valget huskes i din browser; navnene gemmes ikke i tegningen og vises ikke i Overview.

@@ -20,7 +20,7 @@
   import { symbolType } from '../../svgedit-host/symbolPorts.js';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SignalPathGuide from '../lib/SignalPathGuide.svelte';
-  import type { Graph } from '../lib/signalPath';
+  import { connectionCheck, type Graph } from '../lib/signalPath';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
   import SymbolExport from '../lib/SymbolExport.svelte';
@@ -56,6 +56,7 @@
     insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
     insertGraphic(fragment: string, name?: string, at?: { x: number; y: number } | null, maxFrac?: number, nth?: number): string;
     docPointAt(clientX: number, clientY: number): { x: number; y: number };
+    markConnections(items: { id: string; status: string; open: [number, number][] }[]): void;
     setNameLabels(opts: { symbols: boolean; pipes: boolean; paths: { name: string; elements: string[] }[] }): void;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
     getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
@@ -153,6 +154,31 @@
       // localStorage kan være blokeret: valget virker, det huskes bare ikke
     }
   });
+  // Tjek forbindelser (v4.18.0): markér, hvad der hænger fast i resten af tegningen (grønt) og hvad der har åbne ender (rødt). Kun visning.
+  let checkConn = $state(false);
+  let connSummary = $state<{ open: number; isolated: number; names: string[] } | null>(null);
+  let connTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    const on = checkConn;
+    void inspectRev;       // tegningen er ændret (flyt, forbind, slet …): tjekket køres forfra efter et kort øjeblik
+    clearTimeout(connTimer);
+    if (!ready || !ed) return;
+    if (!on) {
+      ed.markConnections([]);
+      connSummary = null;
+      return;
+    }
+    connTimer = setTimeout(() => {
+      const g = ed?.connectionGraph();
+      if (!g || !checkConn) return;
+      const items = connectionCheck(g);
+      ed?.markConnections(items.map((i) => ({ id: i.id, status: i.status, open: i.open })));
+      const bad = items.filter((i) => i.status !== 'ok');
+      connSummary = { open: bad.filter((i) => i.status === 'open').length, isolated: bad.filter((i) => i.status === 'isolated').length,
+        names: bad.slice(0, 30).map((i) => i.name || i.id) };
+    }, 300);
+  });
+  onDestroy(() => clearTimeout(connTimer));
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let tags = $state<{ name: string; source: string; unit: string; writable: boolean; plc: string }[]>([]);
   let ed: ScadaApi | null = null;
@@ -1019,6 +1045,14 @@
 
 {#snippet guidesUi()}
   <label class="opt"><input type="checkbox" bind:checked={guides.grid} /> Vis gitter</label>
+  <span class="opt" title="Markerer, hvad der hænger fast i resten af tegningen: grønt = forbundet, rødt = åbne ender (røde prikker). Kun visning i Tegn">
+    <label class="opt"><input type="checkbox" bind:checked={checkConn} /> Tjek forbindelser</label>
+    {#if checkConn && connSummary}
+      {#if connSummary.open || connSummary.isolated}
+        <span class="small" style="color:var(--warn)" title={connSummary.names.join(', ')}>{connSummary.open} med åbne ender, {connSummary.isolated} uden forbindelse</span>
+      {:else}<span class="small" style="color:#2e7d32">alt hænger sammen</span>{/if}
+    {/if}
+  </span>
   <span class="opt" title="Viser navnene oven på tegningen (kun her i Tegn — aldrig i Overview, og de gemmes ikke i tegningen)">Vis navne:
     <label class="opt"><input type="checkbox" bind:checked={showNames.symbols} /> symboler</label>
     <label class="opt"><input type="checkbox" bind:checked={showNames.pipes} /> forbindelser</label>

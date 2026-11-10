@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.18.0 build 0372] — 2026-11-10 — Tegn: tjek forbindelser
+
+- `lib/signalpath/graph.ts`: `connectionCheck(g)` — for hvert symbol og rør: `ok` (alle tilslutningspunkter sidder fast), `open` (nogle er åbne) eller `isolated` (intet sidder fast), med de åbne punkter. Samme regler som signalvejene (`contacts`). Bøjninger og T-stykker tæller kun deres egentlige ender (kurvepunkter og midtpunkt ignoreres); visning og løse figurer springes over.
+- `svgedit-host/scada-core.js`: `markConnections(items)` og `drawConn()` — eget lag `#hvConnCheck` oven på tegningen: grønt = forbundet, rødt (stiplet = isoleret) med røde prikker ved de åbne ender. Kun visning.
+- `pages/DrawEditor.svelte`: afkrydsningen *Tjek forbindelser* med opsummering ("23 med åbne ender, 1 uden forbindelse", navnene i tooltip); køres forfra, når tegningen ændres.
+- Manual (kap. 07) og LLM-tillæg. Test: `connectionCheck.test.ts` (4). Set i browseren på en rigtig tegning: rør og bøjninger grønne, ubrugte porte røde; slået fra fjerner laget.
+
 ## [4.17.0 build 0371] — 2026-11-10 — Tegn: vis navne i tegningen
 
 - `svgedit-host/scada-core.js`: `setNameLabels({ symbols, pipes, paths })` og `drawNames()` — navne som mærkater (hvid kant, ca. 11 px uanset zoom) i et eget lag oven på tegningen (`#hvNameLabels`); tegnes forfra ved zoom, rul og ændringer. Symboler blå over symbolet; forbindelser (rør-symboler som rør, bøjning, T-stykke og tegnede rør uden navn → id i grå kursiv) grønne; signalvejens navn lilla midt på vejen. Gemmes ikke i tegningen og vises ikke i Overview.

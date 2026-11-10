@@ -132,3 +132,46 @@ export function endpoints(g: Graph): { id: string; label: string }[] {
     .map((n) => ({ id: n.id, label: n.name || `${n.type} (${n.id})` }))
     .sort((a, b) => a.label.localeCompare(b.label, 'da'));
 }
+
+// ---------------------------------------------------------------- tjek af forbindelser (v4.18.0)
+/** ok: alle tilslutningspunkter sidder fast i noget · open: nogle er åbne · isolated: elementet hænger slet ikke sammen med noget. */
+export type ConnStatus = 'ok' | 'open' | 'isolated';
+export interface ConnItem { id: string; name: string; type: string; pipe: boolean; status: ConnStatus; open: Pt[] }
+
+/**
+ * Hvilke symboler og rør der hænger fast i resten af tegningen. Et tilslutningspunkt er forbundet, når et andet elements punkt
+ * falder sammen med det, det ligger på et andet elements streg, eller et rør er knyttet til det. Samme regler som signalvejene
+ * (`contacts`). Visning (statusfelter, trendgrafer …) og løse figurer uden symboltype og uden tilslutningspunkter springes over.
+ */
+/** Rørstykkernes (bøjning, T-stykke …) egentlige ender: tilslutningspunkter, der blot er et styrepunkt tæt ved en ende (bøjningens
+ * kurve), eller ligger midt mellem to andre (T-stykkets midte), er ikke steder, et rør kan sidde fast. */
+function realEnds(n: GNode, tol: number): Pt[] {
+  const ts = n.terminals;
+  if (n.pipe || roleOf(n) !== 'pipe' || ts.length <= 2) return ts;
+  const between = (p: Pt, a: Pt, b: Pt) => {
+    const d = dist(a, b);
+    return d > 0 && Math.abs(dist(a, p) + dist(p, b) - d) <= tol / 2;
+  };
+  const kept = ts.filter((p, i) => !ts.some((a, j) => j !== i && ts.some((b, k) => k > j && k !== i && between(p, a, b))));
+  const seen: Pt[] = [];
+  for (const p of kept) {                    // punkter tæt ved hinanden er én ende (den, der er forbundet, tæller)
+    const near = seen.findIndex((q) => dist(p, q) <= tol * 2);
+    if (near < 0) seen.push(p);
+  }
+  return seen.length ? seen : ts;
+}
+
+export function connectionCheck(g: Graph, tol = TOL): ConnItem[] {
+  const adj = contacts(g, tol);
+  const out: ConnItem[] = [];
+  for (const n of g.nodes) {
+    if (!passable(n) || !n.terminals.length) continue;
+    const mine = adj.get(n.id) ?? [];
+    const ends = realEnds(n, tol);
+    // tæt-på-punkter i en bøjning er én ende: den er forbundet, hvis et af dem er det
+    const open = ends.filter((t) => !mine.some((c) => dist(c.p, t) <= tol * 2));
+    out.push({ id: n.id, name: n.name, type: n.type, pipe: n.pipe || roleOf(n) === 'pipe', open,
+      status: !open.length ? 'ok' : mine.length ? 'open' : 'isolated' });
+  }
+  return out;
+}
