@@ -11,9 +11,8 @@ export interface ElementInfo {
   parent: string | null;       // nærmeste forfader med id
   depth: number;
   children: number;            // antal direkte børn med id
-  symbol: boolean;             // betjeningssymbol eller element med eget navn
-  spec: boolean;               // betjeningssymbol med færdige bindinger (data-hv-auto)
-  writes: boolean;             // symbolets klik-handling skriver til PLC'en (tagget skal være skrivbart)
+  symbol: boolean;             // bibliotekssymbol eller element med eget navn
+  lib: boolean;                // bibliotekssymbol (data-hv-type/data-hv-auto): sættes op i guiden — ingen simple bindinger (v5.1.0)
 }
 
 export interface Row extends ElementInfo {
@@ -21,15 +20,6 @@ export interface Row extends ElementInfo {
 }
 
 const text = (v: string | null | undefined) => (v && v.trim() ? v.trim() : null);
-
-function specWrites(raw: string | null): boolean {
-  try {
-    const items = JSON.parse(raw ?? 'null');
-    return (Array.isArray(items) ? items : [items]).some((i) => ['click:write', 'click:toggle', 'click:pulse', 'click:select'].includes(i?.anim));
-  } catch {
-    return false; // ugyldig beskrivelse — serveren afviser/ignorerer den
-  }
-}
 
 /** Alle elementer med id, i dokumentets rækkefølge, med forælder og dybde. */
 export function buildElements(root: Element): ElementInfo[] {
@@ -47,8 +37,7 @@ export function buildElements(root: Element): ElementInfo[] {
       name, short, desc: text(el.getAttribute('data-hv-desc')),
       parent: parent?.id ?? null, depth: parent ? parent.depth + 1 : 0, children: 0,
       symbol: name !== null || el.hasAttribute('data-hv-auto'),
-      spec: el.hasAttribute('data-hv-auto'),
-      writes: specWrites(el.getAttribute('data-hv-auto')),
+      lib: el.hasAttribute('data-hv-type') || el.hasAttribute('data-hv-auto'),
     };
     if (parent) parent.children++;
     index.set(el, info);

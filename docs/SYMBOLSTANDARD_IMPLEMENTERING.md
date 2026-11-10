@@ -379,7 +379,7 @@ Hver fase: FEATURES.md først, egen MINOR-version, tests, CHANGELOG/RELEASE_NOTE
    fejl; alle animationstyper delenes geometri tillader, valideres på alle dele.
 3. **Fjern gammel model** når ingen tegninger har gamle bindinger på symboler: `data-hv-auto`-logikken og
    symbol-delen af `_compute()` udgår (MAJOR).
-   **Ikke udført** — kræver Jans godkendelse efter test på anlægget (irreversibel ændring).
+   **Udført i v5.1.0** (godkendt af Jan 2026-11-10): automatisk opgradering ved opstart (backup, konvertering, rapport), se `services/migrations/v51_symbols.py`.
 
 ---
 

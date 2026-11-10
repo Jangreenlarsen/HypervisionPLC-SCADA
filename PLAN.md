@@ -1,3 +1,36 @@
+# Plan: Symbolstandard fase 8b — fjern den gamle symbolmodel (udført som v5.1.0 efter Jans valg) — 2026-11-10 — ✅ udført
+
+Mål: ét sted at sætte et symbol op — **guiden (symbol_config)**. Bibliotekssymboler (rødder med `data-hv-type`/`data-hv-auto`) skal ikke længere kunne styres af den gamle model. Almindelige bindinger på elementer, der *ikke* er bibliotekssymboler (tekster, figurer, egne SVG-elementer), og automatiske bindinger efter tag-navn på dem **bevares** — de er ikke den gamle symbolmodel.
+
+## Den gamle model i dag (kortlagt)
+| Del | Hvor |
+| --- | --- |
+| Automatiske bindinger fra `data-hv-auto`/`data-hv-part` (betjeningssymboler), når elementets id/navn er et tag | `DrawingService._compute` (symbol_specs → `symbol_bindings`), `bindings.symbol_bindings`, `svg_sanitize.symbol_specs` |
+| "Bind symbol til tag" (skriver bindinger for et betjeningssymbol) | `DrawingService.bind_symbol` + `db.set_symbol_bindings`, `POST …/bind` i `api/drawings.py` |
+| Eksplicitte bindinger på symbolets rod og dele | tabellen `bindings`; ignoreres allerede, når symbolet har en opsætning (`covered`), ellers gælder de |
+| Konvertering (forslag ud fra den gamle model) | `symbol_convert.py`, `GET …/suggest`, `POST /api/drawings/convert-symbols`, `DrawingService.legacy_bindings`, `_compute(legacy=True)` |
+| UI | `SymbolConvert.svelte` (panel under Tegninger), guidens "Konvertér", "Avanceret: rå bindinger" for symboler under Bindinger, `elementTree.ts` (`spec`/`writes`), `scada-core.js` (`interactive`) |
+| Biblioteket | `symbols.ts` lægger `data-hv-auto`/`data-hv-part` på betjeningssymbolerne; `library.py` bevarer dem ved indsættelse |
+
+## Valgt fremgangsmåde (af tre)
+- **A. Automatisk migrering ved opgradering + fjern (valgt).** Ved opstart konverteres alle bibliotekssymboler med gamle bindinger (samme regler som "Konvertér alle"); det, der ikke kan konverteres, listes i en rapport (Meddelelser/Status og loggen); derefter slettes de gamle bindinger på symbolerne, og koden fjernes. Passer til et udviklingssystem og giver én model med det samme.
+- B. Spær opgraderingen, til teknikeren selv har trykket "Konvertér alle" — mere sikkert i drift, men unødvendigt her.
+- C. Behold den gamle model skrivebeskyttet — fjerner ikke gælden.
+
+## Trin
+1. **Migrering (skema 17, ved opstart i app-laget, efter at tjenesterne er bygget):** automatisk backup først (samme som før en OTA); pr. tegning og bibliotekssymbol uden opsætning, med gamle bindinger: lav forslaget og gem det via `SymbolService.put` (fuld validering) → `converted`; ellers `manual` med grund. Slet derefter eksplicitte bindinger på bibliotekssymbolernes rod og dele. Rapporten gemmes i `meta` og vises i Tegn › Meddelelser og på Status, til den ryddes. Konverteringsreglerne flyttes til `services/migrations/v6_symbols.py` (kun til migreringen og gendannelse af gamle backups).
+2. **Runtime/visning:** `_compute` mister symbol-delen (`symbol_specs`/`symbol_bindings`) og `legacy`; bindinger på bibliotekssymboler afvises ved oprettelse (400: "Brug guiden"); `legacy_bindings`, `bind_symbol`, `set_symbol_bindings`, `convert-symbols` og `…/suggest` fjernes.
+3. **Biblioteket:** betjeningssymbolerne får ikke længere `data-hv-auto`/`data-hv-part` (dele genkendes via `data-hv-pid` som de øvrige); eksisterende attributter i tegninger er harmløse og ignoreres.
+4. **Frontend:** fjern `SymbolConvert.svelte`, guidens "Konvertér", "Avanceret: rå bindinger" for symboler, `spec`/`writes` i elementTree og `interactive` i scada-core; Bindinger-siden viser for et symbol kun guiden.
+5. **Backup:** gendannelse af en ældre backup kører samme migrering på de gendannede data.
+6. **Docs:** SYMBOLSTANDARD_IMPLEMENTERING.md afsnit 11 (udført), manual (kap. 09/10 — Bindinger og guiden), LLM-tillæg, ARCHITECTURE.md, FEATURES (symbolstandarden done), CHANGELOG/RELEASE_NOTES, **v6.0.0**, OTA.
+7. **Tests:** migrering (konverteret/manuel/rapport/idempotent/backup først), at bindinger på bibliotekssymboler afvises, at almindelige bindinger og tag-navne-automatik på ikke-symboler virker som før, gendannelse af gammel backup; frontend-tests for guiden/Bindinger; **browser:** demo-tegningen før/efter opgradering (Overview ser ens ud for de konverterede symboler). **Reviewer** før commit (data-integritet, PLC-skrivninger: betjening flyttes fra gamle klik-bindinger til guidens skriveplan).
+
+## Risici
+- Symboler, der ikke kan konverteres (fx kun "Gå til tegning" eller ugyldige forslag), mister deres gamle opførsel → står i rapporten, sættes op i guiden. Backup tages først.
+- Betjening (klik) på konverterede betjeningssymboler går nu gennem guidens skriveplan: afprøves mod mock-PLC (skift, puls, setpunkt).
+- Irreversibelt i databasen — tilbagerulning = gendan backuppen fra trin 1.
+
 # Plan: Signalveje 4 — signalvejen som selvstændigt runtime-objekt (v5.0.0, MAJOR) — 2026-11-10 — ✅ udført
 
 Beslutning (Jan 2026-11-10): **mulighed C**. En signalvej skal være et objekt i sig selv, også i fremtidige versioner. Udviklingssystem: ingen migrering af gamle veje — de slettes (og deres efterladte blokke/animationer ryddes én gang).

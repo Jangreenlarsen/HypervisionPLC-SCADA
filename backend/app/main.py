@@ -41,6 +41,7 @@ from .services.llm_catalog import LlmCatalog
 from .api.symbol_flow import router as symbol_flow_router
 from .api.symbol_ports import router as symbol_ports_router
 from .api.library import router as library_router
+from .api.symbols import report_router as symbol_migration_router
 from .api.symbols import router as symbols_router
 from .api.system import router as system_router
 from .api.system_config import router as system_config_router
@@ -72,6 +73,7 @@ from .services.symbol_flow import SymbolFlowService
 from .services.symbol_ports import SymbolPortService
 from .services.library import LibraryService
 from .services.symbols import SymbolService
+from .services.migrations import v51_symbols
 from .services.symbol_runtime import SymbolRuntime
 from .services.symbol_operate import SymbolOperateService
 from .services.schedules import ScheduleService
@@ -168,6 +170,14 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.alarm_service = AlarmService(manager, db, tick_s=settings.alarm_tick_s,
                                                comm_delay_s=settings.alarm_comm_delay_s)
         # Symbolstandard: position/tilstand som pseudo-tags + afvigelsesalarmer
+        # Opgradering v5.1.0: den gamle symbolmodel fjernes (én gang; backup først). Fejler den, prøves den igen ved næste opstart.
+        try:
+            rep = v51_symbols.migrate(db, app.state.symbol_service, app.state.backup_service)
+            if rep:
+                app.state.audit_service.record(v51_symbols.ACTOR.username, "", "symbol.migration", "", {
+                    "converted": len(rep["converted"]), "manual": len(rep["manual"]), "removed_bindings": rep["removed_bindings"]})
+        except Exception:
+            log.exception("Opgradering v5.1.0 (symboler) fejlede — prøves igen ved næste opstart")
         app.state.symbol_runtime = SymbolRuntime(db, manager.cache, app.state.drawing_service,
                                                  tick_s=settings.symbol_tick_s)
         app.state.symbol_runtime.reload()
@@ -303,6 +313,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(router)
     app.include_router(drawings_router)
     app.include_router(symbols_router)
+    app.include_router(symbol_migration_router)
     app.include_router(symbol_groups_router)
     app.include_router(signal_paths_router)
     app.include_router(symbol_ports_router)

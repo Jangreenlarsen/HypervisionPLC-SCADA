@@ -135,7 +135,7 @@ import { AVERAGE_CHOICES } from './trendData';
         cfg = normalize(r.config);
         exists = true;
       } else {
-        await convert(false);
+        cfg = emptyConfig(symbol.type ?? 'custom');
         const proposal = libraryDefault(symbol);
         if (proposal && !cfg.anims.length && !cfg.signals.length) {
           cfg = proposal.config;
@@ -165,20 +165,6 @@ import { AVERAGE_CHOICES } from './trendData';
         inputs: (b.inputs ?? []).map((i) => ({ src: i.src ?? '', neg: Boolean(i.neg), cmp: i.cmp ?? '', value: i.value ?? null })),
       })),
     };
-  }
-
-  /** Forslag ud fra symbolets bindinger i dag (Konvertér). */
-  async function convert(ask: boolean): Promise<void> {
-    if (ask && !await askUser('Erstat guidens indhold med et forslag ud fra symbolets bindinger i dag?')) return;
-    try {
-      const s = await get<{ config: SymbolConfig; notes: string[]; convertible: boolean }>(`${base}/suggest`);
-      notes = s.notes ?? [];
-      if (s.convertible) cfg = normalize(s.config);
-      else if (!ask) cfg = emptyConfig(symbol?.type ?? 'custom');
-    } catch (e) {
-      notes = [`Forslaget kunne ikke hentes: ${(e as Error).message}`];
-      if (!ask) cfg = emptyConfig(symbol?.type ?? 'custom');
-    }
   }
 
   // ---------------------------------------------------------------- serverens validering (løbende)
@@ -684,12 +670,9 @@ import { AVERAGE_CHOICES } from './trendData';
           {#if opsRestricted || showAllOps}
             <label class="opt small muted"><input type="checkbox" bind:checked={showAllOps} /> Vis alle betjeningsformer (kun de der giver mening for dette symbol vises som standard)</label>
           {/if}
-          <div class="row">
-            <button onclick={() => convert(true)}>Foreslå ud fra symbolet</button>
-            {#if offersSelectorExample(symbol.type)}<button onclick={applyPreset}>Eksempel: 7-trins vælger</button>{/if}
-          </div>
+          {#if offersSelectorExample(symbol.type)}<div class="row"><button onclick={applyPreset}>Eksempel: 7-trins vælger</button></div>{/if}
           {#if notes.length}
-            <div class="notice small"><strong>Forslag fra de gamle bindinger:</strong><ul>{#each notes as m}<li>{m}</li>{/each}</ul></div>
+            <div class="notice small"><strong>Forslag:</strong><ul>{#each notes as m}<li>{m}</li>{/each}</ul></div>
           {/if}
         {:else if step === 1}
           {#if cfg.op === 'view'}

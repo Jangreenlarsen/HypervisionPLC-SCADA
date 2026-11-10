@@ -40,7 +40,7 @@
   interface Version { version: number; comment: string; created_at: number }
   interface Detail { id: string; name: string; active_version: number; versions: Version[] }
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[]; orphaned_symbols?: string[] }
-  interface Sel { id: string; tag: string; interactive?: boolean; name?: string; desc?: string; children?: number; type?: string; onePath?: boolean }
+  interface Sel { id: string; tag: string; name?: string; desc?: string; children?: number; type?: string; onePath?: boolean }
   interface ScadaApi {
     ready: Promise<void>;
     load(svg: string): boolean;
@@ -1031,6 +1031,25 @@
       info = '';
     });
   });
+  // Opgraderingen v5.1.0 (den gamle symbolmodel fjernet): symboler, der skal sættes op i guiden, står øverst i Meddelelser
+  interface MigrationReport { at: number; converted: { drawing: string; element: string; name: string | null }[];
+    manual: { drawing: string; element: string; name: string | null; reasons: string[] }[]; removed_bindings: number }
+  let migration = $state<MigrationReport | null>(null);
+  onMount(async () => {
+    try {
+      migration = await get<MigrationReport | null>('/api/symbol-migration');
+    } catch {
+      migration = null;     // (kun teknikere; uden rapport vises intet)
+    }
+  });
+  async function clearMigration(): Promise<void> {
+    try {
+      await del('/api/symbol-migration');
+      migration = null;
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
   const clock = (t: number) => new Date(t).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const entries = (o: Record<string, number>) => Object.entries(o).map(([k, v]) => `${k} ×${v}`).join(', ');
 </script>
@@ -1059,7 +1078,7 @@
   </span>
   <Menu label="Vis" title="Gitter, hjælpelinjer, navne og tjek af forbindelser">{@render viewMenu()}</Menu>
   <Menu label="Fang" title="Fang til gitter, objekter, rør og hjælpelinjer">{@render snapMenu()}</Menu>
-  <Menu label="Meddelelser" title="Systemets beskeder om tegningen (gem, rettelser, advarsler)" badge={unread + (dupNames.length ? 1 : 0)} hot={unread > 0 || dupNames.length > 0}
+  <Menu label="Meddelelser" title="Systemets beskeder om tegningen (gem, rettelser, advarsler)" badge={unread + (dupNames.length ? 1 : 0) + (migration?.manual.length ? 1 : 0)} hot={unread > 0 || dupNames.length > 0 || !!migration?.manual.length}
         wide align="right" bind:open={msgOpen} onopen={() => (unread = 0)}>{@render messagesMenu()}</Menu>
   {#if checkConn && connSummary}
     {#if connSummary.open || connSummary.isolated}
@@ -1153,6 +1172,16 @@
 {/snippet}
 
 {#snippet messagesMenu()}
+  {#if migration}
+    <div class="msg" class:warn={migration.manual.length > 0}>
+      <strong>Opgradering v5.1.0:</strong> den gamle symbolmodel er fjernet — {migration.converted.length} symbol{migration.converted.length === 1 ? '' : 'er'} er konverteret til guidens opsætning{migration.removed_bindings ? `, ${migration.removed_bindings} gamle bindinger er slettet` : ''}.
+      {#if migration.manual.length}
+        <div class="small">Disse skal sættes op i guiden (<em>Bindinger › Opsæt symbol</em>):</div>
+        <ul class="small">{#each migration.manual as m (m.drawing + m.element)}<li><a href={'#editor/' + m.drawing}>{drawings.find((d) => d.id === m.drawing)?.name ?? m.drawing}</a>: {m.name || m.element}{m.reasons.length ? ` — ${m.reasons[0]}` : ''}</li>{/each}</ul>
+      {/if}
+      <div class="mrow"><button class="small" onclick={clearMigration}>Ryd rapporten</button></div>
+    </div>
+  {/if}
   {#if dupNames.length}
     <div class="msg warn">
       Flere symboler har samme navn: {dupNames.map((d) => `"${d.name}" (${d.count})`).join(', ')} — navnene skal være unikke (de bruges fx i
@@ -1165,7 +1194,7 @@
       {#each m.extra as x}<div class="small muted">{x}</div>{/each}
     </div>
   {:else}
-    {#if !dupNames.length}<span class="small muted">Ingen meddelelser endnu. Her kommer systemets beskeder, fx når tegningen er gemt eller en rettelse er udført.</span>{/if}
+    {#if !dupNames.length && !migration}<span class="small muted">Ingen meddelelser endnu. Her kommer systemets beskeder, fx når tegningen er gemt eller en rettelse er udført.</span>{/if}
   {/each}
   {#if messages.length}<div class="mrow"><button class="small" onclick={() => (messages = [])}>Ryd meddelelser</button></div>{/if}
 {/snippet}
@@ -1419,8 +1448,12 @@
   .msg.warn { background: #fdecea; border-color: #e57373; }
   .zoombar { display: inline-flex; align-items: center; gap: 4px; }
   .zoombar .zoom { min-width: 3.6em; text-align: center; font-variant-numeric: tabular-nums; }
-  .toolbar { position: relative; z-index: 60; }
+  /* Værktøjslinjens menuer (Vis, Fang, Meddelelser) skal ligge over tegnefladens lag, men UNDER topmenuen (App.svelte: 40):
+     tegnefladen får sin egen stablingskontekst (.layout z-index 0), så dens lag (53–56) ikke konkurrerer med menuerne. */
+  .toolbar { position: relative; z-index: 30; }
   .layout {
+    position: relative;
+    z-index: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 280px;
     gap: 1rem;

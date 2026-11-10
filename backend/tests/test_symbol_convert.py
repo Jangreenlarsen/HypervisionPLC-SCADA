@@ -1,4 +1,6 @@
-"""Symbolstandard: forslag ud fra den gamle model (Konvertér) — og forslaget skal kunne gemmes uændret."""
+"""Opgradering v5.1.0: den gamle symbolmodel fjernes — bibliotekssymboler med gamle bindinger konverteres til guidens opsætning
+(samme regler som det tidligere "Konvertér alle"), de gamle bindinger slettes, og det, der ikke kan konverteres, står i en rapport.
+Bagefter afvises simple bindinger på bibliotekssymboler (kun "Gå til tegning" på roden)."""
 
 import json
 
@@ -7,6 +9,9 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
+from app.services.bindings import symbol_bindings
+from app.services.migrations import v51_symbols
+from app.services.svg_sanitize import symbol_specs
 
 ADMIN_PW = "test-admin-pw-1"
 
@@ -31,6 +36,22 @@ LOS = '<g id="Los" data-hv-type="lampe"><circle id="Los_lampe" cx="350" cy="50" 
 SVG = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">{VIPPE}{OMSK}{KNAP}{TANK}{LINK}{LOS}</svg>'
 
 
+def _old(c, element, items):
+    """Gamle bindinger direkte i databasen (som før v5.1.0 — API'et afviser dem nu på bibliotekssymboler)."""
+    ds = c.app.state.drawing_service
+    ds.db.set_element_bindings(c.did, element, ds._normalize_bindings(items))
+
+
+def _old_symbol_tag(c, element, tag):
+    """Den gamle "tilknyt tag til hele symbolet": bindinger ud fra symbolets egen beskrivelse (data-hv-auto/-part)."""
+    spec = symbol_specs(SVG)[element]
+    per: dict[str, list] = {}
+    for b in symbol_bindings(spec, element, {"name": tag, "writable": True}):
+        per.setdefault(b["element"], []).append({"tag": b["tag"], "anim": b["anim"], "params": b["params"]})
+    for el, items in per.items():
+        _old(c, el, items)
+
+
 @pytest.fixture
 def api(tmp_path, mock_plc):
     settings = Settings(data_dir=tmp_path, poll_fast_s=0.05, poll_slow_s=0.2, plc_rate=9,
@@ -46,122 +67,132 @@ def api(tmp_path, mock_plc):
             assert c.post("/api/tags", json=t).status_code == 201
         c.did = c.post("/api/drawings", json={"name": "Gammel", "svg": SVG}).json()["drawing"]["id"]
         for element, tag in (("Vippe", "Lys"), ("Omsk", "Mode"), ("Knap", "Kvit")):
-            assert c.put(f"/api/drawings/{c.did}/symbols/{element}", json={"tag": tag}).status_code == 200
+            _old_symbol_tag(c, element, tag)
         assert c.put(f"/api/drawings/{c.did}/bindings/Tank_fyld",
                      json={"bindings": [{"tag": "Niveau", "anim": "level", "params": {"min": 0, "max": 100}}]}).status_code == 200
+        c.svc = c.app.state.symbol_service
         yield c
 
 
 def _suggest(api, element):
-    r = api.get(f"/api/drawings/{api.did}/symbols/{element}/suggest")
-    assert r.status_code == 200, r.text
-    return r.json()
+    return v51_symbols.suggest(api.svc.drawings, api.did, element)
 
 
-def _save(api, element, cfg):
-    return api.put(f"/api/drawings/{api.did}/symbols/{element}/config", json={"config": cfg})
+def _cfg(api, element):
+    return api.get(f"/api/drawings/{api.did}/symbols/{element}/config").json()["config"]
 
 
-def test_toggle_becomes_two_positions_with_animations_per_position(api):
-    s = _suggest(api, "Vippe")
-    cfg = s["config"]
-    assert s["convertible"] and cfg["op"] == "positions" and cfg["confirm"] is False
+def _migrate(api):
+    return v51_symbols.migrate(api.svc.db, api.svc, api.app.state.backup_service, force=True)
+
+
+def test_toggle_select_and_pulse_rules(api):
+    cfg = _suggest(api, "Vippe")["config"]
+    assert cfg["op"] == "positions" and cfg["confirm"] is False
     assert [p["label"] for p in cfg["positions"]] == ["FRA", "TIL"]
     assert cfg["planes"] == [{"signal": "S1", "values": [0, 1]}] and cfg["signals"][0]["tag"] == "Lys"
     anims = {a["part"]: a for a in cfg["anims"]}
     assert anims["Vippe_spor"]["params"]["colors"] == ["#d6d6d6", "#7cc47f"]
     assert anims["Vippe_vippe"]["params"] == {"dxs": [0.0, 32.0], "dys": [0.0, 0.0]}
-    assert anims["Vippe_tekst"]["src"] == "@pos"
-    r = _save(api, "Vippe", cfg)
-    assert r.status_code == 200, r.text
+    omsk = _suggest(api, "Omsk")["config"]
+    assert [p["label"] for p in omsk["positions"]] == ["Hånd", "0", "Auto"] and omsk["anims"][0]["params"]["angles"] == [-45.0, 0.0, 45.0]
+    knap = _suggest(api, "Knap")["config"]
+    assert knap["op"] == "pulse" and knap["pulse_ms"] == 700 and knap["anims"][0]["src"] == "Kvit"
 
 
-def test_select_becomes_positions_with_angles(api):
-    cfg = _suggest(api, "Omsk")["config"]
-    assert [p["label"] for p in cfg["positions"]] == ["Hånd", "0", "Auto"]
-    assert cfg["planes"][0]["values"] == [0, 1, 2]
-    assert cfg["anims"][0]["params"]["angles"] == [-45.0, 0.0, 45.0]
-    assert _save(api, "Omsk", cfg).status_code == 200
+def test_upgrade_converts_removes_old_bindings_and_reports(api):
+    _old(api, "Link", [{"anim": "click:goto", "params": {"drawing": api.did}}])            # "Gå til tegning" på roden bliver stående
+    _old(api, "Link_flade", [{"tag": "Kvit", "anim": "click:pulse"}, {"tag": "Kvit", "anim": "fill"}])   # klik på en del: manuel
+    before = {(b["element"], b["anim"]) for b in api.get(f"/api/drawings/{api.did}/view").json()["bindings"]}
+    assert ("Vippe", "click:toggle") not in before                  # den gamle model gælder ikke længere i visningen
+    rep = _migrate(api)
+    assert rep is not None
+    assert {r["element"] for r in rep["converted"]} == {"Vippe", "Omsk", "Knap"}
+    manual = {r["element"]: r for r in rep["manual"]}
+    assert set(manual) == {"Link"} and "click:pulse på Link_flade" in manual["Link"]["reasons"][0]
+    assert _cfg(api, "Vippe")["op"] == "positions" and _cfg(api, "Knap")["op"] == "pulse" and _cfg(api, "Link") is None
+    rows = api.get(f"/api/drawings/{api.did}/bindings").json()
+    left = {(b["element"], b["anim"]) for b in rows}
+    assert left == {("Link", "click:goto"), ("Tank_fyld", "level")}        # alt andet på symbolerne er slettet
+    view = api.get(f"/api/drawings/{api.did}/view").json()["bindings"]
+    assert {(b["element"], b["anim"]) for b in view if b["element"].startswith("Vippe")} == {
+        ("Vippe_spor", "fill"), ("Vippe_vippe", "move"), ("Vippe_tekst", "text")}
+    assert ("Link", "click:goto") in {(b["element"], b["anim"]) for b in view}
+    # rapporten kan læses og ryddes; en ny kørsel uden force gør intet
+    assert api.get("/api/symbol-migration").json()["converted"][0]["element"] in {"Vippe", "Omsk", "Knap"}
+    assert api.delete("/api/symbol-migration").status_code == 204 and api.get("/api/symbol-migration").json() is None
+    assert v51_symbols.migrate(api.svc.db, api.svc) is None
+    assert any("pre-update" in b["name"] for b in api.app.state.backup_service.list_server_backups())   # backup før ændringen
 
 
-def test_pulse_and_plain_bindings(api):
-    cfg = _suggest(api, "Knap")["config"]
-    assert cfg["op"] == "pulse" and cfg["pulse_ms"] == 700 and cfg["signals"][0]["tag"] == "Kvit"
-    assert cfg["anims"][0]["src"] == "Kvit"                 # farven følger stadig tagget
-    assert _save(api, "Knap", cfg).status_code == 200
-    tank = _suggest(api, "Tank")
-    assert tank["config"]["op"] == "view" and tank["config"]["anims"][0]["type"] == "level"
-    assert _save(api, "Tank", tank["config"]).status_code == 200
+def test_simple_bindings_on_library_symbols_are_refused(api):
+    url = f"/api/drawings/{api.did}/bindings"
+    r = api.put(f"{url}/Vippe_spor", json={"bindings": [{"tag": "Lys", "anim": "fill"}]})
+    assert r.status_code == 409 and "Opsæt symbol" in r.json()["error"]
+    assert api.put(f"{url}/Los", json={"bindings": [{"tag": "Lys", "anim": "fill"}]}).status_code == 409
+    assert api.put(f"{url}/Los", json={"bindings": [{"anim": "click:goto", "params": {"drawing": api.did}}]}).status_code == 200
+    assert api.put(f"{url}/Tank_fyld", json={"bindings": [{"tag": "Niveau", "anim": "fill"}]}).status_code == 200   # ikke et symbol
+    assert api.put(f"/api/drawings/{api.did}/symbols/Vippe", json={"tag": "Lys"}).status_code == 422    # "tilknyt tag" findes ikke
+    assert api.put(f"/api/drawings/{api.did}/symbols/Vippe", json={"description": "Lyset"}).status_code == 200
+    assert api.get(f"/api/drawings/{api.did}/symbols/Vippe/suggest").status_code in (404, 405)
+    assert api.post("/api/drawings/convert-symbols", json={}).status_code in (404, 405)
 
 
-def test_converted_symbol_behaves_like_before_in_view(api):
-    """Efter konvertering: de gamle bindinger er væk fra visningen, symbolets egne er der i stedet."""
-    before = {(b["element"], b["anim"]) for b in api.get(f"/api/drawings/{api.did}/view").json()["bindings"]
-              if b["element"].startswith("Vippe")}
-    assert ("Vippe", "click:toggle") in before
-    assert _save(api, "Vippe", _suggest(api, "Vippe")["config"]).status_code == 200
-    after = [b for b in api.get(f"/api/drawings/{api.did}/view").json()["bindings"] if b["element"].startswith("Vippe")]
-    assert all(b["source"] == "symbol" for b in after)
-    assert {(b["element"], b["anim"]) for b in after} == {("Vippe_spor", "fill"), ("Vippe_vippe", "move"), ("Vippe_tekst", "text")}
-    # Forslaget kan stadig hentes (fra den gamle model), selvom symbolet nu er konfigureret
-    assert _suggest(api, "Vippe")["config"]["op"] == "positions"
-
-
-def test_symbol_without_bindings_is_not_convertible(api):
-    api.put(f"/api/drawings/{api.did}/bindings/Tank_fyld", json={"bindings": []})
-    s = _suggest(api, "Tank")
-    assert s["convertible"] is False and "ingen bindinger" in s["notes"][0]
-
-
-def test_convert_all_dry_run_then_apply(api):
-    assert api.put(f"/api/drawings/{api.did}/bindings/Link",
-                   json={"bindings": [{"anim": "click:goto", "params": {"drawing": api.did}}]}).status_code == 200
-    assert _save(api, "Omsk", _suggest(api, "Omsk")["config"]).status_code == 200      # allerede sat op i guiden
-    before = api.get(f"/api/drawings/{api.did}/view").json()["bindings"]
-    r = api.post("/api/drawings/convert-symbols", json={})
-    assert r.status_code == 200, r.text
-    rep = r.json()
-    status = {s["element"]: s["status"] for s in rep["symbols"]}
-    # Tank er ikke et bibliotekssymbol (almindelige bindinger berøres ikke)
-    assert status == {"Vippe": "ready", "Omsk": "configured", "Knap": "ready", "Link": "manual", "Los": "none"}
-    assert rep["apply"] is False and rep["counts"]["ready"] == 2
-    link = next(s for s in rep["symbols"] if s["element"] == "Link")
-    assert any("Gå til tegning" in m for m in link["reasons"])
-    # Tør-kørsel gemmer intet
-    assert api.get(f"/api/drawings/{api.did}/view").json()["bindings"] == before
-    assert api.get(f"/api/drawings/{api.did}/symbols/Vippe/config").json()["config"] is None
-    rep = api.post("/api/drawings/convert-symbols", json={"apply": True}).json()
-    assert {s["element"]: s["status"] for s in rep["symbols"]} == {
-        "Vippe": "converted", "Omsk": "configured", "Knap": "converted", "Link": "manual", "Los": "none"}
-    assert api.get(f"/api/drawings/{api.did}/symbols/Knap/config").json()["config"]["op"] == "pulse"
-    assert any(e["action"] == "symbol.convert_all" for e in api.get("/api/audit?limit=20").json())
-    # Ukendt tegning afvises; kun teknikere
-    assert api.post("/api/drawings/convert-symbols", json={"drawings": ["findes-ikke"]}).status_code == 404
-
-
-def test_what_would_be_lost_makes_the_symbol_manual(api):
-    """'Gå til tegning' og klik på dele kan ikke overføres — så konverteres symbolet ikke automatisk (review A1/A2)."""
-    assert api.put(f"/api/drawings/{api.did}/bindings/Vippe_spor",
-                   json={"bindings": [{"anim": "click:goto", "params": {"drawing": api.did}}]}).status_code == 200
-    assert api.put(f"/api/drawings/{api.did}/bindings/Link_flade", json={"bindings": [
-        {"tag": "Kvit", "anim": "click:pulse"}, {"tag": "Kvit", "anim": "fill"}]}).status_code == 200
-    s = _suggest(api, "Vippe")
-    assert s["convertible"] is False and "Gå til tegning" in s["notes"][0]
-    s = _suggest(api, "Link")
-    assert s["convertible"] is False and "click:pulse på Link_flade" in s["notes"][0]
-    rows = {r["element"]: r for r in api.post("/api/drawings/convert-symbols", json={"apply": True}).json()["symbols"]}
-    assert rows["Vippe"]["status"] == "manual" and rows["Link"]["status"] == "manual"
-    assert api.get(f"/api/drawings/{api.did}/symbols/Vippe/config").json()["config"] is None
+def test_tag_name_automatic_only_for_plain_elements(api):
+    """Et element, hvis id er et tag, bindes stadig automatisk — men ikke et bibliotekssymbol (det sættes op i guiden)."""
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect id="Lys" width="10" height="10"/>'
+           '<g id="Kvit" data-hv-type="lampe"><circle id="Kvit_l" cx="50" cy="50" r="5"/></g></svg>')
+    did = api.post("/api/drawings", json={"name": "Auto", "svg": svg}).json()["drawing"]["id"]
+    els = {b["element"] for b in api.get(f"/api/drawings/{did}/view").json()["bindings"] if b["source"] == "auto"}
+    assert els == {"Lys"}
 
 
 def test_setpoint_keeps_confirmation_and_toggle_colors_ignore_thresholds(api):
     assert api.post("/api/tags", json={"name": "SP", "source": "plc1:hr:33", "writable": True,
                                        "confirm_write": False}).status_code == 201
-    assert api.put(f"/api/drawings/{api.did}/bindings/Los", json={"bindings": [{"tag": "SP", "anim": "click:write"}]}).status_code == 200
+    _old(api, "Los", [{"tag": "SP", "anim": "click:write"}])
     cfg = _suggest(api, "Los")["config"]
-    assert cfg["op"] == "entry" and cfg["confirm"] is False                       # som før: tagget kræver ikke bekræftelse
-    assert api.put(f"/api/drawings/{api.did}/bindings/Vippe_spor", json={"bindings": [
-        {"tag": "Lys", "anim": "fill", "params": {"on": "#00aa00", "off": "#cccccc",
-                                                  "thresholds": [{"value": 1, "color": "#ff0000"}]}}]}).status_code == 200
+    assert cfg["op"] == "entry" and cfg["confirm"] is False
+    _old(api, "Vippe_spor", [{"tag": "Lys", "anim": "fill", "params": {"on": "#00aa00", "off": "#cccccc",
+                                                                       "thresholds": [{"value": 1, "color": "#ff0000"}]}}])
     anims = {a["part"]: a for a in _suggest(api, "Vippe")["config"]["anims"]}
-    assert anims["Vippe_spor"]["params"]["colors"] == ["#cccccc", "#00aa00"]     # til/fra: tærskler bruges ikke
+    assert anims["Vippe_spor"]["params"]["colors"] == ["#cccccc", "#00aa00"]
+
+
+def test_restoring_an_old_backup_converts_it(api):
+    bk = api.get("/api/backup").json()                       # indeholder de gamle bindinger på symbolerne
+    r = api.post("/api/backup/restore", json=bk)
+    assert r.status_code == 200, r.text
+    assert r.json()["symbol_migration"]["converted"] == 3
+    assert _cfg(api, "Omsk")["op"] == "positions"
+
+
+def test_manual_symbols_keep_a_record_of_what_was_removed(api):
+    _old(api, "Link_flade", [{"tag": "Kvit", "anim": "click:pulse"}, {"tag": "Kvit", "anim": "fill"}])
+    rep = _migrate(api)
+    link = next(m for m in rep["manual"] if m["element"] == "Link")
+    assert {(r["element"], r["anim"]) for r in link["removed"]} == {("Link_flade", "click:pulse"), ("Link_flade", "fill")}
+    assert all("notes" in c for c in rep["converted"])
+    assert not [b for b in api.get(f"/api/drawings/{api.did}/bindings").json() if b["element"] == "Link_flade"]
+
+
+def test_goto_only_on_symbols_without_operation(api):
+    url = f"/api/drawings/{api.did}/bindings"
+    goto = {"bindings": [{"anim": "click:goto", "params": {"drawing": api.did}}]}
+    assert api.put(f"{url}/Los", json=goto).status_code == 200                       # ikke opsat: tilladt
+    _migrate(api)
+    assert _cfg(api, "Vippe")["op"] == "positions"
+    assert api.put(f"{url}/Vippe", json=goto).status_code == 409                      # betjent symbol: klik åbner dialogen
+    _old(api, "Vippe", goto["bindings"])                                              # en gammel, sovende goto bliver ikke aktiv
+    assert ("Vippe", "click:goto") not in {(b["element"], b["anim"]) for b in api.get(f"/api/drawings/{api.did}/view").json()["bindings"]}
+
+
+def test_a_failing_backup_postpones_the_upgrade(api):
+    class Broken:
+        def save_to_server(self, *a):
+            raise OSError("disken er fuld")
+    api.svc.db.set_meta(v51_symbols.DONE_KEY, None)
+    assert v51_symbols.migrate(api.svc.db, api.svc, Broken()) is None
+    assert v51_symbols.pending(api.svc.db) is True
+    assert _cfg(api, "Vippe") is None                                                 # intet ændret
+    assert any(b["element"] == "Vippe" for b in api.get(f"/api/drawings/{api.did}/bindings").json())

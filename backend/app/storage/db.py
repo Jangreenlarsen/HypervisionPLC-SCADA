@@ -594,6 +594,22 @@ class Database:
 
     # -------------------------------------------------------------- tegninger
 
+    # ------------------------------------------------------------- interne nøgler (opgraderinger, rapporter)
+
+    def get_meta(self, key: str) -> str | None:
+        rows = self._query("SELECT value FROM meta WHERE key = ?", (key,))
+        return rows[0]["value"] if rows else None
+
+    def set_meta(self, key: str, value: str | None) -> None:
+        """Sæt (eller fjern med None/tom tekst) en intern nøgle i meta — ikke en brugerindstilling."""
+        with self._lock:
+            if not value:
+                self._conn.execute("DELETE FROM meta WHERE key = ?", (key,))
+            else:
+                self._conn.execute("INSERT INTO meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                                   (key, value))
+            self._conn.commit()
+
     # ------------------------------------------------------------- indstillinger
 
     def get_setting(self, key: str) -> str | None:
@@ -866,25 +882,6 @@ class Database:
             except Exception:
                 cur.execute("ROLLBACK")
                 raise
-
-    def set_symbol_bindings(self, drawing_id: str, per_element: dict[str, list[dict[str, Any]]]) -> None:
-        """Erstat bindingerne for flere elementer (et symbols dele) i ÉN transaktion — alt eller intet."""
-        with self._lock:
-            cur = self._conn.cursor()
-            cur.execute("BEGIN IMMEDIATE")
-            try:
-                for element, items in per_element.items():
-                    cur.execute("DELETE FROM bindings WHERE drawing_id = ? AND element = ?", (drawing_id, element))
-                    for pos, item in enumerate(items):
-                        cur.execute(
-                            "INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
-                            (drawing_id, element, pos, item["tag"], item["anim"], json.dumps(item.get("params", {}))))
-                cur.execute("COMMIT")
-            except Exception:
-                cur.execute("ROLLBACK")
-                raise
-
-    # ------------------------------------------------- symbolers forklaring (pr. tegning + element)
 
     def list_symbol_meta(self, drawing_id: str) -> dict[str, str]:
         return {r["element"]: r["description"]

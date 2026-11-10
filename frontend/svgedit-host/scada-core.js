@@ -425,7 +425,7 @@ export function createScada(host) {
   function currentSelection() {
     const elems = (canvas().getSelectedElements() || []).filter(Boolean);
     return elems.map((el) => ({
-      id: el.id || '', tag: el.tagName.toLowerCase(), interactive: el.hasAttribute('data-hv-auto'),
+      id: el.id || '', tag: el.tagName.toLowerCase(),
       type: el.getAttribute('data-hv-type') || '',
       // et T-stykke/kryds fra før v0.68.0: én sti, der kan deles i rør
       onePath: el.tagName === 'g' && [...el.children].filter((ch) => !RESERVED.has(ch.tagName.toLowerCase())).length === 1 && el.querySelector(':scope > path') !== null,

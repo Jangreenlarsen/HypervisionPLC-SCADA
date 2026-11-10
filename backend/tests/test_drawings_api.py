@@ -305,31 +305,22 @@ def _bindings(api, did):
     return sorted((b["element"], b["anim"], b["tag"]) for b in api.get(f"/api/drawings/{did}/view").json()["bindings"])
 
 
-def test_interactive_symbol_auto_bindings(api):
+def test_interactive_symbol_has_no_automatic_bindings_any_more(api):
+    """v5.1.0: den gamle model er fjernet — et betjeningssymbol (data-hv-auto), hvis id er et tag, bindes ikke længere
+    automatisk; det sættes op i guiden. (Før: klik-handling og visning efter symbolets egen beskrivelse.)"""
     did = _create(api, svg=SYMBOL_SVG)["drawing"]["id"]
-    # Ikke-skrivbare tags: kun visningen bindes — en tegning kan ikke give skriveadgang
-    assert _bindings(api, did) == [("pumpe_bund", "fill", "Pumpe"), ("pumpe_tekst", "text", "Pumpe")]
     api.patch("/api/tags/Pumpe", json={"writable": True})
-    api.patch("/api/tags/Niveau", json={"writable": True})
-    view = api.get(f"/api/drawings/{did}/view").json()
-    got = sorted((b["element"], b["anim"], b["tag"]) for b in view["bindings"])
-    # Skrivbart: klik-handlingen kommer med; goto, ukendte animationer og ugyldig JSON udelades
-    assert got == [("Niveau", "click:write", "Niveau"), ("Pumpe", "click:toggle", "Pumpe"),
-                   ("pumpe_bund", "fill", "Pumpe"), ("pumpe_tekst", "text", "Pumpe")]
-    toggle = next(b for b in view["bindings"] if b["anim"] == "click:toggle")
-    assert toggle["params"]["confirm"] is False and toggle["source"] == "auto"
-    text = next(b for b in view["bindings"] if b["anim"] == "text")
-    assert (text["params"]["true_text"], text["params"]["false_text"]) == ("TIL", "FRA")
+    assert _bindings(api, did) == []
 
 
-def test_operator_can_use_interactive_symbol(api, mock_plc):
+def test_operator_cannot_operate_a_symbol_that_is_not_set_up(api, mock_plc):
+    """Uden opsætning i guiden giver et betjeningssymbol ingen skriveadgang (før v5.1.0 gav den gamle model klik-adgang)."""
     did = _create(api, svg=SYMBOL_SVG)["drawing"]["id"]
     api.patch("/api/tags/Pumpe", json={"writable": True})
     api.post("/api/users", json={"username": "op", "role": "operator", "password": "Hemmelig-123", "drawings": [did]})
     api.post("/api/auth/login", json={"username": "op", "password": "Hemmelig-123"})
     api.post("/api/auth/password", json={"old_password": "Hemmelig-123", "new_password": "Hemmelig-123-ny"})
-    r = api.post("/api/tags/Pumpe/toggle", json={})
-    assert r.status_code == 200, r.text
+    assert api.post("/api/tags/Pumpe/toggle", json={}).status_code == 403
 
 
 def test_simple_bindings_inside_configured_symbol_are_refused_but_goto_on_view_root_kept(tmp_path, mock_plc):

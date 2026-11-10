@@ -66,3 +66,13 @@ describe('visibleRows', () => {
     expect(visibleRows(els, new Set(), 'findes ikke')).toEqual([]);
   });
 });
+
+describe('bibliotekssymboler (v5.1.0: kun guiden)', () => {
+  it('marks roots with data-hv-type or data-hv-auto as library symbols, not plain named elements or parts', () => {
+    const doc = new DOMParser().parseFromString(
+      '<svg xmlns="http://www.w3.org/2000/svg"><g id="P" data-hv-type="pumpe" data-hv-name="P1"><rect id="P_hus"/></g>' +
+      '<g id="K" data-hv-auto="[]"><rect id="K_f"/></g><text id="T" data-hv-name="Skilt">x</text></svg>', 'image/svg+xml');
+    const by = Object.fromEntries(buildElements(doc.documentElement).map((e) => [e.id, e.lib]));
+    expect(by).toEqual({ P: true, P_hus: false, K: true, K_f: false, T: false });
+  });
+});
