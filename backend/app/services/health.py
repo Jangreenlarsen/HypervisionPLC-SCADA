@@ -279,10 +279,23 @@ class HealthService:
             "bindings_cache": dict(ds.cache_stats) if (ds := getattr(state, "drawing_service", None)) else None,
             # signalveje (v5.0.0): antal veje i drift, aktive/ukendte kombinationer af grene og beregningsfejl i seneste tick
             "signal_paths": dict(rt.path_stats) if (rt := getattr(state, "symbol_runtime", None)) else None,
+            # opgraderingen v5.1.0 (den gamle symbolmodel fjernet): symboler, der stadig skal sættes op i guiden
+            "symbol_migration": self._symbol_migration(state),
             "notify": notifier.failing() if (notifier := getattr(state, "notifier", None)) else {},
             "notifications": ({"sent": notifier.sent, "failed": notifier.failed, "dropped": notifier.dropped, "queued": len(notifier.pending)}
                               if notifier else None),
         }
+
+    @staticmethod
+    def _symbol_migration(state: Any) -> dict[str, int] | None:
+        from .migrations import v51_symbols
+        svc = getattr(state, "symbol_service", None)
+        if svc is None:
+            return None
+        if v51_symbols.pending(svc.db):
+            return {"pending": 1}          # opgraderingen er ikke kørt (fx backuppen fejlede) — prøves ved næste opstart
+        rep = v51_symbols.report(svc.db)
+        return {"converted": len(rep.get("converted", [])), "manual": len(rep.get("manual", []))} if rep else None
 
     def _thread_part(self, state: Any) -> dict[str, Any]:
         """Blokerende opslag (kører i en tråd)."""

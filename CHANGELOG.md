@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.1.0 build 0379] — 2026-11-10 — Symbolstandard: den gamle symbolmodel er fjernet
+
+- **Opgradering** (`services/migrations/v51_symbols.py`, kørt ved opstart én gang og efter gendannelse af en backup): backup først (`scada-pre-update-…`); bibliotekssymboler med gamle bindinger (eksplicitte på rod/dele eller automatiske fra `data-hv-auto`/`data-hv-part`, når id/navn er et tag) konverteres med de tidligere "Konvertér alle"-regler og gemmes via guidens `SymbolService.put`; derefter slettes de gamle bindinger på symbolerne ("Gå til tegning" på roden bevares). Rapporten (`meta: report.v51_symbols`) vises i Tegn › Meddelelser (`GET/DELETE /api/symbol-migration`) og i health-metrics (`symbol_migration`).
+- **Én model** (`services/drawings.py`): `_compute` uden den gamle symbol-del og uden `legacy`; bindinger og tag-navne-automatik på bibliotekssymboler (rod og dele) bruges ikke — kun "Gå til tegning" på roden; simple bindinger på symboler afvises (409); "tilknyt tag til hele symbolet" (`bind_symbol`, `set_symbol_bindings`), `legacy_bindings`, `GET …/suggest` og `POST /api/drawings/convert-symbols` er fjernet. Almindelige bindinger og tag-navne-automatik på elementer, der ikke er symboler, er uændrede.
+- **Frontend**: panelet "Konvertér alle" (`SymbolConvert.svelte`) og guidens "Foreslå ud fra symbolet" er fjernet; Bindinger behandler alle bibliotekssymboler som guide-symboler (`elementTree.lib`); Tegn › Meddelelser viser opgraderingsrapporten.
+- **Review** (reviewer-agent): rapporten gemmer de slettede bindinger pr. manuelt symbol og konverteringens noter; gendannelse tager en backup af den gendannede tilstand, fanger fejl (gendannelsen gælder stadig, opgraderingen prøves ved næste opstart) og auditeres altid; en gammel rapport ryddes, når der intet er at gøre; "Gå til tegning" kun på roden af et symbol uden betjening (ikke opsat eller kun-visning), som før; Status viser `pending`, hvis opgraderingen ikke er kørt; audit `symbol.migration` ved opstart. Testen af signalvejenes runtime er gjort robust mod den samtidige runtime-løkke.
+- `data-hv-auto`/`data-hv-part` i biblioteket bevares som metadata (Symboltest bruger dem), men har ingen virkning i drift.
+- `Database.get_meta/set_meta`. Tests: `test_symbol_convert.py` (opgradering, rapport, afvisning, gendannelse), justerede tests i `test_drawings_api.py`, `test_symbol_copy.py`, `test_symbol_groups.py`; `elementTree.test.ts`. Set i browseren: opgradering ved opstart (backup, 1 konverteret, 4 bindinger slettet), rapporten i Meddelelser, delen af et symbol uden "+ Tilføj binding", og den konverterede vippekontakt skifter FRA → TIL mod mock-PLC'en.
+- Manual (kap. 10), LLM-tillæg, SYMBOLSTANDARD_IMPLEMENTERING.md (afsnit 11.3 udført).
+
 ## [5.0.1 build 0378] — 2026-11-10 — fix: topmenuen bag Tegns værktøjslinje
 
 - `pages/DrawEditor.svelte`: værktøjslinjen `z-index: 30` (under topmenuens 40); `.layout` får egen stablingskontekst (`position: relative; z-index: 0`), så tegnefladens lag ikke dækker Vis/Fang/Meddelelser. Set i browseren.

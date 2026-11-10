@@ -1,4 +1,4 @@
-# Plan: Symbolstandard fase 8b — fjern den gamle symbolmodel (v6.0.0, MAJOR) — 2026-11-10 — afventer OK
+# Plan: Symbolstandard fase 8b — fjern den gamle symbolmodel (udført som v5.1.0 efter Jans valg) — 2026-11-10 — ✅ udført
 
 Mål: ét sted at sætte et symbol op — **guiden (symbol_config)**. Bibliotekssymboler (rødder med `data-hv-type`/`data-hv-auto`) skal ikke længere kunne styres af den gamle model. Almindelige bindinger på elementer, der *ikke* er bibliotekssymboler (tekster, figurer, egne SVG-elementer), og automatiske bindinger efter tag-navn på dem **bevares** — de er ikke den gamle symbolmodel.
 

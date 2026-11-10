@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +19,7 @@ from ..services.backup import MAX_RESTORE_BYTES, BackupService
 from ..services.errors import ServiceError
 from .auth import ADMIN, audit, require
 
+log = logging.getLogger("scada.backup")
 router = APIRouter(prefix="/api/backup")
 
 
@@ -53,6 +55,17 @@ async def restore(request: Request, user: CurrentUser = Depends(require("admin")
         request.app.state.audit_service.record(user.username, request.client.host if request.client else "",
                                                "backup.restore", "", {}, "error", exc.message[:500])
         raise
+    # En ældre backup kan have den gamle symbolmodel (før v5.1.0): konvertér den gendannede tegningsopsætning med det samme
+    from ..services.migrations import v51_symbols
+    try:
+        report = await asyncio.to_thread(v51_symbols.migrate, request.app.state.symbol_service.db, request.app.state.symbol_service,
+                                         request.app.state.backup_service, True)
+        if report:
+            result = {**result, "symbol_migration": {"converted": len(report["converted"]), "manual": len(report["manual"])}}
+    except Exception as exc:     # gendannelsen ER gennemført — opgraderingen af symbolerne prøves igen ved næste opstart
+        log.exception("Opgradering v5.1.0 efter gendannelse fejlede")
+        request.app.state.symbol_service.db.set_meta(v51_symbols.DONE_KEY, None)
+        result = {**result, "symbol_migration": {"error": str(exc)[:200]}}
     audit(request, "backup.restore", "", result)
     return result
 

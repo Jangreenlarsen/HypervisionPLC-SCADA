@@ -11,7 +11,7 @@ from fastapi import Depends
 
 from ..services.auth import CurrentUser
 from ..services.errors import ServiceError
-from ..services.symbol_convert import convert_all, suggest
+from ..services.migrations import v51_symbols
 from ..services.symbol_operate import SymbolOperateService
 from ..services.symbols import SymbolService, validate_config, write_plan
 from ..services.svg_sanitize import describe_element
@@ -20,6 +20,7 @@ from .auth import ENGINEER, VIEWER, audit, client_ip, require
 OPERATOR = require("operator")
 
 router = APIRouter(prefix="/api/drawings")
+report_router = APIRouter(prefix="/api")      # /api/symbol-migration (v5.1.0)
 
 
 class _Model(BaseModel):
@@ -213,27 +214,14 @@ async def preview(drawing_id: str, element: str, body: PreviewBody, request: Req
     return {"config": cfg, "steps": res.steps, "warnings": res.warnings, "errors": res.count, "plans": plans}
 
 
-@router.get("/{drawing_id}/symbols/{element}/suggest", dependencies=[ENGINEER])
-async def suggest_config(drawing_id: str, element: str, request: Request) -> dict[str, Any]:
-    """Forslag til en konfiguration ud fra symbolets bindinger i dag (Konvertér) — gemmes ikke."""
-    svc = _svc(request)
-    svc.drawings._require(drawing_id)
-    return suggest(svc.drawings, drawing_id, element)
+@report_router.get("/symbol-migration", dependencies=[ENGINEER])
+async def migration_report(request: Request) -> dict[str, Any] | None:
+    """Rapporten fra opgraderingen v5.1.0 (den gamle symbolmodel fjernet): konverterede symboler og dem, der skal sættes op
+    i guiden. None = ingen rapport (eller ryddet)."""
+    return v51_symbols.report(request.app.state.symbol_service.db)
 
 
-class ConvertAllBody(_Model):
-    apply: bool = False                       # False = tør-kørsel (standard): intet gemmes
-    drawings: list[str] | None = None         # None = alle tegninger
-
-
-@router.post("/convert-symbols", dependencies=[ENGINEER])
-async def convert_symbols(body: ConvertAllBody, request: Request) -> dict[str, Any]:
-    """Konvertér alle (symbolstandarden afsnit 11.2): rapport pr. symbol; gemmer kun når `apply` er sat."""
-    svc = _svc(request)
-    ids = body.drawings if body.drawings is not None else [d["id"] for d in svc.drawings.list()]
-    for d in ids:
-        svc.drawings._require(d)
-    result = convert_all(svc, request.state.user, ids, body.apply)
-    if body.apply:
-        audit(request, "symbol.convert_all", ",".join(ids)[:200], result["counts"])
-    return result
+@report_router.delete("/symbol-migration", status_code=204, dependencies=[ENGINEER])
+async def clear_migration_report(request: Request) -> None:
+    v51_symbols.clear_report(request.app.state.symbol_service.db)
+    audit(request, "symbol.migration_report_cleared", "", {})

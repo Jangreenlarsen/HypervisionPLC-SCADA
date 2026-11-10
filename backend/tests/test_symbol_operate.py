@@ -281,9 +281,12 @@ def test_pulse_and_entry_symbols(api, mock_plc):
 def test_configured_symbol_ignores_old_bindings(api, mock_plc):
     did = _setup(api, mock_plc)
     api.delete(f"/api/drawings/{did}/symbols/{V1}/config")
+    # v5.1.0: også et symbol uden opsætning afviser simple bindinger, og gamle bindinger i databasen bruges ikke
     assert api.put(f"/api/drawings/{did}/bindings/V1_greb",
-                   json={"bindings": [{"tag": "Lys", "anim": "fill"}]}).status_code == 200
-    assert any(b["element"] == "V1_greb" for b in api.get(f"/api/drawings/{did}/view").json()["bindings"])
+                   json={"bindings": [{"tag": "Lys", "anim": "fill"}]}).status_code == 409
+    ds = api.app.state.drawing_service
+    ds.db.set_element_bindings(did, "V1_greb", ds._normalize_bindings([{"tag": "Lys", "anim": "fill"}]))
+    assert not any(b["element"] == "V1_greb" for b in api.get(f"/api/drawings/{did}/view").json()["bindings"])
     api.put(f"/api/drawings/{did}/symbols/{V1}/config", json={"config": dec_bin()})
     assert not any(b["element"] == "V1_greb" and b["tag"] == "Lys"
                    for b in api.get(f"/api/drawings/{did}/view").json()["bindings"])

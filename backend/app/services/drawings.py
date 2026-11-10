@@ -9,10 +9,10 @@ from typing import Any
 
 from ..storage.db import Database
 from ..storage.files import DrawingFiles
-from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, _spec_list, auto_binding, binding_tags, symbol_bindings, validate_binding
+from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, auto_binding, binding_tags, validate_binding
 from .errors import ServiceError
 from .live_cache import LiveCache
-from .svg_sanitize import SvgError, index_svg, sanitize_svg, subtree_ids, subtree_map, symbol_specs
+from .svg_sanitize import SvgError, index_svg, sanitize_svg, subtree_ids, subtree_map, symbol_roots
 from .symbols import config_bindings, symbol_view
 from .tagsource import TagSourceError, parse_source
 
@@ -205,19 +205,30 @@ class DrawingService:
                 return root, configs[root]
         return None
 
+    def _symbol_owner(self, drawing_id: str, element: str) -> str | None:
+        """Bibliotekssymbolet (eller det opsatte symbol), som elementet er eller er en del af — ellers None."""
+        svg = self.svg(drawing_id)
+        roots = set(symbol_roots(svg)) | {r["element"] for r in self.db.list_symbol_configs(drawing_id)}
+        if element in roots:
+            return element
+        for root, parts in subtree_map(svg, roots).items():
+            if element in parts:
+                return root
+        return None
+
     def _refuse_if_configured(self, drawing_id: str, element: str, items: list[dict[str, Any]]) -> None:
-        """Funktionsanalyse B1: simple bindinger i et wizard-konfigureret symbol bruges ikke — afvis dem i stedet for at gemme
-        døde bindinger. Undtagelse (B2): "Gå til tegning" på roden af et kun-visning-symbol gælder stadig."""
-        owner = self._config_owner(drawing_id, element)
-        if owner is None:
+        """Symbolstandarden (v5.1.0: den eneste model): et bibliotekssymbol sættes op i guiden — simple bindinger på det og dets
+        dele afvises i stedet for at gemme døde bindinger. Undtagelse: "Gå til tegning" på symbolets rod."""
+        root = self._symbol_owner(drawing_id, element)
+        if root is None:
             return
-        root, cfg = owner
-        if items and element == root and cfg.get("op") == "view" and all(b["anim"] == "click:goto" for b in items):
+        op = (self.db.get_symbol_config(drawing_id, root) or {}).get("config", {}).get("op", "view")
+        goto_ok = element == root and op == "view"      # et betjent symbol åbner sin dialog ved klik — der er ingen plads til "Gå til"
+        if items and goto_ok and all(b["anim"] == "click:goto" for b in items):
             return
         where = f"'{root}'" if element == root else f"'{element}' er en del af symbolet '{root}', som"
-        raise ServiceError(409, f"{where} er sat op med Opsæt symbol — simple bindinger her bruges ikke. Ret animationer og "
-                                "betjening i Opsæt symbol" + (" (kun 'Gå til tegning' kan tilføjes på et kun-visning-symbol)"
-                                                              if element == root and cfg.get("op") == "view" else ""))
+        raise ServiceError(409, f"{where} er et symbol — det sættes op med Opsæt symbol (guiden), ikke med simple bindinger"
+                                + (" (kun 'Gå til tegning' kan tilføjes på symbolet selv)" if goto_ok else ""))
 
     def _normalize_bindings(self, items: list[Any]) -> list[dict[str, Any]]:
         """Valider bindinger mod tags og regler (samme regler for manuelle og symbol-bindinger)."""
@@ -251,11 +262,9 @@ class DrawingService:
 
     # ----------------------------------------------------------------- symboler
 
-    def _symbol_element(self, drawing_id: str, element: str) -> tuple[str, dict[str, Any] | None]:
-        svg = self.svg(drawing_id)
-        if element not in index_svg(svg):
+    def _symbol_element(self, drawing_id: str, element: str) -> None:
+        if element not in index_svg(self.svg(drawing_id)):
             raise ServiceError(404, f"Elementet '{element}' findes ikke i den aktive version af tegningen")
-        return svg, symbol_specs(svg).get(element)
 
     def set_symbol_description(self, drawing_id: str, element: str, text: Any) -> None:
         """Symbolets forklaring (gemmes ved bindingerne, ikke i tegningen — kan ændres uden ny version)."""
@@ -266,32 +275,6 @@ class DrawingService:
             raise ServiceError(400, "Forklaringen må højst være 500 tegn")
         self._symbol_element(drawing_id, element)
         self.db.set_symbol_description(drawing_id, element, text)
-
-    def bind_symbol(self, drawing_id: str, element: str, tag: str | None) -> dict[str, Any]:
-        """Tilknyt et tag til et betjeningssymbol (eller fjern det med None): bindinger for hele symbolet — klik-handling på
-        roden og visning på delene — dannes ud fra symbolets egen beskrivelse og erstatter de eksisterende for symbolet."""
-        svg, spec = self._symbol_element(drawing_id, element)
-        if spec is None:
-            raise ServiceError(400, f"'{element}' er ikke et symbol med færdige bindinger — brug 'Tilføj binding' på elementet")
-        if tag is not None:
-            self._refuse_if_configured(drawing_id, element, [])
-        elements = [element] + [child for child, _ in spec["parts"]]
-        warning = ""
-        per_element: dict[str, list[dict[str, Any]]] = {e: [] for e in elements}
-        if tag is not None:
-            row = self.db.get_tag(tag)
-            if row is None:
-                raise ServiceError(400, f"Tagget '{tag}' findes ikke")
-            built = symbol_bindings(spec, element, {"name": tag, "writable": bool(row["writable"])})
-            for b in built:
-                per_element.setdefault(b["element"], []).append({"tag": b["tag"], "anim": b["anim"], "params": b["params"]})
-            wants_write = any(isinstance(x, dict) and x.get("anim") in WRITE_CLICKS for x in _spec_items(spec))
-            if wants_write and not any(b["anim"] in WRITE_CLICKS for b in built):
-                warning = (f"Tagget '{tag}' er ikke markeret skrivbart — klik-handlingen er ikke tilføjet, symbolet viser kun "
-                           "værdien. Markér tagget skrivbart under Tags og tilknyt det igen.")
-            per_element = {e: self._normalize_bindings(items) for e, items in per_element.items()}
-        self.db.set_symbol_bindings(drawing_id, per_element)
-        return {"tag": tag, "elements": len([e for e, i in per_element.items() if i]), "warning": warning}
 
     # ----------------------------------------------------------------- visning
 
@@ -339,34 +322,28 @@ class DrawingService:
                 "disabled": bool(drawing["disabled"]), "svg": svg, "bindings": effective, "orphaned_bindings": sorted(set(orphans)), "tags": meta,
                 "symbols": self.db.list_symbol_meta(drawing_id), "symbol_config": configured}
 
-    def legacy_bindings(self, drawing_id: str, element: str) -> list[dict[str, Any]]:
-        """Bindinger efter den gamle model (eksplicitte + automatiske) for et symbol og dets dele — også hvis symbolet
-        har en symbol-konfiguration. Bruges til at foreslå en konfiguration (Konvertér)."""
-        svg = self.svg(drawing_id)
-        subtree = subtree_ids(svg, {element})
-        return [b for b in self._compute(drawing_id, legacy=True)[2] if b["element"] in subtree]
-
-    def _compute(self, drawing_id: str, legacy: bool = False) -> tuple[dict[str, Any], str, list[dict[str, Any]], list[str], dict[str, Any]]:
+    def _compute(self, drawing_id: str) -> tuple[dict[str, Any], str, list[dict[str, Any]], list[str], dict[str, Any]]:
         drawing = self._require(drawing_id)
         svg = self.svg(drawing_id)
         index = index_svg(svg)
-        specs = symbol_specs(svg)
         tags = {t["name"]: t for t in self.db.list_tags()}
 
         effective: list[dict[str, Any]] = []
         orphans: list[str] = []
         explicit_elements: set[str] = set()
-        # Symbolstandard: har et symbol en konfiguration, gælder den — gamle bindinger på symbolet og dets dele ignoreres
-        configs = ({} if legacy else
-                   {r["element"]: r["config"] for r in self.db.list_symbol_configs(drawing_id) if r["element"] in index})
-        covered = subtree_ids(svg, set(configs))
+        configs = {r["element"]: r["config"] for r in self.db.list_symbol_configs(drawing_id) if r["element"] in index}
+        # Symbolstandard (v5.1.0: den eneste model): et bibliotekssymbol sættes op i guiden. Bindinger og automatik på dets rod
+        # og dele bruges ikke — kun "Gå til tegning" på roden.
+        roots = set(symbol_roots(svg)) | set(configs)
+        covered = subtree_ids(svg, roots)
         for b in self.db.list_bindings(drawing_id):
             explicit_elements.add(b["element"])
             if b["element"] not in index:
                 orphans.append(b["element"])
                 continue
-            if b["element"] in covered and not (b["anim"] == "click:goto" and configs.get(b["element"], {}).get("op") == "view"):
-                continue   # B2: "Gå til tegning" på roden af et kun-visning-symbol gælder stadig
+            goto_ok = b["anim"] == "click:goto" and b["element"] in roots and configs.get(b["element"], {}).get("op", "view") == "view"
+            if b["element"] in covered and not goto_ok:
+                continue
             effective.append({**b, "source": "explicit"})
 
         for element, (el_tag, label) in index.items():
@@ -375,21 +352,13 @@ class DrawingService:
             name = element if element in tags else label if label in tags else None
             if name is None:
                 continue
-            if element in specs:
-                # Betjeningssymbol: klik-handling + visning ifølge symbolet (dele uden egne bindinger)
-                for pos, b in enumerate(symbol_bindings(specs[element], element,
-                                                        {"name": name, "writable": bool(tags[name]["writable"])})):
-                    if b["element"] == element or b["element"] not in explicit_elements:
-                        effective.append({**b, "position": pos, "source": "auto"})
-                continue
             auto = auto_binding(el_tag, {"name": name, "is_bool": self._is_bool(tags[name])})
             if auto is not None:
                 effective.append({"element": element, "position": 0, **auto, "source": "auto"})
         for element, cfg in configs.items():
             effective.extend(config_bindings(drawing_id, element, cfg, covered))
-        if not legacy:
-            effective.extend(self._group_bindings(drawing_id, svg, index))
-            effective.extend(self._path_bindings(drawing_id, svg, index))
+        effective.extend(self._group_bindings(drawing_id, svg, index))
+        effective.extend(self._path_bindings(drawing_id, svg, index))
         return drawing, svg, effective, orphans, tags
 
     def _path_bindings(self, drawing_id: str, svg: str, index: dict[str, Any]) -> list[dict[str, Any]]:
@@ -468,10 +437,3 @@ class DrawingService:
             return True
         return isinstance(self.cache.get(tag["name"]).value, bool)  # ST-variabler: kendes først fra live-værdien
 
-
-def _spec_items(spec: dict[str, Any]) -> list[Any]:
-    """Alle binding-beskrivelser i et symbols spec (rod + dele)."""
-    items = list(_spec_list(spec.get("auto", "")))
-    for _, raw in spec.get("parts", []):
-        items += _spec_list(raw)
-    return items

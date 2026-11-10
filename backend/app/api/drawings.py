@@ -43,9 +43,8 @@ class StartDrawing(_Model):
 
 
 class SymbolUpdate(_Model):
-    """description: forklaring (tom = fjern). tag: tilknyt tagget til hele symbolet; null = fjern tagget."""
+    """description: forklaring (tom = fjern). Betjening og animationer sættes op i guiden (symbol_config)."""
     description: str | None = Field(default=None, max_length=500)
-    tag: str | None = Field(default=None, max_length=64)
 
 
 class ElementBindings(_Model):
@@ -146,18 +145,13 @@ async def view(drawing_id: str, request: Request) -> dict[str, Any]:
 
 @router.put("/{drawing_id}/symbols/{element}", dependencies=[ENGINEER])
 async def update_symbol(drawing_id: str, element: str, body: SymbolUpdate, request: Request) -> dict[str, Any]:
-    """Symbol-konfiguration (under Bindinger): forklaring og/eller tag for hele symbolet."""
+    """Symbolets forklaring (under Bindinger)."""
     data = body.model_dump(exclude_unset=True)
     if not data:
-        raise ServiceError(400, "Angiv description og/eller tag")
-    svc = _svc(request)
-    result: dict[str, Any] = {}
-    if "description" in data:
-        svc.set_symbol_description(drawing_id, element, data["description"] or "")
-    if "tag" in data:
-        result = svc.bind_symbol(drawing_id, element, data["tag"])
+        raise ServiceError(400, "Angiv description")
+    _svc(request).set_symbol_description(drawing_id, element, data["description"] or "")
     audit(request, "drawing.symbol", drawing_id, {"element": element, **data})
-    return {"element": element, **result}
+    return {"element": element}
 
 
 @router.get("/{drawing_id}/bindings", dependencies=[VIEWER])

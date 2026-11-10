@@ -43,8 +43,13 @@ def runtime_values(c, values):
     from app.services.live_cache import LiveValue
     rt = c.app.state.symbol_runtime
     rt.cache.update({k: (v if isinstance(v, LiveValue) else LiveValue(value=v, quality="good", ts=1.0)) for k, v in values.items()})
-    rt.evaluate()
-    return {t: rt.cache.get(t).value for t in rt._path_published}
+    # Runtime-løkken kører også i baggrunden (i appens tråd) og kan overlappe en beregning her: regn igen, til billedet er stabilt
+    for _ in range(5):
+        rt.evaluate()
+        got = {t: rt.cache.get(t).value for t in rt._path_published}
+        if bool(got) == bool(rt.paths):
+            return got
+    return got
 
 
 

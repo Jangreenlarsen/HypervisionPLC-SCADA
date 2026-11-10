@@ -2,6 +2,11 @@
 
 ---
 
+## v5.1.0 — 2026-11-10 — Én måde at sætte symboler op på
+
+- Den gamle symbolmodel er fjernet: et symbol sættes **kun** op i guiden (Bindinger › Opsæt symbol). Simple bindinger på symboler (undtagen *Gå til tegning*) og "Konvertér alle" findes ikke længere.
+- Ved opgraderingen tages en backup, og symboler med gamle bindinger konverteres automatisk. Dem, der ikke kunne konverteres, står i **Tegn › Meddelelser** — sæt dem op i guiden.
+
 ## v5.0.1 — 2026-11-10 — Rettelse
 
 - I Tegn lå topmenuens rullemenuer (Drift, Opsætning, System) bag værktøjslinjen. De ligger nu øverst igen.

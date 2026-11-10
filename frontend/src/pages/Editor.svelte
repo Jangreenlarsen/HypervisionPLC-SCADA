@@ -36,11 +36,15 @@
   let showAll = $state(false);                   // standard: kun symboler (navngivne) og bundne elementer
   let descDraft = $state('');
   const current = $derived(elements.find((e) => e.id === selected) ?? null);
-  // Funktionsanalyse B1: det wizard-konfigurerede symbol, som det valgte element er (en del af). Simple bindinger her bruges
-  // ikke (serveren afviser dem); kun "Gå til tegning" på roden af et kun-visning-symbol gælder (B2).
+  // Det symbol, som det valgte element er (en del af): opsat i guiden (cfgOwner) eller et bibliotekssymbol (libOwner, v5.1.0).
+  // Simple bindinger her afvises af serveren; kun "Gå til tegning" på roden af et symbol uden betjening (ikke opsat eller
+  // kun-visning) gælder (B2).
   const cfgOwner = $derived(current && view?.symbol_config
     ? ([current.id, ...ancestorsOf(elements, current.id)].find((x) => view?.symbol_config?.[x]) ?? null) : null);
-  const canAddBinding = $derived(!cfgOwner || (cfgOwner === current?.id && view?.symbol_config?.[cfgOwner]?.op === 'view'));
+  // v5.1.0: et bibliotekssymbol sættes kun op i guiden — også før det er opsat. Kun "Gå til tegning" på symbolet selv.
+  const libOwner = $derived(current ? ([current.id, ...ancestorsOf(elements, current.id)].find((x) => elements.find((e) => e.id === x)?.lib) ?? null) : null);
+  const owner = $derived(cfgOwner ?? libOwner);
+  const canAddBinding = $derived(!owner || (owner === current?.id && (view?.symbol_config?.[owner]?.op ?? 'view') === 'view'));
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (symbolstandarden) er åben
   let selected = $state<string | null>(null);
   let drafts = $state<Draft[]>([]); // én binding = ét tag (gid) med en eller flere animationer
@@ -520,13 +524,13 @@
         {#if current.parent}<p class="small muted">Del af <button class="link-btn" onclick={() => select(current.parent!)}>{displayName(elements.find((x) => x.id === current.parent)!)}</button></p>{/if}
         {#if info}<div class="notice">{info}</div>{/if}
 
-        {#if current.type === 'g' || current.name || current.spec}
+        {#if current.type === 'g' || current.name || current.lib}
           {@const sc = view?.symbol_config?.[current.id]}
           <section class="symbol-cfg">
             <h4>Symbol</h4>
             {#if sc}
               <p class="small">Konfigureret: <strong>{({ positions: `${sc.labels.length} positioner`, pulse: 'trykknap', entry: 'setpunkt', view: 'kun visning' } as Record<string, string>)[sc.op] ?? sc.op}</strong>.
-                Symbolets egne bindinger nedenfor bruges ikke, så længe konfigurationen findes.</p>
+                Betjening og animationer sættes op i guiden.</p>
             {:else}
               <p class="small muted">Ikke opsat endnu. Guiden i 6 trin samler betjening, positioner, kontaktplaner, animationer og nøglelås ét sted.</p>
             {/if}
@@ -539,14 +543,14 @@
           </section>
         {/if}
 
-        {#if cfgOwner && cfgOwner !== current.id}
-          <div class="notice">Del af symbolet <button class="link-btn" onclick={() => select(cfgOwner!)}>{displayName(elements.find((x) => x.id === cfgOwner)!)}</button>,
-            som er sat op med <em>Opsæt symbol</em> — simple bindinger her bruges ikke. Ret animationer og betjening i guiden.
-            {#if explicitFor(current.id).length}Bindingerne nedenfor er inaktive; fjern dem og gem for at rydde op.{/if}</div>
-        {:else if cfgOwner && canAddBinding}
+        {#if owner && owner !== current.id}
+          <div class="notice">Del af symbolet <button class="link-btn" onclick={() => select(owner!)}>{displayName(elements.find((x) => x.id === owner)!)}</button>
+            — et symbol sættes op med <em>Opsæt symbol</em> (guiden). Animationer og betjening for delene vælges dér.
+            {#if explicitFor(current.id).length}Bindingerne nedenfor bruges ikke; fjern dem og gem for at rydde op.{/if}</div>
+        {:else if owner && canAddBinding}
           <p class="small muted">Kun <em>Gå til tegning</em> kan tilføjes her — resten sættes op i guiden.</p>
         {/if}
-        {#if !explicitMode && !cfgOwner}
+        {#if !explicitMode && !owner}
           {#if autoFor(current.id).length}
             <div class="notice">
               Bundet automatisk fordi {current.label && tagNames.has(current.label) ? 'label' : 'id'} er lig tagget

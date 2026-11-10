@@ -28,7 +28,7 @@ Her vælger du, **hvordan symbolet betjenes**. Valget styrer resten af guiden.
 - **Trykknap (puls)** — tagget sættes Til en kort tid og derefter Fra.
 - **Setpunkt** — operatøren skriver et tal.
 
-Kun de former, der giver mening for symbolet, vises; **Vis alle betjeningsformer** åbner for resten. *Foreslå ud fra symbolet* henter et forslag ud fra symbolets gamle bindinger. Se *Betjeningsformer* nedenfor for eksempler.
+Kun de former, der giver mening for symbolet, vises; **Vis alle betjeningsformer** åbner for resten. Se *Betjeningsformer* nedenfor for eksempler.
 
 ### Trin 2 — Signaler
 
@@ -339,7 +339,7 @@ Står der flere animationer af samme slags på samme del (fx tre løbelys på sa
 
 **Gem** står på alle seks trin og kan bruges, så snart opsætningen er uden fejl. **Blafrer** får delen til at blafre som en flamme og skifter tilfældigt mellem tre farver, du vælger (standard rød, orange og gul), mens kilden er aktiv — guiden foreslår den på fyrets flamme.
 
-**Ret symbol** åbner guiden med den gemte opsætning. **Fjern konfiguration** sletter den (symbolets gamle bindinger gælder så igen). Et tag, der bruges af et symbol, kan ikke slettes under **Tags**.
+**Ret symbol** åbner guiden med den gemte opsætning. **Fjern konfiguration** sletter den — symbolet viser og betjener så intet, til det sættes op igen. Et symbol sættes **kun** op i guiden: simple bindinger på et symbol og dets dele kan ikke laves (undtagen *Gå til tegning* på selve symbolet), og et symbol, hvis id er et tag, bindes ikke længere automatisk. Et tag, der bruges af et symbol, kan ikke slettes under **Tags**.
 
 ### Opsæt flere symboler samlet
 

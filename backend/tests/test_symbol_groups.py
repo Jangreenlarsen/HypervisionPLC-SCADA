@@ -440,6 +440,9 @@ def test_static_value_validation(gapi):
 
 
 def test_delete_tag_in_use_names_the_drawings(gapi):
-    gapi.put(f"/api/drawings/{gapi.did}/bindings/A_r", json={"bindings": [{"tag": "Fyr", "anim": "text"}]})
+    # (v5.1.0: simple bindinger kun på elementer, der ikke er symboler — her en løs tekst i en ny version af tegningen)
+    svg = PIPE.replace('</svg>', '<text id="Skilt" x="200" y="100">-</text></svg>')
+    assert gapi.post(f"/api/drawings/{gapi.did}/versions", json={"svg": svg, "activate": True}).status_code in (200, 201)
+    assert gapi.put(f"/api/drawings/{gapi.did}/bindings/Skilt", json={"bindings": [{"tag": "Fyr", "anim": "text"}]}).status_code == 200
     r = gapi.delete("/api/tags/Fyr")
-    assert r.status_code == 409 and "Anlæg: A_r" in r.json()["error"] and "fjern bindingen først" in r.json()["error"], r.text
+    assert r.status_code == 409 and "Anlæg: Skilt" in r.json()["error"] and "fjern bindingen først" in r.json()["error"], r.text
