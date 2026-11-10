@@ -75,6 +75,8 @@ En **signalvej** sætter løbelys på *alle* rør mellem symboler på én gang, 
 
 Åbn sektionen **Signalveje** i panelet til højre (rollen tekniker), og tryk **Ny signalvej …**. Tegningen gemmes og udgives først, hvis den har ændringer. Guiden har fem trin, og vejen er **markeret i tegningen hele tiden** — den ændrer sig, mens du vælger.
 
+Mens du arbejder med en signalvej, ligger guiden i et **vindue over tegningen**, så den ikke fylder panelet. Træk i vinduets overskrift for at flytte det og i hjørnet for at gøre det større; placeringen huskes i din browser. **⇲ Til panelet** lægger guiden tilbage i panelet til højre, og **⇱ Ud over tegningen** tager den ud igen. Guiden beholder alt, du har valgt, når den flyttes.
+
 ![Sektionen Signalveje med to grene: Gren 1 til AVTA 1 og Gren 2 til AVTB, med 3-vejsventilernes vej, der kan skiftes](../../public/manual/signalvej-vej.png)
 
 ### 1. Start og slutpunkter
@@ -123,7 +125,7 @@ Symbolets egne tags (fra dets opsætning) står øverst og foreslås. Vælg *ing
 
 ![Trin 4: animationer pr. slags element — løbelys på rør, farve og blink på ventiler, farve på portene i en 3-vejsventil](../../public/manual/signalvej-udseende.png)
 
-Her bestemmer du, **hvad vejen gør ved hver slags element**, når den er aktiv. Der er et kort for hver slags element, der findes på vejen: *Rør, bøjninger og T-stykker*, *Ventiler*, *3-vejsventiler*, *Pumper* og *Kontakter*. Sæt hak ved de animationer, du vil have:
+Her bestemmer du, **hvad vejen gør ved hver slags element**, når den er aktiv. Der er et kort for hver slags element, der findes på vejen: *Rør, bøjninger og T-stykker*, *Ventiler*, *3-vejsventiler*, *Pumper*, *Kontakter* og *Øvrige symboler* (kedel, tank, radiator, sikkerhedsventil … — også start og slut). Under hvert kort står, hvilke elementer på vejen det gælder. Sæt hak ved de animationer, du vil have:
 
 | Animation | Hvad den gør | Findes for |
 | --- | --- | --- |

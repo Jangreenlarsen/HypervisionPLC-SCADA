@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.2.0 build 0381] — 2026-11-10 — Signalvej-guiden i et vindue over tegningen
+
+- `pages/DrawEditor.svelte`: mens en signalvej redigeres, vises guiden i et fast placeret vindue over tegnefladen (`.spwin.floating`: træk i overskriften, ændr størrelse i hjørnet, standard i højre side; valg, placering og størrelse i `localStorage` `draw.spwin`, holdt inden for skærmen). Samme komponent som i panelet (kun CSS), så tilstanden bevares; sektionen *Signalveje* holdes åben, mens vejen redigeres. Knapperne *⇲ Til panelet* / *⇱ Ud over tegningen*.
+- `lib/SignalPathGuide.svelte`: `oneditchange(editing)`. Komponenttest. Set i browseren: vinduet åbner, kan trækkes, beholder valgene ved skift mellem vindue og panel og lukker ikke, når en anden sektion åbnes.
+- Manual kap. 08.
+
+## [5.1.1 build 0380] — 2026-11-10 — fix: signalvejens trin 4 viste ikke alle symboler
+
+- `lib/pathLook.ts`: gruppen `unit` (*Øvrige symboler*: kedel, tank, radiator …) med farve, stregfarve, blink og "vises kun når aktiv"; `groupOf('unit')`. `lib/SpLook.svelte`: hvert kort viser elementerne, det gælder. Test i `pathLook.test.ts`. Set i browseren (Kedel/fyr Pille under *Øvrige symboler*). Manual kap. 08.
+
 ## [5.1.0 build 0379] — 2026-11-10 — Symbolstandard: den gamle symbolmodel er fjernet
 
 - **Opgradering** (`services/migrations/v51_symbols.py`, kørt ved opstart én gang og efter gendannelse af en backup): backup først (`scada-pre-update-…`); bibliotekssymboler med gamle bindinger (eksplicitte på rod/dele eller automatiske fra `data-hv-auto`/`data-hv-part`, når id/navn er et tag) konverteres med de tidligere "Konvertér alle"-regler og gemmes via guidens `SymbolService.put`; derefter slettes de gamle bindinger på symbolerne ("Gå til tegning" på roden bevares). Rapporten (`meta: report.v51_symbols`) vises i Tegn › Meddelelser (`GET/DELETE /api/symbol-migration`) og i health-metrics (`symbol_migration`).

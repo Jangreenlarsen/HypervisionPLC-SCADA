@@ -60,12 +60,17 @@ describe('udseende af en signalvej', () => {
     expect(WAYS_PART).toBe('ways');
   });
 
-  it('elements that are not on the list get nothing', () => {
+  it('every symbol on the path has a group — also kedel, tank, radiator (BUGS v5.1.1)', () => {
     const l = defaultLook();
     l.valve[0].on = true;
-    expect(animsFor(row({ role: 'unit' }), l, DEFS)).toEqual({ flows: [], anims: [] });
-    expect(groupOf('unit')).toBeNull();
+    const kedel = row({ id: 'kedel', role: 'unit', type: 'kedel' });
+    expect(animsFor(kedel, l, DEFS)).toEqual({ flows: [], anims: [] });               // intet valgt for "Øvrige symboler"
+    l.unit.find((a) => a.type === 'fill')!.on = true;
+    expect(animsFor(kedel, l, DEFS).anims).toEqual([{ part: WHOLE, type: 'fill', params: { on: '#66bb6a' }, when: true }]);
+    expect(groupOf('unit')).toBe('unit');
     expect(groupOf('check')).toBe('valve');
+    const roles = ['pipe', 'valve', 'threeway', 'pump', 'switch', 'check', 'unit'] as const;
+    expect(roles.every((r) => groupOf(r) !== null)).toBe(true);
   });
 
   it('restores a saved look, ignoring bad values', () => {

@@ -17,6 +17,7 @@
   {@const list = parts(first?.id ?? '')}
   <fieldset class="look">
     <legend>{GROUP_LABEL[g]} <span class="small muted">({present.get(g)})</span></legend>
+    {#if g !== 'pipe'}<p class="small muted names">{rows.filter((r) => groupOf(r.role) === g).map((r) => r.name || r.id).join(', ')}</p>{/if}
     {#each look[g] as a (a.type)}
       <div class="lrow">
         <label class="opt"><input type="checkbox" bind:checked={a.on} aria-label="{TYPE_LABEL[a.type]} på {GROUP_LABEL[g]}" /> {TYPE_LABEL[a.type]}</label>
@@ -48,6 +49,7 @@
   .opt { display: flex; gap: .35rem; align-items: flex-start; font-size: .85rem; margin: .2rem 0; }
   .look { border: 1px solid var(--line); border-radius: var(--radius); margin: .3rem 0; padding: .2rem .5rem .4rem; }
   .look legend { font-size: .82rem; font-weight: 600; padding: 0 .3rem; }
+  .names { margin: 0 0 .2rem; }
   .lrow { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem .5rem; }
   .lrow .opt { margin: .1rem 0; min-width: 9rem; }
   .lrow input[type='color'] { width: 2rem; height: 1.5rem; padding: 0; }

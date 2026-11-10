@@ -27,11 +27,11 @@ I Tegn: vælg værktøjet **Forbindelse** (tast **O**). Klik på det første sym
 Slå **Fang rør lige** til (standard). Træk symbolet: når tilslutningspunktet næsten flugter med røret, vises en blå stiplet linje; slip, så fanges symbolet, og røret står snorlige. Rørene vises i deres nye forløb, mens du trækker.
 
 ## Hvordan sætter jeg løbelys på mange rør på én gang (flow fra kedel til radiator, signalvej)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 Brug en **signalvej**: i Tegn, panelet **Signalveje**, tryk **Ny signalvej …**, **Vælg på tegningen**, klik på start- og slutsymbolet. Vejen vises i tegningen med det samme. Tryk **Brug denne vej →**, vælg for hver ventil og pumpe hvornår der går flow, giv vejen et navn og tryk **Gem signalvej**.
 
 ## Ændrer en signalvej symbolernes opsætning (logikblokke, animationer)? Kan et rør høre til flere signalveje?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 Nej (siden v5.0.0). En signalvej gemmes som sit eget objekt, og serveren regner selv, hvornår hver gren er aktiv. Symbolernes egen opsætning røres ikke, så Ret og Slet påvirker kun vejen. Et rør kan godt høre til flere signalveje; har en del flere animationer af samme slags, vinder den aktive.
 
 ## Hvorfor kan jeg ikke lave en simpel binding på et symbol? Hvor er "Konvertér alle" og "Foreslå ud fra symbolet"?
@@ -39,15 +39,15 @@ Nej (siden v5.0.0). En signalvej gemmes som sit eget objekt, og serveren regner 
 Siden v5.1.0 er der kun én måde at sætte et symbol op på: guiden (Bindinger › Opsæt symbol). Simple bindinger på et symbol og dets dele kan ikke laves — kun *Gå til tegning* på selve symbolet. Den gamle model (og dermed "Konvertér alle" og "Foreslå ud fra symbolet") er fjernet; ved opgraderingen blev symbolerne konverteret, og dem, der ikke kunne konverteres, står i Tegn › Meddelelser.
 
 ## Hvordan deler jeg en signalvej i flere grene (T-kryds, flere radiatorer, flere slutpunkter)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 I signalvej-guiden: vælg start og første slutpunkt, tryk **+ Slutpunkt** (højst 4) og klik på det næste slutsymbol, eller vælg i listen *Flere slutpunkter*. Hver gren får sin egen farve i tegningen. Inden for en gren skal alle betingelser være opfyldt; et fælles stykke lyser, når mindst én gren er aktiv.
 
 ## Hvordan vælger jeg, hvilken vej signalet tager gennem en 3-vejsventil (AB → A eller AB → B)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 I signalvej-guidens trin 2 står der en rullemenu ved hver 3-vejsventil på vejen: *automatisk*, *AB → A* eller *AB → B*. Vælger du en vej, beregnes signalvejen forfra med det samme, og tegningen viser den nye vej. I trin 3 får ventilen ét spørgsmål pr. vej (typisk dens position).
 
 ## Hvordan bestemmer pumpen retningen på en signalvej (ind og ud, flowretning)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 Sidder en pumpe eller kontraventil på signalvejen, løber flowet fra dens udgang mod resten, uanset hvilket symbol du valgte som start (guiden skriver "Vejen er vendt, så flowet følger …"). Ind/ud-punkterne på symbolerne kan rettes under **Opsætning › Symboler › Ind/ud og veje**.
 
 ## Hvordan definerer jeg ind, ud, fælles port og veje på et symbol (3-vejs, 4-vejs ventil)?
@@ -55,11 +55,11 @@ Sidder en pumpe eller kontraventil på signalvejen, løber flowet fra dens udgan
 Opsætning › Symboler › fanen **Ind/ud og veje**: vælg symbolet, giv punkterne navn og rolle (Ind, Ud, Begge), markér det **fælles** punkt (AB) og ret evt. **vejene** (AB → A, AB → B; en 4-vejsventil fx P → A, P → B). Klik tilføjer et punkt, træk flytter det. Det bruges kun af signalveje.
 
 ## Hvordan vælger jeg, hvilke animationer en signalvej skal give (farve, blink, løbelys, roterer)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 I signalvej-guidens trin 4 (**Udseende**) står der et kort for hver slags element på vejen. Sæt hak ved **Løbelys** (rør), **Farve**, **Stregfarve**, **Blink**, **Vises kun når vejen er aktiv** eller **Roterer** (pumper), og vælg farve og del. På en 3-vejsventil gælder animationen som standard kun portene i den vej, signalvejen bruger.
 
 ## Hvordan ændrer jeg en signalvej ved at klikke i tegningen (gå via, skift 3-vejsventil)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 Mens trin 2 i signalvej-guiden er åbent, klik på et rør eller symbol uden for vejen for at lade vejen gå via det (klik igen fjerner det). Klik på en 3-vejsventil på vejen for at skifte dens vej (automatisk, AB → A, AB → B). *Færdig* eller Esc slår klik-tilstanden fra. Via kan også vælges i trin 1 (*Gå via*).
 
 ## Hvordan undgår jeg fejl for tilslutningspunkter eller symboler, der ikke er i brug, i Tjek forbindelser?
@@ -79,11 +79,11 @@ Slå **Tjek forbindelser** til i menuen **Vis** øverst i Tegn. Symboler og rør
 Åbn menuen **Vis** øverst i Tegn og sæt hak under **Navne i tegningen** (symboler, forbindelser og/eller signalveje). Navnene står som mærkater oven på tegningen (kun i Tegn, de gemmes ikke).
 
 ## Hvordan vender jeg flowets retning i en signalvej?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 Tryk **⇄ Vend flowet** under grenen i signalvej-guidens trin 2. Løbelyset vender med det samme, og valget gemmes med signalvejen. Ellers følger retningen pumpen eller kontraventilen på vejen.
 
 ## Hvorfor finder signalvejen ikke en vej (ingen sammenhængende vej, tynde streger)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 Tjek at rørene sidder fast i symbolerne (grønne ender), at de rører hinanden, hvor de mødes, og at de er tykke nok: tynde streger (under 5 bred) og stiplede streger regnes som føler- og signallinjer og er ikke rør. Med en 3-vejsventil: prøv *automatisk* eller en anden vej.
 
 ## Hvordan laver jeg en betingelse med flere tags (pumpe kører OG ventil åben, AND, OR)?
