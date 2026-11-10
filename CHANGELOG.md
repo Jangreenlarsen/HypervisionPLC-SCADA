@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.0.1 build 0378] — 2026-11-10 — fix: topmenuen bag Tegns værktøjslinje
+
+- `pages/DrawEditor.svelte`: værktøjslinjen `z-index: 30` (under topmenuens 40); `.layout` får egen stablingskontekst (`position: relative; z-index: 0`), så tegnefladens lag ikke dækker Vis/Fang/Meddelelser. Set i browseren.
+
 ## [5.0.0 build 0377] — 2026-11-10 — Signalveje 4: signalvejen som selvstændigt runtime-objekt (MAJOR, skema 16)
 
 - **Model** (`services/signal_paths/validate.py`): vejen er ét objekt `{start, end, ends, elements[{element, branches, flows, anims}], conditions[{element, src, neg, cmp, value, branches}], style, ui}`. `blocks.py` er fjernet; `service.py` gemmer kun objektet (ingen `_strip`/`_owned`/`_check_refs`, ingen 409-konflikter, ingen `created`), renser animationernes parametre, kræver sammenligning på tal-tags og at tags og dele findes. Højst 64 betingelser pr. vej.

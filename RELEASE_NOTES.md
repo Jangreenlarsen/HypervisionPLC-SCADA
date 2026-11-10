@@ -2,6 +2,10 @@
 
 ---
 
+## v5.0.1 — 2026-11-10 — Rettelse
+
+- I Tegn lå topmenuens rullemenuer (Drift, Opsætning, System) bag værktøjslinjen. De ligger nu øverst igen.
+
 ## v5.0.0 — 2026-11-10 — Signalveje bygget om
 
 - En signalvej er nu **sit eget objekt**: serveren regner selv, hvornår vejen og hver gren er aktiv, og Overview viser vejens animationer. **Symbolernes egen opsætning røres ikke længere** — ingen logikblokke på rørene, ingen "Erstat"-spørgsmål, og et rør kan høre til flere signalveje.

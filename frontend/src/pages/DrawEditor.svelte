@@ -1419,8 +1419,12 @@
   .msg.warn { background: #fdecea; border-color: #e57373; }
   .zoombar { display: inline-flex; align-items: center; gap: 4px; }
   .zoombar .zoom { min-width: 3.6em; text-align: center; font-variant-numeric: tabular-nums; }
-  .toolbar { position: relative; z-index: 60; }
+  /* Værktøjslinjens menuer (Vis, Fang, Meddelelser) skal ligge over tegnefladens lag, men UNDER topmenuen (App.svelte: 40):
+     tegnefladen får sin egen stablingskontekst (.layout z-index 0), så dens lag (53–56) ikke konkurrerer med menuerne. */
+  .toolbar { position: relative; z-index: 30; }
   .layout {
+    position: relative;
+    z-index: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 280px;
     gap: 1rem;
