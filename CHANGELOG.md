@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.21.0 build 0375] — 2026-11-10 — Tegn: meddelelser i en boks
+
+- `pages/DrawEditor.svelte`: de gule bjælker over tegningen (`info` og dublerede navne) er fjernet. Hver ny `info`-besked lægges i en liste (tid, tekst, evt. "Renset ved gem" / "Bindinger uden element" / advarsel om symboler, der ikke findes), og knappen **Meddelelser** i den øverste linje viser antallet af nye (orange) og åbner en boks med listen (nyeste øverst, *Ryd meddelelser*). En advarsel (symboler sat op med guiden, som ikke findes) åbner boksen af sig selv. Dublerede symbolnavne står øverst i boksen med knappen *Giv dem unikke navne*. Højst 30 meddelelser.
+- `lib/draw/Menu.svelte`: `badge`, `hot`, `wide`, `align`, bindbar `open` og `onopen`.
+- Manual (kap. 07) og skærmbilleder (`tegn`, `tegn-gitter`). Set i browseren: ingen gul bjælke, tal på knappen, boksen åbner/lukker, tallet nulstilles ved åbning.
+
 ## [4.20.0 build 0374] — 2026-11-10 — Tegn: samlet værktøjslinje
 
 - `lib/draw/Menu.svelte` (ny): lille rullemenu (knap + panel; lukker ved klik udenfor og Esc).

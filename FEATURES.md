@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v4.21.0 — **Tegn: meddelelser i en boks** (ønske fra Jan 2026-11-10). Systemets gule beskeder over tegningen (gemt, rettet, renset ved gem, advarsler) er flyttet ud i en boks, der åbner ved tryk på *Meddelelser* i den øverste linje — som alarmklokken i topmenuen. Nye beskeder giver et orange tal; advarsler åbner boksen.
 - [x] done v4.20.0 — **Tegn: samlet værktøjslinje** (ønske fra Jan 2026-11-10). Zoom og tegnehjælp flyttet op i den øverste linje; afkrydsningerne er samlet i menuerne *Vis* (gitter, hjælpelinjer, navne, tjek forbindelser) og *Fang*; kommentarfeltet er cirka en fjerdedel så bredt. Tegnefladen får linjens plads.
 - [x] done v4.19.0 — **Tegn: ret brudte forbindelser** (ønske fra Jan 2026-11-10). Knappen *Ret N forbindelser* ved *Tjek forbindelser* flytter rør-ender, der ligger klods op ad en anden ende eller et tilslutningspunkt (8–25 enheder), så de sidder sammen: tegnede rør lægges om og sættes fast; lige rør-symboler forlænges/forkortes i deres egen retning. Symboler flyttes aldrig; ét fortryd-trin.
 - [x] done v4.18.0 — **Tegn: tjek forbindelser** (ønske fra Jan 2026-11-10). Til/fra i værktøjslinjen: alle symboler og rør markeres i tegningen — grønt, hvis alle deres tilslutningspunkter sidder fast i noget; rødt med røde prikker ved de åbne ender, hvis ikke (og *isoleret*, hvis intet sidder fast). Samme forbindelsesregler som signalvejene. Kun visning i Tegn.

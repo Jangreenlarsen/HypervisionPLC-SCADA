@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { ask as askUser, askText } from '../lib/ask';
   import { suggestName } from '../lib/draw/naming';
   import { del, get, patch, post, put } from '../lib/api';
@@ -997,6 +997,30 @@
 
   const single = $derived(selection.length === 1 ? selection[0] : null);
   const isActive = $derived(current !== null && loadedVersion === current.active_version);
+  // Meddelelser (v4.20.1): systemets beskeder (før en gul bjælke over tegningen) samles her og vises i en boks, når man trykker på
+  // *Meddelelser* i den øverste linje — som alarmklokken i topmenuen. Nye beskeder gør knappen orange; advarsler åbner boksen.
+  interface Msg { id: number; at: number; text: string; extra: string[]; warn: boolean }
+  let messages = $state<Msg[]>([]);
+  let unread = $state(0);
+  let msgOpen = $state(false);
+  let msgSeq = 0;
+  $effect(() => {
+    const text = info;
+    if (!text) return;
+    untrack(() => {
+      const r = report;
+      const extra: string[] = [];
+      if (r && (Object.keys(r.removed_elements).length || Object.keys(r.removed_attributes).length)) extra.push(`Renset ved gem: ${entries(r.removed_elements)} ${entries(r.removed_attributes)}`);
+      if (r?.orphaned_bindings?.length) extra.push(`Bindinger uden element nu: ${r.orphaned_bindings.join(', ')}`);
+      const warn = !!r?.orphaned_symbols?.length;
+      if (warn) extra.push(`Symboler sat op med guiden, som ikke længere findes: ${r!.orphaned_symbols!.join(', ')} — flyt eller fjern dem under Bindinger`);
+      messages = [{ id: ++msgSeq, at: Date.now(), text, extra, warn }, ...messages].slice(0, 30);
+      unread++;
+      if (warn) msgOpen = true;
+      info = '';
+    });
+  });
+  const clock = (t: number) => new Date(t).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const entries = (o: Record<string, number>) => Object.entries(o).map(([k, v]) => `${k} ×${v}`).join(', ');
 </script>
 
@@ -1024,6 +1048,8 @@
   </span>
   <Menu label="Vis" title="Gitter, hjælpelinjer, navne og tjek af forbindelser">{@render viewMenu()}</Menu>
   <Menu label="Fang" title="Fang til gitter, objekter, rør og hjælpelinjer">{@render snapMenu()}</Menu>
+  <Menu label="Meddelelser" title="Systemets beskeder om tegningen (gem, rettelser, advarsler)" badge={unread + (dupNames.length ? 1 : 0)} hot={unread > 0 || dupNames.length > 0}
+        wide align="right" bind:open={msgOpen} onopen={() => (unread = 0)}>{@render messagesMenu()}</Menu>
   {#if checkConn && connSummary}
     {#if connSummary.open || connSummary.isolated}
       <span class="small" style="color:var(--warn)" title={connSummary.names.join(', ')}>{connSummary.open} åbne, {connSummary.isolated} uden forbindelse</span>
@@ -1112,6 +1138,24 @@
   </div>
 {/snippet}
 
+{#snippet messagesMenu()}
+  {#if dupNames.length}
+    <div class="msg warn">
+      Flere symboler har samme navn: {dupNames.map((d) => `"${d.name}" (${d.count})`).join(', ')} — navnene skal være unikke (de bruges fx i
+      Trends, ved kopiering af opsætning og i guiden). <button class="small" onclick={fixDuplicates} disabled={!ready}>Giv dem unikke navne</button>
+    </div>
+  {/if}
+  {#each messages as m (m.id)}
+    <div class="msg" class:warn={m.warn}>
+      <span class="small muted">{clock(m.at)}</span> {m.text}
+      {#each m.extra as x}<div class="small muted">{x}</div>{/each}
+    </div>
+  {:else}
+    {#if !dupNames.length}<span class="small muted">Ingen meddelelser endnu. Her kommer systemets beskeder, fx når tegningen er gemt eller en rettelse er udført.</span>{/if}
+  {/each}
+  {#if messages.length}<div class="mrow"><button class="small" onclick={() => (messages = [])}>Ryd meddelelser</button></div>{/if}
+{/snippet}
+
 {#snippet snapMenu()}
   <label class="opt"><input type="checkbox" bind:checked={guides.snapGrid} /> Fang til gitter</label>
   <label class="opt" title="Når du slipper et objekt, lægges det kant mod kant eller midte mod midte med nærmeste objekt, hvis det er tæt på"><input type="checkbox" bind:checked={guides.snapObjects} /> Fang til objekter</label>
@@ -1123,22 +1167,6 @@
 
 
 {#if error}<div class="error">{error}</div>{/if}
-{#if dupNames.length}
-  <div class="notice">
-    Flere symboler har samme navn: {dupNames.map((d) => `"${d.name}" (${d.count})`).join(', ')} — navnene skal være unikke (de bruges fx i
-    Trends, ved kopiering af opsætning og i guiden). <button class="small" onclick={fixDuplicates} disabled={!ready}>Giv dem unikke navne</button>
-  </div>
-{/if}
-{#if info}
-  <div class="notice">
-    {info}
-    {#if report && (Object.keys(report.removed_elements).length || Object.keys(report.removed_attributes).length)}
-      <br /><span class="small muted">Renset ved gem: {entries(report.removed_elements)} {entries(report.removed_attributes)}</span>
-    {/if}
-    {#if report?.orphaned_bindings?.length}<br />Bindinger uden element nu: {report.orphaned_bindings.join(', ')}{/if}{#if report?.orphaned_symbols?.length}<br /><strong>Symboler sat op med guiden, som ikke længere findes:</strong> {report.orphaned_symbols.join(', ')} — flyt eller fjern dem under Bindinger{/if}
-  </div>
-{/if}
-
 <div class="layout">
   <div class="frame" bind:this={frameBox}>
     <DrawCanvas height={editorHeight} dropType={SYMBOL_DRAG} ondropsymbol={(id, x, y) => ed && insert(id, ed.docPointAt(x, y))} ondropfiles={(files, x, y) => ed && insertSvgFiles(files, ed.docPointAt(x, y))} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++} onzoom={(z) => (zoomLevel = z)} bind:this={canvasRef} bar={false}
@@ -1373,6 +1401,8 @@
 <style>
   .toolbar { margin-bottom: .35rem; }
   .comment { flex: 0 1 15rem; min-width: 8rem; }      /* en kommentar behøver ikke fylde linjen (v4.20.0) */
+  .msg { padding: .35rem .5rem; background: #fff8e1; border: 1px solid #e0b062; border-radius: 6px; overflow-wrap: anywhere; }
+  .msg.warn { background: #fdecea; border-color: #e57373; }
   .zoombar { display: inline-flex; align-items: center; gap: 4px; }
   .zoombar .zoom { min-width: 3.6em; text-align: center; font-variant-numeric: tabular-nums; }
   .toolbar { position: relative; z-index: 60; }

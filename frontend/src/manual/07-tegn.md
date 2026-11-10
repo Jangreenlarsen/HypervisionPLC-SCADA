@@ -7,6 +7,7 @@
 ## Skærmen
 
 - **Øverst**: vælg tegning og version, skriv en kommentar til versionen, **zoom** (−, +, **Tilpas**), menuerne **Vis** (gitter, hjælpelinjer, navne i tegningen, tjek af forbindelser) og **Fang** (fang til gitter, objekter, rør og hjælpelinjer, skalér symmetrisk), og knapperne **Gem kladde**, **Gem og udgiv**, **Bindinger**, **Slet tegning** og tegningens **størrelse**.
+- **Meddelelser**: systemets beskeder om tegningen (fx at den er gemt og udgivet, at der er renset noget ved gem, eller en advarsel) samles i en boks, der åbner, når du trykker på knappen — som alarmklokken i topmenuen. Et **orange tal** viser, hvor mange nye der er; en **advarsel** åbner boksen af sig selv. Dublerede symbolnavne står øverst i boksen med en knap, der giver dem unikke navne. **Ryd meddelelser** tømmer listen.
 - **Værktøjslinjen til venstre**: **Fortryd** og **Gentag** øverst, derefter værktøjerne **Vælg** (V), **Forbindelse** (O), **Linje** (L), **Rektangel** (R), **Ellipse** (E), **Sti** (P), **Frihånd** (F), **Tekst** (T), **Polygon** (Y), **Stjerne** (S), **Regulær polygon** (N), **Bue** (B) og **Billede**. Bogstavet er genvejstasten.
 - **Tegnefladen** i midten. **Ctrl + musehjul** zoomer, og **mellemrum** eller **midterknappen** + træk flytter udsnittet.
 - **Linjen i bunden** forklarer, hvordan det valgte værktøj bruges (fx *Rektangel: træk for at tegne · Shift = kvadrat · Esc = tilbage til Vælg*).

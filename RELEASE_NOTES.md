@@ -2,6 +2,10 @@
 
 ---
 
+## v4.21.0 — 2026-11-10 — Meddelelser i en boks i Tegn
+
+- Systemets beskeder i Tegn (fx "Version 157 er gemt og udgivet") står ikke længere i en gul bjælke over tegningen, men i en boks, der åbner, når du trykker på **Meddelelser** i den øverste linje. Nye beskeder vises som et orange tal; advarsler åbner boksen af sig selv. Tegnefladen får bjælkens plads.
+
 ## v4.20.0 — 2026-11-10 — Samlet værktøjslinje i Tegn
 
 - Zoom og tegnehjælp ligger nu i den øverste linje, og afkrydsningerne er samlet i to menuer: **Vis** (gitter, hjælpelinjer, navne, tjek forbindelser) og **Fang**. Kommentarfeltet er blevet smallere, så alt er på én linje, og tegnefladen er højere.
