@@ -1,3 +1,35 @@
+# Plan: Forbindelser som data i tegningen (v5.2.0) — 2026-11-10 — afventer OK
+
+Mål: hvad der hænger sammen i en tegning, skal være **gemt**, ikke gættet ud fra afstande, hver gang det bruges. Signalveje, Tjek forbindelser og Ret forbindelser bruger samme gemte forbindelser, så det, man ser grønt i tjekket, er præcis det, en signalvej kan gå igennem.
+
+## I dag
+- Kun tegnede rør (`data-hv-pipe`) har gemte ender: `data-hv-from/-to` til et symbols punkt.
+- Alt andet — rør-symboler (`roer_l/roer_v`), bøjninger, T-stykker, løse streger og rør til rør — findes ved **geometri** (`contacts()` i `signalpath/graph.ts`: punkter inden for 8 enheder, ende på en anden streg). Det er kilden til de fleste fejl i signalveje og tjekket (tolerancer, kurvepunkter, midtpunkter, skalerede symboler).
+
+## Valgt løsning (af tre)
+- **A. En liste på hvert element (valgt):** attributten `data-hv-links="nøgle>andet-id:nøgle;…"` på begge elementer i en forbindelse (nøgler som "ikke i brug" fra v4.22.0: rørets `s`/`e`, symbolpunktets placering, `#i`). Gemmes med tegningen ved Gem kladde/Gem og udgiv (sanitizeren bevarer `data-*`), følger med ved flyt/drej, fortrydes som alt andet.
+- B. Én samlet liste i tegningen (fx `<desc id="hv-links">`) — ét sted at se, men skal holdes i trit med sletning/omdøbning af elementer; mere skrøbeligt.
+- C. En tabel i backend — adskilt fra tegningens versioner; en ny version kunne passe til forkerte forbindelser.
+
+## Sådan virker det
+1. **Bind forbindelser** (ny knap ved Tjek forbindelser): alle forbindelser, geometrien finder i dag, skrives ned som links — ét fortryd-trin. Tjekket viser bagefter tre farver: **grøn** = gemt forbindelse og punkterne mødes, **orange** = gemt, men punkterne er gledet fra hinanden (fx et flyttet rør-symbol; *Ret* flytter enden tilbage), **rød** = åbent punkt.
+2. **Automatik i Tegn:** når et rør, et rør-symbol eller et symbol slippes, så et punkt lander på et andet elements åbne punkt (som i dag for tegnede rør), skrives linket med det samme. Ved sletning af et element fjernes dets links fra naboerne (samme fortryd-trin). Indsæt/dupliker fjerner links fra kopien (som `data-hv-from/-to` i dag).
+3. **Grafen** (`connectionGraph` + `contacts`): har tegningen gemte links, bruges **kun** de (plus `data-hv-from/-to`); uden gemte links bruges geometrien som i dag (gamle tegninger virker uændret, til man trykker *Bind forbindelser*). Tjekket siger, hvis tegningen ikke er bundet endnu.
+4. **Signalveje:** rutesøgningen bruger grafen — ingen ændring i guiden; den går kun gennem gemte forbindelser, når tegningen er bundet.
+5. **Ret forbindelser** (v4.19.0) skriver også linket, når den sætter to ender sammen.
+
+## Trin
+1. `scada-core.js`: læs/skriv `data-hv-links` (nøgler, symmetrisk), `bindConnections()` (fra geometrien), auto-link ved slip, oprydning ved slet/indsæt/dupliker, graf-noder med `links`.
+2. `signalpath/graph.ts`: `contacts()` bruger links, når de findes; `connectionCheck` med status `ok`/`drift`(gledet)/`open`/`isolated` + test (rene funktioner).
+3. `DrawEditor.svelte`: knappen *Bind forbindelser*, besked om ubundet tegning, farverne i tjekket.
+4. Manual (kap. 07/08), LLM-tillæg, CHANGELOG/RELEASE_NOTES/FEATURES, **v5.2.0**, OTA.
+5. Tests: graf/tjek med links (vitest), sanitizer bevarer `data-hv-links` (pytest); **browser** på demo-tegningen: Bind → alt grønt/rødt som før; flyt et rør-symbol → orange; Ret → grøn; signalvej finder samme vej før/efter binding.
+
+## Risici
+- Et link til et punkt på et symbol, hvis punkter senere rettes i symbol-editoren: nøglen passer ikke længere → vises som orange/åbent i tjekket og kan bindes igen.
+- Store tegninger: `bindConnections` kører den eksisterende geometri én gang (ms for ~200 elementer).
+- Backend skal ikke ændres (kun en test af sanitizeren).
+
 # Plan: Symbolstandard fase 8b — fjern den gamle symbolmodel (udført som v5.1.0 efter Jans valg) — 2026-11-10 — ✅ udført
 
 Mål: ét sted at sætte et symbol op — **guiden (symbol_config)**. Bibliotekssymboler (rødder med `data-hv-type`/`data-hv-auto`) skal ikke længere kunne styres af den gamle model. Almindelige bindinger på elementer, der *ikke* er bibliotekssymboler (tekster, figurer, egne SVG-elementer), og automatiske bindinger efter tag-navn på dem **bevares** — de er ikke den gamle symbolmodel.
