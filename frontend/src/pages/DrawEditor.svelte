@@ -203,6 +203,51 @@
     }, 300);
   });
   onDestroy(() => clearTimeout(connTimer));
+  // Signalvejens guide i et vindue over tegningen, mens man arbejder med en vej (v5.2.0): kan trækkes og gøres større; valget
+  // og placeringen huskes pr. browser. Samme komponent som i panelet (flyttes kun med CSS), så guiden beholder sin tilstand.
+  /** Standard: i højre side af tegnefladen, lige til venstre for panelet (dækker mindst af tegningen). */
+  const defX = () => Math.max(90, (typeof window !== 'undefined' ? window.innerWidth : 1600) - 300 - 460 - 30);
+  function loadSpWin(): { float: boolean; x: number; y: number; w: number; h: number } {
+    try {
+      const r = JSON.parse(localStorage.getItem('draw.spwin') ?? '{}');
+      const n = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+      return { float: r.float !== false, x: n(r.x, defX()), y: n(r.y, 140), w: n(r.w, 460), h: n(r.h, 640) };
+    } catch {
+      return { float: true, x: defX(), y: 140, w: 460, h: 640 };
+    }
+  }
+  let spWin = $state(loadSpWin());
+  let spEditing = $state(false);
+  const spFloating = $derived(spEditing && spWin.float);
+  $effect(() => {
+    const w = $state.snapshot(spWin);
+    try { localStorage.setItem('draw.spwin', JSON.stringify(w)); } catch { /* blokeret localStorage: huskes bare ikke */ }
+  });
+  /** Hold vinduet inden for skærmen (fx efter en mindre skærm eller et ændret vindue). */
+  function spClamp(): void {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    spWin.w = Math.min(Math.max(spWin.w, 300), vw - 20);
+    spWin.h = Math.min(Math.max(spWin.h, 220), vh - 60);
+    spWin.x = Math.min(Math.max(spWin.x, 0), vw - 120);
+    spWin.y = Math.min(Math.max(spWin.y, 40), vh - 60);
+  }
+  function spDragStart(e: PointerEvent): void {
+    if ((e.target as HTMLElement).closest('button')) return;
+    e.preventDefault();
+    const sx = e.clientX - spWin.x, sy = e.clientY - spWin.y;
+    const move = (ev: PointerEvent) => { spWin.x = ev.clientX - sx; spWin.y = ev.clientY - sy; spClamp(); };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+  let spBox = $state<HTMLDivElement | null>(null);
+  $effect(() => {     // størrelsen, når brugeren trækker i hjørnet (CSS resize), huskes
+    const box = spBox;
+    if (!box || !spFloating) return;
+    const ro = new ResizeObserver(() => { spWin.w = Math.round(box.offsetWidth); spWin.h = Math.round(box.offsetHeight); });
+    ro.observe(box);
+    return () => ro.disconnect();
+  });
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let tags = $state<{ name: string; source: string; unit: string; writable: boolean; plc: string }[]>([]);
   let ed: ScadaApi | null = null;
@@ -227,7 +272,8 @@
     guideEvery = ready && ed ? ed.getGuides().every : 0;
   });
   const sec = (id: string) => ({
-    open: panels.open.includes(id),
+    // mens en signalvej redigeres, bliver dens sektion åben (ellers lukkes guiden — og vinduet over tegningen — midt i arbejdet)
+    open: panels.open.includes(id) || (id === 'signalveje' && spEditing),
     pinned: panels.pinned.includes(id),
     ontoggle: (x: string) => (panels = togglePanel(panels, x)),
     onpin: (x: string) => (panels = togglePin(panels, x)),
@@ -1279,12 +1325,28 @@
     </PanelSection>
     <PanelSection id="signalveje" title="Signalveje" {...sec('signalveje')}>
       {#if current}
+        {#if spFloating}<p class="small muted">Signalvejen redigeres i vinduet over tegningen. <button class="small" onclick={() => (spWin.float = false)}>Læg den her i panelet</button></p>
+        {:else if spEditing}<div class="row"><button class="small" onclick={() => { spWin.float = true; spClamp(); }} title="Arbejd med signalvejen i et vindue over tegningen">⇱ Ud over tegningen</button></div>{/if}
+        <div class="spwin" class:floating={spFloating} bind:this={spBox}
+             style={spFloating ? `left:${spWin.x}px; top:${spWin.y}px; width:${spWin.w}px; height:${spWin.h}px` : ''}
+             role={spFloating ? 'dialog' : undefined} aria-label={spFloating ? 'Signalvej' : undefined}>
+          {#if spFloating}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="sphead" onpointerdown={spDragStart} title="Træk for at flytte vinduet">
+              <strong>Signalvej</strong><span class="grow"></span>
+              <button class="small" onclick={() => (spWin.float = false)} title="Læg guiden tilbage i panelet til højre">⇲ Til panelet</button>
+            </div>
+          {/if}
+          <div class="spbody">
         <SignalPathGuide drawingId={current.id} {ready} rev={inspectRev} selected={selection.map((x) => x.id)}
+          oneditchange={(on) => { spEditing = on; if (on) spClamp(); }}
           graph={() => (ed ? ed.connectionGraph() : null)}
           highlight={(lines, boxes, focus) => ed?.highlightPath(lines, boxes, focus)}
           select={(ids) => ed?.selectByIds(ids)}
           ensureSaved={() => ensurePublished('signalvejen kan findes')}
           onchanged={(text) => { info = text; refreshReservedIds(); void loadPathNames(); }} />
+          </div>
+        </div>
       {:else}
         <p class="small muted">Gem tegningen først — en signalvej hører til en gemt tegning.</p>
       {/if}
@@ -1444,6 +1506,15 @@
 <style>
   .toolbar { margin-bottom: .35rem; }
   .comment { flex: 0 1 15rem; min-width: 8rem; }      /* en kommentar behøver ikke fylde linjen (v4.20.0) */
+  .spwin.floating {
+    position: fixed; z-index: 25; display: flex; flex-direction: column; resize: both; overflow: hidden;
+    min-width: 300px; min-height: 220px; background: var(--panel, #fff); border: 1px solid var(--line);
+    border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+  }
+  .spwin.floating .spbody { flex: 1; overflow: auto; padding: .4rem .7rem .7rem; min-height: 0; }
+  .sphead { display: flex; align-items: center; gap: .4rem; padding: .35rem .5rem .35rem .7rem; cursor: move; user-select: none;
+    background: var(--panel-2, #f3f3f3); border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; flex: none; }
+  .sphead .grow { flex: 1; }
   .msg { padding: .35rem .5rem; background: #fff8e1; border: 1px solid #e0b062; border-radius: 6px; overflow-wrap: anywhere; }
   .msg.warn { background: #fdecea; border-color: #e57373; }
   .zoombar { display: inline-flex; align-items: center; gap: 4px; }

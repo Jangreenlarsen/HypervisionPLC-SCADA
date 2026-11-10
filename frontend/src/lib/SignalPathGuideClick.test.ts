@@ -32,11 +32,13 @@ let target: HTMLElement;
 let app: Record<string, unknown>;
 const select = vi.fn();
 const highlight = vi.fn();
+const oneditchange = vi.fn();
 
 function open(graph: Graph) {
   ui.selected = [];
   select.mockClear();
   highlight.mockClear();
+  oneditchange.mockClear();
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: { method?: string; body?: string }) => {
     let body: unknown = [];
     if (url.endsWith('/info')) {
@@ -49,7 +51,7 @@ function open(graph: Graph) {
   document.body.appendChild(target);
   app = mount(SignalPathGuide, { target, props: {
     drawingId: 'd', ready: true, get selected() { return ui.selected; }, get rev() { return ui.rev; },
-    graph: () => graph, highlight, select, ensureSaved: async () => true,
+    graph: () => graph, highlight, select, ensureSaved: async () => true, oneditchange,
   } });
   flushSync();
 }
@@ -211,5 +213,14 @@ describe('Signalvej-guiden: klik i tegningen', () => {
     expect(body.end).toBe('radA');
     expect(body.elements.some((e: { flows: unknown[] }) => e.flows.length)).toBe(true);
     expect(body.elements.every((e: { branches: number[] }) => Array.isArray(e.branches))).toBe(true);
+  });
+
+  it('fortæller Tegn, når en vej redigeres (så guiden kan lægges i et vindue over tegningen)', async () => {
+    open(LOOP);
+    expect(oneditchange).toHaveBeenLastCalledWith(false);
+    await click(button('Ny signalvej …'));
+    expect(oneditchange).toHaveBeenLastCalledWith(true);
+    await click(button('Annullér'));
+    expect(oneditchange).toHaveBeenLastCalledWith(false);
   });
 });

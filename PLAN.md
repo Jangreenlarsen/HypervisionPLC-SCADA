@@ -1,4 +1,4 @@
-# Plan: Forbindelser som data i tegningen (v5.2.0) — 2026-11-10 — afventer OK
+# Plan: Forbindelser som data i tegningen (v5.3.0) — 2026-11-10 — afventer OK
 
 Mål: hvad der hænger sammen i en tegning, skal være **gemt**, ikke gættet ud fra afstande, hver gang det bruges. Signalveje, Tjek forbindelser og Ret forbindelser bruger samme gemte forbindelser, så det, man ser grønt i tjekket, er præcis det, en signalvej kan gå igennem.
 
@@ -22,7 +22,7 @@ Mål: hvad der hænger sammen i en tegning, skal være **gemt**, ikke gættet ud
 1. `scada-core.js`: læs/skriv `data-hv-links` (nøgler, symmetrisk), `bindConnections()` (fra geometrien), auto-link ved slip, oprydning ved slet/indsæt/dupliker, graf-noder med `links`.
 2. `signalpath/graph.ts`: `contacts()` bruger links, når de findes; `connectionCheck` med status `ok`/`drift`(gledet)/`open`/`isolated` + test (rene funktioner).
 3. `DrawEditor.svelte`: knappen *Bind forbindelser*, besked om ubundet tegning, farverne i tjekket.
-4. Manual (kap. 07/08), LLM-tillæg, CHANGELOG/RELEASE_NOTES/FEATURES, **v5.2.0**, OTA.
+4. Manual (kap. 07/08), LLM-tillæg, CHANGELOG/RELEASE_NOTES/FEATURES, **v5.3.0**, OTA.
 5. Tests: graf/tjek med links (vitest), sanitizer bevarer `data-hv-links` (pytest); **browser** på demo-tegningen: Bind → alt grønt/rødt som før; flyt et rør-symbol → orange; Ret → grøn; signalvej finder samme vej før/efter binding.
 
 ## Risici

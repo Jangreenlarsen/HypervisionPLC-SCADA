@@ -75,6 +75,8 @@ En **signalvej** sætter løbelys på *alle* rør mellem symboler på én gang, 
 
 Åbn sektionen **Signalveje** i panelet til højre (rollen tekniker), og tryk **Ny signalvej …**. Tegningen gemmes og udgives først, hvis den har ændringer. Guiden har fem trin, og vejen er **markeret i tegningen hele tiden** — den ændrer sig, mens du vælger.
 
+Mens du arbejder med en signalvej, ligger guiden i et **vindue over tegningen**, så den ikke fylder panelet. Træk i vinduets overskrift for at flytte det og i hjørnet for at gøre det større; placeringen huskes i din browser. **⇲ Til panelet** lægger guiden tilbage i panelet til højre, og **⇱ Ud over tegningen** tager den ud igen. Guiden beholder alt, du har valgt, når den flyttes.
+
 ![Sektionen Signalveje med to grene: Gren 1 til AVTA 1 og Gren 2 til AVTB, med 3-vejsventilernes vej, der kan skiftes](../../public/manual/signalvej-vej.png)
 
 ### 1. Start og slutpunkter

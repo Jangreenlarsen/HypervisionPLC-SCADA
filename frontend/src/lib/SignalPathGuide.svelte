@@ -31,7 +31,7 @@
     parts?: { id: string; pid: string; line: boolean; text: string }[];
   }
 
-  let { drawingId, ready, rev = 0, selected, graph, highlight, select, ensureSaved, onchanged }: {
+  let { drawingId, ready, rev = 0, selected, graph, highlight, select, ensureSaved, onchanged, oneditchange }: {
     drawingId: string;
     ready: boolean;
     rev?: number;           // tælles op, hver gang tegningen ændres (flyt, ret, fortryd): vejen regnes så forfra
@@ -41,6 +41,8 @@
     select?: (ids: string[]) => void;
     ensureSaved: () => Promise<boolean>;
     onchanged?: (text: string) => void;
+    /** guiden er åben for en vej (ny eller Ret) — Tegn lægger den så i et vindue over tegningen (v5.2.0) */
+    oneditchange?: (editing: boolean) => void;
   } = $props();
 
   const COLORS = ['#ff8f00', '#1e88e5', '#43a047', '#8e24aa'];       // en farve pr. gren i tegningen
@@ -51,6 +53,7 @@
   let error = $state('');
   let busy = $state(false);
   let editing = $state<{ id: number | null } | null>(null);
+  $effect(() => { const on = editing !== null; untrack(() => oneditchange?.(on)); });
   let name = $state('');
   let start = $state('');
   let endIds = $state<string[]>([]);
