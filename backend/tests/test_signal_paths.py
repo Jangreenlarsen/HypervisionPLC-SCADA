@@ -1,5 +1,5 @@
-"""Signalveje i Tegn (v4.2.0): betingelse → logikblokke, løbelys på vejens dele, ret/slet uden at røre brugerens egen
-opsætning, konflikter, rettigheder og backup."""
+"""Signalveje i Tegn (v5.0.0: vejen er sit eget objekt): gem/ret/slet uden at røre symbolernes opsætning, regler,
+rettigheder, backup og "Forklar med egne ord"."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -55,72 +55,12 @@ def cfg(c, el):
     return c.get(f"/api/drawings/{c.d}/symbols/{el}/config").json()["config"]
 
 
-def test_save_builds_logic_on_the_first_pipe_and_flow_on_every_part(api):
-    r = api.post(f"/api/drawings/{api.d}/signal-paths", json=body())
-    assert r.status_code == 201, r.text
-    assert r.json()["changed"] == ["r1", "r2", "r3", "r4", "t1"]
-    owner = cfg(api, "r1")
-    assert [b["id"] for b in owner["logic"]] == ["L1"]
-    assert owner["logic"][0]["name"] == "Signalvej: Kedel → radiator"
-    assert [(i["src"], i["cmp"], i["value"]) for i in owner["logic"][0]["inputs"]] == [("P1_drift", "", None),
-                                                                                        ("V2_stilling", "ge", 50)]
-    assert [(a["part"], a["type"], a["src"], a["when"]) for a in owner["anims"]] == [("all", "flow", "@L1", True)]
-    t = cfg(api, "t1")
-    assert [(a["part"], a["src"]) for a in t["anims"]] == [("t1_a", "@r1:L1"), ("t1_b", "@r1:L1")]
-    assert cfg(api, "r3")["anims"][0]["params"]["reverse"] is True
-    assert cfg(api, "p1") is None and cfg(api, "v2") is None          # symbolerne med spørgsmål røres ikke
-    lst = api.get(f"/api/drawings/{api.d}/signal-paths").json()
-    assert lst[0]["name"] == "Kedel → radiator" and lst[0]["missing"] == [] and len(lst[0]["conditions"]) == 2
 
 
-def test_no_conditions_means_always_on_and_many_conditions_are_chained(api):
-    r = api.post(f"/api/drawings/{api.d}/signal-paths", json=body(conditions=[]))
-    assert r.status_code == 201 and cfg(api, "r1")["anims"][0]["src"] == "@on" and not cfg(api, "r1").get("logic")
-    conds = [{"element": "p1", "src": "P1_drift"}] * 9
-    r = api.put(f"/api/drawings/{api.d}/signal-paths/{r.json()['id']}", json=body(conditions=conds))
-    assert r.status_code == 200, r.text
-    logic = cfg(api, "r1")["logic"]
-    assert [b["id"] for b in logic] == ["L1", "L2", "L3"]             # 4 + 3 + 2 betingelser
-    assert logic[1]["inputs"][0]["src"] == "@L1" and logic[2]["inputs"][0]["src"] == "@L2"
-    assert cfg(api, "t1")["anims"][0]["src"] == "@r1:L3"
-    too_many = [{"element": "p1", "src": "P1_drift"}] * 26
-    assert api.post(f"/api/drawings/{api.d}/signal-paths", json=body(name="x", conditions=too_many)).status_code == 422
 
 
-def test_users_own_setup_is_kept_on_update_and_delete(api):
-    # Brugerens egen opsætning på r2: en farve-animation og en logikblok
-    own = {"op": "view", "anims": [{"part": "all", "type": "stroke", "src": "Ekstra",
-                                    "params": {"on": "#ff0000", "off": "#555555"}}],
-           "logic": [{"id": "L1", "name": "Egen", "op": "and", "inputs": [{"src": "Ekstra"}]}]}
-    assert api.put(f"/api/drawings/{api.d}/symbols/r2/config", json={"config": own}).status_code == 200
-    sid = api.post(f"/api/drawings/{api.d}/signal-paths", json=body()).json()["id"]
-    r2 = cfg(api, "r2")
-    assert [a["type"] for a in r2["anims"]] == ["stroke", "flow"] and [b["id"] for b in r2["logic"]] == ["L1"]
-    # Vejen rettes: kortere (r4 udgår) og en anden ejer
-    b = body()
-    b["elements"] = [e for e in b["elements"] if e["element"] not in ("r1", "r4")]
-    assert api.put(f"/api/drawings/{api.d}/signal-paths/{sid}", json=b).status_code == 200
-    assert cfg(api, "r1") is None and cfg(api, "r4") is None          # oprettet af vejen → fjernet igen
-    r2 = cfg(api, "r2")
-    assert [b["id"] for b in r2["logic"]] == ["L1", "L2"] and r2["logic"][1]["name"].startswith("Signalvej")
-    assert [a["src"] for a in r2["anims"] if a["type"] == "flow"] == ["@L2"]
-    assert api.delete(f"/api/drawings/{api.d}/signal-paths/{sid}").status_code == 200
-    r2 = cfg(api, "r2")
-    assert [a["type"] for a in r2["anims"]] == ["stroke"] and [b["id"] for b in r2["logic"]] == ["L1"]
-    assert cfg(api, "t1") is None and api.get(f"/api/drawings/{api.d}/signal-paths").json() == []
 
 
-def test_existing_flow_needs_confirmation_and_other_paths_are_protected(api):
-    flow = {"op": "view", "anims": [{"part": "all", "type": "flow", "src": "Ekstra", "params": {}}]}
-    assert api.put(f"/api/drawings/{api.d}/symbols/r3/config", json={"config": flow}).status_code == 200
-    r = api.post(f"/api/drawings/{api.d}/signal-paths", json=body())
-    assert r.status_code == 409 and r.json()["conflicts"] == [{"element": "r3", "parts": ["all"]}]
-    r = api.post(f"/api/drawings/{api.d}/signal-paths", json=body(replace=True))
-    assert r.status_code == 201 and [a["src"] for a in cfg(api, "r3")["anims"]] == ["@r1:L1"]
-    # En anden signalvej over de samme rør må ikke stjæle dem
-    r = api.post(f"/api/drawings/{api.d}/signal-paths", json=body(name="Anden", replace=True))
-    assert r.status_code == 409 and "anden signalvej" in r.json()["error"]
-    assert api.post(f"/api/drawings/{api.d}/signal-paths", json=body(name="KEDEL → RADIATOR")).status_code == 409
 
 
 def test_validation_errors_change_nothing(api):
@@ -154,7 +94,7 @@ def test_info_suggests_the_symbols_own_tags(api):
     assert v2["name"] == "V2" and v2["type"] == "kugleventil" and v2["configured"]
     assert v2["tags"] == [{"name": "Ekstra", "is_bool": True, "unit": "", "description": ""}]
     assert r1["configured"] is False and nej == {"element": "nej", "missing": True}
-    assert r["max_conditions"] == 25
+    assert r["max_conditions"] == 64
     assert {t["name"]: t["is_bool"] for t in r["tags"]} == {"P1_drift": True, "V2_stilling": False, "Ekstra": True}
 
 
@@ -170,18 +110,6 @@ def test_only_engineers_and_audit(api):
     assert "signal_path.save" in acts
 
 
-def test_backup_roundtrip_keeps_paths(api):
-    api.post(f"/api/drawings/{api.d}/signal-paths", json=body())
-    bk = api.get("/api/backup").json()
-    assert bk["signal_paths"][0]["name"] == "Kedel → radiator" and bk["signal_paths"][0]["data"]["owner"] == "r1"
-    api.delete(f"/api/drawings/{api.d}/signal-paths/{api.get(f'/api/drawings/{api.d}/signal-paths').json()[0]['id']}")
-    r = api.post("/api/backup/restore", json=bk)
-    assert r.status_code == 200, r.text
-    lst = api.get(f"/api/drawings/{api.d}/signal-paths").json()
-    assert [p["name"] for p in lst] == ["Kedel → radiator"] and cfg(api, "r1")["anims"][0]["src"] == "@L1"
-    bad = {**bk, "signal_paths": [{"drawing_id": "findes-ikke", "name": "x", "data": {}}]}
-    r = api.post("/api/backup/restore", json=bad)
-    assert r.status_code == 400 and "Signalvej 'x'" in r.json()["error"]
 
 
 def test_engineers_are_never_scoped_but_the_drawing_must_exist(api):
@@ -192,39 +120,10 @@ def test_engineers_are_never_scoped_but_the_drawing_must_exist(api):
         assert r.status_code == 404, r.text
 
 
-def test_user_changes_after_saving_are_respected(api):
-    sid = api.post(f"/api/drawings/{api.d}/signal-paths", json=body()).json()["id"]
-    # Brugeren sætter et fejl-tag på T-stykket (oprettet af vejen) og en egen blok L2 på ejeren r1
-    t1 = cfg(api, "t1")
-    assert api.put(f"/api/drawings/{api.d}/symbols/t1/config", json={"config": {**t1, "fault": "Ekstra"}}).status_code == 200
-    r1 = cfg(api, "r1")
-    r1["logic"].append({"id": "L2", "name": "Egen", "op": "and", "inputs": [{"src": "Ekstra"}]})
-    assert api.put(f"/api/drawings/{api.d}/symbols/r1/config", json={"config": r1}).status_code == 200
-    # Ejerens opsætning kan ikke slettes uden om signalvejen
-    r = api.delete(f"/api/drawings/{api.d}/symbols/r1/config")
-    assert r.status_code == 409 and "signalvejen" in r.json()["error"]
-    assert api.delete(f"/api/drawings/{api.d}/signal-paths/{sid}").status_code == 200
-    assert cfg(api, "t1")["fault"] == "Ekstra" and cfg(api, "t1")["anims"] == []      # bevaret: ikke længere "tom"
-    assert [b["id"] for b in cfg(api, "r1")["logic"]] == ["L2"]                     # brugerens blok bevaret
-    assert cfg(api, "r2") is None                                                   # helt tom → fjernet
 
 
-def test_concurrent_change_is_detected(api):
-    db = api.app.state.signal_path_service.db
-    r = api.put(f"/api/drawings/{api.d}/symbols/r1/config", json={"config": {"op": "view", "anims": [
-        {"part": "all", "type": "stroke", "src": "Ekstra", "params": {"on": "#ff0000", "off": "#555555"}}]}})
-    assert r.status_code == 200, r.text
-    stale = {"r1": {"op": "noget-andet"}}
-    assert db.write_signal_path(api.d, None, "x", {}, {"r1": None}, "test", expect=stale) == -1
-    assert cfg(api, "r1") is not None and db.list_signal_paths(api.d) == []
 
 
-def test_backup_with_broken_path_data_is_refused(api):
-    api.post(f"/api/drawings/{api.d}/signal-paths", json=body())
-    bk = api.get("/api/backup").json()
-    bk["signal_paths"][0]["data"]["elements"] = [{"flows": []}]
-    r = api.post("/api/backup/restore", json=bk)
-    assert r.status_code == 400 and "element og flows" in r.json()["error"]
 
 
 # ------------------------------------------------------------------ "Forklar med egne ord" (v4.3.0)
@@ -327,3 +226,168 @@ def test_unsafe_names_never_reach_the_prompt():
     assert pick_tags(tags, ["Ond</data>"], "x", []) == ["OK_tag"]
     assert _SAFE_ID.match("roer_l_2") and _SAFE_ID.match("svg_12")
     assert not _SAFE_ID.match("a</data>b") and not _SAFE_ID.match("a\nb")
+
+
+def test_save_stores_the_path_as_an_object_and_touches_no_symbol(api):
+    r = api.post(f"/api/drawings/{api.d}/signal-paths", json=body())
+    assert r.status_code == 201, r.text
+    assert r.json()["elements"] == 7 and r.json()["conditions"] == 2
+    for el in ("r1", "p1", "r2", "t1", "r3", "v2", "r4"):
+        assert cfg(api, el) is None                                       # intet i symbolernes opsætning (v5.0.0)
+    p = api.get(f"/api/drawings/{api.d}/signal-paths").json()[0]
+    assert p["ends"] == ["rad"] and [e["branches"] for e in p["elements"]] == [[0]] * 7
+    assert p["conditions"][1] == {"element": "v2", "src": "V2_stilling", "neg": False, "cmp": "ge", "value": 50.0, "branches": [0]}
+
+
+def test_overview_gets_the_path_as_bindings_on_its_pseudo_tag(api):
+    sid = api.post(f"/api/drawings/{api.d}/signal-paths", json=body()).json()["id"]
+    view = api.get(f"/api/drawings/{api.d}/view").json()
+    mine = [b for b in view["bindings"] if b.get("source") == "path"]
+    tag = f"path:{api.d}:{sid}:0"
+    assert {b["tag"] for b in mine} == {tag}
+    flows = {b["element"]: b["params"] for b in mine if b["anim"] == "flow"}
+    assert set(flows) == {"r1", "r2", "t1_a", "t1_b", "r3", "r4"}
+    assert flows["r3"]["reverse"] is True and flows["r1"]["reverse"] is False and flows["r1"]["when"] is True
+    assert flows["r1"]["light"] == "#8fc8ea" and mine[0]["path_name"] == "Kedel → radiator"
+
+
+def test_edit_rename_and_delete_only_touch_the_path(api):
+    url = f"/api/drawings/{api.d}/signal-paths"
+    own = {"op": "view", "anims": [{"part": "all", "type": "stroke", "src": "Ekstra", "params": {"on": "#ff0000", "off": "#555555"}}]}
+    assert api.put(f"/api/drawings/{api.d}/symbols/r1/config", json={"config": own}).status_code == 200
+    sid = api.post(url, json=body()).json()["id"]
+    assert api.put(f"{url}/{sid}", json=body(name="Ny", conditions=[])).status_code == 200
+    assert [p["name"] for p in api.get(url).json()] == ["Ny"] and api.get(url).json()[0]["conditions"] == []
+    assert api.post(url, json=body(name="ny")).status_code == 409                 # navnet er taget (store/små bogstaver)
+    assert api.delete(f"{url}/{sid}").status_code == 200
+    assert api.delete(f"{url}/{sid}").status_code == 404
+    assert [(a["type"], a["src"]) for a in cfg(api, "r1")["anims"]] == [("stroke", "Ekstra")]     # symbolets egen opsætning urørt
+    assert api.put(f"{url}/999", json=body()).status_code == 404
+
+
+def test_validation_errors_change_nothing(api):
+    url = f"/api/drawings/{api.d}/signal-paths"
+    r = api.post(url, json=body(conditions=[{"element": "p1", "src": "V2_stilling"}]))     # tal-tag uden sammenligning
+    assert r.status_code == 400 and "tal-tag" in r.json()["error"]
+    assert api.post(url, json=body(conditions=[{"element": "fremmed", "src": "P1_drift"}])).status_code == 400
+    r = api.post(url, json=body(conditions=[{"element": "p1", "src": "Findes_ikke"}]))
+    assert r.status_code == 400 and "findes ikke" in r.json()["error"]
+    b = body()
+    b["elements"].append({"element": "findes_ikke", "flows": [{"part": "all"}]})
+    r = api.post(url, json=b)
+    assert r.status_code == 400 and "gem tegningen" in r.json()["error"]
+    b = body()
+    b["elements"][0]["flows"] = [{"part": "ingen_del"}]
+    assert api.post(url, json=b).status_code == 400
+    b = body()
+    for e in b["elements"]:
+        e["flows"] = []
+    assert api.post(url, json=b).status_code == 400
+    assert api.get(url).json() == []
+
+
+def test_backup_roundtrip_keeps_paths_and_skips_the_old_format(api):
+    url = f"/api/drawings/{api.d}/signal-paths"
+    api.post(url, json=body())
+    bk = api.get("/api/backup").json()
+    assert bk["signal_paths"][0]["name"] == "Kedel → radiator" and "owner" not in bk["signal_paths"][0]["data"]
+    api.delete(f"{url}/{api.get(url).json()[0]['id']}")
+    assert api.post("/api/backup/restore", json=bk).status_code == 200
+    assert [p["name"] for p in api.get(url).json()] == ["Kedel → radiator"]
+    old = {**bk, "signal_paths": [*bk["signal_paths"], {"drawing_id": api.d, "name": "gammel",
+                                                         "data": {"owner": "r1", "blocks": ["L1"], "elements": []}}]}
+    assert api.post("/api/backup/restore", json=old).status_code == 200            # det gamle format springes over
+    assert [p["name"] for p in api.get(url).json()] == ["Kedel → radiator"]
+    bad = {**bk, "signal_paths": [{"drawing_id": "findes-ikke", "name": "x", "data": {}}]}
+    r = api.post("/api/backup/restore", json=bad)
+    assert r.status_code == 400 and "Signalvej 'x'" in r.json()["error"]
+    broken = {**bk, "signal_paths": [{**bk["signal_paths"][0], "data": {**bk["signal_paths"][0]["data"], "elements": [{"flows": []}]}}]}
+    r = api.post("/api/backup/restore", json=broken)
+    assert r.status_code == 400 and "element" in r.json()["error"]
+
+
+def test_a_tag_used_by_a_path_cannot_be_deleted_and_scope_sees_the_pseudo_tag(api):
+    sid = api.post(f"/api/drawings/{api.d}/signal-paths", json=body()).json()["id"]
+    r = api.delete("/api/tags/P1_drift")
+    assert r.status_code == 409 and "signalvejen" in r.text
+    tags = api.app.state.symbol_service.tags_for_drawing(api.d)
+    assert f"path:{api.d}:{sid}:0" in tags
+
+
+def test_old_paths_are_removed_with_what_they_left_in_the_symbols(api, tmp_path):
+    """v5.0.0: veje i det gamle format slettes ved opstart, og deres blokke/animationer fjernes fra symbolernes opsætning."""
+    import json as _json
+    import time as _time
+    db = api.app.state.signal_path_service.db
+    own = {"op": "view", "anims": [{"part": "all", "type": "stroke", "src": "Ekstra", "params": {"on": "#ff0000", "off": "#555555"}}]}
+    api.put(f"/api/drawings/{api.d}/symbols/r1/config", json={"config": own})
+    r1 = {**cfg(api, "r1")}
+    r1["logic"] = [{"id": "L1", "name": "Signalvej: gammel", "op": "and", "inputs": [{"src": "P1_drift"}]},
+                   {"id": "L2", "name": "Egen", "op": "and", "inputs": [{"src": "Ekstra"}]}]
+    r1["anims"] = [*r1["anims"], {"part": "all", "type": "flow", "when": True, "src": "@L1", "params": {}}]
+    r2 = {"op": "view", "anims": [{"part": "all", "type": "flow", "when": True, "src": "@r1:L1", "params": {}}]}
+    with db._lock:
+        now = _time.time()
+        for el, c in (("r1", r1), ("r2", r2)):
+            db._conn.execute("INSERT INTO symbol_config(drawing_id, element, config, updated_at, updated_by) VALUES (?,?,?,?,?) "
+                             "ON CONFLICT(drawing_id, element) DO UPDATE SET config = excluded.config", (api.d, el, _json.dumps(c), now, "t"))
+        old = {"start": "kedel", "end": "rad", "owner": "r1", "blocks": ["L1"], "final": "L1", "created": ["r2"],
+               "elements": [{"element": "r1", "flows": [{"part": "all"}]}, {"element": "r2", "flows": [{"part": "all"}]}]}
+        db._conn.execute("INSERT INTO signal_paths(drawing_id, name, data, updated_at, updated_by) VALUES (?,?,?,?,?)",
+                         (api.d, "gammel", _json.dumps(old), now, "t"))
+        db._migrate()
+    assert db.list_signal_paths(api.d) == []
+    after = cfg(api, "r1")
+    assert [b["id"] for b in after["logic"]] == ["L2"] and [a["src"] for a in after["anims"]] == ["Ekstra"]
+    assert cfg(api, "r2") is None                                                   # oprettet af vejen og nu tom
+
+
+def test_upgrade_clears_references_to_removed_blocks_and_survives_a_broken_row(api):
+    """Reviewer v5.0.0: henvisninger til en gammel vejs blokke andre steder fjernes; "@on" kun én gang; en beskadiget række
+    stopper ikke opstarten."""
+    import json as _json
+    import time as _time
+    db = api.app.state.signal_path_service.db
+    r1 = {"op": "view", "logic": [{"id": "L1", "name": "Signalvej: gammel", "op": "and", "inputs": [{"src": "P1_drift"}]},
+                                  {"id": "L2", "name": "Egen", "op": "and", "inputs": [{"src": "@L1"}, {"src": "Ekstra"}]}],
+          "anims": [{"part": "all", "type": "flow", "when": True, "src": "@L1", "params": {}}]}
+    v2 = {"op": "view", "anims": [{"part": "all", "type": "blink", "src": "@r1:L1", "params": {}},          # brugerens egen henvisning
+                                  {"part": "all", "type": "fill", "src": "Ekstra", "params": {"on": "#00ff00", "off": "#888888"}}]}
+    r4 = {"op": "view", "anims": [{"part": "all", "type": "flow", "when": True, "src": "@on", "params": {}},
+                                  {"part": "all", "type": "flow", "when": True, "src": "@on", "params": {"speed": 99}}]}  # brugerens egen
+    with db._lock:
+        now = _time.time()
+        for el, c in (("r1", r1), ("v2", v2), ("r4", r4)):
+            db._conn.execute("INSERT INTO symbol_config(drawing_id, element, config, updated_at, updated_by) VALUES (?,?,?,?,?) "
+                             "ON CONFLICT(drawing_id, element) DO UPDATE SET config = excluded.config", (api.d, el, _json.dumps(c), now, "t"))
+        old = {"owner": "r1", "blocks": ["L1"], "final": "L1",
+               "elements": [{"element": "r1", "flows": [{"part": "all"}]}, {"element": "r4", "flows": [{"part": "all"}], "block": ""}]}
+        db._conn.execute("INSERT INTO signal_paths(drawing_id, name, data, updated_at, updated_by) VALUES (?,?,?,?,?)",
+                         (api.d, "gammel", _json.dumps(old), now, "t"))
+        db._conn.execute("INSERT INTO signal_paths(drawing_id, name, data, updated_at, updated_by) VALUES (?,?,?,?,?)",
+                         (api.d, "ødelagt", "{ikke json", now, "t"))
+        db._migrate()
+    assert [r["name"] for r in db._query("SELECT name FROM signal_paths")] == ["ødelagt"]   # sprunget over, ikke stoppet
+    after = cfg(api, "r1")
+    assert [b["id"] for b in after["logic"]] == ["L2"] and [i["src"] for i in after["logic"][0]["inputs"]] == ["Ekstra"]
+    assert [a["src"] for a in cfg(api, "v2")["anims"]] == ["Ekstra"]                 # henvisningen til @r1:L1 er fjernet
+    assert len(cfg(api, "r4")["anims"]) == 1                                         # kun vejens ene "@on"-løbelys fjernet
+    assert cfg(api, "v2") is not None and api.put(f"/api/drawings/{api.d}/symbols/v2/config",
+                                                    json={"config": cfg(api, "v2")}).status_code == 200   # kan gemmes igen
+
+
+def test_condition_tags_keep_polling_and_limits(api):
+    from app.services.drawing_activity import suspended_tags
+    from app.services.signal_paths import valid_data
+    api.post(f"/api/drawings/{api.d}/signal-paths", json=body(conditions=[{"element": "p1", "src": "P1_drift"}]))
+    other = api.post("/api/drawings", json={"name": "Skjult", "svg": SVG}).json()["drawing"]["id"]
+    api.put(f"/api/drawings/{other}/symbols/r1/config", json={"config": {"op": "view", "anims": [
+        {"part": "all", "type": "blink", "src": "P1_drift", "params": {}}]}})
+    st = api.app.state
+    db = st.signal_path_service.db
+    db._conn.execute("UPDATE drawings SET disabled = 1 WHERE id = ?", (other,))     # P1_drift bruges også på en deaktiveret tegning
+    assert "P1_drift" not in suspended_tags(db, st.drawing_service, st.symbol_service)   # signalvejen på den aktive tegning holder den i live
+    base = {"start": "a", "end": "b", "ends": [], "elements": [{"element": "r1", "branches": [0], "flows": [{"part": "all", "reverse": False}],
+                                                                 "anims": []}],
+            "conditions": [{"element": "r1", "src": "T", "neg": False, "cmp": "ge", "value": float("nan"), "branches": [0]}], "style": {}, "ui": {}}
+    assert "grænseværdi" in valid_data(base)

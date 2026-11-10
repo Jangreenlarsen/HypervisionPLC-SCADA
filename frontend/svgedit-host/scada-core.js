@@ -1176,6 +1176,10 @@ export function createScada(host) {
   // ---- fremhævning af en signalvej (v4.2.0): orange streger langs vejens rør og rammer om symbolerne — kun på skærmen,
   // aldrig i tegningen (eget <svg> over lærredet som rørhåndtagene)
   const highlight = { lines: [], boxes: [], focus: [], layer: null };
+  // Navne oven på tegningen (v4.17.0): kun visning i Tegn, gemmes ikke i tegningen. paths: [{ name, elements: [id] }]
+  const names = { symbols: false, pipes: false, paths: [], layer: null };
+  // Tjek af forbindelser (v4.18.0): [{ id, status: 'ok'|'open'|'isolated', open: [[x, y]] }] — beregnes af Tegn-siden, tegnes her
+  const conn = { items: [], layer: null };
   function drawHighlight() {
     const gridHost = host.gridHost();
     const content = canvas()?.getSvgContent?.();
@@ -1227,8 +1231,196 @@ export function createScada(host) {
     layer.innerHTML = out;
   }
 
+  // Symboler, der er rørstykker (hører under "forbindelser", ikke "symboler") — samme liste som frontend/src/lib/signalpath/graph.ts
+  const PIPE_SYMBOL_TYPES = new Set(['roer_l', 'roer_v', 'boejning45', 'boejning90', 't_stykke', 'kryds', 'reduktion', 'flange',
+    'ledning_l', 'ledning_v', 'forbindelse', 'klemme']);
+  const escXml = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  /** Midtpunktet (efter længde) på en punktliste. */
+  function midOfPoints(pts) {
+    if (pts.length < 2) return pts[0] ?? null;
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    let at = total / 2;
+    for (let i = 1; i < pts.length; i++) {
+      const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      if (at <= d || i === pts.length - 1) {
+        const t = d ? Math.min(1, at / d) : 0;
+        return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t];
+      }
+      at -= d;
+    }
+    return pts[0];
+  }
+  /** Navne på symboler, forbindelser (rør) og signalveje som mærkater oven på tegningen — kun hvor de er slået til. */
+  function drawNames() {
+    const gridHost = host.gridHost();
+    const content = canvas()?.getSvgContent?.();
+    if (!gridHost || !content || (!names.symbols && !names.pipes && !names.paths.length)) {
+      names.layer?.remove();
+      names.layer = null;
+      return;
+    }
+    let layer = names.layer;
+    if (!layer) {
+      layer = document.createElementNS(NS, 'svg');
+      layer.setAttribute('id', 'hvNameLabels');
+      layer.style.cssText = 'position:absolute; pointer-events:none; z-index:54; overflow:visible;';
+      gridHost.appendChild(layer);
+      names.layer = layer;
+    }
+    const hr = gridHost.getBoundingClientRect();
+    const cr = contentRect(content);
+    const vb = (content.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    layer.style.left = `${cr.left - hr.left + gridHost.scrollLeft}px`;
+    layer.style.top = `${cr.top - hr.top + gridHost.scrollTop}px`;
+    layer.setAttribute('width', cr.width);
+    layer.setAttribute('height', cr.height);
+    if (vb.length === 4) layer.setAttribute('viewBox', vb.join(' '));
+    const z = canvas().getZoom() || 1;
+    const fs = Math.max(6, 11 / z);        // ca. 11 px på skærmen uanset zoom
+    const r1 = (v) => Math.round(v * 10) / 10;
+    const label = (x, y, text, fill, dim) => `<text x="${r1(x)}" y="${r1(y)}" font-size="${r1(fs)}" text-anchor="middle" ` +
+      `font-family="sans-serif" font-weight="${dim ? 400 : 600}" font-style="${dim ? 'italic' : 'normal'}" fill="${fill}" ` +
+      `stroke="#fff" stroke-width="${r1(fs / 3)}" stroke-linejoin="round" paint-order="stroke">${escXml(text)}</text>`;
+    let out = '';
+    if (names.symbols || names.pipes) {
+      for (const el of content.querySelectorAll('[data-hv-type]')) {
+        if (isPipe(el) || !el.id || el.getAttribute('display') === 'none') continue;
+        const piece = PIPE_SYMBOL_TYPES.has(el.getAttribute('data-hv-type'));
+        if (piece ? !names.pipes : !names.symbols) continue;
+        const name = el.getAttribute('data-hv-name');
+        const bb = name && boxOf(el);
+        if (!bb) continue;
+        out += piece ? label(bb.x + bb.w / 2, bb.y + bb.h / 2 + fs * 0.35, name, '#2e7d32', false)
+          : label(bb.x + bb.w / 2, bb.y - fs * 0.3, name, '#0d47a1', false);
+      }
+    }
+    if (names.pipes) {
+      for (const el of content.querySelectorAll('[data-hv-pipe]')) {
+        if (!el.id || el.getAttribute('display') === 'none') continue;
+        const m = toDocMatrix(el);
+        const mid = midOfPoints(pipePoints(el).map((p) => (m ? toPoint(m, p) : p)));
+        const name = el.getAttribute('data-hv-name');
+        if (mid) out += label(mid[0], mid[1] - fs * 0.35, name || el.id, name ? '#2e7d32' : '#757575', !name);
+      }
+    }
+    for (const sp of names.paths) {
+      // signalvejens navn midt på vejen: det midterste element, der findes i tegningen
+      const els = sp.elements.map((id) => content.querySelector(`[id="${CSS.escape(id)}"]`)).filter(Boolean);
+      const el = els[Math.floor(els.length / 2)];
+      const bb = el && boxOf(el);
+      if (bb) out += label(bb.x + bb.w / 2, bb.y + bb.h / 2 + fs * 0.35, `⇝ ${sp.name}`, '#6a1b9a', false);
+    }
+    layer.innerHTML = out;
+  }
+
+  // ---- punkter, der ikke er i brug (v4.22.0): gemmes i tegningen som data-hv-unused="nøgle;nøgle" på symbolet/røret
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const portKey = (pipe, fracs, i) => (pipe ? (i === 0 ? 's' : 'e') : fracs?.[i] ? `${r2(fracs[i][0])},${r2(fracs[i][1])}` : `#${i}`);
+  const unusedKeys = (el) => new Set((el.getAttribute('data-hv-unused') || '').split(';').filter(Boolean));
+  /** Skift et punkt mellem "i brug" og "ikke i brug" — ét fortryd-trin, gemmes med tegningen. → om det nu er markeret */
+  function toggleUnusedPort(id, key) {
+    const c = canvas();
+    const el = c.getSvgContent().querySelector(`[id="${CSS.escape(String(id))}"]`);
+    if (!el || !/^([0-9.,#se-]{1,16}|\*)$/.test(String(key))) return false;
+    const was = el.getAttribute('data-hv-unused');
+    const set = unusedKeys(el);
+    if (set.has(key)) set.delete(key); else set.add(key);
+    if (set.size) el.setAttribute('data-hv-unused', [...set].join(';')); else el.removeAttribute('data-hv-unused');
+    commitCmds('Punkt ikke i brug', [new c.history.ChangeElementCommand(el, { 'data-hv-unused': was })]);
+    if (changeListener) changeListener();
+    return set.has(key);
+  }
+
+  /** Markerer symboler og rør efter om de hænger fast i resten af tegningen: grønt = ok, rødt = åbne ender (røde prikker). */
+  function drawConn() {
+    const gridHost = host.gridHost();
+    const content = canvas()?.getSvgContent?.();
+    if (!gridHost || !content || !conn.items.length) {
+      conn.layer?.remove();
+      conn.layer = null;
+      return;
+    }
+    let layer = conn.layer;
+    if (!layer) {
+      layer = document.createElementNS(NS, 'svg');
+      layer.setAttribute('id', 'hvConnCheck');
+      layer.style.cssText = 'position:absolute; pointer-events:none; z-index:53; overflow:visible;';
+      gridHost.appendChild(layer);
+      conn.layer = layer;
+      // et klik på en prik skifter punktet mellem "i brug" og "ikke i brug"; musen må ikke nå tegnefladen under
+      const dot = (e) => e.target?.closest?.('[data-key]');
+      layer.addEventListener('mousedown', (e) => { if (dot(e)) e.stopPropagation(); });
+      layer.addEventListener('mouseup', (e) => { if (dot(e)) e.stopPropagation(); });
+      layer.addEventListener('click', (e) => {
+        const d = dot(e);
+        if (!d) return;
+        e.stopPropagation();
+        toggleUnusedPort(d.getAttribute('data-id'), e.shiftKey ? '*' : d.getAttribute('data-key'));     // Skift+klik: hele symbolet
+      });
+    }
+    const hr = gridHost.getBoundingClientRect();
+    const cr = contentRect(content);
+    const vb = (content.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    layer.style.left = `${cr.left - hr.left + gridHost.scrollLeft}px`;
+    layer.style.top = `${cr.top - hr.top + gridHost.scrollTop}px`;
+    layer.setAttribute('width', cr.width);
+    layer.setAttribute('height', cr.height);
+    if (vb.length === 4) layer.setAttribute('viewBox', vb.join(' '));
+    const z = canvas().getZoom() || 1;
+    const r1 = (v) => Math.round(v * 10) / 10;
+    const w = Math.max(6, 5 / z);
+    let out = '';
+    let dots = '';
+    for (const it of conn.items) {
+      const el = content.querySelector(`[id="${CSS.escape(it.id)}"]`);
+      if (!el) continue;
+      if (it.exempt) {
+        // udeladt af brugeren: grå stiplet ramme og et lille mærke, der kan klikkes for at tage symbolet med igen
+        const bbx = isPipe(el) ? null : boxOf(el);
+        if (bbx) {
+          out += `<rect x="${r1(bbx.x - 3)}" y="${r1(bbx.y - 3)}" width="${r1(bbx.w + 6)}" height="${r1(bbx.h + 6)}" rx="5" fill="#9e9e9e" fill-opacity="0.08" stroke="#757575" ` +
+            `stroke-width="${r1(Math.max(1.5, 1.5 / z))}" stroke-dasharray="${r1(6 / z)} ${r1(4 / z)}"/>`;
+          const br = Math.max(7, 9 / z);
+          dots += `<g data-id="${escXml(it.id)}" data-key="*" style="pointer-events:all; cursor:pointer"><circle cx="${r1(bbx.x - 3)}" cy="${r1(bbx.y - 3)}" r="${r1(br)}" fill="#fff" stroke="#757575" ` +
+            `stroke-width="${r1(Math.max(1.5, 1.5 / z))}"/><text x="${r1(bbx.x - 3)}" y="${r1(bbx.y - 3 + br * 0.38)}" font-size="${r1(br * 1.2)}" text-anchor="middle" fill="#616161" font-family="sans-serif">⊘</text>` +
+            `<title>Udeladt fra tjekket — klik for at tage symbolet med igen</title></g>`;
+        }
+        continue;
+      }
+      const bad = it.status !== 'ok';
+      const color = !bad ? '#2e7d32' : it.status === 'isolated' ? '#b71c1c' : '#e53935';
+      if (isPipe(el)) {
+        const m = toDocMatrix(el);
+        const pts = pipePoints(el).map((p) => (m ? toPoint(m, p) : p));
+        out += `<polyline points="${pts.map((p) => `${r1(p[0])},${r1(p[1])}`).join(' ')}" fill="none" stroke="${color}" stroke-opacity="${bad ? 0.55 : 0.3}" ` +
+          `stroke-width="${r1(bad ? w * 1.4 : w)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      } else {
+        const bb = boxOf(el);
+        if (bb) out += `<rect x="${r1(bb.x - 3)}" y="${r1(bb.y - 3)}" width="${r1(bb.w + 6)}" height="${r1(bb.h + 6)}" rx="5" fill="${color}" ` +
+          `fill-opacity="${bad ? 0.18 : 0.1}" stroke="${color}" stroke-opacity="0.8" stroke-width="${r1(bad ? Math.max(3, 3 / z) : Math.max(1.5, 1.5 / z))}"` +
+          `${it.status === 'isolated' ? ` stroke-dasharray="${r1(8 / z)} ${r1(4 / z)}"` : ''}/>`;
+      }
+      const rr = r1(Math.max(5, 6 / z)), sw = r1(Math.max(1.5, 1.5 / z));
+      const attrs = (k) => `data-id="${escXml(it.id)}" data-key="${escXml(k)}" style="pointer-events:all; cursor:pointer"`;
+      it.open.forEach((p, i) => {
+        const key = it.openKeys?.[i];
+        dots += `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="${rr}" fill="#d32f2f" stroke="#fff" stroke-width="${sw}" ${key ? attrs(key) : ''}>` +
+          `${key ? '<title>Åbent punkt — klik: marker punktet som ikke i brug (så giver det ikke en fejl). Skift+klik: udelad hele symbolet fra tjekket</title>' : ''}</circle>`;
+      });
+      (it.ignored ?? []).forEach((p, i) => {
+        const key = it.ignoredKeys?.[i];
+        dots += `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="${rr}" fill="#fff" fill-opacity="0.85" stroke="#757575" stroke-width="${sw * 1.4}" stroke-dasharray="${r1(sw * 2)} ${r1(sw * 1.5)}" ${key ? attrs(key) : ''}>` +
+          `${key ? '<title>Markeret som ikke i brug — klik for at fjerne markeringen</title>' : ''}</circle>`;
+      });
+    }
+    layer.innerHTML = out + dots;
+  }
+
   function drawHandles() {
     drawHighlight();
+    drawNames();
+    drawConn();
     const gridHost = host.gridHost();
     const content = canvas()?.getSvgContent?.();
     if (!gridHost || !content) return;
@@ -2444,6 +2636,116 @@ export function createScada(host) {
       }
     },
 
+    /**
+     * Ret brudte forbindelser (v4.19.0): flyt rør-ender hen, hvor de tydeligvis skal sidde sammen med noget. `moves` kommer fra
+     * Tegn-siden (`planFixes`): [{ id, from, to }] — enden `from` på elementet `id` flyttes til `to`. Rør (data-hv-pipe) lægges om
+     * og sættes fast, hvis `to` er et tilslutningspunkt; et lige rørstykke (rør-symbol, vandret eller lodret) forlænges/forkortes
+     * i sin egen retning. Symboler flyttes aldrig; alt andet springes over. Ét fortryd-trin. → { fixed, details, skipped }
+     */
+    fixConnections(moves = []) {
+      const c = canvas();
+      const content = c.getSvgContent();
+      const hyp = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const before = new Map();      // element → attributter før (til fortryd)
+      const details = [];
+      let skipped = 0;
+      const keep = (el, attrs) => { if (!before.has(el)) before.set(el, Object.fromEntries(attrs.map((k) => [k, el.getAttribute(k)]))); };
+      for (const mv of Array.isArray(moves) ? moves : []) {
+        const el = content.querySelector(`[id="${CSS.escape(String(mv?.id))}"]`);
+        const from = mv?.from, to = mv?.to;
+        const okPt = (p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite);
+        if (!el || !okPt(from) || !okPt(to)) { skipped++; continue; }
+        if (isPipe(el) && !el.getAttribute('transform')) {
+          const pts = pipePoints(el);
+          if (pts.length < 2) { skipped++; continue; }
+          const which = hyp(from, pts[0]) <= hyp(from, pts[pts.length - 1]) ? 'start' : 'end';
+          const attr = which === 'start' ? 'data-hv-from' : 'data-hv-to';
+          if (el.hasAttribute(attr)) { skipped++; continue; }       // sidder allerede fast i et symbol
+          keep(el, ['d', 'data-hv-from', 'data-hv-to']);
+          const port = portNear(to, RECONNECT_TOL);
+          if (port) {
+            el.setAttribute(attr, formatRef(port.id, port.frac, port.side));
+            drawPipe(el, reroute(pipePoints(el), which, port.doc, port.dir));
+          } else drawPipe(el, reroute(pts, which, to, null));
+          details.push({ id: el.id, to: mv.toId ?? '', gap: Math.round(hyp(from, to) * 10) / 10 });
+          continue;
+        }
+        // et lige rørstykke: matrix(a 0 0 d e f) om et enkelt rektangel/streg — forlæng eller forkort i dets egen retning
+        const t = (el.getAttribute('transform') || '').match(/^matrix\(\s*([-\d.e]+)[ ,]+([-\d.e]+)[ ,]+([-\d.e]+)[ ,]+([-\d.e]+)[ ,]+([-\d.e]+)[ ,]+([-\d.e]+)\s*\)$/);
+        let bb = null;
+        try { bb = el.getBBox(); } catch { /* ikke vist */ }
+        if (!t || !bb || !(bb.width > 0) || !(bb.height > 0)) { skipped++; continue; }
+        const [a, b2, c2, d, e, f] = t.slice(1).map(Number);
+        if (Math.abs(b2) > 1e-9 || Math.abs(c2) > 1e-9 || !(a > 0) || !(d > 0)) { skipped++; continue; }
+        const horizontal = bb.width * a >= bb.height * d;
+        // enderne i tegningens koordinater langs rørets akse (den anden akse er tværs)
+        const lo = horizontal ? a * bb.x + e : d * bb.y + f;
+        const hi = horizontal ? a * (bb.x + bb.width) + e : d * (bb.y + bb.height) + f;
+        const mid = horizontal ? d * (bb.y + bb.height / 2) + f : a * (bb.x + bb.width / 2) + e;
+        const at = horizontal ? from[0] : from[1], target = horizontal ? to[0] : to[1], across = horizontal ? to[1] : to[0];
+        if (Math.abs(across - mid) > 8 * 2 || Math.abs(Math.min(Math.abs(at - lo), Math.abs(at - hi)) ) > 8) { skipped++; continue; }
+        const isLo = Math.abs(at - lo) <= Math.abs(at - hi);
+        const nlo = isLo ? target : lo, nhi = isLo ? hi : target;
+        if (!(nhi - nlo > 1)) { skipped++; continue; }              // vil vende røret eller gøre det til ingenting
+        const size = horizontal ? bb.width : bb.height, origin = horizontal ? bb.x : bb.y;
+        const scale = (nhi - nlo) / size, off = nlo - scale * origin;
+        keep(el, ['transform']);
+        el.setAttribute('transform', horizontal ? `matrix(${scale}, 0, 0, ${d}, ${off}, ${f})` : `matrix(${a}, 0, 0, ${scale}, ${e}, ${off})`);
+        details.push({ id: el.id, to: mv.toId ?? '', gap: Math.round(hyp(from, to) * 10) / 10 });
+      }
+      if (!before.size) return { fixed: 0, details, skipped };
+      commitCmds('Ret forbindelser', [...before].map(([el, attrs]) => new c.history.ChangeElementCommand(el, attrs)));
+      if (changeListener) changeListener();
+      if (selectionListener) selectionListener(currentSelection());
+      drawHandles();
+      return { fixed: details.length, details, skipped };
+    },
+
+    /** Udelad hele symboler fra tjekket af forbindelser (`on`) eller tag dem med igen — ét fortryd-trin, gemmes med tegningen. → antal ændrede */
+    exemptSymbols(ids = [], on = true) {
+      const c = canvas();
+      const cmds = [];
+      for (const id of Array.isArray(ids) ? ids : []) {
+        const el = c.getSvgContent().querySelector(`[id="${CSS.escape(String(id))}"]`);
+        if (!el) continue;
+        const was = el.getAttribute('data-hv-unused');
+        const set = unusedKeys(el);
+        if (on === set.has('*')) continue;
+        if (on) set.add('*'); else set.delete('*');
+        if (set.size) el.setAttribute('data-hv-unused', [...set].join(';')); else el.removeAttribute('data-hv-unused');
+        cmds.push(new c.history.ChangeElementCommand(el, { 'data-hv-unused': was }));
+      }
+      if (!cmds.length) return 0;
+      commitCmds(on ? 'Udelad fra tjek' : 'Tag med i tjek', cmds);
+      if (changeListener) changeListener();
+      return cmds.length;
+    },
+
+    /** Markér/fjern et punkt som "ikke i brug" (v4.22.0) — gemmes med tegningen. */
+    toggleUnused(id, key) { return toggleUnusedPort(id, key); },
+
+    /** Tjek af forbindelser (v4.18.0): markér symboler og rør efter `items` ([{ id, status, open }]); tom liste fjerner markeringen. */
+    markConnections(items = []) {
+      conn.items = (Array.isArray(items) ? items : []).filter((i) => i && typeof i.id === 'string')
+        .map((i) => {
+          const pts = (a) => (Array.isArray(a) ? a : []).map((p, k) => (Array.isArray(p) && p.length === 2 && p.every(Number.isFinite) ? [p, k] : null)).filter(Boolean);
+          const open = pts(i.open), ignored = pts(i.ignored);
+          return { id: i.id, exempt: !!i.exempt, status: i.status === 'open' || i.status === 'isolated' ? i.status : 'ok',
+            open: open.map(([p]) => p), openKeys: open.map(([, k]) => String(i.openKeys?.[k] ?? '')),
+            ignored: ignored.map(([p]) => p), ignoredKeys: ignored.map(([, k]) => String(i.ignoredKeys?.[k] ?? '')) };
+        });
+      drawConn();
+    },
+
+    /** Navne oven på tegningen (v4.17.0): symboler, forbindelser og signalveje ({ name, elements }) — kun visning i Tegn. */
+    setNameLabels(opts = {}) {
+      names.symbols = !!opts.symbols;
+      names.pipes = !!opts.pipes;
+      names.paths = (Array.isArray(opts.paths) ? opts.paths : []).filter((p) => p && typeof p.name === 'string' && Array.isArray(p.elements))
+        .map((p) => ({ name: p.name, elements: p.elements.filter((x) => typeof x === 'string') }));
+      drawNames();
+    },
+
     /** Gitter, fang til gitter (trin i tegningens enheder) og fang til objekter — sættes fra Tegn-siden. */
     setGuides(opts) {
       guides.grid = !!opts.grid;
@@ -2768,9 +3070,15 @@ export function createScada(host) {
           // symboler uden fundne punkter (fx et rør-symbol uden streg): stregernes ender
           if (!terminals.length) terminals = lines.flatMap((l) => [l.a, l.b]);
         }
+        // Punkter, brugeren har markeret som "ikke i brug" (data-hv-unused, v4.22.0): nøglen er rørets ende (s/e), symbolpunktets
+        // placering i boksen (to decimaler) eller — uden punkter — nummeret (#i)
+        const keys = terminals.map((_, i) => portKey(pipe, fracs, i));
+        const marked = unusedKeys(el);
+        const unused = keys.map((k, i) => (marked.has(k) ? i : -1)).filter((i) => i >= 0);
+        const exempt = marked.has('*');      // hele symbolet er udeladt fra tjekket (v4.22.0)
         return {
           id: el.id, name: el.getAttribute('data-hv-name') ?? '', type: el.getAttribute('data-hv-type') ?? '', pipe,
-          terminals, fracs, lines,
+          terminals, fracs, keys, unused, exempt, lines,
           refs: pipe ? ['data-hv-from', 'data-hv-to'].map((a) => parseRef(el.getAttribute(a))?.id ?? null) : [],
         };
       });

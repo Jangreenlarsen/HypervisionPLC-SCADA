@@ -4,7 +4,7 @@
   // 3-vejsventils vej, og vejen beregnes forfra — og låses med "Brug denne vej", 3) svar på hvornår der går flow, 4) navn og udseende.
   // Grafen og vejen beregnes her ud fra tegningen (signalPath.ts); backend validerer og gemmer opsætningerne samlet.
   import { onDestroy, untrack } from 'svelte';
-  import { ApiError, del, get, post, put } from './api';
+  import { del, get, post, put } from './api';
   import { ask as askUser } from './ask';
   import { postStream } from './assist';
   import SpConditions, { type AiState, type QAnswer } from './SpConditions.svelte';
@@ -27,7 +27,7 @@
     conditions: (Condition & { branches?: number[] })[]; style: { light: string; speed: number; dash: number }; missing: string[]; updated_by: string;
   }
   interface ElInfo {
-    element: string; name?: string; type?: string; configured?: boolean; tags?: TagInfo[]; flows?: string[]; missing?: boolean;
+    element: string; name?: string; type?: string; configured?: boolean; tags?: TagInfo[]; missing?: boolean;
     parts?: { id: string; pid: string; line: boolean; text: string }[];
   }
 
@@ -94,7 +94,6 @@
   const label = (id: string) => choices.find((e) => e.id === id)?.label ?? (info.get(id)?.name || byId.get(id)?.name || id);
   const questions = $derived<Question[]>(net ? questionsOf(net.rows) : []);
   const noFlow = $derived((net?.rows ?? []).filter((r) => r.role === 'pipe' && !r.flows.length));
-  const taken = $derived((net?.rows ?? []).filter((r) => r.flows.some((f) => info.get(r.id)?.flows?.includes(f.part))));
   const missingEnds = $derived(endIds.map((e, b) => ({ e, b })).filter(({ b }) => !cands[b]?.length));
   const complete = $derived(!!net && endIds.length > 0 && !missingEnds.length);
   /** Elementer, AI-forslag kan udfylde: kun dem med ét spørgsmål (en flervejs-ventil har ét pr. vej). */
@@ -523,7 +522,7 @@
     }
   }
 
-  async function save(replace = false): Promise<void> {
+  async function save(): Promise<void> {
     error = '';
     if (!net || !complete) {
       error = 'Der er ikke fundet en vej til alle slutpunkter';
@@ -549,7 +548,7 @@
       return;
     }
     const body = {
-      name: name.trim(), start, end: endIds[0], ends: endIds.slice(1), replace, conditions,
+      name: name.trim(), start, end: endIds[0], ends: endIds.slice(1), conditions,
       elements: net.rows.map((r) => {
         const x = animsFor(r, look, defs, info.get(r.id)?.parts ?? []);
         return { element: r.id, flows: x.flows, anims: x.anims, branches: r.branches };
@@ -567,14 +566,6 @@
       highlight([], []);
       await load();
     } catch (e) {
-      const conflicts = e instanceof ApiError && e.status === 409 ? (e.body as { conflicts?: { element: string }[] })?.conflicts : undefined;
-      if (conflicts?.length && !replace) {
-        busy = false;
-        const which = conflicts.map((c) => label(c.element)).join(', ');
-        if (await askUser(`${conflicts.length} dele har allerede en animation af samme type (${which}). Skal den erstattes af signalvejens?`,
-          { ok: 'Erstat' })) await save(true);
-        return;
-      }
       error = (e as Error).message;
     } finally {
       busy = false;
@@ -582,7 +573,7 @@
   }
 
   async function remove(p: Saved): Promise<void> {
-    if (!(await askUser(`Slet signalvejen "${p.name}"? Løbelyset og betingelsen fjernes fra rørene; resten af deres opsætning bevares.`,
+    if (!(await askUser(`Slet signalvejen "${p.name}"? Dens løbelys og animationer forsvinder; symbolernes egen opsætning røres ikke.`,
       { ok: 'Slet', danger: true }))) return;
     busy = true;
     try {
@@ -707,7 +698,6 @@
       {#if complete}
         <p class="small muted">Vejen er markeret i tegningen — {endIds.length > 1 ? 'hver gren i sin farve, ' : ''}de hvide streger viser, hvilken vej flowet løber. Peg på en række for at se symbolet i tegningen.</p>
         {#if noFlow.length}<p class="small warn">Kan ikke få løbelys: {noFlow.map((r) => r.name || r.id).join(', ')}.</p>{/if}
-        {#if taken.length}<p class="small warn">Har allerede løbelys (erstattes, hvis du bekræfter): {taken.map((r) => r.name || r.id).join(', ')}.</p>{/if}
         {#if !locked}<div class="row"><button class="primary" onclick={() => (locked = true)}>Brug denne vej →</button></div>{/if}
       {/if}
     </div>
@@ -729,7 +719,7 @@
       <h4>5. Navn og gem</h4>
       <label class="field">Navn <input bind:value={name} maxlength="60" placeholder="fx Kedel → radiatorer" /></label>
       <div class="row">
-        <button class="primary" onclick={() => save(false)} disabled={busy || !name.trim()}>Gem signalvej</button>
+        <button class="primary" onclick={() => save()} disabled={busy || !name.trim()}>Gem signalvej</button>
         <button onclick={cancel} disabled={busy}>Annullér</button>
       </div>
     </div>

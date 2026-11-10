@@ -277,6 +277,8 @@ class HealthService:
             "tls_admin": ta.metrics() if (ta := getattr(state, "tls_admin", None)) else None,
             "assist": a.metrics() if (a := getattr(state, "assistant", None)) else None,
             "bindings_cache": dict(ds.cache_stats) if (ds := getattr(state, "drawing_service", None)) else None,
+            # signalveje (v5.0.0): antal veje i drift, aktive/ukendte kombinationer af grene og beregningsfejl i seneste tick
+            "signal_paths": dict(rt.path_stats) if (rt := getattr(state, "symbol_runtime", None)) else None,
             "notify": notifier.failing() if (notifier := getattr(state, "notifier", None)) else {},
             "notifications": ({"sent": notifier.sent, "failed": notifier.failed, "dropped": notifier.dropped, "queued": len(notifier.pending)}
                               if notifier else None),

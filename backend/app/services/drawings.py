@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 from typing import Any
@@ -14,6 +15,8 @@ from .live_cache import LiveCache
 from .svg_sanitize import SvgError, index_svg, sanitize_svg, subtree_ids, subtree_map, symbol_specs
 from .symbols import config_bindings, symbol_view
 from .tagsource import TagSourceError, parse_source
+
+log = logging.getLogger("scada.drawings")
 
 
 def slugify(name: str) -> str:
@@ -386,7 +389,48 @@ class DrawingService:
             effective.extend(config_bindings(drawing_id, element, cfg, covered))
         if not legacy:
             effective.extend(self._group_bindings(drawing_id, svg, index))
+            effective.extend(self._path_bindings(drawing_id, svg, index))
         return drawing, svg, effective, orphans, tags
+
+    def _path_bindings(self, drawing_id: str, svg: str, index: dict[str, Any]) -> list[dict[str, Any]]:
+        """Signalvejenes animationer (v5.0.0) som almindelige bindinger på vejens pseudo-tag (services/signal_paths/runtime.py):
+        løbelys og de øvrige animationer er aktive, når vejen er aktiv ("aktiv/passiv"); lægges efter symbolernes og gruppernes
+        egne, så den eksisterende prioritetsregel (canvas.ts) afgør det, hvis flere af samme slags ligger på samme del."""
+        from .signal_paths.runtime import path_tag
+        from .signal_paths.validate import valid_data
+        rows = []
+        for r in self.db.list_signal_paths(drawing_id):
+            if (problem := valid_data(r["data"])) is None:
+                rows.append(r)
+            else:
+                log.error("Signalvejen '%s' (%s) er ugyldig og vises ikke: %s", r["name"], drawing_id, problem)
+        wanted = {e["element"] for r in rows for e in r["data"].get("elements", []) if e.get("element") in index}
+        subtrees = subtree_map(svg, wanted) if wanted else {}
+        out: list[dict[str, Any]] = []
+        for k, r in enumerate(rows):
+            d = r["data"]
+            style = d.get("style") or {}
+            n = 0
+            for e in d.get("elements", []):
+                el = e.get("element")
+                if el not in index:
+                    continue
+                parts = subtrees.get(el, set())
+                tag = path_tag(drawing_id, r["id"], e.get("branches") or [0])
+                items = [("flow", f["part"], {"reverse": bool(f.get("reverse")), "light": style.get("light", "#8fc8ea"),
+                                              "speed": style.get("speed", 40), "dash": style.get("dash", 12)}, True)
+                         for f in e.get("flows", [])]
+                items += [(a["type"], a["part"], dict(a.get("params") or {}), bool(a.get("when", True))) for a in e.get("anims", [])]
+                for kind, part, params, when in items:
+                    target = el if part in ("all", el) else part
+                    if target != el and target not in parts:
+                        continue
+                    if when:
+                        params["when"] = True
+                    out.append({"element": target, "position": 3000 + k * 1000 + n, "tag": tag, "anim": kind, "params": params,
+                                "source": "path", "path": r["id"], "path_name": r["name"]})
+                    n += 1
+        return out
 
     def _group_bindings(self, drawing_id: str, svg: str, index: dict[str, Any]) -> list[dict[str, Any]]:
         """Animationer ejet af symbolgrupper (v0.131.0): lægges efter symbolets egne, i gruppernes rækkefølge, så de gælder

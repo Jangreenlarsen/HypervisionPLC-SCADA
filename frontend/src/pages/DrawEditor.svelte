@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { ask as askUser, askText } from '../lib/ask';
   import { suggestName } from '../lib/draw/naming';
   import { del, get, patch, post, put } from '../lib/api';
@@ -11,6 +11,7 @@
   import { deleteDrawingFlow } from '../lib/drawingDelete';
   import GroupBasis from '../lib/GroupBasis.svelte';
   import DrawCanvas from '../lib/draw/DrawCanvas.svelte';
+  import Menu from '../lib/draw/Menu.svelte';
   import Inspector, { type InspectApi } from '../lib/draw/Inspector.svelte';
   import ObjectTree, { type TreeApi } from '../lib/draw/ObjectTree.svelte';
   import PanelSection from '../lib/draw/PanelSection.svelte';
@@ -20,7 +21,7 @@
   import { symbolType } from '../../svgedit-host/symbolPorts.js';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SignalPathGuide from '../lib/SignalPathGuide.svelte';
-  import type { Graph } from '../lib/signalPath';
+  import { connectionCheck, planFixes, type FixMove, type Graph } from '../lib/signalPath';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
   import SymbolExport from '../lib/SymbolExport.svelte';
@@ -56,6 +57,11 @@
     insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
     insertGraphic(fragment: string, name?: string, at?: { x: number; y: number } | null, maxFrac?: number, nth?: number): string;
     docPointAt(clientX: number, clientY: number): { x: number; y: number };
+    fixConnections(moves: { id: string; from: [number, number]; to: [number, number]; toId: string }[]): { fixed: number; details: { id: string; to: string; gap: number }[]; skipped: number };
+    exemptSymbols(ids: string[], on: boolean): number;
+    markConnections(items: { id: string; exempt: boolean; status: string; open: [number, number][]; openKeys: string[]; ignored: [number, number][]; ignoredKeys: string[] }[]): void;
+    toggleUnused(id: string, key: string): boolean;
+    setNameLabels(opts: { symbols: boolean; pipes: boolean; paths: { name: string; elements: string[] }[] }): void;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
     getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
     setGuideEvery(n: number): void;
@@ -119,9 +125,89 @@
       // localStorage kan være blokeret (privat vindue): hjælpen virker stadig, den huskes bare ikke
     }
   });
+  // Vis navne (v4.17.0): symboler, forbindelser og signalveje som mærkater oven på tegningen. Kun visning i Tegn; huskes pr. browser.
+  function loadNames(): { symbols: boolean; pipes: boolean; paths: boolean } {
+    try {
+      const raw = JSON.parse(localStorage.getItem('draw.names') ?? '{}');
+      return { symbols: !!raw.symbols, pipes: !!raw.pipes, paths: !!raw.paths };
+    } catch {
+      return { symbols: false, pipes: false, paths: false };
+    }
+  }
+  let showNames = $state(loadNames());
+  let pathNames = $state<{ name: string; elements: string[] }[]>([]);
+  async function loadPathNames(): Promise<void> {
+    const id = current?.id;
+    if (!showNames.paths || !id) { pathNames = []; return; }
+    try {
+      const r = await get<{ name: string; elements: { element: string }[] }[]>(`/api/drawings/${encodeURIComponent(id)}/signal-paths`);
+      if (current?.id === id) pathNames = r.map((p) => ({ name: p.name, elements: p.elements.map((e) => e.element) }));
+    } catch {
+      pathNames = [];       // navnene er kun en hjælp: uden dem vises bare ingen signalvejs-navne
+    }
+  }
+  $effect(() => { void current?.id; void showNames.paths; void loadPathNames(); });
+  $effect(() => {
+    const n = $state.snapshot(showNames);
+    const paths = n.paths ? $state.snapshot(pathNames) : [];
+    void inspectRev;       // tegningen er ændret (flyt, omdøb …): mærkaterne tegnes forfra
+    if (ready && ed) ed.setNameLabels({ symbols: n.symbols, pipes: n.pipes, paths });
+    try {
+      localStorage.setItem('draw.names', JSON.stringify(n));
+    } catch {
+      // localStorage kan være blokeret: valget virker, det huskes bare ikke
+    }
+  });
+  // Tjek forbindelser (v4.18.0): markér, hvad der hænger fast i resten af tegningen (grønt) og hvad der har åbne ender (rødt). Kun visning.
+  let checkConn = $state(false);
+  let connSummary = $state<{ open: number; isolated: number; names: string[] } | null>(null);
+  let connMoves = $state<FixMove[]>([]);
+  let connExempt = $state<Set<string>>(new Set());       // symboler, der er udeladt fra tjekket (data-hv-unused="*")
+  const selIds = $derived(selection.map((x) => x.id).filter(Boolean));
+  const selAllExempt = $derived(selIds.length > 0 && selIds.every((id) => connExempt.has(id)));
+  function exemptSelected(): void {
+    if (!ed || !selIds.length) return;
+    const n = ed.exemptSymbols(selIds, !selAllExempt);
+    info = n ? `${n} symbol${n === 1 ? '' : 'er'} ${selAllExempt ? 'tages med i' : 'udeladt fra'} tjekket af forbindelser. Det gemmes med tegningen (Gem kladde / Gem og udgiv).` : '';
+  }       // rettelserne, det seneste tjek foreslår (til *Ret forbindelser*)
+  const FIX_GAP = 25;      // en fri rør-ende højst så langt fra et punkt/en anden ende regnes for "tydeligvis skal sidde sammen"
+  function fixConnectionsNow(): void {
+    if (!ed) return;
+    const r = ed.fixConnections(connMoves);
+    info = r.fixed
+      ? `${r.fixed} forbindelse${r.fixed === 1 ? '' : 'r'} rettet (fortryd med Ctrl+Z).${r.skipped ? ` ${r.skipped} åbne ender er for langt fra noget til at blive rettet automatisk.` : ''}`
+      : `Ingen forbindelser at rette automatisk — de åbne ender ligger mere end ${FIX_GAP} enheder fra noget, de kan sættes fast i.`;
+    inspectRev++;
+  }
+  let connTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    const on = checkConn;
+    void inspectRev;       // tegningen er ændret (flyt, forbind, slet …): tjekket køres forfra efter et kort øjeblik
+    clearTimeout(connTimer);
+    if (!ready || !ed) return;
+    if (!on) {
+      ed.markConnections([]);
+      connSummary = null;
+      return;
+    }
+    connTimer = setTimeout(() => {
+      const g = ed?.connectionGraph();
+      if (!g || !checkConn) return;
+      const items = connectionCheck(g);
+      ed?.markConnections(items.map((i) => ({ id: i.id, exempt: i.exempt, status: i.status, open: i.open, openKeys: i.openKeys, ignored: i.ignored, ignoredKeys: i.ignoredKeys })));
+      connMoves = planFixes(g, items, FIX_GAP);
+      connExempt = new Set(items.filter((i) => i.exempt).map((i) => i.id));
+      const bad = items.filter((i) => i.status !== 'ok');
+      connSummary = { open: bad.filter((i) => i.status === 'open').length, isolated: bad.filter((i) => i.status === 'isolated').length,
+        names: bad.slice(0, 30).map((i) => i.name || i.id) };
+    }, 300);
+  });
+  onDestroy(() => clearTimeout(connTimer));
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let tags = $state<{ name: string; source: string; unit: string; writable: boolean; plc: string }[]>([]);
   let ed: ScadaApi | null = null;
+  let canvasRef = $state<{ perform(name: string): void } | null>(null);
+  let zoomLevel = $state(1);
 
   // Tegne-editoren (v3.0.0): SVG-Edits tegnemotor (@svgedit/svgcanvas) direkte i siden med vores egen brugerflade
   // (lib/draw/*). Al Tegn-logik ligger i svgedit-host/scada-core.js.
@@ -922,6 +1008,30 @@
 
   const single = $derived(selection.length === 1 ? selection[0] : null);
   const isActive = $derived(current !== null && loadedVersion === current.active_version);
+  // Meddelelser (v4.20.1): systemets beskeder (før en gul bjælke over tegningen) samles her og vises i en boks, når man trykker på
+  // *Meddelelser* i den øverste linje — som alarmklokken i topmenuen. Nye beskeder gør knappen orange; advarsler åbner boksen.
+  interface Msg { id: number; at: number; text: string; extra: string[]; warn: boolean }
+  let messages = $state<Msg[]>([]);
+  let unread = $state(0);
+  let msgOpen = $state(false);
+  let msgSeq = 0;
+  $effect(() => {
+    const text = info;
+    if (!text) return;
+    untrack(() => {
+      const r = report;
+      const extra: string[] = [];
+      if (r && (Object.keys(r.removed_elements).length || Object.keys(r.removed_attributes).length)) extra.push(`Renset ved gem: ${entries(r.removed_elements)} ${entries(r.removed_attributes)}`);
+      if (r?.orphaned_bindings?.length) extra.push(`Bindinger uden element nu: ${r.orphaned_bindings.join(', ')}`);
+      const warn = !!r?.orphaned_symbols?.length;
+      if (warn) extra.push(`Symboler sat op med guiden, som ikke længere findes: ${r!.orphaned_symbols!.join(', ')} — flyt eller fjern dem under Bindinger`);
+      messages = [{ id: ++msgSeq, at: Date.now(), text, extra, warn }, ...messages].slice(0, 30);
+      unread++;
+      if (warn) msgOpen = true;
+      info = '';
+    });
+  });
+  const clock = (t: number) => new Date(t).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const entries = (o: Record<string, number>) => Object.entries(o).map(([k, v]) => `${k} ×${v}`).join(', ');
 </script>
 
@@ -941,6 +1051,24 @@
     <input bind:value={newName} placeholder="Navn på ny tegning" maxlength="80" />
   {/if}
   <input bind:value={comment} placeholder="Kommentar til versionen" maxlength="200" class="comment" />
+  <span class="zoombar" role="group" aria-label="Zoom">
+    <button onclick={() => canvasRef?.perform('zoomOut')} disabled={!ready} title="Zoom ud (Ctrl+−)" aria-label="Zoom ud">−</button>
+    <span class="zoom">{Math.round(zoomLevel * 100)} %</span>
+    <button onclick={() => canvasRef?.perform('zoomIn')} disabled={!ready} title="Zoom ind (Ctrl++)" aria-label="Zoom ind">+</button>
+    <button onclick={() => canvasRef?.perform('zoomFit')} disabled={!ready} title="Tilpas til vinduet (Ctrl+0)">Tilpas</button>
+  </span>
+  <Menu label="Vis" title="Gitter, hjælpelinjer, navne og tjek af forbindelser">{@render viewMenu()}</Menu>
+  <Menu label="Fang" title="Fang til gitter, objekter, rør og hjælpelinjer">{@render snapMenu()}</Menu>
+  <Menu label="Meddelelser" title="Systemets beskeder om tegningen (gem, rettelser, advarsler)" badge={unread + (dupNames.length ? 1 : 0)} hot={unread > 0 || dupNames.length > 0}
+        wide align="right" bind:open={msgOpen} onopen={() => (unread = 0)}>{@render messagesMenu()}</Menu>
+  {#if checkConn && connSummary}
+    {#if connSummary.open || connSummary.isolated}
+      <span class="small" style="color:var(--warn)" title={connSummary.names.join(', ')}>{connSummary.open} åbne, {connSummary.isolated} uden forbindelse</span>
+      {#if connMoves.length}
+        <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt, så de sidder sammen. Symboler flyttes aldrig. Kan fortrydes med Ctrl+Z">Ret {connMoves.length}</button>
+      {/if}
+    {:else}<span class="small" style="color:#2e7d32">alt hænger sammen</span>{/if}
+  {/if}
   {#if current}
     <button onclick={() => save(false)} disabled={busy || !ready}>Gem kladde</button>
     <button class="primary" onclick={() => save(true)} disabled={busy || !ready}>Gem og udgiv</button>
@@ -949,7 +1077,7 @@
   {:else}
     <button class="primary" onclick={() => save(true)} disabled={busy || !ready}>Opret tegning</button>
   {/if}
-  <button onclick={openSize} disabled={!ready} aria-expanded={sizeOpen} title="Tegningens bredde og højde">Størrelse: {sizeText(size.w, size.h)}</button>
+  <button onclick={openSize} disabled={!ready} aria-expanded={sizeOpen} title="Tegningens bredde og højde — tryk for at ændre">⤢ {sizeText(size.w, size.h)}</button>
   {#if dirty}<span class="badge">ikke gemt</span>{/if}
 </div>
 {#if symbolEdit}
@@ -983,51 +1111,80 @@
   </div>
 {/if}
 
-{#snippet guidesUi()}
-  <label class="opt"><input type="checkbox" bind:checked={guides.grid} /> Vis gitter</label>
+{#snippet viewMenu()}
+  <span class="mhead">Gitter</span>
+  <div class="mrow">
+    <label class="opt"><input type="checkbox" bind:checked={guides.grid} /> Vis gitter</label>
+    <label class="opt">afstand
+      <select bind:value={guides.step} aria-label="Gitterafstand">{#each GUIDE_STEPS as s}<option value={s}>{s}</option>{/each}</select>
+    </label>
+  </div>
+  <span class="mhead">Hjælpelinjer</span>
+  <div class="mrow">
+    <label class="opt" title="Hjælpelinjerne gemmes i tegningen, men vises kun her i Tegn — aldrig i Overview"><input type="checkbox" bind:checked={guides.showGuides} /> Vis hjælpelinjer</label>
+  </div>
+  {#if guides.showGuides}
+    <div class="mrow">
+      <label class="opt" title="Faste hjælpelinjer med denne afstand over hele tegningen (gemmes i tegningen)">Inddeling
+        <select value={guideEvery} onchange={(e) => { ed?.setGuideEvery(Number(e.currentTarget.value)); guideEvery = ed?.getGuides().every ?? 0; }} disabled={!ready} aria-label="Fast inddeling">
+          {#each [0, 50, 100, 200, 250] as n}<option value={n}>{n ? n : 'Fra'}</option>{/each}
+        </select>
+      </label>
+      <button class="small" onclick={() => ed?.addGuide('v')} disabled={!ready} title="Ny lodret hjælpelinje midt i det, du ser — træk den på plads">+ Lodret</button>
+      <button class="small" onclick={() => ed?.addGuide('h')} disabled={!ready} title="Ny vandret hjælpelinje midt i det, du ser — træk den på plads">+ Vandret</button>
+    </div>
+  {/if}
+  <span class="mhead">Navne i tegningen</span>
+  <div class="mrow" title="Viser navnene oven på tegningen (kun her i Tegn — aldrig i Overview, og de gemmes ikke i tegningen)">
+    <label class="opt"><input type="checkbox" bind:checked={showNames.symbols} /> symboler</label>
+    <label class="opt"><input type="checkbox" bind:checked={showNames.pipes} /> forbindelser</label>
+    <label class="opt"><input type="checkbox" bind:checked={showNames.paths} /> signalveje</label>
+  </div>
+  <span class="mhead">Kontrol</span>
+  <div class="mrow" title="Markerer, hvad der hænger fast i resten af tegningen: grønt = forbundet, rødt = åbne ender (røde prikker). Kun visning i Tegn">
+    <label class="opt"><input type="checkbox" bind:checked={checkConn} /> Tjek forbindelser</label>
+    {#if checkConn}
+      <button class="small" onclick={exemptSelected} disabled={!selIds.length} title="Udelad de valgte symboler fra tjekket, så de ikke giver fejl (fx et symbol, der bevidst ikke er tilsluttet). Gemmes med tegningen. Peg på en rød prik: klik = kun det punkt, Skift+klik = hele symbolet">{selAllExempt ? 'Tag valgte med i tjekket' : 'Udelad valgte fra tjekket'}</button>
+    {/if}
+    {#if checkConn && connSummary && connMoves.length}
+      <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt. Symboler flyttes aldrig. Ctrl+Z fortryder">Ret {connMoves.length}</button>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet messagesMenu()}
+  {#if dupNames.length}
+    <div class="msg warn">
+      Flere symboler har samme navn: {dupNames.map((d) => `"${d.name}" (${d.count})`).join(', ')} — navnene skal være unikke (de bruges fx i
+      Trends, ved kopiering af opsætning og i guiden). <button class="small" onclick={fixDuplicates} disabled={!ready}>Giv dem unikke navne</button>
+    </div>
+  {/if}
+  {#each messages as m (m.id)}
+    <div class="msg" class:warn={m.warn}>
+      <span class="small muted">{clock(m.at)}</span> {m.text}
+      {#each m.extra as x}<div class="small muted">{x}</div>{/each}
+    </div>
+  {:else}
+    {#if !dupNames.length}<span class="small muted">Ingen meddelelser endnu. Her kommer systemets beskeder, fx når tegningen er gemt eller en rettelse er udført.</span>{/if}
+  {/each}
+  {#if messages.length}<div class="mrow"><button class="small" onclick={() => (messages = [])}>Ryd meddelelser</button></div>{/if}
+{/snippet}
+
+{#snippet snapMenu()}
   <label class="opt"><input type="checkbox" bind:checked={guides.snapGrid} /> Fang til gitter</label>
-  <label class="opt">Gitterafstand
-    <select bind:value={guides.step} aria-label="Gitterafstand">{#each GUIDE_STEPS as s}<option value={s}>{s}</option>{/each}</select>
-  </label>
   <label class="opt" title="Når du slipper et objekt, lægges det kant mod kant eller midte mod midte med nærmeste objekt, hvis det er tæt på"><input type="checkbox" bind:checked={guides.snapObjects} /> Fang til objekter</label>
   <label class="opt" title="Når du flytter et symbol med rør, fanges det, så røret står snorlige ud af det (blå stiplet linje under trækket)"><input type="checkbox" bind:checked={guides.snapPipes} /> Fang rør lige</label>
+  <label class="opt" title="Symboler, rør og rør-stykker fanges til hjælpelinjerne"><input type="checkbox" bind:checked={guides.snapGuides} /> Fang til hjælpelinjer</label>
+  <hr class="mrule" />
   <label class="opt" title="Træk i et hjørne: bredde og højde ændres i samme forhold. Hold Shift nede for at skalere frit"><input type="checkbox" bind:checked={guides.keepRatio} /> Skalér symmetrisk</label>
-  <span class="gsep"></span>
-  <label class="opt" title="Hjælpelinjerne gemmes i tegningen, men vises kun her i Tegn — aldrig i Overview"><input type="checkbox" bind:checked={guides.showGuides} /> Hjælpelinjer</label>
-  {#if guides.showGuides}
-    <label class="opt" title="Faste hjælpelinjer med denne afstand over hele tegningen (gemmes i tegningen)">Inddeling
-      <select value={guideEvery} onchange={(e) => { ed?.setGuideEvery(Number(e.currentTarget.value)); guideEvery = ed?.getGuides().every ?? 0; }} disabled={!ready} aria-label="Fast inddeling">
-        {#each [0, 50, 100, 200, 250] as n}<option value={n}>{n ? n : 'Fra'}</option>{/each}
-      </select>
-    </label>
-    <button class="small" onclick={() => ed?.addGuide('v')} disabled={!ready} title="Ny lodret hjælpelinje midt i det, du ser — træk den på plads">+ Lodret</button>
-    <button class="small" onclick={() => ed?.addGuide('h')} disabled={!ready} title="Ny vandret hjælpelinje midt i det, du ser — træk den på plads">+ Vandret</button>
-    <label class="opt" title="Symboler, rør og rør-stykker fanges til hjælpelinjerne"><input type="checkbox" bind:checked={guides.snapGuides} /> Fang til hjælpelinjer</label>
-  {/if}
 {/snippet}
 
 
 {#if error}<div class="error">{error}</div>{/if}
-{#if dupNames.length}
-  <div class="notice">
-    Flere symboler har samme navn: {dupNames.map((d) => `"${d.name}" (${d.count})`).join(', ')} — navnene skal være unikke (de bruges fx i
-    Trends, ved kopiering af opsætning og i guiden). <button class="small" onclick={fixDuplicates} disabled={!ready}>Giv dem unikke navne</button>
-  </div>
-{/if}
-{#if info}
-  <div class="notice">
-    {info}
-    {#if report && (Object.keys(report.removed_elements).length || Object.keys(report.removed_attributes).length)}
-      <br /><span class="small muted">Renset ved gem: {entries(report.removed_elements)} {entries(report.removed_attributes)}</span>
-    {/if}
-    {#if report?.orphaned_bindings?.length}<br />Bindinger uden element nu: {report.orphaned_bindings.join(', ')}{/if}{#if report?.orphaned_symbols?.length}<br /><strong>Symboler sat op med guiden, som ikke længere findes:</strong> {report.orphaned_symbols.join(', ')} — flyt eller fjern dem under Bindinger{/if}
-  </div>
-{/if}
-
 <div class="layout">
   <div class="frame" bind:this={frameBox}>
-    <DrawCanvas height={editorHeight} dropType={SYMBOL_DRAG} ondropsymbol={(id, x, y) => ed && insert(id, ed.docPointAt(x, y))} ondropfiles={(files, x, y) => ed && insertSvgFiles(files, ed.docPointAt(x, y))} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++}
-                hint="{hint.name}: {hint.how} · Drejning i 15°-trin, Shift = fri" status={guidesUi} />
+    <DrawCanvas height={editorHeight} dropType={SYMBOL_DRAG} ondropsymbol={(id, x, y) => ed && insert(id, ed.docPointAt(x, y))} ondropfiles={(files, x, y) => ed && insertSvgFiles(files, ed.docPointAt(x, y))} onready={(api) => attach(api as ScadaApi)} onupdate={() => inspectRev++} onzoom={(z) => (zoomLevel = z)} bind:this={canvasRef} bar={false}
+                hint="{hint.name}: {hint.how} · Drejning i 15°-trin, Shift = fri" />
   </div>
 
   <aside bind:this={aside}>
@@ -1098,7 +1255,7 @@
           highlight={(lines, boxes, focus) => ed?.highlightPath(lines, boxes, focus)}
           select={(ids) => ed?.selectByIds(ids)}
           ensureSaved={() => ensurePublished('signalvejen kan findes')}
-          onchanged={(text) => { info = text; refreshReservedIds(); }} />
+          onchanged={(text) => { info = text; refreshReservedIds(); void loadPathNames(); }} />
       {:else}
         <p class="small muted">Gem tegningen først — en signalvej hører til en gemt tegning.</p>
       {/if}
@@ -1257,7 +1414,12 @@
 
 <style>
   .toolbar { margin-bottom: .35rem; }
-  .comment { flex: 1; min-width: 12rem; }
+  .comment { flex: 0 1 15rem; min-width: 8rem; }      /* en kommentar behøver ikke fylde linjen (v4.20.0) */
+  .msg { padding: .35rem .5rem; background: #fff8e1; border: 1px solid #e0b062; border-radius: 6px; overflow-wrap: anywhere; }
+  .msg.warn { background: #fdecea; border-color: #e57373; }
+  .zoombar { display: inline-flex; align-items: center; gap: 4px; }
+  .zoombar .zoom { min-width: 3.6em; text-align: center; font-variant-numeric: tabular-nums; }
+  .toolbar { position: relative; z-index: 60; }
   .layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 280px;
@@ -1276,7 +1438,6 @@
     aside > :global(.psec.open.grow) { flex: 1 1 0; max-height: none; min-height: 8rem; }
     .sym-head { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: .2rem 0 .4rem; }
   }
-  .gsep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; display: inline-block; }
   .linkish { border: 0; background: none; padding: 0 0 .3rem; color: var(--accent); text-decoration: underline; cursor: pointer; }
   .field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
   .field :global(select), .field input { width: 100%; }

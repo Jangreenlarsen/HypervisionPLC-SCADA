@@ -170,3 +170,12 @@ def test_deeply_nested_svg_is_rejected_readably():
     with pytest.raises(SvgError, match="for dybt"):
         sanitize_svg(head + "<g>" * 5000 + "</g>" * 5000 + "</svg>")
     assert sanitize_svg(head + "<g>" * 50 + "</g>" * 50 + "</svg>").svg
+
+
+def test_keeps_unused_connection_marks():
+    """v4.22.0: punkter/symboler markeret som 'ikke i brug' (data-hv-unused) gemmes med tegningen."""
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g id="p1" data-hv-type="pumpe" '
+           'data-hv-unused="0,0.5;*"><rect id="r" width="10" height="10"/></g></svg>')
+    r = sanitize_svg(svg)
+    assert 'data-hv-unused="0,0.5;*"' in r.svg
+    assert not r.removed_attributes

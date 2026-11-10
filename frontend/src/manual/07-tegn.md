@@ -6,8 +6,8 @@
 
 ## Skærmen
 
-- **Øverst**: vælg tegning og version, **Gem kladde**, **Gem og udgiv**, **Bindinger**, **Slet tegning** og **Størrelse**.
-- **Linjen over tegnefladen**: zoom (−, +, **Tilpas**), **tegnehjælp** (gitter og fang) og **hjælpelinjer**.
+- **Øverst**: vælg tegning og version, skriv en kommentar til versionen, **zoom** (−, +, **Tilpas**), menuerne **Vis** (gitter, hjælpelinjer, navne i tegningen, tjek af forbindelser) og **Fang** (fang til gitter, objekter, rør og hjælpelinjer, skalér symmetrisk), og knapperne **Gem kladde**, **Gem og udgiv**, **Bindinger**, **Slet tegning** og tegningens **størrelse**.
+- **Meddelelser**: systemets beskeder om tegningen (fx at den er gemt og udgivet, at der er renset noget ved gem, eller en advarsel) samles i en boks, der åbner, når du trykker på knappen — som alarmklokken i topmenuen. Et **orange tal** viser, hvor mange nye der er; en **advarsel** åbner boksen af sig selv. Dublerede symbolnavne står øverst i boksen med en knap, der giver dem unikke navne. **Ryd meddelelser** tømmer listen.
 - **Værktøjslinjen til venstre**: **Fortryd** og **Gentag** øverst, derefter værktøjerne **Vælg** (V), **Forbindelse** (O), **Linje** (L), **Rektangel** (R), **Ellipse** (E), **Sti** (P), **Frihånd** (F), **Tekst** (T), **Polygon** (Y), **Stjerne** (S), **Regulær polygon** (N), **Bue** (B) og **Billede**. Bogstavet er genvejstasten.
 - **Tegnefladen** i midten. **Ctrl + musehjul** zoomer, og **mellemrum** eller **midterknappen** + træk flytter udsnittet.
 - **Linjen i bunden** forklarer, hvordan det valgte værktøj bruges (fx *Rektangel: træk for at tegne · Shift = kvadrat · Esc = tilbage til Vælg*).
@@ -86,15 +86,19 @@ Vælg værktøjet **Tekst** (T), klik og skriv; dobbeltklik på en tekst for at 
 
 ## Tegningens størrelse
 
-Knappen **Størrelse: 1200 × 700** øverst viser og ændrer tegningens bredde og højde. Vælg et **fast valg** (fx *Full HD-skærm 1920 × 1080* eller *Panel 1280 × 800*) eller skriv bredde og højde (100–10000), og tryk **Brug størrelsen**. **Tilpas til indholdet** flytter tegningen op i hjørnet og gør den præcis stor nok med den valgte margen. En baggrund, der fyldte hele tegningen, følger med. Nye tegninger starter på 1200 × 700, og Overview skalerer altid tegningen til skærmen.
+Knappen med tegningens størrelse (**⤢ 1200 × 700**) øverst viser og ændrer tegningens bredde og højde. Vælg et **fast valg** (fx *Full HD-skærm 1920 × 1080* eller *Panel 1280 × 800*) eller skriv bredde og højde (100–10000), og tryk **Brug størrelsen**. **Tilpas til indholdet** flytter tegningen op i hjørnet og gør den præcis stor nok med den valgte margen. En baggrund, der fyldte hele tegningen, følger med. Nye tegninger starter på 1200 × 700, og Overview skalerer altid tegningen til skærmen.
 
 ## Tegnehjælp: gitter, fang og drejning
 
 ![Tegnehjælpen over tegnefladen: gitter, fang, gitterafstand og Skalér symmetrisk](../../public/manual/tegn-hjaelp.png)
 
-Linjen over tegnefladen har **tegnehjælpen**:
+Tegnehjælpen ligger i menuerne **Vis** og **Fang** i den øverste linje (tryk på menuen, sæt hak, og klik udenfor eller tryk Esc for at lukke den):
 
 - **Vis gitter** viser et net **ovenpå** tegningen (det ændrer ikke tegningen). Linjerne ligger med den valgte **gitterafstand** (5, 10, 20, 25 eller 50 enheder), og hver 5. linje er kraftigere.
+- **Tjek forbindelser** markerer alle symboler og rør oven på tegningen, så du kan se, om alt hænger sammen: **grønt** = alle tilslutningspunkter sidder fast i noget, **rødt** med røde prikker = der er åbne ender (**stiplet kant** = intet er forbundet). Ved siden af afkrydsningen står, hvor mange der har åbne ender (peg på teksten for navnene). Ubrugte tilslutningspunkter på et symbol (fx en pumpes ekstra port) vises også som røde prikker — det er ikke nødvendigvis en fejl. Samme regler som signalvejene bruger, så en rød ende er også et sted, en signalvej ikke kan gå igennem. Det er kun en visning, der ikke gemmes.
+- **Punkter og symboler, der ikke er i brug**: nogle tilslutningspunkter bliver aldrig brugt (fx en pumpes ekstra port), og nogle symboler skal slet ikke have rør. Så skal de ikke give en fejl. Mens **Tjek forbindelser** er slået til, kan du **klikke på den røde prik** for at markere punktet som **ikke i brug** — det bliver en grå stiplet ring og tæller ikke som en fejl. **Skift+klik** på en prik (eller vælg symbolet og tryk **Udelad valgte fra tjekket**) udelader **hele symbolet**: det får en grå ramme med et ⊘-mærke. Klik på ringen eller mærket for at fortryde. Markeringerne **gemmes i tegningen**, når du trykker **Gem kladde** eller **Gem og udgiv**, og kan fortrydes med Ctrl+Z. De påvirker kun tjekket, ikke Overview eller signalvejene.
+- **Ret N forbindelser** (knappen står ved Tjek forbindelser, når der er noget at rette) flytter rør-ender, der ligger **klods op ad** en anden ende eller et tilslutningspunkt (mere end 8, men højst 25 enheder fra), så de sidder sammen. Et tegnet rør lægges om og sættes fast i punktet; et lige rør-symbol (rør vandret/lodret) forlænges eller forkortes i sin egen retning, hvis målet ligger på dets linje. **Symboler flyttes aldrig**, og ender længere væk end 25 enheder, eller som ligger ved siden af røret, rettes ikke — dem må du selv trække på plads. Det hele er ét fortryd-trin (Ctrl+Z).
+- **Vis navne** (symboler / forbindelser / signalveje) skriver navnene som mærkater **oven på** tegningen, så du kan se, hvad ting hedder, når du fx laver en signalvej eller sætter bindinger op. Symbolernes navne står i blåt over symbolet, forbindelsernes (rør, bøjninger, T-stykker) i grønt, og signalvejens navn i lilla midt på vejen. Et tegnet rør uden navn vises med sit id i grå kursiv. Navnene gemmes ikke i tegningen og vises ikke i Overview; valget huskes i din browser.
 - **Fang til gitter** lægger objekter på gitteret: når du flytter, indsætter eller duplikerer, flyttes objektets **øverste venstre hjørne** til nærmeste gitterpunkt.
 - **Fang til objekter**: slipper du et objekt tæt på et andet, lægger det sig **kant mod kant** eller **midte mod midte** med det nærmeste. Små justeringer med piletasterne fanges ikke.
 - **Skalér symmetrisk**: trækker du i et hjørne, ændres bredde og højde i samme forhold. Hold **Shift** nede for at skalere frit (uden indstillingen er det omvendt).

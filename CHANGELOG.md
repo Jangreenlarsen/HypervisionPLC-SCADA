@@ -4,6 +4,59 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.0.0 build 0377] — 2026-11-10 — Signalveje 4: signalvejen som selvstændigt runtime-objekt (MAJOR, skema 16)
+
+- **Model** (`services/signal_paths/validate.py`): vejen er ét objekt `{start, end, ends, elements[{element, branches, flows, anims}], conditions[{element, src, neg, cmp, value, branches}], style, ui}`. `blocks.py` er fjernet; `service.py` gemmer kun objektet (ingen `_strip`/`_owned`/`_check_refs`, ingen 409-konflikter, ingen `created`), renser animationernes parametre, kræver sammenligning på tal-tags og at tags og dele findes. Højst 64 betingelser pr. vej.
+- **Runtime** (`services/signal_paths/runtime.py`, `SymbolRuntime._evaluate_paths`): gren = OG over dens betingelser (tre-værdi-logik som logikblokke; ingen betingelser = altid), stykker = ELLER over grenene; pseudo-tags `path:<tegning>:<id>:<grene>` i live-cachen; slettede veje ryddes; signaturen omfatter `signal_paths` og tegningernes deaktivering; `path_stats` i `/api/health`-metrics (`signal_paths`).
+- **Overview** (`DrawingService._path_bindings`): vejens løbelys og animationer som almindelige bindinger på pseudo-tagget (efter symbolernes og gruppernes, så den eksisterende prioritetsregel gælder). `signal_paths` er med i `CONFIG_TABLES` (gemte bindinger regnes forfra).
+- **Adgang og tags**: `tags_for_drawing()` medtager vejenes pseudo-tags; `SymbolService.usage()` nævner signalveje, så et tag i brug ikke kan slettes. Vagten mod at slette en "ejer"-opsætning er fjernet.
+- **Opgradering** (`Database._drop_old_signal_paths`, skema 16): veje i det gamle format slettes, og deres logikblokke ("Signalvej: …") og animationer fjernes fra symbolerne (tomme opsætninger, vejen havde oprettet, slettes). Backup: gamle veje springes over.
+- **Review** (reviewer-agent): betingelsestags holder pollingen i gang (`drawing_activity`), opgraderingen kører i en transaktion pr. vej, overlever en beskadiget række og fjerner også andre henvisninger til de gamle blokke (egne animationer, retning, egne blokkes indgange); "@on"-løbelys fjernes kun én gang pr. del; ugyldige veje springes over i Overview og runtime (logges); grænseværdien skal være et endeligt tal; en begrænset bruger kan kun bruge tags, han må se.
+- **Guiden** (`SignalPathGuide.svelte`): gem-body uden `replace`; "Erstat"-dialogen og "har allerede løbelys"-advarslen er fjernet.
+- Tests: `test_signal_paths.py`, `test_signal_branches.py` (gem/ret/slet, view-bindinger, runtime med grene/ELLER/ukendt, gamle veje, backup, tag i brug, valid_data), `SignalPathGuideClick.test.ts` (gem-body). Set i browseren mod mock-PLC: vej gemt, intet i symbolerne, løbelys 0 → 11 → 0 rør, når tagget skiftes.
+- Manual (kap. 08), LLM-tillæg, ARCHITECTURE.md.
+
+## [4.22.0 build 0376] — 2026-11-10 — Tjek forbindelser: punkter og symboler, der ikke er i brug
+
+- `svgedit-host/scada-core.js`: attributten `data-hv-unused="nøgle;nøgle"` på symbolet/røret (nøgle = rørets ende `s`/`e`, symbolpunktets placering i boksen med to decimaler, eller `#i`; `*` = hele symbolet). `connectionGraph()` giver `keys`, `unused` og `exempt`; `toggleUnused(id, key)` og `exemptSymbols(ids, on)` ændrer attributten som ét fortryd-trin (så den gemmes med tegningen); overlayet har klikbare prikker (klik = punktet, Skift+klik = hele symbolet), grå stiplede ringe for punkter ikke i brug og grå rammer med et ⊘-mærke for udeladte symboler.
+- `lib/signalpath/graph.ts`: `connectionCheck` springer punkter markeret som ikke i brug over (de tæller som `ignored`) og udelader `exempt`-symboler helt; `ConnItem` har `openKeys`, `ignored`, `ignoredKeys`, `exempt`.
+- `pages/DrawEditor.svelte`: knappen *Udelad valgte fra tjekket* / *Tag valgte med i tjekket* (Vis-menuen og værktøjslinjen, når tjekket er slået til).
+- Backend uændret (sanitizeren bevarer `data-*`-attributter); ny test `test_keeps_unused_connection_marks`. Tests: `connectionCheck.test.ts` (11). Set i browseren: klik på prik, Skift+klik, knap, to gange fortryd, og at attributten ligger i den gemte kladde.
+- Manual (kap. 07) og LLM-tillæg.
+
+## [4.21.0 build 0375] — 2026-11-10 — Tegn: meddelelser i en boks
+
+- `pages/DrawEditor.svelte`: de gule bjælker over tegningen (`info` og dublerede navne) er fjernet. Hver ny `info`-besked lægges i en liste (tid, tekst, evt. "Renset ved gem" / "Bindinger uden element" / advarsel om symboler, der ikke findes), og knappen **Meddelelser** i den øverste linje viser antallet af nye (orange) og åbner en boks med listen (nyeste øverst, *Ryd meddelelser*). En advarsel (symboler sat op med guiden, som ikke findes) åbner boksen af sig selv. Dublerede symbolnavne står øverst i boksen med knappen *Giv dem unikke navne*. Højst 30 meddelelser.
+- `lib/draw/Menu.svelte`: `badge`, `hot`, `wide`, `align`, bindbar `open` og `onopen`.
+- Manual (kap. 07) og skærmbilleder (`tegn`, `tegn-gitter`). Set i browseren: ingen gul bjælke, tal på knappen, boksen åbner/lukker, tallet nulstilles ved åbning.
+
+## [4.20.0 build 0374] — 2026-11-10 — Tegn: samlet værktøjslinje
+
+- `lib/draw/Menu.svelte` (ny): lille rullemenu (knap + panel; lukker ved klik udenfor og Esc).
+- `lib/draw/DrawCanvas.svelte`: `bar`-prop (Tegn skjuler linjen over tegnefladen), `onzoom` og `perform(name)` (zoom udefra).
+- `pages/DrawEditor.svelte`: zoom (−, %, +, Tilpas) og menuerne **Vis** (gitter + afstand, hjælpelinjer + inddeling/+ Lodret/+ Vandret, navne i tegningen, Tjek forbindelser + Ret N) og **Fang** (gitter, objekter, rør lige, hjælpelinjer, skalér symmetrisk) i den øverste linje; kommentarfeltet er `15rem` (før: fyldte resten); *Størrelse* er kortet til `⤢ 1840 × 850`; en kort opsummering af tjek-forbindelser står i linjen, når det er slået til. Tegnefladen er højere (linjen fjernet).
+- Manual (kap. 07), tre skærmbilleder (`tegn`, `tegn-gitter`, `tegn-hjaelp`) og `manual-screenshots.mjs` (åbner menuerne). Set i browseren ved 2569, 1600 og 1000 px bredde.
+
+## [4.19.0 build 0373] — 2026-11-10 — Tegn: ret brudte forbindelser
+
+- `lib/signalpath/graph.ts`: `planFixes(g, items, maxGap)` — for hver åben ende på et rør (eller lige rør-symbol `roer_l`/`roer_v`): den nærmeste anden ende/tilslutningspunkt 8–25 enheder væk (en ende, der selv er åben, foretrækkes ved lige afstand). Et lige rør-symbol foreslås kun, hvis målet ligger på dets akse. Symboler foreslås aldrig flyttet.
+- `svgedit-host/scada-core.js`: `fixConnections(moves)` — tegnede rør (`data-hv-pipe`) lægges om og sættes fast i punktet (`data-hv-from/-to`); lige rør-symboler (`matrix(a 0 0 d e f)`) forlænges/forkortes i deres retning; alt andet springes over og tælles. Ét fortryd-trin (*Ret forbindelser*).
+- `pages/DrawEditor.svelte`: knappen *Ret N forbindelser* ved *Tjek forbindelser* (N = foreslåede rettelser) og en besked bagefter; tjekket køres forfra.
+- Manual (kap. 07) og LLM-tillæg. Tests: `connectionCheck.test.ts` (8). Set i browseren: et lige rør forkortet 15 enheder → knappen vises → rettet (længden næsten som før), åbne ender 25 → 23, Ctrl+Z → 25.
+
+## [4.18.0 build 0372] — 2026-11-10 — Tegn: tjek forbindelser
+
+- `lib/signalpath/graph.ts`: `connectionCheck(g)` — for hvert symbol og rør: `ok` (alle tilslutningspunkter sidder fast), `open` (nogle er åbne) eller `isolated` (intet sidder fast), med de åbne punkter. Samme regler som signalvejene (`contacts`). Bøjninger og T-stykker tæller kun deres egentlige ender (kurvepunkter og midtpunkt ignoreres); visning og løse figurer springes over.
+- `svgedit-host/scada-core.js`: `markConnections(items)` og `drawConn()` — eget lag `#hvConnCheck` oven på tegningen: grønt = forbundet, rødt (stiplet = isoleret) med røde prikker ved de åbne ender. Kun visning.
+- `pages/DrawEditor.svelte`: afkrydsningen *Tjek forbindelser* med opsummering ("23 med åbne ender, 1 uden forbindelse", navnene i tooltip); køres forfra, når tegningen ændres.
+- Manual (kap. 07) og LLM-tillæg. Test: `connectionCheck.test.ts` (4). Set i browseren på en rigtig tegning: rør og bøjninger grønne, ubrugte porte røde; slået fra fjerner laget.
+
+## [4.17.0 build 0371] — 2026-11-10 — Tegn: vis navne i tegningen
+
+- `svgedit-host/scada-core.js`: `setNameLabels({ symbols, pipes, paths })` og `drawNames()` — navne som mærkater (hvid kant, ca. 11 px uanset zoom) i et eget lag oven på tegningen (`#hvNameLabels`); tegnes forfra ved zoom, rul og ændringer. Symboler blå over symbolet; forbindelser (rør-symboler som rør, bøjning, T-stykke og tegnede rør uden navn → id i grå kursiv) grønne; signalvejens navn lilla midt på vejen. Gemmes ikke i tegningen og vises ikke i Overview.
+- `pages/DrawEditor.svelte`: *Vis navne* med tre afkrydsninger (symboler / forbindelser / signalveje) i værktøjslinjen; huskes pr. browser (`draw.names`); signalvejenes navne hentes fra API'et og genindlæses, når en signalvej gemmes eller slettes.
+- Manual (kap. 07) og LLM-tillæg. Backend uændret. Set i browseren: mærkaterne vises og forsvinder pr. valg; signalvejens navn tegnes.
+
 ## [4.16.0 build 0370] — 2026-11-09 — Signalveje: vend flowets retning
 
 - `lib/signalpath/net.ts`: `describeNet(g, paths, defs, flips)` vender en gren efter brugerens ønske (efter `orient`); `Net.manual` fortæller hvilke grene. Ny test i `signalFlow.test.ts`.

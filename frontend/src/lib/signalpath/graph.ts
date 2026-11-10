@@ -4,6 +4,9 @@ export interface GLine { part: string; a: Pt; b: Pt; pts?: Pt[]; w?: number; das
 export interface GNode {
   id: string; name: string; type: string; pipe: boolean; terminals: Pt[]; lines: GLine[]; refs: (string | null)[];
   fracs?: Pt[] | null;   // punkternes placering som brøkdele af symbolets boks (samme rækkefølge som terminals) — til navne og roller
+  keys?: string[];       // en nøgle pr. punkt (til "ikke i brug"), samme rækkefølge som terminals (v4.22.0)
+  unused?: number[];     // numrene på de punkter, brugeren har markeret som ikke i brug (data-hv-unused)
+  exempt?: boolean;      // hele symbolet er udeladt fra tjekket af forbindelser
 }
 export interface Graph { nodes: GNode[] }
 export interface Contact { to: string; p: Pt }
@@ -131,4 +134,103 @@ export function endpoints(g: Graph): { id: string; label: string }[] {
   return g.nodes.filter((n) => !n.pipe && roleOf(n) !== 'pipe' && !DISPLAY.has(n.type) && (n.name || n.type))
     .map((n) => ({ id: n.id, label: n.name || `${n.type} (${n.id})` }))
     .sort((a, b) => a.label.localeCompare(b.label, 'da'));
+}
+
+// ---------------------------------------------------------------- tjek af forbindelser (v4.18.0)
+/** ok: alle tilslutningspunkter sidder fast i noget · open: nogle er åbne · isolated: elementet hænger slet ikke sammen med noget. */
+export type ConnStatus = 'ok' | 'open' | 'isolated';
+export interface ConnItem {
+  id: string; name: string; type: string; pipe: boolean; status: ConnStatus;
+  exempt: boolean;                           // brugeren har udeladt hele symbolet (status er så altid ok)
+  open: Pt[]; openKeys: string[];            // åbne punkter og deres nøgler
+  ignored: Pt[]; ignoredKeys: string[];      // punkter, brugeren har markeret som ikke i brug
+}
+
+/**
+ * Hvilke symboler og rør der hænger fast i resten af tegningen. Et tilslutningspunkt er forbundet, når et andet elements punkt
+ * falder sammen med det, det ligger på et andet elements streg, eller et rør er knyttet til det. Samme regler som signalvejene
+ * (`contacts`). Visning (statusfelter, trendgrafer …) og løse figurer uden symboltype og uden tilslutningspunkter springes over.
+ */
+/** Rørstykkernes (bøjning, T-stykke …) egentlige ender: tilslutningspunkter, der blot er et styrepunkt tæt ved en ende (bøjningens
+ * kurve), eller ligger midt mellem to andre (T-stykkets midte), er ikke steder, et rør kan sidde fast. */
+function realEnds(n: GNode, tol: number): Pt[] {
+  const ts = n.terminals;
+  if (n.pipe || roleOf(n) !== 'pipe' || ts.length <= 2) return ts;
+  const between = (p: Pt, a: Pt, b: Pt) => {
+    const d = dist(a, b);
+    return d > 0 && Math.abs(dist(a, p) + dist(p, b) - d) <= tol / 2;
+  };
+  const kept = ts.filter((p, i) => !ts.some((a, j) => j !== i && ts.some((b, k) => k > j && k !== i && between(p, a, b))));
+  const seen: Pt[] = [];
+  for (const p of kept) {                    // punkter tæt ved hinanden er én ende (den, der er forbundet, tæller)
+    const near = seen.findIndex((q) => dist(p, q) <= tol * 2);
+    if (near < 0) seen.push(p);
+  }
+  return seen.length ? seen : ts;
+}
+
+export function connectionCheck(g: Graph, tol = TOL): ConnItem[] {
+  const adj = contacts(g, tol);
+  const out: ConnItem[] = [];
+  for (const n of g.nodes) {
+    if (!passable(n) || !n.terminals.length) continue;
+    const mine = adj.get(n.id) ?? [];
+    if (n.exempt) {
+      out.push({ id: n.id, name: n.name, type: n.type, pipe: n.pipe || roleOf(n) === 'pipe', exempt: true, status: 'ok', open: [], openKeys: [], ignored: [], ignoredKeys: [] });
+      continue;
+    }
+    const ends = realEnds(n, tol);
+    const skipIdx = (n.unused ?? []).filter((i) => i >= 0 && i < n.terminals.length);
+    const isSkipped = (p: Pt) => skipIdx.some((i) => dist(n.terminals[i], p) <= 0.01);
+    const keyOf = (p: Pt) => { const i = n.terminals.findIndex((t) => dist(t, p) <= 0.01); return n.keys?.[i] ?? `#${i}`; };
+    // tæt-på-punkter i en bøjning er én ende: den er forbundet, hvis et af dem er det. Punkter markeret som ikke i brug tæller ikke.
+    const open = ends.filter((t) => !isSkipped(t) && !mine.some((c) => dist(c.p, t) <= tol * 2));
+    const ignored = skipIdx.map((i) => n.terminals[i]);
+    out.push({ id: n.id, name: n.name, type: n.type, pipe: n.pipe || roleOf(n) === 'pipe', exempt: false, open, openKeys: open.map(keyOf),
+      ignored, ignoredKeys: ignored.map(keyOf), status: !open.length ? 'ok' : mine.length ? 'open' : 'isolated' });
+  }
+  return out;
+}
+
+const STRAIGHT_PIPES = new Set(['roer_l', 'roer_v']);      // lige rør-symboler (kan forlænges/forkortes)
+/** En foreslået rettelse: flyt enden `from` på elementet `id` hen til `to` (en ende/et punkt på elementet `toId`). */
+export interface FixMove { id: string; from: Pt; to: Pt; toId: string; gap: number }
+
+/**
+ * Brudte forbindelser, der tydeligvis skal sidde sammen: en åben ende på et rør (eller rørstykke), der ligger tæt (over en
+ * almindelig forbindelses afstand, men højst `maxGap`) på en anden ende eller et tilslutningspunkt. Den nærmeste vælges (en
+ * ende, der selv er åben, foretrækkes ved næsten lige afstand). Kun rørene flyttes — aldrig symbolerne.
+ */
+export function planFixes(g: Graph, items: ConnItem[], maxGap = 25, tol = TOL): FixMove[] {
+  const byId = new Map(g.nodes.map((n) => [n.id, n]));
+  const openAt = new Map(items.map((i) => [i.id, i.open]));
+  const moves: FixMove[] = [];
+  for (const it of items) {
+    const me = byId.get(it.id);
+    if (!me || !it.open.length || !(me.pipe || STRAIGHT_PIPES.has(me.type))) continue;     // kun rør og lige rør-symboler kan flyttes
+    for (const p of it.open) {
+      // et lige rør-symbol kan kun forlænges/forkortes i sin egen retning: målet skal ligge på dets akse
+      const l = !me.pipe ? me.lines[0] : null;
+      const u: Pt | null = l ? [l.b[0] - l.a[0], l.b[1] - l.a[1]] : null;
+      const len = u ? Math.hypot(u[0], u[1]) : 0;
+      let best: FixMove | null = null;
+      let bestOpen = false;
+      for (const o of g.nodes) {
+        if (o.id === it.id || !passable(o) || !byId.has(o.id)) continue;
+        const theirOpen = openAt.get(o.id) ?? [];
+        for (const q of realEnds(o, tol)) {
+          const d = dist(p, q);
+          if (d <= tol || d > maxGap) continue;           // inden for en almindelig forbindelse er der intet at rette
+          if (u && len > 0 && Math.abs(((q[0] - p[0]) * u[1] - (q[1] - p[1]) * u[0]) / len) > tol * 2) continue;   // ikke på rørets akse
+          const open = theirOpen.some((x) => dist(x, q) <= 0.5);
+          if (!best || d < best.gap - 1 || (Math.abs(d - best.gap) <= 1 && open && !bestOpen)) {
+            best = { id: it.id, from: p, to: q, toId: o.id, gap: Math.round(d * 10) / 10 };
+            bestOpen = open;
+          }
+        }
+      }
+      if (best) moves.push(best);
+    }
+  }
+  return moves;
 }

@@ -2,6 +2,36 @@
 
 ---
 
+## v5.0.0 — 2026-11-10 — Signalveje bygget om
+
+- En signalvej er nu **sit eget objekt**: serveren regner selv, hvornår vejen og hver gren er aktiv, og Overview viser vejens animationer. **Symbolernes egen opsætning røres ikke længere** — ingen logikblokke på rørene, ingen "Erstat"-spørgsmål, og et rør kan høre til flere signalveje.
+- Op til 64 betingelser pr. signalvej (før: højst 8 logikblokke).
+- **Bemærk:** signalveje lavet før v5.0.0 slettes ved opgraderingen, og det, de havde lagt i symbolerne, fjernes. Lav dem igen i Tegn › Signalveje.
+
+## v4.22.0 — 2026-11-10 — Punkter og symboler, der ikke er i brug, i Tjek forbindelser
+
+- I **Tjek forbindelser** kan du klikke på en rød prik for at markere et tilslutningspunkt som **ikke i brug** (det giver så ikke en fejl), og **Skift+klik** eller **Udelad valgte fra tjekket** for at udelade et helt symbol. Markeringerne gemmes i tegningen, når du trykker Gem kladde eller Gem og udgiv, og kan fortrydes.
+
+## v4.21.0 — 2026-11-10 — Meddelelser i en boks i Tegn
+
+- Systemets beskeder i Tegn (fx "Version 157 er gemt og udgivet") står ikke længere i en gul bjælke over tegningen, men i en boks, der åbner, når du trykker på **Meddelelser** i den øverste linje. Nye beskeder vises som et orange tal; advarsler åbner boksen af sig selv. Tegnefladen får bjælkens plads.
+
+## v4.20.0 — 2026-11-10 — Samlet værktøjslinje i Tegn
+
+- Zoom og tegnehjælp ligger nu i den øverste linje, og afkrydsningerne er samlet i to menuer: **Vis** (gitter, hjælpelinjer, navne, tjek forbindelser) og **Fang**. Kommentarfeltet er blevet smallere, så alt er på én linje, og tegnefladen er højere.
+
+## v4.19.0 — 2026-11-10 — Ret brudte forbindelser
+
+- Ved **Tjek forbindelser** står der nu en knap **Ret N forbindelser**: rør-ender, der ligger klods op ad en anden ende eller et tilslutningspunkt (op til 25 enheder fra), flyttes, så de sidder sammen. Symboler flyttes aldrig. Det er ét fortryd-trin (Ctrl+Z).
+
+## v4.18.0 — 2026-11-10 — Tjek forbindelser i Tegn
+
+- Ny afkrydsning **Tjek forbindelser** i Tegn: alle symboler og rør markeres — grønt, hvis alle deres tilslutningspunkter sidder fast i noget, og rødt med røde prikker ved de åbne ender, hvis ikke (stiplet kant = intet er forbundet). Øverst står, hvor mange der har åbne ender. Det er kun en visning; tegningen ændres ikke.
+
+## v4.17.0 — 2026-11-10 — Vis navne i tegningen
+
+- I Tegn kan du slå **Vis navne** til for **symboler**, **forbindelser** og **signalveje**: navnene står som mærkater oven på tegningen, så du kan se, hvad du vælger i signalveje og bindinger. Valget huskes i din browser; navnene gemmes ikke i tegningen og vises ikke i Overview.
+
 ## v4.16.0 — 2026-11-09 — Vend flowets retning
 
 - Ny knap **⇄ Vend flowet** i signalvej-guiden (trin 2, pr. gren): vender løbelysets retning, hvis symbolerne ikke giver den rigtige. Valget gemmes med signalvejen.

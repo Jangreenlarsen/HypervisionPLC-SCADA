@@ -25,6 +25,7 @@ from ..storage.db import Database
 from .alarms import Condition
 from .live_cache import LiveCache, LiveValue
 from .svg_sanitize import describe_element, index_svg
+from .signal_paths.runtime import evaluate_path
 from .symbols import PSEUDO_KINDS, logic_pseudo_tags, logic_results, pseudo_tag
 
 log = logging.getLogger(__name__)
@@ -129,13 +130,18 @@ class SymbolRuntime:
         self.names: dict[tuple[str, str], str] = {}
         self._signature: Any = None
         self._logic_published: set[str] = set()   # logik-pseudo-tags i live-cachen (så slettede blokke ryddes)
+        # Signalveje (v5.0.0): [(tegning, vej-id, navn, data)] for aktive tegninger; deres pseudo-tags i live-cachen
+        self.paths: list[tuple[str, int, str, dict[str, Any]]] = []
+        self._path_published: set[str] = set()
+        self.path_stats: dict[str, int] = {"paths": 0, "active": 0, "unknown": 0, "errors": 0}
 
     # ------------------------------------------------------------ indlæsning
 
     def _current_signature(self) -> Any:
         cfg = self.db._query("SELECT COUNT(*) AS n, MAX(updated_at) AS t FROM symbol_config")[0]
-        drawings = tuple((d["id"], d["active_version"]) for d in self.db.list_drawings())
-        return (cfg["n"], cfg["t"], drawings)
+        drawings = tuple((d["id"], d["active_version"], d["disabled"]) for d in self.db.list_drawings())
+        sp = self.db._query("SELECT COUNT(*) AS n, MAX(updated_at) AS t FROM signal_paths")[0]
+        return (cfg["n"], cfg["t"], drawings, sp["n"], sp["t"])
 
     def reload(self) -> None:
         """Indlæs konfigurationer for symboler med positioner i de aktive tegningsversioner."""
@@ -164,6 +170,15 @@ class SymbolRuntime:
         self.symbols = symbols
         self.names = names
         self.chosen = {(r["drawing_id"], r["element"]): r for r in self.db.list_symbol_states()}
+        from .signal_paths.validate import valid_data
+        self.paths = []
+        for r in self.db.list_signal_paths():
+            if r["drawing_id"] in off:
+                continue
+            if (problem := valid_data(r["data"])) is not None:
+                log.error("Signalvejen '%s' (%s) er ugyldig og regnes ikke: %s", r["name"], r["drawing_id"], problem)
+                continue
+            self.paths.append((r["drawing_id"], r["id"], r["name"], r["data"]))
         if removed:
             self.cache.remove([pseudo_tag(d, e, k) for d, e in removed for k in PSEUDO_KINDS])
             for k in removed:
@@ -206,8 +221,33 @@ class SymbolRuntime:
         if stale:
             self.cache.remove(sorted(stale))
         self._logic_published = logic_now
+        path_now = self._evaluate_paths(updates, now)
+        stale = self._path_published - path_now
+        if stale:
+            self.cache.remove(sorted(stale))
+        self._path_published = path_now
         if updates:
             self.cache.update(updates)
+
+    def _evaluate_paths(self, updates: dict[str, LiveValue], now: float) -> set[str]:
+        """Signalvejene (v5.0.0): hver gren aktiv, når dens betingelser er opfyldt; elementerne lyser, når en af deres grene
+        er aktiv. Skrives som pseudo-tags i live-cachen. En fejl i én vej stopper ikke de andre."""
+        published: set[str] = set()
+        stats = {"paths": len(self.paths), "active": 0, "unknown": 0, "errors": 0}
+        for d, pid, name, data in self.paths:
+            try:
+                results = evaluate_path(d, pid, data, self.cache.get)
+            except Exception:
+                stats["errors"] += 1
+                log.exception("Signalvej '%s' (%s, id %s) kunne ikke beregnes", name, d, pid)
+                continue
+            for tag, value in results.items():
+                updates[tag] = LiveValue(value=value, quality="good" if value is not None else "comm_error", ts=now)
+                published.add(tag)
+                stats["active"] += value is True
+                stats["unknown"] += value is None
+        self.path_stats = stats
+        return published
 
     def set_chosen(self, key: tuple[str, str], position: int | None, by: str, at: float | None = None) -> dict[str, Any]:
         """Sidst valgte position (betjening, accept, start) — gemmes så den overlever genstart."""

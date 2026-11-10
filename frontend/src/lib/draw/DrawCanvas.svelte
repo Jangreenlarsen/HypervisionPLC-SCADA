@@ -7,10 +7,14 @@
   // @ts-expect-error — ren JS uden typer (delt med scada-core)
   import { imageProblem } from '../../../svgedit-host/shapes.js';
 
-  let { onready, onupdate, height = 600, status, hint = '', dropType = '', ondropsymbol, ondropfiles }: {
+  let { onready, onupdate, onzoom, height = 600, status, bar = true, hint = '', dropType = '', ondropsymbol, ondropfiles }: {
     onready: (api: unknown) => void;
     /** markering/tegning kan være ændret — panelet til højre læser igen */
     onupdate?: () => void;
+    /** zoomen er ændret (1 = 100 %) — Tegn-siden viser den i sin egen værktøjslinje */
+    onzoom?: (z: number) => void;
+    /** vis zoom og tegnehjælp i en linje over tegnefladen (Tegn har dem i sin øverste linje: bar = false) */
+    bar?: boolean;
     height?: number;
     /** tegnehjælp (gitter, fang …) i statuslinjen — ejes af Tegn-siden */
     status?: Snippet;
@@ -99,7 +103,7 @@
   onMount(() => {
     engine = createEngine(workarea, textInput, {
       onMode: (m) => (mode = m),
-      onZoom: (z) => { zoom = z; onupdate?.(); },
+      onZoom: (z) => { zoom = z; onzoom?.(z); onupdate?.(); },
       onHistory: sync,
       onMessage: (t) => (message = t),
     });
@@ -109,6 +113,10 @@
   onDestroy(() => engine?.destroy());
 
   const tool = (m: string): void => engine?.setMode(m);
+  /** Udfør en handling i editoren udefra (fx 'zoomIn', 'zoomOut', 'zoomFit'). */
+  export function perform(name: string): void {
+    act(name);
+  }
   function act(name: string): void {
     message = '';
     menu = null;
@@ -157,6 +165,7 @@
   </nav>
   <div class="main">
     <!-- zoom, tegnehjælp og hjælpelinjer øverst over tegnefladen (Jan, v3.11.2) -->
+    {#if bar}
     <div class="status" role="toolbar" aria-label="Visning og tegnehjælp">
       <button onclick={() => act('zoomOut')} title="Zoom ud (Ctrl+−)" aria-label="Zoom ud">−</button>
       <span class="zoom">{Math.round(zoom * 100)} %</span>
@@ -164,6 +173,7 @@
       <button onclick={() => act('zoomFit')} title="Tilpas til vinduet (Ctrl+0)">Tilpas</button>
       {#if status}<span class="sep"></span>{@render status()}{/if}
     </div>
+    {/if}
     <!-- svar på højreklik i tegnefladen; menuen styres også med tastaturet (Escape lukker) -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="stage" oncontextmenu={onContext} onmousedown={(e) => { if (menu && !(e.target as HTMLElement).closest('.cmenu')) closeMenu(); }}>

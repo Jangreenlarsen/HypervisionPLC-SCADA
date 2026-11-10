@@ -1,3 +1,39 @@
+# Plan: Signalveje 4 — signalvejen som selvstændigt runtime-objekt (v5.0.0, MAJOR) — 2026-11-10 — ✅ udført
+
+Beslutning (Jan 2026-11-10): **mulighed C**. En signalvej skal være et objekt i sig selv, også i fremtidige versioner. Udviklingssystem: ingen migrering af gamle veje — de slettes (og deres efterladte blokke/animationer ryddes én gang).
+
+## Problemet i dag
+Ved *Gem* "kompileres" vejen ind i symbolernes opsætning: logikblokke (OG-kæder, ELLER pr. gren) på et ejer-symbol (højst 8 blokke) og en animation på hver del med blokken som kilde. Det kræver bogføring (`_strip`, `_owned`, `_check_refs`, konflikter/409, `created`), binder vejen til ejer-symbolets id, og en ændring af et symbol kan bryde vejen (eller omvendt).
+
+## Ny model
+- **Lagring** (`signal_paths`, samme tabel, ny `data`-form, `SCHEMA_VERSION` 16): `{start, ends[], branches: [{conds: [{src, neg, cmp, value}] }], elements: [{element, branches[], parts: [{part, type, params, when, reverse?}]}], style, ui}` — vejen er ét objekt; **intet skrives i symbolernes opsætning**.
+- **Runtime** (`services/signal_paths/runtime.py`, kaldt fra `SymbolRuntime.evaluate()` hvert tick):
+  - gren aktiv = OG over grenens betingelser (samme vurdering som logikblokkenes indgange, `symbols.evaluate_logic`-reglerne; dårlig kvalitet → ikke aktiv);
+  - pseudo-tags `path:<tegning>:<id>:<grene>` (fx `…:0`, `…:0,1` = ELLER over grenene) skrives i LiveCache som bool med kvalitet;
+  - signaturen (`_current_signature`) får `signal_paths` med, så en gemt/slettet vej læses straks.
+- **Overview**: `DrawingService.view()` lægger vejens animationer på som almindelige bindinger med pseudo-tagget som kilde (`{element, tag, anim, params:{when …}}`), så `canvas.ts`/`animate.ts` viser dem uden ændringer; prioritet mod delens egne animationer følger de eksisterende regler (`when`).
+- **Adgang**: `tags_for_drawing()` medtager vejenes pseudo-tags (som logik-pseudo-tags), så WS-filteret sender dem til dem, der må se tegningen.
+- **Ingen grænser fra ejer-symbolet**: højst 32 betingelser pr. gren, 4 grene, 200 elementer, 16 animationer pr. element (som i dag).
+
+## Trin
+1. Backend-model og API: ny `valid_data`/Pydantic-body; `service.save/delete/list/info` gemmer kun objektet (fjern `blocks.py`, `_strip`, `_owned`, `_check_refs`, 409-konflikter, `created`); `info` uændret for guiden.
+2. Runtime: `runtime.py` (ren funktion `evaluate_paths(paths, values) → {pseudo-tag: (bool, kvalitet)}` + test), koblet ind i `SymbolRuntime` (load ved reload, skriv i cache ved evaluate), signatur udvidet.
+3. View og adgang: bindinger i `view()`, pseudo-tags i `tags_for_drawing()`/scope; Overview skal ikke ændres (verificeres i browseren).
+4. Migrering (schema 16): fjern gamle vejes efterladenskaber én gang (logikblokke med navn "Signalvej: …" og animationer med kilde i dem) og slet de gamle rækker. Backup: ny `valid_data`; gamle backups med signalveje springes over med en note.
+5. Frontend-guiden: gem-body i den nye form (betingelser pr. gren i stedet for `branches` på hver betingelse; animationer pr. del som nu fra `pathLook`); fjern 409-"Erstat"-dialogen og "har allerede løbelys"-advarslen; resten (rutesøgning, klik, via, vend flowet, udseende) uændret.
+6. Observability: Status/log — antal veje, aktive grene, evalueringsfejl; logning ved gem/slet (som nu).
+7. Docs: manual kap. 08 (hvordan vejen virker nu: ingen ændring i symbolerne, ingen "erstat"), LLM-tillæg, ARCHITECTURE.md (signalvej som runtime-objekt), FEATURES/CHANGELOG/RELEASE_NOTES, version **5.0.0** (schema), OTA.
+8. Tests: backend (gem/ret/slet, runtime-evaluering inkl. grene/ELLER/kvalitet, view-bindinger, scope, migrering, backup), frontend (guide gem-body), browser: en vej med pumpe + ventil på demo-tegningen, skift tag-værdier i mock-PLC og se løbelyset tænde/slukke pr. gren. **Reviewer**-agent før commit (PLC-data, adgang, data-integritet).
+
+## Berørte filer
+backend: `services/signal_paths/*` (blocks.py udgår, ny runtime.py), `api/signal_paths.py`, `services/symbol_runtime.py`, `services/drawings.py` (view), `services/symbols.py` (tags_for_drawing), `services/scope.py` (hvis nødvendigt), `storage/db.py` (schema 16, migrering), `services/backup.py`, `services/assistant*` (uændret), tests. frontend: `lib/SignalPathGuide.svelte` (gem-body, ingen 409), evt. `lib/pathLook.ts`; Overview uændret. docs.
+
+## Risici
+- Prioritet mellem vejens og delens egne animationer på samme del: afprøves (fx rør med egen farve + vejens løbelys).
+- Pseudo-tags pr. kombination af grene: højst 2^4−1 = 15 pr. vej; kun de brugte oprettes.
+- Bindinger fra veje i Bindinger-siden: vises ikke (ejes af vejen) — kan komme som læs-kun liste senere.
+- Uden for denne plan: B (forbindelser som data i tegningen) og guidens forenkling (A) — kan tages bagefter.
+
 # Plan: Refaktorér signalvejs-koden (v4.15.1, ingen funktionsændring) — 2026-11-09 — ✅ udført (trin 1–5; guidens trin 2 og 5 blev i komponenten)
 
 Mål: gøre signalvejen overskuelig uden at ændre adfærd. Nu: `SignalPathGuide.svelte` 890 linjer (~40 state-variabler, 36 funktioner, 5 trin, klik/via/pick/AI/gem blandet), `signalPath.ts` 482 linjer (graf, rutesøgning, retning, spørgsmål, svar i én fil), `signal_paths.py` 464 linjer.
