@@ -410,6 +410,8 @@ export function createScada(host) {
       e.removeAttribute('data-hv-from');
       e.removeAttribute('data-hv-to');
     }
+    // en kopi hænger ikke sammen med originalens naboer (v5.3.0)
+    for (const el of selectedEls()) for (const e of [el, ...el.querySelectorAll('[data-hv-links]')]) e.removeAttribute('data-hv-links');
     const root = canvas().getSvgContent();
     const copies = selectedEls().flatMap((el) => [el, ...el.querySelectorAll('[data-hv-name]')]).filter((el) => el.getAttribute('data-hv-name'));
     if (!copies.length) return;
@@ -1318,6 +1320,67 @@ export function createScada(host) {
   const r2 = (v) => Math.round(v * 100) / 100;
   const portKey = (pipe, fracs, i) => (pipe ? (i === 0 ? 's' : 'e') : fracs?.[i] ? `${r2(fracs[i][0])},${r2(fracs[i][1])}` : `#${i}`);
   const unusedKeys = (el) => new Set((el.getAttribute('data-hv-unused') || '').split(';').filter(Boolean));
+  // ---- gemte forbindelser (v5.3.0): data-hv-links="nøgle>andet-id:nøgle;…" på BEGGE elementer i en forbindelse
+  function parseLinks(el) {
+    return (el.getAttribute('data-hv-links') || '').split(';').map((x) => {
+      const gt = x.indexOf('>'), colon = x.lastIndexOf(':');
+      return gt > 0 && colon > gt + 1 ? { key: x.slice(0, gt), to: x.slice(gt + 1, colon), toKey: x.slice(colon + 1) } : null;
+    }).filter((l) => l && l.toKey);
+  }
+  const linkText = (list) => list.map((l) => `${l.key}>${l.to}:${l.toKey}`).join(';');
+  const okKey = (k) => typeof k === 'string' && /^([0-9.,#se-]{1,16}|~)$/.test(k);
+  /** Skriv forbindelserne for nogle elementer som ét fortryd-trin. `next`: Map(element → liste). */
+  function commitLinks(next, label) {
+    const c = canvas();
+    const cmds = [];
+    for (const [el, list] of next) {
+      const was = el.getAttribute('data-hv-links');
+      const text = linkText(list);
+      if ((was || '') === text) continue;
+      if (text) el.setAttribute('data-hv-links', text); else el.removeAttribute('data-hv-links');
+      cmds.push(new c.history.ChangeElementCommand(el, { 'data-hv-links': was }));
+    }
+    if (!cmds.length) return 0;
+    commitCmds(label, cmds);
+    if (changeListener) changeListener();
+    return cmds.length;
+  }
+  /** Bind forbindelser: gem parrene (fra Tegn-sidens `pairsToBind`) på begge elementer, og fjern forbindelser til elementer, der
+   * ikke findes længere. → { links, elements } */
+  function bindLinksNow(pairs) {
+    const content = canvas().getSvgContent();
+    const byId = (id) => content.querySelector(`[id="${CSS.escape(String(id))}"]`);
+    const next = new Map();
+    const listOf = (el) => { if (!next.has(el)) next.set(el, parseLinks(el).filter((l) => byId(l.to))); return next.get(el); };
+    for (const el of content.querySelectorAll('[data-hv-links]')) listOf(el);           // (rydder forbindelser til slettede elementer)
+    let n = 0;
+    for (const p of Array.isArray(pairs) ? pairs : []) {
+      const a = byId(p?.id), b = byId(p?.to);
+      if (!a || !b || a === b || !okKey(p.key) || !okKey(p.toKey)) continue;
+      const la = listOf(a), lb = listOf(b);
+      if (!la.some((l) => l.key === p.key && l.to === p.to && l.toKey === p.toKey)) { la.push({ key: p.key, to: p.to, toKey: p.toKey }); n++; }
+      if (!lb.some((l) => l.key === p.toKey && l.to === p.id && l.toKey === p.key)) lb.push({ key: p.toKey, to: p.id, toKey: p.key });
+    }
+    const elements = commitLinks(next, 'Bind forbindelser');
+    return { links: n, elements };
+  }
+  /** Fjern forbindelsen ved et punkt (og den modsatte på den anden ende) — ét fortryd-trin. → antal fjernede */
+  function unlinkAt(id, key) {
+    const content = canvas().getSvgContent();
+    const el = content.querySelector(`[id="${CSS.escape(String(id))}"]`);
+    if (!el || !okKey(key)) return 0;
+    const mine = parseLinks(el);
+    const gone = mine.filter((l) => l.key === key);
+    if (!gone.length) return 0;
+    const next = new Map([[el, mine.filter((l) => l.key !== key)]]);
+    for (const g of gone) {
+      const other = content.querySelector(`[id="${CSS.escape(g.to)}"]`);
+      if (other) next.set(other, parseLinks(other).filter((l) => !(l.to === id && l.key === g.toKey && l.toKey === key)));
+    }
+    commitLinks(next, 'Fjern forbindelse');
+    return gone.length;
+  }
+
   /** Skift et punkt mellem "i brug" og "ikke i brug" — ét fortryd-trin, gemmes med tegningen. → om det nu er markeret */
   function toggleUnusedPort(id, key) {
     const c = canvas();
@@ -1356,6 +1419,7 @@ export function createScada(host) {
         const d = dot(e);
         if (!d) return;
         e.stopPropagation();
+        if (d.hasAttribute('data-unlink')) { unlinkAt(d.getAttribute('data-id'), d.getAttribute('data-key')); return; }   // gledet forbindelse
         toggleUnusedPort(d.getAttribute('data-id'), e.shiftKey ? '*' : d.getAttribute('data-key'));     // Skift+klik: hele symbolet
       });
     }
@@ -1389,7 +1453,7 @@ export function createScada(host) {
         continue;
       }
       const bad = it.status !== 'ok';
-      const color = !bad ? '#2e7d32' : it.status === 'isolated' ? '#b71c1c' : '#e53935';
+      const color = !bad ? '#2e7d32' : it.status === 'drift' ? '#ef6c00' : it.status === 'isolated' ? '#b71c1c' : '#e53935';
       if (isPipe(el)) {
         const m = toDocMatrix(el);
         const pts = pipePoints(el).map((p) => (m ? toPoint(m, p) : p));
@@ -1407,6 +1471,11 @@ export function createScada(host) {
         const key = it.openKeys?.[i];
         dots += `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="${rr}" fill="#d32f2f" stroke="#fff" stroke-width="${sw}" ${key ? attrs(key) : ''}>` +
           `${key ? '<title>Åbent punkt — klik: marker punktet som ikke i brug (så giver det ikke en fejl). Skift+klik: udelad hele symbolet fra tjekket</title>' : ''}</circle>`;
+      });
+      (it.drift ?? []).forEach((p, i) => {
+        const key = it.driftKeys?.[i];
+        dots += `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="${rr}" fill="#ef6c00" stroke="#fff" stroke-width="${sw}" ${key ? `${attrs(key)} data-unlink="1"` : ''}>` +
+          `${key ? '<title>Gemt forbindelse, men punkterne er gledet fra hinanden — "Ret" flytter enden tilbage. Klik: fjern forbindelsen</title>' : ''}</circle>`;
       });
       (it.ignored ?? []).forEach((p, i) => {
         const key = it.ignoredKeys?.[i];
@@ -2642,7 +2711,7 @@ export function createScada(host) {
      * og sættes fast, hvis `to` er et tilslutningspunkt; et lige rørstykke (rør-symbol, vandret eller lodret) forlænges/forkortes
      * i sin egen retning. Symboler flyttes aldrig; alt andet springes over. Ét fortryd-trin. → { fixed, details, skipped }
      */
-    fixConnections(moves = []) {
+    fixConnections(moves = [], linkPairs = null) {
       const c = canvas();
       const content = c.getSvgContent();
       const hyp = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -2695,6 +2764,8 @@ export function createScada(host) {
       }
       if (!before.size) return { fixed: 0, details, skipped };
       commitCmds('Ret forbindelser', [...before].map(([el, attrs]) => new c.history.ChangeElementCommand(el, attrs)));
+      // de rettede ender bindes med det samme (eget fortryd-trin), hvis Tegn-siden har givet parrene med
+      if (Array.isArray(linkPairs) && linkPairs.length) bindLinksNow(linkPairs);
       if (changeListener) changeListener();
       if (selectionListener) selectionListener(currentSelection());
       drawHandles();
@@ -2721,6 +2792,11 @@ export function createScada(host) {
       return cmds.length;
     },
 
+    /** Gemte forbindelser (v5.3.0): bind de givne par ([{ id, key, to, toKey }]) og ryd forbindelser til slettede elementer. */
+    bindLinks(pairs = []) { return bindLinksNow(pairs); },
+    /** Fjern den gemte forbindelse ved et punkt (begge ender). */
+    unlink(id, key) { return unlinkAt(id, key); },
+
     /** Markér/fjern et punkt som "ikke i brug" (v4.22.0) — gemmes med tegningen. */
     toggleUnused(id, key) { return toggleUnusedPort(id, key); },
 
@@ -2730,7 +2806,9 @@ export function createScada(host) {
         .map((i) => {
           const pts = (a) => (Array.isArray(a) ? a : []).map((p, k) => (Array.isArray(p) && p.length === 2 && p.every(Number.isFinite) ? [p, k] : null)).filter(Boolean);
           const open = pts(i.open), ignored = pts(i.ignored);
-          return { id: i.id, exempt: !!i.exempt, status: i.status === 'open' || i.status === 'isolated' ? i.status : 'ok',
+          const drift = pts(i.drift);
+          return { id: i.id, exempt: !!i.exempt, status: ['open', 'isolated', 'drift'].includes(i.status) ? i.status : 'ok',
+            drift: drift.map(([p]) => p), driftKeys: drift.map(([, k]) => String(i.driftKeys?.[k] ?? '')),
             open: open.map(([p]) => p), openKeys: open.map(([, k]) => String(i.openKeys?.[k] ?? '')),
             ignored: ignored.map(([p]) => p), ignoredKeys: ignored.map(([, k]) => String(i.ignoredKeys?.[k] ?? '')) };
         });
@@ -3076,9 +3154,11 @@ export function createScada(host) {
         const marked = unusedKeys(el);
         const unused = keys.map((k, i) => (marked.has(k) ? i : -1)).filter((i) => i >= 0);
         const exempt = marked.has('*');      // hele symbolet er udeladt fra tjekket (v4.22.0)
+        // gemte forbindelser (v5.3.0): punkt (nøgle) → et andet elements punkt; '~' = midt på stregen
+        const links = parseLinks(el).map((l) => ({ i: l.key === '~' ? -1 : keys.indexOf(l.key), to: l.to, toKey: l.toKey }));
         return {
           id: el.id, name: el.getAttribute('data-hv-name') ?? '', type: el.getAttribute('data-hv-type') ?? '', pipe,
-          terminals, fracs, keys, unused, exempt, lines,
+          terminals, fracs, keys, unused, exempt, links, lines,
           refs: pipe ? ['data-hv-from', 'data-hv-to'].map((a) => parseRef(el.getAttribute(a))?.id ?? null) : [],
         };
       });

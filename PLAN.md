@@ -1,4 +1,4 @@
-# Plan: Forbindelser som data i tegningen (v5.3.0) — 2026-11-10 — afventer OK
+# Plan: Forbindelser som data i tegningen (v5.3.0) — 2026-11-10 — ✅ udført
 
 Mål: hvad der hænger sammen i en tegning, skal være **gemt**, ikke gættet ud fra afstande, hver gang det bruges. Signalveje, Tjek forbindelser og Ret forbindelser bruger samme gemte forbindelser, så det, man ser grønt i tjekket, er præcis det, en signalvej kan gå igennem.
 

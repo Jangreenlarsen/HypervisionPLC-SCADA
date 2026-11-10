@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.3.0 build 0382] — 2026-11-10 — Forbindelser som data i tegningen
+
+- `svgedit-host/scada-core.js`: `data-hv-links="nøgle>andet-id:nøgle;…"` på begge elementer i en forbindelse (nøgler som "ikke i brug": `s`/`e`, punktets placering, `#i`; `~` = midt på en streg). `connectionGraph()` giver `links`; `bindLinks(pairs)` (gemmer parrene, rydder forbindelser til slettede elementer — ét fortryd-trin), `unlink(id, key)` (begge ender); overlayet viser gledne forbindelser orange (klik = fjern); kopier (indsæt/dupliker) tager ikke forbindelser med.
+- `lib/signalpath/graph.ts`: `contacts()` bruger de gemte forbindelser, hvor de findes (geometriske kontakter ved et bundet punkt gælder ikke), ellers geometrien (`geoContacts`); `pairsToBind` (eksisterende + nye fra geometrien: kun egentlige ender, punkt mod punkt inden for 8 enheder, højst én forbindelse mellem to elementer, nærmeste først), `unboundPairs`, `linkGap`, `pointOfKey`; `connectionCheck` med status `drift` (gemt, men > 8 enheder fra hinanden) og `unbound`; `planFixes` flytter en gledet rør-ende tilbage til den gemte modpart. `realEnds` beholder det yderste punkt, når punkter ligger tæt (bøjningens ende — ikke kurvepunktet).
+- `pages/DrawEditor.svelte`: *Bind forbindelser (N)*, "N gledet", og *Ret* binder de rettede ender, når tegningen er bundet.
+- Tests: `connectionCheck.test.ts` (binding, gledet, ubundne, Ret), `test_svg_sanitize.py`. Simuleret på demo-tegningen: samme signalvej før og efter binding, ingen falske "gledet". Set i browseren: Bind (98 par, 95 elementer) → et rør gjort 15 kortere → 2 orange → Ret → grønt; klik på orange fjerner forbindelsen i begge ender, Ctrl+Z bringer den tilbage; kladden gemmer forbindelserne.
+- Manual (kap. 07), LLM-tillæg.
+
 ## [5.2.0 build 0381] — 2026-11-10 — Signalvej-guiden i et vindue over tegningen
 
 - `pages/DrawEditor.svelte`: mens en signalvej redigeres, vises guiden i et fast placeret vindue over tegnefladen (`.spwin.floating`: træk i overskriften, ændr størrelse i hjørnet, standard i højre side; valg, placering og størrelse i `localStorage` `draw.spwin`, holdt inden for skærmen). Samme komponent som i panelet (kun CSS), så tilstanden bevares; sektionen *Signalveje* holdes åben, mens vejen redigeres. Knapperne *⇲ Til panelet* / *⇱ Ud over tegningen*.
