@@ -5,11 +5,12 @@
 import type { Flow, NetRow, Role } from './signalPath';
 import { waysOf, parseWay, type FlowDefs } from './symbolFlow';
 
-export type LookGroup = 'pipe' | 'valve' | 'threeway' | 'pump' | 'switch';
+export type LookGroup = 'pipe' | 'valve' | 'threeway' | 'pump' | 'switch' | 'unit';
 export type LookType = 'flow' | 'fill' | 'stroke' | 'blink' | 'visible' | 'spin';
-export const GROUPS: LookGroup[] = ['pipe', 'valve', 'threeway', 'pump', 'switch'];
+export const GROUPS: LookGroup[] = ['pipe', 'valve', 'threeway', 'pump', 'switch', 'unit'];
 export const GROUP_LABEL: Record<LookGroup, string> = {
   pipe: 'Rør, bøjninger og T-stykker', valve: 'Ventiler', threeway: '3-vejsventiler', pump: 'Pumper', switch: 'Kontakter',
+  unit: 'Øvrige symboler (kedel, tank, radiator …)',
 };
 export const TYPE_LABEL: Record<LookType, string> = {
   flow: 'Løbelys', fill: 'Farve', stroke: 'Stregfarve', blink: 'Blink', visible: 'Vises kun når vejen er aktiv', spin: 'Roterer',
@@ -21,6 +22,7 @@ export const TYPES: Record<LookGroup, LookType[]> = {
   threeway: ['fill', 'stroke', 'blink'],
   pump: ['fill', 'blink', 'spin', 'stroke', 'visible'],
   switch: ['fill', 'stroke', 'blink', 'visible'],
+  unit: ['fill', 'stroke', 'blink', 'visible'],   // v5.1.1: alle symboler på vejen kan få en animation
 };
 export const WAYS_PART = 'ways';        // en 3-vejsventil: kun portene i vejen, vejen bruger
 export const WHOLE = 'all';             // hele symbolet
@@ -70,6 +72,7 @@ export function groupOf(role: Role): LookGroup | null {
     case 'threeway': return 'threeway';
     case 'pump': return 'pump';
     case 'switch': return 'switch';
+    case 'unit': return 'unit';
     default: return null;
   }
 }

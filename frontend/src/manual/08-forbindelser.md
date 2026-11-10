@@ -123,7 +123,7 @@ Symbolets egne tags (fra dets opsætning) står øverst og foreslås. Vælg *ing
 
 ![Trin 4: animationer pr. slags element — løbelys på rør, farve og blink på ventiler, farve på portene i en 3-vejsventil](../../public/manual/signalvej-udseende.png)
 
-Her bestemmer du, **hvad vejen gør ved hver slags element**, når den er aktiv. Der er et kort for hver slags element, der findes på vejen: *Rør, bøjninger og T-stykker*, *Ventiler*, *3-vejsventiler*, *Pumper* og *Kontakter*. Sæt hak ved de animationer, du vil have:
+Her bestemmer du, **hvad vejen gør ved hver slags element**, når den er aktiv. Der er et kort for hver slags element, der findes på vejen: *Rør, bøjninger og T-stykker*, *Ventiler*, *3-vejsventiler*, *Pumper*, *Kontakter* og *Øvrige symboler* (kedel, tank, radiator, sikkerhedsventil … — også start og slut). Under hvert kort står, hvilke elementer på vejen det gælder. Sæt hak ved de animationer, du vil have:
 
 | Animation | Hvad den gør | Findes for |
 | --- | --- | --- |

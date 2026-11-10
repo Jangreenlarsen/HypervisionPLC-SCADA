@@ -2,6 +2,10 @@
 
 ---
 
+## v5.1.1 — 2026-11-10 — Rettelse
+
+- Signalvejens trin **Udseende** viser nu alle symboler på vejen: kedel, tank, radiator og andre står under **Øvrige symboler** og kan få farve, blink m.m. Hvert kort viser, hvilke elementer det gælder.
+
 ## v5.1.0 — 2026-11-10 — Én måde at sætte symboler op på
 
 - Den gamle symbolmodel er fjernet: et symbol sættes **kun** op i guiden (Bindinger › Opsæt symbol). Simple bindinger på symboler (undtagen *Gå til tegning*) og "Konvertér alle" findes ikke længere.
