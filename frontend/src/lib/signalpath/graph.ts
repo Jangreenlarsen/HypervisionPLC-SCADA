@@ -4,6 +4,9 @@ export interface GLine { part: string; a: Pt; b: Pt; pts?: Pt[]; w?: number; das
 export interface GNode {
   id: string; name: string; type: string; pipe: boolean; terminals: Pt[]; lines: GLine[]; refs: (string | null)[];
   fracs?: Pt[] | null;   // punkternes placering som brøkdele af symbolets boks (samme rækkefølge som terminals) — til navne og roller
+  keys?: string[];       // en nøgle pr. punkt (til "ikke i brug"), samme rækkefølge som terminals (v4.22.0)
+  unused?: number[];     // numrene på de punkter, brugeren har markeret som ikke i brug (data-hv-unused)
+  exempt?: boolean;      // hele symbolet er udeladt fra tjekket af forbindelser
 }
 export interface Graph { nodes: GNode[] }
 export interface Contact { to: string; p: Pt }
@@ -136,7 +139,12 @@ export function endpoints(g: Graph): { id: string; label: string }[] {
 // ---------------------------------------------------------------- tjek af forbindelser (v4.18.0)
 /** ok: alle tilslutningspunkter sidder fast i noget · open: nogle er åbne · isolated: elementet hænger slet ikke sammen med noget. */
 export type ConnStatus = 'ok' | 'open' | 'isolated';
-export interface ConnItem { id: string; name: string; type: string; pipe: boolean; status: ConnStatus; open: Pt[] }
+export interface ConnItem {
+  id: string; name: string; type: string; pipe: boolean; status: ConnStatus;
+  exempt: boolean;                           // brugeren har udeladt hele symbolet (status er så altid ok)
+  open: Pt[]; openKeys: string[];            // åbne punkter og deres nøgler
+  ignored: Pt[]; ignoredKeys: string[];      // punkter, brugeren har markeret som ikke i brug
+}
 
 /**
  * Hvilke symboler og rør der hænger fast i resten af tegningen. Et tilslutningspunkt er forbundet, når et andet elements punkt
@@ -167,11 +175,19 @@ export function connectionCheck(g: Graph, tol = TOL): ConnItem[] {
   for (const n of g.nodes) {
     if (!passable(n) || !n.terminals.length) continue;
     const mine = adj.get(n.id) ?? [];
+    if (n.exempt) {
+      out.push({ id: n.id, name: n.name, type: n.type, pipe: n.pipe || roleOf(n) === 'pipe', exempt: true, status: 'ok', open: [], openKeys: [], ignored: [], ignoredKeys: [] });
+      continue;
+    }
     const ends = realEnds(n, tol);
-    // tæt-på-punkter i en bøjning er én ende: den er forbundet, hvis et af dem er det
-    const open = ends.filter((t) => !mine.some((c) => dist(c.p, t) <= tol * 2));
-    out.push({ id: n.id, name: n.name, type: n.type, pipe: n.pipe || roleOf(n) === 'pipe', open,
-      status: !open.length ? 'ok' : mine.length ? 'open' : 'isolated' });
+    const skipIdx = (n.unused ?? []).filter((i) => i >= 0 && i < n.terminals.length);
+    const isSkipped = (p: Pt) => skipIdx.some((i) => dist(n.terminals[i], p) <= 0.01);
+    const keyOf = (p: Pt) => { const i = n.terminals.findIndex((t) => dist(t, p) <= 0.01); return n.keys?.[i] ?? `#${i}`; };
+    // tæt-på-punkter i en bøjning er én ende: den er forbundet, hvis et af dem er det. Punkter markeret som ikke i brug tæller ikke.
+    const open = ends.filter((t) => !isSkipped(t) && !mine.some((c) => dist(c.p, t) <= tol * 2));
+    const ignored = skipIdx.map((i) => n.terminals[i]);
+    out.push({ id: n.id, name: n.name, type: n.type, pipe: n.pipe || roleOf(n) === 'pipe', exempt: false, open, openKeys: open.map(keyOf),
+      ignored, ignoredKeys: ignored.map(keyOf), status: !open.length ? 'ok' : mine.length ? 'open' : 'isolated' });
   }
   return out;
 }

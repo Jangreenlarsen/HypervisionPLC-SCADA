@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.22.0 build 0376] — 2026-11-10 — Tjek forbindelser: punkter og symboler, der ikke er i brug
+
+- `svgedit-host/scada-core.js`: attributten `data-hv-unused="nøgle;nøgle"` på symbolet/røret (nøgle = rørets ende `s`/`e`, symbolpunktets placering i boksen med to decimaler, eller `#i`; `*` = hele symbolet). `connectionGraph()` giver `keys`, `unused` og `exempt`; `toggleUnused(id, key)` og `exemptSymbols(ids, on)` ændrer attributten som ét fortryd-trin (så den gemmes med tegningen); overlayet har klikbare prikker (klik = punktet, Skift+klik = hele symbolet), grå stiplede ringe for punkter ikke i brug og grå rammer med et ⊘-mærke for udeladte symboler.
+- `lib/signalpath/graph.ts`: `connectionCheck` springer punkter markeret som ikke i brug over (de tæller som `ignored`) og udelader `exempt`-symboler helt; `ConnItem` har `openKeys`, `ignored`, `ignoredKeys`, `exempt`.
+- `pages/DrawEditor.svelte`: knappen *Udelad valgte fra tjekket* / *Tag valgte med i tjekket* (Vis-menuen og værktøjslinjen, når tjekket er slået til).
+- Backend uændret (sanitizeren bevarer `data-*`-attributter); ny test `test_keeps_unused_connection_marks`. Tests: `connectionCheck.test.ts` (11). Set i browseren: klik på prik, Skift+klik, knap, to gange fortryd, og at attributten ligger i den gemte kladde.
+- Manual (kap. 07) og LLM-tillæg.
+
 ## [4.21.0 build 0375] — 2026-11-10 — Tegn: meddelelser i en boks
 
 - `pages/DrawEditor.svelte`: de gule bjælker over tegningen (`info` og dublerede navne) er fjernet. Hver ny `info`-besked lægges i en liste (tid, tekst, evt. "Renset ved gem" / "Bindinger uden element" / advarsel om symboler, der ikke findes), og knappen **Meddelelser** i den øverste linje viser antallet af nye (orange) og åbner en boks med listen (nyeste øverst, *Ryd meddelelser*). En advarsel (symboler sat op med guiden, som ikke findes) åbner boksen af sig selv. Dublerede symbolnavne står øverst i boksen med knappen *Giv dem unikke navne*. Højst 30 meddelelser.

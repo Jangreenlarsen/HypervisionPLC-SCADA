@@ -86,3 +86,30 @@ describe('ret brudte forbindelser (planFixes)', () => {
     expect(planFixes(off, connectionCheck(off)).filter((m) => m.id === 's')).toHaveLength(0);     // ligger ved siden af aksen: kan ikke ordnes ved at forlænge
   });
 });
+
+describe('punkter og symboler, der ikke er i brug', () => {
+  const pump = (over: Partial<GNode> = {}): GNode => ({ id: 'p', name: 'P', type: 'pumpe', pipe: false, terminals: [[0, 0], [20, 0], [10, 20]],
+    lines: [], refs: [], keys: ['0,0.5', '1,0.5', '0.5,1'], ...over });
+
+  it('does not count a point marked as unused, and reports it as ignored', () => {
+    const g: Graph = { nodes: [pump({ unused: [2] }), pipe('a', [-40, 0], [0, 0]), pipe('b', [20, 0], [60, 0])] };
+    const p = by(g).p;
+    expect(p.status).toBe('ok');
+    expect(p.open).toEqual([]);
+    expect(p.ignored).toEqual([[10, 20]]);
+    expect(p.ignoredKeys).toEqual(['0.5,1']);
+    const open = by({ nodes: [pump(), pipe('a', [-40, 0], [0, 0]), pipe('b', [20, 0], [60, 0])] }).p;     // uden markering: det tredje punkt er åbent
+    expect(open).toMatchObject({ status: 'open', open: [[10, 20]], openKeys: ['0.5,1'], ignored: [] });
+  });
+
+  it('an element that is fully unconnected becomes ok when all its points are unused', () => {
+    expect(by({ nodes: [pump({ unused: [0, 1, 2] })] }).p.status).toBe('ok');
+    expect(by({ nodes: [pump({ unused: [0, 1] })] }).p).toMatchObject({ status: 'isolated', open: [[10, 20]] });
+  });
+
+  it('skips an exempt symbol altogether', () => {
+    const r = by({ nodes: [pump({ exempt: true })] }).p;
+    expect(r).toMatchObject({ exempt: true, status: 'ok', open: [] });
+    expect(planFixes({ nodes: [pump({ exempt: true })] }, connectionCheck({ nodes: [pump({ exempt: true })] }))).toEqual([]);
+  });
+});

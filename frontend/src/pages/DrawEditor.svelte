@@ -58,7 +58,9 @@
     insertGraphic(fragment: string, name?: string, at?: { x: number; y: number } | null, maxFrac?: number, nth?: number): string;
     docPointAt(clientX: number, clientY: number): { x: number; y: number };
     fixConnections(moves: { id: string; from: [number, number]; to: [number, number]; toId: string }[]): { fixed: number; details: { id: string; to: string; gap: number }[]; skipped: number };
-    markConnections(items: { id: string; status: string; open: [number, number][] }[]): void;
+    exemptSymbols(ids: string[], on: boolean): number;
+    markConnections(items: { id: string; exempt: boolean; status: string; open: [number, number][]; openKeys: string[]; ignored: [number, number][]; ignoredKeys: string[] }[]): void;
+    toggleUnused(id: string, key: string): boolean;
     setNameLabels(opts: { symbols: boolean; pipes: boolean; paths: { name: string; elements: string[] }[] }): void;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
     getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
@@ -159,7 +161,15 @@
   // Tjek forbindelser (v4.18.0): markér, hvad der hænger fast i resten af tegningen (grønt) og hvad der har åbne ender (rødt). Kun visning.
   let checkConn = $state(false);
   let connSummary = $state<{ open: number; isolated: number; names: string[] } | null>(null);
-  let connMoves = $state<FixMove[]>([]);       // rettelserne, det seneste tjek foreslår (til *Ret forbindelser*)
+  let connMoves = $state<FixMove[]>([]);
+  let connExempt = $state<Set<string>>(new Set());       // symboler, der er udeladt fra tjekket (data-hv-unused="*")
+  const selIds = $derived(selection.map((x) => x.id).filter(Boolean));
+  const selAllExempt = $derived(selIds.length > 0 && selIds.every((id) => connExempt.has(id)));
+  function exemptSelected(): void {
+    if (!ed || !selIds.length) return;
+    const n = ed.exemptSymbols(selIds, !selAllExempt);
+    info = n ? `${n} symbol${n === 1 ? '' : 'er'} ${selAllExempt ? 'tages med i' : 'udeladt fra'} tjekket af forbindelser. Det gemmes med tegningen (Gem kladde / Gem og udgiv).` : '';
+  }       // rettelserne, det seneste tjek foreslår (til *Ret forbindelser*)
   const FIX_GAP = 25;      // en fri rør-ende højst så langt fra et punkt/en anden ende regnes for "tydeligvis skal sidde sammen"
   function fixConnectionsNow(): void {
     if (!ed) return;
@@ -184,8 +194,9 @@
       const g = ed?.connectionGraph();
       if (!g || !checkConn) return;
       const items = connectionCheck(g);
-      ed?.markConnections(items.map((i) => ({ id: i.id, status: i.status, open: i.open })));
+      ed?.markConnections(items.map((i) => ({ id: i.id, exempt: i.exempt, status: i.status, open: i.open, openKeys: i.openKeys, ignored: i.ignored, ignoredKeys: i.ignoredKeys })));
       connMoves = planFixes(g, items, FIX_GAP);
+      connExempt = new Set(items.filter((i) => i.exempt).map((i) => i.id));
       const bad = items.filter((i) => i.status !== 'ok');
       connSummary = { open: bad.filter((i) => i.status === 'open').length, isolated: bad.filter((i) => i.status === 'isolated').length,
         names: bad.slice(0, 30).map((i) => i.name || i.id) };
@@ -1132,6 +1143,9 @@
   <span class="mhead">Kontrol</span>
   <div class="mrow" title="Markerer, hvad der hænger fast i resten af tegningen: grønt = forbundet, rødt = åbne ender (røde prikker). Kun visning i Tegn">
     <label class="opt"><input type="checkbox" bind:checked={checkConn} /> Tjek forbindelser</label>
+    {#if checkConn}
+      <button class="small" onclick={exemptSelected} disabled={!selIds.length} title="Udelad de valgte symboler fra tjekket, så de ikke giver fejl (fx et symbol, der bevidst ikke er tilsluttet). Gemmes med tegningen. Peg på en rød prik: klik = kun det punkt, Skift+klik = hele symbolet">{selAllExempt ? 'Tag valgte med i tjekket' : 'Udelad valgte fra tjekket'}</button>
+    {/if}
     {#if checkConn && connSummary && connMoves.length}
       <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt. Symboler flyttes aldrig. Ctrl+Z fortryder">Ret {connMoves.length}</button>
     {/if}

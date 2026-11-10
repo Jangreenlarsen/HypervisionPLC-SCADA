@@ -2,6 +2,10 @@
 
 ---
 
+## v4.22.0 — 2026-11-10 — Punkter og symboler, der ikke er i brug, i Tjek forbindelser
+
+- I **Tjek forbindelser** kan du klikke på en rød prik for at markere et tilslutningspunkt som **ikke i brug** (det giver så ikke en fejl), og **Skift+klik** eller **Udelad valgte fra tjekket** for at udelade et helt symbol. Markeringerne gemmes i tegningen, når du trykker Gem kladde eller Gem og udgiv, og kan fortrydes.
+
 ## v4.21.0 — 2026-11-10 — Meddelelser i en boks i Tegn
 
 - Systemets beskeder i Tegn (fx "Version 157 er gemt og udgivet") står ikke længere i en gul bjælke over tegningen, men i en boks, der åbner, når du trykker på **Meddelelser** i den øverste linje. Nye beskeder vises som et orange tal; advarsler åbner boksen af sig selv. Tegnefladen får bjælkens plads.

@@ -1314,6 +1314,24 @@ export function createScada(host) {
     layer.innerHTML = out;
   }
 
+  // ---- punkter, der ikke er i brug (v4.22.0): gemmes i tegningen som data-hv-unused="nøgle;nøgle" på symbolet/røret
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const portKey = (pipe, fracs, i) => (pipe ? (i === 0 ? 's' : 'e') : fracs?.[i] ? `${r2(fracs[i][0])},${r2(fracs[i][1])}` : `#${i}`);
+  const unusedKeys = (el) => new Set((el.getAttribute('data-hv-unused') || '').split(';').filter(Boolean));
+  /** Skift et punkt mellem "i brug" og "ikke i brug" — ét fortryd-trin, gemmes med tegningen. → om det nu er markeret */
+  function toggleUnusedPort(id, key) {
+    const c = canvas();
+    const el = c.getSvgContent().querySelector(`[id="${CSS.escape(String(id))}"]`);
+    if (!el || !/^([0-9.,#se-]{1,16}|\*)$/.test(String(key))) return false;
+    const was = el.getAttribute('data-hv-unused');
+    const set = unusedKeys(el);
+    if (set.has(key)) set.delete(key); else set.add(key);
+    if (set.size) el.setAttribute('data-hv-unused', [...set].join(';')); else el.removeAttribute('data-hv-unused');
+    commitCmds('Punkt ikke i brug', [new c.history.ChangeElementCommand(el, { 'data-hv-unused': was })]);
+    if (changeListener) changeListener();
+    return set.has(key);
+  }
+
   /** Markerer symboler og rør efter om de hænger fast i resten af tegningen: grønt = ok, rødt = åbne ender (røde prikker). */
   function drawConn() {
     const gridHost = host.gridHost();
@@ -1330,6 +1348,16 @@ export function createScada(host) {
       layer.style.cssText = 'position:absolute; pointer-events:none; z-index:53; overflow:visible;';
       gridHost.appendChild(layer);
       conn.layer = layer;
+      // et klik på en prik skifter punktet mellem "i brug" og "ikke i brug"; musen må ikke nå tegnefladen under
+      const dot = (e) => e.target?.closest?.('[data-key]');
+      layer.addEventListener('mousedown', (e) => { if (dot(e)) e.stopPropagation(); });
+      layer.addEventListener('mouseup', (e) => { if (dot(e)) e.stopPropagation(); });
+      layer.addEventListener('click', (e) => {
+        const d = dot(e);
+        if (!d) return;
+        e.stopPropagation();
+        toggleUnusedPort(d.getAttribute('data-id'), e.shiftKey ? '*' : d.getAttribute('data-key'));     // Skift+klik: hele symbolet
+      });
     }
     const hr = gridHost.getBoundingClientRect();
     const cr = contentRect(content);
@@ -1347,6 +1375,19 @@ export function createScada(host) {
     for (const it of conn.items) {
       const el = content.querySelector(`[id="${CSS.escape(it.id)}"]`);
       if (!el) continue;
+      if (it.exempt) {
+        // udeladt af brugeren: grå stiplet ramme og et lille mærke, der kan klikkes for at tage symbolet med igen
+        const bbx = isPipe(el) ? null : boxOf(el);
+        if (bbx) {
+          out += `<rect x="${r1(bbx.x - 3)}" y="${r1(bbx.y - 3)}" width="${r1(bbx.w + 6)}" height="${r1(bbx.h + 6)}" rx="5" fill="#9e9e9e" fill-opacity="0.08" stroke="#757575" ` +
+            `stroke-width="${r1(Math.max(1.5, 1.5 / z))}" stroke-dasharray="${r1(6 / z)} ${r1(4 / z)}"/>`;
+          const br = Math.max(7, 9 / z);
+          dots += `<g data-id="${escXml(it.id)}" data-key="*" style="pointer-events:all; cursor:pointer"><circle cx="${r1(bbx.x - 3)}" cy="${r1(bbx.y - 3)}" r="${r1(br)}" fill="#fff" stroke="#757575" ` +
+            `stroke-width="${r1(Math.max(1.5, 1.5 / z))}"/><text x="${r1(bbx.x - 3)}" y="${r1(bbx.y - 3 + br * 0.38)}" font-size="${r1(br * 1.2)}" text-anchor="middle" fill="#616161" font-family="sans-serif">⊘</text>` +
+            `<title>Udeladt fra tjekket — klik for at tage symbolet med igen</title></g>`;
+        }
+        continue;
+      }
       const bad = it.status !== 'ok';
       const color = !bad ? '#2e7d32' : it.status === 'isolated' ? '#b71c1c' : '#e53935';
       if (isPipe(el)) {
@@ -1360,7 +1401,18 @@ export function createScada(host) {
           `fill-opacity="${bad ? 0.18 : 0.1}" stroke="${color}" stroke-opacity="0.8" stroke-width="${r1(bad ? Math.max(3, 3 / z) : Math.max(1.5, 1.5 / z))}"` +
           `${it.status === 'isolated' ? ` stroke-dasharray="${r1(8 / z)} ${r1(4 / z)}"` : ''}/>`;
       }
-      for (const p of it.open) dots += `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="${r1(Math.max(5, 6 / z))}" fill="#d32f2f" stroke="#fff" stroke-width="${r1(Math.max(1.5, 1.5 / z))}"/>`;
+      const rr = r1(Math.max(5, 6 / z)), sw = r1(Math.max(1.5, 1.5 / z));
+      const attrs = (k) => `data-id="${escXml(it.id)}" data-key="${escXml(k)}" style="pointer-events:all; cursor:pointer"`;
+      it.open.forEach((p, i) => {
+        const key = it.openKeys?.[i];
+        dots += `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="${rr}" fill="#d32f2f" stroke="#fff" stroke-width="${sw}" ${key ? attrs(key) : ''}>` +
+          `${key ? '<title>Åbent punkt — klik: marker punktet som ikke i brug (så giver det ikke en fejl). Skift+klik: udelad hele symbolet fra tjekket</title>' : ''}</circle>`;
+      });
+      (it.ignored ?? []).forEach((p, i) => {
+        const key = it.ignoredKeys?.[i];
+        dots += `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="${rr}" fill="#fff" fill-opacity="0.85" stroke="#757575" stroke-width="${sw * 1.4}" stroke-dasharray="${r1(sw * 2)} ${r1(sw * 1.5)}" ${key ? attrs(key) : ''}>` +
+          `${key ? '<title>Markeret som ikke i brug — klik for at fjerne markeringen</title>' : ''}</circle>`;
+      });
     }
     layer.innerHTML = out + dots;
   }
@@ -2649,11 +2701,39 @@ export function createScada(host) {
       return { fixed: details.length, details, skipped };
     },
 
+    /** Udelad hele symboler fra tjekket af forbindelser (`on`) eller tag dem med igen — ét fortryd-trin, gemmes med tegningen. → antal ændrede */
+    exemptSymbols(ids = [], on = true) {
+      const c = canvas();
+      const cmds = [];
+      for (const id of Array.isArray(ids) ? ids : []) {
+        const el = c.getSvgContent().querySelector(`[id="${CSS.escape(String(id))}"]`);
+        if (!el) continue;
+        const was = el.getAttribute('data-hv-unused');
+        const set = unusedKeys(el);
+        if (on === set.has('*')) continue;
+        if (on) set.add('*'); else set.delete('*');
+        if (set.size) el.setAttribute('data-hv-unused', [...set].join(';')); else el.removeAttribute('data-hv-unused');
+        cmds.push(new c.history.ChangeElementCommand(el, { 'data-hv-unused': was }));
+      }
+      if (!cmds.length) return 0;
+      commitCmds(on ? 'Udelad fra tjek' : 'Tag med i tjek', cmds);
+      if (changeListener) changeListener();
+      return cmds.length;
+    },
+
+    /** Markér/fjern et punkt som "ikke i brug" (v4.22.0) — gemmes med tegningen. */
+    toggleUnused(id, key) { return toggleUnusedPort(id, key); },
+
     /** Tjek af forbindelser (v4.18.0): markér symboler og rør efter `items` ([{ id, status, open }]); tom liste fjerner markeringen. */
     markConnections(items = []) {
       conn.items = (Array.isArray(items) ? items : []).filter((i) => i && typeof i.id === 'string')
-        .map((i) => ({ id: i.id, status: i.status === 'open' || i.status === 'isolated' ? i.status : 'ok',
-          open: (Array.isArray(i.open) ? i.open : []).filter((p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)) }));
+        .map((i) => {
+          const pts = (a) => (Array.isArray(a) ? a : []).map((p, k) => (Array.isArray(p) && p.length === 2 && p.every(Number.isFinite) ? [p, k] : null)).filter(Boolean);
+          const open = pts(i.open), ignored = pts(i.ignored);
+          return { id: i.id, exempt: !!i.exempt, status: i.status === 'open' || i.status === 'isolated' ? i.status : 'ok',
+            open: open.map(([p]) => p), openKeys: open.map(([, k]) => String(i.openKeys?.[k] ?? '')),
+            ignored: ignored.map(([p]) => p), ignoredKeys: ignored.map(([, k]) => String(i.ignoredKeys?.[k] ?? '')) };
+        });
       drawConn();
     },
 
@@ -2990,9 +3070,15 @@ export function createScada(host) {
           // symboler uden fundne punkter (fx et rør-symbol uden streg): stregernes ender
           if (!terminals.length) terminals = lines.flatMap((l) => [l.a, l.b]);
         }
+        // Punkter, brugeren har markeret som "ikke i brug" (data-hv-unused, v4.22.0): nøglen er rørets ende (s/e), symbolpunktets
+        // placering i boksen (to decimaler) eller — uden punkter — nummeret (#i)
+        const keys = terminals.map((_, i) => portKey(pipe, fracs, i));
+        const marked = unusedKeys(el);
+        const unused = keys.map((k, i) => (marked.has(k) ? i : -1)).filter((i) => i >= 0);
+        const exempt = marked.has('*');      // hele symbolet er udeladt fra tjekket (v4.22.0)
         return {
           id: el.id, name: el.getAttribute('data-hv-name') ?? '', type: el.getAttribute('data-hv-type') ?? '', pipe,
-          terminals, fracs, lines,
+          terminals, fracs, keys, unused, exempt, lines,
           refs: pipe ? ['data-hv-from', 'data-hv-to'].map((a) => parseRef(el.getAttribute(a))?.id ?? null) : [],
         };
       });
