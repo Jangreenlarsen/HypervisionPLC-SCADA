@@ -2,6 +2,10 @@
 
 ---
 
+## v5.3.0 — 2026-11-10 — Forbindelser gemmes i tegningen
+
+- Ny knap **Bind forbindelser** ved *Tjek forbindelser*: det, der hænger sammen, gemmes i tegningen, så signalveje og tjekket ikke længere gætter ud fra afstande. Gledne forbindelser vises **orange** — *Ret* sætter dem sammen igen, og et klik på den orange prik fjerner forbindelsen.
+
 ## v5.2.0 — 2026-11-10 — Signalvejen i et vindue over tegningen
 
 - Mens du arbejder med en signalvej, ligger guiden i et vindue over tegningen, som du kan flytte og gøre større — i stedet for i det smalle panel. **⇲ Til panelet** lægger den tilbage.

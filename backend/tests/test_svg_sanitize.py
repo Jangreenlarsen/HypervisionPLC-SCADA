@@ -179,3 +179,13 @@ def test_keeps_unused_connection_marks():
     r = sanitize_svg(svg)
     assert 'data-hv-unused="0,0.5;*"' in r.svg
     assert not r.removed_attributes
+
+
+def test_keeps_stored_connections():
+    """v5.3.0: tegningens gemte forbindelser (data-hv-links) gemmes med tegningen."""
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path id="r1" data-hv-pipe="1" d="M0 0 H50" '
+           'data-hv-links="e>v1:0,0.5"/><g id="v1" data-hv-type="kugleventil" data-hv-links="0,0.5>r1:e;1,0.5>r2:~">'
+           '<rect id="v1_h" width="10" height="10"/></g></svg>')
+    r = sanitize_svg(svg)
+    assert 'data-hv-links="e&gt;v1:0,0.5"' in r.svg or 'data-hv-links="e>v1:0,0.5"' in r.svg
+    assert not r.removed_attributes

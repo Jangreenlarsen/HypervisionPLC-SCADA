@@ -1,6 +1,6 @@
 // Tjek af forbindelser i tegningen (signalpath/graph.ts › connectionCheck).
 import { describe, expect, it } from 'vitest';
-import { connectionCheck, planFixes, type GNode, type Graph, type Pt } from './signalPath';
+import { connectionCheck, contacts, pairsToBind, planFixes, type GNode, type Graph, type Pt } from './signalPath';
 
 const pipe = (id: string, a: Pt, b: Pt): GNode => ({ id, name: '', type: '', pipe: true, terminals: [a, b], lines: [{ part: 'all', a, b }], refs: [null, null] });
 const sym = (id: string, type: string, terminals: Pt[]): GNode => ({ id, name: id, type, pipe: false, terminals, lines: [], refs: [] });
@@ -111,5 +111,46 @@ describe('punkter og symboler, der ikke er i brug', () => {
     const r = by({ nodes: [pump({ exempt: true })] }).p;
     expect(r).toMatchObject({ exempt: true, status: 'ok', open: [] });
     expect(planFixes({ nodes: [pump({ exempt: true })] }, connectionCheck({ nodes: [pump({ exempt: true })] }))).toEqual([]);
+  });
+});
+
+describe('gemte forbindelser (data-hv-links, v5.3.0)', () => {
+  const p = (id: string, a: Pt, b: Pt, links: GNode['links'] = []): GNode => ({ ...pipe(id, a, b), keys: ['s', 'e'], links });
+  const v = (links: GNode['links'] = []): GNode => ({ id: 'v', name: 'V', type: 'kugleventil', pipe: false, terminals: [[100, 0], [120, 0]],
+    lines: [], refs: [], keys: ['0,0.5', '1,0.5'], links });
+
+  it('binds what the geometry finds, keeps existing links and drops links to elements that are gone', () => {
+    const g: Graph = { nodes: [p('a', [0, 0], [100, 0]), v(), p('b', [120, 0], [200, 0], [{ i: 1, to: 'væk', toKey: 's' }])] };
+    const pairs = pairsToBind(g);
+    expect(pairs).toContainEqual({ id: 'a', key: 'e', to: 'v', toKey: '0,0.5' });
+    expect(pairs.some((x) => (x.id === 'v' && x.to === 'b') || (x.id === 'b' && x.to === 'v'))).toBe(true);
+    expect(pairs.some((x) => x.to === 'væk' || x.id === 'væk')).toBe(false);
+    expect(pairs.filter((x) => [x.id, x.to].sort().join() === 'a,v')).toHaveLength(1);       // ét par pr. forbindelse
+  });
+
+  it('a stored link wins over the geometry: drifted apart still connected (orange), and a stranger close by is not', () => {
+    const g: Graph = { nodes: [
+      { ...p('a', [0, 0], [80, 0], [{ i: 1, to: 'v', toKey: '0,0.5' }]), unused: [0] },   // a's ende er gledet 20 væk; starten bruges ikke
+      v([{ i: 0, to: 'a', toKey: 'e' }]),
+      p('fremmed', [100, 0], [100, 50]),                                              // ligger tæt på ventilens punkt, men er ikke bundet
+    ] };
+    const adj = contacts(g);
+    expect(adj.get('a')!.some((c) => c.to === 'v')).toBe(true);
+    expect(adj.get('v')!.some((c) => c.to === 'fremmed')).toBe(false);
+    const r = Object.fromEntries(connectionCheck(g).map((i) => [i.id, i]));
+    expect(r.a.status).toBe('drift');
+    expect(r.a.drift).toEqual([[80, 0]]);
+    expect(r.a.driftKeys).toEqual(['e']);
+    const fix = planFixes(g, connectionCheck(g));
+    expect(fix).toContainEqual({ id: 'a', from: [80, 0], to: [100, 0], toId: 'v', gap: 20 });   // Ret: tilbage til den gemte modpart
+  });
+
+  it('counts unbound contacts until they are bound', () => {
+    const g: Graph = { nodes: [p('a', [0, 0], [100, 0]), v()] };
+    expect(connectionCheck(g).find((i) => i.id === 'a')!.unbound).toBe(1);
+    const bound: Graph = { nodes: [p('a', [0, 0], [100, 0], [{ i: 1, to: 'v', toKey: '0,0.5' }]), v([{ i: 0, to: 'a', toKey: 'e' }])] };
+    const a = connectionCheck(bound).find((i) => i.id === 'a')!;
+    expect(a.unbound).toBe(0);
+    expect(a.status).toBe('open');                                                    // (ventilens anden side og rørets start er frie)
   });
 });

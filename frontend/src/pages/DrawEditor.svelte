@@ -21,7 +21,7 @@
   import { symbolType } from '../../svgedit-host/symbolPorts.js';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
   import SignalPathGuide from '../lib/SignalPathGuide.svelte';
-  import { connectionCheck, planFixes, type FixMove, type Graph } from '../lib/signalPath';
+  import { connectionCheck, pairsToBind, planFixes, unboundPairs, type FixMove, type Graph } from '../lib/signalPath';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
   import SymbolExport from '../lib/SymbolExport.svelte';
@@ -59,7 +59,9 @@
     docPointAt(clientX: number, clientY: number): { x: number; y: number };
     fixConnections(moves: { id: string; from: [number, number]; to: [number, number]; toId: string }[]): { fixed: number; details: { id: string; to: string; gap: number }[]; skipped: number };
     exemptSymbols(ids: string[], on: boolean): number;
-    markConnections(items: { id: string; exempt: boolean; status: string; open: [number, number][]; openKeys: string[]; ignored: [number, number][]; ignoredKeys: string[] }[]): void;
+    bindLinks(pairs: { id: string; key: string; to: string; toKey: string }[]): { links: number; elements: number };
+    unlink(id: string, key: string): number;
+    markConnections(items: { id: string; exempt: boolean; status: string; drift: [number, number][]; driftKeys: string[]; open: [number, number][]; openKeys: string[]; ignored: [number, number][]; ignoredKeys: string[] }[]): void;
     toggleUnused(id: string, key: string): boolean;
     setNameLabels(opts: { symbols: boolean; pipes: boolean; paths: { name: string; elements: string[] }[] }): void;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
@@ -160,7 +162,7 @@
   });
   // Tjek forbindelser (v4.18.0): markér, hvad der hænger fast i resten af tegningen (grønt) og hvad der har åbne ender (rødt). Kun visning.
   let checkConn = $state(false);
-  let connSummary = $state<{ open: number; isolated: number; names: string[] } | null>(null);
+  let connSummary = $state<{ open: number; isolated: number; drift: number; unbound: number; bound: boolean; names: string[] } | null>(null);
   let connMoves = $state<FixMove[]>([]);
   let connExempt = $state<Set<string>>(new Set());       // symboler, der er udeladt fra tjekket (data-hv-unused="*")
   const selIds = $derived(selection.map((x) => x.id).filter(Boolean));
@@ -177,8 +179,23 @@
     info = r.fixed
       ? `${r.fixed} forbindelse${r.fixed === 1 ? '' : 'r'} rettet (fortryd med Ctrl+Z).${r.skipped ? ` ${r.skipped} åbne ender er for langt fra noget til at blive rettet automatisk.` : ''}`
       : `Ingen forbindelser at rette automatisk — de åbne ender ligger mere end ${FIX_GAP} enheder fra noget, de kan sættes fast i.`;
+    // en bundet tegning holdes bundet: de ender, der nu sidder sammen, gemmes også (eget fortryd-trin)
+    const g = r.fixed ? ed.connectionGraph() : null;
+    if (g?.nodes.some((n) => n.links?.length)) ed.bindLinks(pairsToBind(g));
     inspectRev++;
   }
+  /** Bind forbindelser (v5.3.0): gem det, der hænger sammen nu, som tegningens forbindelser. */
+  function bindNow(): void {
+    const g = ed?.connectionGraph();
+    if (!ed || !g) return;
+    const r = ed.bindLinks(pairsToBind(g));
+    info = r.links
+      ? `${r.links} forbindelse${r.links === 1 ? '' : 'r'} er gemt i tegningen (${r.elements} elementer). De gælder for signalveje og tjekket; gem tegningen for at beholde dem. Ctrl+Z fortryder.`
+      : (r.elements ? 'Forbindelser til slettede elementer er ryddet op.' : 'Alle forbindelser er allerede gemt.');
+    inspectRev++;
+  }
+  /** Antal gemte forbindelser (hver tælles én gang, selv om den står på begge elementer). */
+  const countLinks = (g: Graph) => Math.round(g.nodes.reduce((n, x) => n + (x.links ?? []).filter((l) => l.i >= 0).length, 0) / 2);
   let connTimer: ReturnType<typeof setTimeout> | undefined;
   $effect(() => {
     const on = checkConn;
@@ -194,12 +211,14 @@
       const g = ed?.connectionGraph();
       if (!g || !checkConn) return;
       const items = connectionCheck(g);
-      ed?.markConnections(items.map((i) => ({ id: i.id, exempt: i.exempt, status: i.status, open: i.open, openKeys: i.openKeys, ignored: i.ignored, ignoredKeys: i.ignoredKeys })));
+      ed?.markConnections(items.map((i) => ({ id: i.id, exempt: i.exempt, status: i.status, open: i.open, openKeys: i.openKeys, ignored: i.ignored,
+        ignoredKeys: i.ignoredKeys, drift: i.drift, driftKeys: i.driftKeys })));
       connMoves = planFixes(g, items, FIX_GAP);
       connExempt = new Set(items.filter((i) => i.exempt).map((i) => i.id));
       const bad = items.filter((i) => i.status !== 'ok');
       connSummary = { open: bad.filter((i) => i.status === 'open').length, isolated: bad.filter((i) => i.status === 'isolated').length,
-        names: bad.slice(0, 30).map((i) => i.name || i.id) };
+        drift: items.filter((i) => i.drift.length).length, unbound: unboundPairs(g).length,
+        bound: g.nodes.some((n) => (n.links ?? []).length > 0), names: bad.slice(0, 30).map((i) => i.name || i.id) };
     }, 300);
   });
   onDestroy(() => clearTimeout(connTimer));
@@ -1133,6 +1152,10 @@
         <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt, så de sidder sammen. Symboler flyttes aldrig. Kan fortrydes med Ctrl+Z">Ret {connMoves.length}</button>
       {/if}
     {:else}<span class="small" style="color:#2e7d32">alt hænger sammen</span>{/if}
+    {#if connSummary.drift}<span class="small" style="color:#ef6c00" title="Gemte forbindelser, hvor punkterne er gledet fra hinanden (orange). Ret flytter rør-enden tilbage; klik på den orange prik fjerner forbindelsen">{connSummary.drift} gledet</span>{/if}
+    {#if connSummary.unbound > 0 || !connSummary.bound}
+      <button class="small" onclick={bindNow} title="Gem det, der hænger sammen nu, som tegningens forbindelser — så gælder de for signalveje og tjekket, også hvis noget senere glider lidt">Bind forbindelser{connSummary.unbound > 0 ? ` (${connSummary.unbound})` : ''}</button>
+    {/if}
   {/if}
   {#if current}
     <button onclick={() => save(false)} disabled={busy || !ready}>Gem kladde</button>
