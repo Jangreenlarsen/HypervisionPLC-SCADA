@@ -54,6 +54,10 @@ I signalvej-guidens trin 4 (**Udseende**) står der et kort for hver slags eleme
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 Mens trin 2 i signalvej-guiden er åbent, klik på et rør eller symbol uden for vejen for at lade vejen gå via det (klik igen fjerner det). Klik på en 3-vejsventil på vejen for at skifte dens vej (automatisk, AB → A, AB → B). *Færdig* eller Esc slår klik-tilstanden fra. Via kan også vælges i trin 1 (*Gå via*).
 
+## Hvordan kan jeg se, hvad symboler, forbindelser og signalveje hedder i tegningen?
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:0f32c750 -->
+Slå **Vis navne** til i Tegn-værktøjslinjen og vælg symboler, forbindelser og/eller signalveje. Navnene står som mærkater oven på tegningen (kun i Tegn, de gemmes ikke).
+
 ## Hvordan vender jeg flowets retning i en signalvej?
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:b99432a1 -->
 Tryk **⇄ Vend flowet** under grenen i signalvej-guidens trin 2. Løbelyset vender med det samme, og valget gemmes med signalvejen. Ellers følger retningen pumpen eller kontraventilen på vejen.

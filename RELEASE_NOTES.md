@@ -2,6 +2,10 @@
 
 ---
 
+## v4.17.0 — 2026-11-10 — Vis navne i tegningen
+
+- I Tegn kan du slå **Vis navne** til for **symboler**, **forbindelser** og **signalveje**: navnene står som mærkater oven på tegningen, så du kan se, hvad du vælger i signalveje og bindinger. Valget huskes i din browser; navnene gemmes ikke i tegningen og vises ikke i Overview.
+
 ## v4.16.0 — 2026-11-09 — Vend flowets retning
 
 - Ny knap **⇄ Vend flowet** i signalvej-guiden (trin 2, pr. gren): vender løbelysets retning, hvis symbolerne ikke giver den rigtige. Valget gemmes med signalvejen.

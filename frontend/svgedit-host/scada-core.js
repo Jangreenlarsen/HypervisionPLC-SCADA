@@ -1176,6 +1176,8 @@ export function createScada(host) {
   // ---- fremhævning af en signalvej (v4.2.0): orange streger langs vejens rør og rammer om symbolerne — kun på skærmen,
   // aldrig i tegningen (eget <svg> over lærredet som rørhåndtagene)
   const highlight = { lines: [], boxes: [], focus: [], layer: null };
+  // Navne oven på tegningen (v4.17.0): kun visning i Tegn, gemmes ikke i tegningen. paths: [{ name, elements: [id] }]
+  const names = { symbols: false, pipes: false, paths: [], layer: null };
   function drawHighlight() {
     const gridHost = host.gridHost();
     const content = canvas()?.getSvgContent?.();
@@ -1227,8 +1229,92 @@ export function createScada(host) {
     layer.innerHTML = out;
   }
 
+  // Symboler, der er rørstykker (hører under "forbindelser", ikke "symboler") — samme liste som frontend/src/lib/signalpath/graph.ts
+  const PIPE_SYMBOL_TYPES = new Set(['roer_l', 'roer_v', 'boejning45', 'boejning90', 't_stykke', 'kryds', 'reduktion', 'flange',
+    'ledning_l', 'ledning_v', 'forbindelse', 'klemme']);
+  const escXml = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  /** Midtpunktet (efter længde) på en punktliste. */
+  function midOfPoints(pts) {
+    if (pts.length < 2) return pts[0] ?? null;
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    let at = total / 2;
+    for (let i = 1; i < pts.length; i++) {
+      const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      if (at <= d || i === pts.length - 1) {
+        const t = d ? Math.min(1, at / d) : 0;
+        return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t];
+      }
+      at -= d;
+    }
+    return pts[0];
+  }
+  /** Navne på symboler, forbindelser (rør) og signalveje som mærkater oven på tegningen — kun hvor de er slået til. */
+  function drawNames() {
+    const gridHost = host.gridHost();
+    const content = canvas()?.getSvgContent?.();
+    if (!gridHost || !content || (!names.symbols && !names.pipes && !names.paths.length)) {
+      names.layer?.remove();
+      names.layer = null;
+      return;
+    }
+    let layer = names.layer;
+    if (!layer) {
+      layer = document.createElementNS(NS, 'svg');
+      layer.setAttribute('id', 'hvNameLabels');
+      layer.style.cssText = 'position:absolute; pointer-events:none; z-index:54; overflow:visible;';
+      gridHost.appendChild(layer);
+      names.layer = layer;
+    }
+    const hr = gridHost.getBoundingClientRect();
+    const cr = contentRect(content);
+    const vb = (content.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    layer.style.left = `${cr.left - hr.left + gridHost.scrollLeft}px`;
+    layer.style.top = `${cr.top - hr.top + gridHost.scrollTop}px`;
+    layer.setAttribute('width', cr.width);
+    layer.setAttribute('height', cr.height);
+    if (vb.length === 4) layer.setAttribute('viewBox', vb.join(' '));
+    const z = canvas().getZoom() || 1;
+    const fs = Math.max(6, 11 / z);        // ca. 11 px på skærmen uanset zoom
+    const r1 = (v) => Math.round(v * 10) / 10;
+    const label = (x, y, text, fill, dim) => `<text x="${r1(x)}" y="${r1(y)}" font-size="${r1(fs)}" text-anchor="middle" ` +
+      `font-family="sans-serif" font-weight="${dim ? 400 : 600}" font-style="${dim ? 'italic' : 'normal'}" fill="${fill}" ` +
+      `stroke="#fff" stroke-width="${r1(fs / 3)}" stroke-linejoin="round" paint-order="stroke">${escXml(text)}</text>`;
+    let out = '';
+    if (names.symbols || names.pipes) {
+      for (const el of content.querySelectorAll('[data-hv-type]')) {
+        if (isPipe(el) || !el.id || el.getAttribute('display') === 'none') continue;
+        const piece = PIPE_SYMBOL_TYPES.has(el.getAttribute('data-hv-type'));
+        if (piece ? !names.pipes : !names.symbols) continue;
+        const name = el.getAttribute('data-hv-name');
+        const bb = name && boxOf(el);
+        if (!bb) continue;
+        out += piece ? label(bb.x + bb.w / 2, bb.y + bb.h / 2 + fs * 0.35, name, '#2e7d32', false)
+          : label(bb.x + bb.w / 2, bb.y - fs * 0.3, name, '#0d47a1', false);
+      }
+    }
+    if (names.pipes) {
+      for (const el of content.querySelectorAll('[data-hv-pipe]')) {
+        if (!el.id || el.getAttribute('display') === 'none') continue;
+        const m = toDocMatrix(el);
+        const mid = midOfPoints(pipePoints(el).map((p) => (m ? toPoint(m, p) : p)));
+        const name = el.getAttribute('data-hv-name');
+        if (mid) out += label(mid[0], mid[1] - fs * 0.35, name || el.id, name ? '#2e7d32' : '#757575', !name);
+      }
+    }
+    for (const sp of names.paths) {
+      // signalvejens navn midt på vejen: det midterste element, der findes i tegningen
+      const els = sp.elements.map((id) => content.querySelector(`[id="${CSS.escape(id)}"]`)).filter(Boolean);
+      const el = els[Math.floor(els.length / 2)];
+      const bb = el && boxOf(el);
+      if (bb) out += label(bb.x + bb.w / 2, bb.y + bb.h / 2 + fs * 0.35, `⇝ ${sp.name}`, '#6a1b9a', false);
+    }
+    layer.innerHTML = out;
+  }
+
   function drawHandles() {
     drawHighlight();
+    drawNames();
     const gridHost = host.gridHost();
     const content = canvas()?.getSvgContent?.();
     if (!gridHost || !content) return;
@@ -2442,6 +2528,15 @@ export function createScada(host) {
       } finally {
         for (const [g, d, st] of hidden) { if (d !== null) g.setAttribute('display', d); if (st !== null) g.setAttribute('style', st); }
       }
+    },
+
+    /** Navne oven på tegningen (v4.17.0): symboler, forbindelser og signalveje ({ name, elements }) — kun visning i Tegn. */
+    setNameLabels(opts = {}) {
+      names.symbols = !!opts.symbols;
+      names.pipes = !!opts.pipes;
+      names.paths = (Array.isArray(opts.paths) ? opts.paths : []).filter((p) => p && typeof p.name === 'string' && Array.isArray(p.elements))
+        .map((p) => ({ name: p.name, elements: p.elements.filter((x) => typeof x === 'string') }));
+      drawNames();
     },
 
     /** Gitter, fang til gitter (trin i tegningens enheder) og fang til objekter — sættes fra Tegn-siden. */

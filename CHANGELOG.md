@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [4.17.0 build 0371] — 2026-11-10 — Tegn: vis navne i tegningen
+
+- `svgedit-host/scada-core.js`: `setNameLabels({ symbols, pipes, paths })` og `drawNames()` — navne som mærkater (hvid kant, ca. 11 px uanset zoom) i et eget lag oven på tegningen (`#hvNameLabels`); tegnes forfra ved zoom, rul og ændringer. Symboler blå over symbolet; forbindelser (rør-symboler som rør, bøjning, T-stykke og tegnede rør uden navn → id i grå kursiv) grønne; signalvejens navn lilla midt på vejen. Gemmes ikke i tegningen og vises ikke i Overview.
+- `pages/DrawEditor.svelte`: *Vis navne* med tre afkrydsninger (symboler / forbindelser / signalveje) i værktøjslinjen; huskes pr. browser (`draw.names`); signalvejenes navne hentes fra API'et og genindlæses, når en signalvej gemmes eller slettes.
+- Manual (kap. 07) og LLM-tillæg. Backend uændret. Set i browseren: mærkaterne vises og forsvinder pr. valg; signalvejens navn tegnes.
+
 ## [4.16.0 build 0370] — 2026-11-09 — Signalveje: vend flowets retning
 
 - `lib/signalpath/net.ts`: `describeNet(g, paths, defs, flips)` vender en gren efter brugerens ønske (efter `orient`); `Net.manual` fortæller hvilke grene. Ny test i `signalFlow.test.ts`.

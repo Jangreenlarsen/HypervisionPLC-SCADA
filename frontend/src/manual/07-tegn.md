@@ -95,6 +95,7 @@ Knappen **Størrelse: 1200 × 700** øverst viser og ændrer tegningens bredde o
 Linjen over tegnefladen har **tegnehjælpen**:
 
 - **Vis gitter** viser et net **ovenpå** tegningen (det ændrer ikke tegningen). Linjerne ligger med den valgte **gitterafstand** (5, 10, 20, 25 eller 50 enheder), og hver 5. linje er kraftigere.
+- **Vis navne** (symboler / forbindelser / signalveje) skriver navnene som mærkater **oven på** tegningen, så du kan se, hvad ting hedder, når du fx laver en signalvej eller sætter bindinger op. Symbolernes navne står i blåt over symbolet, forbindelsernes (rør, bøjninger, T-stykker) i grønt, og signalvejens navn i lilla midt på vejen. Et tegnet rør uden navn vises med sit id i grå kursiv. Navnene gemmes ikke i tegningen og vises ikke i Overview; valget huskes i din browser.
 - **Fang til gitter** lægger objekter på gitteret: når du flytter, indsætter eller duplikerer, flyttes objektets **øverste venstre hjørne** til nærmeste gitterpunkt.
 - **Fang til objekter**: slipper du et objekt tæt på et andet, lægger det sig **kant mod kant** eller **midte mod midte** med det nærmeste. Små justeringer med piletasterne fanges ikke.
 - **Skalér symmetrisk**: trækker du i et hjørne, ændres bredde og højde i samme forhold. Hold **Shift** nede for at skalere frit (uden indstillingen er det omvendt).

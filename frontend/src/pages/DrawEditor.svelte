@@ -56,6 +56,7 @@
     insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
     insertGraphic(fragment: string, name?: string, at?: { x: number; y: number } | null, maxFrac?: number, nth?: number): string;
     docPointAt(clientX: number, clientY: number): { x: number; y: number };
+    setNameLabels(opts: { symbols: boolean; pipes: boolean; paths: { name: string; elements: string[] }[] }): void;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
     getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
     setGuideEvery(n: number): void;
@@ -117,6 +118,39 @@
       localStorage.setItem('draw.guides', JSON.stringify(g));
     } catch {
       // localStorage kan være blokeret (privat vindue): hjælpen virker stadig, den huskes bare ikke
+    }
+  });
+  // Vis navne (v4.17.0): symboler, forbindelser og signalveje som mærkater oven på tegningen. Kun visning i Tegn; huskes pr. browser.
+  function loadNames(): { symbols: boolean; pipes: boolean; paths: boolean } {
+    try {
+      const raw = JSON.parse(localStorage.getItem('draw.names') ?? '{}');
+      return { symbols: !!raw.symbols, pipes: !!raw.pipes, paths: !!raw.paths };
+    } catch {
+      return { symbols: false, pipes: false, paths: false };
+    }
+  }
+  let showNames = $state(loadNames());
+  let pathNames = $state<{ name: string; elements: string[] }[]>([]);
+  async function loadPathNames(): Promise<void> {
+    const id = current?.id;
+    if (!showNames.paths || !id) { pathNames = []; return; }
+    try {
+      const r = await get<{ name: string; elements: { element: string }[] }[]>(`/api/drawings/${encodeURIComponent(id)}/signal-paths`);
+      if (current?.id === id) pathNames = r.map((p) => ({ name: p.name, elements: p.elements.map((e) => e.element) }));
+    } catch {
+      pathNames = [];       // navnene er kun en hjælp: uden dem vises bare ingen signalvejs-navne
+    }
+  }
+  $effect(() => { void current?.id; void showNames.paths; void loadPathNames(); });
+  $effect(() => {
+    const n = $state.snapshot(showNames);
+    const paths = n.paths ? $state.snapshot(pathNames) : [];
+    void inspectRev;       // tegningen er ændret (flyt, omdøb …): mærkaterne tegnes forfra
+    if (ready && ed) ed.setNameLabels({ symbols: n.symbols, pipes: n.pipes, paths });
+    try {
+      localStorage.setItem('draw.names', JSON.stringify(n));
+    } catch {
+      // localStorage kan være blokeret: valget virker, det huskes bare ikke
     }
   });
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
@@ -985,6 +1019,11 @@
 
 {#snippet guidesUi()}
   <label class="opt"><input type="checkbox" bind:checked={guides.grid} /> Vis gitter</label>
+  <span class="opt" title="Viser navnene oven på tegningen (kun her i Tegn — aldrig i Overview, og de gemmes ikke i tegningen)">Vis navne:
+    <label class="opt"><input type="checkbox" bind:checked={showNames.symbols} /> symboler</label>
+    <label class="opt"><input type="checkbox" bind:checked={showNames.pipes} /> forbindelser</label>
+    <label class="opt"><input type="checkbox" bind:checked={showNames.paths} /> signalveje</label>
+  </span>
   <label class="opt"><input type="checkbox" bind:checked={guides.snapGrid} /> Fang til gitter</label>
   <label class="opt">Gitterafstand
     <select bind:value={guides.step} aria-label="Gitterafstand">{#each GUIDE_STEPS as s}<option value={s}>{s}</option>{/each}</select>
@@ -1098,7 +1137,7 @@
           highlight={(lines, boxes, focus) => ed?.highlightPath(lines, boxes, focus)}
           select={(ids) => ed?.selectByIds(ids)}
           ensureSaved={() => ensurePublished('signalvejen kan findes')}
-          onchanged={(text) => { info = text; refreshReservedIds(); }} />
+          onchanged={(text) => { info = text; refreshReservedIds(); void loadPathNames(); }} />
       {:else}
         <p class="small muted">Gem tegningen først — en signalvej hører til en gemt tegning.</p>
       {/if}
