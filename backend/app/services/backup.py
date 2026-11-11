@@ -37,7 +37,7 @@ from . import library as lib
 from .trend_views import clean_view
 from .signal_paths import valid_data as valid_path_data
 from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
-from .symbols import SymbolConfig, config_tags
+from .symbols import SymbolConfig, config_tags, parse_path_symbol
 from .errors import ServiceError
 from .manager import PlcManager
 from .plcs import normalize_base_url
@@ -488,6 +488,7 @@ class BackupService:
             err("signal_paths skal være en liste")
             raw_paths = []
         seen_paths: set[tuple[str, str]] = set()
+        seen_ids: set[int] = set()
         for sp in raw_paths:
             if not isinstance(sp, dict) or not isinstance(sp.get("name"), str) or not sp["name"].strip() \
                     or not isinstance(sp.get("data"), dict):
@@ -506,7 +507,26 @@ class BackupService:
                 err(f"Signalvej '{key[1]}' findes to gange i tegningen '{key[0]}'")
                 continue
             seen_paths.add(key)
-            signal_paths.append({"drawing_id": key[0], "name": key[1], "data": sp["data"]})
+            pid = sp.get("id")
+            if not (isinstance(pid, int) and not isinstance(pid, bool) and pid >= 1) or pid in seen_ids:
+                pid = None       # ældre backup (uden id) eller dublet: databasen vælger et nyt
+            if pid is not None:
+                seen_ids.add(pid)
+            signal_paths.append({"id": pid, "drawing_id": key[0], "name": key[1], "data": sp["data"]})
+
+        # en vejs egen opsætning som symbol (`sv~<id>`) følger vejens id — uden vejen (eller uden bevaret id) giver den ingen mening
+        kept = {(sp["drawing_id"], sp["id"]) for sp in signal_paths if sp["id"] is not None}
+        symbol_config = [c for c in symbol_config
+                         if (pid := parse_path_symbol(c["element"])) is None or (c["drawing_id"], pid) in kept]
+
+        for c in symbol_config:       # henvisninger til en signalvej skal passe til en vej, der beholder sit id
+            srcs = [i.get("src", "") for b in c["config"].get("logic", []) for i in b.get("inputs", [])]
+            srcs += [str(a.get("src", "")) for a in c["config"].get("anims", [])]
+            for s in srcs:
+                m = re.match(r"@sv~(\d+):", s) or re.match(r"path:([^:]+):(\d+):", s)
+                if m and ((c["drawing_id"], int(m.group(1))) if s.startswith("@") else (m.group(1), int(m.group(2)))) not in kept:
+                    err(f"Symbol {c['drawing_id']}#{c['element']}: henviser til en signalvej, der ikke findes i backuppen ({s})")
+                    break
 
         trend_views = []
         raw_views = backup.get("trend_views", [])   # ældre backups har ingen gemte trend-visninger

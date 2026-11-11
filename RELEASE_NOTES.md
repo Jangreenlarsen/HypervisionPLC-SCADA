@@ -2,6 +2,12 @@
 
 ---
 
+## v5.4.0 — 2026-11-11 — Signalvejen som samlet symbol
+
+- Ved hver gemt signalvej: **Ret som symbol**. Vejen åbner i symbol-guiden, og **alle dens elementer** kan få egne animationer og logik. De overskrives aldrig, når vejen gemmes igen.
+- **Signalvejen kan bruges som kilde** i andre symbolers animationer og logik ("styres af: en signalvej").
+- Rettet: symbol-guidens titel og luk-knap lå bag værktøjslinjen i Tegn.
+
 ## v5.3.0 — 2026-11-10 — Forbindelser gemmes i tegningen
 
 - Ny knap **Bind forbindelser** ved *Tjek forbindelser*: det, der hænger sammen, gemmes i tegningen, så signalveje og tjekket ikke længere gætter ud fra afstande. Gledne forbindelser vises **orange** — *Ret* sætter dem sammen igen, og et klik på den orange prik fjerner forbindelsen.

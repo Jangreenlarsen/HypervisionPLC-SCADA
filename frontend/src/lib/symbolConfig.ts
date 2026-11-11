@@ -40,7 +40,7 @@ export interface SymbolConfig {
   /** Trendgraf (v0.91.0) — kun for symboler, der viser en graf. */
   chart?: ChartCfg | null;
 }
-export interface PartInfo { tag: string; line: boolean; pid?: string | null; text?: string }
+export interface PartInfo { tag: string; line: boolean; pid?: string | null; text?: string; label?: string; root?: boolean }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }
 
 export const POS = '@pos';
@@ -112,6 +112,7 @@ export function partLabel(id: string, info: SymbolInfo | null): string {
   if (id === 'all') return 'Hele symbolet';
   const part = info?.parts[id];
   if (!part) return id;
+  if (part.label) return part.label;      // en signalvej (v5.4.0): delen navngives efter elementet på vejen
   if (part.pid) return PART_LABEL[part.pid] ?? part.pid;
   const unnamed = Object.entries(info!.parts).filter(([, p]) => !p.pid);
   let same = unnamed.filter(([, p]) => p.tag === part.tag).map(([k]) => k);

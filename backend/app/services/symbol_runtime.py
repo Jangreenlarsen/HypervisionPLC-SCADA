@@ -159,8 +159,13 @@ class SymbolRuntime:
             except Exception:
                 log.exception("Symboler: tegningen %s kunne ikke læses", did)
                 continue
+            path_names = {path_symbol_id(r["id"]): r["name"] for r in self.db.list_signal_paths(did)}
             for row in rows:
                 cfg = row["config"]
+                if row["element"] in path_names:     # signalvejen som symbol (v5.4.0): dens logik regnes som andres
+                    symbols[(did, row["element"])] = cfg
+                    names[(did, row["element"])] = path_names[row["element"]]
+                    continue
                 if row["element"] not in index:
                     continue   # forældreløs: elementet findes ikke i den aktive version
                 symbols[(did, row["element"])] = cfg

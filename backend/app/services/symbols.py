@@ -27,7 +27,7 @@ from .bindings import (DEFAULT_OFF, DEFAULT_ON, ColorParams, FlowParams, LevelPa
 from .expression import ExpressionError, validate_expression
 from .errors import ServiceError
 from .operate import INT_RANGES, to_raw
-from .svg_sanitize import describe_element, index_svg, named_symbols
+from .svg_sanitize import describe_element, describe_group, index_svg, named_symbols
 from .tagsource import TagSourceError, parse_source
 
 log = logging.getLogger(__name__)
@@ -337,6 +337,26 @@ def _is_set(v: Any) -> bool:
 
 PSEUDO_KINDS = ("pos", "remote", "state", "locked")
 
+# Signalvejen som symbol (v5.4.0): vejen har det virtuelle symbol-id `sv~<vej-id>` (ingen `:`, så logik-henvisninger virker).
+# Dens opsætning ligger i symbol_config som for andre symboler, men adskilt fra vejens egen automatik.
+PATH_SYMBOL = "sv~"
+
+
+def path_symbol_id(path_id: int) -> str:
+    return f"{PATH_SYMBOL}{path_id}"
+
+
+def parse_path_symbol(element: Any) -> int | None:
+    """`sv~7` → 7; alt andet → None."""
+    if isinstance(element, str) and element.startswith(PATH_SYMBOL) and element[len(PATH_SYMBOL):].isdigit():
+        return int(element[len(PATH_SYMBOL):])
+    return None
+
+
+def is_path_tag(name: Any) -> bool:
+    """En signalvejs pseudo-tag (`path:<tegning>:<id>:<grene>`) — kan bruges som kilde, men er ikke et rigtigt tag."""
+    return isinstance(name, str) and name.startswith("path:")
+
 
 def is_logic_ref(src: Any) -> bool:
     """`@L1` — kilden er en logikblok (`@pos` er positionen, `@on` er "Altid til")."""
@@ -375,7 +395,7 @@ def config_tags(config: dict[str, Any]) -> list[str]:
     out: list[str] = []
 
     def add(name: Any) -> None:
-        if isinstance(name, str) and name and not name.startswith("@") and name not in out:
+        if isinstance(name, str) and name and not name.startswith("@") and not is_path_tag(name) and name not in out:
             out.append(name)
 
     for s in config.get("signals", []):
@@ -511,6 +531,8 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
     labels = [p["label"] for p in cfg.get("positions", [])]
     out: list[dict[str, Any]] = []
     for i, a in enumerate(cfg.get("anims", [])):
+        if a["part"] == "all" and parse_path_symbol(element) is not None:
+            continue       # en signalvej er ikke ét element — animationen skal ligge på en del af vejen
         target = element if a["part"] == "all" else a["part"]
         if target != element and target not in parts:
             continue
@@ -691,7 +713,8 @@ def _scaling(row: dict[str, Any]) -> tuple[float, float]:
 
 def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str, Any]],
                     has_pin: bool, element_id: str = "",
-                    others: dict[str, dict[str, Any]] | None = None) -> tuple[dict[str, Any], Result]:
+                    others: dict[str, dict[str, Any]] | None = None,
+                    pseudo: set[str] | None = None) -> tuple[dict[str, Any], Result]:
     """Valider og normalisér en konfiguration mod symbolets geometri (`describe_element`) og tags.
     → (normaliseret config, Result). Skemafejl (forkerte felter/typer) kaster ServiceError 400 straks."""
     try:
@@ -704,6 +727,11 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
     other_blocks = {el: {b["id"] for b in c.get("logic", [])} for el, c in others.items()}
     info = {n: _TagInfo(t) for n, t in tags.items()}
     cfg.type = element["type"]
+    is_path = parse_path_symbol(element_id) is not None
+    if is_path:
+        cfg.op = "view"        # en signalvej kan kun vises, ikke betjenes (v5.4.0)
+        cfg.chart = None
+    pseudo = pseudo or set()  # signalvejenes pseudo-tags: kan bruges som kilde (v5.4.0)
     n = len(cfg.positions)
     P = cfg.op == "positions"
 
@@ -908,6 +936,9 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                     res.err("4", f"{w}: symbolet '{owner}' har ikke blokken '{bid}'.")
                 inp.cmp, inp.value = "", None
                 continue
+            if inp.src in pseudo:          # en signalvej (til/fra)
+                inp.cmp, inp.value = "", None
+                continue
             t = tag_of(inp.src)
             if t is None:
                 res.err("4", f"{w}: tagget '{inp.src}' findes ikke.")
@@ -942,9 +973,12 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
     parts = element["parts"]
     for i, a in enumerate(cfg.anims):
         nm = f"Animation {i + 1}"
+        if a.part == "all" and is_path:
+            res.err("4", f"{nm}: vælg en del af vejen (en signalvej er ikke ét element).")
+            continue
         target = element if a.part == "all" else parts.get(a.part)
         if target is None:
-            res.err("4", f"{nm}: delen '{a.part}' findes ikke i symbolet.")
+            res.err("4", f"{nm}: delen '{a.part}' findes ikke i {'vejen' if is_path else 'symbolet'}.")
             continue
         if a.type == "level" and target["tag"] != "rect":
             res.err("4", f"{nm}: Niveau kræver en rektangel-del (<rect>), ikke <{target['tag']}>.")
@@ -999,6 +1033,10 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 continue
             if a.type in NUMERIC_ONLY:
                 res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en logikblok — vælg et tal-tag.")
+                continue
+        elif a.src in pseudo:
+            if a.type in NUMERIC_ONLY or a.type == "text":
+                res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en signalvej — den er til/fra.")
                 continue
         elif not pos_src and not on_src and not alarm_src and not val_src:
             t = tag_of(a.src)
@@ -1100,11 +1138,32 @@ class SymbolService:
         # Kaldes efter gem/slet (fx så runtime genberegner position og pseudo-tags)
         self.on_change: Callable[[str, str], None] | None = None
 
+    def info(self, drawing_id: str, element: str, svg: str | None = None) -> dict[str, Any] | None:
+        """Symbolets form (type, dele) — for en signalvej (`sv~<id>`) alle elementerne på vejen som ét symbol (v5.4.0)."""
+        svg = self.drawings.svg(drawing_id) if svg is None else svg
+        pid = parse_path_symbol(element)
+        if pid is None:
+            return describe_element(svg, element)
+        row = self.db.get_signal_path(drawing_id, pid)
+        if row is None:
+            return None
+        return describe_group(svg, [e["element"] for e in row["data"].get("elements", []) if isinstance(e, dict)], row["name"])
+
+    def path_sources(self, drawing_id: str) -> set[str]:
+        """Signalvejenes pseudo-tags på tegningen — gyldige kilder i animationer og logik (v5.4.0)."""
+        from .signal_paths.runtime import path_tags
+        from .signal_paths.validate import valid_data
+        out: set[str] = set()
+        for r in self.db.list_signal_paths(drawing_id):
+            if valid_data(r["data"]) is None:
+                out.update(path_tags(drawing_id, r["id"], r["data"]))
+        return out
+
     def _element(self, drawing_id: str, element: str) -> dict[str, Any]:
         self.drawings._require(drawing_id)
-        info = describe_element(self.drawings.svg(drawing_id), element)
+        info = self.info(drawing_id, element)
         if info is None:
-            raise ServiceError(404, f"Elementet '{element}' findes ikke i den aktive version af tegningen")
+            raise ServiceError(404, f"{'Signalvejen' if parse_path_symbol(element) is not None else 'Elementet'} '{element}' findes ikke i den aktive version af tegningen")
         return info
 
     def _tags(self) -> dict[str, dict[str, Any]]:
@@ -1114,12 +1173,13 @@ class SymbolService:
         """Konfigurationen for et symbol — aldrig PIN eller hash (CLAUDE.md regel 6), kun om en kode er sat."""
         self.drawings._require(drawing_id)
         row = self.db.get_symbol_config(drawing_id, element)
-        info = describe_element(self.drawings.svg(drawing_id), element)
+        info = self.info(drawing_id, element)
         warnings: list[str] = []
         if row is not None and info is not None:
             _, res = validate_config(row["config"], info, self._tags(),
                                      self.db.get_symbol_pin_hash(drawing_id, element) is not None, element,
-                                     {k: v for k, v in self.configs(drawing_id).items() if k != element})
+                                     {k: v for k, v in self.configs(drawing_id).items() if k != element},
+                                     self.path_sources(drawing_id))
             warnings = res.warnings + [f"Trin {k}: {m}" for k, v in res.steps.items() for m in v]
         return {"element": element, "config": row["config"] if row else None,
                 "updated_at": row["updated_at"] if row else None, "updated_by": row["updated_by"] if row else None,
@@ -1133,7 +1193,7 @@ class SymbolService:
             raise ServiceError(400, "Koden til nøglelåsen skal være præcis 4 cifre", {"steps": {"5": ["Koden til nøglelåsen skal være præcis 4 cifre."]}})
         has_pin = pin is not None or self.db.get_symbol_pin_hash(drawing_id, element) is not None
         others = {k: v for k, v in self.configs(drawing_id).items() if k != element}
-        normalized, res = validate_config(config, info, self._tags(), has_pin, element, others)
+        normalized, res = validate_config(config, info, self._tags(), has_pin, element, others, self.path_sources(drawing_id))
         if not res.count:
             gone = {b["id"] for b in (self.db.get_symbol_config(drawing_id, element) or {}).get("config", {}).get("logic", [])} \
                 - {b["id"] for b in normalized.get("logic", [])}
@@ -1180,7 +1240,7 @@ class SymbolService:
         if row is None:
             raise ServiceError(409, "Symbolet har ingen gemt opsætning — gem den i guiden, før den kopieres")
         svg = self.drawings.svg(drawing_id)
-        src_info = describe_element(svg, source)
+        src_info = self.info(drawing_id, source, svg)
         if src_info is None:
             raise ServiceError(404, f"Elementet '{source}' findes ikke i den aktive version af tegningen")
         tags = self._tags()
@@ -1190,7 +1250,7 @@ class SymbolService:
                 continue
             res_row: dict[str, Any] = {"element": target, "status": "ok", "message": "", "notes": []}
             results.append(res_row)
-            info = describe_element(svg, target)
+            info = self.info(drawing_id, target, svg)
             if info is None:
                 res_row.update(status="error", message="Findes ikke i den aktive version af tegningen")
                 continue
@@ -1202,7 +1262,7 @@ class SymbolService:
             res_row["notes"] = notes
             has_pin = self.db.get_symbol_pin_hash(drawing_id, target) is not None
             others = {k: v for k, v in self.configs(drawing_id).items() if k != target}
-            normalized, res = validate_config(mapped, info, tags, has_pin, target, others)
+            normalized, res = validate_config(mapped, info, tags, has_pin, target, others, self.path_sources(drawing_id))
             if not res.count and existing is not None:
                 gone = {b["id"] for b in existing["config"].get("logic", [])} - {b["id"] for b in normalized.get("logic", [])}
                 for user, bid in self._logic_users(drawing_id, target, gone):
@@ -1220,6 +1280,8 @@ class SymbolService:
     def set_pin(self, actor: CurrentUser, drawing_id: str, element: str, pin: str) -> dict[str, Any]:
         """Sæt/skift koden til nøglelåsen (skriv-kun): gemmes kun som hash, returnerer kun at den er sat (regel 6)."""
         self._element(drawing_id, element)
+        if parse_path_symbol(element) is not None:
+            raise ServiceError(400, "En signalvej kan ikke betjenes og har derfor ingen kode")
         if self.db.get_symbol_config(drawing_id, element) is None:
             raise ServiceError(404, f"'{element}' har ingen symbol-konfiguration — opsæt symbolet før koden sættes")
         if not _PIN.fullmatch(pin or ""):
@@ -1266,6 +1328,25 @@ class SymbolService:
                         out.append((label, bid))
         return out
 
+    def path_users(self, drawing_id: str, path_id: int) -> list[str]:
+        """Symboler og grupper på tegningen, der bruger signalvejen som kilde (`path:<tegning>:<id>:…`) eller dens logik (v5.4.0)."""
+        mark = f"path:{drawing_id}:{path_id}:"
+        me = path_symbol_id(path_id)
+        out: list[str] = []
+
+        def uses(cfg: dict[str, Any]) -> bool:
+            srcs = [i.get("src", "") for b in cfg.get("logic", []) for i in b.get("inputs", [])]
+            srcs += [str(a.get("src", "")) for a in cfg.get("anims", [])]
+            return any(isinstance(s, str) and s.startswith(mark) for s in srcs)
+
+        for other, cfg in self.configs(drawing_id).items():
+            if other != me and uses(cfg):
+                out.append(other)
+        for row in self.db.list_group_anims(drawing_id):
+            if uses({"anims": row["anims"]}):
+                out.append(f"{row['element']} (gruppen {row['group_name']})")
+        return out
+
     def logic_pool(self, drawing_id: str, element: str) -> list[dict[str, Any]]:
         """Logikblokke i de ANDRE symboler på tegningen — til guidens valg af kilde."""
         svg = self.drawings.svg(drawing_id)
@@ -1273,7 +1354,7 @@ class SymbolService:
         for other, cfg in self.configs(drawing_id).items():
             if other == element or not cfg.get("logic"):
                 continue
-            info = describe_element(svg, other)
+            info = self.info(drawing_id, other, svg)
             if info is None:
                 continue   # forældreløs
             for b in cfg["logic"]:
@@ -1319,7 +1400,8 @@ class SymbolService:
         return [{"element": e, "type": cfg.get("type", ""), "op": cfg.get("op", ""),
                  "anims": [{"part": a.get("part"), "type": a.get("type"), "src": a.get("src", "")} for a in cfg.get("anims", [])],
                  "has_pin": self.db.get_symbol_pin_hash(drawing_id, e) is not None}
-                for e, cfg in self.configs(drawing_id).items() if e not in present]
+                for e, cfg in self.configs(drawing_id).items()
+                if e not in present and (parse_path_symbol(e) is None or self.info(drawing_id, e) is None)]
 
     def move(self, actor: CurrentUser, drawing_id: str, source: str, target: str) -> dict[str, Any]:
         """Flyt en forsvundet opsætning til et andet element. Dele følger id-mønstret `<symbol>_<del>` (fx `pumpe_pil` →

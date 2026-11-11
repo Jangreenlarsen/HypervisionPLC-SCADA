@@ -1363,6 +1363,7 @@
           <div class="spbody">
         <SignalPathGuide drawingId={current.id} {ready} rev={inspectRev} selected={selection.map((x) => x.id)}
           oneditchange={(on) => { spEditing = on; if (on) spClamp(); }}
+          onsymbol={(id, name) => (guideFor = { id, name })}
           graph={() => (ed ? ed.connectionGraph() : null)}
           highlight={(lines, boxes, focus) => ed?.highlightPath(lines, boxes, focus)}
           select={(ids) => ed?.selectByIds(ids)}

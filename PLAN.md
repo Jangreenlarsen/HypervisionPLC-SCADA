@@ -1,3 +1,28 @@
+# Plan: Symbol-oversigt som træ i Tegn (v5.5.0) — 2026-11-11 — afventer OK
+
+Jans ønske: ét samlet sted, hvor man ser **alle symboler på tegningen som et træ** og kan gå til dem for at rette dem — i dag er det spredt ud i editoren (Objekter, Symboler › Grupper, Signalveje, symbol-editoren, Opsæt symbol).
+
+## Tolkning (ret mig, hvis den er forkert)
+- "VM-symboler" = de **virtuelle symboler**, altså signalvejene (`sv~<id>`, v5.4.0).
+- **Niveau 1** (under tegningen): *Grundsymboler* (bibliotekssymboler og navngivne elementer), *Signalveje* (virtuelle symboler) og *Grupper* (funktionsgrupper og udvalg).
+- **Niveau 2:** en signalvej foldes ud til de elementer, den består af; en gruppe foldes ud til sine medlemmer (grundsymboler). Hver række er et symbol, man kan rette — og et grundsymbol kan stå flere steder (som medlem af flere grupper og veje).
+
+## Løsning (kun frontend, ingen backend-ændring — alle data findes allerede)
+- Ny komponent `lib/SymbolTree.svelte` + rene funktioner `lib/symbolTree.ts` (bygger træet af: elementlisten fra tegningen (`buildElements`), `GET …/symbols` (opsat ja/nej), `GET …/signal-paths`, `GET …/symbol-groups`). Testet i `symbolTree.test.ts`.
+- Panelet **Symbol-oversigt** i Tegns højrepanel (ny `PanelSection`, øverst under Objekter): søgefelt, "kun ikke-opsatte", fold ud/sammen, antal og et ✓ på opsatte symboler.
+- Pr. række: **klik** = vælg i tegningen (`selectByIds`, vejen: alle dens elementer); **Opsæt** = symbol-guiden (grundsymbol: elementet; signalvej: `sv~<id>`; gruppe: gruppens animationer, den eksisterende dialog); **Ret vej** (signalveje); **Skift symbol** / **Kopiér opsætning** (de eksisterende dialoger). Ingen ny redigeringslogik — kun én indgang til de eksisterende.
+- Opdateres, når guiden/vejene/grupperne gemmes (samme `inspectRev`-mekanisme som Objekter).
+
+## Trin
+1. FEATURES.md er allerede registreret (v5.5.0 planlagt).
+2. `symbolTree.ts` (rene funktioner) + test.
+3. `SymbolTree.svelte` + wiring i `DrawEditor.svelte` (handlinger genbruger `guideFor`, `selectByIds`, signalvej-guiden, gruppe-dialogerne).
+4. Manual (kap. 07 *Symbol-oversigt*), LLM-tillæg, CHANGELOG, RELEASE_NOTES, **v5.5.0**, OTA.
+5. **Browser:** træet på en tegning med veje og grupper: fold ud/sammen, klik vælger i tegningen, Opsæt åbner guiden, søg/filter.
+
+## Risici
+- Store tegninger (hundredvis af symboler): træet bygges kun af elementer med navn/biblioteksttype og foldes sammen som standard.
+- Et symbol i flere grupper/veje vises flere steder — det er bevidst, men tællerne skal ikke tælle det dobbelt.
 # Plan: Signalvejen som samlet symbol, der kan rettes i symbol-guiden (v5.4.0) — 2026-11-11 — afventer OK
 
 Jans ønske: (1) fra listen over gemte signalveje skal man kunne rette vejen, så **alle dens elementer kan redigeres** — fx ekstra animationer og symbolændringer; (2) det, man selv har rettet, må **ikke blive overskrevet** af vejens automatik (løbelys/animationer ud fra *Udseende*); (3) en signalvej skal være et **samlet symbol**, man kan henvise til og rette i guidens **6 trin** (Symbol · Signaler · Kontakter · Visning · Betjening · Test og gem).

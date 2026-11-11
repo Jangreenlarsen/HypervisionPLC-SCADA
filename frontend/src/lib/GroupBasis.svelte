@@ -46,7 +46,7 @@
 </div>
 
 <style>
-  .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px 0; z-index: 20; }
+  .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px 0; z-index: 38; }
   .dlg { width: 100%; max-width: 600px; max-height: 84vh; display: flex; flex-direction: column; overflow-y: auto; box-shadow: 0 8px 30px rgba(0, 0, 0, .25); }
   .head { align-items: baseline; gap: .8rem; }
   .head h2 { margin: 0; }
