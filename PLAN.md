@@ -1,3 +1,39 @@
+# Plan: Signalvejen som samlet symbol, der kan rettes i symbol-guiden (v5.4.0) — 2026-11-11 — afventer OK
+
+Jans ønske: (1) fra listen over gemte signalveje skal man kunne rette vejen, så **alle dens elementer kan redigeres** — fx ekstra animationer og symbolændringer; (2) det, man selv har rettet, må **ikke blive overskrevet** af vejens automatik (løbelys/animationer ud fra *Udseende*); (3) en signalvej skal være et **samlet symbol**, man kan henvise til og rette i guidens **6 trin** (Symbol · Signaler · Kontakter · Visning · Betjening · Test og gem).
+
+**Vurdering: det kan lade sig gøre** uden at ændre tegningen og uden ny gemt-model for animationer — symbol-opsætningen (`symbol_config`) kan allerede have animationer på dele, logik og tags; vi giver vejen en *virtuel* symbol-identitet.
+
+## Idé
+En signalvej `P` får det virtuelle symbol-id `path:<id>` (fx `path:7`). Dens **dele** er alle de elementer (og deres underdele) der ligger på vejen. Brugerens egne rettelser gemmes som en almindelig symbol-opsætning (`symbol_config`, element `path:7`) — **adskilt** fra vejens automatik (`signal_paths.data`). Dermed:
+- **Automatikken rører aldrig de manuelle rettelser:** *Gem* på vejen regenererer kun løbelys/animationer fra *Udseende* (som i dag). Symbol-opsætningen ligger ved siden af og lægges *oven på* (højere `position`, så den vinder ved samme slags på samme del).
+- **6-trins guiden** kan åbnes for `path:<id>` uden at blive ændret meget: trin 1 viser vejens navn og elementer; trin 2 (signaler) og 3 (kontakter/logik) bruges til egne kilder; trin 4 (visning) lægger ekstra animationer på **vilkårlige dele af vejen**; trin 5 (betjening) er fast *kun visning* (vejen kan ikke betjenes); trin 6 test/gem som i dag.
+- **Henvisning:** vejens pseudo-tags (`path:<tegning>:<id>:<grene>`, findes allerede) tilbydes som kilde "Signalvej X — aktiv / gren N" i alle kildevælgere (animationer, logikblokke, alarmer), så andre symboler kan reagere på vejen som på et signal.
+
+## Alternativer (valgt: A)
+- **A. Virtuelt symbol `path:<id>` med egen `symbol_config` (valgt).** Genbruger guide, validering, preview, backup og runtime; ingen ændring i tegnings-SVG'en.
+- B. Pak vejens elementer ind i en rigtig SVG-gruppe (`<g data-hv-type="signalvej">`). Passer naturligt til guiden, men ændrer tegningen (id'er, grupper, forbindelser, flyt/slet) og bryder signalvejens egen opfattelse af elementerne — for invasivt.
+- C. Lad vejen eje alle ekstra animationer i `signal_paths.data` (nyt `manual`-flag pr. animation) og bygge en ny editor. Ny model og nyt UI at vedligeholde, ingen genbrug af de 6 trin.
+
+## Trin
+1. **Backend — virtuel symbol (`services/symbols.py`, `services/signal_paths/`)**: `describe_element` for `path:<id>` (type `signalvej`, navn = vejens navn, `parts` = vejens elementer og deres underdele med pid/streg/tekst fra tegningen); `SymbolService.get/put/preview/delete` accepterer `path:<id>` (kun hvis vejen findes; `op` tvinges til `view`; ingen PIN/skriveplan); `orphaned()`/`_symbol_owner`/`_refuse_if_configured` kender virtuelle id'er (de må ikke vises som forældreløse eller afvises); sletning af vejen sletter dens symbol-opsætning (samme transaktion).
+2. **Runtime/visning (`drawings._compute`/`config_bindings`)**: bindinger for `path:<id>` med delene = vejens elementer + underdele; lægges efter vejens automatik; logikblokke og pseudo-tags (`logic:…`) og `config_tags` virker som for andre symboler (så `drawing_activity` holder tags polleret).
+3. **Kilder**: vejens pseudo-tags i kildelisten (animationer, logik, alarm); hjælpefunktion `path_sources(drawing)` i backend + vist i guiden (trin 2/4).
+4. **Frontend — listen (`SpSaved.svelte`)**: pr. vej knappen **Ret som symbol** (åbner `SymbolGuide` for `path:<id>`), og pr. element i vejen **Ret symbol** (den almindelige guide for elementet) og **Skift symbol** (`SymbolReplace`). `DrawEditor`: `guideFor` accepterer `path:`-id'er; guiden i trin 1 viser vejens elementer (klik markerer dem i tegningen).
+5. **Overblik/Overview**: ingen ny visning — vejens animationer vises som i dag; de manuelle ligger oveni.
+6. **Backup/migrering**: `symbol_config` for `path:<id>` følger med i backup (tabellen er allerede med); gendannelse uden vejen → opsætningen ignoreres og meldes (ingen krasj). Ingen skema-ændring.
+7. **Docs**: FEATURES (registreres FØR kodning), manual kap. 07/08 (Signalveje, symbol-guiden), LLM-tillæg, CHANGELOG/RELEASE_NOTES, **v5.4.0**, OTA.
+8. **Tests**: backend — virtuelt symbol (gem/hent/valider, tvunget view, slet vejen → opsætning slettet, ikke forældreløs, regenerering af vejen rører ikke opsætningen, bindinger efter vejens automatik, backup-roundtrip); frontend — liste-knapper, guide åbner for `path:`-id, kildevælger viser vejen; **browser** på demo-tegningen: ret en vej som symbol, tilføj en ekstra animation på et rør, gem vejen igen (den ekstra animation består), se Overview. **Reviewer** før commit (data-integritet, nyt id-rum i symbol-API'et).
+
+## Risici
+- Id-rummet `path:<id>` kan støde på kode, der antager at et symbol-id er et element i SVG'en (`describe_element`, `orphaned`, `move`, migrering v51, drawing_activity) → kortlægges og dækkes af tests; alt andet end `path:`-id'er er uændret.
+- En vej, hvis elementer slettes/omdøbes i tegningen: delene forsvinder fra symbolets dele → animationer på dem vises som advarsel i trin 6 (som for almindelige symboler).
+- To veje på samme del: prioritetsreglen i `canvas.ts` afgør som i dag.
+- Skrivning/betjening er bevidst ikke med (vejen er passiv visning) — kan udvides senere.
+
+## Afgrænsning / spørgsmål til Jan
+- "Auto signalvej tager ikke med" er tolket som: **egne rettelser overskrives aldrig af vejens automatik**. Ret mig, hvis du mente noget andet.
+- "Symbolændringer" er tolket som: **ekstra animationer og opsætning på elementerne** (trin 4) samt **Skift symbol** pr. element fra listen.
 # Plan: Forbindelser som data i tegningen (v5.3.0) — 2026-11-10 — ✅ udført
 
 Mål: hvad der hænger sammen i en tegning, skal være **gemt**, ikke gættet ud fra afstande, hver gang det bruges. Signalveje, Tjek forbindelser og Ret forbindelser bruger samme gemte forbindelser, så det, man ser grønt i tjekket, er præcis det, en signalvej kan gå igennem.
