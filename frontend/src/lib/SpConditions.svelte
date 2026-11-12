@@ -76,7 +76,8 @@
     </select>
     {#if t?.labels?.length}
       <span class="row nowrap">
-        <span class="small muted">når positionen er</span>
+        <span class="small muted">når positionen</span>
+        <select bind:value={a.on} aria-label="er eller er ikke"><option value={true}>er</option><option value={false}>er ikke</option></select>
         <select bind:value={a.value} aria-label="Position" onchange={() => (a.cmp = 'eq')}>
           {#each t.labels as l, i (i)}<option value={i}>{l || `Position ${i + 1}`}</option>{/each}
         </select>

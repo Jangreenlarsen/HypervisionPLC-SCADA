@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.12.0 build 0393] — 2026-11-12 — Virtuelle signaler, fase C: betjening af en vej
+
+- `lib/SignalPathGuide.svelte` + `pages/DrawEditor.svelte` (`makePathControl`): knappen *Lav en betjening til vejen* — spørger, sætter en klassisk vippekontakt (`vippe_onoff`) ind ved vejens start (`ed.insertSymbol`), gemmer og udgiver tegningen (`ensurePublished`), henter symbolets standardopsætning (`libraryDefault`: OFF/ON med greb), gør signalet virtuelt (`virtual: true`, intet tag) og gemmer den; vejguiden genindlæser signalerne, så *<kontakt>: position* kan vælges som betingelse.
+- `lib/SpConditions.svelte`, `signalpath/answers.ts`: ved et symbols position kan betingelsen være *er* eller *er ikke* (`neg`).
+- Tests: `signalPath.test.ts` (*er ikke*). Set i browseren: knappen sætter kontakten ind og op (`{tag: "", virtual: true}`, positionerne OFF/ON), og *Symbolers position* har to signaler i vælgeren.
+- Manual (kap. 08), LLM-tillæg, FEATURES.
+
 ## [5.11.0 build 0392] — 2026-11-12 — Virtuelle signaler, fase B: kun i SCADA
 
 - `services/symbols.py`: `Signal.virtual` (nyt felt); `validate_config`: et virtuelt signal har intet tag, skrives som *Sæt*, kan have en tilbagemelding, og findes kun for positioner (ikke trykknap/setpunkt og ikke passiv visning). Betjening (`symbol_operate`) og skriveplan (`write_plan`) sprang allerede signaler uden tag over — et skift af position skriver derfor intet til PLC'en men huskes som valgt position (`symbol_state`); en `fb` er stadig toneangivende (`display: remote`).

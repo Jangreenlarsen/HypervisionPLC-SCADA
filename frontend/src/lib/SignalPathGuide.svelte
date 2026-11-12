@@ -31,7 +31,7 @@
     parts?: { id: string; pid: string; line: boolean; text: string }[];
   }
 
-  let { drawingId, ready, rev = 0, selected, graph, highlight, select, ensureSaved, onchanged, oneditchange, onsymbol }: {
+  let { drawingId, ready, rev = 0, selected, graph, highlight, select, ensureSaved, onchanged, oneditchange, onsymbol, makecontrol }: {
     drawingId: string;
     ready: boolean;
     rev?: number;           // tælles op, hver gang tegningen ændres (flyt, ret, fortryd): vejen regnes så forfra
@@ -45,6 +45,8 @@
     oneditchange?: (editing: boolean) => void;
     /** Vejen som symbol (v5.4.0): Tegn åbner symbol-guiden for `sv~<id>` */
     onsymbol?: (id: string, name: string) => void;
+    /** "Lav en betjening til vejen" (v5.12.0): Tegn sætter en omskifter ind (kun i SCADA) og sætter den op; → dens navn */
+    makecontrol?: (name: string, at: { x: number; y: number } | null) => Promise<string>;
   } = $props();
 
   const COLORS = ['#ff8f00', '#1e88e5', '#43a047', '#8e24aa'];       // en farve pr. gren i tegningen
@@ -58,6 +60,23 @@
   $effect(() => { const on = editing !== null; untrack(() => oneditchange?.(on)); });
   let name = $state('');
   let start = $state('');
+  let controlNote = $state('');
+  /** Lav en omskifter til vejen: indsat ved vejens start, sat op som virtuel (Fra/Til), og derefter valgbar som betingelse. */
+  async function makeControl(): Promise<void> {
+    if (!makecontrol) return;
+    controlNote = '';
+    busy = true;
+    try {
+      const t = graph()?.nodes.find((n) => n.id === start)?.terminals[0];
+      const made = await makecontrol(name.trim() || 'Signalvej', t ? { x: t[0], y: t[1] - 90 } : null);
+      await loadInfo();
+      controlNote = `"${made}" er lavet og sat op (OFF/ON, kun i SCADA — skriver ikke til en PLC). Vælg den som betingelse ovenfor: ${made}: position er ON.`;
+    } catch (e) {
+      controlNote = `Betjeningen kunne ikke laves: ${(e as Error).message}`;
+    } finally {
+      busy = false;
+    }
+  }
   let endIds = $state<string[]>([]);
   let light = $state('#8fc8ea');
   let speed = $state(40);
@@ -714,6 +733,13 @@
       <h4>3. Hvornår går der flow?</h4>
       <SpConditions bind:answers bind:ai bind:focusId {questions} {askedOnce} rows={net?.rows ?? []} tagsOf={(id) => info.get(id)?.tags ?? []} {allTags}
         branchCount={endIds.length} {branchColor} {busy} onsuggest={suggest} onstop={() => thinkCtl?.abort()} />
+      {#if makecontrol}
+        <div class="row">
+          <button class="small" onclick={makeControl} disabled={!ready || busy}
+            title="Sæt en vippekontakt (OFF/ON, kun i SCADA — skriver ikke til en PLC) ind i tegningen, og vælg den bagefter som betingelse ovenfor: <vippekontakt>: position er ON">Lav en betjening til vejen</button>
+          {#if controlNote}<span class="small muted">{controlNote}</span>{/if}
+        </div>
+      {/if}
     </div>
 
     <div class="step">

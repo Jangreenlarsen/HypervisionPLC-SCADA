@@ -130,6 +130,9 @@ group('answers → conditions', () => {
       { element: 'v2', src: pos.name, on: true, cmp: '', value: null },
     ], [...tags, pos]);
     expect(r.conditions).toEqual([{ element: 'p1', src: pos.name, neg: false, cmp: 'eq', value: 2 }]);
+    const ne = conditionsFrom([{ element: 'p1', src: pos.name, on: false, cmp: 'eq', value: 0 }], [...tags, pos]);      // "position er ikke Hånd"
+    expect(ne.conditions).toEqual([{ element: 'p1', src: pos.name, neg: true, cmp: 'eq', value: 0 }]);
+    expect(answerFrom(ne.conditions[0])).toEqual({ element: 'p1', src: pos.name, on: false, cmp: 'eq', value: 0 });
     expect(r.errors).toEqual(['Omskifter 1: position: vælg ≥, ≤ eller = og en grænseværdi']);
   });
 });

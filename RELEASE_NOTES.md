@@ -2,6 +2,11 @@
 
 ---
 
+## v5.12.0 — 2026-11-12 — Betjening af en signalvej
+
+- Ny knap i vejens guide: **Lav en betjening til vejen** — sætter en vippekontakt (OFF/ON) ind ved vejen, kun i SCADA (skriver ikke til en PLC), og gør den valgbar som betingelse.
+- Ved et symbols position kan betingelsen nu være **er** eller **er ikke**.
+
 ## v5.11.0 — 2026-11-12 — Omskifter/knap kun i SCADA
 
 - I symbol-guidens trin 2 kan *Kommando* nu være **kun i SCADA (virtuelt)**: symbolet skriver ikke til en PLC, men positionen huskes, og en signalvej eller animation kan følge den. En PLC-tilbagemelding er toneangivende, hvis den er sat.

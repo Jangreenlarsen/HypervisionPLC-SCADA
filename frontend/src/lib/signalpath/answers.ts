@@ -29,7 +29,7 @@ export function conditionsFrom(answers: Answer[], tags: TagInfo[]): { conditions
     }
     if (t.is_bool) conditions.push({ element: a.element, src: a.src, neg: !a.on, cmp: '', value: null });
     else if (!a.cmp || a.value === null || !Number.isFinite(a.value)) errors.push(`${t.derived ? t.description : a.src}: vælg ≥, ≤ eller = og en grænseværdi`);
-    else conditions.push({ element: a.element, src: a.src, neg: false, cmp: a.cmp, value: a.value });
+    else conditions.push({ element: a.element, src: a.src, neg: !!t.labels?.length && !a.on, cmp: a.cmp, value: a.value });   // position: "er ikke" (v5.12.0)
   }
   return { conditions, errors };
 }

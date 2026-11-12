@@ -58,6 +58,10 @@ Opsætning › Symboler › fanen **Ind/ud og veje**: vælg symbolet, giv punkte
 <!-- kilde: 07-tegn#m-symbol-oversigt-alle-symboler-t-sted sha:339f50e6 -->
 Panelet **Symbol-oversigt** i Tegn viser alle symboler som et træ: grundsymboler, signalveje og grupper på niveau 1; en vejs elementer og en gruppes medlemmer på niveau 2. Klik på navnet vælger det på tegningen; **Opsæt** åbner symbol-guiden (6 trin), **Animationer** gruppens animationer. ✓ = har en opsætning; søg eller vis kun dem, der ikke er opsat.
 
+## Hvordan laver jeg en betjening (kontakt) til en signalvej (Lav en betjening til vejen, tænd/sluk en vej)?
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
+I vejens guide, under trin 3 (*Hvornår går der flow?*), trykker du **Lav en betjening til vejen**. Tegn sætter en vippekontakt (OFF/ON) ind ved vejens start, sætter den op som virtuelt signal (kun i SCADA — den skriver ikke til en PLC) og gemmer/udgiver tegningen. Vælg derefter betingelsen *<vippekontakt>: position er ON* (du kan også vælge *er ikke*). Så tænder og slukker operatøren vejen ved at tippe kontakten på Overview.
+
 ## Kan en omskifter eller knap styre visningen uden at skrive til en PLC (virtuelt signal, kun i SCADA)?
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 Ja. I symbol-guidens **trin 2 (Signaler)** vælger du ved *Kommando* **kun i SCADA (virtuelt)** i stedet for et PLC-tag (kun for symboler med positioner). Symbolet skriver så ikke til en PLC; positionen er den, operatøren vælger, og en signalvej (som betingelse) eller en animation kan følge den. Sætter du en **tilbagemelding** på signalet, er PLC'ens tilbagemelding toneangivende.

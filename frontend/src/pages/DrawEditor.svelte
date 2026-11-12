@@ -32,7 +32,7 @@
   import { sections as libSections, symbolsIn as libSymbolsIn } from '../lib/library';
   import { defs, library, loadLibrary } from '../lib/libraryStore.svelte';
   import { configGroups, pasteReport, pasteTargets, type ConfigClip, type ConfigGroup, type CopyResponse, type Member, type SymbolRow } from '../lib/symbolCopy';
-  import type { SymbolConfig, SymbolInfo } from '../lib/symbolConfig';
+  import { libraryDefault, type SymbolConfig, type SymbolInfo } from '../lib/symbolConfig';
   import type { SelectionInfo } from '../lib/symbolSuggest';
   import { FITTING_LEGS, PIPE_IDS, previewViewBox, SYMBOLS, selectorSymbol, withName, type SymbolDef } from '../lib/symbols';
   import { MAX_DIGITS, MIN_DIGITS, segDisplaySvg } from '../lib/segDisplay';
@@ -1050,6 +1050,30 @@
     // ingen meddelelse: "Opsæt symbol" står allerede i panelet, og en meddelelse over tegnefladen ville skubbe den ned
   }
 
+  /** Lav en betjening til en signalvej (v5.12.0): en klassisk vippekontakt sættes ind ved vejen, tegningen gemmes og udgives (symbolet kan først
+   * opsættes på den aktive version), og symbolet får bibliotekets standardopsætning (Fra/Til) — men som virtuelt signal: kun i SCADA. */
+  async function makePathControl(pathName: string, at: { x: number; y: number } | null): Promise<string> {
+    const d = defs().find((x) => x.id === 'vippe_onoff');
+    if (!ed || !current || !d) throw new Error('Tegningen eller biblioteksymbolet "Vippekontakt ON/OFF" er ikke klar');
+    if (!await askUser(`Der sættes en vippekontakt ("${pathName} betjening") ind i tegningen og sættes op som betjening af vejen — kun i SCADA, den skriver ikke til en PLC. Tegningen gemmes og udgives først. Fortsæt?`)) {
+      throw new Error('afbrudt');
+    }
+    const name = ed.uniqueName(`${pathName} betjening`.slice(0, 56));
+    const id = ed.insertSymbol(withName(d.svg, name), d.id, at);
+    if (!id) throw new Error('symbolet kunne ikke sættes ind');
+    dirty = true;
+    if (!(await ensurePublished('betjeningen kan sættes op', true))) throw new Error(error || 'tegningen kunne ikke gemmes');
+    const base = `/api/drawings/${encodeURIComponent(current.id)}/symbols/${encodeURIComponent(id)}/config`;
+    const r = await get<{ symbol: SymbolInfo | null }>(base);
+    const proposal = libraryDefault(r.symbol);
+    if (!proposal) throw new Error('der er ingen standardopsætning til symbolet');
+    const cfg = proposal.config;
+    cfg.signals = [{ ...(cfg.signals[0] ?? { id: 'S1', write: 'set', ms: 500, rest: null }), tag: '', fb: '', write: 'set', rest: null, virtual: true }];
+    await put(base, { config: cfg });
+    treeRev++;
+    return name;
+  }
+
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
     if (dirty) e.preventDefault();
   };
@@ -1384,6 +1408,7 @@
         <SignalPathGuide drawingId={current.id} {ready} rev={inspectRev} selected={selection.map((x) => x.id)}
           oneditchange={(on) => { spEditing = on; if (on) spClamp(); }}
           onsymbol={(id, name) => (guideFor = { id, name })}
+          makecontrol={makePathControl}
           graph={() => (ed ? ed.connectionGraph() : null)}
           highlight={(lines, boxes, focus) => ed?.highlightPath(lines, boxes, focus)}
           select={(ids) => ed?.selectByIds(ids)}
