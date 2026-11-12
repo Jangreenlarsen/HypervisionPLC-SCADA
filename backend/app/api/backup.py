@@ -66,14 +66,14 @@ async def restore(request: Request, user: CurrentUser = Depends(require("admin")
         log.exception("Opgradering v5.1.0 efter gendannelse fejlede")
         request.app.state.symbol_service.db.set_meta(v51_symbols.DONE_KEY, None)
         result = {**result, "symbol_migration": {"error": str(exc)[:200]}}
-    try:     # en ældre backup (før v6.0.0) har veje med betingelser og udseende: de bliver til en ren definition
-        from ..services.migrations import v60_paths
-        rep60 = await asyncio.to_thread(v60_paths.migrate, request.app.state.symbol_service.db, None, True)
-        if rep60:
-            result = {**result, "signal_path_migration": {"paths": len(rep60["paths"]), "readers": len(rep60["readers"])}}
-    except Exception as exc:     # gendannelsen ER gennemført: fejlen vises, og opsætningerne rettes i guiden
-        log.exception("Opgradering v6.0.0 (signalveje) efter gendannelse fejlede")
-        result = {**result, "signal_path_migration": {"error": str(exc)[:200]}}
+    try:     # signalvejene er fjernet (v6.0.0-b0395): symboler i backuppen, der læste en vejs eller et symbols signal, står i rapporten
+        from ..services.migrations import remove_paths
+        rep = await asyncio.to_thread(remove_paths.migrate, request.app.state.symbol_service.db, None, True)
+        if rep:
+            result = {**result, "signal_path_removal": {"setups": rep["setups"], "readers": len(rep["readers"])}}
+    except Exception as exc:     # gendannelsen ER gennemført: fejlen vises
+        log.exception("Oprydning efter signalvejene ved gendannelse fejlede")
+        result = {**result, "signal_path_removal": {"error": str(exc)[:200]}}
     audit(request, "backup.restore", "", result)
     return result
 

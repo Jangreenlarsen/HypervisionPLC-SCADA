@@ -25,7 +25,7 @@ from ..storage.db import Database
 from .alarms import Condition
 from .live_cache import LiveCache, LiveValue
 from .svg_sanitize import describe_element, index_svg
-from .symbols import PSEUDO_KINDS, logic_pseudo_tags, logic_results, path_symbol_id, pseudo_tag
+from .symbols import PSEUDO_KINDS, logic_pseudo_tags, logic_results, pseudo_tag
 
 log = logging.getLogger(__name__)
 
@@ -135,8 +135,7 @@ class SymbolRuntime:
     def _current_signature(self) -> Any:
         cfg = self.db._query("SELECT COUNT(*) AS n, MAX(updated_at) AS t FROM symbol_config")[0]
         drawings = tuple((d["id"], d["active_version"], d["disabled"]) for d in self.db.list_drawings())
-        sp = self.db._query("SELECT COUNT(*) AS n, MAX(updated_at) AS t FROM signal_paths")[0]
-        return (cfg["n"], cfg["t"], drawings, sp["n"], sp["t"])
+        return (cfg["n"], cfg["t"], drawings)
 
     def reload(self) -> None:
         """Indlæs konfigurationer for symboler med positioner i de aktive tegningsversioner."""
@@ -154,13 +153,8 @@ class SymbolRuntime:
             except Exception:
                 log.exception("Symboler: tegningen %s kunne ikke læses", did)
                 continue
-            path_names = {path_symbol_id(r["id"]): r["name"] for r in self.db.list_signal_paths(did)}
             for row in rows:
                 cfg = row["config"]
-                if row["element"] in path_names:     # signalvejen som symbol (v5.4.0): dens logik regnes som andres
-                    symbols[(did, row["element"])] = cfg
-                    names[(did, row["element"])] = path_names[row["element"]]
-                    continue
                 if row["element"] not in index:
                     continue   # forældreløs: elementet findes ikke i den aktive version
                 symbols[(did, row["element"])] = cfg

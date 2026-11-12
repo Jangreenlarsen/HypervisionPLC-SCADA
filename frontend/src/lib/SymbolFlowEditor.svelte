@@ -1,6 +1,6 @@
 <script lang="ts">
   // Ind/ud, navne og veje på et symbol (v4.13.0, PLAN.md › Signalveje 2): punkter med navn (A, B, AB …), rolle (ind/ud/begge) og
-  // "fælles", og de veje symbolet kan lave (AB → A, AB → B). Bruges kun af signalveje. Punkterne er brøkdele af symbolets boks.
+  // "fælles", og de veje symbolet kan lave (AB → A, AB → B). Gemmes pr. symboltype (ingen funktion bruger dem lige nu, efter signalvejene blev fjernet i v6.0.0-b0395). Punkterne er brøkdele af symbolets boks.
   import { tick } from 'svelte';
   import { del, put } from './api';
   import { ask } from './ask';
@@ -154,7 +154,7 @@
       onsaved(type, { ports: saved.ports, ...(saved.ways?.length ? { ways: saved.ways } : {}) });
       setDirty(false);
       await tick();    // den nye definition genindlæser editoren (og nulstiller beskeden) — vis beskeden bagefter
-      info = `Gemt: ${label} har nu ${saved.ports.length} navngivne punkter. Det gælder alle tegninger med symbolet — i signalveje.`;
+      info = `Gemt: ${label} har nu ${saved.ports.length} navngivne punkter. Det gælder alle tegninger med symbolet.`;
     } catch (e) {
       error = (e as Error).message;
     } finally {
@@ -163,7 +163,7 @@
   }
 
   async function reset(): Promise<void> {
-    if (!(await ask(`Brug standarden for "${label}" igen? Signalveje, der allerede er gemt, ændres ikke.`, { ok: 'Brug standarden' }))) return;
+    if (!(await ask(`Brug standarden for "${label}" igen?`, { ok: 'Brug standarden' }))) return;
     busy = true;
     error = info = '';
     try {
@@ -184,8 +184,8 @@
 
 <p class="muted small">
   Giv punkterne et <strong>navn</strong> og en <strong>rolle</strong>, og markér det <strong>fælles</strong> punkt på en flervejs-ventil (AB).
-  <strong>Ind/ud:</strong> en pumpe bestemmer retningen gennem en signalvej. <strong>Veje:</strong> en 3-vejsventil kan kun bruges gennem
-  én af sine veje (AB → A eller AB → B). Punkterne bruges kun af signalveje — resten af tegningen ændres ikke.
+  <strong>Ind/ud:</strong> en pumpe bestemmer flowets retning. <strong>Veje:</strong> en 3-vejsventil kan kun bruges gennem
+  én af sine veje (AB → A eller AB → B). Resten af tegningen ændres ikke.
 </p>
 <h3>{label}
   {#if source === 'custom'}<span class="tag">rettet</span>{:else if source === 'default'}<span class="muted small">standard</span>{:else}<span class="muted small">ingen definition</span>{/if}</h3>

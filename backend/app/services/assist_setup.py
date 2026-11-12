@@ -1,6 +1,6 @@
 """Hjælp til opsætning med den lokale LLM (fase 3, v4.10.0 — PLAN.md).
 
-Samme mønster som signalvejen (assist_signal.py): modellen får kun navne og korte beskrivelser, svarer i et fast
+Samme mønster som hjælperens øvrige forslag: modellen får kun navne og korte beskrivelser, svarer i et fast
 JSON-skema (llama-server håndhæver det), og backend kontrollerer hvert forslag, før det vises. Intet gemmes her —
 forslagene udfyldes i siden, og brugeren gemmer selv. Ingen PLC-adresser, kilder eller værdier sendes med.
 

@@ -6,17 +6,13 @@ export type Op = 'positions' | 'pulse' | 'entry' | 'view';
 export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow' | 'flicker' | 'scale' | 'segments';
 export type SrcKind = 'pos' | 'bool' | 'num';
 
-export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null;
-  /** v5.11.0: kun i SCADA — skriver ikke til en PLC; symbolets position er den valgte (eller tilbagemeldingen, hvis den er sat) */
-  virtual?: boolean }
+export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null }
 export interface Plane { signal: string; values: (number | null)[] }
 export interface Anim { part: string; type: AnimType; src: string; params: Record<string, any>; only: boolean[] | null; when?: boolean;
   /** v1.12.0: tagets værdi ER positionsnummeret (0, 1, 2 …) — én værdi pr. position, som med kilden "symbolets position" */
   by_value?: boolean;
   /** v1.13.0: tag-værdien der hører til hver position ("fra-værdi", stigende); tom = værdien er positionsnummeret */
-  pos_values?: number[] | null;
-  /** v5.8.0: en signalvejs grundanimation, der følger vejens udseende (genskabes, når vejen gemmes igen); uden mærket er den din */
-  auto?: boolean }
+  pos_values?: number[] | null }
 /** Animationer der kan have én værdi pr. position (og dermed "pr. værdi" fra et tag) */
 export const BY_VALUE_TYPES: AnimType[] = ['fill', 'stroke', 'blink', 'visible', 'spin', 'flicker', 'rotate', 'move', 'flow'];
 export type Cmp = '' | 'ge' | 'le' | 'eq';
@@ -44,7 +40,7 @@ export interface SymbolConfig {
   /** Trendgraf (v0.91.0) — kun for symboler, der viser en graf. */
   chart?: ChartCfg | null;
 }
-export interface PartInfo { tag: string; line: boolean; pid?: string | null; text?: string; label?: string; root?: boolean; owner?: string }
+export interface PartInfo { tag: string; line: boolean; pid?: string | null; text?: string }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }
 
 export const POS = '@pos';
@@ -82,7 +78,7 @@ export function flickerPalette(p: Record<string, any>): string[] {
   const first = given.length ? given : typeof p.color === 'string' && p.color ? [p.color] : [];
   return [0, 1, 2].map((i) => first[i] ?? (first.length && i > 0 ? FLICKER_PALETTE[i] : FLICKER_PALETTE[i]));
 }
-export const MAX_POSITIONS = 8, MAX_PLANES = 8, MAX_ANIMS = 12, MAX_PATH_ANIMS = 600, MAX_LOGIC = 8, MAX_LOGIC_INPUTS = 4;
+export const MAX_POSITIONS = 8, MAX_PLANES = 8, MAX_ANIMS = 12, MAX_LOGIC = 8, MAX_LOGIC_INPUTS = 4;
 
 export const STEPS = ['Symbol', 'Signaler', 'Kontakter', 'Visning', 'Betjening', 'Test og gem'];
 export const OP_TXT: Record<Op, string> = { view: 'Kun passiv visning', positions: 'Interaktiv betjening', pulse: 'Trykknap (puls)', entry: 'Setpunkt (indtastning)' };
@@ -116,9 +112,6 @@ export function partLabel(id: string, info: SymbolInfo | null): string {
   if (id === 'all') return 'Hele symbolet';
   const part = info?.parts[id];
   if (!part) return id;
-  if (part.label) {      // en signalvej (v5.4.0): delen navngives efter elementet på vejen — og et biblioteksymbols dele med deres rigtige navn (Port A, Motor …)
-    return part.pid && !part.root && PART_LABEL[part.pid] ? `${part.label.split(' · ')[0]} · ${PART_LABEL[part.pid]}` : part.label;
-  }
   if (part.pid) return PART_LABEL[part.pid] ?? part.pid;
   const unnamed = Object.entries(info!.parts).filter(([, p]) => !p.pid);
   let same = unnamed.filter(([, p]) => p.tag === part.tag).map(([k]) => k);
@@ -157,12 +150,6 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     return { config: cfg, note: 'Standardopsætningen fra dit eget symbol i biblioteket. Vælg tags under trin 2 og 4.' };
   }
   const cfg = emptyConfig(symbol.type);
-  if (symbol.type === 'signalvej') {
-    // En signalvej som symbol (v6.0.0): positioner (Fra/Til) med PLC-tilbagemelding — kun passiv visning, intet skrives. Tilbagemeldingen
-    // vælges i trin 2 (PLC-tag eller et andet symbols position), kontaktfladen i trin 3, animationerne (fx løbelys langs vejen) i trin 4.
-    setPassive(cfg, true);
-    return { config: cfg, note: 'Forslag: to positioner (Fra og Til) styret af en tilbagemelding. Vælg tilbagemeldingen i trin 2, hvilken værdi der er Til i trin 3, og lav animationerne i trin 4 (fx Tilføj løbelys langs vejen).' };
-  }
   if (symbol.type === 'trevejs_motorventil' || symbol.type === 'trevejs_motorventil_ab') {
     cfg.positions = [{ label: 'AB → A' }, { label: 'AB → B' }];
     setOp(cfg, 'positions');

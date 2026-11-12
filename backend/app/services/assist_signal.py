@@ -1,4 +1,4 @@
-"""Kandidat-tags til hjælperens forslag (v4.3.0; v6.0.0: kun `pick_tags` er tilbage).
+"""Kandidat-tags til hjælperens forslag (v4.3.0).
 
 "Forklar med egne ord" til signalvejens betingelser er fjernet i v6.0.0 (en signalvej er kun en definition; tilbagemelding og animationer
 sættes op i symbol-guiden, hvor hjælperens forslag til signaler — `assist_setup.py` — bruger `pick_tags`).

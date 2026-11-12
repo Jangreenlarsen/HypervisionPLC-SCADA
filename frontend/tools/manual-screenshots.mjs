@@ -37,7 +37,7 @@ const trendTags = tags.filter((t) => t.trend).slice(0, 3).map((t) => t.name);
 // /preview, ændrer intet og slipper igennem) — så et klik på et symbol aldrig kan skrive til en PLC.
 await ctx.route('**/api/**', (r) => {
   const q = r.request();
-  return q.method() === 'GET' || q.method() === 'HEAD' || q.url().endsWith('/preview') || q.url().endsWith('/signal-paths/info') ? r.continue() : r.abort();   // /info læser kun (signalvej-guiden)
+  return q.method() === 'GET' || q.method() === 'HEAD' || q.url().endsWith('/preview') ? r.continue() : r.abort();
 });
 const page = await ctx.newPage();
 await page.addInitScript((sel) => { try { localStorage.setItem('trend.selected', JSON.stringify(sel)); } catch { /* ingen localStorage */ } }, trendTags);
@@ -417,31 +417,6 @@ await shot('integrationer', async () => { await go('integration', 'h1, h2'); awa
 await shot('certifikater', async () => { await go('certificates', 'h1, h2'); await settle(1000); });
 await shot('system-hjaelper', async () => { await go('assist', 'h1, h2'); await settle(1500); });
 
-// ------------------------------------------------------------------ signalveje med grene og ind/ud (v4.13.0)
-// Guiden gemmer intet, før man trykker Gem (blokeret her): vejen vælges og beregnes i browseren.
-const spGuide = async (steps) => {
-  await go(`draw/${startDrawing}`, '.workarea svg');
-  await settle(3500);
-  const sec = page.locator('section[aria-label="Signalveje"]');
-  if ((await sec.locator('button.head').getAttribute('aria-expanded')) !== 'true') await sec.locator('button.head').click();
-  await sec.getByRole('button', { name: /Ny signalvej/ }).click();
-  await settle(1500);
-  await page.addStyleTag({ content: 'aside, .psec, .psec .body { max-height: none !important; height: auto !important; overflow: visible !important; }' });
-  await sec.locator('select').first().selectOption({ label: 'Kedel/fyr Pille' });
-  await settle(300);
-  await sec.locator('label.field', { hasText: 'Slut' }).locator('select').first().selectOption({ label: 'Reguleringsventil AVTA 1' });
-  await settle(900);
-  await sec.locator('select[aria-label="Tilføj slutpunkt"]').selectOption({ label: 'Reguleringsventil AVTB' });
-  await settle(1500);
-  await steps?.(sec);
-  return sec;
-};
-await shot('signalvej-vej', async () => { await spGuide(); }, { locator: 'section[aria-label="Signalveje"]' });
-await shot('signalvej-tegning', async () => { await spGuide(); await page.mouse.move(5, 5); await settle(600); }, { clipFn: async () => {
-  const w = await page.locator('.workarea').first().boundingBox();
-  return { x: w.x, y: w.y, width: w.width, height: Math.min(w.height, 560) };
-} });
-// (v6.0.0: trin Hvornår går der flow? og Udseende er fjernet fra vejens guide — billederne signalvej-betingelser/-udseende findes ikke mere)
 await shot('symbol-ind-ud', async () => {
   await go('symbols', 'text=Tilslutningspunkter');
   await page.getByRole('tab', { name: 'Ind/ud og veje' }).click();

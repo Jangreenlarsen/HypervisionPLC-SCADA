@@ -2,6 +2,14 @@
 
 ---
 
+## v6.0.0 (build 0395) — 2026-11-12 — Signalvejene er fjernet
+
+- **Signalvejene er fjernet** fra Tegn, og det samme gælder de virtuelle signaler (kommando *kun i SCADA* og et andet symbols position som tilbagemelding). Systemet står i en frisk tilstand, klar til en ny løsning.
+- Ved opdateringen tages først en backup, og derefter slettes gemte veje og deres opsætning. Symboler, der brugte en vej eller et virtuelt signal, står i auditloggen og skal rettes i symbol-guiden.
+- **Ind/ud og veje** på symbolerne, **Tjek/Bind forbindelser** og tilslutningspunkterne består.
+- Backuppen *før signalvejene blev fjernet* kan kun bruges til at gå tilbage til den forrige build (b0394); i denne version springes veje over ved gendannelse.
+- Rettet: backuppen *før opgradering til v6* kunne ikke hentes eller gendannes fra siden Backup.
+
 ## v6.0.0 — 2026-11-12 — Signalvejen er en definition, og bruges som et symbol
 
 - En **signalvej definerer kun, hvad den består af** (rør, ventiler, pumper og flowretning). Betingelser og udseende er fjernet fra vejens guide.

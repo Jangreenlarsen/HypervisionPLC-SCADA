@@ -45,7 +45,7 @@ Forberedelse: tag en backup først (System › Backup, eller `scada-tool backup 
 
 ### 6. Backup og gendannelse
 - [ ] System › Backup: *Tag backup nu* → filen findes i listen; *Hent* giver en JSON-fil.
-- [ ] **Gendan** den på en testmaskine → tegninger, tags, bindinger, brugere og signalveje er som før.
+- [ ] **Gendan** den på en testmaskine → tegninger, tags, bindinger og brugere er som før.
 - [ ] `scada-tool backup create` giver en `.db`-fil; `scada-tool backup list` viser den.
 
 ### 7. Opdatering og tilbagerulning (på testserveren, ikke på anlægget)
@@ -71,9 +71,11 @@ Forberedelse: tag en backup først (System › Backup, eller `scada-tool backup 
 - [ ] En **logikblok** (to tags, OG) styrer en animation.
 - [ ] Under **Bindinger**: en tekst-binding med beregning `x / 10` (128 → 12,8) (v0.41).
 
-### 11. Signalveje
-- [ ] Tegn › Signalveje: start, slut, *Find vej*, vælg animationer, **Gem** → løbelyset kører på Overview, når betingelserne er opfyldt, og stopper, når de ikke er.
-- [ ] Ret vejen, gem igen — intet forsvinder.
+### 11. Signalveje (fjernet i v6.0.0 b0395)
+- [ ] Tegn har ingen sektion *Signalveje*; Symbol-oversigten viser kun *Grundsymboler* og *Grupper*; *Vis navne* har kun symboler og forbindelser.
+- [ ] Efter opdateringen: Log › Audit har `signal_path.removed`, og der ligger en backup *før signalvejene blev fjernet*.
+- [ ] Symbol-guiden trin 2: *Kommando* er kun et PLC-tag; tilbagemelding er kun et PLC-tag.
+- [ ] *Tjek forbindelser*, *Bind forbindelser* og *Opsætning › Symboler › Ind/ud og veje* virker som før.
 
 ### 12. Trends, energi og ugeprogrammer
 - [ ] Trends: vælg et tag og en periode; hover viser værdien; *Middel over* virker.
@@ -89,18 +91,9 @@ Forberedelse: tag en backup først (System › Backup, eller `scada-tool backup 
 
 ## P3 — Nyt siden v5.0 (ny kode)
 
-- [ ] **Vejens egne animationer er redigerbare (v5.8):** *Ret som symbol* → trin 4 viser vejens løbelys og farver som almindelige animationer → skift kilden på en til et tag → **fjern fluebenet *Følger vejens udseende*** → gem → gem vejen igen (Ret → Gem): den frigjorte består, de øvrige genskabes.
-- [ ] **3-vejs ventil i en vej (v5.8):** *Vis animationer for* → ventilen → sæt farve pr. port (A, B, AB) → Overview følger.
-- [ ] **Signalvejen som symbol (v6.0):** definér en vej (kun elementer og retning — ingen betingelser eller udseende) → *Ret som symbol* → trin 2: tilbagemelding = **PLC-tag** → trin 3: kontaktfladen (fx 0 = Fra, 1 = Til) → trin 4: *Tilføj løbelys langs vejen* → gem → skift PLC-tagget: løbelyset tænder/slukker på Overview. Prøv også tilbagemelding = **en omskifters position** (omskifter med *Kommando: kun i SCADA*).
-- [ ] **To retninger = to veje (v6.0):** en vej pr. retning gennem en 3-vejs ventil; hver sat op som symbol med sin egen tilbagemelding.
-- [ ] **Opgradering fra ældre veje (v6.0):** efter opdateringen har gamle veje stadig deres elementer, men ingen betingelser/udseende; Meddelelser/Audit har en `signal_path.migration`-post.
-- [ ] **Virtuelle signaler (v5.10–v5.11):** en omskifter med *Kommando: kun i SCADA (virtuelt)* (trin 2); vejens betingelse *Omskifter: position = Auto*; skift position på Overview → vejen lyser/stopper, og der skrives intet til PLC'en (Log › Audit). Sæt en PLC-tilbagemelding på: positionen følger PLC'en.
-- [ ] **Signalvejen som symbol (v5.4):** *Ret som symbol* → en egen animation på et element → gem vejen igen → animationen består.
-- [ ] **Signalvejen som kilde:** i et andet symbols animation vælges *en signalvej*; den følger vejen.
-- [ ] **Symbol-oversigt (v5.5):** træet viser grundsymboler, veje og grupper; klik vælger på tegningen; *Opsæt* åbner guiden; *ikke opsatte* indsnævrer.
+- [ ] **Symbol-oversigt (v5.5):** træet viser grundsymboler og grupper; klik vælger på tegningen; *Opsæt* åbner guiden; *ikke opsatte* indsnævrer.
 - [ ] **Forbindelser (v5.3):** *Tjek forbindelser* → *Bind forbindelser* → flyt et rør → orange → *Ret* → grønt. Gem, åbn tegningen igen: forbindelserne er der.
 - [ ] **Symbol-rapport (v5.1):** Tegn › Meddelelser viser konverteringsrapporten; intet står som "manuelt" uden grund.
-- [ ] **Signalvej-vinduet (v5.2):** guiden kan trækkes rundt og gøres større over tegningen.
 - [ ] **Ur (v5.7, kun `dev`):** *Ur (NTP)* på Status siger *synkroniseret*.
 - [ ] **Serveren (v5.6):** `scada-tool logs --fejl` og `scada-tool config` (ingen hemmeligheder i udskriften).
 

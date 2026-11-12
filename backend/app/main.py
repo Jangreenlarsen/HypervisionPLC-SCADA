@@ -34,8 +34,6 @@ from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
 from .api.operate import router as operate_router
 from .api.symbol_groups import router as symbol_groups_router
-from .api.signal_paths import router as signal_paths_router
-from .services.signal_paths import SignalPathService
 from .services.assist_setup import SignalHelper, TagDescriber
 from .services.llm_catalog import LlmCatalog
 from .api.symbol_flow import router as symbol_flow_router
@@ -73,7 +71,7 @@ from .services.symbol_flow import SymbolFlowService
 from .services.symbol_ports import SymbolPortService
 from .services.library import LibraryService
 from .services.symbols import SymbolService
-from .services.migrations import v51_symbols, v60_paths
+from .services.migrations import remove_paths, v51_symbols
 from .services.symbol_runtime import SymbolRuntime
 from .services.symbol_operate import SymbolOperateService
 from .services.schedules import ScheduleService
@@ -144,7 +142,6 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.drawing_service = DrawingService(db, drawing_files, manager.cache)
         app.state.symbol_service = SymbolService(db, app.state.drawing_service)
         app.state.symbol_group_service = SymbolGroupService(db, app.state.symbol_service)
-        app.state.signal_path_service = SignalPathService(db, app.state.symbol_service)   # signalveje i Tegn (v4.2.0)
         app.state.symbol_port_service = SymbolPortService(db)
         app.state.symbol_flow_service = SymbolFlowService(db)   # ind/ud og veje på symboler (v4.13.0)
         app.state.library_service = LibraryService(db, app.state.drawing_service, app.state.symbol_service)
@@ -178,14 +175,14 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                     "converted": len(rep["converted"]), "manual": len(rep["manual"]), "removed_bindings": rep["removed_bindings"]})
         except Exception:
             log.exception("Opgradering v5.1.0 (symboler) fejlede — prøves igen ved næste opstart")
-        # Opgradering v6.0.0: en signalvej er kun en definition (betingelser og udseende fjernes; vejens symbol-opsætning nulstilles)
+        # Signalvejene er fjernet (v6.0.0-b0395): gemte veje og deres symbol-opsætning slettes (én gang; backup først)
         try:
-            rep60 = v60_paths.migrate(db, app.state.backup_service)
-            if rep60:
-                app.state.audit_service.record(v60_paths.ACTOR, "", "signal_path.migration", "", {
-                    "paths": len(rep60["paths"]), "reset_setups": rep60["reset_setups"], "readers": len(rep60["readers"])})
+            rep = remove_paths.migrate(db, app.state.backup_service)
+            if rep:
+                app.state.audit_service.record(remove_paths.ACTOR, "", "signal_path.removed", "", {
+                    "paths": rep["paths"], "setups": rep["setups"], "readers": len(rep["readers"])})
         except Exception:
-            log.exception("Opgradering v6.0.0 (signalveje) fejlede — prøves igen ved næste opstart")
+            log.exception("Fjernelse af signalvejene fejlede — prøves igen ved næste opstart")
         app.state.symbol_runtime = SymbolRuntime(db, manager.cache, app.state.drawing_service,
                                                  tick_s=settings.symbol_tick_s)
         app.state.symbol_runtime.reload()
@@ -322,7 +319,6 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(symbols_router)
     app.include_router(symbol_migration_router)
     app.include_router(symbol_groups_router)
-    app.include_router(signal_paths_router)
     app.include_router(symbol_ports_router)
     app.include_router(symbol_flow_router)
     app.include_router(library_router)

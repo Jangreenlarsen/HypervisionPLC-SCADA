@@ -1,10 +1,4 @@
-// Signalveje i Tegn (v4.2.0, PLAN.md › Signalvej): find rørvejen mellem to symboler ud fra tegningens forbindelser og
-// beregn, hvilke dele der skal have løbelys og i hvilken retning. Rene beregninger på grafen fra scada-core
-// `connectionGraph()` — testet i signalPath.test.ts. Gemmes af backend (services/signal_paths.py).
-// Delt i signalpath/ (graph, flow, route, net, pick) i v4.15.1; denne fil samler dem, så imports er uændrede.
+// Forbindelses-grafen i Tegn (scada-core `connectionGraph()`): hvilke rør og symboler hænger sammen — bruges af Tjek forbindelser og
+// Bind forbindelser. (Signalvejene, der fandt en rørvej gennem grafen, er fjernet i v6.0.0-b0395.)
 
 export * from './signalpath/graph';
-export * from './signalpath/flow';
-export * from './signalpath/route';
-export * from './signalpath/net';
-export * from './signalpath/pick';

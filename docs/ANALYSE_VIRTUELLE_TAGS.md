@@ -1,3 +1,5 @@
+> **Arkiveret (v6.0.0 b0395, 2026-11-12):** signalvejene og de virtuelle signaler er fjernet. Analysen står kun som baggrund.
+
 # Analyse: virtuelle tags og styring af signalveje — skal systemet designes omkring dem?
 
 2026-11-12. Spørgsmål fra Jan: (1) signalvejen som **virtuelt tag**, også til at *skrive* til i trin 2 (Signaler) i symbol-guiden, så andre symboler kan styre en signalvej; (2) overalt, hvor et PLC-tag bruges til at sætte en værdi, skal et virtuelt tag kunne bruges; (3) PLC-tags skal også kunne styre en signalvej **direkte** — evt. med et særligt symbol; (4) skal vi designe systemet omkring det fremover?

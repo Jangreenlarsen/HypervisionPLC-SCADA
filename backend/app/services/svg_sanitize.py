@@ -142,8 +142,6 @@ def _clean_element(el: ET.Element, result: SanitizeResult, depth: int = 0) -> No
         a_ns, a_name = _local(attr)
         value = el.attrib[attr]
         reason = _attribute_problem(name, a_ns, a_name, value)
-        if not reason and not a_ns and a_name == "id" and re.fullmatch(r"sv~\d+", value):
-            reason = "reserveret id (signalvej-symbol)"      # `sv~<n>` er signalvejenes virtuelle symbol-id (v5.4.0)
         if reason:
             _count(result.removed_attributes, reason)
             del el.attrib[attr]
@@ -299,45 +297,6 @@ def describe_element(svg: str, element_id: str) -> dict[str, Any] | None:
         return {**_shape_info(el), "type": sym_type if _TYPE_RE.match(sym_type) else "custom",
                 "name": el.attrib.get("data-hv-name"), "parts": parts}
     return None
-
-
-def describe_group(svg: str, element_ids: list[str], name: str | None, sym_type: str = "signalvej") -> dict[str, Any]:
-    """Et "virtuelt" symbol (v5.4.0, signalvejen som symbol): flere elementer på tegningen som ét symbol. Delene er alle
-    elementerne og deres underdele (samme form som `describe_element`). Elementer, der ikke findes, springes over.
-    Én gennemgang af tegningen uanset antal elementer."""
-    wanted = set(element_ids)
-    root = fromstring(svg.encode("utf-8"), forbid_dtd=True)
-    parts: dict[str, dict[str, Any]] = {}
-    els = [el for el in root.iter() if isinstance(el.tag, str) and el.attrib.get("id") in wanted]
-    # Hvert element skal kunne kendes fra de andre (v5.9.0): navnet, hvis det er unikt; ellers (eller uden navn) `navn (id)`
-    names = [el.attrib.get("data-hv-name") for el in els if el.attrib.get("data-hv-name")]
-    nice = lambda v: v.replace("_", " ").strip()      # noqa: E731
-
-    def label_of(el: ET.Element) -> str:
-        eid, nm = el.attrib["id"], el.attrib.get("data-hv-name")
-        if nm and names.count(nm) == 1:
-            return nm
-        base = nm or (nice(el.attrib.get("data-hv-type", "")) or ("rør" if "data-hv-pipe" in el.attrib else ""))
-        return f"{base} ({eid})" if base and base != eid else eid
-
-    def add(c: ET.Element, label: str, top: bool, owner: str, named: bool, typ: str) -> None:
-        cid = c.attrib.get("id")
-        if not cid:
-            return
-        parts[cid] = {**_shape_info(c), "pid": c.attrib.get("data-hv-pid"), "label": label, "root": top, "owner": owner}
-        if top:
-            parts[cid]["named"] = named
-            parts[cid]["sym_type"] = typ
-        if _local(c.tag)[1] == "text":
-            parts[cid]["text"] = " ".join("".join(c.itertext()).split())[:24]
-
-    for el in els:
-        top = label_of(el)       # delene navngives efter elementet på vejen
-        for c in el.iter():
-            if isinstance(c.tag, str):
-                add(c, top if c is el else f"{top} · {c.attrib.get('id', '')}", c is el, el.attrib["id"],
-                    bool(el.attrib.get("data-hv-name")), el.attrib.get("data-hv-type", ""))
-    return {"tag": "g", "line": False, "type": sym_type, "name": name, "parts": parts}
 
 
 def named_symbols(svg: str) -> list[dict[str, Any]]:

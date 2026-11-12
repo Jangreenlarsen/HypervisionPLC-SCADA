@@ -1,4 +1,4 @@
-# Plan: Signalvejene fjernes helt — frisk tilstand (v7.0.0) — 2026-11-12 — afventer OK
+# Plan: Signalvejene fjernes helt — frisk tilstand (v6.0.0 b0395; Jan: ingen versionsbump, når vi går tilbage) — 2026-11-12 — udført
 
 Jans beslutning (2026-11-12): "fjern alt om den signal editor så vi har en frisk tilstand". Afklaret:
 

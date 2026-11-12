@@ -132,12 +132,6 @@ describe('delnavne i guiden (v0.81.0)', () => {
   it('biblioteksnavn, ramme, nummererede figurer og tekst', () => {
     const kedel = info('kedel', { svg_2: { tag: 'rect', line: true }, svg_39_flamme: { tag: 'path', line: true, pid: 'flamme' } });
     expect(partLabel('all', kedel)).toBe('Hele symbolet');
-    // en signalvej som symbol (v5.4.0): delene navngives efter elementet på vejen
-    const vej = { type: 'signalvej', name: 'V', tag: 'g', line: false, parts: { r1: { tag: 'path', line: true, label: 'r1', root: true }, p1_hjul: { tag: 'circle', line: true, label: 'P1 · p1_hjul' } } };
-    expect(partLabel('p1_hjul', vej as never)).toBe('P1 · p1_hjul');
-    const vent = { ...vej, parts: { v: { tag: 'g', line: false, label: '3-vejs ventil', root: true, owner: 'v' }, v_a: { tag: 'path', line: true, pid: 'port_a', label: '3-vejs ventil · v_a', owner: 'v' } } };
-    expect(partLabel('v_a', vent as never)).toBe('3-vejs ventil · Port A');      // et biblioteksymbols dele med deres rigtige navn
-    expect(partLabel('v', vent as never)).toBe('3-vejs ventil');
     expect(partLabel('svg_39_flamme', kedel)).toBe('Flamme');
     expect(partLabel('svg_2', kedel)).toBe('Ramme (svg_2)');
     const kedel2 = info('kedel', { svg_2: { tag: 'rect', line: true }, svg_7: { tag: 'rect', line: true }, svg_8: { tag: 'rect', line: true } });
@@ -289,20 +283,5 @@ describe('"Gælder i" ved skift af kilde (v2.11.1)', () => {
     expect(keepsOnly('@pos', false, true)).toBe(false);   // kilden ER positionen
     expect(keepsOnly('Tag1', true, true)).toBe(false);    // pr. værdi
     expect(keepsOnly('Tag1', false, false)).toBe(false);  // symbolet har ingen positioner
-  });
-});
-
-
-describe('en signalvej som symbol (v6.0.0)', () => {
-  it('foreslår to positioner med PLC-tilbagemelding — kun passiv visning, intet at skrive', () => {
-    const symbol = { tag: 'g', line: false, type: 'signalvej', name: 'Vej', parts: {} } as SymbolInfo;
-    const p = libraryDefault(symbol)!;
-    expect(p.config.op).toBe('positions');
-    expect(p.config.passive).toBe(true);
-    expect(p.config.positions.map((x) => x.label)).toEqual(['Fra', 'Til']);
-    expect(p.config.signals).toHaveLength(1);
-    expect(p.config.signals[0]).toMatchObject({ tag: '', fb: '' });        // tilbagemeldingen vælges i trin 2
-    expect(p.config.planes[0].values).toEqual([0, 1]);                      // kontaktfladen: 0 = Fra, 1 = Til
-    expect(p.config.display).toBe('remote');
   });
 });

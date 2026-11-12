@@ -1,17 +1,17 @@
 <script lang="ts">
   // Symbol-oversigt (v5.5.0): alle symboler på tegningen som et træ — ét sted at gå til dem for at rette dem.
-  // Niveau 1: Grundsymboler · Signalveje · Grupper. Niveau 2: vejens elementer · gruppens medlemmer. Ingen ny redigeringslogik:
+  // Niveau 1: Grundsymboler · Grupper. Niveau 2: gruppens medlemmer. Ingen ny redigeringslogik:
   // rækkerne åbner de eksisterende guider og dialoger.
   import { onDestroy } from 'svelte';
   import { get } from './api';
   import { listGroups, type SymbolGroup } from './symbolGroups';
-  import { buildTree, countSymbols, filterTree, type PathRow, type SymbolRow, type TreeNode } from './symbolTree';
+  import { buildTree, countSymbols, filterTree, type SymbolRow, type TreeNode } from './symbolTree';
 
   let { drawingId, rev = 0, ready, select, onguide, ongroup, unnamed = 0, onname }: {
     drawingId: string | null; rev?: number; ready: boolean;
     /** Markér elementerne på tegningen */
     select: (ids: string[]) => number;
-    /** Symbol-guiden (6 trin): grundsymbol (elementet) eller signalvej (`sv~<id>`) */
+    /** Symbol-guiden (6 trin) for elementet */
     onguide: (id: string, name: string) => void;
     /** Gruppens animationer */
     ongroup: (g: SymbolGroup) => void;
@@ -21,27 +21,25 @@
   } = $props();
 
   let symbols = $state<SymbolRow[]>([]);
-  let paths = $state<PathRow[]>([]);
   let groups = $state<SymbolGroup[]>([]);
   let error = $state('');
   let note = $state('');
   let query = $state('');
   let onlyOpen = $state(false);
-  let open = $state<Set<string>>(new Set(['s:symbols', 's:paths', 's:groups']));
+  let open = $state<Set<string>>(new Set(['s:symbols', 's:groups']));
   let timer: ReturnType<typeof setTimeout> | undefined;
   let seq = 0;
 
   async function load(): Promise<void> {
     const id = drawingId;
-    if (!id) { symbols = []; paths = []; groups = []; return; }
+    if (!id) { symbols = []; groups = []; return; }
     const mine = ++seq;
     const enc = encodeURIComponent(id);
-    const [s, p, g] = await Promise.allSettled([get<SymbolRow[]>(`/api/drawings/${enc}/symbols`), get<PathRow[]>(`/api/drawings/${enc}/signal-paths`), listGroups(id)]);
+    const [s, g] = await Promise.allSettled([get<SymbolRow[]>(`/api/drawings/${enc}/symbols`), listGroups(id)]);
     if (mine !== seq) return;       // et nyere opslag er på vej
     symbols = s.status === 'fulfilled' ? s.value : [];
-    paths = p.status === 'fulfilled' ? p.value : [];
     groups = g.status === 'fulfilled' ? g.value : [];
-    const bad = [s, p, g].find((x) => x.status === 'rejected') as PromiseRejectedResult | undefined;
+    const bad = [s, g].find((x) => x.status === 'rejected') as PromiseRejectedResult | undefined;
     error = bad ? `Oversigten kunne ikke hentes helt: ${(bad.reason as Error).message}` : '';
   }
   // tegningen ændres hele tiden (flyt, træk …): hent først, når det har ligget stille et øjeblik
@@ -52,7 +50,7 @@
   });
   onDestroy(() => clearTimeout(timer));
 
-  const tree = $derived(buildTree(symbols, paths, groups));
+  const tree = $derived(buildTree(symbols, groups));
   const shown = $derived(filterTree(tree, query, onlyOpen));
   const counts = $derived(countSymbols(symbols));
   const filtering = $derived(query.trim() !== '' || onlyOpen);
@@ -96,7 +94,7 @@
       </button>
       {#if n.guide}
         <button class="small" onclick={() => onguide(n.guide!.id, n.guide!.name)} disabled={!ready}
-          title={n.kind === 'path' ? 'Åbn vejen som symbol (6 trin): egne animationer, logik og signaler' : 'Opsæt symbolet (6 trin)'}>Opsæt</button>
+          title="Opsæt symbolet (6 trin)">Opsæt</button>
       {:else if n.group !== null && groupOf(n)}
         <button class="small" onclick={() => ongroup(groupOf(n)!)} disabled={!ready} title="Gruppens animationer">Animationer</button>
       {/if}

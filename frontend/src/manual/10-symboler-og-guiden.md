@@ -36,7 +36,7 @@ Kun de former, der giver mening for symbolet, vises; **Vis alle betjeningsformer
 
 Et **signal** er én ting, symbolet styrer — fx *Start* eller *Mode*. For hvert signal vælger du:
 
-- **Kommando** — det, der **skrives** til, når operatøren betjener symbolet: enten **et PLC-tag** (kun skrivbare tags kan vælges) eller **kun i SCADA (virtuelt)**. Et virtuelt signal skriver **ikke til en PLC** — symbolets position er den, operatøren har valgt, og en signalvej eller en animation kan følge den (*virtuelle signaler*). Sætter du også en **tilbagemelding** på signalet, er **PLC'ens tilbagemelding toneangivende** for positionen. Virtuelle signaler findes kun for symboler med positioner (ikke trykknapper og setpunkter).
+- **Kommando** — det PLC-tag, der **skrives** til, når operatøren betjener symbolet (kun skrivbare tags kan vælges).
 - **Tilbagemelding** (valgfri) — det tag, PLC'en **melder tilbage** i (fx en kontakt på motoren). Den bruges til at vise, hvad PLC'en faktisk gør.
 - **Skrives som** — *Sæt* skriver værdien og lader den stå; *Puls* skriver værdien kort og derefter **hvile**-værdien (fx 0).
 

@@ -19,7 +19,7 @@ const META: Record<string, { group: string; icon: string; blurb: string }> = {
   tegninger: { group: 'Opsætning', icon: 'drawings', blurb: 'Upload, versioner og start-tegning' },
   ugeprogrammer: { group: 'Opsætning', icon: 'schedules', blurb: 'Tidsstyring over ugen' },
   tegn: { group: 'Tegning og symboler', icon: 'draw', blurb: 'Tegne-editoren: værktøjer og bibliotek' },
-  forbindelser: { group: 'Tegning og symboler', icon: 'integration', blurb: 'Rør, ledninger og signalveje' },
+  forbindelser: { group: 'Tegning og symboler', icon: 'integration', blurb: 'Rør, ledninger og forbindelser' },
   'bindinger-og-animationer': { group: 'Tegning og symboler', icon: 'bindings', blurb: 'Bind elementer til tags' },
   'symboler-og-guiden': { group: 'Tegning og symboler', icon: 'symbols', blurb: 'Guiden i 6 trin og logikblokke' },
   symbolbibliotek: { group: 'Tegning og symboler', icon: 'symboltest', blurb: 'Alle symboler i biblioteket' },

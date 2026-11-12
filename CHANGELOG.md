@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.0.0 build 0395] — 2026-11-12 — Signalvejene og de virtuelle signaler er fjernet (frisk tilstand)
+
+Jan: "fjern alt om den signal editor så vi har en frisk tilstand". Versionen forbliver 6.0.0 (vi går tilbage, ikke frem; OTA'en afviser nedgradering, så kun build tælles op). *Ind/ud og veje* (symbol-flow), *Tjek/Bind forbindelser* og tilslutningspunkter består.
+
+- **Backend:** slettet `services/signal_paths/`, `api/signal_paths.py`, `services/migrations/v60_paths.py`. `symbols.py`: vejsymbolet `sv~` (`path_symbol_id`, `parse_path_symbol`, `MAX_PATH_ANIMS`), afledte signaler som input (`derived_signals`, `signal_ids`, `signal_users`, `sym_refs`, `_signal_cycle`, `pseudo` i `validate_config`) og virtuelle signaler er fjernet; `Signal.virtual` og `Anim.auto` læses stadig fra ældre opsætninger, men ignoreres (gemmes som `False`). `GET /api/drawings/{id}/signals` fjernet. `drawings.py` (`_path_symbol_bindings`, `symbols_info`), `symbol_runtime.py`, `svg_sanitize.py` (`describe_group`, `sv~`-reservation), `backup.py` (eksporterer ingen veje; gendannelse springer veje og `sv~`-opsætninger over), `db.py` (vejmetoderne og v5.0-opgraderingen `_drop_old_signal_paths`; ny `remove_signal_paths`/`count_signal_paths`; tabellen `signal_paths` står tom), `main.py`, `api/backup.py`.
+- **Oprydning ved opstart:** ny `services/migrations/remove_paths.py` (én gang, backup `foer-signalvej-fjern` først; fejler backuppen, ændres intet): gemte veje og `sv~`-opsætninger (kode, tilstand) slettes; symboler, der brugte en vej eller et virtuelt signal, røres ikke, men står i rapporten (`report.remove_paths`, audit `signal_path.removed`). Køres også efter gendannelse.
+- **Frontend:** slettet `SignalPathGuide`, `SpSaved`, `SpStart`, `signalGuideHarness`, `signalpath/{flow,route,net,pick}.ts` og deres tests; `signalPath.ts` eksporterer kun forbindelses-grafen. `DrawEditor.svelte` (sektionen Signalveje, vinduet over tegningen, vejnavne), `scada-core.js` (`highlightPath`, vejnavne), `SymbolTree`/`symbolTree.ts` (kun grundsymboler og grupper), `draw/panels.ts`. `SymbolGuide.svelte`, `symbolConfig.ts` (+ test) tilbage til v5.1.0 (alle senere ændringer var vej/virtuelt), med v5.4.0's z-index (dialoger over Tegn-værktøjslinjen).
+- Tests: `test_signal_paths.py`, `test_signal_branches.py` og de virtuelle tests i `test_symbol_operate.py` fjernet; nye `tests/drawing_api.py` (fælles fixture), `test_symbol_flow.py`, `test_remove_paths.py` (oprydning, backupfejl, API'et uden veje, gamle opsætninger, gendannelse af ældre backup); frontend `graph.test.ts`, `symbolFlow.test.ts`, `symbolTree.test.ts`.
+- **Fejlrettelse (BUGS.md):** server-backups af slagsen `pre-v6` (og den nye `foer-signalvej-fjern`) kunne ikke hentes/gendannes — `_BACKUP_NAME` bygges nu af `_KIND_TEXT`. Oprydningen bruger `GLOB 'sv~[0-9]*'` (kun rigtige vej-id'er).
+- Manual: kap. 08 Signalveje fjernet, kap. 07/10 rettet, LLM-tillæg (12 afsnit fjernet), billederne `signalvej-*.png` og deres skærmbilledscript fjernet. FEATURES/ACCEPTTEST.
+
 ## [6.0.0 build 0394] — 2026-11-12 — Signalvejen er kun en definition og bruges som et almindeligt symbol
 
 **MAJOR** (vejens datamodel ændres). Jans forklaring: en signalvej *definerer* kun, hvad den består af; hvornår den er aktiv og hvordan den ser ud, sættes op i symbol-guiden.
