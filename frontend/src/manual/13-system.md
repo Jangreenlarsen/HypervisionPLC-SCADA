@@ -267,7 +267,7 @@ Er disken ved at blive fuld, kan du rydde op **på maskinen** — også selv om 
 
 ## Server-værktøjskassen: scada-tool
 
-Til vedligeholdelse **på selve serveren** (SSH) findes kommandoen **`scada-tool`**. Den virker også, når web-siden ikke gør, og kræver root (`su -c 'scada-tool …'` eller `sudo`). Alt der ændrer noget, spørger først (eller kræv `--yes`) og skrives i systemloggen (`logger -t scada-tool`).
+Til vedligeholdelse **på selve serveren** (SSH) findes kommandoen **`scada-tool`**. Den virker også, når web-siden ikke gør, og kræver root: log ind som root med `su -` (så findes kommandoen i stien), eller brug den fulde sti `su -c '/usr/local/sbin/scada-tool status'`. Alt der ændrer noget, spørger først (eller kræv `--yes`) og skrives i systemloggen (`logger -t scada-tool`).
 
 | Kommando | Gør |
 | --- | --- |

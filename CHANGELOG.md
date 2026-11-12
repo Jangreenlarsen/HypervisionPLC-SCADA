@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.6.1 build 0387] — 2026-11-12 — scada-tool: ingen traceback ved `| head`
+
+- `backend/app/tool.py`: `BrokenPipeError` (fx `scada-tool config | head`) giver ikke længere en traceback. Manual (kap. 13): kommandoen køres via `su -` eller med den fulde sti (`/usr/local/sbin` er ikke i PATH under `su -c`). Afprøvet på demo-serveren: `status`, `check`, `config`, `update status`, `logs`.
+
 ## [5.6.0 build 0386] — 2026-11-12 — Server-værktøjskasse `scada-tool`
 
 - `backend/app/tool.py` + `deploy/scada-tool.sh` (installeres af `install.sh` som `/usr/local/sbin/scada-tool`): `status`, `check` (appen kan importeres? databaser `quick_check`, ejer af data-mappen, health, hængende opdatering), `logs`, `start|stop|restart` (venter på health), `update status|reset|apply|rollback`, `backup list|create|restore` (SQLite-kopi), `user list|reset` (adgangskode kun fra terminal/stdin, lukker sessioner), `config` (hemmeligheder som "(sat)"), `maint`. Ændringer spørger/`--yes` og logges (`logger -t scada-tool`).

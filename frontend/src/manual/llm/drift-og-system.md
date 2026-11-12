@@ -4,7 +4,7 @@ Tillæg til hjælperens LLM-manual (vises IKKE i Manual-siden) — se llm/tegn.m
 # Tillæg: Drift, tags og system
 
 ## Hvordan vedligeholder jeg serveren fra kommandolinjen (scada-tool, serveren starter ikke, opdatering hænger, glemt adgangskode)?
-<!-- kilde: 13-system#m-server-vaerktoejskassen-scada-tool sha:ada2fd88 -->
+<!-- kilde: 13-system#m-server-vaerktoejskassen-scada-tool sha:5a6955c8 -->
 På serveren (SSH, root) findes **`scada-tool`**: `status` (overblik), `check` (diagnose: hvorfor starter serveren ikke), `logs [--fejl] [-f]`, `start|stop|restart`, `update status|reset|apply FIL.tar|rollback` (`reset` rydder en opdatering, der står fast som "i gang"), `backup list|create|restore FIL.db`, `user reset NAVN` (nulstil en adgangskode) og `config`. Ændringer spørger først og logges.
 
 ## Hvordan kvitterer jeg en alarm (acknowledge, bekræft alarm, klokken blinker)?

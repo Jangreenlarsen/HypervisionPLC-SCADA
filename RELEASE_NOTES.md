@@ -2,6 +2,10 @@
 
 ---
 
+## v5.6.1 — 2026-11-12 — Rettelse i scada-tool
+
+- `scada-tool` giver ikke længere en fejlmeddelelse, når udskriften sendes videre til fx `head`.
+
 ## v5.6.0 — 2026-11-12 — Værktøjskasse til serveren
 
 - Ny kommando **`scada-tool`** på serveren (SSH, root): `status`, `check` (hvorfor starter serveren ikke?), `logs`, `start/stop/restart`, `update reset/apply/rollback`, `backup`, `user reset` (glemt adgangskode) og `config`.
