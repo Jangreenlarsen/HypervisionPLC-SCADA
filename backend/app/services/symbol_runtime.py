@@ -25,6 +25,7 @@ from ..storage.db import Database
 from .alarms import Condition
 from .live_cache import LiveCache, LiveValue
 from .svg_sanitize import describe_element, index_svg
+from .flow_calc import FlowEngine
 from .symbols import PSEUDO_KINDS, logic_pseudo_tags, logic_results, pseudo_tag
 
 log = logging.getLogger(__name__)
@@ -129,19 +130,22 @@ class SymbolRuntime:
         self.names: dict[tuple[str, str], str] = {}
         self._signature: Any = None
         self._logic_published: set[str] = set()   # logik-pseudo-tags i live-cachen (så slettede blokke ryddes)
+        self.flow = FlowEngine(cache)              # flowberegningen (v6.1.0): flow:<tegning>:<element> i l/min
 
     # ------------------------------------------------------------ indlæsning
 
     def _current_signature(self) -> Any:
         cfg = self.db._query("SELECT COUNT(*) AS n, MAX(updated_at) AS t FROM symbol_config")[0]
         drawings = tuple((d["id"], d["active_version"], d["disabled"]) for d in self.db.list_drawings())
-        return (cfg["n"], cfg["t"], drawings)
+        flowdefs = self.db._query("SELECT COUNT(*) AS n, GROUP_CONCAT(key || value) AS t FROM meta WHERE key LIKE 'symbolflow.%'")[0]
+        return (cfg["n"], cfg["t"], drawings, flowdefs["n"], flowdefs["t"])
 
     def reload(self) -> None:
         """Indlæs konfigurationer for symboler med positioner i de aktive tegningsversioner."""
         symbols: dict[tuple[str, str], dict[str, Any]] = {}
         names: dict[tuple[str, str], str] = {}
         by_drawing: dict[str, list[dict[str, Any]]] = {}
+        svgs: dict[str, str] = {}
         off = self.drawings.disabled_ids()   # deaktiverede tegninger er offline: ingen positioner, ingen afvigelsesalarmer
         for row in self.db.list_symbol_configs():
             if row["drawing_id"] not in off:
@@ -150,6 +154,7 @@ class SymbolRuntime:
             try:
                 svg = self.drawings.svg(did)
                 index = index_svg(svg)
+                svgs[did] = svg
             except Exception:
                 log.exception("Symboler: tegningen %s kunne ikke læses", did)
                 continue
@@ -168,11 +173,16 @@ class SymbolRuntime:
             self.cache.remove([pseudo_tag(d, e, k) for d, e in removed for k in PSEUDO_KINDS])
             for k in removed:
                 self.states.pop(k, None)
+        try:
+            self.flow.reload(svgs, self.db.list_symbol_flow())
+        except Exception:
+            log.exception("Flow: indlæsningen fejlede")
         self._signature = self._current_signature()
 
     # ------------------------------------------------------------- beregning
 
-    def evaluate(self, now: float | None = None) -> None:
+    def evaluate(self, now: float | None = None, flow: bool = True) -> None:
+        """Positioner, logik og (med `flow`) flowberegningen. Løkken (`run`) beregner flowet i en tråd i stedet."""
         now = time.time() if now is None else now
         if self._current_signature() != self._signature:
             self.reload()
@@ -208,6 +218,11 @@ class SymbolRuntime:
         self._logic_published = logic_now
         if updates:
             self.cache.update(updates)
+        if flow:
+            try:
+                self.flow.evaluate(self.symbols, self.states, now)
+            except Exception:
+                log.exception("Fejl i flowberegningen")
 
     def set_chosen(self, key: tuple[str, str], position: int | None, by: str, at: float | None = None) -> dict[str, Any]:
         """Sidst valgte position (betjening, accept, start) — gemmes så den overlever genstart."""
@@ -266,8 +281,12 @@ class SymbolRuntime:
                 except asyncio.TimeoutError:
                     pass
                 try:
-                    self.evaluate()
+                    self.evaluate(flow=False)
                 except Exception:
                     log.exception("Fejl i symbolberegning")
+                try:
+                    await self.flow.evaluate_async(self.symbols, self.states)
+                except Exception:
+                    log.exception("Fejl i flowberegningen")
         finally:
             self.cache.unsubscribe(queue)

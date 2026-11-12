@@ -39,6 +39,28 @@ export interface SymbolConfig {
   lock: { positions: boolean[]; leave: boolean }; anims: Anim[]; logic: LogicBlock[];
   /** Trendgraf (v0.91.0) — kun for symboler, der viser en graf. */
   chart?: ChartCfg | null;
+  /** Flowberegningen (v6.1.0): pumpe, kapacitet, rate/restriktion og åbne veje pr. position. null = standard. */
+  flow?: FlowCfg | null;
+}
+/** Flow-rate eller restriktion (v6.1.0): et tag eller en fast værdi (`@val:0.5`), divideret med `max`; tom = 1. */
+export interface FlowSource { src: string; max: number }
+export interface FlowCfg { pump: boolean; capacity: number; rate: FlowSource; restrict: FlowSource; open: string[][] | null }
+/** Kilden "symbolets flow" (v6.1.0): den beregnede mængde gennem symbolet, l/min. */
+export const FLOW = '@flow';
+export const flowSourceMode = (s: FlowSource): 'none' | 'tag' | 'val' => (!s.src ? 'none' : s.src.startsWith('@val:') ? 'val' : 'tag');
+/**
+ * Ny flow-opsætning: en pumpe-type pumper. En ventil med positioner får i hver position de veje, positionens navn nævner
+ * ("AB → A", "AB>A" eller blot porten "A"); ellers alle veje.
+ */
+export function defaultFlow(type: string, positions: string[], ways: string[]): FlowCfg {
+  const norm = (s: string) => s.replace(/\s+/g, '').replace(/→|->/g, '>').toUpperCase();
+  const guess = (label: string): string[] => {
+    const l = norm(label);
+    const hit = ways.filter((w) => l === norm(w) || l.includes(norm(w)) || l === w.split('>')[1]?.toUpperCase());
+    return hit.length ? hit : [...ways];
+  };
+  return { pump: type === 'pumpe', capacity: 100, rate: { src: '', max: 1 }, restrict: { src: '', max: 1 },
+    open: positions.length && ways.length ? positions.map(guess) : null };
 }
 export interface PartInfo { tag: string; line: boolean; pid?: string | null; text?: string }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }
@@ -325,7 +347,7 @@ export function newSignal(cfg: SymbolConfig, tag = '', fb = ''): Signal {
 export const CMP_TXT: Record<string, string> = { ge: '≥', le: '≤', eq: '=' };
 
 /** `@L1` — animationens kilde er en logikblok (`@pos` er positionen). */
-export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS && src !== ON && !src.startsWith(ALARM_REF) && !src.startsWith(VAL_REF);
+export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS && src !== ON && src !== FLOW && !src.startsWith(ALARM_REF) && !src.startsWith(VAL_REF);
 
 export function newBlock(cfg: SymbolConfig): LogicBlock {
   let i = 1;

@@ -47,9 +47,15 @@ export function textFor(value: unknown, meta: TagMeta | undefined, params: Recor
   return `${params.prefix ?? ''}${formatValue(value, meta, params)}${params.suffix ?? ''}`;
 }
 
+/** Tallet, en animation regner med: `abs` (v6.1.0, flowberegningen) = uden fortegn, så retningen ikke tæller. */
+const numFor = (value: unknown, params: Record<string, any>): number | null => {
+  const n = toNumber(value);
+  return n !== null && params.abs ? Math.abs(n) : n;
+};
+
 export function colorFor(value: unknown, params: Record<string, any>): string {
   const thresholds: { value: number; color: string }[] = params.thresholds ?? [];
-  const n = toNumber(value);
+  const n = numFor(value, params);
   if (thresholds.length && n !== null && typeof value !== 'boolean') {
     let color: string = params.off ?? '#9e9e9e';
     for (const t of thresholds) if (n >= t.value) color = t.color;
@@ -80,7 +86,7 @@ export function bindingActive(b: Pick<Binding, 'anim' | 'params'>, live: LiveVal
     case 'stroke': {
       if (p.pos) return k !== null && Array.isArray(p.colors) && Boolean(p.colors[k]);
       const thresholds: { value: number }[] = p.thresholds ?? [];
-      const n = toNumber(v);
+      const n = numFor(v, p);
       if (thresholds.length && n !== null && typeof v !== 'boolean') return thresholds.some((t) => n >= Number(t.value));
       return isOn(v);
     }
@@ -696,6 +702,18 @@ function phaseFor(el: Element, i: number): Phase | undefined {
   return ph.get(flowKey(el, i));
 }
 
+/**
+ * Løbelysets fart efter værdien (v6.1.0, flowberegningen): `speed` ved `flow_max` (l/min), ned til 5 ved næsten intet flow.
+ * Rundet til trin på 5, så lyset ikke tegnes om ved hver lille ændring.
+ */
+export function speedFor(value: unknown, p: Record<string, any>): number {
+  const n = toNumber(value);
+  const max = Number(p.flow_max) || 0;
+  if (n === null || !(max > 0)) return Number(p.speed ?? 40);
+  const s = (Math.min(Math.abs(n), max) / max) * Number(p.speed ?? 40);
+  return Math.max(5, Math.min(500, Math.round(s / 5) * 5));
+}
+
 function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   lastFlow.set(el, { state, p });
   const base = p.base ?? '#555555', light = p.light ?? '#8fc8ea';
@@ -740,7 +758,7 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
     // Sammenhængende forløb: stiplingen fortsætter fra nabodelen (kun hvor retningerne passer), og hele forløbet har samme
     // lyslængde og fart (flertallets)
     const ph = phaseFor(el, i);
-    const len = ph?.dash ?? dash, pace = ph?.speed ?? speed;
+    const len = ph?.dash ?? dash, pace = p.own_speed ? speed : ph?.speed ?? speed;     // fart efter flowet: delens egen
     // Lysets længde og fart er i TEGNINGENS enheder, uanset hvordan røret er skaleret: omregnet til rørets egne enheder
     const scale = flowScale(d);
     const unit = len / scale;
@@ -796,8 +814,12 @@ export function activeFor(v: unknown, p: Record<string, any>): boolean {
     return n !== null && Array.isArray(p.set) && Boolean(p.set[n]);
   }
   if (p.at_least !== undefined && p.at_least !== null && typeof v !== 'boolean') {
-    const n = toNumber(v);
+    const n = numFor(v, p);
     return n !== null && n >= Number(p.at_least);
+  }
+  if (p.at_most !== undefined && p.at_most !== null && typeof v !== 'boolean') {   // v6.1.0: fx blink, når der intet flow er
+    const n = numFor(v, p);
+    return n !== null && n <= Number(p.at_most);
   }
   return isOn(v) !== Boolean(p.invert);
 }
@@ -953,7 +975,7 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
     case 'flow': {
       let state: -1 | 0 | 1 = p.pos ? (Number(at(p.dirs) ?? 0) as -1 | 0 | 1) : flowState(v, p);
       if (p.pos && p.reverse && state) state = -state as -1 | 1;
-      flow(el, withDirection(state, p, dirLive), p);
+      flow(el, withDirection(state, p, dirLive), p.flow_max ? { ...p, speed: speedFor(v, p), own_speed: true } : p);
       break;
     }
   }

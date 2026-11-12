@@ -23,6 +23,8 @@
   import { connectionCheck, pairsToBind, planFixes, unboundPairs, type FixMove, type Graph } from '../lib/signalPath';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolTree from '../lib/SymbolTree.svelte';
+  import FloatWin from '../lib/FloatWin.svelte';
+  import ConnGroups from '../lib/ConnGroups.svelte';
   import GroupAnims from '../lib/GroupAnims.svelte';
   import type { SymbolGroup } from '../lib/symbolGroups';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
@@ -212,6 +214,7 @@
     }, 300);
   });
   onDestroy(() => clearTimeout(connTimer));
+  let flowOpen = $state(false);                                    // Flow-vinduet over tegningen (v6.1.0): forbindelsesgrupper
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let treeRev = $state(0);                                         // symbol-oversigten henter forfra (v5.5.0)
   let unnamed = $state(0);                                          // symboler uden navn i tegningen (v5.9.0)
@@ -1098,6 +1101,8 @@
   </span>
   <Menu label="Vis" title="Gitter, hjælpelinjer, navne og tjek af forbindelser">{@render viewMenu()}</Menu>
   <Menu label="Fang" title="Fang til gitter, objekter, rør og hjælpelinjer">{@render snapMenu()}</Menu>
+  <button class:on={flowOpen} onclick={() => (flowOpen = !flowOpen)} disabled={!current}
+    title="Flow: hvordan rør og rørstykker viser det beregnede flow på Overview (forbindelsesgrupper)">Flow</button>
   <Menu label="Meddelelser" title="Systemets beskeder om tegningen (gem, rettelser, advarsler)" badge={unread + (dupNames.length ? 1 : 0) + (migration?.manual.length ? 1 : 0)} hot={unread > 0 || dupNames.length > 0 || !!migration?.manual.length}
         wide align="right" bind:open={msgOpen} onopen={() => (unread = 0)}>{@render messagesMenu()}</Menu>
   {#if checkConn && connSummary}
@@ -1443,6 +1448,12 @@
     onsaved={() => { info = `${gf.others.length + 1} symboler er opsat ud fra "${gf.basis.name}".`; groupFor = null; refreshReservedIds(); }} />
 {/if}
 
+{#if flowOpen && current}
+  <FloatWin key="draw.flowwin" title="Flow — forbindelsesgrupper" onclose={() => (flowOpen = false)}>
+    <ConnGroups drawingId={current.id} {ready} selected={selection.map((x) => x.id)} select={(ids) => ed?.selectByIds(ids)}
+      ensureSaved={() => ensurePublished('forbindelsesgrupperne gælder den udgivne tegning')} />
+  </FloatWin>
+{/if}
 {#if treeGroup && current}
   <GroupAnims drawingId={current.id} group={treeGroup} {tags} onclose={() => { treeGroup = null; treeRev++; }} />
 {/if}

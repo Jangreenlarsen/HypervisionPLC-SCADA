@@ -4,6 +4,29 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.1.0 build 0396] — 2026-11-13 — Flowberegning: systemet beregner selv flowet gennem anlægget, og forbindelsesgrupper viser det
+
+Hele designet på én gang (Jan: "ikke nogen faser … vi itererer over flere versioner"). PLAN.md › Flow-model.
+
+- **Flowberegningen** (`services/flow_calc.py`, ny): topologien læses af tegningens gemte forbindelser (`data-hv-links`). Model A: et elektrisk net med ledningsevner — rør og rørstykker næsten uden modstand, symboler og ventilers åbne veje som `restriktion × G_VALVE` — løst eksakt med sparsom Gauss-elimination; pumper giver `rate × kapacitet` (UD → IND); envejs-veje mod strømmen lukkes og der regnes igen; en delvist lukket vej i serie begrænser pumpen (forholdet til nettet helt åbent); flere pumper lægges sammen. Live-værdier `flow:<tegning>:<element>` (l/min, rør med fortegn efter tegneretningen). `FlowEngine` regner kun ved ændrede input og i en tråd (`evaluate_async` fra symbol-runtimens løkke), status i `/api/health/details` → `flow` og kortet *Flowberegning* på Status.
+- **Ind/ud og veje pr. symboltype** til beregningen: `services/flow_defs.py` (standarderne som frontend `FLOW_DEFAULTS`, retning efter punkternes roller, matchning af forbindelsesnøgler til punkter).
+- **Flow i symbolets opsætning** (`symbols.py`): `flow` = `{pump, capacity 0–65535, rate {src, max}, restrict {src, max}, open [["AB>A"] pr. position]}`, valideret i trin 4; kilden **`@flow`** (symbolets flow) i animationer (`abs` for farve/blink, `signed` for løbelys); `config_tags` med rate/restriktion-tags.
+- **Forbindelsesgrupper** (`services/connection_groups.py`, `api/connection_groups.py`, tabel `connection_groups`, skema 17, additiv): standardgruppen *Alle forbindelser* (løbelys) og egne grupper med højst 4 animationer (løbelys, farve efter flow, blink ved mindst/højst, fast farve); en forbindelse i én gruppe ad gangen (flyttes i samme transaktion); bindingerne lægges på i `drawings._compute` (kilde `conn-group`, kun på tegninger med en pumpe, aldrig oven på en animation af samme slags); backup og gendannelse; audit `connection_group.*`.
+- **Frontend:** `FlowSection.svelte` (symbol-guidens trin 4: pumpe, kapacitet, rate/restriktion fra tag eller fast værdi, tabel over åbne veje pr. position med gæt ud fra positionernes navne), kilden *symbolets flow*; **Flow-vinduet over tegningen** i Tegn (`FloatWin.svelte` — genbrugeligt vindue, der kan flyttes og gøres større; `ConnGroups.svelte`, `connGroups.ts`); tegnemotoren (`animate.ts`): `abs`, `at_most` og løbelysets fart efter værdien (`flow_max`, `speedFor`); Status-kortet *Flowberegning*.
+- Tests: `test_flow_calc.py` (løser, løkke, tag-rate, fortegn, parallelle grene, blokering/serie, kontraventil, 3-vejsventilens positioner, ingen forbindelser, motoren), `test_connection_groups.py` (opsætning, standardgruppe, grupper, regler, runtime → live-værdi, backup), `connGroups.test.ts`. Set i browseren på testtegningen *Demo ny editor*: løbelys i pumpens løkke på Overview, Flow-vinduet med en gruppe og animations-editoren, Flow-sektionen for en 3-vejsventil.
+- Manual: kap. 08 *Flow i anlægget* og *Forbindelsesgrupper*, kap. 10 *Flow*, billederne `flow-vindue.png` og `flow-guide.png`, LLM-tillæg (4 nye afsnit). FEATURES, ACCEPTTEST.
+- **Reviewer-rettelser:**
+  - et resultat fra beregningstråden udgives kun, hvis det stadig er det nyeste (ellers kunne det overskrive et nyere efter en betjening eller fjerne en tegnings ryddede værdier); betjeningen beregner ikke flowet synkront (`evaluate(flow=False)`);
+  - et rate-/restriktions-tag uden god værdi eller en ventil i ukendt position giver flowet kvaliteten `comm_error` (ukendt) i stedet for 0;
+  - strøm med fortegn summeres pr. kant over alle pumper (modsatrettede pumper går ud mod hinanden);
+  - rørstykker og symbolets flow får løbelys uden foregivet retning (`onoff`);
+  - en pumpe, der ikke er forbundet på IND og UD, giver en besked;
+  - blink kræver præcis én grænse;
+  - gendannelse kontrollerer `is_default` (bool) og gruppenavne som API'et.
+
+  Tests for hver af dem.
+- Kendte begrænsninger (næste iteration): rørstykker (bøjninger, T-stykker) viser løbelys uden retning; beregningen kræver gemte forbindelser.
+
 ## [6.0.0 build 0395] — 2026-11-12 — Signalvejene og de virtuelle signaler er fjernet (frisk tilstand)
 
 Jan: "fjern alt om den signal editor så vi har en frisk tilstand". Versionen forbliver 6.0.0 (vi går tilbage, ikke frem; OTA'en afviser nedgradering, så kun build tælles op). *Ind/ud og veje* (symbol-flow), *Tjek/Bind forbindelser* og tilslutningspunkter består.

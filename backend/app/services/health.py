@@ -304,6 +304,8 @@ class HealthService:
             "tls_admin": ta.metrics() if (ta := getattr(state, "tls_admin", None)) else None,
             "assist": a.metrics() if (a := getattr(state, "assistant", None)) else None,
             "bindings_cache": dict(ds.cache_stats) if (ds := getattr(state, "drawing_service", None)) else None,
+            # flowberegningen (v6.1.0): kørsler, sidste beregningstid, fejl, tegninger uden gemte forbindelser, beskeder
+            "flow": rt.flow.status() if (rt := getattr(state, "symbol_runtime", None)) is not None and hasattr(rt, "flow") else None,
             # opgraderingen v5.1.0 (den gamle symbolmodel fjernet): symboler, der stadig skal sættes op i guiden
             "symbol_migration": self._symbol_migration(state),
             "notify": notifier.failing() if (notifier := getattr(state, "notifier", None)) else {},

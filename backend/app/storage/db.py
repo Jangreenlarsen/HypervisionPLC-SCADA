@@ -17,7 +17,7 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 16   # 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
+SCHEMA_VERSION = 17   # 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -237,6 +237,20 @@ CREATE TABLE IF NOT EXISTS library_symbols (
     updated_by  TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS library_symbols_label_ci ON library_symbols(lower(label));
+-- Forbindelsesgrupper (v6.1.0, services/connection_groups.py): hvordan tegningens forbindelser viser det beregnede flow.
+-- Én række pr. tegning har is_default = 1 (standardgruppen "Alle forbindelser", navnet er tomt); de øvrige har medlemmer.
+CREATE TABLE IF NOT EXISTS connection_groups (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    is_default  INTEGER NOT NULL DEFAULT 0,
+    members     TEXT NOT NULL,
+    anims       TEXT NOT NULL,
+    sort        INTEGER NOT NULL DEFAULT 0,
+    updated_at  REAL NOT NULL,
+    updated_by  TEXT NOT NULL,
+    UNIQUE (drawing_id, name)
+);
 -- Signalveje i Tegn (v4.2.0–v6.0.0) — fjernet i v6.0.0-b0395. Tabellen står tom (services/migrations/remove_paths.py tømmer den).
 CREATE TABLE IF NOT EXISTS signal_paths (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -275,7 +289,7 @@ USER_FIELDS = ("password_hash", "role", "disabled", "must_change_password", "sco
 # Tabeller, hvis indhold bestemmer, hvilke bindinger/tags en tegning har (v4.12.0: gemte beregninger er gyldige, så længe
 # ingen af dem er skrevet til — se Database.config_gen)
 CONFIG_TABLES = frozenset({"tags", "drawings", "drawing_versions", "bindings", "symbol_meta", "symbol_config", "symbol_groups",
-                           "symbol_group_members", "symbol_group_anims", "library_symbols"})
+                           "symbol_group_members", "symbol_group_anims", "library_symbols", "connection_groups"})
 _WRITE = re.compile(r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`\[]?(\w+)',
                     re.I)
 
@@ -983,6 +997,69 @@ class Database:
             return None
         return {**rows[0], "config": json.loads(rows[0]["config"])}
 
+    # ----------------------------------------------------------------- forbindelsesgrupper (v6.1.0)
+
+    def list_connection_groups(self, drawing_id: str | None = None) -> list[dict[str, Any]]:
+        sql = "SELECT id, drawing_id, name, is_default, members, anims, sort FROM connection_groups"
+        rows = (self._query(sql + " WHERE drawing_id = ? ORDER BY is_default DESC, sort, id", (drawing_id,)) if drawing_id is not None
+                else self._query(sql + " ORDER BY drawing_id, is_default DESC, sort, id"))
+        out = []
+        for r in rows:
+            try:
+                out.append({**r, "is_default": bool(r["is_default"]), "members": json.loads(r["members"]), "anims": json.loads(r["anims"])})
+            except ValueError:
+                log.error("Forbindelsesgruppen '%s' (%s) er beskadiget og springes over", r.get("name"), r.get("drawing_id"))
+        return out
+
+    def write_connection_group(self, drawing_id: str, gid: int | None, name: str, members: list[str], anims: list[dict[str, Any]],
+                               username: str) -> int | None:
+        """Opret (gid None) eller ret en gruppe. En forbindelse hører til én gruppe: medlemmerne fjernes fra de andre grupper i
+        samme transaktion. → id; None hvis navnet er taget (eller gruppen er væk)."""
+        now = time.time()
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                if gid is None:
+                    nxt = cur.execute("SELECT COALESCE(MAX(sort), 0) + 1 FROM connection_groups WHERE drawing_id = ?", (drawing_id,)).fetchone()[0]
+                    gid = cur.execute("INSERT INTO connection_groups(drawing_id, name, is_default, members, anims, sort, updated_at, "
+                                      "updated_by) VALUES (?,?,0,?,?,?,?,?)", (drawing_id, name, json.dumps(members),
+                                                                              json.dumps(anims, ensure_ascii=False), nxt, now, username)).lastrowid
+                elif cur.execute("UPDATE connection_groups SET name = ?, members = ?, anims = ?, updated_at = ?, updated_by = ? "
+                                 "WHERE id = ? AND drawing_id = ? AND is_default = 0",
+                                 (name, json.dumps(members), json.dumps(anims, ensure_ascii=False), now, username, gid, drawing_id)).rowcount != 1:
+                    cur.execute("ROLLBACK")
+                    return None
+                mine = set(members)
+                for oid, om in cur.execute("SELECT id, members FROM connection_groups WHERE drawing_id = ? AND id != ? AND is_default = 0",
+                                           (drawing_id, gid)).fetchall():
+                    old = json.loads(om)
+                    keep = [m for m in old if m not in mine]
+                    if keep != old:
+                        cur.execute("UPDATE connection_groups SET members = ?, updated_at = ?, updated_by = ? WHERE id = ?",
+                                    (json.dumps(keep), now, username, oid))
+                cur.execute("COMMIT")
+                return gid
+            except sqlite3.IntegrityError:
+                cur.execute("ROLLBACK")
+                return None
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+
+    def set_default_connection_group(self, drawing_id: str, anims: list[dict[str, Any]], username: str) -> None:
+        now = time.time()
+        with self._lock:
+            n = self._conn.execute("UPDATE connection_groups SET anims = ?, updated_at = ?, updated_by = ? WHERE drawing_id = ? AND is_default = 1",
+                                   (json.dumps(anims, ensure_ascii=False), now, username, drawing_id)).rowcount
+            if n == 0:
+                self._conn.execute("INSERT INTO connection_groups(drawing_id, name, is_default, members, anims, sort, updated_at, updated_by) "
+                                   "VALUES (?, '', 1, '[]', ?, 0, ?, ?)", (drawing_id, json.dumps(anims, ensure_ascii=False), now, username))
+            self.config_gen += 1
+
+    def delete_connection_group(self, drawing_id: str, gid: int) -> bool:
+        return self._execute("DELETE FROM connection_groups WHERE id = ? AND drawing_id = ? AND is_default = 0", (gid, drawing_id)) > 0
+
     # ----------------------------------------------------------------- signalveje (fjernet v6.0.0-b0395)
 
     def remove_signal_paths(self, username: str) -> dict[str, int]:
@@ -1324,6 +1401,8 @@ class Database:
             "symbol_config": [{"drawing_id": r["drawing_id"], "element": r["element"], "config": r["config"]}
                               for r in self.list_symbol_configs()],
             "symbol_groups": self._export_groups(),
+            "connection_groups": [{k: r[k] for k in ("drawing_id", "name", "is_default", "members", "anims")}
+                                  for r in self.list_connection_groups()],
             "trend_views": self.list_trend_views(),
             "symbol_ports": self.list_symbol_ports(),
             "symbol_flow": self.list_symbol_flow(),
@@ -1487,6 +1566,10 @@ class Database:
                     for el, anims in (g.get("anims") or {}).items():
                         cur.execute("INSERT INTO symbol_group_anims(group_id, element, anims, updated_at, updated_by) "
                                     "VALUES (?,?,?,?,?)", (gid, el, json.dumps(anims, ensure_ascii=False), now, "restore"))
+                for i, g in enumerate(data.get("connection_groups", [])):       # forbindelsesgrupper (v6.1.0); ældre backups har ingen
+                    cur.execute("INSERT INTO connection_groups(drawing_id, name, is_default, members, anims, sort, updated_at, updated_by) "
+                                "VALUES (?,?,?,?,?,?,?,?)", (g["drawing_id"], g["name"], 1 if g["is_default"] else 0, json.dumps(g["members"]),
+                                                             json.dumps(g["anims"], ensure_ascii=False), i, now, "restore"))
                 for b in data["bindings"]:
                     cur.execute("INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
                                 (b["drawing_id"], b["element"], b["position"], b["tag"], b["anim"],

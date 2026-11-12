@@ -1,4 +1,4 @@
-# Plan: Flow-model for VVS-symboler — systemet beregner selv flowet gennem anlægget — 2026-11-12 — afventer OK
+# Plan: Flow-model for VVS-symboler — systemet beregner selv flowet gennem anlægget — 2026-11-12 — udført i v6.1.0 (alle faser på én gang, Jan 2026-11-13)
 
 Jans ønske (2026-11-12):
 

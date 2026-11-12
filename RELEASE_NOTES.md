@@ -2,6 +2,14 @@
 
 ---
 
+## v6.1.0 — 2026-11-13 — Flow: systemet beregner selv flowet gennem anlægget
+
+- **Flowberegning:** serveren beregner flowet gennem de forbundne symboler og rør, ud fra pumper (kapacitet og flow-rate), ventilernes åbne veje i deres position, kontraventilers retning og symbolernes restriktion. Det kræver, at tegningens forbindelser er bundet (*Bind forbindelser*).
+- **Flow i symbol-guiden** (trin 4): gør et symbol til en pumpe, giv det en restriktion (fra et tag eller en fast værdi), og vælg hvilke veje en ventil har åbne i hver position. En animation kan styres af **symbolets flow**.
+- **Flow-vinduet i Tegn** (knappen *Flow*, et vindue over tegningen): alle forbindelser viser som standard **løbelys** med retning og fart efter flowet; vælg rør og lav **forbindelsesgrupper** med farve efter flow, blink eller en fast farve.
+- Kortet **Flowberegning** på Status.
+- Første version — vi justerer modellen og visningen i de næste versioner.
+
 ## v6.0.0 (build 0395) — 2026-11-12 — Signalvejene er fjernet
 
 - **Signalvejene er fjernet** fra Tegn, og det samme gælder de virtuelle signaler (kommando *kun i SCADA* og et andet symbols position som tilbagemelding). Systemet står i en frisk tilstand, klar til en ny løsning.

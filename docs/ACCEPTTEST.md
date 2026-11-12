@@ -71,6 +71,15 @@ Forberedelse: tag en backup først (System › Backup, eller `scada-tool backup 
 - [ ] En **logikblok** (to tags, OG) styrer en animation.
 - [ ] Under **Bindinger**: en tekst-binding med beregning `x / 10` (128 → 12,8) (v0.41).
 
+### 10b. Flow (v6.1)
+- [ ] Tegn › Vis › Tjek forbindelser › **Bind forbindelser** → gem og udgiv.
+- [ ] Pumpen: guiden trin 4 › **Flow** → Med i flowberegningen, Pumpe, kapacitet 100, flow-rate = pumpens drift-tag → gem. Start pumpen i PLC'en → **løbelys** i alle rør i løkken på Overview, i flowets retning; stop → løbelyset stopper.
+- [ ] 3-vejsventil med positioner AB → A / AB → B (tag 10/20): trin 4 › Flow → hakkene står ved den rigtige vej → skift ventilen → flowet skifter gren.
+- [ ] Kontraventil vendt forkert → intet flow, og Flow-vinduet siger "ingen åben vej rundt".
+- [ ] **Flow**-knappen i Tegn → vinduet kan flyttes og gøres større, huskes efter genindlæsning; vælg to rør → **Opret af valgte** → *Farve efter flow* (grænse 1 l/min) → Gem → Overview viser farven.
+- [ ] En animation på pumpen: *Blink* styret af **symbolets flow** (mindst 1) → blinker, når pumpen giver flow.
+- [ ] Status: kortet *Flowberegning* viser beregninger og tid; backup → gendan → grupperne er der igen.
+
 ### 11. Signalveje (fjernet i v6.0.0 b0395)
 - [ ] Tegn har ingen sektion *Signalveje*; Symbol-oversigten viser kun *Grundsymboler* og *Grupper*; *Vis navne* har kun symboler og forbindelser.
 - [ ] Efter opdateringen: Log › Audit har `signal_path.removed`, og der ligger en backup *før signalvejene blev fjernet*.

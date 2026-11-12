@@ -38,6 +38,8 @@ POS = "@pos"
 ON = "@on"   # kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag
 VAL = "@val:"   # kilden "fast værdi" (v1.4.0): `@val:75` — et tal i stedet for et tag; kun for tal-animationer
 VAL_TYPES = {"level", "opacity", "scale", "rotate", "move"}   # tal-animationer der kan styres af en fast værdi
+FLOW = "@flow"   # kilden "symbolets flow" (v6.1.0): den beregnede mængde gennem symbolet, l/min (flow_calc.py)
+_WAY = re.compile(r"^[A-Za-z0-9_+-]{1,12}>[A-Za-z0-9_+-]{1,12}\Z")
 
 
 def parse_val_ref(src: Any) -> float | None:
@@ -304,6 +306,25 @@ class Chart(_M):
         return out
 
 
+class FlowSource(_M):
+    """Flow-rate eller restriktion (v6.1.0): et tag eller en fast værdi (`@val:0.5`); værdien divideres med `max` (fx 100 for
+    et tag i procent) og holdes i 0–1. Tom = 1 (fuld rate / ingen restriktion)."""
+    src: str = Field(default="", max_length=64)
+    max: float = Field(default=1, gt=0, le=1_000_000)
+
+    _s = field_validator("src")(lambda cls, v: (v or "").strip())
+
+
+class FlowCfg(_M):
+    """Symbolets rolle i flowberegningen (v6.1.0, flow_calc.py)."""
+    pump: bool = False                                        # pumper (giver flow fra IND til UD)
+    capacity: int = Field(default=100, ge=0, le=65535)        # l/min ved fuld rate
+    rate: FlowSource = Field(default_factory=FlowSource)      # pumpens flow-rate 0–1
+    restrict: FlowSource = Field(default_factory=FlowSource)  # restriktion 0 (blokeret) – 1 (ingen)
+    # Ventiler med positioner: de åbne veje ("AB>A") i hver position; None = alle veje er åbne
+    open: list[list[str]] | None = Field(default=None, max_length=MAX_POSITIONS)
+
+
 class SymbolConfig(_M):
     type: str = "custom"
     op: Literal["positions", "pulse", "entry", "view"] = "view"
@@ -323,6 +344,7 @@ class SymbolConfig(_M):
     anims: list[Anim] = Field(default_factory=list, max_length=MAX_ANIMS)
     logic: list[LogicBlock] = Field(default_factory=list, max_length=MAX_LOGIC)
     chart: Chart | None = None
+    flow: FlowCfg | None = None     # v6.1.0: flowberegningen
 
     _f = field_validator("fault")(lambda cls, v: (v or "").strip())
 
@@ -347,7 +369,7 @@ def too_many_anims(config: Any, element: str = "") -> bool:
 
 def is_logic_ref(src: Any) -> bool:
     """`@L1` — kilden er en logikblok (`@pos` er positionen, `@on` er "Altid til")."""
-    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON) and not src.startswith((ALARM_REF, VAL))
+    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON, FLOW) and not src.startswith((ALARM_REF, VAL))
 
 
 def split_logic_ref(src: str, own: str = "") -> tuple[str, str]:
@@ -400,6 +422,8 @@ def config_tags(config: dict[str, Any]) -> list[str]:
         add(a.get("src"))
         if a.get("type") == "flow":
             add((a.get("params") or {}).get("dir_tag"))
+    for k in ("rate", "restrict"):            # flowberegningens tags (v6.1.0)
+        add(((config.get("flow") or {}).get(k) or {}).get("src"))
     return out
 
 
@@ -542,6 +566,12 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
             tag = pseudo_tag(drawing_id, owner, f"logic:{bid}")
         elif (alarm := parse_alarm_ref(a["src"])) is not None:
             tag = alarm_tag(*alarm)
+        elif a["src"] == FLOW:
+            tag = f"flow:{drawing_id}:{element}"
+            params.setdefault("abs", True)       # mængden (uden fortegn) til farve/blink
+            if a["type"] == "flow":
+                params["mode"] = "onoff"         # et symbols flow er en mængde uden retning: løbelyset kører, når der er flow
+                params.pop("abs", None)
         else:
             tag = pos_tag if a["src"] == POS else a["src"]
         out.append({"element": target, "position": 1000 + i, "tag": tag,
@@ -946,6 +976,32 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
         if b.id not in used_blocks:
             res.warnings.append(f"Logik {b.id}{f' ({b.name})' if b.name else ''} bruges ikke af nogen animation eller blok.")
 
+    # -- flow (v6.1.0, trin 4): pumpe, kapacitet, rate/restriktion (tag eller fast værdi) og åbne veje pr. position
+    if cfg.flow is not None:
+        for label, fs in (("Flow-rate", cfg.flow.rate), ("Restriktion", cfg.flow.restrict)):
+            if not fs.src:
+                continue
+            if fs.src.startswith(VAL):
+                v = parse_val_ref(fs.src)
+                if v is None or not 0 <= v <= fs.max:
+                    res.err("4", f"{label}: den faste værdi skal være et tal mellem 0 og {_fmt(fs.max)}.")
+            elif fs.src.startswith("@"):
+                res.err("4", f"{label}: vælg et tag eller en fast værdi.")
+            elif tag_of(fs.src) is None:
+                res.err("4", f"{label}: tagget '{fs.src}' findes ikke.")
+        if cfg.flow.open is not None:
+            if not P:
+                cfg.flow.open = None
+            else:
+                opens = [list(dict.fromkeys(x.strip() for x in ws)) for ws in cfg.flow.open]
+                opens = (opens + [[] for _ in range(n)])[:n]
+                for j, ws in enumerate(opens):
+                    if bad := [w for w in ws if not _WAY.match(w)]:
+                        res.err("4", f"Flow: vejen '{bad[0]}' i position {j + 1} er ugyldig (fx AB>A).")
+                cfg.flow.open = opens
+        if not cfg.flow.pump:
+            cfg.flow.rate = FlowSource()
+
     # -- visning (trin 4)
     if not 1 <= cfg.validate_s <= 120:
         res.err("4", "Valideringstid skal være 1–120 s.")
@@ -998,6 +1054,7 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 continue
             if row.get("alarm_on") is None and all(row.get(f"alarm_{k}") is None for k in ("hh", "h", "l", "ll")):
                 res.warnings.append(f"Trin 4: {nm}: tagget '{ref[1]}' har ingen alarm endnu — opsæt den i trin 6.")
+        flow_src = a.src == FLOW
         if on_src and (a.type in NUMERIC_ONLY or a.type == "text"):
             res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af \"Altid til\" — vælg et tal-tag.")
             continue
@@ -1013,6 +1070,8 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if a.type in NUMERIC_ONLY:
                 res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en logikblok — vælg et tal-tag.")
                 continue
+        elif flow_src:
+            pass   # den beregnede mængde (et tal, l/min): som et tal-tag
         elif not pos_src and not on_src and not alarm_src and not val_src:
             t = tag_of(a.src)
             if t is None:

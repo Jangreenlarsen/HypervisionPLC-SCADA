@@ -13,6 +13,7 @@ from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, auto_binding, bin
 from .errors import ServiceError
 from .live_cache import LiveCache
 from .svg_sanitize import SvgError, index_svg, sanitize_svg, subtree_ids, subtree_map, symbol_roots
+from .connection_groups import connection_kinds, group_bindings
 from .symbols import config_bindings, symbol_view
 from .tagsource import TagSourceError, parse_source
 
@@ -358,6 +359,14 @@ class DrawingService:
         for element, cfg in configs.items():
             effective.extend(config_bindings(drawing_id, element, cfg, covered))
         effective.extend(self._group_bindings(drawing_id, svg, index))
+        # forbindelsesgrupperne (v6.1.0): det beregnede flow på rør og rørstykker — aldrig oven på en anden animation af samme slags
+        flows = [c.get("flow") or {} for c in configs.values()]
+        caps = [int(f.get("capacity") or 0) for f in flows if f.get("pump")]
+        try:
+            effective.extend(group_bindings(drawing_id, connection_kinds(svg), self.db.list_connection_groups(drawing_id),
+                                            float(max(caps) if caps else 100), {(b["element"], b["anim"]) for b in effective}, bool(caps)))
+        except Exception:
+            log.exception("Forbindelsesgrupperne på %s kunne ikke beregnes", drawing_id)
         return drawing, svg, effective, orphans, tags
 
     def _group_bindings(self, drawing_id: str, svg: str, index: dict[str, Any]) -> list[dict[str, Any]]:

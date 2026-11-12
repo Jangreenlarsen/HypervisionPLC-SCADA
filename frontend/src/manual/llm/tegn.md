@@ -77,3 +77,19 @@ Sæt symbolet op med guiden og vælg betjeningsformen **Trykknap (puls)** i trin
 ## Hvordan grupperer jeg flere elementer, eller opløser en gruppe?
 <!-- kilde: 07-tegn#m-taster sha:ebdc04b0 -->
 Vælg elementerne (Shift+klik eller træk en ramme) og tryk **Ctrl+G** eller **Gruppér** i knaplinjen over det markerede. **Ctrl+Shift+G** eller **Opløs** deler gruppen igen. Grupper af symboler, der bruges igen og igen, gemmes under *Grupper af symboler*.
+
+## Hvordan viser jeg flow (løbelys) i rørene automatisk, uden at sætte hvert rør op (flowberegning, pumpe kører)?
+<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:eb6805a3 -->
+Serveren beregner selv flowet gennem de forbundne symboler. Bind forbindelserne (Vis › Tjek forbindelser › **Bind forbindelser**, og gem), sæt pumpen op i symbol-guidens trin 4 under **Flow** (Pumpe, kapacitet i l/min, flow-rate fra et tag), og alle rør i løkken får løbelys på Overview med retning og fart efter flowet (standardgruppen *Alle forbindelser*).
+
+## Hvordan får nogle rør en anden farve eller blink efter flowet (forbindelsesgruppe)?
+<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:eb6805a3 -->
+Tryk **Flow** i værktøjslinjen i Tegn. Vælg rørene på tegningen, giv gruppen et navn og tryk **Opret af valgte**. Under **Animationer** vælger du løbelys, farve efter flow (grænser i l/min), blink ved et flow (mindst/højst) eller en fast farve. En forbindelse hører til én gruppe ad gangen.
+
+## Hvordan bestemmer en 3-vejsventil, hvilken vej flowet går (AB → A, AB → B, register 10/20)?
+<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:4b5e6993 -->
+Giv ventilen positioner (fx *AB → A* og *AB → B*), og lad tagget bestemme positionen i trin 3 (fx register 10 = AB → A, 20 = AB → B, eller to til/fra-signaler). I trin 4 under **Flow** sætter du hak ved den åbne vej i hver position. Flowberegningen sender så flowet den vej, og animationerne pr. position (fx portene AB og A grønne, B sort) sættes som altid i trin 4.
+
+## Hvorfor er der intet flow i rørene (pumpe kører ikke, ingen vej, ikke bundet)?
+<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:eb6805a3 -->
+Tjek at tegningens forbindelser er bundet og gemt (Flow-vinduet siger det, hvis de ikke er), at pumpen har **Pumpe** slået til med kapacitet over 0 og en flow-rate over 0, at der er en åben vej rundt fra pumpens UD tilbage til dens IND (ventilernes åbne veje i deres position, kontraventilens retning, restriktion over 0). Beskeder fra beregningen står øverst i Flow-vinduet; kortet *Flowberegning* på Status viser fejl.

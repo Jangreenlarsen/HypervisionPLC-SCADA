@@ -69,6 +69,45 @@ Et rør sættes op som et symbol: vælg røret, og tryk **Opsæt symbol (6 trin)
 
 Et **T-stykke** er et biblioteks-symbol med tre ben (*tilløb 1*, *tilløb 2* og *midte*): sæt det op med **Opsæt symbol**, og giv hvert ben sit eget løbelys. Samme opsætning på flere rør: **Kopiér opsætning** og **Indsæt opsætning**.
 
+## Flow i anlægget: systemet beregner det selv
+
+Serveren **beregner selv flowet** gennem tegningens forbundne symboler og rør — du skal ikke tegne eller definere veje. Beregningen bruger:
+
+- **de gemte forbindelser** i tegningen. Slå *Tjek forbindelser* til i menuen **Vis**, tryk **Bind forbindelser**, og gem tegningen. Uden gemte forbindelser er der intet flow, og Flow-vinduet siger det;
+- **symbolernes flow-opsætning** i symbol-guidens trin 4 under *Flow* (kapitel 10): hvilke symboler der er **pumper** (kapacitet i l/min og flow-rate 0–1 fra et tag), hvilken **restriktion** et symbol har (0 = blokeret, 1 = ingen), og for en ventil med positioner **hvilke veje der er åbne** i hver position (fx *AB → A* i position A);
+- symboltypens **Ind/ud og veje** (nedenfor): en pumpe og en kontraventil giver kun flow fra IND til UD, en 3-vejsventil giver flow begge veje på AB ↔ A og AB ↔ B.
+
+**Sådan regnes der:**
+
+- Hver pumpe, der kører, giver *rate × kapacitet* l/min. Flowet løber rundt fra pumpens UD tilbage til dens IND.
+- Ved en forgrening deler flowet sig efter grenenes **restriktion**: et symbol (radiator, tank, ventil …) er en *forbruger* med sin restriktion, og rør har næsten ingen modstand.
+- En delvist lukket ventil i serie begrænser pumpens flow. En lukket vej eller en kontraventil mod strømmen stopper det.
+- En pumpe, der står stille, lader flow passere i sin retning.
+- Flere pumper lægges sammen.
+
+Resultatet er et tal pr. rør og symbol i l/min. På et rør har tallet **fortegn**: + løber i tegneretningen, − imod.
+
+### Forbindelsesgrupper: hvordan flowet ses
+
+Tryk **Flow** i værktøjslinjen i Tegn. Vinduet ligger **over tegningen**: træk i overskriften for at flytte det og i hjørnet for at gøre det større, og luk det med ✕ eller Esc.
+
+![Flow-vinduet over tegningen: standardgruppen Alle forbindelser med løbelys og en egen gruppe Retur med farve efter flow](../../public/manual/flow-vindue.png)
+
+- **Alle forbindelser** er standardgruppen. Alle rør og rørstykker hører til den fra start, og den viser **løbelys** efter flowet: retningen fra fortegnet og farten efter mængden. Den bruges kun på tegninger med mindst én pumpe, og aldrig oven på en animation af samme slags, som en forbindelse allerede har.
+- **Ny gruppe:** vælg rør og rørstykker på tegningen (Skift+klik eller træk en ramme), giv gruppen et navn, og tryk **Opret af valgte**. En forbindelse hører til **én gruppe ad gangen**: lægges den i en ny gruppe, forlader den den gamle. **+ Valgte** og **− Valgte** ændrer en gruppe; **Vis** markerer dens forbindelser på tegningen.
+- **Animationer** (højst 4 pr. gruppe, alle styret af flowet):
+  - **Løbelys:** fart ved fuldt flow, og hvad der er fuldt flow (0 = tegningens største pumpe);
+  - **Farve efter flow:** en farve under den første grænse og en farve fra hver grænse i l/min;
+  - **Blink**, når flowet er mindst eller højst en grænse (fx *højst 0* = intet flow);
+  - **Fast farve**;
+  - ingen animation, hvis du fjerner dem alle.
+
+  Tryk **Gem**; det ses på Overview med det samme.
+
+Beskeder fra beregningen (fx *Pumpen 'P1' har ingen åben vej rundt fra UD til IND*) står øverst i vinduet. Kortet **Flowberegning** på siden Status viser antal beregninger, den seneste beregningstid og eventuelle fejl.
+
+> Rørstykker (bøjninger, T-stykker) viser løbelyset uden retning. Det kommer i en senere version.
+
 ## Tilslutningspunkter (siden Symboler)
 
 På siden **Symboler** (rollen tekniker, under **Opsætning**), fanen **Tilslutningspunkter**, kan du rette tilslutningspunkterne for et symbol i biblioteket — også egne symboler:
@@ -85,10 +124,10 @@ På siden **Symboler** (rollen tekniker, under **Opsætning**), fanen **Tilslutn
 
 ![Fanen Ind/ud og veje: 3-vejsmotorventilens punkter A, B og AB med roller, det fælles punkt og vejene](../../public/manual/symbol-ind-ud.png)
 
-Fanen **Ind/ud og veje** (samme side) beskriver, hvordan flowet løber gennem et symbol: punkternes navne, ind/ud og de veje, en ventil kan lave. Den ændrer ikke noget i tegningen, og den gælder alle tegninger med symbolet med det samme.
+Fanen **Ind/ud og veje** (samme side) beskriver, hvordan flowet løber gennem et symbol: punkternes navne, ind/ud og de veje, en ventil kan lave. **Flowberegningen** bruger den (se *Flow i anlægget* ovenfor). Den ændrer ikke noget i tegningen, og den gælder alle tegninger med symbolet med det samme.
 
 - **Navn:** giv hvert punkt et navn (A, B, AB, P, T …).
-- **Rolle:** *Ind*, *Ud* eller *Begge*. En **pumpe** har *IND* og *UD*; en **kontraventil** også.
+- **Rolle:** *Ind*, *Ud* eller *Begge*. En **pumpe** har *IND* og *UD*; en **kontraventil** også. Flowet kan kun løbe fra et *Ind*- eller *Begge*-punkt til et *Ud*- eller *Begge*-punkt.
 - **Fælles:** markér det fælles punkt på en flervejs-ventil (AB på en 3-vejsventil).
 - **Del:** delens id i symbolet (fx `port_ab`), så netop den port kan få en animation.
 - **Veje:** de forbindelser symbolet kan lave. De laves som standard automatisk — hvert fælles punkt parret med hvert af de andre (*AB → A*, *AB → B*) — men kan skrives selv med **+ Vej**, fx til en 4-vejsventil (*P → A*, *P → B*, *A → T*, *B → T*).

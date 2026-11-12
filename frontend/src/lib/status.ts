@@ -21,6 +21,9 @@ export interface Health {
   backup: { interval_h: number; count: number; last_age_s: number | null };
   tls: Tls | null;
   assist?: { asks?: number; requests: number; errors: number; busy: number; waiting: number; last_ms: number } | null;
+  /** Flowberegningen (v6.1.0): kørsler, sidste beregningstid, fejl, tegninger uden gemte forbindelser, beskeder pr. tegning */
+  flow?: { runs: number; last_ms: number; errors: number; drawings: number; unbound: string[]; flowing: number;
+    notes: Record<string, string[]> } | null;
 }
 export interface Tls { issuer: string; subject: string; self_signed: boolean; fingerprint: string; not_after_ts: number; days_left: number }
 

@@ -195,6 +195,20 @@ Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symb
 
 Står flere animationer på samme del, **vinder den nederste** (▲▼ ændrer rækkefølgen). Animationer kan også begrænses til bestemte positioner (**Gælder i**).
 
+### Flow (symbolets rolle i flowberegningen)
+
+Nederst i trin 4 står sektionen **Flow**. Sæt hak i **Med i flowberegningen** for at bestemme, hvad symbolet gør for det flow, serveren beregner (kapitel 8, *Flow i anlægget*):
+
+![Flow-sektionen for en 3-vejsventil: punkterne og vejene, restriktion og en tabel med de åbne veje pr. position](../../public/manual/flow-guide.png)
+
+- **Pumpe** (en pumpe har den slået til fra start):
+  - **Kapacitet** i l/min ved fuld rate (0–65535);
+  - **Flow-rate** 0–1: *fuld (1)*, **et tag** eller **en fast værdi**. Ved et tag angiver du, hvad der er fuld rate (fx 50 for en frekvens i Hz, eller 1 for et til/fra-tag).
+- **Restriktion** 0–1: 0 = blokeret, 1 = ingen restriktion. Fx ventilens åbning fra et tag (fuld ved 100 for procent).
+- **Åbne veje pr. position:** for en ventil med positioner står en tabel med symbolets veje (fra *Opsætning › Symboler › Ind/ud og veje*). Sæt hak ved de veje, der er åbne i hver position — fx *AB → A* i position *AB → A*. Hedder positionerne som vejene, er hakkene sat fra start. En ukendt position (komm.fejl) regnes som lukket.
+
+Et forbundet symbol uden flow-opsætning er en forbruger uden restriktion. En animation kan styres af **symbolets flow** (under *styres af*): den beregnede mængde gennem symbolet i l/min. Fx blinker en pumpe, når den giver mindst 1 l/min, eller en radiator farves efter flowet.
+
 ### Preview ved animationerne
 
 ![Preview ved animationerne: omskifteren tegnet lille, med en knap pr. position, Afspil og Nulstil](../../public/manual/guide-preview.png)

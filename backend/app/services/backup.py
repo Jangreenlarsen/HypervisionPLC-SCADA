@@ -35,6 +35,7 @@ from .symbol_flow import clean_def
 from .symbol_ports import MAX_TYPES, clean_ports, clean_type
 from . import library as lib
 from .trend_views import clean_view
+from .connection_groups import MAX_MEMBERS as MAX_CG_MEMBERS, clean_anims as clean_conn_anims, clean_name as clean_conn_name
 from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
 from .symbols import SymbolConfig, config_tags, too_many_anims
 from .errors import ServiceError
@@ -154,6 +155,7 @@ class BackupService:
             "symbol_meta": data["symbol_meta"],
             "symbol_config": data["symbol_config"],
             "symbol_groups": data["symbol_groups"],
+            "connection_groups": data.get("connection_groups", []),
             "trend_views": data["trend_views"],
             "symbol_ports": data["symbol_ports"],
             "symbol_flow": data["symbol_flow"],
@@ -493,6 +495,41 @@ class BackupService:
             symbol_groups.append({"drawing_id": g["drawing_id"], "name": g["name"], "kind": g["kind"],
                                   "members": members, "anims": anims})
 
+        connection_groups = []
+        raw_cg = backup.get("connection_groups", [])   # forbindelsesgrupper (v6.1.0); ældre backups har ingen
+        if not isinstance(raw_cg, list):
+            err("connection_groups skal være en liste")
+            raw_cg = []
+        seen_cg: set[tuple[str, str]] = set()
+        for i, g in enumerate(raw_cg):
+            ok = (isinstance(g, dict) and g.get("drawing_id") in drawing_ids and isinstance(g.get("name"), str) and len(g["name"]) <= 60
+                  and isinstance(g.get("members"), list) and len(g["members"]) <= MAX_CG_MEMBERS
+                  and all(isinstance(m, str) and 0 < len(m) <= 120 for m in g["members"]))
+            if not ok:
+                err(f"Forbindelsesgruppe #{i + 1}: ugyldig (kendt tegning, navn og medlemmer kræves)")
+                continue
+            if not isinstance(g.get("is_default", False), bool):
+                err(f"Forbindelsesgruppe #{i + 1}: is_default skal være sand eller falsk")
+                continue
+            if not g.get("is_default"):
+                try:
+                    g = {**g, "name": clean_conn_name(g["name"])}
+                except ServiceError as exc:
+                    err(f"Forbindelsesgruppe #{i + 1}: {exc.message}")
+                    continue
+            key = (g["drawing_id"], "" if g.get("is_default") else g["name"].casefold())
+            if key in seen_cg:
+                err(f"Forbindelsesgruppe '{g['name']}' på {g['drawing_id']}: findes to gange")
+                continue
+            try:
+                anims = clean_conn_anims(g.get("anims", []))
+            except ServiceError as exc:
+                err(f"Forbindelsesgruppe '{g['name']}': {exc.message}")
+                continue
+            seen_cg.add(key)
+            connection_groups.append({"drawing_id": g["drawing_id"], "name": "" if g.get("is_default") else g["name"],
+                                      "is_default": bool(g.get("is_default")), "members": list(dict.fromkeys(g["members"])), "anims": anims})
+
         trend_views = []
         raw_views = backup.get("trend_views", [])   # ældre backups har ingen gemte trend-visninger
         if not isinstance(raw_views, list):
@@ -602,7 +639,7 @@ class BackupService:
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
                 "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
                 "schedules": schedules, "symbol_meta": symbol_meta, "symbol_config": symbol_config,
-                "symbol_groups": symbol_groups, "trend_views": trend_views,
+                "symbol_groups": symbol_groups, "connection_groups": connection_groups, "trend_views": trend_views,
                 "symbol_ports": symbol_ports, **({"symbol_flow": symbol_flow} if symbol_flow is not None else {}), **library}
 
     # ---------------------------------------------------------------- restore

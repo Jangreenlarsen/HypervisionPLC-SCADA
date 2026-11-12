@@ -17,6 +17,7 @@
   import AnimParams from './AnimParams.svelte';
   import OwnerAnims from './OwnerAnims.svelte';
   import AnimPreview from './AnimPreview.svelte';
+  import FlowSection from './FlowSection.svelte';
   import { mergePalette, paramColors, svgColors } from './usedColors';
   import { KIND_TXT, groupAnimsOn, groupColor, groupsOf, listGroups, type OwnerBlock, type SymbolGroup } from './symbolGroups';
   import { CHART_RANGES, FONT_SCALES, LEGEND_PLACES, MAX_CHART_TAGS, defaultChart, legendOf } from './chartGraphic';
@@ -25,7 +26,7 @@ import { AVERAGE_CHOICES } from './trendData';
   import { DIR_TXT, applyLever, leverDirs, leverInSync, type LeverDir } from './toggleSwitch';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
-    ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
+    ALARM_TXT, ANIM_TXT, FLOW, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, hasFeedback, keepsOnly, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, feedbackMismatch, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, BY_VALUE_TYPES, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, setPassive, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
@@ -380,9 +381,9 @@ import { AVERAGE_CHOICES } from './trendData';
   const poolLabel = (p: PoolBlock) => `${p.symbol} · ${p.id}${p.name ? ` – ${p.name}` : ''}`;
   const poolRef = (p: PoolBlock) => `@${p.element}:${p.id}`;
   const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
-  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : 'tag');
+  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : a.src === FLOW ? FLOW : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : 'tag');
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
+    a.src = mode === POS ? POS : mode === ON ? ON : mode === FLOW ? FLOW : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
     resetParams(a);
   }
   // ---- 3-vejs ventil styret af ét til/fra-tag
@@ -875,6 +876,7 @@ import { AVERAGE_CHOICES } from './trendData';
           {:else if symbol?.type === 'trendgraf'}
             <p class="small"><button class="small" onclick={() => (cfg.chart = defaultChart())}>+ Graf</button> <span class="muted">Symbolet kan vise en graf over tagenes historik.</span></p>
           {/if}
+          <FlowSection bind:flow={cfg.flow} type={symbol?.type ?? cfg.type} positions={isPos ? cfg.positions.map((p) => p.label) : []} {tags} />
           <h4>Logik ({cfg.logic.length}/{MAX_LOGIC})</h4>
           <p class="small muted">Saml flere tags i én betingelse (fx pumpe kører OG ventil åben), og brug den som kilde til en animation. En blok kan også bruge blokkene over sig og blokke i andre symboler på tegningen (og omvendt — dine blokke kan bruges dér).</p>
           {#each cfg.logic as b (b.id)}
@@ -939,6 +941,7 @@ import { AVERAGE_CHOICES } from './trendData';
                   {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
                   {#if !['level', 'opacity', 'scale', 'text', 'segments'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
+                  {#if a.type !== 'segments'}<option value={FLOW} title="Den beregnede mængde gennem symbolet (l/min), se Flow nedenfor">symbolets flow</option>{/if}
                 </select>
                 {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
                 {#if srcMode(a) === 'tag' && isPos && BY_VALUE_TYPES.includes(a.type)}
