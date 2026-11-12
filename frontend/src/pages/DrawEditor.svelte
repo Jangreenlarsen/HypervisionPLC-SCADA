@@ -23,6 +23,9 @@
   import SignalPathGuide from '../lib/SignalPathGuide.svelte';
   import { connectionCheck, pairsToBind, planFixes, unboundPairs, type FixMove, type Graph } from '../lib/signalPath';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
+  import SymbolTree from '../lib/SymbolTree.svelte';
+  import GroupAnims from '../lib/GroupAnims.svelte';
+  import type { SymbolGroup } from '../lib/symbolGroups';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
   import SymbolExport from '../lib/SymbolExport.svelte';
   import LibraryImport from '../lib/LibraryImport.svelte';
@@ -268,6 +271,8 @@
     return () => ro.disconnect();
   });
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
+  let treeRev = $state(0);                                         // symbol-oversigten henter forfra (v5.5.0)
+  let treeGroup = $state<SymbolGroup | null>(null);                // gruppens animationer åbnet fra oversigten
   let tags = $state<{ name: string; source: string; unit: string; writable: boolean; plc: string }[]>([]);
   let ed: ScadaApi | null = null;
   let canvasRef = $state<{ perform(name: string): void } | null>(null);
@@ -1346,6 +1351,10 @@
     <PanelSection id="objekter" title="Objekter" badge={objBadge} {...sec('objekter')}>
       <ObjectTree api={ready ? (ed as unknown as TreeApi) : null} rev={inspectRev} onchange={() => inspectRev++} />
     </PanelSection>
+    <PanelSection id="oversigt" title="Symbol-oversigt" {...sec('oversigt')}>
+      <SymbolTree drawingId={current?.id ?? null} rev={inspectRev + treeRev} {ready} select={(ids) => ed?.selectByIds(ids) ?? 0}
+        onguide={(id, name) => (guideFor = { id, name })} ongroup={(g) => (treeGroup = g)} />
+    </PanelSection>
     <PanelSection id="signalveje" title="Signalveje" {...sec('signalveje')}>
       {#if current}
         {#if spFloating}<p class="small muted">Signalvejen redigeres i vinduet over tegningen. <button class="small" onclick={() => (spWin.float = false)}>Læg den her i panelet</button></p>
@@ -1514,12 +1523,16 @@
     onsaved={() => { info = `${gf.others.length + 1} symboler er opsat ud fra "${gf.basis.name}".`; groupFor = null; refreshReservedIds(); }} />
 {/if}
 
+{#if treeGroup && current}
+  <GroupAnims drawingId={current.id} group={treeGroup} {tags} onclose={() => { treeGroup = null; treeRev++; }} />
+{/if}
 {#if guideFor && current}
   <SymbolGuide drawingId={current.id} element={guideFor.id} name={guideFor.name} {tags} selectorRedraw="auto"
-    onclose={() => (guideFor = null)}
+    onclose={() => { guideFor = null; treeRev++; }}
     onsaved={() => guarded('Opdatér symbolet', async () => {
       info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`;
       guideFor = null;
+      treeRev++;
       await refreshReservedIds();
       // omskifter: tegningen følger de nye positioner med det samme (ellers først ved et tryk på knappen)
       await checkSelector();

@@ -206,6 +206,16 @@ Har du tegnet noget, du vil bruge igen (fx en pumpestation med kasse, pumpe og t
 
 **Symboltest** og **tilslutningspunkterne** (fanen *Tilslutningspunkter*) virker også for egne symboler — vælg *Egne symboler* i listen over kategorier.
 
+## Symbol-oversigt: alle symboler ét sted
+
+Panelet **Symbol-oversigt** (til højre) viser alle symboler på tegningen som et **træ**, så du ikke skal lede efter dem rundt i editoren:
+
+- **Niveau 1:** *Grundsymboler* (bibliotekssymboler og navngivne elementer), *Signalveje* (hver vej er et symbol for sig, se kapitel 8) og *Grupper*.
+- **Niveau 2:** folder du en signalvej ud, ser du de elementer, den består af; folder du en gruppe ud, ser du dens medlemmer. Et symbol kan stå flere steder (fx som medlem af to grupper og på en vej).
+- **Klik på navnet** vælger symbolet (en vej eller gruppe: alle dens elementer) på tegningen. **Opsæt** åbner symbol-guiden (6 trin) for symbolet — for en signalvej åbner den vejen som symbol. På en gruppe åbner **Animationer** gruppens animationer.
+- Et ✓ viser, at symbolet har en opsætning. Tallet øverst viser, hvor mange grundsymboler der er opsat. Søgefeltet og *ikke opsatte* indsnævrer listen til det, du mangler.
+- Oversigten opdateres selv, når du gemmer en opsætning eller ændrer tegningen.
+
 ## Grupper af symboler
 
 ![Grupper i Tegn: gem markeringen som gruppe og vælg en eksisterende gruppe](../../public/manual/tegn-grupper.png)

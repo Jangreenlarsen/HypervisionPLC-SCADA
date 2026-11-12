@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.5.0 build 0385] — 2026-11-12 — Symbol-oversigt (træ)
+
+- `lib/symbolTree.ts` (rene funktioner: `buildTree`, `filterTree`, `countSymbols`) + `symbolTree.test.ts`; `lib/SymbolTree.svelte` (træet, søgning, "ikke opsatte", fold ud/sammen, hentes igen 0,5 s efter en ændring); `pages/DrawEditor.svelte`: panelet *Symbol-oversigt*, `Opsæt` åbner symbol-guiden (grundsymbol: elementet, signalvej: `sv~<id>`), `Animationer` åbner gruppens animationer (`GroupAnims`), oversigten genhentes, når guiden/gruppe-dialogen lukkes.
+- Ingen backend-ændring. Set i browseren: tre sektioner, vej og gruppe foldet ud, klik vælger i tegningen, *Opsæt* åbner vejen som symbol, *Animationer* åbner gruppens dialog.
+- Manual (kap. 07 *Symbol-oversigt*), LLM-tillæg, FEATURES.
+
 ## [5.4.1 build 0384] — 2026-11-12 — fix: serveren startede ikke (v5.4.0)
 
 - `services/symbol_runtime.py`: manglende import af `path_symbol_id` (NameError i `reload()` ved opstart) — se BUGS.
