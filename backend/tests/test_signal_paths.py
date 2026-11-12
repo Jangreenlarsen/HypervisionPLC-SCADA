@@ -1,6 +1,8 @@
 """Signalveje i Tegn (v5.0.0: vejen er sit eget objekt): gem/ret/slet uden at røre symbolernes opsætning, regler,
 rettigheder, backup og "Forklar med egne ord"."""
 
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -704,3 +706,69 @@ def test_every_element_on_a_path_can_be_told_apart_by_its_label():
         "a": "V (a)", "a_x": "V (a) · a_x", "b": "V (b)", "c": "t stykke (c)", "r": "rør (r)", "d": "Pumpe", "e": "e"}
     assert parts["d"]["named"] is True and parts["c"]["named"] is False and parts["c"]["sym_type"] == "t_stykke"
     assert len({v["label"] for v in parts.values() if v["root"]}) == 6          # alle elementer har hvert sit navn
+
+
+# --------------------------------------------------------------------- virtuelle signaler, fase A (v5.10.0)
+
+SW = {"op": "positions", "display": "local", "positions": [{"label": "Fra"}, {"label": "Til"}],
+      "signals": [{"id": "S1", "tag": "Kmd", "fb": "", "write": "set", "ms": 500, "rest": None}],
+      "planes": [{"signal": "S1", "values": [0, 1]}]}
+
+
+def _switch(api, el="rad"):
+    api.post("/api/tags", json={"name": "Kmd", "source": "plc1:coil:7", "writable": True})
+    r = api.put(f"/api/drawings/{api.d}/symbols/{el}/config", json={"config": {**SW, "anims": [
+        {"part": "all", "type": "blink", "src": "@pos", "params": {"set": [False, True]}}]}})
+    assert r.status_code == 200, r.text
+
+
+def test_a_condition_can_read_a_symbols_position(api):
+    _switch(api)
+    pos = f"sym:{api.d}:rad:pos"
+    info = api.post(f"/api/drawings/{api.d}/signal-paths/info", json={"elements": ["r1"]}).json()
+    derived = [t for t in info["tags"] if t.get("derived")]
+    assert [(t["name"], t["group"], t["labels"]) for t in derived] == [(pos, "Symbolers position", ["Fra", "Til"])]
+    assert derived[0]["description"] == "Radiator: position"
+    b = body(conditions=[{"element": "p1", "src": pos, "cmp": "eq", "value": 1}])
+    r = api.post(f"/api/drawings/{api.d}/signal-paths", json=b)
+    assert r.status_code == 201, r.text
+    saved = api.get(f"/api/drawings/{api.d}/signal-paths").json()[0]["conditions"]
+    assert saved[0]["src"] == pos and saved[0]["cmp"] == "eq" and saved[0]["value"] == 1
+    assert api.post(f"/api/drawings/{api.d}/signal-paths", json=body(name="B", conditions=[{"element": "p1", "src": pos}])).status_code == 400   # tal: kræver værdi
+
+
+def test_the_path_follows_the_position_the_feedback_decides(api):
+    """PLC-tilbagemeldingen er toneangivende (symbolets `remote`); vejen læser positionen som tal."""
+    from app.services.live_cache import LiveValue
+    _switch(api)
+    pos = f"sym:{api.d}:rad:pos"
+    pid = api.post(f"/api/drawings/{api.d}/signal-paths", json=body(conditions=[{"element": "p1", "src": pos, "cmp": "eq", "value": 1}])).json()["id"]
+    from app.services.signal_paths.runtime import evaluate_path
+    data = api.app.state.symbol_service.db.get_signal_path(api.d, pid)["data"]
+    tag = f"path:{api.d}:{pid}:0"
+    now = time.time()
+    on = evaluate_path(api.d, pid, data, lambda t: LiveValue(value=1, quality="good", ts=now) if t == pos else None)
+    off = evaluate_path(api.d, pid, data, lambda t: LiveValue(value=0, quality="good", ts=now) if t == pos else None)
+    unknown = evaluate_path(api.d, pid, data, lambda t: LiveValue(value=None, quality="comm_error", ts=now))
+    assert on[tag] is True and off[tag] is False and unknown[tag] is None
+
+
+def test_a_symbol_that_a_path_reads_cannot_be_deleted_or_lose_its_positions(api):
+    _switch(api)
+    pos = f"sym:{api.d}:rad:pos"
+    api.post(f"/api/drawings/{api.d}/signal-paths", json=body(conditions=[{"element": "p1", "src": pos, "cmp": "eq", "value": 1}]))
+    r = api.delete(f"/api/drawings/{api.d}/symbols/rad/config")
+    assert r.status_code == 409 and "Kedel → radiator" in r.json()["error"]
+    r = api.put(f"/api/drawings/{api.d}/symbols/rad/config", json={"config": {"op": "view", "anims": [
+        {"part": "all", "type": "blink", "src": "Ekstra", "params": {}}]}})
+    assert r.status_code == 400 and "betingelse" in r.json()["error"]
+
+
+def test_logic_blocks_are_derived_signals_too_but_not_those_that_read_a_path(api):
+    pid = _path(api)
+    api.put(f"/api/drawings/{api.d}/symbols/rad/config", json={"config": {"op": "view", "logic": [
+        {"id": "L1", "name": "Pumpe og ekstra", "op": "and", "inputs": [{"src": "P1_drift"}, {"src": "Ekstra"}]},
+        {"id": "L2", "name": "Læser vejen", "op": "and", "inputs": [{"src": f"path:{api.d}:{pid}:0"}]}],
+        "anims": [{"part": "all", "type": "blink", "src": "@L1", "params": {}}]}})
+    ids = [t["name"] for t in api.post(f"/api/drawings/{api.d}/signal-paths/info", json={"elements": ["r1"]}).json()["tags"] if t.get("derived")]
+    assert ids == [f"sym:{api.d}:rad:logic:L1"]                     # L2 læser vejen: ville give en løkke

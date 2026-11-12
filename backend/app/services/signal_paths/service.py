@@ -78,6 +78,9 @@ class SignalPathService:
                         "tags": own, "parts": parts})
         all_tags = [{"name": t["name"], "is_bool": _TagInfo(t).is_bool, "unit": t.get("unit") or "",
                      "description": t.get("description") or ""} for t in tags.values()]
+        # beregnede signaler (v5.10.0): symbolers position og logikblokke kan også være betingelser
+        all_tags += [{"name": x["id"], "is_bool": x["is_bool"], "unit": "", "description": x["label"], "derived": True, "group": x["group"],
+                      "labels": x["labels"]} for x in self.symbols.derived_signals(drawing_id)]
         return {"elements": out, "max_conditions": MAX_CONDITIONS, "tags": all_tags}
 
     # ------------------------------------------------------------------ gem
@@ -129,19 +132,22 @@ class SignalPathService:
         for k, end_id in enumerate(ends):
             on_branches.setdefault(end_id, [k])
         tags = {t["name"]: t for t in self.db.list_tags()}
+        derived = {x["id"]: x for x in self.symbols.derived_signals(drawing_id)}       # symbolers position og logikblokke (v5.10.0)
         conds = []
         for c in body.get("conditions") or []:
             if c["element"] not in on_branches:
                 raise ServiceError(400, f"Betingelsen for '{c['element']}' hører ikke til et symbol på vejen")
-            if c["src"] not in tags or (visible is not None and c["src"] not in visible):
+            if c["src"] not in derived and (c["src"] not in tags or (visible is not None and c["src"] not in visible)):
                 raise ServiceError(400, f"Tagget '{c['src']}' findes ikke")
+            is_bool = derived[c["src"]]["is_bool"] if c["src"] in derived else _TagInfo(tags[c["src"]]).is_bool
             br = sorted({int(b) for b in c["branches"]}) if c.get("branches") else on_branches[c["element"]]
             if not br or br[0] < 0 or br[-1] >= nb:
                 raise ServiceError(400, f"Betingelsen for '{c['element']}' hører til en gren, der ikke findes")
             if c.get("cmp") and c.get("value") is None:
                 raise ServiceError(400, f"{c['src']}: vælg en grænseværdi")
-            if not c.get("cmp") and not _TagInfo(tags[c["src"]]).is_bool:
-                raise ServiceError(400, f"{c['src']} er et tal-tag: vælg ≥, ≤ eller = og en grænseværdi")
+            if not c.get("cmp") and not is_bool:
+                raise ServiceError(400, f"{derived[c['src']]['label']} er et tal: vælg ≥, ≤ eller = og en værdi" if c["src"] in derived
+                                   else f"{c['src']} er et tal-tag: vælg ≥, ≤ eller = og en grænseværdi")
             conds.append({"element": c["element"], "src": c["src"], "neg": bool(c.get("neg")), "cmp": c.get("cmp") or "",
                           "value": c.get("value"), "branches": br})
         if len(conds) > MAX_CONDITIONS:

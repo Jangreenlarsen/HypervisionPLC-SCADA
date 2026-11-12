@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.10.0 build 0391] — 2026-11-12 — Virtuelle signaler, fase A: symbolets position som betingelse
+
+- `services/symbols.py`: `derived_signals(drawing_id)` (symbolers position `sym:…:pos` med positionernes navne, og logikblokke `sym:…:logic:Lk` — blokke, der selv læser en vej, udeladt); `path_condition_users` (veje, hvis betingelser læser et symbol); `delete`/`put`/`_logic_users` afviser at slette et symbol, fjerne dets positioner eller blokke, mens en vej bruger dem.
+- `services/signal_paths/service.py`: en betingelses `src` kan være et beregnet signal; `info` giver dem som `tags` med `derived`, `group`, `labels`; tal-signaler (position) kræver `cmp` + værdi. Runtime uændret (`branch_results` læser cachen).
+- `lib/SpConditions.svelte`, `signalpath/answers.ts`: vælger med grupperne *Symbolers position* / *Logikblokke*, *"når positionen er <navn>"*; læsbare fejltekster.
+- Tests: `test_signal_paths.py` (betingelse på position, tilbagemelding toneangivende, sletning/ændring afvises, logikblokke og løkkeundgåelse), `signalPath.test.ts`. Set i browseren: omskifter-symbol → betingelsen *Radiator: position = Auto* i vejens guide → gemt som `eq 1`.
+- Manual (kap. 08), LLM-tillæg, FEATURES.
+
 ## [5.9.0 build 0390] — 2026-11-12 — Animationer samlet pr. symbol, og unikke navne
 
 - `svg_sanitize.describe_group`: elementer får et entydigt `label` (navnet, hvis det er unikt; ellers `navn (id)`; uden navn `type (id)` / `rør (id)`), og rødderne `named` og `sym_type`.

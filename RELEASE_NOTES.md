@@ -2,6 +2,10 @@
 
 ---
 
+## v5.10.0 — 2026-11-12 — En omskifter kan styre en signalvej
+
+- I en signalvejs betingelser kan du nu vælge **et symbols position** (fx *Omskifter 1: position — Auto*) eller en **logikblok**, ved siden af PLC-tags. Vejen følger så symbolet i tegningen uden at skrive til en PLC. PLC-tilbagemeldingen er toneangivende, hvis den er sat.
+
 ## v5.9.0 — 2026-11-12 — Animationer samlet pr. symbol, og unikke navne
 
 - I signalvejens guide står animationerne **samlet pr. element** (fx en 3-vejs ventils porte under ét element), og elementerne kan kendes fra hinanden (*navn (id)*).

@@ -122,6 +122,16 @@ group('answers → conditions', () => {
     expect(r.errors).toEqual(['V2_pct: vælg ≥, ≤ eller = og en grænseværdi', "Tagget 'Ukendt' findes ikke"]);
     expect(answerFrom(r.conditions[0])).toEqual({ element: 'p1', src: 'P1_drift', on: false, cmp: '', value: null });
   });
+  it("a symbol's position is a derived signal: position = a number, with a readable name in errors (v5.10.0)", () => {
+    const pos: TagInfo = { name: 'sym:varme:omskifter:pos', is_bool: false, unit: '', description: 'Omskifter 1: position', derived: true,
+      group: 'Symbolers position', labels: ['Hånd', '0', 'Auto'] };
+    const r = conditionsFrom([
+      { element: 'p1', src: pos.name, on: true, cmp: 'eq', value: 2 },
+      { element: 'v2', src: pos.name, on: true, cmp: '', value: null },
+    ], [...tags, pos]);
+    expect(r.conditions).toEqual([{ element: 'p1', src: pos.name, neg: false, cmp: 'eq', value: 2 }]);
+    expect(r.errors).toEqual(['Omskifter 1: position: vælg ≥, ≤ eller = og en grænseværdi']);
+  });
 });
 
 group('branches without a T-piece', () => {

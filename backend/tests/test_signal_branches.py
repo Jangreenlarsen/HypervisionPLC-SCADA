@@ -44,11 +44,14 @@ def runtime_values(c, values):
     rt = c.app.state.symbol_runtime
     rt.cache.update({k: (v if isinstance(v, LiveValue) else LiveValue(value=v, quality="good", ts=1.0)) for k, v in values.items()})
     # Runtime-løkken kører også i baggrunden (i appens tråd) og kan overlappe en beregning her: regn igen, til billedet er stabilt
-    for _ in range(5):
+    import time as _time
+    want = bool(c.app.state.symbol_service.db.list_signal_paths())            # (rt.paths kan være tom midt i en genindlæsning i baggrunden)
+    for _ in range(40):
         rt.evaluate()
-        got = {t: rt.cache.get(t).value for t in rt._path_published}
-        if bool(got) == bool(rt.paths):
+        got = {t: rt.cache.get(t).value for t in rt._path_published if rt.cache.get(t) is not None}
+        if bool(got) == want:
             return got
+        _time.sleep(0.05)
     return got
 
 

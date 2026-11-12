@@ -121,6 +121,8 @@ Symbolets egne tags (fra dets opsætning) står øverst og foreslås. Vælg *ing
   - Forslag, der ikke holder, udfyldes ikke, og de symboler står under *Ikke udfyldt af hjælperen*. Et symbol med flere veje (3-vejsventil) udfyldes ikke af hjælperen.
   - Det tager typisk 1–3 minutter; **Stop** afbryder. Intet gemmes, før du trykker **Gem signalvej**.
 
+**Beregnede signaler som betingelse (virtuelle signaler):** ved siden af PLC-tags kan en betingelse være et **symbols position** (*"Omskifter 1: position — når positionen er Auto"*) eller en **logikblok** (*"Pumpe og ekstra"*). Så kan en omskifter eller knap i tegningen styre, hvornår vejen lyser, **uden at skrive til en PLC**. Et symbols position er **PLC'ens tilbagemelding, hvis den er sat** (den er toneangivende), ellers den position, operatøren har valgt. Et symbol (eller en logikblok), som en vej læser, kan ikke slettes, før betingelsen er fjernet; en logikblok, der selv læser en signalvej, tilbydes ikke (det ville give en løkke).
+
 ### 4. Udseende — hvilke animationer?
 
 ![Trin 4: animationer pr. slags element — løbelys på rør, farve og blink på ventiler, farve på portene i en 3-vejsventil](../../public/manual/signalvej-udseende.png)

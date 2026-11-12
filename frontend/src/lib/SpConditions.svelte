@@ -25,6 +25,13 @@
 
   const rowOf = (id: string) => rows.find((r) => r.id === id);
   const tagOf = (n: string) => allTags.find((t) => t.name === n);
+  /** Grupperne af beregnede signaler (symbolers position, logikblokke) — vælges som betingelse ved siden af PLC-tags (v5.10.0). */
+  const groups = $derived([...new Set(allTags.filter((x) => x.derived).map((x) => x.group ?? 'Beregnede signaler'))]);
+  /** Et symbols position: "position = <navn>" (værdien er positionens nummer; PLC-tilbagemeldingen er toneangivende, ellers den valgte). */
+  function picked(a: { src: string; cmp: string; value: number | null }): void {
+    const t = tagOf(a.src);
+    if (t?.labels?.length) { a.cmp = 'eq'; if (a.value === null || !Number.isFinite(a.value) || a.value >= t.labels.length) a.value = Math.min(1, t.labels.length - 1); }
+  }
 </script>
 
 {#if !questions.length}<p class="small muted">Ingen ventiler eller pumper på vejen — løbelyset kører altid.</p>{/if}
@@ -59,12 +66,22 @@
       {#each a.branches as b (b)}{#if branchCount > 1}<span class="dot" style="background:{branchColor(b)}" title="Gren {b + 1}"></span>{/if}{/each}
       <span class="small muted">{q ? (q.way ? `Hvornår leder ventilen ${wayLabel(parseWay(q.way)!)}?` : QUESTION[q.role]) : ''}</span>
       {#if ai.set.has(a.element)}<span class="ai" title="Udfyldt af hjælperen — tjek det">forslag</span>{/if}</div>
-    <select bind:value={a.src} aria-label="Tag for {r?.name || a.element}">
+    <select bind:value={a.src} aria-label="Tag for {r?.name || a.element}" onchange={() => picked(a)}>
       <option value="">— ingen betingelse (altid) —</option>
       {#if own.length}<optgroup label="Symbolets egne tags">{#each own as o (o.name)}<option value={o.name}>{o.name}</option>{/each}</optgroup>{/if}
-      <optgroup label="Alle tags">{#each allTags as o (o.name)}<option value={o.name}>{o.name}{o.unit ? ` [${o.unit}]` : ''}</option>{/each}</optgroup>
+      <optgroup label="Alle tags">{#each allTags.filter((x) => !x.derived) as o (o.name)}<option value={o.name}>{o.name}{o.unit ? ` [${o.unit}]` : ''}</option>{/each}</optgroup>
+      {#each groups as g (g)}
+        <optgroup label={g}>{#each allTags.filter((x) => x.derived && x.group === g) as o (o.name)}<option value={o.name}>{o.description}</option>{/each}</optgroup>
+      {/each}
     </select>
-    {#if t?.is_bool}
+    {#if t?.labels?.length}
+      <span class="row nowrap">
+        <span class="small muted">når positionen er</span>
+        <select bind:value={a.value} aria-label="Position" onchange={() => (a.cmp = 'eq')}>
+          {#each t.labels as l, i (i)}<option value={i}>{l || `Position ${i + 1}`}</option>{/each}
+        </select>
+      </span>
+    {:else if t?.is_bool}
       <select bind:value={a.on} aria-label="Tilstand"><option value={true}>når tagget er til</option><option value={false}>når tagget er fra</option></select>
     {:else if t}
       <span class="row nowrap">

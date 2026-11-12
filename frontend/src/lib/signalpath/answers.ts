@@ -1,6 +1,8 @@
 // Signalveje: svar → betingelser til backend, og valg af start/slut ved klik. Del af signalPath.ts (v4.15.1).
 // ---------------------------------------------------------------- svar → betingelser (backend: services/signal_paths.py)
-export interface TagInfo { name: string; is_bool: boolean; unit: string; description: string }
+/** `derived`: et beregnet signal (v5.10.0) — et symbols position eller en logikblok; `name` er dets id, `description` dets visningsnavn;
+ *  `labels`: positionernes navne (værdien er positionens nummer). */
+export interface TagInfo { name: string; is_bool: boolean; unit: string; description: string; derived?: boolean; group?: string; labels?: string[] }
 export type Cmp = '' | 'ge' | 'le' | 'eq';
 /** Svaret for ét symbol: ingen betingelse, eller et tag (til/fra, eller et tal sammenlignet med en grænse). */
 export interface Answer { element: string; src: string; on: boolean; cmp: Cmp; value: number | null }
@@ -26,7 +28,7 @@ export function conditionsFrom(answers: Answer[], tags: TagInfo[]): { conditions
       continue;
     }
     if (t.is_bool) conditions.push({ element: a.element, src: a.src, neg: !a.on, cmp: '', value: null });
-    else if (!a.cmp || a.value === null || !Number.isFinite(a.value)) errors.push(`${a.src}: vælg ≥, ≤ eller = og en grænseværdi`);
+    else if (!a.cmp || a.value === null || !Number.isFinite(a.value)) errors.push(`${t.derived ? t.description : a.src}: vælg ≥, ≤ eller = og en grænseværdi`);
     else conditions.push({ element: a.element, src: a.src, neg: false, cmp: a.cmp, value: a.value });
   }
   return { conditions, errors };
