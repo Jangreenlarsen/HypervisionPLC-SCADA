@@ -88,10 +88,17 @@ Jans ønske (2026-11-12):
    - flowet beregnes i symbol-runtimens takt og publiceres som live-værdier pr. rør/symbol (`flow:<tegning>:<element>`, l/min med fortegn for retningen);
    - en tegning uden gemte forbindelser får en meddelelse i stedet for et gæt;
    - der bliver en tæller og et statusfelt (beregningstid, antal rør med flow).
-3. **Visning (Overview):**
-   - rør med flow får **løbelys automatisk**: retningen fra fortegnet og hastigheden fra mængden (skaleret til tegningens største pumpe);
-   - det kan slås fra pr. tegning;
-   - flowet kan også vælges som kilde i alle animationer.
+3. **Visning: forbindelsesgrupper** (Jan 2026-11-13):
+   - Alle forbindelser (rør, bøjninger, T-stykker …), som systemet registrerer, hører fra start til én **standardgruppe** *Alle forbindelser* med **løbelys** gennem hele beregningen: retningen fra flowets fortegn og hastigheden fra mængden (skaleret til tegningens største pumpe).
+   - I Tegn kan man **vælge forbindelser på tegningen og oprette en ny gruppe**. En forbindelse hører til én gruppe ad gangen; flyttes den, forlader den standardgruppen.
+   - Hver gruppe har sine **animationer, styret af flow-rate**:
+     - løbelys (standard);
+     - farve efter flow (fx grå ved 0 og blå over en grænse);
+     - blink (fx ved flow under en grænse);
+     - en fast farve;
+     - ingen.
+   - Grupperne gemmes pr. tegning (navn, medlemmer, animationer), valideres i backend, følger med i backup og vises i Symbol-oversigten under *Forbindelsesgrupper*.
+   - Flowet kan også vælges som kilde i almindelige symbol-animationer.
 4. Manual, skærmbilleder, LLM-tillæg og tests. Hver fase er sin egen MINOR-version (6.1.0, 6.2.0 og 6.3.0).
 
 ## Risici
