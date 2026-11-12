@@ -1,3 +1,22 @@
+# Plan: Animationer samlet pr. symbol, og unikke navne på alle symboler (v5.9.0) — 2026-11-12 — afventer OK
+
+Jans ønske: (1) i symbol-guiden for en signalvej skal et symbol med flere dele (3-vejs ventil: port A, B, AB, motor …) have sine animationer **samlet i en gruppe** i stedet for spredt i listen; (2) alle symboler skal have et **unikt navn/id**, så to 3-vejs ventiler — eller to T-stykker — kan kendes fra hinanden i listerne.
+
+## I dag
+- Trin 4 viser alle animationer i én lang liste i den rækkefølge, de ligger i opsætningen (kun et filter *Vis animationer for*).
+- Et symbol uden navn (`data-hv-name`) vises med sit rå id (`svg_12`) eller sin type; to ens symboler med samme navn kan ikke skelnes. Nye biblioteksymboler får et unikt navn ved indsættelse (`Pumpe 2`), men ældre tegninger og importerede/kopierede symboler kan mangle det.
+
+## Løsning
+1. **Grupper i guiden (trin 4, kun signalvej):** animationerne vises under en **sammenfoldelig overskrift pr. element** ("3-vejs motorventil V1 — 3 animationer"), i tegningens rækkefølge; hver gruppe har sin egen *+ Animation* (lægges på elementets dele). ▲▼ flytter inden for gruppen. Selve rækkefølgen i opsætningen (som afgør, hvilken animation der vinder) ændres ikke — kun visningen grupperes (animationer på samme del ligger altid i samme gruppe).
+2. **Unikke, læsbare navne overalt (backend `describe_group`):** et element vises med sit navn, hvis det er unikt; er navnet ikke unikt, eller mangler det, vises `navn (id)` — fx `3-vejs motorventil (svg_12)` / `T-stykke (svg_31)`. Bruges i guidens elementfilter, gruppeoverskrifter og delnavne (`… · Port A`).
+3. **Giv unikke navne i Tegn:** i *Symbol-oversigt* vises "N symboler har intet navn" og knappen **Giv dem unikke navne** — hvert navnløst biblioteksymbol får typens navn + et løbenummer (`3-vejs ventil 2`), i ét fortryd-trin; navnene gemmes med tegningen (Gem). Findes der kopier med samme navn, vises de allerede som advarsel (eksisterende tjek).
+
+## Trin
+FEATURES (planlagt) → `svg_sanitize.describe_group` (unikke labels, `named`, `type`) + test → `SymbolGuide` (grupper som snippet, per-gruppe tilføj, ▲▼ i gruppen, filter-etiketter) → `scada-core.js` `nameUnnamedSymbols` + `SymbolTree`/`DrawEditor` (knap) → manual (kap. 07/08), LLM-tillæg, CHANGELOG, RELEASE_NOTES, **v5.9.0**, OTA → browser: vejen med to 3-vejs ventiler og to T-stykker (demo-kopien) → reviewer er ikke nødvendig (kun visning og navngivning), men kører tests.
+
+## Risici
+- Navngivning ændrer tegningen (men kun `data-hv-name`; ids rører vi ikke, så bindinger/forbindelser/vejene består) — ét fortryd-trin, og kun symboler uden navn.
+- Gamle tegninger med dublerede navne: vises som `navn (id)`; vi omdøber ikke af os selv.
 # Plan: Signalvejen som et rigtigt symbol — vejens egne animationer kan redigeres (v5.8.0) — 2026-11-12 — afventer OK
 
 Jans krav: det er ikke nok at kunne *lægge ekstra animationer* på en vejs elementer. De animationer, vejen selv giver (løbelys på rørene, farve, blink …), skal kunne **ændres som i ethvert andet symbol**: skift type, kilde (et tag, en betingelse/logikblok, "altid til"), parametre (farve, hastighed, retning) og slet dem — så vejen efterfølgende arbejdes med som et symbol, hvor animationer tildeles frit.
