@@ -1,4 +1,4 @@
-# Plan: Flow-model for VVS-symboler — systemet beregner selv flowet gennem anlægget — 2026-11-12 — udkast, afventer Jans svar
+# Plan: Flow-model for VVS-symboler — systemet beregner selv flowet gennem anlægget — 2026-11-12 — afventer OK
 
 Jans ønske (2026-11-12):
 
@@ -59,11 +59,40 @@ Jans ønske (2026-11-12):
    - ud fra tegningens gemte forbindelser og typedefinitionerne beregner serveren, hvilke rør der har flow, i hvilken retning og med hvilken styrke (fra hver pumpe: rate × kapacitet, begrænset af restriktionerne på vejen; en blokeret ventil eller en kontraventil mod strømmen stopper flowet);
    - resultatet bliver live-værdier pr. rør/del, og Overview viser løbelys automatisk (retning og hastighed). Alle andre animationer kan bruge dem som kilde.
 
-## Åbne spørgsmål (skal afklares før jeg bygger)
+## Beslutninger (Jan 2026-11-12)
 
-1. **Beregningens niveau:** kun *om der er flow og i hvilken retning* (topologi), eller også *mængden* (l/min fordelt i grenene)? En fuld hydraulisk beregning (tryk, modstand) er langt større.
-2. **"Flow-variabel":** skal rate og restriktion være et PLC-tag pr. symbol (fx en pumpes frekvens), en fast værdi, eller begge dele?
-3. **Visning:** skal løbelyset komme automatisk på alle rør med flow (uden opsætning), eller skal flowet kun være en kilde, man vælger i symbol-guiden?
+- Tilstande og animationer defineres **pr. symbol** i symbol-guiden, som i dag (positioner, kontaktflade, animationer pr. position).
+- Systemet beregner flowet **inklusive mængde** (l/min). Mængden bruges direkte til **løbelysets hastighed i forbindelserne**.
+
+## Valg af beregningsmodel for mængden
+
+| Model | Sådan virker den | For | Imod |
+|---|---|---|---|
+| **A. Fordeling efter restriktion** (anbefalet) | Hver pumpe giver rate × kapacitet. Flowet følger de åbne veje, og ved en forgrening deles det i forhold til grenenes restriktion (0–1); en restriktion i serie begrænser grenen. | enkel, forudsigelig, billig på Pi'en, let at forklare i manualen | ikke fysisk korrekt (intet tryk) |
+| B. Hydraulisk netværk | Tryk og modstand pr. rør/ventil, pumpekurve, iterativ løsning | fysisk tættere på | kræver data, vi ikke har (rørdimensioner, kurver); tung; svær at fejlsøge |
+
+**Valg: A.** Model B kan komme senere, hvis der bliver brug for den.
+
+## Faser
+
+1. **Flow pr. symbol (symbol-guiden):** en sektion *Flow* i trin 4 med:
+   - *pumper ja/nej* (standard fra typens Ind/ud og veje);
+   - kapacitet i l/min (0–65535);
+   - flow-rate (tag eller fast værdi, 0–1);
+   - restriktion (tag eller fast værdi, 0–1);
+   - for ventiler: **hvilke veje er åbne i hver position** (fx position *AB → A* åbner AB–A), hvor vejene og retningen (→/↔) kommer fra symboltypens *Ind/ud og veje*.
+
+   Gemmes i symbolets opsætning, valideres i backend og følger med i backup.
+2. **Beregningen (backend):**
+   - flow-grafen bygges af tegningens gemte forbindelser (*Bind forbindelser*, `data-hv-links`), som backend selv læser af SVG'en;
+   - flowet beregnes i symbol-runtimens takt og publiceres som live-værdier pr. rør/symbol (`flow:<tegning>:<element>`, l/min med fortegn for retningen);
+   - en tegning uden gemte forbindelser får en meddelelse i stedet for et gæt;
+   - der bliver en tæller og et statusfelt (beregningstid, antal rør med flow).
+3. **Visning (Overview):**
+   - rør med flow får **løbelys automatisk**: retningen fra fortegnet og hastigheden fra mængden (skaleret til tegningens største pumpe);
+   - det kan slås fra pr. tegning;
+   - flowet kan også vælges som kilde i alle animationer.
+4. Manual, skærmbilleder, LLM-tillæg og tests. Hver fase er sin egen MINOR-version (6.1.0, 6.2.0 og 6.3.0).
 
 ## Risici
 
