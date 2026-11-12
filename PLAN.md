@@ -1,3 +1,54 @@
+# Plan: Flow-model for VVS-symboler — systemet beregner selv flowet gennem anlægget — 2026-11-12 — udkast, afventer Jans svar
+
+Jans ønske (2026-11-12):
+
+- Alle VVS-symboler skal have en **definition af, hvordan flow løber gennem dem**:
+  - en 3-vejsventil har flow begge veje AB ↔ A og AB ↔ B, men pumper ikke;
+  - en pumpe har flow ind → ud og pumper i den retning;
+  - en kontraventil har kun flow ind → ud og pumper ikke.
+- **"Ved at bruge de symboler, som er forbundet med forbindelse-metoden, kan systemet selv beregne en vej i systemet."** Der skal ikke tegnes eller defineres veje i hånden.
+
+## Parametre pr. symbol (Jans liste)
+
+| Parameter | Værdi | Type |
+|---|---|---|
+| Flowretning pr. vej mellem punkterne | `AB → A`, `AB ↔ A` … | definition pr. symboltype |
+| Pumpe-mode | kan pumpe / kan ikke pumpe | definition pr. symboltype |
+| Pumpe flow-rate | 0 = stop … 1 = fuld rate | **variabel** (styres live) |
+| Pumpe-kapacitet | l/min, 0 = stop … 65535 (16-bit) | værdi |
+| Flow-restriktion | 0 = fuld blokering … 1 = ingen restriktion | **variabel** (styres live) |
+
+## Det, der findes i forvejen og bygges videre på
+
+- **Ind/ud og veje** (`symbol_flow`: punkter med navn, rolle, fælles punkt, veje pr. symboltype) — beholdt ved oprydningen.
+- **Forbindelses-grafen** (`connectionGraph`, Bind forbindelser: gemte forbindelser i tegningen) — beholdt.
+
+## Forslag til opbygning (3 lag)
+
+1. **Typedefinition (Symboler › Ind/ud og veje, udvidet):**
+   - hver vej får en retning (`→` eller `↔`);
+   - symboltypen får *pumpe ja/nej*, standard-kapacitet (l/min) og standard for restriktion.
+   - Gemmes som i dag pr. symboltype og følger med i backup.
+2. **Instans (symbolet i tegningen, symbol-guiden):**
+   - flow-rate og restriktion bindes til et tag (eller en fast værdi), fx pumpens hastighed 0–1 eller ventilens åbning 0–1;
+   - kapacitet kan overskrives pr. symbol.
+3. **Beregning (backend, live):**
+   - ud fra tegningens gemte forbindelser og typedefinitionerne beregner serveren, hvilke rør der har flow, i hvilken retning og med hvilken styrke (fra hver pumpe: rate × kapacitet, begrænset af restriktionerne på vejen; en blokeret ventil eller en kontraventil mod strømmen stopper flowet);
+   - resultatet bliver live-værdier pr. rør/del, og Overview viser løbelys automatisk (retning og hastighed). Alle andre animationer kan bruge dem som kilde.
+
+## Åbne spørgsmål (skal afklares før jeg bygger)
+
+1. **Beregningens niveau:** kun *om der er flow og i hvilken retning* (topologi), eller også *mængden* (l/min fordelt i grenene)? En fuld hydraulisk beregning (tryk, modstand) er langt større.
+2. **"Flow-variabel":** skal rate og restriktion være et PLC-tag pr. symbol (fx en pumpes frekvens), en fast værdi, eller begge dele?
+3. **Visning:** skal løbelyset komme automatisk på alle rør med flow (uden opsætning), eller skal flowet kun være en kilde, man vælger i symbol-guiden?
+
+## Risici
+
+- Beregningen skal køre ofte (live) på en Raspberry Pi. Topologi-beregningen er billig; mængder kræver iteration.
+- Tegninger uden **Bind forbindelser** giver usikre veje. Beregningen bør kræve gemte forbindelser eller bruge samme regler som Tjek forbindelser.
+
+---
+
 # Plan: Signalvejene fjernes helt — frisk tilstand (v6.0.0 b0395; Jan: ingen versionsbump, når vi går tilbage) — 2026-11-12 — udført
 
 Jans beslutning (2026-11-12): "fjern alt om den signal editor så vi har en frisk tilstand". Afklaret:
