@@ -366,9 +366,38 @@ def too_many_anims(config: Any, element: str = "") -> bool:
     return n > (MAX_PATH_ANIMS if parse_path_symbol(element) is not None else MAX_ANIMS)
 
 
-def is_path_tag(name: Any) -> bool:
-    """En signalvejs pseudo-tag (`path:<tegning>:<id>:<grene>`) — kan bruges som kilde, men er ikke et rigtigt tag."""
-    return isinstance(name, str) and name.startswith("path:")
+def sym_refs(cfg: dict[str, Any]) -> set[str]:
+    """De symboler (element-id'er), en opsætning læser afledte signaler fra (`sym:<tegning>:<symbol>:…`): tilbagemeldinger,
+    logikindgange, animationskilder og løbelysets retnings-tag."""
+    srcs = [str(x.get("fb", "")) for x in cfg.get("signals", [])]
+    srcs += [str(i.get("src", "")) for b in cfg.get("logic", []) for i in b.get("inputs", [])]
+    srcs += [str(a.get("src", "")) for a in cfg.get("anims", [])]
+    srcs += [str((a.get("params") or {}).get("dir_tag") or "") for a in cfg.get("anims", [])]
+    return {p[2] for x in srcs if x.startswith("sym:") and len(p := x.split(":", 3)) == 4}
+
+
+def _signal_cycle(element: str, cfg: dict[str, Any], others: dict[str, dict[str, Any]]) -> str | None:
+    """Hvis `element` (med den nye opsætning `cfg`) via andre symbolers afledte signaler kan nå sig selv: stien, ellers None."""
+    seen: set[str] = set()
+
+    def walk(at: str, path: list[str]) -> list[str] | None:
+        for nxt in sorted(sym_refs(cfg if at == element else others.get(at, {}))):
+            if nxt == element:
+                return [*path, nxt]
+            if nxt not in seen and nxt in others:
+                seen.add(nxt)
+                if found := walk(nxt, [*path, nxt]):
+                    return found
+        return None
+
+    found = walk(element, [element])
+    return " → ".join(found) if found else None
+
+
+def is_derived(name: Any) -> bool:
+    """Et afledt signal (`sym:<tegning>:<symbol>:pos|logic:Lk`, v5.10.0): symbolets position eller en logikblok — kan bruges som kilde (og
+    som tilbagemelding, v6.0.0), men er ikke et rigtigt tag (ingen PLC, ingen polling, ingen backup-kontrol)."""
+    return isinstance(name, str) and name.startswith("sym:")
 
 
 def is_logic_ref(src: Any) -> bool:
@@ -408,7 +437,7 @@ def config_tags(config: dict[str, Any]) -> list[str]:
     out: list[str] = []
 
     def add(name: Any) -> None:
-        if isinstance(name, str) and name and not name.startswith("@") and not is_path_tag(name) and name not in out:
+        if isinstance(name, str) and name and not name.startswith("@") and not is_derived(name) and not name.startswith("path:") and name not in out:   # (path: = en vejs gamle tag, før v6.0.0)
             out.append(name)
 
     for s in config.get("signals", []):
@@ -742,9 +771,14 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
     cfg.type = element["type"]
     is_path = parse_path_symbol(element_id) is not None
     if is_path:
-        cfg.op = "view"        # en signalvej kan kun vises, ikke betjenes (v5.4.0)
+        # En signalvej kan kun vises, ikke betjenes (v5.4.0). Fra v6.0.0 kan den have positioner, hvis tilbagemelding kommer fra et PLC-tag
+        # eller et andet symbols position (trin 2) og kontaktfladen (trin 3) afgør, hvilken værdi der er hvilken position — altid passivt.
+        if cfg.op not in ("view", "positions"):
+            cfg.op = "view"
+        if cfg.op == "positions":
+            cfg.passive = True
         cfg.chart = None
-    pseudo = pseudo or set()  # signalvejenes pseudo-tags: kan bruges som kilde (v5.4.0)
+    pseudo = pseudo or set()  # afledte signaler (symbolers position, logikblokke): kan bruges som kilde og som tilbagemelding
     if not is_path and len(cfg.anims) > MAX_ANIMS:
         raise ServiceError(400, f"Ugyldig symbol-konfiguration — anims: højst {MAX_ANIMS} animationer")
     n = len(cfg.positions)
@@ -810,7 +844,7 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if cfg.passive:   # intet kommando-tag: tilbagemeldingen er det eneste der læses
                 if not s.fb:
                     res.err("2", f"{s.id}: vælg en tilbagemelding — passiv visning finder positionen ud fra den.")
-                elif tag_of(s.fb) is None:
+                elif tag_of(s.fb) is None and s.fb not in pseudo:
                     res.err("2", f"{s.id}: tilbagemeldingen '{s.fb}' findes ikke.")
                 elif s.fb in seen_tag:
                     res.err("2", f"{s.id} og {seen_tag[s.fb]} bruger samme tilbagemelding {s.fb}.")
@@ -821,7 +855,7 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 continue
             if s.virtual:      # skriver ikke til en PLC (v5.11.0): kun tilbagemeldingen (valgfri) tjekkes
                 s.tag, s.write, s.rest = "", "set", None
-                if s.fb and tag_of(s.fb) is None:
+                if s.fb and tag_of(s.fb) is None and s.fb not in pseudo:
                     res.err("2", f"{s.id}: tilbagemeldingen '{s.fb}' findes ikke.")
                 elif s.fb:
                     if s.fb in seen_tag:
@@ -849,6 +883,11 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if s.fb and s.fb == s.tag:
                 res.warnings.append(f"{s.id}: tilbagemeldingen er det samme tag som kommandoen ({s.tag}) — PLC'ens position "
                                     "viser så kun det, der sidst er skrevet, og kontrollerer ikke anlægget.")
+            elif s.fb and s.fb in pseudo and tag_of(s.fb) is None:
+                # et andet symbols position som tilbagemelding (et tal: positionens nummer) giver kun mening for et symbol, der ikke
+                # skriver til en PLC: ellers ville et symbol, der kun findes i SCADA, "bekræfte" en PLC-skrivning
+                res.err("2", f"{s.id}: et andet symbols position kan kun være tilbagemelding for et symbol, der ikke skriver til en PLC "
+                             "(kun passiv visning eller et virtuelt signal).")
             elif s.fb:
                 fb = tag_of(s.fb)
                 if fb is None:
@@ -995,6 +1034,10 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
     for b in cfg.logic:
         if b.id not in used_blocks:
             res.warnings.append(f"Logik {b.id}{f' ({b.name})' if b.name else ''} bruges ikke af nogen animation eller blok.")
+
+    # -- henvisninger mellem symbolers afledte signaler må ikke danne en cyklus (A læser B, som læser A)
+    if element_id and (cyc := _signal_cycle(element_id, cfg.model_dump(), others)):
+        res.err("2", f"Henvisningerne til andre symbolers position/logik danner en løkke (via {cyc}) — et symbol kan ikke afhænge af sig selv.")
 
     # -- visning (trin 4)
     if not 1 <= cfg.validate_s <= 120:
@@ -1182,45 +1225,53 @@ class SymbolService:
         return describe_group(svg, [e["element"] for e in row["data"].get("elements", []) if isinstance(e, dict)], row["name"])
 
     def derived_signals(self, drawing_id: str) -> list[dict[str, Any]]:
-        """Beregnede signaler på tegningen, som en signalvejs betingelse kan læse (v5.10.0, virtuelle signaler): **symbolers position**
-        (PLC-tilbagemeldingen er toneangivende, ellers den valgte position) og **logikblokke**. Blokke, der selv læser en signalvej, er
-        udeladt (en vej, der læser en blok, der læser vejen, ville være en løkke).
+        """Beregnede signaler på tegningen, som kan læses i et symbols trin 2 (tilbagemelding), som animationskilde og i logik (v5.10.0,
+        virtuelle signaler): **symbolers position** (PLC-tilbagemeldingen er toneangivende, ellers den valgte position) — også en
+        **signalvejs** position (v6.0.0) — og **logikblokke**.
         → [{id (pseudo-tag), group, label, is_bool, labels (positionernes navne)}]"""
         self.drawings._require(drawing_id)
         svg = self.drawings.svg(drawing_id)
         present = index_svg(svg)
         names = {s["id"]: s["name"] for s in named_symbols(svg)}
+        path_names = {path_symbol_id(r["id"]): r["name"] for r in self.db.list_signal_paths(drawing_id)}
         out: list[dict[str, Any]] = []
         for el, cfg in sorted(self.configs(drawing_id).items()):
-            if el not in present or parse_path_symbol(el) is not None:
+            if parse_path_symbol(el) is not None:
+                if el not in path_names:
+                    continue
+                label, group = f"Signalvej {path_names[el]}", "Signalvejes position"
+            elif el in present:
+                label, group = names.get(el) or el, "Symbolers position"
+            else:
                 continue
-            label = names.get(el) or el
             if cfg.get("op") == "positions":
-                out.append({"id": pseudo_tag(drawing_id, el, "pos"), "group": "Symbolers position", "label": f"{label}: position",
+                out.append({"id": pseudo_tag(drawing_id, el, "pos"), "group": group, "label": f"{label}: position",
                             "is_bool": False, "labels": [p.get("label", "") for p in cfg.get("positions", [])]})
             for b in cfg.get("logic", []):
-                if any(is_path_tag(i.get("src")) for i in b.get("inputs", [])):
-                    continue
                 out.append({"id": pseudo_tag(drawing_id, el, f"logic:{b['id']}"), "group": "Logikblokke",
                             "label": f"{label} · {b['id']}" + (f" – {b['name']}" if b.get("name") else ""), "is_bool": True, "labels": []})
         return out
 
-    def path_condition_users(self, drawing_id: str, element: str, kinds: tuple[str, ...] = ("pos",), block_ids: set[str] | None = None) -> list[str]:
-        """Signalveje, hvis betingelser læser dette symbols position eller logikblokke — et symbol, der bruges, må ikke slettes."""
-        mine = {pseudo_tag(drawing_id, element, k) for k in kinds}
-        mine |= {pseudo_tag(drawing_id, element, f"logic:{b}") for b in (block_ids or set())}
-        return [r["name"] for r in self.db.list_signal_paths(drawing_id)
-                if any(c.get("src") in mine for c in r["data"].get("conditions", []))]
+    def signal_ids(self, drawing_id: str, exclude: str | None = None) -> set[str]:
+        """Id'erne på tegningens afledte signaler — gyldige som tilbagemelding og kilde. `exclude`: det symbol, der er ved at blive
+        sat op (dets egne signaler kan ikke være dets egen tilbagemelding — en løkke)."""
+        mine = f"sym:{drawing_id}:{exclude}:" if exclude else None
+        return {x["id"] for x in self.derived_signals(drawing_id) if not (mine and x["id"].startswith(mine))}
 
-    def path_sources(self, drawing_id: str, exclude: int | None = None) -> set[str]:
-        """Signalvejenes pseudo-tags på tegningen — gyldige kilder i animationer og logik (v5.4.0). `exclude`: en vej, hvis (gamle) data
-        ikke skal tælle med — den vej, der er ved at blive gemt, bidrager med sine nye tags."""
-        from .signal_paths.runtime import path_tags
-        from .signal_paths.validate import valid_data
-        out: set[str] = set()
-        for r in self.db.list_signal_paths(drawing_id):
-            if r["id"] != exclude and valid_data(r["data"]) is None:
-                out.update(path_tags(drawing_id, r["id"], r["data"]))
+    def signal_users(self, drawing_id: str, element: str, blocks: set[str] | None = None) -> list[str]:
+        """Symboler og grupper på tegningen, der læser dette symbols afledte signaler (position, logikblokke) — som tilbagemelding,
+        animationskilde, logikindgang eller løbelysets retning. Et symbol, der bruges, må ikke slettes eller miste sine positioner."""
+        marks = tuple(f"sym:{drawing_id}:{element}:logic:{b}" for b in blocks) if blocks is not None else (f"sym:{drawing_id}:{element}:",)
+
+        def uses(cfg: dict[str, Any]) -> bool:
+            srcs = [str(x.get("fb", "")) for x in cfg.get("signals", [])]
+            srcs += [str(i.get("src", "")) for b in cfg.get("logic", []) for i in b.get("inputs", [])]
+            srcs += [str(a.get("src", "")) for a in cfg.get("anims", [])]
+            srcs += [str((a.get("params") or {}).get("dir_tag") or "") for a in cfg.get("anims", [])]
+            return any(x.startswith(marks) for x in srcs)
+
+        out = [other for other, cfg in sorted(self.configs(drawing_id).items()) if other != element and uses(cfg)]
+        out += [f"{row['element']} (gruppen {row['group_name']})" for row in self.db.list_group_anims(drawing_id) if uses({"anims": row["anims"]})]
         return out
 
     def _element(self, drawing_id: str, element: str) -> dict[str, Any]:
@@ -1243,7 +1294,7 @@ class SymbolService:
             _, res = validate_config(row["config"], info, self._tags(),
                                      self.db.get_symbol_pin_hash(drawing_id, element) is not None, element,
                                      {k: v for k, v in self.configs(drawing_id).items() if k != element},
-                                     self.path_sources(drawing_id))
+                                     self.signal_ids(drawing_id, element))
             warnings = res.warnings + [f"Trin {k}: {m}" for k, v in res.steps.items() for m in v]
         return {"element": element, "config": row["config"] if row else None,
                 "updated_at": row["updated_at"] if row else None, "updated_by": row["updated_by"] if row else None,
@@ -1257,10 +1308,11 @@ class SymbolService:
             raise ServiceError(400, "Koden til nøglelåsen skal være præcis 4 cifre", {"steps": {"5": ["Koden til nøglelåsen skal være præcis 4 cifre."]}})
         has_pin = pin is not None or self.db.get_symbol_pin_hash(drawing_id, element) is not None
         was = (self.db.get_symbol_config(drawing_id, element) or {}).get("config", {})
-        if was.get("op") == "positions" and (config or {}).get("op") != "positions" and (paths := self.path_condition_users(drawing_id, element)):
-            raise ServiceError(400, f"Symbolet bruges med sin position som betingelse af signalvejen '{paths[0]}' — fjern betingelsen dér først")
+        new_positions = len((config or {}).get("positions") or []) if (config or {}).get("op") == "positions" else 0
+        if was.get("op") == "positions" and new_positions < len(was.get("positions") or []) and (users := self.signal_users(drawing_id, element)):
+            raise ServiceError(400, f"Symbolets position bruges af '{users[0]}' — fjern henvisningen dér først, før positioner fjernes")
         others = {k: v for k, v in self.configs(drawing_id).items() if k != element}
-        normalized, res = validate_config(config, info, self._tags(), has_pin, element, others, self.path_sources(drawing_id))
+        normalized, res = validate_config(config, info, self._tags(), has_pin, element, others, self.signal_ids(drawing_id, element))
         if not res.count:
             gone = {b["id"] for b in (self.db.get_symbol_config(drawing_id, element) or {}).get("config", {}).get("logic", [])} \
                 - {b["id"] for b in normalized.get("logic", [])}
@@ -1329,7 +1381,7 @@ class SymbolService:
             res_row["notes"] = notes
             has_pin = self.db.get_symbol_pin_hash(drawing_id, target) is not None
             others = {k: v for k, v in self.configs(drawing_id).items() if k != target}
-            normalized, res = validate_config(mapped, info, tags, has_pin, target, others, self.path_sources(drawing_id))
+            normalized, res = validate_config(mapped, info, tags, has_pin, target, others, self.signal_ids(drawing_id, target))
             if not res.count and existing is not None:
                 gone = {b["id"] for b in existing["config"].get("logic", [])} - {b["id"] for b in normalized.get("logic", [])}
                 for user, bid in self._logic_users(drawing_id, target, gone):
@@ -1383,8 +1435,9 @@ class SymbolService:
                     owner, bid = split_logic_ref(s)
                     if owner == element and bid in block_ids and (other, bid) not in out:
                         out.append((other, bid))
-        for name in self.path_condition_users(drawing_id, element, (), set(block_ids)):       # signalveje, der læser blokkene (v5.10.0)
-            out.append((f"signalvejen '{name}'", sorted(block_ids)[0]))
+        for name in self.signal_users(drawing_id, element, set(block_ids)):       # læst som afledt signal (`sym:…:logic:Lk`, v6.0.0)
+            if (name, sorted(block_ids)[0]) not in out:
+                out.append((name, sorted(block_ids)[0]))
         # gruppe-animationer på andre symboler der henviser til blokkene (v0.131.1)
         for row in self.db.list_group_anims(drawing_id):
             if row["element"] == element:
@@ -1395,25 +1448,6 @@ class SymbolService:
                     label = f"{row['element']} (gruppen {row['group_name']})"
                     if owner == element and bid in block_ids and (label, bid) not in out:
                         out.append((label, bid))
-        return out
-
-    def path_users(self, drawing_id: str, path_id: int) -> list[str]:
-        """Symboler og grupper på tegningen, der bruger signalvejen som kilde (`path:<tegning>:<id>:…`) eller dens logik (v5.4.0)."""
-        mark = f"path:{drawing_id}:{path_id}:"
-        me = path_symbol_id(path_id)
-        out: list[str] = []
-
-        def uses(cfg: dict[str, Any]) -> bool:
-            srcs = [i.get("src", "") for b in cfg.get("logic", []) for i in b.get("inputs", [])]
-            srcs += [str(a.get("src", "")) for a in cfg.get("anims", [])]
-            return any(isinstance(s, str) and s.startswith(mark) for s in srcs)
-
-        for other, cfg in self.configs(drawing_id).items():
-            if other != me and uses(cfg):
-                out.append(other)
-        for row in self.db.list_group_anims(drawing_id):
-            if uses({"anims": row["anims"]}):
-                out.append(f"{row['element']} (gruppen {row['group_name']})")
         return out
 
     def logic_pool(self, drawing_id: str, element: str) -> list[dict[str, Any]]:
@@ -1437,8 +1471,8 @@ class SymbolService:
             users = self._logic_users(drawing_id, element, {b["id"] for b in old["config"].get("logic", [])})
             if users:
                 raise ServiceError(409, f"Symbolets logikblok {users[0][1]} bruges af symbolet '{users[0][0]}' — fjern henvisningen dér først")
-            if paths := self.path_condition_users(drawing_id, element, ("pos",) if old["config"].get("op") == "positions" else ()):
-                raise ServiceError(409, f"Symbolets position bruges som betingelse af signalvejen '{paths[0]}' — fjern betingelsen dér først")
+            if users := self.signal_users(drawing_id, element):
+                raise ServiceError(409, f"Symbolets position bruges af '{users[0]}' — fjern henvisningen dér først")
         if not self.db.delete_symbol_config(drawing_id, element):
             raise ServiceError(404, f"'{element}' har ingen symbol-konfiguration")
         if self.on_change is not None:
@@ -1554,9 +1588,6 @@ class SymbolService:
             if cfg.get("op") == "positions":
                 out.update(pseudo_tag(drawing_id, element, k) for k in PSEUDO_KINDS)
             out.update(logic_pseudo_tags(drawing_id, element, cfg).values())
-        from .signal_paths.runtime import path_tags     # signalvejenes pseudo-tags (v5.0.0)
-        for r in self.db.list_signal_paths(drawing_id):
-            out.update(path_tags(drawing_id, r["id"], r["data"]))
         return out
 
     def usage(self, tag: str) -> list[str]:
@@ -1565,8 +1596,6 @@ class SymbolService:
                 if tag in config_tags(r["config"])]
         used += [f"{r['drawing_id']}#{r['element']} (gruppen {r['group_name']})" for r in self.db.list_group_anims()
                  if tag in config_tags({"anims": r["anims"]})]
-        used += [f"{r['drawing_id']} (signalvejen {r['name']})" for r in self.db.list_signal_paths()
-                 if any(c.get("src") == tag for c in r["data"].get("conditions", []))]
         return used
 
 

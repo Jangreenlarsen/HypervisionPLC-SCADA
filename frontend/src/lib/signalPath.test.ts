@@ -1,5 +1,5 @@
 import { describe as group, expect, it } from 'vitest';
-import { answerFrom, conditionsFrom, contacts, describe, endpoints, findPaths, flowsFor, pickNext, roleOf, suggestAnswer, summary, type GNode, type Graph, type Pt, type TagInfo } from './signalPath';
+import { contacts, describe, endpoints, findPaths, flowsFor, pickNext, roleOf, summary, type GNode, type Graph, type Pt } from './signalPath';
 
 const pipe = (id: string, a: Pt, b: Pt, refs: (string | null)[] = [null, null]): GNode =>
   ({ id, name: '', type: '', pipe: true, terminals: [a, b], lines: [{ part: 'all', a, b }], refs });
@@ -100,42 +100,6 @@ group('endpoints', () => {
   });
 });
 
-
-group('answers → conditions', () => {
-  const tags: TagInfo[] = [{ name: 'P1_drift', is_bool: true, unit: '', description: '' },
-    { name: 'V2_pct', is_bool: false, unit: '%', description: '' }];
-  it('suggests the symbol\'s own on/off tag first', () => {
-    expect(suggestAnswer('p1', tags.slice().reverse())).toEqual({ element: 'p1', src: 'P1_drift', on: true, cmp: '', value: null });
-    expect(suggestAnswer('v2', [tags[1]])).toMatchObject({ src: 'V2_pct', cmp: 'ge', value: 1 });
-    expect(suggestAnswer('x', []).src).toBe('');
-  });
-  it('builds conditions and reports what is missing', () => {
-    const r = conditionsFrom([
-      { element: 'p1', src: 'P1_drift', on: false, cmp: '', value: null },
-      { element: 'v2', src: 'V2_pct', on: true, cmp: 'ge', value: 50 },
-      { element: 'v3', src: '', on: true, cmp: '', value: null },
-      { element: 'v4', src: 'V2_pct', on: true, cmp: '', value: null },
-      { element: 'v5', src: 'Ukendt', on: true, cmp: '', value: null },
-    ], tags);
-    expect(r.conditions).toEqual([{ element: 'p1', src: 'P1_drift', neg: true, cmp: '', value: null },
-      { element: 'v2', src: 'V2_pct', neg: false, cmp: 'ge', value: 50 }]);
-    expect(r.errors).toEqual(['V2_pct: vælg ≥, ≤ eller = og en grænseværdi', "Tagget 'Ukendt' findes ikke"]);
-    expect(answerFrom(r.conditions[0])).toEqual({ element: 'p1', src: 'P1_drift', on: false, cmp: '', value: null });
-  });
-  it("a symbol's position is a derived signal: position = a number, with a readable name in errors (v5.10.0)", () => {
-    const pos: TagInfo = { name: 'sym:varme:omskifter:pos', is_bool: false, unit: '', description: 'Omskifter 1: position', derived: true,
-      group: 'Symbolers position', labels: ['Hånd', '0', 'Auto'] };
-    const r = conditionsFrom([
-      { element: 'p1', src: pos.name, on: true, cmp: 'eq', value: 2 },
-      { element: 'v2', src: pos.name, on: true, cmp: '', value: null },
-    ], [...tags, pos]);
-    expect(r.conditions).toEqual([{ element: 'p1', src: pos.name, neg: false, cmp: 'eq', value: 2 }]);
-    const ne = conditionsFrom([{ element: 'p1', src: pos.name, on: false, cmp: 'eq', value: 0 }], [...tags, pos]);      // "position er ikke Hånd"
-    expect(ne.conditions).toEqual([{ element: 'p1', src: pos.name, neg: true, cmp: 'eq', value: 0 }]);
-    expect(answerFrom(ne.conditions[0])).toEqual({ element: 'p1', src: pos.name, on: false, cmp: 'eq', value: 0 });
-    expect(r.errors).toEqual(['Omskifter 1: position: vælg ≥, ≤ eller = og en grænseværdi']);
-  });
-});
 
 group('branches without a T-piece', () => {
   it('finds a pipe that ends in the middle of another and runs the light the right way', () => {

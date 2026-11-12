@@ -37,7 +37,7 @@ from . import library as lib
 from .trend_views import clean_view
 from .signal_paths import valid_data as valid_path_data
 from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
-from .symbols import SymbolConfig, config_tags, parse_path_symbol, too_many_anims
+from .symbols import SymbolConfig, config_tags, parse_path_symbol, sym_refs, too_many_anims
 from .errors import ServiceError
 from .manager import PlcManager
 from .plcs import normalize_base_url
@@ -55,7 +55,7 @@ _DRAWING_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}\Z")
 _BACKUP_NAME = re.compile(r"^(scada-(auto|foer-restore|foer-plc-fjern|foer-tag-slet|pre-update)-\d{8}-\d{6}\.json"
                           r"|trends-(auto|foer-plc-fjern|foer-tag-slet)-\d{8}-\d{6}\.db\.gz)\Z")
 # Slags → tekst på siden Backup (filnavnet scada-<slags>-…)
-_KIND_TEXT = {"auto": "auto", "foer-restore": "før restore", "foer-plc-fjern": "før PLC fjernet", "foer-tag-slet": "før tags slettet", "pre-update": "før opdatering"}
+_KIND_TEXT = {"auto": "auto", "foer-restore": "før restore", "foer-plc-fjern": "før PLC fjernet", "foer-tag-slet": "før tags slettet", "pre-update": "før opdatering", "pre-v6": "før opgradering til v6"}
 MAX_ERRORS = 25
 
 
@@ -441,6 +441,10 @@ class BackupService:
             if missing := [t for t in config_tags(cfg) if t not in tag_names_all]:
                 err(f"{where}: tagget '{missing[0]}' findes ikke i backuppen")
                 continue
+            if parse_path_symbol(c["element"]) is not None and cfg.get("op") == "positions":
+                cfg["passive"] = True        # en signalvej kan aldrig betjenes eller skrive (gendannelsen kører ikke validate_config)
+                for sg in cfg.get("signals", []):
+                    sg["tag"], sg["write"], sg["rest"], sg["virtual"] = "", "set", None, False
             symbol_config.append({"drawing_id": c["drawing_id"], "element": c["element"], "config": cfg})
 
         symbol_groups = []
@@ -520,6 +524,17 @@ class BackupService:
                 seen_ids.add(pid)
             signal_paths.append({"id": pid, "drawing_id": key[0], "name": key[1], "data": sp["data"]})
 
+        # afledte signaler (`sym:<tegning>:<symbol>:…`) må kun pege på et symbol med opsætning på SAMME tegning i backuppen
+        have = {(c["drawing_id"], c["element"]) for c in symbol_config}
+        for c in symbol_config:
+            for ref in sym_refs(c["config"]):
+                if (c["drawing_id"], ref) not in have:
+                    err(f"Symbol {c['drawing_id']}#{c['element']}: læser signaler fra '{ref}', der ikke har en opsætning på tegningen i backuppen")
+                    break
+            for x in [str(sg.get("fb", "")) for sg in c["config"].get("signals", [])] + [str(a.get("src", "")) for a in c["config"].get("anims", [])]:
+                if x.startswith("sym:") and x.split(":", 3)[1] != c["drawing_id"]:
+                    err(f"Symbol {c['drawing_id']}#{c['element']}: læser et signal fra en anden tegning ({x})")
+                    break
         # en vejs egen opsætning som symbol (`sv~<id>`) følger vejens id — uden vejen (eller uden bevaret id) giver den ingen mening
         kept = {(sp["drawing_id"], sp["id"]) for sp in signal_paths if sp["id"] is not None}
         symbol_config = [c for c in symbol_config

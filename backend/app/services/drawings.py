@@ -363,10 +363,8 @@ class DrawingService:
         return drawing, svg, effective, orphans, tags
 
     def _path_symbol_bindings(self, drawing_id: str, svg: str, index: dict[str, Any]) -> list[dict[str, Any]]:
-        """Signalvejenes animationer (v5.8.0: vejens symbol-opsætning, `sv~<id>`, hvor grundanimationerne ligger som almindelige
-        animationer) som bindinger. En vej, der endnu ikke er skrevet ind i opsætningen (`materialized`), vises ud fra sit udseende, så
-        Overview aldrig mister animationerne. Rækkefølgen mellem veje følger navnet; efter symbolernes og gruppernes egne."""
-        from .signal_paths.materialize import TooManyAnims, base_anims, merge
+        """Signalvejenes animationer (v6.0.0): en signalvej er et almindeligt symbol (`sv~<id>`), hvis animationer på vejens dele
+        lægges på som alle andre symbolers — efter symbolernes og gruppernes egne; flere veje i rækkefølge efter vejens navn."""
         out: list[dict[str, Any]] = []
         rows = self.db.list_signal_paths(drawing_id)
         if not rows:
@@ -374,17 +372,11 @@ class DrawingService:
         configs = {r["element"]: r["config"] for r in self.db.list_symbol_configs(drawing_id)}
         for k, row in enumerate(rows):                 # (list_signal_paths er sorteret efter navn)
             sym = path_symbol_id(row["id"])
-            cfg = configs.get(sym) or {"op": "view", "anims": []}
-            info = self.symbols_info(drawing_id, sym, svg)
-            if info is None:
+            cfg = configs.get(sym)
+            info = self.symbols_info(drawing_id, sym, svg) if cfg else None
+            if not cfg or info is None:
                 continue
-            parts = set(info["parts"])
-            if not row["data"].get("materialized"):
-                try:
-                    cfg = merge(cfg, base_anims(drawing_id, row["id"], row["data"], parts))
-                except TooManyAnims:
-                    continue
-            for b in config_bindings(drawing_id, sym, cfg, parts & set(index)):
+            for b in config_bindings(drawing_id, sym, cfg, set(info["parts"]) & set(index)):
                 out.append({**b, "position": 100_000 + k * 1000 + (b["position"] - 1000), "source": "path-symbol", "path": row["id"],
                             "path_name": row["name"]})
         return out

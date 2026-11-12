@@ -75,6 +75,15 @@ async def list_symbols(drawing_id: str, request: Request) -> list[dict[str, Any]
     return _svc(request).list_symbols(drawing_id)
 
 
+@router.get("/{drawing_id}/signals", dependencies=[ENGINEER])
+async def derived_signals(drawing_id: str, request: Request, element: str | None = None) -> list[dict[str, Any]]:
+    """Beregnede signaler på tegningen — symbolers (og signalvejes) position og logikblokke — som kan vælges som tilbagemelding,
+    animationskilde og logikindgang (v5.10.0/v6.0.0). `element`: dette symbols egne signaler udelades (en løkke)."""
+    _check(request, drawing_id)
+    mine = f"sym:{drawing_id}:{element}:" if element else None
+    return [x for x in _svc(request).derived_signals(drawing_id) if not (mine and x["id"].startswith(mine))]
+
+
 @router.get("/{drawing_id}/symbols-orphaned", dependencies=[ENGINEER])
 async def orphaned(drawing_id: str, request: Request) -> list[dict[str, Any]]:
     """Symbolopsætninger på elementer, der ikke findes i den aktive version (v0.88.0)."""
@@ -209,7 +218,7 @@ async def preview(drawing_id: str, element: str, body: PreviewBody, request: Req
     # Koden tastes i guiden og sendes først ved gem — så kræv den ikke her (PUT afviser stadig lås uden kode)
     others = {k: v for k, v in svc.configs(drawing_id).items() if k != element}
     cfg, res = validate_config(body.config, info, svc._tags(), has_pin=True, element_id=element, others=others,
-                               pseudo=svc.path_sources(drawing_id))
+                               pseudo=svc.signal_ids(drawing_id, element))
     plans = ([{"position": k, "label": p["label"], "writes": write_plan(cfg, k)} for k, p in enumerate(cfg["positions"])]
              if cfg["op"] == "positions" and not cfg.get("passive") and not res.count else [])
     return {"config": cfg, "steps": res.steps, "warnings": res.warnings, "errors": res.count, "plans": plans}

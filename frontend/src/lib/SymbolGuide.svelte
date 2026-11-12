@@ -92,7 +92,7 @@ import { AVERAGE_CHOICES } from './trendData';
   const drawnLabels = $derived(isSelector && symbol ? drawnSelectorLabels(symbol.parts) : []);
   const selectorAnglesNow = $derived(isSelector ? drawnSelectorAngles(drawnLabels.length, cfg.positions.length) : null);
   const byValue = (a: Anim): boolean => !!a.by_value && isPos && !!a.src && !a.src.startsWith('@') && BY_VALUE_TYPES.includes(a.type);
-  const srcKind = (a: Anim): SrcKind => (a.src === POS || byValue(a) ? 'pos' : a.src === ON || parseAlarmRef(a.src) || isLogicRef(a.src) || a.src.startsWith('path:') || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
+  const srcKind = (a: Anim): SrcKind => (a.src === POS || byValue(a) ? 'pos' : a.src === ON || parseAlarmRef(a.src) || isLogicRef(a.src) || /^sym:.*:logic:/.test(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
   const n = $derived(cfg.positions.length);
   const isPos = $derived(cfg.op === 'positions');
   /** Signalvejen som symbol (v5.4.0, id `sv~<vej>`): dele på tværs af vejens elementer, ingen "hele symbolet", kun visning. */
@@ -114,10 +114,14 @@ import { AVERAGE_CHOICES } from './trendData';
   });
   const partIds = $derived([...(isPath ? [] : ['all']),
     ...Object.entries(symbol?.parts ?? {}).filter(([, p]) => !isPath || !elFilter || p.owner === elFilter).map(([id]) => id)]);
-  /** Signalvejene på tegningen som kilde (v5.4.0): `path:<tegning>:<id>:<grene>` — til/fra. */
-  let pathSrc = $state<{ tag: string; label: string }[]>([]);
-  const isPathSrc = (s: string) => s.startsWith('path:');
-  const pathLabel = (tag: string) => pathSrc.find((p) => p.tag === tag)?.label ?? tag;
+  /** Afledte signaler på tegningen (v5.10.0/v6.0.0): symbolers (og signalvejes) position og logikblokke — kan vælges som tilbagemelding
+   * (trin 2), animationskilde og logikindgang. Id'et er `sym:<tegning>:<symbol>:pos|logic:Lk`. */
+  interface Derived { id: string; label: string; group: string; labels: string[]; is_bool: boolean }
+  let signals = $state<Derived[]>([]);
+  const isSignal = (s: string) => s.startsWith('sym:');
+  const signalLabel = (id: string) => signals.find((p) => p.id === id)?.label ?? id;
+  /** Signalvejens definition (v6.0.0): elementerne og flowretningen — til "Tilføj løbelys langs vejen". */
+  let pathDef = $state<{ element: string; flows: { part: string; reverse: boolean }[] }[] | null>(null);
   const partInfo = (id: string) => (id === 'all' ? symbol ?? undefined : symbol?.parts[id]);
   const locks = $derived(isPos && cfg.lock.positions.some(Boolean));
   const pinOk = $derived(pin === '' || /^\d{4}$/.test(pin));
@@ -147,11 +151,15 @@ import { AVERAGE_CHOICES } from './trendData';
       .catch((e) => console.error('Gruppernes animationer kunne ikke hentes:', e));
   });
   onMount(async () => {
-    try {      // signalvejene som kilde (tekniker-API; fejl = ingen veje at vælge)
-      const rows = await get<{ name: string; sources: { tag: string; branches: number[] }[] }[]>(`/api/drawings/${enc(drawingId)}/signal-paths`);
-      pathSrc = rows.flatMap((p) => p.sources.map((s) => ({ tag: s.tag,
-        label: `Signalvej "${p.name}"${p.sources.length > 1 ? ` — gren ${s.branches.map((b) => b + 1).join('+')}` : ''}` })));
-    } catch { pathSrc = []; }
+    try {      // de afledte signaler (tekniker-API; fejl = ingen at vælge)
+      signals = await get<Derived[]>(`/api/drawings/${enc(drawingId)}/signals?element=${enc(element)}`);
+    } catch { signals = []; }
+    if (isPath) {
+      try {
+        const rows = await get<{ symbol: string; elements: { element: string; flows: { part: string; reverse: boolean }[] }[] }[]>(`/api/drawings/${enc(drawingId)}/signal-paths`);
+        pathDef = rows.find((p) => p.symbol === element)?.elements ?? null;
+      } catch { pathDef = null; }
+    }
     try {
       const r = await get<{ config: SymbolConfig | null; has_pin: boolean; symbol: SymbolInfo | null; orphaned: boolean; warnings: string[]; logic_pool?: PoolBlock[] }>(`${base}/config`);
       if (r.orphaned || !r.symbol) throw new Error(`Elementet '${element}' findes ikke i den aktive version af tegningen`);
@@ -300,6 +308,11 @@ import { AVERAGE_CHOICES } from './trendData';
   const opList = $derived(showAllOps ? ALL_OPS : opChoices(symbol?.type ?? 'custom', cfg.op, visitedOps));
   const opsRestricted = $derived(opList.length < ALL_OPS.length);
   function changeOp(op: Op): void {
+    if (isPath && op === 'view' && cfg.op !== 'view' && cfg.anims.length
+      && !confirm('Skift til "Kun animationer"? Animationerne, der er knyttet til vejens positioner, fjernes.')) {
+      cfg = { ...cfg };    // radioknappen springer tilbage
+      return;
+    }
     setOp(cfg, op);
   }
   /** Kun passiv visning: har symbolet trin (fx en omskifter), kan PLC'ens position vises fra tilbagemeldinger — uden betjening. */
@@ -407,9 +420,9 @@ import { AVERAGE_CHOICES } from './trendData';
   const poolLabel = (p: PoolBlock) => `${p.symbol} · ${p.id}${p.name ? ` – ${p.name}` : ''}`;
   const poolRef = (p: PoolBlock) => `@${p.element}:${p.id}`;
   const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
-  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : isPathSrc(a.src) ? 'path' : 'tag');
+  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : isSignal(a.src) ? 'signal' : 'tag');
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : mode === 'path' ? pathSrc[0]?.tag ?? '' : '';
+    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : mode === 'signal' ? signals[0]?.id ?? '' : '';
     resetParams(a);
   }
   // ---- 3-vejs ventil styret af ét til/fra-tag
@@ -465,7 +478,7 @@ import { AVERAGE_CHOICES } from './trendData';
   /** Blokke en indgang må bruge: kun dem over blokken (serveren afviser løkker). */
   const earlier = (b: LogicBlock) => cfg.logic.slice(0, cfg.logic.indexOf(b));
   function setInputMode(b: LogicBlock, i: LogicBlock['inputs'][number], mode: string): void {
-    i.src = mode === 'block' ? firstBlockRef(earlier(b)) : mode === 'path' ? pathSrc[0]?.tag ?? '' : '';
+    i.src = mode === 'block' ? firstBlockRef(earlier(b)) : mode === 'signal' ? signals[0]?.id ?? '' : '';
     i.cmp = '';
     i.value = null;
   }
@@ -478,6 +491,27 @@ import { AVERAGE_CHOICES } from './trendData';
     const a: Anim = { part, type: 'fill', src, params: {}, only: null };
     a.params = animDefaults('fill', srcKind(a), n);
     cfg.anims.push(a);
+  }
+  let flowPos = $state(1);
+  let flowNote = $state('');
+  /** Tilføj løbelys langs vejen (v6.0.0): én løbelys-animation pr. del, flowet løber igennem, med vejens flowretning, i den valgte position. */
+  function addFlowAlongPath(): void {
+    flowNote = '';
+    if (!pathDef || !symbol) return;
+    let added = 0;
+    for (const e of pathDef) {
+      for (const f of e.flows) {
+        const part = f.part === 'all' ? e.element : f.part;
+        if (!(part in symbol.parts) || cfg.anims.some((a) => a.part === part && a.type === 'flow')) continue;
+        if (cfg.anims.length >= maxAnims) { flowNote = `Højst ${maxAnims} animationer — resten er ikke tilføjet.`; return; }
+        const a: Anim = { part, type: 'flow', src: POS, params: {}, only: null };
+        a.params = animDefaults('flow', 'pos', n);
+        a.params.dirs = cfg.positions.map((_, j) => (j === flowPos ? (f.reverse ? -1 : 1) : 0));
+        cfg.anims.push(a);
+        added++;
+      }
+    }
+    flowNote = added ? `${added} løbelys tilføjet i positionen ${cfg.positions[flowPos]?.label ?? flowPos + 1}.` : 'Alle vejens dele har allerede løbelys.';
   }
   /** En ny animation på et bestemt element i en signalvej (gruppens + Animation): første del, der hører til elementet. */
   function addAnimFor(owner: string): void {
@@ -681,7 +715,7 @@ import { AVERAGE_CHOICES } from './trendData';
     {:else}
       <nav class="steps" aria-label="Trin">
         {#each STEPS as s, k}
-          {@const disabled = !isPos && k === 2}
+          {@const disabled = (!isPos && k === 2) || (isPath && k === 4)}
           <button class:active={step === k} {disabled} onclick={() => (step = k)}>
             {k + 1}. {s}{#if stepErrors(k).length}<span class="dot" title="{stepErrors(k).length} fejl"></span>{/if}
           </button>
@@ -690,8 +724,15 @@ import { AVERAGE_CHOICES } from './trendData';
 
       <div class="body">
         {#if step === 0 && isPath}
-          <p class="muted small">Signalvejen <strong>{name}</strong> som symbol. Her lægger du <strong>egne animationer, logik og signaler</strong> oven på vejens automatiske løbelys —
-            de røres aldrig, når vejen gemmes igen. En signalvej kan kun vises, ikke betjenes.</p>
+          <p class="muted small">Signalvejen <strong>{name}</strong> som symbol. Vejen består af de elementer, der står nedenfor; her sætter du op, <strong>hvornår den er aktiv</strong>
+            og <strong>hvordan den ser ud</strong>: tilbagemelding fra et PLC-tag eller et andet symbols position (trin 2), hvilken værdi der er hvilken position (trin 3)
+            og animationer på vejens dele (trin 4). En signalvej kan kun vises, ikke betjenes.</p>
+          <div class="ops">
+            <label class="opt"><input type="radio" name="pathop" checked={cfg.op === 'positions'} onchange={() => changePassive(true)} />
+              Positioner (Fra / Til …) styret af en tilbagemelding</label>
+            <label class="opt"><input type="radio" name="pathop" checked={cfg.op === 'view'} onchange={() => changeOp('view')} />
+              Kun animationer — styret direkte af tags, logik eller andre symbolers position (ingen positioner)</label>
+          </div>
           {@const roots = Object.entries(symbol.parts).filter(([, p]) => p.root)}
           <h4>Elementer på vejen ({roots.length})</h4>
           <ul class="small">{#each roots as [id, p]}<li>{p.label}{#if p.label !== id} <span class="muted">({id})</span>{/if}</li>{/each}</ul>
@@ -744,7 +785,20 @@ import { AVERAGE_CHOICES } from './trendData';
                       </select>
                       {#if s.virtual}<div class="small muted">skriver ikke til en PLC — positionen er den valgte{s.fb ? ' (tilbagemeldingen er toneangivende)' : ''}</div>
                       {:else}<TagSelect bind:value={s.tag} {tags} writableOnly />{/if}{/if}</td>
-                    <td><TagSelect bind:value={s.fb} {tags} placeholder={passive ? '— vælg tilbagemelding —' : '— ingen —'} /></td>
+                    <td>
+                      {#if signals.some((x) => x.group.endsWith('position'))}
+                        <select value={isSignal(s.fb) ? 'pos' : 'tag'} aria-label="Tilbagemelding fra {s.id}"
+                                onchange={(e) => { s.fb = e.currentTarget.value === 'pos' ? signals.find((x) => x.group.endsWith('position'))?.id ?? '' : ''; }}>
+                          <option value="tag">et PLC-tag</option><option value="pos">et symbols position</option>
+                        </select>
+                      {/if}
+                      {#if isSignal(s.fb)}
+                        <select bind:value={s.fb} aria-label="Symbolets position">
+                          {#each signals.filter((x) => x.group.endsWith('position')) as p (p.id)}<option value={p.id}>{p.label}</option>{/each}
+                          {#if !signals.some((x) => x.id === s.fb)}<option value={s.fb}>{signalLabel(s.fb)} (findes ikke)</option>{/if}
+                        </select>
+                      {:else}<TagSelect bind:value={s.fb} {tags} placeholder={passive ? '— vælg tilbagemelding —' : '— ingen —'} />{/if}
+                    </td>
                     <td class="skriv" class:greyed={passive}>
                       {#if passive || s.virtual}<span class="small muted">—</span>{:else}
                       <select bind:value={s.write}><option value="set">Sæt</option><option value="pulse">Puls</option></select>
@@ -941,13 +995,13 @@ import { AVERAGE_CHOICES } from './trendData';
                 {@const isBlock = isLogicRef(inp.src)}
                 <div class="row wrap small input">
                   <label class="opt"><input type="checkbox" bind:checked={inp.neg} /> NOT</label>
-                  {#if refs.length || pool.length || pathSrc.length}
-                    <select value={isBlock ? 'block' : isPathSrc(inp.src) ? 'path' : 'tag'} onchange={(e) => setInputMode(b, inp, e.currentTarget.value)} aria-label="Indgangstype">
-                      <option value="tag">tag</option>{#if refs.length || pool.length}<option value="block">blok</option>{/if}{#if pathSrc.length}<option value="path">signalvej</option>{/if}
+                  {#if refs.length || pool.length || signals.length}
+                    <select value={isBlock ? 'block' : isSignal(inp.src) ? 'signal' : 'tag'} onchange={(e) => setInputMode(b, inp, e.currentTarget.value)} aria-label="Indgangstype">
+                      <option value="tag">tag</option>{#if refs.length || pool.length}<option value="block">blok</option>{/if}{#if signals.length}<option value="signal">symbols position</option>{/if}
                     </select>
                   {/if}
-                  {#if isPathSrc(inp.src)}
-                    <select bind:value={inp.src} aria-label="Signalvej">{#each pathSrc as p}<option value={p.tag}>{p.label}</option>{/each}</select>
+                  {#if isSignal(inp.src)}
+                    <select bind:value={inp.src} aria-label="Symbolets position eller logikblok">{#each signals as p (p.id)}<option value={p.id}>{p.label}</option>{/each}</select>
                   {:else if isBlock}
                     <select bind:value={inp.src} aria-label="Blok">
                       {#if refs.length}<optgroup label="Dette symbol">{#each refs as r}<option value={'@' + r.id}>{blockLabel(r)}</option>{/each}</optgroup>{/if}
@@ -973,10 +1027,16 @@ import { AVERAGE_CHOICES } from './trendData';
           <button class="small" onclick={addBlock} disabled={cfg.logic.length >= MAX_LOGIC}>+ Logikblok</button>
           <h4>Animationer ({cfg.anims.length}/{maxAnims})</h4>
           {#if isPath}
-            <p class="muted small">Vejens egne animationer (løbelys, farve, blink …) står her som <strong>almindelige animationer</strong> — skift type, kilde,
-              farve og hastighed, eller slet dem. <strong>Følger vejens udseende</strong> betyder, at vejen genskaber animationen, når den gemmes igen
-              (så dine ændringer overskrives): <strong>fjern fluebenet for at beholde dem</strong>. Dine egne animationer og dem uden flueben røres aldrig (de eneste, der fjernes, er dem på et element eller en gren, der er taget ud af vejen).
-              Rækkefølgen gælder: <strong>den øverste aktive animation vinder</strong> — nye animationer lægges nederst; flyt dem op med ▲.</p>
+            <p class="muted small">Vejens animationer lægger du på vejens dele som i ethvert andet symbol — styret af vejens <strong>position</strong> (fx kun i <em>Til</em>),
+              et tag eller et andet symbols position. <strong>Den øverste aktive animation vinder</strong> — nye lægges nederst; flyt dem op med ▲.</p>
+            {#if pathDef && isPos}
+              <div class="row small">Løbelys langs hele vejen i positionen
+                <select bind:value={flowPos} aria-label="Position med løbelys">{#each cfg.positions as p, j (j)}<option value={j}>{p.label || `Position ${j + 1}`}</option>{/each}</select>
+                <button class="small" onclick={addFlowAlongPath} disabled={cfg.anims.length >= maxAnims}
+                  title="Lægger løbelys på alle rør og dele, flowet løber igennem, med vejens flowretning — i den valgte position. Eksisterende løbelys på samme del røres ikke.">Tilføj løbelys langs vejen</button>
+                {#if flowNote}<span class="muted">{flowNote}</span>{/if}
+              </div>
+            {/if}
             <label class="field-row small">Vis animationer for
               <select bind:value={elFilter} aria-label="Element">
                 <option value="">alle elementer ({cfg.anims.length})</option>
@@ -1001,7 +1061,7 @@ import { AVERAGE_CHOICES } from './trendData';
                   {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
                   {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
-                  {#if pathSrc.length && !['level', 'opacity', 'scale', 'text', 'segments'].includes(a.type)}<option value="path">en signalvej</option>{/if}
+                  {#if signals.length && !['level', 'opacity', 'scale', 'text', 'segments'].includes(a.type)}<option value="signal">et symbols position</option>{/if}
                   {#if !['level', 'opacity', 'scale', 'text', 'segments'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
                 </select>
                 {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
@@ -1022,10 +1082,10 @@ import { AVERAGE_CHOICES } from './trendData';
                   <span class="small muted">på</span>
                   <TagSelect value={al.tag} {tags} onchange={(v) => { a.src = alarmRef(al.kind, v); resetParams(a); }} />
                 {/if}
-                {#if srcMode(a) === 'path'}
-                  <select bind:value={a.src} onchange={() => resetParams(a)} aria-label="Signalvej">
-                    {#each pathSrc as p}<option value={p.tag}>{p.label}</option>{/each}
-                    {#if !pathSrc.some((p) => p.tag === a.src)}<option value={a.src}>{pathLabel(a.src)} (findes ikke)</option>{/if}
+                {#if srcMode(a) === 'signal'}
+                  <select bind:value={a.src} onchange={() => resetParams(a)} aria-label="Symbolets position eller logikblok">
+                    {#each signals as p (p.id)}<option value={p.id}>{p.label}</option>{/each}
+                    {#if !signals.some((p) => p.id === a.src)}<option value={a.src}>{signalLabel(a.src)} (findes ikke)</option>{/if}
                   </select>
                 {/if}
                 {#if srcMode(a) === 'logic'}
@@ -1035,10 +1095,6 @@ import { AVERAGE_CHOICES } from './trendData';
                   </select>
                 {/if}
                 <span class="spacer"></span>
-                {#if isPath}
-                  <label class="opt small" title="Sat: vejen genskaber animationen, når den gemmes igen. Fjern fluebenet for at beholde dine ændringer.">
-                    <input type="checkbox" bind:checked={a.auto} /> følger vejens udseende</label>
-                {/if}
                 <button class="small" onclick={() => moveAnim(i, -1)} disabled={i === 0} aria-label="Op">▲</button>
                 <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
                 <button class="small" onclick={() => cfg.anims.splice(i, 1)} aria-label="Fjern animation">✕</button>
@@ -1245,9 +1301,9 @@ import { AVERAGE_CHOICES } from './trendData';
         {/if}
         <span class="spacer"></span>
         <span class="small muted">{checking ? 'Kontrollerer…' : preview ? (preview.errors || needPin ? `${preview.errors + (needPin ? 1 : 0)} fejl` : 'Ingen fejl') : 'Kontrollerer…'}</span>
-        <button onclick={() => (step = Math.max(0, step - 1 - (!isPos && step === 3 ? 1 : 0)))} disabled={step === 0}>Tilbage</button>
+        <button onclick={() => (step = Math.max(0, step - 1 - (!isPos && step === 3 ? 1 : 0) - (isPath && step === 5 ? 1 : 0)))} disabled={step === 0}>Tilbage</button>
         {#if step < 5}
-          <button onclick={() => (step = Math.min(5, step + 1 + (!isPos && step === 1 ? 1 : 0)))}>Næste</button>
+          <button onclick={() => (step = Math.min(5, step + 1 + (!isPos && step === 1 ? 1 : 0) + (isPath && step === 3 ? 1 : 0)))}>Næste</button>
         {/if}
         <!-- Gem på alle trin (v0.69.0): serveren kontrollerer løbende, så der kan gemmes, så snart der ikke er fejl -->
         <button class="primary" onclick={() => save()} disabled={!canSave}

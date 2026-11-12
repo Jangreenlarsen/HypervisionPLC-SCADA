@@ -157,6 +157,12 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     return { config: cfg, note: 'Standardopsætningen fra dit eget symbol i biblioteket. Vælg tags under trin 2 og 4.' };
   }
   const cfg = emptyConfig(symbol.type);
+  if (symbol.type === 'signalvej') {
+    // En signalvej som symbol (v6.0.0): positioner (Fra/Til) med PLC-tilbagemelding — kun passiv visning, intet skrives. Tilbagemeldingen
+    // vælges i trin 2 (PLC-tag eller et andet symbols position), kontaktfladen i trin 3, animationerne (fx løbelys langs vejen) i trin 4.
+    setPassive(cfg, true);
+    return { config: cfg, note: 'Forslag: to positioner (Fra og Til) styret af en tilbagemelding. Vælg tilbagemeldingen i trin 2, hvilken værdi der er Til i trin 3, og lav animationerne i trin 4 (fx Tilføj løbelys langs vejen).' };
+  }
   if (symbol.type === 'trevejs_motorventil' || symbol.type === 'trevejs_motorventil_ab') {
     cfg.positions = [{ label: 'AB → A' }, { label: 'AB → B' }];
     setOp(cfg, 'positions');

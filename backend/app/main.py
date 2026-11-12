@@ -37,7 +37,6 @@ from .api.symbol_groups import router as symbol_groups_router
 from .api.signal_paths import router as signal_paths_router
 from .services.signal_paths import SignalPathService
 from .services.assist_setup import SignalHelper, TagDescriber
-from .services.assist_signal import SignalSuggester
 from .services.llm_catalog import LlmCatalog
 from .api.symbol_flow import router as symbol_flow_router
 from .api.symbol_ports import router as symbol_ports_router
@@ -74,7 +73,7 @@ from .services.symbol_flow import SymbolFlowService
 from .services.symbol_ports import SymbolPortService
 from .services.library import LibraryService
 from .services.symbols import SymbolService
-from .services.migrations import v51_symbols
+from .services.migrations import v51_symbols, v60_paths
 from .services.symbol_runtime import SymbolRuntime
 from .services.symbol_operate import SymbolOperateService
 from .services.schedules import ScheduleService
@@ -179,15 +178,14 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                     "converted": len(rep["converted"]), "manual": len(rep["manual"]), "removed_bindings": rep["removed_bindings"]})
         except Exception:
             log.exception("Opgradering v5.1.0 (symboler) fejlede — prøves igen ved næste opstart")
-        # Opgradering v5.8.0: signalvejenes grundanimationer skrives ind i vejens symbol-opsætning, så de kan redigeres (én gang)
+        # Opgradering v6.0.0: en signalvej er kun en definition (betingelser og udseende fjernes; vejens symbol-opsætning nulstilles)
         try:
-            if not db.get_meta("migration.v58_path_anims"):
-                res58 = app.state.signal_path_service.materialize_existing()
-                db.set_meta("migration.v58_path_anims", str(time.time()))      # (en vej, der fejler, vises ud fra sit udseende og prøves ved næste gem)
-                if res58["written"] or res58["failed"]:
-                    app.state.audit_service.record("system", "", "signal_path.materialize", "", res58)
+            rep60 = v60_paths.migrate(db, app.state.backup_service)
+            if rep60:
+                app.state.audit_service.record(v60_paths.ACTOR, "", "signal_path.migration", "", {
+                    "paths": len(rep60["paths"]), "reset_setups": rep60["reset_setups"], "readers": len(rep60["readers"])})
         except Exception:
-            log.exception("Opgradering v5.8.0 (signalvejenes animationer) fejlede — prøves igen ved næste opstart")
+            log.exception("Opgradering v6.0.0 (signalveje) fejlede — prøves igen ved næste opstart")
         app.state.symbol_runtime = SymbolRuntime(db, manager.cache, app.state.drawing_service,
                                                  tick_s=settings.symbol_tick_s)
         app.state.symbol_runtime.reload()
@@ -227,7 +225,6 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         # Hjælperens model varmes op, når LLM-tjenesten er klar, så det første spørgsmål ikke venter på disken (v4.10.0)
         warm_task = (asyncio.create_task(app.state.assistant.keep_warm(), name="assist-warm")
                      if settings.start_runtimes else None)
-        app.state.signal_suggester = SignalSuggester(app.state.assistant, app.state.signal_path_service)   # v4.3.0
         # Fase 3 (v4.10.0): beskrivelser til nye tags og forslag til symbolguidens signaler
         app.state.tag_describer = TagDescriber(app.state.assistant)
         app.state.signal_helper = SignalHelper(app.state.assistant, db, app.state.symbol_service.drawings,

@@ -1,37 +1,32 @@
 <script lang="ts">
   // Signalveje i Tegn (v4.2.0; v4.13.0: grene, ventilvalg, ind/ud fra symbolerne og en interaktiv editor — PLAN.md › Signalveje 2).
   // Arbejdsgang: 1) vælg start og slutpunkter (klik i tegningen), 2) vejen beregnes med det samme og vises i tegningen — skift en
-  // 3-vejsventils vej, og vejen beregnes forfra — og låses med "Brug denne vej", 3) svar på hvornår der går flow, 4) navn og udseende.
-  // Grafen og vejen beregnes her ud fra tegningen (signalPath.ts); backend validerer og gemmer opsætningerne samlet.
+  // 3-vejsventils vej, og vejen beregnes forfra — og låses med "Brug denne vej", 3) navn og gem.
+  // Fra v6.0.0 DEFINERER en signalvej kun, hvad den består af (elementer, grene, flowretning): hvornår den er aktiv, og hvordan den ser
+  // ud, sættes op i symbol-guiden (vejen er et almindeligt symbol, `sv~<id>`).
+  // Grafen og vejen beregnes her ud fra tegningen (signalPath.ts); backend validerer og gemmer definitionen.
   import { onDestroy, untrack } from 'svelte';
   import { del, get, post, put } from './api';
   import { ask as askUser } from './ask';
-  import { postStream } from './assist';
-  import SpConditions, { type AiState, type QAnswer } from './SpConditions.svelte';
-  import SpLook from './SpLook.svelte';
   import SpSaved from './SpSaved.svelte';
   import SpStart, { type PickMode } from './SpStart.svelte';
   import {
-    MAX_ENDS, QUESTION, TOL, answerFrom, conditionsFrom, describeNet, endpoints, findPaths, findViaPath, graphKey, passable, pickNext,
-    questionsOf, suggestAnswer,
-    type Answer, type Condition, type Graph, type Net, type NetRow, type Pt, type Question, type Step, type TagInfo,
+    TOL, describeNet, endpoints, findPaths, findViaPath, graphKey, passable, pickNext,
+    type Graph, type Net, type NetRow, type Pt, type Step,
   } from './signalPath';
   import { mergeDefs, parseWay, wayKey, wayLabel, waysOf, type FlowDefs } from './symbolFlow';
-  import {
-    GROUPS, GROUP_LABEL, TYPE_LABEL, WAYS_PART, WHOLE, animsFor, anyChosen, defaultLook, groupOf, restoreLook, type Look, type LookGroup,
-  } from './pathLook';
 
   interface Saved {
     id: number; name: string; start: string; end: string; ends: string[]; ui: { forced?: Record<string, Record<string, string>>; picks?: number[] };
     elements: { element: string; flows: { part: string; reverse: boolean }[]; branches?: number[] }[];
-    conditions: (Condition & { branches?: number[] })[]; style: { light: string; speed: number; dash: number }; missing: string[]; updated_by: string;
+    missing: string[]; updated_by: string;
   }
   interface ElInfo {
-    element: string; name?: string; type?: string; configured?: boolean; tags?: TagInfo[]; missing?: boolean;
+    element: string; name?: string; type?: string; configured?: boolean; missing?: boolean;
     parts?: { id: string; pid: string; line: boolean; text: string }[];
   }
 
-  let { drawingId, ready, rev = 0, selected, graph, highlight, select, ensureSaved, onchanged, oneditchange, onsymbol, makecontrol }: {
+  let { drawingId, ready, rev = 0, selected, graph, highlight, select, ensureSaved, onchanged, oneditchange, onsymbol }: {
     drawingId: string;
     ready: boolean;
     rev?: number;           // tælles op, hver gang tegningen ændres (flyt, ret, fortryd): vejen regnes så forfra
@@ -45,8 +40,6 @@
     oneditchange?: (editing: boolean) => void;
     /** Vejen som symbol (v5.4.0): Tegn åbner symbol-guiden for `sv~<id>` */
     onsymbol?: (id: string, name: string) => void;
-    /** "Lav en betjening til vejen" (v5.12.0): Tegn sætter en omskifter ind (kun i SCADA) og sætter den op; → dens navn */
-    makecontrol?: (name: string, at: { x: number; y: number } | null) => Promise<string>;
   } = $props();
 
   const COLORS = ['#ff8f00', '#1e88e5', '#43a047', '#8e24aa'];       // en farve pr. gren i tegningen
@@ -60,27 +53,7 @@
   $effect(() => { const on = editing !== null; untrack(() => oneditchange?.(on)); });
   let name = $state('');
   let start = $state('');
-  let controlNote = $state('');
-  /** Lav en omskifter til vejen: indsat ved vejens start, sat op som virtuel (Fra/Til), og derefter valgbar som betingelse. */
-  async function makeControl(): Promise<void> {
-    if (!makecontrol) return;
-    controlNote = '';
-    busy = true;
-    try {
-      const t = graph()?.nodes.find((n) => n.id === start)?.terminals[0];
-      const made = await makecontrol(name.trim() || 'Signalvej', t ? { x: t[0], y: t[1] - 90 } : null);
-      await loadInfo();
-      controlNote = `"${made}" er lavet og sat op (OFF/ON, kun i SCADA — skriver ikke til en PLC). Vælg den som betingelse ovenfor: ${made}: position er ON.`;
-    } catch (e) {
-      controlNote = `Betjeningen kunne ikke laves: ${(e as Error).message}`;
-    } finally {
-      busy = false;
-    }
-  }
   let endIds = $state<string[]>([]);
-  let light = $state('#8fc8ea');
-  let speed = $state(40);
-  let look = $state<Look>(defaultLook());     // hvilke animationer vejen lægger på hvilke slags elementer (v4.14.0)
   // Klik i tegningen (v4.15.0): "gå via"-punkter pr. gren (rør og symboler, vejen skal igennem), og hvilken gren et klik gælder
   let via = $state<Record<number, string[]>>({});
   let viaMissing = $state<Record<number, string[]>>({});
@@ -96,35 +69,15 @@
   let net = $state<Net | null>(null);
   let locked = $state(false);
   let info = $state<Map<string, ElInfo>>(new Map());
-  let allTags = $state<TagInfo[]>([]);
-  let answers = $state<QAnswer[]>([]);
-  let saved = $state<Saved['conditions']>([]);                         // betingelserne fra en gemt vej, der rettes
   let focusId = $state('');                                            // rækken, musen peger på
   let activeRow = $state('');                                          // rækken, der er valgt i tegningen
-  let ai = $state<AiState>({ text: '', thinking: false, start: 0, secs: 0, note: '', set: new Set<string>(), unfilled: [] });
-  let thinkCtl: AbortController | null = null;
-  $effect(() => {
-    if (!ai.thinking) return;
-    const t = setInterval(() => (ai.secs = Math.round((Date.now() - ai.start) / 1000)), 1000);
-    return () => clearInterval(t);
-  });
-
-  type SuggestEvent = { type: 'queued'; waiting: number } | { type: 'error'; message: string }
-    | { type: 'done'; suggestions: Answer[]; unfilled: string[]; ms: number };
-
   const base = $derived(`/api/drawings/${encodeURIComponent(drawingId)}/signal-paths`);
   const choices = $derived(g ? endpoints(g) : []);
   const byId = $derived(new Map((g?.nodes ?? []).map((n) => [n.id, n])));
   const label = (id: string) => choices.find((e) => e.id === id)?.label ?? (info.get(id)?.name || byId.get(id)?.name || id);
-  const questions = $derived<Question[]>(net ? questionsOf(net.rows) : []);
   const noFlow = $derived((net?.rows ?? []).filter((r) => r.role === 'pipe' && !r.flows.length));
   const missingEnds = $derived(endIds.map((e, b) => ({ e, b })).filter(({ b }) => !cands[b]?.length));
   const complete = $derived(!!net && endIds.length > 0 && !missingEnds.length);
-  /** Elementer, AI-forslag kan udfylde: kun dem med ét spørgsmål (en flervejs-ventil har ét pr. vej). */
-  /** Hvilke slags elementer der er på vejen (og hvor mange af hver), til udseende-trinnet. */
-  const present = $derived(new Map<LookGroup, number>(GROUPS.map((g) => [g, (net?.rows ?? []).filter((r) => groupOf(r.role) === g).length] as [LookGroup, number]).filter(([, n]) => n > 0)));
-  const askedOnce = $derived(questions.filter((q) => questions.filter((x) => x.element === q.element).length === 1));
-
   $effect(() => { void drawingId; load(); });
   onDestroy(() => { clearTimeout(revTimer); highlight([], []); });
 
@@ -228,29 +181,16 @@
   }
 
   async function loadInfo(): Promise<void> {
-    if (!net) {
-      answers = [];
-      return;
-    }
+    if (!net) return;
     const mine = net;
     try {
-      const r = await post<{ elements: ElInfo[]; tags: TagInfo[] }>(`${base}/info`, { elements: mine.rows.map((x) => x.id) });
+      const r = await post<{ elements: ElInfo[] }>(`${base}/info`, { elements: mine.rows.map((x) => x.id) });
       if (mine !== net) return;     // en nyere beregning er overtaget
       info = new Map(r.elements.map((e) => [e.element, e]));
-      allTags = r.tags.slice().sort((a, b) => a.name.localeCompare(b.name, 'da'));
-      const old = new Map(answers.map((a) => [a.key, a]));
-      answers = questionsOf(mine.rows).map((q): QAnswer => {
-        const o = old.get(q.key);
-        if (o) return { ...o, branches: q.branches };
-        const s = saved.find((c) => c.element === q.element && sameSet(c.branches ?? mine.rows.find((x) => x.id === q.element)?.branches ?? [0], q.branches));
-        const a = s ? answerFrom(s) : suggestAnswer(q.element, info.get(q.element)?.tags ?? []);
-        return { ...a, key: q.key, branches: q.branches };
-      });
     } catch (e) {
       error = (e as Error).message;
     }
   }
-  const sameSet = (a: number[], b: number[]) => a.length === b.length && a.every((x) => b.includes(x));
 
   function choose(b: number, i: number): void {
     picks = picks.map((p, k) => (k === b ? i : p));
@@ -489,9 +429,6 @@
     editing = { id: p?.id ?? null };
     seenKey = graphKey(g);
     name = p?.name ?? '';
-    light = p?.style.light ?? '#8fc8ea';
-    speed = p?.style.speed ?? 40;
-    look = restoreLook((p?.ui as { look?: unknown } | undefined)?.look);
     start = p?.start ?? '';
     endIds = p ? (p.ends?.length ? p.ends : [p.end]) : [];
     forced = Object.fromEntries(Object.entries(p?.ui?.forced ?? {}).map(([k, v]) => [Number(k), v]));
@@ -504,45 +441,13 @@
     picks = [];
     cands = [];
     net = null;
-    answers = [];
-    saved = p?.conditions ?? [];
     locked = false;
     activeRow = '';
-    ai = { text: '', thinking: false, start: 0, secs: 0, note: '', set: new Set(), unfilled: [] };
     if (p) {
       // forslagene, der ligner den gemte vej, vælges igen (elementerne pr. gren)
       const want = endIds.map((_, b) => p.elements.filter((e) => (e.branches ?? [0]).includes(b)).map((e) => e.element));
       recompute(want);
       locked = !!net && !missingEnds.length;
-    }
-  }
-
-  // ---------------------------------------------------------------- "Forklar med egne ord" (v4.3.0)
-  async function suggest(): Promise<void> {
-    error = '';
-    if (!ai.text.trim() || !askedOnce.length) return;
-    ai = { ...ai, thinking: true, start: Date.now(), secs: 0, note: 'Hjælperen læser vejen og din beskrivelse …' };
-    thinkCtl = new AbortController();
-    try {
-      await postStream<SuggestEvent>(`${base}/suggest`, {
-        text: ai.text.trim(), questions: askedOnce.map((q) => ({ element: q.element, role: q.role })),
-      }, (ev) => {
-        if (ev.type === 'queued') ai.note = `I kø — ${ev.waiting} foran …`;
-        else if (ev.type === 'error') error = ev.message;
-        else if (ev.type === 'done') {
-          const got = new Map(ev.suggestions.map((a) => [a.element, a]));
-          answers = answers.map((a) => (got.has(a.element) && questions.filter((q) => q.element === a.element).length === 1 ? { ...got.get(a.element)!, key: a.key, branches: a.branches } : a));
-          ai.set = new Set(got.keys());
-          ai.unfilled = ev.unfilled;
-          ai.note = `Udfyldt på ${Math.round(ev.ms / 1000)} s — tjek forslagene, før du gemmer.`;
-        }
-      }, thinkCtl.signal);
-    } catch (e) {
-      if ((e as Error).name !== 'AbortError') error = (e as Error).message;
-      else ai.note = 'Stoppet.';
-    } finally {
-      ai.thinking = false;
-      thinkCtl = null;
     }
   }
 
@@ -552,40 +457,21 @@
       error = 'Der er ikke fundet en vej til alle slutpunkter';
       return;
     }
-    const conditions: (Condition & { branches: number[] })[] = [];
-    const errors: string[] = [];
-    for (const a of answers) {
-      const r = conditionsFrom([a], allTags);
-      errors.push(...r.errors);
-      if (r.conditions[0]) conditions.push({ ...r.conditions[0], branches: a.branches });
-    }
-    if (errors.length) {
-      error = errors.join(' · ');
-      return;
-    }
     if (!name.trim()) {
       error = 'Giv signalvejen et navn';
       return;
     }
-    if (!anyChosen(look, new Set(present.keys()))) {
-      error = 'Vælg mindst én animation under Udseende';
-      return;
-    }
+    // Definitionen: elementerne, grenene og flowretningen — intet om hvornår vejen er aktiv eller hvordan den ser ud (symbol-guiden)
     const body = {
-      name: name.trim(), start, end: endIds[0], ends: endIds.slice(1), conditions,
-      elements: net.rows.map((r) => {
-        const x = animsFor(r, look, defs, info.get(r.id)?.parts ?? []);
-        return { element: r.id, flows: x.flows, anims: x.anims, branches: r.branches };
-      }),
-      style: { light, speed, dash: 12 }, ui: { forced, picks, look, via, flips },
+      name: name.trim(), start, end: endIds[0], ends: endIds.slice(1),
+      elements: net.rows.map((r) => ({ element: r.id, flows: r.flows, branches: r.branches })),
+      ui: { forced, picks, via, flips },
     };
     busy = true;
     try {
       const id = editing?.id;
-      const res = (id ? await put(`${base}/${id}`, body) : await post(base, body)) as { dropped?: number } | undefined;
-      const n = body.elements.filter((e) => e.flows.length || e.anims.length).length;
-      const lost = res?.dropped ? ` ${res.dropped} af dine egne animationer lå på et element eller en gren, der er taget ud af vejen, og er fjernet.` : '';
-      onchanged?.(`Signalvejen "${body.name}" er gemt — ${n} dele har fået animationer.${lost}`);
+      await (id ? put(`${base}/${id}`, body) : post(base, body));
+      onchanged?.(`Signalvejen "${body.name}" er gemt. Sæt den op som et symbol: tryk "Ret som symbol" ved vejen — tilbagemelding (trin 2), kontaktflade (trin 3) og animationer (trin 4).`);
       editing = null;
       highlight([], []);
       await load();
@@ -597,7 +483,7 @@
   }
 
   async function remove(p: Saved): Promise<void> {
-    if (!(await askUser(`Slet signalvejen "${p.name}"? Dens løbelys og animationer forsvinder; symbolernes egen opsætning røres ikke.`,
+    if (!(await askUser(`Slet signalvejen "${p.name}"? Dens opsætning som symbol (tilbagemelding og animationer) slettes med; de øvrige symbolers opsætning røres ikke.`,
       { ok: 'Slet', danger: true }))) return;
     busy = true;
     try {
@@ -654,7 +540,7 @@
 {#if error}<p class="error small">{error}</p>{/if}
 
 {#if !editing}
-  <p class="small muted">En signalvej sætter løbelys på alle rør mellem symboler på én gang — styret af ventiler og pumper undervejs. Vejen kan dele sig i flere grene.</p>
+  <p class="small muted">En signalvej <strong>definerer</strong>, hvad en vej består af (rør, ventiler, pumper — og flowretningen). Når den er gemt, sætter du den op som et symbol: tryk <em>Ret som symbol</em> ved vejen — tilbagemelding fra et PLC-tag eller et andet symbols position, kontaktflade og animationer.</p>
   <div class="row"><button class="primary" onclick={() => begin(null)} disabled={!ready || busy}>Ny signalvej …</button></div>
   <SpSaved {paths} {ready} {busy} onedit={(p) => begin(p as Saved)} onremove={(p) => remove(p as Saved)}
     onsymbol={onsymbol ? (p) => onsymbol(p.symbol!, p.name) : undefined} />
@@ -730,25 +616,7 @@
 
   {#if complete && locked}
     <div class="step">
-      <h4>3. Hvornår går der flow?</h4>
-      <SpConditions bind:answers bind:ai bind:focusId {questions} {askedOnce} rows={net?.rows ?? []} tagsOf={(id) => info.get(id)?.tags ?? []} {allTags}
-        branchCount={endIds.length} {branchColor} {busy} onsuggest={suggest} onstop={() => thinkCtl?.abort()} />
-      {#if makecontrol}
-        <div class="row">
-          <button class="small" onclick={makeControl} disabled={!ready || busy}
-            title="Sæt en vippekontakt (OFF/ON, kun i SCADA — skriver ikke til en PLC) ind i tegningen, og vælg den bagefter som betingelse ovenfor: <vippekontakt>: position er ON">Lav en betjening til vejen</button>
-          {#if controlNote}<span class="small muted">{controlNote}</span>{/if}
-        </div>
-      {/if}
-    </div>
-
-    <div class="step">
-      <h4>4. Udseende — hvilke animationer?</h4>
-      <SpLook bind:look bind:light bind:speed {present} rows={net?.rows ?? []} parts={(id) => info.get(id)?.parts ?? []} />
-    </div>
-
-    <div class="step">
-      <h4>5. Navn og gem</h4>
+      <h4>3. Navn og gem</h4>
       <label class="field">Navn <input bind:value={name} maxlength="60" placeholder="fx Kedel → radiatorer" /></label>
       <div class="row">
         <button class="primary" onclick={() => save()} disabled={busy || !name.trim()}>Gem signalvej</button>

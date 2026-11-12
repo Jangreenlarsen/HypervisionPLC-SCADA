@@ -291,3 +291,18 @@ describe('"Gælder i" ved skift af kilde (v2.11.1)', () => {
     expect(keepsOnly('Tag1', false, false)).toBe(false);  // symbolet har ingen positioner
   });
 });
+
+
+describe('en signalvej som symbol (v6.0.0)', () => {
+  it('foreslår to positioner med PLC-tilbagemelding — kun passiv visning, intet at skrive', () => {
+    const symbol = { tag: 'g', line: false, type: 'signalvej', name: 'Vej', parts: {} } as SymbolInfo;
+    const p = libraryDefault(symbol)!;
+    expect(p.config.op).toBe('positions');
+    expect(p.config.passive).toBe(true);
+    expect(p.config.positions.map((x) => x.label)).toEqual(['Fra', 'Til']);
+    expect(p.config.signals).toHaveLength(1);
+    expect(p.config.signals[0]).toMatchObject({ tag: '', fb: '' });        // tilbagemeldingen vælges i trin 2
+    expect(p.config.planes[0].values).toEqual([0, 1]);                      // kontaktfladen: 0 = Fra, 1 = Til
+    expect(p.config.display).toBe('remote');
+  });
+});

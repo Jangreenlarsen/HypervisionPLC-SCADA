@@ -2,6 +2,13 @@
 
 ---
 
+## v6.0.0 — 2026-11-12 — Signalvejen er en definition, og bruges som et symbol
+
+- En **signalvej definerer kun, hvad den består af** (rør, ventiler, pumper og flowretning). Betingelser og udseende er fjernet fra vejens guide.
+- Tryk **Ret som symbol** ved vejen: i symbol-guidens 6 trin sætter du **tilbagemelding** op (et PLC-tag eller et andet symbols position), **kontaktfladen** (hvilken værdi er hvilken position) og **animationerne** — med **Tilføj løbelys langs vejen** efter vejens flowretning.
+- En signalvejs position kan læses af andre symboler.
+- **Opgradering (MAJOR):** vejens definition består; betingelser, udseende og de gamle animationer droppes, og vejens opsætning som symbol nulstilles (automatisk backup først). Symboler, der læste en vejs gamle tag, vises grå, til de rettes.
+
 ## v5.12.0 — 2026-11-12 — Betjening af en signalvej
 
 - Ny knap i vejens guide: **Lav en betjening til vejen** — sætter en vippekontakt (OFF/ON) ind ved vejen, kun i SCADA (skriver ikke til en PLC), og gør den valgbar som betingelse.

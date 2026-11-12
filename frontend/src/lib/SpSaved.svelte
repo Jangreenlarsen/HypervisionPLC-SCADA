@@ -1,9 +1,9 @@
 <script lang="ts">
   // Signalveje: listen over de gemte veje (Ret / Slet). Del af SignalPathGuide (v4.15.1).
-  interface Row { id: number; name: string; ends?: string[]; elements: unknown[]; conditions: unknown[]; missing: string[]; symbol?: string; configured?: boolean }
+  interface Row { id: number; name: string; ends?: string[]; elements: unknown[]; missing: string[]; symbol?: string; configured?: boolean }
   let { paths, ready, busy, onedit, onremove, onsymbol }: {
     paths: Row[]; ready: boolean; busy: boolean; onedit: (p: Row) => void; onremove: (p: Row) => void;
-    /** Vejen som symbol (v5.4.0): åbn symbol-guiden (6 trin) for vejens egne animationer, logik og signaler */
+    /** Vejen som symbol: åbn symbol-guiden (6 trin) — tilbagemelding (trin 2), kontaktflade (trin 3) og animationer (trin 4) */
     onsymbol?: (p: Row) => void;
   } = $props();
 </script>
@@ -12,13 +12,13 @@
   <div class="item">
     <div class="grow">
       <strong>{p.name}</strong>
-      <div class="small muted">{p.elements.length} dele · {(p.ends?.length ?? 1) > 1 ? `${p.ends!.length} grene · ` : ''}{p.conditions.length} betingelser</div>
+      <div class="small muted">{p.elements.length} dele{(p.ends?.length ?? 1) > 1 ? ` · ${p.ends!.length} grene` : ''}</div>
       {#if p.missing.length}<div class="small warn">{p.missing.length} dele findes ikke længere — ret vejen</div>{/if}
     </div>
     <div class="btns">
       {#if onsymbol && p.symbol}
         <button class="small" onclick={() => onsymbol(p)} disabled={!ready || busy}
-          title="Åbn vejen som symbol: tilføj egne animationer, logik og signaler på vejens elementer — de overskrives aldrig, når vejen gemmes igen">
+          title="Sæt vejen op som et symbol (6 trin): tilbagemelding fra et PLC-tag eller et andet symbols position, kontaktflade og animationer">
           Ret som symbol{p.configured ? ' ✓' : ''}</button>
       {/if}
       <button class="small" onclick={() => onedit(p)} disabled={!ready || busy}>Ret</button>

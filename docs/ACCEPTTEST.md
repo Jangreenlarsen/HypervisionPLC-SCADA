@@ -91,7 +91,9 @@ Forberedelse: tag en backup først (System › Backup, eller `scada-tool backup 
 
 - [ ] **Vejens egne animationer er redigerbare (v5.8):** *Ret som symbol* → trin 4 viser vejens løbelys og farver som almindelige animationer → skift kilden på en til et tag → **fjern fluebenet *Følger vejens udseende*** → gem → gem vejen igen (Ret → Gem): den frigjorte består, de øvrige genskabes.
 - [ ] **3-vejs ventil i en vej (v5.8):** *Vis animationer for* → ventilen → sæt farve pr. port (A, B, AB) → Overview følger.
-- [ ] **Betjening til vejen (v5.12):** i vejens guide, trin 3: *Lav en betjening til vejen* → kontakten dukker op i tegningen → vælg betingelsen *<kontakt>: position er ON* → gem vejen → tip kontakten på Overview: vejen tænder/slukker. Prøv også *er ikke*.
+- [ ] **Signalvejen som symbol (v6.0):** definér en vej (kun elementer og retning — ingen betingelser eller udseende) → *Ret som symbol* → trin 2: tilbagemelding = **PLC-tag** → trin 3: kontaktfladen (fx 0 = Fra, 1 = Til) → trin 4: *Tilføj løbelys langs vejen* → gem → skift PLC-tagget: løbelyset tænder/slukker på Overview. Prøv også tilbagemelding = **en omskifters position** (omskifter med *Kommando: kun i SCADA*).
+- [ ] **To retninger = to veje (v6.0):** en vej pr. retning gennem en 3-vejs ventil; hver sat op som symbol med sin egen tilbagemelding.
+- [ ] **Opgradering fra ældre veje (v6.0):** efter opdateringen har gamle veje stadig deres elementer, men ingen betingelser/udseende; Meddelelser/Audit har en `signal_path.migration`-post.
 - [ ] **Virtuelle signaler (v5.10–v5.11):** en omskifter med *Kommando: kun i SCADA (virtuelt)* (trin 2); vejens betingelse *Omskifter: position = Auto*; skift position på Overview → vejen lyser/stopper, og der skrives intet til PLC'en (Log › Audit). Sæt en PLC-tilbagemelding på: positionen følger PLC'en.
 - [ ] **Signalvejen som symbol (v5.4):** *Ret som symbol* → en egen animation på et element → gem vejen igen → animationen består.
 - [ ] **Signalvejen som kilde:** i et andet symbols animation vælges *en signalvej*; den følger vejen.
