@@ -1,3 +1,31 @@
+# Plan: Signalvejen er kun en definition — og bruges som et almindeligt symbol (v6.0.0) — 2026-11-12 — afventer OK
+
+Jans forklaring (2026-11-12): en signalvej **defineres** (hvad den består af: elementer, rute gennem ventilerne, flowretning) — den skal **ikke** selv have animationer eller betingelser. Hver flowretning/rute er sin egen signalvej. Når vejen er oprettet, bruges den som et **almindeligt symbol i symbol-guidens 6 trin**: trin 2 *Signaler* (tilbagemelding fra et PLC-tag **eller et andet symbols position**), trin 3 *Kontakter* (PLC-kontaktfladen afgør, hvilken værdi der er hvilken position — og dermed animationerne), trin 4 *Visning* (animationer på vejens dele, styret af positionen).
+
+## Ændring i forhold til v5.0–v5.12
+| Del | Før | Efter |
+| --- | --- | --- |
+| Vejens guide | start/slut/via, **trin 3 betingelser, trin 4 udseende** | start/slut/via/rute/retning — **kun definitionen** (gem) |
+| Vejens tilstand | beregnet af vejens betingelser (`path:…`-pseudo-tags, `runtime.evaluate_path`) | **vejsymbolets position** (`sym:<tegning>:sv~<id>:pos`) — som for ethvert symbol |
+| Vejens animationer | genereret ved gem (`materialize`, v5.8, `auto`) | **ingen** ved oprettelse; du lægger dem i symbol-guiden. Hjælper i trin 4: *Tilføj løbelys langs vejen* (bruger vejens flowretning) |
+| Vejsymbolet | kun visning, ingen positioner | **positioner** (standard *Fra / Til*), **kun passiv visning med PLC-tilbagemelding** (ingen skrivning, ingen betjening) |
+| Trin 2 | PLC-tag | **PLC-tag eller et symbols position** (derived signal) — både som tilbagemelding og som kilde |
+
+## Hvad der beholdes
+Vejens definition (`elements`, retning `flows.reverse`, valgte veje gennem ventiler `ui.forced`), vejsymbolet `sv~<id>` og dets guide, **symbolers position som signal** (fase A), **virtuelle signaler** (fase B), unikke navne og grupper i guiden (v5.9), backup af vejens id, symbol-oversigt.
+
+## Hvad der fjernes
+Trin 3/4 i vejens guide (`SpConditions`, `SpLook`, `pathLook`), vejens `conditions` og `style`, `signal_paths/runtime.py` (`evaluate_path`, `path:`-tags, `SymbolRuntime._evaluate_paths`), `materialize.py`, `auto`-feltet på animationer, `MAX_PATH_ANIMS`-særregler der kun hørte til materialiseringen, *Lav en betjening til vejen* (kan genovervejes). Eksisterende veje: **betingelser og udseende droppes uden migrering** (Jan: "kun fremad"); definitionen består; vejsymbolets opsætning nulstilles én gang med en rapport.
+
+## Trin
+1. **Backend:** `signal_paths/service.py` (`save` gemmer kun definitionen; ingen betingelser/udseende), `validate.py`; vejsymbolet: `validate_config` tillader `op: positions` + `passive` (ingen kommando/betjening) for `sv~`, standard Fra/Til; `symbols.derived_signals` + `symbol_runtime` (vejsymbolets position publiceres som for andre positioner); fjern `evaluate_path`/`materialize`; migrering `v60_paths` (backup først, nulstil vejsymboler, behold definitionen, rapport).
+2. **Frontend:** vejens guide skæres ned (trin 3/4 væk); `SymbolGuide`: trin 2 *tilbagemelding = PLC-tag eller symbolets position* (derived-vælger), trin 1–3 aktive for vejsymboler (trin 5 skjult), hjælperen *Tilføj løbelys langs vejen* i trin 4.
+3. **Docs/tests:** manual kap. 08/10 skrives om, LLM-tillæg, CHANGELOG, FEATURES, **v6.0.0** (MAJOR: vejens datamodel ændres), OTA. Tests: backend (vejsymbol med positioner/PLC-tilbagemelding styrer animationer, definition uden betingelser, migrering), frontend. **Reviewer** (data-integritet, migrering). **Browser:** vej → *Ret som symbol* → trin 2 PLC-tag → trin 3 kontaktflade → trin 4 løbelys langs vejen → Overview.
+
+## Risici
+- Stor ændring af en funktion, der lige er blevet bygget: derfor MAJOR og en tydelig rapport; ingen skjult dataforlis (backup før migrering).
+- *Position* er et tal (0,1,…): kontaktfladen i trin 3 oversætter PLC-værdi → position; en vej med to retninger bliver to veje med hver sin position (Fra/Til).
+- Brugere, der læste `path:`-tags i animationer/logik (v5.4): de henvisninger afvises/ryddes af migreringen (rapporteres).
 # Plan: Virtuelle signaler — symbolets position styrer visningen (v5.10.0 →) — 2026-11-12 — fase A er godkendt af Jan; B og C følger, med iterationer
 
 Jans svar (2026-11-12) på `docs/ANALYSE_VIRTUELLE_TAGS.md`: (1) i trin 2 (Signaler) på knapper/omskiftere skal man kunne vælge at styre **visningen i tegningen** (fx en signalvej) i stedet for at skrive til et PLC-tag; (3) en "intern variabel" er ikke en fri variabel — dens værdi er **kun** det, symbolet er linket til: er der en PLC-tilbagemelding, er den **toneangivende**, ellers den valgte position; (4) alle faser, med forventede iterationer og designændringer.
