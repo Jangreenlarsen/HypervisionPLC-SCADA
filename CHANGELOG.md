@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.6.1 build 0387] — 2026-11-12 — scada-tool: ingen traceback ved `| head`
+
+- `backend/app/tool.py`: `BrokenPipeError` (fx `scada-tool config | head`) giver ikke længere en traceback. Manual (kap. 13): kommandoen køres via `su -` eller med den fulde sti (`/usr/local/sbin` er ikke i PATH under `su -c`). Afprøvet på demo-serveren: `status`, `check`, `config`, `update status`, `logs`.
+
+## [5.6.0 build 0386] — 2026-11-12 — Server-værktøjskasse `scada-tool`
+
+- `backend/app/tool.py` + `deploy/scada-tool.sh` (installeres af `install.sh` som `/usr/local/sbin/scada-tool`): `status`, `check` (appen kan importeres? databaser `quick_check`, ejer af data-mappen, health, hængende opdatering), `logs`, `start|stop|restart` (venter på health), `update status|reset|apply|rollback`, `backup list|create|restore` (SQLite-kopi), `user list|reset` (adgangskode kun fra terminal/stdin, lukker sessioner), `config` (hemmeligheder som "(sat)"), `maint`. Ændringer spørger/`--yes` og logges (`logger -t scada-tool`).
+- `services/updates.py`: en opdatering, der står som "applying/queued", regnes som hængende efter **2 min** (før 20), når opdateringstjenesten ikke kører (`helper_running`). *(Et "stalled"-status blokerer ikke for upload, så en ekstra knap i web er ikke nødvendig.)*
+- Tests: `tests/test_tool.py` (nulstilling af adgangskode, config uden hemmeligheder, update reset/apply, diagnose af en app der ikke kan importeres, backup-rundtur, hængende opdatering). Manual (kap. 13), LLM-tillæg.
+
 ## [5.5.0 build 0385] — 2026-11-12 — Symbol-oversigt (træ)
 
 - `lib/symbolTree.ts` (rene funktioner: `buildTree`, `filterTree`, `countSymbols`) + `symbolTree.test.ts`; `lib/SymbolTree.svelte` (træet, søgning, "ikke opsatte", fold ud/sammen, hentes igen 0,5 s efter en ændring); `pages/DrawEditor.svelte`: panelet *Symbol-oversigt*, `Opsæt` åbner symbol-guiden (grundsymbol: elementet, signalvej: `sv~<id>`), `Animationer` åbner gruppens animationer (`GroupAnims`), oversigten genhentes, når guiden/gruppe-dialogen lukkes.

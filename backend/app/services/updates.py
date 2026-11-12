@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import tarfile
 import tempfile
 import threading
@@ -41,6 +42,27 @@ _VERSION = re.compile(r"^\d{1,4}\.\d{1,4}\.\d{1,4}(\.\d{1,4})?\Z")   # MAJOR.MIN
 _BUILD = re.compile(r"^\d{1,6}\Z")
 _USER = re.compile(r"[^A-Za-z0-9_.@-]")
 APPLYING_STALE_S = 20 * 60               # "applying" så længe = hjælperen er gået i stå
+NO_HELPER_STALE_S = 2 * 60               # ... eller efter 2 min, hvis opdateringstjenesten slet ikke kører (fx genstart midt i opdateringen)
+HELPER_UNIT = "hypervisionplc-scada-update.service"
+
+
+_helper_cache: tuple[float, bool | None] = (0.0, None)
+
+
+def helper_running() -> bool | None:
+    """Kører opdateringstjenesten (root-hjælperen)? None = kan ikke afgøres (ingen systemd). Svaret huskes i 10 s, så siden, der
+    spørger om opdateringsstatus hvert par sekunder, ikke hver gang venter på systemctl."""
+    global _helper_cache
+    now = time.monotonic()
+    if now - _helper_cache[0] < 10:
+        return _helper_cache[1]
+    try:
+        out = subprocess.run(["systemctl", "is-active", HELPER_UNIT], capture_output=True, text=True, timeout=5).stdout.strip()
+        val: bool | None = out in ("active", "activating", "reloading", "deactivating")
+    except (OSError, subprocess.SubprocessError):
+        val = None
+    _helper_cache = (now, val)
+    return val
 
 
 def _key(version: str, build: str) -> tuple[int, int, int, int, int]:
@@ -121,6 +143,7 @@ class UpdateService:
         self.backups = backups
         self.current = current
         self._receiving = threading.Lock()   # én pakke modtages ad gangen (upload eller GitHub)
+        self.helper_running = helper_running
 
     # ------------------------------------------------------------- filer
     @property
@@ -161,8 +184,11 @@ class UpdateService:
         state = (last or {}).get("state", "idle")
         if pending and state not in ("applying", "queued"):
             state = "queued"
-        if state in ("applying", "queued") and last and time.time() - float(last.get("ts", 0)) > APPLYING_STALE_S:
-            state = "stalled"
+        if state in ("applying", "queued") and last:
+            age = time.time() - float(last.get("ts", 0))
+            # en genstart midt i en opdatering efterlader "applying" for evigt — uden en kørende hjælper regnes den som hængende efter 2 min
+            if age > APPLYING_STALE_S or (age > NO_HELPER_STALE_S and self.helper_running() is False):
+                state = "stalled"
         return {"enabled": self.enabled, "current": current, "staged": staged, "state": state, "last": last,
                 "busy": state in ("applying", "queued"), "log": self._log_tail()}
 
@@ -237,5 +263,9 @@ class UpdateService:
 
     def _require_idle(self) -> None:
         state = self.status()["state"]
+        if state == "stalled":
+            # en hængende opdatering (fx genstart midt i den) må ikke blokere — og en gammel anmodning må ikke blive liggende og
+            # udløse en installation af en pakke, der siden er skiftet ud
+            (self.dir / "apply.request").unlink(missing_ok=True)
         if state in ("queued", "applying"):
             raise ServiceError(409, "En opdatering er i gang — vent til den er færdig")
