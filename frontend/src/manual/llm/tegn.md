@@ -54,6 +54,10 @@ Sidder en pumpe eller kontraventil på signalvejen, løber flowet fra dens udgan
 <!-- kilde: 08-forbindelser#m-tilslutningspunkter-siden-symboler sha:74cfc3e7 -->
 Opsætning › Symboler › fanen **Ind/ud og veje**: vælg symbolet, giv punkterne navn og rolle (Ind, Ud, Begge), markér det **fælles** punkt (AB) og ret evt. **vejene** (AB → A, AB → B; en 4-vejsventil fx P → A, P → B). Klik tilføjer et punkt, træk flytter det. Det bruges kun af signalveje.
 
+## Hvordan retter jeg en signalvej som et symbol (egne animationer, flere elementer, signalvejen som kilde)?
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
+Tryk **Ret som symbol** ved den gemte signalvej (Tegn › Signalveje). Vejen åbner i symbol-guiden med alle vejens elementer som dele; i trin 4 lægger du egne animationer på en vilkårlig del. De overskrives aldrig, når vejen gemmes igen. En signalvej kan kun vises, ikke betjenes. I andre symbolers animationer og logik kan du vælge *en signalvej* som kilde.
+
 ## Hvordan vælger jeg, hvilke animationer en signalvej skal give (farve, blink, løbelys, roterer)?
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 I signalvej-guidens trin 4 (**Udseende**) står der et kort for hver slags element på vejen. Sæt hak ved **Løbelys** (rør), **Farve**, **Stregfarve**, **Blink**, **Vises kun når vejen er aktiv** eller **Roterer** (pumper), og vælg farve og del. På en 3-vejsventil gælder animationen som standard kun portene i den vej, signalvejen bruger.

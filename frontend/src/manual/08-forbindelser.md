@@ -157,6 +157,15 @@ Under **Signalveje** står de gemte signalveje med **Ret** og **Slet**. *Slet* f
 
 > Finder Tegn ingen vej, så tjek, at rørene sidder fast (grønne ender, når røret er valgt), at rørene rører hinanden, hvor de mødes, og at rørene er tykke nok (føler- og stiplede linjer tæller ikke). Med en 3-vejsventil: prøv *automatisk* eller en anden vej.
 
+### Rediger vejen som et symbol
+
+Ved hver gemt signalvej står **Ret som symbol**. Den åbner vejen i **symbol-guiden** (de samme 6 trin som for ethvert symbol), hvor **alle vejens elementer** er dele, du kan give egne animationer:
+
+- **Trin 1 Symbol** viser vejens elementer. **Trin 4 Visning** lægger ekstra animationer (blink, farve, synlig, roterer …) på en **vilkårlig del af vejen** og kan bruge egne tags, logikblokke og — nyt — **selve signalvejen** som kilde (*styres af: en signalvej*). En signalvej kan kun **vises**, ikke betjenes (trin 3 og 5 er derfor ikke relevante).
+- Dine egne rettelser gemmes **ud for** vejens automatik og **overskrives aldrig**, når du gemmer vejen igen. De ligger *oven på* vejens løbelys og animationer, så de vinder ved samme slags på samme del. *Slet* på vejen fjerner også dens egen opsætning.
+- **Signalvejen som kilde:** i alle andre symbolers animationer og logikblokke kan du vælge *en signalvej* (til/fra) i stedet for et tag — fx lad en pumpe blinke, når vejen er aktiv.
+- Et element på vejen kan altid rettes for sig: vælg det i tegningen og brug *Opsæt symbol*.
+
 ## Tilslutningspunkter (siden Symboler)
 
 På siden **Symboler** (rollen tekniker, under **Opsætning**), fanen **Tilslutningspunkter**, kan du rette tilslutningspunkterne for et symbol i biblioteket — også egne symboler:

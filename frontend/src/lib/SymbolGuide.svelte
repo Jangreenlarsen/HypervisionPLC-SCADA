@@ -92,10 +92,16 @@ import { AVERAGE_CHOICES } from './trendData';
   const drawnLabels = $derived(isSelector && symbol ? drawnSelectorLabels(symbol.parts) : []);
   const selectorAnglesNow = $derived(isSelector ? drawnSelectorAngles(drawnLabels.length, cfg.positions.length) : null);
   const byValue = (a: Anim): boolean => !!a.by_value && isPos && !!a.src && !a.src.startsWith('@') && BY_VALUE_TYPES.includes(a.type);
-  const srcKind = (a: Anim): SrcKind => (a.src === POS || byValue(a) ? 'pos' : a.src === ON || parseAlarmRef(a.src) || isLogicRef(a.src) || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
+  const srcKind = (a: Anim): SrcKind => (a.src === POS || byValue(a) ? 'pos' : a.src === ON || parseAlarmRef(a.src) || isLogicRef(a.src) || a.src.startsWith('path:') || tagKindOf(a.src) === 'bool' ? 'bool' : 'num');
   const n = $derived(cfg.positions.length);
   const isPos = $derived(cfg.op === 'positions');
-  const partIds = $derived(['all', ...Object.keys(symbol?.parts ?? {})]);
+  /** Signalvejen som symbol (v5.4.0, id `sv~<vej>`): dele på tværs af vejens elementer, ingen "hele symbolet", kun visning. */
+  const isPath = $derived(element.startsWith('sv~'));
+  const partIds = $derived([...(isPath ? [] : ['all']), ...Object.keys(symbol?.parts ?? {})]);
+  /** Signalvejene på tegningen som kilde (v5.4.0): `path:<tegning>:<id>:<grene>` — til/fra. */
+  let pathSrc = $state<{ tag: string; label: string }[]>([]);
+  const isPathSrc = (s: string) => s.startsWith('path:');
+  const pathLabel = (tag: string) => pathSrc.find((p) => p.tag === tag)?.label ?? tag;
   const partInfo = (id: string) => (id === 'all' ? symbol ?? undefined : symbol?.parts[id]);
   const locks = $derived(isPos && cfg.lock.positions.some(Boolean));
   const pinOk = $derived(pin === '' || /^\d{4}$/.test(pin));
@@ -125,6 +131,11 @@ import { AVERAGE_CHOICES } from './trendData';
       .catch((e) => console.error('Gruppernes animationer kunne ikke hentes:', e));
   });
   onMount(async () => {
+    try {      // signalvejene som kilde (tekniker-API; fejl = ingen veje at vælge)
+      const rows = await get<{ name: string; sources: { tag: string; branches: number[] }[] }[]>(`/api/drawings/${enc(drawingId)}/signal-paths`);
+      pathSrc = rows.flatMap((p) => p.sources.map((s) => ({ tag: s.tag,
+        label: `Signalvej "${p.name}"${p.sources.length > 1 ? ` — gren ${s.branches.map((b) => b + 1).join('+')}` : ''}` })));
+    } catch { pathSrc = []; }
     try {
       const r = await get<{ config: SymbolConfig | null; has_pin: boolean; symbol: SymbolInfo | null; orphaned: boolean; warnings: string[]; logic_pool?: PoolBlock[] }>(`${base}/config`);
       if (r.orphaned || !r.symbol) throw new Error(`Elementet '${element}' findes ikke i den aktive version af tegningen`);
@@ -380,9 +391,9 @@ import { AVERAGE_CHOICES } from './trendData';
   const poolLabel = (p: PoolBlock) => `${p.symbol} · ${p.id}${p.name ? ` – ${p.name}` : ''}`;
   const poolRef = (p: PoolBlock) => `@${p.element}:${p.id}`;
   const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
-  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : 'tag');
+  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : isPathSrc(a.src) ? 'path' : 'tag');
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
+    a.src = mode === POS ? POS : mode === ON ? ON : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : mode === 'path' ? pathSrc[0]?.tag ?? '' : '';
     resetParams(a);
   }
   // ---- 3-vejs ventil styret af ét til/fra-tag
@@ -438,7 +449,7 @@ import { AVERAGE_CHOICES } from './trendData';
   /** Blokke en indgang må bruge: kun dem over blokken (serveren afviser løkker). */
   const earlier = (b: LogicBlock) => cfg.logic.slice(0, cfg.logic.indexOf(b));
   function setInputMode(b: LogicBlock, i: LogicBlock['inputs'][number], mode: string): void {
-    i.src = mode === 'block' ? firstBlockRef(earlier(b)) : '';
+    i.src = mode === 'block' ? firstBlockRef(earlier(b)) : mode === 'path' ? pathSrc[0]?.tag ?? '' : '';
     i.cmp = '';
     i.value = null;
   }
@@ -651,7 +662,13 @@ import { AVERAGE_CHOICES } from './trendData';
       </nav>
 
       <div class="body">
-        {#if step === 0}
+        {#if step === 0 && isPath}
+          <p class="muted small">Signalvejen <strong>{name}</strong> som symbol. Her lægger du <strong>egne animationer, logik og signaler</strong> oven på vejens automatiske løbelys —
+            de røres aldrig, når vejen gemmes igen. En signalvej kan kun vises, ikke betjenes.</p>
+          {@const roots = Object.entries(symbol.parts).filter(([, p]) => p.root)}
+          <h4>Elementer på vejen ({roots.length})</h4>
+          <ul class="small">{#each roots as [id, p]}<li>{p.label}{#if p.label !== id} <span class="muted">({id})</span>{/if}</li>{/each}</ul>
+        {:else if step === 0}
           <p class="muted small">Vælg hvordan symbolet betjenes. Alt andet i guiden følger af dette valg.</p>
           <div class="ops">
             {#each opList as op}
@@ -892,12 +909,14 @@ import { AVERAGE_CHOICES } from './trendData';
                 {@const isBlock = isLogicRef(inp.src)}
                 <div class="row wrap small input">
                   <label class="opt"><input type="checkbox" bind:checked={inp.neg} /> NOT</label>
-                  {#if refs.length || pool.length}
-                    <select value={isBlock ? 'block' : 'tag'} onchange={(e) => setInputMode(b, inp, e.currentTarget.value)} aria-label="Indgangstype">
-                      <option value="tag">tag</option><option value="block">blok</option>
+                  {#if refs.length || pool.length || pathSrc.length}
+                    <select value={isBlock ? 'block' : isPathSrc(inp.src) ? 'path' : 'tag'} onchange={(e) => setInputMode(b, inp, e.currentTarget.value)} aria-label="Indgangstype">
+                      <option value="tag">tag</option>{#if refs.length || pool.length}<option value="block">blok</option>{/if}{#if pathSrc.length}<option value="path">signalvej</option>{/if}
                     </select>
                   {/if}
-                  {#if isBlock}
+                  {#if isPathSrc(inp.src)}
+                    <select bind:value={inp.src} aria-label="Signalvej">{#each pathSrc as p}<option value={p.tag}>{p.label}</option>{/each}</select>
+                  {:else if isBlock}
                     <select bind:value={inp.src} aria-label="Blok">
                       {#if refs.length}<optgroup label="Dette symbol">{#each refs as r}<option value={'@' + r.id}>{blockLabel(r)}</option>{/each}</optgroup>{/if}
                       {#if pool.length}<optgroup label="Andre symboler">{#each pool as p}<option value={poolRef(p)}>{poolLabel(p)}</option>{/each}</optgroup>{/if}
@@ -938,6 +957,7 @@ import { AVERAGE_CHOICES } from './trendData';
                   {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
                   {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
+                  {#if pathSrc.length && !['level', 'opacity', 'scale', 'text', 'segments'].includes(a.type)}<option value="path">en signalvej</option>{/if}
                   {#if !['level', 'opacity', 'scale', 'text', 'segments'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
                 </select>
                 {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
@@ -957,6 +977,12 @@ import { AVERAGE_CHOICES } from './trendData';
                   </select>
                   <span class="small muted">på</span>
                   <TagSelect value={al.tag} {tags} onchange={(v) => { a.src = alarmRef(al.kind, v); resetParams(a); }} />
+                {/if}
+                {#if srcMode(a) === 'path'}
+                  <select bind:value={a.src} onchange={() => resetParams(a)} aria-label="Signalvej">
+                    {#each pathSrc as p}<option value={p.tag}>{p.label}</option>{/each}
+                    {#if !pathSrc.some((p) => p.tag === a.src)}<option value={a.src}>{pathLabel(a.src)} (findes ikke)</option>{/if}
+                  </select>
                 {/if}
                 {#if srcMode(a) === 'logic'}
                   <select bind:value={a.src} onchange={() => resetParams(a)} aria-label="Logikblok">
@@ -1013,7 +1039,7 @@ import { AVERAGE_CHOICES } from './trendData';
               title="Tilføj en animation med 'altid til' nederst — den gælder, når ingen af de aktiv/passive over den er aktive">+ Standard</button>
           </div>
           </div>
-          {#if drawingSvg}<AnimPreview {cfg} {element} svg={drawingSvg} kindOf={tagKindOf} metaOf={(t) => metaOf(t)} rangeOf={rangeOf} />{/if}
+          {#if drawingSvg && !isPath}<AnimPreview {cfg} {element} svg={drawingSvg} kindOf={tagKindOf} metaOf={(t) => metaOf(t)} rangeOf={rangeOf} />{/if}
           </div>
           <OwnerAnims owners={groupOwners} {symbol} title="Animationer fra grupper (ændres under Grupper — gælder ud over symbolets egne)" />
           {#if cfg.anims.some((x) => x.when)}
@@ -1192,7 +1218,7 @@ import { AVERAGE_CHOICES } from './trendData';
   .group-note { margin: .2rem 0 .4rem; padding: .35rem .6rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); }
   .group-res { margin: 0 0 .4rem; }
   .group-res ul { margin: .2rem 0 0; padding-left: 1.2rem; }
-  .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px 0; z-index: 20; }
+  .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px 0; z-index: 38; }
   .guide { width: 100%; max-width: 780px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 8px 30px rgba(0, 0, 0, .25); }
   .head { align-items: baseline; gap: .6rem; cursor: move; touch-action: none; user-select: none; }
   .head h2 { margin: 0; font-size: 1.15rem; }

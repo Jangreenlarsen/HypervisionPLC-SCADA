@@ -1083,9 +1083,15 @@ class Database:
         sql = "SELECT id, drawing_id, name, data, updated_at, updated_by FROM signal_paths"
         rows = (self._query(sql + " WHERE drawing_id = ? ORDER BY name", (drawing_id,)) if drawing_id is not None
                 else self._query(sql + " ORDER BY drawing_id, name"))
+        out = []
         for r in rows:
-            r["data"] = json.loads(r["data"])
-        return rows
+            try:
+                r["data"] = json.loads(r["data"])
+            except ValueError:
+                log.error("Signalvejen '%s' (%s) er beskadiget og springes over", r.get("name"), r.get("drawing_id"))
+                continue
+            out.append(r)
+        return out
 
     def get_signal_path(self, drawing_id: str, path_id: int) -> dict[str, Any] | None:
         return next((r for r in self.list_signal_paths(drawing_id) if r["id"] == path_id), None)
@@ -1124,6 +1130,8 @@ class Database:
                 for element, cfg in configs.items():
                     if cfg is None:
                         cur.execute("DELETE FROM symbol_config WHERE drawing_id = ? AND element = ?", (drawing_id, element))
+                        cur.execute("DELETE FROM symbol_pins WHERE drawing_id = ? AND element = ?", (drawing_id, element))
+                        cur.execute("DELETE FROM symbol_state WHERE drawing_id = ? AND element = ?", (drawing_id, element))
                     else:
                         cur.execute("INSERT INTO symbol_config(drawing_id, element, config, updated_at, updated_by) "
                                     "VALUES (?,?,?,?,?) ON CONFLICT(drawing_id, element) DO UPDATE SET "
@@ -1456,7 +1464,7 @@ class Database:
             "symbol_config": [{"drawing_id": r["drawing_id"], "element": r["element"], "config": r["config"]}
                               for r in self.list_symbol_configs()],
             "symbol_groups": self._export_groups(),
-            "signal_paths": [{k: r[k] for k in ("drawing_id", "name", "data")} for r in self.list_signal_paths()],
+            "signal_paths": [{k: r[k] for k in ("id", "drawing_id", "name", "data")} for r in self.list_signal_paths()],
             "trend_views": self.list_trend_views(),
             "symbol_ports": self.list_symbol_ports(),
             "symbol_flow": self.list_symbol_flow(),
@@ -1620,9 +1628,11 @@ class Database:
                     for el, anims in (g.get("anims") or {}).items():
                         cur.execute("INSERT INTO symbol_group_anims(group_id, element, anims, updated_at, updated_by) "
                                     "VALUES (?,?,?,?,?)", (gid, el, json.dumps(anims, ensure_ascii=False), now, "restore"))
-                for sp in data.get("signal_paths", []):   # signalveje (v4.2.0); slettet ovenfor via tegningerne
-                    cur.execute("INSERT INTO signal_paths(drawing_id, name, data, updated_at, updated_by) VALUES (?,?,?,?,?)",
-                                (sp["drawing_id"], sp["name"], json.dumps(sp["data"], ensure_ascii=False), now, "restore"))
+                # id'et bevares (v5.4.0): vejens egen opsætning som symbol (`sv~<id>`) peger på det. Veje med id først (sorteret),
+                # så en vej uden id ikke får et nummer, en senere vej med id skal bruge (UNIQUE).
+                for sp in sorted(data.get("signal_paths", []), key=lambda x: (x.get("id") is None, x.get("id") or 0)):
+                    cur.execute("INSERT INTO signal_paths(id, drawing_id, name, data, updated_at, updated_by) VALUES (?,?,?,?,?,?)",
+                                (sp.get("id"), sp["drawing_id"], sp["name"], json.dumps(sp["data"], ensure_ascii=False), now, "restore"))
                 for b in data["bindings"]:
                     cur.execute("INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
                                 (b["drawing_id"], b["element"], b["position"], b["tag"], b["anim"],

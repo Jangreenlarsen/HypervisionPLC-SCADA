@@ -391,3 +391,114 @@ def test_condition_tags_keep_polling_and_limits(api):
                                                                  "anims": []}],
             "conditions": [{"element": "r1", "src": "T", "neg": False, "cmp": "ge", "value": float("nan"), "branches": [0]}], "style": {}, "ui": {}}
     assert "grænseværdi" in valid_data(base)
+
+
+# --------------------------------------------------------------------- signalvejen som symbol (v5.4.0)
+
+def _path(api):
+    r = api.post(f"/api/drawings/{api.d}/signal-paths", json=body())
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+def test_path_is_a_symbol_with_the_elements_as_parts(api):
+    pid = _path(api)
+    r = api.get(f"/api/drawings/{api.d}/symbols/sv~{pid}/config").json()
+    assert r["orphaned"] is False and r["config"] is None
+    assert r["symbol"]["type"] == "signalvej" and r["symbol"]["name"] == "Kedel → radiator"
+    assert {"r1", "p1", "p1_hjul", "t1_a", "v2_hus", "r4"} <= set(r["symbol"]["parts"])
+    assert api.get(f"/api/drawings/{api.d}/symbols/sv~999/config").json()["orphaned"] is True
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~999/config", json={"config": {"op": "view"}}).status_code == 404
+    listed = api.get(f"/api/drawings/{api.d}/signal-paths").json()[0]
+    assert listed["symbol"] == f"sv~{pid}" and listed["configured"] is False and listed["sources"]
+
+
+def test_path_symbol_extra_animations_survive_a_resave_and_win_over_the_automatic_ones(api):
+    pid = _path(api)
+    src = api.get(f"/api/drawings/{api.d}/signal-paths").json()[0]["sources"][0]["tag"]
+    mine = {"op": "positions", "anims": [
+        {"part": "p1_hjul", "type": "blink", "src": "Ekstra", "params": {}},
+        {"part": "r1", "type": "fill", "src": src, "when": True, "params": {"on": "#ff0000"}}]}
+    r = api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": mine})
+    assert r.status_code == 200, r.text
+    assert r.json()["config"]["op"] == "view"                       # en vej kan ikke betjenes
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config",
+                   json={"config": {"op": "view", "anims": [{"part": "all", "type": "blink", "src": "Ekstra", "params": {}}]}}
+                   ).status_code == 400                             # "hele symbolet" findes ikke for en vej
+    before = cfg(api, f"sv~{pid}")
+    assert api.put(f"/api/drawings/{api.d}/signal-paths/{pid}", json=body(name="Kedel → radiator")).status_code == 200
+    assert cfg(api, f"sv~{pid}") == before                          # automatikken rører ikke de egne rettelser
+    view = api.get(f"/api/drawings/{api.d}/view").json()["bindings"]
+    own = [b for b in view if b.get("source") == "path-symbol"]
+    auto = [b for b in view if b.get("source") == "path"]
+    assert {(b["element"], b["anim"]) for b in own} == {("p1_hjul", "blink"), ("r1", "fill")}
+    assert all(b["position"] >= 100_000 for b in own) and all(b["position"] < 100_000 for b in auto)
+    assert next(b for b in own if b["element"] == "r1")["tag"] == src
+    assert api.get(f"/api/drawings/{api.d}/symbols-orphaned").json() == []
+
+
+def test_path_symbol_logic_runs_and_is_deleted_with_the_path(api):
+    pid = _path(api)
+    cfgp = {"op": "view", "logic": [{"id": "L1", "name": "Pumpe og ekstra", "op": "and",
+                                     "inputs": [{"src": "P1_drift"}, {"src": "Ekstra"}]}],
+            "anims": [{"part": "r2", "type": "blink", "src": "@L1", "params": {}}]}
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": cfgp}).status_code == 200
+    other = {"op": "view", "anims": [{"part": "all", "type": "blink", "src": f"@sv~{pid}:L1", "params": {}}]}
+    assert api.put(f"/api/drawings/{api.d}/symbols/rad/config", json={"config": other}).status_code == 200
+    r = api.delete(f"/api/drawings/{api.d}/signal-paths/{pid}")
+    assert r.status_code == 409 and "L1" in r.json()["error"]       # en anden bruger vejens blok
+    assert cfg(api, f"sv~{pid}") is not None
+    api.delete(f"/api/drawings/{api.d}/symbols/rad/config")
+    assert api.delete(f"/api/drawings/{api.d}/signal-paths/{pid}").status_code == 200
+    assert cfg(api, f"sv~{pid}") is None and api.get(f"/api/drawings/{api.d}/symbols-orphaned").json() == []
+
+
+def test_backup_keeps_the_path_id_so_the_path_symbol_still_fits(api):
+    api.post(f"/api/drawings/{api.d}/signal-paths", json=body(name="Først"))          # id 1 — så vejen herunder ikke har id 1
+    pid = api.post(f"/api/drawings/{api.d}/signal-paths", json=body(name="Anden",)).json()["id"]
+    api.delete(f"/api/drawings/{api.d}/signal-paths/1")
+    own = {"op": "view", "anims": [{"part": "p1_hjul", "type": "blink", "src": "Ekstra", "params": {}}]}
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": own}).status_code == 200
+    bk = api.get("/api/backup").json()
+    assert [p["id"] for p in bk["signal_paths"]] == [pid]
+    assert api.post("/api/backup/restore", json=bk).status_code == 200
+    assert [p["id"] for p in api.get(f"/api/drawings/{api.d}/signal-paths").json()] == [pid]
+    assert cfg(api, f"sv~{pid}")["anims"][0]["part"] == "p1_hjul"
+    old = {**bk, "signal_paths": [{k: v for k, v in p.items() if k != "id"} for p in bk["signal_paths"]]}
+    assert api.post("/api/backup/restore", json=old).status_code == 200                # ældre backup uden id: opsætningen droppes
+    assert cfg(api, f"sv~{pid}") is None
+
+
+def test_restore_with_mixed_path_ids_and_references_to_missing_paths(api):
+    pid = _path(api)
+    bk = api.get("/api/backup").json()
+    extra = {**bk["signal_paths"][0], "name": "Uden id", "id": None}
+    nxt = {**bk["signal_paths"][0], "name": "Næste", "id": pid + 1}      # det nummer, vejen uden id ellers ville få
+    assert api.post("/api/backup/restore", json={**bk, "signal_paths": [extra, nxt, *bk["signal_paths"]]}).status_code == 200
+    got = {p["name"]: p["id"] for p in api.get(f"/api/drawings/{api.d}/signal-paths").json()}
+    assert got["Næste"] == pid + 1 and got["Kedel → radiator"] == pid and "Uden id" in got
+    # en anden opsætning, der bruger vejen som kilde, men hvor vejen ikke kommer med tilbage
+    src = api.get(f"/api/drawings/{api.d}/signal-paths").json()[0]["sources"][0]["tag"]
+    own = {"op": "view", "anims": [{"part": "all", "type": "blink", "src": src, "params": {}}]}
+    assert api.put(f"/api/drawings/{api.d}/symbols/rad/config", json={"config": own}).status_code == 200
+    bk2 = api.get("/api/backup").json()
+    r = api.post("/api/backup/restore", json={**bk2, "signal_paths": []})
+    assert r.status_code == 400 and "signalvej" in r.json()["error"]
+
+
+def test_deleting_a_path_used_as_a_source_is_refused_and_pins_are_not_allowed(api):
+    pid = _path(api)
+    src = api.get(f"/api/drawings/{api.d}/signal-paths").json()[0]["sources"][0]["tag"]
+    own = {"op": "view", "anims": [{"part": "all", "type": "blink", "src": src, "params": {}}]}
+    assert api.put(f"/api/drawings/{api.d}/symbols/rad/config", json={"config": own}).status_code == 200
+    r = api.delete(f"/api/drawings/{api.d}/signal-paths/{pid}")
+    assert r.status_code == 409 and "rad" in r.json()["error"]
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/pin", json={"pin": "1234"}).status_code in (400, 404, 405, 422)
+    api.delete(f"/api/drawings/{api.d}/symbols/rad/config")
+    assert api.delete(f"/api/drawings/{api.d}/signal-paths/{pid}").status_code == 200
+
+
+def test_svg_ids_that_look_like_a_path_symbol_are_removed():
+    from app.services.svg_sanitize import sanitize_svg
+    out = sanitize_svg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect id="sv~3" width="1" height="1"/><rect id="ok" width="1" height="1"/></svg>')
+    assert 'id="sv~3"' not in out.svg and 'id="ok"' in out.svg

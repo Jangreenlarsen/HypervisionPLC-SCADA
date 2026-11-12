@@ -132,6 +132,9 @@ describe('delnavne i guiden (v0.81.0)', () => {
   it('biblioteksnavn, ramme, nummererede figurer og tekst', () => {
     const kedel = info('kedel', { svg_2: { tag: 'rect', line: true }, svg_39_flamme: { tag: 'path', line: true, pid: 'flamme' } });
     expect(partLabel('all', kedel)).toBe('Hele symbolet');
+    // en signalvej som symbol (v5.4.0): delene navngives efter elementet på vejen
+    const vej = { type: 'signalvej', name: 'V', tag: 'g', line: false, parts: { r1: { tag: 'path', line: true, label: 'r1', root: true }, p1_hjul: { tag: 'circle', line: true, label: 'P1 · p1_hjul' } } };
+    expect(partLabel('p1_hjul', vej as never)).toBe('P1 · p1_hjul');
     expect(partLabel('svg_39_flamme', kedel)).toBe('Flamme');
     expect(partLabel('svg_2', kedel)).toBe('Ramme (svg_2)');
     const kedel2 = info('kedel', { svg_2: { tag: 'rect', line: true }, svg_7: { tag: 'rect', line: true }, svg_8: { tag: 'rect', line: true } });

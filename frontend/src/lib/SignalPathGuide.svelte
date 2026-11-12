@@ -31,7 +31,7 @@
     parts?: { id: string; pid: string; line: boolean; text: string }[];
   }
 
-  let { drawingId, ready, rev = 0, selected, graph, highlight, select, ensureSaved, onchanged, oneditchange }: {
+  let { drawingId, ready, rev = 0, selected, graph, highlight, select, ensureSaved, onchanged, oneditchange, onsymbol }: {
     drawingId: string;
     ready: boolean;
     rev?: number;           // tælles op, hver gang tegningen ændres (flyt, ret, fortryd): vejen regnes så forfra
@@ -43,6 +43,8 @@
     onchanged?: (text: string) => void;
     /** guiden er åben for en vej (ny eller Ret) — Tegn lægger den så i et vindue over tegningen (v5.2.0) */
     oneditchange?: (editing: boolean) => void;
+    /** Vejen som symbol (v5.4.0): Tegn åbner symbol-guiden for `sv~<id>` */
+    onsymbol?: (id: string, name: string) => void;
   } = $props();
 
   const COLORS = ['#ff8f00', '#1e88e5', '#43a047', '#8e24aa'];       // en farve pr. gren i tegningen
@@ -635,7 +637,8 @@
 {#if !editing}
   <p class="small muted">En signalvej sætter løbelys på alle rør mellem symboler på én gang — styret af ventiler og pumper undervejs. Vejen kan dele sig i flere grene.</p>
   <div class="row"><button class="primary" onclick={() => begin(null)} disabled={!ready || busy}>Ny signalvej …</button></div>
-  <SpSaved {paths} {ready} {busy} onedit={(p) => begin(p as Saved)} onremove={(p) => remove(p as Saved)} />
+  <SpSaved {paths} {ready} {busy} onedit={(p) => begin(p as Saved)} onremove={(p) => remove(p as Saved)}
+    onsymbol={onsymbol ? (p) => onsymbol(p.symbol!, p.name) : undefined} />
 {:else}
   <div class="step">
     <h4>1. Start og slutpunkter</h4>

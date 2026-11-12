@@ -22,7 +22,8 @@ from ...storage.db import Database
 from ..auth import CurrentUser
 from ..errors import ServiceError
 from ..svg_sanitize import describe_element, index_svg, subtree_map
-from ..symbols import SymbolService, _TagInfo, config_tags
+from ..symbols import SymbolService, _TagInfo, config_tags, path_symbol_id
+from .runtime import branch_sets, path_tag
 from .validate import MAX_CONDITIONS, MAX_ELEMENTS, MAX_ENDS, clean_params, valid_data
 
 log = logging.getLogger("scada.signalpath")
@@ -38,6 +39,7 @@ class SignalPathService:
     def list(self, drawing_id: str) -> list[dict[str, Any]]:
         self.drawings._require(drawing_id)
         ids = set(index_svg(self.drawings.svg(drawing_id)))
+        configured = set(self.symbols.configs(drawing_id))
         out = []
         for r in self.db.list_signal_paths(drawing_id):
             d = r["data"]
@@ -45,7 +47,11 @@ class SignalPathService:
             out.append({"id": r["id"], "name": r["name"], "start": d.get("start"), "end": d.get("end"),
                         "ends": [d["end"], *(d.get("ends") or [])] if d.get("end") else [], "ui": d.get("ui", {}),
                         "elements": d.get("elements", []), "conditions": d.get("conditions", []), "style": d.get("style", {}),
-                        "missing": missing, "updated_at": r["updated_at"], "updated_by": r["updated_by"]})
+                        "missing": missing, "updated_at": r["updated_at"], "updated_by": r["updated_by"],
+                        # vejen som symbol (v5.4.0): id til symbol-guiden, om den har egen opsætning, og pseudo-tags som kilde
+                        "symbol": path_symbol_id(r["id"]), "configured": path_symbol_id(r["id"]) in configured,
+                        "sources": [{"tag": path_tag(drawing_id, r["id"], b), "branches": list(b)} for b in branch_sets(d)]
+                        if valid_data(d) is None else []})
         return out
 
     def info(self, drawing_id: str, elements: list[str], visible: set[str] | None = None) -> dict[str, Any]:
@@ -166,7 +172,19 @@ class SignalPathService:
         old = self.db.get_signal_path(drawing_id, path_id)
         if old is None:
             raise ServiceError(404, "Signalvejen findes ikke (er den slettet imens?)")
-        if self.db.write_signal_path(drawing_id, path_id, None, None, {}, actor.username) is None:
+        sym = path_symbol_id(path_id)       # vejens egen opsætning som symbol (v5.4.0) slettes med den
+        mine = self.symbols.db.get_symbol_config(drawing_id, sym)
+        if mine is not None and (users := self.symbols._logic_users(drawing_id, sym, {b["id"] for b in mine["config"].get("logic", [])})):
+            raise ServiceError(409, f"Vejens logikblok {users[0][1]} bruges af '{users[0][0]}' — fjern henvisningen dér først")
+        if users := self.symbols.path_users(drawing_id, path_id):
+            raise ServiceError(409, f"Signalvejen bruges som kilde af '{users[0]}' — fjern henvisningen dér først")
+        done = self.db.write_signal_path(drawing_id, path_id, None, None, {sym: None}, actor.username,
+                                         expect={sym: mine["config"] if mine else None})      # kun hvis opsætningen er uændret
+        if done == -1:
+            raise ServiceError(409, "Vejens opsætning blev ændret imens — prøv igen")
+        if done is None:
             raise ServiceError(404, "Signalvejen findes ikke (er den slettet imens?)")
+        if mine is not None and self.symbols.on_change is not None:
+            self.symbols.on_change(drawing_id, sym)
         log.info("Signalvej '%s' (%s, id %s) slettet af %s", old["name"], drawing_id, path_id, actor.username)
         return {"deleted": path_id, "name": old["name"]}

@@ -13,7 +13,7 @@ from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, auto_binding, bin
 from .errors import ServiceError
 from .live_cache import LiveCache
 from .svg_sanitize import SvgError, index_svg, sanitize_svg, subtree_ids, subtree_map, symbol_roots
-from .symbols import config_bindings, symbol_view
+from .symbols import config_bindings, parse_path_symbol, path_symbol_id, symbol_view
 from .tagsource import TagSourceError, parse_source
 
 log = logging.getLogger("scada.drawings")
@@ -118,8 +118,9 @@ class DrawingService:
         report = _report(result)
         report["orphaned_bindings"] = orphans
         # B4 (funktionsanalyse): også symboler sat op med guiden og gruppe-animationer, hvis element er væk
+        paths = {path_symbol_id(r["id"]) for r in self.db.list_signal_paths(drawing_id)}     # vejenes virtuelle symboler er ikke i SVG'en
         report["orphaned_symbols"] = sorted(({r["element"] for r in self.db.list_symbol_configs(drawing_id)}
-                                             | {r["element"] for r in self.db.list_group_anims(drawing_id)}) - ids)
+                                             | {r["element"] for r in self.db.list_group_anims(drawing_id)}) - ids - paths)
         return {"drawing": self.get(drawing_id), "version": version, "report": report}
 
     def _sanitize(self, svg: str) -> Any:
@@ -359,7 +360,33 @@ class DrawingService:
             effective.extend(config_bindings(drawing_id, element, cfg, covered))
         effective.extend(self._group_bindings(drawing_id, svg, index))
         effective.extend(self._path_bindings(drawing_id, svg, index))
+        effective.extend(self._path_symbol_bindings(drawing_id, svg, index))
         return drawing, svg, effective, orphans, tags
+
+    def _path_symbol_bindings(self, drawing_id: str, svg: str, index: dict[str, Any]) -> list[dict[str, Any]]:
+        """Signalvejens egen opsætning (v5.4.0: vejen som symbol, `sv~<id>`): animationer på vejens dele. Ligger efter vejens
+        automatik, så de egne rettelser vinder ved samme slags på samme del — og de røres aldrig af, at vejen gemmes igen."""
+        out: list[dict[str, Any]] = []
+        paths = {path_symbol_id(r["id"]): r for r in self.db.list_signal_paths(drawing_id)}
+        if not paths:
+            return out
+        for r in self.db.list_symbol_configs(drawing_id):
+            row = paths.get(r["element"])
+            if row is None:
+                continue
+            info = self.symbols_info(drawing_id, r["element"], svg)
+            parts = set((info or {}).get("parts", {})) & set(index)
+            for b in config_bindings(drawing_id, r["element"], r["config"], parts):
+                out.append({**b, "position": 100_000 + b["position"], "source": "path-symbol", "path": row["id"],
+                            "path_name": row["name"]})
+        return out
+
+    def symbols_info(self, drawing_id: str, element: str, svg: str) -> dict[str, Any] | None:
+        from .svg_sanitize import describe_group
+        row = self.db.get_signal_path(drawing_id, parse_path_symbol(element) or -1)
+        if row is None:
+            return None
+        return describe_group(svg, [e["element"] for e in row["data"].get("elements", []) if isinstance(e, dict)], row["name"])
 
     def _path_bindings(self, drawing_id: str, svg: str, index: dict[str, Any]) -> list[dict[str, Any]]:
         """Signalvejenes animationer (v5.0.0) som almindelige bindinger på vejens pseudo-tag (services/signal_paths/runtime.py):

@@ -203,12 +203,13 @@ async def preview(drawing_id: str, element: str, body: PreviewBody, request: Req
     """Valider en konfiguration uden at gemme den, og vis skriveplanen pr. position (guidens trin 6)."""
     svc = _svc(request)
     svc.drawings._require(drawing_id)
-    info = describe_element(svc.drawings.svg(drawing_id), element)
+    info = svc.info(drawing_id, element)
     if info is None:
         raise ServiceError(404, f"Elementet '{element}' findes ikke i den aktive version af tegningen")
     # Koden tastes i guiden og sendes først ved gem — så kræv den ikke her (PUT afviser stadig lås uden kode)
     others = {k: v for k, v in svc.configs(drawing_id).items() if k != element}
-    cfg, res = validate_config(body.config, info, svc._tags(), has_pin=True, element_id=element, others=others)
+    cfg, res = validate_config(body.config, info, svc._tags(), has_pin=True, element_id=element, others=others,
+                               pseudo=svc.path_sources(drawing_id))
     plans = ([{"position": k, "label": p["label"], "writes": write_plan(cfg, k)} for k, p in enumerate(cfg["positions"])]
              if cfg["op"] == "positions" and not cfg.get("passive") and not res.count else [])
     return {"config": cfg, "steps": res.steps, "warnings": res.warnings, "errors": res.count, "plans": plans}

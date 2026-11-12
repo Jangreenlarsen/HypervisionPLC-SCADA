@@ -293,7 +293,7 @@
 </div>
 
 <style>
-  .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px 0; z-index: 25; }
+  .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px 0; z-index: 38; }
   .dlg { width: 100%; max-width: 900px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 8px 30px rgba(0, 0, 0, .25); border-top: 4px solid var(--c); }
   .head { align-items: baseline; gap: .6rem; }
   .head h2 { margin: 0; font-size: 1.15rem; }
