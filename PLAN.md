@@ -1,3 +1,43 @@
+# Plan: Server-værktøjskasse `scada-tool` (v5.6.0) — 2026-11-12 — afventer OK
+
+Anledning: v5.4.0 kunne ikke starte, rullede tilbage, og opdateringsstatus stod fast på "applying" (maskinen blev genstartet midt i opdateringen) — så ny upload gav "En opdatering er i gang". Det kostede flere SSH-trin at finde og rydde. Jan vil have en **værktøjskasse på serveren** med de mest brugte vedligeholdelsesfunktioner.
+
+## Løsning (af tre)
+- **A. Ét kommando `scada-tool` (shell + lidt Python), installeret af `install.sh` ved siden af `scada-maint` (valgt).** Kører som root, dansk output, tørkørsel/bekræftelse ved alt der ændrer noget, hvert skridt logges (`logger -t scada-tool`). Genbruger de eksisterende scripts (`apply-update.sh`, `scada-maint`) i stedet for at kopiere deres logik.
+- B. Udvid `scada-maint` med flere kommandoer — blander diskoprydning og drift, og navnet passer ikke.
+- C. Kun dokumentation af kommandoer — ingen hjælp, når serveren ikke starter.
+
+## Kommandoer
+| Kommando | Gør |
+| --- | --- |
+| `scada-tool status` | Version/build, tjenestens tilstand og oppetid, `/api/health`, opdateringsstatus, disk, hukommelse, nginx/LLM-tjeneste, de seneste fejl |
+| `scada-tool check` | **Diagnose af en server, der ikke starter:** importerer appen med serverens Python (fanger fx en manglende import), tjekker port, `PRAGMA quick_check` på databaserne, rettigheder på data-mappen — og siger *hvad* der er galt |
+| `scada-tool logs [-n N] [-f] [--fejl]` | Systemloggen for SCADA (seneste N linjer, følg, kun fejl) — også `--tjeneste nginx\|llm\|update` |
+| `scada-tool start\|stop\|restart` | Styrer tjenesten og venter på, at `/api/health` svarer (ellers vis loggen) |
+| `scada-tool update status` | Opdateringsstatus + `update.log` |
+| `scada-tool update reset` | **Rydder en hængende opdatering** (status "applying/queued", `apply.request`, halvfærdig pakke) — efter at have tjekket, at opdateringstjenesten ikke kører |
+| `scada-tool update apply FIL.tar` | Installerer en OTA-pakke fra en fil på serveren (samme kontrol og tilbagerulning som web-opdateringen) — til når web ikke virker |
+| `scada-tool update rollback` | Gendanner forrige version (`…scada.prev`) og starter tjenesten |
+| `scada-tool backup list\|create` | Viser/laver en backup af konfigurationen (samme som web) |
+| `scada-tool user reset NAVN` | Nulstiller en brugers adgangskode (spørger i terminalen, vises aldrig) — hvis man er låst ude |
+| `scada-tool config` | Porte, stier, miljø (**aldrig** hemmeligheder), netværk |
+| `scada-tool maint …` | Videre til `scada-maint` (disk fuld) |
+
+## Samtidig rettes årsagen
+- `services/updates.py`: en opdatering, der står som "applying/queued", men hvor opdateringstjenesten (`hypervisionplc-scada-update.service`) ikke kører, regnes som **hængende** efter 2 minutter (i dag først efter 20) — så ny upload ikke blokeres af en genstart midt i en opdatering. Web-siden viser en knap "Ryd hængende opdatering" (tekniker/admin).
+
+## Trin
+1. FEATURES.md registreres før kodning.
+2. `deploy/scada-tool.sh` (+ `backend/app/tool.py` til det, der kræver Python: diagnose-import, DB-tjek, nulstilling af adgangskode via samme hashfunktion som web). `install.sh` installerer og opdaterer den.
+3. `updates.py`: hurtigere "hængende" + endpoint til at rydde (audit-logget).
+4. Manual (kap. 13 *Server-værktøjskassen*), LLM-tillæg, CHANGELOG/RELEASE_NOTES, **v5.6.0**, OTA.
+5. Tests: `tool.py` (nulstilling af adgangskode, DB-tjek, config uden hemmeligheder), `updates.py` (hængende efter 2 min når tjenesten ikke kører; ryd), `sh -n` + kørsel af scriptet mod en midlertidig mappestruktur; **på demo-serveren** efter OTA: `status`, `check`, `logs`, `update reset`.
+6. **Reviewer** før commit (rod-værktøj: adgangskode, hemmeligheder, rm/gendannelse).
+
+## Risici
+- Rod-script kan slette: ingen `rm -rf` på ubekræftede stier; `update reset` rører kun `updates/`-mappen; `rollback` kræver `…prev`.
+- Adgangskode-nulstilling må ikke læses fra kommandolinjen eller ende i logs; kun prompt (`read -s`) og audit-linje uden værdien.
+- Det er et værktøj til drift af én server (Pi eller VM) — ingen fjernstyring, ingen ny netværksflade.
 # Plan: Symbol-oversigt som træ i Tegn (v5.5.0) — 2026-11-11 — afventer OK
 
 Jans ønske: ét samlet sted, hvor man ser **alle symboler på tegningen som et træ** og kan gå til dem for at rette dem — i dag er det spredt ud i editoren (Objekter, Symboler › Grupper, Signalveje, symbol-editoren, Opsæt symbol).

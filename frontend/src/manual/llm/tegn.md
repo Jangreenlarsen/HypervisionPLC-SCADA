@@ -54,6 +54,10 @@ Sidder en pumpe eller kontraventil på signalvejen, løber flowet fra dens udgan
 <!-- kilde: 08-forbindelser#m-tilslutningspunkter-siden-symboler sha:74cfc3e7 -->
 Opsætning › Symboler › fanen **Ind/ud og veje**: vælg symbolet, giv punkterne navn og rolle (Ind, Ud, Begge), markér det **fælles** punkt (AB) og ret evt. **vejene** (AB → A, AB → B; en 4-vejsventil fx P → A, P → B). Klik tilføjer et punkt, træk flytter det. Det bruges kun af signalveje.
 
+## Hvor finder jeg alle symboler på tegningen samlet (symbol-oversigt, træ, grupper, signalveje)?
+<!-- kilde: 07-tegn#m-symbol-oversigt-alle-symboler-t-sted sha:61803b59 -->
+Panelet **Symbol-oversigt** i Tegn viser alle symboler som et træ: grundsymboler, signalveje og grupper på niveau 1; en vejs elementer og en gruppes medlemmer på niveau 2. Klik på navnet vælger det på tegningen; **Opsæt** åbner symbol-guiden (6 trin), **Animationer** gruppens animationer. ✓ = har en opsætning; søg eller vis kun dem, der ikke er opsat.
+
 ## Hvordan retter jeg en signalvej som et symbol (egne animationer, flere elementer, signalvejen som kilde)?
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 Tryk **Ret som symbol** ved den gemte signalvej (Tegn › Signalveje). Vejen åbner i symbol-guiden med alle vejens elementer som dele; i trin 4 lægger du egne animationer på en vilkårlig del. De overskrives aldrig, når vejen gemmes igen. En signalvej kan kun vises, ikke betjenes. I andre symbolers animationer og logik kan du vælge *en signalvej* som kilde.
