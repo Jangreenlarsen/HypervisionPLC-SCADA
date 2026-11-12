@@ -120,6 +120,8 @@ install -d -o scada -g scada -m 0750 "$DATA/updates"
 
 echo "== Vedligeholdelse ved fuld disk (scada-maint)"
 install -m 0755 "$SRC/deploy/scada-maint.sh" /usr/local/sbin/scada-maint
+echo "== Værktøjskasse (scada-tool)"
+install -m 0755 "$SRC/deploy/scada-tool.sh" /usr/local/sbin/scada-tool
 
 echo "== Netværksopsætning via web (System › Konfiguration)"
 install -m 0755 "$SRC/deploy/apply-config.sh" /usr/local/lib/hypervisionplc-scada/apply-config.sh.new

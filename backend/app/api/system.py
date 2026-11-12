@@ -29,7 +29,7 @@ def _svc(request: Request) -> UpdateService:
 
 @router.get("", dependencies=[ADMIN])
 async def status(request: Request) -> dict[str, Any]:
-    return _svc(request).status()
+    return await asyncio.to_thread(_svc(request).status)       # (status kan spørge systemd — ikke i event-loopet)
 
 
 @router.post("/upload")

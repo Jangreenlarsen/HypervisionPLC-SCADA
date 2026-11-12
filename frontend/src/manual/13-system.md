@@ -265,6 +265,27 @@ Er disken ved at blive fuld, kan du rydde op **på maskinen** — også selv om 
 
 > Er disken *helt* fuld, kan databasen ikke skrive selv en sletning. Start da med `scada-maint logs --yes` og `scada-maint backups --keep 1 --yes` (de frigør plads uden at skrive i databasen), eller gå direkte til `trends-reset`.
 
+## Server-værktøjskassen: scada-tool
+
+Til vedligeholdelse **på selve serveren** (SSH) findes kommandoen **`scada-tool`**. Den virker også, når web-siden ikke gør, og kræver root (`su -c 'scada-tool …'` eller `sudo`). Alt der ændrer noget, spørger først (eller kræv `--yes`) og skrives i systemloggen (`logger -t scada-tool`).
+
+| Kommando | Gør |
+| --- | --- |
+| `scada-tool status` | Overblik: version, om tjenesten kører, `/api/health`, seneste opdatering, disk, hukommelse og de seneste fejl |
+| `scada-tool check` | **Diagnose af en server, der ikke starter:** kan appen importeres med serverens Python, er databaserne i orden, ejer tjenestens bruger data-mappen, svarer porten — og de sidste fejllinjer fra loggen |
+| `scada-tool logs [-n 100] [-f] [--fejl] [--tjeneste update\|nginx\|llm]` | Systemloggen (seneste linjer, følg løbende, kun fejl) |
+| `scada-tool start` / `stop` / `restart` | Styrer tjenesten og venter på, at den svarer (ellers vises loggen) |
+| `scada-tool update status` | Opdateringsstatus og `update.log` |
+| `scada-tool update reset` | **Rydder en hængende opdatering** (status står som "applying", fx fordi maskinen blev genstartet midt i en opdatering) |
+| `scada-tool update apply FIL.tar` | Installerer en OTA-pakke fra en fil på serveren — med samme kontrol, backup og automatiske tilbagerulning som System › Opdatering |
+| `scada-tool update rollback` | Går tilbage til den forrige version |
+| `scada-tool backup list` / `create` / `restore FIL.db` | Backup af databasen (SQLite-kopi); `restore` stopper tjenesten og gemmer den nuværende database først |
+| `scada-tool user list` / `user reset NAVN` | Nulstiller en brugers adgangskode (spørger i terminalen, vises aldrig) — hvis du er låst ude. Brugeren skal vælge en ny ved næste login (`--keep` springer det over) |
+| `scada-tool config` | Porte, stier og miljøfilen (hemmeligheder vises kun som "(sat)") |
+| `scada-tool maint …` | Diskoprydning (se *Fuld disk* ovenfor) |
+
+**Hvis en opdatering fejler:** `scada-tool status` viser, hvor langt den nåede; `scada-tool check` siger, hvorfor serveren ikke starter; `scada-tool logs --fejl` viser fejlen. Står opdateringen fast som "i gang", ryd den med `scada-tool update reset`, og prøv igen med `scada-tool update apply`. Siden v5.6.0 regner serveren selv en opdatering som hængende efter 2 minutter, hvis opdateringstjenesten ikke kører.
+
 ## Hjælper (LLM)
 
 ![System › Hjælper (LLM): hardwareprofil, tjenestens status og valg af model (Hurtig, Standard, Stor)](../../public/manual/system-hjaelper.png)
