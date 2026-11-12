@@ -1,3 +1,31 @@
+# Plan: Signalvejen som et rigtigt symbol — vejens egne animationer kan redigeres (v5.8.0) — 2026-11-12 — afventer OK
+
+Jans krav: det er ikke nok at kunne *lægge ekstra animationer* på en vejs elementer. De animationer, vejen selv giver (løbelys på rørene, farve, blink …), skal kunne **ændres som i ethvert andet symbol**: skift type, kilde (et tag, en betingelse/logikblok, "altid til"), parametre (farve, hastighed, retning) og slet dem — så vejen efterfølgende arbejdes med som et symbol, hvor animationer tildeles frit.
+
+## I dag (v5.4)
+Vejens grundanimationer (*Udseende* i vejens guide) gemmes i vejens data og lægges på Overview af serveren (`_path_bindings`), men vises **ikke** i symbol-guiden — der ser man kun de egne. De kan derfor ikke redigeres.
+
+## Valgt løsning (af tre)
+- **A. Grundanimationerne skrives ind i vejens symbol-opsætning som almindelige animationer (valgt).** Når vejen gemmes, skriver serveren (re)genererer dem i `sv~<id>`-opsætningen; symbol-guiden viser dem i trin 4 som alle andre og kan ændre dem. Hver animation har et nyt felt **`auto`** ("følger vejens udseende"): sat = serveren genskaber den, når vejen gemmes igen; fjernes fluebenet, er den *din* og røres aldrig af vejen.
+- B. Vis grundanimationerne skrivebeskyttet i guiden med en knap "Overtag". Intet er redigerbart direkte, og man skal først "overtage" hver — halvt svar på kravet.
+- C. Fjern vejens *Udseende*-trin og lad guiden lave alt. Mister den hurtige opsætning ("farv alle rør, løbelys på alle") og vejens enkle start.
+
+## Sådan virker det
+1. **Datamodel:** `Anim.auto: bool = false` (backend `Anim`, frontend `Anim`/`normalize`). Ingen ny tabel; `symbol_config` bærer alt.
+2. **Gem vej** (`SignalPathService.save`): efter at vejen er gemt, bygges grundanimationerne (løbelys/farve/blink/synlig/roterer pr. element og del, med vejens pseudo-tag som kilde og *aktiv/passiv*) som `auto: true`-animationer og lægges i `sv~<id>`-opsætningen: eksisterende `auto: true` erstattes, alt andet (dine egne og de frigjorte) bevares. Valideres som et almindeligt gem (`validate_config`); fejler det, rulles vejen tilbage.
+3. **Visning:** `_path_bindings` (vejens egne bindinger ved siden af symbolet) fjernes — alt kommer nu fra symbol-opsætningen via `_path_symbol_bindings` (samme prioritetsregler som i dag).
+4. **Guiden** (trin 4): hver animation på en vej viser **"Følger vejens udseende"** (afkrydsning). Er den sat, står der en hjælpetekst: *ændringer overskrives, når vejen gemmes igen — fjern fluebenet for at beholde dem*. Resten (type, kilde, farve, hastighed, retning, når/ikke når, slet, flyt op/ned, tilføj) er den eksisterende guide.
+5. **Opgradering:** ved opstart skrives grundanimationerne for alle eksisterende veje ind én gang (flag i `meta`, samme mønster som v5.1-migreringen) — Overview ser ens ud før og efter.
+6. **Backup/gendan:** uændret (alt ligger i `symbol_config`); `auto` er et almindeligt felt.
+
+## Trin
+1. FEATURES.md (v5.8.0 planlagt) → 2. backend: `Anim.auto`, `signal_paths/materialize.py` (rene funktioner: data → animationer), `save`, `_path_bindings` væk, migrering → 3. frontend: `Anim.auto` + afkrydsning/hjælpetekst i `SymbolGuide` → 4. tests (backend: materialisering, bevarelse af egne/frigjorte, regenerering, migrering, backup-rundtur, restart på eksisterende data; frontend: afkrydsning) → 5. manual (kap. 08), LLM-tillæg, CHANGELOG, RELEASE_NOTES, **v5.8.0**, OTA → 6. **browser:** vej → *Ret som symbol* → løbelyset står som animationer → skift kilde til et tag → gem vejen igen (frigjort består, auto genskabes) → Overview. **Reviewer** (data-integritet, migrering).
+
+## Risici
+- **Migrering** af eksisterende veje: skal give præcis samme visning (samme del, type, kilde, parametre, rækkefølge). Testes mod demo-tegningen før/efter.
+- **To veje på samme del** og **prioritet** mod andre symbolers animationer: uændret regel (`position` ≥ 100 000, derefter rækkefølgen i opsætningen) — men nu ligger vejens egne først og dine efter, så dine vinder (som i dag).
+- **Flere end 12 animationer** (`MAX_ANIMS`): en stor vej kan give mere end grænsen → grænsen hæves for vejsymboler (fx 200 — vejens elementer × delene) eller grundanimationerne grupperes pr. type; afgøres ved at tælle på demo-tegningen.
+- `auto`-flag på en animation, der frigøres og senere slettes: ingen genskabelse før næste vejgem — det er bevidst og står i hjælpeteksten.
 # Plan: Server-værktøjskasse `scada-tool` (v5.6.0) — 2026-11-12 — afventer OK
 
 Anledning: v5.4.0 kunne ikke starte, rullede tilbage, og opdateringsstatus stod fast på "applying" (maskinen blev genstartet midt i opdateringen) — så ny upload gav "En opdatering er i gang". Det kostede flere SSH-trin at finde og rydde. Jan vil have en **værktøjskasse på serveren** med de mest brugte vedligeholdelsesfunktioner.
