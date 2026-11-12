@@ -16,7 +16,7 @@ export interface Health {
   db: { ok: boolean; latency_s: number | null; error?: string };
   disk: { total: number; used: number; free: number } | null;
   host: { mem_total: number | null; mem_available: number | null; load: number[] | null; cpu_temp_c: number | null;
-          throttled: { now: string[]; past: string[] } | null };
+          throttled: { now: string[]; past: string[] } | null; time_sync?: boolean | null };
   trends: { db_bytes: number | null; rows: number; flushes: number; rows_per_day: number | null };
   backup: { interval_h: number; count: number; last_age_s: number | null };
   tls: Tls | null;

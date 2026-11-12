@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.7.0 build 0388] — 2026-11-12 — Ur-status (NTP) og pilot-dokumenter
+
+- `services/health.py`: `read_time_sync()` (`timedatectl show -p NTPSynchronized`, huskes 60 s, `None` uden systemd), `host.time_sync` i Status/`/metrics`-detaljerne og en gul advarsel (`code: time`), når uret ikke er synkroniseret. `lib/status.ts`, `pages/Status.svelte`: kortet *Ur (NTP)*.
+- Tests: `test_health.py` (advarsel ved `time_sync: False`, oversættelse af `timedatectl`, cache, ingen `timedatectl`). Manual (kap. 13 *Status*).
+- Nye dokumenter: `docs/ACCEPTTEST.md`, `docs/UDGIVELSESPROCES.md`, `docs/KATASTROFEOEVELSE.md`.
+
 ## [5.6.1 build 0387] — 2026-11-12 — scada-tool: ingen traceback ved `| head`
 
 - `backend/app/tool.py`: `BrokenPipeError` (fx `scada-tool config | head`) giver ikke længere en traceback. Manual (kap. 13): kommandoen køres via `su -` eller med den fulde sti (`/usr/local/sbin` er ikke i PATH under `su -c`). Afprøvet på demo-serveren: `status`, `check`, `config`, `update status`, `logs`.

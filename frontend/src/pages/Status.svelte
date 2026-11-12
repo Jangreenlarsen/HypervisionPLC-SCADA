@@ -118,6 +118,10 @@
       <div class="card"><div class="muted small">CPU-temperatur</div>
         <strong>{health.host.cpu_temp_c === null ? '—' : `${health.host.cpu_temp_c.toFixed(0)} °C`}</strong>
         {#if health.host.load}<div class="muted small">belastning {health.host.load.map((x) => x.toFixed(2)).join(' / ')}</div>{/if}</div>
+      <div class="card"><div class="muted small">Ur (NTP)</div>
+        {#if health.host.time_sync === true}<strong>synkroniseret</strong>
+        {:else if health.host.time_sync === false}<strong class="bad">ikke synkroniseret</strong><div class="muted small">tider i alarmer og trends kan være forkerte</div>
+        {:else}<strong>—</strong><div class="muted small">kan ikke aflæses</div>{/if}</div>
       <div class="card"><div class="muted small">Strøm og varme (Pi)</div>
         {#if health.host.throttled === null}<strong>—</strong><div class="muted small">kun på en Raspberry Pi</div>
         {:else if health.host.throttled.now.length}<strong class="bad">{health.host.throttled.now.join(', ')}</strong>

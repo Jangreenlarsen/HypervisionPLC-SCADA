@@ -2,6 +2,10 @@
 
 ---
 
+## v5.7.0 — 2026-11-12 — Ur-status på Status-siden
+
+- Status viser nu, om serverens **ur er synkroniseret** (NTP) — og giver en gul advarsel, hvis det ikke er. Alarmer, trends og audit bygger på serverens tid.
+
 ## v5.6.1 — 2026-11-12 — Rettelse i scada-tool
 
 - `scada-tool` giver ikke længere en fejlmeddelelse, når udskriften sendes videre til fx `head`.

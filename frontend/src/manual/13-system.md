@@ -10,7 +10,7 @@ Siden **Status** viser på ét sted, hvordan serveren og PLC'erne har det — og
 
 - **PLC'er**: forbindelsen pr. PLC (også *delvis fejl*, hvis kun et område eller en ekstern slave svarer dårligt), hvor længe siden PLC'en sidst svarede, hvor mange kald i sekundet SCADA sender (loftet er 5) og hvor mange gange PLC'en har bedt om færre kald (429).
 - **Server**: *event-loop-lag* viser, hvor længe serveren sidste minut var optaget uden at kunne svare — normalt få millisekunder; over ¼ sekund giver gul, over 1 sekund rød. Desuden databasens svartid, antal åbne sider (live-forbindelser), alarmer, trend-historikkens størrelse og alderen på seneste backup.
-- **Maskine**: ledig disk, hukommelse, CPU-temperatur og — på en Raspberry Pi — om strømforsyningen har været for svag, eller maskinen har sat farten ned pga. varme.
+- **Maskine**: ledig disk, hukommelse, CPU-temperatur, **uret** (kortet *Ur (NTP)*: er serverens ur synkroniseret med en tidsserver? Alarmer, trends og audit bygger på serverens tid, så *ikke synkroniseret* giver gul) og — på en Raspberry Pi — om strømforsyningen har været for svag, eller maskinen har sat farten ned pga. varme.
 
 Gul/rød udløses blandt andet af: en PLC der ikke svarer, mindre end 10 % (rød under 5 %) ledig disk, CPU over 75 °C (rød over 85 °C), og en backup der er mere end 1½ gange ældre end intervallet. Siden kun *læser* — den ændrer intet. De samme problemer bliver også til **alarmer** (niveau SYS), så de ikke overses — se kapitlet Alarmer.
 
