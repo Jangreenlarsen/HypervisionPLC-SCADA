@@ -1,3 +1,23 @@
+# Plan: Virtuelle signaler — symbolets position styrer visningen (v5.10.0 →) — 2026-11-12 — fase A er godkendt af Jan; B og C følger, med iterationer
+
+Jans svar (2026-11-12) på `docs/ANALYSE_VIRTUELLE_TAGS.md`: (1) i trin 2 (Signaler) på knapper/omskiftere skal man kunne vælge at styre **visningen i tegningen** (fx en signalvej) i stedet for at skrive til et PLC-tag; (3) en "intern variabel" er ikke en fri variabel — dens værdi er **kun** det, symbolet er linket til: er der en PLC-tilbagemelding, er den **toneangivende**, ellers den valgte position; (4) alle faser, med forventede iterationer og designændringer.
+
+## Rettet model (afløser "fri intern variabel" i analysen)
+Et symbols **position** findes allerede som afledt signal (`sym:<tegning>:<symbol>:pos`): *tilbagemelding* (`remote`, hvis sat, er toneangivende) ellers *valgt position* (`symbol_state.chosen`, gemt i databasen). Det virtuelle signal **er** den position. Derfor:
+- **Fase A — læs:** en signalvejs betingelse (og alarm, trend, ugeprogram) kan bruge **symbolers position** ("Omskifter 1: position = Til"), **logikblokke** og **andre veje** ved siden af PLC-tags. Validering og vælger får gruppen *Beregnede signaler*; henvisning med stabilt id, visning med navn.
+- **Fase B — skriv "kun i SCADA":** i trin 2 kan et signal i stedet for et PLC-tag være **virtuelt mål** (ingen PLC-skrivning); symbolet viser den *valgte* position, eller PLC-tilbagemeldingen, hvis den er sat. Kontaktplan/lås/bekræftelse/audit som i dag; kun selve PLC-skrivningen springes over.
+- **Fase C — betjening af selve vejen:** vejens symbol får *Auto/Til/Fra* (bygget på B), og hjælperen *"Lav en betjening til vejen"*.
+Ingen ny symboltype: eksisterende knapper/omskiftere bruges. SCADA skriver **aldrig automatisk** til en PLC ud fra et virtuelt signal.
+
+## Fase A — trin
+1. Backend: `signal_paths/service.py` (`_normalize`: betingelsens `src` må være et beregnet signal af gyldig slags på samme tegning; `info`: giver vælgerne signalerne), `runtime.py` (`branch_results` læser allerede cachen — position er et tal → `cmp`/`value`), `drawing_activity`/`tags_for_drawing` (så adgang og polling dækker det), liste over beregnede signaler pr. tegning (`GET …/signals/derived`: symbolernes position + positionsnavne, logikblokke, veje).
+2. Frontend: vælger med tre grupper (PLC-tags / Symbolers position / Logik & veje) i vejens betingelser (`SpConditions`) og i guidens kilde-vælgere; alarmer/trends/ugeprogram i en senere iteration, når vælgeren er afprøvet.
+3. Tests (backend: betingelse på symbolets position, tilbagemelding toneangivende, sletning af et symbol/en vej, der bruges; frontend: vælger), manual, **v5.10.0**, OTA. Browser: en omskifter styrer en signalvej.
+
+## Risici
+- Position er et tal (0,1,2 …) — betingelser skrives som *position = <navn>* i guiden og gemmes som tal + navn; omdøbes en position, skal betingelsen følge med (gem tal, vis navn).
+- En vej, der læser et symbols position, og et symbol, der læser vejen (animation) — ingen løkke, fordi vejen kun *læser* position; logikblokke har løkkekontrol i forvejen.
+- Sletning/omdøbning: afvises med en liste over brugere (som for tags og logikblokke).
 # Plan: Animationer samlet pr. symbol, og unikke navne på alle symboler (v5.9.0) — 2026-11-12 — afventer OK
 
 Jans ønske: (1) i symbol-guiden for en signalvej skal et symbol med flere dele (3-vejs ventil: port A, B, AB, motor …) have sine animationer **samlet i en gruppe** i stedet for spredt i listen; (2) alle symboler skal have et **unikt navn/id**, så to 3-vejs ventiler — eller to T-stykker — kan kendes fra hinanden i listerne.
