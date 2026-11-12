@@ -514,3 +514,26 @@ def test_runtime_reload_and_evaluate_run_the_logic_of_a_path_symbol(api):
     rt.reload()
     assert (api.d, f"sv~{pid}") in rt.symbols and rt.names[(api.d, f"sv~{pid}")] == "Kedel → radiator"
     rt.evaluate()          # må ikke kaste
+
+
+def test_the_server_starts_again_on_existing_data_with_a_path_and_its_symbol(tmp_path):
+    """v5.4.1: v5.4.0 kunne ikke starte på data med en vej og dens symbol — testene kørte altid på en tom database, så opstarten
+    (lifespan: reload af symbolerne m.m.) blev aldrig prøvet på eksisterende data. Her genstartes appen på samme data-mappe."""
+    settings = Settings(data_dir=tmp_path / "data", frontend_dir=tmp_path / "nope", admin_password=ADMIN_PW, backup_hours=0,
+                        start_runtimes=False)
+    with TestClient(create_app(settings)) as c:
+        c.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
+        d = c.post("/api/drawings", json={"name": "Varme", "svg": SVG}).json()["drawing"]["id"]
+        pid = c.post(f"/api/drawings/{d}/signal-paths", json=body(conditions=[])).json()["id"]
+        own = {"op": "view", "logic": [{"id": "L1", "name": "x", "op": "and", "inputs": [{"src": f"path:{d}:{pid}:0"}]}],
+               "anims": [{"part": "p1_hjul", "type": "blink", "src": "@on", "params": {}}]}
+        assert c.put(f"/api/drawings/{d}/symbols/sv~{pid}/config", json={"config": own}).status_code == 200
+        assert c.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": {"op": "view", "anims": [
+            {"part": "all", "type": "blink", "src": f"@sv~{pid}:L1", "params": {}}]}}).status_code == 200
+    with TestClient(create_app(settings)) as c:                     # genstart på de samme data
+        assert c.get("/api/health").json()["status"] == "ok"
+        c.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
+        rt = c.app.state.symbol_runtime
+        assert (d, f"sv~{pid}") in rt.symbols and (d, "rad") in rt.symbols
+        rt.evaluate()
+        assert c.get(f"/api/drawings/{d}/view").status_code == 200
