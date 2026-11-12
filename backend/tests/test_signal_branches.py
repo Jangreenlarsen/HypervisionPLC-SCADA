@@ -269,10 +269,10 @@ def test_a_path_can_put_other_animations_on_valves_and_pipes(net):
             e["anims"] = [{"part": "all", "type": "fill", "params": {"on": "#ff0000"}}]
     sid = c.post(f"/api/drawings/{c.nd}/signal-paths", json=body).json()["id"]
     assert cfg(c, "vA") is None and cfg(c, "rA") is None
-    mine = [b for b in c.get(f"/api/drawings/{c.nd}/view").json()["bindings"] if b.get("source") == "path"]
+    mine = [b for b in c.get(f"/api/drawings/{c.nd}/view").json()["bindings"] if b.get("source") == "path-symbol"]
     va = {b["anim"]: b for b in mine if b["element"] == "vA_hus"}
-    assert va["fill"]["params"] == {"on": "#00aa00", "when": True}                  # renset (kun farven), aktiv/passiv
-    assert va["visible"]["params"] == {}                                             # "vises kun når aktiv": ingen aktiv/passiv
+    assert va["fill"]["params"]["on"] == "#00aa00" and va["fill"]["params"]["when"] is True      # farven, aktiv/passiv
+    assert "when" not in va["visible"]["params"]                                     # "vises kun når aktiv": ingen aktiv/passiv
     assert sorted(b["anim"] for b in mine if b["element"] == "rA") == ["fill", "flow"]
     assert all(b["tag"] == f"path:{c.nd}:{sid}:0" for b in mine)
 
@@ -286,5 +286,5 @@ def test_the_paths_animations_come_after_the_symbols_own(net):
         {"element": "radA", "flows": [], "branches": [0]}], "conditions": [], "style": {}}
     assert c.post(f"/api/drawings/{c.nd}/signal-paths", json=body).status_code == 201   # ingen "erstat"-spørgsmål (v5.0.0)
     fills = [b for b in c.get(f"/api/drawings/{c.nd}/view").json()["bindings"] if b["element"] == "vA_hus" and b["anim"] == "fill"]
-    assert [b["source"] for b in sorted(fills, key=lambda b: b["position"])] == ["symbol", "path"]
+    assert [b["source"] for b in sorted(fills, key=lambda b: b["position"])] == ["symbol", "path-symbol"]
     assert cfg(c, "vA")["anims"][0]["params"]["on"] == "#123456"                     # symbolets egen bevaret

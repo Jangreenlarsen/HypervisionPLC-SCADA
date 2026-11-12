@@ -66,6 +66,12 @@ async def restore(request: Request, user: CurrentUser = Depends(require("admin")
         log.exception("Opgradering v5.1.0 efter gendannelse fejlede")
         request.app.state.symbol_service.db.set_meta(v51_symbols.DONE_KEY, None)
         result = {**result, "symbol_migration": {"error": str(exc)[:200]}}
+    try:     # en ældre backup (før v5.8.0) har ingen grundanimationer i vejenes symbol-opsætning: skriv dem ind
+        res58 = await asyncio.to_thread(request.app.state.signal_path_service.materialize_existing)
+        if res58["written"] or res58["failed"]:
+            result = {**result, "signal_path_animations": res58}
+    except Exception:
+        log.exception("Signalvejenes grundanimationer efter gendannelse fejlede")
     audit(request, "backup.restore", "", result)
     return result
 

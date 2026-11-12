@@ -359,25 +359,33 @@ class DrawingService:
         for element, cfg in configs.items():
             effective.extend(config_bindings(drawing_id, element, cfg, covered))
         effective.extend(self._group_bindings(drawing_id, svg, index))
-        effective.extend(self._path_bindings(drawing_id, svg, index))
-        effective.extend(self._path_symbol_bindings(drawing_id, svg, index))
+        effective.extend(self._path_symbol_bindings(drawing_id, svg, index))     # (vejens grundanimationer ligger nu i opsætningen, v5.8.0)
         return drawing, svg, effective, orphans, tags
 
     def _path_symbol_bindings(self, drawing_id: str, svg: str, index: dict[str, Any]) -> list[dict[str, Any]]:
-        """Signalvejens egen opsætning (v5.4.0: vejen som symbol, `sv~<id>`): animationer på vejens dele. Ligger efter vejens
-        automatik, så de egne rettelser vinder ved samme slags på samme del — og de røres aldrig af, at vejen gemmes igen."""
+        """Signalvejenes animationer (v5.8.0: vejens symbol-opsætning, `sv~<id>`, hvor grundanimationerne ligger som almindelige
+        animationer) som bindinger. En vej, der endnu ikke er skrevet ind i opsætningen (`materialized`), vises ud fra sit udseende, så
+        Overview aldrig mister animationerne. Rækkefølgen mellem veje følger navnet; efter symbolernes og gruppernes egne."""
+        from .signal_paths.materialize import TooManyAnims, base_anims, merge
         out: list[dict[str, Any]] = []
-        paths = {path_symbol_id(r["id"]): r for r in self.db.list_signal_paths(drawing_id)}
-        if not paths:
+        rows = self.db.list_signal_paths(drawing_id)
+        if not rows:
             return out
-        for r in self.db.list_symbol_configs(drawing_id):
-            row = paths.get(r["element"])
-            if row is None:
+        configs = {r["element"]: r["config"] for r in self.db.list_symbol_configs(drawing_id)}
+        for k, row in enumerate(rows):                 # (list_signal_paths er sorteret efter navn)
+            sym = path_symbol_id(row["id"])
+            cfg = configs.get(sym) or {"op": "view", "anims": []}
+            info = self.symbols_info(drawing_id, sym, svg)
+            if info is None:
                 continue
-            info = self.symbols_info(drawing_id, r["element"], svg)
-            parts = set((info or {}).get("parts", {})) & set(index)
-            for b in config_bindings(drawing_id, r["element"], r["config"], parts):
-                out.append({**b, "position": 100_000 + b["position"], "source": "path-symbol", "path": row["id"],
+            parts = set(info["parts"])
+            if not row["data"].get("materialized"):
+                try:
+                    cfg = merge(cfg, base_anims(drawing_id, row["id"], row["data"], parts))
+                except TooManyAnims:
+                    continue
+            for b in config_bindings(drawing_id, sym, cfg, parts & set(index)):
+                out.append({**b, "position": 100_000 + k * 1000 + (b["position"] - 1000), "source": "path-symbol", "path": row["id"],
                             "path_name": row["name"]})
         return out
 
@@ -387,46 +395,6 @@ class DrawingService:
         if row is None:
             return None
         return describe_group(svg, [e["element"] for e in row["data"].get("elements", []) if isinstance(e, dict)], row["name"])
-
-    def _path_bindings(self, drawing_id: str, svg: str, index: dict[str, Any]) -> list[dict[str, Any]]:
-        """Signalvejenes animationer (v5.0.0) som almindelige bindinger på vejens pseudo-tag (services/signal_paths/runtime.py):
-        løbelys og de øvrige animationer er aktive, når vejen er aktiv ("aktiv/passiv"); lægges efter symbolernes og gruppernes
-        egne, så den eksisterende prioritetsregel (canvas.ts) afgør det, hvis flere af samme slags ligger på samme del."""
-        from .signal_paths.runtime import path_tag
-        from .signal_paths.validate import valid_data
-        rows = []
-        for r in self.db.list_signal_paths(drawing_id):
-            if (problem := valid_data(r["data"])) is None:
-                rows.append(r)
-            else:
-                log.error("Signalvejen '%s' (%s) er ugyldig og vises ikke: %s", r["name"], drawing_id, problem)
-        wanted = {e["element"] for r in rows for e in r["data"].get("elements", []) if e.get("element") in index}
-        subtrees = subtree_map(svg, wanted) if wanted else {}
-        out: list[dict[str, Any]] = []
-        for k, r in enumerate(rows):
-            d = r["data"]
-            style = d.get("style") or {}
-            n = 0
-            for e in d.get("elements", []):
-                el = e.get("element")
-                if el not in index:
-                    continue
-                parts = subtrees.get(el, set())
-                tag = path_tag(drawing_id, r["id"], e.get("branches") or [0])
-                items = [("flow", f["part"], {"reverse": bool(f.get("reverse")), "light": style.get("light", "#8fc8ea"),
-                                              "speed": style.get("speed", 40), "dash": style.get("dash", 12)}, True)
-                         for f in e.get("flows", [])]
-                items += [(a["type"], a["part"], dict(a.get("params") or {}), bool(a.get("when", True))) for a in e.get("anims", [])]
-                for kind, part, params, when in items:
-                    target = el if part in ("all", el) else part
-                    if target != el and target not in parts:
-                        continue
-                    if when:
-                        params["when"] = True
-                    out.append({"element": target, "position": 3000 + k * 1000 + n, "tag": tag, "anim": kind, "params": params,
-                                "source": "path", "path": r["id"], "path_name": r["name"]})
-                    n += 1
-        return out
 
     def _group_bindings(self, drawing_id: str, svg: str, index: dict[str, Any]) -> list[dict[str, Any]]:
         """Animationer ejet af symbolgrupper (v0.131.0): lægges efter symbolets egne, i gruppernes rækkefølge, så de gælder

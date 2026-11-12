@@ -89,6 +89,8 @@ Forberedelse: tag en backup først (System › Backup, eller `scada-tool backup 
 
 ## P3 — Nyt siden v5.0 (ny kode)
 
+- [ ] **Vejens egne animationer er redigerbare (v5.8):** *Ret som symbol* → trin 4 viser vejens løbelys og farver som almindelige animationer → skift kilden på en til et tag → **fjern fluebenet *Følger vejens udseende*** → gem → gem vejen igen (Ret → Gem): den frigjorte består, de øvrige genskabes.
+- [ ] **3-vejs ventil i en vej (v5.8):** *Vis animationer for* → ventilen → sæt farve pr. port (A, B, AB) → Overview følger.
 - [ ] **Signalvejen som symbol (v5.4):** *Ret som symbol* → en egen animation på et element → gem vejen igen → animationen består.
 - [ ] **Signalvejen som kilde:** i et andet symbols animation vælges *en signalvej*; den følger vejen.
 - [ ] **Symbol-oversigt (v5.5):** træet viser grundsymboler, veje og grupper; klik vælger på tegningen; *Opsæt* åbner guiden; *ikke opsatte* indsnævrer.

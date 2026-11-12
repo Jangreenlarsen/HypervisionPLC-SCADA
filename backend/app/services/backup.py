@@ -37,7 +37,7 @@ from . import library as lib
 from .trend_views import clean_view
 from .signal_paths import valid_data as valid_path_data
 from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
-from .symbols import SymbolConfig, config_tags, parse_path_symbol
+from .symbols import SymbolConfig, config_tags, parse_path_symbol, too_many_anims
 from .errors import ServiceError
 from .manager import PlcManager
 from .plcs import normalize_base_url
@@ -435,6 +435,9 @@ class BackupService:
             except ValidationError as exc:
                 err(f"{where}: ugyldig konfiguration ({exc.errors()[0].get('msg', 'fejl')})")
                 continue
+            if too_many_anims(cfg, c["element"]):
+                err(f"{where}: for mange animationer")
+                continue
             if missing := [t for t in config_tags(cfg) if t not in tag_names_all]:
                 err(f"{where}: tagget '{missing[0]}' findes ikke i backuppen")
                 continue
@@ -470,6 +473,9 @@ class BackupService:
                     cfg = SymbolConfig.model_validate({"op": "view", "anims": lst}).model_dump()
                 except ValidationError as exc:
                     err(f"Symbolgruppe '{g['name']}', {el}: ugyldige animationer ({exc.errors()[0].get('msg', 'fejl')})")
+                    continue
+                if too_many_anims(cfg):
+                    err(f"Symbolgruppe '{g['name']}', {el}: for mange animationer")
                     continue
                 if el not in members:
                     err(f"Symbolgruppe '{g['name']}': animationer på '{el}', som ikke er medlem")

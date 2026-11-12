@@ -25,7 +25,7 @@ import { AVERAGE_CHOICES } from './trendData';
   import { DIR_TXT, applyLever, leverDirs, leverInSync, type LeverDir } from './toggleSwitch';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
-    ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
+    ALARM_TXT, ANIM_TXT, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_PATH_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, hasFeedback, keepsOnly, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, feedbackMismatch, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, BY_VALUE_TYPES, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, setPassive, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
@@ -97,7 +97,13 @@ import { AVERAGE_CHOICES } from './trendData';
   const isPos = $derived(cfg.op === 'positions');
   /** Signalvejen som symbol (v5.4.0, id `sv~<vej>`): dele på tværs af vejens elementer, ingen "hele symbolet", kun visning. */
   const isPath = $derived(element.startsWith('sv~'));
-  const partIds = $derived([...(isPath ? [] : ['all']), ...Object.keys(symbol?.parts ?? {})]);
+  const maxAnims = $derived(isPath ? MAX_PATH_ANIMS : MAX_ANIMS);
+  /** Elementfilter (signalvej): vis og tilføj animationer for ét element ad gangen — en vej kan have mange. '' = alle. */
+  let elFilter = $state('');
+  const pathEls = $derived(Object.entries(symbol?.parts ?? {}).filter(([, p]) => p.root).map(([id, p]) => ({ id, label: p.label ?? id })));
+  const animShown = (a: Anim) => !isPath || !elFilter || symbol?.parts[a.part]?.owner === elFilter;
+  const partIds = $derived([...(isPath ? [] : ['all']),
+    ...Object.entries(symbol?.parts ?? {}).filter(([, p]) => !isPath || !elFilter || p.owner === elFilter).map(([id]) => id)]);
   /** Signalvejene på tegningen som kilde (v5.4.0): `path:<tegning>:<id>:<grene>` — til/fra. */
   let pathSrc = $state<{ tag: string; label: string }[]>([]);
   const isPathSrc = (s: string) => s.startsWith('path:');
@@ -456,7 +462,7 @@ import { AVERAGE_CHOICES } from './trendData';
   const num2 = (v: string): number | null => (v.trim() !== '' && Number.isFinite(Number(v.replace(',', '.'))) ? Number(v.replace(',', '.')) : null);
 
   function addAnim(): void {
-    if (cfg.anims.length >= MAX_ANIMS) return;
+    if (cfg.anims.length >= maxAnims) return;
     const part = partIds.find((p) => p !== 'all') ?? 'all';
     const src = isPos ? POS : cfg.signals[0]?.tag ?? '';
     const a: Anim = { part, type: 'fill', src, params: {}, only: null };
@@ -465,10 +471,10 @@ import { AVERAGE_CHOICES } from './trendData';
   }
   /** "+ Standard" (v0.72.0): en animation med "altid til" nederst — gælder, når ingen af de aktiv/passive over den er aktive. */
   function addDefault(): void {
-    if (cfg.anims.length >= MAX_ANIMS) return;
+    if (cfg.anims.length >= maxAnims) return;
     const last = cfg.anims[cfg.anims.length - 1];
     const type: AnimType = last && WHEN_TYPES.includes(last.type) ? last.type : 'fill';
-    const a: Anim = { part: last?.part ?? 'all', type, src: ON, params: {}, only: null, when: false };
+    const a: Anim = { part: last && animShown(last) ? last.part : (partIds[0] ?? 'all'), type, src: ON, params: {}, only: null, when: false };
     a.params = animDefaults(type, 'bool', n);
     cfg.anims.push(a);
   }
@@ -487,7 +493,8 @@ import { AVERAGE_CHOICES } from './trendData';
     if (!keepsOnly(a.src, byValue(a), isPos)) a.only = null;
   }
   function moveAnim(i: number, d: -1 | 1): void {
-    const j = i + d;
+    let j = i + d;
+    while (j >= 0 && j < cfg.anims.length && !animShown(cfg.anims[j])) j += d;      // (med elementfilter byttes der med den nærmeste synlige)
     if (j < 0 || j >= cfg.anims.length) return;
     [cfg.anims[i], cfg.anims[j]] = [cfg.anims[j], cfg.anims[i]];
   }
@@ -939,10 +946,23 @@ import { AVERAGE_CHOICES } from './trendData';
             </div>
           {/each}
           <button class="small" onclick={addBlock} disabled={cfg.logic.length >= MAX_LOGIC}>+ Logikblok</button>
-          <h4>Animationer ({cfg.anims.length}/{MAX_ANIMS})</h4>
+          <h4>Animationer ({cfg.anims.length}/{maxAnims})</h4>
+          {#if isPath}
+            <p class="muted small">Vejens egne animationer (løbelys, farve, blink …) står her som <strong>almindelige animationer</strong> — skift type, kilde,
+              farve og hastighed, eller slet dem. <strong>Følger vejens udseende</strong> betyder, at vejen genskaber animationen, når den gemmes igen
+              (så dine ændringer overskrives): <strong>fjern fluebenet for at beholde dem</strong>. Dine egne animationer og dem uden flueben røres aldrig (de eneste, der fjernes, er dem på et element eller en gren, der er taget ud af vejen).
+              Rækkefølgen gælder: <strong>den øverste aktive animation vinder</strong> — nye animationer lægges nederst; flyt dem op med ▲.</p>
+            <label class="field-row small">Vis animationer for
+              <select bind:value={elFilter} aria-label="Element">
+                <option value="">alle elementer ({cfg.anims.length})</option>
+                {#each pathEls as el}<option value={el.id}>{el.label} ({cfg.anims.filter((x) => symbol?.parts[x.part]?.owner === el.id).length})</option>{/each}
+              </select>
+            </label>
+          {/if}
           <div class="anim-layout">
           <div class="anim-list">
           {#each cfg.anims as a, i}
+            {#if animShown(a)}
             {@const kind = srcKind(a)}
             <div class="anim">
               <div class="row wrap">
@@ -991,6 +1011,10 @@ import { AVERAGE_CHOICES } from './trendData';
                   </select>
                 {/if}
                 <span class="spacer"></span>
+                {#if isPath}
+                  <label class="opt small" title="Sat: vejen genskaber animationen, når den gemmes igen. Fjern fluebenet for at beholde dine ændringer.">
+                    <input type="checkbox" bind:checked={a.auto} /> følger vejens udseende</label>
+                {/if}
                 <button class="small" onclick={() => moveAnim(i, -1)} disabled={i === 0} aria-label="Op">▲</button>
                 <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
                 <button class="small" onclick={() => cfg.anims.splice(i, 1)} aria-label="Fjern animation">✕</button>
@@ -1032,10 +1056,11 @@ import { AVERAGE_CHOICES } from './trendData';
                 </div>
               {/if}
             </div>
+            {/if}
           {/each}
           <div class="row wrap">
-            <button class="small" onclick={addAnim} disabled={cfg.anims.length >= MAX_ANIMS}>+ Animation</button>
-            <button class="small" onclick={addDefault} disabled={cfg.anims.length >= MAX_ANIMS}
+            <button class="small" onclick={addAnim} disabled={cfg.anims.length >= maxAnims}>+ Animation</button>
+            <button class="small" onclick={addDefault} disabled={cfg.anims.length >= maxAnims}
               title="Tilføj en animation med 'altid til' nederst — den gælder, når ingen af de aktiv/passive over den er aktive">+ Standard</button>
           </div>
           </div>
@@ -1178,9 +1203,9 @@ import { AVERAGE_CHOICES } from './trendData';
             title="Fjern opsætningen fra alle de valgte symboler på én gang">Fjern konfiguration fra alle ({group.length + 1})</button>
         {/if}
         {#if !group.length}
-          {#if exists}<button class="danger" onclick={remove} disabled={saving}>Fjern konfiguration</button>{/if}
-          <button onclick={openCopy} disabled={!canSave}
-            title={canSave ? 'Gem opsætningen og kopiér den til andre symboler på tegningen' : 'Ret fejlene først — opsætningen gemmes, før den kopieres'}>Gem og anvend på flere …</button>
+          {#if exists && !isPath}<button class="danger" onclick={remove} disabled={saving}>Fjern konfiguration</button>{/if}
+          {#if !isPath}<button onclick={openCopy} disabled={!canSave}
+            title={canSave ? 'Gem opsætningen og kopiér den til andre symboler på tegningen' : 'Ret fejlene først — opsætningen gemmes, før den kopieres'}>Gem og anvend på flere …</button>{/if}
         {/if}
         <span class="spacer"></span>
         <span class="small muted">{checking ? 'Kontrollerer…' : preview ? (preview.errors || needPin ? `${preview.errors + (needPin ? 1 : 0)} fejl` : 'Ingen fejl') : 'Kontrollerer…'}</span>

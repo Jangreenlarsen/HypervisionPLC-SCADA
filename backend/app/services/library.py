@@ -30,7 +30,7 @@ from ..storage.db import Database
 from .auth import CurrentUser
 from .errors import ServiceError
 from .svg_sanitize import SVG_NS, XLINK_NS, SvgError, _local, sanitize_svg
-from .symbols import ALARM_REF, SymbolConfig
+from .symbols import ALARM_REF, MAX_ANIMS, SymbolConfig
 
 log = logging.getLogger("scada.library")
 
@@ -535,6 +535,8 @@ def check_preset(preset: Any, svg: str) -> dict[str, Any] | None:
         cfg = SymbolConfig.model_validate(preset).model_dump()
     except ValidationError as exc:
         raise ServiceError(400, f"Ugyldig standardopsætning: {exc.errors()[0]['msg']}") from None
+    if len(cfg.get("anims") or []) > MAX_ANIMS:
+        raise ServiceError(400, f"Ugyldig standardopsætning: højst {MAX_ANIMS} animationer")
     parts = {e.attrib["id"] for e in _parse(svg).iter() if isinstance(e.tag, str) and e.attrib.get("id")}
     for a in cfg["anims"]:
         if a["part"] != "all" and a["part"] not in parts:

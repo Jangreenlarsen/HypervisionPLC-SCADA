@@ -309,11 +309,11 @@ def describe_group(svg: str, element_ids: list[str], name: str | None, sym_type:
     root = fromstring(svg.encode("utf-8"), forbid_dtd=True)
     parts: dict[str, dict[str, Any]] = {}
 
-    def add(c: ET.Element, label: str, top: bool) -> None:
+    def add(c: ET.Element, label: str, top: bool, owner: str) -> None:
         cid = c.attrib.get("id")
         if not cid:
             return
-        parts[cid] = {**_shape_info(c), "pid": c.attrib.get("data-hv-pid"), "label": label, "root": top}
+        parts[cid] = {**_shape_info(c), "pid": c.attrib.get("data-hv-pid"), "label": label, "root": top, "owner": owner}
         if _local(c.tag)[1] == "text":
             parts[cid]["text"] = " ".join("".join(c.itertext()).split())[:24]
 
@@ -323,7 +323,7 @@ def describe_group(svg: str, element_ids: list[str], name: str | None, sym_type:
         top = el.attrib.get("data-hv-name") or el.attrib["id"]       # delene navngives efter elementet på vejen
         for c in el.iter():
             if isinstance(c.tag, str):
-                add(c, top if c is el else f"{top} · {c.attrib.get('id', '')}", c is el)
+                add(c, top if c is el else f"{top} · {c.attrib.get('id', '')}", c is el, el.attrib["id"])
     return {"tag": "g", "line": False, "type": sym_type, "name": name, "parts": parts}
 
 

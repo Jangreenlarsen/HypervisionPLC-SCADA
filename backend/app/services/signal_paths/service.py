@@ -16,14 +16,16 @@ Kun tekniker og op (api/signal_paths.py). Ændrer aldrig SVG'en eller PLC'en.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 from ...storage.db import Database
 from ..auth import CurrentUser
 from ..errors import ServiceError
-from ..svg_sanitize import describe_element, index_svg, subtree_map
-from ..symbols import SymbolService, _TagInfo, config_tags, path_symbol_id
-from .runtime import branch_sets, path_tag
+from ..svg_sanitize import describe_element, describe_group, index_svg, subtree_map
+from ..symbols import SymbolService, _TagInfo, config_tags, path_symbol_id, validate_config
+from .materialize import TooManyAnims, base_anims, merge
+from .runtime import branch_sets, path_tag, path_tags
 from .validate import MAX_CONDITIONS, MAX_ELEMENTS, MAX_ENDS, clean_params, valid_data
 
 log = logging.getLogger("scada.signalpath")
@@ -160,12 +162,112 @@ class SignalPathService:
         name, data = self._normalize(drawing_id, body, visible)
         if any(r["name"].lower() == name.lower() and r["id"] != path_id for r in self.db.list_signal_paths(drawing_id)):
             raise ServiceError(409, f"Der findes allerede en signalvej med navnet '{name}'")
-        sid = self.db.write_signal_path(drawing_id, path_id, name, data, {}, actor.username)
-        if sid is None or sid < 0:
-            raise ServiceError(409, "Signalvejen kunne ikke gemmes — navnet er taget, eller den er ændret imens")
+        data = {**data, "materialized": True}          # vejens grundanimationer er skrevet ind i opsætningen (opgraderingen rører den ikke igen)
+        dropped = 0
+        if path_id is not None:
+            # grundanimationerne skrives ind i vejens symbol-opsætning (v5.8.0) i samme transaktion som vejen
+            cfg, old, dropped, err = self._config_with_base(drawing_id, path_id, name, data)
+            if err:
+                raise ServiceError(400, f"Vejens animationer kan ikke gemmes: {err}")
+            sym = path_symbol_id(path_id)
+            sid = self.db.write_signal_path(drawing_id, path_id, name, data, {sym: cfg}, actor.username, expect={sym: old})
+            if sid == -1:
+                raise ServiceError(409, "Vejens opsætning blev ændret imens (i symbol-guiden) — hent vejen igen, og gem på ny")
+            if sid is None:
+                raise ServiceError(409, "Signalvejen kunne ikke gemmes — navnet er taget, eller den er ændret imens")
+        else:
+            sid = self.db.write_signal_path(drawing_id, None, name, data, {}, actor.username)
+            if sid is None or sid < 0:
+                raise ServiceError(409, "Signalvejen kunne ikke gemmes — navnet er taget, eller den er ændret imens")
+            try:      # en ny vej kender først nu sit id (og dermed sine pseudo-tags): grundanimationerne skrives nu — alt eller intet
+                cfg, old, dropped, err = self._config_with_base(drawing_id, sid, name, data)
+                if err:
+                    raise ServiceError(400, f"Vejens animationer kan ikke gemmes: {err}")
+                if self.db.write_signal_path(drawing_id, sid, name, data, {path_symbol_id(sid): cfg}, actor.username,
+                                             expect={path_symbol_id(sid): old}) != sid:
+                    raise ServiceError(409, "Vejens opsætning blev ændret imens — prøv igen")
+            except BaseException:
+                self.db.write_signal_path(drawing_id, sid, None, None, {}, actor.username)      # rul tilbage: ingen halv vej
+                raise
+        if dropped:
+            log.warning("Signalvej '%s' (%s, id %s): %d egne animationer fjernet (gren eller del findes ikke mere)", name, drawing_id, sid, dropped)
+        if self.symbols.on_change is not None:
+            self.symbols.on_change(drawing_id, path_symbol_id(sid))
         log.info("Signalvej '%s' (%s, id %s) gemt af %s: %d elementer, %d grene, %d betingelser",
                  name, drawing_id, sid, actor.username, len(data["elements"]), 1 + len(data["ends"]), len(data["conditions"]))
-        return {"id": sid, "name": name, "elements": len(data["elements"]), "conditions": len(data["conditions"])}
+        return {"id": sid, "name": name, "elements": len(data["elements"]), "conditions": len(data["conditions"]), "dropped": dropped}
+
+    _FAIL = re.compile(r"^Animation (\d+):")
+
+    def _config_with_base(self, drawing_id: str, path_id: int, name: str, data: dict[str, Any]
+                          ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, int, str | None]:
+        """Vejens symbol-opsætning med nye grundanimationer (`auto`) og alle andre animationer bevaret, valideret som et gem i guiden.
+        Grundanimationer, som reglerne for et symbol ikke kan acceptere (fx løbelys på en del uden streger), kan ikke blokere for
+        vejen — de udelades og logges. Egne animationer på en gren eller del, der ikke findes mere, fjernes (og tælles).
+        → (ny opsætning, den gamle (til `expect`), antal egne animationer fjernet, fejl)"""
+        sym = path_symbol_id(path_id)
+        info = describe_group(self.drawings.svg(drawing_id), [e["element"] for e in data["elements"]], name)
+        row = self.db.get_symbol_config(drawing_id, sym)
+        old = row["config"] if row else None
+        tags = set(path_tags(drawing_id, path_id, data))
+        mine = [a for a in (old or {}).get("anims", []) if not a.get("auto")]
+        mark = f"path:{drawing_id}:{path_id}:"
+        keep = [a for a in mine if not (str(a.get("src", "")).startswith(mark) and a["src"] not in tags) and a.get("part") in info["parts"]]
+        try:
+            base = base_anims(drawing_id, path_id, data, set(info["parts"]))
+        except TooManyAnims as exc:
+            return None, old, 0, str(exc)
+        others = {k: v for k, v in self.symbols.configs(drawing_id).items() if k != sym}
+        pseudo = self.symbols.path_sources(drawing_id, exclude=path_id) | tags
+        tag_rows = self.symbols._tags()
+        # de gamle grundanimationer bevarer deres plads i rækkefølgen (merge erstatter dem), egne animationer, der fjernes, falder ud
+        cfg = merge({**(old or {"op": "view"}), "anims": [a for a in (old or {}).get("anims", []) if a.get("auto") or a in keep]}, base)
+        normalized, res = validate_config(cfg, info, tag_rows, False, sym, others, pseudo)
+        if res.count:
+            bad = {int(m.group(1)) - 1 for msg in res.steps.get("4", []) if (m := self._FAIL.match(msg))}
+            auto_bad = {i for i in bad if 0 <= i < len(cfg["anims"]) and cfg["anims"][i].get("auto")}
+            if auto_bad and res.count == len(bad) and bad == auto_bad:       # kun grundanimationer fejler: udelad dem i stedet for at blokere vejen
+                for i in sorted(auto_bad):
+                    a = cfg["anims"][i]
+                    log.warning("Signalvej '%s' (%s): grundanimationen %s på '%s' kan ikke bruges og udelades (%s)", name, drawing_id, a["type"], a["part"],
+                                next(m for m in res.steps.get("4", []) if m.startswith(f"Animation {i + 1}:")))
+                cfg = {**cfg, "anims": [a for i, a in enumerate(cfg["anims"]) if i not in auto_bad]}
+                normalized, res = validate_config(cfg, info, tag_rows, False, sym, others, pseudo)
+            if res.count:
+                return None, old, 0, res.first()
+        return normalized, old, len(mine) - len(keep), None
+
+    def materialize_existing(self, username: str = "system") -> dict[str, int]:
+        """Opgradering til v5.8.0 (og efter en gendannelse af en backup fra før v5.8.0): vejens grundanimationer skrives ind i opsætningen for
+        de veje, der ikke er markeret `materialized`. Rører ikke veje, der er det — heller ikke hvis brugeren har frigjort/slettet alle
+        grundanimationerne. Vejen og opsætningen skrives i én transaktion (ikke hvis opsætningen er ændret imens)."""
+        done = skipped = failed = 0
+        for d in self.db.list_drawings():
+            for r in self.db.list_signal_paths(d["id"]):
+                if r["data"].get("materialized") or valid_data(r["data"]) is not None:
+                    skipped += 1 if r["data"].get("materialized") else 0
+                    failed += 0 if r["data"].get("materialized") else 1
+                    continue
+                sym = path_symbol_id(r["id"])
+                try:
+                    data = {**r["data"], "materialized": True}
+                    cfg, old, _dropped, err = self._config_with_base(d["id"], r["id"], r["name"], data)
+                    if err:
+                        log.error("Signalvej '%s' (%s): grundanimationerne kan ikke gemmes: %s", r["name"], d["id"], err)
+                        failed += 1
+                        continue
+                    if self.db.write_signal_path(d["id"], r["id"], r["name"], data, {sym: cfg}, username, expect={sym: old}) != r["id"]:
+                        log.warning("Signalvej '%s' (%s): opsætningen blev ændret imens — prøves igen senere", r["name"], d["id"])
+                        failed += 1
+                        continue
+                    if self.symbols.on_change is not None:
+                        self.symbols.on_change(d["id"], sym)
+                    done += 1
+                except Exception:
+                    log.exception("Signalvej '%s' (%s): grundanimationerne kunne ikke bygges", r["name"], d["id"])
+                    failed += 1
+        log.info("Signalvejenes grundanimationer: %d skrevet, %d var det allerede, %d fejlede", done, skipped, failed)
+        return {"written": done, "had": skipped, "failed": failed}
 
     def delete(self, actor: CurrentUser, drawing_id: str, path_id: int) -> dict[str, Any]:
         self.drawings._require(drawing_id)

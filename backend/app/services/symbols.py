@@ -33,6 +33,7 @@ from .tagsource import TagSourceError, parse_source
 log = logging.getLogger(__name__)
 
 MAX_POSITIONS, MAX_PLANES, MAX_SIGNALS, MAX_ANIMS = 8, 8, 8, 12
+MAX_PATH_ANIMS = 600      # en signalvej som symbol (v5.8.0): grundanimationer for alle dens elementer og dele + dine egne
 MAX_LOGIC, MAX_LOGIC_INPUTS = 8, 4
 POS = "@pos"
 ON = "@on"   # kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag
@@ -250,9 +251,12 @@ class Anim(_M):
     # "aktiv/passiv" (v0.72.0): når animationen ikke er aktiv, rører den ikke delen — så kan en anden (eller standarden)
     # på samme del bestemme. Standard: "aktiv/ikke aktiv" (viser sin fra-tilstand).
     when: bool = False
-    src: str = Field(default="", max_length=64)
+    src: str = Field(default="", max_length=120)       # (en signalvejs pseudo-tag kan være lang: path:<tegning>:<id>:<grene>)
     params: dict[str, Any] = Field(default_factory=dict)
     only: list[bool] | None = None
+    # v5.8.0: en signalvejs grundanimation, der følger vejens udseende — genskabes, når vejen gemmes igen. Fjernes mærket, er
+    # animationen din og røres aldrig af vejen.
+    auto: bool = False
     # v1.12.0: et tag hvis værdi ER positionsnummeret (0, 1, 2 …) — animationen får én værdi pr. position, som med kilden "position"
     by_value: bool = False
     # v1.13.0: hvilke tag-værdier hører til hvilken position — "fra-værdi" pr. position (stigende). Position j gælder for værdier
@@ -318,7 +322,7 @@ class SymbolConfig(_M):
     click: Literal["dialog", "step"] = "dialog"   # v1.11.0: "step" = tryk venstre/højre side af symbolet for at skifte position
     pulse_ms: int = 500
     lock: Lock = Field(default_factory=Lock)
-    anims: list[Anim] = Field(default_factory=list, max_length=MAX_ANIMS)
+    anims: list[Anim] = Field(default_factory=list, max_length=MAX_PATH_ANIMS)     # (MAX_ANIMS for andre end signalveje: tjekkes i validate_config)
     logic: list[LogicBlock] = Field(default_factory=list, max_length=MAX_LOGIC)
     chart: Chart | None = None
 
@@ -351,6 +355,12 @@ def parse_path_symbol(element: Any) -> int | None:
     if isinstance(element, str) and element.startswith(PATH_SYMBOL) and element[len(PATH_SYMBOL):].isdigit():
         return int(element[len(PATH_SYMBOL):])
     return None
+
+
+def too_many_anims(config: Any, element: str = "") -> bool:
+    """Over grænsen for antal animationer (12; en signalvej som symbol 600)? — til backup/forudindstillinger, som valideres uden element."""
+    n = len((config or {}).get("anims") or []) if isinstance(config, dict) else 0
+    return n > (MAX_PATH_ANIMS if parse_path_symbol(element) is not None else MAX_ANIMS)
 
 
 def is_path_tag(name: Any) -> bool:
@@ -732,6 +742,8 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
         cfg.op = "view"        # en signalvej kan kun vises, ikke betjenes (v5.4.0)
         cfg.chart = None
     pseudo = pseudo or set()  # signalvejenes pseudo-tags: kan bruges som kilde (v5.4.0)
+    if not is_path and len(cfg.anims) > MAX_ANIMS:
+        raise ServiceError(400, f"Ugyldig symbol-konfiguration — anims: højst {MAX_ANIMS} animationer")
     n = len(cfg.positions)
     P = cfg.op == "positions"
 
@@ -1149,13 +1161,14 @@ class SymbolService:
             return None
         return describe_group(svg, [e["element"] for e in row["data"].get("elements", []) if isinstance(e, dict)], row["name"])
 
-    def path_sources(self, drawing_id: str) -> set[str]:
-        """Signalvejenes pseudo-tags på tegningen — gyldige kilder i animationer og logik (v5.4.0)."""
+    def path_sources(self, drawing_id: str, exclude: int | None = None) -> set[str]:
+        """Signalvejenes pseudo-tags på tegningen — gyldige kilder i animationer og logik (v5.4.0). `exclude`: en vej, hvis (gamle) data
+        ikke skal tælle med — den vej, der er ved at blive gemt, bidrager med sine nye tags."""
         from .signal_paths.runtime import path_tags
         from .signal_paths.validate import valid_data
         out: set[str] = set()
         for r in self.db.list_signal_paths(drawing_id):
-            if valid_data(r["data"]) is None:
+            if r["id"] != exclude and valid_data(r["data"]) is None:
                 out.update(path_tags(drawing_id, r["id"], r["data"]))
         return out
 

@@ -563,10 +563,10 @@
     busy = true;
     try {
       const id = editing?.id;
-      if (id) await put(`${base}/${id}`, body);
-      else await post(base, body);
+      const res = (id ? await put(`${base}/${id}`, body) : await post(base, body)) as { dropped?: number } | undefined;
       const n = body.elements.filter((e) => e.flows.length || e.anims.length).length;
-      onchanged?.(`Signalvejen "${body.name}" er gemt — ${n} dele har fået animationer.`);
+      const lost = res?.dropped ? ` ${res.dropped} af dine egne animationer lå på et element eller en gren, der er taget ud af vejen, og er fjernet.` : '';
+      onchanged?.(`Signalvejen "${body.name}" er gemt — ${n} dele har fået animationer.${lost}`);
       editing = null;
       highlight([], []);
       await load();

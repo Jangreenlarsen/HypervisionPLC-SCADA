@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import socket
+import time
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
@@ -178,6 +179,15 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                     "converted": len(rep["converted"]), "manual": len(rep["manual"]), "removed_bindings": rep["removed_bindings"]})
         except Exception:
             log.exception("Opgradering v5.1.0 (symboler) fejlede — prøves igen ved næste opstart")
+        # Opgradering v5.8.0: signalvejenes grundanimationer skrives ind i vejens symbol-opsætning, så de kan redigeres (én gang)
+        try:
+            if not db.get_meta("migration.v58_path_anims"):
+                res58 = app.state.signal_path_service.materialize_existing()
+                db.set_meta("migration.v58_path_anims", str(time.time()))      # (en vej, der fejler, vises ud fra sit udseende og prøves ved næste gem)
+                if res58["written"] or res58["failed"]:
+                    app.state.audit_service.record("system", "", "signal_path.materialize", "", res58)
+        except Exception:
+            log.exception("Opgradering v5.8.0 (signalvejenes animationer) fejlede — prøves igen ved næste opstart")
         app.state.symbol_runtime = SymbolRuntime(db, manager.cache, app.state.drawing_service,
                                                  tick_s=settings.symbol_tick_s)
         app.state.symbol_runtime.reload()

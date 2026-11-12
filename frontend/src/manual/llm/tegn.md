@@ -60,7 +60,7 @@ Panelet **Symbol-oversigt** i Tegn viser alle symboler som et træ: grundsymbole
 
 ## Hvordan retter jeg en signalvej som et symbol (egne animationer, flere elementer, signalvejen som kilde)?
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
-Tryk **Ret som symbol** ved den gemte signalvej (Tegn › Signalveje). Vejen åbner i symbol-guiden med alle vejens elementer som dele; i trin 4 lægger du egne animationer på en vilkårlig del. De overskrives aldrig, når vejen gemmes igen. En signalvej kan kun vises, ikke betjenes. I andre symbolers animationer og logik kan du vælge *en signalvej* som kilde.
+Tryk **Ret som symbol** ved den gemte signalvej (Tegn › Signalveje). Vejen åbner i symbol-guiden med alle vejens elementer som dele; i trin 4 står **alle vejens animationer som almindelige animationer** (løbelys, farve, blink — også en 3-vejs ventils porte): skift type, kilde (tag, betingelse/logikblok, altid til, eller selve signalvejen), farve, hastighed og retning, slet og tilføj, ét element ad gangen med *Vis animationer for*. Fluebenet *Følger vejens udseende* betyder, at vejen genskaber animationen, når den gemmes igen — fjern det for at beholde dine ændringer. Dine egne animationer røres aldrig. En signalvej kan kun vises, ikke betjenes. I andre symbolers animationer og logik kan du vælge *en signalvej* som kilde.
 
 ## Hvordan vælger jeg, hvilke animationer en signalvej skal give (farve, blink, løbelys, roterer)?
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->

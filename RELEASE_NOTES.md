@@ -2,6 +2,12 @@
 
 ---
 
+## v5.8.0 — 2026-11-12 — Signalvejen er et rigtigt symbol
+
+- Vejens egne animationer (løbelys på rørene, farve, blink, en 3-vejs ventils porte) kan nu **redigeres som i ethvert andet symbol**: *Ret som symbol* → trin 4 viser dem alle; skift type, kilde (tag, betingelse, signalvejen), farve, hastighed og retning, slet og tilføj. *Vis animationer for* viser ét element ad gangen.
+- **Følger vejens udseende:** med fluebenet genskaber vejen animationen, når den gemmes igen; fjern fluebenet for at beholde dine ændringer.
+- Eksisterende veje opgraderes automatisk — Overview ser ens ud.
+
 ## v5.7.0 — 2026-11-12 — Ur-status på Status-siden
 
 - Status viser nu, om serverens **ur er synkroniseret** (NTP) — og giver en gul advarsel, hvis det ikke er. Alarmer, trends og audit bygger på serverens tid.

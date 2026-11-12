@@ -242,7 +242,7 @@ def test_save_stores_the_path_as_an_object_and_touches_no_symbol(api):
 def test_overview_gets_the_path_as_bindings_on_its_pseudo_tag(api):
     sid = api.post(f"/api/drawings/{api.d}/signal-paths", json=body()).json()["id"]
     view = api.get(f"/api/drawings/{api.d}/view").json()
-    mine = [b for b in view["bindings"] if b.get("source") == "path"]
+    mine = [b for b in view["bindings"] if b.get("source") == "path-symbol"]
     tag = f"path:{api.d}:{sid}:0"
     assert {b["tag"] for b in mine} == {tag}
     flows = {b["element"]: b["params"] for b in mine if b["anim"] == "flow"}
@@ -404,22 +404,24 @@ def _path(api):
 def test_path_is_a_symbol_with_the_elements_as_parts(api):
     pid = _path(api)
     r = api.get(f"/api/drawings/{api.d}/symbols/sv~{pid}/config").json()
-    assert r["orphaned"] is False and r["config"] is None
+    assert r["orphaned"] is False and r["config"] and all(a["auto"] for a in r["config"]["anims"])      # grundanimationerne (v5.8.0)
     assert r["symbol"]["type"] == "signalvej" and r["symbol"]["name"] == "Kedel → radiator"
     assert {"r1", "p1", "p1_hjul", "t1_a", "v2_hus", "r4"} <= set(r["symbol"]["parts"])
     assert api.get(f"/api/drawings/{api.d}/symbols/sv~999/config").json()["orphaned"] is True
     assert api.put(f"/api/drawings/{api.d}/symbols/sv~999/config", json={"config": {"op": "view"}}).status_code == 404
     listed = api.get(f"/api/drawings/{api.d}/signal-paths").json()[0]
-    assert listed["symbol"] == f"sv~{pid}" and listed["configured"] is False and listed["sources"]
+    assert listed["symbol"] == f"sv~{pid}" and listed["configured"] is True and listed["sources"]
 
 
 def test_path_symbol_extra_animations_survive_a_resave_and_win_over_the_automatic_ones(api):
     pid = _path(api)
     src = api.get(f"/api/drawings/{api.d}/signal-paths").json()[0]["sources"][0]["tag"]
-    mine = {"op": "positions", "anims": [
-        {"part": "p1_hjul", "type": "blink", "src": "Ekstra", "params": {}},
-        {"part": "r1", "type": "fill", "src": src, "when": True, "params": {"on": "#ff0000"}}]}
-    r = api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": mine})
+    base = cfg(api, f"sv~{pid}")
+    assert base["anims"] and all(a["auto"] for a in base["anims"])           # vejens grundanimationer er almindelige animationer
+    mine = {**base, "anims": [*base["anims"],
+                              {"part": "p1_hjul", "type": "blink", "src": "Ekstra", "params": {}},
+                              {"part": "r1", "type": "fill", "src": src, "when": True, "params": {"on": "#ff0000"}}]}
+    r = api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": {**mine, "op": "positions"}})
     assert r.status_code == 200, r.text
     assert r.json()["config"]["op"] == "view"                       # en vej kan ikke betjenes
     assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config",
@@ -427,13 +429,15 @@ def test_path_symbol_extra_animations_survive_a_resave_and_win_over_the_automati
                    ).status_code == 400                             # "hele symbolet" findes ikke for en vej
     before = cfg(api, f"sv~{pid}")
     assert api.put(f"/api/drawings/{api.d}/signal-paths/{pid}", json=body(name="Kedel → radiator")).status_code == 200
-    assert cfg(api, f"sv~{pid}") == before                          # automatikken rører ikke de egne rettelser
+    after = cfg(api, f"sv~{pid}")
+    assert [a for a in after["anims"] if not a["auto"]] == [a for a in before["anims"] if not a["auto"]]     # dine egne røres ikke
+    assert len([a for a in after["anims"] if a["auto"]]) == len([a for a in base["anims"]])               # grundanimationerne genskabt
     view = api.get(f"/api/drawings/{api.d}/view").json()["bindings"]
-    own = [b for b in view if b.get("source") == "path-symbol"]
-    auto = [b for b in view if b.get("source") == "path"]
+    assert all(b["source"] == "path-symbol" and b["position"] >= 100_000 for b in view if b.get("path"))
+    own = [b for b in view if b.get("source") == "path-symbol" and b["anim"] in ("blink", "fill")]
     assert {(b["element"], b["anim"]) for b in own} == {("p1_hjul", "blink"), ("r1", "fill")}
-    assert all(b["position"] >= 100_000 for b in own) and all(b["position"] < 100_000 for b in auto)
-    assert next(b for b in own if b["element"] == "r1")["tag"] == src
+    last_fill = [b for b in view if b["element"] == "r1" and b["anim"] == "fill"][-1]
+    assert last_fill["tag"] == src and last_fill["position"] == max(b["position"] for b in view if b["element"] == "r1")   # din vinder
     assert api.get(f"/api/drawings/{api.d}/symbols-orphaned").json() == []
 
 
@@ -463,7 +467,8 @@ def test_backup_keeps_the_path_id_so_the_path_symbol_still_fits(api):
     assert [p["id"] for p in bk["signal_paths"]] == [pid]
     assert api.post("/api/backup/restore", json=bk).status_code == 200
     assert [p["id"] for p in api.get(f"/api/drawings/{api.d}/signal-paths").json()] == [pid]
-    assert cfg(api, f"sv~{pid}")["anims"][0]["part"] == "p1_hjul"
+    anims = cfg(api, f"sv~{pid}")["anims"]
+    assert [a["part"] for a in anims] == ["p1_hjul"]       # (v5.8-backup: vejen er markeret, så opsætningen, som den var, gendannes uændret)
     old = {**bk, "signal_paths": [{k: v for k, v in p.items() if k != "id"} for p in bk["signal_paths"]]}
     assert api.post("/api/backup/restore", json=old).status_code == 200                # ældre backup uden id: opsætningen droppes
     assert cfg(api, f"sv~{pid}") is None
@@ -537,3 +542,152 @@ def test_the_server_starts_again_on_existing_data_with_a_path_and_its_symbol(tmp
         assert (d, f"sv~{pid}") in rt.symbols and (d, "rad") in rt.symbols
         rt.evaluate()
         assert c.get(f"/api/drawings/{d}/view").status_code == 200
+
+
+# --------------------------------------------------------------------- vejens grundanimationer er redigerbare (v5.8.0)
+
+def test_the_look_becomes_ordinary_animations_with_the_same_result_on_overview(api):
+    b = body()
+    b["elements"][5]["anims"] = [{"part": "v2_hus", "type": "fill", "params": {"on": "#00ff00"}, "when": True}]      # ventilens farve
+    b["elements"][1]["anims"] = [{"part": "p1_hjul", "type": "blink", "params": {"speed": "fast"}, "when": True}]
+    pid = api.post(f"/api/drawings/{api.d}/signal-paths", json=b).json()["id"]
+    c = cfg(api, f"sv~{pid}")
+    by = {(a["part"], a["type"]): a for a in c["anims"]}
+    assert all(a["auto"] and a["when"] and a["src"] == f"path:{api.d}:{pid}:0" for a in c["anims"])
+    assert by[("r3", "flow")]["params"]["reverse"] is True and by[("r1", "flow")]["params"]["reverse"] is False
+    assert by[("v2_hus", "fill")]["params"]["on"] == "#00ff00" and by[("p1_hjul", "blink")]["params"]["speed"] == "fast"
+    view = api.get(f"/api/drawings/{api.d}/view").json()["bindings"]
+    got = {(b["element"], b["anim"]) for b in view if b.get("source") == "path-symbol"}
+    assert {("r1", "flow"), ("r2", "flow"), ("t1_a", "flow"), ("t1_b", "flow"), ("r3", "flow"), ("r4", "flow"),
+            ("v2_hus", "fill"), ("p1_hjul", "blink")} == got
+
+
+def test_a_released_animation_is_kept_and_the_automatic_ones_are_made_again(api):
+    pid = _path(api)
+    c = cfg(api, f"sv~{pid}")
+    mine = next(a for a in c["anims"] if a["part"] == "r1" and a["type"] == "flow")
+    mine["auto"] = False                                    # "følger ikke vejens udseende": den er min
+    mine["params"] = {**mine["params"], "light": "#ff8800", "speed": 90}
+    mine["src"] = "Ekstra"                                  # og styres nu af et tag i stedet for vejen
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": c}).status_code == 200
+    assert api.put(f"/api/drawings/{api.d}/signal-paths/{pid}", json=body()).status_code == 200
+    after = cfg(api, f"sv~{pid}")["anims"]
+    kept = [a for a in after if not a["auto"]]
+    assert len(kept) == 1 and kept[0]["src"] == "Ekstra" and kept[0]["params"]["speed"] == 90 and kept[0]["params"]["light"] == "#ff8800"
+    assert len([a for a in after if a["auto"] and a["part"] == "r1"]) == 1          # vejens egen er genskabt ved siden af
+    # fjerner brugeren en grundanimation, kommer den tilbage ved næste vejgem (vejens udseende vil have den)
+    c2 = cfg(api, f"sv~{pid}")
+    c2["anims"] = [a for a in c2["anims"] if not (a["auto"] and a["part"] == "r2")]
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": c2}).status_code == 200
+    assert not any(a["part"] == "r2" for a in cfg(api, f"sv~{pid}")["anims"])
+    assert api.put(f"/api/drawings/{api.d}/signal-paths/{pid}", json=body()).status_code == 200
+    assert any(a["part"] == "r2" and a["auto"] for a in cfg(api, f"sv~{pid}")["anims"])
+
+
+def test_a_path_symbol_may_have_many_animations_but_an_ordinary_symbol_only_twelve(api):
+    pid = _path(api)
+    c = cfg(api, f"sv~{pid}")
+    c["anims"] = [*c["anims"], *({"part": "p1_hjul", "type": "blink", "src": "Ekstra", "params": {}} for _ in range(14))]
+    assert len(c["anims"]) > 12
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": c}).status_code == 200
+    many = {"op": "view", "anims": [{"part": "all", "type": "blink", "src": "Ekstra", "params": {}} for _ in range(13)]}
+    r = api.put(f"/api/drawings/{api.d}/symbols/rad/config", json={"config": many})
+    assert r.status_code == 400 and "12" in r.json()["error"]
+
+
+def _unmaterialize(api, pid):
+    """En vej, som den var før v5.8.0: ingen grundanimationer i opsætningen og ingen `materialized`-markør."""
+    db = api.app.state.symbol_service.db
+    row = db.get_signal_path(api.d, pid)
+    data = {k: v for k, v in row["data"].items() if k != "materialized"}
+    assert db.write_signal_path(api.d, pid, row["name"], data, {f"sv~{pid}": None}, "test") == pid
+
+
+def test_existing_paths_get_their_animations_written_once_by_the_upgrade(api):
+    pid = _path(api)
+    svc = api.app.state.signal_path_service
+    _unmaterialize(api, pid)
+    assert cfg(api, f"sv~{pid}") is None
+    assert svc.materialize_existing() == {"written": 1, "had": 0, "failed": 0}
+    c = cfg(api, f"sv~{pid}")
+    assert c["anims"] and all(a["auto"] for a in c["anims"])
+    c["anims"] = [a for a in c["anims"] if a["part"] != "r2"]                           # brugeren ændrer, opgraderingen rører den ikke igen
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": c}).status_code == 200
+    assert svc.materialize_existing() == {"written": 0, "had": 1, "failed": 0}
+    assert not any(a["part"] == "r2" for a in cfg(api, f"sv~{pid}")["anims"])
+    c["anims"] = [{"part": "p1_hjul", "type": "blink", "src": "Ekstra", "params": {}}]   # selv hvis ALLE grundanimationer er slettet,
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": c}).status_code == 200   # kommer de ikke tilbage
+    assert svc.materialize_existing()["written"] == 0
+    assert [a["part"] for a in cfg(api, f"sv~{pid}")["anims"]] == ["p1_hjul"]
+
+
+def test_overview_still_shows_a_path_that_is_not_written_into_its_setup_yet(api):
+    pid = _path(api)
+    _unmaterialize(api, pid)
+    view = api.get(f"/api/drawings/{api.d}/view").json()["bindings"]
+    flows = {b["element"] for b in view if b.get("source") == "path-symbol" and b["anim"] == "flow"}
+    assert {"r1", "r2", "t1_a", "t1_b", "r3", "r4"} <= flows                        # (ingen tom Overview mens opsætningen mangler)
+
+
+def test_a_restored_backup_from_before_v5_8_gets_the_animations_written(api):
+    pid = _path(api)
+    _unmaterialize(api, pid)
+    bk = api.get("/api/backup").json()
+    assert "materialized" not in bk["signal_paths"][0]["data"]
+    assert api.post("/api/backup/restore", json=bk).status_code == 200
+    c = cfg(api, f"sv~{pid}")
+    assert c["anims"] and all(a["auto"] for a in c["anims"])
+
+
+def test_removing_an_element_from_the_path_drops_its_own_animations_instead_of_locking_the_path(api):
+    pid = _path(api)
+    c = cfg(api, f"sv~{pid}")
+    c["anims"].append({"part": "p1_hjul", "type": "blink", "src": "Ekstra", "params": {}})
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": c}).status_code == 200
+    b = body()
+    b["elements"] = [e for e in b["elements"] if e["element"] != "p1"]                  # pumpen tages ud af vejen
+    b["conditions"] = [{"element": "v2", "src": "V2_stilling", "cmp": "ge", "value": 50}]
+    r = api.put(f"/api/drawings/{api.d}/signal-paths/{pid}", json=b)
+    assert r.status_code == 200, r.text
+    assert r.json()["dropped"] == 1
+    assert not any(a["part"] == "p1_hjul" for a in cfg(api, f"sv~{pid}")["anims"])
+
+
+def test_the_order_between_the_paths_and_your_own_animations_is_kept(api):
+    pid = _path(api)
+    c = cfg(api, f"sv~{pid}")
+    mine = {"part": "r1", "type": "fill", "src": "Ekstra", "params": {"on": "#ff0000"}}
+    c["anims"] = [mine, *c["anims"]]                                                    # min animation øverst (▲)
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": c}).status_code == 200
+    assert api.put(f"/api/drawings/{api.d}/signal-paths/{pid}", json=body()).status_code == 200
+    after = cfg(api, f"sv~{pid}")["anims"]
+    assert not after[0]["auto"] and after[0]["src"] == "Ekstra" and all(a["auto"] for a in after[1:])
+
+
+def test_a_new_path_is_not_left_half_saved_if_the_second_step_fails(api, monkeypatch):
+    svc = api.app.state.signal_path_service
+    real = svc._config_with_base
+    calls = []
+
+    def fail_on_second(*a, **kw):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("fejl midt i gem")
+        return real(*a, **kw)
+    monkeypatch.setattr(svc, "_config_with_base", fail_on_second)
+    try:
+        r = api.post(f"/api/drawings/{api.d}/signal-paths", json=body())
+        assert r.status_code >= 500
+    except RuntimeError:
+        pass
+    assert api.get(f"/api/drawings/{api.d}/signal-paths").json() == []                 # ingen halv vej
+
+
+def test_a_backup_cannot_smuggle_more_than_twelve_animations_onto_an_ordinary_symbol(api):
+    api.put(f"/api/drawings/{api.d}/symbols/rad/config", json={"config": {"op": "view", "anims": [
+        {"part": "all", "type": "blink", "src": "Ekstra", "params": {}}]}})
+    bk = api.get("/api/backup").json()
+    row = next(c for c in bk["symbol_config"] if c["element"] == "rad")
+    row["config"]["anims"] = [row["config"]["anims"][0] for _ in range(13)]
+    r = api.post("/api/backup/restore", json=bk)
+    assert r.status_code == 400 and "for mange animationer" in r.json()["error"]

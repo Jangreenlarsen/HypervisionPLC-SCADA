@@ -135,6 +135,9 @@ describe('delnavne i guiden (v0.81.0)', () => {
     // en signalvej som symbol (v5.4.0): delene navngives efter elementet på vejen
     const vej = { type: 'signalvej', name: 'V', tag: 'g', line: false, parts: { r1: { tag: 'path', line: true, label: 'r1', root: true }, p1_hjul: { tag: 'circle', line: true, label: 'P1 · p1_hjul' } } };
     expect(partLabel('p1_hjul', vej as never)).toBe('P1 · p1_hjul');
+    const vent = { ...vej, parts: { v: { tag: 'g', line: false, label: '3-vejs ventil', root: true, owner: 'v' }, v_a: { tag: 'path', line: true, pid: 'port_a', label: '3-vejs ventil · v_a', owner: 'v' } } };
+    expect(partLabel('v_a', vent as never)).toBe('3-vejs ventil · Port A');      // et biblioteksymbols dele med deres rigtige navn
+    expect(partLabel('v', vent as never)).toBe('3-vejs ventil');
     expect(partLabel('svg_39_flamme', kedel)).toBe('Flamme');
     expect(partLabel('svg_2', kedel)).toBe('Ramme (svg_2)');
     const kedel2 = info('kedel', { svg_2: { tag: 'rect', line: true }, svg_7: { tag: 'rect', line: true }, svg_8: { tag: 'rect', line: true } });
