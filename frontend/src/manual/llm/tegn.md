@@ -58,6 +58,10 @@ Opsætning › Symboler › fanen **Ind/ud og veje**: vælg symbolet, giv punkte
 <!-- kilde: 07-tegn#m-symbol-oversigt-alle-symboler-t-sted sha:339f50e6 -->
 Panelet **Symbol-oversigt** i Tegn viser alle symboler som et træ: grundsymboler, signalveje og grupper på niveau 1; en vejs elementer og en gruppes medlemmer på niveau 2. Klik på navnet vælger det på tegningen; **Opsæt** åbner symbol-guiden (6 trin), **Animationer** gruppens animationer. ✓ = har en opsætning; søg eller vis kun dem, der ikke er opsat.
 
+## Kan en omskifter eller knap styre visningen uden at skrive til en PLC (virtuelt signal, kun i SCADA)?
+<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
+Ja. I symbol-guidens **trin 2 (Signaler)** vælger du ved *Kommando* **kun i SCADA (virtuelt)** i stedet for et PLC-tag (kun for symboler med positioner). Symbolet skriver så ikke til en PLC; positionen er den, operatøren vælger, og en signalvej (som betingelse) eller en animation kan følge den. Sætter du en **tilbagemelding** på signalet, er PLC'ens tilbagemelding toneangivende.
+
 ## Kan en signalvej styres af en omskifter eller knap i tegningen (symbolets position, virtuelt signal, uden PLC)?
 <!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
 Ja. I vejens trin 3 (*Hvornår går der flow?*) kan betingelsen være et **symbols position** (*"Omskifter 1: position — når positionen er Auto"*) eller en **logikblok**, ved siden af PLC-tags. Symbolets position er PLC'ens tilbagemelding, hvis den er sat (toneangivende), ellers den valgte position — så vejen følger det, symbolet viser, uden at der skrives til en PLC. Et symbol, som en vej læser, kan ikke slettes, før betingelsen er fjernet.

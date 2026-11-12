@@ -89,6 +89,9 @@ class Signal(_M):
     write: Literal["set", "pulse"] = "set"
     ms: int = 500
     rest: float | None = None
+    # v5.11.0 (virtuelle signaler, fase B): signalet skriver ikke til en PLC — symbolets position er den valgte (eller tilbagemeldingen `fb`,
+    # hvis den er sat, som så er toneangivende). Kun for positioner.
+    virtual: bool = False
 
     _s = field_validator("tag", "fb")(lambda cls, v: (v or "").strip())
 
@@ -790,6 +793,11 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
 
     # -- signaler (trin 2)
     ids = [s.id for s in cfg.signals]
+    if any(s.virtual for s in cfg.signals):
+        if cfg.op != "positions":
+            res.err("2", "Et virtuelt signal (kun i SCADA) findes kun for symboler med positioner.")
+        elif cfg.passive:
+            res.err("2", "Kun passiv visning skriver intet — et virtuelt signal giver ingen mening dér.")
     if P:
         if not cfg.signals:
             res.err("2", "Tilføj mindst ét signal.")
@@ -810,6 +818,18 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                     seen_tag[s.fb] = s.id
                 if not any(p.signal == s.id for p in cfg.planes):
                     res.warnings.append(f"{s.id} ({s.fb}) bruges ikke af nogen kontaktplan.")
+                continue
+            if s.virtual:      # skriver ikke til en PLC (v5.11.0): kun tilbagemeldingen (valgfri) tjekkes
+                s.tag, s.write, s.rest = "", "set", None
+                if s.fb and tag_of(s.fb) is None:
+                    res.err("2", f"{s.id}: tilbagemeldingen '{s.fb}' findes ikke.")
+                elif s.fb:
+                    if s.fb in seen_tag:
+                        res.err("2", f"{s.id} og {seen_tag[s.fb]} bruger samme tilbagemelding {s.fb}.")
+                    else:
+                        seen_tag[s.fb] = s.id
+                if not any(p.signal == s.id for p in cfg.planes):
+                    res.warnings.append(f"{s.id} (virtuelt) bruges ikke af nogen kontaktplan.")
                 continue
             if not s.tag:
                 res.err("2", f"{s.id}: vælg et kommando-tag.")

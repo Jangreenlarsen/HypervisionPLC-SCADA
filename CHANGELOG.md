@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.11.0 build 0392] — 2026-11-12 — Virtuelle signaler, fase B: kun i SCADA
+
+- `services/symbols.py`: `Signal.virtual` (nyt felt); `validate_config`: et virtuelt signal har intet tag, skrives som *Sæt*, kan have en tilbagemelding, og findes kun for positioner (ikke trykknap/setpunkt og ikke passiv visning). Betjening (`symbol_operate`) og skriveplan (`write_plan`) sprang allerede signaler uden tag over — et skift af position skriver derfor intet til PLC'en men huskes som valgt position (`symbol_state`); en `fb` er stadig toneangivende (`display: remote`).
+- `lib/SymbolGuide.svelte` (trin 2): *Kommando* kan være *et PLC-tag* eller *kun i SCADA (virtuelt)*; `symbolConfig.ts` (`Signal.virtual`).
+- Tests: `test_symbol_operate.py` (virtuelt skift skriver intet og huskes, vejen læser positionen, kun positioner/aldrig passiv, tilbagemeldingen er toneangivende). Set i browseren: trin 2 → *kun i SCADA (virtuelt)* → Gem → `{tag: "", virtual: true}`.
+- Manual (kap. 10), LLM-tillæg, FEATURES.
+
 ## [5.10.0 build 0391] — 2026-11-12 — Virtuelle signaler, fase A: symbolets position som betingelse
 
 - `services/symbols.py`: `derived_signals(drawing_id)` (symbolers position `sym:…:pos` med positionernes navne, og logikblokke `sym:…:logic:Lk` — blokke, der selv læser en vej, udeladt); `path_condition_users` (veje, hvis betingelser læser et symbol); `delete`/`put`/`_logic_users` afviser at slette et symbol, fjerne dets positioner eller blokke, mens en vej bruger dem.

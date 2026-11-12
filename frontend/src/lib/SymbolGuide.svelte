@@ -435,7 +435,7 @@ import { AVERAGE_CHOICES } from './trendData';
       return;
     }
     // Intet at skrive til endnu (forslaget "Interaktiv betjening" uden tag): hurtig opsætning er til visning, så skift til "Kun passiv visning"
-    const toView = cfg.op === 'positions' && !passive && !cfg.signals.some((s) => s.tag);   // passiv visning har aldrig kommando-tags — den må ikke ryddes her
+    const toView = cfg.op === 'positions' && !passive && !cfg.signals.some((s) => s.tag || s.virtual);   // passiv visning har aldrig kommando-tags — den må ikke ryddes her
     const used = cfg.anims.filter((a) => ['port_a', 'port_b', 'port_ab'].includes(symbol!.parts[a.part]?.pid ?? '')).length;
     if (used && !toView && !await askUser(`Erstat de ${used} eksisterende animationer på portene A, B og AB?`)) return;
     if (toView) setOp(cfg, 'view');   // fjerner også forslagets positions-animationer
@@ -738,10 +738,15 @@ import { AVERAGE_CHOICES } from './trendData';
                 {#each cfg.signals as s, i (s.id)}
                   <tr>
                     <td><strong>{s.id}</strong>{#if sigAi.has(s.id)}<span class="ai" title="Forslag fra hjælperen">✦</span>{/if}</td>
-                    <td>{#if passive}<select disabled class="greyed" aria-label="Kommando bruges ikke"><option>— bruges ikke —</option></select>{:else}<TagSelect bind:value={s.tag} {tags} writableOnly />{/if}</td>
+                    <td>{#if passive}<select disabled class="greyed" aria-label="Kommando bruges ikke"><option>— bruges ikke —</option></select>{:else}
+                      <select value={s.virtual ? 'v' : 'p'} aria-label="Skriver til {s.id}" onchange={(e) => { s.virtual = e.currentTarget.value === 'v'; if (s.virtual) { s.tag = ''; s.write = 'set'; s.rest = null; } }}>
+                        <option value="p">et PLC-tag</option><option value="v">kun i SCADA (virtuelt)</option>
+                      </select>
+                      {#if s.virtual}<div class="small muted">skriver ikke til en PLC — positionen er den valgte{s.fb ? ' (tilbagemeldingen er toneangivende)' : ''}</div>
+                      {:else}<TagSelect bind:value={s.tag} {tags} writableOnly />{/if}{/if}</td>
                     <td><TagSelect bind:value={s.fb} {tags} placeholder={passive ? '— vælg tilbagemelding —' : '— ingen —'} /></td>
                     <td class="skriv" class:greyed={passive}>
-                      {#if passive}<span class="small muted">—</span>{:else}
+                      {#if passive || s.virtual}<span class="small muted">—</span>{:else}
                       <select bind:value={s.write}><option value="set">Sæt</option><option value="pulse">Puls</option></select>
                       {#if s.write === 'pulse'}
                         <input class="n" type="number" min="100" max="10000" step="100" bind:value={s.ms} title="Pulslængde (ms)" /> ms
@@ -810,7 +815,7 @@ import { AVERAGE_CHOICES } from './trendData';
               {#each cfg.planes as p, i}
                 {@const k = sigKind(p.signal)}
                 <tr>
-                  <td><select bind:value={p.signal}>{#each cfg.signals as s}<option value={s.id}>{s.id}{s.tag || s.fb ? ` · ${s.tag || s.fb}` : ''}</option>{/each}</select></td>
+                  <td><select bind:value={p.signal}>{#each cfg.signals as s}<option value={s.id}>{s.id}{s.virtual ? ' · virtuelt' : s.tag || s.fb ? ` · ${s.tag || s.fb}` : ''}</option>{/each}</select></td>
                   {#each p.values as v, j}
                     <td>
                       {#if k === 'bool'}

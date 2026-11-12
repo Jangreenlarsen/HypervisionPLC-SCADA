@@ -2,6 +2,10 @@
 
 ---
 
+## v5.11.0 — 2026-11-12 — Omskifter/knap kun i SCADA
+
+- I symbol-guidens trin 2 kan *Kommando* nu være **kun i SCADA (virtuelt)**: symbolet skriver ikke til en PLC, men positionen huskes, og en signalvej eller animation kan følge den. En PLC-tilbagemelding er toneangivende, hvis den er sat.
+
 ## v5.10.0 — 2026-11-12 — En omskifter kan styre en signalvej
 
 - I en signalvejs betingelser kan du nu vælge **et symbols position** (fx *Omskifter 1: position — Auto*) eller en **logikblok**, ved siden af PLC-tags. Vejen følger så symbolet i tegningen uden at skrive til en PLC. PLC-tilbagemeldingen er toneangivende, hvis den er sat.

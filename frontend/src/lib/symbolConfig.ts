@@ -6,7 +6,9 @@ export type Op = 'positions' | 'pulse' | 'entry' | 'view';
 export type AnimType = 'fill' | 'stroke' | 'blink' | 'visible' | 'spin' | 'level' | 'opacity' | 'text' | 'rotate' | 'move' | 'flow' | 'flicker' | 'scale' | 'segments';
 export type SrcKind = 'pos' | 'bool' | 'num';
 
-export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null }
+export interface Signal { id: string; tag: string; fb: string; write: 'set' | 'pulse'; ms: number; rest: number | null;
+  /** v5.11.0: kun i SCADA — skriver ikke til en PLC; symbolets position er den valgte (eller tilbagemeldingen, hvis den er sat) */
+  virtual?: boolean }
 export interface Plane { signal: string; values: (number | null)[] }
 export interface Anim { part: string; type: AnimType; src: string; params: Record<string, any>; only: boolean[] | null; when?: boolean;
   /** v1.12.0: tagets værdi ER positionsnummeret (0, 1, 2 …) — én værdi pr. position, som med kilden "symbolets position" */
