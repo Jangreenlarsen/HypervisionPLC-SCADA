@@ -18,6 +18,29 @@ Jans ønske (2026-11-12):
 | Pumpe-kapacitet | l/min, 0 = stop … 65535 (16-bit) | værdi |
 | Flow-restriktion | 0 = fuld blokering … 1 = ingen restriktion | **variabel** (styres live) |
 
+## Præcisering fra Jan (2026-11-12, samme aften)
+
+- På et symbol defineres kun **tilstande** og de **animationer, der er aktive i hver tilstand**. Eksempler:
+  - en pumpe: *stop*, *start*, og hvad forskellig flow-rate betyder (fx hastigheden på løbelyset);
+  - en 3-vejsventil i *AB → A*: portene AB og A er grønne, B er sort;
+  - en tank: væskens farve efter temperaturen.
+- **Tags styrer tilstanden.** Eksempel: en 3-vejs motorventil har to bit-signaler ind, eller ét heltal, hvor værdien bestemmer porten (10 = AB → A, 20 = AB → B).
+
+**Det findes i symbol-guiden i dag:**
+
+| Jans begreb | I guiden |
+|---|---|
+| tilstande | *Positioner* |
+| tags bestemmer tilstanden (ingen betjening) | *Kun passiv visning*: tilbagemelding + *kontaktfladen* (værdi → position), eller *et tag, hvis værdi vælger positionen* med "fra-værdier" (10, 20) |
+| animationer pr. tilstand | trin 4: *gælder i positionerne*, eller kilden *position* med én værdi pr. position (farve pr. port) |
+| tankens farve efter temperatur | *Farve* styret af et tal-tag med grænser |
+| pumpens flow-rate | *Løbelys*/*Roterer* med hastighed fra et tal-tag |
+
+**Det, der (sandsynligvis) mangler:**
+
+1. at tilstandene og deres animationer kan **defineres én gang pr. symboltype** (fx alle 3-vejsventiler) og genbruges, så man ved et nyt symbol kun vælger tags;
+2. **flow-betydningen** af en tilstand (hvilke veje er åbne i *AB → A*, pumper/pumper ikke, restriktion), så systemet selv kan beregne flowet gennem de forbundne symboler (punkt 3 i forslaget nedenfor).
+
 ## Det, der findes i forvejen og bygges videre på
 
 - **Ind/ud og veje** (`symbol_flow`: punkter med navn, rolle, fælles punkt, veje pr. symboltype) — beholdt ved oprydningen.
