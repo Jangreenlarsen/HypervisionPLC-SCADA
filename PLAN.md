@@ -1,3 +1,51 @@
+# Plan: Signalvejene fjernes helt — frisk tilstand (v7.0.0) — 2026-11-12 — afventer OK
+
+Jans beslutning (2026-11-12): "fjern alt om den signal editor så vi har en frisk tilstand". Afklaret:
+
+- **Symbol-flow** (hvordan flow løber gennem et symbol, Symboler-siden) **beholdes**.
+- **Virtuelle signaler** fjernes også: et symbols position som tilbagemelding, logikblok som signal (`sym:`) og kommando *kun i SCADA* (v5.10–v5.12).
+- **Tjek/Bind forbindelser** og tilslutningspunkter i Tegn **beholdes**.
+
+## Fjernes
+
+**Backend**
+- `services/signal_paths/` (hele pakken), `api/signal_paths.py`, `services/migrations/v60_paths.py`, `services/assist_signal.py`, hvis kun signalvejene bruger den. `assist_setup` bruger `pick_tags`, så den flyttes derhen.
+- `symbols.py`:
+  - vejsymboler: `path_symbol_id`/`parse_path_symbol`, path-grenen i `validate_config`, `MAX_PATH_ANIMS`, `describe_group` for veje;
+  - afledte signaler: `is_derived`, `derived_signals`, `signal_ids`, `signal_users`, `sym_refs`, `_signal_cycle`, pseudo-`fb`, `sym:` i `_logic_users`;
+  - `Signal.virtual` og guards i put/delete.
+- `symbol_runtime.py`: `path_names`, publicering af `sym:`-positioner/logik. `drawings._path_symbol_bindings`. `api/symbols.py`: `GET /signals` og `pseudo` i preview.
+- `backup.py` (`signal_paths`, `sv~`-regler, `pre-v6`), `db.py` (signal_paths-metoder, backup/restore af veje), `svg_sanitize.py` (`sv~`-reservation), `sse.py`/`main.py` (oprydning).
+
+**Frontend**
+- `SignalPathGuide`, `SpSaved`, `SpStart` + tests, `signalGuideHarness`, `signalpath/route.ts`, `net.ts`, `pick.ts` (og den del af `flow.ts`/`signalPath.ts`, kun vejsøgningen bruger). `graph.ts` og forbindelses-tjekket bliver.
+- `DrawEditor`: sektionen Signalveje, vindue/markering, vejnavne på tegningen.
+- `SymbolTree`/`symbolTree.ts`: vej-gruppen.
+- `SymbolGuide`/`symbolConfig.ts`: vejsymbol (trin 1-radio, *Tilføj løbelys langs vejen*, grupperede animationer, `libraryDefault('signalvej')`), tilbagemelding = symbols position, virtuelt signal, `signals`-hentning. `draw/panels.ts`, `manual.ts`.
+- `svgedit-host/scada-core.js`: `highlightPath`, vejnavne. Beholdes, hvis forbindelses-tjekket bruger det.
+
+**Manual/doku**
+- Kap. 08 Signalveje og virtuelle signaler i kap. 10: tekst og billeder (`signalvej-*.png`). LLM-tillæg, ACCEPTTEST, FEATURES (markeres *fjernet v7.0.0*).
+- `docs/ANALYSE_VIRTUELLE_TAGS.md` arkiveres.
+
+## Data (MAJOR → v7.0.0)
+
+- Ny migration `v70_cleanup` ved opstart, én gang, med **backup `pre-v7` først**. Fejler backuppen, ændres intet.
+- Migrationen sletter alle signalveje (tabellen tømmes; `DROP` er unødvendig risiko, så den står tom til en senere skema-oprydning) og alle `sv~`-opsætninger.
+- Symboler, der brugte et virtuelt signal, `sym:` eller `path:`: opsætningen **beholdes** og står i rapporten/audit. Guiden viser fejlen, og symbolet vises gråt, til det rettes; der slettes ikke data hos almindelige symboler.
+- Gendannelse af en ældre backup springer `signal_paths` over og afviser ikke backuppen; migrationen køres efter gendannelsen.
+
+## Tests
+
+Slet `test_signal_paths.py` og `test_signal_branches.py` (forbindelses- og symbol-flow-dele flyttes, hvis de findes), virtuelle tests i `test_symbol_operate.py`, og path-tests i frontend. Tilføj: migrationstest (backup, sletning, rapport, backupfejl) og gendannelse af en v6-backup. Hele backend-suiten, frontend-test og build. Browser: Tegn uden Signalveje, symbol-guiden uden *symbols position*, Tjek forbindelser virker.
+
+## Risici
+
+- Symboler hos Jan, der bruger virtuelle signaler, holder op med at virke. De står i rapporten.
+- Bred ændring (~50 filer). Reviewer-agent før commit (data-integritet, backup/restore).
+
+---
+
 # Plan: Signalvejen er kun en definition — og bruges som et almindeligt symbol (v6.0.0) — 2026-11-12 — afventer OK
 
 Jans forklaring (2026-11-12): en signalvej **defineres** (hvad den består af: elementer, rute gennem ventilerne, flowretning) — den skal **ikke** selv have animationer eller betingelser. Hver flowretning/rute er sin egen signalvej. Når vejen er oprettet, bruges den som et **almindeligt symbol i symbol-guidens 6 trin**: trin 2 *Signaler* (tilbagemelding fra et PLC-tag **eller et andet symbols position**), trin 3 *Kontakter* (PLC-kontaktfladen afgør, hvilken værdi der er hvilken position — og dermed animationerne), trin 4 *Visning* (animationer på vejens dele, styret af positionen).
