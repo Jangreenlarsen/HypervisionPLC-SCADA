@@ -214,6 +214,7 @@ Panelet **Symbol-oversigt** (til højre) viser alle symboler på tegningen som e
 - **Niveau 2:** folder du en signalvej ud, ser du de elementer, den består af; folder du en gruppe ud, ser du dens medlemmer. Et symbol kan stå flere steder (fx som medlem af to grupper og på en vej).
 - **Klik på navnet** vælger symbolet (en vej eller gruppe: alle dens elementer) på tegningen. **Opsæt** åbner symbol-guiden (6 trin) for symbolet — for en signalvej åbner den vejen som symbol. På en gruppe åbner **Animationer** gruppens animationer.
 - Et ✓ viser, at symbolet har en opsætning. Tallet øverst viser, hvor mange grundsymboler der er opsat. Søgefeltet og *ikke opsatte* indsnævrer listen til det, du mangler.
+- Har symboler **intet navn**, står der en advarsel med knappen **Giv dem unikke navne**: hvert navnløst symbol får typens navn og et løbenummer (*3-vejs ventil 2*), så to ens symboler kan kendes fra hinanden. Ét fortryd-trin (Ctrl+Z); gem tegningen for at beholde navnene.
 - Oversigten opdateres selv, når du gemmer en opsætning eller ændrer tegningen.
 
 ## Grupper af symboler

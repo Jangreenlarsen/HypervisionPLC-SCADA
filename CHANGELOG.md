@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.9.0 build 0390] — 2026-11-12 — Animationer samlet pr. symbol, og unikke navne
+
+- `svg_sanitize.describe_group`: elementer får et entydigt `label` (navnet, hvis det er unikt; ellers `navn (id)`; uden navn `type (id)` / `rør (id)`), og rødderne `named` og `sym_type`.
+- `SymbolGuide.svelte` (signalvej, trin 4): animationerne vises i sammenfoldelige grupper pr. element (`{#snippet animRow}`, `pathGroups`), hver med *+ Animation* (`addAnimFor`); ▲▼ bytter inden for gruppen. Rækkefølgen i opsætningen er uændret.
+- `scada-core.js`: `unnamedSymbolCount()` og `nameUnnamedSymbols(labels)` (typens navn + løbenummer via `uniqueNameIn`, ét fortryd-trin; rører kun `data-hv-name`); `DrawEditor.svelte` + `SymbolTree.svelte`: advarslen *N symboler har intet navn* og knappen *Giv dem unikke navne*.
+- Tests: `test_signal_paths.py` (entydige labels). Set i browseren på en kopi af demo-tegningen uden navne: 9 navnløse symboler, knappen navngiver dem, Ctrl+Z fortryder; guiden viser én gruppe pr. element (`rør (svg_67)`, `t stykke (t_stykke_2)` …).
+- Manual (kap. 07 og 08), LLM-tillæg, FEATURES.
+
 ## [5.8.0 build 0389] — 2026-11-12 — Signalvejens animationer kan redigeres som i et almindeligt symbol
 
 - **Backend:** `services/signal_paths/materialize.py` (`base_anims`, `merge`): vejens *Udseende* (`elements[].flows/anims`) bliver almindelige animationer i vejens symbol-opsætning (`sv~<id>`), mærket `auto: true`, med vejens pseudo-tag som kilde og *aktiv/passiv*. `SignalPathService.save` skriver dem i samme transaktion som vejen (`expect` mod samtidige ændringer; en ny vej får dem straks efter, og rulles tilbage, hvis de ikke kan gemmes); `auto`-animationer erstattes, alt andet bevares; egne animationer på en gren, der ikke findes mere, fjernes (`dropped`). `Anim.auto` (nyt felt), `Anim.src` op til 120 tegn, `MAX_PATH_ANIMS = 600` for vejsymboler (12 for andre, tjekkes i `validate_config`). `drawings._path_bindings` er væk — alt kommer fra `_path_symbol_bindings`. `materialize_existing()`: opgradering ved opstart (flag `migration.v58_path_anims`) og efter gendannelse af en backup. `svg_sanitize.describe_group`: `owner` pr. del.

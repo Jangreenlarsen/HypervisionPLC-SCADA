@@ -459,6 +459,28 @@ export function createScada(host) {
     for (let i = 2; ; i++) if (!used.has(`${base} ${i}`)) return `${base} ${i}`;
   }
 
+  /** Bibliotekssymboler (rødder med data-hv-type) uden navn (v5.9.0) — de kan ikke kendes fra hinanden i listerne. */
+  function unnamedSymbols() {
+    return Array.from(canvas().getSvgContent().querySelectorAll('[data-hv-type]'))
+      .filter((el) => el.id && !(el.getAttribute('data-hv-name') || '').trim() && !el.parentElement?.closest('[data-hv-type]'));
+  }
+  /** Giv de navnløse symboler hvert et unikt navn: typens navn (fra `labels`) + løbenummer — ét fortryd-trin. Rører kun data-hv-name. */
+  function nameUnnamedNow(labels = {}) {
+    const c = canvas();
+    const cmds = [];
+    for (const el of unnamedSymbols()) {
+      const type = el.getAttribute('data-hv-type') || 'symbol';
+      const base = String((labels && labels[type]) || type.replace(/_/g, ' ')).slice(0, 56);
+      const was = el.getAttribute('data-hv-name');
+      el.setAttribute('data-hv-name', uniqueNameIn(base));
+      cmds.push(new c.history.ChangeElementCommand(el, { 'data-hv-name': was }));
+    }
+    if (!cmds.length) return 0;
+    commitCmds('Giv symboler navne', cmds);
+    if (changeListener) changeListener();
+    return cmds.length;
+  }
+
   /** Et bibliotekssymbol (SVG-fragment med ét rodelement) som et element med unikke id'er — endnu ikke sat ind. */
   let libraryPorts = {};   // symboltype → rettede punkter (sat af Tegn fra /api/symbol-ports)
 
@@ -2773,6 +2795,11 @@ export function createScada(host) {
     },
 
     /** Udelad hele symboler fra tjekket af forbindelser (`on`) eller tag dem med igen — ét fortryd-trin, gemmes med tegningen. → antal ændrede */
+    /** Antal symboler uden navn (v5.9.0). */
+    unnamedSymbolCount() { return unnamedSymbols().length; },
+    /** Giv dem unikke navne ("3-vejs ventil 2"); `labels`: symboltype → navn. → antal navngivne */
+    nameUnnamedSymbols(labels = {}) { return nameUnnamedNow(labels); },
+
     exemptSymbols(ids = [], on = true) {
       const c = canvas();
       const cmds = [];

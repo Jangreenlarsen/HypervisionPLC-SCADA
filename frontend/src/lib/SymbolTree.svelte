@@ -7,7 +7,7 @@
   import { listGroups, type SymbolGroup } from './symbolGroups';
   import { buildTree, countSymbols, filterTree, type PathRow, type SymbolRow, type TreeNode } from './symbolTree';
 
-  let { drawingId, rev = 0, ready, select, onguide, ongroup }: {
+  let { drawingId, rev = 0, ready, select, onguide, ongroup, unnamed = 0, onname }: {
     drawingId: string | null; rev?: number; ready: boolean;
     /** Markér elementerne på tegningen */
     select: (ids: string[]) => number;
@@ -15,6 +15,9 @@
     onguide: (id: string, name: string) => void;
     /** Gruppens animationer */
     ongroup: (g: SymbolGroup) => void;
+    /** Symboler uden navn i tegningen (v5.9.0) og "giv dem unikke navne" */
+    unnamed?: number;
+    onname?: () => void;
   } = $props();
 
   let symbols = $state<SymbolRow[]>([]);
@@ -73,6 +76,10 @@
   <label class="opt" title="Vis kun de symboler og veje, der endnu ikke har en opsætning"><input type="checkbox" bind:checked={onlyOpen} /> ikke opsatte</label>
 </div>
 <p class="small muted">{counts.configured} af {counts.total} grundsymboler er opsat.</p>
+{#if unnamed > 0 && onname}
+  <p class="small warn">{unnamed} symbol{unnamed === 1 ? '' : 'er'} har intet navn og kan ikke kendes fra andre af samme slags.
+    <button class="small" onclick={onname} disabled={!ready} title="Hvert navnløst symbol får typens navn og et løbenummer (fx 3-vejs ventil 2). Kan fortrydes; gem tegningen bagefter.">Giv dem unikke navne</button></p>
+{/if}
 {#if error}<p class="small error">{error}</p>{/if}
 {#if note}<p class="small warn">{note}</p>{/if}
 

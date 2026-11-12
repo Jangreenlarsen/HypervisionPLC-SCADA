@@ -691,3 +691,16 @@ def test_a_backup_cannot_smuggle_more_than_twelve_animations_onto_an_ordinary_sy
     row["config"]["anims"] = [row["config"]["anims"][0] for _ in range(13)]
     r = api.post("/api/backup/restore", json=bk)
     assert r.status_code == 400 and "for mange animationer" in r.json()["error"]
+
+
+def test_every_element_on_a_path_can_be_told_apart_by_its_label():
+    """v5.9.0: to ens ventiler/T-stykker skal kunne kendes fra hinanden i guidens lister."""
+    from app.services.svg_sanitize import describe_group
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg"><g id="a" data-hv-type="trevejs_motorventil" data-hv-name="V"><path id="a_x" d="M0 0"/></g>'
+           '<g id="b" data-hv-type="trevejs_motorventil" data-hv-name="V"/><g id="c" data-hv-type="t_stykke"/>'
+           '<path id="r" data-hv-pipe="1" d="M0 0 H5"/><g id="d" data-hv-name="Pumpe"/><g id="e"/></svg>')
+    parts = describe_group(svg, ["a", "b", "c", "r", "d", "e"], "vej")["parts"]
+    assert {k: v["label"] for k, v in parts.items()} == {
+        "a": "V (a)", "a_x": "V (a) · a_x", "b": "V (b)", "c": "t stykke (c)", "r": "rør (r)", "d": "Pumpe", "e": "e"}
+    assert parts["d"]["named"] is True and parts["c"]["named"] is False and parts["c"]["sym_type"] == "t_stykke"
+    assert len({v["label"] for v in parts.values() if v["root"]}) == 6          # alle elementer har hvert sit navn

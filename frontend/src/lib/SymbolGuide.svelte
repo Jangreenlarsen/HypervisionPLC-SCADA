@@ -101,7 +101,17 @@ import { AVERAGE_CHOICES } from './trendData';
   /** Elementfilter (signalvej): vis og tilføj animationer for ét element ad gangen — en vej kan have mange. '' = alle. */
   let elFilter = $state('');
   const pathEls = $derived(Object.entries(symbol?.parts ?? {}).filter(([, p]) => p.root).map(([id, p]) => ({ id, label: p.label ?? id })));
-  const animShown = (a: Anim) => !isPath || !elFilter || symbol?.parts[a.part]?.owner === elFilter;
+  const animOwner = (a: Anim): string => symbol?.parts[a.part]?.owner ?? '';
+  const animShown = (a: Anim) => !isPath || !elFilter || animOwner(a) === elFilter;
+  /** Animationerne samlet pr. element (v5.9.0): i tegningens rækkefølge, med elementets entydige navn; kun visningen grupperes. */
+  const pathGroups = $derived.by(() => {
+    if (!isPath) return [] as { id: string; label: string; count: number }[];
+    const order = pathEls.map((e) => e.id);
+    const count = new Map<string, number>();
+    for (const a of cfg.anims) if (animShown(a)) count.set(animOwner(a), (count.get(animOwner(a)) ?? 0) + 1);
+    return [...count.keys()].sort((x, y) => (order.indexOf(x) < 0 ? 1e9 : order.indexOf(x)) - (order.indexOf(y) < 0 ? 1e9 : order.indexOf(y)))
+      .map((id) => ({ id, label: pathEls.find((e) => e.id === id)?.label ?? id, count: count.get(id) ?? 0 }));
+  });
   const partIds = $derived([...(isPath ? [] : ['all']),
     ...Object.entries(symbol?.parts ?? {}).filter(([, p]) => !isPath || !elFilter || p.owner === elFilter).map(([id]) => id)]);
   /** Signalvejene på tegningen som kilde (v5.4.0): `path:<tegning>:<id>:<grene>` — til/fra. */
@@ -469,6 +479,14 @@ import { AVERAGE_CHOICES } from './trendData';
     a.params = animDefaults('fill', srcKind(a), n);
     cfg.anims.push(a);
   }
+  /** En ny animation på et bestemt element i en signalvej (gruppens + Animation): første del, der hører til elementet. */
+  function addAnimFor(owner: string): void {
+    if (cfg.anims.length >= maxAnims) return;
+    const part = Object.entries(symbol?.parts ?? {}).find(([, p]) => p.owner === owner && !p.root)?.[0] ?? owner;
+    const a: Anim = { part, type: 'fill', src: cfg.signals[0]?.tag ?? '', params: {}, only: null };
+    a.params = animDefaults('fill', srcKind(a), n);
+    cfg.anims.push(a);
+  }
   /** "+ Standard" (v0.72.0): en animation med "altid til" nederst — gælder, når ingen af de aktiv/passive over den er aktive. */
   function addDefault(): void {
     if (cfg.anims.length >= maxAnims) return;
@@ -494,7 +512,9 @@ import { AVERAGE_CHOICES } from './trendData';
   }
   function moveAnim(i: number, d: -1 | 1): void {
     let j = i + d;
-    while (j >= 0 && j < cfg.anims.length && !animShown(cfg.anims[j])) j += d;      // (med elementfilter byttes der med den nærmeste synlige)
+    // (en signalvej: der byttes med den nærmeste animation i SAMME gruppe/element; ellers den nærmeste synlige)
+    const same = (a: Anim) => animShown(a) && (!isPath || animOwner(a) === animOwner(cfg.anims[i]));
+    while (j >= 0 && j < cfg.anims.length && !same(cfg.anims[j])) j += d;
     if (j < 0 || j >= cfg.anims.length) return;
     [cfg.anims[i], cfg.anims[j]] = [cfg.anims[j], cfg.anims[i]];
   }
@@ -961,8 +981,7 @@ import { AVERAGE_CHOICES } from './trendData';
           {/if}
           <div class="anim-layout">
           <div class="anim-list">
-          {#each cfg.anims as a, i}
-            {#if animShown(a)}
+          {#snippet animRow(a: Anim, i: number)}
             {@const kind = srcKind(a)}
             <div class="anim">
               <div class="row wrap">
@@ -1056,8 +1075,20 @@ import { AVERAGE_CHOICES } from './trendData';
                 </div>
               {/if}
             </div>
-            {/if}
-          {/each}
+          {/snippet}
+          {#if isPath}
+            {#each pathGroups as g (g.id)}
+              <details class="agroup" open>
+                <summary><strong>{g.label}</strong> <span class="muted small">({g.count} animation{g.count === 1 ? '' : 'er'})</span>
+                  <button class="small" onclick={(e) => { e.preventDefault(); addAnimFor(g.id); }} disabled={cfg.anims.length >= maxAnims}
+                    title="Tilføj en animation på en af {g.label}s dele">+ Animation</button></summary>
+                {#each cfg.anims as a, i}{#if animOwner(a) === g.id}{@render animRow(a, i)}{/if}{/each}
+              </details>
+            {/each}
+            {#if !pathGroups.length}<p class="small muted">Ingen animationer{elFilter ? " på dette element" : ""} endnu.</p>{/if}
+          {:else}
+            {#each cfg.anims as a, i}{@render animRow(a, i)}{/each}
+          {/if}
           <div class="row wrap">
             <button class="small" onclick={addAnim} disabled={cfg.anims.length >= maxAnims}>+ Animation</button>
             <button class="small" onclick={addDefault} disabled={cfg.anims.length >= maxAnims}
@@ -1253,6 +1284,9 @@ import { AVERAGE_CHOICES } from './trendData';
   .greyed { color: var(--muted); opacity: .55; }
   .opt.sub { margin-left: 1.6rem; }
   /* Preview ved animationerne (v2.10.0): ved siden af listen på brede skærme, over den på smalle */
+  .agroup { border: 1px solid var(--line); border-radius: 6px; margin: .4rem 0; padding: .1rem .5rem .3rem; background: var(--panel, #fff); }
+  .agroup > summary { cursor: pointer; padding: .3rem 0; display: flex; align-items: center; gap: .5rem; }
+  .agroup > summary button { margin-left: auto; }
   .anim-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: .6rem; }
   .anim-layout .anim-list { min-width: 0; }
   @media (min-width: 720px) { .anim-layout { grid-template-columns: minmax(0, 1fr) 210px; } }

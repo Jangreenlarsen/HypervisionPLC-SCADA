@@ -2,6 +2,11 @@
 
 ---
 
+## v5.9.0 — 2026-11-12 — Animationer samlet pr. symbol, og unikke navne
+
+- I signalvejens guide står animationerne **samlet pr. element** (fx en 3-vejs ventils porte under ét element), og elementerne kan kendes fra hinanden (*navn (id)*).
+- Nyt i Tegn › Symbol-oversigt: **Giv dem unikke navne** til symboler uden navn.
+
 ## v5.8.0 — 2026-11-12 — Signalvejen er et rigtigt symbol
 
 - Vejens egne animationer (løbelys på rørene, farve, blink, en 3-vejs ventils porte) kan nu **redigeres som i ethvert andet symbol**: *Ret som symbol* → trin 4 viser dem alle; skift type, kilde (tag, betingelse, signalvejen), farve, hastighed og retning, slet og tilføj. *Vis animationer for* viser ét element ad gangen.

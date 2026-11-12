@@ -62,6 +62,8 @@
     docPointAt(clientX: number, clientY: number): { x: number; y: number };
     fixConnections(moves: { id: string; from: [number, number]; to: [number, number]; toId: string }[]): { fixed: number; details: { id: string; to: string; gap: number }[]; skipped: number };
     exemptSymbols(ids: string[], on: boolean): number;
+    unnamedSymbolCount(): number;
+    nameUnnamedSymbols(labels: Record<string, string>): number;
     bindLinks(pairs: { id: string; key: string; to: string; toKey: string }[]): { links: number; elements: number };
     unlink(id: string, key: string): number;
     markConnections(items: { id: string; exempt: boolean; status: string; drift: [number, number][]; driftKeys: string[]; open: [number, number][]; openKeys: string[]; ignored: [number, number][]; ignoredKeys: string[] }[]): void;
@@ -272,6 +274,15 @@
   });
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let treeRev = $state(0);                                         // symbol-oversigten henter forfra (v5.5.0)
+  let unnamed = $state(0);                                          // symboler uden navn i tegningen (v5.9.0)
+  $effect(() => { void inspectRev; unnamed = ready && ed ? ed.unnamedSymbolCount() : 0; });
+  function nameThem(): void {
+    const labels: Record<string, string> = {};
+    for (const s of defs()) labels[s.id] = s.label;
+    const n = ed?.nameUnnamedSymbols(labels) ?? 0;
+    info = n ? `${n} symbol${n === 1 ? '' : 'er'} har fået et unikt navn. Gem tegningen for at beholde navnene (Ctrl+Z fortryder).` : 'Alle symboler har et navn.';
+    inspectRev++;
+  }
   let treeGroup = $state<SymbolGroup | null>(null);                // gruppens animationer åbnet fra oversigten
   let tags = $state<{ name: string; source: string; unit: string; writable: boolean; plc: string }[]>([]);
   let ed: ScadaApi | null = null;
@@ -1353,7 +1364,7 @@
     </PanelSection>
     <PanelSection id="oversigt" title="Symbol-oversigt" {...sec('oversigt')}>
       <SymbolTree drawingId={current?.id ?? null} rev={inspectRev + treeRev} {ready} select={(ids) => ed?.selectByIds(ids) ?? 0}
-        onguide={(id, name) => (guideFor = { id, name })} ongroup={(g) => (treeGroup = g)} />
+        onguide={(id, name) => (guideFor = { id, name })} ongroup={(g) => (treeGroup = g)} {unnamed} onname={nameThem} />
     </PanelSection>
     <PanelSection id="signalveje" title="Signalveje" {...sec('signalveje')}>
       {#if current}
