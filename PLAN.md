@@ -18,6 +18,13 @@ Vejens grundanimationer (*Udseende* i vejens guide) gemmes i vejens data og læg
 5. **Opgradering:** ved opstart skrives grundanimationerne for alle eksisterende veje ind én gang (flag i `meta`, samme mønster som v5.1-migreringen) — Overview ser ens ud før og efter.
 6. **Backup/gendan:** uændret (alt ligger i `symbol_config`); `auto` er et almindeligt felt.
 
+## Tilføjelse (Jan 2026-11-12): elementer med flere porte — fx en 3-vejs ventil — kan indstilles i vejen
+En 3-vejsventil i en vej farver i dag de porte, vejen bruger (valgt i *Udseende*, gruppen *3-vejsventiler*). I v5.8.0 bliver det **én animation pr. port** (A, B, AB) i vejens opsætning, med vejens gren som kilde:
+- Du kan sætte **farven pr. port** (fx *port A og AB blå, B grå*), skifte kilde pr. port (et tag, ventilens stilling, en logikblok) og tilføje blink eller løbelys på en port.
+- **Hvilke porte der er "i vejen"** følger stadig vejens valg af *vej gennem ventilen* (A↔AB eller B↔AB) — ændres det i vejens guide og vejen gemmes, genskabes portenes `auto`-animationer; dine egne (frigjorte) består.
+- **Guiden får et elementfilter** i trin 4: *Vis animationer for: alle / Pumpe 1 / Ventil V2 (3-vejs) …* og en gruppering pr. element, så en vej med 30 elementer ikke bliver en lang liste. *+ Animation* lægger sig på det valgte element, og delvælgeren viser kun dets dele (porte, ramme, tekst …) med deres rigtige navne (*Port A*, *Port AB*, *Motor*).
+- Gælder alle elementer med flere dele (ventiler, T-stykker, pumper), ikke kun 3-vejsventilen.
+
 ## Trin
 1. FEATURES.md (v5.8.0 planlagt) → 2. backend: `Anim.auto`, `signal_paths/materialize.py` (rene funktioner: data → animationer), `save`, `_path_bindings` væk, migrering → 3. frontend: `Anim.auto` + afkrydsning/hjælpetekst i `SymbolGuide` → 4. tests (backend: materialisering, bevarelse af egne/frigjorte, regenerering, migrering, backup-rundtur, restart på eksisterende data; frontend: afkrydsning) → 5. manual (kap. 08), LLM-tillæg, CHANGELOG, RELEASE_NOTES, **v5.8.0**, OTA → 6. **browser:** vej → *Ret som symbol* → løbelyset står som animationer → skift kilde til et tag → gem vejen igen (frigjort består, auto genskabes) → Overview. **Reviewer** (data-integritet, migrering).
 
