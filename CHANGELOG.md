@@ -4,6 +4,11 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [5.4.1 build 0384] — 2026-11-12 — fix: serveren startede ikke (v5.4.0)
+
+- `services/symbol_runtime.py`: manglende import af `path_symbol_id` (NameError i `reload()` ved opstart) — se BUGS.
+- `tests/test_signal_paths.py`: `test_runtime_reload_and_evaluate_run_the_logic_of_a_path_symbol` kalder runtimens `reload()`/`evaluate()` med et vejsymbol.
+
 ## [5.4.0 build 0383] — 2026-11-11 — Signalvejen som samlet symbol
 
 - **Backend:** `services/symbols.py`: det virtuelle symbol-id `sv~<vej-id>` (`path_symbol_id`, `parse_path_symbol`); `SymbolService.info()` giver vejen som ét symbol (type `signalvej`, delene = alle vejens elementer og underdele, via `svg_sanitize.describe_group`); `get/put/preview/copy_to/orphaned/logic_pool` kender det; `validate_config` tvinger `op = view`, afviser "hele symbolet" og accepterer vejenes pseudo-tags (`path:…`) som kilde i animationer og logikblokke; `config_tags` regner dem ikke som rigtige tags. `drawings._path_symbol_bindings`: vejens egne animationer (`source: "path-symbol"`, position ≥ 100 000) lægges efter vejens automatik. `symbol_runtime.reload` regner vejens logikblokke. `signal_paths/service`: listen giver `symbol`, `configured`, `sources`; *Slet* afviser, hvis en anden bruger vejens logikblok (409), og sletter vejens opsætning i samme transaktion. `storage/db.py`: `list_signal_paths` springer en beskadiget række over (logges); backup gemmer og gendanner vejens **id** (`sv~<id>` peger på det); `services/backup.py` dropper vejsymboler uden en gendannet vej.

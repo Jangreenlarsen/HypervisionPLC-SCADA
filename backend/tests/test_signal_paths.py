@@ -502,3 +502,15 @@ def test_svg_ids_that_look_like_a_path_symbol_are_removed():
     from app.services.svg_sanitize import sanitize_svg
     out = sanitize_svg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect id="sv~3" width="1" height="1"/><rect id="ok" width="1" height="1"/></svg>')
     assert 'id="sv~3"' not in out.svg and 'id="ok"' in out.svg
+
+
+def test_runtime_reload_and_evaluate_run_the_logic_of_a_path_symbol(api):
+    """v5.4.1: runtimen blev ikke startet i testene, så en manglende import i reload() (vejens symbol) gik ubemærket hen."""
+    pid = _path(api)
+    cfgp = {"op": "view", "logic": [{"id": "L1", "name": "Ekstra", "op": "and", "inputs": [{"src": "Ekstra"}]}],
+            "anims": [{"part": "r2", "type": "blink", "src": "@L1", "params": {}}]}
+    assert api.put(f"/api/drawings/{api.d}/symbols/sv~{pid}/config", json={"config": cfgp}).status_code == 200
+    rt = api.app.state.symbol_runtime
+    rt.reload()
+    assert (api.d, f"sv~{pid}") in rt.symbols and rt.names[(api.d, f"sv~{pid}")] == "Kedel → radiator"
+    rt.evaluate()          # må ikke kaste

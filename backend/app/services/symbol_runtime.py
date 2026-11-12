@@ -26,7 +26,7 @@ from .alarms import Condition
 from .live_cache import LiveCache, LiveValue
 from .svg_sanitize import describe_element, index_svg
 from .signal_paths.runtime import evaluate_path
-from .symbols import PSEUDO_KINDS, logic_pseudo_tags, logic_results, pseudo_tag
+from .symbols import PSEUDO_KINDS, logic_pseudo_tags, logic_results, path_symbol_id, pseudo_tag
 
 log = logging.getLogger(__name__)
 

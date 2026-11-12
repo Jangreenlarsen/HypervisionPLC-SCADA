@@ -2,6 +2,10 @@
 
 ---
 
+## v5.4.1 — 2026-11-12 — Rettelse: serveren kunne ikke starte efter v5.4.0
+
+- v5.4.0 kunne ikke starte (manglende import). Opgradér til v5.4.1 i stedet.
+
 ## v5.4.0 — 2026-11-11 — Signalvejen som samlet symbol
 
 - Ved hver gemt signalvej: **Ret som symbol**. Vejen åbner i symbol-guiden, og **alle dens elementer** kan få egne animationer og logik. De overskrives aldrig, når vejen gemmes igen.
