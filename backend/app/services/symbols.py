@@ -36,6 +36,7 @@ MAX_POSITIONS, MAX_PLANES, MAX_SIGNALS, MAX_ANIMS = 8, 8, 8, 12
 MAX_LOGIC, MAX_LOGIC_INPUTS = 8, 4
 POS = "@pos"
 ON = "@on"   # kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et tag
+RATE_POS = "@pos"   # v6.9.4: pumpens flow-rate følger dens position (Fra = stop, Til = kører) — flow_calc.pump_running
 VAL = "@val:"   # kilden "fast værdi" (v1.4.0): `@val:75` — et tal i stedet for et tag; kun for tal-animationer
 VAL_TYPES = {"level", "opacity", "scale", "rotate", "move"}   # tal-animationer der kan styres af en fast værdi
 FLOW = "@flow"   # kilden "symbolets flow" (v6.1.0): den beregnede mængde gennem symbolet, l/min (flow_calc.py)
@@ -1139,6 +1140,10 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             res.warnings.append("Portfarverne bruges kun på et symbol med positioner og åbne veje pr. position.")
         for label, fs in (("Flow-rate", cfg.flow.rate), ("Restriktion", cfg.flow.restrict)):
             if not fs.src:
+                continue
+            if fs.src == RATE_POS and label == "Flow-rate":
+                if cfg.op != "positions" or not cfg.positions:
+                    res.err("4", "Flow-rate: \"følger pumpens position\" kræver, at symbolet har positioner (fx Fra og Til).")
                 continue
             if fs.src.startswith(VAL):
                 v = parse_val_ref(fs.src)

@@ -2,6 +2,11 @@
 
 ---
 
+## v6.10.0 — 2026-11-13 — Pumpens start/stop og Simulér-knap
+
+- En pumpe med positioner (*Fra/Til*) starter og stopper flowet efter sin position. Det er nyt standardvalg i guiden under *Flow › Start/stop*. Guiden advarer, hvis en fast værdi får pumpen til at køre altid.
+- **Simulér** i Tegn og **Tegn** i simulatoren: skift hurtigt frem og tilbage, mens du tegner.
+
 ## v6.9.3 — 2026-11-13
 
 - En gemt forbindelse til et punkt, et symbol ikke længere har (fx efter at pumpens punkter blev IND og UD), vises nu som **gledet**, og **Bind forbindelser** retter den. Derefter virker flowet og løbelyset.

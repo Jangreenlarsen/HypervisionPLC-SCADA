@@ -8,7 +8,7 @@
 
 - **Øverst** står én linje i tre dele:
   - **til venstre** står **tegningens navn** som en menu: skift til en anden tegning, **+ Ny tegning …**, **⤢ Størrelse …**, **Bindinger →** og nederst den røde **Slet tegning …**. Ved siden af står **versionen** (fx *v4 kladde*): tryk for at åbne en anden version eller **udgive** den åbne. En orange **●** betyder, at der er ændringer, der ikke er gemt;
-  - **i midten** står menuerne **Vis** (gitter, hjælpelinjer, navne og tags i tegningen), **Fang** (fang til gitter, objekter, rør og hjælpelinjer, skalér symmetrisk) og **Forbindelser** (tjek, ret og bind forbindelser; mærket viser antal fejl eller ✓) og knappen **Flow**;
+  - **i midten** står menuerne **Vis** (gitter, hjælpelinjer, navne og tags i tegningen), **Fang** (fang til gitter, objekter, rør og hjælpelinjer, skalér symmetrisk) og **Forbindelser** (tjek, ret og bind forbindelser; mærket viser antal fejl eller ✓) og knapperne **Flow** og **Simulér**. **Simulér** åbner tegningen i simulatoren, og **Tegn** derovre fører tilbage. Simulatoren viser den udgivne tegning: har du ændringer, der ikke er gemt, tilbyder Tegn at gemme og udgive dem først;
   - **til højre** står **zoom** (−, +, ⤢ tilpas), **Meddelelser**, **Gem kladde** og **Gem og udgiv**. Pilen **▾** på *Gem og udgiv* åbner **kommentaren til versionen**; en grøn prik viser, at der er skrevet en.
 
   På en smal skærm bliver teksterne kortere (*Forb.*, 🔔, *Kladde*, *Udgiv*), så linjen ikke ombrydes.

@@ -4,6 +4,20 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.10.0 build 0414] — 2026-11-13 — Pumpens start/stop efter positionen; Simulér-knap i Tegn
+
+Jan: "hvordan styrer vi en pumpe start og stop så det kan ses i flow" og "lad os også få en knap til simulator i editor-modulet".
+
+- **Start/stop efter positionen:**
+  - Pumpens flow-rate kan være `@pos` = følger pumpens position. Tal i backenden: `symbols.RATE_POS`, valideret til kun at gælde symboler med positioner. Beregningen: `flow_calc.build`, med `pump_running` (Fra = stop, Til = kører).
+  - Et tomt rate-felt på en pumpe med positioner betyder det samme.
+  - `FlowEngine` melder flowet som ukendt, når positionen er ukendt.
+  - Guiden: `FlowSection.svelte` *Start/stop* (følger pumpens position / fast værdi eller tag) med en advarsel, når en fast værdi får pumpen til at køre altid. `symbolConfig.defaultFlow` bruger `@pos` for pumper med positioner.
+  - Gemte opsætninger med en fast værdi er uændrede.
+- **Simulér-knap i Tegn** (`DrawEditor.svelte goSimulate`) og **Tegn-knap i simulatoren**. Simulatoren viser den udgivne tegning, så ændringer, der ikke er gemt, kan gemmes og udgives først. En åben kladde giver en advarsel.
+- Tests: `test_flow_calc.py`, `test_pump_rate_pos.py` og `connGroups.test.ts`. Set i browseren: Start/stop i guiden, Simulér → simulatoren → Tegn, og dialogen ved ændringer, der ikke er gemt. Beregnet: Fra = intet flow, Til = 100 l/min.
+- Manual kap. 07 og 10.
+
 ## [6.9.3 build 0413] — 2026-11-13 — Forældede gemte forbindelser: vises som gledet, og Bind forbindelser retter dem
 
 - `frontend/src/lib/signalpath/graph.ts`:

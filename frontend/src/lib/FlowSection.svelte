@@ -9,7 +9,7 @@
   import { get } from './api';
   import TagSelect, { type TagOption } from './TagSelect.svelte';
   import { FLOW_DEFAULTS, describeState, kindOf, mergeDefs, stateOf, unitOf, waysOf, wayKey, wayLabel, type FlowDefs } from './symbolFlow';
-  import { DEFAULT_PORT_COLORS, defaultFlow, flowLevel, flowSourceMode, type FlowCfg, type FlowSource } from './symbolConfig';
+  import { DEFAULT_PORT_COLORS, RATE_POS, defaultFlow, flowLevel, flowSourceMode, type FlowCfg, type FlowSource } from './symbolConfig';
 
   let { flow = $bindable(), type, positions, tags, linked = null, posStates = [] }: {
     flow: FlowCfg | null | undefined;
@@ -22,6 +22,7 @@
     posStates?: (string | null | undefined)[];
   } = $props();
   const byStates = $derived(posStates.some(Boolean));
+  const uid = Math.random().toString(36).slice(2, 8);   // radioknappernes navn (flere guider kan være åbne)
 
   let defs = $state<FlowDefs>(mergeDefs(null));
   onMount(async () => {
@@ -113,7 +114,7 @@
   <label class="opt"><input type="checkbox" checked={!!flow} onchange={(e) => enable(e.currentTarget.checked)} />
     Med i flowberegningen</label>
   {#if !flow}
-    <p class="small muted">Uden egen opsætning gælder typens flow-rolle ({kind === 'pump' ? 'pumpe/kilde — står stille' : kind === 'piece' ? 'rørstykke' : 'forbruger'}{def?.restrict != null ? `, restriktion ${fmt2(def.restrict)}` : ''};
+    <p class="small muted">Uden egen opsætning gælder typens flow-rolle ({kind === 'pump' ? (positions.length ? 'pumpe/kilde — følger sin position' : 'pumpe/kilde — står stille') : kind === 'piece' ? 'rørstykke' : 'forbruger'}{def?.restrict != null ? `, restriktion ${fmt2(def.restrict)}` : ''};
       Opsætning › Symboler › Ind/ud og veje). Slå til for at gøre det til en pumpe, give det en restriktion, en flowmåler eller vælge åbne veje pr. position.</p>
   {:else}
     {#if def?.ports.length}<p class="small muted">Punkter: {ports}{ways.length ? ` · veje: ${ways.map(wayLabel).join(', ')}` : ''} (Opsætning › Symboler › Ind/ud og veje).</p>
@@ -121,7 +122,23 @@
     <label class="opt"><input type="checkbox" bind:checked={flow.pump} /> Pumpe / kilde — giver flow fra IND til UD</label>
     {#if flow.pump}
       <label class="field-row">Kapacitet <input type="number" min="0" max="65535" step="1" bind:value={flow.capacity} aria-label="Kapacitet" /> {unit} ved fuld rate</label>
-      {@render source('Flow-rate', flow.rate, '0,00 = stop … 1,00 = fuld rate (fx frekvens eller Til/Fra)', false)}
+      <!-- v6.9.4 (Jan): start/stop efter pumpens position — ellers kørte en pumpe med en fast værdi altid, uanset Fra/Til -->
+      {#if positions.length}
+        <div class="row wrap src">
+          <span class="lbl">Start/stop</span>
+          <label class="opt small"><input type="radio" name="ratemode-{uid}" checked={flow.rate.src === RATE_POS} onchange={() => { if (flow) flow.rate.src = RATE_POS; }} />
+            følger pumpens position ({positions[0]} = stop{positions.length > 1 ? `, ${positions.slice(1).join(' / ')} = kører` : ''})</label>
+          <label class="opt small"><input type="radio" name="ratemode-{uid}" checked={flow.rate.src !== RATE_POS} onchange={() => { if (flow) flow.rate.src = '@val:1'; }} />
+            fast værdi eller tag</label>
+        </div>
+      {/if}
+      {#if flow.rate.src !== RATE_POS}
+        {@render source('Flow-rate', flow.rate, '0,00 = stop … 1,00 = fuld rate (fx frekvens eller Til/Fra)', false)}
+        {#if positions.length && flowSourceMode(flow.rate) === 'val' && fixedOf(flow.rate) > 0}
+          <p class="small warn">Med en fast værdi kører pumpen altid i flowet — også når den står på {positions[0]}. Vælg
+            <em>følger pumpens position</em> eller et tag for start/stop.</p>
+        {/if}
+      {/if}
     {/if}
     {@render source('Restriktion', flow.restrict, '0,00 = blokeret … 1,00 = ingen restriktion (fx ventilens åbning)', true)}
     <div class="row wrap src">

@@ -49,6 +49,9 @@ describe('flow i symbolets opsætning', () => {
     expect(flowSourceMode({ src: '', max: 1 })).toBe('none');
     expect(flowSourceMode({ src: '@val:0.5', max: 1 })).toBe('val');
     expect(flowSourceMode({ src: 'P1_hz', max: 50 })).toBe('tag');
+    expect(flowSourceMode({ src: '@pos', max: 1 })).toBe('pos');                                  // v6.9.4
+    expect(defaultFlow('pumpe', ['Fra', 'Til'], []).rate.src).toBe('@pos');                     // pumpe med positioner: start/stop
+    expect(defaultFlow('pumpe', [], []).rate.src).toBe('@val:1');                                // uden positioner: fast værdi
     expect(isLogicRef(FLOW)).toBe(false);
   });
 });

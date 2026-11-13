@@ -236,6 +236,11 @@ Nederst i trin 4 står sektionen **Flow**. Sæt hak i **Med i flowberegningen** 
 - **Restriktion** — et tal fra **0,00** (blokeret) til **1,00** (ingen restriktion).
 
   Flow-rate og restriktion er **faste værdier for symbolet**, givet af dets fysik. Skriv tallet (to decimaler) eller træk i skyderen. Sæt hak i **styret af et tag**, hvis PLC'en skal styre værdien, og angiv hvad der er 1,00, fx 50 for en frekvens i Hz, eller 100 for en ventils åbning i %. Vælger du et til/fra-signal til restriktionen, advarer guiden: det giver kun 0,00 eller 1,00.
+
+  **Start/stop af en pumpe:** har pumpen positioner (fx *Fra* og *Til*), står **Start/stop** på **følger pumpens position** fra start.
+  - *Fra* = stop, *Til* = kører med fuld kapacitet. Uden kendte navne er første position stop.
+  - Vælger du **fast værdi eller tag**, styrer tagget farten, fx en frekvens. En fast værdi får pumpen til at køre altid, også på *Fra*, og det advarer guiden om.
+  - En pumpe uden positioner styres med et tag: et til/fra-tag (Til = kører) eller et tal-tag med *1,00 ved* (fx 50 Hz).
 - **Målt flow:** et tag fra en flowsensor. Pumperne, der giver flow gennem symbolet, skaleres, så beregningen passer med målingen.
   - **Baseline:** skriv, hvad der er **lavt flow** og **højt flow** for sensoren, fx 15,1 og 16,5 l/min. Det målte flow bliver så **symbolets flow-niveau**: 0,00 ved lavt flow, 1,00 ved højt flow og imellem, fx 15,85 → 0,54.
   - Vælg **symbolets flow-niveau (0,00–1,00)** som kilde i en animation for at vise flowet: *Løbelys* får farten efter niveauet, *Blink* ved fx *højst 0,1* (lavt flow), og *Farve* med *Aktiv når ≥ 0,8* eller flere grænser.
