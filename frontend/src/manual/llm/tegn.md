@@ -95,7 +95,7 @@ Giv ventilen positioner (fx *AB → A* og *AB → B*), og lad tagget bestemme po
 Tjek at tegningens forbindelser er bundet og gemt (Flow-vinduet siger det, hvis de ikke er), at pumpen har **Pumpe** slået til med kapacitet over 0 og en flow-rate over 0, at der er en åben vej rundt fra pumpens UD tilbage til dens IND (ventilernes åbne veje i deres position, kontraventilens retning, restriktion over 0). Beskeder fra beregningen står øverst i Flow-vinduet; kortet *Flowberegning* på Status viser fejl.
 
 ## Hvor er Slet tegning, størrelsen, versionerne og kommentarfeltet i Tegn (topmenuen)?
-<!-- kilde: 07-tegn#m-skaermen sha:20551fc4 -->
+<!-- kilde: 07-tegn#m-skaermen sha:5946fa06 -->
 Topmenuen i Tegn har tre dele. Til venstre åbner **tegningens navn** en menu med skift af tegning, **+ Ny tegning …**, **⤢ Størrelse …**, **Bindinger →** og **Slet tegning …**; ved siden af står **versionen** (fx *v4 kladde*), hvor du åbner en anden version eller udgiver den åbne. I midten står **Vis**, **Fang**, **Forbindelser** og **Flow**. Til højre zoom, **Meddelelser**, **Gem kladde** og **Gem og udgiv** — pilen **▾** på *Gem og udgiv* åbner kommentaren til versionen.
 
 ## Hvordan ser jeg flowet i Tegn, før jeg gemmer (live, simulering, prøv pumper og ventiler uden PLC)?

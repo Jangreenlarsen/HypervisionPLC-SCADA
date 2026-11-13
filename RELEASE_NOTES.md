@@ -2,6 +2,10 @@
 
 ---
 
+## v6.8.6 — 2026-11-13
+
+- Meddelelser i Tegn: gamle symbolopsætninger (fra slettede eller erstattede symboler) står som én fast besked med **Fjern dem …** i stedet for at gentages ved hvert gem.
+
 ## v6.8.5 — 2026-11-13
 
 - En pumpe har i Tegn kun sine punkter **IND** (venstre) og **UD** (højre), så forbindelserne passer med flowet. Sidder rørene forkert på en ældre pumpe, siger simulatoren og *Tjek forbindelser* det.

@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.8.6 build 0409] — 2026-11-13 — Meddelelser: gamle symbolopsætninger som én fast besked med "Fjern dem …"
+
+- `frontend/src/pages/DrawEditor.svelte`: advarslen om symbolopsætninger på elementer, der ikke længere er i tegningen, hænges ikke længere på gem-meddelelsen. Den står som én fast besked pr. tegning med **Fjern dem …** (bekræftes; `DELETE /symbols/{el}/config` pr. element, stopper ved første fejl og siger hvor mange der nåede at blive fjernet), **Vis i Bindinger** og **Vis navnene**.
+- Set i browseren på en lokal testtegning med to gamle opsætninger: beskeden vises, *Fjern dem* fjerner dem efter bekræftelse, og beskeden forsvinder.
+- Manual kap. 07 og BUGS.md.
+
 ## [6.8.5 build 0408] — 2026-11-13 — Tegn bruger typens IND/UD-punkter, så Tegn og flowet er enige
 
 - `frontend/svgedit-host/scada-core.js`: `setTypePorts` og `portsOf`. Rækkefølgen er rettede punkter (`data-hv-ports`), så typens punkter fra *Ind/ud og veje*, så de automatiske. En pumpe har derfor kun IND (venstre) og UD (højre) i Tegn.
