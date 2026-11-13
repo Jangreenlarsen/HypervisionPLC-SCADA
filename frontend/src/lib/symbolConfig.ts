@@ -48,11 +48,20 @@ export interface FlowSource { src: string; max: number }
 export interface PortColors { open: string; closed: string; anim: 'stroke' | 'fill' }
 export interface FlowCfg {
   pump: boolean; capacity: number; rate: FlowSource; restrict: FlowSource; open: string[][] | null;
-  /** v6.3.0: flowmåler — et tag med det målte flow; pumperne gennem symbolet skaleres efter målingen */
-  measured?: FlowSource;
+  /** v6.3.0: flowmåler — et tag med det målte flow; pumperne gennem symbolet skaleres efter målingen. v6.4.0: baseline (lavt og
+   *  højt flow) → symbolets flow-niveau 0,00–1,00 (kilden LEVEL) */
+  measured?: MeasuredFlow;
   port_colors?: PortColors | null;
 }
 export const DEFAULT_PORT_COLORS: PortColors = { open: '#2e7d32', closed: '#000000', anim: 'stroke' };
+export interface MeasuredFlow { src: string; max?: number; low: number; high: number }
+/** Kilden "symbolets flow-niveau" (v6.4.0): det målte flow mellem lavt (0,00) og højt (1,00) flow. */
+export const LEVEL = '@flowlevel';
+/** Flow-niveauet for en måling (samme regel som backend flow_calc.flow_levels): 0,00 ved lavt flow … 1,00 ved højt. */
+export function flowLevel(value: number, low: number, high: number): number | null {
+  if (!Number.isFinite(value) || !(high > low)) return null;
+  return Math.round(Math.min(1, Math.max(0, (value - low) / (high - low))) * 1000) / 1000;
+}
 /** Kilden "symbolets flow" (v6.1.0): den beregnede mængde gennem symbolet, l/min. */
 export const FLOW = '@flow';
 export const flowSourceMode = (s: FlowSource): 'none' | 'tag' | 'val' => (!s.src ? 'none' : s.src.startsWith('@val:') ? 'val' : 'tag');
@@ -71,8 +80,9 @@ export function defaultFlow(type: string, positions: string[], ways: string[],
   const open = positions.length && ways.length ? positions.map(guess) : null;
   // typens flow-profil (v6.3.0): pumpe/kilde, standard-kapacitet og -restriktion; portfarver, når punkterne har dele
   return { pump: profile?.kind ? profile.kind === 'pump' : type === 'pumpe', capacity: profile?.capacity ?? 100,
-    rate: { src: '', max: 1 }, restrict: { src: profile?.restrict != null && profile.restrict < 1 ? `@val:${profile.restrict}` : '', max: 1 },
-    open, measured: { src: '', max: 1 },
+    // rate og restriktion er faste værdier for symbolet (Jan: givet af dets fysik) — et tag er et tilvalg
+    rate: { src: '@val:1', max: 1 }, restrict: { src: `@val:${profile?.restrict ?? 1}`, max: 1 },
+    open, measured: { src: '', max: 1, low: 0, high: 100 },
     port_colors: open && (profile?.ports ?? []).some((p) => p.part) ? { ...DEFAULT_PORT_COLORS } : null };
 }
 export interface PartInfo { tag: string; line: boolean; pid?: string | null; text?: string }
@@ -360,7 +370,7 @@ export function newSignal(cfg: SymbolConfig, tag = '', fb = ''): Signal {
 export const CMP_TXT: Record<string, string> = { ge: '≥', le: '≤', eq: '=' };
 
 /** `@L1` — animationens kilde er en logikblok (`@pos` er positionen). */
-export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS && src !== ON && src !== FLOW && !src.startsWith(ALARM_REF) && !src.startsWith(VAL_REF);
+export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS && src !== ON && src !== FLOW && src !== LEVEL && !src.startsWith(ALARM_REF) && !src.startsWith(VAL_REF);
 
 export function newBlock(cfg: SymbolConfig): LogicBlock {
   let i = 1;

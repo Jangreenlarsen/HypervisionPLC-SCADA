@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.4.0 build 0399] — 2026-11-13 — Flow: rate og restriktion som faste værdier, baseline på målt flow og kilden "symbolets flow-niveau"
+
+Jan (2026-11-13): "flow rate og restriktion … er statiske parametre for symbolet på grund af dets fysik", og målt flow skal have en baseline ("hvad er lavt og højt flow"), der bruges direkte til at vise flowet (løbelysets fart, blink, farve).
+
+- **Rate og restriktion som faste værdier** (`FlowSection.svelte`): tallet 0,00–1,00 (to decimaler) og en skyder står altid fremme; **styret af et tag** er et tilvalg (med *1,00 ved*). Nye opsætninger starter på `@val:1` (`symbolConfig.defaultFlow`); en tom kilde betyder stadig 1,00.
+- **Baseline på målt flow:** `symbols.MeasuredFlow` (`src`, `low`, `high`; lav < høj; `max` beholdt, så opsætninger fra v6.3.0 kan læses). `flow_calc.flow_levels` giver **flow-niveauet** 0,00 (lavt flow) … 1,00 (højt flow), fx lavt 15,1 / højt 16,5 → målt 15,85 = 0,536; motoren udgiver det som `flowlvl:<tegning>:<element>` (ukendt måling = komm.fejl), også på en tegning uden pumpe, og ryder det op; preview giver `levels`.
+- **Kilden "symbolets flow-niveau"** (`@flowlevel`, `symbols.LEVEL`/`symbolConfig.LEVEL`): kan vælges i en animation, når symbolet har et målt flow (ellers en fejl i trin 4). Løbelys får farten efter niveauet (`flow_max` 1), blink/farve/aktiv-grænse regner med 0,00–1,00.
+- Tests: `test_measured_baseline_gives_a_flow_level`, `test_flow_level_source_in_animations` (inkl. lav ≥ høj afvist og en opsætning fra v6.3.0), `flowRound2.test.ts` (`flowLevel`, faste standarder). Set i browseren: Flow-sektionen med restriktion som tal + skyder, *styret af et tag*, baseline og eksemplet på niveauet; kilden i animationerne.
+- Manual: kap. 10 (Flow: faste værdier, baseline, flow-niveau), kap. 08, billedet `flow-guide.png`, LLM-tillæg (2 nye afsnit).
+
 ## [6.3.0 build 0398] — 2026-11-13 — Flow-model runde 2: flowet live i Tegn, retning på rørstykker, flow-rolle pr. symboltype, flowmåler, portfarver, restriktion 0,00–1,00
 
 Jans svar på listen over, hvad der manglede (alle otte punkter i ét hug, PLAN.md › Flow-model runde 2), plus to rettelser undervejs (restriktionen er et tal 0,00–1,00, ikke en bit; en farve-animation på et tal-tag kan få en aktiv-grænse).

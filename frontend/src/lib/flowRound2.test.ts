@@ -88,3 +88,19 @@ describe('farve på et tal-tag med en aktiv-grænse (Jan: aktiv ved ≥ 50, ikke
     expect(colorFor(1, { on: '#00ff00', off: '#000000', at_least: null })).toBe('#00ff00');
   });
 });
+
+describe('målt flow med baseline → flow-niveau (Jan: lavt 15,1 / højt 16,5)', () => {
+  it('niveauet mellem lavt og højt flow', async () => {
+    const { flowLevel } = await import('./symbolConfig');
+    expect(flowLevel(15.85, 15.1, 16.5)).toBe(0.536);
+    expect(flowLevel(14, 15.1, 16.5)).toBe(0);
+    expect(flowLevel(20, 15.1, 16.5)).toBe(1);
+    expect(flowLevel(15, 16.5, 15.1)).toBeNull();
+  });
+  it('rate og restriktion starter som faste værdier', () => {
+    const f = defaultFlow('pumpe', [], []);
+    expect(f.rate.src).toBe('@val:1');
+    expect(f.restrict.src).toBe('@val:1');
+    expect(f.measured).toEqual({ src: '', max: 1, low: 0, high: 100 });
+  });
+});

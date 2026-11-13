@@ -2,6 +2,11 @@
 
 ---
 
+## v6.4.0 — 2026-11-13 — Flow: faste værdier og baseline på målt flow
+
+- **Flow-rate og restriktion** skrives direkte som et tal 0,00–1,00 (eller med skyderen) — de er faste værdier for symbolet. *Styret af et tag* er et tilvalg.
+- **Målt flow med baseline:** angiv lavt og højt flow for en flowsensor (fx 15,1 og 16,5 l/min). Det målte flow bliver **symbolets flow-niveau** 0,00–1,00, som kan styre animationer: løbelysets fart, blink ved lavt flow, farve ved et niveau.
+
 ## v6.3.0 — 2026-11-13 — Flow: se det live i Tegn, retning i bøjninger og T-stykker, flow-rolle for alle symboler
 
 - **Flowet live i Tegn:** Flow-vinduet › **Vis flowet på tegningen** viser løbelys og l/min oven på tegningen — også før du har gemt. **Simulering:** start og stop pumper, sæt rate og restriktion, og vælg ventilernes position uden PLC (der skrives intet til PLC'en).

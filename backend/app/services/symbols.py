@@ -39,6 +39,8 @@ ON = "@on"   # kilden "Altid til" (v0.71.0): animationen er altid aktiv, uden et
 VAL = "@val:"   # kilden "fast værdi" (v1.4.0): `@val:75` — et tal i stedet for et tag; kun for tal-animationer
 VAL_TYPES = {"level", "opacity", "scale", "rotate", "move"}   # tal-animationer der kan styres af en fast værdi
 FLOW = "@flow"   # kilden "symbolets flow" (v6.1.0): den beregnede mængde gennem symbolet, l/min (flow_calc.py)
+# kilden "symbolets flow-niveau" (v6.4.0): det målte flow placeret mellem lav (0,00) og høj (1,00) — til løbelysets fart, blink, farve
+LEVEL = "@flowlevel"
 _WAY = re.compile(r"^[A-Za-z0-9_+-]{1,12}>[A-Za-z0-9_+-]{1,12}\Z")
 
 
@@ -325,6 +327,23 @@ class PortColors(_M):
     _c = field_validator("open", "closed")(lambda cls, v: _color(v))
 
 
+class MeasuredFlow(_M):
+    """Målt flow (v6.3.0) med baseline (v6.4.0, Jan): et tag fra en flowsensor, og hvad der er LAVT og HØJT flow (fx 15,1 og 16,5
+    l/min). Det målte flow mellem dem bliver symbolets flow-niveau 0,00–1,00 (kilden "symbolets flow-niveau")."""
+    src: str = Field(default="", max_length=64)
+    max: float = Field(default=1, gt=0, le=1_000_000)      # (fra v6.3.0, bruges ikke — beholdt, så gemte opsætninger kan læses)
+    low: float = Field(default=0, ge=-1_000_000, le=1_000_000)
+    high: float = Field(default=100, ge=-1_000_000, le=1_000_000)
+
+    _s = field_validator("src")(lambda cls, v: (v or "").strip())
+
+    @model_validator(mode="after")
+    def _range(self) -> "MeasuredFlow":
+        if not self.low < self.high:
+            raise ValueError("målt flow: lavt flow skal være mindre end højt flow")
+        return self
+
+
 class FlowCfg(_M):
     """Symbolets rolle i flowberegningen (v6.1.0, flow_calc.py)."""
     pump: bool = False                                        # pumper (giver flow fra IND til UD)
@@ -334,7 +353,7 @@ class FlowCfg(_M):
     # Ventiler med positioner: de åbne veje ("AB>A") i hver position; None = alle veje er åbne
     open: list[list[str]] | None = Field(default=None, max_length=MAX_POSITIONS)
     # v6.3.0: en flowmåler (et tag med det målte flow, l/min) — pumperne gennem symbolet skaleres efter målingen
-    measured: FlowSource = Field(default_factory=FlowSource)
+    measured: MeasuredFlow = Field(default_factory=MeasuredFlow)
     port_colors: PortColors | None = None
 
 
@@ -382,7 +401,7 @@ def too_many_anims(config: Any, element: str = "") -> bool:
 
 def is_logic_ref(src: Any) -> bool:
     """`@L1` — kilden er en logikblok (`@pos` er positionen, `@on` er "Altid til")."""
-    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON, FLOW) and not src.startswith((ALARM_REF, VAL))
+    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON, FLOW, LEVEL) and not src.startswith((ALARM_REF, VAL))
 
 
 def split_logic_ref(src: str, own: str = "") -> tuple[str, str]:
@@ -579,6 +598,11 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
             tag = pseudo_tag(drawing_id, owner, f"logic:{bid}")
         elif (alarm := parse_alarm_ref(a["src"])) is not None:
             tag = alarm_tag(*alarm)
+        elif a["src"] == LEVEL:
+            tag = f"flowlvl:{drawing_id}:{element}"      # 0,00 (lavt flow) … 1,00 (højt flow), flow_calc.flow_levels
+            if a["type"] == "flow":
+                params["mode"] = "onoff"
+                params["flow_max"] = 1                   # løbelysets fart efter niveauet
         elif a["src"] == FLOW:
             tag = f"flow:{drawing_id}:{element}"
             params.setdefault("abs", True)       # mængden (uden fortegn) til farve/blink
@@ -1107,6 +1131,10 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if row.get("alarm_on") is None and all(row.get(f"alarm_{k}") is None for k in ("hh", "h", "l", "ll")):
                 res.warnings.append(f"Trin 4: {nm}: tagget '{ref[1]}' har ingen alarm endnu — opsæt den i trin 6.")
         flow_src = a.src == FLOW
+        level_src = a.src == LEVEL
+        if level_src and (cfg.flow is None or not cfg.flow.measured.src):
+            res.err("4", f"{nm}: \"symbolets flow-niveau\" kræver et målt flow med lavt og højt flow (Flow › Målt flow nedenfor).")
+            continue
         if on_src and (a.type in NUMERIC_ONLY or a.type == "text"):
             res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af \"Altid til\" — vælg et tal-tag.")
             continue
@@ -1122,8 +1150,8 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
             if a.type in NUMERIC_ONLY:
                 res.err("4", f"{nm}: {ANIM_LABEL[a.type]} kan ikke styres af en logikblok — vælg et tal-tag.")
                 continue
-        elif flow_src:
-            pass   # den beregnede mængde (et tal, l/min): som et tal-tag
+        elif flow_src or level_src:
+            pass   # den beregnede mængde (l/min) eller flow-niveauet (0–1): som et tal-tag
         elif not pos_src and not on_src and not alarm_src and not val_src:
             t = tag_of(a.src)
             if t is None:
