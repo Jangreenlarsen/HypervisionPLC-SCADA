@@ -74,7 +74,8 @@ Et **T-stykke** er et biblioteks-symbol med tre ben (*tilløb 1*, *tilløb 2* og
 Serveren **beregner selv flowet** gennem tegningens forbundne symboler og rør — du skal ikke tegne eller definere veje. Beregningen bruger:
 
 - **de gemte forbindelser** i tegningen. Slå *Tjek forbindelser* til i menuen **Forbindelser** øverst, tryk **Bind forbindelser**, og gem tegningen. Uden gemte forbindelser er der intet flow, og Flow-vinduet siger det;
-- **symbolernes flow-opsætning** i symbol-guidens trin 4 under *Flow* (kapitel 10): hvilke symboler der er **pumper** (kapacitet i l/min og flow-rate 0–1 fra et tag), hvilken **restriktion** et symbol har (0 = blokeret, 1 = ingen), og for en ventil med positioner **hvilke veje der er åbne** i hver position (fx *AB → A* i position A);
+- **symbolernes flow-opsætning** i symbol-guidens trin 4 under *Flow* (kapitel 10): hvilke symboler der er **pumper** (kapacitet i l/min og flow-rate 0,00–1,00 fra et tag), hvilken **restriktion** et symbol har (et tal fra 0,00 = blokeret til 1,00 = ingen restriktion), og for en ventil med positioner **hvilke veje der er åbne** i hver position (fx *AB → A* i position A);
+- symboltypens **flow-rolle** (*Opsætning › Symboler › Ind/ud og veje*), når et symbol ikke har sin egen opsætning;
 - symboltypens **Ind/ud og veje** (nedenfor): en pumpe og en kontraventil giver kun flow fra IND til UD, en 3-vejsventil giver flow begge veje på AB ↔ A og AB ↔ B.
 
 **Sådan regnes der:**
@@ -85,7 +86,21 @@ Serveren **beregner selv flowet** gennem tegningens forbundne symboler og rør �
 - En pumpe, der står stille, lader flow passere i sin retning.
 - Flere pumper lægges sammen.
 
-Resultatet er et tal pr. rør og symbol i l/min. På et rør har tallet **fortegn**: + løber i tegneretningen, − imod.
+- En **flowmåler** (et symbol med *Målt flow* i guiden, fx en flowsensor i en løkke) skalerer de pumper, der giver flow gennem den, så beregningen passer med målingen.
+
+Resultatet er et tal pr. rør og symbol i l/min. På et rør har tallet **fortegn**: + løber i tegneretningen, − imod. Et rørstykke (bøjning, T-stykke, kryds) får flowet ind og ud ved hvert af sine punkter, så løbelyset viser retningen i hvert ben.
+
+> **Kun til visning.** Flowet er en illustration af, hvordan anlægget hænger sammen — ikke en simulering af det virkelige anlæg. Tallene er relative: rørlængder, dimensioner og pumpekurver indgår ikke. Beregningen gælder én tegning ad gangen; flowet stopper ved tegningens kant.
+
+### Se flowet i Tegn (live og simulering)
+
+Tryk **Flow** i værktøjslinjen og sæt hak i **Vis flowet på tegningen**. Flowet tegnes oven på tegningen som blå løbelys med retning og et tal i l/min ved hvert rør. Det beregnes ud fra tegningen, **som den ser ud lige nu** — også før du har gemt — og opdateres hvert 2. sekund. Det gemmes aldrig i tegningen.
+
+![Flow-vinduet med Vis flowet på tegningen og simuleringen: pumperne med rate, og løbelys og l/min på tegningen](../../public/manual/flow-tegn.png)
+
+- **Live** bruger PLC'ens værdier: pumpernes rate, ventilernes position og restriktionerne fra deres tags.
+- **Simulering** lader dig prøve anlægget af uden PLC: sæt hak ved de pumper, der skal køre, og træk i deres **rate** (0,00–1,00), vælg **ventilernes position**, og sæt **restriktionen pr. symbol** (0,00–1,00). En pumpe-type uden egen opsætning kører med typens standard-kapacitet. Der skrives **aldrig** noget til PLC'en. **Nulstil simuleringen** starter forfra.
+- Beskeder fra beregningen (fx en pumpe uden vej rundt, eller en flowmåler, der ikke er forbundet) står øverst.
 
 ### Forbindelsesgrupper: hvordan flowet ses
 
@@ -106,7 +121,9 @@ Tryk **Flow** i værktøjslinjen i Tegn. Vinduet ligger **over tegningen**: træ
 
 Beskeder fra beregningen (fx *Pumpen 'P1' har ingen åben vej rundt fra UD til IND*) står øverst i vinduet. Kortet **Flowberegning** på siden Status viser antal beregninger, den seneste beregningstid og eventuelle fejl.
 
-> Rørstykker (bøjninger, T-stykker) viser løbelyset uden retning. Det kommer i en senere version.
+Rørstykker (bøjninger, T-stykker, kryds) viser løbelyset med retning i hvert ben: lyset løber væk fra det punkt, hvor flowet kommer ind.
+
+**Påmindelse:** gemmer du en tegning med en pumpe eller med bundne forbindelser, og er der forbindelser, der ikke er bundet, kommer en advarsel i **Meddelelser** med knappen **Bind nu**. Symbol-guiden siger det også under *Flow*, når symbolet ikke er bundet.
 
 ## Tilslutningspunkter (siden Symboler)
 
@@ -124,7 +141,13 @@ På siden **Symboler** (rollen tekniker, under **Opsætning**), fanen **Tilslutn
 
 ![Fanen Ind/ud og veje: 3-vejsmotorventilens punkter A, B og AB med roller, det fælles punkt og vejene](../../public/manual/symbol-ind-ud.png)
 
-Fanen **Ind/ud og veje** (samme side) beskriver, hvordan flowet løber gennem et symbol: punkternes navne, ind/ud og de veje, en ventil kan lave. **Flowberegningen** bruger den (se *Flow i anlægget* ovenfor). Den ændrer ikke noget i tegningen, og den gælder alle tegninger med symbolet med det samme.
+Fanen **Ind/ud og veje** (samme side) beskriver, hvordan flowet løber gennem et symbol: symbolets **flow-rolle**, punkternes navne, ind/ud og de veje, en ventil kan lave. **Flowberegningen** bruger den (se *Flow i anlægget* ovenfor). Den ændrer ikke noget i tegningen, og den gælder alle tegninger med symbolet med det samme.
+
+- **Flow-rolle** (gælder alle symboltyper, også elektriske komponenter):
+  - **Rolle:** *Forbruger* (radiator, tank, ventil …), *Pumpe / kilde* (en pumpe, eller fx en strømforsyning, der giver strøm) eller *Rørstykke / ledning* (bøjning, klemme … — hører under forbindelserne og viser flowet med løbelys).
+  - **Medie:** vand (l/min), luft (m³/h), el (A) eller andet. Det bestemmer kun enheden, flowet vises i.
+  - **Standard-kapacitet** for en pumpe/kilde og **standard-restriktion** (0,00–1,00) for en forbruger. De gælder, når et symbol af typen ikke har sin egen flow-opsætning i guiden, og de er guidens udgangspunkt, når du slår *Med i flowberegningen* til.
+  - En profil kan gemmes uden punkter: så går flowet mellem alle symbolets forbundne punkter.
 
 - **Navn:** giv hvert punkt et navn (A, B, AB, P, T …).
 - **Rolle:** *Ind*, *Ud* eller *Begge*. En **pumpe** har *IND* og *UD*; en **kontraventil** også. Flowet kan kun løbe fra et *Ind*- eller *Begge*-punkt til et *Ud*- eller *Begge*-punkt.

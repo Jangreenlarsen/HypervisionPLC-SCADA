@@ -183,6 +183,8 @@ Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symb
 - **et tag** — til/fra eller tal
 - **en logikblok** — se nedenfor
 
+**Farve** (og *Streg*) på et **tal-tag** (fx et register): skriv grænsen i **Aktiv når ≥** — fx 50: fra 50 og op vises aktiv-farven, under 50 fra-farven, og animationen tæller som *aktiv* fra grænsen. Tomt felt = aktiv, når værdien ikke er 0. **+ Grænse** lægger flere farver ovenpå (fx ≥ 80 rød).
+
 **Vippekontakter** (ON/OFF og ON/OFF/ON) har øverst i trin 4 tabellen **Grebets stilling pr. position**: vælg **Op**, **Midt (knop)** eller **Ned** for hver position. *Midt* er den klassiske midterstilling set forfra — grebet peger lige ud mod dig, så kun knoppen ses. Guiden laver selv grebets og knoppens animationer (Drej og Synlig) ud fra tabellen; dine øvrige animationer og en valgt hastighed bevares. Er grebets animationer sat op på en anden måde, står der en note — et valg i tabellen erstatter dem.
 
 **Drej** har en **Hastighed**: *Med det samme*, *Hurtig (0,2 s)*, *Normal (0,4 s)*, *Langsom (1 s)*, *Meget langsom (2 s)* eller *Ekstra langsom (5 s)* — hvor hurtigt delen drejer til den nye vinkel (fx en kontaktkniv eller en vippekontakt). Uden valg drejer den glidende, når den følger positionen, og med det samme, når den følger et tag. Glidende kræver, at delen ikke selv er drejet eller flyttet i tegningen — ellers drejer den med det samme.
@@ -199,15 +201,17 @@ Står flere animationer på samme del, **vinder den nederste** (▲▼ ændrer r
 
 Nederst i trin 4 står sektionen **Flow**. Sæt hak i **Med i flowberegningen** for at bestemme, hvad symbolet gør for det flow, serveren beregner (kapitel 8, *Flow i anlægget*):
 
-![Flow-sektionen for en 3-vejsventil: punkterne og vejene, restriktion og en tabel med de åbne veje pr. position](../../public/manual/flow-guide.png)
+![Flow-sektionen for en 3-vejsventil: punkterne og vejene, restriktion 0,00–1,00, målt flow, en tabel med de åbne veje pr. position og portfarverne](../../public/manual/flow-guide.png)
 
-- **Pumpe** (en pumpe har den slået til fra start):
-  - **Kapacitet** i l/min ved fuld rate (0–65535);
-  - **Flow-rate** 0–1: *fuld (1)*, **et tag** eller **en fast værdi**. Ved et tag angiver du, hvad der er fuld rate (fx 50 for en frekvens i Hz, eller 1 for et til/fra-tag).
-- **Restriktion** 0–1: 0 = blokeret, 1 = ingen restriktion. Fx ventilens åbning fra et tag (fuld ved 100 for procent).
+- **Pumpe / kilde** (slået til fra start, når symboltypens flow-rolle er pumpe/kilde):
+  - **Kapacitet** ved fuld rate (0–65535, i mediets enhed — l/min for vand);
+  - **Flow-rate** 0,00–1,00: *fuld (1,00)*, **et tag** eller **en fast værdi** (skyder og tal med to decimaler). Ved et tag angiver du, hvad der er 1,00 (fx 50 for en frekvens i Hz, eller 1 for et til/fra-tag).
+- **Restriktion** — et tal fra **0,00** (blokeret) til **1,00** (ingen restriktion), ikke til/fra: *fuld (1,00)*, **en fast værdi** (skyder og tal med to decimaler) eller **et tag** — fx ventilens åbning i %, med *1,00 ved* = 100. Vælger du et til/fra-signal, advarer guiden: det giver kun 0,00 eller 1,00.
+- **Målt flow:** et tag fra en flowsensor. Pumperne, der giver flow gennem symbolet, skaleres, så beregningen passer med målingen.
 - **Åbne veje pr. position:** for en ventil med positioner står en tabel med symbolets veje (fra *Opsætning › Symboler › Ind/ud og veje*). Sæt hak ved de veje, der er åbne i hver position — fx *AB → A* i position *AB → A*. Hedder positionerne som vejene, er hakkene sat fra start. En ukendt position (komm.fejl) regnes som lukket.
+- **Farv portene efter de åbne veje:** har symboltypens punkter en *Del* (fx `port_a`, `port_b`, `port_ab`), farves portene automatisk i hver position. Porte på en åben vej får farven **åben** (grøn), de andre **lukket** (sort), på stregen eller fyldet. Står ventilen på *AB → A*, er AB og A grønne og B sort. Det er slået til fra start, og en animation, du selv lægger på en port, går forud.
 
-Et forbundet symbol uden flow-opsætning er en forbruger uden restriktion. En animation kan styres af **symbolets flow** (under *styres af*): den beregnede mængde gennem symbolet i l/min. Fx blinker en pumpe, når den giver mindst 1 l/min, eller en radiator farves efter flowet.
+Flowet er kun til visning. Et forbundet symbol uden flow-opsætning følger symboltypens flow-rolle (en forbruger uden restriktion, hvis typen ikke har en anden). En animation kan styres af **symbolets flow** (under *styres af*): den beregnede mængde gennem symbolet i l/min. Fx blinker en pumpe, når den giver mindst 1 l/min, eller en radiator farves efter flowet.
 
 ### Preview ved animationerne
 

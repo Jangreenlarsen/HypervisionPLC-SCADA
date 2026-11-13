@@ -44,7 +44,15 @@ export interface SymbolConfig {
 }
 /** Flow-rate eller restriktion (v6.1.0): et tag eller en fast værdi (`@val:0.5`), divideret med `max`; tom = 1. */
 export interface FlowSource { src: string; max: number }
-export interface FlowCfg { pump: boolean; capacity: number; rate: FlowSource; restrict: FlowSource; open: string[][] | null }
+/** Portfarver ud fra de åbne veje (v6.3.0): i hver position farves punkterne på en åben vej `open`, de andre `closed`. */
+export interface PortColors { open: string; closed: string; anim: 'stroke' | 'fill' }
+export interface FlowCfg {
+  pump: boolean; capacity: number; rate: FlowSource; restrict: FlowSource; open: string[][] | null;
+  /** v6.3.0: flowmåler — et tag med det målte flow; pumperne gennem symbolet skaleres efter målingen */
+  measured?: FlowSource;
+  port_colors?: PortColors | null;
+}
+export const DEFAULT_PORT_COLORS: PortColors = { open: '#2e7d32', closed: '#000000', anim: 'stroke' };
 /** Kilden "symbolets flow" (v6.1.0): den beregnede mængde gennem symbolet, l/min. */
 export const FLOW = '@flow';
 export const flowSourceMode = (s: FlowSource): 'none' | 'tag' | 'val' => (!s.src ? 'none' : s.src.startsWith('@val:') ? 'val' : 'tag');
@@ -52,15 +60,20 @@ export const flowSourceMode = (s: FlowSource): 'none' | 'tag' | 'val' => (!s.src
  * Ny flow-opsætning: en pumpe-type pumper. En ventil med positioner får i hver position de veje, positionens navn nævner
  * ("AB → A", "AB>A" eller blot porten "A"); ellers alle veje.
  */
-export function defaultFlow(type: string, positions: string[], ways: string[]): FlowCfg {
+export function defaultFlow(type: string, positions: string[], ways: string[],
+  profile?: { kind?: string; capacity?: number; restrict?: number; ports?: { part?: string }[] }): FlowCfg {
   const norm = (s: string) => s.replace(/\s+/g, '').replace(/→|->/g, '>').toUpperCase();
   const guess = (label: string): string[] => {
     const l = norm(label);
     const hit = ways.filter((w) => l === norm(w) || l.includes(norm(w)) || l === w.split('>')[1]?.toUpperCase());
     return hit.length ? hit : [...ways];
   };
-  return { pump: type === 'pumpe', capacity: 100, rate: { src: '', max: 1 }, restrict: { src: '', max: 1 },
-    open: positions.length && ways.length ? positions.map(guess) : null };
+  const open = positions.length && ways.length ? positions.map(guess) : null;
+  // typens flow-profil (v6.3.0): pumpe/kilde, standard-kapacitet og -restriktion; portfarver, når punkterne har dele
+  return { pump: profile?.kind ? profile.kind === 'pump' : type === 'pumpe', capacity: profile?.capacity ?? 100,
+    rate: { src: '', max: 1 }, restrict: { src: profile?.restrict != null && profile.restrict < 1 ? `@val:${profile.restrict}` : '', max: 1 },
+    open, measured: { src: '', max: 1 },
+    port_colors: open && (profile?.ports ?? []).some((p) => p.part) ? { ...DEFAULT_PORT_COLORS } : null };
 }
 export interface PartInfo { tag: string; line: boolean; pid?: string | null; text?: string }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }

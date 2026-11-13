@@ -14,7 +14,8 @@ from .errors import ServiceError
 from .live_cache import LiveCache
 from .svg_sanitize import SvgError, index_svg, sanitize_svg, subtree_ids, subtree_map, symbol_roots
 from .connection_groups import connection_kinds, group_bindings
-from .symbols import config_bindings, symbol_view
+from .flow_defs import merged as merged_flow_defs, piece_types
+from .symbols import config_bindings, port_color_bindings, symbol_view
 from .tagsource import TagSourceError, parse_source
 
 log = logging.getLogger("scada.drawings")
@@ -359,11 +360,23 @@ class DrawingService:
         for element, cfg in configs.items():
             effective.extend(config_bindings(drawing_id, element, cfg, covered))
         effective.extend(self._group_bindings(drawing_id, svg, index))
+        flow_defs = merged_flow_defs(self.db.list_symbol_flow())
+        # portfarver ud fra ventilernes åbne veje (v6.3.0) — aldrig oven på en animation af samme slags på delen
+        colored = {e: c for e, c in configs.items() if (c.get("flow") or {}).get("port_colors")}
+        if colored:
+            try:
+                taken = {(b["element"], b["anim"]) for b in effective}
+                subs = subtree_map(svg, set(colored))
+                for element, cfg in colored.items():
+                    effective.extend(port_color_bindings(drawing_id, element, cfg, flow_defs.get(cfg.get("type") or ""),
+                                                         subs.get(element, set()), taken))
+            except Exception:
+                log.exception("Portfarverne på %s kunne ikke beregnes", drawing_id)
         # forbindelsesgrupperne (v6.1.0): det beregnede flow på rør og rørstykker — aldrig oven på en anden animation af samme slags
         flows = [c.get("flow") or {} for c in configs.values()]
         caps = [int(f.get("capacity") or 0) for f in flows if f.get("pump")]
         try:
-            effective.extend(group_bindings(drawing_id, connection_kinds(svg), self.db.list_connection_groups(drawing_id),
+            effective.extend(group_bindings(drawing_id, connection_kinds(svg, piece_types(flow_defs)), self.db.list_connection_groups(drawing_id),
                                             float(max(caps) if caps else 100), {(b["element"], b["anim"]) for b in effective}, bool(caps)))
         except Exception:
             log.exception("Forbindelsesgrupperne på %s kunne ikke beregnes", drawing_id)

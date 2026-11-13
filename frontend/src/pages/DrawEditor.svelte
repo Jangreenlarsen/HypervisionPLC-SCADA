@@ -25,6 +25,7 @@
   import SymbolTree from '../lib/SymbolTree.svelte';
   import FloatWin from '../lib/FloatWin.svelte';
   import ConnGroups from '../lib/ConnGroups.svelte';
+  import FlowLive from '../lib/FlowLive.svelte';
   import GroupAnims from '../lib/GroupAnims.svelte';
   import type { SymbolGroup } from '../lib/symbolGroups';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
@@ -69,6 +70,7 @@
     markConnections(items: { id: string; exempt: boolean; status: string; drift: [number, number][]; driftKeys: string[]; open: [number, number][]; openKeys: string[]; ignored: [number, number][]; ignoredKeys: string[] }[]): void;
     toggleUnused(id: string, key: string): boolean;
     setNameLabels(opts: { symbols: boolean; pipes: boolean }): void;
+    setFlowOverlay(data: Record<string, unknown> | null): void;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
     getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
     setGuideEvery(n: number): void;
@@ -185,6 +187,21 @@
       ? `${r.links} forbindelse${r.links === 1 ? '' : 'r'} er gemt i tegningen (${r.elements} elementer). De gælder for tjekket; gem tegningen for at beholde dem. Ctrl+Z fortryder.`
       : (r.elements ? 'Forbindelser til slettede elementer er ryddet op.' : 'Alle forbindelser er allerede gemt.');
     inspectRev++;
+  }
+  /** Er elementet bundet til tegningens forbindelser (v6.3.0, påmindelsen i guiden)? null = kan ikke ses. */
+  function isLinked(id: string): boolean | null {
+    const g = ed?.connectionGraph();
+    return g ? !!g.nodes.find((n) => n.id === id)?.links?.length : null;
+  }
+  // Påmindelse ved Gem (v6.3.0, Jan: "en påmindelse"): ubundne forbindelser på en tegning med en pumpe eller gemte forbindelser
+  let bindReminder = $state(0);
+  function checkBindReminder(): void {
+    const g = ed?.connectionGraph();
+    if (!g) return;
+    const n = unboundPairs(g).length;
+    const relevant = g.nodes.some((x) => x.type === 'pumpe' || (x.links ?? []).length > 0);
+    bindReminder = n && relevant ? n : 0;
+    if (bindReminder) msgOpen = true;
   }
   /** Antal gemte forbindelser (hver tælles én gang, selv om den står på begge elementer). */
   const countLinks = (g: Graph) => Math.round(g.nodes.reduce((n, x) => n + (x.links ?? []).filter((l) => l.i >= 0).length, 0) / 2);
@@ -845,6 +862,7 @@
       }
       comment = '';
       dirty = false;
+      checkBindReminder();
       drawings = await get<{ id: string; name: string }[]>('/api/drawings');
     } catch (e) {
       error = (e as Error).message;
@@ -1134,7 +1152,7 @@
       <button onclick={() => canvasRef?.perform('zoomIn')} disabled={!ready} title="Zoom ind (Ctrl++)" aria-label="Zoom ind">+</button>
       <button onclick={() => canvasRef?.perform('zoomFit')} disabled={!ready} title="Tilpas til vinduet (Ctrl+0)" aria-label="Tilpas til vinduet">⤢</button>
     </span>
-    <Menu label="Meddelelser" short="🔔" title="Systemets beskeder om tegningen (gem, rettelser, advarsler)" badge={unread + (dupNames.length ? 1 : 0) + (migration?.manual.length ? 1 : 0)} hot={unread > 0 || dupNames.length > 0 || !!migration?.manual.length}
+    <Menu label="Meddelelser" short="🔔" title="Systemets beskeder om tegningen (gem, rettelser, advarsler)" badge={unread + (dupNames.length ? 1 : 0) + (migration?.manual.length ? 1 : 0) + (bindReminder ? 1 : 0)} hot={unread > 0 || dupNames.length > 0 || !!migration?.manual.length || bindReminder > 0}
           wide align="right" bind:open={msgOpen} onopen={() => (unread = 0)}>{@render messagesMenu()}</Menu>
     {#if current}
       <button onclick={() => save(false)} disabled={busy || !ready} title="Gem som en ny kladde-version — Overview viser stadig den udgivne"><span class="long">Gem kladde</span><span class="short">Kladde</span></button>
@@ -1240,6 +1258,15 @@
 {/snippet}
 
 {#snippet messagesMenu()}
+  {#if bindReminder}
+    <div class="msg warn">
+      <strong>Husk at binde forbindelserne:</strong> {bindReminder} forbindelse{bindReminder === 1 ? '' : 'r'} i tegningen er ikke bundet. Flowberegningen
+      (løbelys på Overview) bruger kun bundne forbindelser.
+      <div class="mrow"><button class="small primary" onclick={() => { bindNow(); bindReminder = 0; }} disabled={!ready}>Bind nu</button>
+        <button class="small" onclick={() => (bindReminder = 0)}>Ikke nu</button>
+        <span class="small muted">Gem tegningen igen bagefter.</span></div>
+    </div>
+  {/if}
   {#if migration}
     <div class="msg" class:warn={migration.manual.length > 0}>
       <strong>Opgradering v5.1.0:</strong> den gamle symbolmodel er fjernet — {migration.converted.length} symbol{migration.converted.length === 1 ? '' : 'er'} er konverteret til guidens opsætning{migration.removed_bindings ? `, ${migration.removed_bindings} gamle bindinger er slettet` : ''}.
@@ -1262,7 +1289,7 @@
       {#each m.extra as x}<div class="small muted">{x}</div>{/each}
     </div>
   {:else}
-    {#if !dupNames.length && !migration}<span class="small muted">Ingen meddelelser endnu. Her kommer systemets beskeder, fx når tegningen er gemt eller en rettelse er udført.</span>{/if}
+    {#if !dupNames.length && !migration && !bindReminder}<span class="small muted">Ingen meddelelser endnu. Her kommer systemets beskeder, fx når tegningen er gemt eller en rettelse er udført.</span>{/if}
   {/each}
   {#if messages.length}<div class="mrow"><button class="small" onclick={() => (messages = [])}>Ryd meddelelser</button></div>{/if}
 {/snippet}
@@ -1489,7 +1516,8 @@
 {/if}
 
 {#if flowOpen && current}
-  <FloatWin key="draw.flowwin" title="Flow — forbindelsesgrupper" onclose={() => (flowOpen = false)}>
+  <FloatWin key="draw.flowwin" title="Flow" onclose={() => (flowOpen = false)}>
+    <FlowLive drawingId={current.id} {ready} getSvg={() => (ed ? ed.getSvg() : null)} setOverlay={(d) => ed?.setFlowOverlay(d)} />
     <ConnGroups drawingId={current.id} {ready} selected={selection.map((x) => x.id)} select={(ids) => ed?.selectByIds(ids)}
       ensureSaved={() => ensurePublished('forbindelsesgrupperne gælder den udgivne tegning')} />
   </FloatWin>
@@ -1498,7 +1526,7 @@
   <GroupAnims drawingId={current.id} group={treeGroup} {tags} onclose={() => { treeGroup = null; treeRev++; }} />
 {/if}
 {#if guideFor && current}
-  <SymbolGuide drawingId={current.id} element={guideFor.id} name={guideFor.name} {tags} selectorRedraw="auto"
+  <SymbolGuide drawingId={current.id} element={guideFor.id} name={guideFor.name} {tags} selectorRedraw="auto" linked={isLinked(guideFor.id)}
     onclose={() => { guideFor = null; treeRev++; }}
     onsaved={() => guarded('Opdatér symbolet', async () => {
       info = `Symbolet "${guideFor?.name ?? ''}" er opsat.`;

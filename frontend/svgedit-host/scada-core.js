@@ -1221,6 +1221,91 @@ export function createScada(host) {
     }
     return pts[0];
   }
+  // Flowet i Tegn (v6.3.0): løbelys, pile og tal oven på tegningen ud fra en beregning af tegningen, som den ser ud lige nu.
+  // Kun visning — gemmes aldrig i tegningen. { flows: { id: tal }, ports: { id: { "x,y": ind+/ud− } }, unit, max }
+  const flowOv = { data: null, layer: null };
+  function drawFlowOverlay() {
+    const gridHost = host.gridHost();
+    const content = canvas()?.getSvgContent?.();
+    const data = flowOv.data;
+    if (!gridHost || !content || !data) {
+      flowOv.layer?.remove();
+      flowOv.layer = null;
+      return;
+    }
+    let layer = flowOv.layer;
+    if (!layer) {
+      layer = document.createElementNS(NS, 'svg');
+      layer.setAttribute('id', 'hvFlowOverlay');
+      layer.style.cssText = 'position:absolute; pointer-events:none; z-index:53; overflow:visible;';
+      gridHost.appendChild(layer);
+      flowOv.layer = layer;
+    }
+    const hr = gridHost.getBoundingClientRect();
+    const cr = contentRect(content);
+    const vb = (content.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    layer.style.left = `${cr.left - hr.left + gridHost.scrollLeft}px`;
+    layer.style.top = `${cr.top - hr.top + gridHost.scrollTop}px`;
+    layer.setAttribute('width', cr.width);
+    layer.setAttribute('height', cr.height);
+    if (vb.length === 4) layer.setAttribute('viewBox', vb.join(' '));
+    const z = canvas().getZoom() || 1;
+    const fs = Math.max(6, 11 / z);
+    const sw = Math.max(2, 5 / z);
+    const r1 = (v) => Math.round(v * 10) / 10;
+    const flows = data.flows || {};
+    const ports = data.ports || {};
+    const max = Math.max(1, Number(data.max) || Math.max(1, ...Object.values(flows).map((v) => Math.abs(Number(v) || 0))));
+    const unit = data.unit || '';
+    const dashU = Math.max(6, 14 / z);
+    const run = (pts, v) => {
+      if (pts.length < 2) return '';
+      const speed = 20 + 120 * Math.min(1, Math.abs(v) / max);                  // tegningens enheder pr. sekund
+      const dur = Math.max(0.1, Math.round((2 * dashU) / speed * 100) / 100);
+      const list = (v < 0 ? [...pts].reverse() : pts).map((p) => `${r1(p[0])},${r1(p[1])}`).join(' ');
+      return `<polyline points="${list}" fill="none" stroke="#1e88e5" stroke-opacity="0.85" stroke-width="${r1(sw)}" stroke-linecap="butt" ` +
+        `stroke-dasharray="${r1(dashU)} ${r1(dashU)}"><animate attributeName="stroke-dashoffset" from="${r1(2 * dashU)}" to="0" ` +
+        `dur="${dur}s" repeatCount="indefinite"/></polyline>`;
+    };
+    const label = (x, y, text) => `<text x="${r1(x)}" y="${r1(y)}" font-size="${r1(fs)}" text-anchor="middle" font-family="sans-serif" ` +
+      `font-weight="600" fill="#0d47a1" stroke="#fff" stroke-width="${r1(fs / 3)}" stroke-linejoin="round" paint-order="stroke">${escXml(text)}</text>`;
+    const fmt = (v) => `${Math.round(Math.abs(v) * 10) / 10}${unit ? ` ${unit}` : ''}`;
+    let out = '';
+    let labels = '';
+    for (const el of content.querySelectorAll('[data-hv-pipe]')) {
+      const v = Number(flows[el.id]);
+      if (!el.id || !v) continue;
+      const m = toDocMatrix(el);
+      const pts = pipePoints(el).map((p) => (m ? toPoint(m, p) : p));
+      out += run(pts, v);
+      const mid = midOfPoints(pts);
+      if (mid) labels += label(mid[0], mid[1] - fs * 0.6, fmt(v));
+    }
+    for (const el of content.querySelectorAll('[data-hv-type]')) {
+      if (isPipe(el) || !el.id) continue;
+      const v = Number(flows[el.id]);
+      const pp = ports[el.id];
+      if (!v && !pp) continue;
+      const box = boxOfRoot(el);
+      const m = toDocMatrix(el);
+      if (!box || !m) continue;
+      const c = toPoint(m, [box.x + box.w / 2, box.y + box.h / 2]);
+      if (pp && PIPE_SYMBOL_TYPES.has(el.getAttribute('data-hv-type')) || pp && data.pieces?.includes?.(el.getAttribute('data-hv-type'))) {
+        // rørstykke: fra hvert punkt ind mod midten (flow ind) eller ud fra midten (flow ud)
+        for (const [k, q] of Object.entries(pp)) {
+          const f = k.split(',').map(Number);
+          if (f.length !== 2 || !f.every(Number.isFinite) || !q) continue;
+          const pt = toPoint(m, [box.x + f[0] * box.w, box.y + f[1] * box.h]);
+          out += run(q > 0 ? [pt, c] : [c, pt], Math.abs(q));
+        }
+      } else if (v) {
+        const bb = boxOf(el);
+        if (bb) labels += label(bb.x + bb.w / 2, bb.y + bb.h + fs * 1.1, fmt(v));
+      }
+    }
+    layer.innerHTML = out + labels;
+  }
+
   /** Navne på symboler og forbindelser (rør) som mærkater oven på tegningen — kun hvor de er slået til. */
   function drawNames() {
     const gridHost = host.gridHost();
@@ -1449,6 +1534,7 @@ export function createScada(host) {
 
   function drawHandles() {
     drawNames();
+    drawFlowOverlay();
     drawConn();
     const gridHost = host.gridHost();
     const content = canvas()?.getSvgContent?.();
@@ -2778,6 +2864,12 @@ export function createScada(host) {
             ignored: ignored.map(([p]) => p), ignoredKeys: ignored.map(([, k]) => String(i.ignoredKeys?.[k] ?? '')) };
         });
       drawConn();
+    },
+
+    /** Flowet oven på tegningen (v6.3.0): { flows, ports, unit, max, pieces } — null fjerner det. Kun visning, gemmes aldrig. */
+    setFlowOverlay(data = null) {
+      flowOv.data = data && typeof data === 'object' ? data : null;
+      drawFlowOverlay();
     },
 
     /** Navne oven på tegningen (v4.17.0): symboler og forbindelser — kun visning i Tegn. */

@@ -1,5 +1,5 @@
 // Fælles tegning af en SVG med bindinger — bruges af Overview og binding-editoren.
-import { applyBinding, bindingActive, resetAnim } from './animate';
+import { applyBinding, bindingActive, parsePortFlows, resetAnim } from './animate';
 import type { Binding, LiveValue, TagMeta } from './api';
 import { sanitizeSvg } from './svg';
 
@@ -84,7 +84,7 @@ export function onLayoutChange(fn: () => void, ...elements: (Element | null | un
 /** Alle tags en binding læser: dens eget og evt. løbelysets retnings-tag (samme regel som backendens binding_tags). */
 export function bindingTags(b: Pick<Binding, 'tag' | 'anim' | 'params'>): string[] {
   const tags = b.tag && b.tag !== '@on' && !b.tag.startsWith('@val:') ? [b.tag] : [];   // "Altid til" og en fast værdi er ikke tags
-  const extra = [b.anim === 'flow' ? b.params?.dir_tag : '', b.params?.pos_tag];
+  const extra = [b.anim === 'flow' ? b.params?.dir_tag : '', b.anim === 'flow' ? b.params?.port_tag : '', b.params?.pos_tag];
   for (const x of extra) if (x && !tags.includes(x)) tags.push(x);
   return tags;
 }
@@ -142,6 +142,11 @@ const liveFor = (tag: string, values: Record<string, LiveValue>): LiveValue | un
 const liveOf = (b: Binding, values: Record<string, LiveValue>): LiveValue | undefined => liveFor(b.tag, values);
 const dirOf = (b: Binding, values: Record<string, LiveValue>) => (b.anim === 'flow' && b.params?.dir_tag ? values[b.params.dir_tag] : undefined);
 const posOf = (b: Binding, values: Record<string, LiveValue>) => (b.params?.pos_tag ? values[b.params.pos_tag] : undefined);
+/** Et rørstykkes løbelys (v6.3.0): flowet pr. punkt (`port_tag`) lægges i parametrene, så lyset får retning pr. delstreg. */
+const withPorts = (b: Binding, values: Record<string, LiveValue>): Binding =>
+  (b.anim === 'flow' && b.params?.port_tag
+    ? { ...b, params: { ...b.params, port_flows: values[b.params.port_tag]?.quality === 'good' ? parsePortFlows(values[b.params.port_tag]?.value) : null } }
+    : b);
 
 /** Den animation i gruppen, der skal vises nu (null = ingen — delen som tegnet). */
 export function groupWinner(members: Binding[], values: Record<string, LiveValue>): Binding | null {
@@ -171,7 +176,7 @@ function renderGroup(container: HTMLElement, members: Binding[], values: Record<
     cleared.add(m.anim);
     resetAnim(el, m.anim, m.params ?? {});
   }
-  if (winner) applyBinding(el, winner, liveOf(winner, values), tags[winner.tag], dirOf(winner, values), posOf(winner, values));
+  if (winner) applyBinding(el, withPorts(winner, values), liveOf(winner, values), tags[winner.tag], dirOf(winner, values), posOf(winner, values));
 }
 
 export function renderBinding(
@@ -185,7 +190,7 @@ export function renderBinding(
   const el = findElement(container, b.element);
   // "Altid til" (symbolguiden): altid aktiv, uden et tag
   const own = liveFor(b.tag, values);
-  if (el) applyBinding(el, b, own, tags[b.tag], b.anim === 'flow' && b.params?.dir_tag ? values[b.params.dir_tag] : undefined,
+  if (el) applyBinding(el, withPorts(b, values), own, tags[b.tag], b.anim === 'flow' && b.params?.dir_tag ? values[b.params.dir_tag] : undefined,
     b.params?.pos_tag ? values[b.params.pos_tag] : undefined);
 }
 

@@ -74,6 +74,8 @@ class ColorParams(_P):
     on: str = DEFAULT_ON
     off: str = DEFAULT_OFF
     thresholds: list[Threshold] = Field(default_factory=list, max_length=10)
+    # v6.3.0 (Jan): et tal-tag er aktivt (farven `on`) fra denne grænse, ellers `off` — fx ≥ 50. None = til/fra (≠ 0)
+    at_least: float | None = Field(default=None, ge=-1e12, le=1e12)
 
     _on = field_validator("on", "off")(lambda cls, v: _color(v))
 
@@ -203,9 +205,11 @@ def binding_tags(b: dict[str, Any]) -> list[str]:
     der samler en tegnings tags (live-data, adgang, sletning, import), så det ekstra tag aldrig glemmes."""
     # "@on" ("Altid til") og "@val:<tal>" (fast værdi) er ikke tags — de læses aldrig fra PLC'en og kræver ingen adgang
     tags = [b["tag"]] if b.get("tag") and b["tag"] != "@on" and not b["tag"].startswith("@val:") else []
-    extra = (b.get("params") or {}).get("dir_tag") if b.get("anim") == "flow" else None
-    if extra and extra not in tags:
-        tags.append(extra)
+    p = b.get("params") or {}
+    # løbelysets retnings-tag, og et rørstykkes flow pr. punkt (port_tag, v6.3.0 — sættes kun af forbindelsesgrupperne)
+    for extra in ((p.get("dir_tag"), p.get("port_tag")) if b.get("anim") == "flow" else ()):
+        if isinstance(extra, str) and extra and extra not in tags:
+            tags.append(extra)
     return tags
 
 

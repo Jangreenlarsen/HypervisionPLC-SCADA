@@ -38,6 +38,7 @@ from .services.assist_setup import SignalHelper, TagDescriber
 from .services.llm_catalog import LlmCatalog
 from .api.symbol_flow import router as symbol_flow_router
 from .api.connection_groups import router as connection_groups_router
+from .api.flow import router as flow_router
 from .services.connection_groups import ConnectionGroupService
 from .api.symbol_ports import router as symbol_ports_router
 from .api.library import router as library_router
@@ -325,6 +326,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(symbol_ports_router)
     app.include_router(symbol_flow_router)
     app.include_router(connection_groups_router)
+    app.include_router(flow_router)
     app.include_router(library_router)
     app.include_router(live_router)
     app.include_router(operate_router)
