@@ -6,8 +6,8 @@
   import { del, put } from './api';
   import { ask } from './ask';
   import {
-    FLOW_DEFAULTS, KIND_LABEL, MEDIUM_LABEL, PIECE_TYPES, ROLE_LABEL, UNITS, hasProfile, validateDef, waysOf, wayKey, wayLabel,
-    type FlowDef, type FlowKind, type FlowMedium, type PortDef, type PortRole,
+    FLOW_DEFAULTS, KIND_LABEL, MEDIUM_LABEL, PIECE_TYPES, ROLE_LABEL, UNITS, describeState, hasProfile, validateDef, waysOf, wayKey, wayLabel,
+    type FlowDef, type FlowKind, type FlowMedium, type FlowState, type PortDef, type PortRole,
   } from './symbolFlow';
   // @ts-expect-error — ren JS uden typer (deles med Tegn)
   import { autoPorts, boxOfRoot } from '../../svgedit-host/symbolPorts.js';
@@ -28,6 +28,8 @@
   let medium = $state<FlowMedium>('water');
   let capacity = $state<number | null>(null);
   let restrict = $state<number | null>(null);
+  // tilstande (v6.6.0, Jan): navngivne tilstande med de veje, der er åbne
+  let states = $state<FlowState[]>([]);
   let box = $state<Box | null>(null);
   let viewBox = $state('0 0 100 100');
   let picked = $state<number | null>(null);
@@ -68,6 +70,7 @@
     medium = d?.medium ?? 'water';
     capacity = d?.capacity ?? null;
     restrict = d?.restrict ?? null;
+    states = (d?.states ?? []).map((s) => ({ name: s.name, open: [...s.open] }));
     setDirty(false);
   }
   $effect(() => { void type; void svg; void custom; void load(); });
@@ -112,6 +115,7 @@
     const gone = ports[i].name;
     ports = ports.filter((_, k) => k !== i);
     ways = ways.filter((w) => w[0] !== gone && w[1] !== gone);
+    states = states.map((s) => ({ ...s, open: s.open.filter((k) => !k.split('>').includes(gone)) }));
     picked = null;
     setDirty(true);
   }
@@ -119,6 +123,7 @@
     const old = ports[i].name;
     ports = ports.map((p, k) => (k === i ? { ...p, name } : p));
     ways = ways.map((w) => [w[0] === old ? name : w[0], w[1] === old ? name : w[1]] as [string, string]);
+    states = states.map((s) => ({ ...s, open: s.open.map((k) => k.split('>').map((n) => (n === old ? name : n)).join('>')) }));
     setDirty(true);
   }
   function patch(i: number, change: Partial<PortDef>): void {
@@ -154,12 +159,24 @@
     setDirty(true);
   }
 
+  // ---- tilstande
+  const sameWay = (k: string, w: [string, string]): boolean => { const [a, b] = k.split('>'); return (a === w[0] && b === w[1]) || (a === w[1] && b === w[0]); };
+  function toggleStateWay(i: number, w: [string, string], on: boolean): void {
+    states = states.map((s, k) => (k !== i ? s : { ...s, open: on ? [...s.open.filter((x) => !sameWay(x, w)), wayKey(w)] : s.open.filter((x) => !sameWay(x, w)) }));
+    setDirty(true);
+  }
+  function addState(): void {
+    states = [...states, { name: `Tilstand ${states.length + 1}`, open: [] }];
+    setDirty(true);
+  }
+
   const current = (): FlowDef => ({
     ports: ports.map((p) => ({ ...p })), ...(ownWays && ways.length ? { ways } : {}),
     // rollen gemmes, når den afviger fra symbolets indbyggede (så en indbygget pumpe/et rørstykke kan blive en forbruger)
     ...(kind !== (PIECE_TYPES.has(type) ? 'piece' : type === 'pumpe' ? 'pump' : 'consumer') || kind !== 'consumer' ? { kind } : {}),
     ...(medium !== 'water' ? { medium } : {}),
     ...(capacity != null ? { capacity } : {}), ...(restrict != null ? { restrict } : {}),
+    ...(states.length ? { states: states.map((s) => ({ name: s.name.trim(), open: [...s.open] })) } : {}),
   });
   const canSave = $derived(ports.length > 0 || hasProfile({ ports: [], kind, medium, capacity: capacity ?? undefined, restrict: restrict ?? undefined }));
   const unit = $derived(UNITS[medium]);
@@ -172,7 +189,8 @@
     error = info = '';
     try {
       const saved = await put<FlowDef & { type: string }>(`/api/symbol-flow/${encodeURIComponent(type)}`,
-        { ports: d.ports, ways: d.ways ?? [], kind: d.kind ?? null, medium: d.medium ?? null, capacity: d.capacity ?? null, restrict: d.restrict ?? null });
+        { ports: d.ports, ways: d.ways ?? [], kind: d.kind ?? null, medium: d.medium ?? null, capacity: d.capacity ?? null, restrict: d.restrict ?? null,
+          states: d.states ?? [] });
       const { type: _t, ...def } = saved;
       onsaved(type, def);
       setDirty(false);
@@ -293,6 +311,33 @@
     <button class="small" onclick={addWay} disabled={ports.length < 2}>+ Vej</button>
     {#if ownWays}<button class="small" onclick={useDerived}>Lav vejene automatisk</button>{/if}
   </div>
+
+  <!-- Tilstande (v6.6.0, Jan): hvad ventilen gør i hver tilstand — fx "A → AB" = A igennem AB, B blokeret -->
+  <h4>Tilstande</h4>
+  <p class="muted small">Navngiv ventilens tilstande, og sæt hak ved de veje, der er åbne i hver. Porte, der ikke er på en åben vej, er
+    blokeret. I guiden vælger du så blot tilstanden for hver af symbolets positioner.</p>
+  {#if states.length && shownWays.length}
+    <table class="ports states">
+      <thead><tr><th>Tilstand</th>{#each shownWays as w (wayKey(w))}<th>{w[0]} ↔ {w[1]}</th>{/each}<th>Betyder</th><th></th></tr></thead>
+      <tbody>
+        {#each states as st, i (i)}
+          <tr>
+            <td><input class="nm" value={st.name} maxlength="30" aria-label="Navn på tilstand {i + 1}"
+              onchange={(e) => { states = states.map((s, k) => (k === i ? { ...s, name: e.currentTarget.value } : s)); setDirty(true); }} /></td>
+            {#each shownWays as w (wayKey(w))}
+              <td><input type="checkbox" checked={st.open.some((k) => sameWay(k, w))} aria-label="{st.name}: {w[0]} ↔ {w[1]} åben"
+                onchange={(e) => toggleStateWay(i, w, e.currentTarget.checked)} /></td>
+            {/each}
+            <td class="muted small">{describeState({ ports }, st.open)}</td>
+            <td><button class="small" onclick={() => { states = states.filter((_, k) => k !== i); setDirty(true); }} aria-label="Fjern tilstand {st.name}">✕</button></td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  {:else if !shownWays.length}
+    <p class="muted small">Tilføj veje først (fx et fælles punkt AB eller <em>+ Vej</em>).</p>
+  {/if}
+  <div class="row"><button class="small" onclick={addState} disabled={!shownWays.length || states.length >= 12}>+ Tilstand</button></div>
 {/if}
 
 <div class="row actions">

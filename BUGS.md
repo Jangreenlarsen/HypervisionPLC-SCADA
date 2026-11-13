@@ -5,6 +5,7 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v6.6.0 — **Tabeller med indtastning fyldte hele skærmens bredde** (Jan 2026-11-13). Fx stod ✕ og *Del* i punkt-tabellen i *Ind/ud og veje* langt ude til højre på en stor skærm. **Årsag:** den globale regel `table { width: 100% }` i `app.css` gælder også opsætningstabeller. **Rettelse (hele klassen):** tabeller med felter i rækkerne fylder kun det, indholdet behøver; lister uden felter fylder stadig bredden.
 - [fixed] v6.3.0 — **Efter fjernelse af en PLC blev flowets tags hængende i symbolopsætningen** (reviewer 2026-11-13). Det gjaldt flow-rate, restriktion og målt flow. Guiden kunne derefter ikke gemme symbolet ("tagget findes ikke"). **Årsag:** `plc_removal.strip_config` ryddede signaler, logik, graf og animationer, men ikke `flow` (fra v6.1.0). **Rettelse:** `flow.rate/restrict/measured.src` ryddes, når tagget fjernes. Test: `test_review_fixes_plc_removal_clears_flow_tags`.
 - [fixed] v6.3.0 — **Forbindelsesgrupperne og portfarverne fulgte ikke med, når en symboltypes flow-profil blev ændret** (reviewer 2026-11-13, fundet før udgivelse). Dette gjaldt fx en egen type, der fik rollen rørstykke. **Årsag:** profilerne ligger i `meta`, som ikke tæller config-generationen op, så Overview og adgangen brugte de cachede bindinger. **Rettelse:** `set_symbol_flow` tæller generationen op. Test: `test_review_fixes_profile_change_reaches_the_view_at_once`.
 

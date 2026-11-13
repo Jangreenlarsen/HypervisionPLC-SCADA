@@ -153,6 +153,17 @@ Fanen **Ind/ud og veje** (samme side) beskriver, hvordan flowet løber gennem et
 - **Rolle:** *Ind*, *Ud* eller *Begge*. En **pumpe** har *IND* og *UD*; en **kontraventil** også. Flowet kan kun løbe fra et *Ind*- eller *Begge*-punkt til et *Ud*- eller *Begge*-punkt.
 - **Fælles:** markér det fælles punkt på en flervejs-ventil (AB på en 3-vejsventil).
 - **Del:** delens id i symbolet (fx `port_ab`), så netop den port kan få en animation.
-- **Veje:** de forbindelser symbolet kan lave. De laves som standard automatisk — hvert fælles punkt parret med hvert af de andre (*AB → A*, *AB → B*) — men kan skrives selv med **+ Vej**, fx til en 4-vejsventil (*P → A*, *P → B*, *A → T*, *B → T*).
+- **Veje:** de forbindelser symbolet kan lave. De laves som standard automatisk — hvert fælles punkt parret med hvert af de andre (*AB → A*, *AB → B*) — men kan skrives selv med **+ Vej**, fx til 4-vejsventilen (*A → B* og *C → D*).
+- **Tilstande:** hvad ventilen gør i hver af sine tilstande. Giv hver tilstand et navn, og sæt hak ved de veje, der er åbne. Kolonnen **Betyder** skriver det i ord, også hvilke porte der er blokeret:
+
+  | Symbol | Tilstand | Betyder |
+  |---|---|---|
+  | 3-vejsventil | *A → AB* | A igennem AB · B blokeret |
+  | 3-vejsventil | *B → AB* | B igennem AB · A blokeret |
+  | 4-vejsventil | *A → B* | A igennem B · C og D blokeret |
+  | 4-vejsventil | *C → D* | C igennem D · A og B blokeret |
+
+  Tabellen viser standarderne. Du kan definere alle de tilstande, et symbol har brug for (højst 12): **+ Tilstand** tilføjer en, og ✕ fjerner den. I symbol-guiden vælger du så blot tilstanden for hver af symbolets positioner (kapitel 10).
+- **4-vejsventilen** (biblioteket, VVS) har portene **A** (venstre), **B** (højre), **C** (top) og **D** (bund). De mødes i midten og farves hver for sig efter tilstanden.
 - **Klik** for at tilføje et punkt, **træk** for at flytte det, **højreklik** fjerner det. **Gem** gemmer; **Brug standarden** går tilbage. De indbyggede symboler har standarder (pumpe, kontraventil og 3-vejs ventilerne); **Start fra tilslutningspunkterne** hjælper med andre symboler.
 - Ind/ud-definitionerne følger med i backup.

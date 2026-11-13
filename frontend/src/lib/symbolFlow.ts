@@ -12,9 +12,12 @@ export interface PortDef { x: number; y: number; name: string; role: PortRole; c
 /** Flow-profilen pr. symboltype (v6.3.0): rollen i flowberegningen, mediet og standarderne (uden egen opsætning i guiden). */
 export type FlowKind = 'consumer' | 'pump' | 'piece';
 export type FlowMedium = 'water' | 'air' | 'electric' | 'other';
+/** En navngiven tilstand (v6.6.0, Jan): de veje, der er åbne — fx "A → AB" = A igennem AB, B blokeret. */
+export interface FlowState { name: string; open: string[] }
 export interface FlowDef {
   ports: PortDef[]; ways?: [string, string][];
   kind?: FlowKind; medium?: FlowMedium; capacity?: number; restrict?: number;
+  states?: FlowState[];
 }
 export type FlowDefs = Record<string, FlowDef>;
 
@@ -38,6 +41,9 @@ export const hasProfile = (d: FlowDef): boolean =>
   (!!d.kind && d.kind !== 'consumer') || (!!d.medium && d.medium !== 'water') || d.capacity != null || d.restrict != null;
 export const MATCH_TOL = 0.2;   // et symbols punkt hører til en definition, hvis de ligger højst så langt fra hinanden (brøkdel af boksen)
 
+/** 3-vejsventilernes standardtilstande (Jan): tilstand 1 = A igennem AB (B blokeret), tilstand 2 = B igennem AB (A blokeret). */
+const THREE_WAY_STATES: FlowState[] = [{ name: 'A → AB', open: ['AB>A'] }, { name: 'B → AB', open: ['AB>B'] }];
+
 const IN_OUT = (y: number): PortDef[] => [
   { x: 0, y, name: 'IND', role: 'in' }, { x: 1, y, name: 'UD', role: 'out' },
 ];
@@ -49,14 +55,24 @@ export const FLOW_DEFAULTS: FlowDefs = {
   trevejs_motorventil: {
     ports: [{ x: 0.07, y: 0.46, name: 'A', role: 'both', part: 'port_a' }, { x: 0.46, y: 0.08, name: 'B', role: 'both', part: 'port_b' },
       { x: 0.84, y: 0.46, name: 'AB', role: 'both', common: true, part: 'port_ab' }],
+    states: THREE_WAY_STATES,
   },
   trevejs_motorventil_ab: {
     ports: [{ x: 0.07, y: 0.5, name: 'A', role: 'both', part: 'port_a' }, { x: 0.85, y: 0.5, name: 'B', role: 'both', part: 'port_b' },
       { x: 0.46, y: 0.86, name: 'AB', role: 'both', common: true, part: 'port_ab' }],
+    states: THREE_WAY_STATES,
   },
   trevejsventil: {
     ports: [{ x: 0, y: 0.44, name: 'A', role: 'both' }, { x: 1, y: 0.44, name: 'B', role: 'both' },
       { x: 0.5, y: 1, name: 'AB', role: 'both', common: true }],
+    states: THREE_WAY_STATES,
+  },
+  // 4-vejsventil (v6.6.0, Jan): tilstand 1 = A igennem B (C og D blokeret), tilstand 2 = C igennem D (A og B blokeret)
+  firevejsventil: {
+    ports: [{ x: 0, y: 0.5, name: 'A', role: 'both', part: 'port_a' }, { x: 1, y: 0.5, name: 'B', role: 'both', part: 'port_b' },
+      { x: 0.5, y: 0, name: 'C', role: 'both', part: 'port_c' }, { x: 0.5, y: 1, name: 'D', role: 'both', part: 'port_d' }],
+    ways: [['A', 'B'], ['C', 'D']],
+    states: [{ name: 'A → B', open: ['A>B'] }, { name: 'C → D', open: ['C>D'] }],
   },
 };
 
@@ -101,6 +117,49 @@ export function matchPorts(def: FlowDef | undefined, fracs: [number, number][] |
   return out;
 }
 
+// ---------------------------------------------------------------- tilstande (v6.6.0)
+/** Normaliseret sæt af veje (retningen tæller ikke): "AB>A" og "A>AB" er den samme vej. */
+const wayNorm = (k: string): string => k.split('>').sort().join('|');
+const waySet = (keys: string[]): string => [...new Set(keys.map(wayNorm))].sort().join(';');
+
+/** Hvilken tilstand svarer de åbne veje til? → indeks, eller null (egen kombination). */
+export function stateOf(def: FlowDef | undefined, open: string[] | undefined): number | null {
+  if (!def?.states?.length || !open) return null;
+  const s = waySet(open);
+  const i = def.states.findIndex((st) => waySet(st.open) === s);
+  return i >= 0 ? i : null;
+}
+
+/**
+ * Hvad tilstanden betyder i ord: hver åben vej ("A igennem AB" — fra den ikke-fælles port igennem den fælles) og de porte, der er
+ * blokeret. Fx "A igennem AB · B blokeret"; ingen åbne veje = "alle porte blokeret".
+ */
+export function describeState(def: FlowDef | undefined, open: string[]): string {
+  if (!def) return '';
+  const common = new Set(def.ports.filter((p) => p.common).map((p) => p.name));
+  const used = new Set<string>();
+  const parts: string[] = [];
+  for (const k of [...new Set(open.map(wayNorm))]) {
+    const [a, b] = k.split('|');
+    used.add(a); used.add(b);
+    const orig = open.find((o) => wayNorm(o) === k)?.split('>') ?? [a, b];
+    const [x, y] = common.has(orig[0]) && !common.has(orig[1]) ? [orig[1], orig[0]] : [orig[0], orig[1]];
+    parts.push(`${x} igennem ${y}`);
+  }
+  const blocked = def.ports.map((p) => p.name).filter((n) => !used.has(n));
+  if (!parts.length) return 'alle porte blokeret';
+  return blocked.length ? `${parts.join(', ')} · ${blocked.join(' og ')} blokeret` : parts.join(', ');
+}
+
+/** Gæt tilstanden for en position: navnet (fx "A → AB"), ellers samme nummer som positionen. */
+export function guessState(def: FlowDef | undefined, label: string, j: number): number | null {
+  const states = def?.states ?? [];
+  if (!states.length) return null;
+  const norm = (s: string) => s.replace(/\s+/g, '').replace(/→|->/g, '>').toUpperCase();
+  const hit = states.findIndex((s) => norm(s.name) === norm(label));
+  return hit >= 0 ? hit : j < states.length ? j : null;
+}
+
 /** Kontrol af en definition (samme regler som backend services/symbol_flow.py) → fejltekst eller null. */
 export function validateDef(def: FlowDef): string | null {
   const names = new Set<string>();
@@ -113,5 +172,14 @@ export function validateDef(def: FlowDef): string | null {
     names.add(p.name);
   }
   for (const w of def.ways ?? []) if (!names.has(w[0]) || !names.has(w[1]) || w[0] === w[1]) return `Vejen ${w[0]} → ${w[1]} bruger et ukendt punkt`;
+  const known = new Set(waysOf(def).map((w) => wayNorm(wayKey(w))));
+  const seen = new Set<string>();
+  for (const st of def.states ?? []) {
+    const n = st.name.trim();
+    if (!n || n.length > 30) return 'Giv hver tilstand et navn (højst 30 tegn)';
+    if (seen.has(n.toLowerCase())) return `Tilstanden '${n}' findes to gange`;
+    seen.add(n.toLowerCase());
+    for (const k of st.open) if (!known.has(wayNorm(k))) return `Tilstanden '${n}': vejen ${k} findes ikke på symbolet`;
+  }
   return null;
 }

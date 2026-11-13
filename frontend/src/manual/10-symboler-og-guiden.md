@@ -212,7 +212,11 @@ Nederst i trin 4 står sektionen **Flow**. Sæt hak i **Med i flowberegningen** 
 - **Målt flow:** et tag fra en flowsensor. Pumperne, der giver flow gennem symbolet, skaleres, så beregningen passer med målingen.
   - **Baseline:** skriv, hvad der er **lavt flow** og **højt flow** for sensoren, fx 15,1 og 16,5 l/min. Det målte flow bliver så **symbolets flow-niveau**: 0,00 ved lavt flow, 1,00 ved højt flow og imellem, fx 15,85 → 0,54.
   - Vælg **symbolets flow-niveau (0,00–1,00)** som kilde i en animation for at vise flowet: *Løbelys* får farten efter niveauet, *Blink* ved fx *højst 0,1* (lavt flow), og *Farve* med *Aktiv når ≥ 0,8* eller flere grænser.
-- **Åbne veje pr. position:** for en ventil med positioner står en tabel med symbolets veje (fra *Opsætning › Symboler › Ind/ud og veje*). Sæt hak ved de veje, der er åbne i hver position — fx *AB → A* i position *AB → A*. Hedder positionerne som vejene, er hakkene sat fra start. En ukendt position (komm.fejl) regnes som lukket.
+- **Tilstand pr. position:** for en ventil med positioner vælger du for hver position, hvilken **tilstand** ventilen er i. Kolonnen **Betyder** viser, hvad det betyder, fx position *Varme* → tilstand *A → AB* = "A igennem AB · B blokeret".
+  - Tilstandene er defineret pr. symboltype under *Opsætning › Symboler › Ind/ud og veje › Tilstande* (kapitel 8).
+  - Hedder positionerne som tilstandene, er de valgt fra start, ellers efter nummer (position 1 = tilstand 1).
+  - **Avanceret: vælg vejene selv** viser tabellen med hak ved de åbne veje, til en kombination, der ikke er en af tilstandene.
+  - En ukendt position (komm.fejl) regnes som lukket.
 - **Farv portene efter de åbne veje:** har symboltypens punkter en *Del* (fx `port_a`, `port_b`, `port_ab`), farves portene automatisk i hver position. Porte på en åben vej får farven **åben** (grøn), de andre **lukket** (sort), på stregen eller fyldet. Står ventilen på *AB → A*, er AB og A grønne og B sort. Det er slået til fra start, og en animation, du selv lægger på en port, går forud.
 
 Flowet er kun til visning. Et forbundet symbol uden flow-opsætning følger symboltypens flow-rolle (en forbruger uden restriktion, hvis typen ikke har en anden). En animation kan styres af **symbolets flow** (under *styres af*): den beregnede mængde gennem symbolet i l/min. Fx blinker en pumpe, når den giver mindst 1 l/min, eller en radiator farves efter flowet.

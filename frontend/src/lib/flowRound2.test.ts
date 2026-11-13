@@ -104,3 +104,31 @@ describe('målt flow med baseline → flow-niveau (Jan: lavt 15,1 / højt 16,5)'
     expect(f.measured).toEqual({ src: '', max: 1, low: 0, high: 100 });
   });
 });
+
+describe('ventiltilstande (Jan: tilstand 1 = A igennem AB, B blokeret …)', async () => {
+  const { describeState, stateOf, guessState, FLOW_DEFAULTS: D, validateDef: vd } = await import('./symbolFlow');
+  const three = D.trevejs_motorventil_ab;
+  const four = D.firevejsventil;
+  it('betydningen i ord, med de blokerede porte', () => {
+    expect(describeState(three, ['AB>A'])).toBe('A igennem AB · B blokeret');
+    expect(describeState(three, ['AB>B'])).toBe('B igennem AB · A blokeret');
+    expect(describeState(four, ['A>B'])).toBe('A igennem B · C og D blokeret');
+    expect(describeState(four, ['C>D'])).toBe('C igennem D · A og B blokeret');
+    expect(describeState(four, [])).toBe('alle porte blokeret');
+  });
+  it('hvilken tilstand en position har, og gæt ud fra navn eller nummer', () => {
+    expect(stateOf(three, ['A>AB'])).toBe(0);
+    expect(stateOf(three, ['AB>A', 'AB>B'])).toBeNull();
+    expect(guessState(three, 'B → AB', 0)).toBe(1);
+    expect(guessState(four, 'Varme', 1)).toBe(1);
+    expect(guessState(four, 'Ekstra', 5)).toBeNull();
+  });
+  it('guiden starter med tilstandene', () => {
+    expect(defaultFlow('firevejsventil', ['Varme', 'Køl'], ['A>B', 'C>D'], four).open).toEqual([['A>B'], ['C>D']]);
+  });
+  it('en tilstand skal bruge kendte veje og have et unikt navn', () => {
+    expect(vd({ ...four, states: [{ name: 'X', open: ['A>C'] }] })).toMatch(/findes ikke/);
+    expect(vd({ ...four, states: [{ name: 'X', open: [] }, { name: 'x', open: [] }] })).toMatch(/to gange/);
+    expect(vd(four)).toBeNull();
+  });
+});

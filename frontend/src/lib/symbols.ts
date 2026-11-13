@@ -328,6 +328,18 @@ export const SYMBOLS: SymbolDef[] = [
       text(40, 83, 'M', 14, 'font-weight="600"') + text(8, 86, 'A', 13) + text(66, 20, 'B', 13) + text(76, 86, 'AB', 13) + '</g>',
   },
   {
+    // 4-vejsventil (v6.6.0, Jan): portene A (venstre), B (højre), C (top) og D (bund) mødes i midten. To tilstande:
+    // A → B (A igennem B, C og D blokeret) og C → D (C igennem D, A og B blokeret) — farves hver for sig med guiden
+    id: 'firevejsventil', label: '4-vejs ventil', category: 'vvs',
+    hint: 'Portene A, B, C og D farves hver for sig efter tilstanden (A → B eller C → D) — opsæt med guiden',
+    svg: `<g><path id="port_a" d="M8 27 L40 45 L8 63 Z" fill="${WHITE}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path id="port_b" d="M72 27 L40 45 L72 63 Z" fill="${WHITE}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path id="port_c" d="M22 13 L58 13 L40 45 Z" fill="${WHITE}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path id="port_d" d="M22 77 L58 77 L40 45 Z" fill="${WHITE}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<circle cx="40" cy="45" r="4" fill="${DARK}"/>` +
+      text(17, 49, 'A', 11) + text(63, 49, 'B', 11) + text(40, 26, 'C', 11) + text(40, 71, 'D', 11) + '</g>',
+  },
+  {
     id: 'motorventil', label: 'Motorventil', category: 'vvs', hint: 'Bind "Fyldfarve" til åben/lukket',
     svg: `<g>${VALVE_BODY}${STEM}<circle id="motor" cx="40" cy="12" r="12" fill="${PANEL}" stroke="${LINE}" stroke-width="2.5"/>` +
       text(40, 17, 'M', 14, 'font-weight="600"') + '</g>',

@@ -22,6 +22,7 @@ class FlowBody(BaseModel):
     medium: Any = None
     capacity: Any = None
     restrict: Any = None
+    states: Any = None          # tilstande (v6.6.0)
 
 
 def _svc(request: Request) -> SymbolFlowService:

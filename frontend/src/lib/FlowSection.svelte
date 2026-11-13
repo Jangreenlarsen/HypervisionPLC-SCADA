@@ -8,7 +8,7 @@
   import { onMount } from 'svelte';
   import { get } from './api';
   import TagSelect, { type TagOption } from './TagSelect.svelte';
-  import { FLOW_DEFAULTS, kindOf, mergeDefs, unitOf, waysOf, wayKey, wayLabel, type FlowDefs } from './symbolFlow';
+  import { FLOW_DEFAULTS, describeState, kindOf, mergeDefs, stateOf, unitOf, waysOf, wayKey, wayLabel, type FlowDefs } from './symbolFlow';
   import { DEFAULT_PORT_COLORS, defaultFlow, flowLevel, flowSourceMode, type FlowCfg, type FlowSource } from './symbolConfig';
 
   let { flow = $bindable(), type, positions, tags, linked = null }: {
@@ -56,6 +56,17 @@
     flow.open = open;
   }
   const isOpen = (j: number, key: string): boolean => !flow?.open || (flow.open[j] ?? []).includes(key);
+  // v6.6.0 (Jan): tilstande — vælg pr. position, hvad ventilen gør (fx "A → AB" = A igennem AB, B blokeret)
+  const states = $derived(def?.states ?? []);
+  let advanced = $state(false);
+  const openAt = (j: number): string[] => flow?.open?.[j] ?? ways.map(wayKey);
+  function setState(j: number, v: string): void {
+    if (!flow || v === '') return;
+    const open = (flow.open ?? positions.map(() => ways.map(wayKey))).map((x) => [...x]);
+    while (open.length < positions.length) open.push([]);
+    open[j] = [...states[Number(v)].open];
+    flow.open = open;
+  }
   const fmt2 = (v: number): string => v.toFixed(2).replace('.', ',');
 </script>
 
@@ -120,7 +131,26 @@
         {/if}
       </div>
     {/if}
-    {#if positions.length && ways.length}
+    {#if positions.length && ways.length && states.length}
+      <table class="ways states">
+        <thead><tr><th>Position</th><th>Tilstand</th><th>Betyder</th></tr></thead>
+        <tbody>
+          {#each positions as p, j (j)}
+            {@const si = stateOf(def, openAt(j))}
+            <tr><td>{p || `Position ${j + 1}`}</td>
+              <td><select value={si ?? ''} onchange={(e) => setState(j, e.currentTarget.value)} aria-label="{p || `Position ${j + 1}`}: tilstand">
+                {#if si === null}<option value="">egen kombination</option>{/if}
+                {#each states as st, k (k)}<option value={k}>{st.name}</option>{/each}
+              </select></td>
+              <td class="means">{describeState(def, openAt(j))}</td></tr>
+          {/each}
+        </tbody>
+      </table>
+      <p class="small muted">Vælg, hvad ventilen gør i hver position. Tilstandene er defineret pr. symboltype (Opsætning › Symboler › Ind/ud og
+        veje › Tilstande). Ukendt position = alle porte blokeret.</p>
+      <div><button class="linkish small" onclick={() => (advanced = !advanced)}>{advanced ? '▾' : '▸'} Avanceret: vælg vejene selv</button></div>
+    {/if}
+    {#if positions.length && ways.length && (!states.length || advanced)}
       <table class="ways">
         <thead><tr><th>Position</th>{#each ways as w}<th>{wayLabel(w)}</th>{/each}</tr></thead>
         <tbody>
@@ -132,6 +162,8 @@
         </tbody>
       </table>
       <p class="small muted">Sæt hak ved de veje, der er åbne i hver position (fx <em>AB → A</em> i position A). Ukendt position = lukket.</p>
+    {/if}
+    {#if positions.length && ways.length}
       {#if parts.length}
         <label class="opt"><input type="checkbox" checked={!!flow.port_colors}
           onchange={(e) => flow && (flow.port_colors = e.currentTarget.checked ? { ...DEFAULT_PORT_COLORS } : null)} />
@@ -162,5 +194,7 @@
   .ways { border-collapse: collapse; margin: .3rem 0; }
   .ways th, .ways td { border: 1px solid var(--line); padding: .15rem .45rem; text-align: center; }
   .ways td:first-child { text-align: left; }
+  .states td.means { text-align: left; color: var(--muted); font-size: .85rem; }
+  .linkish { background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; font: inherit; text-align: left; }
   .warn { color: #8a5300; background: #fff8e1; border: 1px solid #e0b062; border-radius: 5px; padding: .25rem .45rem; margin: .2rem 0; flex-basis: 100%; }
 </style>

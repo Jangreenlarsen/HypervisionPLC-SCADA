@@ -2,6 +2,12 @@
 
 ---
 
+## v6.6.0 — 2026-11-13 — Ventiltilstande
+
+- En ventils **tilstande** defineres nu pr. symboltype under *Opsætning › Symboler › Ind/ud og veje › Tilstande*: navn og åbne veje, og betydningen i ord — fx "A igennem AB · B blokeret". Du kan definere alle de tilstande, et symbol har brug for.
+- I guiden vælger du blot **tilstanden for hver position**.
+- Ny **4-vejsventil** (porte A, B, C, D) med tilstandene *A → B* og *C → D*.
+
 ## v6.5.0 — 2026-11-13 — Simulator
 
 - Ny side **Opsætning › Simulator** (og **Simulér** på Overview og i Tegn): se en tegning med værdier, du selv indskyder. Systemet finder alle de variabler, tegningen bruger — tags, symbolernes position og alarmer.

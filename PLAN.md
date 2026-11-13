@@ -1,3 +1,122 @@
+# Plan: Tilstande som fælles begreb på symboltypen (design B) — 2026-11-13 — afventer OK
+
+Baggrund: docs/ANALYSE_SYMBOLTILSTANDE.md. Jan valgte design B (2026-11-13):
+1. En tilstand kan have sit **eget navn på en tegning** (fx *A → AB* vist som *Varme*).
+2. **Udseendet kommer fra typen og kan tilsidesættes pr. symbol.** Kun det rettede afviger, og *Brug typens udseende* fjerner afvigelsen.
+
+## Mål
+
+Én definition af, hvad et symbol kan være. Symboltypen definerer **tilstandene**: navn, betydning, flow (åbne veje) og **udseende** pr. del. Guiden kobler dem til PLC'en og navngiver dem på tegningen. Det gælder alle symboltyper: ventiler, omskiftere, vippekontakter, lamper og el-komponenter.
+
+## Data (additivt — gamle opsætninger virker uændret)
+
+- **Symboltypen:** `states: [{name, open: ["AB>A"], look: [{part, anim, value}]}]`.
+  - `open` findes allerede i v6.6.0.
+  - `look` er nyt: `anim` er en af fill, stroke, rotate, visible og blink; `value` er farve, vinkel eller til/fra.
+- **Symbolets opsætning:**
+  - `positions[j].state`: navnet på typens tilstand. `positions[j].label` er navnet på tegningen og er som standard tilstandens navn.
+  - `state_look: {tilstand: [{part, anim, value}]}`: afvigelserne fra typens udseende.
+  - En position uden `state` er en **egen position** og virker præcis som i dag.
+
+## Opbygning
+
+1. **Backend:**
+   - `symbol_flow.clean_def`: validering af `look`, dvs. kendte dele (bibliotekets dele) og gyldige værdier.
+   - `symbols.validate_config`: `positions[j].state` skal findes på typen.
+   - **Udseende-bindinger** (som portfarverne): for hver del og animation én binding med værdier pr. position. Værdien kommer fra afvigelsen, ellers fra typen, ellers som tegnet.
+     - Bindingen lægges aldrig oven på en egen animation af samme slags på delen; egne animationer vinder.
+     - Portfarverne fra v6.3.0 bliver standard-udseendet for ventilernes tilstande.
+   - Flowet tager de åbne veje fra tilstanden (`flow.open` udfyldes fra den; *Avanceret* kan stadig sætte dem selv).
+2. **Symbol-editoren › Tilstande** for **alle** symboltyper, også uden veje:
+   - pr. tilstand: navn, de åbne veje (hvis typen har veje), betydning, og **udseende** pr. del (vælg del → farve, vinkel eller synlig);
+   - **forhåndsvisning** af symbolet i den valgte tilstand.
+3. **Guiden:**
+   - **Trin 3 *Tilstande*** (erstatter *Kontakter* for symboler, hvis type har tilstande). Én tabel med en række pr. position:
+
+     | Tilstand (typens) | Navn på tegningen | PLC-værdi (kontaktplanen pr. signal) | Betyder |
+     |---|---|---|---|
+
+     - *+ Position* og *Fjern* virker som i dag.
+     - Rækkefølgen bestemmer værdien, når kun ét register bruges.
+     - Uden typetilstande vises den gamle side *Kontakter*.
+   - **Trin 4 *Visning*:** et nyt afsnit **Tilstandenes udseende** viser typens udseende pr. tilstand med en forhåndsvisning. *Ret for dette symbol* gemmer en afvigelse, der markeres *afviger fra typen*, og *Brug typens udseende* fjerner den. Egne animationer står som i dag.
+4. **Standardtilstande i biblioteket:**
+   - 3-vejsventilerne: *A → AB* og *B → AB*, med åbne veje og portfarver;
+   - 4-vejsventilen: *A → B* og *C → D*;
+   - omskifter Hånd/0/Auto: *Hånd*, *0*, *Auto* med grebets vinkel;
+   - vippekontakterne: *OFF* og *ON* (og *ON 2*) med grebets stilling;
+   - drejeomskifteren: *0* og *1*;
+   - lampen og pumpen: *Stoppet* og *Kører*.
+5. **Simulatoren og Overview** viser tilstandens navn på tegningen; simulatoren viser også betydningen.
+6. **Observability:** et log-udsagn, når en opsætning gemmes med afvigelser, og en tæller i Status over symboler, der afviger fra typen.
+
+## Ikke med (senere)
+
+- Tid og forløb mellem tilstande (fx "pumpen starter efter 5 s").
+- En tilstand, der vælges af logik i stedet for PLC-værdier.
+
+## Berørte filer
+
+- Backend: `symbol_flow.py`, `flow_defs.py`, `symbols.py` (validering og udseende-bindinger), `drawings.py`, backup.
+- Frontend: `symbolFlow.ts`, `SymbolFlowEditor.svelte` (Tilstande med udseende og forhåndsvisning), `SymbolGuide.svelte` (trin 3 og 4), `symbolConfig.ts`, `symbols.ts` og `library` (standarder), `Simulator.svelte`.
+- Manual kap. 08, 10 og 11, billeder, LLM-tillæg, tests.
+- MINOR: **6.7.0** (additivt, ingen migrering).
+
+## Risici
+
+- **Trin 3 bygges om:** kontaktplanerne (flere signaler, puls og tilbagemelding) skal stadig kunne alt det, de kan i dag. Derfor vises den gamle side for symboler uden typetilstande, og tabellen bruger de samme data (`planes`).
+- **Omskifterens omtegning** ved et andet antal positioner end tegningen er uændret.
+- **Rækkefølgen af animationer:** egne animationer vinder over tilstandens udseende, og det testes.
+
+---
+
+# Plan: Ventiltilstande — en definition af, hvad hver tilstand betyder (3-vejs og 4-vejs) — 2026-11-13 — udført i v6.6.0 (Jans tilstande: 3-vejs A → AB / B → AB, 4-vejs A, B, C, D med A → B / C → D)
+
+Jan (2026-11-13): "Opsætning af en 3-vejsventil er ikke til at forstå — mangler der ikke en definition af, hvad er hvad? Fx tilstand 1 = port A igennem AB og port B blokeret; tilstand 2 = port B igennem AB og port A blokeret. Et andet eksempel kunne være en 4-vejsventil."
+
+## I dag
+
+Guidens trin 4 › Flow har en tabel med **veje × positioner**, hvor man sætter hak. Det er rigtigt nok teknisk, men:
+- der står ingen steder, hvad en tilstand **er**;
+- blokerede porte nævnes ikke;
+- det skal gøres forfra for hver ventil.
+
+## Forslag: tilstande defineres én gang pr. symboltype
+
+1. **Symbol-editoren › Ind/ud og veje** får afsnittet **Tilstande**. Det er en liste med navngivne tilstande, og hver tilstand siger, hvilke veje der er åbne. Teksten om, hvad det betyder, skrives automatisk, også hvilke porte der er blokeret:
+
+   ```
+   Tilstand          A↔AB   B↔AB     Betyder
+   A → AB             ☑      ☐       A igennem AB · B blokeret
+   B → AB             ☐      ☑       B igennem AB · A blokeret
+   Lukket             ☐      ☐       alle porte blokeret
+   ```
+
+   - **Standarder** for 3-vejsventilerne: *A → AB*, *B → AB* og *Lukket*.
+   - **4-vejsventil** (ny i biblioteket, porte P, T, A og B):
+     - *P → A, B → T* (A forsynes, B returnerer);
+     - *P → B, A → T*;
+     - *Lukket (midt)* (alle blokeret);
+     - *Omløb (P → T)*.
+2. **Guiden › Flow:** for hver af symbolets positioner vælger du **tilstanden i en liste**, fx position *Åben mod radiator* → tilstand *A → AB*. Betydningen står ved siden af ("A igennem AB · B blokeret").
+   - Hedder positionerne som tilstandene, er de valgt fra start.
+   - Den gamle tabel med hak findes stadig under **Avanceret: vælg vejene selv**, til specialtilfælde.
+3. **Portfarverne** og **flowet** følger tilstanden som i dag (åbne porte er grønne og blokerede sorte), og simulatoren viser tilstandens navn ved positionen.
+4. **Ny 4-vejsventil** i biblioteket (VVS) med punkterne P, T, A og B, delene `port_p`, `port_t`, `port_a` og `port_b`, og standardtilstandene ovenfor.
+
+## Data (bagudkompatibelt)
+
+- Symboltypens definition får `states: [{name, open: ["A>AB"]}]` (valideret: kendte veje, unikke navne, højst 12).
+- Symbolets opsætning gemmer stadig de åbne veje pr. position (`flow.open`). Tilstandslisten udfylder dem bare, så der kræves ingen ændring i beregningen og ingen migrering.
+
+## Berørte filer
+
+- Backend: `symbol_flow.py`, `flow_defs.py` (standarder og validering), backup.
+- Frontend: `symbolFlow.ts`, `SymbolFlowEditor.svelte` (afsnittet Tilstande), `FlowSection.svelte` (tilstand pr. position), `symbols.ts` (4-vejsventilen) og `simulator`.
+- Manual kap. 08 og 10, billeder, LLM-tillæg, tests. MINOR: **6.6.0**.
+
+---
+
 # Plan: Simulator — test en tegnings tilstande med indskudte værdier — 2026-11-13 — udført i v6.5.0 (med scenarier)
 
 Jan (2026-11-13): "et simulationspanel, der kun arbejder med alle de variabler, en tegning gør brug af, så vi kan teste de forskellige tilstande på en tegning — systemet gennemgår tegningen og præsenterer et panel under en simulator-del med de parametre, der er sat i tegningen, så vi kan indskyde værdier og se, hvad det resulterer i af display-output."

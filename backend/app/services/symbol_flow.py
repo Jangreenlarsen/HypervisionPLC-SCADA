@@ -32,6 +32,8 @@ KINDS = ("consumer", "pump", "piece")
 MEDIA = ("water", "air", "electric", "other")
 MAX_PORTS = 12
 MAX_WAYS = 24
+MAX_STATES = 12
+STATE_NAME_RE = re.compile(r"^[^\x00-\x1f]{1,30}\Z")
 
 
 def _num(v: Any) -> bool:
@@ -100,6 +102,37 @@ def clean_def(raw: Any) -> dict[str, Any]:
     result: dict[str, Any] = {"ports": ports}
     if ways:
         result["ways"] = ways
+    # Tilstande (v6.6.0, Jan): navngivne tilstande med de veje, der er åbne — fx "A → AB" = A igennem AB, B blokeret
+    states_in = raw.get("states") or []
+    if not isinstance(states_in, list) or len(states_in) > MAX_STATES:
+        raise ServiceError(400, f"Tilstandene skal være en liste (højst {MAX_STATES})")
+    if states_in:
+        from .flow_defs import way_key, ways_of
+        known = {frozenset(w): way_key(*w) for w in ways_of({"ports": ports, **({"ways": ways} if ways else {})})}
+        states: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for i, st in enumerate(states_in, 1):
+            if not isinstance(st, dict):
+                raise ServiceError(400, f"Tilstand {i}: skal være et objekt med navn og åbne veje")
+            name = " ".join(str(st.get("name") or "").split())
+            if not STATE_NAME_RE.match(name):
+                raise ServiceError(400, f"Tilstand {i}: giv den et navn (højst 30 tegn)")
+            if name.casefold() in seen:
+                raise ServiceError(400, f"Tilstanden '{name}' findes to gange")
+            seen.add(name.casefold())
+            opens = st.get("open") or []
+            if not isinstance(opens, list) or not all(isinstance(w, str) for w in opens):
+                raise ServiceError(400, f"Tilstanden '{name}': de åbne veje skal være en liste (fx \"AB>A\")")
+            keys: list[str] = []
+            for w in opens:
+                a, _, b = w.partition(">")
+                k = known.get(frozenset((a, b)))
+                if k is None:
+                    raise ServiceError(400, f"Tilstanden '{name}': vejen '{w}' findes ikke på symbolet")
+                if k not in keys:
+                    keys.append(k)
+            states.append({"name": name, "open": keys})
+        result["states"] = states
     if kind != "consumer" or raw.get("kind") == "consumer":   # en udtrykkelig forbruger (fx en indbygget pumpe-type)
         result["kind"] = kind
     if medium != "water":
