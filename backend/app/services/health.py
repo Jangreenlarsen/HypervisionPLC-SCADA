@@ -306,6 +306,8 @@ class HealthService:
             "bindings_cache": dict(ds.cache_stats) if (ds := getattr(state, "drawing_service", None)) else None,
             # flowberegningen (v6.1.0): kørsler, sidste beregningstid, fejl, tegninger uden gemte forbindelser, beskeder
             "flow": rt.flow.status() if (rt := getattr(state, "symbol_runtime", None)) is not None and hasattr(rt, "flow") else None,
+            # simulatoren (v6.5.0): antal simuleringer, sidste beregningstid, fejl
+            "simulator": dict(sim.stats) if (sim := getattr(state, "simulator_service", None)) else None,
             # opgraderingen v5.1.0 (den gamle symbolmodel fjernet): symboler, der stadig skal sættes op i guiden
             "symbol_migration": self._symbol_migration(state),
             "notify": notifier.failing() if (notifier := getattr(state, "notifier", None)) else {},

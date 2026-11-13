@@ -26,6 +26,7 @@
   import Schedules from './pages/Schedules.svelte';
   import Trends from './pages/Trends.svelte';
   import SymbolTest from './pages/SymbolTest.svelte';
+  import Simulator from './pages/Simulator.svelte';
   import SymbolEditor from './pages/SymbolEditor.svelte';
   import { LiveClient } from './lib/live';
   import Login from './pages/Login.svelte';
@@ -265,6 +266,8 @@
     <Tags {canEdit} />
   {:else if page === 'symboltest'}
     <SymbolTest />
+  {:else if page === 'simulator'}
+    <Simulator {route} />
   {:else if page === 'symbols'}
     <SymbolEditor {route} />
   {:else if page === 'plcs'}

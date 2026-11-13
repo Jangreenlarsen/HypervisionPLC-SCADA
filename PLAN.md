@@ -1,3 +1,66 @@
+# Plan: Simulator — test en tegnings tilstande med indskudte værdier — 2026-11-13 — udført i v6.5.0 (med scenarier)
+
+Jan (2026-11-13): "et simulationspanel, der kun arbejder med alle de variabler, en tegning gør brug af, så vi kan teste de forskellige tilstande på en tegning — systemet gennemgår tegningen og præsenterer et panel under en simulator-del med de parametre, der er sat i tegningen, så vi kan indskyde værdier og se, hvad det resulterer i af display-output."
+
+## Hvad der allerede findes (genbruges)
+
+- **Overview-motoren** (`canvas.ts renderAll`) tegner ud fra en tabel `{tag: værdi}`, så den kan fodres med simulerede værdier.
+- **Symbol-runtimen** har rene funktioner: `logic_results` (logikblokke), `remote_position` og `compute_state` (positioner ud fra tilbagemeldinger).
+- **Flowet:** `flow_calc.preview` (flow, rørstykker, niveau) uden at udgive noget.
+- **Symboltest** (guidens trin 6, `symbolSim.ts`) simulerer ét symbol. Simulatoren gør det for hele tegningen.
+
+## Opbygning
+
+1. **Backend `GET /api/drawings/{id}/simulator`** (tekniker): gennemgår tegningen og returnerer **variablerne**, grupperet:
+   - **Tags fra PLC'en**, som tegningen læser: bindinger, symbolernes signaler og tilbagemeldinger, animationskilder, logikindgange, flow-rate, restriktion og målt flow, alarm-kilder. For hvert tag: type (til/fra, tal, med min/max og enhed), hvor det bruges (symbol og animation), og den live værdi lige nu.
+   - **Symbolpositioner** for symboler med positioner og visning *Valgt position*: positionens navne.
+   - **Alarmer**, som animationer styres af (aktiv / kvitteret).
+2. **Backend `POST /api/drawings/{id}/simulate`** (tekniker): tager `{værdier}` og regner de **afledte værdier** med den samme kode som driften:
+   - logikblokke;
+   - symbolernes position og tilstand (inkl. afvigelse og komm.fejl);
+   - flowet (`flow:`, `flowp:`, `flowlvl:`).
+
+   Returnerer hele værditabellen. Den skriver **aldrig** til PLC'en og udgiver intet i live-cachen. Grænser som preview: højst 2 samtidige, 429 ved optaget, og tegningens adgang tjekkes.
+3. **Frontend, ny side Simulator** (Opsætning › Simulator, også en knap *Simulér* i Tegn og på Overview):
+   - **Til venstre** tegningen, tegnet med Overview-motoren ud fra de simulerede værdier: animationer, løbelys, farver, tekster og symbolernes tilstandsmærker.
+   - **Til højre** panelet med variablerne:
+     - til/fra-tags som kontakt; tal som felt og skyder (min/max fra tagget), med enhed;
+     - positioner som valgliste;
+     - for hver variabel: **Live** (følg PLC'en) eller **Simuleret** (din værdi), og *hvor bruges den* (klik markerer symbolerne på tegningen);
+     - søg og filtrér (kun simulerede, pr. symbol).
+   - Knapper:
+     - **Start fra live** kopierer PLC'ens værdier ind;
+     - **Alt til Live** og **Nulstil**;
+     - **Komm.fejl** pr. tag, der sætter kvaliteten til ukendt, så du kan se, hvordan tegningen ser ud ved en PLC-fejl.
+   - **Scenarier:** gem et sæt værdier med et navn, fx "Sommerdrift" eller "Pumpe 2 fejl", og hent det igen. Det gemmes pr. tegning på serveren og følger med i backup.
+   - En tydelig bjælke: **SIMULERING — intet skrives til PLC'en**. Klik på symboler åbner ikke betjening.
+4. **Observability:** tæller for simuleringer og scenarier i Status, audit ved gem eller slet af et scenarie, og en log ved fejl.
+
+## Afgrænsning (første version)
+
+- Tid og forløb, fx "pumpen starter efter 5 s", simuleres ikke. Det er én tilstand ad gangen.
+- Trendgrafer viser historikken, ikke simulerede værdier.
+- Alarmerne i topmenuen påvirkes ikke.
+
+## Berørte filer
+
+- Backend:
+  - ny `services/simulator.py` (variabler og beregning) og `api/simulator.py`;
+  - tabellen `sim_scenarios` (skema 18, additiv);
+  - backup.
+- Frontend:
+  - ny `pages/Simulator.svelte`, `lib/SimPanel.svelte` og `lib/simulator.ts`;
+  - genbrug af `canvas.ts`;
+  - knapper i Tegn og på Overview, og menupunktet.
+- Manual (nyt afsnit og billede), LLM-tillæg, tests. MINOR: **6.5.0**.
+
+## Risici
+
+- Positionernes tilstand afhænger af tid (validering, *afviger*). Simulatoren regner med "nu", så en ny position vises som gyldig med det samme. Det står i panelet.
+- En stor tegning med mange tags: panelet grupperes pr. symbol og kan søges.
+
+---
+
 # Plan: Flow-model, runde 2 — alle otte punkter i ét hug — 2026-11-13 — udført i v6.3.0 (punkt 8 gemt til senere)
 
 Jan (2026-11-13) svarede på listen over, hvad der mangler: "lav alle otte punkter, definer selv en strategi for rækkefølgen, men lav dem i et hug". Flowet er **kun til visning**. Det er ikke en simulering af det virkelige anlæg, og sådan vil det være længe.

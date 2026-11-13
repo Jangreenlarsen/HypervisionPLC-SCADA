@@ -649,6 +649,7 @@
     {#each drawings as d}<option value={d.id}>{d.name}{d.disabled ? ' (deaktiveret)' : ''}</option>{/each}
   </select>
   {#if canEdit && selected}<a href={'#editor/' + selected}>Redigér bindinger</a>{/if}
+  {#if canEdit && selected}<a href={'#simulator/' + selected} title="Prøv tegningens tilstande med indskudte værdier — intet skrives til PLC'en">Simulér</a>{/if}
   {#if view}
     <span class="zoom row" role="group" aria-label="Zoom">
       <button class="small" onclick={() => zoomBy(1 / 1.5)} disabled={zoom <= 1.0001} title="Zoom ud">−</button>

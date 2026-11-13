@@ -1115,6 +1115,7 @@
       <button class="mitem" onclick={menuDo(openSize)} title="Tegningens bredde og højde">⤢ Størrelse … <span class="muted">({sizeText(size.w, size.h)})</span></button>
       {#if current}
         <a class="mitem" href={'#editor/' + current.id} onclick={() => (drawMenu = false)}>Bindinger →</a>
+        <a class="mitem" href={'#simulator/' + current.id} onclick={() => (drawMenu = false)} title="Prøv den udgivne tegnings tilstande med indskudte værdier">Simulér →</a>
         <hr class="mrule" />
         <button class="mitem danger" onclick={menuDo(removeCurrent)} disabled={busy} title="Slet tegningen med alle versioner og bindinger">Slet tegning …</button>
       {/if}

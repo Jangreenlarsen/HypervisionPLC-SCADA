@@ -129,3 +129,7 @@ I guidens trin 4 › **Flow** › **Målt flow**: vælg sensorens tag og skriv *
 ## Er flow-rate og restriktion faste værdier eller tags?
 <!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:4b5b139a -->
 De er faste værdier for symbolet (dets fysik): skriv tallet 0,00–1,00 i trin 4 › Flow, eller træk i skyderen. Sæt hak i **styret af et tag**, hvis PLC'en skal styre værdien, og angiv hvad der er 1,00 (fx 100 for en ventils åbning i %).
+
+## Hvordan tester jeg en tegnings tilstande uden PLC (simulator, indskyd værdier, scenarier)?
+<!-- kilde: 07-tegn#m-simulator-proev-tegningens-tilstande sha:9d2c3472 -->
+Åbn **Opsætning › Simulator** (eller **Simulér** på Overview). Panelet viser alle variabler, tegningen bruger (tags, positioner, alarmer). Sæt hak ud for en variabel og vælg en værdi; tegningen viser resultatet med det samme — logik, symbolernes tilstand og flowet beregnes som i drift. **komm.fejl** viser en kommunikationsfejl, **Start fra live** kopierer PLC'ens værdier ind, og **Gem som …** gemmer et scenarie. Intet skrives til PLC'en.

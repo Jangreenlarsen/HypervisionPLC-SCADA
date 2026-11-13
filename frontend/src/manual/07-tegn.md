@@ -252,3 +252,26 @@ Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige 
 ![Erstat med symbol: forslag ud fra delens form, indstillinger og valg om at erstatte alle lignende](../../public/manual/tegn-erstat.png)
 
 > **Retning og akse:** for en **pumpe** og en **kontraventil** aflæser systemet, hvilken vej den tegnede trekant peger, og drejer symbolet; for en **ventil** af to trekanter aflæses, om den står vandret eller lodret. For andre symboler kan retningen ikke aflæses sikkert — kontrollér og drej dem efter erstatning. Bindinger på **underelementer** i den gamle del følger ikke med; dialogen advarer, hvis der er nogen.
+
+## Simulator: prøv tegningens tilstande
+
+**Opsætning › Simulator** (eller **Simulér** på Overview og i menuen med tegningens navn i Tegn) viser den udgivne tegning, som den ville se ud med de værdier, du selv indskyder. Intet skrives til PLC'en, og det, du sætter, ses kun på siden.
+
+![Simulatoren: tegningen til venstre med simulerede værdier (pumpen kører, tanken er rød ved et tryk over grænsen) og panelet med tegningens variabler til højre](../../public/manual/simulator.png)
+
+- **Panelet til højre** viser alle de variabler, tegningen bruger. Systemet finder dem selv:
+  - **tags fra PLC'en** fra bindinger, symbolernes signaler og tilbagemeldinger, animationer, logik og flow;
+  - **symbolernes position**;
+  - **alarmer**, som animationer styres af.
+- **Sådan simulerer du en variabel:** sæt hak ud for den, og vælg værdien:
+  - til/fra med et hak;
+  - et tal i feltet eller med skyderen (fra tagets min/max);
+  - en position i listen.
+
+  Uden hak følger variablen PLC'en (*live*).
+- **komm.fejl** viser, hvordan tegningen ser ud, når tagget har en kommunikationsfejl. **Vis** markerer de symboler, der bruger variablen.
+- **Start fra live** kopierer PLC'ens værdier ind som simulerede, så du kan ændre én ting ad gangen. **Alt til live** slår simuleringen fra.
+- **Scenarier:** **Gem som …** gemmer de simulerede værdier med et navn (fx *Pumpe 2 fejl*). Vælg et scenarie for at hente det igen, **Gem** opdaterer det, og **Slet** fjerner det. Scenarierne gemmes pr. tegning og følger med i backup.
+- Serveren beregner **logikblokke**, **symbolernes tilstand** og **flowet** ud fra værdierne med den samme kode som driften, så løbelys, farver, blink og tilstandsmærker vises, som de ville i drift.
+
+> Første version: tid og forløb simuleres ikke (en ny position vises som gyldig med det samme), trendgrafer viser historikken, og alarmerne i topmenuen påvirkes ikke.

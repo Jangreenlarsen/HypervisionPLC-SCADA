@@ -35,6 +35,7 @@ from .symbol_flow import clean_def
 from .symbol_ports import MAX_TYPES, clean_ports, clean_type
 from . import library as lib
 from .trend_views import clean_view
+from .simulator import MAX_SCENARIOS, clean_scenario
 from .connection_groups import MAX_MEMBERS as MAX_CG_MEMBERS, clean_anims as clean_conn_anims, clean_name as clean_conn_name
 from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
 from .symbols import SymbolConfig, config_tags, too_many_anims
@@ -156,6 +157,7 @@ class BackupService:
             "symbol_config": data["symbol_config"],
             "symbol_groups": data["symbol_groups"],
             "connection_groups": data.get("connection_groups", []),
+            "sim_scenarios": data.get("sim_scenarios", []),
             "trend_views": data["trend_views"],
             "symbol_ports": data["symbol_ports"],
             "symbol_flow": data["symbol_flow"],
@@ -530,6 +532,31 @@ class BackupService:
             connection_groups.append({"drawing_id": g["drawing_id"], "name": "" if g.get("is_default") else g["name"],
                                       "is_default": bool(g.get("is_default")), "members": list(dict.fromkeys(g["members"])), "anims": anims})
 
+        sim_scenarios = []
+        raw_sim = backup.get("sim_scenarios", [])     # simulatorens scenarier (v6.5.0); ældre backups har ingen
+        if not isinstance(raw_sim, list):
+            err("sim_scenarios skal være en liste")
+            raw_sim = []
+        seen_sim: set[tuple[str, str]] = set()
+        for i, s in enumerate(raw_sim):
+            if not isinstance(s, dict) or s.get("drawing_id") not in drawing_ids:
+                err(f"Simulator-scenarie #{i + 1}: ukendt tegning")
+                continue
+            try:
+                clean = clean_scenario(s)
+            except ServiceError as exc:
+                err(f"Simulator-scenarie #{i + 1}: {exc.message}")
+                continue
+            key = (s["drawing_id"], clean["name"].casefold())
+            if key in seen_sim:
+                err(f"Simulator-scenarie '{clean['name']}' på {s['drawing_id']}: findes to gange")
+                continue
+            if sum(1 for x in sim_scenarios if x["drawing_id"] == s["drawing_id"]) >= MAX_SCENARIOS:
+                err(f"Simulator-scenarier på {s['drawing_id']}: højst {MAX_SCENARIOS}")
+                continue
+            seen_sim.add(key)
+            sim_scenarios.append({"drawing_id": s["drawing_id"], **clean})
+
         trend_views = []
         raw_views = backup.get("trend_views", [])   # ældre backups har ingen gemte trend-visninger
         if not isinstance(raw_views, list):
@@ -639,7 +666,8 @@ class BackupService:
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
                 "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
                 "schedules": schedules, "symbol_meta": symbol_meta, "symbol_config": symbol_config,
-                "symbol_groups": symbol_groups, "connection_groups": connection_groups, "trend_views": trend_views,
+                "symbol_groups": symbol_groups, "connection_groups": connection_groups, "sim_scenarios": sim_scenarios,
+                "trend_views": trend_views,
                 "symbol_ports": symbol_ports, **({"symbol_flow": symbol_flow} if symbol_flow is not None else {}), **library}
 
     # ---------------------------------------------------------------- restore
