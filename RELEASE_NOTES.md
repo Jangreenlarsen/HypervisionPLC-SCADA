@@ -2,6 +2,12 @@
 
 ---
 
+## v6.8.1 — 2026-11-13 — Rettelser og oprydning
+
+- Farve på et tal med ekstra grænser: **0** og **over 0** får nu deres egne farver. Farverne står som en tabel med én række pr. værdiområde.
+- Meddelelser i Tegn: viser kun den åbne tegnings meddelelser, og samme advarsel gentages ikke længere under hver meddelelse.
+- Simulatoren: ryddeligt panel med **Alle / Kun ændrede** og **Find**.
+
 ## v6.8.0 — 2026-11-13 — Tags på tegningen i Tegn
 
 - **Vis › tags** i Tegn viser de PLC-tags, hvert symbol bruger, under symbolet. Slås til og fra som navnene.

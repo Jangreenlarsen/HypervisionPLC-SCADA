@@ -95,7 +95,7 @@ Giv ventilen positioner (fx *AB → A* og *AB → B*), og lad tagget bestemme po
 Tjek at tegningens forbindelser er bundet og gemt (Flow-vinduet siger det, hvis de ikke er), at pumpen har **Pumpe** slået til med kapacitet over 0 og en flow-rate over 0, at der er en åben vej rundt fra pumpens UD tilbage til dens IND (ventilernes åbne veje i deres position, kontraventilens retning, restriktion over 0). Beskeder fra beregningen står øverst i Flow-vinduet; kortet *Flowberegning* på Status viser fejl.
 
 ## Hvor er Slet tegning, størrelsen, versionerne og kommentarfeltet i Tegn (topmenuen)?
-<!-- kilde: 07-tegn#m-skaermen sha:90c75340 -->
+<!-- kilde: 07-tegn#m-skaermen sha:20551fc4 -->
 Topmenuen i Tegn har tre dele. Til venstre åbner **tegningens navn** en menu med skift af tegning, **+ Ny tegning …**, **⤢ Størrelse …**, **Bindinger →** og **Slet tegning …**; ved siden af står **versionen** (fx *v4 kladde*), hvor du åbner en anden version eller udgiver den åbne. I midten står **Vis**, **Fang**, **Forbindelser** og **Flow**. Til højre zoom, **Meddelelser**, **Gem kladde** og **Gem og udgiv** — pilen **▾** på *Gem og udgiv* åbner kommentaren til versionen.
 
 ## Hvordan ser jeg flowet i Tegn, før jeg gemmer (live, simulering, prøv pumper og ventiler uden PLC)?
@@ -119,8 +119,8 @@ I trin 4 under **Flow** › **Restriktion**: vælg *en fast værdi* (skyder og t
 Under Opsætning › Symboler › **Ind/ud og veje** vælger du symboltypens **Flow-rolle**: forbruger, pumpe/kilde (fx en strømforsyning) eller rørstykke/ledning, og et **medie** (vand l/min, luft m³/h, el A). Standard-kapacitet og standard-restriktion (0,00–1,00) gælder, når et symbol ikke har sin egen flow-opsætning i guiden.
 
 ## Hvordan får en farve-animation på et tal-tag en grænse (aktiv ved ≥ 50, ikke aktiv under)?
-<!-- kilde: 10-symboler-og-guiden#m-animationer-i-guiden-trin-4 sha:2af73652 -->
-I guidens trin 4 ved animationen *Farve* (eller *Streg*) med et tal-tag: skriv grænsen i **Aktiv når ≥** (fx 50). Fra 50 og op vises aktiv-farven, under 50 fra-farven. Tomt felt = aktiv, når værdien ikke er 0. **+ Grænse** lægger flere farver ovenpå.
+<!-- kilde: 10-symboler-og-guiden#m-animationer-i-guiden-trin-4 sha:f6ef6ac8 -->
+I guidens trin 4 ved animationen *Farve* (eller *Streg*) med et tal-tag: skriv grænsen i **Aktiv når ≥** (fx 50). Fra 50 og op vises aktiv-farven, under 50 fra-farven. Tomt felt = aktiv, når værdien ikke er 0 (0 = fra-farven, over 0 = aktiv-farven). **+ Grænse** lægger flere farver ovenpå; aktiv-farven gælder op til den første grænse. Farverne står som en tabel med én række pr. værdiområde.
 
 ## Hvordan definerer jeg lavt og højt flow for en flowsensor og viser flowet med løbelysets fart, blink eller farve (baseline, flow-niveau)?
 <!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:eaa3dd98 -->
@@ -131,7 +131,7 @@ I guidens trin 4 › **Flow** › **Målt flow**: vælg sensorens tag og skriv *
 De er faste værdier for symbolet (dets fysik): skriv tallet 0,00–1,00 i trin 4 › Flow, eller træk i skyderen. Sæt hak i **styret af et tag**, hvis PLC'en skal styre værdien, og angiv hvad der er 1,00 (fx 100 for en ventils åbning i %).
 
 ## Hvordan tester jeg en tegnings tilstande uden PLC (simulator, indskyd værdier, scenarier)?
-<!-- kilde: 07-tegn#m-simulator-proev-tegningens-tilstande sha:9d2c3472 -->
+<!-- kilde: 07-tegn#m-simulator-proev-tegningens-tilstande sha:5f965b5f -->
 Åbn **Opsætning › Simulator** (eller **Simulér** på Overview). Panelet viser alle variabler, tegningen bruger (tags, positioner, alarmer). Sæt hak ud for en variabel og vælg en værdi; tegningen viser resultatet med det samme — logik, symbolernes tilstand og flowet beregnes som i drift. **komm.fejl** viser en kommunikationsfejl, **Start fra live** kopierer PLC'ens værdier ind, og **Gem som …** gemmer et scenarie. Intet skrives til PLC'en.
 
 ## Hvordan definerer jeg en ventils tilstande (A igennem AB og B blokeret, 4-vejsventil A → B / C → D)?

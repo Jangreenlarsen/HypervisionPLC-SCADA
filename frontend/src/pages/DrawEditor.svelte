@@ -1079,8 +1079,14 @@
   const isActive = $derived(current !== null && loadedVersion === current.active_version);
   // Meddelelser (v4.20.1): systemets beskeder (før en gul bjælke over tegningen) samles her og vises i en boks, når man trykker på
   // *Meddelelser* i den øverste linje — som alarmklokken i topmenuen. Nye beskeder gør knappen orange; advarsler åbner boksen.
-  interface Msg { id: number; at: number; text: string; extra: string[]; warn: boolean }
+  // v6.8.1 (Jan): hver meddelelse hører til en tegning, og kun den åbne tegnings meddelelser vises (resten kan slås til)
+  interface Msg { id: number; at: number; text: string; extra: string[]; warn: boolean; drawing: string | null }
   let messages = $state<Msg[]>([]);
+  let msgAll = $state(false);
+  const shownMessages = $derived(msgAll ? messages : messages.filter((m) => m.drawing === null || m.drawing === (current?.id ?? null)));
+  const hiddenMessages = $derived(messages.length - shownMessages.length);
+  /** En lang liste af elementer: de første 8 og "+n flere". */
+  const shortList = (xs: string[]): string => (xs.length > 8 ? `${xs.slice(0, 8).join(', ')} +${xs.length - 8} flere` : xs.join(', '));
   let unread = $state(0);
   let msgOpen = $state(false);
   // Topmenuen (v6.2.0): menuerne Tegning, version, Forbindelser og kommentaren under Gem og udgiv ▾
@@ -1096,10 +1102,12 @@
       const r = report;
       const extra: string[] = [];
       if (r && (Object.keys(r.removed_elements).length || Object.keys(r.removed_attributes).length)) extra.push(`Renset ved gem: ${entries(r.removed_elements)} ${entries(r.removed_attributes)}`);
-      if (r?.orphaned_bindings?.length) extra.push(`Bindinger uden element nu: ${r.orphaned_bindings.join(', ')}`);
+      if (r?.orphaned_bindings?.length) extra.push(`Bindinger uden element nu: ${shortList(r.orphaned_bindings)}`);
       const warn = !!r?.orphaned_symbols?.length;
-      if (warn) extra.push(`Symboler sat op med guiden, som ikke længere findes: ${r!.orphaned_symbols!.join(', ')} — flyt eller fjern dem under Bindinger`);
-      messages = [{ id: ++msgSeq, at: Date.now(), text, extra, warn }, ...messages].slice(0, 30);
+      if (warn) extra.push(`${r!.orphaned_symbols!.length} symbolopsætning${r!.orphaned_symbols!.length === 1 ? '' : 'er'} fra guiden hører til elementer, der ikke længere findes: ${shortList(r!.orphaned_symbols!)} — flyt eller fjern dem under Bindinger`);
+      // rapporten hører kun til det gem, der lavede den — ikke til de næste meddelelser (før blev den gentaget under hver)
+      report = null;
+      messages = [{ id: ++msgSeq, at: Date.now(), text, extra, warn, drawing: current?.id ?? null }, ...messages].slice(0, 60);
       unread++;
       if (warn) msgOpen = true;
       info = '';
@@ -1314,15 +1322,18 @@
       Trends, ved kopiering af opsætning og i guiden). <button class="small" onclick={fixDuplicates} disabled={!ready}>Giv dem unikke navne</button>
     </div>
   {/if}
-  {#each messages as m (m.id)}
+  {#if hiddenMessages || msgAll}
+    <label class="opt small"><input type="checkbox" bind:checked={msgAll} /> Vis også andre tegningers meddelelser{hiddenMessages ? ` (${hiddenMessages} skjult)` : ''}</label>
+  {/if}
+  {#each shownMessages as m (m.id)}
     <div class="msg" class:warn={m.warn}>
-      <span class="small muted">{clock(m.at)}</span> {m.text}
+      <span class="small muted">{clock(m.at)}{msgAll && m.drawing && m.drawing !== current?.id ? ` · ${drawings.find((d) => d.id === m.drawing)?.name ?? m.drawing}` : ''}</span> {m.text}
       {#each m.extra as x}<div class="small muted">{x}</div>{/each}
     </div>
   {:else}
     {#if !dupNames.length && !migration && !bindReminder}<span class="small muted">Ingen meddelelser endnu. Her kommer systemets beskeder, fx når tegningen er gemt eller en rettelse er udført.</span>{/if}
   {/each}
-  {#if messages.length}<div class="mrow"><button class="small" onclick={() => (messages = [])}>Ryd meddelelser</button></div>{/if}
+  {#if shownMessages.length}<div class="mrow"><button class="small" onclick={() => { const gone = new Set(shownMessages.map((m) => m.id)); messages = messages.filter((m) => !gone.has(m.id)); }}>Ryd meddelelser</button></div>{/if}
 {/snippet}
 
 {#snippet snapMenu()}

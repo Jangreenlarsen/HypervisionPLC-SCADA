@@ -49,6 +49,17 @@ describe('colorFor', () => {
     expect(colorFor(0, p)).toBe('blue');
     expect(colorFor(50, p)).toBe('red');
   });
+  it('guidens "Over 0"/"0" gælder også med ekstra grænser (v6.8.1, nonzero_on)', async () => {
+    const { bindingActive } = await import('./animate');
+    const p = { nonzero_on: true, on: 'dark', off: 'grey', thresholds: [{ value: 50, color: 'orange' }, { value: 80, color: 'red' }] };
+    expect(colorFor(0, p)).toBe('grey');
+    expect(colorFor(30, p)).toBe('dark');
+    expect(colorFor(60, p)).toBe('orange');
+    expect(colorFor(91, p)).toBe('red');
+    const lv = (value: unknown) => ({ value, quality: 'good' as const, ts: 0, error: null });
+    expect(bindingActive({ anim: 'fill', params: { ...p, when: true } }, lv(30))).toBe(true);
+    expect(bindingActive({ anim: 'fill', params: { ...p, when: true } }, lv(0))).toBe(false);
+  });
 });
 
 describe('fraction', () => {

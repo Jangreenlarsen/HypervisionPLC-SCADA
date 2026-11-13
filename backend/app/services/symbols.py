@@ -630,6 +630,8 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
             params["pos_tag"] = pos_tag
         if a.get("when"):
             params["when"] = True
+        if a["type"] in ("fill", "stroke") and not params.get("pos"):
+            params["nonzero_on"] = True   # v6.8.1: guidens "Over 0"/"0" gælder også med ekstra grænser (animate.ts colorFor)
         if is_logic_ref(a["src"]):
             owner, bid = split_logic_ref(a["src"], element)
             tag = pseudo_tag(drawing_id, owner, f"logic:{bid}")

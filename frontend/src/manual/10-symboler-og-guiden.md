@@ -207,7 +207,10 @@ Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symb
 - **et tag** — til/fra eller tal
 - **en logikblok** — se nedenfor
 
-**Farve** (og *Streg*) på et **tal-tag** (fx et register): skriv grænsen i **Aktiv når ≥** — fx 50: fra 50 og op vises aktiv-farven, under 50 fra-farven, og animationen tæller som *aktiv* fra grænsen. Tomt felt = aktiv, når værdien ikke er 0. **+ Grænse** lægger flere farver ovenpå (fx ≥ 80 rød).
+**Farve** (og *Streg*) på et **tal-tag** (fx et register) står som en lille tabel med én række pr. værdiområde: *ikke aktiv* (fra-farven), *aktiv* (aktiv-farven) og de ekstra grænser.
+- Skriv grænsen i **≥** på aktiv-rækken, fx 50: fra 50 og op vises aktiv-farven, under 50 fra-farven, og animationen tæller som *aktiv* fra grænsen.
+- Tomt felt (*≠ 0*): **0** viser fra-farven, alt **over 0** aktiv-farven.
+- **+ Grænse** lægger flere farver ovenpå, fx ≥ 50 orange og ≥ 80 rød; aktiv-farven gælder op til den første grænse.
 
 **Vippekontakter** (ON/OFF og ON/OFF/ON) har øverst i trin 4 tabellen **Grebets stilling pr. position**: vælg **Op**, **Midt (knop)** eller **Ned** for hver position. *Midt* er den klassiske midterstilling set forfra — grebet peger lige ud mod dig, så kun knoppen ses. Guiden laver selv grebets og knoppens animationer (Drej og Synlig) ud fra tabellen; dine øvrige animationer og en valgt hastighed bevares. Er grebets animationer sat op på en anden måde, står der en note — et valg i tabellen erstatter dem.
 

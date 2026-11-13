@@ -701,3 +701,12 @@ def test_badge_defaults_on_and_can_be_switched_off(api):
     from app.services.symbols import symbol_view
     assert symbol_view(api.did, "V1", r.json()["config"], False)["badge"] is False
     assert symbol_view(api.did, "V1", {"op": "positions", "positions": []}, False)["badge"] is True
+
+
+def test_guide_color_anims_get_nonzero_on():
+    """v6.8.1: guidens farve-animationer (ikke pr. position) får nonzero_on, så "Over 0" gælder med ekstra grænser."""
+    from app.services.symbols import config_bindings
+    cfg = {"anims": [{"part": "all", "type": "fill", "src": "Tryk", "params": {"on": "#111", "off": "#999", "thresholds": [{"value": 50, "color": "#f80"}]}},
+                     {"part": "all", "type": "blink", "src": "Tryk", "params": {}}]}
+    out = config_bindings("d", "P1", cfg, set())
+    assert out[0]["params"]["nonzero_on"] is True and "nonzero_on" not in out[1]["params"]

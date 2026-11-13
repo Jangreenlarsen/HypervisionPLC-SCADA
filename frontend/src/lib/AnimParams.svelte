@@ -44,21 +44,28 @@
     {#if (a.type === 'fill' || a.type === 'stroke')}
       {#if kind === 'pos'}
         {#each positions as pos, j}{@render colorInput(p.colors, j, pos.label)}{/each}
-      {:else}
-        {@render colorInput(p, 'on', kind === 'bool' ? 'Til' : p.at_least != null ? `≥ ${p.at_least}` : 'Over 0')}{@render colorInput(p, 'off', kind === 'bool' ? 'Fra' : p.at_least != null ? `< ${p.at_least}` : '0')}
-        {#if kind === 'num'}
-          <!-- v6.3.0 (Jan): hvornår et tal-tag er aktivt, fx ≥ 50 = aktiv, under 50 = ikke aktiv. Tomt = ≠ 0 -->
-          <label class="opt small" title="Fra hvilken værdi animationen er aktiv (aktiv-farven). Tomt: aktiv, når værdien ikke er 0">Aktiv når ≥
+      {:else if kind === 'num'}
+        <!-- v6.8.1 (Jan: "rodebutik"): én række pr. værdiområde — fra-farven, aktiv-farven og de ekstra grænser — i stigende orden.
+             Aktiv-grænsen (v6.3.0) står i aktiv-rækken: tom = aktiv, når værdien ikke er 0. -->
+        <div class="bands small">
+          <span class="bh">Værdi</span><span class="bh">Farve</span><span></span>
+          <span class="bv">{p.at_least != null ? `under ${p.at_least}` : '0'}</span>
+          <span class="bc"><input type="color" bind:value={p.off} aria-label="Farve, når den ikke er aktiv" />{@render swatches(p, 'off')}</span>
+          <span class="muted">ikke aktiv</span>
+          <span class="bv"><label class="opt" title="Fra hvilken værdi animationen er aktiv. Tomt: aktiv, når værdien ikke er 0">≥
             <input class="n" value={p.at_least ?? ''} placeholder="≠ 0" aria-label="Aktiv når værdien er mindst"
-              onchange={(e) => { const v = e.currentTarget.value.trim(); p.at_least = v === '' ? null : num(v, p.at_least ?? 0); }} /></label>
-        {/if}
-        {#if kind === 'num'}
+              onchange={(e) => { const v = e.currentTarget.value.trim(); p.at_least = v === '' ? null : num(v, p.at_least ?? 0); }} /></label></span>
+          <span class="bc"><input type="color" bind:value={p.on} aria-label="Farve, når den er aktiv" />{@render swatches(p, 'on')}</span>
+          <span class="muted">aktiv</span>
           {#each p.thresholds ?? [] as th, ti}
-            <span class="opt small">≥ <input class="n" value={th.value} onchange={(e) => (th.value = num(e.currentTarget.value, th.value))} />
-              <input type="color" bind:value={th.color} />{@render swatches(th, 'color')}<button class="small" onclick={() => p.thresholds.splice(ti, 1)} aria-label="Fjern grænse">✕</button></span>
+            <span class="bv">≥ <input class="n" value={th.value} aria-label="Grænse {ti + 1}" onchange={(e) => (th.value = num(e.currentTarget.value, th.value))} /></span>
+            <span class="bc"><input type="color" bind:value={th.color} aria-label="Farve ved grænse {ti + 1}" />{@render swatches(th, 'color')}</span>
+            <span><button class="small" onclick={() => p.thresholds.splice(ti, 1)} aria-label="Fjern grænse">✕</button></span>
           {/each}
-          <button class="small" onclick={() => (p.thresholds = [...(p.thresholds ?? []), { value: 0, color: '#b26a00' }])}>+ Grænse</button>
-        {/if}
+        </div>
+        <button class="small" onclick={() => (p.thresholds = [...(p.thresholds ?? []), { value: Math.max(0, ...(p.thresholds ?? []).map((t: { value: number }) => t.value + 10), Number(p.at_least ?? 0) + 10), color: '#b26a00' }])}>+ Grænse</button>
+      {:else}
+        {@render colorInput(p, 'on', kind === 'bool' ? 'Til' : 'Over 0')}{@render colorInput(p, 'off', kind === 'bool' ? 'Fra' : '0')}
       {/if}
     {:else if a.type === 'blink' || a.type === 'visible' || a.type === 'spin' || a.type === 'flicker'}
       {#if a.type === 'flicker'}
@@ -161,4 +168,8 @@
   .sw { width: 1rem; height: 1rem; padding: 0; margin: 0 0 0 .1rem; border: 1px solid var(--line); border-radius: 3px; cursor: pointer; }
   .sw.cur { outline: 2px solid var(--accent); outline-offset: 1px; }
   .params :global(select) { width: auto; max-width: 24em; }
+  .bands { display: grid; grid-template-columns: auto auto 1fr; gap: .25rem .6rem; align-items: center; flex-basis: 100%; }
+  .bh { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted, #666); }
+  .bv { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
+  .bc { display: inline-flex; align-items: center; gap: .15rem; flex-wrap: wrap; }
 </style>

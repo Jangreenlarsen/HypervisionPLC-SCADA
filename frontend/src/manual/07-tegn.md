@@ -12,7 +12,7 @@
   - **til højre** står **zoom** (−, +, ⤢ tilpas), **Meddelelser**, **Gem kladde** og **Gem og udgiv**. Pilen **▾** på *Gem og udgiv* åbner **kommentaren til versionen**; en grøn prik viser, at der er skrevet en.
 
   På en smal skærm bliver teksterne kortere (*Forb.*, 🔔, *Kladde*, *Udgiv*), så linjen ikke ombrydes.
-- **Meddelelser**: systemets beskeder om tegningen (fx at den er gemt og udgivet, at der er renset noget ved gem, eller en advarsel) samles i en boks, der åbner, når du trykker på knappen — som alarmklokken i topmenuen. Et **orange tal** viser, hvor mange nye der er; en **advarsel** åbner boksen af sig selv. Dublerede symbolnavne står øverst i boksen med en knap, der giver dem unikke navne. **Ryd meddelelser** tømmer listen.
+- **Meddelelser**: systemets beskeder om tegningen (fx at den er gemt og udgivet, at der er renset noget ved gem, eller en advarsel) samles i en boks, der åbner, når du trykker på knappen — som alarmklokken i topmenuen. Et **orange tal** viser, hvor mange nye der er; en **advarsel** åbner boksen af sig selv. Dublerede symbolnavne står øverst i boksen med en knap, der giver dem unikke navne. Boksen viser kun meddelelserne for den **åbne tegning**; **Vis også andre tegningers meddelelser** viser resten. **Ryd meddelelser** tømmer den åbne tegnings liste.
 - **Værktøjslinjen til venstre**: **Fortryd** og **Gentag** øverst, derefter værktøjerne **Vælg** (V), **Forbindelse** (O), **Linje** (L), **Rektangel** (R), **Ellipse** (E), **Sti** (P), **Frihånd** (F), **Tekst** (T), **Polygon** (Y), **Stjerne** (S), **Regulær polygon** (N), **Bue** (B) og **Billede**. Bogstavet er genvejstasten.
 - **Tegnefladen** i midten. **Ctrl + musehjul** zoomer, og **mellemrum** eller **midterknappen** + træk flytter udsnittet.
 - **Linjen i bunden** forklarer, hvordan det valgte værktøj bruges (fx *Rektangel: træk for at tegne · Shift = kvadrat · Esc = tilbage til Vælg*).
@@ -269,8 +269,9 @@ Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige 
   - et tal i feltet eller med skyderen (fra tagets min/max);
   - en position i listen.
 
-  Uden hak følger variablen PLC'en (*live*).
-- **komm.fejl** viser, hvordan tegningen ser ud, når tagget har en kommunikationsfejl. **Vis** markerer de symboler, der bruger variablen.
+  Uden hak følger variablen PLC'en (*live*). En position står på **Live: …** (efter kolon: positionen lige nu), indtil du vælger en anden.
+- Det, du har ændret, står med **lilla** baggrund. **Alle** / **Kun ændrede** øverst i panelet viser alle variabler eller kun dem, du har ændret.
+- **komm.fejl** viser, hvordan tegningen ser ud, når tagget har en kommunikationsfejl. **Find** markerer de symboler, der bruger variablen.
 - **Start fra live** kopierer PLC'ens værdier ind som simulerede, så du kan ændre én ting ad gangen. **Alt til live** slår simuleringen fra.
 - **Scenarier:** **Gem som …** gemmer de simulerede værdier med et navn (fx *Pumpe 2 fejl*). Vælg et scenarie for at hente det igen, **Gem** opdaterer det, og **Slet** fjerner det. Scenarierne gemmes pr. tegning og følger med i backup.
 - Serveren beregner **logikblokke**, **symbolernes tilstand** og **flowet** ud fra værdierne med den samme kode som driften, så løbelys, farver, blink og tilstandsmærker vises, som de ville i drift.
