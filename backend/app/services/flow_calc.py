@@ -23,6 +23,14 @@
 - et rør: med fortegn, + = fra rørets start mod slut (tegneretningen);
 - et symbol og et rørstykke: uden fortegn (mængden igennem);
 - en pumpe: det flow, den giver.
+
+Desuden `flowp:<tegning>:<element>` for et rørstykke (v6.3.0): flowet ind (+) og ud (−) ved hvert af dets punkter, som tekst
+`"x,y:+12.0;1,0.5:-12.0"` — så løbelyset på en bøjning, et T-stykke eller et kryds kan vise retningen pr. delstreg.
+
+**Flowmåler** (v6.3.0): et symbol med et målt flow (`flow.measured`, et tag i l/min) skalerer de pumper, der giver flow gennem
+det, så beregningen passer med målingen.
+
+**Kun til visning:** flowet er en illustration af, hvordan anlægget hænger sammen — ikke en simulering af det virkelige anlæg.
 """
 
 from __future__ import annotations
@@ -34,7 +42,7 @@ from typing import Any, Callable
 
 from defusedxml.ElementTree import fromstring
 
-from .flow_defs import PIPE_SYMBOL_TYPES, PUMP_TYPES, directions, match_ports, merged, way_key, ways_of
+from .flow_defs import PIPE_SYMBOL_TYPES, directions, kind_of, match_ports, merged, piece_types, way_key, ways_of
 from .live_cache import LiveValue
 
 log = logging.getLogger("scada.flow")
@@ -44,11 +52,22 @@ G_VALVE = 1.0         # en helt åben ventil (restriktion 1)
 MAX_PASSES = 6        # genberegninger, når envejs-veje lukkes
 EPS = 1e-9
 MAX_CAPACITY = 65535  # l/min (16 bit)
+MAX_METER_FACTOR = 10.0   # en flowmåler skalerer pumperne højst så mange gange (en forkert måling må ikke give vilde tal)
 
 
 def flow_tag(drawing_id: str, element: str) -> str:
     """Live-navnet for et elements beregnede flow (`:` findes ikke i tag-navne)."""
     return f"flow:{drawing_id}:{element}"
+
+
+def ports_tag(drawing_id: str, element: str) -> str:
+    """Live-navnet for et rørstykkes flow pr. punkt (v6.3.0)."""
+    return f"flowp:{drawing_id}:{element}"
+
+
+def ports_text(ports: dict[str, float]) -> str:
+    """{punkt: flow ind (+)/ud (−)} → "x,y:+12.0;…" (sorteret, så teksten kun skifter, når flowet gør)."""
+    return ";".join(f"{k}:{v:+.1f}" for k, v in sorted(ports.items()))
 
 
 # ------------------------------------------------------------------ topologi (fra SVG'en)
@@ -72,9 +91,11 @@ def _local(tag: Any) -> str:
     return str(tag).rsplit("}", 1)[-1]
 
 
-def parse_topology(svg: str) -> Topology:
-    """Elementerne og de gemte forbindelser. Forbindelser til elementer, der ikke findes, springes over."""
-    root = fromstring(svg)
+def parse_topology(svg: str, pieces: frozenset[str] | None = None) -> Topology:
+    """Elementerne og de gemte forbindelser. Forbindelser til elementer, der ikke findes, springes over. `pieces`: typerne, der
+    er rørstykker (de indbyggede + typer med rollen rørstykke i deres flow-profil)."""
+    pieces = PIPE_SYMBOL_TYPES if pieces is None else pieces
+    root = fromstring(svg, forbid_dtd=True)
     elements: dict[str, Element] = {}
     raw: list[tuple[str, str, str, str]] = []
     for el in root.iter():
@@ -88,7 +109,7 @@ def parse_topology(svg: str) -> Topology:
         pipe = el.get("data-hv-pipe") is not None
         if not (links or pipe or typ):
             continue
-        kind = "pipe" if pipe else "piece" if typ in PIPE_SYMBOL_TYPES else "symbol" if typ else "other"
+        kind = "pipe" if pipe else "piece" if typ in pieces else "symbol" if typ else "other"
         e = Element(eid, kind, typ, el.get("data-hv-name") or "")
         if pipe:
             e.keys.update(("s", "e"))
@@ -189,6 +210,8 @@ class Edge:
     oneway: bool          # kun u → v
     sign: float = 1.0     # rør: + = mod rørets slut
     g_open: float = 0.0   # ledningsevnen helt åben (restriktion 1) — til restriktionsfaktoren; 0 = som g
+    ka: str = ""          # elementets punkt ved u og v (til flowet pr. punkt på et rørstykke)
+    kb: str = ""
 
 
 @dataclass
@@ -255,13 +278,17 @@ def build(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, di
             if fl.get("pump"):
                 notes.append(f"Pumpen '{e.name or e.id}' er ikke forbundet på både IND og UD (Bind forbindelser)")
             continue
-        restrict = _fraction(fl.get("restrict"), read) if fl else 1.0
+        prof = defs.get(e.type) or {}
+        # uden egen flow-opsætning gælder typens profil (v6.3.0): standard-restriktionen
+        restrict = _fraction(fl.get("restrict"), read) if fl else float(prof.get("restrict", 1.0))
         if e.kind == "pipe":
             chain = ["s"] + (["~"] if "~" in e.keys else []) + ["e"]
             for a, b in zip(chain, chain[1:]):
                 edges.append(Edge(node(e.id, a), node(e.id, b), e.id, G_PIPE, False, 1.0))
             continue
         d = defs.get(e.type) if e.kind == "symbol" else None
+        if d is not None and not d.get("ports"):
+            d = None                                     # en profil uden punkter: flowet går mellem alle forbundne punkter
         if d is None:
             if restrict <= 0:
                 continue
@@ -271,7 +298,7 @@ def build(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, di
             g, g_open = (G_VALVE * restrict, G_VALVE) if valve else (G_PIPE, G_PIPE)
             for i, a in enumerate(keys):
                 for b in keys[i + 1:]:
-                    edges.append(Edge(node(e.id, a), node(e.id, b), e.id, g, False, 1.0, g_open))
+                    edges.append(Edge(node(e.id, a), node(e.id, b), e.id, g, False, 1.0, g_open, a, b))
             continue
         names = match_ports(d, keys)                    # nøgle → punktets navn
         by_name = {nm: k for k, nm in names.items()}
@@ -304,14 +331,15 @@ def build(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, di
             fwd, back = directions(d, a, b)
             if not (fwd or back):
                 continue
-            ua, ub = node(e.id, by_name[a]), node(e.id, by_name[b])
+            ka, kb = by_name[a], by_name[b]
+            ua, ub = node(e.id, ka), node(e.id, kb)
             g = G_VALVE * restrict
             if fwd and back:
-                edges.append(Edge(ua, ub, e.id, g, False, 1.0, G_VALVE))
+                edges.append(Edge(ua, ub, e.id, g, False, 1.0, G_VALVE, ka, kb))
             elif fwd:
-                edges.append(Edge(ua, ub, e.id, g, True, 1.0, G_VALVE))
+                edges.append(Edge(ua, ub, e.id, g, True, 1.0, G_VALVE, ka, kb))
             else:
-                edges.append(Edge(ub, ua, e.id, g, True, 1.0, G_VALVE))
+                edges.append(Edge(ub, ua, e.id, g, True, 1.0, G_VALVE, kb, ka))
     return len(ids), edges, pumps, notes
 
 
@@ -335,13 +363,28 @@ def _currents(n: int, edges: list[Edge], pump: Pump) -> list[float] | None:
     return None
 
 
+def _measured(configs: dict[str, dict[str, Any]], read: Callable[[str], Any]) -> dict[str, float]:
+    """{element: målt flow} for symboler med en flowmåler (`flow.measured`), hvis tagget har en god talværdi."""
+    out: dict[str, float] = {}
+    for el, c in configs.items():
+        src = str(((c.get("flow") or {}).get("measured") or {}).get("src") or "")
+        if not src or src.startswith("@"):
+            continue
+        v = read(src)
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            out[el] = abs(float(v))
+    return out
+
+
 def compute(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, dict[str, Any]],
-            positions: dict[str, int | None], read: Callable[[str], Any]) -> tuple[dict[str, float], list[str], dict[str, Any]]:
-    """→ ({element: flow l/min}, beskeder, statistik)"""
+            positions: dict[str, int | None], read: Callable[[str], Any],
+            ports_out: dict[str, dict[str, float]] | None = None) -> tuple[dict[str, float], list[str], dict[str, Any]]:
+    """→ ({element: flow l/min}, beskeder, statistik). `ports_out` fyldes med rørstykkernes flow pr. punkt (ind +, ud −)."""
     n, edges, pumps, notes = build(topo, defs, configs, positions, read)
     flows: dict[str, float] = {}
     total = [0.0] * len(edges)        # strøm med fortegn pr. kant, summeret over pumperne (modsatrettede går ud mod hinanden)
     pumped = 0
+    runs: list[tuple[Pump, list[float], float]] = []
     for p in pumps:
         unit = _currents(n, edges, p)
         if unit is None:
@@ -351,11 +394,49 @@ def compute(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, 
         # restriktionsfaktor: nettets modstand med restriktionerne mod den samme vej helt åben (1.0 = ingen begrænsning)
         ref = _currents(n, [Edge(e.u, e.v, e.el, e.g_open or e.g, e.oneway, e.sign) for e in edges], p)
         factor = 1.0 if ref is None or unit[-1] <= EPS else max(0.0, min(1.0, ref[-1] / unit[-1]))
-        q = p.q * factor
+        runs.append((p, unit, p.q * factor))
+    # flowmålere (v6.3.0): de pumper, der giver flow gennem måleren, skaleres, så beregningen passer med målingen. Gennem måleren
+    # regnes NETTO (med fortegn på den samme kant), så pumper, der løber modsat, trækkes fra.
+    scaled_by: dict[int, str] = {}
+    for el, m in _measured(configs, read).items():
+        idx = [i for i, e in enumerate(edges) if e.el == el]
+        name = (topo.elements[el].name if el in topo.elements else "") or el
+        if not idx:
+            notes.append(f"Flowmåleren '{name}' er ikke forbundet (Bind forbindelser)")
+            continue
+        ref = max(idx, key=lambda i: abs(sum(unit[i] * q for _, unit, q in runs)))
+        through = [unit[ref] * q for _, unit, q in runs]
+        calc = abs(sum(through))
+        if calc <= EPS:
+            if m > EPS:
+                notes.append(f"Flowmåleren '{name}' måler {m:g}, men beregningen finder ingen pumpe med flow gennem den")
+            continue
+        k = m / calc
+        if k > MAX_METER_FACTOR:
+            notes.append(f"Flowmåleren '{name}' måler {m:g} — over {MAX_METER_FACTOR:g} gange det beregnede; der skaleres højst så meget")
+            k = MAX_METER_FACTOR
+        for j, t in enumerate(through):
+            if abs(t) > EPS:
+                if j in scaled_by and scaled_by[j] != name:
+                    notes.append(f"Pumpen '{topo.elements[runs[j][0].el].name or runs[j][0].el}' går gennem flere flowmålere "
+                                 f"('{scaled_by[j]}' og '{name}') — den sidste gælder")
+                scaled_by[j] = name
+        runs = [(p, unit, q * k if abs(t) > EPS else q) for (p, unit, q), t in zip(runs, through)]
+    for p, unit, q in runs:
         pumped += 1
         flows[p.el] = flows.get(p.el, 0.0) + q
         for i in range(len(edges)):
             total[i] += unit[i] * q
+    if ports_out is not None:
+        for i, e in enumerate(edges):
+            c = total[i]
+            if topo.elements[e.el].kind != "piece" or abs(c) < 1e-6 or not e.ka or not e.kb:
+                continue
+            pp = ports_out.setdefault(e.el, {})
+            pp[e.ka] = pp.get(e.ka, 0.0) + c        # strøm u → v: ind ved u's punkt, ud ved v's
+            pp[e.kb] = pp.get(e.kb, 0.0) - c
+        for el in list(ports_out):
+            ports_out[el] = {k: round(v, 1) for k, v in ports_out[el].items() if abs(v) >= 0.05}
     per_el: dict[str, float] = {}
     for i, e in enumerate(edges):
         c = total[i]
@@ -373,6 +454,63 @@ def compute(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, 
     return {k: round(v, 1) for k, v in flows.items()}, notes, stats
 
 
+# ------------------------------------------------------------------ preview (Tegn: flowet live og simulering)
+
+MAX_PREVIEW_ELEMENTS = 2000    # forbundne elementer i én preview (en Pi skal også passe resten)
+MAX_PREVIEW_PUMPS = 50
+
+
+def preview(svg: str, defs: dict[str, dict[str, Any]], configs: dict[str, dict[str, Any]], positions: dict[str, int | None],
+            read: Callable[[str], Any], rates: dict[str, float] | None = None,
+            sim_positions: dict[str, int] | None = None, restricts: dict[str, float] | None = None) -> dict[str, Any]:
+    """Flowet for en tegning, som den ser ud i Tegn lige nu (også ugemt) — med de live værdier, eller simuleret (v6.3.0):
+    `rates` = {pumpe: 0–1} (en pumpe-type uden egen opsætning bliver en pumpe med profilens kapacitet), `sim_positions` =
+    {ventil: position}, `restricts` = {symbol: restriktion 0,00–1,00}. Skriver aldrig noget og udgiver ingen live-værdier."""
+    topo = parse_topology(svg, piece_types(defs))
+    if len(topo.elements) > MAX_PREVIEW_ELEMENTS:
+        return {"flows": {}, "ports": {}, "notes": [f"Tegningen har over {MAX_PREVIEW_ELEMENTS} forbundne elementer"], "stats": {},
+                "pumps": [], "valves": [], "symbols": [], "linked": bool(topo.links)}
+    cfgs = {k: dict(v) for k, v in configs.items()}
+    for el, r in (rates or {}).items():
+        e = topo.elements.get(el)
+        if e is None:
+            continue
+        fl = dict(cfgs.get(el, {}).get("flow") or {})
+        if not fl.get("pump"):
+            if kind_of(defs, e.type) != "pump":
+                continue
+            fl = {**fl, "pump": True, "capacity": int((defs.get(e.type) or {}).get("capacity") or fl.get("capacity") or 100)}
+        fl["rate"] = {"src": f"@val:{max(0.0, min(1.0, float(r)))}", "max": 1}
+        cfgs[el] = {**cfgs.get(el, {}), "flow": fl}
+    for el, r in (restricts or {}).items():
+        if el in topo.elements and topo.elements[el].kind == "symbol":
+            fl = dict(cfgs.get(el, {}).get("flow") or {})
+            fl["restrict"] = {"src": f"@val:{max(0.0, min(1.0, float(r)))}", "max": 1}
+            cfgs[el] = {**cfgs.get(el, {}), "flow": fl}
+    pos = {**positions, **(sim_positions or {})}
+    n_pumps = sum(1 for c in cfgs.values() if (c.get("flow") or {}).get("pump"))
+    if n_pumps > MAX_PREVIEW_PUMPS:
+        return {"flows": {}, "ports": {}, "notes": [f"Tegningen har over {MAX_PREVIEW_PUMPS} pumper — for mange til en preview"],
+                "stats": {}, "pumps": [], "valves": [], "symbols": [], "linked": bool(topo.links)}
+    ports: dict[str, dict[str, float]] = {}
+    flows, notes, stats = compute(topo, defs, cfgs, pos, read, ports)
+    pumps = [{"id": e.id, "name": e.name, "configured": bool((configs.get(e.id, {}).get("flow") or {}).get("pump")),
+              "capacity": int((cfgs.get(e.id, {}).get("flow") or {}).get("capacity") or (defs.get(e.type) or {}).get("capacity") or 100)}
+             for e in topo.elements.values() if e.kind == "symbol" and
+             ((cfgs.get(e.id, {}).get("flow") or {}).get("pump") or kind_of(defs, e.type) == "pump")]
+    valves = [{"id": el, "name": topo.elements[el].name, "labels": [p.get("label", "") for p in c.get("positions", [])],
+               "pos": pos.get(el)}
+              for el, c in cfgs.items() if el in topo.elements and c.get("op") == "positions" and (c.get("flow") or {}).get("open") is not None]
+    # symbolernes restriktion lige nu (0,00–1,00) — til simuleringens skydere
+    read_r = lambda el: _fraction(((cfgs.get(el, {}).get("flow") or {}).get("restrict")), read) if (cfgs.get(el, {}).get("flow"))         else float((defs.get(topo.elements[el].type) or {}).get("restrict", 1.0))  # noqa: E731
+    symbols = [{"id": e.id, "name": e.name, "restrict": round(read_r(e.id), 2)} for e in topo.elements.values()
+               if e.kind == "symbol" and len(e.keys) >= 2]
+    return {"flows": flows, "ports": {k: v for k, v in ports.items() if v}, "notes": notes, "stats": stats,
+            "pumps": sorted(pumps, key=lambda p: p["name"] or p["id"]), "valves": sorted(valves, key=lambda v: v["name"] or v["id"]),
+            "symbols": sorted(symbols, key=lambda s: s["name"] or s["id"]),
+            "linked": bool(topo.links)}
+
+
 # ------------------------------------------------------------------ motoren (kaldes af symbol-runtimen)
 
 class FlowEngine:
@@ -384,6 +522,7 @@ class FlowEngine:
         self.defs: dict[str, dict[str, Any]] = merged(None)
         self._last_inputs: dict[str, Any] = {}
         self._published: dict[str, dict[str, float]] = {}
+        self._published_ports: dict[str, dict[str, str]] = {}    # rørstykkernes flow pr. punkt (flowp:…), som tekst
         self._quality: dict[str, str] = {}
         self.notes: dict[str, list[str]] = {}
         self.stats: dict[str, Any] = {"runs": 0, "last_ms": 0.0, "errors": 0, "drawings": 0, "unbound": []}
@@ -394,7 +533,7 @@ class FlowEngine:
         unbound: list[str] = []
         for did, svg in svgs.items():
             try:
-                t = parse_topology(svg)
+                t = parse_topology(svg, piece_types(self.defs))
             except Exception:
                 log.exception("Flow: tegningen %s kunne ikke læses", did)
                 continue
@@ -412,8 +551,9 @@ class FlowEngine:
     def _clear(self, did: str) -> None:
         self._quality.pop(did, None)
         old = self._published.pop(did, {})
-        if old:
-            self.cache.remove([flow_tag(did, e) for e in old])
+        old_p = self._published_ports.pop(did, {})
+        if old or old_p:
+            self.cache.remove([flow_tag(did, e) for e in old] + [ports_tag(did, e) for e in old_p])
 
     def evaluate(self, symbols: dict[tuple[str, str], dict[str, Any]], states: dict[tuple[str, str], Any], now: float) -> None:
         """Beregn og udgiv med det samme (tests og kald uden event-løkke)."""
@@ -440,7 +580,8 @@ class FlowEngine:
                 continue
             positions = {e: getattr(states.get((did, e)), "pos", None) for e in configs}
             fl_inputs = tuple(sorted(
-                (e, positions.get(e), tuple(_fraction((c.get("flow") or {}).get(k), read) for k in ("rate", "restrict")))
+                (e, positions.get(e), tuple(_fraction((c.get("flow") or {}).get(k), read) for k in ("rate", "restrict")),
+                 _measured({e: c}, read).get(e))
                 for e, c in configs.items() if c.get("flow")))
             sig = (fl_inputs, tuple(sorted((e, repr(c.get("flow"))) for e, c in configs.items() if c.get("flow"))))
             if self._last_inputs.get(did) == sig:
@@ -448,17 +589,21 @@ class FlowEngine:
             self._last_inputs[did] = sig
             values = {src: read(src) for c in configs.values() for k in ("rate", "restrict")
                       if (src := str(((c.get("flow") or {}).get(k) or {}).get("src") or "")) and not src.startswith("@")}
+            # flowmålernes tags: en måler uden god værdi gør ikke flowet ukendt — så regnes der uden den
+            meters = {src: read(src) for c in configs.values()
+                      if (src := str(((c.get("flow") or {}).get("measured") or {}).get("src") or "")) and not src.startswith("@")}
             # et input-tag uden god værdi (PLC offline) eller en ventil i ukendt position: flowet er ukendt, ikke 0
             unknown = any(v is None for v in values.values()) or any(
                 positions.get(e) is None for e, c in configs.items() if c.get("op") == "positions" and (c.get("flow") or {}).get("open") is not None)
-            out.append((did, (topo, self.defs, configs, positions, values, sig, "comm_error" if unknown else "good")))
+            out.append((did, (topo, self.defs, configs, positions, {**meters, **values}, sig, "comm_error" if unknown else "good")))
         return out
 
-    def run_job(self, did: str, job: Any) -> tuple[dict[str, float], list[str], dict[str, Any]] | None:
+    def run_job(self, did: str, job: Any) -> tuple[dict[str, float], list[str], dict[str, Any], dict[str, dict[str, float]]] | None:
         topo, defs, configs, positions, values = job[:5]
         t0 = time.perf_counter()
+        ports: dict[str, dict[str, float]] = {}
         try:
-            res = compute(topo, defs, configs, positions, values.get)
+            res = (*compute(topo, defs, configs, positions, values.get, ports), ports)
         except Exception:
             self.stats["errors"] += 1
             self._last_inputs.pop(did, None)          # prøv igen ved næste ændring
@@ -473,7 +618,7 @@ class FlowEngine:
         if res is None or did not in self.topos or self._last_inputs.get(did) != job[5]:
             return
         quality = job[6]
-        flows, notes, st = res
+        flows, notes, st, ports = res
         self.stats["runs"] += 1
         self.stats[f"d:{did}"] = st
         if notes != self.notes.get(did):
@@ -487,6 +632,14 @@ class FlowEngine:
         zero = {flow_tag(did, e): LiveValue(value=0.0, quality=quality, ts=now) for e in old
                 if e not in flows and (changed_q or old[e] != 0.0)}
         self._published[did] = {**{e: 0.0 for e in old}, **flows}
+        # rørstykkernes flow pr. punkt (v6.3.0): tom tekst = intet flow
+        old_p = self._published_ports.get(did, {})
+        texts = {e: ports_text(p) for e, p in ports.items()}
+        updates.update({ports_tag(did, e): LiveValue(value=t, quality=quality, ts=now) for e, t in texts.items()
+                        if changed_q or old_p.get(e) != t})
+        zero.update({ports_tag(did, e): LiveValue(value="", quality=quality, ts=now) for e in old_p
+                     if e not in texts and (changed_q or old_p[e] != "")})
+        self._published_ports[did] = {**{e: "" for e in old_p}, **texts}
         if updates or zero:
             self.cache.update({**zero, **updates})
 
@@ -494,5 +647,6 @@ class FlowEngine:
         per = {k[2:]: v for k, v in self.stats.items() if k.startswith("d:")}
         return {"runs": self.stats["runs"], "last_ms": self.stats["last_ms"], "errors": self.stats["errors"],
                 "drawings": self.stats["drawings"], "unbound": self.stats["unbound"], "per_drawing": per,
+                "previews": self.stats.get("previews", 0),
                 "notes": {d: n for d, n in self.notes.items() if n},
                 "flowing": sum(1 for d in self._published.values() for v in d.values() if v)}

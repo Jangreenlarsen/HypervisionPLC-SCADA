@@ -22,7 +22,7 @@ def _in_out(y: float) -> list[dict[str, Any]]:
 
 
 DEFAULTS: dict[str, dict[str, Any]] = {
-    "pumpe": {"ports": _in_out(0.5)},
+    "pumpe": {"ports": _in_out(0.5), "kind": "pump"},
     "kontraventil": {"ports": _in_out(0.67)},
     "trevejs_motorventil": {"ports": [
         {"x": 0.07, "y": 0.46, "name": "A", "role": "both", "part": "port_a"},
@@ -46,6 +46,28 @@ PUMP_TYPES = frozenset({"pumpe"})
 
 def merged(custom: dict[str, dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
     return {**DEFAULTS, **(custom or {})}
+
+
+# Medie → enheden, flowet vises i (v6.3.0) — kun visning; beregningen regner i "enheder" uanset medie
+UNITS = {"water": "l/min", "air": "m³/h", "electric": "A", "other": ""}
+
+
+def kind_of(defs: dict[str, dict[str, Any]], sym_type: str) -> str:
+    """Typens rolle: pump | piece | consumer. Rørstykker er de indbyggede + typer med rollen rørstykke (v6.3.0)."""
+    d = defs.get(sym_type) or {}
+    if d.get("kind") in ("pump", "piece", "consumer"):
+        return d["kind"]
+    return "piece" if sym_type in PIPE_SYMBOL_TYPES else "pump" if sym_type in PUMP_TYPES else "consumer"
+
+
+def piece_types(defs: dict[str, dict[str, Any]]) -> frozenset[str]:
+    """Alle rørstykke-typer: de indbyggede (medmindre en profil siger noget andet) + typer med rollen rørstykke."""
+    return frozenset({t for t in PIPE_SYMBOL_TYPES if kind_of(defs, t) == "piece"} |
+                     {t for t, d in defs.items() if d.get("kind") == "piece"})
+
+
+def unit_of(defs: dict[str, dict[str, Any]], sym_type: str) -> str:
+    return UNITS.get(str((defs.get(sym_type) or {}).get("medium") or "water"), "")
 
 
 def ways_of(d: dict[str, Any] | None) -> list[tuple[str, str]]:

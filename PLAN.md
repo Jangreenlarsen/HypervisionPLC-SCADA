@@ -1,3 +1,55 @@
+# Plan: Flow-model, runde 2 — alle otte punkter i ét hug — 2026-11-13 — udført i v6.3.0 (punkt 8 gemt til senere)
+
+Jan (2026-11-13) svarede på listen over, hvad der mangler: "lav alle otte punkter, definer selv en strategi for rækkefølgen, men lav dem i et hug". Flowet er **kun til visning**. Det er ikke en simulering af det virkelige anlæg, og sådan vil det være længe.
+
+## Rækkefølge (fundament først)
+
+1. **Typeprofil pr. symboltype (punkt 4)**, fundamentet. Fanen *Ind/ud og veje* i symbol-editoren får en **flow-rolle** for enhver symboltype, ikke kun de fem indbyggede:
+   - **forbruger**, **pumpe/kilde** eller **rørstykke/ledning**;
+   - et **medie** (vand, luft, el, andet) med en enhed til visning (l/min, m³/h, A);
+   - en **standard-kapacitet** og en **standard-restriktion**.
+
+   Så kan det senere bruges til elektriske komponenter: en strømforsyning er en kilde, og ledninger og klemmer er rørstykker. Profilen bliver standarden i guiden, og den gælder i beregningen, når et symbol ikke har sin egen flow-opsætning. Rørstykke-typer ud over de indbyggede bruges af beregningen og forbindelsesgrupperne.
+2. **Retning på rørstykker (punkt 2):**
+   - Beregningen udgiver flowet ind/ud pr. punkt på et rørstykke som live-værdien `flowp:<tegning>:<element>` ("x,y:+12;…").
+   - Løbelyset på en bøjning, et T-stykke eller et kryds får retning pr. delstreg: strømmer flowet ind ved delstregens punkt, løber lyset væk fra det.
+3. **Flowmåler (punkt 6):** et symbol kan få et **målt flow** (et tag i l/min, fx en flowsensor i en løkke). De pumper, der giver flow gennem måleren, skaleres, så beregningen passer med målingen.
+4. **Portfarver ud fra de åbne veje (punkt 5):** en ventil med positioner og *Del* på sine punkter (port_a, port_b, port_ab) får automatisk **farve pr. position**. Porte på en åben vej får farven *åben* (grøn), de andre farven *lukket* (sort). Det slås til i guiden under *Flow*. Bindingerne dannes automatisk og ikke oven på en animation af samme slags.
+5. **Flowet live i Tegn (punkt 1):**
+   - Flow-vinduet får **Vis flowet på tegningen**: løbelys, pile og l/min oven på tegningen i Tegn. Det beregnes ud fra tegningen, som den ser ud lige nu (også ugemt), med de **live** værdier.
+   - **Simulering:** start og stop pumper, sæt rate og vælg ventilpositioner uden PLC. Det skriver aldrig til PLC'en.
+   - Nyt endpoint `POST /api/drawings/{id}/flow/preview` (tekniker).
+6. **Påmindelse om Bind forbindelser (punkt 3):**
+   - Ved *Gem* i Tegn: har tegningen flow-opsatte symboler og ubundne forbindelser, kommer en advarsel i Meddelelser med knappen **Bind nu**.
+   - I guiden (*Flow*): en besked, når symbolet ikke er bundet til noget.
+7. **Kun til visning (punkt 7):** står i Flow-vinduet, i manualen og i guiden.
+8. **Én tegning ad gangen (punkt 8):** gemmes til senere. Flowet stopper ved tegningens kant. Senere kan en tegning blive en undertegning af et større anlæg.
+
+## Berørte filer
+
+- **Backend:**
+  - `flow_defs.py`, `symbol_flow.py` (profilen);
+  - `flow_calc.py` (punktflow, måler, preview, profil-standarder);
+  - `symbols.py` (`FlowCfg.measured`, `port_colors`, bindinger);
+  - `connection_groups.py` (rørstykke-typer og retning);
+  - ny `api/flow.py`; `drawings.py`.
+- **Frontend:**
+  - `symbolFlow.ts` og `SymbolFlowEditor.svelte` (profilen);
+  - `FlowSection.svelte` og `symbolConfig.ts`;
+  - `animate.ts` og `canvas.ts` (retning pr. delstreg);
+  - `ConnGroups.svelte` og en ny `FlowLive.svelte`;
+  - `scada-core.js` (flow-overlay);
+  - `DrawEditor.svelte` (påmindelse).
+- Manual kapitel 08 og 10 og LLM-tillægget. Tests.
+
+## Risici
+
+- Retningen på rørstykker afhænger af, at delstregerne starter eller slutter ved punkterne. Ellers falder den tilbage til tegneretningen.
+- Preview regner med hele tegningen i et kald: et stort net tager op til ca. 1 s på en Pi. Det kører derfor i en tråd og højst hvert 2. sekund.
+- Additivt: intet skemaskift (profilen ligger i den eksisterende `symbolflow.<type>`). MINOR: 6.3.0.
+
+---
+
 # Plan: Topmenuen i Tegn refaktoreres — 2026-11-13 — udført i v6.2.0
 
 Jan (2026-11-13): "side menu i tegn er ok men top menu kan godt trænge til en refakto".

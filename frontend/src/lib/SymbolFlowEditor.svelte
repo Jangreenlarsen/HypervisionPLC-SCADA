@@ -1,10 +1,14 @@
 <script lang="ts">
   // Ind/ud, navne og veje på et symbol (v4.13.0, PLAN.md › Signalveje 2): punkter med navn (A, B, AB …), rolle (ind/ud/begge) og
-  // "fælles", og de veje symbolet kan lave (AB → A, AB → B). Gemmes pr. symboltype (ingen funktion bruger dem lige nu, efter signalvejene blev fjernet i v6.0.0-b0395). Punkterne er brøkdele af symbolets boks.
+  // "fælles", og de veje symbolet kan lave (AB → A, AB → B). Gemmes pr. symboltype og bruges af flowberegningen (v6.1.0). Punkterne er
+  // brøkdele af symbolets boks. v6.3.0: flow-profilen — rolle (forbruger/pumpe/rørstykke), medie og standarder — for enhver symboltype.
   import { tick } from 'svelte';
   import { del, put } from './api';
   import { ask } from './ask';
-  import { FLOW_DEFAULTS, ROLE_LABEL, validateDef, waysOf, wayKey, wayLabel, type FlowDef, type PortDef, type PortRole } from './symbolFlow';
+  import {
+    FLOW_DEFAULTS, KIND_LABEL, MEDIUM_LABEL, PIECE_TYPES, ROLE_LABEL, UNITS, hasProfile, validateDef, waysOf, wayKey, wayLabel,
+    type FlowDef, type FlowKind, type FlowMedium, type PortDef, type PortRole,
+  } from './symbolFlow';
   // @ts-expect-error — ren JS uden typer (deles med Tegn)
   import { autoPorts, boxOfRoot } from '../../svgedit-host/symbolPorts.js';
 
@@ -19,6 +23,11 @@
   let ports = $state<PortDef[]>([]);
   let ownWays = $state(false);
   let ways = $state<[string, string][]>([]);
+  // flow-profilen (v6.3.0)
+  let kind = $state<FlowKind>('consumer');
+  let medium = $state<FlowMedium>('water');
+  let capacity = $state<number | null>(null);
+  let restrict = $state<number | null>(null);
   let box = $state<Box | null>(null);
   let viewBox = $state('0 0 100 100');
   let picked = $state<number | null>(null);
@@ -55,6 +64,10 @@
     ports = (d?.ports ?? []).map((p) => ({ ...p }));
     ownWays = !!d?.ways?.length;
     ways = (d?.ways ?? []).map((w) => [w[0], w[1]] as [string, string]);
+    kind = d?.kind ?? (PIECE_TYPES.has(type) ? 'piece' : 'consumer');
+    medium = d?.medium ?? 'water';
+    capacity = d?.capacity ?? null;
+    restrict = d?.restrict ?? null;
     setDirty(false);
   }
   $effect(() => { void type; void svg; void custom; void load(); });
@@ -141,7 +154,15 @@
     setDirty(true);
   }
 
-  const current = (): FlowDef => ({ ports: ports.map((p) => ({ ...p })), ...(ownWays && ways.length ? { ways } : {}) });
+  const current = (): FlowDef => ({
+    ports: ports.map((p) => ({ ...p })), ...(ownWays && ways.length ? { ways } : {}),
+    // rollen gemmes, når den afviger fra symbolets indbyggede (så en indbygget pumpe/et rørstykke kan blive en forbruger)
+    ...(kind !== (PIECE_TYPES.has(type) ? 'piece' : type === 'pumpe' ? 'pump' : 'consumer') || kind !== 'consumer' ? { kind } : {}),
+    ...(medium !== 'water' ? { medium } : {}),
+    ...(capacity != null ? { capacity } : {}), ...(restrict != null ? { restrict } : {}),
+  });
+  const canSave = $derived(ports.length > 0 || hasProfile({ ports: [], kind, medium, capacity: capacity ?? undefined, restrict: restrict ?? undefined }));
+  const unit = $derived(UNITS[medium]);
 
   async function save(): Promise<void> {
     const d = current();
@@ -150,11 +171,13 @@
     busy = true;
     error = info = '';
     try {
-      const saved = await put<FlowDef & { type: string }>(`/api/symbol-flow/${encodeURIComponent(type)}`, { ports: d.ports, ways: d.ways ?? [] });
-      onsaved(type, { ports: saved.ports, ...(saved.ways?.length ? { ways: saved.ways } : {}) });
+      const saved = await put<FlowDef & { type: string }>(`/api/symbol-flow/${encodeURIComponent(type)}`,
+        { ports: d.ports, ways: d.ways ?? [], kind: d.kind ?? null, medium: d.medium ?? null, capacity: d.capacity ?? null, restrict: d.restrict ?? null });
+      const { type: _t, ...def } = saved;
+      onsaved(type, def);
       setDirty(false);
       await tick();    // den nye definition genindlæser editoren (og nulstiller beskeden) — vis beskeden bagefter
-      info = `Gemt: ${label} har nu ${saved.ports.length} navngivne punkter. Det gælder alle tegninger med symbolet.`;
+      info = `Gemt: ${label} — ${KIND_LABEL[saved.kind ?? 'consumer'].split(' (')[0].toLowerCase()}, ${saved.ports.length} navngivne punkter. Det gælder alle tegninger med symbolet.`;
     } catch (e) {
       error = (e as Error).message;
     } finally {
@@ -189,6 +212,31 @@
 </p>
 <h3>{label}
   {#if source === 'custom'}<span class="tag">rettet</span>{:else if source === 'default'}<span class="muted small">standard</span>{:else}<span class="muted small">ingen definition</span>{/if}</h3>
+
+<!-- Flow-profilen (v6.3.0): gælder alle symboltyper, også elektriske komponenter -->
+<fieldset class="profile">
+  <legend>Flow-rolle</legend>
+  <label class="pf">Rolle
+    <select value={kind} onchange={(e) => { kind = e.currentTarget.value as FlowKind; setDirty(true); }} aria-label="Flow-rolle">
+      {#each Object.entries(KIND_LABEL) as [k, v] (k)}<option value={k}>{v}</option>{/each}</select></label>
+  <label class="pf">Medie
+    <select value={medium} onchange={(e) => { medium = e.currentTarget.value as FlowMedium; setDirty(true); }} aria-label="Medie">
+      {#each Object.entries(MEDIUM_LABEL) as [k, v] (k)}<option value={k}>{v}{UNITS[k as FlowMedium] ? ` (${UNITS[k as FlowMedium]})` : ''}</option>{/each}</select></label>
+  {#if kind === 'pump'}
+    <label class="pf">Standard-kapacitet
+      <input type="number" min="0" max="65535" step="1" value={capacity ?? ''} placeholder="100" aria-label="Standard-kapacitet"
+        oninput={(e) => { const v = e.currentTarget.value; capacity = v === '' ? null : Math.round(Number(v)); setDirty(true); }} /> {unit} ved fuld rate</label>
+  {/if}
+  {#if kind === 'consumer'}
+    <label class="pf">Standard-restriktion
+      <input type="number" min="0" max="1" step="0.01" value={restrict ?? ''} placeholder="1,00" aria-label="Standard-restriktion"
+        oninput={(e) => { const v = e.currentTarget.value; restrict = v === '' ? null : Math.round(Number(v) * 100) / 100; setDirty(true); }} />
+      <span class="small muted">0,00 = blokeret … 1,00 = ingen restriktion</span></label>
+  {/if}
+  <p class="small muted">Rollen og standarderne gælder, når et symbol af typen ikke har sin egen flow-opsætning i guiden (trin 4 › Flow). En
+    <em>pumpe/kilde</em> giver flow fra IND til UD (fx en strømforsyning, der giver strøm); et <em>rørstykke/ledning</em> hører under
+    forbindelserne og viser flowet med løbelys. Mediet bestemmer kun enheden, flowet vises i.</p>
+</fieldset>
 <!-- klik tilføjer et punkt; træk et punkt for at flytte det; højreklik fjerner det -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <svg bind:this={svgEl} class="stage" {viewBox} onmousedown={downOnCanvas} onmousemove={move} oncontextmenu={(e) => e.preventDefault()}>
@@ -248,7 +296,7 @@
 {/if}
 
 <div class="row actions">
-  <button class="primary" onclick={save} disabled={busy || !dirty || !ports.length}>Gem</button>
+  <button class="primary" onclick={save} disabled={busy || !dirty || !canSave}>Gem</button>
   <button onclick={() => load()} disabled={busy || !dirty}>Fortryd ændringer</button>
   <button onclick={reset} disabled={busy || source !== 'custom'}>Brug standarden</button>
 </div>
@@ -256,6 +304,11 @@
 {#if info}<p class="notice">{info}</p>{/if}
 
 <style>
+  .profile { border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem .6rem; margin: .4rem 0 .6rem; display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; max-width: 640px; }
+  .profile legend { font-weight: 600; font-size: .85rem; }
+  .profile p { flex-basis: 100%; margin: .2rem 0 0; }
+  .pf { display: inline-flex; gap: .35rem; align-items: center; font-size: .88rem; }
+  .pf input[type='number'] { width: 6rem; }
   .tag { font-size: .7rem; padding: 0 6px; border-radius: 8px; background: #e7f3e8; color: #2e7d32; border: 1px solid #a9d3ab; align-self: center; }
   .stage { width: 100%; max-width: 640px; height: 360px; background: #f6f6f6; border: 1px solid var(--line); border-radius: var(--radius); cursor: crosshair; display: block; }
   .bbox { fill: none; stroke: #9db8e8; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }

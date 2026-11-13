@@ -17,6 +17,11 @@ class FlowBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     ports: list[dict[str, Any]]
     ways: list[list[str]] = []
+    # flow-profilen (v6.3.0) — kontrolleres i services/symbol_flow.clean_def
+    kind: Any = None
+    medium: Any = None
+    capacity: Any = None
+    restrict: Any = None
 
 
 def _svc(request: Request) -> SymbolFlowService:
@@ -32,7 +37,8 @@ async def list_flow(request: Request) -> dict[str, Any]:
 @router.put("/{sym_type}", dependencies=[ENGINEER])
 async def set_flow(sym_type: str, body: FlowBody, request: Request) -> dict[str, Any]:
     clean = _svc(request).set(sym_type, body.model_dump())
-    audit(request, "symbol_flow.set", sym_type, {"ports": len(clean["ports"]), "ways": len(clean.get("ways", []))})
+    audit(request, "symbol_flow.set", sym_type, {"ports": len(clean["ports"]), "ways": len(clean.get("ways", [])),
+                                                       "kind": clean.get("kind", "consumer"), "medium": clean.get("medium", "water")})
     return {"type": sym_type, **clean}
 
 

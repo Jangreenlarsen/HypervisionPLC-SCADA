@@ -4,6 +4,30 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.3.0 build 0398] — 2026-11-13 — Flow-model runde 2: flowet live i Tegn, retning på rørstykker, flow-rolle pr. symboltype, flowmåler, portfarver, restriktion 0,00–1,00
+
+Jans svar på listen over, hvad der manglede (alle otte punkter i ét hug, PLAN.md › Flow-model runde 2), plus to rettelser undervejs (restriktionen er et tal 0,00–1,00, ikke en bit; en farve-animation på et tal-tag kan få en aktiv-grænse).
+
+- **Flowet live i Tegn** (punkt 1): nyt `POST /api/drawings/{id}/flow/preview` (`api/flow.py`, tekniker) beregner flowet for tegningen, som den ser ud i editoren (også ugemt) — med de live værdier eller simuleret (`rates`, `positions`, `restricts` 0,00–1,00). Skriver aldrig til PLC'en og udgiver ingen live-værdier; højst 2 samtidige beregninger i en tråd; tæller `previews` i flow-status. Frontend: `FlowLive.svelte` + `flowLive.ts` i Flow-vinduet (Vis flowet på tegningen, Live/Simulering, pumper med rate, ventilpositioner, restriktion pr. symbol), overlay i `scada-core.js` (`setFlowOverlay`: blå løbelys, l/min pr. rør, retning i rørstykkernes ben; gemmes aldrig).
+- **Retning på rørstykker** (punkt 2): `flow_calc.compute` giver flowet ind (+)/ud (−) pr. punkt på et rørstykke (`ports_out`); motoren udgiver det som `flowp:<tegning>:<element>` (tekst). Forbindelsesgruppernes løbelys på et rørstykke får `params.port_tag`; `canvas.ts` lægger flowet pr. punkt i parametrene, og `animate.ts` (`parsePortFlows`, `portDirection`) giver hver delstreg sin retning. `bindings.binding_tags` tager `port_tag` med (live-data og adgang).
+- **Påmindelse om Bind forbindelser** (punkt 3): ved Gem i Tegn (tegning med en pumpe eller bundne forbindelser og ubundne forbindelser) en advarsel i Meddelelser med **Bind nu**; i guiden under Flow, når symbolet ikke er bundet (`SymbolGuide` prop `linked`).
+- **Flow-rolle pr. symboltype** (punkt 4): `symbol_flow.clean_def` (og API'et) tager `kind` (forbruger/pumpe/rørstykke), `medium` (vand/luft/el/andet), `capacity` og `restrict`; en profil kan gemmes uden punkter. `flow_defs.kind_of`, `piece_types`, `unit_of`; rørstykke-typer fra profilen bruges af beregningen og forbindelsesgrupperne; standard-restriktionen gælder symboler uden egen opsætning. Frontend: sektionen *Flow-rolle* i `SymbolFlowEditor.svelte`; `symbolFlow.ts` (`kindOf`, `UNITS`, `hasProfile`); guidens standard (`defaultFlow`) følger profilen.
+- **Portfarver ud fra de åbne veje** (punkt 5): `FlowCfg.port_colors` (åben/lukket, streg/fyld) → `symbols.port_color_bindings` (bindinger pr. port-del efter positionen, aldrig oven på en animation af samme slags; `part_instance` finder `<symbol>_port_a`); lagt på i `drawings._compute`. Slået til fra start i guiden, når punkterne har dele.
+- **Flowmåler** (punkt 6): `FlowCfg.measured` (et tag) — pumperne gennem symbolet skaleres, så beregningen passer med målingen; besked, hvis måleren ikke er forbundet. Et visningssymbol med en flow-opsætning må stå uden animation.
+- **Kun til visning / én tegning** (punkt 7–8): står i guiden, Flow-vinduet og manualen; flere tegninger er noteret til senere (PLAN.md).
+- **Restriktion 0,00–1,00** (Jan undervejs): guiden viser skyder og tal med to decimaler for fast værdi, advarer ved et til/fra-tag; simuleringen har restriktion pr. symbol.
+- **Farve på et tal-tag med en aktiv-grænse** (Jan undervejs): `ColorParams.at_least` (backend) og `colorFor`/`bindingActive` (animate.ts); guiden (`AnimParams.svelte`) har feltet **Aktiv når ≥** ved Farve/Streg på et tal-tag (fx ≥ 50 aktiv, under 50 ikke aktiv).
+- Tests: `tests/test_flow_round2.py` (punktflow, T-stykke, motorens flowp-udgivelse og oprydning, flowmåler, profil, preview live/simuleret, portfarver, endpoint, profil-API og backup, port_tag i view, måler-tag, restriktion 0–1, aktiv-grænse), `flowRound2.test.ts`. Set i browseren: Flow-vinduet med flowet live og simuleret på testtegningen, guidens Flow-sektion, fanen Ind/ud og veje med Flow-rolle, T-stykkets retning på Overview. Portfarverne er ikke set (ingen PLC lokalt: positionen er ukendt) — dækket af tests.
+- Reviewer-rettelser:
+  - `db.set_symbol_flow` tæller config-generationen op, så en ændret flow-profil straks giver nye bindinger på Overview og i adgangen (`meta` er ikke en CONFIG_TABLE);
+  - preview: højst 2000 elementer og 50 pumper, svarer 429 i stedet for at køe, tjekker antal overrides før indholdet og brugerens adgang til tegningen (`scope`), og afviser en DOCTYPE (`forbid_dtd`);
+  - flowmåleren regner netto gennem måleren (modsatrettede pumper trækkes fra), skalerer højst 10 gange og advarer ved flere målere på samme pumpe;
+  - fjernelse af en PLC rydder også flowets tags (rate, restriktion, målt flow) i symbolopsætningen (`plc_removal.strip_config`);
+  - rørstykkets retning bruges kun ved en god værdi;
+  - Tegn regner ikke i en skjult fane;
+  - en indbygget pumpe/et rørstykke kan sættes til forbruger.
+- Manual: kap. 08 (*Se flowet i Tegn*, rørstykkernes retning, påmindelsen, flow-rolle, kun til visning), kap. 10 (Flow-sektionen, aktiv-grænse på farve), billederne `flow-tegn.png` (nyt) og `flow-guide.png`; LLM-tillæg (6 nye afsnit). FEATURES, ACCEPTTEST.
+
 ## [6.2.0 build 0397] — 2026-11-13 — Topmenuen i Tegn er bygget om: én linje i tre zoner
 
 Jan: "side menu i tegn er ok men top menu kan godt trænge til en refakto". PLAN.md › Topmenuen i Tegn.

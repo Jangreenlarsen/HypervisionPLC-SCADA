@@ -588,10 +588,15 @@ class Database:
     def set_symbol_flow(self, sym_type: str, flow: dict[str, Any] | None) -> bool:
         """Gem (flow) eller slet (None). → om der var noget (ved gem altid True)."""
         key = f"symbolflow.{sym_type}"
+        # (v6.3.0) profilen styrer de effektive bindinger (rørstykke-typer, portenes dele): `meta` er ikke en CONFIG_TABLE, så
+        # generationen tælles op her — ellers viser Overview og adgangen forældede bindinger
         if flow is None:
-            return self._execute("DELETE FROM meta WHERE key = ?", (key,)) > 0
+            had = self._execute("DELETE FROM meta WHERE key = ?", (key,)) > 0
+            self.config_gen += 1
+            return had
         self._execute("INSERT INTO meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                       (key, json.dumps(flow)))
+        self.config_gen += 1
         return True
 
     # ------------------------------------------------------- egne symboler i biblioteket (v3.28.0)

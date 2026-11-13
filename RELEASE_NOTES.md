@@ -2,6 +2,18 @@
 
 ---
 
+## v6.3.0 — 2026-11-13 — Flow: se det live i Tegn, retning i bøjninger og T-stykker, flow-rolle for alle symboler
+
+- **Flowet live i Tegn:** Flow-vinduet › **Vis flowet på tegningen** viser løbelys og l/min oven på tegningen — også før du har gemt. **Simulering:** start og stop pumper, sæt rate og restriktion, og vælg ventilernes position uden PLC (der skrives intet til PLC'en).
+- **Bøjninger, T-stykker og kryds** viser løbelyset med retning i hvert ben.
+- **Flow-rolle for alle symboltyper** (Opsætning › Symboler › Ind/ud og veje): forbruger, pumpe/kilde eller rørstykke/ledning, medie (vand, luft, el) og standarder — også til elektriske komponenter.
+- **Portfarver:** en ventils porte farves automatisk efter de åbne veje i hver position (fx AB og A grønne, B sort).
+- **Flowmåler:** et symbol kan have et målt flow (en flowsensor), som beregningen tilpasses efter.
+- **Restriktionen** er et tal fra 0,00 til 1,00 (skyder og tal i guiden).
+- **Farve på et tal-tag** kan få en grænse: **Aktiv når ≥** (fx 50).
+- **Påmindelse** om at binde forbindelserne, når du gemmer, og i guiden.
+- Flowet er kun til visning — en illustration, ikke en simulering af det virkelige anlæg.
+
 ## v6.2.0 — 2026-11-13 — Ny topmenu i Tegn
 
 - Topmenuen i Tegn er ryddet op: **til venstre** tegningens navn (en menu med skift af tegning, ny tegning, størrelse, bindinger og *Slet tegning* nederst) og versionen; **i midten** *Vis*, *Fang*, den nye menu **Forbindelser** (tjek, ret og bind forbindelser, med antal fejl på knappen) og *Flow*; **til højre** zoom, meddelelser og gem. Kommentaren til versionen ligger under ▾ på *Gem og udgiv*.

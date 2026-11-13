@@ -80,6 +80,17 @@ Forberedelse: tag en backup først (System › Backup, eller `scada-tool backup 
 - [ ] En animation på pumpen: *Blink* styret af **symbolets flow** (mindst 1) → blinker, når pumpen giver flow.
 - [ ] Status: kortet *Flowberegning* viser beregninger og tid; backup → gendan → grupperne er der igen.
 
+### 10c. Flow runde 2 (v6.3)
+- [ ] Tegn › **Flow** › *Vis flowet på tegningen* → blå løbelys og l/min på tegningen; flyt et rør (uden at gemme) → flowet følger med.
+- [ ] *Simulering*: stop en pumpe, skift en ventils position, sæt en restriktion til 0,25 → flowet ændrer sig; PLC'en får intet skrevet.
+- [ ] Overview: et T-stykke og en bøjning viser løbelyset i flowets retning i hvert ben.
+- [ ] 3-vejsventil (positioner AB → A / AB → B): guiden › Flow › *Farv portene efter de åbne veje* → på Overview er AB og A grønne og B sort i AB → A.
+- [ ] Guiden › Flow › Restriktion: *en fast værdi* 0,50 (skyder/to decimaler); et til/fra-tag → advarsel.
+- [ ] Guiden › Flow › *Målt flow* = en flowsensor → løkkens flow passer med målingen.
+- [ ] Opsætning › Symboler › Ind/ud og veje: giv en egen type rollen *Pumpe/kilde*, medie *El* → guiden foreslår pumpe med standard-kapaciteten.
+- [ ] Gem en tegning med ubundne forbindelser og en pumpe → advarsel i Meddelelser med *Bind nu*.
+- [ ] Guiden trin 4: *Farve* på et tal-tag, *Aktiv når ≥* 50 → farven skifter ved 50.
+
 ### 11. Signalveje (fjernet i v6.0.0 b0395)
 - [ ] Tegn har ingen sektion *Signalveje*; Symbol-oversigten viser kun *Grundsymboler* og *Grupper*; *Vis navne* har kun symboler og forbindelser.
 - [ ] Efter opdateringen: Log › Audit har `signal_path.removed`, og der ligger en backup *før signalvejene blev fjernet*.

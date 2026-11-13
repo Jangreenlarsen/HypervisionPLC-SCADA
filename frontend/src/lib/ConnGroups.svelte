@@ -128,13 +128,13 @@
 {/snippet}
 
 <div class="cg">
-  <p class="small muted">Serveren beregner flowet gennem de forbundne symboler (pumper, ventiler, restriktion — sættes op i symbol-guidens
+  <p class="small muted"><strong>Forbindelsesgrupper:</strong> serveren beregner flowet gennem de forbundne symboler (pumper, ventiler, restriktion — sættes op i symbol-guidens
     trin 4 under <em>Flow</em>). Her bestemmer du, hvordan forbindelserne viser det på Overview.</p>
   {#if error}<p class="msg err">{error}</p>{/if}
   {#if info}<p class="msg ok">{info}</p>{/if}
   {#if data}
     {#if data.flow?.unbound}<p class="msg">Tegningen har ingen gemte forbindelser. Slå <strong>Tjek forbindelser</strong> til og tryk
-      <strong>Bind forbindelser</strong> (Vis-menuen), og gem tegningen — flowet beregnes kun gennem gemte forbindelser.</p>{/if}
+      <strong>Bind forbindelser</strong> (menuen Forbindelser), og gem tegningen — flowet beregnes kun gennem gemte forbindelser.</p>{/if}
     {#each data.flow?.notes ?? [] as n}<p class="msg">{n}</p>{/each}
     {#if data.flow?.stats}<p class="small muted">Beregning: {data.flow.stats.pumping} af {data.flow.stats.pumps} pumper kører · {data.flow.stats.edges} forbindelser i nettet.</p>{/if}
 

@@ -73,6 +73,11 @@ def strip_config(cfg: dict[str, Any], names: set[str]) -> dict[str, Any] | None:
     if out.get("chart"):
         out["chart"]["tags"] = [t for t in out["chart"].get("tags", []) if t not in names]
     out["anims"] = strip_anims(out.get("anims", []), names)
+    fl = out.get("flow")
+    if isinstance(fl, dict):                     # flowberegningens tags (v6.1.0/v6.3.0): rate, restriktion, målt flow
+        for k in ("rate", "restrict", "measured"):
+            if isinstance(fl.get(k), dict) and fl[k].get("src") in names:
+                fl[k]["src"] = ""
     return out
 
 

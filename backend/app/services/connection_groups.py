@@ -21,8 +21,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from ..storage.db import Database
 from .bindings import _color
 from .errors import ServiceError
-from .flow_calc import flow_tag
-from .flow_defs import PIPE_SYMBOL_TYPES
+from .flow_calc import flow_tag, ports_tag
+from .flow_defs import PIPE_SYMBOL_TYPES, merged, piece_types
 
 log = logging.getLogger("scada.connection_groups")
 
@@ -89,19 +89,21 @@ def clean_anims(raw: Any) -> list[dict[str, Any]]:
     return out
 
 
-def connections_in(svg: str) -> dict[str, str]:
+def connections_in(svg: str, pieces: frozenset[str] | None = None) -> dict[str, str]:
     """Forbindelserne i tegningen: {id: navn} — rør (`data-hv-pipe`) og rørstykker (bøjning, T-stykke …)."""
-    return {k: v[0] for k, v in connection_kinds(svg).items()}
+    return {k: v[0] for k, v in connection_kinds(svg, pieces).items()}
 
 
-def connection_kinds(svg: str) -> dict[str, tuple[str, bool]]:
-    """{id: (navn, er et rør)} — et rørstykke (symbol) får flowet uden fortegn, så dets løbelys kan ikke vise retningen."""
+def connection_kinds(svg: str, pieces: frozenset[str] | None = None) -> dict[str, tuple[str, bool]]:
+    """{id: (navn, er et rør)} — et rørstykke (symbol) får flowet uden fortegn; retningen pr. delstreg kommer fra dets flow pr.
+    punkt (`flowp:…`, v6.3.0). `pieces`: rørstykke-typerne (de indbyggede + typer med rollen rørstykke)."""
     from defusedxml.ElementTree import fromstring
+    pieces = PIPE_SYMBOL_TYPES if pieces is None else pieces
     out: dict[str, tuple[str, bool]] = {}
     for el in fromstring(svg).iter():
         eid = el.get("id") if isinstance(el.tag, str) else None
         pipe = eid is not None and el.get("data-hv-pipe") is not None
-        if eid and (pipe or (el.get("data-hv-type") or "") in PIPE_SYMBOL_TYPES):
+        if eid and (pipe or (el.get("data-hv-type") or "") in pieces):
             out[eid] = (el.get("data-hv-name") or "", pipe)
     return out
 
@@ -135,9 +137,11 @@ def group_bindings(drawing_id: str, conns: dict[str, tuple[str, bool]], rows: li
             a = {**ConnAnim.model_validate(a).model_dump()}
             tag = flow_tag(drawing_id, el)
             if a["type"] == "flow":
-                # et rør har flowet med fortegn (retning); et rørstykke kun mængden: løbelys uden retning (onoff)
+                # et rør har flowet med fortegn (retning); et rørstykke mængden + retningen pr. punkt (port_tag, v6.3.0)
                 anim, params = "flow", {"mode": "signed" if is_pipe else "onoff", "base": a["base"], "light": a["light"], "speed": a["speed"],
                                         "dash": a["dash"], "flow_max": a["full"] or full_default}
+                if not is_pipe:
+                    params["port_tag"] = ports_tag(drawing_id, el)
             elif a["type"] == "color":
                 anim, params = "stroke", {"abs": True, "off": a["off"], "on": a["off"],
                                           "thresholds": [{"value": x["value"], "color": x["color"]} for x in a["limits"]]}
@@ -160,7 +164,7 @@ class ConnectionGroupService:
 
     def _conns(self, drawing_id: str) -> dict[str, str]:
         self.drawings._require(drawing_id)
-        return connections_in(self.drawings.svg(drawing_id))
+        return connections_in(self.drawings.svg(drawing_id), piece_types(merged(self.db.list_symbol_flow())))
 
     def list(self, drawing_id: str) -> dict[str, Any]:
         conns = self._conns(drawing_id)

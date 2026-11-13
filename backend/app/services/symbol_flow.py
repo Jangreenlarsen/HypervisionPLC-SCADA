@@ -25,6 +25,11 @@ log = logging.getLogger("scada.symbol_flow")
 NAME_RE = re.compile(r"^[A-Za-z0-9_+-]{1,12}$")
 PART_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 ROLES = ("in", "out", "both")
+# Flow-profilen pr. symboltype (v6.3.0, PLAN.md › Flow-model runde 2): rollen i flowberegningen, mediet (til visning) og
+# standarderne, når et symbol ikke har sin egen flow-opsætning i guiden. Gælder alle symboltyper — også elektriske komponenter
+# (en strømforsyning er en kilde, ledninger og klemmer er rørstykker).
+KINDS = ("consumer", "pump", "piece")
+MEDIA = ("water", "air", "electric", "other")
 MAX_PORTS = 12
 MAX_WAYS = 24
 
@@ -38,7 +43,22 @@ def clean_def(raw: Any) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise ServiceError(400, "Definitionen skal være et objekt med ports (og evt. ways)")
     ports_in = raw.get("ports")
-    if not isinstance(ports_in, list) or not ports_in:
+    kind = raw.get("kind", "consumer") or "consumer"
+    if kind not in KINDS:
+        raise ServiceError(400, "Rollen skal være forbruger, pumpe/kilde eller rørstykke")
+    medium = raw.get("medium", "water") or "water"
+    if medium not in MEDIA:
+        raise ServiceError(400, "Mediet skal være vand, luft, el eller andet")
+    cap = raw.get("capacity")
+    if cap is not None and not (isinstance(cap, int) and not isinstance(cap, bool) and 0 <= cap <= 65535):
+        raise ServiceError(400, "Standard-kapaciteten skal være et helt tal mellem 0 og 65535")
+    restrict = raw.get("restrict")
+    if restrict is not None and not _num(restrict):
+        raise ServiceError(400, "Standard-restriktionen skal være et tal mellem 0 og 1")
+    profile = raw.get("kind") is not None or medium != "water" or cap is not None or restrict is not None
+    if ports_in in (None, []) and profile:
+        ports_in = []
+    elif not isinstance(ports_in, list) or not ports_in:
         raise ServiceError(400, "Angiv mindst ét punkt")
     if len(ports_in) > MAX_PORTS:
         raise ServiceError(400, f"Højst {MAX_PORTS} punkter pr. symbol")
@@ -80,6 +100,14 @@ def clean_def(raw: Any) -> dict[str, Any]:
     result: dict[str, Any] = {"ports": ports}
     if ways:
         result["ways"] = ways
+    if kind != "consumer" or raw.get("kind") == "consumer":   # en udtrykkelig forbruger (fx en indbygget pumpe-type)
+        result["kind"] = kind
+    if medium != "water":
+        result["medium"] = medium
+    if cap is not None:
+        result["capacity"] = cap
+    if restrict is not None:
+        result["restrict"] = round(float(restrict), 3)
     return result
 
 
@@ -97,7 +125,8 @@ class SymbolFlowService:
         if t not in existing and len(existing) >= MAX_TYPES:
             raise ServiceError(400, f"Højst {MAX_TYPES} symboler kan have rettede ind/ud-definitioner")
         self.db.set_symbol_flow(t, clean)
-        log.info("Ind/ud-definition for %s gemt (%d punkter, %d veje)", t, len(clean["ports"]), len(clean.get("ways", [])))
+        log.info("Ind/ud-definition for %s gemt (%d punkter, %d veje, rolle %s, medie %s)", t, len(clean["ports"]), len(clean.get("ways", [])),
+                 clean.get("kind", "consumer"), clean.get("medium", "water"))
         return clean
 
     def reset(self, sym_type: str) -> bool:

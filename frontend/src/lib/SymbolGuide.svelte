@@ -39,8 +39,10 @@ import { AVERAGE_CHOICES } from './trendData';
     plans: { position: number; label: string; writes: Write[] }[];
   }
 
-  let { drawingId, element, name, tags, group = [], selectorRedraw, onclose, onsaved, onremoved }: {
+  let { drawingId, element, name, tags, group = [], selectorRedraw, linked = null, onclose, onsaved, onremoved }: {
     drawingId: string; element: string; name: string; tags: TagRow[];
+    /** Er symbolet bundet til tegningens forbindelser (v6.3.0, til påmindelsen under Flow)? null = ukendt */
+    linked?: boolean | null;
     /** "Opsæt de valgte samlet": de ANDRE valgte symboler — de får opsætningen, når der gemmes. */
     group?: { id: string; name: string }[];
     /** Omskifter, hvor tegningen viser andre positioner end opsætningen: 'auto' = siden tegner den om ved Gem (Tegn);
@@ -876,7 +878,7 @@ import { AVERAGE_CHOICES } from './trendData';
           {:else if symbol?.type === 'trendgraf'}
             <p class="small"><button class="small" onclick={() => (cfg.chart = defaultChart())}>+ Graf</button> <span class="muted">Symbolet kan vise en graf over tagenes historik.</span></p>
           {/if}
-          <FlowSection bind:flow={cfg.flow} type={symbol?.type ?? cfg.type} positions={isPos ? cfg.positions.map((p) => p.label) : []} {tags} />
+          <FlowSection bind:flow={cfg.flow} type={symbol?.type ?? cfg.type} positions={isPos ? cfg.positions.map((p) => p.label) : []} {tags} {linked} />
           <h4>Logik ({cfg.logic.length}/{MAX_LOGIC})</h4>
           <p class="small muted">Saml flere tags i én betingelse (fx pumpe kører OG ventil åben), og brug den som kilde til en animation. En blok kan også bruge blokkene over sig og blokke i andre symboler på tegningen (og omvendt — dine blokke kan bruges dér).</p>
           {#each cfg.logic as b (b.id)}

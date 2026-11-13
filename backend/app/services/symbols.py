@@ -315,6 +315,16 @@ class FlowSource(_M):
     _s = field_validator("src")(lambda cls, v: (v or "").strip())
 
 
+class PortColors(_M):
+    """Portfarver ud fra de åbne veje (v6.3.0): i hver position får punkterne på en åben vej farven `open`, de andre `closed`.
+    Punkternes dele (port_a, port_b …) står i symboltypens Ind/ud og veje."""
+    open: str = "#2e7d32"
+    closed: str = "#000000"
+    anim: Literal["stroke", "fill"] = "stroke"
+
+    _c = field_validator("open", "closed")(lambda cls, v: _color(v))
+
+
 class FlowCfg(_M):
     """Symbolets rolle i flowberegningen (v6.1.0, flow_calc.py)."""
     pump: bool = False                                        # pumper (giver flow fra IND til UD)
@@ -323,6 +333,9 @@ class FlowCfg(_M):
     restrict: FlowSource = Field(default_factory=FlowSource)  # restriktion 0 (blokeret) – 1 (ingen)
     # Ventiler med positioner: de åbne veje ("AB>A") i hver position; None = alle veje er åbne
     open: list[list[str]] | None = Field(default=None, max_length=MAX_POSITIONS)
+    # v6.3.0: en flowmåler (et tag med det målte flow, l/min) — pumperne gennem symbolet skaleres efter målingen
+    measured: FlowSource = Field(default_factory=FlowSource)
+    port_colors: PortColors | None = None
 
 
 class SymbolConfig(_M):
@@ -422,7 +435,7 @@ def config_tags(config: dict[str, Any]) -> list[str]:
         add(a.get("src"))
         if a.get("type") == "flow":
             add((a.get("params") or {}).get("dir_tag"))
-    for k in ("rate", "restrict"):            # flowberegningens tags (v6.1.0)
+    for k in ("rate", "restrict", "measured"):   # flowberegningens tags (v6.1.0; målt flow v6.3.0)
         add(((config.get("flow") or {}).get(k) or {}).get("src"))
     return out
 
@@ -576,6 +589,41 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
             tag = pos_tag if a["src"] == POS else a["src"]
         out.append({"element": target, "position": 1000 + i, "tag": tag,
                     "anim": a["type"], "params": params, "source": "symbol", "symbol": element})
+    return out
+
+
+def part_instance(element: str, part: str, ids: set[str]) -> str | None:
+    """Delens id i tegningen: bibliotekets del `port_a` hedder `<symbol>_port_a` (evt. med et løbenummer) på et indsat symbol."""
+    for cand in (f"{element}_{part}", part):
+        if cand in ids:
+            return cand
+    rx = re.compile(rf"(^|_){re.escape(part)}(_\d+)?$")
+    hits = sorted(i for i in ids if rx.search(i))
+    return hits[0] if len(hits) == 1 else None
+
+
+def port_color_bindings(drawing_id: str, element: str, cfg: dict[str, Any], flow_def: dict[str, Any] | None,
+                        ids: set[str], taken: set[tuple[str, str]]) -> list[dict[str, Any]]:
+    """Portfarver ud fra de åbne veje (v6.3.0, PLAN.md › Flow-model runde 2): for en ventil med positioner farves hvert punkt med
+    en del (port_a …) efter, om det ligger på en åben vej i positionen. Bindingerne følger positionen (`pos`), og lægges aldrig
+    oven på en animation af samme slags på delen (`taken`)."""
+    fl = cfg.get("flow") or {}
+    pc = fl.get("port_colors")
+    opens = fl.get("open")
+    if not pc or cfg.get("op") != "positions" or not isinstance(opens, list) or not flow_def:
+        return []
+    anim = pc.get("anim", "stroke")
+    out: list[dict[str, Any]] = []
+    for port in flow_def.get("ports", []):
+        part = port.get("part")
+        target = part_instance(element, part, ids) if part else None
+        if not target or (target, anim) in taken:
+            continue
+        name = port["name"]
+        colors = [pc.get("open", "#2e7d32") if any(name in w.split(">") for w in (ws or [])) else pc.get("closed", "#000000")
+                  for ws in opens]
+        out.append({"element": target, "position": 1900, "tag": pseudo_tag(drawing_id, element, "pos"), "anim": anim,
+                    "params": {"pos": True, "colors": colors}, "source": "symbol", "symbol": element, "port_colors": True})
     return out
 
 
@@ -978,6 +1026,10 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
 
     # -- flow (v6.1.0, trin 4): pumpe, kapacitet, rate/restriktion (tag eller fast værdi) og åbne veje pr. position
     if cfg.flow is not None:
+        if cfg.flow.measured.src and (cfg.flow.measured.src.startswith("@") or tag_of(cfg.flow.measured.src) is None):
+            res.err("4", f"Målt flow: tagget '{cfg.flow.measured.src}' findes ikke.")
+        if cfg.flow.port_colors is not None and (cfg.op != "positions" or cfg.flow.open is None):
+            res.warnings.append("Portfarverne bruges kun på et symbol med positioner og åbne veje pr. position.")
         for label, fs in (("Flow-rate", cfg.flow.rate), ("Restriktion", cfg.flow.restrict)):
             if not fs.src:
                 continue
@@ -1149,8 +1201,9 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 res.warnings.append(f"Graf: tagget '{t}' gemmer ikke historik — slå det til i trin 6, ellers er grafen tom.")
         if cfg.chart.y_min is not None and cfg.chart.y_max is not None and not cfg.chart.y_min < cfg.chart.y_max:
             res.err("4", "Graf: Y-aksens min skal være mindre end max.")
-    if cfg.op == "view" and not cfg.anims and not cfg.logic and cfg.chart is None:
-        res.err("4", "Et visningssymbol skal have mindst én animation (eller en logikblok til andre symboler).")
+    if cfg.op == "view" and not cfg.anims and not cfg.logic and cfg.chart is None and cfg.flow is None:
+        # (v6.3.0: et symbol med en rolle i flowberegningen — pumpe, restriktion, flowmåler — må stå uden animation)
+        res.err("4", "Et visningssymbol skal have mindst én animation, en logikblok eller en flow-opsætning.")
 
     # -- nøglelås (trin 5)
     if P:

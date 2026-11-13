@@ -53,9 +53,18 @@ const numFor = (value: unknown, params: Record<string, any>): number | null => {
   return n !== null && params.abs ? Math.abs(n) : n;
 };
 
+/** Tal-tag med en aktiv-grænse (v6.3.0): aktiv fra `at_least` (fx ≥ 50), ellers ikke. null = ingen grænse sat. */
+const hasLimit = (params: Record<string, any>): boolean => params.at_least !== undefined && params.at_least !== null && params.at_least !== '';
+
 export function colorFor(value: unknown, params: Record<string, any>): string {
   const thresholds: { value: number; color: string }[] = params.thresholds ?? [];
   const n = numFor(value, params);
+  if (hasLimit(params) && n !== null && typeof value !== 'boolean') {
+    // aktiv-farven fra grænsen, ellers fra-farven; de ekstra grænser lægges ovenpå
+    let color: string = n >= Number(params.at_least) ? params.on ?? '#2e7d32' : params.off ?? '#9e9e9e';
+    for (const t of thresholds) if (n >= t.value) color = t.color;
+    return color;
+  }
   if (thresholds.length && n !== null && typeof value !== 'boolean') {
     let color: string = params.off ?? '#9e9e9e';
     for (const t of thresholds) if (n >= t.value) color = t.color;
@@ -87,6 +96,7 @@ export function bindingActive(b: Pick<Binding, 'anim' | 'params'>, live: LiveVal
       if (p.pos) return k !== null && Array.isArray(p.colors) && Boolean(p.colors[k]);
       const thresholds: { value: number }[] = p.thresholds ?? [];
       const n = numFor(v, p);
+      if (hasLimit(p) && n !== null && typeof v !== 'boolean') return n >= Number(p.at_least);
       if (thresholds.length && n !== null && typeof v !== 'boolean') return thresholds.some((t) => n >= Number(t.value));
       return isOn(v);
     }
@@ -714,11 +724,72 @@ export function speedFor(value: unknown, p: Record<string, any>): number {
   return Math.max(5, Math.min(500, Math.round(s / 5) * 5));
 }
 
+// ---------------------------------------------------------------- Retning pr. delstreg på et rørstykke (v6.3.0)
+/** "x,y:+12.0;1,0.5:-12.0" (flowberegningens flow pr. punkt: ind +, ud −) → { "x,y": 12, … }; tom/ukendt → null. */
+export function parsePortFlows(value: unknown): Record<string, number> | null {
+  if (typeof value !== 'string' || !value) return null;
+  const out: Record<string, number> = {};
+  for (const item of value.split(';')) {
+    const i = item.lastIndexOf(':');
+    const n = i > 0 ? Number(item.slice(i + 1)) : NaN;
+    if (Number.isFinite(n)) out[item.slice(0, i)] = n;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** Punktets nøgle som brøkdel af symbolets boks ("0.5,1" → [0.5, 1]); "#i" og andet → null. */
+function keyFrac(key: string): [number, number] | null {
+  const m = /^(-?[\d.]+),(-?[\d.]+)$/.exec(key);
+  return m ? [Number(m[1]), Number(m[2])] : null;
+}
+
+/**
+ * Løber lyset i delstregens tegneretning (start → slut)? Ud fra det punkt, der ligger nærmest en af delstregens ender (brøkdele af
+ * symbolets boks): løber flowet IND ved startens punkt, eller UD ved slutningens, er svaret ja. null = kan ikke afgøres (så gælder
+ * den indstillede retning). `tol`: hvor langt en ende højst må ligge fra punktet.
+ */
+export function portDirection(a: [number, number], b: [number, number], ports: Record<string, number>, tol = 0.3): boolean | null {
+  let best: { d: number; atStart: boolean; q: number } | null = null;
+  for (const [k, q] of Object.entries(ports)) {
+    const f = keyFrac(k);
+    if (!f || !q) continue;
+    for (const [pt, atStart] of [[a, true], [b, false]] as [[number, number], boolean][]) {
+      const d = Math.hypot(pt[0] - f[0], pt[1] - f[1]);
+      if (d <= tol && (!best || d < best.d)) best = { d, atStart, q };
+    }
+  }
+  if (!best) return null;
+  return best.atStart ? best.q > 0 : best.q < 0;
+}
+
+/** Delstregens ender som brøkdele af elementets boks (målt før lyset lægges ind). */
+function dashEnds(d: SVGElement, el: Element, box: { x: number; y: number; w: number; h: number }): [[number, number], [number, number]] | null {
+  try {
+    const g = d as unknown as SVGGeometryElement;
+    if (typeof g.getTotalLength !== 'function') return null;
+    const L = g.getTotalLength();
+    const own = (d as SVGGraphicsElement).getCTM?.() as Mat | null | undefined;
+    const base = (el as SVGGraphicsElement).getCTM?.() as Mat | null | undefined;
+    const inv = base ? invMat(base) : null;
+    if (!(L > 0) || !own || !inv || !(box.w > 0) || !(box.h > 0)) return null;
+    const m = mulMat(inv, own);
+    const at = (t: number): [number, number] => {
+      const q = g.getPointAtLength(t);
+      return [(m.a * q.x + m.c * q.y + m.e - box.x) / box.w, (m.b * q.x + m.d * q.y + m.f - box.y) / box.h];
+    };
+    return [at(0), at(L)];
+  } catch {
+    return null;
+  }
+}
+
 function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   lastFlow.set(el, { state, p });
   const base = p.base ?? '#555555', light = p.light ?? '#8fc8ea';
   const dash = Number(p.dash ?? 12), speed = Number(p.speed ?? 40);
-  const key = `${state}|${base}|${light}|${dash}|${speed}|${p.arm ?? ''}|${p.arm_flow ?? ''}`;
+  const pf: Record<string, number> | null = p.port_flows ?? null;
+  const pfKey = pf ? Object.entries(pf).map(([k, v]) => `${k}${v > 0 ? '+' : '-'}`).sort().join(',') : '';
+  const key = `${state}|${base}|${light}|${dash}|${speed}|${p.arm ?? ''}|${p.arm_flow ?? ''}|${pfKey}`;
   const old = flowLayers.get(el);
   if (old?.getAttribute('data-hv-flow') === key) return; // uændret: lad animationen køre videre uden hop
   old?.remove();
@@ -733,6 +804,16 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
     else st.stroke = state ? base : '';
   }
   if (!state) return;
+  // rørstykke med flow pr. punkt (v6.3.0): boksen måles, før lyset lægges ind
+  let box: { x: number; y: number; w: number; h: number } | null = null;
+  if (pf) {
+    try {
+      const bb = (el as SVGGraphicsElement).getBBox?.();
+      box = bb && (bb.width > 0 || bb.height > 0) ? { x: bb.x, y: bb.y, w: bb.width || 1, h: bb.height || 1 } : null;
+    } catch {
+      box = null;
+    }
+  }
   // Hver lys-streg med sin retning: langs tegneretningen, eller pr. rør i et kryds (ud = væk fra krydspunktet)
   const { dashes, warning } = buildDashes(el, shapes, p, state);
   if (warning) el.setAttribute('data-hv-warning', warning);
@@ -764,7 +845,11 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
     const unit = len / scale;
     d.setAttribute('stroke-dasharray', `${unit} ${unit}`);
     const off = ph ? dashOffset(ph, len) / scale : 0;
-    const dir = out;   // den indstillede retning har forrang (v0.67.0)
+    // den indstillede retning har forrang (v0.67.0) — men på et rørstykke med flow pr. punkt følger lyset flowet (v6.3.0)
+    const ends = pf && box ? dashEnds(d, el, box) : null;
+    const byPorts = ends && pf ? portDirection(ends[0], ends[1], pf) : null;
+    const dir = byPorts ?? out;
+    if (byPorts !== null) d.setAttribute('data-hv-dir', byPorts ? 'out' : 'in');
     d.setAttribute('stroke-dashoffset', String(off));
     if (typeof (d as any).animate === 'function') {
       // Lyset flytter én periode (lys + mørk) pr. omgang; startTime 0 holder alle løbelys i takt
