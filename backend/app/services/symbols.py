@@ -630,6 +630,8 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
             params["pos_tag"] = pos_tag
         if a.get("when"):
             params["when"] = True
+        if a["type"] in ("fill", "stroke") and not params.get("pos"):
+            params["nonzero_on"] = True   # v6.8.1: guidens "Over 0"/"0" gælder også med ekstra grænser (animate.ts colorFor)
         if is_logic_ref(a["src"]):
             owner, bid = split_logic_ref(a["src"], element)
             tag = pseudo_tag(drawing_id, owner, f"logic:{bid}")
@@ -1400,10 +1402,12 @@ class SymbolService:
         return sorted(ids)
 
     def list_symbols(self, drawing_id: str) -> list[dict[str, Any]]:
-        """Symbolerne i tegningens aktive version, med om de har en opsætning — til "kopiér opsætning til flere"."""
+        """Symbolerne i tegningens aktive version, med om de har en opsætning og de tags, opsætningen bruger
+        (til "kopiér opsætning til flere" og tags oven på tegningen i Tegn, v6.8.0)."""
         self.drawings._require(drawing_id)
-        configured = set(self.configs(drawing_id))
-        return [{"element": s["id"], "name": s["name"], "type": s["type"], "configured": s["id"] in configured}
+        cfgs = self.configs(drawing_id)
+        return [{"element": s["id"], "name": s["name"], "type": s["type"], "configured": s["id"] in cfgs,
+                 "tags": config_tags(cfgs[s["id"]]) if s["id"] in cfgs else []}
                 for s in named_symbols(self.drawings.svg(drawing_id))]
 
     def list_symbols_ids(self, drawing_id: str) -> list[dict[str, str]]:

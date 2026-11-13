@@ -1198,7 +1198,7 @@ export function createScada(host) {
 
   /** Tegn håndtagene (og under træk: punkterne og det nye forløb). */
   // Navne oven på tegningen (v4.17.0): kun visning i Tegn, gemmes ikke i tegningen
-  const names = { symbols: false, pipes: false, layer: null };
+  const names = { symbols: false, pipes: false, tags: null, layer: null };   // tags (v6.8.0): { element-id: [linjer] } eller null
   // Tjek af forbindelser (v4.18.0): [{ id, status: 'ok'|'open'|'isolated', open: [[x, y]] }] — beregnes af Tegn-siden, tegnes her
   const conn = { items: [], layer: null };
   // Symboler, der er rørstykker (hører under "forbindelser", ikke "symboler") — samme liste som frontend/src/lib/signalpath/graph.ts
@@ -1310,7 +1310,7 @@ export function createScada(host) {
   function drawNames() {
     const gridHost = host.gridHost();
     const content = canvas()?.getSvgContent?.();
-    if (!gridHost || !content || (!names.symbols && !names.pipes)) {
+    if (!gridHost || !content || (!names.symbols && !names.pipes && !names.tags)) {
       names.layer?.remove();
       names.layer = null;
       return;
@@ -1357,6 +1357,18 @@ export function createScada(host) {
         const mid = midOfPoints(pipePoints(el).map((p) => (m ? toPoint(m, p) : p)));
         const name = el.getAttribute('data-hv-name');
         if (mid) out += label(mid[0], mid[1] - fs * 0.35, name || el.id, name ? '#2e7d32' : '#757575', !name);
+      }
+    }
+    if (names.tags) {
+      // tags under symbolet/elementet (v6.8.0): én linje pr. tag, lilla, så de ikke forveksles med navnene (blå)
+      for (const [id, lines] of Object.entries(names.tags)) {
+        const el = content.querySelector(`#${CSS.escape(id)}`);
+        if (!el || el.getAttribute('display') === 'none' || !Array.isArray(lines) || !lines.length) continue;
+        const bb = boxOf(el);
+        if (!bb) continue;
+        lines.forEach((t, i) => {
+          out += label(bb.x + bb.w / 2, bb.y + bb.h + fs * (1.05 + i * 1.15), String(t), '#6a1b9a', false);
+        });
       }
     }
     layer.innerHTML = out;
@@ -2876,6 +2888,7 @@ export function createScada(host) {
     setNameLabels(opts = {}) {
       names.symbols = !!opts.symbols;
       names.pipes = !!opts.pipes;
+      names.tags = opts.tags && typeof opts.tags === 'object' ? opts.tags : null;
       drawNames();
     },
 

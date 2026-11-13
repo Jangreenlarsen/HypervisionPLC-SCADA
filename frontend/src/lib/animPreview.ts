@@ -85,6 +85,7 @@ export function buildPreview(cfg: SymbolConfig, element: string, kindOf: KindOf,
     }
     if (a.only?.length) { params.only = a.only; params.pos_tag = POS_TAG; usesOnly = true; }
     if (a.when) params.when = true;
+    if ((a.type === 'fill' || a.type === 'stroke') && !pos) params.nonzero_on = true;   // som backendens config_bindings (v6.8.1)
     if (typeof params.dir_tag === 'string' && params.dir_tag) {
       const dir = params.dir_tag;
       params.dir_tag = nameOf(dir);

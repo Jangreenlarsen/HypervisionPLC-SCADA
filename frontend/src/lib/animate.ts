@@ -66,7 +66,10 @@ export function colorFor(value: unknown, params: Record<string, any>): string {
     return color;
   }
   if (thresholds.length && n !== null && typeof value !== 'boolean') {
-    let color: string = params.off ?? '#9e9e9e';
+    // v6.8.0 (Jan: "0" og "over 0" virkede ikke): uden aktiv-grænse er tallet aktivt, når det ikke er 0 — som felterne
+    // "Over 0" og "0" siger; de ekstra grænser lægges ovenpå (før blev "Over 0" aldrig brugt, når der var grænser)
+    // (kun guidens animationer, `nonzero_on`; bindinger fra siden Bindinger og forbindelsesgrupper: fra-farven under første grænse som før)
+    let color: string = params.nonzero_on && n !== 0 ? params.on ?? '#2e7d32' : params.off ?? '#9e9e9e';
     for (const t of thresholds) if (n >= t.value) color = t.color;
     return color;
   }
@@ -97,7 +100,7 @@ export function bindingActive(b: Pick<Binding, 'anim' | 'params'>, live: LiveVal
       const thresholds: { value: number }[] = p.thresholds ?? [];
       const n = numFor(v, p);
       if (hasLimit(p) && n !== null && typeof v !== 'boolean') return n >= Number(p.at_least);
-      if (thresholds.length && n !== null && typeof v !== 'boolean') return thresholds.some((t) => n >= Number(t.value));
+      if (thresholds.length && n !== null && typeof v !== 'boolean') return (!!p.nonzero_on && n !== 0) || thresholds.some((t) => n >= Number(t.value));
       return isOn(v);
     }
     case 'blink':

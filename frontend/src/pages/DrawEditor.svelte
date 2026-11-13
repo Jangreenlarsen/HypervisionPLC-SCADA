@@ -2,7 +2,8 @@
   import { onDestroy, onMount, untrack } from 'svelte';
   import { ask as askUser, askText } from '../lib/ask';
   import { suggestName } from '../lib/draw/naming';
-  import { del, get, patch, post, put } from '../lib/api';
+  import { del, get, patch, post, put, type Binding } from '../lib/api';
+  import { tagLines, tagsByElement } from '../lib/tagLabels';
   import { SELECTOR_TYPES, selectorMismatch, withSelectorAngles } from '../lib/selectorRedraw';
   import { parseSize, presetFor, SIZE_PRESETS, sizeText } from '../lib/drawingSize';
   import { toolHint } from '../lib/toolHints';
@@ -69,7 +70,7 @@
     unlink(id: string, key: string): number;
     markConnections(items: { id: string; exempt: boolean; status: string; drift: [number, number][]; driftKeys: string[]; open: [number, number][]; openKeys: string[]; ignored: [number, number][]; ignoredKeys: string[] }[]): void;
     toggleUnused(id: string, key: string): boolean;
-    setNameLabels(opts: { symbols: boolean; pipes: boolean }): void;
+    setNameLabels(opts: { symbols: boolean; pipes: boolean; tags?: Record<string, string[]> | null }): void;
     setFlowOverlay(data: Record<string, unknown> | null): void;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
     getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
@@ -135,19 +136,46 @@
     }
   });
   // Vis navne (v4.17.0): symboler og forbindelser som mærkater oven på tegningen. Kun visning i Tegn; huskes pr. browser.
-  function loadNames(): { symbols: boolean; pipes: boolean } {
+  function loadNames(): { symbols: boolean; pipes: boolean; tags: boolean } {
     try {
       const raw = JSON.parse(localStorage.getItem('draw.names') ?? '{}');
-      return { symbols: !!raw.symbols, pipes: !!raw.pipes };
+      return { symbols: !!raw.symbols, pipes: !!raw.pipes, tags: !!raw.tags };
     } catch {
-      return { symbols: false, pipes: false };
+      return { symbols: false, pipes: false, tags: false };
     }
   }
   let showNames = $state(loadNames());
+  // Tags i tegningen (v6.8.0): de tags, symbolernes opsætning og elementernes bindinger bruger (den gemte opsætning).
+  // Hentes, når de slås til, ved skift af tegning og når guiden lukkes/gemmer (treeRev).
+  let tagMap = $state<Record<string, string[]> | null>(null);
+  let tagMapError = $state('');
+  let tagMapGen = 0;
+  $effect(() => {
+    const on = showNames.tags;
+    const id = current?.id;
+    void treeRev;
+    if (!on || !id) { tagMap = null; tagMapError = ''; return; }
+    const gen = ++tagMapGen;
+    const enc = encodeURIComponent(id);
+    Promise.all([get<{ element: string; tags?: string[] }[]>(`/api/drawings/${enc}/symbols`), get<Binding[]>(`/api/drawings/${enc}/bindings`)])
+      .then(([syms, binds]) => {
+        if (gen !== tagMapGen) return;     // en nyere hentning er i gang
+        const m = tagsByElement(syms, binds);
+        tagMap = Object.fromEntries(Object.entries(m).map(([k, v]) => [k, tagLines(v)]));
+        tagMapError = '';
+      })
+      .catch((e) => {
+        if (gen !== tagMapGen) return;
+        console.error('Tags i tegningen kunne ikke hentes', e);
+        tagMap = null;
+        tagMapError = `Tags kunne ikke hentes: ${(e as Error).message}`;
+      });
+  });
   $effect(() => {
     const n = $state.snapshot(showNames);
+    const tm = n.tags ? $state.snapshot(tagMap) : null;
     void inspectRev;       // tegningen er ændret (flyt, omdøb …): mærkaterne tegnes forfra
-    if (ready && ed) ed.setNameLabels({ symbols: n.symbols, pipes: n.pipes });
+    if (ready && ed) ed.setNameLabels({ symbols: n.symbols, pipes: n.pipes, tags: tm });
     try {
       localStorage.setItem('draw.names', JSON.stringify(n));
     } catch {
@@ -1051,8 +1079,14 @@
   const isActive = $derived(current !== null && loadedVersion === current.active_version);
   // Meddelelser (v4.20.1): systemets beskeder (før en gul bjælke over tegningen) samles her og vises i en boks, når man trykker på
   // *Meddelelser* i den øverste linje — som alarmklokken i topmenuen. Nye beskeder gør knappen orange; advarsler åbner boksen.
-  interface Msg { id: number; at: number; text: string; extra: string[]; warn: boolean }
+  // v6.8.1 (Jan): hver meddelelse hører til en tegning, og kun den åbne tegnings meddelelser vises (resten kan slås til)
+  interface Msg { id: number; at: number; text: string; extra: string[]; warn: boolean; drawing: string | null }
   let messages = $state<Msg[]>([]);
+  let msgAll = $state(false);
+  const shownMessages = $derived(msgAll ? messages : messages.filter((m) => m.drawing === null || m.drawing === (current?.id ?? null)));
+  const hiddenMessages = $derived(messages.length - shownMessages.length);
+  /** En lang liste af elementer: de første 8 og "+n flere". */
+  const shortList = (xs: string[]): string => (xs.length > 8 ? `${xs.slice(0, 8).join(', ')} +${xs.length - 8} flere` : xs.join(', '));
   let unread = $state(0);
   let msgOpen = $state(false);
   // Topmenuen (v6.2.0): menuerne Tegning, version, Forbindelser og kommentaren under Gem og udgiv ▾
@@ -1068,10 +1102,12 @@
       const r = report;
       const extra: string[] = [];
       if (r && (Object.keys(r.removed_elements).length || Object.keys(r.removed_attributes).length)) extra.push(`Renset ved gem: ${entries(r.removed_elements)} ${entries(r.removed_attributes)}`);
-      if (r?.orphaned_bindings?.length) extra.push(`Bindinger uden element nu: ${r.orphaned_bindings.join(', ')}`);
+      if (r?.orphaned_bindings?.length) extra.push(`Bindinger uden element nu: ${shortList(r.orphaned_bindings)}`);
       const warn = !!r?.orphaned_symbols?.length;
-      if (warn) extra.push(`Symboler sat op med guiden, som ikke længere findes: ${r!.orphaned_symbols!.join(', ')} — flyt eller fjern dem under Bindinger`);
-      messages = [{ id: ++msgSeq, at: Date.now(), text, extra, warn }, ...messages].slice(0, 30);
+      if (warn) extra.push(`${r!.orphaned_symbols!.length} symbolopsætning${r!.orphaned_symbols!.length === 1 ? '' : 'er'} fra guiden hører til elementer, der ikke længere findes: ${shortList(r!.orphaned_symbols!)} — flyt eller fjern dem under Bindinger`);
+      // rapporten hører kun til det gem, der lavede den — ikke til de næste meddelelser (før blev den gentaget under hver)
+      report = null;
+      messages = [{ id: ++msgSeq, at: Date.now(), text, extra, warn, drawing: current?.id ?? null }, ...messages].slice(0, 60);
       unread++;
       if (warn) msgOpen = true;
       info = '';
@@ -1228,7 +1264,9 @@
   <div class="mrow" title="Viser navnene oven på tegningen (kun her i Tegn — aldrig i Overview, og de gemmes ikke i tegningen)">
     <label class="opt"><input type="checkbox" bind:checked={showNames.symbols} /> symboler</label>
     <label class="opt"><input type="checkbox" bind:checked={showNames.pipes} /> forbindelser</label>
+    <label class="opt" title="Viser de PLC-tags, hvert symbol bruger (symbolets opsætning og elementets bindinger), under symbolet"><input type="checkbox" bind:checked={showNames.tags} /> tags</label>
   </div>
+  {#if showNames.tags && tagMapError}<div class="small error">{tagMapError}</div>{/if}
 {/snippet}
 
 {#snippet connMenuBody()}
@@ -1284,15 +1322,18 @@
       Trends, ved kopiering af opsætning og i guiden). <button class="small" onclick={fixDuplicates} disabled={!ready}>Giv dem unikke navne</button>
     </div>
   {/if}
-  {#each messages as m (m.id)}
+  {#if hiddenMessages || msgAll}
+    <label class="opt small"><input type="checkbox" bind:checked={msgAll} /> Vis også andre tegningers meddelelser{hiddenMessages ? ` (${hiddenMessages} skjult)` : ''}</label>
+  {/if}
+  {#each shownMessages as m (m.id)}
     <div class="msg" class:warn={m.warn}>
-      <span class="small muted">{clock(m.at)}</span> {m.text}
+      <span class="small muted">{clock(m.at)}{msgAll && m.drawing && m.drawing !== current?.id ? ` · ${drawings.find((d) => d.id === m.drawing)?.name ?? m.drawing}` : ''}</span> {m.text}
       {#each m.extra as x}<div class="small muted">{x}</div>{/each}
     </div>
   {:else}
     {#if !dupNames.length && !migration && !bindReminder}<span class="small muted">Ingen meddelelser endnu. Her kommer systemets beskeder, fx når tegningen er gemt eller en rettelse er udført.</span>{/if}
   {/each}
-  {#if messages.length}<div class="mrow"><button class="small" onclick={() => (messages = [])}>Ryd meddelelser</button></div>{/if}
+  {#if shownMessages.length}<div class="mrow"><button class="small" onclick={() => { const gone = new Set(shownMessages.map((m) => m.id)); messages = messages.filter((m) => !gone.has(m.id)); }}>Ryd meddelelser</button></div>{/if}
 {/snippet}
 
 {#snippet snapMenu()}

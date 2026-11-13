@@ -4,6 +4,25 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.8.1 build 0404] — 2026-11-13 — Rettelser: "Over 0"/"0" med grænser, meddelelser pr. tegning, ryddeligere animationsfarver og simulator-panel
+
+- **Fejl:** "Over 0" og "0" virkede ikke ved en farve-animation på et tal med ekstra grænser (BUGS.md). Guidens farve-animationer får `nonzero_on` (`backend/app/services/symbols.py config_bindings`, `frontend/src/lib/animPreview.ts`); `animate.ts colorFor`/`bindingActive`: 0 = fra-farven, over 0 = aktiv (og aktiv-farven), grænserne ovenpå. Bindinger fra siden *Bindinger* og forbindelsesgrupper er uændrede.
+- **Fejl:** advarslen om symbolopsætninger uden element blev gentaget under hver meddelelse (BUGS.md). `DrawEditor.svelte`: rapporten bruges én gang; meddelelser pr. tegning med *Vis også andre tegningers meddelelser*; lange lister afkortes.
+- **Animationens farver på et tal** (`AnimParams.svelte`): en tabel med én række pr. værdiområde (ikke aktiv / aktiv med grænsen / ekstra grænser). **+ Grænse** foreslår en værdi over den sidste grænse.
+- **Simulator-panelet** (`Simulator.svelte`) har nu faste kolonner (afkrydsning, navn, værdi, *Find*), en forklaring øverst og filteret **Alle / Kun ændrede (n)** i stedet for "kun simulerede". *Vis* hedder nu *Find*, og positioner viser *Live: …*.
+- Tests: `animate.test.ts`, `test_symbols.py`. Set i browseren: animationsfarverne i guiden og simulator-panelet. Meddelelsernes filter er kun bygget; det er ikke set med en tegning med fejlopsætninger.
+- Manual kap. 07 og 10 og LLM-tillæg.
+
+## [6.8.0 build 0403] — 2026-11-13 — Tegn: vis de tags, symbolerne bruger
+
+Jan: "i editor vil jeg godt have en mulighed for at til og fra vælge at man også kan se de tags som er i brug ved de forskellige symboler".
+
+- **Vis › Navne i tegningen › tags** (`DrawEditor.svelte`): de PLC-tags, hvert symbol bruger, som lilla mærkater under symbolet (højst fire linjer, *+n flere*). Kun visning i Tegn; valget huskes i browseren (`draw.names`). Hentes, når det slås til, ved skift af tegning og når guiden lukkes/gemmer; en fejl vises under afkrydsningen og logges i konsollen.
+- Kilder: symbolets gemte opsætning (`GET /api/drawings/{id}/symbols` har nu `tags` = `config_tags`, `symbols.list_symbols`) og elementernes bindinger (`/bindings`, `bindingTags`). Interne værdier (`sym:`, `flow:`, `flowp:`, `flowlvl:`, `path:`, `@…`) vises ikke (`lib/tagLabels.ts`).
+- `scada-core.js`: `setNameLabels({ …, tags })` tegner tags i navne-laget.
+- Tests: `tagLabels.test.ts`, `test_symbol_copy.py` (tags i symbollisten). Set i browseren på den lokale testtegning.
+- Manual kap. 07 og LLM-tillæg.
+
 ## [6.7.0 build 0402] — 2026-11-13 — Tilstande som fælles begreb på symboltypen (design B): navn, betydning, flow og udseende
 
 docs/ANALYSE_SYMBOLTILSTANDE.md › anbefaling B, PLAN.md. Jans valg: en tilstand kan have sit eget navn på en tegning, og udseendet kommer fra typen og kan tilsidesættes pr. symbol.

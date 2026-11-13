@@ -228,7 +228,7 @@
   <button onclick={saveAs} disabled={!drawingId}>Gem som …</button>
   <button class="danger" onclick={removeScenario} disabled={scenarioId === ''}>Slet</button>
   <span class="grow"></span>
-  {#if result}<span class="small muted">{nSim} simuleret · beregnet på {result.ms} ms</span>{/if}
+  {#if result}<span class="small muted">{nSim} ændret · beregnet på {result.ms} ms</span>{/if}
   <a class="btn" href={'#overview/' + drawingId}>Overview</a>
 </div>
 {#if error}<p class="msg err">{error}</p>{/if}
@@ -240,21 +240,27 @@
   <div class="drawing" bind:this={container}></div>
 
   <aside class="panel-sim" aria-label="Tegningens variabler">
-    <div class="row">
-      <input type="search" placeholder="Søg variabel eller symbol" bind:value={search} aria-label="Søg" />
-      <label class="opt small"><input type="checkbox" bind:checked={onlySim} /> kun simulerede</label>
+    <!-- v6.8.1 (Jan: "hvad er op og ned … hvad dækker kun simulerede over"): forklaring øverst, filteret hedder det, det gør -->
+    <p class="small muted intro">Alt følger PLC'en (<strong>live</strong>), indtil du ændrer det. Det, du har ændret, står med
+      <span class="chip">lilla</span> baggrund. <strong>Find</strong> markerer, hvor det bruges på tegningen.</p>
+    <input type="search" placeholder="Søg variabel eller symbol" bind:value={search} aria-label="Søg" />
+    <div class="seg" role="radiogroup" aria-label="Vis">
+      <button class:cur={!onlySim} role="radio" aria-checked={!onlySim} onclick={() => (onlySim = false)}>Alle</button>
+      <button class:cur={onlySim} role="radio" aria-checked={onlySim} onclick={() => (onlySim = true)} title="Kun de variabler og positioner, du har ændret (de andre følger PLC'en)">Kun ændrede ({nSim})</button>
     </div>
     {#if vars}
       {#if vars.positions.length}
         <h4>Symbolernes position</h4>
         {#each shownPos as p (p.element)}
           <div class="var" class:on={p.element in sim.positions}>
+            <span></span>
             <span class="nm" title={p.element}>{p.name}</span>
-            <select value={sim.positions[p.element] ?? ''} onchange={(e) => setPos(p.element, e.currentTarget.value)} aria-label="{p.name}: position">
-              <option value="">Live{p.live !== null ? ` (${p.labels[p.live] ?? p.live})` : ''}</option>
+            <select value={sim.positions[p.element] ?? ''} onchange={(e) => setPos(p.element, e.currentTarget.value)} aria-label="{p.name}: position"
+              title="Live = følger PLC'en (efter kolon: positionen lige nu). Vælg en position for at simulere den">
+              <option value="">Live{p.live !== null ? `: ${p.labels[p.live] ?? p.live}` : ''}</option>
               {#each p.labels as l, j (j)}<option value={j}>{l || `Position ${j + 1}`}{p.states?.[j] && p.states[j] !== l ? ` (${p.states[j]})` : ''}</option>{/each}
             </select>
-            <button class="small" onclick={() => highlight([p.element])} title="Vis symbolet på tegningen">Vis</button>
+            <button class="small" onclick={() => highlight([p.element])} title="Markér symbolet på tegningen">Find</button>
           </div>
         {/each}
       {/if}
@@ -267,6 +273,7 @@
           <label class="opt sw" title={on ? 'Simuleret — tryk for at følge PLC\'en igen' : 'Følger PLC\'en — tryk for at simulere'}>
             <input type="checkbox" checked={on} onchange={(e) => setSim(t.name, e.currentTarget.checked, t)} aria-label="{t.name}: simulér" /></label>
           <span class="nm" title={[t.description, `PLC: ${t.plc}`, ...t.used].filter(Boolean).join('\n')}>{t.name}</span>
+          <span class="vals">
           {#if !on}
             <span class="live small muted">live: {liveText(t.live, t.unit)}</span>
           {:else if v === null}
@@ -283,9 +290,9 @@
             {/if}
             {#if t.unit}<span class="small muted">{t.unit}</span>{/if}
           {/if}
-          <span class="grow"></span>
           {#if on && v !== null}<button class="small" onclick={() => setValue(t.name, null)} title="Simulér en kommunikationsfejl på tagget">komm.fejl</button>{/if}
-          <button class="small" onclick={() => highlight(t.elements)} disabled={!t.elements.length} title={t.used.join('\n')}>Vis</button>
+          </span>
+          <button class="small" onclick={() => highlight(t.elements)} disabled={!t.elements.length} title={`Markér på tegningen:\n${t.used.join('\n')}`}>Find</button>
         </div>
       {:else}<p class="small muted">Ingen tags{search || onlySim ? ' passer til søgningen' : ''}.</p>{/each}
 
@@ -296,11 +303,12 @@
           <div class="var" class:on>
             <label class="opt sw"><input type="checkbox" checked={on} onchange={(e) => setSim(a.name, e.currentTarget.checked)} aria-label="{a.tag}: simulér alarm" /></label>
             <span class="nm" title={a.used.join('\n')}>{a.tag} <span class="muted small">({a.kind === 'unack' ? 'ikke kvitteret' : 'aktiv'})</span></span>
+            <span class="vals">
             {#if on}
               <label class="opt small"><input type="checkbox" checked={sim.values[a.name] === true} onchange={(e) => setValue(a.name, e.currentTarget.checked)} /> {sim.values[a.name] ? 'Ja' : 'Nej'}</label>
             {:else}<span class="live small muted">live: {liveText(a.live)}</span>{/if}
-            <span class="grow"></span>
-            <button class="small" onclick={() => highlight(a.elements)} disabled={!a.elements.length}>Vis</button>
+            </span>
+            <button class="small" onclick={() => highlight(a.elements)} disabled={!a.elements.length} title="Markér på tegningen">Find</button>
           </div>
         {/each}
       {/if}
@@ -321,9 +329,18 @@
   .panel-sim { max-height: calc(100vh - 11rem); overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: .5rem .6rem;
     background: var(--panel, #fff); display: flex; flex-direction: column; gap: .25rem; }
   .panel-sim h4 { margin: .6rem 0 .2rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-  .var { display: flex; align-items: center; gap: .35rem; padding: .2rem .3rem; border-radius: 5px; flex-wrap: wrap; }
+  /* v6.8.1: faste kolonner — afkrydsning, navn, værdi, Find — så rækkerne flugter og Find aldrig ryger ned på en ny linje */
+  .var { display: grid; grid-template-columns: 1.2rem minmax(6rem, 9.5rem) minmax(0, 1fr) auto; align-items: center; gap: .35rem;
+    padding: .2rem .3rem; border-radius: 5px; }
   .var.on { background: #f3e5f5; }
-  .var .nm { min-width: 7rem; font-weight: 600; font-size: .88rem; overflow-wrap: anywhere; }
+  .var .nm { font-weight: 600; font-size: .88rem; overflow-wrap: anywhere; }
+  .var select { min-width: 0; width: 100%; }
+  .vals { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; min-width: 0; }
+  .intro { margin: 0 0 .2rem; }
+  .chip { background: #f3e5f5; padding: 0 .3rem; border-radius: 4px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; align-self: flex-start; }
+  .seg button { border: none; border-radius: 0; background: transparent; padding: .2rem .6rem; font-size: .82rem; }
+  .seg button.cur { background: #6a1b9a; color: #fff; }
   .var .n { width: 5.5rem; }
   .var input[type='range'] { width: 7rem; }
   .sw { margin: 0; }
