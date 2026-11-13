@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.9.3 build 0413] — 2026-11-13 — Forældede gemte forbindelser: vises som gledet, og Bind forbindelser retter dem
+
+- `frontend/src/lib/signalpath/graph.ts`:
+  - `linkGap` giver uendelig afstand for et punkt, symbolet ikke har, så forbindelsen vises som gledet.
+  - `pairsToBind` gemmer ikke forældede forbindelser igen og lader geometrien binde den ende.
+- `frontend/svgedit-host/scada-core.js bindLinksNow` gemmer præcis parrene fra `pairsToBind` (de gyldige gemte + de nye).
+- `backend/app/services/flow_calc.py`: pumpebeskeden siger "de gemte forbindelser peger på …" og beder om *Bind forbindelser*.
+- `deploy/audit_drawings.py` finder forældede forbindelser på symbolet og på rørene, der peger på det.
+- Tests: `connectionCheck.test.ts` (2 nye) og `test_flow_calc.py`. Set i browseren på en kopi af Jans demo-tegning: *Bind forbindelser* retter den, og simulatoren viser løbelys.
+- docs/ANALYSE_2026-11-13.md: anden runde. Manual kap. 07.
+
 ## [6.9.2 build 0412] — 2026-11-13 — Systemanalysen: kopierne holdes ens, Tjek forbindelser viser flowets beskeder, kontrolscript efter deploy
 
 docs/ANALYSE_2026-11-13.md (Jan: "jeg synes vi kun finder fejl på fejl nu"): seks rodårsagsklasser, rettelser pr. klasse og en kontrol efter rettelserne.

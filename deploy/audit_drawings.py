@@ -16,8 +16,13 @@ import os
 import re
 import sys
 
+import html
+import json
+from pathlib import Path
+
 import httpx
 
+SHARED = Path(__file__).resolve().parents[1] / "shared" / "flow_defaults.json"
 INTERNAL = ("@", "sym:", "flow:", "flowp:", "flowlvl:", "alarm:", "path:")
 
 
@@ -29,6 +34,9 @@ def main() -> int:
         print(f"Login fejlede: {r.status_code}")
         return 2
     tags = {t["name"] for t in c.get("/api/tags").json()}
+    # typernes punkter: standarderne + serverens egne (Ind/ud og veje) — til kontrollen af forældede forbindelser (v6.9.3)
+    defs = json.loads(SHARED.read_text(encoding="utf-8"))["flow_defaults"]
+    defs.update(c.get("/api/symbol-flow").json() or {})
     problems = 0
     for d in c.get("/api/drawings").json():
         did = d["id"]
@@ -42,6 +50,36 @@ def main() -> int:
         no_element = sorted({b["element"] for b in v["bindings"] if b["element"] not in ids})
         group = dict(collections.Counter(b["anim"] for b in v["bindings"] if b.get("source") == "conn-group"))
         linked = "data-hv-links" in v["svg"]
+        stale = []
+        # (v6.9.3) en gemt forbindelse — på symbolet selv eller på røret, der peger på det — til et punkt, symbolet ikke har
+        pts_of: dict[str, list[tuple[float, float]]] = {}
+        for m in re.finditer(r"<[^>]*\bdata-hv-type=\"([^\"]+)\"[^>]*>", v["svg"]):
+            tag = m.group(0)
+            el_id = re.search(r'\bid="([^"]+)"', tag)
+            fixed = re.search(r'\bdata-hv-ports="([^"]*)"', tag)
+            pts = ([tuple(map(float, x.split(",")[:2])) for x in fixed.group(1).split(";") if x.count(",") >= 1] if fixed else
+                   [(q["x"], q["y"]) for q in (defs.get(m.group(1)) or {}).get("ports", [])])
+            if el_id and pts:
+                pts_of[el_id.group(1)] = pts
+
+        def off(el: str, key: str) -> bool:
+            try:
+                kx, ky = (float(x) for x in key.split(","))
+            except ValueError:
+                return False            # "s", "e", "~", "#n": rørender og andet — ikke et brøkpunkt
+            return el in pts_of and min(abs(kx - x) + abs(ky - y) for x, y in pts_of[el]) > 0.08
+
+        for m in re.finditer(r'<[^>]*\bid="([^"]+)"[^>]*\bdata-hv-links="([^"]*)"|<[^>]*\bdata-hv-links="([^"]*)"[^>]*\bid="([^"]+)"', v["svg"]):
+            own, text = (m.group(1), m.group(2)) if m.group(1) else (m.group(4), m.group(3))
+            for part in html.unescape(text).split(";"):
+                if ">" not in part or ":" not in part:
+                    continue
+                key, rest = part.split(">", 1)
+                to, to_key = rest.rsplit(":", 1)
+                if off(own, key):
+                    stale.append(f"{own}:{key}")
+                if off(to, to_key):
+                    stale.append(f"{own}→{to}:{to_key}")
         flags = []
         if orph:
             flags.append(f"{len(orph)} gamle opsætninger")
@@ -49,6 +87,8 @@ def main() -> int:
             flags.append("standardgruppe uden bundne forbindelser")
         if no_element:
             flags.append(f"bindinger uden element: {', '.join(no_element[:5])}")
+        if stale:
+            flags.append(f"forældede forbindelser (tryk Bind forbindelser i Tegn): {', '.join(stale[:5])}")
         if missing_tags:
             flags.append(f"manglende tags: {', '.join(missing_tags[:5])}")
         flags += [f"flow: {n}" for n in notes]

@@ -203,4 +203,5 @@ def test_a_pump_wired_at_top_and_bottom_gets_a_precise_note():
             sym("rad", "radiator", "0,0.5>r1:e;1,0.5>r2:s"), pipe("r2", "s>rad:1,0.5;e>p:0.5,1"))
     flows, notes, _ = run(s, {"p": PUMP})
     assert flows.get("r1", 0) == 0
-    assert notes == ["Pumpen 'P' er ikke forbundet på IND og UD — rørene sidder ved øverst, nederst; ret dem i Tegn til pumpens IND- og UD-punkt"]
+    assert notes == ["Pumpen 'P' er ikke forbundet på IND og UD — de gemte forbindelser peger på øverst, nederst. Tryk Forbindelser › "
+                     "Bind forbindelser i Tegn og gem; sidder rørene ikke ved IND og UD, så ret dem først"]

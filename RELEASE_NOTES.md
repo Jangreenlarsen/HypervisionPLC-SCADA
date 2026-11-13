@@ -2,6 +2,10 @@
 
 ---
 
+## v6.9.3 — 2026-11-13
+
+- En gemt forbindelse til et punkt, et symbol ikke længere har (fx efter at pumpens punkter blev IND og UD), vises nu som **gledet**, og **Bind forbindelser** retter den. Derefter virker flowet og løbelyset.
+
 ## v6.9.2 — 2026-11-13 — Systemanalyse
 
 - **Tjek forbindelser** i Tegn viser også flowberegningens beskeder, så Tegn og simulatoren siger det samme.

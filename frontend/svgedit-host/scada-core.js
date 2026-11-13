@@ -1413,7 +1413,17 @@ export function createScada(host) {
     const content = canvas().getSvgContent();
     const byId = (id) => content.querySelector(`[id="${CSS.escape(String(id))}"]`);
     const next = new Map();
-    const listOf = (el) => { if (!next.has(el)) next.set(el, parseLinks(el).filter((l) => byId(l.to))); return next.get(el); };
+    // v6.9.3: kun de forbindelser, Tegn-siden har fundet (`pairsToBind`: de gyldige gemte + de nye fra geometrien) — en forældet
+    // forbindelse (til et punkt, symbolet ikke længere har) fjernes, ellers blev den gemt igen og den rigtige aldrig bundet
+    const valid = new Set();
+    for (const p of Array.isArray(pairs) ? pairs : []) {
+      valid.add(`${p?.id}|${p?.key}>${p?.to}|${p?.toKey}`);
+      valid.add(`${p?.to}|${p?.toKey}>${p?.id}|${p?.key}`);
+    }
+    const listOf = (el) => {
+      if (!next.has(el)) next.set(el, parseLinks(el).filter((l) => byId(l.to) && valid.has(`${el.id}|${l.key}>${l.to}|${l.toKey}`)));
+      return next.get(el);
+    };
     for (const el of content.querySelectorAll('[data-hv-links]')) listOf(el);           // (rydder forbindelser til slettede elementer)
     let n = 0;
     for (const p of Array.isArray(pairs) ? pairs : []) {

@@ -5,6 +5,23 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v6.9.3 — **Pumpen var drejet, Tegn sagde ✓, men simulatoren meldte stadig "ikke forbundet på IND og UD", og der var intet løbelys** (Jan 2026-11-13). **Årsag (forældede gemte forbindelser):** rørenes gemte forbindelser (`data-hv-links`) pegede stadig på pumpens gamle punkter `0.5,0`/`0.5,1`. De stammede fra før v6.8.5, hvor pumpen havde fire automatiske punkter. Tegn og flowberegningen læser forskelligt:
+  - Tjekket (`graph.linkGap`) målte en forbindelse til et ukendt punkt som afstanden til symbolets streg. Den talte derfor som forbundet (✓).
+  - **Bind forbindelser** (`pairsToBind`, `bindLinksNow`) beholdt alle gemte forbindelser. Den forældede blev gemt igen, og den rigtige blev aldrig bundet ("den anden ende er allerede bundet").
+
+  **Rettelse (hele klassen):**
+  - en forbindelse til et punkt, symbolet ikke har, tæller som gledet (orange);
+  - *Bind forbindelser* gemmer den ikke igen og binder det rigtige punkt;
+  - `bindLinksNow` gemmer præcis de forbindelser, tjekket har fundet;
+  - flowbeskeden siger "de gemte forbindelser peger på …" og beder om *Bind forbindelser*;
+  - `deploy/audit_drawings.py` finder forældede forbindelser.
+
+  Verificeret på en kopi af Jans tegning:
+  - Før: "3 gledet, 4 ikke bundet" + flowbeskeden.
+  - Efter *Bind* og gem: ✓ og forbindelserne på IND/UD.
+  - Flowet er 100 l/min, og simulatoren viser løbelys på alle 4 forbindelser.
+
+  Tests: `connectionCheck.test.ts`, `test_flow_calc.py`.
 - [fixed] v6.9.1 — **Regression fra v6.8.4: tegninger med "kun visning"-pumper fik løbelys-bindinger på alle rør og falske flow-beskeder** (fundet i analysen 2026-11-13 på demoens *varme*). Tegningen har fire pumper sat op som *kun visning* og ingen bundne forbindelser, men fik 42 standardgruppe-bindinger. Bindingerne kunne ændre rørenes udseende på Overview. Simulatoren viste "Pumpe 2–5 er ikke forbundet". **Årsag:** v6.8.4 regnede enhver pumpe-type uden flow-opsætning som pumpe, også dem, der aldrig kan køre. Standardgruppen krævede kun en pumpe, ikke bundne forbindelser. **Rettelse:** kun en pumpe med positioner (Fra/Til) regnes efter typen (`flow_calc.type_pumps`, `FlowEngine.jobs`, `drawings._compute`). Standardgruppen kræver bundne forbindelser. Tests: `test_default_group_needs_a_pump_that_can_run_and_bound_connections` og `test_flow_calc.py`.
 - [fixed] v6.8.6 — **Meddelelser: advarslen om gamle symbolopsætninger lignede en fejl ved hvert gem** (Jan 2026-11-13: "der er stadig noget som ikke stemmer med meddelelse blok her"). Advarslen var korrekt: på demoen var der 27 opsætninger på elementer fra tidligere versioner. Den stod dog under hvert gem som en lang liste id'er og sagde ikke, hvad man skulle gøre. **Rettelse:** én fast besked pr. tegning (`DrawEditor.svelte`, hentet fra `/symbols-orphaned` ved skift af tegning, efter gem og når guiden lukkes) med forklaringen, **Fjern dem …** (bekræftes; fjerner via det eksisterende DELETE, som audit-logges), **Vis i Bindinger** og **Vis navnene**. Den forsvinder, når der ikke er flere.
 - [fixed] v6.8.5 — **Tegn sagde ✓ for pumpen, men simulatoren sagde "Pumpen mangler en forbindelse på IND eller UD"** (Jan 2026-11-13). **Årsag:** Tegn gav pumpen fire automatiske tilslutningspunkter, så rørene kunne sidde øverst og nederst. Flowberegningen kender kun typens IND (venstre) og UD (højre) fra *Ind/ud og veje*. Samme skævhed gjaldt alle typer, hvis punkter i *Ind/ud og veje* ikke er kantmidterne (fx kontraventilen i 0,67-højde). **Rettelse (hele klassen):** et symbol uden rettede punkter bruger i Tegn typens punkter fra *Ind/ud og veje* (`scada-core.js setTypePorts`, `symbolFlow.typePortMap`, `DrawEditor.svelte`). Beskeden siger nu, hvilket punkt der mangler, og hvor rørene sidder (fx "øverst, nederst"). Tests: `flowRound2.test.ts`, `test_a_pump_wired_at_top_and_bottom_gets_a_precise_note`.

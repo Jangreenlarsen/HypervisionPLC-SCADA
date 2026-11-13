@@ -122,7 +122,8 @@ describe('gemte forbindelser (data-hv-links, v5.3.0)', () => {
   it('binds what the geometry finds, keeps existing links and drops links to elements that are gone', () => {
     const g: Graph = { nodes: [p('a', [0, 0], [100, 0]), v(), p('b', [120, 0], [200, 0], [{ i: 1, to: 'væk', toKey: 's' }])] };
     const pairs = pairsToBind(g);
-    expect(pairs).toContainEqual({ id: 'a', key: 'e', to: 'v', toKey: '0,0.5' });
+    expect(pairs.some((x) => (x.id === 'a' && x.key === 'e' && x.to === 'v' && x.toKey === '0,0.5')
+      || (x.id === 'v' && x.key === '0,0.5' && x.to === 'a' && x.toKey === 'e'))).toBe(true);
     expect(pairs.some((x) => (x.id === 'v' && x.to === 'b') || (x.id === 'b' && x.to === 'v'))).toBe(true);
     expect(pairs.some((x) => x.to === 'væk' || x.id === 'væk')).toBe(false);
     expect(pairs.filter((x) => [x.id, x.to].sort().join() === 'a,v')).toHaveLength(1);       // ét par pr. forbindelse
@@ -152,5 +153,25 @@ describe('gemte forbindelser (data-hv-links, v5.3.0)', () => {
     const a = connectionCheck(bound).find((i) => i.id === 'a')!;
     expect(a.unbound).toBe(0);
     expect(a.status).toBe('open');                                                    // (ventilens anden side og rørets start er frie)
+  });
+});
+
+describe('forældede forbindelser (v6.9.3)', () => {
+  // en pumpe, hvis punkter er ændret (fire automatiske → IND/UD), og et rør, hvis gemte forbindelse peger på det gamle punkt "0.5,0"
+  const pumpNow = (): GNode => ({ id: 'v', name: 'P', type: 'pumpe', pipe: false, terminals: [[100, 0], [120, 0]],
+    lines: [{ part: 'all', a: [100, -10], b: [120, -10] }], refs: [], keys: ['0,0.5', '1,0.5'], links: [{ i: -1, to: 'a', toKey: 'e' }] });
+  const pipeTo = (): GNode => ({ id: 'a', name: '', type: '', pipe: true, terminals: [[0, 0], [100, 0]], lines: [{ part: 'all', a: [0, 0], b: [100, 0] }],
+    refs: [null, null], keys: ['s', 'e'], links: [{ i: 1, to: 'v', toKey: '0.5,0' }] });
+
+  it('a link to a point the symbol no longer has counts as drifted, not as connected', () => {
+    const a = connectionCheck({ nodes: [pumpNow(), pipeTo()] }).find((i) => i.id === 'a')!;
+    expect(a.drift).toEqual([[100, 0]]);                // den forældede ende er gledet (orange); rørets start er bare åben
+  });
+
+  it('Bind forbindelser drops the stale link and binds the real point instead', () => {
+    const pairs = pairsToBind({ nodes: [pumpNow(), pipeTo()] });
+    expect(pairs.some((x) => x.toKey === '0.5,0' || x.key === '0.5,0')).toBe(false);
+    expect(pairs.some((x) => (x.id === 'a' && x.key === 'e' && x.to === 'v' && x.toKey === '0,0.5')
+      || (x.id === 'v' && x.key === '0,0.5' && x.to === 'a' && x.toKey === 'e'))).toBe(true);
   });
 });

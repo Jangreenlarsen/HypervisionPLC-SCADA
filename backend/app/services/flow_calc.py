@@ -344,7 +344,8 @@ def build(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, di
                 missing = " og ".join(n for n, v in (("IND", in_n), ("UD", out_n)) if v is None)
                 stray = [k for k in keys if k not in names]
                 notes.append(f"Pumpen '{e.name or e.id}' er ikke forbundet på {missing}"
-                             + (f" — rørene sidder ved {', '.join(_where(k) for k in stray)}; ret dem i Tegn til pumpens IND- og UD-punkt"
+                             + (f" — de gemte forbindelser peger på {', '.join(_where(k) for k in stray)}. Tryk Forbindelser › "
+                                "Bind forbindelser i Tegn og gem; sidder rørene ikke ved IND og UD, så ret dem først"
                                 if stray else " — tjek forbindelserne i Tegn"))
                 continue
             q = rate * cap * restrict
