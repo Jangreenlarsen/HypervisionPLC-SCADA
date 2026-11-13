@@ -175,3 +175,21 @@ def test_two_pumps_against_each_other_cancel_out():
     s = s.replace(f'{IN}>r2:e', f'{IN}>r3:e')
     flows, _, _ = run(s, {"p": PUMP, "q": PUMP})
     assert abs(flows.get("rad", 0)) < 1 and abs(flows.get("r1", 0)) < 1
+
+
+def test_a_pump_type_without_flow_setup_runs_by_its_position():
+    """v6.8.4 (Jan: ingen løbelys i simulatoren): en pumpe-type uden egen flow-opsætning er en pumpe med typens kapacitet;
+    farten følger positionen (Fra = stop, Til = kører). Uden positioner står den stille; en egen flow-opsætning vinder."""
+    from app.services.flow_calc import pump_running
+    from app.services.flow_defs import merged
+    cap = merged(None)["pumpe"].get("capacity") or 100
+    fra_til = {"op": "positions", "positions": [{"label": "Fra"}, {"label": "Til"}]}
+    assert run(loop(), {"p": fra_til}, positions={"p": 1})[0]["r1"] == cap
+    assert run(loop(), {"p": fra_til}, positions={"p": 0})[0].get("r1", 0) == 0
+    assert run(loop(), {"p": fra_til})[0].get("r1", 0) == 0                     # ukendt position: stille
+    assert run(loop(), {})[0].get("r1", 0) == 0                                 # uden opsætning: stille
+    assert run(loop(), {"p": {**fra_til, **PUMP}}, positions={"p": 0})[0]["r1"] == 100   # egen flow-opsætning vinder
+    # navnene afgør rækkefølgen: "Til" først er også kørende
+    assert pump_running({"op": "positions", "positions": [{"label": "Til"}, {"label": "Fra"}]}, 0) is True
+    assert pump_running({"op": "positions", "positions": [{"label": "Hånd"}, {"label": "Auto"}]}, 1) is True
+    assert pump_running({"op": "view"}, 1) is False

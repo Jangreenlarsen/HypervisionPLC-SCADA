@@ -76,6 +76,7 @@ Serveren **beregner selv flowet** gennem tegningens forbundne symboler og rør �
 - **de gemte forbindelser** i tegningen. Slå *Tjek forbindelser* til i menuen **Forbindelser** øverst, tryk **Bind forbindelser**, og gem tegningen. Uden gemte forbindelser er der intet flow, og Flow-vinduet siger det;
 - **symbolernes flow-opsætning** i symbol-guidens trin 4 under *Flow* (kapitel 10): hvilke symboler der er **pumper** (kapacitet i l/min og flow-rate 0,00–1,00 fra et tag), hvilken **restriktion** et symbol har (et tal fra 0,00 = blokeret til 1,00 = ingen restriktion), og for en ventil med positioner **hvilke veje der er åbne** i hver position (fx *AB → A* i position A);
 - symboltypens **flow-rolle** (*Opsætning › Symboler › Ind/ud og veje*), når et symbol ikke har sin egen opsætning;
+- **en pumpe uden egen flow-opsætning** er alligevel en pumpe med typens kapacitet. Dens fart følger **positionen**: *Fra* = stop, *Til* = kører; uden navne er første position stop. En pumpe uden positioner og uden flow-opsætning står stille. Vil du styre farten fra et tag, sætter du *Flow* op i guidens trin 4; den opsætning vinder;
 - symboltypens **Ind/ud og veje** (nedenfor): en pumpe og en kontraventil giver kun flow fra IND til UD, en 3-vejsventil giver flow begge veje på AB ↔ A og AB ↔ B.
 
 **Sådan regnes der:**

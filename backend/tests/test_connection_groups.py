@@ -37,7 +37,8 @@ def test_all_connections_start_in_the_default_group_with_a_running_light(api):
     lst = api.get(url(api)).json()
     assert lst["default"]["members"] == ["r1", "r2"] and lst["default"]["anims"] == [{"type": "flow"}] and lst["groups"] == []
     view = api.get(f"/api/drawings/{d}/view").json()
-    assert not [b for b in view["bindings"] if b["source"] == "conn-group"]           # ingen pumpe: intet
+    # v6.8.4: pumpe-typen uden flow-opsætning er også en pumpe (flow_calc.type_pumps) — løbelyset er der fra start
+    assert {b["element"] for b in view["bindings"] if b["source"] == "conn-group"} == {"r1", "r2"}
     api.put(f"/api/drawings/{d}/symbols/p/config", json={"config": PUMP})
     view = api.get(f"/api/drawings/{d}/view").json()
     cg = [b for b in view["bindings"] if b["source"] == "conn-group"]
