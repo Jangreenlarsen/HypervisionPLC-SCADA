@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
-from tests.test_symbols import ADMIN_PW, SVG, TAGS, dec_bin
+from tests.test_symbols import ADMIN_PW, SVG, TAGS, dec_bin, errors, put
 
 V1 = "V1"
 

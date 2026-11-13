@@ -67,6 +67,7 @@ def test_old_throttle_and_disabled_plc_are_ignored():
     ({"host": {"throttled": {"now": ["undervoltage"], "past": []}}}, "error"),
     ({"host": {"throttled": {"now": [], "past": ["undervoltage"]}}}, "warn"),
     ({"host": {"cpu_temp_c": 0.0}}, "ok"),     # 0 er en gyldig temperatur (is not None)
+    ({"host": {"time_sync": False}}, "warn"), ({"host": {"time_sync": True}}, "ok"), ({"host": {"time_sync": None}}, "ok"),   # NTP (v5.7.0)
     ({"backup": {"interval_h": 24, "last_age_s": 40 * 3600}}, "warn"),
     ({"backup": {"interval_h": 24, "last_age_s": None}}, "warn"),
     ({"backup": {"interval_h": 0, "last_age_s": None}}, "ok"),   # automatisk backup slået fra
@@ -184,3 +185,29 @@ def test_read_tls_parses_openssl_dates_and_computes_days_from_now(tmp_path):
 def test_details_includes_tls_only_when_metadata_exists(api):
     r = api.get("/api/health/details").json()
     assert "tls" in r        # nøglen findes altid (None uden cert.json)
+
+
+@pytest.mark.parametrize("out,want", [("yes", True), ("no", False), ("", None), ("noget andet", None)])
+def test_read_time_sync_translates_timedatectl_and_caches(monkeypatch, out, want):
+    import subprocess
+
+    from app.services import health
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, stdout=out, stderr="")
+    monkeypatch.setattr(health.subprocess, "run", fake_run)
+    monkeypatch.setattr(health, "_time_cache", (0.0, None))
+    assert health.read_time_sync() is want
+    assert health.read_time_sync() is want and len(calls) == 1          # huskes, så Status ikke starter en proces hver gang
+
+
+def test_read_time_sync_is_none_without_timedatectl(monkeypatch):
+    from app.services import health
+
+    def missing(*a, **k):
+        raise FileNotFoundError("timedatectl")
+    monkeypatch.setattr(health.subprocess, "run", missing)
+    monkeypatch.setattr(health, "_time_cache", (0.0, None))
+    assert health.read_time_sync() is None

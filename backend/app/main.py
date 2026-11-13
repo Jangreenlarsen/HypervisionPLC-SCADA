@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import socket
+import time
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
@@ -33,12 +34,11 @@ from .api.drawings import router as drawings_router
 from .api.live_ws import router as live_router
 from .api.operate import router as operate_router
 from .api.symbol_groups import router as symbol_groups_router
-from .api.signal_paths import router as signal_paths_router
-from .services.signal_paths import SignalPathService
 from .services.assist_setup import SignalHelper, TagDescriber
-from .services.assist_signal import SignalSuggester
 from .services.llm_catalog import LlmCatalog
 from .api.symbol_flow import router as symbol_flow_router
+from .api.connection_groups import router as connection_groups_router
+from .services.connection_groups import ConnectionGroupService
 from .api.symbol_ports import router as symbol_ports_router
 from .api.library import router as library_router
 from .api.symbols import report_router as symbol_migration_router
@@ -73,7 +73,7 @@ from .services.symbol_flow import SymbolFlowService
 from .services.symbol_ports import SymbolPortService
 from .services.library import LibraryService
 from .services.symbols import SymbolService
-from .services.migrations import v51_symbols
+from .services.migrations import remove_paths, v51_symbols
 from .services.symbol_runtime import SymbolRuntime
 from .services.symbol_operate import SymbolOperateService
 from .services.schedules import ScheduleService
@@ -144,9 +144,9 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.drawing_service = DrawingService(db, drawing_files, manager.cache)
         app.state.symbol_service = SymbolService(db, app.state.drawing_service)
         app.state.symbol_group_service = SymbolGroupService(db, app.state.symbol_service)
-        app.state.signal_path_service = SignalPathService(db, app.state.symbol_service)   # signalveje i Tegn (v4.2.0)
         app.state.symbol_port_service = SymbolPortService(db)
         app.state.symbol_flow_service = SymbolFlowService(db)   # ind/ud og veje på symboler (v4.13.0)
+        app.state.connection_group_service = ConnectionGroupService(db, app.state.drawing_service)   # forbindelsesgrupper (v6.1.0)
         app.state.library_service = LibraryService(db, app.state.drawing_service, app.state.symbol_service)
         # Tags kun deaktiverede tegninger bruger pollas ikke (v1.6.0)
         manager.suspended_tags = lambda: suspended_tags(db, app.state.drawing_service, app.state.symbol_service)
@@ -178,6 +178,14 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
                     "converted": len(rep["converted"]), "manual": len(rep["manual"]), "removed_bindings": rep["removed_bindings"]})
         except Exception:
             log.exception("Opgradering v5.1.0 (symboler) fejlede — prøves igen ved næste opstart")
+        # Signalvejene er fjernet (v6.0.0-b0395): gemte veje og deres symbol-opsætning slettes (én gang; backup først)
+        try:
+            rep = remove_paths.migrate(db, app.state.backup_service)
+            if rep:
+                app.state.audit_service.record(remove_paths.ACTOR, "", "signal_path.removed", "", {
+                    "paths": rep["paths"], "setups": rep["setups"], "readers": len(rep["readers"])})
+        except Exception:
+            log.exception("Fjernelse af signalvejene fejlede — prøves igen ved næste opstart")
         app.state.symbol_runtime = SymbolRuntime(db, manager.cache, app.state.drawing_service,
                                                  tick_s=settings.symbol_tick_s)
         app.state.symbol_runtime.reload()
@@ -217,7 +225,6 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         # Hjælperens model varmes op, når LLM-tjenesten er klar, så det første spørgsmål ikke venter på disken (v4.10.0)
         warm_task = (asyncio.create_task(app.state.assistant.keep_warm(), name="assist-warm")
                      if settings.start_runtimes else None)
-        app.state.signal_suggester = SignalSuggester(app.state.assistant, app.state.signal_path_service)   # v4.3.0
         # Fase 3 (v4.10.0): beskrivelser til nye tags og forslag til symbolguidens signaler
         app.state.tag_describer = TagDescriber(app.state.assistant)
         app.state.signal_helper = SignalHelper(app.state.assistant, db, app.state.symbol_service.drawings,
@@ -315,9 +322,9 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(symbols_router)
     app.include_router(symbol_migration_router)
     app.include_router(symbol_groups_router)
-    app.include_router(signal_paths_router)
     app.include_router(symbol_ports_router)
     app.include_router(symbol_flow_router)
+    app.include_router(connection_groups_router)
     app.include_router(library_router)
     app.include_router(live_router)
     app.include_router(operate_router)

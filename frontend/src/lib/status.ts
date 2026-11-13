@@ -16,11 +16,14 @@ export interface Health {
   db: { ok: boolean; latency_s: number | null; error?: string };
   disk: { total: number; used: number; free: number } | null;
   host: { mem_total: number | null; mem_available: number | null; load: number[] | null; cpu_temp_c: number | null;
-          throttled: { now: string[]; past: string[] } | null };
+          throttled: { now: string[]; past: string[] } | null; time_sync?: boolean | null };
   trends: { db_bytes: number | null; rows: number; flushes: number; rows_per_day: number | null };
   backup: { interval_h: number; count: number; last_age_s: number | null };
   tls: Tls | null;
   assist?: { asks?: number; requests: number; errors: number; busy: number; waiting: number; last_ms: number } | null;
+  /** Flowberegningen (v6.1.0): kørsler, sidste beregningstid, fejl, tegninger uden gemte forbindelser, beskeder pr. tegning */
+  flow?: { runs: number; last_ms: number; errors: number; drawings: number; unbound: string[]; flowing: number;
+    notes: Record<string, string[]> } | null;
 }
 export interface Tls { issuer: string; subject: string; self_signed: boolean; fingerprint: string; not_after_ts: number; days_left: number }
 

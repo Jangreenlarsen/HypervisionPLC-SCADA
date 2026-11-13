@@ -66,6 +66,14 @@ async def restore(request: Request, user: CurrentUser = Depends(require("admin")
         log.exception("Opgradering v5.1.0 efter gendannelse fejlede")
         request.app.state.symbol_service.db.set_meta(v51_symbols.DONE_KEY, None)
         result = {**result, "symbol_migration": {"error": str(exc)[:200]}}
+    try:     # signalvejene er fjernet (v6.0.0-b0395): symboler i backuppen, der læste en vejs eller et symbols signal, står i rapporten
+        from ..services.migrations import remove_paths
+        rep = await asyncio.to_thread(remove_paths.migrate, request.app.state.symbol_service.db, None, True)
+        if rep:
+            result = {**result, "signal_path_removal": {"setups": rep["setups"], "readers": len(rep["readers"])}}
+    except Exception as exc:     # gendannelsen ER gennemført: fejlen vises
+        log.exception("Oprydning efter signalvejene ved gendannelse fejlede")
+        result = {**result, "signal_path_removal": {"error": str(exc)[:200]}}
     audit(request, "backup.restore", "", result)
     return result
 

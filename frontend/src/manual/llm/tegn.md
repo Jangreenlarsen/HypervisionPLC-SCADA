@@ -26,77 +26,37 @@ I Tegn: vælg værktøjet **Forbindelse** (tast **O**). Klik på det første sym
 <!-- kilde: 08-forbindelser#m-tilslutningspunkter-og-retning sha:9a691cf8 -->
 Slå **Fang rør lige** til (standard). Træk symbolet: når tilslutningspunktet næsten flugter med røret, vises en blå stiplet linje; slip, så fanges symbolet, og røret står snorlige. Rørene vises i deres nye forløb, mens du trækker.
 
-## Hvordan sætter jeg løbelys på mange rør på én gang (flow fra kedel til radiator, signalvej)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
-Brug en **signalvej**: i Tegn, panelet **Signalveje**, tryk **Ny signalvej …**, **Vælg på tegningen**, klik på start- og slutsymbolet. Vejen vises i tegningen med det samme. Tryk **Brug denne vej →**, vælg for hver ventil og pumpe hvornår der går flow, giv vejen et navn og tryk **Gem signalvej**.
-
-## Ændrer en signalvej symbolernes opsætning (logikblokke, animationer)? Kan et rør høre til flere signalveje?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
-Nej (siden v5.0.0). En signalvej gemmes som sit eget objekt, og serveren regner selv, hvornår hver gren er aktiv. Symbolernes egen opsætning røres ikke, så Ret og Slet påvirker kun vejen. Et rør kan godt høre til flere signalveje; har en del flere animationer af samme slags, vinder den aktive.
-
 ## Hvorfor kan jeg ikke lave en simpel binding på et symbol? Hvor er "Konvertér alle" og "Foreslå ud fra symbolet"?
 <!-- kilde: 10-symboler-og-guiden#m3-flere-animationer-paa-samme-del-aktiv-passiv-og-standard sha:854bbabd -->
 Siden v5.1.0 er der kun én måde at sætte et symbol op på: guiden (Bindinger › Opsæt symbol). Simple bindinger på et symbol og dets dele kan ikke laves — kun *Gå til tegning* på selve symbolet. Den gamle model (og dermed "Konvertér alle" og "Foreslå ud fra symbolet") er fjernet; ved opgraderingen blev symbolerne konverteret, og dem, der ikke kunne konverteres, står i Tegn › Meddelelser.
 
-## Hvordan deler jeg en signalvej i flere grene (T-kryds, flere radiatorer, flere slutpunkter)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
-I signalvej-guiden: vælg start og første slutpunkt, tryk **+ Slutpunkt** (højst 4) og klik på det næste slutsymbol, eller vælg i listen *Flere slutpunkter*. Hver gren får sin egen farve i tegningen. Inden for en gren skal alle betingelser være opfyldt; et fælles stykke lyser, når mindst én gren er aktiv.
-
-## Hvordan vælger jeg, hvilken vej signalet tager gennem en 3-vejsventil (AB → A eller AB → B)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
-I signalvej-guidens trin 2 står der en rullemenu ved hver 3-vejsventil på vejen: *automatisk*, *AB → A* eller *AB → B*. Vælger du en vej, beregnes signalvejen forfra med det samme, og tegningen viser den nye vej. I trin 3 får ventilen ét spørgsmål pr. vej (typisk dens position).
-
-## Hvordan bestemmer pumpen retningen på en signalvej (ind og ud, flowretning)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
-Sidder en pumpe eller kontraventil på signalvejen, løber flowet fra dens udgang mod resten, uanset hvilket symbol du valgte som start (guiden skriver "Vejen er vendt, så flowet følger …"). Ind/ud-punkterne på symbolerne kan rettes under **Opsætning › Symboler › Ind/ud og veje**.
-
 ## Hvordan definerer jeg ind, ud, fælles port og veje på et symbol (3-vejs, 4-vejs ventil)?
 <!-- kilde: 08-forbindelser#m-tilslutningspunkter-siden-symboler sha:74cfc3e7 -->
-Opsætning › Symboler › fanen **Ind/ud og veje**: vælg symbolet, giv punkterne navn og rolle (Ind, Ud, Begge), markér det **fælles** punkt (AB) og ret evt. **vejene** (AB → A, AB → B; en 4-vejsventil fx P → A, P → B). Klik tilføjer et punkt, træk flytter det. Det bruges kun af signalveje.
+Opsætning › Symboler › fanen **Ind/ud og veje**: vælg symbolet, giv punkterne navn og rolle (Ind, Ud, Begge), markér det **fælles** punkt (AB) og ret evt. **vejene** (AB → A, AB → B; en 4-vejsventil fx P → A, P → B). Klik tilføjer et punkt, træk flytter det.
 
-## Hvor finder jeg alle symboler på tegningen samlet (symbol-oversigt, træ, grupper, signalveje)?
-<!-- kilde: 07-tegn#m-symbol-oversigt-alle-symboler-t-sted sha:61803b59 -->
-Panelet **Symbol-oversigt** i Tegn viser alle symboler som et træ: grundsymboler, signalveje og grupper på niveau 1; en vejs elementer og en gruppes medlemmer på niveau 2. Klik på navnet vælger det på tegningen; **Opsæt** åbner symbol-guiden (6 trin), **Animationer** gruppens animationer. ✓ = har en opsætning; søg eller vis kun dem, der ikke er opsat.
-
-## Hvordan retter jeg en signalvej som et symbol (egne animationer, flere elementer, signalvejen som kilde)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
-Tryk **Ret som symbol** ved den gemte signalvej (Tegn › Signalveje). Vejen åbner i symbol-guiden med alle vejens elementer som dele; i trin 4 lægger du egne animationer på en vilkårlig del. De overskrives aldrig, når vejen gemmes igen. En signalvej kan kun vises, ikke betjenes. I andre symbolers animationer og logik kan du vælge *en signalvej* som kilde.
-
-## Hvordan vælger jeg, hvilke animationer en signalvej skal give (farve, blink, løbelys, roterer)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
-I signalvej-guidens trin 4 (**Udseende**) står der et kort for hver slags element på vejen. Sæt hak ved **Løbelys** (rør), **Farve**, **Stregfarve**, **Blink**, **Vises kun når vejen er aktiv** eller **Roterer** (pumper), og vælg farve og del. På en 3-vejsventil gælder animationen som standard kun portene i den vej, signalvejen bruger.
-
-## Hvordan ændrer jeg en signalvej ved at klikke i tegningen (gå via, skift 3-vejsventil)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
-Mens trin 2 i signalvej-guiden er åbent, klik på et rør eller symbol uden for vejen for at lade vejen gå via det (klik igen fjerner det). Klik på en 3-vejsventil på vejen for at skifte dens vej (automatisk, AB → A, AB → B). *Færdig* eller Esc slår klik-tilstanden fra. Via kan også vælges i trin 1 (*Gå via*).
+## Hvor finder jeg alle symboler på tegningen samlet (symbol-oversigt, træ, grupper)?
+<!-- kilde: 07-tegn#m-symbol-oversigt-alle-symboler-t-sted sha:a6ff1f22 -->
+Panelet **Symbol-oversigt** i Tegn viser alle symboler som et træ: grundsymboler og grupper på niveau 1; en gruppes medlemmer på niveau 2. Klik på navnet vælger det på tegningen; **Opsæt** åbner symbol-guiden (6 trin), **Animationer** gruppens animationer. ✓ = har en opsætning; søg eller vis kun dem, der ikke er opsat.
 
 ## Hvad er "Bind forbindelser", og hvorfor er en forbindelse orange?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:689a6f90 -->
-**Bind forbindelser** (ved Tjek forbindelser) gemmer, hvad der hænger sammen, i tegningen — så gælder de gemte forbindelser for signalveje og tjekket i stedet for afstanden. **Orange** betyder, at en gemt forbindelse er gledet fra hinanden: **Ret** flytter rør-enden tilbage, og et klik på den orange prik fjerner forbindelsen. Husk at gemme tegningen.
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:c3a58300 -->
+**Bind forbindelser** (ved Tjek forbindelser) gemmer, hvad der hænger sammen, i tegningen — så gælder de gemte forbindelser for tjekket i stedet for afstanden. **Orange** betyder, at en gemt forbindelse er gledet fra hinanden: **Ret** flytter rør-enden tilbage, og et klik på den orange prik fjerner forbindelsen. Husk at gemme tegningen.
 
 ## Hvordan undgår jeg fejl for tilslutningspunkter eller symboler, der ikke er i brug, i Tjek forbindelser?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:689a6f90 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:c3a58300 -->
 Med **Tjek forbindelser** slået til: klik på den røde prik for at markere punktet som **ikke i brug** (grå stiplet ring), eller Skift+klik / **Udelad valgte fra tjekket** for at udelade et helt symbol (grå ramme med ⊘). Markeringerne gemmes med tegningen ved Gem kladde / Gem og udgiv og kan fortrydes.
 
 ## Hvordan retter jeg brudte forbindelser automatisk (rør, der ligger tæt på hinanden)?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:689a6f90 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:c3a58300 -->
 Slå **Tjek forbindelser** til og tryk **Ret N forbindelser**. Rør-ender, der ligger klods op ad en anden ende eller et tilslutningspunkt (højst 25 enheder), flyttes, så de sidder sammen. Symboler flyttes aldrig, og det kan fortrydes med Ctrl+Z.
 
 ## Hvordan tjekker jeg, om alle symboler og rør hænger sammen i tegningen?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:689a6f90 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:c3a58300 -->
 Slå **Tjek forbindelser** til i menuen **Vis** øverst i Tegn. Symboler og rør, hvis tilslutningspunkter alle sidder fast, bliver grønne; dem med åbne ender bliver røde med røde prikker ved enderne (stiplet kant = intet er forbundet). Det er kun en visning.
 
-## Hvordan kan jeg se, hvad symboler, forbindelser og signalveje hedder i tegningen?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:689a6f90 -->
-Åbn menuen **Vis** øverst i Tegn og sæt hak under **Navne i tegningen** (symboler, forbindelser og/eller signalveje). Navnene står som mærkater oven på tegningen (kun i Tegn, de gemmes ikke).
-
-## Hvordan vender jeg flowets retning i en signalvej?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
-Tryk **⇄ Vend flowet** under grenen i signalvej-guidens trin 2. Løbelyset vender med det samme, og valget gemmes med signalvejen. Ellers følger retningen pumpen eller kontraventilen på vejen.
-
-## Hvorfor finder signalvejen ikke en vej (ingen sammenhængende vej, tynde streger)?
-<!-- kilde: 08-forbindelser#m-signalveje-loebelys-paa-en-hel-roervej-paa-n-gang sha:ea6594c3 -->
-Tjek at rørene sidder fast i symbolerne (grønne ender), at de rører hinanden, hvor de mødes, og at de er tykke nok: tynde streger (under 5 bred) og stiplede streger regnes som føler- og signallinjer og er ikke rør. Med en 3-vejsventil: prøv *automatisk* eller en anden vej.
+## Hvordan kan jeg se, hvad symboler og forbindelser hedder i tegningen?
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:c3a58300 -->
+Åbn menuen **Vis** øverst i Tegn og sæt hak under **Navne i tegningen** (symboler og/eller forbindelser). Navnene står som mærkater oven på tegningen (kun i Tegn, de gemmes ikke).
 
 ## Hvordan laver jeg en betingelse med flere tags (pumpe kører OG ventil åben, AND, OR)?
 <!-- kilde: 10-symboler-og-guiden#m3-logikblokke-betingelser-paa-flere-tags sha:4f18a3d4 -->
@@ -117,3 +77,19 @@ Sæt symbolet op med guiden og vælg betjeningsformen **Trykknap (puls)** i trin
 ## Hvordan grupperer jeg flere elementer, eller opløser en gruppe?
 <!-- kilde: 07-tegn#m-taster sha:ebdc04b0 -->
 Vælg elementerne (Shift+klik eller træk en ramme) og tryk **Ctrl+G** eller **Gruppér** i knaplinjen over det markerede. **Ctrl+Shift+G** eller **Opløs** deler gruppen igen. Grupper af symboler, der bruges igen og igen, gemmes under *Grupper af symboler*.
+
+## Hvordan viser jeg flow (løbelys) i rørene automatisk, uden at sætte hvert rør op (flowberegning, pumpe kører)?
+<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:eb6805a3 -->
+Serveren beregner selv flowet gennem de forbundne symboler. Bind forbindelserne (Vis › Tjek forbindelser › **Bind forbindelser**, og gem), sæt pumpen op i symbol-guidens trin 4 under **Flow** (Pumpe, kapacitet i l/min, flow-rate fra et tag), og alle rør i løkken får løbelys på Overview med retning og fart efter flowet (standardgruppen *Alle forbindelser*).
+
+## Hvordan får nogle rør en anden farve eller blink efter flowet (forbindelsesgruppe)?
+<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:eb6805a3 -->
+Tryk **Flow** i værktøjslinjen i Tegn. Vælg rørene på tegningen, giv gruppen et navn og tryk **Opret af valgte**. Under **Animationer** vælger du løbelys, farve efter flow (grænser i l/min), blink ved et flow (mindst/højst) eller en fast farve. En forbindelse hører til én gruppe ad gangen.
+
+## Hvordan bestemmer en 3-vejsventil, hvilken vej flowet går (AB → A, AB → B, register 10/20)?
+<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:4b5e6993 -->
+Giv ventilen positioner (fx *AB → A* og *AB → B*), og lad tagget bestemme positionen i trin 3 (fx register 10 = AB → A, 20 = AB → B, eller to til/fra-signaler). I trin 4 under **Flow** sætter du hak ved den åbne vej i hver position. Flowberegningen sender så flowet den vej, og animationerne pr. position (fx portene AB og A grønne, B sort) sættes som altid i trin 4.
+
+## Hvorfor er der intet flow i rørene (pumpe kører ikke, ingen vej, ikke bundet)?
+<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:eb6805a3 -->
+Tjek at tegningens forbindelser er bundet og gemt (Flow-vinduet siger det, hvis de ikke er), at pumpen har **Pumpe** slået til med kapacitet over 0 og en flow-rate over 0, at der er en åben vej rundt fra pumpens UD tilbage til dens IND (ventilernes åbne veje i deres position, kontraventilens retning, restriktion over 0). Beskeder fra beregningen står øverst i Flow-vinduet; kortet *Flowberegning* på Status viser fejl.

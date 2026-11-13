@@ -4,7 +4,7 @@ import time
 
 from app.services.assist_setup import UNITS, validate_signals, validate_tags
 from app.services.assist_tools import AssistTools, dur
-from tests.test_signal_paths import _events, _llm, api  # noqa: F401 — fixture
+from tests.drawing_api import _events, _llm, api  # noqa: F401 — fixture
 
 ITEMS = [{"name": "T_FREMLOEB", "datatype": "REAL", "origin": "Logic1"}, {"name": "P1_KOERER", "datatype": "BOOL"}]
 

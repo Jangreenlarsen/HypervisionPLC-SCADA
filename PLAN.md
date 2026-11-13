@@ -1,3 +1,263 @@
+# Plan: Flow-model for VVS-symboler — systemet beregner selv flowet gennem anlægget — 2026-11-12 — udført i v6.1.0 (alle faser på én gang, Jan 2026-11-13)
+
+Jans ønske (2026-11-12):
+
+- Alle VVS-symboler skal have en **definition af, hvordan flow løber gennem dem**:
+  - en 3-vejsventil har flow begge veje AB ↔ A og AB ↔ B, men pumper ikke;
+  - en pumpe har flow ind → ud og pumper i den retning;
+  - en kontraventil har kun flow ind → ud og pumper ikke.
+- **"Ved at bruge de symboler, som er forbundet med forbindelse-metoden, kan systemet selv beregne en vej i systemet."** Der skal ikke tegnes eller defineres veje i hånden.
+
+## Parametre pr. symbol (Jans liste)
+
+| Parameter | Værdi | Type |
+|---|---|---|
+| Flowretning pr. vej mellem punkterne | `AB → A`, `AB ↔ A` … | definition pr. symboltype |
+| Pumpe-mode | kan pumpe / kan ikke pumpe | definition pr. symboltype |
+| Pumpe flow-rate | 0 = stop … 1 = fuld rate | **variabel** (styres live) |
+| Pumpe-kapacitet | l/min, 0 = stop … 65535 (16-bit) | værdi |
+| Flow-restriktion | 0 = fuld blokering … 1 = ingen restriktion | **variabel** (styres live) |
+
+## Præcisering fra Jan (2026-11-12, samme aften)
+
+- På et symbol defineres kun **tilstande** og de **animationer, der er aktive i hver tilstand**. Eksempler:
+  - en pumpe: *stop*, *start*, og hvad forskellig flow-rate betyder (fx hastigheden på løbelyset);
+  - en 3-vejsventil i *AB → A*: portene AB og A er grønne, B er sort;
+  - en tank: væskens farve efter temperaturen.
+- **Tags styrer tilstanden.** Eksempel: en 3-vejs motorventil har to bit-signaler ind, eller ét heltal, hvor værdien bestemmer porten (10 = AB → A, 20 = AB → B).
+
+**Det findes i symbol-guiden i dag:**
+
+| Jans begreb | I guiden |
+|---|---|
+| tilstande | *Positioner* |
+| tags bestemmer tilstanden (ingen betjening) | *Kun passiv visning*: tilbagemelding + *kontaktfladen* (værdi → position), eller *et tag, hvis værdi vælger positionen* med "fra-værdier" (10, 20) |
+| animationer pr. tilstand | trin 4: *gælder i positionerne*, eller kilden *position* med én værdi pr. position (farve pr. port) |
+| tankens farve efter temperatur | *Farve* styret af et tal-tag med grænser |
+| pumpens flow-rate | *Løbelys*/*Roterer* med hastighed fra et tal-tag |
+
+**Det, der (sandsynligvis) mangler:**
+
+1. at tilstandene og deres animationer kan **defineres én gang pr. symboltype** (fx alle 3-vejsventiler) og genbruges, så man ved et nyt symbol kun vælger tags;
+2. **flow-betydningen** af en tilstand (hvilke veje er åbne i *AB → A*, pumper/pumper ikke, restriktion), så systemet selv kan beregne flowet gennem de forbundne symboler (punkt 3 i forslaget nedenfor).
+
+## Det, der findes i forvejen og bygges videre på
+
+- **Ind/ud og veje** (`symbol_flow`: punkter med navn, rolle, fælles punkt, veje pr. symboltype) — beholdt ved oprydningen.
+- **Forbindelses-grafen** (`connectionGraph`, Bind forbindelser: gemte forbindelser i tegningen) — beholdt.
+
+## Forslag til opbygning (3 lag)
+
+1. **Typedefinition (Symboler › Ind/ud og veje, udvidet):**
+   - hver vej får en retning (`→` eller `↔`);
+   - symboltypen får *pumpe ja/nej*, standard-kapacitet (l/min) og standard for restriktion.
+   - Gemmes som i dag pr. symboltype og følger med i backup.
+2. **Instans (symbolet i tegningen, symbol-guiden):**
+   - flow-rate og restriktion bindes til et tag (eller en fast værdi), fx pumpens hastighed 0–1 eller ventilens åbning 0–1;
+   - kapacitet kan overskrives pr. symbol.
+3. **Beregning (backend, live):**
+   - ud fra tegningens gemte forbindelser og typedefinitionerne beregner serveren, hvilke rør der har flow, i hvilken retning og med hvilken styrke (fra hver pumpe: rate × kapacitet, begrænset af restriktionerne på vejen; en blokeret ventil eller en kontraventil mod strømmen stopper flowet);
+   - resultatet bliver live-værdier pr. rør/del, og Overview viser løbelys automatisk (retning og hastighed). Alle andre animationer kan bruge dem som kilde.
+
+## Beslutninger (Jan 2026-11-12)
+
+- Tilstande og animationer defineres **pr. symbol** i symbol-guiden, som i dag (positioner, kontaktflade, animationer pr. position).
+- Systemet beregner flowet **inklusive mængde** (l/min). Mængden bruges direkte til **løbelysets hastighed i forbindelserne**.
+
+## Valg af beregningsmodel for mængden
+
+| Model | Sådan virker den | For | Imod |
+|---|---|---|---|
+| **A. Fordeling efter restriktion** (anbefalet) | Hver pumpe giver rate × kapacitet. Flowet følger de åbne veje, og ved en forgrening deles det i forhold til grenenes restriktion (0–1); en restriktion i serie begrænser grenen. | enkel, forudsigelig, billig på Pi'en, let at forklare i manualen | ikke fysisk korrekt (intet tryk) |
+| B. Hydraulisk netværk | Tryk og modstand pr. rør/ventil, pumpekurve, iterativ løsning | fysisk tættere på | kræver data, vi ikke har (rørdimensioner, kurver); tung; svær at fejlsøge |
+
+**Valg: A.** Model B kan komme senere, hvis der bliver brug for den.
+
+## Faser
+
+1. **Flow pr. symbol (symbol-guiden):** en sektion *Flow* i trin 4 med:
+   - *pumper ja/nej* (standard fra typens Ind/ud og veje);
+   - kapacitet i l/min (0–65535);
+   - flow-rate (tag eller fast værdi, 0–1);
+   - restriktion (tag eller fast værdi, 0–1);
+   - for ventiler: **hvilke veje er åbne i hver position** (fx position *AB → A* åbner AB–A), hvor vejene og retningen (→/↔) kommer fra symboltypens *Ind/ud og veje*.
+
+   Gemmes i symbolets opsætning, valideres i backend og følger med i backup.
+2. **Beregningen (backend):**
+   - flow-grafen bygges af tegningens gemte forbindelser (*Bind forbindelser*, `data-hv-links`), som backend selv læser af SVG'en;
+   - flowet beregnes i symbol-runtimens takt og publiceres som live-værdier pr. rør/symbol (`flow:<tegning>:<element>`, l/min med fortegn for retningen);
+   - en tegning uden gemte forbindelser får en meddelelse i stedet for et gæt;
+   - der bliver en tæller og et statusfelt (beregningstid, antal rør med flow).
+3. **Visning: forbindelsesgrupper** (Jan 2026-11-13):
+   - Alle forbindelser (rør, bøjninger, T-stykker …), som systemet registrerer, hører fra start til én **standardgruppe** *Alle forbindelser* med **løbelys** gennem hele beregningen: retningen fra flowets fortegn og hastigheden fra mængden (skaleret til tegningens største pumpe).
+   - I Tegn kan man **vælge forbindelser på tegningen og oprette en ny gruppe**. En forbindelse hører til én gruppe ad gangen; flyttes den, forlader den standardgruppen.
+   - Hver gruppe har sine **animationer, styret af flow-rate**:
+     - løbelys (standard);
+     - farve efter flow (fx grå ved 0 og blå over en grænse);
+     - blink (fx ved flow under en grænse);
+     - en fast farve;
+     - ingen.
+   - Grupperne gemmes pr. tegning (navn, medlemmer, animationer), valideres i backend, følger med i backup og vises i Symbol-oversigten under *Forbindelsesgrupper*.
+   - Flowet kan også vælges som kilde i almindelige symbol-animationer.
+4. Manual, skærmbilleder, LLM-tillæg og tests. Hver fase er sin egen MINOR-version (6.1.0, 6.2.0 og 6.3.0).
+
+## Risici
+
+- Beregningen skal køre ofte (live) på en Raspberry Pi. Topologi-beregningen er billig; mængder kræver iteration.
+- Tegninger uden **Bind forbindelser** giver usikre veje. Beregningen bør kræve gemte forbindelser eller bruge samme regler som Tjek forbindelser.
+
+---
+
+# Plan: Signalvejene fjernes helt — frisk tilstand (v6.0.0 b0395; Jan: ingen versionsbump, når vi går tilbage) — 2026-11-12 — udført
+
+Jans beslutning (2026-11-12): "fjern alt om den signal editor så vi har en frisk tilstand". Afklaret:
+
+- **Symbol-flow** (hvordan flow løber gennem et symbol, Symboler-siden) **beholdes**.
+- **Virtuelle signaler** fjernes også: et symbols position som tilbagemelding, logikblok som signal (`sym:`) og kommando *kun i SCADA* (v5.10–v5.12).
+- **Tjek/Bind forbindelser** og tilslutningspunkter i Tegn **beholdes**.
+
+## Fjernes
+
+**Backend**
+- `services/signal_paths/` (hele pakken), `api/signal_paths.py`, `services/migrations/v60_paths.py`, `services/assist_signal.py`, hvis kun signalvejene bruger den. `assist_setup` bruger `pick_tags`, så den flyttes derhen.
+- `symbols.py`:
+  - vejsymboler: `path_symbol_id`/`parse_path_symbol`, path-grenen i `validate_config`, `MAX_PATH_ANIMS`, `describe_group` for veje;
+  - afledte signaler: `is_derived`, `derived_signals`, `signal_ids`, `signal_users`, `sym_refs`, `_signal_cycle`, pseudo-`fb`, `sym:` i `_logic_users`;
+  - `Signal.virtual` og guards i put/delete.
+- `symbol_runtime.py`: `path_names`, publicering af `sym:`-positioner/logik. `drawings._path_symbol_bindings`. `api/symbols.py`: `GET /signals` og `pseudo` i preview.
+- `backup.py` (`signal_paths`, `sv~`-regler, `pre-v6`), `db.py` (signal_paths-metoder, backup/restore af veje), `svg_sanitize.py` (`sv~`-reservation), `sse.py`/`main.py` (oprydning).
+
+**Frontend**
+- `SignalPathGuide`, `SpSaved`, `SpStart` + tests, `signalGuideHarness`, `signalpath/route.ts`, `net.ts`, `pick.ts` (og den del af `flow.ts`/`signalPath.ts`, kun vejsøgningen bruger). `graph.ts` og forbindelses-tjekket bliver.
+- `DrawEditor`: sektionen Signalveje, vindue/markering, vejnavne på tegningen.
+- `SymbolTree`/`symbolTree.ts`: vej-gruppen.
+- `SymbolGuide`/`symbolConfig.ts`: vejsymbol (trin 1-radio, *Tilføj løbelys langs vejen*, grupperede animationer, `libraryDefault('signalvej')`), tilbagemelding = symbols position, virtuelt signal, `signals`-hentning. `draw/panels.ts`, `manual.ts`.
+- `svgedit-host/scada-core.js`: `highlightPath`, vejnavne. Beholdes, hvis forbindelses-tjekket bruger det.
+
+**Manual/doku**
+- Kap. 08 Signalveje og virtuelle signaler i kap. 10: tekst og billeder (`signalvej-*.png`). LLM-tillæg, ACCEPTTEST, FEATURES (markeres *fjernet v7.0.0*).
+- `docs/ANALYSE_VIRTUELLE_TAGS.md` arkiveres.
+
+## Data (MAJOR → v7.0.0)
+
+- Ny migration `v70_cleanup` ved opstart, én gang, med **backup `pre-v7` først**. Fejler backuppen, ændres intet.
+- Migrationen sletter alle signalveje (tabellen tømmes; `DROP` er unødvendig risiko, så den står tom til en senere skema-oprydning) og alle `sv~`-opsætninger.
+- Symboler, der brugte et virtuelt signal, `sym:` eller `path:`: opsætningen **beholdes** og står i rapporten/audit. Guiden viser fejlen, og symbolet vises gråt, til det rettes; der slettes ikke data hos almindelige symboler.
+- Gendannelse af en ældre backup springer `signal_paths` over og afviser ikke backuppen; migrationen køres efter gendannelsen.
+
+## Tests
+
+Slet `test_signal_paths.py` og `test_signal_branches.py` (forbindelses- og symbol-flow-dele flyttes, hvis de findes), virtuelle tests i `test_symbol_operate.py`, og path-tests i frontend. Tilføj: migrationstest (backup, sletning, rapport, backupfejl) og gendannelse af en v6-backup. Hele backend-suiten, frontend-test og build. Browser: Tegn uden Signalveje, symbol-guiden uden *symbols position*, Tjek forbindelser virker.
+
+## Risici
+
+- Symboler hos Jan, der bruger virtuelle signaler, holder op med at virke. De står i rapporten.
+- Bred ændring (~50 filer). Reviewer-agent før commit (data-integritet, backup/restore).
+
+---
+
+# Plan: Signalvejen er kun en definition — og bruges som et almindeligt symbol (v6.0.0) — 2026-11-12 — afventer OK
+
+Jans forklaring (2026-11-12): en signalvej **defineres** (hvad den består af: elementer, rute gennem ventilerne, flowretning) — den skal **ikke** selv have animationer eller betingelser. Hver flowretning/rute er sin egen signalvej. Når vejen er oprettet, bruges den som et **almindeligt symbol i symbol-guidens 6 trin**: trin 2 *Signaler* (tilbagemelding fra et PLC-tag **eller et andet symbols position**), trin 3 *Kontakter* (PLC-kontaktfladen afgør, hvilken værdi der er hvilken position — og dermed animationerne), trin 4 *Visning* (animationer på vejens dele, styret af positionen).
+
+## Ændring i forhold til v5.0–v5.12
+| Del | Før | Efter |
+| --- | --- | --- |
+| Vejens guide | start/slut/via, **trin 3 betingelser, trin 4 udseende** | start/slut/via/rute/retning — **kun definitionen** (gem) |
+| Vejens tilstand | beregnet af vejens betingelser (`path:…`-pseudo-tags, `runtime.evaluate_path`) | **vejsymbolets position** (`sym:<tegning>:sv~<id>:pos`) — som for ethvert symbol |
+| Vejens animationer | genereret ved gem (`materialize`, v5.8, `auto`) | **ingen** ved oprettelse; du lægger dem i symbol-guiden. Hjælper i trin 4: *Tilføj løbelys langs vejen* (bruger vejens flowretning) |
+| Vejsymbolet | kun visning, ingen positioner | **positioner** (standard *Fra / Til*), **kun passiv visning med PLC-tilbagemelding** (ingen skrivning, ingen betjening) |
+| Trin 2 | PLC-tag | **PLC-tag eller et symbols position** (derived signal) — både som tilbagemelding og som kilde |
+
+## Hvad der beholdes
+Vejens definition (`elements`, retning `flows.reverse`, valgte veje gennem ventiler `ui.forced`), vejsymbolet `sv~<id>` og dets guide, **symbolers position som signal** (fase A), **virtuelle signaler** (fase B), unikke navne og grupper i guiden (v5.9), backup af vejens id, symbol-oversigt.
+
+## Hvad der fjernes
+Trin 3/4 i vejens guide (`SpConditions`, `SpLook`, `pathLook`), vejens `conditions` og `style`, `signal_paths/runtime.py` (`evaluate_path`, `path:`-tags, `SymbolRuntime._evaluate_paths`), `materialize.py`, `auto`-feltet på animationer, `MAX_PATH_ANIMS`-særregler der kun hørte til materialiseringen, *Lav en betjening til vejen* (kan genovervejes). Eksisterende veje: **betingelser og udseende droppes uden migrering** (Jan: "kun fremad"); definitionen består; vejsymbolets opsætning nulstilles én gang med en rapport.
+
+## Trin
+1. **Backend:** `signal_paths/service.py` (`save` gemmer kun definitionen; ingen betingelser/udseende), `validate.py`; vejsymbolet: `validate_config` tillader `op: positions` + `passive` (ingen kommando/betjening) for `sv~`, standard Fra/Til; `symbols.derived_signals` + `symbol_runtime` (vejsymbolets position publiceres som for andre positioner); fjern `evaluate_path`/`materialize`; migrering `v60_paths` (backup først, nulstil vejsymboler, behold definitionen, rapport).
+2. **Frontend:** vejens guide skæres ned (trin 3/4 væk); `SymbolGuide`: trin 2 *tilbagemelding = PLC-tag eller symbolets position* (derived-vælger), trin 1–3 aktive for vejsymboler (trin 5 skjult), hjælperen *Tilføj løbelys langs vejen* i trin 4.
+3. **Docs/tests:** manual kap. 08/10 skrives om, LLM-tillæg, CHANGELOG, FEATURES, **v6.0.0** (MAJOR: vejens datamodel ændres), OTA. Tests: backend (vejsymbol med positioner/PLC-tilbagemelding styrer animationer, definition uden betingelser, migrering), frontend. **Reviewer** (data-integritet, migrering). **Browser:** vej → *Ret som symbol* → trin 2 PLC-tag → trin 3 kontaktflade → trin 4 løbelys langs vejen → Overview.
+
+## Risici
+- Stor ændring af en funktion, der lige er blevet bygget: derfor MAJOR og en tydelig rapport; ingen skjult dataforlis (backup før migrering).
+- *Position* er et tal (0,1,…): kontaktfladen i trin 3 oversætter PLC-værdi → position; en vej med to retninger bliver to veje med hver sin position (Fra/Til).
+- Brugere, der læste `path:`-tags i animationer/logik (v5.4): de henvisninger afvises/ryddes af migreringen (rapporteres).
+# Plan: Virtuelle signaler — symbolets position styrer visningen (v5.10.0 →) — 2026-11-12 — fase A er godkendt af Jan; B og C følger, med iterationer
+
+Jans svar (2026-11-12) på `docs/ANALYSE_VIRTUELLE_TAGS.md`: (1) i trin 2 (Signaler) på knapper/omskiftere skal man kunne vælge at styre **visningen i tegningen** (fx en signalvej) i stedet for at skrive til et PLC-tag; (3) en "intern variabel" er ikke en fri variabel — dens værdi er **kun** det, symbolet er linket til: er der en PLC-tilbagemelding, er den **toneangivende**, ellers den valgte position; (4) alle faser, med forventede iterationer og designændringer.
+
+## Rettet model (afløser "fri intern variabel" i analysen)
+Et symbols **position** findes allerede som afledt signal (`sym:<tegning>:<symbol>:pos`): *tilbagemelding* (`remote`, hvis sat, er toneangivende) ellers *valgt position* (`symbol_state.chosen`, gemt i databasen). Det virtuelle signal **er** den position. Derfor:
+- **Fase A — læs:** en signalvejs betingelse (og alarm, trend, ugeprogram) kan bruge **symbolers position** ("Omskifter 1: position = Til"), **logikblokke** og **andre veje** ved siden af PLC-tags. Validering og vælger får gruppen *Beregnede signaler*; henvisning med stabilt id, visning med navn.
+- **Fase B — skriv "kun i SCADA":** i trin 2 kan et signal i stedet for et PLC-tag være **virtuelt mål** (ingen PLC-skrivning); symbolet viser den *valgte* position, eller PLC-tilbagemeldingen, hvis den er sat. Kontaktplan/lås/bekræftelse/audit som i dag; kun selve PLC-skrivningen springes over.
+- **Fase C — betjening af selve vejen:** vejens symbol får *Auto/Til/Fra* (bygget på B), og hjælperen *"Lav en betjening til vejen"*.
+Ingen ny symboltype: eksisterende knapper/omskiftere bruges. SCADA skriver **aldrig automatisk** til en PLC ud fra et virtuelt signal.
+
+## Fase A — trin
+1. Backend: `signal_paths/service.py` (`_normalize`: betingelsens `src` må være et beregnet signal af gyldig slags på samme tegning; `info`: giver vælgerne signalerne), `runtime.py` (`branch_results` læser allerede cachen — position er et tal → `cmp`/`value`), `drawing_activity`/`tags_for_drawing` (så adgang og polling dækker det), liste over beregnede signaler pr. tegning (`GET …/signals/derived`: symbolernes position + positionsnavne, logikblokke, veje).
+2. Frontend: vælger med tre grupper (PLC-tags / Symbolers position / Logik & veje) i vejens betingelser (`SpConditions`) og i guidens kilde-vælgere; alarmer/trends/ugeprogram i en senere iteration, når vælgeren er afprøvet.
+3. Tests (backend: betingelse på symbolets position, tilbagemelding toneangivende, sletning af et symbol/en vej, der bruges; frontend: vælger), manual, **v5.10.0**, OTA. Browser: en omskifter styrer en signalvej.
+
+## Risici
+- Position er et tal (0,1,2 …) — betingelser skrives som *position = <navn>* i guiden og gemmes som tal + navn; omdøbes en position, skal betingelsen følge med (gem tal, vis navn).
+- En vej, der læser et symbols position, og et symbol, der læser vejen (animation) — ingen løkke, fordi vejen kun *læser* position; logikblokke har løkkekontrol i forvejen.
+- Sletning/omdøbning: afvises med en liste over brugere (som for tags og logikblokke).
+# Plan: Animationer samlet pr. symbol, og unikke navne på alle symboler (v5.9.0) — 2026-11-12 — afventer OK
+
+Jans ønske: (1) i symbol-guiden for en signalvej skal et symbol med flere dele (3-vejs ventil: port A, B, AB, motor …) have sine animationer **samlet i en gruppe** i stedet for spredt i listen; (2) alle symboler skal have et **unikt navn/id**, så to 3-vejs ventiler — eller to T-stykker — kan kendes fra hinanden i listerne.
+
+## I dag
+- Trin 4 viser alle animationer i én lang liste i den rækkefølge, de ligger i opsætningen (kun et filter *Vis animationer for*).
+- Et symbol uden navn (`data-hv-name`) vises med sit rå id (`svg_12`) eller sin type; to ens symboler med samme navn kan ikke skelnes. Nye biblioteksymboler får et unikt navn ved indsættelse (`Pumpe 2`), men ældre tegninger og importerede/kopierede symboler kan mangle det.
+
+## Løsning
+1. **Grupper i guiden (trin 4, kun signalvej):** animationerne vises under en **sammenfoldelig overskrift pr. element** ("3-vejs motorventil V1 — 3 animationer"), i tegningens rækkefølge; hver gruppe har sin egen *+ Animation* (lægges på elementets dele). ▲▼ flytter inden for gruppen. Selve rækkefølgen i opsætningen (som afgør, hvilken animation der vinder) ændres ikke — kun visningen grupperes (animationer på samme del ligger altid i samme gruppe).
+2. **Unikke, læsbare navne overalt (backend `describe_group`):** et element vises med sit navn, hvis det er unikt; er navnet ikke unikt, eller mangler det, vises `navn (id)` — fx `3-vejs motorventil (svg_12)` / `T-stykke (svg_31)`. Bruges i guidens elementfilter, gruppeoverskrifter og delnavne (`… · Port A`).
+3. **Giv unikke navne i Tegn:** i *Symbol-oversigt* vises "N symboler har intet navn" og knappen **Giv dem unikke navne** — hvert navnløst biblioteksymbol får typens navn + et løbenummer (`3-vejs ventil 2`), i ét fortryd-trin; navnene gemmes med tegningen (Gem). Findes der kopier med samme navn, vises de allerede som advarsel (eksisterende tjek).
+
+## Trin
+FEATURES (planlagt) → `svg_sanitize.describe_group` (unikke labels, `named`, `type`) + test → `SymbolGuide` (grupper som snippet, per-gruppe tilføj, ▲▼ i gruppen, filter-etiketter) → `scada-core.js` `nameUnnamedSymbols` + `SymbolTree`/`DrawEditor` (knap) → manual (kap. 07/08), LLM-tillæg, CHANGELOG, RELEASE_NOTES, **v5.9.0**, OTA → browser: vejen med to 3-vejs ventiler og to T-stykker (demo-kopien) → reviewer er ikke nødvendig (kun visning og navngivning), men kører tests.
+
+## Risici
+- Navngivning ændrer tegningen (men kun `data-hv-name`; ids rører vi ikke, så bindinger/forbindelser/vejene består) — ét fortryd-trin, og kun symboler uden navn.
+- Gamle tegninger med dublerede navne: vises som `navn (id)`; vi omdøber ikke af os selv.
+# Plan: Signalvejen som et rigtigt symbol — vejens egne animationer kan redigeres (v5.8.0) — 2026-11-12 — afventer OK
+
+Jans krav: det er ikke nok at kunne *lægge ekstra animationer* på en vejs elementer. De animationer, vejen selv giver (løbelys på rørene, farve, blink …), skal kunne **ændres som i ethvert andet symbol**: skift type, kilde (et tag, en betingelse/logikblok, "altid til"), parametre (farve, hastighed, retning) og slet dem — så vejen efterfølgende arbejdes med som et symbol, hvor animationer tildeles frit.
+
+## I dag (v5.4)
+Vejens grundanimationer (*Udseende* i vejens guide) gemmes i vejens data og lægges på Overview af serveren (`_path_bindings`), men vises **ikke** i symbol-guiden — der ser man kun de egne. De kan derfor ikke redigeres.
+
+## Valgt løsning (af tre)
+- **A. Grundanimationerne skrives ind i vejens symbol-opsætning som almindelige animationer (valgt).** Når vejen gemmes, skriver serveren (re)genererer dem i `sv~<id>`-opsætningen; symbol-guiden viser dem i trin 4 som alle andre og kan ændre dem. Hver animation har et nyt felt **`auto`** ("følger vejens udseende"): sat = serveren genskaber den, når vejen gemmes igen; fjernes fluebenet, er den *din* og røres aldrig af vejen.
+- B. Vis grundanimationerne skrivebeskyttet i guiden med en knap "Overtag". Intet er redigerbart direkte, og man skal først "overtage" hver — halvt svar på kravet.
+- C. Fjern vejens *Udseende*-trin og lad guiden lave alt. Mister den hurtige opsætning ("farv alle rør, løbelys på alle") og vejens enkle start.
+
+## Sådan virker det
+1. **Datamodel:** `Anim.auto: bool = false` (backend `Anim`, frontend `Anim`/`normalize`). Ingen ny tabel; `symbol_config` bærer alt.
+2. **Gem vej** (`SignalPathService.save`): efter at vejen er gemt, bygges grundanimationerne (løbelys/farve/blink/synlig/roterer pr. element og del, med vejens pseudo-tag som kilde og *aktiv/passiv*) som `auto: true`-animationer og lægges i `sv~<id>`-opsætningen: eksisterende `auto: true` erstattes, alt andet (dine egne og de frigjorte) bevares. Valideres som et almindeligt gem (`validate_config`); fejler det, rulles vejen tilbage.
+3. **Visning:** `_path_bindings` (vejens egne bindinger ved siden af symbolet) fjernes — alt kommer nu fra symbol-opsætningen via `_path_symbol_bindings` (samme prioritetsregler som i dag).
+4. **Guiden** (trin 4): hver animation på en vej viser **"Følger vejens udseende"** (afkrydsning). Er den sat, står der en hjælpetekst: *ændringer overskrives, når vejen gemmes igen — fjern fluebenet for at beholde dem*. Resten (type, kilde, farve, hastighed, retning, når/ikke når, slet, flyt op/ned, tilføj) er den eksisterende guide.
+5. **Opgradering:** ved opstart skrives grundanimationerne for alle eksisterende veje ind én gang (flag i `meta`, samme mønster som v5.1-migreringen) — Overview ser ens ud før og efter.
+6. **Backup/gendan:** uændret (alt ligger i `symbol_config`); `auto` er et almindeligt felt.
+
+## Tilføjelse (Jan 2026-11-12): elementer med flere porte — fx en 3-vejs ventil — kan indstilles i vejen
+En 3-vejsventil i en vej farver i dag de porte, vejen bruger (valgt i *Udseende*, gruppen *3-vejsventiler*). I v5.8.0 bliver det **én animation pr. port** (A, B, AB) i vejens opsætning, med vejens gren som kilde:
+- Du kan sætte **farven pr. port** (fx *port A og AB blå, B grå*), skifte kilde pr. port (et tag, ventilens stilling, en logikblok) og tilføje blink eller løbelys på en port.
+- **Hvilke porte der er "i vejen"** følger stadig vejens valg af *vej gennem ventilen* (A↔AB eller B↔AB) — ændres det i vejens guide og vejen gemmes, genskabes portenes `auto`-animationer; dine egne (frigjorte) består.
+- **Guiden får et elementfilter** i trin 4: *Vis animationer for: alle / Pumpe 1 / Ventil V2 (3-vejs) …* og en gruppering pr. element, så en vej med 30 elementer ikke bliver en lang liste. *+ Animation* lægger sig på det valgte element, og delvælgeren viser kun dets dele (porte, ramme, tekst …) med deres rigtige navne (*Port A*, *Port AB*, *Motor*).
+- Gælder alle elementer med flere dele (ventiler, T-stykker, pumper), ikke kun 3-vejsventilen.
+
+## Trin
+1. FEATURES.md (v5.8.0 planlagt) → 2. backend: `Anim.auto`, `signal_paths/materialize.py` (rene funktioner: data → animationer), `save`, `_path_bindings` væk, migrering → 3. frontend: `Anim.auto` + afkrydsning/hjælpetekst i `SymbolGuide` → 4. tests (backend: materialisering, bevarelse af egne/frigjorte, regenerering, migrering, backup-rundtur, restart på eksisterende data; frontend: afkrydsning) → 5. manual (kap. 08), LLM-tillæg, CHANGELOG, RELEASE_NOTES, **v5.8.0**, OTA → 6. **browser:** vej → *Ret som symbol* → løbelyset står som animationer → skift kilde til et tag → gem vejen igen (frigjort består, auto genskabes) → Overview. **Reviewer** (data-integritet, migrering).
+
+## Risici
+- **Migrering** af eksisterende veje: skal give præcis samme visning (samme del, type, kilde, parametre, rækkefølge). Testes mod demo-tegningen før/efter.
+- **To veje på samme del** og **prioritet** mod andre symbolers animationer: uændret regel (`position` ≥ 100 000, derefter rækkefølgen i opsætningen) — men nu ligger vejens egne først og dine efter, så dine vinder (som i dag).
+- **Flere end 12 animationer** (`MAX_ANIMS`): en stor vej kan give mere end grænsen → grænsen hæves for vejsymboler (fx 200 — vejens elementer × delene) eller grundanimationerne grupperes pr. type; afgøres ved at tælle på demo-tegningen.
+- `auto`-flag på en animation, der frigøres og senere slettes: ingen genskabelse før næste vejgem — det er bevidst og står i hjælpeteksten.
 # Plan: Server-værktøjskasse `scada-tool` (v5.6.0) — 2026-11-12 — afventer OK
 
 Anledning: v5.4.0 kunne ikke starte, rullede tilbage, og opdateringsstatus stod fast på "applying" (maskinen blev genstartet midt i opdateringen) — så ny upload gav "En opdatering er i gang". Det kostede flere SSH-trin at finde og rydde. Jan vil have en **værktøjskasse på serveren** med de mest brugte vedligeholdelsesfunktioner.

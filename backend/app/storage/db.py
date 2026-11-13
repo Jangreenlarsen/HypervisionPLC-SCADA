@@ -17,7 +17,7 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 16   # 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
+SCHEMA_VERSION = 17   # 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -237,8 +237,21 @@ CREATE TABLE IF NOT EXISTS library_symbols (
     updated_by  TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS library_symbols_label_ci ON library_symbols(lower(label));
--- Signalveje i Tegn (v4.2.0, services/signal_paths.py): en navngiven vej gennem tegningen (start, slut, elementer, betingelser).
--- v5.0.0: vejen er sit eget objekt (`data`, se services/signal_paths/validate.py) — intet ligger i symbol_config.
+-- Forbindelsesgrupper (v6.1.0, services/connection_groups.py): hvordan tegningens forbindelser viser det beregnede flow.
+-- Én række pr. tegning har is_default = 1 (standardgruppen "Alle forbindelser", navnet er tomt); de øvrige har medlemmer.
+CREATE TABLE IF NOT EXISTS connection_groups (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    is_default  INTEGER NOT NULL DEFAULT 0,
+    members     TEXT NOT NULL,
+    anims       TEXT NOT NULL,
+    sort        INTEGER NOT NULL DEFAULT 0,
+    updated_at  REAL NOT NULL,
+    updated_by  TEXT NOT NULL,
+    UNIQUE (drawing_id, name)
+);
+-- Signalveje i Tegn (v4.2.0–v6.0.0) — fjernet i v6.0.0-b0395. Tabellen står tom (services/migrations/remove_paths.py tømmer den).
 CREATE TABLE IF NOT EXISTS signal_paths (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
@@ -276,8 +289,7 @@ USER_FIELDS = ("password_hash", "role", "disabled", "must_change_password", "sco
 # Tabeller, hvis indhold bestemmer, hvilke bindinger/tags en tegning har (v4.12.0: gemte beregninger er gyldige, så længe
 # ingen af dem er skrevet til — se Database.config_gen)
 CONFIG_TABLES = frozenset({"tags", "drawings", "drawing_versions", "bindings", "symbol_meta", "symbol_config", "symbol_groups",
-                           "symbol_group_members", "symbol_group_anims", "library_symbols",
-                           "signal_paths"})
+                           "symbol_group_members", "symbol_group_anims", "library_symbols", "connection_groups"})
 _WRITE = re.compile(r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`\[]?(\w+)',
                     re.I)
 
@@ -326,99 +338,7 @@ class Database:
             self._conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_username_ci ON users(lower(username))")
         except sqlite3.IntegrityError:
             log.warning("Brugernavne med forskellig store/små bogstaver findes allerede — unikt indeks springes over")
-        self._drop_old_signal_paths()
         self._conn.execute("UPDATE meta SET value = ? WHERE key = 'schema_version'", (str(SCHEMA_VERSION),))
-
-    def _drop_old_signal_paths(self) -> None:
-        """v5.0.0: signalveje i det gamle format (før v5.0.0 skrev de logikblokke og animationer ind i symbolernes opsætning)
-        slettes — og det, de lagde i opsætningerne, fjernes, så der ikke står dobbelte animationer tilbage. Henvisninger til
-        de fjernede blokke andre steder på tegningen (egne animationer, løbelysets retning, egne blokkes indgange) fjernes også,
-        så symbolerne stadig kan gemmes. Én transaktion pr. vej; en vej, der ikke kan læses, logges og springes over (serveren
-        starter altid). Idempotent: kører, så længe der findes gamle veje."""
-        rows = self._conn.execute("SELECT id, drawing_id, name, data FROM signal_paths").fetchall()
-        for r in rows:
-            try:
-                d = json.loads(r["data"])
-            except (TypeError, ValueError):
-                log.error("Signalvejen '%s' (%s) kan ikke læses og springes over ved opgraderingen", r["name"], r["drawing_id"])
-                continue
-            if not isinstance(d, dict) or not ("owner" in d or "blocks" in d):
-                continue
-            self._conn.execute("BEGIN IMMEDIATE")
-            try:
-                self._drop_one_old_path(r["id"], r["drawing_id"], d)
-                self._conn.execute("COMMIT")
-                log.warning("Signalvejen '%s' (%s) havde det gamle format og er slettet (v5.0.0) — lav den igen i Tegn",
-                            r["name"], r["drawing_id"])
-            except Exception:
-                self._conn.execute("ROLLBACK")
-                log.exception("Signalvejen '%s' (%s) kunne ikke fjernes ved opgraderingen — springes over", r["name"], r["drawing_id"])
-
-    def _drop_one_old_path(self, pid: int, did: str, d: dict[str, Any]) -> None:
-        owner = d.get("owner") if isinstance(d.get("owner"), str) else ""
-        final = d.get("final") if isinstance(d.get("final"), str) else ""
-        blocks = {b for b in (d.get("blocks") or []) if isinstance(b, str)}
-        created = {e for e in (d.get("created") or []) if isinstance(e, str)}
-        configs = {row[0]: json.loads(row[1]) for row in self._conn.execute(
-            "SELECT element, config FROM symbol_config WHERE drawing_id = ?", (did,)).fetchall()}
-        changed: set[str] = set()
-        # vejens egne animationer (samme kilde, type og del); "@on" (vej uden betingelser) kun én pr. type og del
-        for e in d.get("elements") or []:
-            el = e.get("element") if isinstance(e, dict) else None
-            cfg = configs.get(el) if isinstance(el, str) else None
-            if not isinstance(cfg, dict):
-                continue
-            block = e.get("block", final) or ""
-            src = "@on" if not block else f"@{block}" if el == owner else f"@{owner}:{block}"
-            made = [("flow", f.get("part")) for f in e.get("flows") or [] if isinstance(f, dict)]
-            made += [(a.get("type"), a.get("part")) for a in e.get("anims") or [] if isinstance(a, dict)]
-            keep = []
-            for an in cfg.get("anims", []):
-                key = (an.get("type"), an.get("part"))
-                if an.get("src") == src and key in made:
-                    made.remove(key)          # én forekomst pr. animation, vejen lagde på
-                    continue
-                keep.append(an)
-            if len(keep) != len(cfg.get("anims", [])):
-                cfg["anims"] = keep
-                changed.add(el)
-        # vejens logikblokke på ejeren, og alle henvisninger til dem på tegningen
-        if owner in configs and blocks:
-            ocfg = configs[owner]
-            gone = {b.get("id") for b in ocfg.get("logic", []) if b.get("id") in blocks and str(b.get("name", "")).startswith("Signalvej: ")}
-            if gone:
-                ocfg["logic"] = [b for b in ocfg.get("logic", []) if b.get("id") not in gone]
-                changed.add(owner)
-                refs = {f"@{owner}:{b}" for b in gone}
-
-                def dead(src: Any, el: str) -> bool:
-                    return isinstance(src, str) and (src in refs or (el == owner and src in {f"@{b}" for b in gone}))
-
-                for el, cfg in configs.items():
-                    if not isinstance(cfg, dict):
-                        continue
-                    before = json.dumps(cfg, sort_keys=True)
-                    cfg["anims"] = [an for an in cfg.get("anims", []) if not dead(an.get("src"), el)]
-                    for an in cfg["anims"]:
-                        if dead((an.get("params") or {}).get("dir_tag"), el):
-                            an["params"].pop("dir_tag", None)
-                    for b in cfg.get("logic", []):
-                        b["inputs"] = [i for i in b.get("inputs", []) if not dead(i.get("src"), el)]
-                    cfg["logic"] = [b for b in cfg.get("logic", []) if b.get("inputs")]
-                    if json.dumps(cfg, sort_keys=True) != before:
-                        changed.add(el)
-                        if el != owner:
-                            log.warning("Opgradering v5.0.0: %s/%s henviste til signalvejens blokke — henvisningen er fjernet", did, el)
-        now = time.time()
-        for el in changed:
-            cfg = configs[el]
-            empty = not cfg.get("anims") and not cfg.get("logic") and not cfg.get("signals") and not cfg.get("positions")
-            if el in created and empty:
-                self._conn.execute("DELETE FROM symbol_config WHERE drawing_id = ? AND element = ?", (did, el))
-            else:
-                self._conn.execute("UPDATE symbol_config SET config = ?, updated_at = ?, updated_by = ? WHERE drawing_id = ? AND element = ?",
-                                   (json.dumps(cfg, ensure_ascii=False), now, "opgradering v5.0.0", did, el))
-        self._conn.execute("DELETE FROM signal_paths WHERE id = ?", (pid,))
 
     def close(self) -> None:
         with self._lock:
@@ -1077,74 +997,91 @@ class Database:
             return None
         return {**rows[0], "config": json.loads(rows[0]["config"])}
 
-    # ----------------------------------------------------------------- signalveje (v4.2.0)
+    # ----------------------------------------------------------------- forbindelsesgrupper (v6.1.0)
 
-    def list_signal_paths(self, drawing_id: str | None = None) -> list[dict[str, Any]]:
-        sql = "SELECT id, drawing_id, name, data, updated_at, updated_by FROM signal_paths"
-        rows = (self._query(sql + " WHERE drawing_id = ? ORDER BY name", (drawing_id,)) if drawing_id is not None
-                else self._query(sql + " ORDER BY drawing_id, name"))
+    def list_connection_groups(self, drawing_id: str | None = None) -> list[dict[str, Any]]:
+        sql = "SELECT id, drawing_id, name, is_default, members, anims, sort FROM connection_groups"
+        rows = (self._query(sql + " WHERE drawing_id = ? ORDER BY is_default DESC, sort, id", (drawing_id,)) if drawing_id is not None
+                else self._query(sql + " ORDER BY drawing_id, is_default DESC, sort, id"))
         out = []
         for r in rows:
             try:
-                r["data"] = json.loads(r["data"])
+                out.append({**r, "is_default": bool(r["is_default"]), "members": json.loads(r["members"]), "anims": json.loads(r["anims"])})
             except ValueError:
-                log.error("Signalvejen '%s' (%s) er beskadiget og springes over", r.get("name"), r.get("drawing_id"))
-                continue
-            out.append(r)
+                log.error("Forbindelsesgruppen '%s' (%s) er beskadiget og springes over", r.get("name"), r.get("drawing_id"))
         return out
 
-    def get_signal_path(self, drawing_id: str, path_id: int) -> dict[str, Any] | None:
-        return next((r for r in self.list_signal_paths(drawing_id) if r["id"] == path_id), None)
-
-    def write_signal_path(self, drawing_id: str, path_id: int | None, name: str | None, data: dict[str, Any] | None,
-                          configs: dict[str, dict[str, Any] | None], username: str,
-                          expect: dict[str, dict[str, Any] | None] | None = None) -> int | None:
-        """Gem (path_id None = ny) eller slet (data None) en signalvej OG de berørte symbolopsætninger i én transaktion.
-        `configs`: {element: ny opsætning, eller None = slet opsætningen}. `expect`: opsætningerne som de var, da ændringen
-        blev beregnet — er en af dem ændret imens (af en anden), rulles alt tilbage. → id; None hvis vejen er væk eller
-        navnet taget; -1 hvis en opsætning er ændret imens."""
+    def write_connection_group(self, drawing_id: str, gid: int | None, name: str, members: list[str], anims: list[dict[str, Any]],
+                               username: str) -> int | None:
+        """Opret (gid None) eller ret en gruppe. En forbindelse hører til én gruppe: medlemmerne fjernes fra de andre grupper i
+        samme transaktion. → id; None hvis navnet er taget (eller gruppen er væk)."""
         now = time.time()
         with self._lock:
             cur = self._conn.cursor()
             cur.execute("BEGIN IMMEDIATE")
             try:
-                for element, want in (expect or {}).items():
-                    row = cur.execute("SELECT config FROM symbol_config WHERE drawing_id = ? AND element = ?",
-                                      (drawing_id, element)).fetchone()
-                    if (json.loads(row[0]) if row else None) != want:
-                        cur.execute("ROLLBACK")
-                        return -1
-                if data is None:
-                    if cur.execute("DELETE FROM signal_paths WHERE id = ? AND drawing_id = ?", (path_id, drawing_id)).rowcount != 1:
-                        cur.execute("ROLLBACK")
-                        return None
-                elif path_id is None:
-                    path_id = cur.execute("INSERT INTO signal_paths(drawing_id, name, data, updated_at, updated_by) "
-                                          "VALUES (?,?,?,?,?)", (drawing_id, name, json.dumps(data, ensure_ascii=False),
-                                                                 now, username)).lastrowid
-                elif cur.execute("UPDATE signal_paths SET name = ?, data = ?, updated_at = ?, updated_by = ? "
-                                 "WHERE id = ? AND drawing_id = ?", (name, json.dumps(data, ensure_ascii=False), now,
-                                                                     username, path_id, drawing_id)).rowcount != 1:
+                if gid is None:
+                    nxt = cur.execute("SELECT COALESCE(MAX(sort), 0) + 1 FROM connection_groups WHERE drawing_id = ?", (drawing_id,)).fetchone()[0]
+                    gid = cur.execute("INSERT INTO connection_groups(drawing_id, name, is_default, members, anims, sort, updated_at, "
+                                      "updated_by) VALUES (?,?,0,?,?,?,?,?)", (drawing_id, name, json.dumps(members),
+                                                                              json.dumps(anims, ensure_ascii=False), nxt, now, username)).lastrowid
+                elif cur.execute("UPDATE connection_groups SET name = ?, members = ?, anims = ?, updated_at = ?, updated_by = ? "
+                                 "WHERE id = ? AND drawing_id = ? AND is_default = 0",
+                                 (name, json.dumps(members), json.dumps(anims, ensure_ascii=False), now, username, gid, drawing_id)).rowcount != 1:
                     cur.execute("ROLLBACK")
                     return None
-                for element, cfg in configs.items():
-                    if cfg is None:
-                        cur.execute("DELETE FROM symbol_config WHERE drawing_id = ? AND element = ?", (drawing_id, element))
-                        cur.execute("DELETE FROM symbol_pins WHERE drawing_id = ? AND element = ?", (drawing_id, element))
-                        cur.execute("DELETE FROM symbol_state WHERE drawing_id = ? AND element = ?", (drawing_id, element))
-                    else:
-                        cur.execute("INSERT INTO symbol_config(drawing_id, element, config, updated_at, updated_by) "
-                                    "VALUES (?,?,?,?,?) ON CONFLICT(drawing_id, element) DO UPDATE SET "
-                                    "config = excluded.config, updated_at = excluded.updated_at, updated_by = excluded.updated_by",
-                                    (drawing_id, element, json.dumps(cfg, ensure_ascii=False), now, username))
+                mine = set(members)
+                for oid, om in cur.execute("SELECT id, members FROM connection_groups WHERE drawing_id = ? AND id != ? AND is_default = 0",
+                                           (drawing_id, gid)).fetchall():
+                    old = json.loads(om)
+                    keep = [m for m in old if m not in mine]
+                    if keep != old:
+                        cur.execute("UPDATE connection_groups SET members = ?, updated_at = ?, updated_by = ? WHERE id = ?",
+                                    (json.dumps(keep), now, username, oid))
                 cur.execute("COMMIT")
-                return path_id
+                return gid
             except sqlite3.IntegrityError:
                 cur.execute("ROLLBACK")
                 return None
             except Exception:
                 cur.execute("ROLLBACK")
                 raise
+
+    def set_default_connection_group(self, drawing_id: str, anims: list[dict[str, Any]], username: str) -> None:
+        now = time.time()
+        with self._lock:
+            n = self._conn.execute("UPDATE connection_groups SET anims = ?, updated_at = ?, updated_by = ? WHERE drawing_id = ? AND is_default = 1",
+                                   (json.dumps(anims, ensure_ascii=False), now, username, drawing_id)).rowcount
+            if n == 0:
+                self._conn.execute("INSERT INTO connection_groups(drawing_id, name, is_default, members, anims, sort, updated_at, updated_by) "
+                                   "VALUES (?, '', 1, '[]', ?, 0, ?, ?)", (drawing_id, json.dumps(anims, ensure_ascii=False), now, username))
+            self.config_gen += 1
+
+    def delete_connection_group(self, drawing_id: str, gid: int) -> bool:
+        return self._execute("DELETE FROM connection_groups WHERE id = ? AND drawing_id = ? AND is_default = 0", (gid, drawing_id)) > 0
+
+    # ----------------------------------------------------------------- signalveje (fjernet v6.0.0-b0395)
+
+    def remove_signal_paths(self, username: str) -> dict[str, int]:
+        """Slet alle gemte signalveje og deres opsætning som symbol (`sv~<id>`: opsætning, kode og tilstand) i én transaktion."""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                paths = cur.execute("DELETE FROM signal_paths").rowcount
+                setups = cur.execute("DELETE FROM symbol_config WHERE element GLOB 'sv~[0-9]*'").rowcount
+                cur.execute("DELETE FROM symbol_pins WHERE element GLOB 'sv~[0-9]*'")
+                cur.execute("DELETE FROM symbol_state WHERE element GLOB 'sv~[0-9]*'")
+                cur.execute("COMMIT")
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+        log.info("Signalvejene er fjernet af %s: %d veje, %d opsætninger", username, paths, setups)
+        return {"paths": paths, "setups": setups}
+
+    def count_signal_paths(self) -> int:
+        return int(self._query("SELECT COUNT(*) AS n FROM signal_paths")[0]["n"]) + \
+            int(self._query("SELECT COUNT(*) AS n FROM symbol_config WHERE element GLOB 'sv~[0-9]*'")[0]["n"])
 
     def list_symbol_configs(self, drawing_id: str | None = None) -> list[dict[str, Any]]:
         sql = "SELECT drawing_id, element, config, updated_at, updated_by FROM symbol_config"
@@ -1464,7 +1401,8 @@ class Database:
             "symbol_config": [{"drawing_id": r["drawing_id"], "element": r["element"], "config": r["config"]}
                               for r in self.list_symbol_configs()],
             "symbol_groups": self._export_groups(),
-            "signal_paths": [{k: r[k] for k in ("id", "drawing_id", "name", "data")} for r in self.list_signal_paths()],
+            "connection_groups": [{k: r[k] for k in ("drawing_id", "name", "is_default", "members", "anims")}
+                                  for r in self.list_connection_groups()],
             "trend_views": self.list_trend_views(),
             "symbol_ports": self.list_symbol_ports(),
             "symbol_flow": self.list_symbol_flow(),
@@ -1628,11 +1566,10 @@ class Database:
                     for el, anims in (g.get("anims") or {}).items():
                         cur.execute("INSERT INTO symbol_group_anims(group_id, element, anims, updated_at, updated_by) "
                                     "VALUES (?,?,?,?,?)", (gid, el, json.dumps(anims, ensure_ascii=False), now, "restore"))
-                # id'et bevares (v5.4.0): vejens egen opsætning som symbol (`sv~<id>`) peger på det. Veje med id først (sorteret),
-                # så en vej uden id ikke får et nummer, en senere vej med id skal bruge (UNIQUE).
-                for sp in sorted(data.get("signal_paths", []), key=lambda x: (x.get("id") is None, x.get("id") or 0)):
-                    cur.execute("INSERT INTO signal_paths(id, drawing_id, name, data, updated_at, updated_by) VALUES (?,?,?,?,?,?)",
-                                (sp.get("id"), sp["drawing_id"], sp["name"], json.dumps(sp["data"], ensure_ascii=False), now, "restore"))
+                for i, g in enumerate(data.get("connection_groups", [])):       # forbindelsesgrupper (v6.1.0); ældre backups har ingen
+                    cur.execute("INSERT INTO connection_groups(drawing_id, name, is_default, members, anims, sort, updated_at, updated_by) "
+                                "VALUES (?,?,?,?,?,?,?,?)", (g["drawing_id"], g["name"], 1 if g["is_default"] else 0, json.dumps(g["members"]),
+                                                             json.dumps(g["anims"], ensure_ascii=False), i, now, "restore"))
                 for b in data["bindings"]:
                     cur.execute("INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
                                 (b["drawing_id"], b["element"], b["position"], b["tag"], b["anim"],

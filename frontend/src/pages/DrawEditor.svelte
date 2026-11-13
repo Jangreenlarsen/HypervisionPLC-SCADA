@@ -20,10 +20,11 @@
   // @ts-expect-error — ren JS uden typer
   import { symbolType } from '../../svgedit-host/symbolPorts.js';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
-  import SignalPathGuide from '../lib/SignalPathGuide.svelte';
   import { connectionCheck, pairsToBind, planFixes, unboundPairs, type FixMove, type Graph } from '../lib/signalPath';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolTree from '../lib/SymbolTree.svelte';
+  import FloatWin from '../lib/FloatWin.svelte';
+  import ConnGroups from '../lib/ConnGroups.svelte';
   import GroupAnims from '../lib/GroupAnims.svelte';
   import type { SymbolGroup } from '../lib/symbolGroups';
   import SymbolReplace, { type ReplaceOptions } from '../lib/SymbolReplace.svelte';
@@ -54,7 +55,6 @@
     setSelectedId(id: string): string;
     selectByIds(ids: string[]): number;
     connectionGraph(): Graph;
-    highlightPath(lines: { pts: [number, number][]; color: string; flow: number }[], boxes: { id: string; color: string }[], focus?: string[]): void;
     setSelectedText(attr: 'data-hv-name' | 'data-hv-desc', value: string): string;
     uniqueName(base: string): string;
     insertSymbol(fragment: string, baseId: string, at?: { x: number; y: number } | null): string;
@@ -62,11 +62,13 @@
     docPointAt(clientX: number, clientY: number): { x: number; y: number };
     fixConnections(moves: { id: string; from: [number, number]; to: [number, number]; toId: string }[]): { fixed: number; details: { id: string; to: string; gap: number }[]; skipped: number };
     exemptSymbols(ids: string[], on: boolean): number;
+    unnamedSymbolCount(): number;
+    nameUnnamedSymbols(labels: Record<string, string>): number;
     bindLinks(pairs: { id: string; key: string; to: string; toKey: string }[]): { links: number; elements: number };
     unlink(id: string, key: string): number;
     markConnections(items: { id: string; exempt: boolean; status: string; drift: [number, number][]; driftKeys: string[]; open: [number, number][]; openKeys: string[]; ignored: [number, number][]; ignoredKeys: string[] }[]): void;
     toggleUnused(id: string, key: string): boolean;
-    setNameLabels(opts: { symbols: boolean; pipes: boolean; paths: { name: string; elements: string[] }[] }): void;
+    setNameLabels(opts: { symbols: boolean; pipes: boolean }): void;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
     getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
     setGuideEvery(n: number): void;
@@ -130,33 +132,20 @@
       // localStorage kan være blokeret (privat vindue): hjælpen virker stadig, den huskes bare ikke
     }
   });
-  // Vis navne (v4.17.0): symboler, forbindelser og signalveje som mærkater oven på tegningen. Kun visning i Tegn; huskes pr. browser.
-  function loadNames(): { symbols: boolean; pipes: boolean; paths: boolean } {
+  // Vis navne (v4.17.0): symboler og forbindelser som mærkater oven på tegningen. Kun visning i Tegn; huskes pr. browser.
+  function loadNames(): { symbols: boolean; pipes: boolean } {
     try {
       const raw = JSON.parse(localStorage.getItem('draw.names') ?? '{}');
-      return { symbols: !!raw.symbols, pipes: !!raw.pipes, paths: !!raw.paths };
+      return { symbols: !!raw.symbols, pipes: !!raw.pipes };
     } catch {
-      return { symbols: false, pipes: false, paths: false };
+      return { symbols: false, pipes: false };
     }
   }
   let showNames = $state(loadNames());
-  let pathNames = $state<{ name: string; elements: string[] }[]>([]);
-  async function loadPathNames(): Promise<void> {
-    const id = current?.id;
-    if (!showNames.paths || !id) { pathNames = []; return; }
-    try {
-      const r = await get<{ name: string; elements: { element: string }[] }[]>(`/api/drawings/${encodeURIComponent(id)}/signal-paths`);
-      if (current?.id === id) pathNames = r.map((p) => ({ name: p.name, elements: p.elements.map((e) => e.element) }));
-    } catch {
-      pathNames = [];       // navnene er kun en hjælp: uden dem vises bare ingen signalvejs-navne
-    }
-  }
-  $effect(() => { void current?.id; void showNames.paths; void loadPathNames(); });
   $effect(() => {
     const n = $state.snapshot(showNames);
-    const paths = n.paths ? $state.snapshot(pathNames) : [];
     void inspectRev;       // tegningen er ændret (flyt, omdøb …): mærkaterne tegnes forfra
-    if (ready && ed) ed.setNameLabels({ symbols: n.symbols, pipes: n.pipes, paths });
+    if (ready && ed) ed.setNameLabels({ symbols: n.symbols, pipes: n.pipes });
     try {
       localStorage.setItem('draw.names', JSON.stringify(n));
     } catch {
@@ -193,7 +182,7 @@
     if (!ed || !g) return;
     const r = ed.bindLinks(pairsToBind(g));
     info = r.links
-      ? `${r.links} forbindelse${r.links === 1 ? '' : 'r'} er gemt i tegningen (${r.elements} elementer). De gælder for signalveje og tjekket; gem tegningen for at beholde dem. Ctrl+Z fortryder.`
+      ? `${r.links} forbindelse${r.links === 1 ? '' : 'r'} er gemt i tegningen (${r.elements} elementer). De gælder for tjekket; gem tegningen for at beholde dem. Ctrl+Z fortryder.`
       : (r.elements ? 'Forbindelser til slettede elementer er ryddet op.' : 'Alle forbindelser er allerede gemt.');
     inspectRev++;
   }
@@ -225,53 +214,18 @@
     }, 300);
   });
   onDestroy(() => clearTimeout(connTimer));
-  // Signalvejens guide i et vindue over tegningen, mens man arbejder med en vej (v5.2.0): kan trækkes og gøres større; valget
-  // og placeringen huskes pr. browser. Samme komponent som i panelet (flyttes kun med CSS), så guiden beholder sin tilstand.
-  /** Standard: i højre side af tegnefladen, lige til venstre for panelet (dækker mindst af tegningen). */
-  const defX = () => Math.max(90, (typeof window !== 'undefined' ? window.innerWidth : 1600) - 300 - 460 - 30);
-  function loadSpWin(): { float: boolean; x: number; y: number; w: number; h: number } {
-    try {
-      const r = JSON.parse(localStorage.getItem('draw.spwin') ?? '{}');
-      const n = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
-      return { float: r.float !== false, x: n(r.x, defX()), y: n(r.y, 140), w: n(r.w, 460), h: n(r.h, 640) };
-    } catch {
-      return { float: true, x: defX(), y: 140, w: 460, h: 640 };
-    }
-  }
-  let spWin = $state(loadSpWin());
-  let spEditing = $state(false);
-  const spFloating = $derived(spEditing && spWin.float);
-  $effect(() => {
-    const w = $state.snapshot(spWin);
-    try { localStorage.setItem('draw.spwin', JSON.stringify(w)); } catch { /* blokeret localStorage: huskes bare ikke */ }
-  });
-  /** Hold vinduet inden for skærmen (fx efter en mindre skærm eller et ændret vindue). */
-  function spClamp(): void {
-    const vw = window.innerWidth, vh = window.innerHeight;
-    spWin.w = Math.min(Math.max(spWin.w, 300), vw - 20);
-    spWin.h = Math.min(Math.max(spWin.h, 220), vh - 60);
-    spWin.x = Math.min(Math.max(spWin.x, 0), vw - 120);
-    spWin.y = Math.min(Math.max(spWin.y, 40), vh - 60);
-  }
-  function spDragStart(e: PointerEvent): void {
-    if ((e.target as HTMLElement).closest('button')) return;
-    e.preventDefault();
-    const sx = e.clientX - spWin.x, sy = e.clientY - spWin.y;
-    const move = (ev: PointerEvent) => { spWin.x = ev.clientX - sx; spWin.y = ev.clientY - sy; spClamp(); };
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  }
-  let spBox = $state<HTMLDivElement | null>(null);
-  $effect(() => {     // størrelsen, når brugeren trækker i hjørnet (CSS resize), huskes
-    const box = spBox;
-    if (!box || !spFloating) return;
-    const ro = new ResizeObserver(() => { spWin.w = Math.round(box.offsetWidth); spWin.h = Math.round(box.offsetHeight); });
-    ro.observe(box);
-    return () => ro.disconnect();
-  });
+  let flowOpen = $state(false);                                    // Flow-vinduet over tegningen (v6.1.0): forbindelsesgrupper
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let treeRev = $state(0);                                         // symbol-oversigten henter forfra (v5.5.0)
+  let unnamed = $state(0);                                          // symboler uden navn i tegningen (v5.9.0)
+  $effect(() => { void inspectRev; unnamed = ready && ed ? ed.unnamedSymbolCount() : 0; });
+  function nameThem(): void {
+    const labels: Record<string, string> = {};
+    for (const s of defs()) labels[s.id] = s.label;
+    const n = ed?.nameUnnamedSymbols(labels) ?? 0;
+    info = n ? `${n} symbol${n === 1 ? '' : 'er'} har fået et unikt navn. Gem tegningen for at beholde navnene (Ctrl+Z fortryder).` : 'Alle symboler har et navn.';
+    inspectRev++;
+  }
   let treeGroup = $state<SymbolGroup | null>(null);                // gruppens animationer åbnet fra oversigten
   let tags = $state<{ name: string; source: string; unit: string; writable: boolean; plc: string }[]>([]);
   let ed: ScadaApi | null = null;
@@ -296,8 +250,7 @@
     guideEvery = ready && ed ? ed.getGuides().every : 0;
   });
   const sec = (id: string) => ({
-    // mens en signalvej redigeres, bliver dens sektion åben (ellers lukkes guiden — og vinduet over tegningen — midt i arbejdet)
-    open: panels.open.includes(id) || (id === 'signalveje' && spEditing),
+    open: panels.open.includes(id),
     pinned: panels.pinned.includes(id),
     ontoggle: (x: string) => (panels = togglePanel(panels, x)),
     onpin: (x: string) => (panels = togglePin(panels, x)),
@@ -1148,6 +1101,8 @@
   </span>
   <Menu label="Vis" title="Gitter, hjælpelinjer, navne og tjek af forbindelser">{@render viewMenu()}</Menu>
   <Menu label="Fang" title="Fang til gitter, objekter, rør og hjælpelinjer">{@render snapMenu()}</Menu>
+  <button class:on={flowOpen} onclick={() => (flowOpen = !flowOpen)} disabled={!current}
+    title="Flow: hvordan rør og rørstykker viser det beregnede flow på Overview (forbindelsesgrupper)">Flow</button>
   <Menu label="Meddelelser" title="Systemets beskeder om tegningen (gem, rettelser, advarsler)" badge={unread + (dupNames.length ? 1 : 0) + (migration?.manual.length ? 1 : 0)} hot={unread > 0 || dupNames.length > 0 || !!migration?.manual.length}
         wide align="right" bind:open={msgOpen} onopen={() => (unread = 0)}>{@render messagesMenu()}</Menu>
   {#if checkConn && connSummary}
@@ -1159,7 +1114,7 @@
     {:else}<span class="small" style="color:#2e7d32">alt hænger sammen</span>{/if}
     {#if connSummary.drift}<span class="small" style="color:#ef6c00" title="Gemte forbindelser, hvor punkterne er gledet fra hinanden (orange). Ret flytter rør-enden tilbage; klik på den orange prik fjerner forbindelsen">{connSummary.drift} gledet</span>{/if}
     {#if connSummary.unbound > 0 || !connSummary.bound}
-      <button class="small" onclick={bindNow} title="Gem det, der hænger sammen nu, som tegningens forbindelser — så gælder de for signalveje og tjekket, også hvis noget senere glider lidt">Bind forbindelser{connSummary.unbound > 0 ? ` (${connSummary.unbound})` : ''}</button>
+      <button class="small" onclick={bindNow} title="Gem det, der hænger sammen nu, som tegningens forbindelser — så gælder de for tjekket, også hvis noget senere glider lidt">Bind forbindelser{connSummary.unbound > 0 ? ` (${connSummary.unbound})` : ''}</button>
     {/if}
   {/if}
   {#if current}
@@ -1231,7 +1186,6 @@
   <div class="mrow" title="Viser navnene oven på tegningen (kun her i Tegn — aldrig i Overview, og de gemmes ikke i tegningen)">
     <label class="opt"><input type="checkbox" bind:checked={showNames.symbols} /> symboler</label>
     <label class="opt"><input type="checkbox" bind:checked={showNames.pipes} /> forbindelser</label>
-    <label class="opt"><input type="checkbox" bind:checked={showNames.paths} /> signalveje</label>
   </div>
   <span class="mhead">Kontrol</span>
   <div class="mrow" title="Markerer, hvad der hænger fast i resten af tegningen: grønt = forbundet, rødt = åbne ender (røde prikker). Kun visning i Tegn">
@@ -1353,36 +1307,7 @@
     </PanelSection>
     <PanelSection id="oversigt" title="Symbol-oversigt" {...sec('oversigt')}>
       <SymbolTree drawingId={current?.id ?? null} rev={inspectRev + treeRev} {ready} select={(ids) => ed?.selectByIds(ids) ?? 0}
-        onguide={(id, name) => (guideFor = { id, name })} ongroup={(g) => (treeGroup = g)} />
-    </PanelSection>
-    <PanelSection id="signalveje" title="Signalveje" {...sec('signalveje')}>
-      {#if current}
-        {#if spFloating}<p class="small muted">Signalvejen redigeres i vinduet over tegningen. <button class="small" onclick={() => (spWin.float = false)}>Læg den her i panelet</button></p>
-        {:else if spEditing}<div class="row"><button class="small" onclick={() => { spWin.float = true; spClamp(); }} title="Arbejd med signalvejen i et vindue over tegningen">⇱ Ud over tegningen</button></div>{/if}
-        <div class="spwin" class:floating={spFloating} bind:this={spBox}
-             style={spFloating ? `left:${spWin.x}px; top:${spWin.y}px; width:${spWin.w}px; height:${spWin.h}px` : ''}
-             role={spFloating ? 'dialog' : undefined} aria-label={spFloating ? 'Signalvej' : undefined}>
-          {#if spFloating}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div class="sphead" onpointerdown={spDragStart} title="Træk for at flytte vinduet">
-              <strong>Signalvej</strong><span class="grow"></span>
-              <button class="small" onclick={() => (spWin.float = false)} title="Læg guiden tilbage i panelet til højre">⇲ Til panelet</button>
-            </div>
-          {/if}
-          <div class="spbody">
-        <SignalPathGuide drawingId={current.id} {ready} rev={inspectRev} selected={selection.map((x) => x.id)}
-          oneditchange={(on) => { spEditing = on; if (on) spClamp(); }}
-          onsymbol={(id, name) => (guideFor = { id, name })}
-          graph={() => (ed ? ed.connectionGraph() : null)}
-          highlight={(lines, boxes, focus) => ed?.highlightPath(lines, boxes, focus)}
-          select={(ids) => ed?.selectByIds(ids)}
-          ensureSaved={() => ensurePublished('signalvejen kan findes')}
-          onchanged={(text) => { info = text; refreshReservedIds(); void loadPathNames(); }} />
-          </div>
-        </div>
-      {:else}
-        <p class="small muted">Gem tegningen først — en signalvej hører til en gemt tegning.</p>
-      {/if}
+        onguide={(id, name) => (guideFor = { id, name })} ongroup={(g) => (treeGroup = g)} {unnamed} onname={nameThem} />
     </PanelSection>
     <PanelSection id="symboler" title="Symboler" grow {...sec('symboler')}>
       <div class="sym-head">
@@ -1523,6 +1448,12 @@
     onsaved={() => { info = `${gf.others.length + 1} symboler er opsat ud fra "${gf.basis.name}".`; groupFor = null; refreshReservedIds(); }} />
 {/if}
 
+{#if flowOpen && current}
+  <FloatWin key="draw.flowwin" title="Flow — forbindelsesgrupper" onclose={() => (flowOpen = false)}>
+    <ConnGroups drawingId={current.id} {ready} selected={selection.map((x) => x.id)} select={(ids) => ed?.selectByIds(ids)}
+      ensureSaved={() => ensurePublished('forbindelsesgrupperne gælder den udgivne tegning')} />
+  </FloatWin>
+{/if}
 {#if treeGroup && current}
   <GroupAnims drawingId={current.id} group={treeGroup} {tags} onclose={() => { treeGroup = null; treeRev++; }} />
 {/if}
@@ -1543,15 +1474,6 @@
 <style>
   .toolbar { margin-bottom: .35rem; }
   .comment { flex: 0 1 15rem; min-width: 8rem; }      /* en kommentar behøver ikke fylde linjen (v4.20.0) */
-  .spwin.floating {
-    position: fixed; z-index: 25; display: flex; flex-direction: column; resize: both; overflow: hidden;
-    min-width: 300px; min-height: 220px; background: var(--panel, #fff); border: 1px solid var(--line);
-    border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
-  }
-  .spwin.floating .spbody { flex: 1; overflow: auto; padding: .4rem .7rem .7rem; min-height: 0; }
-  .sphead { display: flex; align-items: center; gap: .4rem; padding: .35rem .5rem .35rem .7rem; cursor: move; user-select: none;
-    background: var(--panel-2, #f3f3f3); border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; flex: none; }
-  .sphead .grow { flex: 1; }
   .msg { padding: .35rem .5rem; background: #fff8e1; border: 1px solid #e0b062; border-radius: 6px; overflow-wrap: anywhere; }
   .msg.warn { background: #fdecea; border-color: #e57373; }
   .zoombar { display: inline-flex; align-items: center; gap: 4px; }

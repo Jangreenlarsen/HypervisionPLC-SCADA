@@ -2,6 +2,57 @@
 
 ---
 
+## v6.1.0 — 2026-11-13 — Flow: systemet beregner selv flowet gennem anlægget
+
+- **Flowberegning:** serveren beregner flowet gennem de forbundne symboler og rør, ud fra pumper (kapacitet og flow-rate), ventilernes åbne veje i deres position, kontraventilers retning og symbolernes restriktion. Det kræver, at tegningens forbindelser er bundet (*Bind forbindelser*).
+- **Flow i symbol-guiden** (trin 4): gør et symbol til en pumpe, giv det en restriktion (fra et tag eller en fast værdi), og vælg hvilke veje en ventil har åbne i hver position. En animation kan styres af **symbolets flow**.
+- **Flow-vinduet i Tegn** (knappen *Flow*, et vindue over tegningen): alle forbindelser viser som standard **løbelys** med retning og fart efter flowet; vælg rør og lav **forbindelsesgrupper** med farve efter flow, blink eller en fast farve.
+- Kortet **Flowberegning** på Status.
+- Første version — vi justerer modellen og visningen i de næste versioner.
+
+## v6.0.0 (build 0395) — 2026-11-12 — Signalvejene er fjernet
+
+- **Signalvejene er fjernet** fra Tegn, og det samme gælder de virtuelle signaler (kommando *kun i SCADA* og et andet symbols position som tilbagemelding). Systemet står i en frisk tilstand, klar til en ny løsning.
+- Ved opdateringen tages først en backup, og derefter slettes gemte veje og deres opsætning. Symboler, der brugte en vej eller et virtuelt signal, står i auditloggen og skal rettes i symbol-guiden.
+- **Ind/ud og veje** på symbolerne, **Tjek/Bind forbindelser** og tilslutningspunkterne består.
+- Backuppen *før signalvejene blev fjernet* kan kun bruges til at gå tilbage til den forrige build (b0394); i denne version springes veje over ved gendannelse.
+- Rettet: backuppen *før opgradering til v6* kunne ikke hentes eller gendannes fra siden Backup.
+
+## v6.0.0 — 2026-11-12 — Signalvejen er en definition, og bruges som et symbol
+
+- En **signalvej definerer kun, hvad den består af** (rør, ventiler, pumper og flowretning). Betingelser og udseende er fjernet fra vejens guide.
+- Tryk **Ret som symbol** ved vejen: i symbol-guidens 6 trin sætter du **tilbagemelding** op (et PLC-tag eller et andet symbols position), **kontaktfladen** (hvilken værdi er hvilken position) og **animationerne** — med **Tilføj løbelys langs vejen** efter vejens flowretning.
+- En signalvejs position kan læses af andre symboler.
+- **Opgradering (MAJOR):** vejens definition består; betingelser, udseende og de gamle animationer droppes, og vejens opsætning som symbol nulstilles (automatisk backup først). Symboler, der læste en vejs gamle tag, vises grå, til de rettes.
+
+## v5.12.0 — 2026-11-12 — Betjening af en signalvej
+
+- Ny knap i vejens guide: **Lav en betjening til vejen** — sætter en vippekontakt (OFF/ON) ind ved vejen, kun i SCADA (skriver ikke til en PLC), og gør den valgbar som betingelse.
+- Ved et symbols position kan betingelsen nu være **er** eller **er ikke**.
+
+## v5.11.0 — 2026-11-12 — Omskifter/knap kun i SCADA
+
+- I symbol-guidens trin 2 kan *Kommando* nu være **kun i SCADA (virtuelt)**: symbolet skriver ikke til en PLC, men positionen huskes, og en signalvej eller animation kan følge den. En PLC-tilbagemelding er toneangivende, hvis den er sat.
+
+## v5.10.0 — 2026-11-12 — En omskifter kan styre en signalvej
+
+- I en signalvejs betingelser kan du nu vælge **et symbols position** (fx *Omskifter 1: position — Auto*) eller en **logikblok**, ved siden af PLC-tags. Vejen følger så symbolet i tegningen uden at skrive til en PLC. PLC-tilbagemeldingen er toneangivende, hvis den er sat.
+
+## v5.9.0 — 2026-11-12 — Animationer samlet pr. symbol, og unikke navne
+
+- I signalvejens guide står animationerne **samlet pr. element** (fx en 3-vejs ventils porte under ét element), og elementerne kan kendes fra hinanden (*navn (id)*).
+- Nyt i Tegn › Symbol-oversigt: **Giv dem unikke navne** til symboler uden navn.
+
+## v5.8.0 — 2026-11-12 — Signalvejen er et rigtigt symbol
+
+- Vejens egne animationer (løbelys på rørene, farve, blink, en 3-vejs ventils porte) kan nu **redigeres som i ethvert andet symbol**: *Ret som symbol* → trin 4 viser dem alle; skift type, kilde (tag, betingelse, signalvejen), farve, hastighed og retning, slet og tilføj. *Vis animationer for* viser ét element ad gangen.
+- **Følger vejens udseende:** med fluebenet genskaber vejen animationen, når den gemmes igen; fjern fluebenet for at beholde dine ændringer.
+- Eksisterende veje opgraderes automatisk — Overview ser ens ud.
+
+## v5.7.0 — 2026-11-12 — Ur-status på Status-siden
+
+- Status viser nu, om serverens **ur er synkroniseret** (NTP) — og giver en gul advarsel, hvis det ikke er. Alarmer, trends og audit bygger på serverens tid.
+
 ## v5.6.1 — 2026-11-12 — Rettelse i scada-tool
 
 - `scada-tool` giver ikke længere en fejlmeddelelse, når udskriften sendes videre til fx `head`.

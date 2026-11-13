@@ -459,6 +459,28 @@ export function createScada(host) {
     for (let i = 2; ; i++) if (!used.has(`${base} ${i}`)) return `${base} ${i}`;
   }
 
+  /** Bibliotekssymboler (rødder med data-hv-type) uden navn (v5.9.0) — de kan ikke kendes fra hinanden i listerne. */
+  function unnamedSymbols() {
+    return Array.from(canvas().getSvgContent().querySelectorAll('[data-hv-type]'))
+      .filter((el) => el.id && !(el.getAttribute('data-hv-name') || '').trim() && !el.parentElement?.closest('[data-hv-type]'));
+  }
+  /** Giv de navnløse symboler hvert et unikt navn: typens navn (fra `labels`) + løbenummer — ét fortryd-trin. Rører kun data-hv-name. */
+  function nameUnnamedNow(labels = {}) {
+    const c = canvas();
+    const cmds = [];
+    for (const el of unnamedSymbols()) {
+      const type = el.getAttribute('data-hv-type') || 'symbol';
+      const base = String((labels && labels[type]) || type.replace(/_/g, ' ')).slice(0, 56);
+      const was = el.getAttribute('data-hv-name');
+      el.setAttribute('data-hv-name', uniqueNameIn(base));
+      cmds.push(new c.history.ChangeElementCommand(el, { 'data-hv-name': was }));
+    }
+    if (!cmds.length) return 0;
+    commitCmds('Giv symboler navne', cmds);
+    if (changeListener) changeListener();
+    return cmds.length;
+  }
+
   /** Et bibliotekssymbol (SVG-fragment med ét rodelement) som et element med unikke id'er — endnu ikke sat ind. */
   let libraryPorts = {};   // symboltype → rettede punkter (sat af Tegn fra /api/symbol-ports)
 
@@ -1175,64 +1197,10 @@ export function createScada(host) {
   }
 
   /** Tegn håndtagene (og under træk: punkterne og det nye forløb). */
-  // ---- fremhævning af en signalvej (v4.2.0): orange streger langs vejens rør og rammer om symbolerne — kun på skærmen,
-  // aldrig i tegningen (eget <svg> over lærredet som rørhåndtagene)
-  const highlight = { lines: [], boxes: [], focus: [], layer: null };
-  // Navne oven på tegningen (v4.17.0): kun visning i Tegn, gemmes ikke i tegningen. paths: [{ name, elements: [id] }]
-  const names = { symbols: false, pipes: false, paths: [], layer: null };
+  // Navne oven på tegningen (v4.17.0): kun visning i Tegn, gemmes ikke i tegningen
+  const names = { symbols: false, pipes: false, layer: null };
   // Tjek af forbindelser (v4.18.0): [{ id, status: 'ok'|'open'|'isolated', open: [[x, y]] }] — beregnes af Tegn-siden, tegnes her
   const conn = { items: [], layer: null };
-  function drawHighlight() {
-    const gridHost = host.gridHost();
-    const content = canvas()?.getSvgContent?.();
-    if (!gridHost || !content || (!highlight.lines.length && !highlight.boxes.length && !highlight.focus.length)) {
-      highlight.layer?.remove();
-      highlight.layer = null;
-      return;
-    }
-    let layer = highlight.layer;
-    if (!layer) {
-      layer = document.createElementNS(NS, 'svg');
-      layer.setAttribute('id', 'hvPathHighlight');
-      layer.style.cssText = 'position:absolute; pointer-events:none; z-index:55; overflow:visible;';
-      gridHost.appendChild(layer);
-      highlight.layer = layer;
-    }
-    const hr = gridHost.getBoundingClientRect();
-    const cr = contentRect(content);
-    const vb = (content.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
-    layer.style.left = `${cr.left - hr.left + gridHost.scrollLeft}px`;
-    layer.style.top = `${cr.top - hr.top + gridHost.scrollTop}px`;
-    layer.setAttribute('width', cr.width);
-    layer.setAttribute('height', cr.height);
-    if (vb.length === 4) layer.setAttribute('viewBox', vb.join(' '));
-    const z = canvas().getZoom() || 1;
-    const w = Math.max(14, 8 / z);
-    const r2 = (v) => Math.round(v * 10) / 10;
-    // Streger: { pts, color, flow } — flow 1/-1 = hvilken vej løbelyset kører (en animeret forhåndsvisning), 0 = ingen retning.
-    // Kasser: { id, color }. Fokus: elementer, der skal stå tydeligt frem (fx rækken, musen peger på).
-    let out = highlight.lines.map(({ pts, color, flow }) => {
-      const pl = pts.map((p) => `${r2(p[0])},${r2(p[1])}`).join(' ');
-      let s = `<polyline points="${pl}" fill="none" stroke="${color}" stroke-opacity="0.5" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
-      if (flow) {
-        const dash = Math.max(10, 6 / z);
-        s += `<polyline points="${pl}" fill="none" stroke="#fff" stroke-opacity="0.9" stroke-width="${Math.max(3, w / 4)}" ` +
-          `stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="${dash} ${dash * 1.8}">` +
-          `<animate attributeName="stroke-dashoffset" from="0" to="${flow > 0 ? -dash * 2.8 : dash * 2.8}" dur="0.9s" repeatCount="indefinite"/></polyline>`;
-      }
-      return s;
-    }).join('');
-    const box = (id, color, fillOp, sw) => {
-      const el = content.querySelector(`[id="${CSS.escape(id)}"]`);
-      const bb = el && boxOf(el);
-      return bb ? `<rect x="${r2(bb.x - 4)}" y="${r2(bb.y - 4)}" width="${r2(bb.w + 8)}" height="${r2(bb.h + 8)}" rx="6" fill="${color}" ` +
-        `fill-opacity="${fillOp}" stroke="${color}" stroke-width="${sw}"/>` : '';
-    };
-    for (const { id, color } of highlight.boxes) out += box(id, color, 0.12, Math.max(3, 2 / z));
-    for (const id of highlight.focus) out += box(id, '#1565c0', 0.18, Math.max(5, 4 / z));
-    layer.innerHTML = out;
-  }
-
   // Symboler, der er rørstykker (hører under "forbindelser", ikke "symboler") — samme liste som frontend/src/lib/signalpath/graph.ts
   const PIPE_SYMBOL_TYPES = new Set(['roer_l', 'roer_v', 'boejning45', 'boejning90', 't_stykke', 'kryds', 'reduktion', 'flange',
     'ledning_l', 'ledning_v', 'forbindelse', 'klemme']);
@@ -1253,11 +1221,11 @@ export function createScada(host) {
     }
     return pts[0];
   }
-  /** Navne på symboler, forbindelser (rør) og signalveje som mærkater oven på tegningen — kun hvor de er slået til. */
+  /** Navne på symboler og forbindelser (rør) som mærkater oven på tegningen — kun hvor de er slået til. */
   function drawNames() {
     const gridHost = host.gridHost();
     const content = canvas()?.getSvgContent?.();
-    if (!gridHost || !content || (!names.symbols && !names.pipes && !names.paths.length)) {
+    if (!gridHost || !content || (!names.symbols && !names.pipes)) {
       names.layer?.remove();
       names.layer = null;
       return;
@@ -1305,13 +1273,6 @@ export function createScada(host) {
         const name = el.getAttribute('data-hv-name');
         if (mid) out += label(mid[0], mid[1] - fs * 0.35, name || el.id, name ? '#2e7d32' : '#757575', !name);
       }
-    }
-    for (const sp of names.paths) {
-      // signalvejens navn midt på vejen: det midterste element, der findes i tegningen
-      const els = sp.elements.map((id) => content.querySelector(`[id="${CSS.escape(id)}"]`)).filter(Boolean);
-      const el = els[Math.floor(els.length / 2)];
-      const bb = el && boxOf(el);
-      if (bb) out += label(bb.x + bb.w / 2, bb.y + bb.h / 2 + fs * 0.35, `⇝ ${sp.name}`, '#6a1b9a', false);
     }
     layer.innerHTML = out;
   }
@@ -1487,7 +1448,6 @@ export function createScada(host) {
   }
 
   function drawHandles() {
-    drawHighlight();
     drawNames();
     drawConn();
     const gridHost = host.gridHost();
@@ -2773,6 +2733,11 @@ export function createScada(host) {
     },
 
     /** Udelad hele symboler fra tjekket af forbindelser (`on`) eller tag dem med igen — ét fortryd-trin, gemmes med tegningen. → antal ændrede */
+    /** Antal symboler uden navn (v5.9.0). */
+    unnamedSymbolCount() { return unnamedSymbols().length; },
+    /** Giv dem unikke navne ("3-vejs ventil 2"); `labels`: symboltype → navn. → antal navngivne */
+    nameUnnamedSymbols(labels = {}) { return nameUnnamedNow(labels); },
+
     exemptSymbols(ids = [], on = true) {
       const c = canvas();
       const cmds = [];
@@ -2815,12 +2780,10 @@ export function createScada(host) {
       drawConn();
     },
 
-    /** Navne oven på tegningen (v4.17.0): symboler, forbindelser og signalveje ({ name, elements }) — kun visning i Tegn. */
+    /** Navne oven på tegningen (v4.17.0): symboler og forbindelser — kun visning i Tegn. */
     setNameLabels(opts = {}) {
       names.symbols = !!opts.symbols;
       names.pipes = !!opts.pipes;
-      names.paths = (Array.isArray(opts.paths) ? opts.paths : []).filter((p) => p && typeof p.name === 'string' && Array.isArray(p.elements))
-        .map((p) => ({ name: p.name, elements: p.elements.filter((x) => typeof x === 'string') }));
       drawNames();
     },
 
@@ -3065,7 +3028,7 @@ export function createScada(host) {
     },
 
     /**
-     * Forbindelserne i tegningen til signalveje (v4.2.0, src/lib/signalPath.ts): for hvert element (symboler, figurer og
+     * Forbindelserne i tegningen (v4.2.0, src/lib/signalPath.ts — Tjek og Bind forbindelser): for hvert element (symboler, figurer og
      * rør) dets tilslutningspunkter (`terminals`), dets streger med endepunkter (`lines` — løbelys kan lægges på dem) og
      * hvilke symboler et rørs ender sidder fast i (`refs`). Alt i tegningens koordinater. Ændrer intet.
      */
@@ -3163,18 +3126,6 @@ export function createScada(host) {
         };
       });
       return { nodes };
-    },
-
-    /** Fremhæv en signalvej på skærmen: `lines` = punkter langs rørene, `boxes` = id'er på symboler. Tomt = fjern. */
-    highlightPath(lines = [], boxes = [], focus = []) {
-      const orange = '#ff8f00';
-      // ældre kald: streger som punktlister og kasser som id'er — nyere: objekter med farve og retning (v4.13.0)
-      highlight.lines = (Array.isArray(lines) ? lines : []).map((l) => (Array.isArray(l) ? { pts: l, color: orange, flow: 0 } : l))
-        .filter((l) => l && Array.isArray(l.pts) && l.pts.length >= 2).map((l) => ({ pts: l.pts, color: l.color || orange, flow: l.flow || 0 }));
-      highlight.boxes = (Array.isArray(boxes) ? boxes : []).map((b) => (typeof b === 'string' ? { id: b, color: orange } : b))
-        .filter((b) => b && typeof b.id === 'string').map((b) => ({ id: b.id, color: b.color || orange }));
-      highlight.focus = Array.isArray(focus) ? focus.filter((x) => typeof x === 'string') : [];
-      drawHighlight();
     },
 
     selectByIds(ids) {

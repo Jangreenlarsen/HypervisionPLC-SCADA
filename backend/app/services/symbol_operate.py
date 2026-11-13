@@ -244,7 +244,7 @@ class SymbolOperateService:
                             labels[position], len(done), exc.message)
                 raise err from exc
             self.runtime.set_chosen(key, position, actor.username)
-            self.runtime.evaluate()
+            self.runtime.evaluate(flow=False)     # (flowet beregnes af runtimens løkke, i en tråd)
         detail["writes"] = done
         self._record(actor, ip, "symbol.operate", key, detail)
         log.info("Symbol %s#%s: %s valgt af %s (%d skrivning(er))", drawing_id, element, labels[position],
@@ -292,7 +292,7 @@ class SymbolOperateService:
         labels = [p["label"] for p in cfg["positions"]]
         self.runtime.set_chosen(key, st.remote, f"accepteret af {actor.username}",
                                 time.time() - float(cfg.get("validate_s", 5)))
-        self.runtime.evaluate()
+        self.runtime.evaluate(flow=False)     # (flowet beregnes af runtimens løkke, i en tråd)
         self._record(actor, ip, "symbol.accept", key, {"from": labels[st.pos] if st.pos is not None else None,
                                                        "accepted": labels[st.remote]})
         return {"element": element, "position": st.remote, "label": labels[st.remote]}

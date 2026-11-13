@@ -35,9 +35,9 @@ from .symbol_flow import clean_def
 from .symbol_ports import MAX_TYPES, clean_ports, clean_type
 from . import library as lib
 from .trend_views import clean_view
-from .signal_paths import valid_data as valid_path_data
+from .connection_groups import MAX_MEMBERS as MAX_CG_MEMBERS, clean_anims as clean_conn_anims, clean_name as clean_conn_name
 from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
-from .symbols import SymbolConfig, config_tags, parse_path_symbol
+from .symbols import SymbolConfig, config_tags, too_many_anims
 from .errors import ServiceError
 from .manager import PlcManager
 from .plcs import normalize_base_url
@@ -52,10 +52,11 @@ MAX_TREND_DB_BYTES = 2 * 1024 * 1024 * 1024  # udpakket historik ved indlæsning
 FORMAT_VERSION = 1
 MAX_RESTORE_BYTES = 64 * 1024 * 1024
 _DRAWING_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}\Z")
-_BACKUP_NAME = re.compile(r"^(scada-(auto|foer-restore|foer-plc-fjern|foer-tag-slet|pre-update)-\d{8}-\d{6}\.json"
+# Slags → tekst på siden Backup (filnavnet scada-<slags>-…). Filnavnsmønstret bygges af den samme liste, så en ny slags altid kan
+# hentes og gendannes (v6.0.0 b0395: "pre-v6" og "foer-signalvej-fjern" manglede i mønstret).
+_KIND_TEXT = {"auto": "auto", "foer-restore": "før restore", "foer-plc-fjern": "før PLC fjernet", "foer-tag-slet": "før tags slettet", "pre-update": "før opdatering", "pre-v6": "før opgradering til v6", "foer-signalvej-fjern": "før signalvejene blev fjernet"}
+_BACKUP_NAME = re.compile(r"^(scada-(" + "|".join(re.escape(k) for k in _KIND_TEXT) + r")-\d{8}-\d{6}\.json"
                           r"|trends-(auto|foer-plc-fjern|foer-tag-slet)-\d{8}-\d{6}\.db\.gz)\Z")
-# Slags → tekst på siden Backup (filnavnet scada-<slags>-…)
-_KIND_TEXT = {"auto": "auto", "foer-restore": "før restore", "foer-plc-fjern": "før PLC fjernet", "foer-tag-slet": "før tags slettet", "pre-update": "før opdatering"}
 MAX_ERRORS = 25
 
 
@@ -154,7 +155,7 @@ class BackupService:
             "symbol_meta": data["symbol_meta"],
             "symbol_config": data["symbol_config"],
             "symbol_groups": data["symbol_groups"],
-            "signal_paths": data["signal_paths"],
+            "connection_groups": data.get("connection_groups", []),
             "trend_views": data["trend_views"],
             "symbol_ports": data["symbol_ports"],
             "symbol_flow": data["symbol_flow"],
@@ -429,15 +430,24 @@ class BackupService:
             if not isinstance(c, dict) or c.get("drawing_id") not in drawing_ids or not isinstance(c.get("element"), str):
                 err(f"Symbol-konfiguration #{i + 1}: ukendt tegning eller element mangler")
                 continue
+            if c["element"].startswith("sv~"):
+                continue     # en signalvejs opsætning (før v6.0.0-b0395): signalvejene er fjernet
             where = f"Symbol {c['drawing_id']}#{c['element']}"
             try:
                 cfg = SymbolConfig.model_validate(c.get("config")).model_dump()
             except ValidationError as exc:
                 err(f"{where}: ugyldig konfiguration ({exc.errors()[0].get('msg', 'fejl')})")
                 continue
+            if too_many_anims(cfg, c["element"]):
+                err(f"{where}: for mange animationer")
+                continue
             if missing := [t for t in config_tags(cfg) if t not in tag_names_all]:
                 err(f"{where}: tagget '{missing[0]}' findes ikke i backuppen")
                 continue
+            for sg in cfg.get("signals", []):
+                sg["virtual"] = False        # virtuelle signaler er fjernet (v6.0.0-b0395)
+            for a in cfg.get("anims", []):
+                a["auto"] = False
             symbol_config.append({"drawing_id": c["drawing_id"], "element": c["element"], "config": cfg})
 
         symbol_groups = []
@@ -471,6 +481,9 @@ class BackupService:
                 except ValidationError as exc:
                     err(f"Symbolgruppe '{g['name']}', {el}: ugyldige animationer ({exc.errors()[0].get('msg', 'fejl')})")
                     continue
+                if too_many_anims(cfg):
+                    err(f"Symbolgruppe '{g['name']}', {el}: for mange animationer")
+                    continue
                 if el not in members:
                     err(f"Symbolgruppe '{g['name']}': animationer på '{el}', som ikke er medlem")
                 elif missing := [t for t in config_tags(cfg) if t not in tag_names_all]:
@@ -482,51 +495,40 @@ class BackupService:
             symbol_groups.append({"drawing_id": g["drawing_id"], "name": g["name"], "kind": g["kind"],
                                   "members": members, "anims": anims})
 
-        signal_paths = []
-        raw_paths = backup.get("signal_paths", [])   # signalveje (v4.2.0); ældre backups har ingen
-        if not isinstance(raw_paths, list):
-            err("signal_paths skal være en liste")
-            raw_paths = []
-        seen_paths: set[tuple[str, str]] = set()
-        seen_ids: set[int] = set()
-        for sp in raw_paths:
-            if not isinstance(sp, dict) or not isinstance(sp.get("name"), str) or not sp["name"].strip() \
-                    or not isinstance(sp.get("data"), dict):
-                err("Signalvej: navn og data mangler")
+        connection_groups = []
+        raw_cg = backup.get("connection_groups", [])   # forbindelsesgrupper (v6.1.0); ældre backups har ingen
+        if not isinstance(raw_cg, list):
+            err("connection_groups skal være en liste")
+            raw_cg = []
+        seen_cg: set[tuple[str, str]] = set()
+        for i, g in enumerate(raw_cg):
+            ok = (isinstance(g, dict) and g.get("drawing_id") in drawing_ids and isinstance(g.get("name"), str) and len(g["name"]) <= 60
+                  and isinstance(g.get("members"), list) and len(g["members"]) <= MAX_CG_MEMBERS
+                  and all(isinstance(m, str) and 0 < len(m) <= 120 for m in g["members"]))
+            if not ok:
+                err(f"Forbindelsesgruppe #{i + 1}: ugyldig (kendt tegning, navn og medlemmer kræves)")
                 continue
-            if "owner" in sp["data"] or "blocks" in sp["data"]:
-                continue     # det gamle format (før v5.0.0) gendannes ikke — vejen laves igen i Tegn
-            if problem := valid_path_data(sp["data"]):
-                err(f"Signalvej '{sp['name']}': {problem}")
+            if not isinstance(g.get("is_default", False), bool):
+                err(f"Forbindelsesgruppe #{i + 1}: is_default skal være sand eller falsk")
                 continue
-            if sp.get("drawing_id") not in drawing_ids:
-                err(f"Signalvej '{sp['name']}': tegningen '{sp.get('drawing_id')}' findes ikke i backuppen")
+            if not g.get("is_default"):
+                try:
+                    g = {**g, "name": clean_conn_name(g["name"])}
+                except ServiceError as exc:
+                    err(f"Forbindelsesgruppe #{i + 1}: {exc.message}")
+                    continue
+            key = (g["drawing_id"], "" if g.get("is_default") else g["name"].casefold())
+            if key in seen_cg:
+                err(f"Forbindelsesgruppe '{g['name']}' på {g['drawing_id']}: findes to gange")
                 continue
-            key = (sp["drawing_id"], sp["name"].strip()[:60])
-            if key in seen_paths:
-                err(f"Signalvej '{key[1]}' findes to gange i tegningen '{key[0]}'")
+            try:
+                anims = clean_conn_anims(g.get("anims", []))
+            except ServiceError as exc:
+                err(f"Forbindelsesgruppe '{g['name']}': {exc.message}")
                 continue
-            seen_paths.add(key)
-            pid = sp.get("id")
-            if not (isinstance(pid, int) and not isinstance(pid, bool) and pid >= 1) or pid in seen_ids:
-                pid = None       # ældre backup (uden id) eller dublet: databasen vælger et nyt
-            if pid is not None:
-                seen_ids.add(pid)
-            signal_paths.append({"id": pid, "drawing_id": key[0], "name": key[1], "data": sp["data"]})
-
-        # en vejs egen opsætning som symbol (`sv~<id>`) følger vejens id — uden vejen (eller uden bevaret id) giver den ingen mening
-        kept = {(sp["drawing_id"], sp["id"]) for sp in signal_paths if sp["id"] is not None}
-        symbol_config = [c for c in symbol_config
-                         if (pid := parse_path_symbol(c["element"])) is None or (c["drawing_id"], pid) in kept]
-
-        for c in symbol_config:       # henvisninger til en signalvej skal passe til en vej, der beholder sit id
-            srcs = [i.get("src", "") for b in c["config"].get("logic", []) for i in b.get("inputs", [])]
-            srcs += [str(a.get("src", "")) for a in c["config"].get("anims", [])]
-            for s in srcs:
-                m = re.match(r"@sv~(\d+):", s) or re.match(r"path:([^:]+):(\d+):", s)
-                if m and ((c["drawing_id"], int(m.group(1))) if s.startswith("@") else (m.group(1), int(m.group(2)))) not in kept:
-                    err(f"Symbol {c['drawing_id']}#{c['element']}: henviser til en signalvej, der ikke findes i backuppen ({s})")
-                    break
+            seen_cg.add(key)
+            connection_groups.append({"drawing_id": g["drawing_id"], "name": "" if g.get("is_default") else g["name"],
+                                      "is_default": bool(g.get("is_default")), "members": list(dict.fromkeys(g["members"])), "anims": anims})
 
         trend_views = []
         raw_views = backup.get("trend_views", [])   # ældre backups har ingen gemte trend-visninger
@@ -637,7 +639,7 @@ class BackupService:
         return {"plcs": plcs, "tags": tags, "drawings": drawings, "versions": versions, "bindings": bindings,
                 "files": files, "settings": {"start_drawing": start if start in drawing_ids else None},
                 "schedules": schedules, "symbol_meta": symbol_meta, "symbol_config": symbol_config,
-                "symbol_groups": symbol_groups, "signal_paths": signal_paths, "trend_views": trend_views,
+                "symbol_groups": symbol_groups, "connection_groups": connection_groups, "trend_views": trend_views,
                 "symbol_ports": symbol_ports, **({"symbol_flow": symbol_flow} if symbol_flow is not None else {}), **library}
 
     # ---------------------------------------------------------------- restore

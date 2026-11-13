@@ -209,7 +209,7 @@
     <button role="tab" aria-selected={tab === 'bibliotek'} class:on={tab === 'bibliotek'} onclick={() => (tab = 'bibliotek')}>Bibliotek</button>
     <button role="tab" aria-selected={tab === 'punkter'} class:on={tab === 'punkter'} onclick={() => { tab = 'punkter'; void show(selectedId); }}>Tilslutningspunkter</button>
     <button role="tab" aria-selected={tab === 'flow'} class:on={tab === 'flow'} onclick={() => (tab = 'flow')}
-            title="Ind/ud, navne og veje på punkterne — bruges af signalveje">Ind/ud og veje</button>
+            title="Ind/ud, navne og veje på punkterne">Ind/ud og veje</button>
   </div>
   {#if from.fromDraw}<button class="back" onclick={back}>← Tilbage til {backName ? `"${backName}"` : 'tegningen'}</button>{/if}
 </div>

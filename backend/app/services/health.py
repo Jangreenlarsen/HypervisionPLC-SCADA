@@ -12,6 +12,7 @@ import json
 import logging
 import shutil
 import sqlite3
+import subprocess
 import time
 from collections import deque
 from datetime import datetime, timezone
@@ -71,9 +72,31 @@ def read_throttled(state_dir: Path | None, now: float | None = None) -> dict[str
         return None
 
 
+_time_cache: tuple[float, bool | None] = (0.0, None)
+
+
+def read_time_sync() -> bool | None:
+    """Er serverens ur synkroniseret med en tidsserver (NTP)? None = kan ikke afgøres (ingen systemd/timedatectl, fx på Windows).
+    Alarmer, trends og audit bygger på serverens tid. Svaret huskes i 60 s (Status spørger tit; timedatectl er en proces)."""
+    global _time_cache
+    now = time.monotonic()
+    if now - _time_cache[0] < 60 and _time_cache[0] > 0:
+        return _time_cache[1]
+    val: bool | None = None
+    try:
+        out = subprocess.run(["timedatectl", "show", "-p", "NTPSynchronized", "--value"], capture_output=True, text=True,
+                             timeout=3).stdout.strip().lower()
+        val = True if out == "yes" else False if out == "no" else None
+    except (OSError, subprocess.SubprocessError):
+        val = None
+    _time_cache = (now, val)
+    return val
+
+
 def read_host(state_dir: Path | None = None) -> dict[str, Any]:
-    """Hukommelse, belastning, CPU-temperatur og Pi-throttling. Det der ikke findes (fx på Windows) er None."""
-    host: dict[str, Any] = {"mem_total": None, "mem_available": None, "load": None, "cpu_temp_c": None, "throttled": None}
+    """Hukommelse, belastning, CPU-temperatur, Pi-throttling og urets synkronisering. Det der ikke findes (fx på Windows) er None."""
+    host: dict[str, Any] = {"mem_total": None, "mem_available": None, "load": None, "cpu_temp_c": None, "throttled": None,
+                            "time_sync": None}
     try:
         info: dict[str, int] = {}
         for line in Path("/proc/meminfo").read_text().splitlines():
@@ -92,6 +115,7 @@ def read_host(state_dir: Path | None = None) -> dict[str, Any]:
     except (OSError, ValueError):
         pass
     host["throttled"] = read_throttled(state_dir)
+    host["time_sync"] = read_time_sync()
     return host
 
 
@@ -165,6 +189,9 @@ def assess(d: dict[str, Any]) -> dict[str, Any]:
             problems.append(_problem("error", "host", f"CPU'en er meget varm ({temp:.0f} °C)", "temp"))
         elif temp >= TEMP_WARN_C:
             problems.append(_problem("warn", "host", f"CPU'en er varm ({temp:.0f} °C)", "temp"))
+    if host.get("time_sync") is False:
+        problems.append(_problem("warn", "host", "Uret er ikke synkroniseret med en tidsserver (NTP) — tidspunkter i alarmer, trends og "
+                                                 "audit kan være forkerte. Tjek netværk og tidsserver (System › Konfiguration).", "time"))
     thr = host.get("throttled")
     if thr:
         if thr["now"]:
@@ -277,8 +304,8 @@ class HealthService:
             "tls_admin": ta.metrics() if (ta := getattr(state, "tls_admin", None)) else None,
             "assist": a.metrics() if (a := getattr(state, "assistant", None)) else None,
             "bindings_cache": dict(ds.cache_stats) if (ds := getattr(state, "drawing_service", None)) else None,
-            # signalveje (v5.0.0): antal veje i drift, aktive/ukendte kombinationer af grene og beregningsfejl i seneste tick
-            "signal_paths": dict(rt.path_stats) if (rt := getattr(state, "symbol_runtime", None)) else None,
+            # flowberegningen (v6.1.0): kørsler, sidste beregningstid, fejl, tegninger uden gemte forbindelser, beskeder
+            "flow": rt.flow.status() if (rt := getattr(state, "symbol_runtime", None)) is not None and hasattr(rt, "flow") else None,
             # opgraderingen v5.1.0 (den gamle symbolmodel fjernet): symboler, der stadig skal sættes op i guiden
             "symbol_migration": self._symbol_migration(state),
             "notify": notifier.failing() if (notifier := getattr(state, "notifier", None)) else {},

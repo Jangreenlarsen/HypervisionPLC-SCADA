@@ -44,7 +44,7 @@ def test_set_change_and_clear_pin(api, mock_plc, caplog):
     everything = json.dumps(log) + caplog.text + json.dumps(api.get("/api/backup").json())
     # Som selvstændigt tal — tidsstempler (fx 1791954711.2) kan tilfældigt indeholde de samme fire cifre
     for pin in ("4711", "8080", "1357"):
-        assert not re.search(rf"(?<![0-9]){pin}(?![0-9])", everything), pin
+        assert not re.search(rf"(?<![0-9])(?<!\.py:){pin}(?![0-9])", everything), pin       # (loggens "fil.py:1357" er et linjenummer, ikke koden)
 
 
 def test_new_pin_lifts_lockout(api, mock_plc):

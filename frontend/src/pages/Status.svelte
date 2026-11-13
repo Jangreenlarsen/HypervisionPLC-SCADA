@@ -97,6 +97,11 @@
           <strong>{health.assist.busy ? 'arbejder' : 'klar'}{health.assist.waiting ? ` · ${health.assist.waiting} venter` : ''}</strong>
           <div class="muted small">{health.assist.asks ?? 0} spørgsmål, {health.assist.requests} kald, {health.assist.errors} fejl siden start · seneste {(health.assist.last_ms / 1000).toFixed(1)} s</div></div>
       {/if}
+      {#if health.flow && (health.flow.runs || health.flow.errors)}
+        <div class="card"><div class="muted small">Flowberegning</div>
+          <strong>{health.flow.flowing} elementer med flow</strong>
+          <div class="muted small">{health.flow.runs} beregninger · seneste {health.flow.last_ms} ms{health.flow.errors ? ` · ${health.flow.errors} fejl (se loggen)` : ''}{Object.keys(health.flow.notes).length ? ` · beskeder på ${Object.keys(health.flow.notes).join(', ')}` : ''}</div></div>
+      {/if}
       <div class="card"><div class="muted small">Seneste backup</div>
         <strong>{health.backup.last_age_s === null ? 'ingen' : `${fmtDuration(health.backup.last_age_s)} siden`}</strong>
         <div class="muted small">{health.backup.interval_h > 0 ? `automatisk hver ${health.backup.interval_h}. time · ${health.backup.count} gemt` : 'automatisk backup er slået fra'}</div></div>
@@ -118,6 +123,10 @@
       <div class="card"><div class="muted small">CPU-temperatur</div>
         <strong>{health.host.cpu_temp_c === null ? '—' : `${health.host.cpu_temp_c.toFixed(0)} °C`}</strong>
         {#if health.host.load}<div class="muted small">belastning {health.host.load.map((x) => x.toFixed(2)).join(' / ')}</div>{/if}</div>
+      <div class="card"><div class="muted small">Ur (NTP)</div>
+        {#if health.host.time_sync === true}<strong>synkroniseret</strong>
+        {:else if health.host.time_sync === false}<strong class="bad">ikke synkroniseret</strong><div class="muted small">tider i alarmer og trends kan være forkerte</div>
+        {:else}<strong>—</strong><div class="muted small">kan ikke aflæses</div>{/if}</div>
       <div class="card"><div class="muted small">Strøm og varme (Pi)</div>
         {#if health.host.throttled === null}<strong>—</strong><div class="muted small">kun på en Raspberry Pi</div>
         {:else if health.host.throttled.now.length}<strong class="bad">{health.host.throttled.now.join(', ')}</strong>
