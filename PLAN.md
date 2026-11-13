@@ -1,4 +1,4 @@
-# Plan: Topmenuen i Tegn refaktoreres — 2026-11-13 — afventer OK
+# Plan: Topmenuen i Tegn refaktoreres — 2026-11-13 — udført i v6.2.0
 
 Jan (2026-11-13): "side menu i tegn er ok men top menu kan godt trænge til en refakto".
 

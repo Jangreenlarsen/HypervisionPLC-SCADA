@@ -6,7 +6,12 @@
 
 ## Skærmen
 
-- **Øverst**: vælg tegning og version, skriv en kommentar til versionen, **zoom** (−, +, **Tilpas**), menuerne **Vis** (gitter, hjælpelinjer, navne i tegningen, tjek af forbindelser) og **Fang** (fang til gitter, objekter, rør og hjælpelinjer, skalér symmetrisk), og knapperne **Gem kladde**, **Gem og udgiv**, **Bindinger**, **Slet tegning** og tegningens **størrelse**.
+- **Øverst** står én linje i tre dele:
+  - **til venstre** står **tegningens navn** som en menu: skift til en anden tegning, **+ Ny tegning …**, **⤢ Størrelse …**, **Bindinger →** og nederst den røde **Slet tegning …**. Ved siden af står **versionen** (fx *v4 kladde*): tryk for at åbne en anden version eller **udgive** den åbne. En orange **●** betyder, at der er ændringer, der ikke er gemt;
+  - **i midten** står menuerne **Vis** (gitter, hjælpelinjer, navne i tegningen), **Fang** (fang til gitter, objekter, rør og hjælpelinjer, skalér symmetrisk) og **Forbindelser** (tjek, ret og bind forbindelser; mærket viser antal fejl eller ✓) og knappen **Flow**;
+  - **til højre** står **zoom** (−, +, ⤢ tilpas), **Meddelelser**, **Gem kladde** og **Gem og udgiv**. Pilen **▾** på *Gem og udgiv* åbner **kommentaren til versionen**; en grøn prik viser, at der er skrevet en.
+
+  På en smal skærm bliver teksterne kortere (*Forb.*, 🔔, *Kladde*, *Udgiv*), så linjen ikke ombrydes.
 - **Meddelelser**: systemets beskeder om tegningen (fx at den er gemt og udgivet, at der er renset noget ved gem, eller en advarsel) samles i en boks, der åbner, når du trykker på knappen — som alarmklokken i topmenuen. Et **orange tal** viser, hvor mange nye der er; en **advarsel** åbner boksen af sig selv. Dublerede symbolnavne står øverst i boksen med en knap, der giver dem unikke navne. **Ryd meddelelser** tømmer listen.
 - **Værktøjslinjen til venstre**: **Fortryd** og **Gentag** øverst, derefter værktøjerne **Vælg** (V), **Forbindelse** (O), **Linje** (L), **Rektangel** (R), **Ellipse** (E), **Sti** (P), **Frihånd** (F), **Tekst** (T), **Polygon** (Y), **Stjerne** (S), **Regulær polygon** (N), **Bue** (B) og **Billede**. Bogstavet er genvejstasten.
 - **Tegnefladen** i midten. **Ctrl + musehjul** zoomer, og **mellemrum** eller **midterknappen** + træk flytter udsnittet.
@@ -15,11 +20,11 @@
 
 ## Sådan tegner du
 
-1. Vælg en eksisterende tegning (og version) i rullelisterne øverst, eller start en ny (**— Ny tegning —**). Står du på en tegning i **Overview**, åbner menupunktet **Tegn** (og **Bindinger**) direkte den tegning.
+1. Vælg en tegning i menuen med tegningens navn øverst til venstre (og en version i versionsmenuen ved siden af), eller start en ny (**+ Ny tegning …**, skriv navnet i feltet, og tryk **Opret tegning**). Står du på en tegning i **Overview**, åbner menupunktet **Tegn** (og **Bindinger**) direkte den tegning.
 2. Tegn med værktøjerne til venstre, og indsæt symboler fra **Symboler** til højre — klik på et symbol, eller **træk det ind** på tegningen, hvor det skal stå.
 3. Under **Valgt element** giver du elementet et **Navn**, hvis det skal være et symbol, der kan sættes op med guiden. **Avanceret** viser elementets tekniske **id**.
 4. Tryk **Gem kladde** (gemmer en ny version, men viser den ikke endnu) eller **Gem og udgiv** (gemmer og gør den aktiv). En ny tegning skal have et navn.
-5. **Slet tegning** fjerner hele tegningen (med samme oversigt over, hvad det rammer, som på siden *Tegninger*). **Bindinger** åbner bindingsiden for tegningen.
+5. **Slet tegning …** (i menuen med tegningens navn) fjerner hele tegningen (med samme oversigt over, hvad det rammer, som på siden *Tegninger*). **Bindinger** åbner bindingsiden for tegningen.
 
 Er der ændringer, du ikke har gemt, spørger systemet, før de kasseres.
 
@@ -86,23 +91,23 @@ Vælg værktøjet **Tekst** (T), klik og skriv; dobbeltklik på en tekst for at 
 
 ## Tegningens størrelse
 
-Knappen med tegningens størrelse (**⤢ 1200 × 700**) øverst viser og ændrer tegningens bredde og højde. Vælg et **fast valg** (fx *Full HD-skærm 1920 × 1080* eller *Panel 1280 × 800*) eller skriv bredde og højde (100–10000), og tryk **Brug størrelsen**. **Tilpas til indholdet** flytter tegningen op i hjørnet og gør den præcis stor nok med den valgte margen. En baggrund, der fyldte hele tegningen, følger med. Nye tegninger starter på 1200 × 700, og Overview skalerer altid tegningen til skærmen.
+**⤢ Størrelse …** i menuen med tegningens navn viser og ændrer tegningens bredde og højde. Vælg et **fast valg** (fx *Full HD-skærm 1920 × 1080* eller *Panel 1280 × 800*) eller skriv bredde og højde (100–10000), og tryk **Brug størrelsen**. **Tilpas til indholdet** flytter tegningen op i hjørnet og gør den præcis stor nok med den valgte margen. En baggrund, der fyldte hele tegningen, følger med. Nye tegninger starter på 1200 × 700, og Overview skalerer altid tegningen til skærmen.
 
 ## Tegnehjælp: gitter, fang og drejning
 
 ![Tegnehjælpen over tegnefladen: gitter, fang, gitterafstand og Skalér symmetrisk](../../public/manual/tegn-hjaelp.png)
 
-Tegnehjælpen ligger i menuerne **Vis** og **Fang** i den øverste linje (tryk på menuen, sæt hak, og klik udenfor eller tryk Esc for at lukke den):
+Tegnehjælpen ligger i menuerne **Vis**, **Fang** og **Forbindelser** i den øverste linje (tryk på menuen, sæt hak, og klik udenfor eller tryk Esc for at lukke den):
 
 - **Vis gitter** viser et net **ovenpå** tegningen (det ændrer ikke tegningen). Linjerne ligger med den valgte **gitterafstand** (5, 10, 20, 25 eller 50 enheder), og hver 5. linje er kraftigere.
-- **Tjek forbindelser** markerer alle symboler og rør oven på tegningen, så du kan se, om alt hænger sammen: **grønt** = alle tilslutningspunkter sidder fast i noget, **rødt** med røde prikker = der er åbne ender (**stiplet kant** = intet er forbundet). Ved siden af afkrydsningen står, hvor mange der har åbne ender (peg på teksten for navnene). Ubrugte tilslutningspunkter på et symbol (fx en pumpes ekstra port) vises også som røde prikker — det er ikke nødvendigvis en fejl. Det er kun en visning, der ikke gemmes.
+- **Tjek forbindelser** (menuen **Forbindelser**) markerer alle symboler og rør oven på tegningen, så du kan se, om alt hænger sammen: **grønt** = alle tilslutningspunkter sidder fast i noget, **rødt** med røde prikker = der er åbne ender (**stiplet kant** = intet er forbundet). Menuen viser, hvor mange der har åbne ender, og deres navne; mærket på knappen viser antallet af fejl (eller et grønt ✓). Ubrugte tilslutningspunkter på et symbol (fx en pumpes ekstra port) vises også som røde prikker — det er ikke nødvendigvis en fejl. Det er kun en visning, der ikke gemmes.
 - **Punkter og symboler, der ikke er i brug**: nogle tilslutningspunkter bliver aldrig brugt (fx en pumpes ekstra port), og nogle symboler skal slet ikke have rør. Så skal de ikke give en fejl. Mens **Tjek forbindelser** er slået til, kan du **klikke på den røde prik** for at markere punktet som **ikke i brug** — det bliver en grå stiplet ring og tæller ikke som en fejl. **Skift+klik** på en prik (eller vælg symbolet og tryk **Udelad valgte fra tjekket**) udelader **hele symbolet**: det får en grå ramme med et ⊘-mærke. Klik på ringen eller mærket for at fortryde. Markeringerne **gemmes i tegningen**, når du trykker **Gem kladde** eller **Gem og udgiv**, og kan fortrydes med Ctrl+Z. De påvirker kun tjekket, ikke Overview.
 - **Bind forbindelser** gemmer det, der hænger sammen, **som en del af tegningen** (gemmes, når du trykker Gem kladde eller Gem og udgiv). Uden gemte forbindelser gætter Tegn hver gang ud fra, hvor tæt tingene ligger; med dem er det de gemte forbindelser, der gælder for tjekket. Knappen viser, hvor mange nye forbindelser der er at gemme. Bagefter viser tjekket:
   - **grønt** — gemt, og punkterne mødes;
   - **orange** — gemt, men punkterne er **gledet fra hinanden** (fx et rør, der er blevet kortere). **Ret** flytter rør-enden tilbage; **klik på den orange prik** fjerner forbindelsen (Ctrl+Z fortryder);
   - **rødt** — et åbent punkt.
   Punkter uden en gemt forbindelse (fx et rør, du lige har tegnet) bruger stadig afstanden, til du binder igen. En kopi (Ctrl+C/V, Ctrl+D) tager ikke forbindelserne med. Bindingen kan vise et par flere åbne punkter end før: et sted, hvor fx en bøjning er tegnet ind over et T-stykkes ben, talte afstanden tidligere bøjningens kurvepunkt som en forbindelse — det gør den gemte forbindelse ikke.
-- **Ret N forbindelser** (knappen står ved Tjek forbindelser, når der er noget at rette) flytter rør-ender, der ligger **klods op ad** en anden ende eller et tilslutningspunkt (mere end 8, men højst 25 enheder fra), så de sidder sammen. Et tegnet rør lægges om og sættes fast i punktet; et lige rør-symbol (rør vandret/lodret) forlænges eller forkortes i sin egen retning, hvis målet ligger på dets linje. **Symboler flyttes aldrig**, og ender længere væk end 25 enheder, eller som ligger ved siden af røret, rettes ikke — dem må du selv trække på plads. Det hele er ét fortryd-trin (Ctrl+Z).
+- **Ret N forbindelser** (i menuen **Forbindelser**, når der er noget at rette) flytter rør-ender, der ligger **klods op ad** en anden ende eller et tilslutningspunkt (mere end 8, men højst 25 enheder fra), så de sidder sammen. Et tegnet rør lægges om og sættes fast i punktet; et lige rør-symbol (rør vandret/lodret) forlænges eller forkortes i sin egen retning, hvis målet ligger på dets linje. **Symboler flyttes aldrig**, og ender længere væk end 25 enheder, eller som ligger ved siden af røret, rettes ikke — dem må du selv trække på plads. Det hele er ét fortryd-trin (Ctrl+Z).
 - **Vis navne** (symboler / forbindelser) skriver navnene som mærkater **oven på** tegningen, så du kan se, hvad ting hedder, når du fx sætter bindinger op. Symbolernes navne står i blåt over symbolet, forbindelsernes (rør, bøjninger, T-stykker) i grønt. Et tegnet rør uden navn vises med sit id i grå kursiv. Navnene gemmes ikke i tegningen og vises ikke i Overview; valget huskes i din browser.
 - **Fang til gitter** lægger objekter på gitteret: når du flytter, indsætter eller duplikerer, flyttes objektets **øverste venstre hjørne** til nærmeste gitterpunkt.
 - **Fang til objekter**: slipper du et objekt tæt på et andet, lægger det sig **kant mod kant** eller **midte mod midte** med det nærmeste. Små justeringer med piletasterne fanges ikke.

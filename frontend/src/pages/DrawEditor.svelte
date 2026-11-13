@@ -1037,6 +1037,11 @@
   let messages = $state<Msg[]>([]);
   let unread = $state(0);
   let msgOpen = $state(false);
+  // Topmenuen (v6.2.0): menuerne Tegning, version, Forbindelser og kommentaren under Gem og udgiv ▾
+  let drawMenu = $state(false), verMenu = $state(false), connMenu = $state(false), saveMenu = $state(false);
+  const connErrors = $derived(checkConn && connSummary ? connSummary.open + connSummary.isolated + connSummary.drift : 0);
+  const connBadge = $derived(!checkConn || !connSummary ? '' : connErrors ? connErrors : '✓');
+  const menuDo = (f: () => unknown) => () => { drawMenu = verMenu = connMenu = false; f(); };
   let msgSeq = 0;
   $effect(() => {
     const text = info;
@@ -1077,56 +1082,74 @@
   const entries = (o: Record<string, number>) => Object.entries(o).map(([k, v]) => `${k} ×${v}`).join(', ');
 </script>
 
-<div class="row toolbar">
-  <select value={current?.id ?? ''} onchange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; if (v) open(v); else startNew(); }} aria-label="Tegning" disabled={!ready}>
-    <option value="">— Ny tegning —</option>
-    {#each drawings as d}<option value={d.id}>{d.name}</option>{/each}
-  </select>
-  {#if current}
-    <select value={loadedVersion} onchange={(e) => current && open(current.id, Number((e.currentTarget as HTMLSelectElement).value))} aria-label="Version">
-      {#each current.versions as v}
-        <option value={v.version}>v{v.version}{v.version === current.active_version ? ' (udgivet)' : ' (kladde)'}{v.comment ? ` — ${v.comment}` : ''}</option>
-      {/each}
-    </select>
-    {#if !isActive}<button onclick={publishLoaded}>Udgiv denne version</button>{/if}
-  {:else}
-    <input bind:value={newName} placeholder="Navn på ny tegning" maxlength="80" />
-  {/if}
-  <input bind:value={comment} placeholder="Kommentar til versionen" maxlength="200" class="comment" />
-  <span class="zoombar" role="group" aria-label="Zoom">
-    <button onclick={() => canvasRef?.perform('zoomOut')} disabled={!ready} title="Zoom ud (Ctrl+−)" aria-label="Zoom ud">−</button>
-    <span class="zoom">{Math.round(zoomLevel * 100)} %</span>
-    <button onclick={() => canvasRef?.perform('zoomIn')} disabled={!ready} title="Zoom ind (Ctrl++)" aria-label="Zoom ind">+</button>
-    <button onclick={() => canvasRef?.perform('zoomFit')} disabled={!ready} title="Tilpas til vinduet (Ctrl+0)">Tilpas</button>
-  </span>
-  <Menu label="Vis" title="Gitter, hjælpelinjer, navne og tjek af forbindelser">{@render viewMenu()}</Menu>
-  <Menu label="Fang" title="Fang til gitter, objekter, rør og hjælpelinjer">{@render snapMenu()}</Menu>
-  <button class:on={flowOpen} onclick={() => (flowOpen = !flowOpen)} disabled={!current}
-    title="Flow: hvordan rør og rørstykker viser det beregnede flow på Overview (forbindelsesgrupper)">Flow</button>
-  <Menu label="Meddelelser" title="Systemets beskeder om tegningen (gem, rettelser, advarsler)" badge={unread + (dupNames.length ? 1 : 0) + (migration?.manual.length ? 1 : 0)} hot={unread > 0 || dupNames.length > 0 || !!migration?.manual.length}
-        wide align="right" bind:open={msgOpen} onopen={() => (unread = 0)}>{@render messagesMenu()}</Menu>
-  {#if checkConn && connSummary}
-    {#if connSummary.open || connSummary.isolated}
-      <span class="small" style="color:var(--warn)" title={connSummary.names.join(', ')}>{connSummary.open} åbne, {connSummary.isolated} uden forbindelse</span>
-      {#if connMoves.length}
-        <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt, så de sidder sammen. Symboler flyttes aldrig. Kan fortrydes med Ctrl+Z">Ret {connMoves.length}</button>
+<!-- Topmenuen (v6.2.0, PLAN.md): én linje i tre zoner — tegningen | værktøjer | zoom, meddelelser og gem -->
+<div class="toolbar" role="toolbar" aria-label="Tegn">
+  <div class="zone">
+    <Menu label={current ? current.name : 'Ny tegning'} title="Skift tegning, ny tegning, størrelse, bindinger, slet" cls="dname" disabled={!ready} bind:open={drawMenu}>
+      <span class="mhead">Tegninger</span>
+      <div class="mlist">
+        {#each drawings as d (d.id)}
+          <button class="mitem" class:cur={d.id === current?.id} onclick={menuDo(() => d.id !== current?.id && open(d.id))}>{d.name}</button>
+        {:else}<span class="small muted">Ingen tegninger endnu.</span>{/each}
+      </div>
+      <hr class="mrule" />
+      <button class="mitem" onclick={menuDo(() => startNew())}>+ Ny tegning …</button>
+      <button class="mitem" onclick={menuDo(openSize)} title="Tegningens bredde og højde">⤢ Størrelse … <span class="muted">({sizeText(size.w, size.h)})</span></button>
+      {#if current}
+        <a class="mitem" href={'#editor/' + current.id} onclick={() => (drawMenu = false)}>Bindinger →</a>
+        <hr class="mrule" />
+        <button class="mitem danger" onclick={menuDo(removeCurrent)} disabled={busy} title="Slet tegningen med alle versioner og bindinger">Slet tegning …</button>
       {/if}
-    {:else}<span class="small" style="color:#2e7d32">alt hænger sammen</span>{/if}
-    {#if connSummary.drift}<span class="small" style="color:#ef6c00" title="Gemte forbindelser, hvor punkterne er gledet fra hinanden (orange). Ret flytter rør-enden tilbage; klik på den orange prik fjerner forbindelsen">{connSummary.drift} gledet</span>{/if}
-    {#if connSummary.unbound > 0 || !connSummary.bound}
-      <button class="small" onclick={bindNow} title="Gem det, der hænger sammen nu, som tegningens forbindelser — så gælder de for tjekket, også hvis noget senere glider lidt">Bind forbindelser{connSummary.unbound > 0 ? ` (${connSummary.unbound})` : ''}</button>
+    </Menu>
+    {#if current}
+      <Menu label={`v${loadedVersion ?? '?'} ${isActive ? 'udgivet' : 'kladde'}`} title="Tegningens versioner — åbn en anden, eller udgiv den åbne" cls={isActive ? 'ver' : 'ver draft'} bind:open={verMenu}>
+        <span class="mhead">Versioner</span>
+        <div class="mlist">
+          {#each [...current.versions].reverse() as v (v.version)}
+            <button class="mitem" class:cur={v.version === loadedVersion} onclick={menuDo(() => current && v.version !== loadedVersion && open(current.id, v.version))}>
+              v{v.version} <span class="muted">{v.version === current.active_version ? '(udgivet)' : '(kladde)'}</span>{v.comment ? ` — ${v.comment}` : ''}</button>
+          {/each}
+        </div>
+        {#if !isActive}<hr class="mrule" /><button class="primary" onclick={menuDo(publishLoaded)}>Udgiv v{loadedVersion}</button>{/if}
+      </Menu>
+    {:else}
+      <input bind:value={newName} placeholder="Navn på ny tegning" maxlength="80" class="newname" aria-label="Navn på ny tegning" />
     {/if}
-  {/if}
-  {#if current}
-    <button onclick={() => save(false)} disabled={busy || !ready}>Gem kladde</button>
-    <button class="primary" onclick={() => save(true)} disabled={busy || !ready}>Gem og udgiv</button>
-    <a class="btn" href={'#editor/' + current.id}>Bindinger</a>
-    <button class="danger" onclick={removeCurrent} disabled={busy || !ready} title="Slet tegningen med alle versioner og bindinger">Slet tegning</button>
-  {:else}
-    <button class="primary" onclick={() => save(true)} disabled={busy || !ready}>Opret tegning</button>
-  {/if}
-  <button onclick={openSize} disabled={!ready} aria-expanded={sizeOpen} title="Tegningens bredde og højde — tryk for at ændre">⤢ {sizeText(size.w, size.h)}</button>
-  {#if dirty}<span class="badge">ikke gemt</span>{/if}
+    {#if dirty}<span class="dirty" title="Der er ændringer, der ikke er gemt">● <span class="long">ikke gemt</span></span>{/if}
+  </div>
+
+  <div class="zone tools">
+    <Menu label="Vis" title="Gitter, hjælpelinjer og navne">{@render viewMenu()}</Menu>
+    <Menu label="Fang" title="Fang til gitter, objekter, rør og hjælpelinjer">{@render snapMenu()}</Menu>
+    <Menu label="Forbindelser" short="Forb." title="Tjek forbindelser: åbne ender, ret, bind" badge={connBadge} good={connErrors === 0}
+      hot={connErrors > 0} wide bind:open={connMenu}>{@render connMenuBody()}</Menu>
+    <button class:on={flowOpen} onclick={() => (flowOpen = !flowOpen)} disabled={!current}
+      title="Flow: hvordan rør og rørstykker viser det beregnede flow på Overview (forbindelsesgrupper)">Flow</button>
+  </div>
+
+  <div class="zone right">
+    <span class="zoombar" role="group" aria-label="Zoom">
+      <button onclick={() => canvasRef?.perform('zoomOut')} disabled={!ready} title="Zoom ud (Ctrl+−)" aria-label="Zoom ud">−</button>
+      <span class="zoom">{Math.round(zoomLevel * 100)} %</span>
+      <button onclick={() => canvasRef?.perform('zoomIn')} disabled={!ready} title="Zoom ind (Ctrl++)" aria-label="Zoom ind">+</button>
+      <button onclick={() => canvasRef?.perform('zoomFit')} disabled={!ready} title="Tilpas til vinduet (Ctrl+0)" aria-label="Tilpas til vinduet">⤢</button>
+    </span>
+    <Menu label="Meddelelser" short="🔔" title="Systemets beskeder om tegningen (gem, rettelser, advarsler)" badge={unread + (dupNames.length ? 1 : 0) + (migration?.manual.length ? 1 : 0)} hot={unread > 0 || dupNames.length > 0 || !!migration?.manual.length}
+          wide align="right" bind:open={msgOpen} onopen={() => (unread = 0)}>{@render messagesMenu()}</Menu>
+    {#if current}
+      <button onclick={() => save(false)} disabled={busy || !ready} title="Gem som en ny kladde-version — Overview viser stadig den udgivne"><span class="long">Gem kladde</span><span class="short">Kladde</span></button>
+    {/if}
+    <span class="split">
+      <button class="primary" onclick={() => save(true)} disabled={busy || !ready}>{#if current}<span class="long">Gem og udgiv</span><span class="short">Udgiv</span>{:else}Opret tegning{/if}</button>
+      <Menu label="Kommentar til versionen" bare cls="primary caret" align="right" badge={comment.trim() ? '●' : ''} good
+        title="Kommentar til versionen, der gemmes" bind:open={saveMenu}>
+        <label class="field">Kommentar til versionen
+          <input bind:value={comment} placeholder="fx Ny pumpe i kælderen" maxlength="200" onkeydown={(e) => { if (e.key === 'Enter') saveMenu = false; }} />
+        </label>
+        <span class="small muted">Gemmes med næste <em>Gem kladde</em> eller <em>Gem og udgiv</em>.</span>
+      </Menu>
+    </span>
+  </div>
 </div>
 {#if symbolEdit}
   <div class="notice row sym-edit" role="status">
@@ -1138,7 +1161,7 @@
 {/if}
 {#if sizeOpen}
   <div class="panel size-panel" role="group" aria-label="Tegningens størrelse">
-    <strong>Tegningens størrelse</strong>
+    <div class="row"><strong>Tegningens størrelse</strong><button class="small close" onclick={() => (sizeOpen = false)} aria-label="Luk">✕</button></div>
     <div class="row wrap">
       <label class="opt">Fast valg
         <select value={presetFor(Number(sizeForm.w), Number(sizeForm.h))?.label ?? ''} onchange={(e) => { const p = SIZE_PRESETS.find((x) => x.label === e.currentTarget.value); if (p) sizeForm = { ...sizeForm, w: String(p.w), h: String(p.h) }; }}>
@@ -1187,16 +1210,33 @@
     <label class="opt"><input type="checkbox" bind:checked={showNames.symbols} /> symboler</label>
     <label class="opt"><input type="checkbox" bind:checked={showNames.pipes} /> forbindelser</label>
   </div>
-  <span class="mhead">Kontrol</span>
-  <div class="mrow" title="Markerer, hvad der hænger fast i resten af tegningen: grønt = forbundet, rødt = åbne ender (røde prikker). Kun visning i Tegn">
-    <label class="opt"><input type="checkbox" bind:checked={checkConn} /> Tjek forbindelser</label>
-    {#if checkConn}
+{/snippet}
+
+{#snippet connMenuBody()}
+  <label class="opt" title="Markerer, hvad der hænger fast i resten af tegningen: grønt = forbundet, rødt = åbne ender (røde prikker). Kun visning i Tegn">
+    <input type="checkbox" bind:checked={checkConn} /> Tjek forbindelser</label>
+  {#if !checkConn}
+    <span class="small muted">Slå tjekket til for at se åbne ender, rette dem og binde forbindelserne (det kræver flowberegningen).</span>
+  {:else if connSummary}
+    <span class="mhead">Resultat</span>
+    <div class="mrow">
+      {#if connSummary.open || connSummary.isolated}
+        <span class="small" style="color:var(--warn)" title={connSummary.names.join(', ')}>{connSummary.open} åbne, {connSummary.isolated} uden forbindelse</span>
+      {:else}<span class="small" style="color:#2e7d32">✓ alt hænger sammen</span>{/if}
+      {#if connSummary.drift}<span class="small" style="color:#ef6c00" title="Gemte forbindelser, hvor punkterne er gledet fra hinanden (orange). Ret flytter rør-enden tilbage; klik på den orange prik fjerner forbindelsen">{connSummary.drift} gledet</span>{/if}
+      <span class="small muted">{connSummary.bound ? (connSummary.unbound ? `${connSummary.unbound} ikke bundet` : 'alle bundet') : 'ikke bundet endnu'}</span>
+    </div>
+    {#if connSummary.names.length}<div class="small muted mnames">{connSummary.names.join(', ')}</div>{/if}
+    <div class="mrow">
+      {#if connMoves.length}
+        <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt, så de sidder sammen. Symboler flyttes aldrig. Kan fortrydes med Ctrl+Z">Ret {connMoves.length}</button>
+      {/if}
+      {#if connSummary.unbound > 0 || !connSummary.bound}
+        <button class="small primary" onclick={bindNow} title="Gem det, der hænger sammen nu, som tegningens forbindelser — så gælder de for tjekket og flowberegningen, også hvis noget senere glider lidt">Bind forbindelser{connSummary.unbound > 0 ? ` (${connSummary.unbound})` : ''}</button>
+      {/if}
       <button class="small" onclick={exemptSelected} disabled={!selIds.length} title="Udelad de valgte symboler fra tjekket, så de ikke giver fejl (fx et symbol, der bevidst ikke er tilsluttet). Gemmes med tegningen. Peg på en rød prik: klik = kun det punkt, Skift+klik = hele symbolet">{selAllExempt ? 'Tag valgte med i tjekket' : 'Udelad valgte fra tjekket'}</button>
-    {/if}
-    {#if checkConn && connSummary && connMoves.length}
-      <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt. Symboler flyttes aldrig. Ctrl+Z fortryder">Ret {connMoves.length}</button>
-    {/if}
-  </div>
+    </div>
+  {/if}
 {/snippet}
 
 {#snippet messagesMenu()}
@@ -1472,8 +1512,28 @@
 {/if}
 
 <style>
-  .toolbar { margin-bottom: .35rem; }
-  .comment { flex: 0 1 15rem; min-width: 8rem; }      /* en kommentar behøver ikke fylde linjen (v4.20.0) */
+  /* Topmenuen (v6.2.0): én linje i tre zoner, der ikke ombrydes; værktøjszonen fylder midten */
+  .toolbar { margin-bottom: .35rem; display: flex; align-items: center; gap: .35rem .75rem; flex-wrap: wrap; min-width: 0; }   /* én linje ned til ~1000 px; derunder hele zoner på næste linje */
+  .zone { display: flex; align-items: center; gap: .35rem; flex-wrap: nowrap; flex: none; }
+  .zone.tools { flex: 1 1 auto; padding-left: .75rem; border-left: 1px solid var(--line); }
+  .zone.right { flex: none; padding-left: .75rem; border-left: 1px solid var(--line); }
+  .toolbar :global(button.dname) { font-weight: 600; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; }
+  .toolbar :global(button.ver) { font-size: .8rem; padding: .2rem .45rem; }
+  .toolbar :global(button.ver.draft) { background: #fff8e1; border-color: #e0b062; }
+  .newname { width: 12rem; }
+  .dirty { color: #ef6c00; font-size: .8rem; white-space: nowrap; }
+  .split { display: inline-flex; flex: none; }
+  .split > button { border-top-right-radius: 0; border-bottom-right-radius: 0; white-space: nowrap; }
+  .split :global(button.caret) { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 1px solid rgba(255, 255, 255, .5); padding-left: .35rem; padding-right: .35rem; }
+  .short { display: none; }
+  @media (max-width: 1250px) { .long { display: none; } .short { display: inline; } .zoombar .zoom { display: none; } }
+  .toolbar :global(.mlist) { display: flex; flex-direction: column; max-height: 45vh; overflow: auto; }
+  .toolbar :global(.mitem) { text-align: left; border: 0; background: none; padding: .3rem .4rem; border-radius: 4px; color: inherit; text-decoration: none; white-space: nowrap; }
+  .toolbar :global(.mitem:hover:not(:disabled)) { background: var(--hover, #eef3f8); }
+  .toolbar :global(.mitem.cur) { font-weight: 600; background: var(--hover, #eef3f8); }
+  .toolbar :global(.mitem.danger) { color: var(--danger, #c62828); }
+  .mnames { max-height: 5rem; overflow: auto; overflow-wrap: anywhere; }
+  .size-panel .close { margin-left: auto; }
   .msg { padding: .35rem .5rem; background: #fff8e1; border: 1px solid #e0b062; border-radius: 6px; overflow-wrap: anywhere; }
   .msg.warn { background: #fdecea; border-color: #e57373; }
   .zoombar { display: inline-flex; align-items: center; gap: 4px; }

@@ -72,7 +72,7 @@ Forberedelse: tag en backup først (System › Backup, eller `scada-tool backup 
 - [ ] Under **Bindinger**: en tekst-binding med beregning `x / 10` (128 → 12,8) (v0.41).
 
 ### 10b. Flow (v6.1)
-- [ ] Tegn › Vis › Tjek forbindelser › **Bind forbindelser** → gem og udgiv.
+- [ ] Tegn › **Forbindelser** › Tjek forbindelser › **Bind forbindelser** → gem og udgiv.
 - [ ] Pumpen: guiden trin 4 › **Flow** → Med i flowberegningen, Pumpe, kapacitet 100, flow-rate = pumpens drift-tag → gem. Start pumpen i PLC'en → **løbelys** i alle rør i løkken på Overview, i flowets retning; stop → løbelyset stopper.
 - [ ] 3-vejsventil med positioner AB → A / AB → B (tag 10/20): trin 4 › Flow → hakkene står ved den rigtige vej → skift ventilen → flowet skifter gren.
 - [ ] Kontraventil vendt forkert → intet flow, og Flow-vinduet siger "ingen åben vej rundt".

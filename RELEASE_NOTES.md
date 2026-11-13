@@ -2,6 +2,11 @@
 
 ---
 
+## v6.2.0 — 2026-11-13 — Ny topmenu i Tegn
+
+- Topmenuen i Tegn er ryddet op: **til venstre** tegningens navn (en menu med skift af tegning, ny tegning, størrelse, bindinger og *Slet tegning* nederst) og versionen; **i midten** *Vis*, *Fang*, den nye menu **Forbindelser** (tjek, ret og bind forbindelser, med antal fejl på knappen) og *Flow*; **til højre** zoom, meddelelser og gem. Kommentaren til versionen ligger under ▾ på *Gem og udgiv*.
+- Linjen ombrydes ikke længere, og den springer ikke, når forbindelsestjekket slås til.
+
 ## v6.1.0 — 2026-11-13 — Flow: systemet beregner selv flowet gennem anlægget
 
 - **Flowberegning:** serveren beregner flowet gennem de forbundne symboler og rør, ud fra pumper (kapacitet og flow-rate), ventilernes åbne veje i deres position, kontraventilers retning og symbolernes restriktion. Det kræver, at tegningens forbindelser er bundet (*Bind forbindelser*).
