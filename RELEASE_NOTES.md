@@ -2,6 +2,10 @@
 
 ---
 
+## v6.9.1 — 2026-11-13
+
+- Rettet: tegninger med pumper, der kun er sat op til visning, eller uden bundne forbindelser, får ikke længere løbelys-bindinger og falske flow-beskeder (fra v6.8.4).
+
 ## v6.9.0 — 2026-11-13 — Samme tegning på tværs af siderne
 
 - Overview, Tegn, Bindinger og Simulator åbner den tegning, du står på (eller sidst havde åben), når du skifter side i menuen.

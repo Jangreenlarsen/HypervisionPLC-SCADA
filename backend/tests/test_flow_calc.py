@@ -188,6 +188,8 @@ def test_a_pump_type_without_flow_setup_runs_by_its_position():
     assert run(loop(), {"p": fra_til}, positions={"p": 0})[0].get("r1", 0) == 0
     assert run(loop(), {"p": fra_til})[0].get("r1", 0) == 0                     # ukendt position: stille
     assert run(loop(), {})[0].get("r1", 0) == 0                                 # uden opsætning: stille
+    flows, notes, st = run(loop(), {"p": {"op": "view"}})                      # v6.8.7: "kun visning" er ingen pumpe
+    assert flows.get("r1", 0) == 0 and notes == [] and st.get("pumps", 0) == 0
     assert run(loop(), {"p": {**fra_til, **PUMP}}, positions={"p": 0})[0]["r1"] == 100   # egen flow-opsætning vinder
     # navnene afgør rækkefølgen: "Til" først er også kørende
     assert pump_running({"op": "positions", "positions": [{"label": "Til"}, {"label": "Fra"}]}, 0) is True

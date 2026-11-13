@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.9.1 build 0411] — 2026-11-13 — Regression: "kun visning"-pumper gør ikke tegningen til en flow-tegning; standardgruppen kræver bundne forbindelser
+
+Fundet i systemanalysen (docs/ANALYSE_2026-11-13.md) ved en kontrol af demoens tegninger, kun læsning.
+
+- `backend/app/services/flow_calc.py`: `type_pumps` og `FlowEngine.jobs` medtager kun pumpe-typer med positioner.
+- `backend/app/services/drawings.py`:
+  - pumperne efter typen kræver positioner;
+  - standardgruppen kræver `data-hv-links` (bundne forbindelser) i tegningen.
+- Tests: `test_connection_groups.py` (ny test; den gamle forventning er sat tilbage) og `test_flow_calc.py`.
+- Manual kap. 08 og BUGS.md.
+
 ## [6.9.0 build 0410] — 2026-11-13 — Samme tegning, når man skifter mellem Overview, Tegn, Bindinger og Simulator
 
 Jan: "når man skifter imellem tegning editor overview og simulator kunne det være rart at den tegning man er på også er den som er primær".

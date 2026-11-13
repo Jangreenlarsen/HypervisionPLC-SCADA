@@ -441,7 +441,9 @@ def type_pumps(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[st
         if e.kind != "symbol" or kind_of(defs, e.type) != "pump":
             continue
         cfg = configs.get(e.id) or {}
-        if cfg.get("flow"):
+        # v6.8.7: kun en pumpe med positioner (Fra/Til) — en "kun visning"-pumpe uden flow-opsætning kan aldrig køre og må ikke
+        # gøre tegningen til en flow-tegning (varme på demoen fik ellers løbelys-bindinger og falske beskeder)
+        if cfg.get("flow") or cfg.get("op") != "positions":
             continue
         rate = 1.0 if pump_running(cfg, positions.get(e.id)) else 0.0
         cap = max(0, min(MAX_CAPACITY, int((defs.get(e.type) or {}).get("capacity") or 100)))
@@ -654,7 +656,8 @@ class FlowEngine:
             configs = {e: c for (d, e), c in symbols.items() if d == did}
             # (v6.4.0) en flowmåler med baseline giver et flow-niveau, også uden en pumpe på tegningen
             by_type = [e.id for e in topo.elements.values() if e.kind == "symbol" and kind_of(self.defs, e.type) == "pump"
-                       and not (configs.get(e.id) or {}).get("flow")]      # pumper efter typen (v6.8.4)
+                       and not (configs.get(e.id) or {}).get("flow")
+                       and (configs.get(e.id) or {}).get("op") == "positions"]      # pumper efter typen (v6.8.4; med positioner v6.8.7)
             if not by_type and not any((c.get("flow") or {}).get("pump") or ((c.get("flow") or {}).get("measured") or {}).get("src")
                                        for c in configs.values()):
                 if self._published.get(did) or self._published_levels.get(did):
