@@ -209,3 +209,14 @@ export function validateDef(def: FlowDef): string | null {
   }
   return null;
 }
+
+/** Typernes tilslutningspunkter til Tegn (v6.8.5): { type: [[x, y], …] } fra "Ind/ud og veje" — så Tegn og flowberegningen
+ *  kender de samme punkter. Typer uden punkter er ikke med (de får Tegns automatiske punkter). */
+export function typePortMap(defs: FlowDefs): Record<string, [number, number][]> {
+  const out: Record<string, [number, number][]> = {};
+  for (const [t, d] of Object.entries(defs)) {
+    const pts = (d?.ports ?? []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)).map((p): [number, number] => [p.x, p.y]);
+    if (pts.length) out[t] = pts;
+  }
+  return out;
+}

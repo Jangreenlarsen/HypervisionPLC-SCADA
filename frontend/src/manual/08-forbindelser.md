@@ -138,6 +138,8 @@ På siden **Symboler** (rollen tekniker, under **Opsætning**), fanen **Tilslutn
 
 > Ændringen gælder **symboler, du indsætter fremover**. Symboler, der allerede står i en tegning, beholder deres punkter — så eksisterende rør flytter sig ikke.
 
+**Typens IND/UD i Tegn:** har et symbol ingen rettede punkter, bruger Tegn typens punkter fra **Ind/ud og veje** (nedenfor) i stedet for fire automatiske. Fx har en pumpe kun **IND** (venstre) og **UD** (højre), så du kan kun forbinde rørene der, som flowberegningen forventer. Sidder rørene på en ældre pumpe øverst og nederst, viser *Tjek forbindelser* det, og simulatoren siger, hvor de sidder. Drej pumpen, så pilen peger langs røret, eller træk rørenderne til IND og UD, og bind forbindelserne igen.
+
 ### Ind/ud og veje
 
 ![Fanen Ind/ud og veje: 3-vejsmotorventilens punkter A, B og AB med roller, det fælles punkt og vejene](../../public/manual/symbol-ind-ud.png)

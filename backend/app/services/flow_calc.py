@@ -340,7 +340,12 @@ def build(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, di
             out_n = next((n for n in by_name if roles.get(n) == "out"), None)
             in_n = next((n for n in by_name if roles.get(n) == "in"), None)
             if out_n is None or in_n is None:
-                notes.append(f"Pumpen '{e.name or e.id}' mangler en forbindelse på IND eller UD")
+                # v6.8.5: sig hvilket punkt der mangler, og hvor rørene sidder i stedet (fx øverst/nederst på en pumpe med IND/UD i siderne)
+                missing = " og ".join(n for n, v in (("IND", in_n), ("UD", out_n)) if v is None)
+                stray = [k for k in keys if k not in names]
+                notes.append(f"Pumpen '{e.name or e.id}' er ikke forbundet på {missing}"
+                             + (f" — rørene sidder ved {', '.join(_where(k) for k in stray)}; ret dem i Tegn til pumpens IND- og UD-punkt"
+                                if stray else " — tjek forbindelserne i Tegn"))
                 continue
             q = rate * cap * restrict
             if q > 0:
@@ -402,6 +407,15 @@ def _measured(configs: dict[str, dict[str, Any]], read: Callable[[str], Any]) ->
         if isinstance(v, (int, float)) and not isinstance(v, bool):
             out[el] = abs(float(v))
     return out
+
+
+def _where(key: str) -> str:
+    """Et punkt ("x,y" i brøkdele af symbolets boks) i ord: øverst, nederst, venstre, højre — eller tallene."""
+    try:
+        x, y = (float(v) for v in key.split(","))
+    except ValueError:
+        return key
+    return {(0.5, 0.0): "øverst", (0.5, 1.0): "nederst", (0.0, 0.5): "venstre", (1.0, 0.5): "højre"}.get((round(x, 2), round(y, 2)), key)
 
 
 # v6.8.4 (Jan: "jeg har ikke nogen løbelys animation på forbindelser"): en pumpe-type uden egen flow-opsætning er en pumpe med

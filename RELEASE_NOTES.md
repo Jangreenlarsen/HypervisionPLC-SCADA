@@ -2,6 +2,10 @@
 
 ---
 
+## v6.8.5 — 2026-11-13
+
+- En pumpe har i Tegn kun sine punkter **IND** (venstre) og **UD** (højre), så forbindelserne passer med flowet. Sidder rørene forkert på en ældre pumpe, siger simulatoren og *Tjek forbindelser* det.
+
 ## v6.8.4 — 2026-11-13
 
 - En pumpe giver flow og løbelys, så snart den står på **Til**, også uden flow-opsætning i guiden. Det gælder Overview, simulatoren og Tegns Flow-vindue. Farten fra et tag sættes stadig op under *Flow* i guiden.

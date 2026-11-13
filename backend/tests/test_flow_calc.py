@@ -193,3 +193,12 @@ def test_a_pump_type_without_flow_setup_runs_by_its_position():
     assert pump_running({"op": "positions", "positions": [{"label": "Til"}, {"label": "Fra"}]}, 0) is True
     assert pump_running({"op": "positions", "positions": [{"label": "Hånd"}, {"label": "Auto"}]}, 1) is True
     assert pump_running({"op": "view"}, 1) is False
+
+
+def test_a_pump_wired_at_top_and_bottom_gets_a_precise_note():
+    """v6.8.5 (Jan, demoen): rørene sad øverst og nederst på pumpen, IND/UD er venstre og højre — beskeden siger hvor."""
+    s = svg(sym("p", "pumpe", "0.5,0>r1:s;0.5,1>r2:e"), pipe("r1", "s>p:0.5,0;e>rad:0,0.5"),
+            sym("rad", "radiator", "0,0.5>r1:e;1,0.5>r2:s"), pipe("r2", "s>rad:1,0.5;e>p:0.5,1"))
+    flows, notes, _ = run(s, {"p": PUMP})
+    assert flows.get("r1", 0) == 0
+    assert notes == ["Pumpen 'P' er ikke forbundet på IND og UD — rørene sidder ved øverst, nederst; ret dem i Tegn til pumpens IND- og UD-punkt"]
