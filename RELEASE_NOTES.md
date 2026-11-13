@@ -2,6 +2,11 @@
 
 ---
 
+## v6.8.3 — 2026-11-13
+
+- Simulatoren viser kun de symboler, der er i tegningen. Opsætninger på fjernede elementer nævnes med et link til Bindinger.
+- Under hvert tag står, hvad det er, og hvilke symboler der bruger det.
+
 ## v6.8.2 — 2026-11-13
 
 - Simulatoren: rækkerne står stille, når du sætter hak eller skifter Til/Fra; komm.fejl er knappen ⚡.

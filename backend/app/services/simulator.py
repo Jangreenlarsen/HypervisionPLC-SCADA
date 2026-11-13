@@ -24,6 +24,7 @@ from .flow_calc import flow_tag, level_tag, ports_tag, ports_text, preview
 from .flow_defs import merged
 from .live_cache import LiveValue
 from .symbol_runtime import compute_state, remote_position
+from .svg_sanitize import index_svg
 from .symbols import ANIM_LABEL, PSEUDO_KINDS, config_tags, logic_pseudo_tags, logic_results, parse_alarm_ref, pseudo_tag
 
 log = logging.getLogger("scada.simulator")
@@ -111,6 +112,12 @@ class SimulatorService:
 
     def variables(self, drawing_id: str) -> dict[str, Any]:
         svg, eff, configs, names = self._context(drawing_id)
+        # v6.8.3 (Jan: "hvad er det for symboler … i den her er en pumpe og en 3-vejs ventil"): kun symboler, der findes i den
+        # udgivne tegning — en opsætning på et fjernet element (forældreløs, se Bindinger) og dens tags vises ikke.
+        # Beregningen (simulate) bruger stadig dem alle, som driften gør.
+        present = set(index_svg(svg))
+        orphaned = sorted(e for e in configs if e not in present)
+        configs = {e: c for e, c in configs.items() if e in present}
         tags = {t["name"]: t for t in self.db.list_tags()}
         nm = lambda el: names.get(el) or el  # noqa: E731
         uses: dict[str, list[str]] = {}
@@ -157,7 +164,7 @@ class SimulatorService:
             positions.append({"element": el, "name": nm(el), "labels": [p.get("label", "") for p in cfg.get("positions", [])],
                               "states": [p.get("state") for p in cfg.get("positions", [])],
                               "display": cfg.get("display", "remote"), "live": getattr(st, "pos", None)})
-        return {"tags": out_tags, "positions": positions, "alarms": alarms}
+        return {"tags": out_tags, "positions": positions, "alarms": alarms, "orphaned": orphaned}
 
     # ------------------------------------------------------------ beregningen
 

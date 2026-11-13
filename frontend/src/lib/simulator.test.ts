@@ -41,3 +41,12 @@ describe('simulatoren', () => {
     expect(liveText({ value: 2.5, quality: 'good' }, 'bar')).toBe('2.5 bar');
   });
 });
+
+describe('usedText (v6.8.3)', () => {
+  it('samler pr. symbol og afkorter', async () => {
+    const { usedText } = await import('./simulator');
+    expect(usedText(['Pumpe · opsætning', 'Pumpe · Farve', 'Tank · Farve'])).toBe('Pumpe (opsætning, Farve), Tank (Farve)');
+    expect(usedText(['A · x', 'B · x', 'C · x', 'D · x'])).toBe('A (x), B (x), C (x) +1');
+    expect(usedText([])).toBe('');
+  });
+});

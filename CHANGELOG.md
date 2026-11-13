@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.8.3 build 0406] — 2026-11-13 — Simulatoren: kun tegningens symboler, og en forklaring ved hvert tag
+
+- **Fejl:** simulatoren viste forældreløse symbolopsætninger og deres tags (BUGS.md). `backend/app/services/simulator.py variables` filtrerer på elementerne i den udgivne tegning (`index_svg`) og returnerer `orphaned`. `Simulator.svelte` nævner dem med et link til Bindinger.
+- **Forklaring** (`Simulator.svelte`, `lib/simulator.ts usedText`): under hvert tag og hver alarm står en fast linje med tagets beskrivelse og de symboler, der bruger det, fx *Tank (Farve, opsætning)*.
+- Rækkernes kontroller har fast højde, så talfeltet ikke længere gør rækken højere. Målt ens i alle tilstande.
+- Tests: `test_symbol_orphans.py`, `simulator.test.ts`. Set i browseren: forklaringslinjen og rækkehøjden. Noten om forældreløse opsætninger er kun bygget og ikke set; den lokale testtegning har ingen.
+- Manual kap. 07 og billedet `simulator.png`.
+
 ## [6.8.2 build 0405] — 2026-11-13 — Simulatoren: rækkerne flytter sig ikke længere ved et hak
 
 - `frontend/src/pages/Simulator.svelte`: rækkerne har faste kolonner (hak, navn, værdi, ⚡ komm.fejl, Find). Værdien står på én linje, og skyderen giver sig. *Til/Fra* og *Ja/Nej* har fast bredde, og rækkerne har fast højde. *komm.fejl* er en fast knap ⚡ (tryk igen = værdi), slået fra uden hak (BUGS.md).

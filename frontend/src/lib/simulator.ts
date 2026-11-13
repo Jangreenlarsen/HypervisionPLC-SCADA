@@ -10,7 +10,8 @@ export interface SimTag {
 }
 export interface SimPosition { element: string; name: string; labels: string[]; states?: (string | null)[]; display: string; live: number | null }
 export interface SimAlarm { name: string; tag: string; kind: string; used: string[]; elements: string[]; live: SimLive }
-export interface SimVariables { tags: SimTag[]; positions: SimPosition[]; alarms: SimAlarm[] }
+/** orphaned (v6.8.3): opsætninger på elementer, der ikke findes i tegningen — vises ikke som variabler */
+export interface SimVariables { tags: SimTag[]; positions: SimPosition[]; alarms: SimAlarm[]; orphaned?: string[] }
 export interface SimState { values: Record<string, unknown>; positions: Record<string, number> }
 export interface SimScenario extends SimState { id: number; name: string; updated_at: number; updated_by: string }
 export interface SimResult { values: Record<string, SimLive>; notes: string[]; ms: number; simulated: number }
@@ -64,4 +65,19 @@ export function liveText(l: SimLive | undefined, unit = ''): string {
   if (!l || l.quality !== 'good' || l.value === null || l.value === undefined) return l?.quality === 'comm_error' ? 'komm.fejl' : '—';
   if (typeof l.value === 'boolean') return l.value ? 'Til' : 'Fra';
   return `${typeof l.value === 'number' ? Math.round(l.value * 1000) / 1000 : String(l.value)}${unit ? ` ${unit}` : ''}`;
+}
+
+/** Hvad en variabel bruges til, kort (v6.8.3): "Pumpe · opsætning", "Pumpe · Farve" → "Pumpe (opsætning, Farve)"; højst 3 symboler. */
+export function usedText(used: string[], max = 3): string {
+  const by = new Map<string, string[]>();
+  for (const u of used) {
+    const i = u.lastIndexOf(' · ');
+    const who = i >= 0 ? u.slice(0, i) : u;
+    const what = i >= 0 ? u.slice(i + 3) : '';
+    const list = by.get(who) ?? [];
+    if (what && !list.includes(what)) list.push(what);
+    by.set(who, list);
+  }
+  const parts = [...by].map(([who, what]) => (what.length ? `${who} (${what.join(', ')})` : who));
+  return parts.length > max ? `${parts.slice(0, max).join(', ')} +${parts.length - max}` : parts.join(', ');
 }
