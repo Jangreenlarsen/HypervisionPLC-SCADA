@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { rememberDrawing } from '../lib/nav';
   import { onDestroy, onMount, tick } from 'svelte';
   import { ask as askUser } from '../lib/ask';
   import { api, get, post, put, type Binding, type DrawingView, type LiveValue } from '../lib/api';
@@ -103,6 +104,7 @@
   async function load(id: string, keepSelection = false): Promise<void> {
     error = '';
     if (!id) return;
+    rememberDrawing(id);
     try {
       const [v, t] = await Promise.all([
         get<DrawingView>(`/api/drawings/${encodeURIComponent(id)}/view`),

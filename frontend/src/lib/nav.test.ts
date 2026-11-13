@@ -35,12 +35,18 @@ describe('hovedmenuen', () => {
 
 describe('menulink (v0.79.0)', () => {
   it('Tegn og Bindinger åbner tegningen man står på i Overview', () => {
-    expect(navHref('draw', 'overview/kedelrum')).toBe('#draw/kedelrum');
-    expect(navHref('editor', 'overview/kedelrum')).toBe('#editor/kedelrum');
-    expect(navHref('tags', 'overview/kedelrum')).toBe('#tags');
-    expect(navHref('draw', 'overview')).toBe('#draw');
-    expect(navHref('draw', 'overview/')).toBe('#draw');
-    expect(navHref('draw', 'trends')).toBe('#draw');
-    expect(navHref('draw', 'draw/kedelrum')).toBe('#draw');
+    expect(navHref('draw', 'overview/kedelrum', null)).toBe('#draw/kedelrum');
+    expect(navHref('editor', 'overview/kedelrum', null)).toBe('#editor/kedelrum');
+    expect(navHref('tags', 'overview/kedelrum', null)).toBe('#tags');
+    expect(navHref('draw', 'overview', null)).toBe('#draw');
+    expect(navHref('draw', 'overview/', null)).toBe('#draw');
+    expect(navHref('draw', 'trends', null)).toBe('#draw');
+  });
+  it('v6.8.7: alle fire tegningssider følger tegningen, man står på — eller den sidst åbnede', () => {
+    expect(navHref('overview', 'draw/kedelrum', null)).toBe('#overview/kedelrum');
+    expect(navHref('simulator', 'draw/kedelrum/sym:pumpe', null)).toBe('#simulator/kedelrum');
+    expect(navHref('draw', 'simulator/kedelrum', 'andet')).toBe('#draw/kedelrum');      // står man på en, vinder den
+    expect(navHref('editor', 'tags', 'kedelrum')).toBe('#editor/kedelrum');              // ellers den sidst åbnede
+    expect(navHref('tags', 'draw/kedelrum', 'kedelrum')).toBe('#tags');
   });
 });

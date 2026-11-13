@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { rememberDrawing } from '../lib/nav';
   import { onDestroy, onMount, untrack } from 'svelte';
   import { ask as askUser, askText } from '../lib/ask';
   import { suggestName } from '../lib/draw/naming';
@@ -519,6 +520,7 @@
     report = null;
     try {
       const detail = await get<Detail>(`/api/drawings/${encodeURIComponent(id)}`);
+      rememberDrawing(id);
       const v = version ?? detail.active_version;
       const resp = await fetch(`/api/drawings/${encodeURIComponent(id)}/svg?version=${v}`);
       if (!resp.ok) throw new Error(`Kunne ikke hente SVG (HTTP ${resp.status})`);

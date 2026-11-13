@@ -2,6 +2,10 @@
 
 ---
 
+## v6.9.0 — 2026-11-13 — Samme tegning på tværs af siderne
+
+- Overview, Tegn, Bindinger og Simulator åbner den tegning, du står på (eller sidst havde åben), når du skifter side i menuen.
+
 ## v6.8.6 — 2026-11-13
 
 - Meddelelser i Tegn: gamle symbolopsætninger (fra slettede eller erstattede symboler) står som én fast besked med **Fjern dem …** i stedet for at gentages ved hvert gem.

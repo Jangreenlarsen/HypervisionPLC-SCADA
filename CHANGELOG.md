@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.9.0 build 0410] — 2026-11-13 — Samme tegning, når man skifter mellem Overview, Tegn, Bindinger og Simulator
+
+Jan: "når man skifter imellem tegning editor overview og simulator kunne det være rart at den tegning man er på også er den som er primær".
+
+- `frontend/src/lib/nav.ts`: `navHref` gælder nu alle fire tegningssider, ikke kun fra Overview. Tegningen, man står på, vinder; ellers bruges den sidst åbnede i fanen (`rememberDrawing`/`lastDrawing`, sessionStorage `hv.drawing`). Andre sider åbnes som før.
+- `Overview.svelte`, `DrawEditor.svelte`, `Editor.svelte` og `Simulator.svelte` husker den åbnede tegning. Overview starter på den sidst åbnede.
+- Tests: `nav.test.ts`. Set i browseren: Tegn (kedel-2) → Overview → Simulator → Bindinger → Tegn giver alle kedel-2. Efter skift til *vejtest* i Simulator følger Overview med. Fra Tags åbner Tegn den sidst åbnede.
+- Manual kap. 01.
+
 ## [6.8.6 build 0409] — 2026-11-13 — Meddelelser: gamle symbolopsætninger som én fast besked med "Fjern dem …"
 
 - `frontend/src/pages/DrawEditor.svelte`: advarslen om symbolopsætninger på elementer, der ikke længere er i tegningen, hænges ikke længere på gem-meddelelsen. Den står som én fast besked pr. tegning med **Fjern dem …** (bekræftes; `DELETE /symbols/{el}/config` pr. element, stopper ved første fejl og siger hvor mange der nåede at blive fjernet), **Vis i Bindinger** og **Vis navnene**.

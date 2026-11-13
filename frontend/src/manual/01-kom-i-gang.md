@@ -34,6 +34,8 @@ Skriv brugernavn og adgangskode. Er det første gang, eller har en administrator
 | **System** | Status, Log, Brugere, Backup, Opdatering, Notifikationer, Integrationer, Certifikater, Konfiguration, Hjælper (LLM) | tekniker (Status, Log) og admin |
 | **Bruger** | Dit navn og din rolle, Skift adgangskode, Log ud, Manual, version | alle |
 
+**Samme tegning på tværs af siderne:** Overview, Tegn, Bindinger og Simulator åbner den tegning, du står på. Kommer du fra en anden side (fx Tags), åbner de den tegning, du sidst havde åben i browserfanen.
+
 Ud for menuerne står hvor du er (**Drift › Overview**). Til højre står knappen **Hjælper** (når hjælperen er slået til), en **alarmklokke** med antal aktive alarmer og linket **AGPL · kildekode**. Klokken blinker, når der er alarmer, du endnu ikke har kvitteret. Linket peger på programmets kildekode (programmet er fri software under AGPL-3.0). Yderst til højre står den installerede **version**, fx *v4.9.0 · b0359* — oplys den, hvis du melder en fejl.
 
 ## Roller
