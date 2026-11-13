@@ -4,6 +4,57 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.9.3 build 0413] — 2026-11-13 — Forældede gemte forbindelser: vises som gledet, og Bind forbindelser retter dem
+
+- `frontend/src/lib/signalpath/graph.ts`:
+  - `linkGap` giver uendelig afstand for et punkt, symbolet ikke har, så forbindelsen vises som gledet.
+  - `pairsToBind` gemmer ikke forældede forbindelser igen og lader geometrien binde den ende.
+- `frontend/svgedit-host/scada-core.js bindLinksNow` gemmer præcis parrene fra `pairsToBind` (de gyldige gemte + de nye).
+- `backend/app/services/flow_calc.py`: pumpebeskeden siger "de gemte forbindelser peger på …" og beder om *Bind forbindelser*.
+- `deploy/audit_drawings.py` finder forældede forbindelser på symbolet og på rørene, der peger på det.
+- Tests: `connectionCheck.test.ts` (2 nye) og `test_flow_calc.py`. Set i browseren på en kopi af Jans demo-tegning: *Bind forbindelser* retter den, og simulatoren viser løbelys.
+- docs/ANALYSE_2026-11-13.md: anden runde. Manual kap. 07.
+
+## [6.9.2 build 0412] — 2026-11-13 — Systemanalysen: kopierne holdes ens, Tjek forbindelser viser flowets beskeder, kontrolscript efter deploy
+
+docs/ANALYSE_2026-11-13.md (Jan: "jeg synes vi kun finder fejl på fejl nu"): seks rodårsagsklasser, rettelser pr. klasse og en kontrol efter rettelserne.
+
+- **Kopierne af standarderne holdes ens** (klasse K1):
+  - `shared/flow_defaults.json` skrives af `python -m app.services.flow_defs --write-shared`.
+  - `backend/tests/test_shared_defaults.py` og `frontend/src/lib/sharedDefaults.test.ts` kontrollerer `flow_defs.DEFAULTS`/`PIPE_SYMBOL_TYPES`, `symbolFlow.FLOW_DEFAULTS`/`PIECE_TYPES`, `signalpath/graph.ts PIPE_TYPES` og `scada-core.js PIPE_SYMBOL_TYPES`.
+  - Testet ved at fjerne en type fra én kopi: testen fejlede.
+- **Tjek forbindelser viser flowberegningens beskeder** (`DrawEditor.svelte`): samme beregning som Flow-vinduet og simulatoren, højst hvert 1,5 sekund efter en ændring. Beskederne tæller i mærket. "Hænger sammen, men flowet kan ikke beregnes", når kun flowet fejler.
+- **Tag-brugskontrollen** (`symbols.usage`) siger "(gammel opsætning — fjern den under Bindinger)" om opsætninger på elementer, der ikke er i den aktive version.
+- **`deploy/audit_drawings.py`**: konsistenskontrol af alle tegninger på en server, kun læsning (gamle opsætninger, standardgruppe uden bundne forbindelser, bindinger uden element, manglende tags, flow-beskeder). Køres efter hver deploy.
+- Tests: `test_shared_defaults.py`, `sharedDefaults.test.ts`, `test_symbol_orphans.py`. Set i browseren: en lokal testtegning med pumpen forbundet øverst og nederst viser flowbeskeden i *Forbindelser* (mærke 4).
+- Manual kap. 07.
+
+## [6.9.1 build 0411] — 2026-11-13 — Regression: "kun visning"-pumper gør ikke tegningen til en flow-tegning; standardgruppen kræver bundne forbindelser
+
+Fundet i systemanalysen (docs/ANALYSE_2026-11-13.md) ved en kontrol af demoens tegninger, kun læsning.
+
+- `backend/app/services/flow_calc.py`: `type_pumps` og `FlowEngine.jobs` medtager kun pumpe-typer med positioner.
+- `backend/app/services/drawings.py`:
+  - pumperne efter typen kræver positioner;
+  - standardgruppen kræver `data-hv-links` (bundne forbindelser) i tegningen.
+- Tests: `test_connection_groups.py` (ny test; den gamle forventning er sat tilbage) og `test_flow_calc.py`.
+- Manual kap. 08 og BUGS.md.
+
+## [6.9.0 build 0410] — 2026-11-13 — Samme tegning, når man skifter mellem Overview, Tegn, Bindinger og Simulator
+
+Jan: "når man skifter imellem tegning editor overview og simulator kunne det være rart at den tegning man er på også er den som er primær".
+
+- `frontend/src/lib/nav.ts`: `navHref` gælder nu alle fire tegningssider, ikke kun fra Overview. Tegningen, man står på, vinder; ellers bruges den sidst åbnede i fanen (`rememberDrawing`/`lastDrawing`, sessionStorage `hv.drawing`). Andre sider åbnes som før.
+- `Overview.svelte`, `DrawEditor.svelte`, `Editor.svelte` og `Simulator.svelte` husker den åbnede tegning. Overview starter på den sidst åbnede.
+- Tests: `nav.test.ts`. Set i browseren: Tegn (kedel-2) → Overview → Simulator → Bindinger → Tegn giver alle kedel-2. Efter skift til *vejtest* i Simulator følger Overview med. Fra Tags åbner Tegn den sidst åbnede.
+- Manual kap. 01.
+
+## [6.8.6 build 0409] — 2026-11-13 — Meddelelser: gamle symbolopsætninger som én fast besked med "Fjern dem …"
+
+- `frontend/src/pages/DrawEditor.svelte`: advarslen om symbolopsætninger på elementer, der ikke længere er i tegningen, hænges ikke længere på gem-meddelelsen. Den står som én fast besked pr. tegning med **Fjern dem …** (bekræftes; `DELETE /symbols/{el}/config` pr. element, stopper ved første fejl og siger hvor mange der nåede at blive fjernet), **Vis i Bindinger** og **Vis navnene**.
+- Set i browseren på en lokal testtegning med to gamle opsætninger: beskeden vises, *Fjern dem* fjerner dem efter bekræftelse, og beskeden forsvinder.
+- Manual kap. 07 og BUGS.md.
+
 ## [6.8.5 build 0408] — 2026-11-13 — Tegn bruger typens IND/UD-punkter, så Tegn og flowet er enige
 
 - `frontend/svgedit-host/scada-core.js`: `setTypePorts` og `portsOf`. Rækkefølgen er rettede punkter (`data-hv-ports`), så typens punkter fra *Ind/ud og veje*, så de automatiske. En pumpe har derfor kun IND (venstre) og UD (højre) i Tegn.

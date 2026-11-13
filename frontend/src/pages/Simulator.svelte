@@ -3,6 +3,7 @@
   // så vi kan indskyde værdier og se, hvad det resulterer i af display-output"). Til venstre tegningen, tegnet med Overview-motoren
   // ud fra de simulerede værdier; til højre panelet med tegningens variabler. Serveren regner logik, positioner og flow med den
   // samme kode som driften. Intet skrives til PLC'en.
+  import { rememberDrawing } from '../lib/nav';
   import { onDestroy, onMount, tick } from 'svelte';
   import { del, get, post, put, type DrawingView } from '../lib/api';
   import { ask } from '../lib/ask';
@@ -58,6 +59,7 @@
     view = null;
     result = null;
     drawingId = id;
+    rememberDrawing(id);
     if (location.hash !== `#simulator/${id}`) history.replaceState(null, '', `#simulator/${id}`);
     try {
       const [v, vs, sc] = await Promise.all([

@@ -386,11 +386,15 @@ class DrawingService:
         # forbindelsesgrupperne (v6.1.0): det beregnede flow på rør og rørstykker — aldrig oven på en anden animation af samme slags
         flows = [c.get("flow") or {} for c in configs.values()]
         caps = [int(f.get("capacity") or 0) for f in flows if f.get("pump")]
-        try:   # pumper efter typen (v6.8.4, flow_calc.type_pumps): også de giver standardgruppens løbelys
+        try:   # pumper efter typen med positioner (v6.8.4/v6.8.7, flow_calc.type_pumps): også de giver standardgruppens løbelys
             caps += [int((flow_defs.get(s["type"]) or {}).get("capacity") or 100) for s in named_symbols(svg)
-                     if kind_of(flow_defs, s["type"] or "") == "pump" and not (configs.get(s["id"]) or {}).get("flow")]
+                     if kind_of(flow_defs, s["type"] or "") == "pump" and not (configs.get(s["id"]) or {}).get("flow")
+                     and (configs.get(s["id"]) or {}).get("op") == "positions"]
         except Exception:
             log.exception("Pumperne efter typen på %s kunne ikke findes", drawing_id)
+        # v6.8.7: uden bundne forbindelser kan der ikke beregnes flow — så heller ingen standardgruppe (rørene beholder deres udseende)
+        if "data-hv-links" not in svg:
+            caps = []
         try:
             effective.extend(group_bindings(drawing_id, connection_kinds(svg, piece_types(flow_defs)), self.db.list_connection_groups(drawing_id),
                                             float(max(caps) if caps else 100), {(b["element"], b["anim"]) for b in effective}, bool(caps)))

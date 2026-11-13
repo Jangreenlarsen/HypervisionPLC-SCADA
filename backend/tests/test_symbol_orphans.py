@@ -98,3 +98,11 @@ def test_simulator_lists_only_symbols_in_the_drawing(api):
     new_version(api, pump("P_2", 50))
     v = api.get(f"{base}/simulator").json()
     assert v["tags"] == [] and v["positions"] == [] and v["orphaned"] == ["P"]
+
+
+def test_tag_in_use_by_an_old_setup_says_so(api):
+    """v6.9.2: tagget kan ikke slettes, mens en gammel opsætning bruger det — beskeden siger, at den er gammel."""
+    new_version(api, pump("P_2", 50))
+    r = api.delete("/api/tags/Drift")
+    assert r.status_code == 409, r.text
+    assert "gammel opsætning" in r.text and f"{api.did}#P" in r.text

@@ -188,6 +188,8 @@ def test_a_pump_type_without_flow_setup_runs_by_its_position():
     assert run(loop(), {"p": fra_til}, positions={"p": 0})[0].get("r1", 0) == 0
     assert run(loop(), {"p": fra_til})[0].get("r1", 0) == 0                     # ukendt position: stille
     assert run(loop(), {})[0].get("r1", 0) == 0                                 # uden opsætning: stille
+    flows, notes, st = run(loop(), {"p": {"op": "view"}})                      # v6.8.7: "kun visning" er ingen pumpe
+    assert flows.get("r1", 0) == 0 and notes == [] and st.get("pumps", 0) == 0
     assert run(loop(), {"p": {**fra_til, **PUMP}}, positions={"p": 0})[0]["r1"] == 100   # egen flow-opsætning vinder
     # navnene afgør rækkefølgen: "Til" først er også kørende
     assert pump_running({"op": "positions", "positions": [{"label": "Til"}, {"label": "Fra"}]}, 0) is True
@@ -201,4 +203,5 @@ def test_a_pump_wired_at_top_and_bottom_gets_a_precise_note():
             sym("rad", "radiator", "0,0.5>r1:e;1,0.5>r2:s"), pipe("r2", "s>rad:1,0.5;e>p:0.5,1"))
     flows, notes, _ = run(s, {"p": PUMP})
     assert flows.get("r1", 0) == 0
-    assert notes == ["Pumpen 'P' er ikke forbundet på IND og UD — rørene sidder ved øverst, nederst; ret dem i Tegn til pumpens IND- og UD-punkt"]
+    assert notes == ["Pumpen 'P' er ikke forbundet på IND og UD — de gemte forbindelser peger på øverst, nederst. Tryk Forbindelser › "
+                     "Bind forbindelser i Tegn og gem; sidder rørene ikke ved IND og UD, så ret dem først"]

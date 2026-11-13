@@ -2,6 +2,28 @@
 
 ---
 
+## v6.9.3 — 2026-11-13
+
+- En gemt forbindelse til et punkt, et symbol ikke længere har (fx efter at pumpens punkter blev IND og UD), vises nu som **gledet**, og **Bind forbindelser** retter den. Derefter virker flowet og løbelyset.
+
+## v6.9.2 — 2026-11-13 — Systemanalyse
+
+- **Tjek forbindelser** i Tegn viser også flowberegningens beskeder, så Tegn og simulatoren siger det samme.
+- Sletning af et tag, der kun bruges af en gammel symbolopsætning, siger nu, at det er en gammel opsætning.
+- Interne kontroller holder symboltypernes standarder ens i hele systemet.
+
+## v6.9.1 — 2026-11-13
+
+- Rettet: tegninger med pumper, der kun er sat op til visning, eller uden bundne forbindelser, får ikke længere løbelys-bindinger og falske flow-beskeder (fra v6.8.4).
+
+## v6.9.0 — 2026-11-13 — Samme tegning på tværs af siderne
+
+- Overview, Tegn, Bindinger og Simulator åbner den tegning, du står på (eller sidst havde åben), når du skifter side i menuen.
+
+## v6.8.6 — 2026-11-13
+
+- Meddelelser i Tegn: gamle symbolopsætninger (fra slettede eller erstattede symboler) står som én fast besked med **Fjern dem …** i stedet for at gentages ved hvert gem.
+
 ## v6.8.5 — 2026-11-13
 
 - En pumpe har i Tegn kun sine punkter **IND** (venstre) og **UD** (højre), så forbindelserne passer med flowet. Sidder rørene forkert på en ældre pumpe, siger simulatoren og *Tjek forbindelser* det.

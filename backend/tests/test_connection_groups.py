@@ -37,8 +37,7 @@ def test_all_connections_start_in_the_default_group_with_a_running_light(api):
     lst = api.get(url(api)).json()
     assert lst["default"]["members"] == ["r1", "r2"] and lst["default"]["anims"] == [{"type": "flow"}] and lst["groups"] == []
     view = api.get(f"/api/drawings/{d}/view").json()
-    # v6.8.4: pumpe-typen uden flow-opsætning er også en pumpe (flow_calc.type_pumps) — løbelyset er der fra start
-    assert {b["element"] for b in view["bindings"] if b["source"] == "conn-group"} == {"r1", "r2"}
+    assert not [b for b in view["bindings"] if b["source"] == "conn-group"]           # ingen pumpe (en pumpe-type uden opsætning): intet
     api.put(f"/api/drawings/{d}/symbols/p/config", json={"config": PUMP})
     view = api.get(f"/api/drawings/{d}/view").json()
     cg = [b for b in view["bindings"] if b["source"] == "conn-group"]
@@ -117,3 +116,26 @@ def test_blink_needs_exactly_one_limit_and_backup_checks_names(api):
     for bad in ({"is_default": "nej"}, {"name": "Alle forbindelser"}, {"name": "x\x01y"}):
         b2 = {**bk, "connection_groups": [{**g, **bad} if g["name"] == "Retur" else g for g in bk["connection_groups"]]}
         assert api.post("/api/backup/restore", json=b2).status_code == 400, bad
+
+
+
+def test_default_group_needs_a_pump_that_can_run_and_bound_connections(api):
+    """v6.8.7 (regression fra v6.8.4 på demoens "varme"): en pumpe-type kun med "kun visning" gør ikke tegningen til en
+    flow-tegning; en pumpe med positioner (Fra/Til) gør; og uden bundne forbindelser er der ingen standardgruppe."""
+    d = _drawing(api)
+    cg = lambda: {b["element"] for b in api.get(f"/api/drawings/{d}/view").json()["bindings"] if b["source"] == "conn-group"}  # noqa: E731
+    view_only = {"op": "view", "anims": [{"part": "all", "type": "fill", "src": "P1_drift", "params": {}}]}
+    assert api.put(f"/api/drawings/{d}/symbols/p/config", json={"config": view_only}).status_code == 200
+    assert cg() == set()
+    fra_til = {"op": "positions", "passive": True, "positions": [{"label": "Fra"}, {"label": "Til"}],
+               "signals": [{"id": "S1", "tag": "P1_drift", "fb": "P1_drift"}], "planes": [{"signal": "S1", "values": [0, 1]}],
+               "display": "remote", "validate_s": 5}
+    r = api.put(f"/api/drawings/{d}/symbols/p/config", json={"config": fra_til})
+    assert r.status_code == 200, r.text
+    assert cg() == {"r1", "r2"}
+    # samme tegning uden bundne forbindelser: ingen standardgruppe
+    svg = api.get(f"/api/drawings/{d}/view").json()["svg"]
+    import re
+    bare = re.sub(r' data-hv-links="[^"]*"', "", svg)
+    assert api.post(f"/api/drawings/{d}/versions", json={"svg": bare, "activate": True}).status_code == 201
+    assert cg() == set()

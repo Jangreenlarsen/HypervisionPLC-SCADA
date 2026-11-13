@@ -173,8 +173,12 @@ export function linkGap(g: Graph, n: GNode, l: GLink): number {
   const o = g.nodes.find((x) => x.id === l.to);
   const t = n.terminals[l.i];
   if (!o || !t) return Infinity;
-  const q = l.toKey === '~' ? null : pointOfKey(o, l.toKey);
-  if (q) return dist(t, q);
+  if (l.toKey !== '~') {
+    // v6.9.3 (Jan: pumpen drejet, men flowet fandt den ikke): en gemt forbindelse til et punkt, symbolet ikke længere har (fx efter
+    // nye IND/UD-punkter i v6.8.5 eller en erstatning), er forældet — den tæller som gledet, ikke som afstanden til symbolets streg
+    const q = pointOfKey(o, l.toKey);
+    return q ? dist(t, q) : Infinity;
+  }
   return o.lines.length ? Math.min(...o.lines.map((ln) => onLine(t, ln).d)) : Infinity;
 }
 
@@ -194,7 +198,9 @@ export function pairsToBind(g: Graph, tol = TOL): LinkPair[] {
   };
   for (const n of g.nodes) {
     for (const l of n.links ?? []) {
-      if (l.i >= 0 && byId.has(l.to) && n.keys?.[l.i]) push({ id: n.id, key: n.keys[l.i], to: l.to, toKey: l.toKey });
+      // (v6.9.3) en forældet forbindelse — til et punkt, den anden ikke længere har — gemmes ikke igen; geometrien binder på ny
+      const o = byId.get(l.to);
+      if (l.i >= 0 && o && n.keys?.[l.i] && (l.toKey === '~' || pointOfKey(o, l.toKey))) push({ id: n.id, key: n.keys[l.i], to: l.to, toKey: l.toKey });
     }
   }
   // Nye forbindelser fra geometrien: kun elementernes egentlige ender (ikke bøjningers kurvepunkter), punkt mod punkt inden for
@@ -219,7 +225,8 @@ export function pairsToBind(g: Graph, tol = TOL): LinkPair[] {
           if (d <= tol && (!best || d < best.d)) best = { j, d };
         }
         if (best) {
-          if ((o.links ?? []).some((l) => l.i === best!.j)) continue;          // den anden ende er allerede bundet til noget andet
+          // den anden ende er allerede bundet til noget andet (en forældet forbindelse tæller ikke, v6.9.3)
+          if ((o.links ?? []).some((l) => l.i === best!.j && (l.toKey === '~' || (byId.has(l.to) && !!pointOfKey(byId.get(l.to)!, l.toKey))))) continue;
           cands.push({ n, i, o, toKey: o.keys[best.j], d: best.d });
         } else {
           const d = o.lines.length ? Math.min(...o.lines.map((ln) => onLine(t, ln).d)) : Infinity;

@@ -53,16 +53,35 @@ export function pageFor(route: string, role: Role | undefined): NavPage {
   return all.find((p) => p.id === id) ?? NAV[0].pages[0];
 }
 
-/** Sider der kan åbne en bestemt tegning (#draw/<id>, #editor/<id>). */
-const DRAWING_PAGES = new Set(['draw', 'editor', 'simulator']);
+/** Sider der kan åbne en bestemt tegning (#overview/<id>, #draw/<id>, #editor/<id>, #simulator/<id>). */
+const DRAWING_PAGES = new Set(['overview', 'draw', 'editor', 'simulator']);
+const DRAWING_KEY = 'hv.drawing';
+
+/** Husk den tegning, man sidst har åbnet i denne fane (v6.8.7) — Overview, Tegn, Bindinger og Simulator følger den. */
+export function rememberDrawing(id: string | null | undefined): void {
+  try {
+    if (id) sessionStorage.setItem(DRAWING_KEY, id);
+  } catch {
+    // ingen sessionStorage: menuen åbner bare siden uden tegning
+  }
+}
+export function lastDrawing(): string | null {
+  try {
+    return sessionStorage.getItem(DRAWING_KEY);
+  } catch {
+    return null;
+  }
+}
 
 /**
- * Menulinket til en side (v0.79.0): står man på en tegning i Overview (#overview/<id>), åbner Tegn og Bindinger
- * den samme tegning; ellers den almindelige side.
+ * Menulinket til en side (v0.79.0; v6.8.7, Jan: "den tegning man er på også er den som er primær i det view … man skifter til"):
+ * Overview, Tegn, Bindinger og Simulator åbner tegningen, man står på (eller sidst åbnede i fanen); andre sider åbnes som de er.
  */
-export function navHref(pageId: string, route: string): string {
+export function navHref(pageId: string, route: string, last: string | null = lastDrawing()): string {
+  if (!DRAWING_PAGES.has(pageId)) return `#${pageId}`;
   const [here, drawing] = route.split('/');
-  return here === 'overview' && drawing && DRAWING_PAGES.has(pageId) ? `#${pageId}/${drawing}` : `#${pageId}`;
+  const id = DRAWING_PAGES.has(here) && drawing ? drawing : last;
+  return id ? `#${pageId}/${id}` : `#${pageId}`;
 }
 
 /** Gruppen siden hører til (til brødkrummen i topbjælken). */

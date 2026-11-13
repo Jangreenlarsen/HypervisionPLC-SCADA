@@ -76,7 +76,7 @@ Serveren **beregner selv flowet** gennem tegningens forbundne symboler og rør �
 - **de gemte forbindelser** i tegningen. Slå *Tjek forbindelser* til i menuen **Forbindelser** øverst, tryk **Bind forbindelser**, og gem tegningen. Uden gemte forbindelser er der intet flow, og Flow-vinduet siger det;
 - **symbolernes flow-opsætning** i symbol-guidens trin 4 under *Flow* (kapitel 10): hvilke symboler der er **pumper** (kapacitet i l/min og flow-rate 0,00–1,00 fra et tag), hvilken **restriktion** et symbol har (et tal fra 0,00 = blokeret til 1,00 = ingen restriktion), og for en ventil med positioner **hvilke veje der er åbne** i hver position (fx *AB → A* i position A);
 - symboltypens **flow-rolle** (*Opsætning › Symboler › Ind/ud og veje*), når et symbol ikke har sin egen opsætning;
-- **en pumpe uden egen flow-opsætning** er alligevel en pumpe med typens kapacitet. Dens fart følger **positionen**: *Fra* = stop, *Til* = kører; uden navne er første position stop. En pumpe uden positioner og uden flow-opsætning står stille. Vil du styre farten fra et tag, sætter du *Flow* op i guidens trin 4; den opsætning vinder;
+- **en pumpe med positioner, men uden egen flow-opsætning** er alligevel en pumpe med typens kapacitet. Dens fart følger **positionen**: *Fra* = stop, *Til* = kører; uden navne er første position stop. En pumpe, der kun er sat op til visning (uden positioner og uden flow-opsætning), regnes ikke med. Vil du styre farten fra et tag, sætter du *Flow* op i guidens trin 4; den opsætning vinder;
 - symboltypens **Ind/ud og veje** (nedenfor): en pumpe og en kontraventil giver kun flow fra IND til UD, en 3-vejsventil giver flow begge veje på AB ↔ A og AB ↔ B.
 
 **Sådan regnes der:**
@@ -109,7 +109,7 @@ Tryk **Flow** i værktøjslinjen i Tegn. Vinduet ligger **over tegningen**: træ
 
 ![Flow-vinduet over tegningen: standardgruppen Alle forbindelser med løbelys og en egen gruppe Retur med farve efter flow](../../public/manual/flow-vindue.png)
 
-- **Alle forbindelser** er standardgruppen. Alle rør og rørstykker hører til den fra start, og den viser **løbelys** efter flowet: retningen fra fortegnet og farten efter mængden. Den bruges kun på tegninger med mindst én pumpe, og aldrig oven på en animation af samme slags, som en forbindelse allerede har.
+- **Alle forbindelser** er standardgruppen. Alle rør og rørstykker hører til den fra start, og den viser **løbelys** efter flowet: retningen fra fortegnet og farten efter mængden. Den bruges kun på tegninger med mindst én pumpe og med **bundne forbindelser**, og aldrig oven på en animation af samme slags, som en forbindelse allerede har.
 - **Ny gruppe:** vælg rør og rørstykker på tegningen (Skift+klik eller træk en ramme), giv gruppen et navn, og tryk **Opret af valgte**. En forbindelse hører til **én gruppe ad gangen**: lægges den i en ny gruppe, forlader den den gamle. **+ Valgte** og **− Valgte** ændrer en gruppe; **Vis** markerer dens forbindelser på tegningen.
 - **Animationer** (højst 4 pr. gruppe, alle styret af flowet):
   - **Løbelys:** fart ved fuldt flow, og hvad der er fuldt flow (0 = tegningens største pumpe);

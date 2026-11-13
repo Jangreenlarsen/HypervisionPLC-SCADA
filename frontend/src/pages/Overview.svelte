@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { lastDrawing, rememberDrawing } from '../lib/nav';
   import { onDestroy, onMount, tick } from 'svelte';
   import { alarmMarks } from '../lib/alarmMark';
   import { mountCharts } from '../lib/chartRender';
@@ -227,6 +228,7 @@
       fit();
       try {
         sessionStorage.setItem('overview.last', id); // husk tegningen i denne fane (fx efter et besøg på Tags)
+        rememberDrawing(id);                          // v6.8.7: Tegn, Bindinger og Simulator åbner den samme
       } catch {
         // Huskes bare ikke — ingen funktion afhænger af det
       }
@@ -575,7 +577,7 @@
     }
     let last: string | null = null;
     try {
-      last = sessionStorage.getItem('overview.last');
+      last = lastDrawing() ?? sessionStorage.getItem('overview.last');   // v6.8.7: den sidst åbnede tegning på tværs af siderne
     } catch {
       // Ingen adgang til sessionStorage — start-tegningen bruges
     }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { rememberDrawing } from '../lib/nav';
   import { onDestroy, onMount, untrack } from 'svelte';
   import { ask as askUser, askText } from '../lib/ask';
   import { suggestName } from '../lib/draw/naming';
@@ -274,6 +275,31 @@
     }, 300);
   });
   onDestroy(() => clearTimeout(connTimer));
+  // Flowberegningens beskeder i tjekket (v6.9.2, analysen 2026-11-13 — Jan: "selv om ting er på plads i tegning editor så få vi
+  // fejl i simulator"): "✓ alt hænger sammen" skal også betyde, at flowet kan beregnes. Samme beregning som Flow-vinduet og
+  // simulatoren (tegningen, som den ser ud nu), højst hvert 1,5 sekund efter en ændring.
+  let flowNotes = $state<string[]>([]);
+  let flowTimer: ReturnType<typeof setTimeout> | undefined;
+  let flowGen = 0;
+  $effect(() => {
+    const on = checkConn;
+    const id = current?.id;
+    void inspectRev;
+    clearTimeout(flowTimer);
+    if (!on || !ready || !ed || !id) { flowNotes = []; return; }
+    flowTimer = setTimeout(async () => {
+      const svg = ed?.getSvg();
+      if (!svg || !checkConn) return;
+      const gen = ++flowGen;
+      try {
+        const res = await post<{ notes: string[] }>(`/api/drawings/${encodeURIComponent(id)}/flow/preview`, { svg });
+        if (gen === flowGen) flowNotes = res.notes ?? [];
+      } catch (e) {
+        if (!/optaget/i.test((e as Error).message)) console.error('Flowberegningen i tjekket fejlede', e);   // optaget (429): næste ændring
+      }
+    }, 1500);
+  });
+  onDestroy(() => clearTimeout(flowTimer));
   let flowOpen = $state(false);                                    // Flow-vinduet over tegningen (v6.1.0): forbindelsesgrupper
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let treeRev = $state(0);                                         // symbol-oversigten henter forfra (v5.5.0)
@@ -519,6 +545,7 @@
     report = null;
     try {
       const detail = await get<Detail>(`/api/drawings/${encodeURIComponent(id)}`);
+      rememberDrawing(id);
       const v = version ?? detail.active_version;
       const resp = await fetch(`/api/drawings/${encodeURIComponent(id)}/svg?version=${v}`);
       if (!resp.ok) throw new Error(`Kunne ikke hente SVG (HTTP ${resp.status})`);
@@ -1106,10 +1133,47 @@
   let msgOpen = $state(false);
   // Topmenuen (v6.2.0): menuerne Tegning, version, Forbindelser og kommentaren under Gem og udgiv ▾
   let drawMenu = $state(false), verMenu = $state(false), connMenu = $state(false), saveMenu = $state(false);
-  const connErrors = $derived(checkConn && connSummary ? connSummary.open + connSummary.isolated + connSummary.drift : 0);
+  const connErrors = $derived(checkConn && connSummary ? connSummary.open + connSummary.isolated + connSummary.drift + flowNotes.length : 0);
   const connBadge = $derived(!checkConn || !connSummary ? '' : connErrors ? connErrors : '✓');
   const menuDo = (f: () => unknown) => () => { drawMenu = verMenu = connMenu = false; f(); };
   let msgSeq = 0;
+  // Gamle symbolopsætninger (v6.8.6, Jan: "der er stadig noget som ikke stemmer med meddelelse blok her"): opsætninger fra guiden
+  // på elementer, der ikke længere er i den udgivne tegning (rester fra tidligere versioner). Én fast besked pr. tegning med
+  // "Fjern dem …" (bekræftes) og et link til Bindinger. Hentes ved skift af tegning, efter gem og når guiden lukkes.
+  let orphans = $state<string[]>([]);
+  let orphanRev = $state(0);
+  let orphanOpen = $state(false);
+  let orphanBusy = $state(false);
+  let orphanGen = 0;
+  $effect(() => {
+    const id = current?.id;
+    void treeRev; void orphanRev;
+    if (!id) { orphans = []; return; }
+    const gen = ++orphanGen;
+    get<{ element: string }[]>(`/api/drawings/${encodeURIComponent(id)}/symbols-orphaned`)
+      .then((rows) => { if (gen === orphanGen) orphans = rows.map((o) => o.element); })
+      .catch((e) => { if (gen === orphanGen) { orphans = []; console.error('Gamle symbolopsætninger kunne ikke hentes', e); } });
+  });
+  async function removeOrphanCfgs(): Promise<void> {
+    const id = current?.id;
+    if (!id || !orphans.length) return;
+    const list = [...orphans];
+    if (!(await askUser(`Fjern de ${list.length} gamle symbolopsætninger (${shortList(list)})? De hører til elementer, der ikke længere er i tegningen. Det kan ikke fortrydes.`, { ok: 'Fjern dem', danger: true }))) return;
+    orphanBusy = true;
+    let done = 0;
+    try {
+      for (const el of list) {
+        await del(`/api/drawings/${encodeURIComponent(id)}/symbols/${encodeURIComponent(el)}/config`);
+        done++;
+      }
+      info = `${done} gamle symbolopsætning${done === 1 ? '' : 'er'} er fjernet.`;
+    } catch (e) {
+      error = `${done} af ${list.length} er fjernet — resten kunne ikke fjernes: ${(e as Error).message}`;
+    } finally {
+      orphanBusy = false;
+      orphanRev++;
+    }
+  }
   $effect(() => {
     const text = info;
     if (!text) return;
@@ -1118,8 +1182,9 @@
       const extra: string[] = [];
       if (r && (Object.keys(r.removed_elements).length || Object.keys(r.removed_attributes).length)) extra.push(`Renset ved gem: ${entries(r.removed_elements)} ${entries(r.removed_attributes)}`);
       if (r?.orphaned_bindings?.length) extra.push(`Bindinger uden element nu: ${shortList(r.orphaned_bindings)}`);
-      const warn = !!r?.orphaned_symbols?.length;
-      if (warn) extra.push(`${r!.orphaned_symbols!.length} symbolopsætning${r!.orphaned_symbols!.length === 1 ? '' : 'er'} fra guiden hører til elementer, der ikke længere findes: ${shortList(r!.orphaned_symbols!)} — flyt eller fjern dem under Bindinger`);
+      // v6.8.6: gamle symbolopsætninger står som én fast besked pr. tegning (orphans nedenfor) — ikke under hvert gem
+      const warn = false;
+      if (r) orphanRev++;
       // rapporten hører kun til det gem, der lavede den — ikke til de næste meddelelser (før blev den gentaget under hver)
       report = null;
       messages = [{ id: ++msgSeq, at: Date.now(), text, extra, warn, drawing: current?.id ?? null }, ...messages].slice(0, 60);
@@ -1294,11 +1359,13 @@
     <div class="mrow">
       {#if connSummary.open || connSummary.isolated}
         <span class="small" style="color:var(--warn)" title={connSummary.names.join(', ')}>{connSummary.open} åbne, {connSummary.isolated} uden forbindelse</span>
+      {:else if flowNotes.length}<span class="small" style="color:var(--warn)">Hænger sammen, men flowet kan ikke beregnes</span>
       {:else}<span class="small" style="color:#2e7d32">✓ alt hænger sammen</span>{/if}
       {#if connSummary.drift}<span class="small" style="color:#ef6c00" title="Gemte forbindelser, hvor punkterne er gledet fra hinanden (orange). Ret flytter rør-enden tilbage; klik på den orange prik fjerner forbindelsen">{connSummary.drift} gledet</span>{/if}
       <span class="small muted">{connSummary.bound ? (connSummary.unbound ? `${connSummary.unbound} ikke bundet` : 'alle bundet') : 'ikke bundet endnu'}</span>
     </div>
     {#if connSummary.names.length}<div class="small muted mnames">{connSummary.names.join(', ')}</div>{/if}
+    {#each flowNotes as n (n)}<div class="small" style="color:var(--warn)">Flow: {n}</div>{/each}
     <div class="mrow">
       {#if connMoves.length}
         <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt, så de sidder sammen. Symboler flyttes aldrig. Kan fortrydes med Ctrl+Z">Ret {connMoves.length}</button>
@@ -1331,6 +1398,18 @@
       <div class="mrow"><button class="small" onclick={clearMigration}>Ryd rapporten</button></div>
     </div>
   {/if}
+  {#if orphans.length}
+    <div class="msg">
+      <strong>{orphans.length} gamle symbolopsætning{orphans.length === 1 ? '' : 'er'}</strong> fra guiden hører til elementer, der ikke længere er
+      i tegningen (rester fra tidligere versioner, fx når et symbol er slettet eller erstattet). De gør ingen skade, men kan fjernes.
+      {#if orphanOpen}<div class="small muted">{orphans.join(', ')}</div>{/if}
+      <div class="mrow">
+        <button class="small danger" onclick={removeOrphanCfgs} disabled={orphanBusy}>Fjern dem …</button>
+        <a class="small" href={'#editor/' + current?.id}>Vis i Bindinger</a>
+        <button class="linkish small" onclick={() => (orphanOpen = !orphanOpen)}>{orphanOpen ? 'Skjul navnene' : 'Vis navnene'}</button>
+      </div>
+    </div>
+  {/if}
   {#if dupNames.length}
     <div class="msg warn">
       Flere symboler har samme navn: {dupNames.map((d) => `"${d.name}" (${d.count})`).join(', ')} — navnene skal være unikke (de bruges fx i
@@ -1346,7 +1425,7 @@
       {#each m.extra as x}<div class="small muted">{x}</div>{/each}
     </div>
   {:else}
-    {#if !dupNames.length && !migration && !bindReminder}<span class="small muted">Ingen meddelelser endnu. Her kommer systemets beskeder, fx når tegningen er gemt eller en rettelse er udført.</span>{/if}
+    {#if !dupNames.length && !migration && !bindReminder && !orphans.length}<span class="small muted">Ingen meddelelser endnu. Her kommer systemets beskeder, fx når tegningen er gemt eller en rettelse er udført.</span>{/if}
   {/each}
   {#if shownMessages.length}<div class="mrow"><button class="small" onclick={() => { const gone = new Set(shownMessages.map((m) => m.id)); messages = messages.filter((m) => !gone.has(m.id)); }}>Ryd meddelelser</button></div>{/if}
 {/snippet}

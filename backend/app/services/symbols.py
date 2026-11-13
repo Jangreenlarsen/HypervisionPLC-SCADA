@@ -1649,7 +1649,20 @@ class SymbolService:
 
     def usage(self, tag: str) -> list[str]:
         """Symboler der bruger tagget — så det ikke kan slettes imens (som bindinger og ugeprogrammer)."""
-        used = [f"{r['drawing_id']}#{r['element']}" for r in self.db.list_symbol_configs()
+        # v6.9.2 (analysen 2026-11-13): en gammel opsætning (elementet er ikke i den aktive version) beskyttes stadig — den kan
+        # flyttes til et nyt element — men siges som det, den er, så brugeren ved, hvor den fjernes
+        present: dict[str, set[str] | None] = {}
+
+        def where(did: str, el: str) -> str:
+            if did not in present:
+                try:
+                    present[did] = set(index_svg(self.drawings.svg(did)))
+                except Exception:
+                    present[did] = None
+            ids = present[did]
+            return f"{did}#{el}" if ids is None or el in ids else f"{did}#{el} (gammel opsætning — fjern den under Bindinger)"
+
+        used = [where(r["drawing_id"], r["element"]) for r in self.db.list_symbol_configs()
                 if tag in config_tags(r["config"])]
         used += [f"{r['drawing_id']}#{r['element']} (gruppen {r['group_name']})" for r in self.db.list_group_anims()
                  if tag in config_tags({"anims": r["anims"]})]

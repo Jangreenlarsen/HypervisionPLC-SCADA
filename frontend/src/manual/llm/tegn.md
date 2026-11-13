@@ -39,23 +39,23 @@ Opsætning › Symboler › fanen **Ind/ud og veje**: vælg symbolet, giv punkte
 Panelet **Symbol-oversigt** i Tegn viser alle symboler som et træ: grundsymboler og grupper på niveau 1; en gruppes medlemmer på niveau 2. Klik på navnet vælger det på tegningen; **Opsæt** åbner symbol-guiden (6 trin), **Animationer** gruppens animationer. ✓ = har en opsætning; søg eller vis kun dem, der ikke er opsat.
 
 ## Hvad er "Bind forbindelser", og hvorfor er en forbindelse orange?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:5bca95b9 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:e6214945 -->
 **Bind forbindelser** (i menuen **Forbindelser**, med Tjek forbindelser slået til) gemmer, hvad der hænger sammen, i tegningen — så gælder de gemte forbindelser for tjekket i stedet for afstanden. **Orange** betyder, at en gemt forbindelse er gledet fra hinanden: **Ret** flytter rør-enden tilbage, og et klik på den orange prik fjerner forbindelsen. Husk at gemme tegningen.
 
 ## Hvordan undgår jeg fejl for tilslutningspunkter eller symboler, der ikke er i brug, i Tjek forbindelser?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:5bca95b9 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:e6214945 -->
 Med **Tjek forbindelser** slået til: klik på den røde prik for at markere punktet som **ikke i brug** (grå stiplet ring), eller Skift+klik / **Udelad valgte fra tjekket** for at udelade et helt symbol (grå ramme med ⊘). Markeringerne gemmes med tegningen ved Gem kladde / Gem og udgiv og kan fortrydes.
 
 ## Hvordan retter jeg brudte forbindelser automatisk (rør, der ligger tæt på hinanden)?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:5bca95b9 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:e6214945 -->
 Slå **Tjek forbindelser** til og tryk **Ret N forbindelser**. Rør-ender, der ligger klods op ad en anden ende eller et tilslutningspunkt (højst 25 enheder), flyttes, så de sidder sammen. Symboler flyttes aldrig, og det kan fortrydes med Ctrl+Z.
 
 ## Hvordan tjekker jeg, om alle symboler og rør hænger sammen i tegningen?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:5bca95b9 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:e6214945 -->
 Slå **Tjek forbindelser** til i menuen **Forbindelser** øverst i Tegn. Symboler og rør, hvis tilslutningspunkter alle sidder fast, bliver grønne; dem med åbne ender bliver røde med røde prikker ved enderne (stiplet kant = intet er forbundet). Det er kun en visning.
 
 ## Hvordan kan jeg se, hvad symboler og forbindelser hedder i tegningen?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:5bca95b9 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:e6214945 -->
 Åbn menuen **Vis** øverst i Tegn og sæt hak under **Navne i tegningen** (symboler og/eller forbindelser). Navnene står som mærkater oven på tegningen (kun i Tegn, de gemmes ikke). Hak ved **tags** viser de PLC-tags, hvert symbol bruger (fra guiden og bindingerne), i lilla under symbolet.
 
 ## Hvordan laver jeg en betingelse med flere tags (pumpe kører OG ventil åben, AND, OR)?
@@ -79,11 +79,11 @@ Sæt symbolet op med guiden og vælg betjeningsformen **Trykknap (puls)** i trin
 Vælg elementerne (Shift+klik eller træk en ramme) og tryk **Ctrl+G** eller **Gruppér** i knaplinjen over det markerede. **Ctrl+Shift+G** eller **Opløs** deler gruppen igen. Grupper af symboler, der bruges igen og igen, gemmes under *Grupper af symboler*.
 
 ## Hvordan viser jeg flow (løbelys) i rørene automatisk, uden at sætte hvert rør op (flowberegning, pumpe kører)?
-<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:a2e7539c -->
+<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:8acd21f9 -->
 Serveren beregner selv flowet gennem de forbundne symboler. Bind forbindelserne (menuen **Forbindelser** › Tjek forbindelser › **Bind forbindelser**, og gem), sæt pumpen op i symbol-guidens trin 4 under **Flow** (Pumpe, kapacitet i l/min, flow-rate fra et tag), og alle rør i løkken får løbelys på Overview med retning og fart efter flowet (standardgruppen *Alle forbindelser*).
 
 ## Hvordan får nogle rør en anden farve eller blink efter flowet (forbindelsesgruppe)?
-<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:a2e7539c -->
+<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:8acd21f9 -->
 Tryk **Flow** i værktøjslinjen i Tegn. Vælg rørene på tegningen, giv gruppen et navn og tryk **Opret af valgte**. Under **Animationer** vælger du løbelys, farve efter flow (grænser i l/min), blink ved et flow (mindst/højst) eller en fast farve. En forbindelse hører til én gruppe ad gangen.
 
 ## Hvordan bestemmer en 3-vejsventil, hvilken vej flowet går (AB → A, AB → B, register 10/20)?
@@ -91,11 +91,11 @@ Tryk **Flow** i værktøjslinjen i Tegn. Vælg rørene på tegningen, giv gruppe
 Giv ventilen positioner (fx *AB → A* og *AB → B*), og lad tagget bestemme positionen i trin 3 (fx register 10 = AB → A, 20 = AB → B, eller to til/fra-signaler). I trin 4 under **Flow** sætter du hak ved den åbne vej i hver position. Flowberegningen sender så flowet den vej, og animationerne pr. position (fx portene AB og A grønne, B sort) sættes som altid i trin 4.
 
 ## Hvorfor er der intet flow i rørene (pumpe kører ikke, ingen vej, ikke bundet)?
-<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:a2e7539c -->
+<!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:8acd21f9 -->
 Tjek at tegningens forbindelser er bundet og gemt (Flow-vinduet siger det, hvis de ikke er), at pumpen har **Pumpe** slået til med kapacitet over 0 og en flow-rate over 0, at der er en åben vej rundt fra pumpens UD tilbage til dens IND (ventilernes åbne veje i deres position, kontraventilens retning, restriktion over 0). Beskeder fra beregningen står øverst i Flow-vinduet; kortet *Flowberegning* på Status viser fejl.
 
 ## Hvor er Slet tegning, størrelsen, versionerne og kommentarfeltet i Tegn (topmenuen)?
-<!-- kilde: 07-tegn#m-skaermen sha:20551fc4 -->
+<!-- kilde: 07-tegn#m-skaermen sha:5946fa06 -->
 Topmenuen i Tegn har tre dele. Til venstre åbner **tegningens navn** en menu med skift af tegning, **+ Ny tegning …**, **⤢ Størrelse …**, **Bindinger →** og **Slet tegning …**; ved siden af står **versionen** (fx *v4 kladde*), hvor du åbner en anden version eller udgiver den åbne. I midten står **Vis**, **Fang**, **Forbindelser** og **Flow**. Til højre zoom, **Meddelelser**, **Gem kladde** og **Gem og udgiv** — pilen **▾** på *Gem og udgiv* åbner kommentaren til versionen.
 
 ## Hvordan ser jeg flowet i Tegn, før jeg gemmer (live, simulering, prøv pumper og ventiler uden PLC)?

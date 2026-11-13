@@ -149,3 +149,22 @@ def match_ports(d: dict[str, Any] | None, keys: list[str]) -> dict[str, str]:
         out[key] = d["ports"][k]["name"]
         taken.add(k)
     return out
+
+
+def shared_fixture() -> dict[str, Any]:
+    """Indholdet af shared/flow_defaults.json (v6.9.2): kontrollen af frontendens kopier af standarderne."""
+    return {"_comment": "Fælles kontrol (v6.9.2): symboltypernes flow-standarder og rørstykke-typerne. Backend (flow_defs.py) og "
+                        "frontend (symbolFlow.ts, signalpath/graph.ts, scada-core.js) testes mod denne fil, så kopierne ikke glider "
+                        "fra hinanden. Opdatér den, når standarderne ændres med vilje: "
+                        "backend/.venv/Scripts/python.exe -m app.services.flow_defs --write-shared",
+            "pipe_types": sorted(PIPE_SYMBOL_TYPES), "flow_defaults": DEFAULTS}
+
+
+if __name__ == "__main__":   # python -m app.services.flow_defs --write-shared
+    import json
+    import sys
+    from pathlib import Path
+    if "--write-shared" in sys.argv:
+        path = Path(__file__).resolve().parents[3] / "shared" / "flow_defaults.json"
+        path.write_text(json.dumps(shared_fixture(), ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        print(f"Skrevet: {path}")
