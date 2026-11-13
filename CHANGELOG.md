@@ -4,6 +4,18 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.10.1 build 0415] — 2026-11-13 — Guidens Flow: symbolets parametre og det, der styrer, i hver sin kasse
+
+Jan: "få det ændret under Opsæt symbol pumpe, så det bliver tydeligt, hvad der er symbol-parameter, og hvad der er position, som er styrende".
+
+- `frontend/src/lib/FlowSection.svelte`:
+  - Afkrydsningen hedder **Egne flow-parametre for dette symbol** (før "Med i flowberegningen", men symbolet var med alligevel, efter typen).
+  - **Symbolets parametre** (faste): rolle, kapacitet, restriktion og flowmåler.
+  - **Styres af** (live, blå kant): start/stop eller de åbne veje pr. position.
+  - Uden hak viser kasserne typens standard; fx "Start/stop: positionen: Fra = stop, Til = kører".
+- Set i browseren: pumpe med og uden egne parametre, og en 3-vejsventil.
+- Manual kap. 10.
+
 ## [6.10.0 build 0414] — 2026-11-13 — Pumpens start/stop efter positionen; Simulér-knap i Tegn
 
 Jan: "hvordan styrer vi en pumpe start og stop så det kan ses i flow" og "lad os også få en knap til simulator i editor-modulet".
