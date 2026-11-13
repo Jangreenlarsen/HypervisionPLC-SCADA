@@ -335,7 +335,13 @@ def build(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, di
             by_state = {s["name"]: s.get("open", []) for s in (d.get("states") or [])}
             opens = [by_state.get(p["state"], []) if p.get("state") else None for p in cfg.get("positions", [])]
         if is_pump:
-            rate = _fraction(fl.get("rate"), read)
+            # v6.9.4 (Jan): "følger pumpens position" (@pos) — eller intet rate-felt på en pumpe med positioner — giver start/stop
+            # fra positionen; ellers tagget eller den faste værdi
+            rsrc = str((fl.get("rate") or {}).get("src") or "")
+            if rsrc == "@pos" or (not rsrc and cfg.get("op") == "positions"):
+                rate = 1.0 if pump_running(cfg, pos) else 0.0
+            else:
+                rate = _fraction(fl.get("rate"), read)
             cap = max(0, min(MAX_CAPACITY, int(fl.get("capacity") or 0)))
             out_n = next((n for n in by_name if roles.get(n) == "out"), None)
             in_n = next((n for n in by_name if roles.get(n) == "in"), None)
@@ -681,7 +687,8 @@ class FlowEngine:
                       if (src := str(((c.get("flow") or {}).get("measured") or {}).get("src") or "")) and not src.startswith("@")}
             # et input-tag uden god værdi (PLC offline) eller en ventil i ukendt position: flowet er ukendt, ikke 0
             unknown = any(v is None for v in values.values()) or any(
-                positions.get(e) is None for e, c in configs.items() if c.get("op") == "positions" and (c.get("flow") or {}).get("open") is not None)
+                positions.get(e) is None for e, c in configs.items() if c.get("op") == "positions" and (
+                    (c.get("flow") or {}).get("open") is not None or ((c.get("flow") or {}).get("rate") or {}).get("src") == "@pos"))
             out.append((did, (topo, self.defs, configs, positions, {**meters, **values}, sig, "comm_error" if unknown else "good")))
         return out
 

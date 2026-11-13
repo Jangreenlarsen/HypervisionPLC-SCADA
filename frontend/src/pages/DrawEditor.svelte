@@ -941,6 +941,22 @@
     }
   }
 
+  /** Simulér-knappen (v6.9.4, Jan: "skifte frem og tilbage hurtigt når man designer"): simulatoren viser den UDGIVNE tegning —
+   *  er der ændringer, der ikke er gemt, tilbydes Gem og udgiv først (ellers ville sideskiftet kassere dem). */
+  async function goSimulate(): Promise<void> {
+    if (!current) return;
+    const id = current.id;
+    if (dirty) {
+      if (!(await askUser('Simulatoren viser den udgivne tegning. Tegningen har ændringer, der ikke er gemt — gem og udgiv dem først?', { ok: 'Gem og udgiv og simulér' }))) return;
+      await save(true);
+      if (dirty || error) return;              // gemningen fejlede: bliv i Tegn (fejlen står øverst)
+    } else if (loadedVersion !== null && loadedVersion !== current.active_version
+      && !(await askUser(`Du står på version ${loadedVersion} (kladde). Simulatoren viser den udgivne version ${current.active_version}. Fortsæt?`, { ok: 'Simulér den udgivne' }))) {
+      return;
+    }
+    location.hash = `#simulator/${id}`;
+  }
+
   async function publishLoaded(): Promise<void> {
     if (!current || loadedVersion === null) return;
     try {
@@ -1260,6 +1276,7 @@
       hot={connErrors > 0} wide bind:open={connMenu}>{@render connMenuBody()}</Menu>
     <button class:on={flowOpen} onclick={() => (flowOpen = !flowOpen)} disabled={!current}
       title="Flow: hvordan rør og rørstykker viser det beregnede flow på Overview (forbindelsesgrupper)">Flow</button>
+    <button onclick={goSimulate} disabled={!current || busy} title="Åbn tegningen i simulatoren (den udgivne version) — knappen Tegn derovre fører tilbage hertil">Simulér</button>
   </div>
 
   <div class="zone right">

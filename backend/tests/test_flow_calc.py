@@ -205,3 +205,16 @@ def test_a_pump_wired_at_top_and_bottom_gets_a_precise_note():
     assert flows.get("r1", 0) == 0
     assert notes == ["Pumpen 'P' er ikke forbundet på IND og UD — de gemte forbindelser peger på øverst, nederst. Tryk Forbindelser › "
                      "Bind forbindelser i Tegn og gem; sidder rørene ikke ved IND og UD, så ret dem først"]
+
+
+def test_pump_rate_follows_its_position_with_pos_or_empty_rate():
+    """v6.9.4 (Jan): "følger pumpens position" (@pos) — og et tomt rate-felt på en pumpe med positioner — giver start/stop fra
+    positionen; en fast værdi eller et tag gælder som før."""
+    fra_til = {"op": "positions", "positions": [{"label": "Fra"}, {"label": "Til"}]}
+    pos_rate = {**fra_til, "flow": {"pump": True, "capacity": 80, "rate": {"src": "@pos", "max": 1}}}
+    assert run(loop(), {"p": pos_rate}, positions={"p": 1})[0]["r1"] == 80
+    assert run(loop(), {"p": pos_rate}, positions={"p": 0})[0].get("r1", 0) == 0
+    empty = {**fra_til, "flow": {"pump": True, "capacity": 80, "rate": {"src": "", "max": 1}}}
+    assert run(loop(), {"p": empty}, positions={"p": 0})[0].get("r1", 0) == 0
+    fixed = {**fra_til, "flow": {"pump": True, "capacity": 80, "rate": {"src": "@val:0.5", "max": 1}}}
+    assert run(loop(), {"p": fixed}, positions={"p": 0})[0]["r1"] == 40          # fast værdi: som før (uafhængig af positionen)

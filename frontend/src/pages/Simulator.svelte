@@ -231,6 +231,7 @@
   <button class="danger" onclick={removeScenario} disabled={scenarioId === ''}>Slet</button>
   <span class="grow"></span>
   {#if result}<span class="small muted">{nSim} ændret · beregnet på {result.ms} ms</span>{/if}
+  <a class="btn" href={'#draw/' + drawingId} title="Tilbage til tegningen i Tegn (v6.9.4)">Tegn</a>
   <a class="btn" href={'#overview/' + drawingId}>Overview</a>
 </div>
 {#if error}<p class="msg err">{error}</p>{/if}

@@ -68,7 +68,10 @@ export function flowLevel(value: number, low: number, high: number): number | nu
 }
 /** Kilden "symbolets flow" (v6.1.0): den beregnede mængde gennem symbolet, l/min. */
 export const FLOW = '@flow';
-export const flowSourceMode = (s: FlowSource): 'none' | 'tag' | 'val' => (!s.src ? 'none' : s.src.startsWith('@val:') ? 'val' : 'tag');
+/** v6.9.4: '@pos' = pumpens flow-rate følger dens position (Fra = stop, Til = kører) — kun for pumper med positioner. */
+export const RATE_POS = '@pos';
+export const flowSourceMode = (s: FlowSource): 'none' | 'tag' | 'val' | 'pos' =>
+  (!s.src ? 'none' : s.src === RATE_POS ? 'pos' : s.src.startsWith('@val:') ? 'val' : 'tag');
 /**
  * Ny flow-opsætning: en pumpe-type pumper. En ventil med positioner får i hver position de veje, positionens navn nævner
  * ("AB → A", "AB>A" eller blot porten "A"); ellers alle veje.
@@ -90,7 +93,8 @@ export function defaultFlow(type: string, positions: string[], ways: string[],
   // typens flow-profil (v6.3.0): pumpe/kilde, standard-kapacitet og -restriktion; portfarver, når punkterne har dele
   return { pump: profile?.kind ? profile.kind === 'pump' : type === 'pumpe', capacity: profile?.capacity ?? 100,
     // rate og restriktion er faste værdier for symbolet (Jan: givet af dets fysik) — et tag er et tilvalg
-    rate: { src: '@val:1', max: 1 }, restrict: { src: `@val:${profile?.restrict ?? 1}`, max: 1 },
+    // v6.9.4 (Jan): en pumpe med positioner starter/stopper efter positionen; uden positioner en fast værdi som før
+    rate: { src: (profile?.kind ? profile.kind === 'pump' : type === 'pumpe') && positions.length ? RATE_POS : '@val:1', max: 1 }, restrict: { src: `@val:${profile?.restrict ?? 1}`, max: 1 },
     open, measured: { src: '', max: 1, low: 0, high: 100 },
     // portfarverne (v6.3.0) kun, når typens tilstande ikke selv farver portene (v6.7.0)
     port_colors: open && (profile?.ports ?? []).some((p) => p.part) && !(profile?.states ?? []).some((s) => s.look?.length)
