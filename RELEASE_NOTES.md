@@ -2,6 +2,10 @@
 
 ---
 
+## v6.11.1 — 2026-11-13
+
+- Rettet: at flytte eller dreje et symbol i Tegn blev afbrudt, når *Tjek forbindelser* eller Flow-vinduet var slået til, og valget forsvandt.
+
 ## v6.11.0 — 2026-11-13 — Symboler: alt for ét symbol ét sted
 
 - Siden **Symboler**: vælg et symbol i listen, og gør alt i dets panel — **Redigér grafik**, **Omdøb**, **Slet**, **Sektion** og fanerne **Tilslutningspunkter** og **Ind/ud og veje**.

@@ -54,6 +54,8 @@
     load(svg: string): boolean;
     newDrawing(w: number, h: number): void;
     getSvg(): string;
+    /** Til løbende beregninger: rører hverken valget eller et igangværende træk (v6.11.1) */
+    previewSvg(): string | null;
     onSelection(fn: (sel: Sel[]) => void): void;
     onChange(fn: () => void): void;
     setSelectedId(id: string): string;
@@ -288,7 +290,7 @@
     clearTimeout(flowTimer);
     if (!on || !ready || !ed || !id) { flowNotes = []; return; }
     flowTimer = setTimeout(async () => {
-      const svg = ed?.getSvg();
+      const svg = ed?.previewSvg();     // v6.11.1: ikke getSvg() — den fravælger alt og afbrød et igangværende træk/drejning
       if (!svg || !checkConn) return;
       const gen = ++flowGen;
       try {
@@ -1671,7 +1673,7 @@
 
 {#if flowOpen && current}
   <FloatWin key="draw.flowwin" title="Flow" onclose={() => (flowOpen = false)}>
-    <FlowLive drawingId={current.id} {ready} getSvg={() => (ed ? ed.getSvg() : null)} setOverlay={(d) => ed?.setFlowOverlay(d)} />
+    <FlowLive drawingId={current.id} {ready} getSvg={() => (ed ? ed.previewSvg() : null)} setOverlay={(d) => ed?.setFlowOverlay(d)} />
     <ConnGroups drawingId={current.id} {ready} selected={selection.map((x) => x.id)} select={(ids) => ed?.selectByIds(ids)}
       ensureSaved={() => ensurePublished('forbindelsesgrupperne gælder den udgivne tegning')} />
   </FloatWin>

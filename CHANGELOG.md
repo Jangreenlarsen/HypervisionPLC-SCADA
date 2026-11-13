@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.11.1 build 0417] — 2026-11-13 — Rettelse: flytning og drejning i Tegn blev afbrudt af den løbende flowberegning
+
+- `frontend/svgedit-host/scada-core.js previewSvg()`: tegningen til løbende beregninger som en kopi. Den rører hverken valget, et igangværende træk eller DOM'en, modsat `getSvg()`, som fravælger alt og rydder op (til Gem).
+- `frontend/src/pages/DrawEditor.svelte`: flowberegningen i *Tjek forbindelser* og Flow-vinduet bruger `previewSvg()`.
+- `frontend/src/lib/FlowLive.svelte`: første beregning i `untrack`, så effekten ikke starter forfra ved hver gentegning af Tegn.
+- Genskabt og målt i browseren (BUGS.md): før stoppede et langsomt træk efter 42 af 120 px, og valget forsvandt. Efter kører trækket hele vejen (120/60), valget bevares, drejningen virker, og der er 4 i stedet for 19 beregninger under et træk.
+- Kendt og uændret: svg-edit melder en fejl i konsollen, hvis musen forlader tegnefladen midt i en drejning (fx over Flow-vinduet); drejningen gennemføres.
+
 ## [6.11.0 build 0416] — 2026-11-13 — Symboler: symbolet i centrum (alle operationer ét sted); knapperne står ved det, de hører til
 
 PLAN.md › Symboler — symbolet i centrum (design A). Jan: "vælg et symbol i biblioteket og lav derfra alle operationer" og "knapperne er helt yderst i view-boksen".
