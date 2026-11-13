@@ -1,3 +1,50 @@
+# Plan: Ventiltilstande — en definition af, hvad hver tilstand betyder (3-vejs og 4-vejs) — 2026-11-13 — afventer OK
+
+Jan (2026-11-13): "Opsætning af en 3-vejsventil er ikke til at forstå — mangler der ikke en definition af, hvad er hvad? Fx tilstand 1 = port A igennem AB og port B blokeret; tilstand 2 = port B igennem AB og port A blokeret. Et andet eksempel kunne være en 4-vejsventil."
+
+## I dag
+
+Guidens trin 4 › Flow har en tabel med **veje × positioner**, hvor man sætter hak. Det er rigtigt nok teknisk, men:
+- der står ingen steder, hvad en tilstand **er**;
+- blokerede porte nævnes ikke;
+- det skal gøres forfra for hver ventil.
+
+## Forslag: tilstande defineres én gang pr. symboltype
+
+1. **Symbol-editoren › Ind/ud og veje** får afsnittet **Tilstande**. Det er en liste med navngivne tilstande, og hver tilstand siger, hvilke veje der er åbne. Teksten om, hvad det betyder, skrives automatisk, også hvilke porte der er blokeret:
+
+   ```
+   Tilstand          A↔AB   B↔AB     Betyder
+   A → AB             ☑      ☐       A igennem AB · B blokeret
+   B → AB             ☐      ☑       B igennem AB · A blokeret
+   Lukket             ☐      ☐       alle porte blokeret
+   ```
+
+   - **Standarder** for 3-vejsventilerne: *A → AB*, *B → AB* og *Lukket*.
+   - **4-vejsventil** (ny i biblioteket, porte P, T, A og B):
+     - *P → A, B → T* (A forsynes, B returnerer);
+     - *P → B, A → T*;
+     - *Lukket (midt)* (alle blokeret);
+     - *Omløb (P → T)*.
+2. **Guiden › Flow:** for hver af symbolets positioner vælger du **tilstanden i en liste**, fx position *Åben mod radiator* → tilstand *A → AB*. Betydningen står ved siden af ("A igennem AB · B blokeret").
+   - Hedder positionerne som tilstandene, er de valgt fra start.
+   - Den gamle tabel med hak findes stadig under **Avanceret: vælg vejene selv**, til specialtilfælde.
+3. **Portfarverne** og **flowet** følger tilstanden som i dag (åbne porte er grønne og blokerede sorte), og simulatoren viser tilstandens navn ved positionen.
+4. **Ny 4-vejsventil** i biblioteket (VVS) med punkterne P, T, A og B, delene `port_p`, `port_t`, `port_a` og `port_b`, og standardtilstandene ovenfor.
+
+## Data (bagudkompatibelt)
+
+- Symboltypens definition får `states: [{name, open: ["A>AB"]}]` (valideret: kendte veje, unikke navne, højst 12).
+- Symbolets opsætning gemmer stadig de åbne veje pr. position (`flow.open`). Tilstandslisten udfylder dem bare, så der kræves ingen ændring i beregningen og ingen migrering.
+
+## Berørte filer
+
+- Backend: `symbol_flow.py`, `flow_defs.py` (standarder og validering), backup.
+- Frontend: `symbolFlow.ts`, `SymbolFlowEditor.svelte` (afsnittet Tilstande), `FlowSection.svelte` (tilstand pr. position), `symbols.ts` (4-vejsventilen) og `simulator`.
+- Manual kap. 08 og 10, billeder, LLM-tillæg, tests. MINOR: **6.6.0**.
+
+---
+
 # Plan: Simulator — test en tegnings tilstande med indskudte værdier — 2026-11-13 — udført i v6.5.0 (med scenarier)
 
 Jan (2026-11-13): "et simulationspanel, der kun arbejder med alle de variabler, en tegning gør brug af, så vi kan teste de forskellige tilstande på en tegning — systemet gennemgår tegningen og præsenterer et panel under en simulator-del med de parametre, der er sat i tegningen, så vi kan indskyde værdier og se, hvad det resulterer i af display-output."
