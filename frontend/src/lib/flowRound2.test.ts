@@ -152,3 +152,13 @@ describe('design B: tilstande med udseende på symboltypen', async () => {
     expect(defaultFlow('trevejs_motorventil_ab', ['A → AB', 'B → AB'], ['AB>A', 'AB>B'], D.trevejs_motorventil_ab).port_colors).toBeNull();
   });
 });
+
+describe('typePortMap (v6.8.5)', () => {
+  it('giver Tegn typens punkter — pumpen kun IND/UD i venstre og højre side', async () => {
+    const { typePortMap, mergeDefs } = await import('./symbolFlow');
+    const m = typePortMap(mergeDefs(null));
+    expect(m.pumpe).toEqual([[0, 0.5], [1, 0.5]]);
+    expect(m.kontraventil).toEqual([[0, 0.67], [1, 0.67]]);
+    expect(typePortMap({ x: { ports: [] } } as never)).toEqual({});
+  });
+});

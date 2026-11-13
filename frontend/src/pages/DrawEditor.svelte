@@ -4,6 +4,7 @@
   import { suggestName } from '../lib/draw/naming';
   import { del, get, patch, post, put, type Binding } from '../lib/api';
   import { tagLines, tagsByElement } from '../lib/tagLabels';
+  import { mergeDefs, typePortMap, type FlowDefs } from '../lib/symbolFlow';
   import { SELECTOR_TYPES, selectorMismatch, withSelectorAngles } from '../lib/selectorRedraw';
   import { parseSize, presetFor, SIZE_PRESETS, sizeText } from '../lib/drawingSize';
   import { toolHint } from '../lib/toolHints';
@@ -72,6 +73,7 @@
     toggleUnused(id: string, key: string): boolean;
     setNameLabels(opts: { symbols: boolean; pipes: boolean; tags?: Record<string, string[]> | null }): void;
     setFlowOverlay(data: Record<string, unknown> | null): void;
+    setTypePorts(map: Record<string, [number, number][]>): void;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
     getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
     setGuideEvery(n: number): void;
@@ -126,6 +128,19 @@
     }
   }
   let guides = $state(loadGuides());
+  // Typernes punkter fra "Ind/ud og veje" (v6.8.5): Tegn bruger de samme punkter som flowberegningen. Uden svar: standarderne.
+  let typePorts = $state<Record<string, [number, number][]>>(typePortMap(mergeDefs(null)));
+  onMount(async () => {
+    try {
+      typePorts = typePortMap(mergeDefs(await get<FlowDefs>('/api/symbol-flow')));
+    } catch (e) {
+      console.error('Symboltypernes punkter kunne ikke hentes — bruger standarderne', e);
+    }
+  });
+  $effect(() => {
+    const tp = $state.snapshot(typePorts);
+    if (ready && ed) ed.setTypePorts(tp);
+  });
   $effect(() => {
     const g = $state.snapshot(guides);
     if (ready && ed) ed.setGuides(g);

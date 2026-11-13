@@ -669,13 +669,17 @@ export function createScada(host) {
   const isPipe = (el) => el?.hasAttribute?.('data-hv-pipe');
   const toPoint = (m, v) => [m.a * v[0] + m.c * v[1] + m.e, m.b * v[0] + m.d * v[1] + m.f];
 
+  // Typernes punkter fra "Ind/ud og veje" (v6.8.5, Jan: "selv om ting er på plads i tegning editor så få vi fejl i simulator"):
+  // { type: [[x, y], …] } — sættes fra Tegn-siden (setTypePorts). Et symbol uden egne rettede punkter får typens punkter i stedet
+  // for de fire automatiske, så Tegn og flowberegningen kender de samme punkter (fx pumpens IND/UD i venstre og højre side).
+  const typePorts = new Map();
   /** Symbolets tilslutningspunkter: [{ local, doc, axis }] — axis = retningen et rør bør starte i ('h' fra en sidekant). */
   function portsOf(el) {
     const box = boxOfRoot(el);
     if (!box) return [];
     const m = toDocMatrix(el);
-    // rettede punkter fra symbol-editoren (bygget ind ved indsættelse) går forud for de automatiske
-    const fixed = parsePorts(el.getAttribute('data-hv-ports'));
+    // rettede punkter fra symbol-editoren (bygget ind ved indsættelse) går forud for typens punkter og de automatiske
+    const fixed = parsePorts(el.getAttribute('data-hv-ports')) ?? typePorts.get(el.getAttribute('data-hv-type') || '') ?? null;
     const list = fixed ? fixed.map((f) => ({ frac: [f[0], f[1]], side: f[2] ?? fracSide(f) })) : autoPortsWithSide(el);
     return list.map(({ frac, side }) => {
       const local = fromFrac(frac, box);
@@ -2876,6 +2880,17 @@ export function createScada(host) {
             ignored: ignored.map(([p]) => p), ignoredKeys: ignored.map(([, k]) => String(i.ignoredKeys?.[k] ?? '')) };
         });
       drawConn();
+    },
+
+    /** Typernes tilslutningspunkter fra "Ind/ud og veje" (v6.8.5): { type: [[x, y], …] } (brøkdele af symbolets boks). */
+    setTypePorts(map = {}) {
+      typePorts.clear();
+      for (const [t, pts] of Object.entries(map && typeof map === 'object' ? map : {})) {
+        const ok = (Array.isArray(pts) ? pts : []).filter((p) => Array.isArray(p) && p.length >= 2 && p.every(Number.isFinite)
+          && p[0] >= 0 && p[0] <= 1 && p[1] >= 0 && p[1] <= 1).map((p) => [p[0], p[1]]);
+        if (ok.length) typePorts.set(t, ok);
+      }
+      drawHandles();
     },
 
     /** Flowet oven på tegningen (v6.3.0): { flows, ports, unit, max, pieces } — null fjerner det. Kun visning, gemmes aldrig. */

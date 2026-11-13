@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.8.5 build 0408] — 2026-11-13 — Tegn bruger typens IND/UD-punkter, så Tegn og flowet er enige
+
+- `frontend/svgedit-host/scada-core.js`: `setTypePorts` og `portsOf`. Rækkefølgen er rettede punkter (`data-hv-ports`), så typens punkter fra *Ind/ud og veje*, så de automatiske. En pumpe har derfor kun IND (venstre) og UD (højre) i Tegn.
+- `frontend/src/lib/symbolFlow.ts typePortMap` og `DrawEditor.svelte`: henter `/api/symbol-flow`. Fejler det, bruges standarderne, og fejlen logges i konsollen.
+- `backend/app/services/flow_calc.py`: beskeden om en pumpe uden IND/UD siger, hvilket punkt der mangler, og hvor rørene sidder (`_where`: øverst/nederst/venstre/højre).
+- Tests: `flowRound2.test.ts`, `test_flow_calc.py`. Set i browseren: en ny pumpe har to åbne punkter (venstre/højre), og den eksisterende testtegning er stadig ✓.
+- Manual kap. 08.
+
 ## [6.8.4 build 0407] — 2026-11-13 — Pumper uden flow-opsætning følger deres position (løbelys i simulatoren og på Overview)
 
 - `backend/app/services/flow_calc.py`:
