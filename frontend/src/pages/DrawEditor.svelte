@@ -275,6 +275,31 @@
     }, 300);
   });
   onDestroy(() => clearTimeout(connTimer));
+  // Flowberegningens beskeder i tjekket (v6.9.2, analysen 2026-11-13 — Jan: "selv om ting er på plads i tegning editor så få vi
+  // fejl i simulator"): "✓ alt hænger sammen" skal også betyde, at flowet kan beregnes. Samme beregning som Flow-vinduet og
+  // simulatoren (tegningen, som den ser ud nu), højst hvert 1,5 sekund efter en ændring.
+  let flowNotes = $state<string[]>([]);
+  let flowTimer: ReturnType<typeof setTimeout> | undefined;
+  let flowGen = 0;
+  $effect(() => {
+    const on = checkConn;
+    const id = current?.id;
+    void inspectRev;
+    clearTimeout(flowTimer);
+    if (!on || !ready || !ed || !id) { flowNotes = []; return; }
+    flowTimer = setTimeout(async () => {
+      const svg = ed?.getSvg();
+      if (!svg || !checkConn) return;
+      const gen = ++flowGen;
+      try {
+        const res = await post<{ notes: string[] }>(`/api/drawings/${encodeURIComponent(id)}/flow/preview`, { svg });
+        if (gen === flowGen) flowNotes = res.notes ?? [];
+      } catch (e) {
+        if (!/optaget/i.test((e as Error).message)) console.error('Flowberegningen i tjekket fejlede', e);   // optaget (429): næste ændring
+      }
+    }, 1500);
+  });
+  onDestroy(() => clearTimeout(flowTimer));
   let flowOpen = $state(false);                                    // Flow-vinduet over tegningen (v6.1.0): forbindelsesgrupper
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let treeRev = $state(0);                                         // symbol-oversigten henter forfra (v5.5.0)
@@ -1108,7 +1133,7 @@
   let msgOpen = $state(false);
   // Topmenuen (v6.2.0): menuerne Tegning, version, Forbindelser og kommentaren under Gem og udgiv ▾
   let drawMenu = $state(false), verMenu = $state(false), connMenu = $state(false), saveMenu = $state(false);
-  const connErrors = $derived(checkConn && connSummary ? connSummary.open + connSummary.isolated + connSummary.drift : 0);
+  const connErrors = $derived(checkConn && connSummary ? connSummary.open + connSummary.isolated + connSummary.drift + flowNotes.length : 0);
   const connBadge = $derived(!checkConn || !connSummary ? '' : connErrors ? connErrors : '✓');
   const menuDo = (f: () => unknown) => () => { drawMenu = verMenu = connMenu = false; f(); };
   let msgSeq = 0;
@@ -1334,11 +1359,13 @@
     <div class="mrow">
       {#if connSummary.open || connSummary.isolated}
         <span class="small" style="color:var(--warn)" title={connSummary.names.join(', ')}>{connSummary.open} åbne, {connSummary.isolated} uden forbindelse</span>
+      {:else if flowNotes.length}<span class="small" style="color:var(--warn)">Hænger sammen, men flowet kan ikke beregnes</span>
       {:else}<span class="small" style="color:#2e7d32">✓ alt hænger sammen</span>{/if}
       {#if connSummary.drift}<span class="small" style="color:#ef6c00" title="Gemte forbindelser, hvor punkterne er gledet fra hinanden (orange). Ret flytter rør-enden tilbage; klik på den orange prik fjerner forbindelsen">{connSummary.drift} gledet</span>{/if}
       <span class="small muted">{connSummary.bound ? (connSummary.unbound ? `${connSummary.unbound} ikke bundet` : 'alle bundet') : 'ikke bundet endnu'}</span>
     </div>
     {#if connSummary.names.length}<div class="small muted mnames">{connSummary.names.join(', ')}</div>{/if}
+    {#each flowNotes as n (n)}<div class="small" style="color:var(--warn)">Flow: {n}</div>{/each}
     <div class="mrow">
       {#if connMoves.length}
         <button class="small" onclick={fixConnectionsNow} title="Flytter rør-ender, der ligger tæt på (højst {FIX_GAP} enheder) en anden ende eller et tilslutningspunkt, så de sidder sammen. Symboler flyttes aldrig. Kan fortrydes med Ctrl+Z">Ret {connMoves.length}</button>

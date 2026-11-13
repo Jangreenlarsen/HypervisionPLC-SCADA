@@ -2,6 +2,12 @@
 
 ---
 
+## v6.9.2 — 2026-11-13 — Systemanalyse
+
+- **Tjek forbindelser** i Tegn viser også flowberegningens beskeder, så Tegn og simulatoren siger det samme.
+- Sletning af et tag, der kun bruges af en gammel symbolopsætning, siger nu, at det er en gammel opsætning.
+- Interne kontroller holder symboltypernes standarder ens i hele systemet.
+
 ## v6.9.1 — 2026-11-13
 
 - Rettet: tegninger med pumper, der kun er sat op til visning, eller uden bundne forbindelser, får ikke længere løbelys-bindinger og falske flow-beskeder (fra v6.8.4).

@@ -4,6 +4,20 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.9.2 build 0412] — 2026-11-13 — Systemanalysen: kopierne holdes ens, Tjek forbindelser viser flowets beskeder, kontrolscript efter deploy
+
+docs/ANALYSE_2026-11-13.md (Jan: "jeg synes vi kun finder fejl på fejl nu"): seks rodårsagsklasser, rettelser pr. klasse og en kontrol efter rettelserne.
+
+- **Kopierne af standarderne holdes ens** (klasse K1):
+  - `shared/flow_defaults.json` skrives af `python -m app.services.flow_defs --write-shared`.
+  - `backend/tests/test_shared_defaults.py` og `frontend/src/lib/sharedDefaults.test.ts` kontrollerer `flow_defs.DEFAULTS`/`PIPE_SYMBOL_TYPES`, `symbolFlow.FLOW_DEFAULTS`/`PIECE_TYPES`, `signalpath/graph.ts PIPE_TYPES` og `scada-core.js PIPE_SYMBOL_TYPES`.
+  - Testet ved at fjerne en type fra én kopi: testen fejlede.
+- **Tjek forbindelser viser flowberegningens beskeder** (`DrawEditor.svelte`): samme beregning som Flow-vinduet og simulatoren, højst hvert 1,5 sekund efter en ændring. Beskederne tæller i mærket. "Hænger sammen, men flowet kan ikke beregnes", når kun flowet fejler.
+- **Tag-brugskontrollen** (`symbols.usage`) siger "(gammel opsætning — fjern den under Bindinger)" om opsætninger på elementer, der ikke er i den aktive version.
+- **`deploy/audit_drawings.py`**: konsistenskontrol af alle tegninger på en server, kun læsning (gamle opsætninger, standardgruppe uden bundne forbindelser, bindinger uden element, manglende tags, flow-beskeder). Køres efter hver deploy.
+- Tests: `test_shared_defaults.py`, `sharedDefaults.test.ts`, `test_symbol_orphans.py`. Set i browseren: en lokal testtegning med pumpen forbundet øverst og nederst viser flowbeskeden i *Forbindelser* (mærke 4).
+- Manual kap. 07.
+
 ## [6.9.1 build 0411] — 2026-11-13 — Regression: "kun visning"-pumper gør ikke tegningen til en flow-tegning; standardgruppen kræver bundne forbindelser
 
 Fundet i systemanalysen (docs/ANALYSE_2026-11-13.md) ved en kontrol af demoens tegninger, kun læsning.

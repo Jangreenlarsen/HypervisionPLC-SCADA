@@ -1,0 +1,463 @@
+{
+ "_comment": "Fælles kontrol (v6.9.2): symboltypernes flow-standarder og rørstykke-typerne. Backend (flow_defs.py) og frontend (symbolFlow.ts, signalpath/graph.ts, scada-core.js) testes mod denne fil, så kopierne ikke glider fra hinanden. Opdatér den, når standarderne ændres med vilje: backend/.venv/Scripts/python.exe -m app.services.flow_defs --write-shared",
+ "flow_defaults": {
+  "drejeomskifter": {
+   "ports": [],
+   "states": [
+    {
+     "look": [
+      {
+       "anim": "rotate",
+       "part": "greb",
+       "value": -45
+      }
+     ],
+     "name": "0",
+     "open": []
+    },
+    {
+     "look": [
+      {
+       "anim": "rotate",
+       "part": "greb",
+       "value": 45
+      }
+     ],
+     "name": "1",
+     "open": []
+    }
+   ]
+  },
+  "firevejsventil": {
+   "ports": [
+    {
+     "name": "A",
+     "part": "port_a",
+     "role": "both",
+     "x": 0,
+     "y": 0.5
+    },
+    {
+     "name": "B",
+     "part": "port_b",
+     "role": "both",
+     "x": 1,
+     "y": 0.5
+    },
+    {
+     "name": "C",
+     "part": "port_c",
+     "role": "both",
+     "x": 0.5,
+     "y": 0
+    },
+    {
+     "name": "D",
+     "part": "port_d",
+     "role": "both",
+     "x": 0.5,
+     "y": 1
+    }
+   ],
+   "states": [
+    {
+     "look": [
+      {
+       "anim": "fill",
+       "part": "port_a",
+       "value": "#2e7d32"
+      },
+      {
+       "anim": "fill",
+       "part": "port_b",
+       "value": "#2e7d32"
+      },
+      {
+       "anim": "fill",
+       "part": "port_c",
+       "value": "#000000"
+      },
+      {
+       "anim": "fill",
+       "part": "port_d",
+       "value": "#000000"
+      }
+     ],
+     "name": "A → B",
+     "open": [
+      "A>B"
+     ]
+    },
+    {
+     "look": [
+      {
+       "anim": "fill",
+       "part": "port_a",
+       "value": "#000000"
+      },
+      {
+       "anim": "fill",
+       "part": "port_b",
+       "value": "#000000"
+      },
+      {
+       "anim": "fill",
+       "part": "port_c",
+       "value": "#2e7d32"
+      },
+      {
+       "anim": "fill",
+       "part": "port_d",
+       "value": "#2e7d32"
+      }
+     ],
+     "name": "C → D",
+     "open": [
+      "C>D"
+     ]
+    }
+   ],
+   "ways": [
+    [
+     "A",
+     "B"
+    ],
+    [
+     "C",
+     "D"
+    ]
+   ]
+  },
+  "kontraventil": {
+   "ports": [
+    {
+     "name": "IND",
+     "role": "in",
+     "x": 0,
+     "y": 0.67
+    },
+    {
+     "name": "UD",
+     "role": "out",
+     "x": 1,
+     "y": 0.67
+    }
+   ]
+  },
+  "omskifter3": {
+   "ports": [],
+   "states": [
+    {
+     "look": [
+      {
+       "anim": "rotate",
+       "part": "greb",
+       "value": -45
+      }
+     ],
+     "name": "Hånd",
+     "open": []
+    },
+    {
+     "look": [
+      {
+       "anim": "rotate",
+       "part": "greb",
+       "value": 0
+      }
+     ],
+     "name": "0",
+     "open": []
+    },
+    {
+     "look": [
+      {
+       "anim": "rotate",
+       "part": "greb",
+       "value": 45
+      }
+     ],
+     "name": "Auto",
+     "open": []
+    }
+   ]
+  },
+  "pumpe": {
+   "kind": "pump",
+   "ports": [
+    {
+     "name": "IND",
+     "role": "in",
+     "x": 0,
+     "y": 0.5
+    },
+    {
+     "name": "UD",
+     "role": "out",
+     "x": 1,
+     "y": 0.5
+    }
+   ]
+  },
+  "trevejs_motorventil": {
+   "ports": [
+    {
+     "name": "A",
+     "part": "port_a",
+     "role": "both",
+     "x": 0.07,
+     "y": 0.46
+    },
+    {
+     "name": "B",
+     "part": "port_b",
+     "role": "both",
+     "x": 0.46,
+     "y": 0.08
+    },
+    {
+     "common": true,
+     "name": "AB",
+     "part": "port_ab",
+     "role": "both",
+     "x": 0.84,
+     "y": 0.46
+    }
+   ],
+   "states": [
+    {
+     "look": [
+      {
+       "anim": "fill",
+       "part": "port_a",
+       "value": "#2e7d32"
+      },
+      {
+       "anim": "fill",
+       "part": "port_b",
+       "value": "#000000"
+      },
+      {
+       "anim": "fill",
+       "part": "port_ab",
+       "value": "#2e7d32"
+      }
+     ],
+     "name": "A → AB",
+     "open": [
+      "AB>A"
+     ]
+    },
+    {
+     "look": [
+      {
+       "anim": "fill",
+       "part": "port_a",
+       "value": "#000000"
+      },
+      {
+       "anim": "fill",
+       "part": "port_b",
+       "value": "#2e7d32"
+      },
+      {
+       "anim": "fill",
+       "part": "port_ab",
+       "value": "#2e7d32"
+      }
+     ],
+     "name": "B → AB",
+     "open": [
+      "AB>B"
+     ]
+    }
+   ]
+  },
+  "trevejs_motorventil_ab": {
+   "ports": [
+    {
+     "name": "A",
+     "part": "port_a",
+     "role": "both",
+     "x": 0.07,
+     "y": 0.5
+    },
+    {
+     "name": "B",
+     "part": "port_b",
+     "role": "both",
+     "x": 0.85,
+     "y": 0.5
+    },
+    {
+     "common": true,
+     "name": "AB",
+     "part": "port_ab",
+     "role": "both",
+     "x": 0.46,
+     "y": 0.86
+    }
+   ],
+   "states": [
+    {
+     "look": [
+      {
+       "anim": "fill",
+       "part": "port_a",
+       "value": "#2e7d32"
+      },
+      {
+       "anim": "fill",
+       "part": "port_b",
+       "value": "#000000"
+      },
+      {
+       "anim": "fill",
+       "part": "port_ab",
+       "value": "#2e7d32"
+      }
+     ],
+     "name": "A → AB",
+     "open": [
+      "AB>A"
+     ]
+    },
+    {
+     "look": [
+      {
+       "anim": "fill",
+       "part": "port_a",
+       "value": "#000000"
+      },
+      {
+       "anim": "fill",
+       "part": "port_b",
+       "value": "#2e7d32"
+      },
+      {
+       "anim": "fill",
+       "part": "port_ab",
+       "value": "#2e7d32"
+      }
+     ],
+     "name": "B → AB",
+     "open": [
+      "AB>B"
+     ]
+    }
+   ]
+  },
+  "trevejsventil": {
+   "ports": [
+    {
+     "name": "A",
+     "role": "both",
+     "x": 0,
+     "y": 0.44
+    },
+    {
+     "name": "B",
+     "role": "both",
+     "x": 1,
+     "y": 0.44
+    },
+    {
+     "common": true,
+     "name": "AB",
+     "role": "both",
+     "x": 0.5,
+     "y": 1
+    }
+   ],
+   "states": [
+    {
+     "look": [
+      {
+       "anim": "fill",
+       "part": "port_a",
+       "value": "#2e7d32"
+      },
+      {
+       "anim": "fill",
+       "part": "port_b",
+       "value": "#000000"
+      },
+      {
+       "anim": "fill",
+       "part": "port_ab",
+       "value": "#2e7d32"
+      }
+     ],
+     "name": "A → AB",
+     "open": [
+      "AB>A"
+     ]
+    },
+    {
+     "look": [
+      {
+       "anim": "fill",
+       "part": "port_a",
+       "value": "#000000"
+      },
+      {
+       "anim": "fill",
+       "part": "port_b",
+       "value": "#2e7d32"
+      },
+      {
+       "anim": "fill",
+       "part": "port_ab",
+       "value": "#2e7d32"
+      }
+     ],
+     "name": "B → AB",
+     "open": [
+      "AB>B"
+     ]
+    }
+   ]
+  },
+  "vippe_onoff": {
+   "ports": [],
+   "states": [
+    {
+     "look": [
+      {
+       "anim": "rotate",
+       "part": "greb",
+       "value": 0
+      }
+     ],
+     "name": "OFF",
+     "open": []
+    },
+    {
+     "look": [
+      {
+       "anim": "rotate",
+       "part": "greb",
+       "value": 180
+      }
+     ],
+     "name": "ON",
+     "open": []
+    }
+   ]
+  }
+ },
+ "pipe_types": [
+  "boejning45",
+  "boejning90",
+  "flange",
+  "forbindelse",
+  "klemme",
+  "kryds",
+  "ledning_l",
+  "ledning_v",
+  "reduktion",
+  "roer_l",
+  "roer_v",
+  "t_stykke"
+ ]
+}
