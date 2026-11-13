@@ -1030,7 +1030,7 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
     case 'rotate': {
       if (p.pos) {
         const a = at(p.angles);
-        if (a === undefined) resetAnim(el, 'rotate', p);
+        if (a === undefined || a === null) resetAnim(el, 'rotate', p);   // en position uden vinkel (v6.7.0): som tegnet
         else rotate(el, Number(a), p);
         break;
       }

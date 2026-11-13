@@ -155,6 +155,7 @@ class SimulatorService:
                 continue
             st = rt.states.get((drawing_id, el)) if rt is not None else None
             positions.append({"element": el, "name": nm(el), "labels": [p.get("label", "") for p in cfg.get("positions", [])],
+                              "states": [p.get("state") for p in cfg.get("positions", [])],
                               "display": cfg.get("display", "remote"), "live": getattr(st, "pos", None)})
         return {"tags": out_tags, "positions": positions, "alarms": alarms}
 

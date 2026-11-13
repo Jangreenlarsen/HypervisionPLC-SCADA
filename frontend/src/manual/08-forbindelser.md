@@ -164,6 +164,10 @@ Fanen **Ind/ud og veje** (samme side) beskriver, hvordan flowet løber gennem et
   | 4-vejsventil | *C → D* | C igennem D · A og B blokeret |
 
   Tabellen viser standarderne. Du kan definere alle de tilstande, et symbol har brug for (højst 12): **+ Tilstand** tilføjer en, og ✕ fjerner den. I symbol-guiden vælger du så blot tilstanden for hver af symbolets positioner (kapitel 10).
+- **Udseende pr. tilstand:** tryk på knappen i kolonnen **Udseende** for at vælge, hvad hver del viser i tilstanden: **Farve**, **Stregfarve**, **Vinkel**, **Synlig**, **Blink** eller **Roterer**. En **forhåndsvisning** viser symbolet i tilstanden.
+  - Standarderne: ventilernes porte er grønne på en åben vej og sorte, når de er blokeret. Omskifterens greb peger på *Hånd* (−45°), *0* (0°) og *Auto* (45°).
+  - Udseendet gælder alle symboler af typen. Det kan rettes for et enkelt symbol i guiden.
+  - **Tilstande findes også for symboler uden veje**, fx omskiftere: så har de kun navn og udseende.
 - **4-vejsventilen** (biblioteket, VVS) har portene **A** (venstre), **B** (højre), **C** (top) og **D** (bund). De mødes i midten og farves hver for sig efter tilstanden.
 - **Klik** for at tilføje et punkt, **træk** for at flytte det, **højreklik** fjerner det. **Gem** gemmer; **Brug standarden** går tilbage. De indbyggede symboler har standarder (pumpe, kontraventil og 3-vejs ventilerne); **Start fra tilslutningspunkterne** hjælper med andre symboler.
 - Ind/ud-definitionerne følger med i backup.

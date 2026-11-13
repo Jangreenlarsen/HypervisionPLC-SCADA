@@ -22,7 +22,18 @@ def _in_out(y: float) -> list[dict[str, Any]]:
 
 
 # Tilstande (v6.6.0, Jan): tilstand 1 = A igennem AB (B blokeret), tilstand 2 = B igennem AB (A blokeret)
-THREE_WAY_STATES: list[dict[str, Any]] = [{"name": "A → AB", "open": ["AB>A"]}, {"name": "B → AB", "open": ["AB>B"]}]
+OPEN_C, CLOSED_C = "#2e7d32", "#000000"     # portenes farve: på en åben vej / blokeret (Jan: "AB og A grønne, B sort")
+
+
+def _ports_look(open_ports: list[str], all_ports: list[str]) -> list[dict[str, Any]]:
+    return [{"part": f"port_{p.lower()}", "anim": "fill", "value": OPEN_C if p in open_ports else CLOSED_C} for p in all_ports]
+
+
+THREE_WAY_STATES: list[dict[str, Any]] = [
+    {"name": "A → AB", "open": ["AB>A"], "look": _ports_look(["A", "AB"], ["A", "B", "AB"])},
+    {"name": "B → AB", "open": ["AB>B"], "look": _ports_look(["B", "AB"], ["A", "B", "AB"])}]
+# Omskiftere og vippekontakter (v6.7.0): tilstandene og grebets vinkel (samme vinkler som bibliotekets tegning)
+_GREB = lambda deg: [{"part": "greb", "anim": "rotate", "value": deg}]  # noqa: E731
 
 DEFAULTS: dict[str, dict[str, Any]] = {
     "pumpe": {"ports": _in_out(0.5), "kind": "pump"},
@@ -45,7 +56,12 @@ DEFAULTS: dict[str, dict[str, Any]] = {
         {"x": 0.5, "y": 0, "name": "C", "role": "both", "part": "port_c"},
         {"x": 0.5, "y": 1, "name": "D", "role": "both", "part": "port_d"}],
         "ways": [["A", "B"], ["C", "D"]],
-        "states": [{"name": "A → B", "open": ["A>B"]}, {"name": "C → D", "open": ["C>D"]}]},
+        "states": [{"name": "A → B", "open": ["A>B"], "look": _ports_look(["A", "B"], ["A", "B", "C", "D"])},
+                   {"name": "C → D", "open": ["C>D"], "look": _ports_look(["C", "D"], ["A", "B", "C", "D"])}]},
+    "omskifter3": {"ports": [], "states": [{"name": "Hånd", "open": [], "look": _GREB(-45)}, {"name": "0", "open": [], "look": _GREB(0)},
+                                           {"name": "Auto", "open": [], "look": _GREB(45)}]},
+    "drejeomskifter": {"ports": [], "states": [{"name": "0", "open": [], "look": _GREB(-45)}, {"name": "1", "open": [], "look": _GREB(45)}]},
+    "vippe_onoff": {"ports": [], "states": [{"name": "OFF", "open": [], "look": _GREB(0)}, {"name": "ON", "open": [], "look": _GREB(180)}]},
 }
 
 # Symboltyper, der er rørstykker (hører under "forbindelser") — samme liste som scada-core.js og signalpath/graph.ts

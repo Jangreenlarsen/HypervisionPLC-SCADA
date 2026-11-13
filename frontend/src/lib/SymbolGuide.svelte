@@ -18,6 +18,7 @@
   import OwnerAnims from './OwnerAnims.svelte';
   import AnimPreview from './AnimPreview.svelte';
   import FlowSection from './FlowSection.svelte';
+  import { FLOW_DEFAULTS, LOOK_TXT, describeState, effectiveLook, mergeDefs, type FlowDefs, type LookItem } from './symbolFlow';
   import { mergePalette, paramColors, svgColors } from './usedColors';
   import { KIND_TXT, groupAnimsOn, groupColor, groupsOf, listGroups, type OwnerBlock, type SymbolGroup } from './symbolGroups';
   import { CHART_RANGES, FONT_SCALES, LEGEND_PLACES, MAX_CHART_TAGS, defaultChart, legendOf } from './chartGraphic';
@@ -329,6 +330,61 @@ import { AVERAGE_CHOICES } from './trendData';
     setPassive(cfg, on);
     if (on) step = 1;   // kommandoerne er ryddet — vælg tilbagemeldingerne
   }
+  // ---- tilstande fra symboltypen (v6.7.0, design B): trin 3 kobler positionerne til typens tilstande
+  let typeDefs = $state<FlowDefs>(mergeDefs(null));
+  let typeDefsNote = $state('');
+  onMount(async () => {
+    try {
+      typeDefs = mergeDefs(await get<FlowDefs>('/api/symbol-flow'));
+    } catch (e) {
+      console.error('Symboltypernes tilstande kunne ikke hentes — bruger standarderne', e);
+      typeDefs = { ...FLOW_DEFAULTS };
+      typeDefsNote = `Egne tilstande kunne ikke hentes (${(e as Error).message}) — standarderne vises.`;
+    }
+  });
+  const typeDef = $derived(typeDefs[symbol?.type ?? cfg.type]);
+  const typeStates = $derived(typeDef?.states ?? []);
+  const stateMeaning = (name: string | null | undefined): string => {
+    const st = typeStates.find((s) => s.name === name);
+    if (!st) return '';
+    return typeDef?.ports.length ? describeState(typeDef, st.open) : (st.look ?? []).map(lookText).join(', ');
+  };
+  const lookText = (it: LookItem): string =>
+    `${partLabel(it.part, symbol) || it.part}: ${it.anim === 'rotate' ? `${it.value}°` : typeof it.value === 'boolean' ? (it.value ? 'til' : 'fra') : it.value}`;
+  function setPosState(j: number, name: string): void {
+    const p = cfg.positions[j];
+    const old = p.state ?? null;
+    p.state = name || null;
+    // navnet på tegningen følger tilstanden, til det er rettet (et tal eller den gamle tilstands navn)
+    if (name && (!p.label || /^\d+$/.test(p.label) || p.label === old)) p.label = name.slice(0, 20);
+    // er de åbne veje sat selv (Avanceret eller fra før v6.7.0), følger positionen med — de andre positioner røres ikke
+    const st = typeStates.find((s) => s.name === name);
+    if (cfg.flow?.open && st && j < cfg.flow.open.length) cfg.flow.open[j] = [...st.open];
+  }
+  const unknownState = (s: string | null | undefined): boolean => !!s && !typeStates.some((t) => t.name === s);
+  function useTypeStates(): void {
+    typeStates.forEach((st, j) => {
+      if (j >= cfg.positions.length) addPosition();
+      if (j < cfg.positions.length) setPosState(j, st.name);
+    });
+  }
+  // ---- tilstandenes udseende (trin 4): typens, med afvigelser for dette symbol
+  const usedStates = $derived([...new Set(cfg.positions.map((p) => p.state).filter((s): s is string => !!s))]);
+  const overrideOf = (state: string, it: LookItem): LookItem | undefined =>
+    cfg.state_look?.[state]?.find((o) => o.part === it.part && o.anim === it.anim);
+  function setOverride(state: string, it: LookItem, value: LookItem['value']): void {
+    const all = { ...(cfg.state_look ?? {}) };
+    const list = (all[state] ?? []).filter((o) => !(o.part === it.part && o.anim === it.anim));
+    all[state] = [...list, { part: it.part, anim: it.anim, value }];
+    cfg.state_look = all;
+  }
+  function resetOverride(state: string, it?: LookItem): void {
+    const all = { ...(cfg.state_look ?? {}) };
+    all[state] = it ? (all[state] ?? []).filter((o) => !(o.part === it.part && o.anim === it.anim)) : [];
+    if (!all[state].length) delete all[state];
+    cfg.state_look = all;
+  }
+
   function addPosition(): void {
     if (n >= MAX_POSITIONS) return;
     cfg.positions.push({ label: String(n + 1) });
@@ -648,7 +704,7 @@ import { AVERAGE_CHOICES } from './trendData';
         {#each STEPS as s, k}
           {@const disabled = !isPos && k === 2}
           <button class:active={step === k} {disabled} onclick={() => (step = k)}>
-            {k + 1}. {s}{#if stepErrors(k).length}<span class="dot" title="{stepErrors(k).length} fejl"></span>{/if}
+            {k + 1}. {k === 2 && typeStates.length ? 'Tilstande' : s}{#if stepErrors(k).length}<span class="dot" title="{stepErrors(k).length} fejl"></span>{/if}
           </button>
         {/each}
       </nav>
@@ -738,12 +794,37 @@ import { AVERAGE_CHOICES } from './trendData';
           {/if}
         {:else if step === 2 && isPos}
           <div class="row wrap">
-            <span class="small muted">Positioner:</span>
-            {#each cfg.positions as p, j}
-              <span class="pos"><input class="lbl" maxlength="20" bind:value={p.label} aria-label="Position {j + 1}" />
-                <button class="small" onclick={() => removePosition(j)} disabled={n <= 2} aria-label="Fjern position {j + 1}">✕</button></span>
-            {/each}
-            <button class="small" onclick={addPosition} disabled={n >= MAX_POSITIONS}>+ Position</button>
+            {#if typeStates.length}
+              <!-- v6.7.0 (design B): hver position er en af typens tilstande, med sit navn på tegningen -->
+              {#if typeDefsNote}<p class="small error">{typeDefsNote}</p>{/if}
+              <p class="small muted">Symboltypen har tilstande (Opsætning › Symboler › Ind/ud og veje › Tilstande). Vælg for hver position,
+                hvilken tilstand den er, og hvad den hedder på denne tegning. PLC-værdierne skrives i kontaktplanerne nedenfor.</p>
+              <table class="grid statepos">
+                <thead><tr><th>#</th><th>Tilstand</th><th>Navn på tegningen</th><th>Betyder</th><th></th></tr></thead>
+                <tbody>
+                  {#each cfg.positions as p, j}
+                    <tr><td>{j + 1}</td>
+                      <td><select value={p.state ?? ''} onchange={(e) => setPosState(j, e.currentTarget.value)} aria-label="Position {j + 1}: tilstand">
+                        <option value="">— egen position —</option>
+                        {#if unknownState(p.state)}<option value={p.state}>ukendt: {p.state}</option>{/if}
+                        {#each typeStates as st (st.name)}<option value={st.name}>{st.name}</option>{/each}
+                      </select></td>
+                      <td><input class="lbl" maxlength="20" bind:value={p.label} aria-label="Position {j + 1}: navn på tegningen" /></td>
+                      <td class="small muted">{#if unknownState(p.state)}<span class="error">Typen har ikke længere tilstanden "{p.state}" — vælg en anden.</span>{:else}{stateMeaning(p.state)}{/if}</td>
+                      <td><button class="small" onclick={() => removePosition(j)} disabled={n <= 2} aria-label="Fjern position {j + 1}">✕</button></td></tr>
+                  {/each}
+                </tbody>
+              </table>
+              <button class="small" onclick={addPosition} disabled={n >= MAX_POSITIONS}>+ Position</button>
+              <button class="small" onclick={useTypeStates} title="Én position pr. tilstand i typens rækkefølge">Brug typens tilstande ({typeStates.length})</button>
+            {:else}
+              <span class="small muted">Positioner:</span>
+              {#each cfg.positions as p, j}
+                <span class="pos"><input class="lbl" maxlength="20" bind:value={p.label} aria-label="Position {j + 1}" />
+                  <button class="small" onclick={() => removePosition(j)} disabled={n <= 2} aria-label="Fjern position {j + 1}">✕</button></span>
+              {/each}
+              <button class="small" onclick={addPosition} disabled={n >= MAX_POSITIONS}>+ Position</button>
+            {/if}
           </div>
           {#if symbol && SELECTOR_TYPES.has(symbol.type)}
             {@const drawn = Object.values(symbol.parts).filter((p) => p.tag === 'text' && !p.pid).map((p) => p.text ?? '')}
@@ -791,6 +872,36 @@ import { AVERAGE_CHOICES } from './trendData';
           <button class="small" onclick={addPlane} disabled={cfg.planes.length >= MAX_PLANES}>+ Kontaktplan</button>
           <p class="small muted">Til/fra-signaler: klik i cellen (Til → Fra → røres ikke). Registre: skriv værdien, tom = røres ikke.</p>
         {:else if step === 3}
+          {#if usedStates.length}
+            <!-- v6.7.0 (design B): tilstandenes udseende — typens, og hvad der afviger for dette symbol -->
+            <section class="statelook">
+              <h4>Tilstandenes udseende</h4>
+              <p class="small muted">Kommer fra symboltypen. Ret en værdi for kun dette symbol — den markeres <em>afviger</em>; resten følger typen,
+                også når typen ændres. Egne animationer nedenfor går forud.</p>
+              {#each usedStates as st (st)}
+                {@const items = effectiveLook(typeStates, {}, st)}
+                <div class="sl">
+                  <strong>{cfg.positions.find((p) => p.state === st)?.label ?? st}</strong> <span class="small muted">({st})</span>
+                  {#if cfg.state_look?.[st]?.length}<button class="small" onclick={() => resetOverride(st)}>Brug typens udseende</button>{/if}
+                  {#each items as it (it.part + it.anim)}
+                    {@const ov = overrideOf(st, it)}
+                    {@const v = ov ? ov.value : it.value}
+                    <div class="row small sl-row" class:diff={!!ov}>
+                      <span class="sl-part">{partLabel(it.part, symbol) || it.part} · {LOOK_TXT[it.anim]}</span>
+                      {#if it.anim === 'fill' || it.anim === 'stroke'}
+                        <input type="color" value={String(v)} oninput={(e) => setOverride(st, it, e.currentTarget.value)} aria-label="{st}: {it.part} farve" />
+                      {:else if it.anim === 'rotate'}
+                        <input class="n" type="number" min="-360" max="360" value={Number(v)} onchange={(e) => setOverride(st, it, Number(e.currentTarget.value))} aria-label="{st}: {it.part} vinkel" /> °
+                      {:else}
+                        <label class="opt"><input type="checkbox" checked={v === true} onchange={(e) => setOverride(st, it, e.currentTarget.checked)} /> til</label>
+                      {/if}
+                      {#if ov}<span class="diff-tag">afviger</span><button class="small" onclick={() => resetOverride(st, it)}>Typens</button>{/if}
+                    </div>
+                  {:else}<div class="small muted">Typen har intet udseende for tilstanden.</div>{/each}
+                </div>
+              {/each}
+            </section>
+          {/if}
           <div class="row wrap">
             {#if passive}
               <span class="small muted">Viser PLC'ens position ud fra tilbagemeldingerne — kun visning, symbolet kan ikke betjenes.</span>
@@ -878,7 +989,8 @@ import { AVERAGE_CHOICES } from './trendData';
           {:else if symbol?.type === 'trendgraf'}
             <p class="small"><button class="small" onclick={() => (cfg.chart = defaultChart())}>+ Graf</button> <span class="muted">Symbolet kan vise en graf over tagenes historik.</span></p>
           {/if}
-          <FlowSection bind:flow={cfg.flow} type={symbol?.type ?? cfg.type} positions={isPos ? cfg.positions.map((p) => p.label) : []} {tags} {linked} />
+          <FlowSection bind:flow={cfg.flow} type={symbol?.type ?? cfg.type} positions={isPos ? cfg.positions.map((p) => p.label) : []} {tags} {linked}
+            posStates={isPos ? cfg.positions.map((p) => p.state) : []} />
           <h4>Logik ({cfg.logic.length}/{MAX_LOGIC})</h4>
           <p class="small muted">Saml flere tags i én betingelse (fx pumpe kører OG ventil åben), og brug den som kilde til en animation. En blok kan også bruge blokkene over sig og blokke i andre symboler på tegningen (og omvendt — dine blokke kan bruges dér).</p>
           {#each cfg.logic as b (b.id)}
@@ -1241,6 +1353,13 @@ import { AVERAGE_CHOICES } from './trendData';
   .n { width: 5.5em; }
   .desc { margin-left: .4rem; }
   .lbl { width: 7em; }
+  .statelook { border: 1px solid var(--line); border-radius: 6px; padding: .4rem .6rem; margin-bottom: .6rem; display: flex; flex-direction: column; gap: .3rem; }
+  .statelook h4 { margin: 0; }
+  .sl { padding: .2rem 0; border-top: 1px dashed var(--line); }
+  .sl-row { gap: .4rem; align-items: center; padding: .1rem .3rem; border-radius: 4px; }
+  .sl-row.diff { background: #fff3e0; }
+  .sl-part { min-width: 12rem; }
+  .diff-tag { font-size: .72rem; color: #e65100; border: 1px solid #ffb74d; border-radius: 8px; padding: 0 .35rem; }
   .pin { letter-spacing: .3em; }
   .pos { display: inline-flex; gap: .15rem; }
   .cell { min-width: 3.2em; }

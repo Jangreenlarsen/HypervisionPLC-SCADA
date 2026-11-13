@@ -33,6 +33,44 @@ MEDIA = ("water", "air", "electric", "other")
 MAX_PORTS = 12
 MAX_WAYS = 24
 MAX_STATES = 12
+MAX_LOOK = 24
+# Tilstandens udseende (v6.7.0, design B): hvad hver del viser i tilstanden — farve, streg, vinkel, synlig, blink, roterer
+LOOK_ANIMS = ("fill", "stroke", "rotate", "visible", "blink", "spin")
+
+
+def clean_look(raw: Any, where: str) -> list[dict[str, Any]]:
+    """[{part, anim, value}] — farve (fill/stroke), vinkel −360…360 (rotate) eller Til/Fra (visible/blink/spin)."""
+    from .bindings import _color
+    if raw in (None, []):
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_LOOK:
+        raise ServiceError(400, f"{where}: udseendet skal være en liste (højst {MAX_LOOK})")
+    out: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for i, it in enumerate(raw, 1):
+        if not isinstance(it, dict) or not isinstance(it.get("part"), str) or not PART_RE.match(it["part"]):
+            raise ServiceError(400, f"{where}, udseende {i}: vælg en del (id med små bogstaver, tal og _)")
+        anim = it.get("anim")
+        if anim not in LOOK_ANIMS:
+            raise ServiceError(400, f"{where}, udseende {i}: ukendt animation '{anim}'")
+        v = it.get("value")
+        try:
+            if anim in ("fill", "stroke"):
+                v = _color(v)
+            elif anim == "rotate":
+                if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) or not -360 <= v <= 360:
+                    raise ValueError("vinklen skal være et tal mellem −360 og 360")
+                v = round(float(v), 2)
+            elif not isinstance(v, bool):
+                raise ValueError("værdien skal være Til eller Fra")
+        except ValueError as exc:
+            raise ServiceError(400, f"{where}, udseende {i} ({it['part']}): {exc}") from None
+        key = (it["part"], anim)
+        if key in seen:
+            raise ServiceError(400, f"{where}: {it['part']} har {anim} to gange")
+        seen.add(key)
+        out.append({"part": it["part"], "anim": anim, "value": v})
+    return out
 STATE_NAME_RE = re.compile(r"^[^\x00-\x1f]{1,30}\Z")
 
 
@@ -57,7 +95,8 @@ def clean_def(raw: Any) -> dict[str, Any]:
     restrict = raw.get("restrict")
     if restrict is not None and not _num(restrict):
         raise ServiceError(400, "Standard-restriktionen skal være et tal mellem 0 og 1")
-    profile = raw.get("kind") is not None or medium != "water" or cap is not None or restrict is not None
+    profile = (raw.get("kind") is not None or medium != "water" or cap is not None or restrict is not None
+               or bool(raw.get("states")))
     if ports_in in (None, []) and profile:
         ports_in = []
     elif not isinstance(ports_in, list) or not ports_in:
@@ -107,7 +146,7 @@ def clean_def(raw: Any) -> dict[str, Any]:
     if not isinstance(states_in, list) or len(states_in) > MAX_STATES:
         raise ServiceError(400, f"Tilstandene skal være en liste (højst {MAX_STATES})")
     if states_in:
-        from .flow_defs import way_key, ways_of
+        from .flow_defs import way_key, ways_of   # noqa: I001
         known = {frozenset(w): way_key(*w) for w in ways_of({"ports": ports, **({"ways": ways} if ways else {})})}
         states: list[dict[str, Any]] = []
         seen: set[str] = set()
@@ -131,7 +170,8 @@ def clean_def(raw: Any) -> dict[str, Any]:
                     raise ServiceError(400, f"Tilstanden '{name}': vejen '{w}' findes ikke på symbolet")
                 if k not in keys:
                     keys.append(k)
-            states.append({"name": name, "open": keys})
+            look = clean_look(st.get("look"), f"Tilstanden '{name}'")
+            states.append({"name": name, "open": keys, **({"look": look} if look else {})})
         result["states"] = states
     if kind != "consumer" or raw.get("kind") == "consumer":   # en udtrykkelig forbruger (fx en indbygget pumpe-type)
         result["kind"] = kind

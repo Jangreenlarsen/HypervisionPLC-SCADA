@@ -34,7 +34,7 @@ def test_variables_lists_what_the_drawing_reads(api):
     assert {"P1_drift", "Ekstra", "V2_stilling"} <= set(tags)
     assert tags["P1_drift"]["kind"] == "bool" and tags["V2_stilling"]["kind"] == "num"
     assert any("P1" in u for u in tags["P1_drift"]["used"])
-    assert v["positions"] == [{"element": "v2", "name": "V2", "labels": ["Lukket", "Åben"], "display": "remote", "live": None}]
+    assert v["positions"] == [{"element": "v2", "name": "V2", "labels": ["Lukket", "Åben"], "states": [None, None], "display": "remote", "live": None}]
     assert not [t for t in tags if t.startswith(("sym:", "flow"))]                    # afledte værdier er ikke variabler
 
 

@@ -54,7 +54,7 @@ describe('flow-profilen pr. symboltype', () => {
     expect(defaultFlow('rad', [], [], defs.rad).restrict.src).toBe('@val:0.5');
     const v = defaultFlow('trevejs_motorventil_ab', ['AB → A', 'AB → B'], ['AB>A', 'AB>B'], FLOW_DEFAULTS.trevejs_motorventil_ab);
     expect(v.open).toEqual([['AB>A'], ['AB>B']]);
-    expect(v.port_colors?.open).toBe('#2e7d32');                // punkterne har dele: portfarver fra start
+    expect(v.port_colors).toBeNull();                            // v6.7.0: typens tilstande farver selv portene
     expect(defaultFlow('pumpe', [], []).port_colors).toBeNull();
   });
 });
@@ -130,5 +130,25 @@ describe('ventiltilstande (Jan: tilstand 1 = A igennem AB, B blokeret …)', asy
     expect(vd({ ...four, states: [{ name: 'X', open: ['A>C'] }] })).toMatch(/findes ikke/);
     expect(vd({ ...four, states: [{ name: 'X', open: [] }, { name: 'x', open: [] }] })).toMatch(/to gange/);
     expect(vd(four)).toBeNull();
+  });
+});
+
+describe('design B: tilstande med udseende på symboltypen', async () => {
+  const { effectiveLook, FLOW_DEFAULTS: D, hasProfile: hp } = await import('./symbolFlow');
+  it('typens udseende, med symbolets afvigelser ovenpå', () => {
+    const st = D.trevejs_motorventil_ab.states;
+    const base = effectiveLook(st, {}, 'A → AB');
+    expect(base.find((l) => l.part === 'port_b')?.value).toBe('#000000');
+    const ov = effectiveLook(st, { 'A → AB': [{ part: 'port_a', anim: 'fill', value: '#1e88e5' }] }, 'A → AB');
+    expect(ov.find((l) => l.part === 'port_a')?.value).toBe('#1e88e5');
+    expect(ov.find((l) => l.part === 'port_ab')?.value).toBe('#2e7d32');      // resten følger typen
+    expect(effectiveLook(st, {}, null)).toEqual([]);
+  });
+  it('omskifteren har tilstandene med grebets vinkel', () => {
+    expect(D.omskifter3.states?.map((s) => [s.name, s.look?.[0].value])).toEqual([['Hånd', -45], ['0', 0], ['Auto', 45]]);
+    expect(hp({ ports: [], states: [{ name: 'X', open: [] }] })).toBe(true);
+  });
+  it('portfarverne fra v6.3.0 slås ikke til, når tilstandene selv farver portene', () => {
+    expect(defaultFlow('trevejs_motorventil_ab', ['A → AB', 'B → AB'], ['AB>A', 'AB>B'], D.trevejs_motorventil_ab).port_colors).toBeNull();
   });
 });

@@ -115,7 +115,7 @@ I trin 4 under **Flow** › **Restriktion**: vælg *en fast værdi* (skyder og t
 Åbn guiden for symbolet, hvor sensoren sidder, trin 4 › **Flow** › **Målt flow**, og vælg sensorens tag (l/min). Pumperne, der giver flow gennem symbolet, skaleres, så beregningen passer med målingen.
 
 ## Hvordan gør jeg et symbol til en pumpe, kilde, forbruger eller ledning for alle tegninger (flow-rolle, el-komponenter)?
-<!-- kilde: 08-forbindelser#m3-ind-ud-og-veje sha:01c1e913 -->
+<!-- kilde: 08-forbindelser#m3-ind-ud-og-veje sha:0b1d9f31 -->
 Under Opsætning › Symboler › **Ind/ud og veje** vælger du symboltypens **Flow-rolle**: forbruger, pumpe/kilde (fx en strømforsyning) eller rørstykke/ledning, og et **medie** (vand l/min, luft m³/h, el A). Standard-kapacitet og standard-restriktion (0,00–1,00) gælder, når et symbol ikke har sin egen flow-opsætning i guiden.
 
 ## Hvordan får en farve-animation på et tal-tag en grænse (aktiv ved ≥ 50, ikke aktiv under)?
@@ -135,5 +135,9 @@ De er faste værdier for symbolet (dets fysik): skriv tallet 0,00–1,00 i trin 
 Åbn **Opsætning › Simulator** (eller **Simulér** på Overview). Panelet viser alle variabler, tegningen bruger (tags, positioner, alarmer). Sæt hak ud for en variabel og vælg en værdi; tegningen viser resultatet med det samme — logik, symbolernes tilstand og flowet beregnes som i drift. **komm.fejl** viser en kommunikationsfejl, **Start fra live** kopierer PLC'ens værdier ind, og **Gem som …** gemmer et scenarie. Intet skrives til PLC'en.
 
 ## Hvordan definerer jeg en ventils tilstande (A igennem AB og B blokeret, 4-vejsventil A → B / C → D)?
-<!-- kilde: 08-forbindelser#m3-ind-ud-og-veje sha:01c1e913 -->
+<!-- kilde: 08-forbindelser#m3-ind-ud-og-veje sha:0b1d9f31 -->
 Under Opsætning › Symboler › **Ind/ud og veje** › **Tilstande**: giv hver tilstand et navn og sæt hak ved de veje, der er åbne — kolonnen *Betyder* skriver det i ord, også de blokerede porte (fx "A igennem AB · B blokeret"). Standarder: 3-vejsventilerne *A → AB* og *B → AB*, 4-vejsventilen (porte A, B, C, D) *A → B* og *C → D*. Du kan tilføje alle de tilstande, symbolet har brug for (+ Tilstand). I guidens trin 4 › Flow vælger du så tilstanden for hver position.
+
+## Hvordan kobler jeg en omskifters eller ventils positioner til symboltypens tilstande, og hvordan retter jeg udseendet for ét symbol?
+<!-- kilde: 10-symboler-og-guiden#m3-tilstande-positioner-fra-symboltypen sha:79388783 -->
+Har symboltypen tilstande, hedder guidens trin 3 **Tilstande**: vælg for hver position typens **Tilstand** (fx *A → AB* eller *Hånd*) og dens **Navn på tegningen** (fx *Varme*); **Brug typens tilstande** laver én position pr. tilstand. Udseendet (portfarver, grebets vinkel …) kommer fra typen. I trin 4 › **Tilstandenes udseende** kan du rette en værdi for kun dette symbol (markeres *afviger*); **Brug typens udseende** fjerner afvigelsen.

@@ -33,7 +33,8 @@ export interface SymbolConfig {
   passive?: boolean;
   /** Tilstandsmærket (✓ … ! ?) på Overview (v2.12.0); false = vises ikke */
   badge?: boolean;
-  positions: { label: string }[]; signals: Signal[]; planes: Plane[]; fault: string;
+  /** v6.7.0 (design B): `state` = typens tilstand, positionen er; `label` = navnet på tegningen. Uden state: en egen position. */
+  positions: { label: string; state?: string | null }[]; signals: Signal[]; planes: Plane[]; fault: string;
   display: 'remote' | 'local'; validate_s: number; alarm: '' | 'low' | 'medium' | 'high'; confirm: boolean; pulse_ms: number;
   /** Betjening på tegningen: dialog med valg af position (standard) eller tryk venstre/højre side for at skifte position (v1.11.0) */
   click: 'dialog' | 'step';
@@ -42,6 +43,8 @@ export interface SymbolConfig {
   chart?: ChartCfg | null;
   /** Flowberegningen (v6.1.0): pumpe, kapacitet, rate/restriktion og åbne veje pr. position. null = standard. */
   flow?: FlowCfg | null;
+  /** v6.7.0 (design B): afvigelser fra typens udseende pr. tilstand — resten følger typen */
+  state_look?: Record<string, import('./symbolFlow').LookItem[]>;
 }
 /** Flow-rate eller restriktion (v6.1.0): et tag eller en fast værdi (`@val:0.5`), divideret med `max`; tom = 1. */
 export interface FlowSource { src: string; max: number }
@@ -89,7 +92,9 @@ export function defaultFlow(type: string, positions: string[], ways: string[],
     // rate og restriktion er faste værdier for symbolet (Jan: givet af dets fysik) — et tag er et tilvalg
     rate: { src: '@val:1', max: 1 }, restrict: { src: `@val:${profile?.restrict ?? 1}`, max: 1 },
     open, measured: { src: '', max: 1, low: 0, high: 100 },
-    port_colors: open && (profile?.ports ?? []).some((p) => p.part) ? { ...DEFAULT_PORT_COLORS } : null };
+    // portfarverne (v6.3.0) kun, når typens tilstande ikke selv farver portene (v6.7.0)
+    port_colors: open && (profile?.ports ?? []).some((p) => p.part) && !(profile?.states ?? []).some((s) => s.look?.length)
+      ? { ...DEFAULT_PORT_COLORS } : null };
 }
 export interface PartInfo { tag: string; line: boolean; pid?: string | null; text?: string }
 export interface SymbolInfo extends PartInfo { type: string; name: string | null; parts: Record<string, PartInfo> }

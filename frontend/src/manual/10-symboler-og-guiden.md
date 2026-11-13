@@ -132,6 +132,30 @@ Skifter du tilbage til *Interaktiv betjening*, skal du vælge kommando-tags igen
 
 **Omskifterens tegning følger positionerne:** giver du en omskifter fra biblioteket flere positioner (eller andre navne) i guiden, end der står rundt om grebet i tegningen, så vælg omskifteren i **Tegn** — der står *Tegningen viser 3 positioner …* med knappen **Tegn omskifteren med N positioner**. Den tegner omskifteren igen med guidens navne (samme navn, placering og opsætning), gemmer og udgiver tegningen (du bliver spurgt), og retter grebets vinkel pr. position, så det peger på navnene.
 
+### Tilstande: positioner fra symboltypen
+
+Har symboltypen **tilstande** (fx 3-vejsventilerne, 4-vejsventilen, omskifter *Hånd/0/Auto*, drejeomskifteren og vippekontakten ON/OFF), hedder trin 3 **Tilstande**, og positionerne står i en tabel:
+
+![Trin 3 Tilstande for en 3-vejsventil: hver position er en af typens tilstande med sit navn på tegningen og betydningen](../../public/manual/guide-tilstande.png)
+
+| Kolonne | Hvad du vælger |
+|---|---|
+| **Tilstand** | Typens tilstand, fx *A → AB*. *— egen position —* virker som før, uden typens udseende. |
+| **Navn på tegningen** | Det navn, operatøren ser, fx *Varme*. Det følger tilstanden, indtil du retter det. |
+| **Betyder** | Hvad tilstanden gør, fx "A igennem AB · B blokeret", eller grebets vinkel. |
+
+- **Brug typens tilstande** laver én position pr. tilstand i typens rækkefølge.
+- PLC-værdierne skrives i kontaktplanerne under tabellen, som før (fx register = 10 for *Varme*, 20 for *Køl*).
+- **Udseendet** kommer fra typen: portenes farve, grebets vinkel, en del synlig eller blinkende. Flowet følger tilstandens åbne veje.
+
+**Tilstandenes udseende (trin 4):** øverst i trin 4 står hver tilstand, symbolet bruger, med typens udseende.
+- Ret en værdi (fx port A blå i stedet for grøn) for **kun dette symbol**. Den markeres **afviger**.
+- **Typens** og **Brug typens udseende** fjerner afvigelsen.
+- Alt, du ikke har rettet, følger typen, også når typen senere ændres.
+- En egen animation på samme del går forud.
+
+### Kontaktplaner
+
 Et symbol med positioner skal vide, hvilken position PLC'en **står i** (tilbagemelding), og hvad der skal **skrives** for at skifte. Det beskrives i kontaktdiagrammet:
 
 - **Rækker** er *planer*; hver styrer ét signal. **Kolonner** er positioner.

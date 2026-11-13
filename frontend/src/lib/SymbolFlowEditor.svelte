@@ -6,8 +6,8 @@
   import { del, put } from './api';
   import { ask } from './ask';
   import {
-    FLOW_DEFAULTS, KIND_LABEL, MEDIUM_LABEL, PIECE_TYPES, ROLE_LABEL, UNITS, describeState, hasProfile, validateDef, waysOf, wayKey, wayLabel,
-    type FlowDef, type FlowKind, type FlowMedium, type FlowState, type PortDef, type PortRole,
+    FLOW_DEFAULTS, KIND_LABEL, LOOK_TXT, MEDIUM_LABEL, PIECE_TYPES, ROLE_LABEL, UNITS, describeState, hasProfile, lookDefault, validateDef, waysOf, wayKey, wayLabel,
+    type FlowDef, type FlowKind, type FlowMedium, type FlowState, type LookAnim, type LookItem, type PortDef, type PortRole,
   } from './symbolFlow';
   // @ts-expect-error — ren JS uden typer (deles med Tegn)
   import { autoPorts, boxOfRoot } from '../../svgedit-host/symbolPorts.js';
@@ -28,8 +28,11 @@
   let medium = $state<FlowMedium>('water');
   let capacity = $state<number | null>(null);
   let restrict = $state<number | null>(null);
-  // tilstande (v6.6.0, Jan): navngivne tilstande med de veje, der er åbne
+  // tilstande (v6.6.0, Jan): navngivne tilstande med de veje, der er åbne; v6.7.0: og deres udseende
   let states = $state<FlowState[]>([]);
+  let lookOpen = $state<number | null>(null);      // tilstanden, hvis udseende redigeres (og vises i forhåndsvisningen)
+  let partIds = $state<string[]>([]);
+  let pvHost = $state<SVGGElement>();
   let box = $state<Box | null>(null);
   let viewBox = $state('0 0 100 100');
   let picked = $state<number | null>(null);
@@ -70,7 +73,9 @@
     medium = d?.medium ?? 'water';
     capacity = d?.capacity ?? null;
     restrict = d?.restrict ?? null;
-    states = (d?.states ?? []).map((s) => ({ name: s.name, open: [...s.open] }));
+    states = (d?.states ?? []).map((s) => ({ name: s.name, open: [...s.open], ...(s.look?.length ? { look: s.look.map((l) => ({ ...l })) } : {}) }));
+    lookOpen = null;
+    partIds = [...(holder?.querySelectorAll('[id]') ?? [])].map((e) => e.id).filter((id) => /^[a-z0-9_]{1,40}$/.test(id));
     setDirty(false);
   }
   $effect(() => { void type; void svg; void custom; void load(); });
@@ -169,6 +174,41 @@
     states = [...states, { name: `Tilstand ${states.length + 1}`, open: [] }];
     setDirty(true);
   }
+  // ---- tilstandens udseende (v6.7.0, design B)
+  function setLook(i: number, look: LookItem[]): void {
+    states = states.map((s, k) => (k === i ? { ...s, look } : s));
+    setDirty(true);
+  }
+  const lookOf = (i: number): LookItem[] => states[i]?.look ?? [];
+  function addLook(i: number): void {
+    const part = partIds[0];
+    if (part) setLook(i, [...lookOf(i), { part, anim: 'fill', value: lookDefault('fill') }]);
+  }
+  const lookSummary = (look: LookItem[] | undefined): string =>
+    (look ?? []).map((l) => `${l.part} ${LOOK_TXT[l.anim].toLowerCase()} ${l.anim === 'rotate' ? `${l.value}°` : typeof l.value === 'boolean' ? (l.value ? 'til' : 'fra') : l.value}`).join(', ');
+  /** Forhåndsvisningen: symbolet tegnet i tilstanden (farve, streg, vinkel, synlig — blink/roterer vises ikke). */
+  $effect(() => {
+    const i = lookOpen;
+    const look = i !== null ? $state.snapshot(lookOf(i)) as LookItem[] : [];
+    void svg;
+    const host = pvHost;
+    if (!host) return;
+    host.innerHTML = svg;
+    for (const it of look) {
+      const el = host.querySelector<SVGGraphicsElement>(`#${CSS.escape(it.part)}`);
+      if (!el) continue;
+      const shapes = [el, ...el.querySelectorAll<SVGElement>('path, rect, circle, ellipse, polygon, polyline, line')];
+      if (it.anim === 'fill') for (const s of shapes) s.style.fill = String(it.value);
+      else if (it.anim === 'stroke') for (const s of shapes) s.style.stroke = String(it.value);
+      else if (it.anim === 'visible') el.style.display = it.value ? '' : 'none';
+      else if (it.anim === 'rotate') {
+        try {
+          const b = el.getBBox();
+          el.setAttribute('transform', `${el.getAttribute('transform') ?? ''} rotate(${Number(it.value)} ${b.x + b.width / 2} ${b.y + b.height / 2})`);
+        } catch { /* uden mål — vises uden vinkel */ }
+      }
+    }
+  });
 
   const current = (): FlowDef => ({
     ports: ports.map((p) => ({ ...p })), ...(ownWays && ways.length ? { ways } : {}),
@@ -176,9 +216,9 @@
     ...(kind !== (PIECE_TYPES.has(type) ? 'piece' : type === 'pumpe' ? 'pump' : 'consumer') || kind !== 'consumer' ? { kind } : {}),
     ...(medium !== 'water' ? { medium } : {}),
     ...(capacity != null ? { capacity } : {}), ...(restrict != null ? { restrict } : {}),
-    ...(states.length ? { states: states.map((s) => ({ name: s.name.trim(), open: [...s.open] })) } : {}),
+    ...(states.length ? { states: states.map((s) => ({ name: s.name.trim(), open: [...s.open], ...(s.look?.length ? { look: s.look.map((l) => ({ ...l })) } : {}) })) } : {}),
   });
-  const canSave = $derived(ports.length > 0 || hasProfile({ ports: [], kind, medium, capacity: capacity ?? undefined, restrict: restrict ?? undefined }));
+  const canSave = $derived(ports.length > 0 || hasProfile({ ports: [], kind, medium, capacity: capacity ?? undefined, restrict: restrict ?? undefined, states }));
   const unit = $derived(UNITS[medium]);
 
   async function save(): Promise<void> {
@@ -312,13 +352,15 @@
     {#if ownWays}<button class="small" onclick={useDerived}>Lav vejene automatisk</button>{/if}
   </div>
 
+{/if}
   <!-- Tilstande (v6.6.0, Jan): hvad ventilen gør i hver tilstand — fx "A → AB" = A igennem AB, B blokeret -->
   <h4>Tilstande</h4>
-  <p class="muted small">Navngiv ventilens tilstande, og sæt hak ved de veje, der er åbne i hver. Porte, der ikke er på en åben vej, er
-    blokeret. I guiden vælger du så blot tilstanden for hver af symbolets positioner.</p>
+  <p class="muted small">Hvad symbolet kan være — fx ventilens veje eller omskifterens stillinger. Giv hver tilstand et navn, sæt hak ved de
+    veje, der er åbne (porte uden en åben vej er blokeret), og vælg dens <strong>udseende</strong> (farve, vinkel, synlig …). I guiden vælger du
+    så blot tilstanden for hver af symbolets positioner; udseendet kan rettes for et enkelt symbol.</p>
   {#if states.length && shownWays.length}
     <table class="ports states">
-      <thead><tr><th>Tilstand</th>{#each shownWays as w (wayKey(w))}<th>{w[0]} ↔ {w[1]}</th>{/each}<th>Betyder</th><th></th></tr></thead>
+      <thead><tr><th>Tilstand</th>{#each shownWays as w (wayKey(w))}<th>{w[0]} ↔ {w[1]}</th>{/each}<th>Betyder</th><th>Udseende</th><th></th></tr></thead>
       <tbody>
         {#each states as st, i (i)}
           <tr>
@@ -329,16 +371,65 @@
                 onchange={(e) => toggleStateWay(i, w, e.currentTarget.checked)} /></td>
             {/each}
             <td class="muted small">{describeState({ ports }, st.open)}</td>
-            <td><button class="small" onclick={() => { states = states.filter((_, k) => k !== i); setDirty(true); }} aria-label="Fjern tilstand {st.name}">✕</button></td>
+            <td class="small"><button class="small" class:on={lookOpen === i} onclick={() => (lookOpen = lookOpen === i ? null : i)}
+              title={lookSummary(st.look) || 'Intet udseende endnu'}>{st.look?.length ? `${st.look.length} del${st.look.length === 1 ? '' : 'e'}` : 'Tilføj'} …</button></td>
+            <td><button class="small" onclick={() => { states = states.filter((_, k) => k !== i); lookOpen = null; setDirty(true); }} aria-label="Fjern tilstand {st.name}">✕</button></td>
           </tr>
+          {#if lookOpen === i}{@render lookEditor(i, shownWays.length + 4)}{/if}
         {/each}
       </tbody>
     </table>
-  {:else if !shownWays.length}
-    <p class="muted small">Tilføj veje først (fx et fælles punkt AB eller <em>+ Vej</em>).</p>
+  {:else if states.length}
+    <!-- symboler uden veje (fx en omskifter): tilstande med navn og udseende -->
+    <table class="ports states">
+      <thead><tr><th>Tilstand</th><th>Udseende</th><th></th></tr></thead>
+      <tbody>
+        {#each states as st, i (i)}
+          <tr>
+            <td><input class="nm" value={st.name} maxlength="30" aria-label="Navn på tilstand {i + 1}"
+              onchange={(e) => { states = states.map((s, k) => (k === i ? { ...s, name: e.currentTarget.value } : s)); setDirty(true); }} /></td>
+            <td class="small"><button class="small" class:on={lookOpen === i} onclick={() => (lookOpen = lookOpen === i ? null : i)}
+              title={lookSummary(st.look)}>{st.look?.length ? lookSummary(st.look) : 'Tilføj udseende'} …</button></td>
+            <td><button class="small" onclick={() => { states = states.filter((_, k) => k !== i); lookOpen = null; setDirty(true); }} aria-label="Fjern tilstand {st.name}">✕</button></td>
+          </tr>
+          {#if lookOpen === i}{@render lookEditor(i, 3)}{/if}
+        {/each}
+      </tbody>
+    </table>
   {/if}
-  <div class="row"><button class="small" onclick={addState} disabled={!shownWays.length || states.length >= 12}>+ Tilstand</button></div>
-{/if}
+  <div class="row"><button class="small" onclick={addState} disabled={states.length >= 12}>+ Tilstand</button></div>
+
+{#snippet lookEditor(i: number, cols: number)}
+  <tr class="look-row"><td colspan={cols}>
+    <div class="look">
+      <svg class="pv" {viewBox} aria-label="Forhåndsvisning af {states[i]?.name}"><g bind:this={pvHost}></g></svg>
+      <div class="look-list">
+        <strong class="small">Udseende i "{states[i]?.name}"</strong>
+        {#each lookOf(i) as it, k (k)}
+          <div class="row small">
+            <select value={it.part} aria-label="Del" onchange={(e) => setLook(i, lookOf(i).map((x, j) => (j === k ? { ...x, part: e.currentTarget.value } : x)))}>
+              {#each partIds as pid (pid)}<option value={pid}>{pid}</option>{/each}
+            </select>
+            <select value={it.anim} aria-label="Animation" onchange={(e) => { const a = e.currentTarget.value as LookAnim; setLook(i, lookOf(i).map((x, j) => (j === k ? { ...x, anim: a, value: lookDefault(a) } : x))); }}>
+              {#each Object.entries(LOOK_TXT) as [a, t] (a)}<option value={a}>{t}</option>{/each}
+            </select>
+            {#if it.anim === 'fill' || it.anim === 'stroke'}
+              <input type="color" value={String(it.value)} aria-label="Farve" oninput={(e) => setLook(i, lookOf(i).map((x, j) => (j === k ? { ...x, value: e.currentTarget.value } : x)))} />
+            {:else if it.anim === 'rotate'}
+              <input class="deg" type="number" min="-360" max="360" value={Number(it.value)} aria-label="Vinkel"
+                onchange={(e) => setLook(i, lookOf(i).map((x, j) => (j === k ? { ...x, value: Number(e.currentTarget.value) } : x)))} /> °
+            {:else}
+              <label class="opt"><input type="checkbox" checked={it.value === true} onchange={(e) => setLook(i, lookOf(i).map((x, j) => (j === k ? { ...x, value: e.currentTarget.checked } : x)))} /> til</label>
+            {/if}
+            <button class="small" onclick={() => setLook(i, lookOf(i).filter((_, j) => j !== k))} aria-label="Fjern">✕</button>
+          </div>
+        {:else}<span class="small muted">Intet udseende: delene vises som tegnet i tilstanden.</span>{/each}
+        <div><button class="small" onclick={() => addLook(i)} disabled={!partIds.length || lookOf(i).length >= 24}>+ Udseende</button></div>
+        <span class="small muted">Gælder alle symboler af typen. I guiden kan det rettes for et enkelt symbol.</span>
+      </div>
+    </div>
+  </td></tr>
+{/snippet}
 
 <div class="row actions">
   <button class="primary" onclick={save} disabled={busy || !dirty || !canSave}>Gem</button>
@@ -354,6 +445,11 @@
   .profile p { flex-basis: 100%; margin: .2rem 0 0; }
   .pf { display: inline-flex; gap: .35rem; align-items: center; font-size: .88rem; }
   .pf input[type='number'] { width: 6rem; }
+  .look { display: flex; gap: .8rem; align-items: flex-start; padding: .3rem 0; }
+  .pv { width: 140px; height: 140px; background: #f6f6f6; border: 1px solid var(--line); border-radius: 6px; flex: none; }
+  .look-list { display: flex; flex-direction: column; gap: .25rem; }
+  .deg { width: 4.5rem; }
+  button.on { background: #e3f2fd; }
   .tag { font-size: .7rem; padding: 0 6px; border-radius: 8px; background: #e7f3e8; color: #2e7d32; border: 1px solid #a9d3ab; align-self: center; }
   .stage { width: 100%; max-width: 640px; height: 360px; background: #f6f6f6; border: 1px solid var(--line); border-radius: var(--radius); cursor: crosshair; display: block; }
   .bbox { fill: none; stroke: #9db8e8; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
