@@ -86,7 +86,7 @@ Serveren **beregner selv flowet** gennem tegningens forbundne symboler og rør �
 - En pumpe, der står stille, lader flow passere i sin retning.
 - Flere pumper lægges sammen.
 
-- En **flowmåler** (et symbol med *Målt flow* i guiden, fx en flowsensor i en løkke) skalerer de pumper, der giver flow gennem den, så beregningen passer med målingen.
+- En **flowmåler** (et symbol med *Målt flow* i guiden, fx en flowsensor i en løkke) skalerer de pumper, der giver flow gennem den, så beregningen passer med målingen. Med en **baseline** (lavt og højt flow) får symbolet et **flow-niveau** 0,00–1,00, som animationerne kan vise (kapitel 10).
 
 Resultatet er et tal pr. rør og symbol i l/min. På et rør har tallet **fortegn**: + løber i tegneretningen, − imod. Et rørstykke (bøjning, T-stykke, kryds) får flowet ind og ud ved hvert af sine punkter, så løbelyset viser retningen i hvert ben.
 

@@ -9,7 +9,7 @@
   import { get } from './api';
   import TagSelect, { type TagOption } from './TagSelect.svelte';
   import { FLOW_DEFAULTS, kindOf, mergeDefs, unitOf, waysOf, wayKey, wayLabel, type FlowDefs } from './symbolFlow';
-  import { DEFAULT_PORT_COLORS, defaultFlow, flowSourceMode, type FlowCfg, type FlowSource } from './symbolConfig';
+  import { DEFAULT_PORT_COLORS, defaultFlow, flowLevel, flowSourceMode, type FlowCfg, type FlowSource } from './symbolConfig';
 
   let { flow = $bindable(), type, positions, tags, linked = null }: {
     flow: FlowCfg | null | undefined;
@@ -38,10 +38,12 @@
   function enable(on: boolean): void {
     flow = on ? defaultFlow(type, positions, ways.map(wayKey), def) : null;
   }
-  function setMode(s: FlowSource, mode: string): void {
-    s.src = mode === 'val' ? '@val:1' : mode === 'tag' ? (tags[0]?.name ?? '') : '';
+  // v6.4.0 (Jan): rate og restriktion er faste værdier for symbolet (dets fysik) — tallet står altid fremme; et tag er et tilvalg
+  const fixedOf = (s: FlowSource): number => (flowSourceMode(s) === 'val' ? valOf(s) : 1);
+  function useTag(s: FlowSource, on: boolean): void {
+    s.src = on ? (tags[0]?.name ?? '') : '@val:1';
   }
-  const valOf = (s: FlowSource): number => Number(s.src.slice(5)) || 0;
+  const valOf = (s: FlowSource): number => { const n = Number(s.src.slice(5)); return Number.isFinite(n) ? n : 0; };
   const setVal = (s: FlowSource, v: number): void => { s.src = `@val:${Math.round(Math.min(1, Math.max(0, v)) * 100) / 100}`; };
   // et til/fra-tag giver kun 0 eller 1 — restriktionen skal være et tal 0,00–1,00 (fx ventilens åbning i %)
   const BIT = /:(coil|di|discrete|bit|bool)\b|\.\d{1,2}$/i;
@@ -60,16 +62,15 @@
 {#snippet source(label: string, s: FlowSource, hint: string, fraction: boolean)}
   <div class="row wrap src">
     <span class="lbl">{label}</span>
-    <select value={flowSourceMode(s)} onchange={(e) => setMode(s, e.currentTarget.value)} aria-label="{label}: kilde">
-      <option value="none">fuld (1,00)</option><option value="tag">et tag</option><option value="val">en fast værdi</option>
-    </select>
     {#if flowSourceMode(s) === 'tag'}
       <TagSelect value={s.src} {tags} onchange={(v) => (s.src = v)} />
       <label class="small">1,00 ved <input type="number" min="0.001" step="any" bind:value={s.max} aria-label="{label}: værdi ved 1,00" /></label>
-    {:else if flowSourceMode(s) === 'val'}
-      <input type="range" min="0" max="1" step="0.01" value={valOf(s)} oninput={(e) => setVal(s, Number(e.currentTarget.value))} aria-label="{label}: skyder" />
-      <input type="number" min="0" max="1" step="0.01" value={valOf(s).toFixed(2)} oninput={(e) => setVal(s, Number(e.currentTarget.value || 0))} aria-label="{label}: fast værdi" />
+    {:else}
+      <input type="number" min="0" max="1" step="0.01" value={fixedOf(s).toFixed(2)} oninput={(e) => setVal(s, Number(e.currentTarget.value || 0))} aria-label="{label}: værdi" />
+      <input type="range" min="0" max="1" step="0.01" value={fixedOf(s)} oninput={(e) => setVal(s, Number(e.currentTarget.value))} aria-label="{label}: skyder" />
     {/if}
+    <label class="small opt" title="Lad et tag i PLC'en styre værdien i stedet for den faste"><input type="checkbox" checked={flowSourceMode(s) === 'tag'}
+      onchange={(e) => useTag(s, e.currentTarget.checked)} /> styret af et tag</label>
     <span class="small muted">{hint}</span>
     {#if fraction && flowSourceMode(s) === 'tag' && isBit(s.src)}
       <p class="small warn">'{s.src}' er et til/fra-signal og giver kun 0,00 eller 1,00. Vælg et tal-tag (fx ventilens åbning i %, med
@@ -101,9 +102,24 @@
     <div class="row wrap src">
       <span class="lbl">Målt flow</span>
       <TagSelect value={flow.measured?.src ?? ''} {tags} placeholder="— ingen flowmåler —"
-        onchange={(v) => flow && (flow.measured = { src: v, max: 1 })} />
+        onchange={(v) => flow && (flow.measured = { low: 0, high: 100, ...(flow.measured ?? {}), src: v })} />
       <span class="small muted">en flowsensor ({unit}): pumperne gennem symbolet skaleres, så beregningen passer med målingen</span>
     </div>
+    {#if flow.measured?.src}
+      {@const m = flow.measured}
+      <div class="row wrap src baseline">
+        <span class="lbl">Baseline</span>
+        <label class="small">lavt flow <input type="number" step="any" bind:value={m.low} aria-label="Lavt flow" /></label>
+        <label class="small">højt flow <input type="number" step="any" bind:value={m.high} aria-label="Højt flow" /></label>
+        <span class="small muted">{unit}</span>
+        {#if !(m.high > m.low)}<p class="small warn">Lavt flow skal være mindre end højt flow.</p>
+        {:else}
+          <span class="small muted">→ <strong>symbolets flow-niveau</strong>: 0,00 ved {m.low} … 1,00 ved {m.high}
+            (fx {fmt2((m.low + m.high) / 2)} → {fmt2(flowLevel((m.low + m.high) / 2, m.low, m.high) ?? 0)}). Brug det som kilde i
+            animationerne ovenfor: løbelysets fart, blink ved lavt flow, farve ved et niveau.</span>
+        {/if}
+      </div>
+    {/if}
     {#if positions.length && ways.length}
       <table class="ways">
         <thead><tr><th>Position</th>{#each ways as w}<th>{wayLabel(w)}</th>{/each}</tr></thead>
@@ -140,6 +156,7 @@
   .src { gap: .4rem; align-items: center; margin: .25rem 0; }
   .lbl { min-width: 6.5rem; }
   .src input[type='number'] { width: 6rem; }
+  .baseline { padding-left: .6rem; border-left: 3px solid var(--line); }
   .src input[type='range'] { width: 9rem; }
   .field-row input { width: 7rem; }
   .ways { border-collapse: collapse; margin: .3rem 0; }

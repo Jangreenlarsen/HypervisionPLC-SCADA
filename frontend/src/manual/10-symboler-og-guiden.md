@@ -205,9 +205,13 @@ Nederst i trin 4 står sektionen **Flow**. Sæt hak i **Med i flowberegningen** 
 
 - **Pumpe / kilde** (slået til fra start, når symboltypens flow-rolle er pumpe/kilde):
   - **Kapacitet** ved fuld rate (0–65535, i mediets enhed — l/min for vand);
-  - **Flow-rate** 0,00–1,00: *fuld (1,00)*, **et tag** eller **en fast værdi** (skyder og tal med to decimaler). Ved et tag angiver du, hvad der er 1,00 (fx 50 for en frekvens i Hz, eller 1 for et til/fra-tag).
-- **Restriktion** — et tal fra **0,00** (blokeret) til **1,00** (ingen restriktion), ikke til/fra: *fuld (1,00)*, **en fast værdi** (skyder og tal med to decimaler) eller **et tag** — fx ventilens åbning i %, med *1,00 ved* = 100. Vælger du et til/fra-signal, advarer guiden: det giver kun 0,00 eller 1,00.
+  - **Flow-rate** 0,00–1,00.
+- **Restriktion** — et tal fra **0,00** (blokeret) til **1,00** (ingen restriktion).
+
+  Flow-rate og restriktion er **faste værdier for symbolet**, givet af dets fysik. Skriv tallet (to decimaler) eller træk i skyderen. Sæt hak i **styret af et tag**, hvis PLC'en skal styre værdien, og angiv hvad der er 1,00, fx 50 for en frekvens i Hz, eller 100 for en ventils åbning i %. Vælger du et til/fra-signal til restriktionen, advarer guiden: det giver kun 0,00 eller 1,00.
 - **Målt flow:** et tag fra en flowsensor. Pumperne, der giver flow gennem symbolet, skaleres, så beregningen passer med målingen.
+  - **Baseline:** skriv, hvad der er **lavt flow** og **højt flow** for sensoren, fx 15,1 og 16,5 l/min. Det målte flow bliver så **symbolets flow-niveau**: 0,00 ved lavt flow, 1,00 ved højt flow og imellem, fx 15,85 → 0,54.
+  - Vælg **symbolets flow-niveau (0,00–1,00)** som kilde i en animation for at vise flowet: *Løbelys* får farten efter niveauet, *Blink* ved fx *højst 0,1* (lavt flow), og *Farve* med *Aktiv når ≥ 0,8* eller flere grænser.
 - **Åbne veje pr. position:** for en ventil med positioner står en tabel med symbolets veje (fra *Opsætning › Symboler › Ind/ud og veje*). Sæt hak ved de veje, der er åbne i hver position — fx *AB → A* i position *AB → A*. Hedder positionerne som vejene, er hakkene sat fra start. En ukendt position (komm.fejl) regnes som lukket.
 - **Farv portene efter de åbne veje:** har symboltypens punkter en *Del* (fx `port_a`, `port_b`, `port_ab`), farves portene automatisk i hver position. Porte på en åben vej får farven **åben** (grøn), de andre **lukket** (sort), på stregen eller fyldet. Står ventilen på *AB → A*, er AB og A grønne og B sort. Det er slået til fra start, og en animation, du selv lægger på en port, går forud.
 

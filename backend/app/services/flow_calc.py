@@ -60,6 +60,29 @@ def flow_tag(drawing_id: str, element: str) -> str:
     return f"flow:{drawing_id}:{element}"
 
 
+def level_tag(drawing_id: str, element: str) -> str:
+    """Live-navnet for et symbols flow-niveau (v6.4.0): det målte flow mellem lavt (0,00) og højt (1,00)."""
+    return f"flowlvl:{drawing_id}:{element}"
+
+
+def flow_levels(configs: dict[str, dict[str, Any]], read: Callable[[str], Any]) -> dict[str, float | None]:
+    """{element: flow-niveau 0,00–1,00} for symboler med et målt flow og en baseline (Jan: fx lavt 15,1 og højt 16,5 → målt 15,85
+    = 0,54). None = målingen er ukendt (komm.fejl)."""
+    out: dict[str, float | None] = {}
+    for el, c in configs.items():
+        m = (c.get("flow") or {}).get("measured") or {}
+        src = str(m.get("src") or "")
+        if not src or src.startswith("@"):
+            continue
+        lo, hi = float(m.get("low", 0)), float(m.get("high", 100))
+        v = read(src)
+        if not isinstance(v, (int, float)) or isinstance(v, bool) or hi <= lo:
+            out[el] = None
+            continue
+        out[el] = round(max(0.0, min(1.0, (float(v) - lo) / (hi - lo))), 3)
+    return out
+
+
 def ports_tag(drawing_id: str, element: str) -> str:
     """Live-navnet for et rørstykkes flow pr. punkt (v6.3.0)."""
     return f"flowp:{drawing_id}:{element}"
@@ -508,7 +531,7 @@ def preview(svg: str, defs: dict[str, dict[str, Any]], configs: dict[str, dict[s
     return {"flows": flows, "ports": {k: v for k, v in ports.items() if v}, "notes": notes, "stats": stats,
             "pumps": sorted(pumps, key=lambda p: p["name"] or p["id"]), "valves": sorted(valves, key=lambda v: v["name"] or v["id"]),
             "symbols": sorted(symbols, key=lambda s: s["name"] or s["id"]),
-            "linked": bool(topo.links)}
+            "linked": bool(topo.links), "levels": flow_levels(configs, read)}
 
 
 # ------------------------------------------------------------------ motoren (kaldes af symbol-runtimen)
@@ -523,6 +546,7 @@ class FlowEngine:
         self._last_inputs: dict[str, Any] = {}
         self._published: dict[str, dict[str, float]] = {}
         self._published_ports: dict[str, dict[str, str]] = {}    # rørstykkernes flow pr. punkt (flowp:…), som tekst
+        self._published_levels: dict[str, dict[str, float | None]] = {}   # flow-niveauerne (flowlvl:…, v6.4.0)
         self._quality: dict[str, str] = {}
         self.notes: dict[str, list[str]] = {}
         self.stats: dict[str, Any] = {"runs": 0, "last_ms": 0.0, "errors": 0, "drawings": 0, "unbound": []}
@@ -552,8 +576,9 @@ class FlowEngine:
         self._quality.pop(did, None)
         old = self._published.pop(did, {})
         old_p = self._published_ports.pop(did, {})
-        if old or old_p:
-            self.cache.remove([flow_tag(did, e) for e in old] + [ports_tag(did, e) for e in old_p])
+        old_l = self._published_levels.pop(did, {})
+        if old or old_p or old_l:
+            self.cache.remove([flow_tag(did, e) for e in old] + [ports_tag(did, e) for e in old_p] + [level_tag(did, e) for e in old_l])
 
     def evaluate(self, symbols: dict[tuple[str, str], dict[str, Any]], states: dict[tuple[str, str], Any], now: float) -> None:
         """Beregn og udgiv med det samme (tests og kald uden event-løkke)."""
@@ -574,8 +599,10 @@ class FlowEngine:
         out: list[tuple[str, Any]] = []
         for did, topo in self.topos.items():
             configs = {e: c for (d, e), c in symbols.items() if d == did}
-            if not any((c.get("flow") or {}).get("pump") for c in configs.values()):
-                if self._published.get(did):
+            # (v6.4.0) en flowmåler med baseline giver et flow-niveau, også uden en pumpe på tegningen
+            if not any((c.get("flow") or {}).get("pump") or ((c.get("flow") or {}).get("measured") or {}).get("src")
+                       for c in configs.values()):
+                if self._published.get(did) or self._published_levels.get(did):
                     self._clear(did)
                 continue
             positions = {e: getattr(states.get((did, e)), "pos", None) for e in configs}
@@ -598,12 +625,12 @@ class FlowEngine:
             out.append((did, (topo, self.defs, configs, positions, {**meters, **values}, sig, "comm_error" if unknown else "good")))
         return out
 
-    def run_job(self, did: str, job: Any) -> tuple[dict[str, float], list[str], dict[str, Any], dict[str, dict[str, float]]] | None:
+    def run_job(self, did: str, job: Any) -> tuple[Any, ...] | None:
         topo, defs, configs, positions, values = job[:5]
         t0 = time.perf_counter()
         ports: dict[str, dict[str, float]] = {}
         try:
-            res = (*compute(topo, defs, configs, positions, values.get, ports), ports)
+            res = (*compute(topo, defs, configs, positions, values.get, ports), ports, flow_levels(configs, values.get))
         except Exception:
             self.stats["errors"] += 1
             self._last_inputs.pop(did, None)          # prøv igen ved næste ændring
@@ -618,7 +645,7 @@ class FlowEngine:
         if res is None or did not in self.topos or self._last_inputs.get(did) != job[5]:
             return
         quality = job[6]
-        flows, notes, st, ports = res
+        flows, notes, st, ports, levels = res
         self.stats["runs"] += 1
         self.stats[f"d:{did}"] = st
         if notes != self.notes.get(did):
@@ -640,6 +667,15 @@ class FlowEngine:
         zero.update({ports_tag(did, e): LiveValue(value="", quality=quality, ts=now) for e in old_p
                      if e not in texts and (changed_q or old_p[e] != "")})
         self._published_ports[did] = {**{e: "" for e in old_p}, **texts}
+        # flow-niveauerne (v6.4.0): ukendt måling = komm.fejl (animationen viser delen som tegnet)
+        old_l = self._published_levels.get(did, {})
+        for e, lv in levels.items():
+            if changed_q or e not in old_l or old_l[e] != lv:
+                updates[level_tag(did, e)] = LiveValue(value=lv, quality="good" if lv is not None else "comm_error", ts=now)
+        gone = [level_tag(did, e) for e in old_l if e not in levels]
+        if gone:
+            self.cache.remove(gone)
+        self._published_levels[did] = dict(levels)
         if updates or zero:
             self.cache.update({**zero, **updates})
 

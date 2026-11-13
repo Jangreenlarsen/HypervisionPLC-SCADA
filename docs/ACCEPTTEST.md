@@ -90,6 +90,8 @@ Forberedelse: tag en backup først (System › Backup, eller `scada-tool backup 
 - [ ] Opsætning › Symboler › Ind/ud og veje: giv en egen type rollen *Pumpe/kilde*, medie *El* → guiden foreslår pumpe med standard-kapaciteten.
 - [ ] Gem en tegning med ubundne forbindelser og en pumpe → advarsel i Meddelelser med *Bind nu*.
 - [ ] Guiden trin 4: *Farve* på et tal-tag, *Aktiv når ≥* 50 → farven skifter ved 50.
+- [ ] (v6.4) Guiden › Flow: restriktion 0,75 skrevet direkte (uden tag) → gemt; *styret af et tag* viser tag-valget.
+- [ ] (v6.4) Målt flow = flowsensoren, lavt 15,1 / højt 16,5 → en animation *Løbelys* med kilden *symbolets flow-niveau* kører hurtigere, jo tættere målingen er på 16,5; *Blink* ved højst 0,1 blinker ved lavt flow.
 
 ### 11. Signalveje (fjernet i v6.0.0 b0395)
 - [ ] Tegn har ingen sektion *Signalveje*; Symbol-oversigten viser kun *Grundsymboler* og *Grupper*; *Vis navne* har kun symboler og forbindelser.

@@ -208,3 +208,40 @@ def test_review_fixes_plc_removal_clears_flow_tags():
     cfg = {"op": "view", "flow": {"pump": True, "rate": {"src": "A"}, "restrict": {"src": "B"}, "measured": {"src": "C"}}}
     out = strip_config(cfg, {"A", "C"})
     assert out["flow"]["rate"]["src"] == "" and out["flow"]["measured"]["src"] == "" and out["flow"]["restrict"]["src"] == "B"
+
+
+def test_measured_baseline_gives_a_flow_level():
+    """Jan 2026-11-13: lavt 15,1 og højt 16,5 → målt 15,85 = niveau 0,536; uden måling = ukendt."""
+    from app.services.flow_calc import flow_levels, level_tag
+    cfg = {"m": {"flow": {"measured": {"src": "FT", "low": 15.1, "high": 16.5}}}}
+    assert flow_levels(cfg, {"FT": 15.85}.get) == {"m": 0.536}
+    assert flow_levels(cfg, {"FT": 10}.get) == {"m": 0.0} and flow_levels(cfg, {"FT": 99}.get) == {"m": 1.0}
+    assert flow_levels(cfg, {}.get) == {"m": None}
+    # motoren udgiver niveauet — også på en tegning uden pumpe
+    cache = LiveCache()
+    eng = FlowEngine(cache)
+    eng.reload({"d": loop()}, None)
+    eng.evaluate({("d", "rad"): {"op": "view", "flow": {"measured": {"src": "FT", "low": 15.1, "high": 16.5}}}}, {}, 1.0)
+    assert cache.get(level_tag("d", "rad")).value is None and cache.get(level_tag("d", "rad")).quality == "comm_error"
+    cache.update({"FT": LiveValue(value=15.85, quality="good", ts=0)})
+    eng.evaluate({("d", "rad"): {"op": "view", "flow": {"measured": {"src": "FT", "low": 15.1, "high": 16.5}}}}, {}, 2.0)
+    assert cache.get(level_tag("d", "rad")).value == 0.536
+
+
+def test_flow_level_source_in_animations(api):
+    d = _drawing(api, loop())
+    anim = {"part": "all", "type": "blink", "src": "@flowlevel", "params": {"at_least": 0.9}}
+    cfg = {"op": "view", "anims": [anim]}
+    assert "flow-niveau" in api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": cfg}).text     # kræver et målt flow
+    cfg["flow"] = {"measured": {"src": "Ekstra", "low": 16.5, "high": 15.1}}
+    assert api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": cfg}).status_code in (400, 422)  # lav ≥ høj
+    cfg["flow"] = {"measured": {"src": "Ekstra", "low": 15.1, "high": 16.5}}
+    cfg["anims"].append({"part": "all", "type": "flow", "src": "@flowlevel", "params": {}})
+    r = api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": cfg})
+    assert r.status_code == 200, r.text
+    bs = [b for b in api.get(f"/api/drawings/{d}/view").json()["bindings"] if b["element"] == "rad" and b["source"] == "symbol"]
+    assert {b["tag"] for b in bs} == {f"flowlvl:{d}:rad"}
+    assert next(b for b in bs if b["anim"] == "flow")["params"]["flow_max"] == 1
+    # en opsætning fra v6.3.0 (målt flow uden baseline) kan stadig læses
+    old = {"op": "view", "flow": {"measured": {"src": "Ekstra", "max": 1}}}
+    assert api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": old}).status_code == 200
