@@ -1,3 +1,60 @@
+# Plan: Topmenuen i Tegn refaktoreres — 2026-11-13 — afventer OK
+
+Jan (2026-11-13): "side menu i tegn er ok men top menu kan godt trænge til en refakto".
+
+## Problemet i dag (`DrawEditor.svelte` linje 1080-1130)
+
+Én lang række med ~17 elementer, der ombrydes i flere linjer på mindre skærme, og som skifter indhold undervejs:
+
+- **Tegningen:** tegningsvalg, versionsvalg, *Udgiv denne version*, navnefelt for en ny tegning, kommentarfelt, *Bindinger*, *Slet tegning*, størrelsesknap ⤢, *ikke gemt*.
+- **Visning:** zoom, *Vis*, *Fang*.
+- **Forbindelser:** *Flow*, og tjek-resultatet ("3 åbne, 1 uden forbindelse", *Ret N*, *N gledet*, *Bind forbindelser*). Resultatet dukker op midt i rækken og skubber knapperne til siden. *Tjek forbindelser* selv står i *Vis › Kontrol*.
+- **Gem:** *Meddelelser*, *Gem kladde*, *Gem og udgiv*.
+
+Den farlige *Slet tegning* står mellem de almindelige knapper.
+
+## Ny opbygning: én fast linje i tre zoner, der ikke ombrydes
+
+```
+[ Varme ▾ ] v4 kladde ▾  ● ikke gemt  │ [Vis ▾] [Fang ▾] [Forbindelser ▾ ③] [Flow]  │  − 100 % + ⤢   [🔔 2] [Gem kladde] [Gem og udgiv ▾]
+ └ Tegning                              └ Værktøjer                                     └ Gem (højre)
+```
+
+1. **Menuen Tegning ▾** (med tegningens navn som knap):
+   - liste med tegningerne at skifte til;
+   - *Ny tegning…* (navnet spørges i menuen, ikke i et fast felt i linjen);
+   - *Størrelse…* (det nuværende størrelsespanel);
+   - *Bindinger →*;
+   - en streg, og nederst den røde *Slet tegning…*.
+2. **Versionsmærket** "v4 kladde ▾" åbner versionslisten med *Udgiv denne version*. *ikke gemt* står som en prik ved navnet.
+3. **Menuen Forbindelser ▾** samler det, der i dag er spredt:
+   - *Tjek forbindelser* (flyttes fra *Vis › Kontrol*);
+   - resultatet: åbne, uden forbindelse, gledet;
+   - *Ret N*, *Bind forbindelser* og *Udelad valgte*.
+   - Mærket på knappen viser antallet af fejl, når tjekket er slået til (grønt ✓, når alt hænger sammen). Linjen ændrer ikke bredde, når tjekket slås til.
+4. **Flow** som i dag (vinduet over tegningen).
+5. **Højre zone:**
+   - zoom (− %, +, Tilpas);
+   - *Meddelelser* som ikon med tal;
+   - *Gem kladde*;
+   - *Gem og udgiv* med en ▾-del, der åbner **kommentaren til versionen**. Klik på selve knappen gemmer som i dag; en skrevet kommentar huskes til næste gem.
+6. **Smal skærm** (< 1100 px): zoom-% og knapteksterne *Gem kladde* og *Gem og udgiv* forkortes til ikoner med title, så linjen stadig er én linje.
+
+## Berørte filer
+
+- `DrawEditor.svelte`: toolbar-markup flyttes til snippets og en ny `draw/DrawToolbar.svelte`, så filen bliver mindre.
+- `draw/Menu.svelte`: genbruges; evt. et `split`-tilvalg til *Gem og udgiv ▾*.
+- Manual kap. 07 (Tegn) og 08 (Tjek forbindelser er flyttet), samt billeder, der viser topmenuen. LLM-tillæg.
+- `manual-screenshots.mjs`: selectorer for *Tjek forbindelser*, versionsvalg og kommentarfeltet.
+
+## Risici
+
+- Playwright-scripts og manual-billeder, der klikker i den gamle linje, skal rettes.
+- Kommentarfeltet bliver mindre synligt. Derfor viser ▾ en prik, når der er skrevet en kommentar.
+- Ren UI: ingen backend, ingen skemaændring. MINOR-bump (6.2.0), set i browseren før det meldes færdigt.
+
+---
+
 # Plan: Flow-model for VVS-symboler — systemet beregner selv flowet gennem anlægget — 2026-11-12 — udført i v6.1.0 (alle faser på én gang, Jan 2026-11-13)
 
 Jans ønske (2026-11-12):
