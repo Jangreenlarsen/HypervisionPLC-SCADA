@@ -31,7 +31,7 @@ Slå **Fang rør lige** til (standard). Træk symbolet: når tilslutningspunktet
 Siden v5.1.0 er der kun én måde at sætte et symbol op på: guiden (Bindinger › Opsæt symbol). Simple bindinger på et symbol og dets dele kan ikke laves — kun *Gå til tegning* på selve symbolet. Den gamle model (og dermed "Konvertér alle" og "Foreslå ud fra symbolet") er fjernet; ved opgraderingen blev symbolerne konverteret, og dem, der ikke kunne konverteres, står i Tegn › Meddelelser.
 
 ## Hvordan definerer jeg ind, ud, fælles port og veje på et symbol (3-vejs, 4-vejs ventil)?
-<!-- kilde: 08-forbindelser#m-tilslutningspunkter-siden-symboler sha:3a559475 -->
+<!-- kilde: 08-forbindelser#m-tilslutningspunkter-siden-symboler sha:8e29e9a6 -->
 Opsætning › Symboler › fanen **Ind/ud og veje**: vælg symbolet, giv punkterne navn og rolle (Ind, Ud, Begge), markér det **fælles** punkt (AB) og ret evt. **vejene** (AB → A, AB → B; en 4-vejsventil fx P → A, P → B). Klik tilføjer et punkt, træk flytter det.
 
 ## Hvor finder jeg alle symboler på tegningen samlet (symbol-oversigt, træ, grupper)?
@@ -67,8 +67,8 @@ Lav en **logikblok** i symbolguidens trin **4. Visning**, sektionen **Logik**: t
 Vælg det tegnede (gruppér løse dele med **Ctrl+G** og vælg gruppen), og tryk **Gem som symbol i biblioteket …** under *Valgt element*. Giv det et navn, evt. en forklaring, vælg sektion (standard *Egne symboler*) og tryk **Gem i biblioteket**. Det kræver rollen tekniker.
 
 ## Hvordan retter jeg grafikken på et symbol i biblioteket (redigér symbol)?
-<!-- kilde: 07-tegn#m-import-r-svg-symboler-og-organis-r-biblioteket sha:5edc84fb -->
-Gå til **Opsætning › Symboler › Bibliotek** og tryk **Redigér** ved symbolet. Symbolet åbnes i Tegn i en arbejdstegning; ret det og tryk **Gem i biblioteket**. Et eget symbol får en ny version; et indbygget gemmes som en kopi "… (egen)".
+<!-- kilde: 07-tegn#m-import-r-svg-symboler-og-organis-r-biblioteket sha:6fe766b5 -->
+Gå til **Opsætning › Symboler**, vælg symbolet i listen, og tryk **Redigér grafik** i symbolets panel (siden samler tilslutningspunkter, ind/ud og veje og redigering for det valgte symbol; *Organisér bibliotek …* har sektioner, import og eksport). Symbolet åbnes i Tegn i en arbejdstegning; ret det og tryk **Gem i biblioteket**. Et eget symbol får en ny version; et indbygget gemmes som en kopi "… (egen)".
 
 ## Hvordan laver jeg en knap, der giver en kort impuls (trykknap, puls, start-knap, kvittér-knap)?
 <!-- kilde: 10-symboler-og-guiden#m-betjeningsformer sha:f09a7b7a -->
@@ -115,7 +115,7 @@ I trin 4 under **Flow** › **Restriktion**: vælg *en fast værdi* (skyder og t
 Åbn guiden for symbolet, hvor sensoren sidder, trin 4 › **Flow** › **Målt flow**, og vælg sensorens tag (l/min). Pumperne, der giver flow gennem symbolet, skaleres, så beregningen passer med målingen.
 
 ## Hvordan gør jeg et symbol til en pumpe, kilde, forbruger eller ledning for alle tegninger (flow-rolle, el-komponenter)?
-<!-- kilde: 08-forbindelser#m3-ind-ud-og-veje sha:0b1d9f31 -->
+<!-- kilde: 08-forbindelser#m3-ind-ud-og-veje sha:bac11867 -->
 Under Opsætning › Symboler › **Ind/ud og veje** vælger du symboltypens **Flow-rolle**: forbruger, pumpe/kilde (fx en strømforsyning) eller rørstykke/ledning, og et **medie** (vand l/min, luft m³/h, el A). Standard-kapacitet og standard-restriktion (0,00–1,00) gælder, når et symbol ikke har sin egen flow-opsætning i guiden.
 
 ## Hvordan får en farve-animation på et tal-tag en grænse (aktiv ved ≥ 50, ikke aktiv under)?
@@ -135,7 +135,7 @@ De er faste værdier for symbolet (dets fysik): skriv tallet 0,00–1,00 i trin 
 Åbn **Opsætning › Simulator** (eller **Simulér** på Overview). Panelet viser alle variabler, tegningen bruger (tags, positioner, alarmer). Sæt hak ud for en variabel og vælg en værdi; tegningen viser resultatet med det samme — logik, symbolernes tilstand og flowet beregnes som i drift. **komm.fejl** viser en kommunikationsfejl, **Start fra live** kopierer PLC'ens værdier ind, og **Gem som …** gemmer et scenarie. Intet skrives til PLC'en.
 
 ## Hvordan definerer jeg en ventils tilstande (A igennem AB og B blokeret, 4-vejsventil A → B / C → D)?
-<!-- kilde: 08-forbindelser#m3-ind-ud-og-veje sha:0b1d9f31 -->
+<!-- kilde: 08-forbindelser#m3-ind-ud-og-veje sha:bac11867 -->
 Under Opsætning › Symboler › **Ind/ud og veje** › **Tilstande**: giv hver tilstand et navn og sæt hak ved de veje, der er åbne — kolonnen *Betyder* skriver det i ord, også de blokerede porte (fx "A igennem AB · B blokeret"). Standarder: 3-vejsventilerne *A → AB* og *B → AB*, 4-vejsventilen (porte A, B, C, D) *A → B* og *C → D*. Du kan tilføje alle de tilstande, symbolet har brug for (+ Tilstand). I guidens trin 4 › Flow vælger du så tilstanden for hver position.
 
 ## Hvordan kobler jeg en omskifters eller ventils positioner til symboltypens tilstande, og hvordan retter jeg udseendet for ét symbol?

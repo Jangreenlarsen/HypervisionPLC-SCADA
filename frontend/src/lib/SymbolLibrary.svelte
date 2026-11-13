@@ -1,14 +1,16 @@
 <script lang="ts">
-  // Opsætning › Symboler › Bibliotek (v3.31.0): organisér hele symbolbiblioteket — egne sektioner (opret, omdøb, slet,
+  // Opsætning › Symboler › Organisér bibliotek (v3.31.0; v6.11.0 under knappen Organisér bibliotek): organisér hele symbolbiblioteket — egne sektioner (opret, omdøb, slet,
   // rækkefølge), flyt og ordn symboler, omdøb/slet egne symboler — og importér/eksportér (SVG-filer, bibliotekspakke).
   // Opdelingen gemmes samlet med revision (services/library.py), så samtidige ændringer afvises i stedet for at overskrive.
   import { onMount } from 'svelte';
-  import { ApiError, post } from './api';
+  import { editGraphic as editGraphicIn } from './symbolActions';
   import { ask } from './ask';
   import LibraryImport from './LibraryImport.svelte';
   import { moveSymbol, moveSymbols, newSectionId, sections, symbolsIn, type Layout } from './library';
   import { defs, deleteOwn, deleteOwnMany, exportPackage, library, loadLibrary, saveLayout, updateOwn } from './libraryStore.svelte';
 
+  // v6.11.0: "Åbn" på en række går til symbolets panel (punkter, ind/ud og veje, redigér)
+  let { onopen }: { onopen?: (id: string) => void } = $props();
   let current = $state('egne');
   let busy = $state(false);
   let error = $state('');
@@ -33,24 +35,11 @@
   const allOn = $derived(list.length > 0 && sel.length === list.length);
   $effect(() => { void current; selected = []; lastPick = -1; });   // ny sektion → nyt valg
 
-  /**
-   * Redigér grafikken (v4.7.1): en lille arbejdstegning med symbolet åbnes i Tegn (#draw/<tegning>/sym:<type>). Der rettes
-   * grafikken og gemmes med "Gem i biblioteket" — et eget symbol som ny version, et indbygget som en kopi ("… (egen)").
-   */
+  /** Redigér grafikken: fælles med Symboler-panelet (symbolActions.ts, v6.11.0). */
   async function editGraphic(type: string, label: string): Promise<void> {
     busy = true;
     try {
-      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"></svg>';
-      let made: { drawing: { id: string } } | null = null;
-      for (let n = 1; n <= 20 && !made; n++) {
-        try {
-          made = await post<{ drawing: { id: string } }>('/api/drawings', { name: `Symbol – ${label}${n > 1 ? ` ${n}` : ''}`, svg });
-        } catch (e) {
-          if (!(e instanceof ApiError) || e.status !== 409) throw e;   // navnet er taget: prøv med et nummer
-        }
-      }
-      if (!made) throw new Error('Kunne ikke oprette en arbejdstegning');
-      location.hash = `#draw/${encodeURIComponent(made.drawing.id)}/sym:${encodeURIComponent(type)}`;
+      await editGraphicIn(type, label);
     } catch (e) {
       error = (e as Error).message;
     } finally {
@@ -295,6 +284,7 @@
             {/if}
           </div>
           <div class="acts">
+            {#if onopen}<button class="ic" title="Åbn symbolet: tilslutningspunkter, ind/ud og veje, redigér" onclick={() => onopen(d.id)}>Åbn</button>{/if}
             <button class="ic" title="Flyt op" aria-label="Flyt {d.label} op" onclick={() => moveTo(d.id, cur.id, i - 1)} disabled={busy || i === 0}>▲</button>
             <button class="ic" title="Flyt ned" aria-label="Flyt {d.label} ned" onclick={() => moveTo(d.id, cur.id, i + 1)} disabled={busy || i === list.length - 1}>▼</button>
             <select aria-label="Flyt {d.label} til sektion" disabled={busy} value={cur.id}

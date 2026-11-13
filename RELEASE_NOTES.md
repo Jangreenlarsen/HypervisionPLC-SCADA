@@ -2,6 +2,13 @@
 
 ---
 
+## v6.11.0 — 2026-11-13 — Symboler: alt for ét symbol ét sted
+
+- Siden **Symboler**: vælg et symbol i listen, og gør alt i dets panel — **Redigér grafik**, **Omdøb**, **Slet**, **Sektion** og fanerne **Tilslutningspunkter** og **Ind/ud og veje**.
+- **Organisér bibliotek …** samler sektioner, rækkefølge, flere symboler ad gangen, import og eksport.
+- Siden har en fast bredde, så knapperne står ved symbolet og ikke yderst i vinduet.
+- Tilslutningspunkterne viser nu de samme punkter som Tegn (fx pumpens IND og UD).
+
 ## v6.10.1 — 2026-11-13
 
 - Guidens **Flow** viser symbolets faste parametre (kapacitet, restriktion …) og det, der styrer det live (start/stop, veje pr. position), i hver sin kasse.

@@ -1,4 +1,4 @@
-# Plan: Symboler — symbolet i centrum (design A) — 2026-11-13 — afventer OK
+# Plan: Symboler — symbolet i centrum (design A) — 2026-11-13 — udført i v6.11.0
 
 Jan: "vælg et symbol i biblioteket og lav derfra alle operationer — tilslutningspunkter, ind/ud og veje, redigér — i stedet for tre forskellige menuer", og "knapperne står helt yderst i view-boksen".
 
