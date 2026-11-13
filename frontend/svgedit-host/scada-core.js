@@ -2778,6 +2778,25 @@ export function createScada(host) {
     },
 
     /**
+     * Tegningen, som den ser ud lige nu, til beregninger, der kører løbende (flowet i Tjek forbindelser og Flow-vinduet) — v6.11.1.
+     * Modsat getSvg() (til Gem) rører den INTET: valget, et igangværende træk, en drejning og tegningens DOM er uændrede. getSvg()
+     * fravælger alt og rydder op, og kaldt midt i et træk afbrød den flytningen eller drejningen (Jan 2026-11-13). Kopien viser
+     * alle lag (som den gemte tegning) og har ingen tomme navne. null, hvis der ingen tegning er.
+     */
+    previewSvg() {
+      const content = canvas()?.getSvgContent?.();
+      if (!content) return null;
+      const copy = content.cloneNode(true);
+      copy.removeAttribute('id');
+      copy.querySelectorAll(':scope > g.layer').forEach((g) => { g.removeAttribute('display'); g.style?.removeProperty?.('display'); });
+      copy.querySelectorAll('[data-hv-name=""],[data-hv-desc=""]').forEach((el) => {
+        if (el.getAttribute('data-hv-name') === '') el.removeAttribute('data-hv-name');
+        if (el.getAttribute('data-hv-desc') === '') el.removeAttribute('data-hv-desc');
+      });
+      return new XMLSerializer().serializeToString(copy);
+    },
+
+    /**
      * Ret brudte forbindelser (v4.19.0): flyt rør-ender hen, hvor de tydeligvis skal sidde sammen med noget. `moves` kommer fra
      * Tegn-siden (`planFixes`): [{ id, from, to }] — enden `from` på elementet `id` flyttes til `to`. Rør (data-hv-pipe) lægges om
      * og sættes fast, hvis `to` er et tilslutningspunkt; et lige rørstykke (rør-symbol, vandret eller lodret) forlænges/forkortes

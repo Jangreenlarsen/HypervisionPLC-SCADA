@@ -3,7 +3,7 @@
   // beregner flowet for tegningen, som den ser ud i editoren lige nu (også ugemt), og viser det som løbelys, pile og tal oven på
   // tegningen. "Live" bruger PLC'ens værdier; "Simulering" lader dig starte/stoppe pumper, sætte rate og restriktion (0,00–1,00)
   // og vælge ventilpositioner — uden at skrive noget til PLC'en. Kun til visning.
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { post } from './api';
   import { emptySim, fmt2, overlayData, previewBody, type Preview, type Sim } from './flowLive';
 
@@ -47,7 +47,9 @@
     try { localStorage.setItem(KEY, show ? '1' : '0'); } catch { /* ingen localStorage */ }
     clearInterval(timer);
     if (show && ready) {
-      void refresh();
+      // v6.11.1: refresh læser getSvg (en ny funktion ved hver gentegning af Tegn) — uden untrack startede effekten forfra ved
+      // hver ændring i tegningen (20 beregninger under ét træk i stedet for højst hvert 2. sekund)
+      untrack(() => void refresh());
       timer = setInterval(refresh, 2000);       // højst hvert 2. sekund (en Pi skal også passe resten)
     } else {
       setOverlay(null);

@@ -5,6 +5,11 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v6.11.1 — **Flytning og drejning af et symbol i Tegn stoppede hele tiden** (Jan 2026-11-13). Genskabt i browseren: med *Tjek forbindelser* slået til stoppede et langsomt træk efter ca. 42 af 120 px, og valget forsvandt. **Årsag:** den løbende flowberegning (Tjek forbindelser, v6.9.2, og Flow-vinduets "Vis flowet", v6.3.0) hentede tegningen med `getSvg()`. Den funktion er lavet til Gem: den fravælger alt (`clearSelection`) og rydder op i tegningen, og midt i et træk afbrød det svg-edits flytning og drejning. Med `getSvg()` slået fra virkede trækket; med forbindelsestjekket slået fra stoppede det stadig. **Rettelse:** `previewSvg()` laver en kopi af tegningen, der ikke rører valget, et igangværende træk eller DOM'en; den bruges af alle løbende beregninger, mens `getSvg()` kun bruges ved Gem. Desuden startede Flow-vinduet forfra ved hver ændring (`FlowLive` effekt uden `untrack`). Målt efter rettelsen:
+  - Trækket går hele vejen (120/60 px).
+  - Valget bevares.
+  - Drejningen virker.
+  - Flowberegningerne under et træk på 3 sekunder er faldet fra 19 til 4.
 - [fixed] v6.9.3 — **Pumpen var drejet, Tegn sagde ✓, men simulatoren meldte stadig "ikke forbundet på IND og UD", og der var intet løbelys** (Jan 2026-11-13). **Årsag (forældede gemte forbindelser):** rørenes gemte forbindelser (`data-hv-links`) pegede stadig på pumpens gamle punkter `0.5,0`/`0.5,1`. De stammede fra før v6.8.5, hvor pumpen havde fire automatiske punkter. Tegn og flowberegningen læser forskelligt:
   - Tjekket (`graph.linkGap`) målte en forbindelse til et ukendt punkt som afstanden til symbolets streg. Den talte derfor som forbundet (✓).
   - **Bind forbindelser** (`pairsToBind`, `bindLinksNow`) beholdt alle gemte forbindelser. Den forældede blev gemt igen, og den rigtige blev aldrig bundet ("den anden ende er allerede bundet").
