@@ -5,6 +5,14 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v6.8.2 — **Simulatorens rækker flyttede sig, når man satte hak** (Jan 2026-11-13: "alle steder hvor man kan trykke … flytter ting sig rundt"). Når et tag skiftede mellem *Fra* og *Til*, ombrydes *komm.fejl* til en ny linje og rækken skiftede højde. **Årsag:** teksten ved hakket skiftede bredde, og værdiområdet måtte ombryde. Knappen *komm.fejl* kom og gik med tilstanden. **Rettelse:**
+  - faste kolonner (hak, navn, værdi, ⚡, Find);
+  - værdien på én linje, hvor skyderen giver sig;
+  - *Til/Fra* og *Ja/Nej* med fast bredde;
+  - *komm.fejl* er en fast knap ⚡, der er slået fra uden hak;
+  - fast rækkehøjde.
+
+  Målt i browseren: samme højde og samme placering af *Find* i alle tilstande.
 - [fixed] v6.8.1 — **Farverne "Over 0" og "0" virkede ikke, når en farve-animation på et tal havde ekstra grænser** (Jan 2026-11-13, tanken med *symbolets flow*, ≥ 50 orange, ≥ 80 rød). **Årsag:** med grænser og et tomt *Aktiv når* brugte `animate.colorFor` fra-farven helt op til første grænse; *Over 0* blev aldrig brugt. `bindingActive` regnede først animationen for aktiv fra første grænse, så med *passiv* blev 1–49 vist som tegnet. **Rettelse:** guidens farve-animationer får `nonzero_on` (`symbols.config_bindings`, `animPreview.ts`): 0 = fra-farven, over 0 = aktiv-farven, grænserne ovenpå. Bindinger fra siden *Bindinger* og forbindelsesgrupper er uændrede. Tests: `animate.test.ts`, `test_symbols.py`.
 - [fixed] v6.8.1 — **Samme advarsel gentaget under hver meddelelse i Tegn** (Jan 2026-11-13). Advarslen var "Symboler sat op med guiden, som ikke længere findes: …". **Årsag:** rapporten fra sidste gem (`report`) blev hængende og blev sat under hver ny meddelelse, også "Symbolet er opsat". **Rettelse:** rapporten bruges kun af den meddelelse, gemmet laver. Meddelelserne hører nu til en tegning, og kun den åbne tegnings vises (de andre kan slås til). Lange lister afkortes (*+n flere*).
 - [fixed] v6.6.0 — **Tabeller med indtastning fyldte hele skærmens bredde** (Jan 2026-11-13). Fx stod ✕ og *Del* i punkt-tabellen i *Ind/ud og veje* langt ude til højre på en stor skærm. **Årsag:** den globale regel `table { width: 100% }` i `app.css` gælder også opsætningstabeller. **Rettelse (hele klassen):** tabeller med felter i rækkerne fylder kun det, indholdet behøver; lister uden felter fylder stadig bredden.

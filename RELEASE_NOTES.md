@@ -2,6 +2,10 @@
 
 ---
 
+## v6.8.2 — 2026-11-13
+
+- Simulatoren: rækkerne står stille, når du sætter hak eller skifter Til/Fra; komm.fejl er knappen ⚡.
+
 ## v6.8.1 — 2026-11-13 — Rettelser og oprydning
 
 - Farve på et tal med ekstra grænser: **0** og **over 0** får nu deres egne farver. Farverne står som en tabel med én række pr. værdiområde.

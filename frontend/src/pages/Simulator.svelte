@@ -260,6 +260,7 @@
               <option value="">Live{p.live !== null ? `: ${p.labels[p.live] ?? p.live}` : ''}</option>
               {#each p.labels as l, j (j)}<option value={j}>{l || `Position ${j + 1}`}{p.states?.[j] && p.states[j] !== l ? ` (${p.states[j]})` : ''}</option>{/each}
             </select>
+            <span></span>
             <button class="small" onclick={() => highlight([p.element])} title="Markér symbolet på tegningen">Find</button>
           </div>
         {/each}
@@ -278,9 +279,8 @@
             <span class="live small muted">live: {liveText(t.live, t.unit)}</span>
           {:else if v === null}
             <span class="small err">komm.fejl</span>
-            <button class="small" onclick={() => setValue(t.name, startValue(t))}>Værdi</button>
           {:else if t.kind === 'bool'}
-            <label class="opt small"><input type="checkbox" checked={v === true} onchange={(e) => setValue(t.name, e.currentTarget.checked)} aria-label="{t.name}: Til" /> {v ? 'Til' : 'Fra'}</label>
+            <label class="opt small"><input type="checkbox" checked={v === true} onchange={(e) => setValue(t.name, e.currentTarget.checked)} aria-label="{t.name}: Til" /> <span class="tf">{v ? 'Til' : 'Fra'}</span></label>
           {:else}
             <input class="n" type="number" step={stepFor(t)} value={typeof v === 'number' ? v : 0} aria-label="{t.name}: værdi"
               oninput={(e) => e.currentTarget.value !== '' && setValue(t.name, num(e.currentTarget.value))} />
@@ -290,8 +290,12 @@
             {/if}
             {#if t.unit}<span class="small muted">{t.unit}</span>{/if}
           {/if}
-          {#if on && v !== null}<button class="small" onclick={() => setValue(t.name, null)} title="Simulér en kommunikationsfejl på tagget">komm.fejl</button>{/if}
           </span>
+          <!-- v6.8.2 (Jan: "alle steder … flytter ting sig rundt"): fast kolonne — knappen står altid samme sted, også uden hak -->
+          <button class="small kf" class:cur={on && v === null} disabled={!on} aria-pressed={on && v === null}
+            onclick={() => setValue(t.name, v === null ? startValue(t) : null)}
+            title={!on ? 'Sæt hak for at simulere tagget først' : v === null ? 'Kommunikationsfejl simuleres — tryk for at give tagget en værdi igen' : 'Simulér en kommunikationsfejl på tagget'}
+            aria-label="{t.name}: kommunikationsfejl">⚡</button>
           <button class="small" onclick={() => highlight(t.elements)} disabled={!t.elements.length} title={`Markér på tegningen:\n${t.used.join('\n')}`}>Find</button>
         </div>
       {:else}<p class="small muted">Ingen tags{search || onlySim ? ' passer til søgningen' : ''}.</p>{/each}
@@ -305,9 +309,10 @@
             <span class="nm" title={a.used.join('\n')}>{a.tag} <span class="muted small">({a.kind === 'unack' ? 'ikke kvitteret' : 'aktiv'})</span></span>
             <span class="vals">
             {#if on}
-              <label class="opt small"><input type="checkbox" checked={sim.values[a.name] === true} onchange={(e) => setValue(a.name, e.currentTarget.checked)} /> {sim.values[a.name] ? 'Ja' : 'Nej'}</label>
+              <label class="opt small"><input type="checkbox" checked={sim.values[a.name] === true} onchange={(e) => setValue(a.name, e.currentTarget.checked)} /> <span class="tf">{sim.values[a.name] ? 'Ja' : 'Nej'}</span></label>
             {:else}<span class="live small muted">live: {liveText(a.live)}</span>{/if}
             </span>
+            <span></span>
             <button class="small" onclick={() => highlight(a.elements)} disabled={!a.elements.length} title="Markér på tegningen">Find</button>
           </div>
         {/each}
@@ -330,19 +335,23 @@
     background: var(--panel, #fff); display: flex; flex-direction: column; gap: .25rem; }
   .panel-sim h4 { margin: .6rem 0 .2rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
   /* v6.8.1: faste kolonner — afkrydsning, navn, værdi, Find — så rækkerne flugter og Find aldrig ryger ned på en ny linje */
-  .var { display: grid; grid-template-columns: 1.2rem minmax(6rem, 9.5rem) minmax(0, 1fr) auto; align-items: center; gap: .35rem;
-    padding: .2rem .3rem; border-radius: 5px; }
+  .var { display: grid; grid-template-columns: 1.2rem minmax(6rem, 8.5rem) minmax(0, 1fr) 1.9rem auto; align-items: center; gap: .35rem;
+    padding: .2rem .3rem; border-radius: 5px; min-height: 2.45rem; }
   .var.on { background: #f3e5f5; }
   .var .nm { font-weight: 600; font-size: .88rem; overflow-wrap: anywhere; }
   .var select { min-width: 0; width: 100%; }
-  .vals { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; min-width: 0; }
+  /* én linje: værdien må aldrig ombryde, så rækken ikke skifter højde ved et hak; skyderen giver sig */
+  .vals { display: flex; align-items: center; gap: .35rem; flex-wrap: nowrap; min-width: 0; overflow: hidden; white-space: nowrap; }
+  .vals input[type='range'] { flex: 1 1 3rem; min-width: 2.5rem; width: auto; }
+  .tf { display: inline-block; min-width: 1.8em; }
+  .kf { width: 1.9rem; padding: .1rem 0; text-align: center; }
+  .kf.cur { background: #b71c1c; color: #fff; border-color: #b71c1c; }
   .intro { margin: 0 0 .2rem; }
   .chip { background: #f3e5f5; padding: 0 .3rem; border-radius: 4px; }
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; align-self: flex-start; }
   .seg button { border: none; border-radius: 0; background: transparent; padding: .2rem .6rem; font-size: .82rem; }
   .seg button.cur { background: #6a1b9a; color: #fff; }
   .var .n { width: 5.5rem; }
-  .var input[type='range'] { width: 7rem; }
   .sw { margin: 0; }
   .msg { padding: .3rem .5rem; background: #fff8e1; border: 1px solid #e0b062; border-radius: 6px; margin: .2rem 0; }
   .msg.err, .err { color: #b71c1c; }

@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.8.2 build 0405] — 2026-11-13 — Simulatoren: rækkerne flytter sig ikke længere ved et hak
+
+- `frontend/src/pages/Simulator.svelte`: rækkerne har faste kolonner (hak, navn, værdi, ⚡ komm.fejl, Find). Værdien står på én linje, og skyderen giver sig. *Til/Fra* og *Ja/Nej* har fast bredde, og rækkerne har fast højde. *komm.fejl* er en fast knap ⚡ (tryk igen = værdi), slået fra uden hak (BUGS.md).
+- Set i browseren: rækkehøjde og placeringen af *Find* er målt ens i alle tilstande (live, simuleret, Til, komm.fejl).
+- Manual kap. 07 og billedet `simulator.png`.
+
 ## [6.8.1 build 0404] — 2026-11-13 — Rettelser: "Over 0"/"0" med grænser, meddelelser pr. tegning, ryddeligere animationsfarver og simulator-panel
 
 - **Fejl:** "Over 0" og "0" virkede ikke ved en farve-animation på et tal med ekstra grænser (BUGS.md). Guidens farve-animationer får `nonzero_on` (`backend/app/services/symbols.py config_bindings`, `frontend/src/lib/animPreview.ts`); `animate.ts colorFor`/`bindingActive`: 0 = fra-farven, over 0 = aktiv (og aktiv-farven), grænserne ovenpå. Bindinger fra siden *Bindinger* og forbindelsesgrupper er uændrede.
