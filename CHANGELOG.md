@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.8.4 build 0407] — 2026-11-13 — Pumper uden flow-opsætning følger deres position (løbelys i simulatoren og på Overview)
+
+- `backend/app/services/flow_calc.py`:
+  - `type_pumps` og `pump_running`: en pumpe-type uden `flow` regnes som pumpe med typens kapacitet. Raten er 1 i en kørende position (Til/On/Start/Kører/Drift …) og 0 i Fra/Off/Stop …; uden navne er første position stop. Ukendt position eller ingen positioner giver stop.
+  - `compute` lægger dem på, så det gælder alle kaldere.
+  - `FlowEngine.jobs` beregner også tegninger, der kun har sådanne pumper, og regner igen, når deres position skifter.
+- `drawings._compute`: pumperne efter typen giver standardgruppens løbelys (og dens fulde fart).
+- `simulator.simulate` beregner altid flowet.
+- Tests: `test_flow_calc.py` (ny), `test_connection_groups.py` (en pumpe-type uden opsætning giver nu løbelys fra start).
+- Manual kap. 08 og BUGS.md.
+
 ## [6.8.3 build 0406] — 2026-11-13 — Simulatoren: kun tegningens symboler, og en forklaring ved hvert tag
 
 - **Fejl:** simulatoren viste forældreløse symbolopsætninger og deres tags (BUGS.md). `backend/app/services/simulator.py variables` filtrerer på elementerne i den udgivne tegning (`index_svg`) og returnerer `orphaned`. `Simulator.svelte` nævner dem med et link til Bindinger.

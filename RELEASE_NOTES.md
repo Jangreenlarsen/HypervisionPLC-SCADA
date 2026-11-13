@@ -2,6 +2,10 @@
 
 ---
 
+## v6.8.4 — 2026-11-13
+
+- En pumpe giver flow og løbelys, så snart den står på **Til**, også uden flow-opsætning i guiden. Det gælder Overview, simulatoren og Tegns Flow-vindue. Farten fra et tag sættes stadig op under *Flow* i guiden.
+
 ## v6.8.3 — 2026-11-13
 
 - Simulatoren viser kun de symboler, der er i tegningen. Opsætninger på fjernede elementer nævnes med et link til Bindinger.

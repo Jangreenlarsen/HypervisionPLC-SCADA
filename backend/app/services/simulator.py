@@ -209,7 +209,7 @@ class SimulatorService:
         # flowet (samme beregning som driften og Tegn), med positionerne ovenfor
         read = lambda t: (x.value if (x := lv(t)) is not None and x.quality == "good" else None)  # noqa: E731
         flow_notes: list[str] = []
-        if any(c.get("flow") for c in configs.values()):
+        if True:   # v6.8.4: altid — en pumpe-type uden flow-opsætning er også en pumpe (flow_calc.type_pumps)
             res = preview(svg, merged(self.db.list_symbol_flow()), configs, pos_now, read)
             flow_notes = res["notes"]
             for el, v in res["flows"].items():

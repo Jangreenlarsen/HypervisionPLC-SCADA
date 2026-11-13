@@ -404,10 +404,44 @@ def _measured(configs: dict[str, dict[str, Any]], read: Callable[[str], Any]) ->
     return out
 
 
+# v6.8.4 (Jan: "jeg har ikke nogen løbelys animation på forbindelser"): en pumpe-type uden egen flow-opsætning er en pumpe med
+# typens kapacitet; farten følger dens position (Fra = stop, Til = kører). Uden positioner og uden rate-tag står den stille.
+PUMP_OFF_LABELS = frozenset({"fra", "off", "stop", "stoppet", "slukket", "0"})
+PUMP_ON_LABELS = frozenset({"til", "on", "start", "kører", "drift", "1"})
+
+
+def pump_running(cfg: dict[str, Any], pos: int | None) -> bool:
+    """Kører en pumpe uden rate-tag i positionen `pos`? Positionens navn afgør (Fra/Til …); ellers: første position = stop."""
+    labels = [str(p.get("label") or "").strip().lower() for p in cfg.get("positions", [])]
+    if cfg.get("op") != "positions" or pos is None or not 0 <= pos < len(labels):
+        return False
+    lbl = labels[pos]
+    return lbl in PUMP_ON_LABELS or (lbl not in PUMP_OFF_LABELS and pos > 0)
+
+
+def type_pumps(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, dict[str, Any]],
+               positions: dict[str, int | None]) -> dict[str, dict[str, Any]]:
+    """Opsætningerne med pumpe-typer uden egen flow-opsætning som pumper (`flow.by_type`). En egen flow-opsætning vinder."""
+    out = configs
+    for e in topo.elements.values():
+        if e.kind != "symbol" or kind_of(defs, e.type) != "pump":
+            continue
+        cfg = configs.get(e.id) or {}
+        if cfg.get("flow"):
+            continue
+        rate = 1.0 if pump_running(cfg, positions.get(e.id)) else 0.0
+        cap = max(0, min(MAX_CAPACITY, int((defs.get(e.type) or {}).get("capacity") or 100)))
+        if out is configs:
+            out = dict(configs)
+        out[e.id] = {**cfg, "flow": {"pump": True, "capacity": cap, "rate": {"src": f"@val:{rate}", "max": 1}, "by_type": True}}
+    return out
+
+
 def compute(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, dict[str, Any]],
             positions: dict[str, int | None], read: Callable[[str], Any],
             ports_out: dict[str, dict[str, float]] | None = None) -> tuple[dict[str, float], list[str], dict[str, Any]]:
     """→ ({element: flow l/min}, beskeder, statistik). `ports_out` fyldes med rørstykkernes flow pr. punkt (ind +, ud −)."""
+    configs = type_pumps(topo, defs, configs, positions)
     n, edges, pumps, notes = build(topo, defs, configs, positions, read)
     flows: dict[str, float] = {}
     total = [0.0] * len(edges)        # strøm med fortegn pr. kant, summeret over pumperne (modsatrettede går ud mod hinanden)
@@ -605,8 +639,10 @@ class FlowEngine:
         for did, topo in self.topos.items():
             configs = {e: c for (d, e), c in symbols.items() if d == did}
             # (v6.4.0) en flowmåler med baseline giver et flow-niveau, også uden en pumpe på tegningen
-            if not any((c.get("flow") or {}).get("pump") or ((c.get("flow") or {}).get("measured") or {}).get("src")
-                       for c in configs.values()):
+            by_type = [e.id for e in topo.elements.values() if e.kind == "symbol" and kind_of(self.defs, e.type) == "pump"
+                       and not (configs.get(e.id) or {}).get("flow")]      # pumper efter typen (v6.8.4)
+            if not by_type and not any((c.get("flow") or {}).get("pump") or ((c.get("flow") or {}).get("measured") or {}).get("src")
+                                       for c in configs.values()):
                 if self._published.get(did) or self._published_levels.get(did):
                     self._clear(did)
                 continue
@@ -615,7 +651,8 @@ class FlowEngine:
                 (e, positions.get(e), tuple(_fraction((c.get("flow") or {}).get(k), read) for k in ("rate", "restrict")),
                  _measured({e: c}, read).get(e))
                 for e, c in configs.items() if c.get("flow")))
-            sig = (fl_inputs, tuple(sorted((e, repr(c.get("flow"))) for e, c in configs.items() if c.get("flow"))))
+            sig = (fl_inputs, tuple(sorted((e, repr(c.get("flow"))) for e, c in configs.items() if c.get("flow"))),
+                   tuple(sorted((e, positions.get(e), repr(configs.get(e, {}).get("positions"))) for e in by_type)))
             if self._last_inputs.get(did) == sig:
                 continue
             self._last_inputs[did] = sig

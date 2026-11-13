@@ -12,9 +12,9 @@ from ..storage.files import DrawingFiles
 from .bindings import CLICK_TYPES, WRITE_CLICKS, BindingError, auto_binding, binding_tags, validate_binding
 from .errors import ServiceError
 from .live_cache import LiveCache
-from .svg_sanitize import SvgError, index_svg, sanitize_svg, subtree_ids, subtree_map, symbol_roots
+from .svg_sanitize import SvgError, index_svg, named_symbols, sanitize_svg, subtree_ids, subtree_map, symbol_roots
 from .connection_groups import connection_kinds, group_bindings
-from .flow_defs import merged as merged_flow_defs, piece_types
+from .flow_defs import kind_of, merged as merged_flow_defs, piece_types
 from .symbols import config_bindings, port_color_bindings, state_look_bindings, symbol_view
 from .tagsource import TagSourceError, parse_source
 
@@ -386,6 +386,11 @@ class DrawingService:
         # forbindelsesgrupperne (v6.1.0): det beregnede flow på rør og rørstykker — aldrig oven på en anden animation af samme slags
         flows = [c.get("flow") or {} for c in configs.values()]
         caps = [int(f.get("capacity") or 0) for f in flows if f.get("pump")]
+        try:   # pumper efter typen (v6.8.4, flow_calc.type_pumps): også de giver standardgruppens løbelys
+            caps += [int((flow_defs.get(s["type"]) or {}).get("capacity") or 100) for s in named_symbols(svg)
+                     if kind_of(flow_defs, s["type"] or "") == "pump" and not (configs.get(s["id"]) or {}).get("flow")]
+        except Exception:
+            log.exception("Pumperne efter typen på %s kunne ikke findes", drawing_id)
         try:
             effective.extend(group_bindings(drawing_id, connection_kinds(svg, piece_types(flow_defs)), self.db.list_connection_groups(drawing_id),
                                             float(max(caps) if caps else 100), {(b["element"], b["anim"]) for b in effective}, bool(caps)))
