@@ -251,7 +251,7 @@ def test_valve_states_definition_and_the_four_way_valve(api):
     """Jan 2026-11-13: tilstande pr. symboltype — 3-vejs A → AB / B → AB, 4-vejs A → B / C → D."""
     from app.services.flow_defs import DEFAULTS
     assert [s["name"] for s in DEFAULTS["trevejs_motorventil_ab"]["states"]] == ["A → AB", "B → AB"]
-    assert DEFAULTS["firevejsventil"]["states"] == [{"name": "A → B", "open": ["A>B"]}, {"name": "C → D", "open": ["C>D"]}]
+    assert [(st["name"], st["open"]) for st in DEFAULTS["firevejsventil"]["states"]] == [("A → B", ["A>B"]), ("C → D", ["C>D"])]
     ports = DEFAULTS["firevejsventil"]["ports"]
     ok = {"ports": ports, "ways": [["A", "B"], ["C", "D"]], "states": [{"name": "Varme", "open": ["B>A"]}]}
     r = api.put("/api/symbol-flow/min_ventil", json=ok)
@@ -267,3 +267,86 @@ def test_valve_states_definition_and_the_four_way_valve(api):
                             "flow": {"open": [["A>B"], ["C>D"]]}}}
     assert compute(parse_topology(s), DEFS, cfg, {"v": 0}, {}.get)[0]["r1"] == 100
     assert compute(parse_topology(s), DEFS, cfg, {"v": 1}, {}.get)[0].get("r1", 0) == 0
+
+
+
+# ---------------------------------------------------------------- design B (v6.7.0): tilstande med udseende på symboltypen
+
+def test_state_look_from_the_type_with_overrides_and_own_anims_win():
+    from app.services.symbols import effective_look, state_look_bindings
+    t = DEFS["trevejs_motorventil_ab"]
+    cfg = {"op": "positions", "positions": [{"label": "Varme", "state": "A → AB"}, {"label": "Køl", "state": "B → AB"}, {"label": "Egen"}]}
+    assert effective_look(t["states"], {}, "A → AB")[("port_b", "fill")] == "#000000"
+    ids = {"v", "v_port_a", "v_port_b", "v_port_ab", "v_motor"}
+    out = {b["element"]: b["params"]["colors"] for b in state_look_bindings("d", "v", cfg, t, ids, set())}
+    assert out["v_port_a"] == ["#2e7d32", "#000000", None]          # egen position: som tegnet
+    assert out["v_port_b"] == ["#000000", "#2e7d32", None]
+    # en afvigelse pr. symbol: port A blå i A → AB — resten følger typen
+    cfg2 = {**cfg, "state_look": {"A → AB": [{"part": "port_a", "anim": "fill", "value": "#1e88e5"}]}}
+    out = {b["element"]: b["params"]["colors"] for b in state_look_bindings("d", "v", cfg2, t, ids, set())}
+    assert out["v_port_a"][0] == "#1e88e5" and out["v_port_ab"][0] == "#2e7d32"
+    # en egen animation af samme slags på delen vinder
+    assert "v_port_a" not in {b["element"] for b in state_look_bindings("d", "v", cfg, t, ids, {("v_port_a", "fill")})}
+    # omskifterens greb: vinklen pr. position
+    om = DEFS["omskifter3"]
+    cfg3 = {"op": "positions", "positions": [{"label": "H", "state": "Hånd"}, {"label": "0", "state": "0"}, {"label": "A", "state": "Auto"}]}
+    b = state_look_bindings("d", "s", cfg3, om, {"s", "s_greb"}, set())[0]
+    assert b["element"] == "s_greb" and b["params"]["angles"] == [-45, 0, 45] and b["tag"] == "sym:d:s:pos"
+
+
+def test_flow_follows_the_states_without_flow_open():
+    s = svg(sym("p", "pumpe", f"{OUT}>r1:s;{IN}>r2:e"), pipe("r1", f"s>p:{OUT};e>v:0.07,0.5"),
+            sym("v", "trevejs_motorventil_ab", "0.07,0.5>r1:e;0.46,0.86>r2:s"), pipe("r2", f"s>v:0.46,0.86;e>p:{IN}"))
+    cfg = {"p": PUMP, "v": {"op": "positions", "positions": [{"label": "Varme", "state": "A → AB"}, {"label": "Køl", "state": "B → AB"}],
+                            "flow": {}}}
+    assert compute(parse_topology(s), DEFS, cfg, {"v": 0}, {}.get)[0]["r1"] == 100     # A–AB åben
+    assert compute(parse_topology(s), DEFS, cfg, {"v": 1}, {}.get)[0].get("r1", 0) == 0  # A blokeret
+
+
+def test_state_and_overrides_are_validated_and_reach_the_view(api):
+    from tests.drawing_api import SVG
+    d = api.d
+    cfg = {"op": "positions", "passive": True, "positions": [{"label": "Varme", "state": "A → AB"}, {"label": "Køl", "state": "B → AB"}],
+           "signals": [{"id": "S1", "tag": "V2_stilling", "fb": "V2_stilling"}], "planes": [{"signal": "S1", "values": [10, 20]}],
+           "display": "remote", "anims": [],
+           "state_look": {"A → AB": [{"part": "port_a", "anim": "fill", "value": "#1e88e5"}]}}
+    bad = {**cfg, "state_look": {"A → AB": [{"part": "port_a", "anim": "rotate", "value": 999}]}}
+    assert api.put(f"/api/drawings/{d}/symbols/v2/config", json={"config": bad}).status_code in (400, 422)
+    r = api.put(f"/api/drawings/{d}/symbols/v2/config", json={"config": cfg})
+    assert r.status_code == 200, r.text
+    got = api.get(f"/api/drawings/{d}/symbols/v2/config").json()["config"]
+    assert got["positions"][0]["state"] == "A → AB" and got["state_look"]["A → AB"][0]["value"] == "#1e88e5"
+    assert SVG
+    # typens udseende via API'et: en tilstand med et ugyldigt udseende afvises
+    t = {"ports": [], "states": [{"name": "Til", "open": [], "look": [{"part": "lampe", "anim": "fill", "value": "rød"}]}]}
+    assert api.put("/api/symbol-flow/min_lampe", json=t).status_code == 400
+    t["states"][0]["look"][0]["value"] = "#ff0000"
+    assert api.put("/api/symbol-flow/min_lampe", json=t).status_code == 200
+
+
+def test_review_fixes_own_position_all_open_unknown_state_closed_and_backup(api):
+    """Reviewer v6.7.0: en position uden tilstand = alle veje åbne (som før); en ukendt tilstand = lukket; backup bevarer det hele."""
+    s = svg(sym("p", "pumpe", f"{OUT}>r1:s;{IN}>r2:e"), pipe("r1", f"s>p:{OUT};e>v:0.07,0.5"),
+            sym("v", "trevejs_motorventil_ab", "0.07,0.5>r1:e;0.46,0.86>r2:s"), pipe("r2", f"s>v:0.46,0.86;e>p:{IN}"))
+    cfg = {"p": PUMP, "v": {"op": "positions", "positions": [{"label": "Egen"}, {"label": "Væk", "state": "Findes ikke"}, {"label": "K", "state": "B → AB"}],
+                            "flow": {}}}
+    assert compute(parse_topology(s), DEFS, cfg, {"v": 0}, {}.get)[0]["r1"] == 100       # egen: alle veje
+    assert compute(parse_topology(s), DEFS, cfg, {"v": 1}, {}.get)[0].get("r1", 0) == 0  # ukendt: lukket
+    # typens udseende gemmes og læses igen (symbol-editoren)
+    t = {"ports": [], "states": [{"name": "Til", "open": [], "look": [{"part": "lampe", "anim": "fill", "value": "#ff0000"}]}]}
+    assert api.put("/api/symbol-flow/min_lampe", json=t).status_code == 200
+    assert api.get("/api/symbol-flow").json()["min_lampe"]["states"][0]["look"][0]["value"] == "#ff0000"
+    # backup: positionernes tilstand og afvigelserne følger med
+    d = api.d
+    vcfg = {"op": "positions", "passive": True, "positions": [{"label": "Varme", "state": "A → AB"}, {"label": "Køl", "state": "B → AB"}],
+            "signals": [{"id": "S1", "tag": "V2_stilling", "fb": "V2_stilling"}], "planes": [{"signal": "S1", "values": [10, 20]}],
+            "display": "remote", "anims": [], "state_look": {"A → AB": [{"part": "port_a", "anim": "fill", "value": "#1e88e5"}]}}
+    assert api.put(f"/api/drawings/{d}/symbols/v2/config", json={"config": vcfg}).status_code == 200
+    bk = api.get("/api/backup").json()
+    assert api.post("/api/backup/restore", json=bk).status_code == 200
+    got = api.get(f"/api/drawings/{d}/symbols/v2/config").json()["config"]
+    assert got["positions"][1]["state"] == "B → AB" and got["state_look"]["A → AB"][0]["value"] == "#1e88e5"
+    assert api.get("/api/symbol-flow").json()["min_lampe"]["states"][0]["look"][0]["part"] == "lampe"
+    # et tilstandsnavn med kontroltegn afvises
+    bad = {**vcfg, "positions": [{"label": "X", "state": "a\x01b"}, {"label": "Y"}]}
+    assert api.put(f"/api/drawings/{d}/symbols/v2/config", json={"config": bad}).status_code in (400, 422)

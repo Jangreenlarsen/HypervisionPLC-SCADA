@@ -329,6 +329,11 @@ def build(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, di
         is_pump = bool(fl.get("pump")) if fl else False
         pos = positions.get(e.id)
         opens = fl.get("open") if fl else None
+        if opens is None and cfg.get("op") == "positions" and any(p.get("state") for p in cfg.get("positions", [])):
+            # v6.7.0 (design B): de åbne veje fra positionernes tilstande (typens definition)
+            # en position uden tilstand: alle veje åbne (som før v6.7.0); en ukendt tilstand: lukket
+            by_state = {s["name"]: s.get("open", []) for s in (d.get("states") or [])}
+            opens = [by_state.get(p["state"], []) if p.get("state") else None for p in cfg.get("positions", [])]
         if is_pump:
             rate = _fraction(fl.get("rate"), read)
             cap = max(0, min(MAX_CAPACITY, int(fl.get("capacity") or 0)))
@@ -348,8 +353,8 @@ def build(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, di
             if a not in by_name or b not in by_name:
                 continue
             if isinstance(opens, list) and cfg.get("op") == "positions":
-                cur = opens[pos] if pos is not None and 0 <= pos < len(opens) and isinstance(opens[pos], list) else []
-                if way_key(a, b) not in cur and way_key(b, a) not in cur:
+                cur = opens[pos] if pos is not None and 0 <= pos < len(opens) else []
+                if cur is not None and (not isinstance(cur, list) or (way_key(a, b) not in cur and way_key(b, a) not in cur)):
                     continue
             fwd, back = directions(d, a, b)
             if not (fwd or back):

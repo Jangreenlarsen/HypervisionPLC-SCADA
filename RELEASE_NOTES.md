@@ -2,6 +2,12 @@
 
 ---
 
+## v6.7.0 — 2026-11-13 — Tilstande med udseende
+
+- Et symbols **tilstande** defineres én gang på symboltypen: navn, betydning, åbne veje og **udseende** (farve, vinkel, synlig …) med forhåndsvisning — også for omskiftere.
+- I guiden hedder trin 3 **Tilstande**: vælg typens tilstand for hver position og dens navn på tegningen (fx *A → AB* som *Varme*). Udseendet kommer fra typen og kan rettes for et enkelt symbol i trin 4 (markeres *afviger*).
+- Standarder: 3- og 4-vejsventilernes portfarver, omskifter *Hånd/0/Auto*, drejeomskifteren og vippekontakten ON/OFF.
+
 ## v6.6.0 — 2026-11-13 — Ventiltilstande
 
 - En ventils **tilstande** defineres nu pr. symboltype under *Opsætning › Symboler › Ind/ud og veje › Tilstande*: navn og åbne veje, og betydningen i ord — fx "A igennem AB · B blokeret". Du kan definere alle de tilstande, et symbol har brug for.

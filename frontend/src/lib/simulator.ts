@@ -8,7 +8,7 @@ export interface SimTag {
   name: string; kind: 'bool' | 'num'; unit: string; min: number | null; max: number | null; decimals: number | null;
   description: string; plc: string; used: string[]; elements: string[]; live: SimLive;
 }
-export interface SimPosition { element: string; name: string; labels: string[]; display: string; live: number | null }
+export interface SimPosition { element: string; name: string; labels: string[]; states?: (string | null)[]; display: string; live: number | null }
 export interface SimAlarm { name: string; tag: string; kind: string; used: string[]; elements: string[]; live: SimLive }
 export interface SimVariables { tags: SimTag[]; positions: SimPosition[]; alarms: SimAlarm[] }
 export interface SimState { values: Record<string, unknown>; positions: Record<string, number> }

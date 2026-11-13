@@ -1,4 +1,4 @@
-# Plan: Tilstande som fælles begreb på symboltypen (design B) — 2026-11-13 — afventer OK
+# Plan: Tilstande som fælles begreb på symboltypen (design B) — 2026-11-13 — udført i v6.7.0 (pumpe/lampe uden positioner fik ingen tilstande)
 
 Baggrund: docs/ANALYSE_SYMBOLTILSTANDE.md. Jan valgte design B (2026-11-13):
 1. En tilstand kan have sit **eget navn på en tegning** (fx *A → AB* vist som *Varme*).

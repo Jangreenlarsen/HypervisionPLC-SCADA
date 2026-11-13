@@ -12,8 +12,14 @@ export interface PortDef { x: number; y: number; name: string; role: PortRole; c
 /** Flow-profilen pr. symboltype (v6.3.0): rollen i flowberegningen, mediet og standarderne (uden egen opsætning i guiden). */
 export type FlowKind = 'consumer' | 'pump' | 'piece';
 export type FlowMedium = 'water' | 'air' | 'electric' | 'other';
-/** En navngiven tilstand (v6.6.0, Jan): de veje, der er åbne — fx "A → AB" = A igennem AB, B blokeret. */
-export interface FlowState { name: string; open: string[] }
+/** En dels udseende i en tilstand (v6.7.0, design B): farve (fill/stroke), vinkel (rotate) eller Til/Fra (visible/blink/spin). */
+export type LookAnim = 'fill' | 'stroke' | 'rotate' | 'visible' | 'blink' | 'spin';
+export interface LookItem { part: string; anim: LookAnim; value: string | number | boolean }
+export const LOOK_TXT: Record<LookAnim, string> = { fill: 'Farve', stroke: 'Stregfarve', rotate: 'Vinkel', visible: 'Synlig', blink: 'Blink', spin: 'Roterer' };
+/** Startværdien for en ny udseende-linje. */
+export const lookDefault = (a: LookAnim): string | number | boolean => (a === 'fill' || a === 'stroke' ? '#2e7d32' : a === 'rotate' ? 0 : true);
+/** En navngiven tilstand (v6.6.0, Jan): de veje, der er åbne — fx "A → AB" = A igennem AB, B blokeret; v6.7.0: og udseendet. */
+export interface FlowState { name: string; open: string[]; look?: LookItem[] }
 export interface FlowDef {
   ports: PortDef[]; ways?: [string, string][];
   kind?: FlowKind; medium?: FlowMedium; capacity?: number; restrict?: number;
@@ -38,11 +44,17 @@ export function kindOf(defs: FlowDefs, type: string): FlowKind {
 export const unitOf = (defs: FlowDefs, type: string): string => UNITS[defs[type]?.medium ?? 'water'];
 /** Har definitionen en profil ud over standarden (så den kan gemmes uden punkter)? */
 export const hasProfile = (d: FlowDef): boolean =>
-  (!!d.kind && d.kind !== 'consumer') || (!!d.medium && d.medium !== 'water') || d.capacity != null || d.restrict != null;
+  (!!d.kind && d.kind !== 'consumer') || (!!d.medium && d.medium !== 'water') || d.capacity != null || d.restrict != null || !!d.states?.length;
 export const MATCH_TOL = 0.2;   // et symbols punkt hører til en definition, hvis de ligger højst så langt fra hinanden (brøkdel af boksen)
 
+/** Portenes farve (samme som backend flow_defs): på en åben vej grøn, blokeret sort (Jan: "AB og A grønne, B sort"). */
+const portsLook = (open: string[], all: string[]): LookItem[] =>
+  all.map((p) => ({ part: `port_${p.toLowerCase()}`, anim: 'fill' as const, value: open.includes(p) ? '#2e7d32' : '#000000' }));
 /** 3-vejsventilernes standardtilstande (Jan): tilstand 1 = A igennem AB (B blokeret), tilstand 2 = B igennem AB (A blokeret). */
-const THREE_WAY_STATES: FlowState[] = [{ name: 'A → AB', open: ['AB>A'] }, { name: 'B → AB', open: ['AB>B'] }];
+const THREE_WAY_STATES: FlowState[] = [
+  { name: 'A → AB', open: ['AB>A'], look: portsLook(['A', 'AB'], ['A', 'B', 'AB']) },
+  { name: 'B → AB', open: ['AB>B'], look: portsLook(['B', 'AB'], ['A', 'B', 'AB']) }];
+const greb = (deg: number): LookItem[] => [{ part: 'greb', anim: 'rotate', value: deg }];
 
 const IN_OUT = (y: number): PortDef[] => [
   { x: 0, y, name: 'IND', role: 'in' }, { x: 1, y, name: 'UD', role: 'out' },
@@ -72,9 +84,23 @@ export const FLOW_DEFAULTS: FlowDefs = {
     ports: [{ x: 0, y: 0.5, name: 'A', role: 'both', part: 'port_a' }, { x: 1, y: 0.5, name: 'B', role: 'both', part: 'port_b' },
       { x: 0.5, y: 0, name: 'C', role: 'both', part: 'port_c' }, { x: 0.5, y: 1, name: 'D', role: 'both', part: 'port_d' }],
     ways: [['A', 'B'], ['C', 'D']],
-    states: [{ name: 'A → B', open: ['A>B'] }, { name: 'C → D', open: ['C>D'] }],
+    states: [{ name: 'A → B', open: ['A>B'], look: portsLook(['A', 'B'], ['A', 'B', 'C', 'D']) },
+      { name: 'C → D', open: ['C>D'], look: portsLook(['C', 'D'], ['A', 'B', 'C', 'D']) }],
   },
+  // Omskiftere og vippekontakter (v6.7.0): tilstandene og grebets vinkel (som bibliotekets tegning)
+  omskifter3: { ports: [], states: [{ name: 'Hånd', open: [], look: greb(-45) }, { name: '0', open: [], look: greb(0) }, { name: 'Auto', open: [], look: greb(45) }] },
+  drejeomskifter: { ports: [], states: [{ name: '0', open: [], look: greb(-45) }, { name: '1', open: [], look: greb(45) }] },
+  vippe_onoff: { ports: [], states: [{ name: 'OFF', open: [], look: greb(0) }, { name: 'ON', open: [], look: greb(180) }] },
 };
+
+/** Tilstandens udseende for et symbol (samme regel som backend symbols.effective_look): typens, med symbolets afvigelser ovenpå. */
+export function effectiveLook(states: FlowState[] | undefined, overrides: Record<string, LookItem[]> | undefined, state: string | null | undefined): LookItem[] {
+  if (!state) return [];
+  const out = new Map<string, LookItem>();
+  for (const it of states?.find((s) => s.name === state)?.look ?? []) out.set(`${it.part}|${it.anim}`, it);
+  for (const it of overrides?.[state] ?? []) out.set(`${it.part}|${it.anim}`, it);
+  return [...out.values()];
+}
 
 /** De rettede definitioner går forud for standarderne (pr. symboltype). */
 export const mergeDefs = (custom: FlowDefs | null | undefined): FlowDefs => ({ ...FLOW_DEFAULTS, ...(custom ?? {}) });

@@ -4,6 +4,28 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.7.0 build 0402] — 2026-11-13 — Tilstande som fælles begreb på symboltypen (design B): navn, betydning, flow og udseende
+
+docs/ANALYSE_SYMBOLTILSTANDE.md › anbefaling B, PLAN.md. Jans valg: en tilstand kan have sit eget navn på en tegning, og udseendet kommer fra typen og kan tilsidesættes pr. symbol.
+
+- **Symboltypens tilstande får udseende** (`symbol_flow.clean_look`, `states[].look = [{part, anim, value}]`; anim = fill, stroke, rotate, visible, blink, spin): standarder i `flow_defs`/`symbolFlow.ts` — 3-vejs- og 4-vejsventilernes porte grønne på en åben vej og sorte når blokeret; nye typer med tilstande: `omskifter3` (Hånd −45°, 0 0°, Auto 45°), `drejeomskifter` (0/1), `vippe_onoff` (OFF 0°, ON 180°). Tilstande findes også for typer uden punkter/veje.
+- **Symbolets opsætning** (`symbols.py`): `positions[j].state` (typens tilstand; `label` = navnet på tegningen) og `state_look` (afvigelser pr. tilstand, `LookItem`). Uden `state` er positionen en egen position som før — ingen migrering.
+- **Udseende-bindinger** (`symbols.effective_look`, `state_look_bindings`, lagt på i `drawings._compute` efter symbolets egne animationer og før portfarverne): én binding pr. del og animation med en værdi pr. position (typens, med afvigelserne ovenpå; en position uden udseende = som tegnet); aldrig oven på en animation af samme slags (egne animationer vinder). `animate.ts`: en vinkel `null` = som tegnet.
+- **Flowet** tager de åbne veje fra positionernes tilstande, når `flow.open` ikke er sat (`flow_calc.build`).
+- **Symbol-editoren › Tilstande** (`SymbolFlowEditor.svelte`): for alle typer; kolonnen *Udseende* med en editor pr. tilstand (del, animation, værdi) og **forhåndsvisning** af symbolet i tilstanden.
+- **Guiden:** trin 3 hedder **Tilstande**, når typen har tilstande — tabel med tilstand, navn på tegningen og betydning, *Brug typens tilstande*; kontaktplanerne som før. Trin 4 › **Tilstandenes udseende**: typens udseende pr. tilstand, ret for dette symbol (markeres *afviger*), *Typens* / *Brug typens udseende*. Flow-sektionen viser tilstandene fra trin 3 (kun visning; *Avanceret* som før). Portfarverne fra v6.3.0 slås ikke til fra start, når typens tilstande selv farver portene.
+- **Simulatoren** viser tilstanden ved hver position ("Varme (A → AB)").
+- Tests: `test_flow_round2.py` (udseende fra typen med afvigelser og egne animationer, omskifterens vinkler, flowet fra tilstandene, validering og API), `flowRound2.test.ts` (effectiveLook, omskifterens tilstande, portfarver). Set i browseren: Tilstande med udseende og forhåndsvisning (omskifter, 3-vejsventil), guidens trin 3 og 4 (afviger), simulatoren med ventilens portfarver i begge tilstande.
+- Reviewer-rettelser:
+  - **Kritisk:** symbol-editoren gemte ikke tilstandenes udseende. Rettet og set i browseren (vinklen overlever Gem og genindlæsning).
+  - At vælge en tilstand i trin 3 sletter ikke længere vejene sat under *Avanceret*: kun den valgte positions veje følger tilstanden.
+  - En position uden tilstand har alle veje åbne (som før), og en ukendt tilstand er lukket. Begge dele vises i guiden ("ukendt: …").
+  - *Avanceret* i Flow-sektionen kan lukkes igen, starter med tilstandenes veje, og *Lad tilstandene styre vejene igen* fjerner afvigelsen.
+  - En fejl ved hentning af typernes tilstande vises og logges.
+  - Tilstandsnavne kontrolleres for kontroltegn.
+  - Tests af backup og gendannelse med tilstande og afvigelser.
+- Manual kap. 10 (*Tilstande: positioner fra symboltypen*, *Tilstandenes udseende*), kap. 08 (udseende pr. tilstand), billedet `guide-tilstande.png`; LLM-tillæg.
+
 ## [6.6.0 build 0401] — 2026-11-13 — Ventiltilstande: hvad hver tilstand betyder (3-vejs og 4-vejs), valgt pr. position i guiden
 
 Jan (2026-11-13): "Opsætning af en 3-vejsventil er ikke til at forstå — mangler der ikke en definition af, hvad er hvad? Tilstand 1 = port A igennem AB og port B blokeret; tilstand 2 = port B igennem AB og port A blokeret … en 4-vejsventil: tilstand 1 = A igennem B (C og D blokeret), tilstand 2 = C igennem D (A og B blokeret) … vi skal kunne definere alle de tilstande, vi har brug for på et symbol". PLAN.md › Ventiltilstande.

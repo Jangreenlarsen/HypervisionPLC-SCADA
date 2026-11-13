@@ -81,6 +81,16 @@ class _M(BaseModel):
 
 class Position(_M):
     label: str = Field(max_length=20)
+    # v6.7.0 (design B): typens tilstand, positionen er — `label` er navnet på tegningen. None = en egen position (som før)
+    state: str | None = Field(default=None, max_length=30)
+
+    @field_validator("state")
+    @classmethod
+    def _state(cls, v: str | None) -> str | None:
+        v = " ".join((v or "").split())
+        if v and any(ord(c) < 32 for c in v):
+            raise ValueError("tilstandens navn må ikke indeholde kontroltegn")
+        return v or None
 
     _l = field_validator("label")(lambda cls, v: " ".join((v or "").split()))
 
@@ -357,6 +367,24 @@ class FlowCfg(_M):
     port_colors: PortColors | None = None
 
 
+class LookItem(_M):
+    """Én dels udseende i en tilstand (v6.7.0): farve (fill/stroke), vinkel (rotate) eller Til/Fra (visible/blink/spin)."""
+    part: str = Field(pattern=r"^[a-z0-9_]{1,40}$")
+    anim: Literal["fill", "stroke", "rotate", "visible", "blink", "spin"]
+    value: bool | float | str
+
+    @model_validator(mode="after")
+    def _value(self) -> "LookItem":
+        if self.anim in ("fill", "stroke"):
+            self.value = _color(self.value if isinstance(self.value, str) else "")
+        elif self.anim == "rotate":
+            if isinstance(self.value, bool) or not isinstance(self.value, (int, float)) or not -360 <= self.value <= 360:
+                raise ValueError("vinklen skal være et tal mellem −360 og 360")
+        elif not isinstance(self.value, bool):
+            raise ValueError("værdien skal være Til eller Fra")
+        return self
+
+
 class SymbolConfig(_M):
     type: str = "custom"
     op: Literal["positions", "pulse", "entry", "view"] = "view"
@@ -377,6 +405,15 @@ class SymbolConfig(_M):
     logic: list[LogicBlock] = Field(default_factory=list, max_length=MAX_LOGIC)
     chart: Chart | None = None
     flow: FlowCfg | None = None     # v6.1.0: flowberegningen
+    # v6.7.0 (design B): afvigelser fra typens udseende pr. tilstand — {tilstand: [{part, anim, value}]}; resten følger typen
+    state_look: dict[str, list[LookItem]] = Field(default_factory=dict)
+
+    @field_validator("state_look")
+    @classmethod
+    def _state_look(cls, v: dict[str, list[LookItem]]) -> dict[str, list[LookItem]]:
+        if len(v) > 12 or any(not k.strip() or len(k) > 30 or any(ord(c) < 32 for c in k) or len(items) > 24 for k, items in v.items()):
+            raise ValueError("højst 12 tilstande med højst 24 afvigelser hver")
+        return {k: items for k, items in v.items() if items}
 
     _f = field_validator("fault")(lambda cls, v: (v or "").strip())
 
@@ -648,6 +685,50 @@ def port_color_bindings(drawing_id: str, element: str, cfg: dict[str, Any], flow
                   for ws in opens]
         out.append({"element": target, "position": 1900, "tag": pseudo_tag(drawing_id, element, "pos"), "anim": anim,
                     "params": {"pos": True, "colors": colors}, "source": "symbol", "symbol": element, "port_colors": True})
+    return out
+
+
+LOOK_DEFAULT_OFF = {"visible": True, "blink": False, "spin": False}     # en del uden udseende i tilstanden: som tegnet
+
+
+def effective_look(type_states: list[dict[str, Any]] | None, state_look: dict[str, Any] | None, state: str | None
+                   ) -> dict[tuple[str, str], Any]:
+    """Tilstandens udseende for dette symbol: typens, med symbolets afvigelser ovenpå → {(del, animation): værdi}."""
+    if not state:
+        return {}
+    out: dict[tuple[str, str], Any] = {}
+    st = next((s for s in (type_states or []) if s.get("name") == state), None)
+    for it in (st or {}).get("look", []):
+        out[(it["part"], it["anim"])] = it["value"]
+    for it in (state_look or {}).get(state, []):
+        out[(it["part"], it["anim"])] = it["value"]
+    return out
+
+
+def state_look_bindings(drawing_id: str, element: str, cfg: dict[str, Any], type_def: dict[str, Any] | None,
+                        ids: set[str], taken: set[tuple[str, str]]) -> list[dict[str, Any]]:
+    """Tilstandenes udseende som bindinger (v6.7.0, design B): for hver del og animation én binding med en værdi pr. position,
+    fra typens tilstande med symbolets afvigelser ovenpå. En position uden tilstand (eller uden udseende for delen) viser delen
+    som tegnet. Lægges aldrig oven på en animation af samme slags på delen (`taken` — egne animationer vinder)."""
+    if cfg.get("op") != "positions":
+        return []
+    positions = cfg.get("positions", [])
+    looks = [effective_look((type_def or {}).get("states"), cfg.get("state_look"), p.get("state")) for p in positions]
+    keys = sorted({k for lk in looks for k in lk})
+    out: list[dict[str, Any]] = []
+    for part, anim in keys:
+        target = part_instance(element, part, ids)
+        if not target or (target, anim) in taken:
+            continue
+        vals = [lk.get((part, anim)) for lk in looks]
+        if anim in ("fill", "stroke"):
+            params: dict[str, Any] = {"pos": True, "colors": vals}
+        elif anim == "rotate":
+            params = {"pos": True, "angles": vals}
+        else:
+            params = {"pos": True, "set": [LOOK_DEFAULT_OFF[anim] if v is None else bool(v) for v in vals]}
+        out.append({"element": target, "position": 1800, "tag": pseudo_tag(drawing_id, element, "pos"), "anim": anim,
+                    "params": params, "source": "symbol", "symbol": element, "state_look": True})
     return out
 
 

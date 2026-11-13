@@ -252,7 +252,7 @@
             <span class="nm" title={p.element}>{p.name}</span>
             <select value={sim.positions[p.element] ?? ''} onchange={(e) => setPos(p.element, e.currentTarget.value)} aria-label="{p.name}: position">
               <option value="">Live{p.live !== null ? ` (${p.labels[p.live] ?? p.live})` : ''}</option>
-              {#each p.labels as l, j (j)}<option value={j}>{l || `Position ${j + 1}`}</option>{/each}
+              {#each p.labels as l, j (j)}<option value={j}>{l || `Position ${j + 1}`}{p.states?.[j] && p.states[j] !== l ? ` (${p.states[j]})` : ''}</option>{/each}
             </select>
             <button class="small" onclick={() => highlight([p.element])} title="Vis symbolet på tegningen">Vis</button>
           </div>

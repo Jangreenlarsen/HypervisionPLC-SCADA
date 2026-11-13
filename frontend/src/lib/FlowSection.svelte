@@ -11,14 +11,17 @@
   import { FLOW_DEFAULTS, describeState, kindOf, mergeDefs, stateOf, unitOf, waysOf, wayKey, wayLabel, type FlowDefs } from './symbolFlow';
   import { DEFAULT_PORT_COLORS, defaultFlow, flowLevel, flowSourceMode, type FlowCfg, type FlowSource } from './symbolConfig';
 
-  let { flow = $bindable(), type, positions, tags, linked = null }: {
+  let { flow = $bindable(), type, positions, tags, linked = null, posStates = [] }: {
     flow: FlowCfg | null | undefined;
     type: string;
     positions: string[];
     tags: TagOption[];
     /** Er symbolet bundet til tegningens forbindelser? null = ukendt (guiden er ikke åbnet fra Tegn) */
     linked?: boolean | null;
+    /** Positionernes tilstande fra trin 3 (v6.7.0, design B) — så følger de åbne veje dem, og tabellen her er kun til visning */
+    posStates?: (string | null | undefined)[];
   } = $props();
+  const byStates = $derived(posStates.some(Boolean));
 
   let defs = $state<FlowDefs>(mergeDefs(null));
   onMount(async () => {
@@ -35,8 +38,19 @@
   const kind = $derived(kindOf(defs, type));
   const parts = $derived((def?.ports ?? []).filter((p) => p.part));
 
+  /** Avanceret med tilstande: tabellen starter med de veje, tilstandene giver (en position uden tilstand: alle veje). */
+  function openAdvanced(): void {
+    if (flow && !flow.open) {
+      flow.open = positions.map((_, j) => {
+        const st = states.find((s) => s.name === posStates[j]);
+        return st ? [...st.open] : ways.map(wayKey);
+      });
+    }
+    advanced = true;
+  }
   function enable(on: boolean): void {
     flow = on ? defaultFlow(type, positions, ways.map(wayKey), def) : null;
+    if (flow && byStates) flow.open = null;     // de åbne veje følger positionernes tilstande (trin 3)
   }
   // v6.4.0 (Jan): rate og restriktion er faste værdier for symbolet (dets fysik) — tallet står altid fremme; et tag er et tilvalg
   const fixedOf = (s: FlowSource): number => (flowSourceMode(s) === 'val' ? valOf(s) : 1);
@@ -131,7 +145,24 @@
         {/if}
       </div>
     {/if}
-    {#if positions.length && ways.length && states.length}
+    {#if positions.length && ways.length && byStates && !advanced}
+      <table class="ways states">
+        <thead><tr><th>Position</th><th>Tilstand</th><th>Betyder</th></tr></thead>
+        <tbody>
+          {#each positions as p, j (j)}
+            {@const st = states.find((s) => s.name === posStates[j])}
+            <tr><td>{p || `Position ${j + 1}`}</td><td>{st?.name ?? '— egen —'}</td>
+              <td class="means">{describeState(def, flow?.open || !st ? openAt(j) : st.open)}</td></tr>
+          {/each}
+        </tbody>
+      </table>
+      <p class="small muted">Tilstandene vælges i trin 3; de åbne veje følger dem{flow?.open ? ' (her med vejene sat selv under Avanceret)' : ''}.</p>
+      <div><button class="linkish small" onclick={openAdvanced}>▸ Avanceret: vælg vejene selv</button></div>
+    {:else if byStates && advanced}
+      <p class="small warn">Avanceret: vejene sættes selv nedenfor og styres ikke længere af tilstandene.
+        <button class="linkish small" onclick={() => { if (flow) flow.open = null; advanced = false; }}>Lad tilstandene styre vejene igen</button>
+        <button class="linkish small" onclick={() => (advanced = false)}>▾ Skjul</button></p>
+    {:else if positions.length && ways.length && states.length && !byStates}
       <table class="ways states">
         <thead><tr><th>Position</th><th>Tilstand</th><th>Betyder</th></tr></thead>
         <tbody>
