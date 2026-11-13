@@ -4,6 +4,28 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.11.0 build 0416] — 2026-11-13 — Symboler: symbolet i centrum (alle operationer ét sted); knapperne står ved det, de hører til
+
+PLAN.md › Symboler — symbolet i centrum (design A). Jan: "vælg et symbol i biblioteket og lav derfra alle operationer" og "knapperne er helt yderst i view-boksen".
+
+- **`pages/SymbolEditor.svelte`:**
+  - Én symbolliste (søg, kategori; mærker *eget*, *punkter*, *ind/ud*).
+  - Symbolets panel: forhåndsvisning, navn, **Redigér grafik**, **Omdøb**/**Slet** (egne), **Sektion** (flyt).
+  - Faner **Tilslutningspunkter** og **Ind/ud og veje** for det samme symbol.
+  - Ikke-gemte ændringer spørges om ved skift af symbol, fane og side.
+  - **Organisér bibliotek …** viser den hidtidige bibliotek-fane (`SymbolLibrary`) med en ny **Åbn** pr. række.
+  - Fast bredde (liste 18 rem, panel højst 62 rem; organisér højst 80 rem).
+- **`lib/PortsEditor.svelte`:** punkt-editoren som egen komponent. Uden rettede punkter viser den nu **typens punkter fra Ind/ud og veje**, som Tegn bruger (fx pumpens IND/UD), ellers de automatiske. *Brug typens punkter*. Før viste den fire automatiske for en pumpe, mens Tegn brugte to.
+- **`lib/symbolActions.ts`:** *Redigér grafik* deles af panelet og *Organisér bibliotek*.
+- **`lib/symbolRoute.ts`:** `#symbols/<tegning|ny|->/<type>/<punkter|veje>` og `#symbols/organiser`. Gamle links fra Tegn virker som før. Siden følger en ny adresse udefra.
+- **Tegn:** *Tilbage til symbolet* efter Redigér grafik, *Organisér …* → `#symbols/organiser`.
+- Tests: `symbolRoute.test.ts`. Set i browseren ved 1400 og 1920 px:
+  - fanerækken flytter sig ikke ved fanevalg;
+  - genvej fra Tegn med Tilbage-knap;
+  - Organisér → Åbn;
+  - pumpens punkter = IND/UD.
+- Manual kap. 07, 08 og LLM-tillæg; billeder `symboler-panel.png` (nyt), `symboler-bibliotek.png` og `symbol-ind-ud.png`. `tools/manual-screenshots.mjs` er opdateret.
+
 ## [6.10.1 build 0415] — 2026-11-13 — Guidens Flow: symbolets parametre og det, der styrer, i hver sin kasse
 
 Jan: "få det ændret under Opsæt symbol pumpe, så det bliver tydeligt, hvad der er symbol-parameter, og hvad der er position, som er styrende".

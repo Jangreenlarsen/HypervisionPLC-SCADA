@@ -1,3 +1,37 @@
+# Plan: Symboler — symbolet i centrum (design A) — 2026-11-13 — udført i v6.11.0
+
+Jan: "vælg et symbol i biblioteket og lav derfra alle operationer — tilslutningspunkter, ind/ud og veje, redigér — i stedet for tre forskellige menuer", og "knapperne står helt yderst i view-boksen".
+
+**Mål:** én side, hvor man vælger et symbol én gang og gør alt på det.
+
+**Opbygning:**
+- **Venstre:** én symbolliste.
+  - Søg og sektion/kategori.
+  - Mærker: *eget*, *punkter rettet*, *ind/ud rettet*.
+- **Højre: panel for det valgte symbol.**
+  - Forhåndsvisning, navn og forklaring.
+  - Handlinger: *Redigér grafik* (Tegn som i dag), *Omdøb* og *Slet* (egne), *Flyt til sektion*.
+  - Faner i panelet: **Tilslutningspunkter** og **Ind/ud og veje**.
+  - Valget følger med mellem fanerne og står i adressen (`#symbols/<type>/punkter|veje`), så genvejene fra Tegn og guiden åbner direkte.
+- **Organisér bibliotek …** (knap øverst) samler alt, der gælder hele biblioteket: sektioner (opret, omdøb, flyt, slet), rækkefølge, flere symboler ad gangen, import og eksport. Det er den nuværende `SymbolLibrary`.
+- **Bredde:**
+  - Listen er fast ca. 18 rem, panellet højst ca. 60 rem.
+  - Knapperne står lige efter det, de hører til, ikke yderst i vinduet (samme regel som tabellerne i v6.6.0).
+  - Intet må flytte sig ved klik ([[feedback-no-layout-shift]]).
+
+**Trin:**
+1. Ny komponent `lib/PortsEditor.svelte`: punkt-editoren flyttes ud af `SymbolEditor.svelte`, uændret adfærd.
+2. `SymbolEditor.svelte`: liste + panel + faner; route `#symbols/<type>/<fane>`. Ikke-gemte ændringer spørges om ved skift af symbol eller fane, som i dag.
+3. `SymbolLibrary.svelte` åbnes som *Organisér bibliotek* (dialog eller egen visning); handlingerne pr. symbol flyttes til panelet.
+4. Genveje: Tegn › *Ret tilslutningspunkter …* og guidens links til *Ind/ud og veje* går til `#symbols/<type>/…`.
+5. Tests (route-parsing, ikke-gemt-vagt), browser-tjek (bredder ved 1400 og 1920 px, intet hop ved fanevalg), manual kap. 11 og skærmbilleder.
+
+**Risici:**
+- Tab af ikke-gemte ændringer ved skift (håndteres med spørgsmål).
+- Gamle links `#symbols` og `#symbols/<tegning>/<type>` fra Tegn skal stadig virke (`symbolRoute.ts`).
+
+---
+
 # Plan: Tilstande som fælles begreb på symboltypen (design B) — 2026-11-13 — udført i v6.7.0 (pumpe/lampe uden positioner fik ingen tilstande)
 
 Baggrund: docs/ANALYSE_SYMBOLTILSTANDE.md. Jan valgte design B (2026-11-13):

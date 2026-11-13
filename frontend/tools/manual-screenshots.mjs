@@ -417,13 +417,27 @@ await shot('integrationer', async () => { await go('integration', 'h1, h2'); awa
 await shot('certifikater', async () => { await go('certificates', 'h1, h2'); await settle(1000); });
 await shot('system-hjaelper', async () => { await go('assist', 'h1, h2'); await settle(1500); });
 
+// v6.11.0: Symboler med symbolet i centrum — listen til venstre, symbolets panel med fanerne til højre
 await shot('symbol-ind-ud', async () => {
-  await go('symbols', 'text=Tilslutningspunkter');
-  await page.getByRole('tab', { name: 'Ind/ud og veje' }).click();
-  await settle(500);
+  await go('symbols', '.layout');
   await page.locator('.list button', { hasText: '3-vejs motorventil' }).first().click();
+  await settle(500);
+  await page.getByRole('tab', { name: 'Ind/ud og veje' }).click();
   await settle(1500);
 }, { locator: '.layout' });
+
+await shot('symboler-panel', async () => {
+  await go('symbols', '.layout');
+  await page.getByPlaceholder('Søg symbol').fill('pumpe');
+  await page.locator('.list button', { hasText: 'Pumpe' }).first().click();
+  await settle(1000);
+}, { locator: '.layout' });
+
+await shot('symboler-bibliotek', async () => {
+  await go('symbols/organiser', '.org');
+  await page.getByRole('button', { name: /^Rør og VVS/ }).click();
+  await settle(800);
+});
 
 await browser.close();
 const failed = results.filter(([, r]) => r !== 'ok');

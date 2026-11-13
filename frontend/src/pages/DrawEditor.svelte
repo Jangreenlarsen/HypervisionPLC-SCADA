@@ -19,7 +19,7 @@
   import ObjectTree, { type TreeApi } from '../lib/draw/ObjectTree.svelte';
   import PanelSection from '../lib/draw/PanelSection.svelte';
   import { loadPanels, savePanels, togglePanel, togglePin } from '../lib/draw/panels';
-  import { symbolsHref } from '../lib/symbolRoute';
+  import { panelHref, symbolsHref } from '../lib/symbolRoute';
   // @ts-expect-error — ren JS uden typer
   import { symbolType } from '../../svgedit-host/symbolPorts.js';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
@@ -409,8 +409,9 @@
       try {
         await del(`/api/drawings/${encodeURIComponent(id)}`);
         dirty = false;
+        const back = symbolEdit ? panelHref(null, false, symbolEdit.type, 'punkter') : '#symbols';   // v6.11.0: til symbolets panel
         symbolEdit = null;
-        location.hash = '#symbols';
+        location.hash = back;
       } catch (e) {
         error = (e as Error).message;
       }
@@ -1308,7 +1309,7 @@
     <span>Du retter grafikken for <strong>{symbolEdit.label}</strong>{symbolEdit.own ? '' : ' (indbygget — gemmes som en kopi)'}.
       Ret stregerne og farverne (<em>Opløs</em> gruppen for at rette enkelte dele, <em>Gruppér</em> igen med Ctrl+G), vælg det samlede symbol, og gem.</span>
     <button class="primary" onclick={saveSymbolEdit} disabled={busy || !ready}>Gem i biblioteket{symbolEdit.own ? ' (ny version)' : ' som kopi'}</button>
-    <a class="btn" href="#symbols">← Tilbage til biblioteket</a>
+    <a class="btn" href={panelHref(null, false, symbolEdit.type, 'punkter')}>← Tilbage til symbolet</a>
   </div>
 {/if}
 {#if sizeOpen}
@@ -1556,7 +1557,7 @@
         <button class="small" onclick={() => svgFileInput?.click()} disabled={!ready} title="Sæt en SVG-fil ind i tegningen som en gruppe — eller træk filen ind på tegnefladen">Indsæt SVG-fil …</button>
         <input type="file" accept=".svg,image/svg+xml" multiple hidden bind:this={svgFileInput}
                onchange={(e) => { const el = e.currentTarget as HTMLInputElement; void insertSvgFiles(Array.from(el.files ?? [])); el.value = ''; }} />
-        <a class="small" href="#symbols">Organisér …</a>
+        <a class="small" href="#symbols/organiser">Organisér …</a>
       </div>
       {#each libSections(library.layout) as cat (cat.id)}
         {@const list = symbolsIn(cat.id)}

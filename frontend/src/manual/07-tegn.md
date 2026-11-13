@@ -182,9 +182,17 @@ Har du tegnet noget, du vil bruge igen (fx en pumpestation med kasse, pumpe og t
 
 ## Importér SVG-symboler og organisér biblioteket
 
-![Siden Symboler, fanen Bibliotek: sektioner til venstre, sektionens symboler til højre](../../public/manual/symboler-bibliotek.png)
+**Siden Symboler** (*Opsætning*, rollen tekniker) har **symbolet i centrum**:
+- Vælg et symbol i listen til venstre (søg og kategori). Mærkerne viser *eget*, rettede *punkter* og *ind/ud*.
+- Til højre står **symbolets panel**: forhåndsvisning, navn og knapperne **Redigér grafik**, **Omdøb** og **Slet** (egne symboler) og **Sektion** (flyt symbolet til en anden sektion).
+- Under dem står fanerne **Tilslutningspunkter** og **Ind/ud og veje** for det samme symbol (kapitel 8). Symbolet følger med, når du skifter fane. Har du ændringer, der ikke er gemt, spørger siden først.
+- **Organisér bibliotek …** øverst samler det, der gælder hele biblioteket: sektioner, rækkefølge, flere symboler ad gangen, import og eksport. **Åbn** på en række går til symbolets panel.
 
-**Importér SVG-filer:** tryk **Importér SVG-symboler …** øverst i *Symboler* i Tegn, eller **Importér SVG …** på siden **Symboler** (*Opsætning*, fanen *Bibliotek*). Vælg en eller flere `.svg`-filer (højst 50 og 10 MB i alt) og en **sektion**, og vælg hvad der skal ske, hvis et symbol med samme navn findes: *Opret med nyt navn* ("Navn 2"), *Gem som ny version* eller *Spring over*. Hver fil bliver **ét symbol** med filnavnet som navn.
+![Siden Symboler: symbollisten til venstre, pumpens panel med Redigér grafik, sektion og fanerne til højre](../../public/manual/symboler-panel.png)
+
+![Organisér bibliotek: sektioner til venstre, sektionens symboler med Åbn, rækkefølge, Flyt til og Redigér til højre](../../public/manual/symboler-bibliotek.png)
+
+**Importér SVG-filer:** tryk **Importér SVG-symboler …** øverst i *Symboler* i Tegn, eller **Importér SVG …** under **Organisér bibliotek …** på siden **Symboler** (*Opsætning*). Vælg en eller flere `.svg`-filer (højst 50 og 10 MB i alt) og en **sektion**, og vælg hvad der skal ske, hvis et symbol med samme navn findes: *Opret med nyt navn* ("Navn 2"), *Gem som ny version* eller *Spring over*. Hver fil bliver **ét symbol** med filnavnet som navn.
 
 ![Importér SVG-symboler: filer, sektion, navnekonflikt og resultatet pr. fil](../../public/manual/symboler-import.png)
 
@@ -195,22 +203,22 @@ Har du tegnet noget, du vil bruge igen (fx en pumpestation med kasse, pumpe og t
 
 **Sæt en SVG-fil ind i tegningen:** tryk **Indsæt SVG-fil …** i *Symboler* (eller træk en `.svg`-fil fra computeren ind på tegnefladen). Filen bliver **én gruppe** i tegningen med filnavnet som navn — ikke et bibliotekssymbol — og skaleres ned, så den højst fylder 60 % af tegningen. Den renses på serveren (som ved import), og gradienter og andre id'er får nye navne, så de ikke støder sammen med tegningens egne. Fortryd med **Ctrl+Z**. Gruppen kan redigeres som alt andet og bagefter gemmes som symbol (*Gem som symbol i biblioteket …*).
 
-**Organisér biblioteket** (siden *Symboler*, fanen *Bibliotek*, rollen tekniker):
+**Organisér biblioteket** (siden *Symboler* › **Organisér bibliotek …**, rollen tekniker):
 
 - **Sektioner:** opret en sektion med navn og **Opret**, flyt sektioner op og ned med **▲ ▼**, og omdøb (**✎**) eller slet (**🗑**) dine egne sektioner. Sletter du en sektion, flyttes egne symboler til *Egne symboler* og indbyggede tilbage til deres kategori.
 - **Symboler:** vælg en sektion til venstre. Flyt et symbol op og ned med **▲ ▼**, eller til en anden sektion med **Flyt til …** — det gælder også de indbyggede symboler. Egne symboler kan omdøbes og have en forklaring (**✎**) og slettes (**🗑**). Tegninger, der bruger et slettet symbol, beholder deres kopi; siden siger hvilke.
-- **Redigér grafikken:** tryk **Redigér** ved et symbol. Der åbnes en lille arbejdstegning i Tegn med symbolet valgt og en gul linje øverst.
+- **Redigér grafikken:** tryk **Redigér grafik** i symbolets panel (eller **Redigér** ved et symbol under *Organisér bibliotek*). Der åbnes en lille arbejdstegning i Tegn med symbolet valgt og en gul linje øverst.
   1. Ret stregerne og farverne. *Opløs* gruppen for at rette enkelte dele, og *Gruppér* dem igen med **Ctrl+G**.
   2. Vælg det samlede symbol.
   3. Tryk **Gem i biblioteket**.
 
-  Et **eget** symbol gemmes som en ny version med samme navn; standardopsætningen beholdes, så længe delene findes endnu. Et **indbygget** symbol kan ikke ændres, så det gemmes som en kopi, "… (egen)". Bagefter tilbydes at slette arbejdstegningen og gå tilbage til biblioteket. Tegninger med den gamle version ændres ikke — opdatér dem med *Erstat med symbol*.
+  Et **eget** symbol gemmes som en ny version med samme navn; standardopsætningen beholdes, så længe delene findes endnu. Et **indbygget** symbol kan ikke ændres, så det gemmes som en kopi, "… (egen)". Bagefter tilbydes at slette arbejdstegningen og gå tilbage til symbolet. Tegninger med den gamle version ændres ikke — opdatér dem med *Erstat med symbol*.
 - **Flere på én gang:** afkryds symbolerne (eller **Vælg alle**; **Shift**-klik vælger alle mellem to afkrydsninger). Over listen kan du så **Flyt valgte til …** en anden sektion eller **Slet valgte**. Kun egne symboler kan slettes; indbyggede i valget bliver stående. Sletningen sker samlet: findes et af symbolerne ikke længere, slettes intet.
 - Rækkefølgen er den samme i Tegn for alle brugere. Ændrer to personer opdelingen samtidig, afvises den sidste med en besked — prøv igen.
 
 **Bibliotekspakke** (flyt egne symboler til en anden SCADA): **Eksportér pakke** henter alle egne symboler som én fil (`.hvlib.json`) med grafik, standardopsætning og sektion — **uden tags**, fordi de hører til anlægget. På den anden SCADA trykker du **Importér pakke …**, vælger filen og hvad der skal ske ved samme navn. Sektioner, der mangler, oprettes.
 
-**Symboltest** og **tilslutningspunkterne** (fanen *Tilslutningspunkter*) virker også for egne symboler — vælg *Egne symboler* i listen over kategorier.
+**Symboltest** og symbolets panel (tilslutningspunkter, ind/ud og veje) virker også for egne symboler — vælg *Egne symboler* i listen over kategorier.
 
 ## Symbol-oversigt: alle symboler ét sted
 

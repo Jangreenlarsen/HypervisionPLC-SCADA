@@ -128,13 +128,13 @@ Rørstykker (bøjninger, T-stykker, kryds) viser løbelyset med retning i hvert 
 
 ## Tilslutningspunkter (siden Symboler)
 
-På siden **Symboler** (rollen tekniker, under **Opsætning**), fanen **Tilslutningspunkter**, kan du rette tilslutningspunkterne for et symbol i biblioteket — også egne symboler:
+På siden **Symboler** (rollen tekniker, under **Opsætning**) vælger du symbolet i listen; fanen **Tilslutningspunkter** i symbolets panel retter dets tilslutningspunkter — også for egne symboler:
 
-- Vælg symbolet i listen. Symboler med rettede punkter er mærket **rettet**.
+- Symboler med rettede punkter er mærket **punkter** i listen.
 - **Klik** for at tilføje et punkt — det fanger til rørender og kantmidter. **Træk** et punkt for at flytte det. **Højreklik** eller **Delete** fjerner det valgte.
-- **Gem punkter** gemmer. **Brug de automatiske** går tilbage til de automatisk fundne.
+- **Gem punkter** gemmer. Uden rettede punkter viser fanen det, Tegn bruger: typens punkter fra *Ind/ud og veje* (fx pumpens IND og UD), ellers de automatisk fundne. **Brug typens punkter** / **Brug de automatiske** går tilbage til dem.
 
-**Genvej fra Tegn:** vælg et bibliotekssymbol og tryk **Ret tilslutningspunkter …** under *Valgt element* (eller linket øverst i *Symboler*). Symbol-editoren åbner på symbolet, og **← Tilbage til "<tegning>"** fører dig tilbage. Har tegningen ændringer, der ikke er gemt, spørger Tegn først — gem med *Gem kladde*, før du skifter.
+**Genvej fra Tegn:** vælg et bibliotekssymbol og tryk **Ret tilslutningspunkter …** under *Valgt element* (eller linket øverst i *Symboler*). Siden *Symboler* åbner på symbolets panel, og **← Tilbage til "<tegning>"** fører dig tilbage. Har tegningen ændringer, der ikke er gemt, spørger Tegn først — gem med *Gem kladde*, før du skifter.
 
 > Ændringen gælder **symboler, du indsætter fremover**. Symboler, der allerede står i en tegning, beholder deres punkter — så eksisterende rør flytter sig ikke.
 
@@ -142,9 +142,9 @@ På siden **Symboler** (rollen tekniker, under **Opsætning**), fanen **Tilslutn
 
 ### Ind/ud og veje
 
-![Fanen Ind/ud og veje: 3-vejsmotorventilens punkter A, B og AB med roller, det fælles punkt og vejene](../../public/manual/symbol-ind-ud.png)
+![Symbolets panel, fanen Ind/ud og veje: 3-vejsmotorventilens punkter A, B og AB med roller, det fælles punkt og vejene](../../public/manual/symbol-ind-ud.png)
 
-Fanen **Ind/ud og veje** (samme side) beskriver, hvordan flowet løber gennem et symbol: symbolets **flow-rolle**, punkternes navne, ind/ud og de veje, en ventil kan lave. **Flowberegningen** bruger den (se *Flow i anlægget* ovenfor). Den ændrer ikke noget i tegningen, og den gælder alle tegninger med symbolet med det samme.
+Fanen **Ind/ud og veje** i symbolets panel (samme side) beskriver, hvordan flowet løber gennem et symbol: symbolets **flow-rolle**, punkternes navne, ind/ud og de veje, en ventil kan lave. **Flowberegningen** bruger den (se *Flow i anlægget* ovenfor). Den ændrer ikke noget i tegningen, og den gælder alle tegninger med symbolet med det samme.
 
 - **Flow-rolle** (gælder alle symboltyper, også elektriske komponenter):
   - **Rolle:** *Forbruger* (radiator, tank, ventil …), *Pumpe / kilde* (en pumpe, eller fx en strømforsyning, der giver strøm) eller *Rørstykke / ledning* (bøjning, klemme … — hører under forbindelserne og viser flowet med løbelys).
