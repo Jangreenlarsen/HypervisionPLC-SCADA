@@ -1,4 +1,4 @@
-# Plan: Simulator — test en tegnings tilstande med indskudte værdier — 2026-11-13 — afventer OK
+# Plan: Simulator — test en tegnings tilstande med indskudte værdier — 2026-11-13 — udført i v6.5.0 (med scenarier)
 
 Jan (2026-11-13): "et simulationspanel, der kun arbejder med alle de variabler, en tegning gør brug af, så vi kan teste de forskellige tilstande på en tegning — systemet gennemgår tegningen og præsenterer et panel under en simulator-del med de parametre, der er sat i tegningen, så vi kan indskyde værdier og se, hvad det resulterer i af display-output."
 

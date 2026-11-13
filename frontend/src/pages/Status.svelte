@@ -97,6 +97,11 @@
           <strong>{health.assist.busy ? 'arbejder' : 'klar'}{health.assist.waiting ? ` · ${health.assist.waiting} venter` : ''}</strong>
           <div class="muted small">{health.assist.asks ?? 0} spørgsmål, {health.assist.requests} kald, {health.assist.errors} fejl siden start · seneste {(health.assist.last_ms / 1000).toFixed(1)} s</div></div>
       {/if}
+      {#if health.simulator && (health.simulator.simulations || health.simulator.errors)}
+        <div class="card"><div class="muted small">Simulator</div>
+          <strong>{health.simulator.simulations} simuleringer</strong>
+          <div class="muted small">seneste {health.simulator.last_ms} ms{health.simulator.errors ? ` · ${health.simulator.errors} fejl (se loggen)` : ''}</div></div>
+      {/if}
       {#if health.flow && (health.flow.runs || health.flow.errors)}
         <div class="card"><div class="muted small">Flowberegning</div>
           <strong>{health.flow.flowing} elementer med flow</strong>

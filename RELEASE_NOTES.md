@@ -2,6 +2,12 @@
 
 ---
 
+## v6.5.0 — 2026-11-13 — Simulator
+
+- Ny side **Opsætning › Simulator** (og **Simulér** på Overview og i Tegn): se en tegning med værdier, du selv indskyder. Systemet finder alle de variabler, tegningen bruger — tags, symbolernes position og alarmer.
+- Sæt værdierne (til/fra, tal, position, komm.fejl), og se resultatet med det samme: logik, symbolernes tilstand og flowet beregnes som i drift. Intet skrives til PLC'en.
+- **Scenarier:** gem et sæt værdier med et navn og hent det igen.
+
 ## v6.4.0 — 2026-11-13 — Flow: faste værdier og baseline på målt flow
 
 - **Flow-rate og restriktion** skrives direkte som et tal 0,00–1,00 (eller med skyderen) — de er faste værdier for symbolet. *Styret af et tag* er et tilvalg.

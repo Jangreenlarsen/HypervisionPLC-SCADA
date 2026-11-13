@@ -39,6 +39,8 @@ from .services.llm_catalog import LlmCatalog
 from .api.symbol_flow import router as symbol_flow_router
 from .api.connection_groups import router as connection_groups_router
 from .api.flow import router as flow_router
+from .api.simulator import router as simulator_router
+from .services.simulator import SimulatorService
 from .services.connection_groups import ConnectionGroupService
 from .api.symbol_ports import router as symbol_ports_router
 from .api.library import router as library_router
@@ -147,7 +149,10 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
         app.state.symbol_group_service = SymbolGroupService(db, app.state.symbol_service)
         app.state.symbol_port_service = SymbolPortService(db)
         app.state.symbol_flow_service = SymbolFlowService(db)   # ind/ud og veje på symboler (v4.13.0)
-        app.state.connection_group_service = ConnectionGroupService(db, app.state.drawing_service)   # forbindelsesgrupper (v6.1.0)
+        app.state.connection_group_service = ConnectionGroupService(db, app.state.drawing_service)
+        # simulatoren (v6.5.0): tegningens variabler og beregning med indskudte værdier — skriver aldrig til PLC'en
+        app.state.simulator_service = SimulatorService(db, app.state.drawing_service, manager.cache,
+                                                       lambda: getattr(app.state, "symbol_runtime", None))   # forbindelsesgrupper (v6.1.0)
         app.state.library_service = LibraryService(db, app.state.drawing_service, app.state.symbol_service)
         # Tags kun deaktiverede tegninger bruger pollas ikke (v1.6.0)
         manager.suspended_tags = lambda: suspended_tags(db, app.state.drawing_service, app.state.symbol_service)
@@ -327,6 +332,7 @@ def create_app(settings: Settings | None = None, transport_factory: TransportFac
     app.include_router(symbol_flow_router)
     app.include_router(connection_groups_router)
     app.include_router(flow_router)
+    app.include_router(simulator_router)
     app.include_router(library_router)
     app.include_router(live_router)
     app.include_router(operate_router)

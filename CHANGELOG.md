@@ -4,6 +4,27 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.5.0 build 0400] — 2026-11-13 — Simulator: prøv en tegnings tilstande med indskudte værdier
+
+Jan (2026-11-13): "et simulationspanel, der arbejder med alle de variabler, en tegning gør brug af, så vi kan indskyde værdier og se, hvad det resulterer i af display-output". PLAN.md › Simulator (med scenarier i første version).
+
+- **Backend** `services/simulator.py` + `api/simulator.py` (tekniker, tegningens adgang tjekkes):
+  - `GET /api/drawings/{id}/simulator` finder tegningens variabler: tags fra bindinger og symbolopsætninger (`binding_tags`, `config_tags`), med type, min/max, enhed, hvor de bruges (tekst og element-id'er) og live værdi; symbolernes positioner; alarm-kilder.
+  - `POST /api/drawings/{id}/simulate` regner med de indskudte værdier (resten live) de afledte værdier med driftens kode: `logic_results`, `remote_position`/`compute_state` (en tvungen position gælder vist og fundet position), flowet (`flow_calc.preview`, `flow_levels`). Returnerer hele værditabellen; skriver aldrig til PLC'en og udgiver intet i live-cachen; højst 2 samtidige (429 ved optaget).
+  - Scenarier: `GET/POST /sim-scenarios`, `PUT/DELETE /sim-scenarios/{id}`; tabellen `sim_scenarios` (skema 18, additiv), højst 50 pr. tegning, navne unikke pr. tegning; backup og gendannelse (valideret); audit `sim_scenario.*`.
+  - Status: `/api/health/details` → `simulator` (simuleringer, seneste tid, fejl) og kortet *Simulator* på Status.
+- **Frontend** ny side `pages/Simulator.svelte` (Opsætning › Simulator, rute `#simulator/<tegning>`, genveje *Simulér* på Overview og i Tegns menu med tegningens navn) og `lib/simulator.ts`: tegningen tegnet med Overview-motoren (`renderAll`, tilstandsmærker) ud fra de simulerede værdier; panelet med variablerne (Live/Simuleret, til/fra, tal med skyder, position, alarm, komm.fejl, *Vis* markerer symbolerne, søg, kun simulerede); *Start fra live*, *Alt til live*; scenarier (Gem som, Gem, Slet); de live variabler opdateres hvert 3. sekund (ikke i en skjult fane).
+- Tests: `tests/test_simulator.py` (variabler, logik og positioner, flow og ingen sideeffekter, input-regler og adgang, scenarier og backup), `simulator.test.ts`, `nav.test.ts`. Set i browseren på testtegningen: Pumpe Til → løbelys i løkken; Tryk 60/40 → tanken rød/blå (aktiv-grænse 50); scenariet gemt og hentet.
+- Reviewer-rettelser:
+  - Scenarienavne er unikke uden hensyn til store/små bogstaver (`COLLATE NOCASE`, som backuppens kontrol). Ellers kunne en backup ikke gendannes.
+  - Positionerne regnes før logikken, så en blok kan læse en simuleret position.
+  - En tvungen position holdes inden for symbolets positioner.
+  - Variablerne hentes i en tråd (event-løkken blokeres ikke).
+  - Højst 50 scenarier pr. tegning også ved gendannelse.
+  - Siden dropper svar for en tidligere valgt tegning, panelets live-værdier følger PLC'en, og fejl fra scenarierne viskes ikke ud af den løbende simulering.
+  - Test af `Infinity`, gendannelse af en ældre backup uden scenarier, og at scenarier slettes med tegningen.
+- Manual kap. 07 *Simulator* og billedet `simulator.png`; LLM-tillæg. FEATURES, ACCEPTTEST.
+
 ## [6.4.0 build 0399] — 2026-11-13 — Flow: rate og restriktion som faste værdier, baseline på målt flow og kilden "symbolets flow-niveau"
 
 Jan (2026-11-13): "flow rate og restriktion … er statiske parametre for symbolet på grund af dets fysik", og målt flow skal have en baseline ("hvad er lavt og højt flow"), der bruges direkte til at vise flowet (løbelysets fart, blink, farve).

@@ -21,6 +21,7 @@ export const NAV: NavGroup[] = [
     { id: 'plcs', label: "PLC'er", role: 'engineer', icon: 'plcs' },
     { id: 'symbols', label: 'Symboler', role: 'engineer', icon: 'symbols' },
     { id: 'symboltest', label: 'Symboltest', role: 'engineer', icon: 'symboltest' },
+    { id: 'simulator', label: 'Simulator', role: 'engineer', icon: 'simulator' },
   ] },
   { id: 'system', label: 'System', pages: [
     { id: 'status', label: 'Status', role: 'engineer', icon: 'status' },
@@ -53,7 +54,7 @@ export function pageFor(route: string, role: Role | undefined): NavPage {
 }
 
 /** Sider der kan åbne en bestemt tegning (#draw/<id>, #editor/<id>). */
-const DRAWING_PAGES = new Set(['draw', 'editor']);
+const DRAWING_PAGES = new Set(['draw', 'editor', 'simulator']);
 
 /**
  * Menulinket til en side (v0.79.0): står man på en tegning i Overview (#overview/<id>), åbner Tegn og Bindinger
@@ -92,6 +93,7 @@ export const NAV_ICON: Record<string, string> = {
   update: '<path d="M12 3v12"/><path d="M7 10l5-5 5 5"/><path d="M4 15v4h16v-4"/>',
   manual: '<path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M8 4v13a3 3 0 0 0-3 3"/><path d="M10 8h5M10 12h5"/>',
   symbols: '<circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h3M14 12h3M10 8l4 4-4 4z"/>',
+  simulator: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 13l3-3 2 2 4-4"/><path d="M9 21h6M12 17v4"/>',
   symboltest: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/><path d="M8 15h8"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',

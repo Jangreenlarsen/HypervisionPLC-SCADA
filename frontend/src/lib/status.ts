@@ -21,6 +21,8 @@ export interface Health {
   backup: { interval_h: number; count: number; last_age_s: number | null };
   tls: Tls | null;
   assist?: { asks?: number; requests: number; errors: number; busy: number; waiting: number; last_ms: number } | null;
+  /** Simulatoren (v6.5.0): antal simuleringer, seneste beregningstid, fejl */
+  simulator?: { simulations: number; last_ms: number; errors: number } | null;
   /** Flowberegningen (v6.1.0): kørsler, sidste beregningstid, fejl, tegninger uden gemte forbindelser, beskeder pr. tegning */
   flow?: { runs: number; last_ms: number; errors: number; drawings: number; unbound: string[]; flowing: number;
     notes: Record<string, string[]> } | null;

@@ -17,7 +17,7 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 17   # 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
+SCHEMA_VERSION = 18   # 18: sim_scenarios (v6.5.0, additiv); 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -247,6 +247,17 @@ CREATE TABLE IF NOT EXISTS connection_groups (
     members     TEXT NOT NULL,
     anims       TEXT NOT NULL,
     sort        INTEGER NOT NULL DEFAULT 0,
+    updated_at  REAL NOT NULL,
+    updated_by  TEXT NOT NULL,
+    UNIQUE (drawing_id, name)
+);
+-- Simulatorens scenarier (v6.5.0, services/simulator.py): et navngivet sæt simulerede værdier og positioner pr. tegning.
+CREATE TABLE IF NOT EXISTS sim_scenarios (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL COLLATE NOCASE,   -- unikt uden hensyn til store/små bogstaver (som backuppens kontrol)
+    vals        TEXT NOT NULL,
+    positions   TEXT NOT NULL,
     updated_at  REAL NOT NULL,
     updated_by  TEXT NOT NULL,
     UNIQUE (drawing_id, name)
@@ -1002,6 +1013,41 @@ class Database:
             return None
         return {**rows[0], "config": json.loads(rows[0]["config"])}
 
+    # ----------------------------------------------------------------- simulatorens scenarier (v6.5.0)
+
+    def list_sim_scenarios(self, drawing_id: str | None = None) -> list[dict[str, Any]]:
+        sql = "SELECT id, drawing_id, name, vals, positions, updated_at, updated_by FROM sim_scenarios"
+        rows = (self._query(sql + " WHERE drawing_id = ? ORDER BY lower(name)", (drawing_id,)) if drawing_id is not None
+                else self._query(sql + " ORDER BY drawing_id, lower(name)"))
+        out = []
+        for r in rows:
+            try:
+                out.append({"id": r["id"], "drawing_id": r["drawing_id"], "name": r["name"], "values": json.loads(r["vals"]),
+                            "positions": json.loads(r["positions"]), "updated_at": r["updated_at"], "updated_by": r["updated_by"]})
+            except ValueError:
+                log.error("Simulator-scenariet '%s' (%s) er beskadiget og springes over", r.get("name"), r.get("drawing_id"))
+        return out
+
+    def write_sim_scenario(self, drawing_id: str, sid: int | None, name: str, values: dict[str, Any], positions: dict[str, int],
+                           username: str) -> int | None:
+        """Opret (sid None) eller ret et scenarie. → id; None hvis navnet er taget (eller scenariet er væk)."""
+        now = time.time()
+        vals, pos = json.dumps(values, ensure_ascii=False), json.dumps(positions)
+        try:
+            if sid is None:
+                with self._lock:
+                    cur = self._conn.execute("INSERT INTO sim_scenarios(drawing_id, name, vals, positions, updated_at, updated_by) "
+                                             "VALUES (?,?,?,?,?,?)", (drawing_id, name, vals, pos, now, username))
+                    return int(cur.lastrowid)
+            n = self._execute("UPDATE sim_scenarios SET name = ?, vals = ?, positions = ?, updated_at = ?, updated_by = ? "
+                              "WHERE id = ? AND drawing_id = ?", (name, vals, pos, now, username, sid, drawing_id))
+            return sid if n else None
+        except sqlite3.IntegrityError:
+            return None
+
+    def delete_sim_scenario(self, drawing_id: str, sid: int) -> bool:
+        return self._execute("DELETE FROM sim_scenarios WHERE id = ? AND drawing_id = ?", (sid, drawing_id)) > 0
+
     # ----------------------------------------------------------------- forbindelsesgrupper (v6.1.0)
 
     def list_connection_groups(self, drawing_id: str | None = None) -> list[dict[str, Any]]:
@@ -1408,6 +1454,7 @@ class Database:
             "symbol_groups": self._export_groups(),
             "connection_groups": [{k: r[k] for k in ("drawing_id", "name", "is_default", "members", "anims")}
                                   for r in self.list_connection_groups()],
+            "sim_scenarios": [{k: r[k] for k in ("drawing_id", "name", "values", "positions")} for r in self.list_sim_scenarios()],
             "trend_views": self.list_trend_views(),
             "symbol_ports": self.list_symbol_ports(),
             "symbol_flow": self.list_symbol_flow(),
@@ -1575,6 +1622,10 @@ class Database:
                     cur.execute("INSERT INTO connection_groups(drawing_id, name, is_default, members, anims, sort, updated_at, updated_by) "
                                 "VALUES (?,?,?,?,?,?,?,?)", (g["drawing_id"], g["name"], 1 if g["is_default"] else 0, json.dumps(g["members"]),
                                                              json.dumps(g["anims"], ensure_ascii=False), i, now, "restore"))
+                for s in data.get("sim_scenarios", []):       # simulatorens scenarier (v6.5.0); ældre backups har ingen
+                    cur.execute("INSERT INTO sim_scenarios(drawing_id, name, vals, positions, updated_at, updated_by) VALUES (?,?,?,?,?,?)",
+                                (s["drawing_id"], s["name"], json.dumps(s["values"], ensure_ascii=False), json.dumps(s["positions"]),
+                                 now, "restore"))
                 for b in data["bindings"]:
                     cur.execute("INSERT INTO bindings(drawing_id, element, position, tag, anim, params) VALUES (?,?,?,?,?,?)",
                                 (b["drawing_id"], b["element"], b["position"], b["tag"], b["anim"],

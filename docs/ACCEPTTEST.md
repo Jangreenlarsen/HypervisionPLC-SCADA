@@ -93,6 +93,14 @@ Forberedelse: tag en backup først (System › Backup, eller `scada-tool backup 
 - [ ] (v6.4) Guiden › Flow: restriktion 0,75 skrevet direkte (uden tag) → gemt; *styret af et tag* viser tag-valget.
 - [ ] (v6.4) Målt flow = flowsensoren, lavt 15,1 / højt 16,5 → en animation *Løbelys* med kilden *symbolets flow-niveau* kører hurtigere, jo tættere målingen er på 16,5; *Blink* ved højst 0,1 blinker ved lavt flow.
 
+### 10d. Simulator (v6.5)
+- [ ] Opsætning › **Simulator** (eller *Simulér* på Overview) → tegningen og panelet med dens tags, positioner og alarmer.
+- [ ] Simulér pumpens drift-tag Til → løbelys i løkken; Fra → stop. PLC'en får intet skrevet (tjek Log).
+- [ ] Et tal-tag med en farve-grænse: over og under grænsen → farven skifter.
+- [ ] *komm.fejl* på et tag → delene vises som ved en kommunikationsfejl.
+- [ ] En ventil: vælg position → tilstandsmærke og portfarver/flow følger.
+- [ ] *Gem som …* "Test" → *Alt til live* → vælg "Test" → værdierne er tilbage. Backup → gendan → scenariet er der.
+
 ### 11. Signalveje (fjernet i v6.0.0 b0395)
 - [ ] Tegn har ingen sektion *Signalveje*; Symbol-oversigten viser kun *Grundsymboler* og *Grupper*; *Vis navne* har kun symboler og forbindelser.
 - [ ] Efter opdateringen: Log › Audit har `signal_path.removed`, og der ligger en backup *før signalvejene blev fjernet*.
