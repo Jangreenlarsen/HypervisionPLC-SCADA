@@ -2,6 +2,10 @@
 
 ---
 
+## v6.8.0 — 2026-11-13 — Tags på tegningen i Tegn
+
+- **Vis › tags** i Tegn viser de PLC-tags, hvert symbol bruger, under symbolet. Slås til og fra som navnene.
+
 ## v6.7.0 — 2026-11-13 — Tilstande med udseende
 
 - Et symbols **tilstande** defineres én gang på symboltypen: navn, betydning, åbne veje og **udseende** (farve, vinkel, synlig …) med forhåndsvisning — også for omskiftere.

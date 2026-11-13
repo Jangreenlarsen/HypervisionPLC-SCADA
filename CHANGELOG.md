@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.8.0 build 0403] — 2026-11-13 — Tegn: vis de tags, symbolerne bruger
+
+Jan: "i editor vil jeg godt have en mulighed for at til og fra vælge at man også kan se de tags som er i brug ved de forskellige symboler".
+
+- **Vis › Navne i tegningen › tags** (`DrawEditor.svelte`): de PLC-tags, hvert symbol bruger, som lilla mærkater under symbolet (højst fire linjer, *+n flere*). Kun visning i Tegn; valget huskes i browseren (`draw.names`). Hentes, når det slås til, ved skift af tegning og når guiden lukkes/gemmer; en fejl vises under afkrydsningen og logges i konsollen.
+- Kilder: symbolets gemte opsætning (`GET /api/drawings/{id}/symbols` har nu `tags` = `config_tags`, `symbols.list_symbols`) og elementernes bindinger (`/bindings`, `bindingTags`). Interne værdier (`sym:`, `flow:`, `flowp:`, `flowlvl:`, `path:`, `@…`) vises ikke (`lib/tagLabels.ts`).
+- `scada-core.js`: `setNameLabels({ …, tags })` tegner tags i navne-laget.
+- Tests: `tagLabels.test.ts`, `test_symbol_copy.py` (tags i symbollisten). Set i browseren på den lokale testtegning.
+- Manual kap. 07 og LLM-tillæg.
+
 ## [6.7.0 build 0402] — 2026-11-13 — Tilstande som fælles begreb på symboltypen (design B): navn, betydning, flow og udseende
 
 docs/ANALYSE_SYMBOLTILSTANDE.md › anbefaling B, PLAN.md. Jans valg: en tilstand kan have sit eget navn på en tegning, og udseendet kommer fra typen og kan tilsidesættes pr. symbol.

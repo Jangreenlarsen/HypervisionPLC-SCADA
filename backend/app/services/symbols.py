@@ -1400,10 +1400,12 @@ class SymbolService:
         return sorted(ids)
 
     def list_symbols(self, drawing_id: str) -> list[dict[str, Any]]:
-        """Symbolerne i tegningens aktive version, med om de har en opsætning — til "kopiér opsætning til flere"."""
+        """Symbolerne i tegningens aktive version, med om de har en opsætning og de tags, opsætningen bruger
+        (til "kopiér opsætning til flere" og tags oven på tegningen i Tegn, v6.8.0)."""
         self.drawings._require(drawing_id)
-        configured = set(self.configs(drawing_id))
-        return [{"element": s["id"], "name": s["name"], "type": s["type"], "configured": s["id"] in configured}
+        cfgs = self.configs(drawing_id)
+        return [{"element": s["id"], "name": s["name"], "type": s["type"], "configured": s["id"] in cfgs,
+                 "tags": config_tags(cfgs[s["id"]]) if s["id"] in cfgs else []}
                 for s in named_symbols(self.drawings.svg(drawing_id))]
 
     def list_symbols_ids(self, drawing_id: str) -> list[dict[str, str]]:

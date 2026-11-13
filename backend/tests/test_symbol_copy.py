@@ -149,6 +149,8 @@ def test_list_symbols_marks_configured(api):
     assert set(rows) == {"V1", "V2", "R1", "R2", "R3", "B1"}
     assert rows["R1"]["configured"] is True and rows["R2"]["configured"] is False
     assert rows["R2"]["type"] == "ror_vandret" and rows["R2"]["name"] == "Rør 2"
+    # tags oven på tegningen i Tegn (v6.8.0): opsætningens tags, uden dubletter; et symbol uden opsætning har ingen
+    assert rows["R1"]["tags"] == ["Lys", "Bit1"] and rows["R2"]["tags"] == []
 
 
 def test_map_config_pure():

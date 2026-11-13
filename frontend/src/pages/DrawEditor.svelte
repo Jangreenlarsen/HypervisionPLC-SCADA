@@ -2,7 +2,8 @@
   import { onDestroy, onMount, untrack } from 'svelte';
   import { ask as askUser, askText } from '../lib/ask';
   import { suggestName } from '../lib/draw/naming';
-  import { del, get, patch, post, put } from '../lib/api';
+  import { del, get, patch, post, put, type Binding } from '../lib/api';
+  import { tagLines, tagsByElement } from '../lib/tagLabels';
   import { SELECTOR_TYPES, selectorMismatch, withSelectorAngles } from '../lib/selectorRedraw';
   import { parseSize, presetFor, SIZE_PRESETS, sizeText } from '../lib/drawingSize';
   import { toolHint } from '../lib/toolHints';
@@ -69,7 +70,7 @@
     unlink(id: string, key: string): number;
     markConnections(items: { id: string; exempt: boolean; status: string; drift: [number, number][]; driftKeys: string[]; open: [number, number][]; openKeys: string[]; ignored: [number, number][]; ignoredKeys: string[] }[]): void;
     toggleUnused(id: string, key: string): boolean;
-    setNameLabels(opts: { symbols: boolean; pipes: boolean }): void;
+    setNameLabels(opts: { symbols: boolean; pipes: boolean; tags?: Record<string, string[]> | null }): void;
     setFlowOverlay(data: Record<string, unknown> | null): void;
     setGuides(opts: { grid: boolean; snapGrid: boolean; snapObjects: boolean; keepRatio: boolean; step: number; showGuides: boolean; snapGuides: boolean; snapPipes: boolean }): void;
     getGuides(): { every: number; v: number[]; h: number[]; active: { axis: 'v' | 'h'; at: number } | null };
@@ -135,19 +136,46 @@
     }
   });
   // Vis navne (v4.17.0): symboler og forbindelser som mærkater oven på tegningen. Kun visning i Tegn; huskes pr. browser.
-  function loadNames(): { symbols: boolean; pipes: boolean } {
+  function loadNames(): { symbols: boolean; pipes: boolean; tags: boolean } {
     try {
       const raw = JSON.parse(localStorage.getItem('draw.names') ?? '{}');
-      return { symbols: !!raw.symbols, pipes: !!raw.pipes };
+      return { symbols: !!raw.symbols, pipes: !!raw.pipes, tags: !!raw.tags };
     } catch {
-      return { symbols: false, pipes: false };
+      return { symbols: false, pipes: false, tags: false };
     }
   }
   let showNames = $state(loadNames());
+  // Tags i tegningen (v6.8.0): de tags, symbolernes opsætning og elementernes bindinger bruger (den gemte opsætning).
+  // Hentes, når de slås til, ved skift af tegning og når guiden lukkes/gemmer (treeRev).
+  let tagMap = $state<Record<string, string[]> | null>(null);
+  let tagMapError = $state('');
+  let tagMapGen = 0;
+  $effect(() => {
+    const on = showNames.tags;
+    const id = current?.id;
+    void treeRev;
+    if (!on || !id) { tagMap = null; tagMapError = ''; return; }
+    const gen = ++tagMapGen;
+    const enc = encodeURIComponent(id);
+    Promise.all([get<{ element: string; tags?: string[] }[]>(`/api/drawings/${enc}/symbols`), get<Binding[]>(`/api/drawings/${enc}/bindings`)])
+      .then(([syms, binds]) => {
+        if (gen !== tagMapGen) return;     // en nyere hentning er i gang
+        const m = tagsByElement(syms, binds);
+        tagMap = Object.fromEntries(Object.entries(m).map(([k, v]) => [k, tagLines(v)]));
+        tagMapError = '';
+      })
+      .catch((e) => {
+        if (gen !== tagMapGen) return;
+        console.error('Tags i tegningen kunne ikke hentes', e);
+        tagMap = null;
+        tagMapError = `Tags kunne ikke hentes: ${(e as Error).message}`;
+      });
+  });
   $effect(() => {
     const n = $state.snapshot(showNames);
+    const tm = n.tags ? $state.snapshot(tagMap) : null;
     void inspectRev;       // tegningen er ændret (flyt, omdøb …): mærkaterne tegnes forfra
-    if (ready && ed) ed.setNameLabels({ symbols: n.symbols, pipes: n.pipes });
+    if (ready && ed) ed.setNameLabels({ symbols: n.symbols, pipes: n.pipes, tags: tm });
     try {
       localStorage.setItem('draw.names', JSON.stringify(n));
     } catch {
@@ -1228,7 +1256,9 @@
   <div class="mrow" title="Viser navnene oven på tegningen (kun her i Tegn — aldrig i Overview, og de gemmes ikke i tegningen)">
     <label class="opt"><input type="checkbox" bind:checked={showNames.symbols} /> symboler</label>
     <label class="opt"><input type="checkbox" bind:checked={showNames.pipes} /> forbindelser</label>
+    <label class="opt" title="Viser de PLC-tags, hvert symbol bruger (symbolets opsætning og elementets bindinger), under symbolet"><input type="checkbox" bind:checked={showNames.tags} /> tags</label>
   </div>
+  {#if showNames.tags && tagMapError}<div class="small error">{tagMapError}</div>{/if}
 {/snippet}
 
 {#snippet connMenuBody()}
