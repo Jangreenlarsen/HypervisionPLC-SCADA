@@ -4,6 +4,19 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.2.0 build 0397] — 2026-11-13 — Topmenuen i Tegn er bygget om: én linje i tre zoner
+
+Jan: "side menu i tegn er ok men top menu kan godt trænge til en refakto". PLAN.md › Topmenuen i Tegn.
+
+- `pages/DrawEditor.svelte`: topmenuen er nu én linje i tre zoner (tegningen | værktøjer | zoom, meddelelser og gem), som ikke ombrydes ned til ca. 1000 px; derunder flytter hele zoner til næste linje.
+  - **Tegningens navn** er en menu: skift tegning, *+ Ny tegning …*, *⤢ Størrelse …*, *Bindinger →* og nederst den røde *Slet tegning …* (før en knap mellem de almindelige). **Versionsmærket** (*v4 kladde ▾*) åbner versionerne og *Udgiv vN*. En orange ● viser ugemte ændringer.
+  - Den nye menu **Forbindelser** samler *Tjek forbindelser* (flyttet fra *Vis › Kontrol*), resultatet (åbne, uden forbindelse, gledet, bundet), *Ret N*, *Bind forbindelser* og *Udelad valgte*. Mærket på knappen viser antal fejl eller et grønt ✓; linjen ændrer ikke længere bredde, når tjekket slås til.
+  - **Kommentaren til versionen** ligger under ▾ på *Gem og udgiv* (grøn prik, når der er skrevet en).
+  - Under 1250 px: kortere tekster (*Forb.*, 🔔, *Kladde*, *Udgiv*) og zoom-% skjules. Størrelsespanelet har fået en ✕.
+- `lib/draw/Menu.svelte`: `short`, `good`, `disabled`, `cls` og `bare` (kun ▾).
+- Manual kap. 07 (*Skærmen*, *Sådan tegner du*, tegnehjælpen, størrelsen), kap. 08, LLM-tillæg (nyt afsnit om topmenuen), billedet `tegn.png`; ACCEPTTEST.
+- Set i browseren i 900, 1024, 1180, 1260 og 1600 px bredde: menuerne Tegning, version, Forbindelser og kommentaren.
+
 ## [6.1.0 build 0396] — 2026-11-13 — Flowberegning: systemet beregner selv flowet gennem anlægget, og forbindelsesgrupper viser det
 
 Hele designet på én gang (Jan: "ikke nogen faser … vi itererer over flere versioner"). PLAN.md › Flow-model.

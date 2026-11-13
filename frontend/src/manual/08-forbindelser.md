@@ -73,7 +73,7 @@ Et **T-stykke** er et biblioteks-symbol med tre ben (*tilløb 1*, *tilløb 2* og
 
 Serveren **beregner selv flowet** gennem tegningens forbundne symboler og rør — du skal ikke tegne eller definere veje. Beregningen bruger:
 
-- **de gemte forbindelser** i tegningen. Slå *Tjek forbindelser* til i menuen **Vis**, tryk **Bind forbindelser**, og gem tegningen. Uden gemte forbindelser er der intet flow, og Flow-vinduet siger det;
+- **de gemte forbindelser** i tegningen. Slå *Tjek forbindelser* til i menuen **Forbindelser** øverst, tryk **Bind forbindelser**, og gem tegningen. Uden gemte forbindelser er der intet flow, og Flow-vinduet siger det;
 - **symbolernes flow-opsætning** i symbol-guidens trin 4 under *Flow* (kapitel 10): hvilke symboler der er **pumper** (kapacitet i l/min og flow-rate 0–1 fra et tag), hvilken **restriktion** et symbol har (0 = blokeret, 1 = ingen), og for en ventil med positioner **hvilke veje der er åbne** i hver position (fx *AB → A* i position A);
 - symboltypens **Ind/ud og veje** (nedenfor): en pumpe og en kontraventil giver kun flow fra IND til UD, en 3-vejsventil giver flow begge veje på AB ↔ A og AB ↔ B.
 
