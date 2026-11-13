@@ -271,7 +271,7 @@ Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige 
 
   Uden hak følger variablen PLC'en (*live*). En position står på **Live: …** (efter kolon: positionen lige nu), indtil du vælger en anden.
 - Det, du har ændret, står med **lilla** baggrund. **Alle** / **Kun ændrede** øverst i panelet viser alle variabler eller kun dem, du har ændret.
-- **komm.fejl** viser, hvordan tegningen ser ud, når tagget har en kommunikationsfejl. **Find** markerer de symboler, der bruger variablen.
+- **⚡** (komm.fejl) viser, hvordan tegningen ser ud, når tagget har en kommunikationsfejl; tryk igen for at give det en værdi. Knappen virker, når der er hak ved tagget. **Find** markerer de symboler, der bruger variablen. Rækkerne står stille: værdi, ⚡ og *Find* har faste pladser.
 - **Start fra live** kopierer PLC'ens værdier ind som simulerede, så du kan ændre én ting ad gangen. **Alt til live** slår simuleringen fra.
 - **Scenarier:** **Gem som …** gemmer de simulerede værdier med et navn (fx *Pumpe 2 fejl*). Vælg et scenarie for at hente det igen, **Gem** opdaterer det, og **Slet** fjerner det. Scenarierne gemmes pr. tegning og følger med i backup.
 - Serveren beregner **logikblokke**, **symbolernes tilstand** og **flowet** ud fra værdierne med den samme kode som driften, så løbelys, farver, blink og tilstandsmærker vises, som de ville i drift.
