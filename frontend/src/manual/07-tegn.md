@@ -264,6 +264,8 @@ Har du en tegning, hvor pumper, ventiler og etiketter er tegnet som almindelige 
   - **tags fra PLC'en** fra bindinger, symbolernes signaler og tilbagemeldinger, animationer, logik og flow;
   - **symbolernes position**;
   - **alarmer**, som animationer styres af.
+
+  Under hvert tag står dets beskrivelse og de symboler, der bruger det, fx *Tank (Farve, opsætning)*. Kun symboler, der findes i tegningen, kommer med. Opsætninger på elementer, der er fjernet fra tegningen, nævnes øverst med et link til **Bindinger**, hvor de kan flyttes eller fjernes.
 - **Sådan simulerer du en variabel:** sæt hak ud for den, og vælg værdien:
   - til/fra med et hak;
   - et tal i feltet eller med skyderen (fra tagets min/max);

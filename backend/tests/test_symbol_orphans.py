@@ -89,3 +89,12 @@ def test_failed_move_leaves_everything_as_before(api):
     assert r.status_code == 400, r.text
     assert api.get(f"{base}/symbols/Q/config").json()["has_pin"] is False
     assert [o["element"] for o in api.get(f"{base}/symbols-orphaned").json()] == ["P"]
+
+
+def test_simulator_lists_only_symbols_in_the_drawing(api):
+    """v6.8.3 (Jan): simulatoren viser ikke forældreløse opsætninger og deres tags — de nævnes i `orphaned`."""
+    base = f"/api/drawings/{api.did}"
+    assert [t["name"] for t in api.get(f"{base}/simulator").json()["tags"]] == ["Drift"]
+    new_version(api, pump("P_2", 50))
+    v = api.get(f"{base}/simulator").json()
+    assert v["tags"] == [] and v["positions"] == [] and v["orphaned"] == ["P"]

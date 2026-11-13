@@ -5,6 +5,7 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v6.8.3 — **Simulatoren viste symboler og tags, som ikke var i tegningen** (Jan 2026-11-13). Tegningen havde én pumpe og én 3-vejsventil, men panelet viste seks positioner (omskifter3_2, trevejs_motorventil …) og deres tags. **Årsag:** `simulator.variables` tog alle symbolopsætninger på tegningen med, også dem på elementer, der er fjernet (forældreløse opsætninger, jf. advarslen i Meddelelser). **Rettelse:** kun opsætninger på elementer i den udgivne tegning vises; de andre står i `orphaned` og nævnes øverst med et link til Bindinger. Beregningen bruger dem stadig, som driften gør. Test: `test_simulator_lists_only_symbols_in_the_drawing`.
 - [fixed] v6.8.2 — **Simulatorens rækker flyttede sig, når man satte hak** (Jan 2026-11-13: "alle steder hvor man kan trykke … flytter ting sig rundt"). Når et tag skiftede mellem *Fra* og *Til*, ombrydes *komm.fejl* til en ny linje og rækken skiftede højde. **Årsag:** teksten ved hakket skiftede bredde, og værdiområdet måtte ombryde. Knappen *komm.fejl* kom og gik med tilstanden. **Rettelse:**
   - faste kolonner (hak, navn, værdi, ⚡, Find);
   - værdien på én linje, hvor skyderen giver sig;

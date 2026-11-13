@@ -10,7 +10,7 @@
   import { clearOverlays, drawOverlay, markPassive } from '../lib/symbolOverlay';
   import { showsBadge, type SymbolState } from '../lib/symbolUi';
   import {
-    emptyState, fromLive, isSimulated, liveText, matches, startValue, stepFor, toLive,
+    emptyState, fromLive, isSimulated, liveText, matches, startValue, stepFor, toLive, usedText,
     type SimResult, type SimScenario, type SimState, type SimTag, type SimVariables,
   } from '../lib/simulator';
 
@@ -249,6 +249,11 @@
       <button class:cur={onlySim} role="radio" aria-checked={onlySim} onclick={() => (onlySim = true)} title="Kun de variabler og positioner, du har ændret (de andre følger PLC'en)">Kun ændrede ({nSim})</button>
     </div>
     {#if vars}
+      {#if vars.orphaned?.length}
+        <p class="small muted">{vars.orphaned.length} symbolopsætning{vars.orphaned.length === 1 ? '' : 'er'} hører til elementer, der ikke
+          længere er i tegningen, og vises ikke her ({vars.orphaned.slice(0, 5).join(', ')}{vars.orphaned.length > 5 ? ' …' : ''}).
+          Flyt eller fjern dem under <a href={'#editor/' + drawingId}>Bindinger</a>.</p>
+      {/if}
       {#if vars.positions.length}
         <h4>Symbolernes position</h4>
         {#each shownPos as p (p.element)}
@@ -297,6 +302,8 @@
             title={!on ? 'Sæt hak for at simulere tagget først' : v === null ? 'Kommunikationsfejl simuleres — tryk for at give tagget en værdi igen' : 'Simulér en kommunikationsfejl på tagget'}
             aria-label="{t.name}: kommunikationsfejl">⚡</button>
           <button class="small" onclick={() => highlight(t.elements)} disabled={!t.elements.length} title={`Markér på tegningen:\n${t.used.join('\n')}`}>Find</button>
+          <!-- v6.8.3 (Jan: "der er ikke tags eller symbol forklaring på"): hvad tagget er, og hvilke symboler der bruger det — fast linje -->
+          <span class="use small muted" title={[t.description, ...t.used].filter(Boolean).join('\n')}>{t.description ? `${t.description} · ` : ''}{usedText(t.used) || 'bruges ikke af et symbol'}</span>
         </div>
       {:else}<p class="small muted">Ingen tags{search || onlySim ? ' passer til søgningen' : ''}.</p>{/each}
 
@@ -314,6 +321,7 @@
             </span>
             <span></span>
             <button class="small" onclick={() => highlight(a.elements)} disabled={!a.elements.length} title="Markér på tegningen">Find</button>
+            <span class="use small muted" title={a.used.join('\n')}>{usedText(a.used)}</span>
           </div>
         {/each}
       {/if}
@@ -343,6 +351,7 @@
   /* én linje: værdien må aldrig ombryde, så rækken ikke skifter højde ved et hak; skyderen giver sig */
   .vals { display: flex; align-items: center; gap: .35rem; flex-wrap: nowrap; min-width: 0; overflow: hidden; white-space: nowrap; }
   .vals input[type='range'] { flex: 1 1 3rem; min-width: 2.5rem; width: auto; }
+  .use { grid-column: 2 / -1; margin-top: -.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tf { display: inline-block; min-width: 1.8em; }
   .kf { width: 1.9rem; padding: .1rem 0; text-align: center; }
   .kf.cur { background: #b71c1c; color: #fff; border-color: #b71c1c; }
@@ -351,7 +360,8 @@
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; align-self: flex-start; }
   .seg button { border: none; border-radius: 0; background: transparent; padding: .2rem .6rem; font-size: .82rem; }
   .seg button.cur { background: #6a1b9a; color: #fff; }
-  .var .n { width: 5.5rem; }
+  .var .n { width: 5.5rem; height: 1.9rem; padding-top: 0; padding-bottom: 0; }
+  .vals, .var select, .kf, .var button { height: 2.1rem; }
   .sw { margin: 0; }
   .msg { padding: .3rem .5rem; background: #fff8e1; border: 1px solid #e0b062; border-radius: 6px; margin: .2rem 0; }
   .msg.err, .err { color: #b71c1c; }
