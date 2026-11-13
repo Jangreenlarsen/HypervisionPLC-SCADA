@@ -2,6 +2,10 @@
 
 ---
 
+## v6.10.1 — 2026-11-13
+
+- Guidens **Flow** viser symbolets faste parametre (kapacitet, restriktion …) og det, der styrer det live (start/stop, veje pr. position), i hver sin kasse.
+
 ## v6.10.0 — 2026-11-13 — Pumpens start/stop og Simulér-knap
 
 - En pumpe med positioner (*Fra/Til*) starter og stopper flowet efter sin position. Det er nyt standardvalg i guiden under *Flow › Start/stop*. Guiden advarer, hvis en fast værdi får pumpen til at køre altid.

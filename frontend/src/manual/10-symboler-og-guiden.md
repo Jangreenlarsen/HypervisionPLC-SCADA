@@ -237,6 +237,8 @@ Nederst i trin 4 står sektionen **Flow**. Sæt hak i **Med i flowberegningen** 
 
   Flow-rate og restriktion er **faste værdier for symbolet**, givet af dets fysik. Skriv tallet (to decimaler) eller træk i skyderen. Sæt hak i **styret af et tag**, hvis PLC'en skal styre værdien, og angiv hvad der er 1,00, fx 50 for en frekvens i Hz, eller 100 for en ventils åbning i %. Vælger du et til/fra-signal til restriktionen, advarer guiden: det giver kun 0,00 eller 1,00.
 
+  **To kasser:** Flow-sektionen viser **Symbolets parametre** (det faste: rolle, kapacitet, restriktion, flowmåler) og **Styres af** (det, der ændrer sig live: start/stop og de åbne veje pr. position). Uden hak i **Egne flow-parametre for dette symbol** viser kasserne typens standard; med hak kan du ændre dem.
+
   **Start/stop af en pumpe:** har pumpen positioner (fx *Fra* og *Til*), står **Start/stop** på **følger pumpens position** fra start.
   - *Fra* = stop, *Til* = kører med fuld kapacitet. Uden kendte navne er første position stop.
   - Vælger du **fast værdi eller tag**, styrer tagget farten, fx en frekvens. En fast værdi får pumpen til at køre altid, også på *Fra*, og det advarer guiden om.

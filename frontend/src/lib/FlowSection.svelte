@@ -105,42 +105,8 @@
   </div>
 {/snippet}
 
-<section class="flow">
-  <h4>Flow</h4>
-  {#if linked === false}
-    <p class="small warn">Symbolet er ikke bundet til tegningens forbindelser, så flowberegningen kan ikke se det. Luk guiden, og tryk
-      <strong>Forbindelser › Bind forbindelser</strong> i Tegn (og gem tegningen).</p>
-  {/if}
-  <label class="opt"><input type="checkbox" checked={!!flow} onchange={(e) => enable(e.currentTarget.checked)} />
-    Med i flowberegningen</label>
-  {#if !flow}
-    <p class="small muted">Uden egen opsætning gælder typens flow-rolle ({kind === 'pump' ? (positions.length ? 'pumpe/kilde — følger sin position' : 'pumpe/kilde — står stille') : kind === 'piece' ? 'rørstykke' : 'forbruger'}{def?.restrict != null ? `, restriktion ${fmt2(def.restrict)}` : ''};
-      Opsætning › Symboler › Ind/ud og veje). Slå til for at gøre det til en pumpe, give det en restriktion, en flowmåler eller vælge åbne veje pr. position.</p>
-  {:else}
-    {#if def?.ports.length}<p class="small muted">Punkter: {ports}{ways.length ? ` · veje: ${ways.map(wayLabel).join(', ')}` : ''} (Opsætning › Symboler › Ind/ud og veje).</p>
-    {:else}<p class="small muted">Symboltypen har ingen ind/ud-definition: flowet kan gå mellem alle dets forbundne punkter.</p>{/if}
-    <label class="opt"><input type="checkbox" bind:checked={flow.pump} /> Pumpe / kilde — giver flow fra IND til UD</label>
-    {#if flow.pump}
-      <label class="field-row">Kapacitet <input type="number" min="0" max="65535" step="1" bind:value={flow.capacity} aria-label="Kapacitet" /> {unit} ved fuld rate</label>
-      <!-- v6.9.4 (Jan): start/stop efter pumpens position — ellers kørte en pumpe med en fast værdi altid, uanset Fra/Til -->
-      {#if positions.length}
-        <div class="row wrap src">
-          <span class="lbl">Start/stop</span>
-          <label class="opt small"><input type="radio" name="ratemode-{uid}" checked={flow.rate.src === RATE_POS} onchange={() => { if (flow) flow.rate.src = RATE_POS; }} />
-            følger pumpens position ({positions[0]} = stop{positions.length > 1 ? `, ${positions.slice(1).join(' / ')} = kører` : ''})</label>
-          <label class="opt small"><input type="radio" name="ratemode-{uid}" checked={flow.rate.src !== RATE_POS} onchange={() => { if (flow) flow.rate.src = '@val:1'; }} />
-            fast værdi eller tag</label>
-        </div>
-      {/if}
-      {#if flow.rate.src !== RATE_POS}
-        {@render source('Flow-rate', flow.rate, '0,00 = stop … 1,00 = fuld rate (fx frekvens eller Til/Fra)', false)}
-        {#if positions.length && flowSourceMode(flow.rate) === 'val' && fixedOf(flow.rate) > 0}
-          <p class="small warn">Med en fast værdi kører pumpen altid i flowet — også når den står på {positions[0]}. Vælg
-            <em>følger pumpens position</em> eller et tag for start/stop.</p>
-        {/if}
-      {/if}
-    {/if}
-    {@render source('Restriktion', flow.restrict, '0,00 = blokeret … 1,00 = ingen restriktion (fx ventilens åbning)', true)}
+{#snippet measuredBlock()}
+  {#if flow}
     <div class="row wrap src">
       <span class="lbl">Målt flow</span>
       <TagSelect value={flow.measured?.src ?? ''} {tags} placeholder="— ingen flowmåler —"
@@ -161,6 +127,71 @@
             animationerne ovenfor: løbelysets fart, blink ved lavt flow, farve ved et niveau.</span>
         {/if}
       </div>
+    {/if}
+  {/if}
+{/snippet}
+
+<section class="flow">
+  <h4>Flow</h4>
+  {#if linked === false}
+    <p class="small warn">Symbolet er ikke bundet til tegningens forbindelser, så flowberegningen kan ikke se det. Luk guiden, og tryk
+      <strong>Forbindelser › Bind forbindelser</strong> i Tegn (og gem tegningen).</p>
+  {/if}
+  <!-- v6.10.1 (Jan: "tydeligt hvad er symbol-parameter og hvad er position som er styrende"): to kasser — det faste og det styrende -->
+  <label class="opt"><input type="checkbox" checked={!!flow} onchange={(e) => enable(e.currentTarget.checked)} />
+    Egne flow-parametre for dette symbol</label>
+  <span class="small muted">{flow ? 'Symbolet bruger værdierne nedenfor.' : 'Uden hak bruger symbolet typens standard (Opsætning › Symboler › Ind/ud og veje) — sæt hak for at ændre dem.'}</span>
+  {#if !flow}
+    <div class="grps">
+      <fieldset class="grp"><legend>Symbolets parametre <span class="muted">(faste — typens standard)</span></legend>
+        <div class="kv"><span>Rolle</span><strong>{kind === 'pump' ? 'Pumpe / kilde' : kind === 'piece' ? 'Rørstykke' : 'Forbruger / ventil'}</strong></div>
+        {#if kind === 'pump'}<div class="kv"><span>Kapacitet</span><strong>{def?.capacity ?? 100} {unit}</strong></div>{/if}
+        <div class="kv"><span>Restriktion</span><strong>{fmt2(def?.restrict ?? 1)}</strong></div>
+      </fieldset>
+      <fieldset class="grp ctl"><legend>Styres af <span class="muted">(live)</span></legend>
+        {#if kind === 'pump'}
+          <div class="kv"><span>Start/stop</span><strong>{positions.length ? `positionen: ${positions[0]} = stop${positions.length > 1 ? `, ${positions.slice(1).join(' / ')} = kører` : ''}` : 'intet — pumpen står stille (giv den positioner eller et tag)'}</strong></div>
+        {:else if positions.length && ways.length}
+          <div class="kv"><span>Veje</span><strong>positionen (de åbne veje pr. position)</strong></div>
+        {:else}
+          <div class="kv"><span>—</span><span class="muted">intet: symbolet lader flowet passere med sin restriktion</span></div>
+        {/if}
+      </fieldset>
+    </div>
+  {:else}
+    {#if def?.ports.length}<p class="small muted">Punkter: {ports}{ways.length ? ` · veje: ${ways.map(wayLabel).join(', ')}` : ''} (Opsætning › Symboler › Ind/ud og veje).</p>
+    {:else}<p class="small muted">Symboltypen har ingen ind/ud-definition: flowet kan gå mellem alle dets forbundne punkter.</p>{/if}
+    <div class="grps">
+    <fieldset class="grp"><legend>Symbolets parametre <span class="muted">(faste — symbolets fysik)</span></legend>
+    <div><label class="opt"><input type="checkbox" bind:checked={flow.pump} /> Pumpe / kilde — giver flow fra IND til UD</label></div>
+    {#if flow.pump}
+      <div class="row wrap src"><span class="lbl">Kapacitet</span><input type="number" min="0" max="65535" step="1" bind:value={flow.capacity} aria-label="Kapacitet" />
+        <span class="small muted">{unit} ved fuld rate</span></div>
+    {/if}
+    {@render source('Restriktion', flow.restrict, '0,00 = blokeret … 1,00 = ingen restriktion (fx ventilens åbning)', true)}
+    {@render measuredBlock()}
+    </fieldset>
+    <fieldset class="grp ctl"><legend>Styres af <span class="muted">(live)</span></legend>
+    {#if flow.pump}
+      <!-- v6.9.4 (Jan): start/stop efter pumpens position — ellers kørte en pumpe med en fast værdi altid, uanset Fra/Til -->
+      {#if positions.length}
+        <div class="row wrap src">
+          <span class="lbl">Start/stop</span>
+          <label class="opt small"><input type="radio" name="ratemode-{uid}" checked={flow.rate.src === RATE_POS} onchange={() => { if (flow) flow.rate.src = RATE_POS; }} />
+            følger pumpens position ({positions[0]} = stop{positions.length > 1 ? `, ${positions.slice(1).join(' / ')} = kører` : ''})</label>
+          <label class="opt small"><input type="radio" name="ratemode-{uid}" checked={flow.rate.src !== RATE_POS} onchange={() => { if (flow) flow.rate.src = '@val:1'; }} />
+            fast værdi eller tag</label>
+        </div>
+      {/if}
+      {#if flow.rate.src !== RATE_POS}
+        {@render source('Flow-rate', flow.rate, '0,00 = stop … 1,00 = fuld rate (fx frekvens eller Til/Fra)', false)}
+        {#if positions.length && flowSourceMode(flow.rate) === 'val' && fixedOf(flow.rate) > 0}
+          <p class="small warn">Med en fast værdi kører pumpen altid i flowet — også når den står på {positions[0]}. Vælg
+            <em>følger pumpens position</em> eller et tag for start/stop.</p>
+        {/if}
+      {/if}
+    {:else if !(positions.length && ways.length)}
+      <p class="small muted">Intet: symbolet lader flowet passere med sin restriktion.</p>
     {/if}
     {#if positions.length && ways.length && byStates && !advanced}
       <table class="ways states">
@@ -227,12 +258,22 @@
         {/if}
       {/if}
     {/if}
+    </fieldset>
+    </div>
     <p class="small muted">Flowet er kun til visning — en illustration af, hvordan anlægget hænger sammen, ikke en simulering af det virkelige anlæg.</p>
   {/if}
 </section>
 
 <style>
   .flow { border-top: 1px solid var(--line); margin-top: .6rem; padding-top: .3rem; }
+  /* v6.10.1: det faste (symbolets parametre) og det styrende (live) i hver sin kasse */
+  .grps { display: flex; flex-direction: column; gap: .5rem; margin-top: .4rem; }
+  .grp { border: 1px solid var(--line); border-radius: 6px; padding: .3rem .6rem .45rem; margin: 0; min-width: 0; }
+  .grp legend { font-weight: 600; font-size: .9rem; padding: 0 .3rem; }
+  .grp legend .muted { font-weight: 400; font-size: .8rem; }
+  .grp.ctl { border-color: #6a8fd0; background: rgba(30, 136, 229, .04); }
+  .kv { display: flex; gap: .6rem; align-items: baseline; margin: .15rem 0; }
+  .kv > span:first-child { min-width: 6.5rem; color: var(--muted); }
   .src { gap: .4rem; align-items: center; margin: .25rem 0; }
   .lbl { min-width: 6.5rem; }
   .src input[type='number'] { width: 6rem; }
