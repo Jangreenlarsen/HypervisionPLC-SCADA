@@ -1,7 +1,7 @@
 <!-- GENERERET af src/lib/manualGen.test.ts ud fra symbolbiblioteket — ret ikke i hånden; kør GEN_MANUAL=1 npx vitest run src/lib/manualGen.test.ts -->
 # Symbolbiblioteket
 
-Biblioteket har **96 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
+Biblioteket har **97 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
 
 ## Betjening (skriver til PLC)
 
@@ -58,6 +58,7 @@ Biblioteket har **96 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 | **Kontraventil** | Kun passiv visning | Tillader kun strømning i pilens retning |
 | **3-vejs ventil** | Kun passiv visning | Bind "Fyldfarve" pr. port eller på hele ventilen |
 | **3-vejs motorventil** | Kun passiv visning, Interaktiv betjening | Portene A, B og AB farves hver for sig (fx AB → A eller AB → B) — opsæt med guiden |
+| **4-vejs ventil** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | Portene A, B, C og D farves hver for sig efter tilstanden (A → B eller C → D) — opsæt med guiden |
 | **Motorventil** | Kun passiv visning, Interaktiv betjening, Trykknap (puls) | Bind "Fyldfarve" til åben/lukket |
 | **Magnetventil** | Kun passiv visning, Interaktiv betjening, Trykknap (puls) | Bind "Fyldfarve" til spolen |
 | **Reguleringsventil** | Kun passiv visning, Setpunkt (indtastning) | Bind "Tekst" (åbning %) i et værdifelt ved siden af |

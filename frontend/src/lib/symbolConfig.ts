@@ -25,6 +25,7 @@ import { defaultChart, type ChartCfg } from './chartGraphic';
 import { KNIV_LUKKET } from './symbols';
 import { presetFor } from './library';
 import { defaultDirs, leverAnims } from './toggleSwitch';
+import { guessState, type FlowState } from './symbolFlow';
 
 export interface SymbolConfig {
   type: string; op: Op;
@@ -70,14 +71,19 @@ export const flowSourceMode = (s: FlowSource): 'none' | 'tag' | 'val' => (!s.src
  * ("AB → A", "AB>A" eller blot porten "A"); ellers alle veje.
  */
 export function defaultFlow(type: string, positions: string[], ways: string[],
-  profile?: { kind?: string; capacity?: number; restrict?: number; ports?: { part?: string }[] }): FlowCfg {
+  profile?: { kind?: string; capacity?: number; restrict?: number; ports?: { part?: string }[]; states?: FlowState[] }): FlowCfg {
   const norm = (s: string) => s.replace(/\s+/g, '').replace(/→|->/g, '>').toUpperCase();
   const guess = (label: string): string[] => {
     const l = norm(label);
     const hit = ways.filter((w) => l === norm(w) || l.includes(norm(w)) || l === w.split('>')[1]?.toUpperCase());
     return hit.length ? hit : [...ways];
   };
-  const open = positions.length && ways.length ? positions.map(guess) : null;
+  // v6.6.0: typens tilstande — positionen får tilstanden med samme navn, ellers samme nummer (position 1 = tilstand 1)
+  const byState = (label: string, j: number): string[] => {
+    const i = guessState(profile as Parameters<typeof guessState>[0], label, j);
+    return i !== null && profile?.states ? [...profile.states[i].open] : guess(label);
+  };
+  const open = positions.length && ways.length ? positions.map(byState) : null;
   // typens flow-profil (v6.3.0): pumpe/kilde, standard-kapacitet og -restriktion; portfarver, når punkterne har dele
   return { pump: profile?.kind ? profile.kind === 'pump' : type === 'pumpe', capacity: profile?.capacity ?? 100,
     // rate og restriktion er faste værdier for symbolet (Jan: givet af dets fysik) — et tag er et tilvalg

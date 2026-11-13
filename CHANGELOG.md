@@ -4,6 +4,18 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.6.0 build 0401] — 2026-11-13 — Ventiltilstande: hvad hver tilstand betyder (3-vejs og 4-vejs), valgt pr. position i guiden
+
+Jan (2026-11-13): "Opsætning af en 3-vejsventil er ikke til at forstå — mangler der ikke en definition af, hvad er hvad? Tilstand 1 = port A igennem AB og port B blokeret; tilstand 2 = port B igennem AB og port A blokeret … en 4-vejsventil: tilstand 1 = A igennem B (C og D blokeret), tilstand 2 = C igennem D (A og B blokeret) … vi skal kunne definere alle de tilstande, vi har brug for på et symbol". PLAN.md › Ventiltilstande.
+
+- **Tilstande pr. symboltype** (`symbol_flow.clean_def`, API `states`): navngivne tilstande med de åbne veje (højst 12, unikke navne, kun symbolets veje; retningen normaliseres). Standarder (`flow_defs.THREE_WAY_STATES`, `symbolFlow.ts`): 3-vejsventilerne *A → AB* og *B → AB*; ny type `firevejsventil` (A, B, C, D; veje A–B og C–D) med *A → B* og *C → D*.
+- **Symbol-editoren › Ind/ud og veje › Tilstande** (`SymbolFlowEditor.svelte`): tabel med navn, hak pr. vej, kolonnen *Betyder* ("A igennem AB · B blokeret") og *+ Tilstand*; omdøbning/fjernelse af et punkt retter tilstandene.
+- **Guiden › Flow** (`FlowSection.svelte`): én tilstand pr. position i en liste med betydningen ved siden af; valgt fra start efter navn eller nummer (`guessState`, `defaultFlow`). Tabellen med hak findes under *Avanceret: vælg vejene selv*. Symbolets opsætning gemmer stadig de åbne veje pr. position (`flow.open`) — ingen ændring i beregningen, ingen migrering.
+- **4-vejsventil** i biblioteket (`symbols.ts`, VVS): portene `port_a`/`port_b`/`port_c`/`port_d` mødes i midten og farves efter tilstanden.
+- Hjælpere `describeState`, `stateOf`, `guessState` (`symbolFlow.ts`). Tests: `flowRound2.test.ts` (betydning, gæt, standard, validering), `test_valve_states_definition_and_the_four_way_valve` (standarder, API-validering, flowet gennem 4-vejsventilen i hver tilstand). Set i browseren: Tilstande for 4-vejs- og 3-vejsventilen i symbol-editoren, tilstand pr. position i guiden.
+- **Tabeller med indtastning fylder ikke længere hele skærmens bredde** (Jan): den globale `table { width: 100% }` (`app.css`) gjorde fx punkt-tabellen i *Ind/ud og veje* 2300 px bred på en stor skærm, så ✕ og felterne stod langt ude til højre. Nu fylder en tabel med felter i rækkerne kun det, indholdet behøver (`table:has(td input/select/textarea)`); rene lister fylder stadig bredden. Set i browseren ved 2400 px: Ind/ud og veje, guiden, Tags, PLC'er, Notifikationer, Backup.
+- Manual kap. 08 (*Tilstande*, 4-vejsventilen) og kap. 10 (tilstand pr. position), billederne `symbol-ind-ud.png` og `flow-guide.png`; LLM-tillæg.
+
 ## [6.5.0 build 0400] — 2026-11-13 — Simulator: prøv en tegnings tilstande med indskudte værdier
 
 Jan (2026-11-13): "et simulationspanel, der arbejder med alle de variabler, en tegning gør brug af, så vi kan indskyde værdier og se, hvad det resulterer i af display-output". PLAN.md › Simulator (med scenarier i første version).

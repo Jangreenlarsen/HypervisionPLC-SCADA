@@ -1,4 +1,4 @@
-# Plan: Ventiltilstande — en definition af, hvad hver tilstand betyder (3-vejs og 4-vejs) — 2026-11-13 — afventer OK
+# Plan: Ventiltilstande — en definition af, hvad hver tilstand betyder (3-vejs og 4-vejs) — 2026-11-13 — udført i v6.6.0 (Jans tilstande: 3-vejs A → AB / B → AB, 4-vejs A, B, C, D med A → B / C → D)
 
 Jan (2026-11-13): "Opsætning af en 3-vejsventil er ikke til at forstå — mangler der ikke en definition af, hvad er hvad? Fx tilstand 1 = port A igennem AB og port B blokeret; tilstand 2 = port B igennem AB og port A blokeret. Et andet eksempel kunne være en 4-vejsventil."
 

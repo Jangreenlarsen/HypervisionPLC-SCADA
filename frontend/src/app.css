@@ -88,6 +88,9 @@ input, select, textarea {
 }
 
 table { width: 100%; border-collapse: collapse; }
+/* Tabeller med indtastning i rækkerne (opsætning, guiden, symbol-editoren …) fylder kun det, indholdet behøver — ellers står felter og ✕
+   langt ude til højre på en bred skærm (Jan, v6.6.0). Rene lister (Tags, Log …) fylder stadig bredden. */
+table:has(> tbody > tr > td :is(input, select, textarea)) { width: auto; max-width: 100%; }
 th, td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
 th { font-weight: 600; font-size: .85rem; color: var(--muted); }
 .table-wrap { overflow-x: auto; }

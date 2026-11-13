@@ -21,20 +21,31 @@ def _in_out(y: float) -> list[dict[str, Any]]:
     return [{"x": 0, "y": y, "name": "IND", "role": "in"}, {"x": 1, "y": y, "name": "UD", "role": "out"}]
 
 
+# Tilstande (v6.6.0, Jan): tilstand 1 = A igennem AB (B blokeret), tilstand 2 = B igennem AB (A blokeret)
+THREE_WAY_STATES: list[dict[str, Any]] = [{"name": "A → AB", "open": ["AB>A"]}, {"name": "B → AB", "open": ["AB>B"]}]
+
 DEFAULTS: dict[str, dict[str, Any]] = {
     "pumpe": {"ports": _in_out(0.5), "kind": "pump"},
     "kontraventil": {"ports": _in_out(0.67)},
     "trevejs_motorventil": {"ports": [
         {"x": 0.07, "y": 0.46, "name": "A", "role": "both", "part": "port_a"},
         {"x": 0.46, "y": 0.08, "name": "B", "role": "both", "part": "port_b"},
-        {"x": 0.84, "y": 0.46, "name": "AB", "role": "both", "common": True, "part": "port_ab"}]},
+        {"x": 0.84, "y": 0.46, "name": "AB", "role": "both", "common": True, "part": "port_ab"}], "states": THREE_WAY_STATES},
     "trevejs_motorventil_ab": {"ports": [
         {"x": 0.07, "y": 0.5, "name": "A", "role": "both", "part": "port_a"},
         {"x": 0.85, "y": 0.5, "name": "B", "role": "both", "part": "port_b"},
-        {"x": 0.46, "y": 0.86, "name": "AB", "role": "both", "common": True, "part": "port_ab"}]},
+        {"x": 0.46, "y": 0.86, "name": "AB", "role": "both", "common": True, "part": "port_ab"}], "states": THREE_WAY_STATES},
     "trevejsventil": {"ports": [
         {"x": 0, "y": 0.44, "name": "A", "role": "both"}, {"x": 1, "y": 0.44, "name": "B", "role": "both"},
-        {"x": 0.5, "y": 1, "name": "AB", "role": "both", "common": True}]},
+        {"x": 0.5, "y": 1, "name": "AB", "role": "both", "common": True}], "states": THREE_WAY_STATES},
+    # 4-vejsventil (v6.6.0, Jan): tilstand 1 = A igennem B (C og D blokeret), tilstand 2 = C igennem D (A og B blokeret)
+    "firevejsventil": {"ports": [
+        {"x": 0, "y": 0.5, "name": "A", "role": "both", "part": "port_a"},
+        {"x": 1, "y": 0.5, "name": "B", "role": "both", "part": "port_b"},
+        {"x": 0.5, "y": 0, "name": "C", "role": "both", "part": "port_c"},
+        {"x": 0.5, "y": 1, "name": "D", "role": "both", "part": "port_d"}],
+        "ways": [["A", "B"], ["C", "D"]],
+        "states": [{"name": "A → B", "open": ["A>B"]}, {"name": "C → D", "open": ["C>D"]}]},
 }
 
 # Symboltyper, der er rørstykker (hører under "forbindelser") — samme liste som scada-core.js og signalpath/graph.ts

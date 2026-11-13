@@ -245,3 +245,25 @@ def test_flow_level_source_in_animations(api):
     # en opsætning fra v6.3.0 (målt flow uden baseline) kan stadig læses
     old = {"op": "view", "flow": {"measured": {"src": "Ekstra", "max": 1}}}
     assert api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": old}).status_code == 200
+
+
+def test_valve_states_definition_and_the_four_way_valve(api):
+    """Jan 2026-11-13: tilstande pr. symboltype — 3-vejs A → AB / B → AB, 4-vejs A → B / C → D."""
+    from app.services.flow_defs import DEFAULTS
+    assert [s["name"] for s in DEFAULTS["trevejs_motorventil_ab"]["states"]] == ["A → AB", "B → AB"]
+    assert DEFAULTS["firevejsventil"]["states"] == [{"name": "A → B", "open": ["A>B"]}, {"name": "C → D", "open": ["C>D"]}]
+    ports = DEFAULTS["firevejsventil"]["ports"]
+    ok = {"ports": ports, "ways": [["A", "B"], ["C", "D"]], "states": [{"name": "Varme", "open": ["B>A"]}]}
+    r = api.put("/api/symbol-flow/min_ventil", json=ok)
+    assert r.status_code == 200, r.text
+    assert r.json()["states"] == [{"name": "Varme", "open": ["A>B"]}]                 # retningen normaliseret til vejens
+    for bad in ({**ok, "states": [{"name": "X", "open": ["A>C"]}]}, {**ok, "states": [{"name": "", "open": []}]},
+                {**ok, "states": [{"name": "X", "open": []}, {"name": "x", "open": []}]}):
+        assert api.put("/api/symbol-flow/min_ventil", json=bad).status_code == 400, bad
+    # flowet gennem en 4-vejsventil i tilstanden A → B: kun A–B er åben
+    s = svg(sym("p", "pumpe", f"{OUT}>r1:s;{IN}>r2:e"), pipe("r1", f"s>p:{OUT};e>v:0,0.5"),
+            sym("v", "firevejsventil", "0,0.5>r1:e;1,0.5>r2:s"), pipe("r2", f"s>v:1,0.5;e>p:{IN}"))
+    cfg = {"p": PUMP, "v": {"op": "positions", "positions": [{"label": "A → B"}, {"label": "C → D"}],
+                            "flow": {"open": [["A>B"], ["C>D"]]}}}
+    assert compute(parse_topology(s), DEFS, cfg, {"v": 0}, {}.get)[0]["r1"] == 100
+    assert compute(parse_topology(s), DEFS, cfg, {"v": 1}, {}.get)[0].get("r1", 0) == 0
