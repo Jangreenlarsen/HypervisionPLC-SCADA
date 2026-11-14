@@ -2,6 +2,10 @@
 
 ---
 
+## v6.12.2 — 2026-11-14
+
+- Tegn: to ens symboler, der ligger præcis oven på hinanden, får en lilla dobbeltramme med **2×**, også når *Tjek forbindelser* er slået fra.
+
 ## v6.12.1 — 2026-11-14
 
 - *Tjek forbindelser* siger nu, når to ens symboler ligger præcis oven på hinanden. Det får rørene til at se åbne ud.

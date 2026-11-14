@@ -247,7 +247,7 @@ describe('løbelys (flow)', () => {
     expect((path as SVGElement).style.stroke).toBe('rgb(158, 158, 158)');
     applyBinding(g, flowB({ stopped: '#9e9e9e', base: '#000000' }), good(1));
     expect((path as SVGElement).style.stroke).toBe('rgb(0, 0, 0)');
-    applyBinding(g, flowB({ stopped: '#9e9e9e' }), { value: null, quality: 'bad', ts: 0 });
+    applyBinding(g, flowB({ stopped: '#9e9e9e' }), { value: null, quality: 'bad', ts: 0, error: null });
     expect((path as SVGElement).style.stroke).toBe('');
   });
   it('samme tilstand igen genskaber ikke lyset (animationen hopper ikke ved hver opdatering)', () => {

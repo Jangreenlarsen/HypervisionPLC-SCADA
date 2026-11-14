@@ -1598,8 +1598,9 @@ export function createScada(host) {
         continue;
       }
       const bad = it.status !== 'ok';
+      const plain = !it.stackedOnly;      // stackedOnly: tjekket er slået fra — kun markeringen af symboler oven på hinanden
       const color = !bad ? '#2e7d32' : it.status === 'drift' ? '#ef6c00' : it.status === 'isolated' ? '#b71c1c' : '#e53935';
-      if (isPipe(el)) {
+      if (!plain) { /* kun markeringen nedenfor */ } else if (isPipe(el)) {
         const m = toDocMatrix(el);
         const pts = pipePoints(el).map((p) => (m ? toPoint(m, p) : p));
         out += `<polyline points="${pts.map((p) => `${r1(p[0])},${r1(p[1])}`).join(' ')}" fill="none" stroke="${color}" stroke-opacity="${bad ? 0.55 : 0.3}" ` +
@@ -1609,6 +1610,22 @@ export function createScada(host) {
         if (bb) out += `<rect x="${r1(bb.x - 3)}" y="${r1(bb.y - 3)}" width="${r1(bb.w + 6)}" height="${r1(bb.h + 6)}" rx="5" fill="${color}" ` +
           `fill-opacity="${bad ? 0.18 : 0.1}" stroke="${color}" stroke-opacity="0.8" stroke-width="${r1(bad ? Math.max(3, 3 / z) : Math.max(1.5, 1.5 / z))}"` +
           `${it.status === 'isolated' ? ` stroke-dasharray="${r1(8 / z)} ${r1(4 / z)}"` : ''}/>`;
+      }
+      if (it.stacked && !isPipe(el)) {
+        // v6.12.2 (Jan: "en tydelig indikation på tegn"): to ens symboler præcis oven på hinanden — lilla dobbeltramme (som to
+        // kort lagt oven på hinanden) og et "2×"-mærke med forklaringen
+        const bb = boxOf(el);
+        if (bb) {
+          const o = Math.max(5, 6 / z), sw2 = r1(Math.max(2, 2.5 / z));
+          for (const k of [1, 0]) {
+            out += `<rect x="${r1(bb.x - 5 + k * o)}" y="${r1(bb.y - 5 - k * o)}" width="${r1(bb.w + 10)}" height="${r1(bb.h + 10)}" rx="6" ` +
+              `fill="${k ? 'none' : '#8e24aa'}" fill-opacity="0.08" stroke="#8e24aa" stroke-width="${sw2}" stroke-dasharray="${k ? `${r1(6 / z)} ${r1(3 / z)}` : 'none'}"/>`;
+          }
+          const br = Math.max(11, 13 / z), bx = bb.x + bb.w + 5 + o, by = bb.y - 5 - o;
+          dots += `<g style="pointer-events:all"><circle cx="${r1(bx)}" cy="${r1(by)}" r="${r1(br)}" fill="#8e24aa" stroke="#fff" stroke-width="${sw2}"/>` +
+            `<text x="${r1(bx)}" y="${r1(by + br * 0.36)}" font-size="${r1(br * 1.05)}" font-weight="700" text-anchor="middle" fill="#fff" font-family="sans-serif">2×</text>` +
+            `<title>${escXml(it.stacked)}</title></g>`;
+        }
       }
       const rr = r1(Math.max(5, 6 / z)), sw = r1(Math.max(1.5, 1.5 / z));
       const attrs = (k) => `data-id="${escXml(it.id)}" data-key="${escXml(k)}" style="pointer-events:all; cursor:pointer"`;
@@ -2987,6 +3004,7 @@ export function createScada(host) {
           const open = pts(i.open), ignored = pts(i.ignored);
           const drift = pts(i.drift);
           return { id: i.id, exempt: !!i.exempt, status: ['open', 'isolated', 'drift'].includes(i.status) ? i.status : 'ok',
+            stacked: typeof i.stacked === 'string' ? i.stacked.slice(0, 300) : '', stackedOnly: !!i.stackedOnly,
             drift: drift.map(([p]) => p), driftKeys: drift.map(([, k]) => String(i.driftKeys?.[k] ?? '')),
             open: open.map(([p]) => p), openKeys: open.map(([, k]) => String(i.openKeys?.[k] ?? '')),
             ignored: ignored.map(([p]) => p), ignoredKeys: ignored.map(([, k]) => String(i.ignoredKeys?.[k] ?? '')) };

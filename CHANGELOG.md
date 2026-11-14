@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.12.2 build 0423] — 2026-11-14 — Tegn: symboler oven på hinanden markeres i tegningen
+
+Jan: "kunne være godt med en tydelig indikation på tegn når det er tilfældet".
+
+- `frontend/svgedit-host/scada-core.js` (`drawConn`, `markConnections`): lilla dobbeltramme og **2×**-mærke med forklaring (`stacked`, `stackedOnly`).
+- `frontend/src/pages/DrawEditor.svelte`: markeringen vises også, når *Tjek forbindelser* er slået fra.
+- `frontend/src/lib/animate.test.ts`: typefejl rettet (`LiveValue.error`).
+- Manual: `07-tegn.md` og `llm/tegn.md` (synkroniseret).
+- v6.12.1 fik ingen OTA-pakke, fordi LLM-tillæggene ikke var synkroniseret. Denne version indeholder den.
+
 ## [6.12.1 build 0422] — 2026-11-14 — fix: symboler oven på hinanden i Tjek forbindelser; id'er genbruges ikke
 
 Jan: "vi har problemer med tjek forbindelser stadigvæk". Se BUGS.md v6.12.1.

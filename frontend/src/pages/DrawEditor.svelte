@@ -72,7 +72,7 @@
     nameUnnamedSymbols(labels: Record<string, string>): number;
     bindLinks(pairs: { id: string; key: string; to: string; toKey: string }[]): { links: number; elements: number };
     unlink(id: string, key: string): number;
-    markConnections(items: { id: string; exempt: boolean; status: string; drift: [number, number][]; driftKeys: string[]; open: [number, number][]; openKeys: string[]; ignored: [number, number][]; ignoredKeys: string[] }[]): void;
+    markConnections(items: { id: string; exempt?: boolean; status: string; drift?: [number, number][]; driftKeys?: string[]; open: [number, number][]; openKeys?: string[]; ignored?: [number, number][]; ignoredKeys?: string[]; stacked?: string; stackedOnly?: boolean }[]): void;
     toggleUnused(id: string, key: string): boolean;
     setNameLabels(opts: { symbols: boolean; pipes: boolean; tags?: Record<string, string[]> | null }): void;
     setFlowOverlay(data: Record<string, unknown> | null): void;
@@ -258,16 +258,34 @@
     clearTimeout(connTimer);
     if (!ready || !ed) return;
     if (!on) {
-      ed.markConnections([]);
       connSummary = null;
+      // v6.12.2 (Jan): symboler oven på hinanden vises også uden tjekket — det er netop dér, man ikke opdager det
+      connTimer = setTimeout(() => {
+        const g = ed?.connectionGraph();
+        if (!g || checkConn) return;
+        const pairs = stackedPairs(g);
+        const label = (id: string) => `"${g.nodes.find((x) => x.id === id)?.name || id}"`;
+        ed?.markConnections(pairs.flatMap(([a, b]) => {
+          const msg = `${label(a)} og ${label(b)} ligger præcis oven på hinanden. Slet det ene (Alt+klik vælger det, der ligger bagved).`;
+          return [a, b].map((id) => ({ id, status: 'ok', open: [], stacked: msg, stackedOnly: true }));
+        }));
+      }, 300);
       return;
     }
     connTimer = setTimeout(() => {
       const g = ed?.connectionGraph();
       if (!g || !checkConn) return;
       const items = connectionCheck(g);
+      // v6.12.2: symboler oven på hinanden markeres i tegningen (lilla dobbeltramme og "2×") med en forklaring
+      const label = (id: string) => `"${g.nodes.find((x) => x.id === id)?.name || id}"`;
+      const stackedMsg = new Map<string, string>();
+      for (const [a, b] of stackedPairs(g)) {
+        const msg = `${label(a)} og ${label(b)} ligger præcis oven på hinanden, og rørene er delt mellem dem. Slet det ene (Alt+klik vælger det, der ligger bagved).`;
+        stackedMsg.set(a, msg);
+        stackedMsg.set(b, msg);
+      }
       ed?.markConnections(items.map((i) => ({ id: i.id, exempt: i.exempt, status: i.status, open: i.open, openKeys: i.openKeys, ignored: i.ignored,
-        ignoredKeys: i.ignoredKeys, drift: i.drift, driftKeys: i.driftKeys })));
+        ignoredKeys: i.ignoredKeys, drift: i.drift, driftKeys: i.driftKeys, stacked: stackedMsg.get(i.id) ?? '' })));
       connMoves = planFixes(g, items, FIX_GAP);
       connExempt = new Set(items.filter((i) => i.exempt).map((i) => i.id));
       const bad = items.filter((i) => i.status !== 'ok');
