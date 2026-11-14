@@ -464,6 +464,22 @@ describe('symbol-animationer (kilde = position, gælder i positionerne, blinkfre
     applyBinding(r, b, live(false));
     expect(r.classList.contains('hv-blink')).toBe(false);
   });
+  it('løbelys + blink på et rør: lys-laget ved siden af røret blinker med (v6.12.5)', () => {
+    const svg = el('svg');
+    const pipe = el('path', { d: 'M0 0 H90', stroke: '#555', 'stroke-width': '10' });
+    svg.appendChild(pipe);
+    const fl: Binding = { element: 'r', tag: 'F', anim: 'flow', params: { base: '#000000', light: '#ffff00' } };
+    const bl: Binding = { element: 'r', tag: 'F', anim: 'blink', params: { speed: 'fast' } };
+    applyBinding(pipe, fl, live(1));
+    applyBinding(pipe, bl, live(true));
+    const layer = svg.querySelector('.hv-flow')!;
+    expect(layer.parentElement).toBe(svg);                               // ved siden af røret, ikke indeni
+    expect([...layer.classList]).toEqual(expect.arrayContaining(['hv-blink', 'hv-blink-fast']));
+    applyBinding(pipe, { ...fl, params: { ...fl.params, light: '#ff0000' } }, live(1));   // lyset tegnes om, mens røret blinker
+    expect(svg.querySelector('.hv-flow')!.classList.contains('hv-blink')).toBe(true);
+    applyBinding(pipe, bl, live(false));
+    expect(svg.querySelector('.hv-flow')!.classList.contains('hv-blink')).toBe(false);
+  });
   it('roterer, "når ≥ X" og pr. position', () => {
     expect(activeFor(55, { at_least: 50 })).toBe(true);
     expect(activeFor(49.9, { at_least: 50 })).toBe(false);

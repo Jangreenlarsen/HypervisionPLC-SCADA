@@ -851,6 +851,7 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   if (el.tagName === 'g') el.appendChild(layer);
   else el.parentNode?.insertBefore(layer, el.nextSibling);
   flowLayers.set(el, layer);
+  mirrorBlink(el);                 // v6.12.5: et nyt lys-lag ved siden af et blinkende rør blinker med
   // v6.11.4 (Jan: T-stykket viste flow ud i et ben, hvor der intet flow er): et ben på et rørstykke med flow pr. punkt, der ikke
   // rører et punkt med flow, har intet flow — det får intet lys og vises som tegnet (som røret ved siden af)
   const idle = new Set<number>();
@@ -912,7 +913,7 @@ export function withDirection(state: -1 | 0 | 1, p: Record<string, any>, dirLive
 // Blinkfrekvens (symbolstandarden): periode i ms. Fasen sættes ud fra uret, så alle blink med samme frekvens er i takt.
 export const BLINK_MS: Record<string, number> = { slow: 2000, normal: 1000, fast: 500 };
 
-function setBlink(el: Element, on: boolean, speed = 'normal'): void {
+function setBlinkOne(el: Element, on: boolean, speed = 'normal'): void {
   const was = el.classList.contains('hv-blink') ? el.getAttribute('data-hv-blink') : null;
   el.classList.remove('hv-blink-slow', 'hv-blink-fast');
   if (!on) {
@@ -927,6 +928,23 @@ function setBlink(el: Element, on: boolean, speed = 'normal'): void {
     (el as SVGElement).style.animationDelay = `-${Date.now() % (BLINK_MS[speed] ?? 1000)}ms`;
     el.setAttribute('data-hv-blink', speed);
   }
+}
+
+/**
+ * Blink. v6.12.5 (Jan: "en kombination af løbelys og animation for hele forbindelsen laver underlige ting"): et rørs løbelys
+ * ligger i et lag VED SIDEN AF røret (i et rørstykke ligger det indeni og blinker med). Blinkede røret, forsvandt kun røret, og
+ * lysets streger svævede alene — derfor følger laget rørets blink (samme fase).
+ */
+function setBlink(el: Element, on: boolean, speed = 'normal'): void {
+  setBlinkOne(el, on, speed);
+  mirrorBlink(el);
+}
+/** Et løbelys-lag ved siden af elementet får elementets blink (klasser og fase). */
+function mirrorBlink(el: Element): void {
+  const layer = flowLayers.get(el);
+  if (!layer || el.contains(layer)) return;
+  // samme metode som elementet selv: fasen låst til uret, sat når blinket starter — så de blinker i takt
+  setBlinkOne(layer, el.classList.contains('hv-blink'), el.getAttribute('data-hv-blink') ?? 'normal');
 }
 
 /** Om en til/fra-agtig animation (synlig, blink, roterer) er aktiv: pr. position, "når ≥ X" eller til/fra. */

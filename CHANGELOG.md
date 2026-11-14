@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.12.5 build 0426] — 2026-11-14 — fix: løbelys og blink på samme rør
+
+Jan: "se på hvorfor en kombination af løbelys og animation for hele forbindelsen laver underlige ting". Se BUGS.md v6.12.5.
+
+- `frontend/src/lib/animate.ts`: `setBlink` og `mirrorBlink`. Et rørs lys-lag blinker med røret.
+- Test: `frontend/src/lib/animate.test.ts`.
+
 ## [6.12.4 build 0425] — 2026-11-14 — fix: løbelyset glat over overgangene mellem rør og rørstykker
 
 Jan: "så løbelys kører glat imellem og ikke som nu, der er en synkroniseringsfejl i overgang". Se BUGS.md v6.12.4.

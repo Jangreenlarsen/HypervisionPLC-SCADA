@@ -2,6 +2,10 @@
 
 ---
 
+## v6.12.5 — 2026-11-14
+
+- Rettet: et rør med både løbelys og blink blinkede uden lyset, så lysets streger svævede alene. Nu blinker røret og lyset sammen.
+
 ## v6.12.4 — 2026-11-14
 
 - Rettet: løbelyset hoppede i overgangen mellem rør, T-stykker og bøjninger. Nu fortsætter lys og mørke glat hen over samlingerne.
