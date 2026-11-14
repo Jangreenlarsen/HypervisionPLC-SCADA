@@ -1,6 +1,6 @@
 // Rør-værktøjets beregninger (svgedit-host/pipes.js).
 // @ts-expect-error — ren JS uden typer
-import { axisOf, connect, straightEnd, straightTarget, formatRef, fromFrac, moveEnd, nearest, orthoLeg, parseRef, pathD, portsFrom, simplify, toFrac } from '../../svgedit-host/pipes.js';
+import { axisOf, connect, shiftEnd, straightEnd, straightTarget, formatRef, fromFrac, moveEnd, nearest, orthoLeg, parseRef, pathD, portsFrom, simplify, toFrac } from '../../svgedit-host/pipes.js';
 import { describe, expect, it } from 'vitest';
 
 type P = [number, number];
@@ -390,5 +390,19 @@ describe('snorlige rør (v4.6.0)', () => {
     expect(straightEnd([[100, 50], [110, 10], [110, 0]], 'start', [110, 60], [0, 1])).toBeNull();
     // et lige rør mellem to symboler
     expect(straightEnd([[0, 0], [0, 100]], 'end', [0, 120], [0, -1])).toEqual([[0, 0], [0, 120]]);
+  });
+});
+
+describe('shiftEnd (v6.12.3): enden flyttes lidt uden hak', () => {
+  it('forskyder det sidste lige stykke på tværs og strækker stykket før', () => {
+    const pts: P[] = [[0, 0], [0, 100], [50, 100]];
+    expect(shiftEnd(pts, 'end', [54, 96])).toEqual([[0, 0], [0, 96], [54, 96]]);
+    expect(shiftEnd([[50, 100], [0, 100], [0, 0]], 'start', [54, 96])).toEqual([[54, 96], [0, 96], [0, 0]]);
+  });
+  it('et lodret sidste stykke', () => {
+    expect(shiftEnd([[0, 0], [100, 0], [100, 50]], 'end', [96, 53])).toEqual([[0, 0], [96, 0], [96, 53]]);
+  });
+  it('et lige rør uden knæk: null (så lægges enden om som før)', () => {
+    expect(shiftEnd([[0, 0], [100, 0]], 'end', [104, 3])).toBeNull();
   });
 });

@@ -5,6 +5,23 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v6.12.3 — **Når et symbol blev drejet 90°, sad tilslutningspunkterne forkert bagefter** (Jan 2026-11-14, ventilen "3-vejs motorventil 5" på test-ny-editor). Ventilen så rigtig ud, men punktet M lå dér, hvor A er tegnet, og røret i A var sat på M. **Årsag (genskabt i browseren):**
+  - Drejede symboler var gemt som `matrix(0,1,-1,0,…)`. SVG-Edit kender kun `rotate(…)` som en drejning, så ∠ viste 0.
+  - Ved en drejning med håndtaget skubbede SVG-Edit den gamle matrix, med drejningen, ned i alle symbolets dele og lagde `rotate(-90)` på gruppen.
+  - Netto så symbolet rigtigt ud, men tilslutningspunkterne regnes som brøkdele af gruppens boks i gruppens ramme, og den var nu drejet 90° i forhold til tegningen.
+
+  **Rettelse:** symboler holdes på én fast form: gruppen har kun `rotate(θ cx cy)`, og delene har ingen drejning (`canonicalizeSymbol`).
+  - Det sker efter et museslip (drejehåndtaget), ved ∠ og ved åbning af tegningen, så ældre tegninger også bliver rettet.
+  - Punkternes navne oversættes efter placering (`remapPortNames`): rørenes ender (`data-hv-from/-to`), de gemte forbindelser og "ikke i brug" peger derefter på det punkt, der nu ligger dér.
+  - Rørets ende lægges præcist på punktet uden hak (`pipes.shiftEnd`).
+  - Symboler, hvor delene har forskellige transforms (en bevidst drejet del), røres ikke.
+
+  Set i browseren:
+  - Jans ventil: rørene sidder på A, B og AB, og tjekket siger "✓ alt hænger sammen · alle bundet".
+  - En drejet ventil viser ∠ 90. Efter en drejning med håndtaget (−90) og med ∠ (90) følger punkterne og rørene med.
+  - Fortryd gendanner.
+
+  Test: `pipes.test.ts`.
 - [fixed] v6.12.1 — **Tjek forbindelser meldte to 3-vejsventiler åbne, selv om rørene sad på dem** (Jan 2026-11-14, test-ny-editor v63). **Årsag:** der lå to ens ventiler præcis oven på hinanden. Den ene var en kopi lagt på originalens plads. Rørene var delt mellem dem: A sad i den nederste, B og AB i den øverste. Hver ventil havde derfor åbne ender, og intet i Tegn viste hvorfor. Kopien fik desuden id'et `svg_5` fra et rør, der lige var slettet: SVG-Edit giver det laveste ledige nummer (`Drawing.getNextId`), så gamle henvisninger til det slettede element kan pege på det nye. **Rettelse:**
   - Tjekket finder ens symboler oven på hinanden (`graph.stackedPairs`) og siger det med navnene. De tæller med i mærket.
   - Nye id'er tælles videre fra det højeste, tegningen har haft i redigeringen, så et slettet elements id genbruges ikke (`scada-core.js`, indpakningen af `getNextId`).

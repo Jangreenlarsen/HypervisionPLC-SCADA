@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.12.3 build 0424] — 2026-11-14 — fix: tilslutningspunkter på et drejet symbol
+
+Jan: "hvis jeg roterer et symbol 90 grader, så sidder tilslutningspunkterne ikke korrekt efterfølgende". Se BUGS.md v6.12.3.
+
+- `frontend/svgedit-host/scada-core.js`: `canonicalizeSymbol`, `remapPortNames` og `normalizeSymbols`. De kaldes efter museslip, ved ∠ (`setAngle`) og ved indlæsning (`load`).
+- `frontend/svgedit-host/pipes.js`: `shiftEnd`.
+- Test: `frontend/src/lib/pipes.test.ts`.
+
 ## [6.12.2 build 0423] — 2026-11-14 — Tegn: symboler oven på hinanden markeres i tegningen
 
 Jan: "kunne være godt med en tydelig indikation på tegn når det er tilfældet".

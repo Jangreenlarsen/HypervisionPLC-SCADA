@@ -2,6 +2,11 @@
 
 ---
 
+## v6.12.3 — 2026-11-14
+
+- Rettet: når et symbol blev drejet, sad tilslutningspunkterne forkert bagefter. Det gjaldt især et symbol, der var drejet før. Ældre tegninger rettes, når de åbnes i Tegn, og gemmes rettet ved næste Gem.
+- ∠ i Egenskaber viser nu også drejningen på symboler, der var drejet før.
+
 ## v6.12.2 — 2026-11-14
 
 - Tegn: to ens symboler, der ligger præcis oven på hinanden, får en lilla dobbeltramme med **2×**, også når *Tjek forbindelser* er slået fra.
