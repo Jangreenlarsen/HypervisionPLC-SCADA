@@ -350,6 +350,24 @@ export function connectionCheck(g: Graph, tol = TOL): ConnItem[] {
   return out;
 }
 
+/**
+ * v6.12.1 (Jan: "vi har problemer med tjek forbindelser stadigvæk"): to ens symboler, der ligger præcis oven på hinanden (fx en
+ * kopi lagt på originalens plads). Rørene deles mellem dem, så begge ser ud til at have åbne ender — og man kan ikke se hvorfor.
+ * → [[id, id], …] for symboler (ikke rør) af samme type, hvis tilslutningspunkter alle falder sammen.
+ */
+export function stackedPairs(g: Graph, tol = 1): [string, string][] {
+  const syms = g.nodes.filter((n) => !n.pipe && n.type && n.terminals.length >= 2 && roleOf(n) !== 'pipe' && passable(n));
+  const out: [string, string][] = [];
+  for (let i = 0; i < syms.length; i++) {
+    for (let j = i + 1; j < syms.length; j++) {
+      const a = syms[i], b = syms[j];
+      if (a.type !== b.type || a.terminals.length !== b.terminals.length) continue;
+      if (a.terminals.every((p) => b.terminals.some((q) => dist(p, q) <= tol))) out.push([a.id, b.id]);
+    }
+  }
+  return out;
+}
+
 const STRAIGHT_PIPES = new Set(['roer_l', 'roer_v']);      // lige rør-symboler (kan forlænges/forkortes)
 /** En foreslået rettelse: flyt enden `from` på elementet `id` hen til `to` (en ende/et punkt på elementet `toId`). */
 export interface FixMove { id: string; from: Pt; to: Pt; toId: string; gap: number }

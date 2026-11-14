@@ -1,6 +1,6 @@
 // Tjek af forbindelser i tegningen (signalpath/graph.ts › connectionCheck).
 import { describe, expect, it } from 'vitest';
-import { connectionCheck, contacts, linkContradicted, pairsToBind, planFixes, type GNode, type Graph, type Pt } from './signalPath';
+import { connectionCheck, contacts, linkContradicted, pairsToBind, planFixes, stackedPairs, type GNode, type Graph, type Pt } from './signalPath';
 
 const pipe = (id: string, a: Pt, b: Pt): GNode => ({ id, name: '', type: '', pipe: true, terminals: [a, b], lines: [{ part: 'all', a, b }], refs: [null, null] });
 const sym = (id: string, type: string, terminals: Pt[]): GNode => ({ id, name: id, type, pipe: false, terminals, lines: [], refs: [] });
@@ -196,6 +196,17 @@ describe('forbindelser, som rørets ende modsiger (v6.11.3)', () => {
     const byId = new Map([t, a, b].map((n) => [n.id, n]));
     expect(linkContradicted(a, a.links![0], byId)).toBe(false);
     expect(linkContradicted(b, b.links![0], byId)).toBe(false);
+  });
+});
+
+describe('symboler oven på hinanden (v6.12.1)', () => {
+  const valve = (id: string, dx = 0): GNode => ({ id, name: id, type: 'trevejs_motorventil_ab', pipe: false,
+    terminals: [[dx + 0, 20], [dx + 80, 20], [dx + 40, 60]], lines: [], refs: [], keys: ['0.07,0.5', '0.85,0.5', '0.46,0.86'] });
+  it('finds two equal symbols exactly on top of each other', () => {
+    expect(stackedPairs({ nodes: [valve('a'), valve('b'), valve('c', 200)] })).toEqual([['a', 'b']]);
+  });
+  it('ignores pipes, other types and symbols only touching', () => {
+    expect(stackedPairs({ nodes: [valve('a'), valve('b', 80), { ...valve('k'), type: 'kugleventil' }, pipe('r', [0, 20], [80, 20])] })).toEqual([]);
   });
 });
 

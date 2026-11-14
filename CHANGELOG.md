@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.12.1 build 0422] — 2026-11-14 — fix: symboler oven på hinanden i Tjek forbindelser; id'er genbruges ikke
+
+Jan: "vi har problemer med tjek forbindelser stadigvæk". Se BUGS.md v6.12.1.
+
+- `frontend/src/lib/signalpath/graph.ts`: `stackedPairs`.
+- `frontend/src/pages/DrawEditor.svelte`: tjekket melder symboler oven på hinanden.
+- `frontend/svgedit-host/scada-core.js`: `getNextId` genbruger ikke numre fra slettede elementer.
+- `deploy/audit_drawings.py`: melder symboler oven på hinanden.
+- Manual: `07-tegn.md`. Test: `connectionCheck.test.ts`.
+
 ## [6.12.0 build 0421] — 2026-11-14 — Forbindelsernes animationer: Til og Fra for hele tegningen
 
 Jan: "jeg ser ikke en general config af de animationer for on/off som forbindelser skal bruge". Se FEATURES.md v6.12.0 og BUGS.md v6.12.0.

@@ -23,7 +23,7 @@
   // @ts-expect-error — ren JS uden typer
   import { symbolType } from '../../svgedit-host/symbolPorts.js';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
-  import { connectionCheck, pairsToBind, planFixes, unboundPairs, type FixMove, type Graph } from '../lib/signalPath';
+  import { connectionCheck, pairsToBind, planFixes, stackedPairs, unboundPairs, type FixMove, type Graph } from '../lib/signalPath';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolTree from '../lib/SymbolTree.svelte';
   import FloatWin from '../lib/FloatWin.svelte';
@@ -202,7 +202,7 @@
   });
   // Tjek forbindelser (v4.18.0): markér, hvad der hænger fast i resten af tegningen (grønt) og hvad der har åbne ender (rødt). Kun visning.
   let checkConn = $state(false);
-  let connSummary = $state<{ open: number; isolated: number; drift: number; unbound: number; bound: boolean; names: string[] } | null>(null);
+  let connSummary = $state<{ open: number; isolated: number; drift: number; unbound: number; bound: boolean; names: string[]; stacked: string[] } | null>(null);
   let connMoves = $state<FixMove[]>([]);
   let connExempt = $state<Set<string>>(new Set());       // symboler, der er udeladt fra tjekket (data-hv-unused="*")
   const selIds = $derived(selection.map((x) => x.id).filter(Boolean));
@@ -273,7 +273,9 @@
       const bad = items.filter((i) => i.status !== 'ok');
       connSummary = { open: bad.filter((i) => i.status === 'open').length, isolated: bad.filter((i) => i.status === 'isolated').length,
         drift: items.filter((i) => i.drift.length).length, unbound: unboundPairs(g).length,
-        bound: g.nodes.some((n) => (n.links ?? []).length > 0), names: bad.slice(0, 30).map((i) => i.name || i.id) };
+        bound: g.nodes.some((n) => (n.links ?? []).length > 0), names: bad.slice(0, 30).map((i) => i.name || i.id),
+        // v6.12.1: to ens symboler præcis oven på hinanden — forklaringen på "åbne" ender, man ellers ikke kan se
+        stacked: stackedPairs(g).map(([a, b]) => [a, b].map((id) => { const n = g.nodes.find((x) => x.id === id); return `"${n?.name || id}"`; }).join(' og ')) };
     }, 300);
   });
   onDestroy(() => clearTimeout(connTimer));
@@ -1153,7 +1155,7 @@
   let msgOpen = $state(false);
   // Topmenuen (v6.2.0): menuerne Tegning, version, Forbindelser og kommentaren under Gem og udgiv ▾
   let drawMenu = $state(false), verMenu = $state(false), connMenu = $state(false), saveMenu = $state(false);
-  const connErrors = $derived(checkConn && connSummary ? connSummary.open + connSummary.isolated + connSummary.drift + flowNotes.length : 0);
+  const connErrors = $derived(checkConn && connSummary ? connSummary.open + connSummary.isolated + connSummary.drift + connSummary.stacked.length + flowNotes.length : 0);
   const connBadge = $derived(!checkConn || !connSummary ? '' : connErrors ? connErrors : '✓');
   const menuDo = (f: () => unknown) => () => { drawMenu = verMenu = connMenu = false; f(); };
   let msgSeq = 0;
@@ -1386,6 +1388,8 @@
       <span class="small muted">{connSummary.bound ? (connSummary.unbound ? `${connSummary.unbound} ikke bundet` : 'alle bundet') : 'ikke bundet endnu'}</span>
     </div>
     {#if connSummary.names.length}<div class="small muted mnames">{connSummary.names.join(', ')}</div>{/if}
+    {#each connSummary.stacked as s (s)}<div class="small mnames" style="color:var(--warn)">{s} ligger præcis oven på hinanden, og rørene er delt
+      mellem dem. Slet det ene (Alt+klik vælger det, der ligger bagved).</div>{/each}
     {#each flowNotes as n (n)}<div class="small" style="color:var(--warn)">Flow: {n}</div>{/each}
     <div class="mrow">
       {#if connMoves.length}

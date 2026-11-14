@@ -353,9 +353,24 @@ export function createScada(host) {
     const proto = Object.getPrototypeOf(c.getCurrentDrawing());
     if (proto && !proto.__hvReserved) {
       const nextId = proto.getNextId;
+      // v6.12.1 (Jan: en kopi af ventilen fik id'et svg_5 fra et rør, der lige var slettet): SVG-Edit giver det laveste ledige
+      // nummer, så et slettet elements id kan gå videre til et nyt — og gamle henvisninger (rør-ender, forbindelser, opsætning)
+      // peger så på det nye. Nye id'er tælles derfor altid videre fra det højeste, tegningen har haft i denne redigering.
+      const numOf = (d, id) => {
+        const m = typeof id === 'string' && !d.nonce_ && id.startsWith(d.idPrefix) ? /^\d+$/.exec(id.slice(d.idPrefix.length)) : null;
+        return m ? Number(m[0]) : -1;
+      };
       proto.getNextId = function getNextIdSkippingReserved() {
+        if (this.__hvHigh === undefined) {
+          let high = 0;
+          for (const el of this.svgElem_?.querySelectorAll?.('[id]') ?? []) high = Math.max(high, numOf(this, el.id));
+          this.__hvHigh = high;
+        }
+        if (Array.isArray(this.releasedNums)) this.releasedNums.length = 0;
+        if (typeof this.obj_num === 'number' && this.obj_num < this.__hvHigh) this.obj_num = this.__hvHigh;
         let id = nextId.call(this);
         for (let n = 0; reservedIds.has(id) && n < 100000; n++) id = nextId.call(this);
+        this.__hvHigh = Math.max(this.__hvHigh, numOf(this, id));
         return id;
       };
       proto.__hvReserved = true;

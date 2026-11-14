@@ -93,7 +93,16 @@ def main() -> int:
                 ra, rb = ends.get((own, key)), ends.get((to, to_key))
                 if not (ra and ra == rb) and ((ra and ra != to) or (rb and rb != own)):
                     stale.append(f"{own}:{key}→{to} (røret sidder i noget andet)")
+        # (v6.12.1) to ens symboler præcis oven på hinanden (samme type og placering) — rørene deles mellem dem
+        placed: dict[tuple[str, str], list[str]] = collections.defaultdict(list)
+        for m in re.finditer(r"<g\b[^>]*\bdata-hv-type=\"([^\"]+)\"[^>]*>", v["svg"]):
+            el_id, tf = re.search(r'\bid="([^"]+)"', m.group(0)), re.search(r'\btransform="([^"]+)"', m.group(0))
+            if el_id and tf:
+                placed[(m.group(1), tf.group(1))].append(el_id.group(1))
+        stacked = [" og ".join(ids) for ids in placed.values() if len(ids) > 1]
         flags = []
+        if stacked:
+            flags.append(f"symboler oven på hinanden: {', '.join(stacked[:5])}")
         if orph:
             flags.append(f"{len(orph)} gamle opsætninger")
         if group and not linked:

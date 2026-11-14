@@ -2,6 +2,11 @@
 
 ---
 
+## v6.12.1 — 2026-11-14
+
+- *Tjek forbindelser* siger nu, når to ens symboler ligger præcis oven på hinanden. Det får rørene til at se åbne ud.
+- Et nyt element får ikke længere id'et fra et element, der lige er slettet.
+
 ## v6.12.0 — 2026-11-14 — Til og Fra for forbindelserne
 
 - Nyt sted for forbindelsernes animationer: menuen **Forbindelser** › **Til/Fra for hele tegningen …**.
