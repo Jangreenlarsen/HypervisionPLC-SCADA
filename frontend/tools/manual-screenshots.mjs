@@ -86,7 +86,7 @@ const GUIDE = '.guide';
 const valve = drawings.find((d) => d.id === 'test-ventil3') ? 'test-ventil3' : null;
 
 // ------------------------------------------------------------------ menu
-await shot('menu-opsaetning', async () => { await go('overview', '.menubar'); await hover('Opsætning'); }, { clip: { x: 0, y: 0, width: 640, height: 300 } });
+await shot('menu-opsaetning', async () => { await go('overview', '.menubar'); await hover('Opsætning'); }, { clip: { x: 0, y: 0, width: 640, height: 440 } });   // hele menuen (Simulator nederst)
 await shot('menu-bruger', async () => { await go('overview', '.menubar'); await hover('Bruger'); }, { clip: { x: 640, y: 0, width: 540, height: 280 } });
 // ------------------------------------------------------------------ drift
 await shot('overview', async () => { await go(`overview/${startDrawing}`, 'svg'); await page.mouse.move(600, 740); await settle(2500); });
@@ -144,9 +144,13 @@ await shot('tegn-erstat', async () => {
     if (pill) window.scada.selectById(pill.id);
   });
   await settle(500);
-  await page.getByRole('button', { name: /Erstat med symbol/ }).click();
+  const erstat = page.getByRole('button', { name: /Erstat med symbol/ }).first();
+  await erstat.scrollIntoViewIfNeeded();      // sidepanelet ruller for sig selv — knappen kan ligge uden for det synlige
+  await erstat.click();
   await page.waitForSelector('.dlg');
-  await page.locator('.dlg .sym', { hasText: 'Statusfelt' }).first().click();
+  // Statusfelt, hvis det er blandt forslagene — ellers det første forslag (afhænger af den valgte dels form)
+  const st = page.locator('.dlg .sym', { hasText: 'Statusfelt' });
+  await ((await st.count()) ? st.first() : page.locator('.dlg .sym').first()).click();
   await settle(500);
 }, { locator: '.dlg' });
 await shot('tegn-symboler', async () => {
@@ -312,7 +316,10 @@ for (const [id, label] of [['betjening', 'Betjening'], ['proces', 'Proces og vis
 // 06 — guiden (der trykkes aldrig Gem; Gem ville også blive blokeret)
 if (valve) {
   await shot('guide-former', async () => {
-    await openGuide(valve, 'V3');
+    // et symbol i test-ventil3 (tegningen ændrer sig over tid): V3, ellers det første med opsætning
+    const els = await api(`/api/drawings/${valve}/symbols`).catch(() => []);
+    const id = (Array.isArray(els) ? els : els?.symbols ?? []).map((x) => x.element ?? x.id).find(Boolean);
+    await openGuide(valve, id ?? 'V3');
     await guideStep(1);
     await page.getByLabel(/Vis alle betjeningsformer/).check().catch(() => {});
     await settle(400);
@@ -379,7 +386,7 @@ await shot('forbindelse-haandtag', async () => {
   await openDraw(startDrawing);
   // et rør, der sidder fast i begge ender, med håndtagene vist (kun valgt i browseren — intet gemmes)
   const id = await page.evaluate(() => {
-    const els = [...document.querySelectorAll('#svgcontent [data-hv-pipe][data-hv-from][data-hv-to]')];
+    const els = [...document.querySelectorAll('#svgcontent [data-hv-pipe][data-hv-from][data-hv-to]')];   // (testserverens varme har rørsymboler, ikke tegnede rør: tag billedet på en server med tegnede rør)
     const el = els.find((e) => { const b = e.getBBox(); return b.width > 80 || b.height > 80; }) ?? els[0];
     if (el) window.scada.selectById(el.id);
     return el?.id ?? null;

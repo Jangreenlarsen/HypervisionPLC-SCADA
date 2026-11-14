@@ -44,7 +44,20 @@ export function formatValue(value: unknown, meta: TagMeta | undefined, params: R
 
 /** Tekst-binding: fast tekst før/efter værdien ("Tank : " … " liter"); også rundt om "—" når værdien mangler. */
 export function textFor(value: unknown, meta: TagMeta | undefined, params: Record<string, any> = {}): string {
-  return `${params.prefix ?? ''}${formatValue(value, meta, params)}${params.suffix ?? ''}`;
+  return `${params.prefix ?? ''}${valueText(value, params) ?? formatValue(value, meta, params)}${params.suffix ?? ''}`;
+}
+
+/**
+ * Tekst pr. værdi (v6.12.7, Jan: højst 5): `params.texts` = [{ value, text }] — er tagets værdi (rå, før en beregning) præcis en
+ * af værdierne, vises dens tekst i stedet for tallet. null = ingen tekst for værdien (så vises tallet som før).
+ */
+export function valueText(value: unknown, params: Record<string, any> = {}): string | null {
+  const list: { value: number; text: string }[] = Array.isArray(params.texts) ? params.texts : [];
+  if (!list.length || typeof value === 'boolean') return null;
+  const n = typeof value === 'string' ? (value.trim() !== '' && Number.isFinite(Number(value)) ? Number(value) : null) : toNumber(value);
+  if (n === null) return null;
+  const hit = list.find((t) => Number.isFinite(Number(t?.value)) && Math.abs(Number(t.value) - n) < 1e-9);
+  return hit ? String(hit.text ?? '') : null;
 }
 
 /** Tallet, en animation regner med: `abs` (v6.1.0, flowberegningen) = uden fortegn, så retningen ikke tæller. */
@@ -615,6 +628,8 @@ function rootOf(el: Element): Element | null {
  * fart er IKKE med — forløbet bruger den, flest dele har (ellers kan mønstret ikke fortsætte over samlingerne).
  */
 export function flowGroup(tag: string, p: Record<string, any>): string {
+  // v6.13.0: forbindelsernes løbelys (flowberegningen) er ét forløb på tværs af elementerne, selv om hvert har sit eget tag
+  if (typeof p.chain === 'string' && p.chain) return `chain|${p.chain}`;
   return [tag, p.dir_tag ?? '', p.mode ?? 'onoff', p.invert ? 1 : 0, p.pos ? 'pos' : ''].join('|');
 }
 
@@ -691,7 +706,9 @@ function computePhases(root: Element): Map<string, Phase> {
         };
         const scale = flowScale(d);
         // retningen som indstillet: et T-stykkes ben efter "ud fra/ind mod midten", ellers "Vend retning"
-        const dir = arm ? (dashes[i].out ? 1 : -1) : p.reverse ? -1 : 1;
+        // v6.13.0: forbindelsernes løbelys (chain) — retningen kommer fra flowet, som altid løber igennem en samling: kobles uden
+        // hensyn til tegneretningen (0)
+        const dir = p.chain ? 0 : arm ? (dashes[i].out ? 1 : -1) : p.reverse ? -1 : 1;
         pieces.push({ key: flowKey(el, i), a: at(0), b: at(L), len: L * scale, group, dir,
           dash: Number(p.dash ?? 12), speed: Number(p.speed ?? 40) });
         widths.push((parseFloat(d.getAttribute('stroke-width') ?? '1') || 1) * scale);
@@ -847,6 +864,7 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   if (el.tagName === 'g') el.appendChild(layer);
   else el.parentNode?.insertBefore(layer, el.nextSibling);
   flowLayers.set(el, layer);
+  mirrorBlink(el);                 // v6.12.5: et nyt lys-lag ved siden af et blinkende rør blinker med
   // v6.11.4 (Jan: T-stykket viste flow ud i et ben, hvor der intet flow er): et ben på et rørstykke med flow pr. punkt, der ikke
   // rører et punkt med flow, har intet flow — det får intet lys og vises som tegnet (som røret ved siden af)
   const idle = new Set<number>();
@@ -908,7 +926,7 @@ export function withDirection(state: -1 | 0 | 1, p: Record<string, any>, dirLive
 // Blinkfrekvens (symbolstandarden): periode i ms. Fasen sættes ud fra uret, så alle blink med samme frekvens er i takt.
 export const BLINK_MS: Record<string, number> = { slow: 2000, normal: 1000, fast: 500 };
 
-function setBlink(el: Element, on: boolean, speed = 'normal'): void {
+function setBlinkOne(el: Element, on: boolean, speed = 'normal'): void {
   const was = el.classList.contains('hv-blink') ? el.getAttribute('data-hv-blink') : null;
   el.classList.remove('hv-blink-slow', 'hv-blink-fast');
   if (!on) {
@@ -923,6 +941,23 @@ function setBlink(el: Element, on: boolean, speed = 'normal'): void {
     (el as SVGElement).style.animationDelay = `-${Date.now() % (BLINK_MS[speed] ?? 1000)}ms`;
     el.setAttribute('data-hv-blink', speed);
   }
+}
+
+/**
+ * Blink. v6.12.5 (Jan: "en kombination af løbelys og animation for hele forbindelsen laver underlige ting"): et rørs løbelys
+ * ligger i et lag VED SIDEN AF røret (i et rørstykke ligger det indeni og blinker med). Blinkede røret, forsvandt kun røret, og
+ * lysets streger svævede alene — derfor følger laget rørets blink (samme fase).
+ */
+function setBlink(el: Element, on: boolean, speed = 'normal'): void {
+  setBlinkOne(el, on, speed);
+  mirrorBlink(el);
+}
+/** Et løbelys-lag ved siden af elementet får elementets blink (klasser og fase). */
+function mirrorBlink(el: Element): void {
+  const layer = flowLayers.get(el);
+  if (!layer || el.contains(layer)) return;
+  // samme metode som elementet selv: fasen låst til uret, sat når blinket starter — så de blinker i takt
+  setBlinkOne(layer, el.classList.contains('hv-blink'), el.getAttribute('data-hv-blink') ?? 'normal');
 }
 
 /** Om en til/fra-agtig animation (synlig, blink, roterer) er aktiv: pr. position, "når ≥ X" eller til/fra. */

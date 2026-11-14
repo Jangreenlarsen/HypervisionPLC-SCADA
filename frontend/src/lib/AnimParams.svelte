@@ -39,7 +39,8 @@
 {#snippet numInput(obj: Record<string, any>, key: string | number, label: string)}
   <label class="opt small">{label} <input class="n" value={obj[key] ?? ''} onchange={(e) => (obj[key] = num(e.currentTarget.value, obj[key] ?? 0))} /></label>
 {/snippet}
-
+
+
   <div class="row wrap params">
     {#if (a.type === 'fill' || a.type === 'stroke')}
       {#if kind === 'pos'}
@@ -98,6 +99,18 @@
       {:else}
         {@render numInput(p, 'decimals', 'Decimaler')}
         <label class="opt small">Før <input class="lbl" bind:value={p.prefix} /></label><label class="opt small">Efter <input class="lbl" bind:value={p.suffix} /></label>
+        <!-- v6.12.7: tekst pr. værdi (højst 5) — fx 0 = Stop, 1 = Kører; andre værdier vises som tal -->
+        <div class="texts">
+          <span class="small muted" title="Er tagets værdi præcis en af disse (før en beregning), vises teksten i stedet for tallet. Andre værdier vises som tal">Tekst pr. værdi</span>
+          {#each p.texts ?? [] as t, k (k)}
+            <span class="vt"><input class="n" value={t.value} aria-label="Værdi {k + 1}" onchange={(e) => (t.value = num(e.currentTarget.value, t.value))} />
+              = <input class="lbl" bind:value={t.text} maxlength="40" aria-label="Tekst {k + 1}" placeholder="fx Kører" />
+              <button type="button" class="small" onclick={() => (p.texts = (p.texts ?? []).filter((_: unknown, j: number) => j !== k))} aria-label="Fjern tekst {k + 1}">−</button></span>
+          {/each}
+          {#if (p.texts ?? []).length < 5}
+            <button type="button" class="small" onclick={() => { const l = p.texts ?? []; p.texts = [...l, { value: l.length ? Math.max(...l.map((x: { value: number }) => Number(x.value) || 0)) + 1 : 0, text: '' }]; }}>+ Tekst</button>
+          {/if}
+        </div>
         <!-- som på siden Bindinger (v0.73.0): beregning på værdien før visning, og tagets enhed efter tallet -->
         <label class="opt small">Beregning <input class="lbl" bind:value={p.expression} maxlength="80" placeholder="fx x / 10" /></label>
         <label class="opt small"><input type="checkbox" checked={p.show_unit !== false} onchange={(e) => (p.show_unit = e.currentTarget.checked)} /> Vis enhed</label>
@@ -172,4 +185,7 @@
   .bh { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted, #666); }
   .bv { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
   .bc { display: inline-flex; align-items: center; gap: .15rem; flex-wrap: wrap; }
+  .texts { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; width: 100%; }
+  .vt { display: inline-flex; align-items: center; gap: .2rem; font-size: .85rem; }
+  .vt input.n { width: 3.5rem; }
 </style>

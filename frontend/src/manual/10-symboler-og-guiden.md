@@ -253,7 +253,7 @@ Nederst i trin 4 står sektionen **Flow**. Sæt hak i **Med i flowberegningen** 
   - En ukendt position (komm.fejl) regnes som lukket.
 - **Farv portene efter de åbne veje:** har symboltypens punkter en *Del* (fx `port_a`, `port_b`, `port_ab`), farves portene automatisk i hver position. Porte på en åben vej får farven **åben** (grøn), de andre **lukket** (sort), på stregen eller fyldet. Står ventilen på *AB → A*, er AB og A grønne og B sort. Det er slået til fra start, og en animation, du selv lægger på en port, går forud.
 
-Flowet er kun til visning. Et forbundet symbol uden flow-opsætning følger symboltypens flow-rolle (en forbruger uden restriktion, hvis typen ikke har en anden). En animation kan styres af **symbolets flow** (under *styres af*): den beregnede mængde gennem symbolet i l/min. Fx blinker en pumpe, når den giver mindst 1 l/min, eller en radiator farves efter flowet.
+Flowet er kun til visning. Et forbundet symbol uden flow-opsætning følger symboltypens flow-rolle (en forbruger uden restriktion, hvis typen ikke har en anden). En animation kan styres af **symbolets flow** (under *styres af*): den beregnede mængde gennem symbolet i l/min. Fx blinker en pumpe, når den giver mindst 1 l/min, eller en radiator farves efter flowet. Et symbol uden for rørnettet, fx et **statusfelt**, har intet flow selv. Vælg i stedet **flow i et andet element** og derefter elementet (en tank, et rør, en pumpe). Fx viser en tekst-animation på statusfeltet tankens flow. Skifter du mellem to kilder af samme slags, beholder animationen sine indstillinger (før/efter-tekst, decimaler, grænser).
 
 ### Preview ved animationerne
 
@@ -379,6 +379,7 @@ Animationen **Værdi** skriver taggets værdi i en tekst-del. For et tal-tag har
 
 - **Decimaler**: antal decimaler (tallet rundes af). Tom = tagets egen indstilling; 0 = hele tal.
 - **Før** og **Efter**: fast tekst foran og efter tallet, fx *Tryk: * og * liter* (skriv selv mellemrummene).
+- **Tekst pr. værdi** (højst 5): tryk **+ Tekst** og skriv en værdi og dens tekst, fx *0 = Stop*, *1 = Kører*, *2 = Fejl*. Er tagets værdi præcis en af dem, vises teksten i stedet for tallet. *Før* og *Efter* bruges stadig. Andre værdier vises som tal. Der sammenlignes med tagets egen værdi, før en eventuel *Beregning*. Et til/fra-tag har i stedet felterne *Til* og *Fra*.
 - **Beregning**: simpel matematik på værdien, før den vises — fx *x / 10*, så registerværdien 128 vises som 12,8. Samme regler som på siden *Bindinger* (se *Bindinger og animationer › Tekst: decimaler og beregning*). En ugyldig beregning vises med det samme med rødt.
 - **Vis enhed**: tagets enhed (fra *Tags*) efter tallet — før *Efter*-teksten.
 

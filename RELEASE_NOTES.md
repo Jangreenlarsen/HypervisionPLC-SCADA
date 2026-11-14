@@ -2,6 +2,23 @@
 
 ---
 
+## v6.13.0 — 2026-11-14 — Tekst pr. værdi
+
+- En tekst-animation kan vise en tekst i stedet for tallet: **Tekst pr. værdi** med op til 5, fx 0 = Stop, 1 = Kører og 2 = Fejl.
+
+## v6.12.6 — 2026-11-14
+
+- En animation kan nu styres af **flow i et andet element**, fx et statusfelt, der viser tankens flow. "Symbolets flow" er symbolets eget, og det er 0 for et statusfelt.
+- Guiden beholder animationens indstillinger (før/efter-tekst, decimaler, grænser), når du skifter til en kilde af samme slags.
+
+## v6.12.5 — 2026-11-14
+
+- Rettet: et rør med både løbelys og blink blinkede uden lyset, så lysets streger svævede alene. Nu blinker røret og lyset sammen.
+
+## v6.12.4 — 2026-11-14
+
+- Rettet: løbelyset hoppede i overgangen mellem rør, T-stykker og bøjninger. Nu fortsætter lys og mørke glat hen over samlingerne.
+
 ## v6.12.3 — 2026-11-14
 
 - Rettet: når et symbol blev drejet, sad tilslutningspunkterne forkert bagefter. Det gjaldt især et symbol, der var drejet før. Ældre tegninger rettes, når de åbnes i Tegn, og gemmes rettet ved næste Gem.

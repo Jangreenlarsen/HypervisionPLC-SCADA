@@ -43,8 +43,16 @@ class _P(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ValueText(_P):
+    """v6.12.7 (Jan: tekst pr. værdi, højst 5): vis `text` i stedet for tallet, når værdien er præcis `value`."""
+    value: float = Field(ge=-1e12, le=1e12)
+    text: str = Field(default="", max_length=40)
+
+
 class TextParams(_P):
     decimals: int | None = Field(default=None, ge=0, le=6)
+    # Tekst pr. værdi (v6.12.7), fx 0 = "Stop", 1 = "Kører", 2 = "Fejl" — højst 5; andre værdier vises som tal
+    texts: list[ValueText] = Field(default_factory=list, max_length=5)
     true_text: str = Field(default="Til", max_length=40)
     false_text: str = Field(default="Fra", max_length=40)
     show_unit: bool = True

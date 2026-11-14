@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v6.13.0 — **Tekst-animation: tekst pr. værdi** (Jan 2026-11-14: "i en tekst-animation kan jeg ikke sætte en streng, kun værdi" → tekst pr. værdi med op til 5 valgmuligheder). Fx 0 = Stop, 1 = Kører, 2 = Fejl. Er tagets værdi præcis en af dem, vises teksten i stedet for tallet; *Før* og *Efter* bruges stadig, og andre værdier vises som tal. Der sammenlignes med den rå værdi, før en beregning (`TextParams.texts`, `animate.valueText`).
 - [x] done v6.12.0 — **Forbindelsernes animationer: Til og Fra for hele tegningen** (Jan 2026-11-14: "jeg ser ikke en general config af de animationer for on/off som forbindelser skal bruge"). Opsætningen flyttes fra Flow-vinduet til menuen **Forbindelser** › *Animationer …*. Den har to faste afsnit:
   - **Til** (der er flow): løbelys eller en farve, evt. blink.
   - **Fra** (intet flow): som tegnet eller en farve, evt. blink.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { activeFor, colorFor, speedFor } from './animate';
 import { ON_MIN, connAnimError, defaultOnOff, describeConnAnims, describeOnOff, fromOnOff, newConnAnim, pickConnections, toOnOff } from './connGroups';
-import { FLOW, defaultFlow, flowSourceMode, isLogicRef } from './symbolConfig';
+import { FLOW, defaultFlow, flowOfRef, flowSourceMode, isLogicRef, parseFlowOf } from './symbolConfig';
 
 describe('forbindelsesgrupper', () => {
   it('only connections can be picked from the selection', () => {
@@ -102,5 +102,15 @@ describe('Til og Fra (v6.12.0)', () => {
     expect(toOnOff([{ type: 'blink', at_least: 20, at_most: null }])).toBeNull();
     expect(describeOnOff([{ type: 'fixed', color: '#123456' }])).toBe('avanceret: fast farve');
     expect(toOnOff([])).toEqual({ ...defaultOnOff(), on: { ...defaultOnOff().on, show: 'none' } });
+  });
+});
+
+describe('flow i et andet element (v6.12.6)', () => {
+  it('"@flow:<element>" er ikke en logikblok', () => {
+    expect(flowOfRef('tank_3')).toBe('@flow:tank_3');
+    expect(parseFlowOf('@flow:tank_3')).toBe('tank_3');
+    expect(parseFlowOf('@flow')).toBeNull();
+    expect(isLogicRef('@flow:tank_3')).toBe(false);
+    expect(isLogicRef('@pumpe:L1')).toBe(true);
   });
 });

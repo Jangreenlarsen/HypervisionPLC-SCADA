@@ -1,7 +1,7 @@
 // Flow-model runde 2 (v6.3.0): retning pr. delstreg på rørstykker, flow-profilen pr. symboltype, guidens standarder og
 // preview-kaldets krop.
 import { describe, expect, it } from 'vitest';
-import { bindingActive, colorFor, parsePortFlows, portDirection, portFlow, speedFor } from './animate';
+import { bindingActive, colorFor, flowGroup, parsePortFlows, portDirection, portFlow, speedFor, textFor, valueText } from './animate';
 import { bindingTags } from './canvas';
 import { overlayData, previewBody, type Preview } from './flowLive';
 import { defaultFlow } from './symbolConfig';
@@ -31,6 +31,10 @@ describe('retning pr. delstreg på et rørstykke', () => {
     expect(portFlow([0.5, 0.9], [0.5, 0], pf)).toEqual({ forward: true, q: 20 });
     const p = { flow_max: 20, speed: 40 };
     expect([speedFor(5, p), speedFor(15, p), speedFor(20, p)]).toEqual([10, 30, 40]);   // benet mod kontraventilen løber langsommere
+  });
+  it('forbindelsernes løbelys er ét forløb på tværs af elementernes egne tags (v6.12.4)', () => {
+    expect(flowGroup('flow:d:r1', { chain: 'conn', mode: 'signed' })).toBe(flowGroup('flowp:d:t', { chain: 'conn', mode: 'onoff' }));
+    expect(flowGroup('A', {})).not.toBe(flowGroup('B', {}));                // ellers som før: pr. tag
   });
   it('kan ikke afgøres langt fra punkterne', () => {
     expect(portDirection([0.5, 0.5], [0.5, 0.45], { '0,0': 1 })).toBeNull();
@@ -169,5 +173,17 @@ describe('typePortMap (v6.8.5)', () => {
     expect(m.pumpe).toEqual([[0, 0.5], [1, 0.5]]);
     expect(m.kontraventil).toEqual([[0, 0.67], [1, 0.67]]);
     expect(typePortMap({ x: { ports: [] } } as never)).toEqual({});
+  });
+});
+
+describe('tekst pr. værdi (v6.12.7)', () => {
+  const p = { texts: [{ value: 0, text: 'Stop' }, { value: 1, text: 'Kører' }, { value: 2, text: 'Fejl' }], prefix: 'Pumpe: ', suffix: '' };
+  it('viser teksten for præcis den værdi, ellers tallet', () => {
+    expect(textFor(1, undefined, p)).toBe('Pumpe: Kører');
+    expect(textFor('2', undefined, p)).toBe('Pumpe: Fejl');
+    expect(textFor(3, undefined, p)).toBe('Pumpe: 3');
+    expect(valueText(1.5, p)).toBeNull();
+    expect(valueText(true, p)).toBeNull();                     // til/fra har sine egne Til/Fra-tekster
+    expect(textFor(1, undefined, {})).toBe('1');                // uden tekster: som før
   });
 });

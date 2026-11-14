@@ -81,6 +81,37 @@ def test_on_and_off_colors_reach_the_bindings(api):
     api.put(url(api, "/default"), json={"anims": [{"type": "flow"}]})
     r1 = next(b for b in api.get(f"/api/drawings/{d}/view").json()["bindings"] if b["source"] == "conn-group" and b["element"] == "r1")
     assert "stopped" not in r1["params"]                                               # som tegnet: ingen parameter
+    assert r1["params"]["chain"] == "conn"                     # v6.12.4: ét sammenhængende forløb på tværs af forbindelserne
+
+
+def test_an_animation_can_follow_the_flow_in_another_element(api):
+    # v6.12.6: et statusfelt (uden for rørnettet) viser radiatorens flow — "@flow:<element>" → flow:<tegning>:<element>
+    d = _drawing(api)
+    api.put(f"/api/drawings/{d}/symbols/p/config", json={"config": PUMP})
+    other = {"op": "view", "anims": [{"part": "all", "type": "blink", "src": "@flow:rad", "params": {"at_least": 1}}]}
+    r = api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": other})
+    assert r.status_code == 200, r.text
+    b = next(b for b in api.get(f"/api/drawings/{d}/view").json()["bindings"] if b["source"] == "symbol" and b["element"] == "rad")
+    assert b["tag"] == f"flow:{d}:rad" and b["params"]["abs"] is True
+    other["anims"][0]["src"] = "@flow:p"
+    api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": other})
+    b = next(b for b in api.get(f"/api/drawings/{d}/view").json()["bindings"] if b["source"] == "symbol" and b["element"] == "rad")
+    assert b["tag"] == f"flow:{d}:p"                          # ikke læst som en logikblok i symbolet "flow"
+    other["anims"][0]["src"] = "@flow:"
+    assert api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": other}).status_code == 400
+
+
+def test_text_per_value_at_most_five():
+    # v6.12.7: tekst pr. værdi i en tekst-animation (højst 5)
+    import pytest
+    from pydantic import ValidationError
+    from app.services.bindings import TextParams
+    texts = [{"value": i, "text": f"T{i}"} for i in range(5)]
+    assert TextParams.model_validate({"texts": texts}).model_dump()["texts"][2] == {"value": 2.0, "text": "T2"}
+    with pytest.raises(ValidationError):
+        TextParams.model_validate({"texts": texts + [{"value": 9, "text": "for mange"}]})
+    with pytest.raises(ValidationError):
+        TextParams.model_validate({"texts": [{"value": 1, "text": "x" * 41}]})
 
 
 def test_group_rules(api):
