@@ -1154,6 +1154,8 @@ export function createScada(host) {
   }
   /** Rørets anden endes reference: den ende der IKKE er `which`. */
   const otherRef = (el, which) => el.getAttribute(which === 'start' ? 'data-hv-to' : 'data-hv-from');
+  /** Nøglen ('s'/'e') på rørets anden ende end `which` ('start'/'end'). */
+  const farKey = (which) => (which === 'start' ? 'e' : 's');
   const named = (el) => !!el.getAttribute('data-hv-name');
 
   /**
@@ -1171,7 +1173,11 @@ export function createScada(host) {
     drawPipe(keep, route);
     if (refStart) keep.setAttribute('data-hv-from', refStart); else keep.removeAttribute('data-hv-from');
     if (refEnd) keep.setAttribute('data-hv-to', refEnd); else keep.removeAttribute('data-hv-to');
-    return { keep, cmds: [changeCmd(keep, before), removeCmd(drop)] };
+    // de gemte forbindelser (v6.11.3): starten er A's anden ende, slutningen B's anden ende — samlingen er nu midt på røret
+    const linkCmds = [];
+    carryLinks([{ el: keep, ends: { s: { id: A.id, key: farKey(aWhich) }, e: { id: B.id, key: farKey(bWhich) } } }],
+      linkCmds, new Set([keep]), [`${drop.id}|s`, `${drop.id}|e`]);
+    return { keep, cmds: [changeCmd(keep, before), ...linkCmds, removeCmd(drop)] };
   }
   function commitCmds(label, cmds) {
     const c = canvas();
@@ -1391,6 +1397,58 @@ export function createScada(host) {
   }
   const linkText = (list) => list.map((l) => `${l.key}>${l.to}:${l.toKey}`).join(';');
   const okKey = (k) => typeof k === 'string' && /^([0-9.,#se-]{1,16}|~)$/.test(k);
+  /**
+   * v6.11.3 (Jan: T-stykkerne var "åbne", selv om rørene sad på dem): når rør deles af et T-stykke, forlænges eller lægges sammen,
+   * flytter rørenes ender — og de gemte forbindelser skal med. `updates` = [{ el, ends: { s, e } }], hvor `ends.s`/`ends.e` er den
+   * ende ({ id, key }) før ændringen, som rørets nye start/slut arver sin forbindelse fra, eller null (enden er ny, eller ligger nu
+   * midt på røret). Forbindelser ved ender, der ikke arves, fjernes — også modpartens. Fortryd: rørene i `noCmd` (dem, kalderen
+   * selv laver en fortryd-kommando for, og nye rør) får ingen; de øvrige ændrede elementer lægges i `cmds`. `gone`: ender
+   * ("id|nøgle") på et rør, der forsvinder (lagt sammen med et andet) — forbindelser dertil fjernes, medmindre en ende arver dem.
+   */
+  function carryLinks(updates, cmds, noCmd = new Set(), gone = []) {
+    const content = canvas().getSvgContent();
+    const snap = new Map();
+    for (const el of content.querySelectorAll('[data-hv-links]')) snap.set(el.id, parseLinks(el));
+    const map = new Map();          // "id|nøgle" før → { id, key } nu
+    const touched = new Set(gone);
+    for (const u of updates) {
+      for (const k of ['s', 'e']) {
+        touched.add(`${u.el.id}|${k}`);
+        const src = u.ends[k];
+        if (src) { touched.add(`${src.id}|${src.key}`); map.set(`${src.id}|${src.key}`, { id: u.el.id, key: k }); }
+      }
+    }
+    const remap = (l) => {
+      const at = `${l.to}|${l.toKey}`;
+      if (!touched.has(at)) return l;
+      const m = map.get(at);
+      return m ? { ...l, to: m.id, toKey: m.key } : null;
+    };
+    const next = new Map();
+    const own = new Set(updates.map((u) => u.el));
+    for (const u of updates) {
+      const keep = (snap.get(u.el.id) ?? []).filter((l) => l.key !== 's' && l.key !== 'e');     // '~' o.l. bliver
+      const inherited = ['s', 'e'].flatMap((k) => {
+        const src = u.ends[k];
+        return src ? (snap.get(src.id) ?? []).filter((l) => l.key === src.key).map((l) => ({ ...l, key: k })) : [];
+      });
+      next.set(u.el, [...keep, ...inherited].map(remap).filter((l) => l && l.to !== u.el.id));
+    }
+    for (const el of content.querySelectorAll('[data-hv-links]')) {
+      if (own.has(el)) continue;
+      const list = parseLinks(el);
+      const mapped = list.map(remap).filter(Boolean);
+      if (linkText(mapped) !== linkText(list)) next.set(el, mapped);
+    }
+    const c = canvas();
+    for (const [el, list] of next) {
+      const was = el.getAttribute('data-hv-links');
+      const text = linkText(list);
+      if ((was || '') === text) continue;
+      if (text) el.setAttribute('data-hv-links', text); else el.removeAttribute('data-hv-links');
+      if (!noCmd.has(el)) cmds.push(new c.history.ChangeElementCommand(el, { 'data-hv-links': was }));
+    }
+  }
   /** Skriv forbindelserne for nogle elementer som ét fortryd-trin. `next`: Map(element → liste). */
   function commitLinks(next, label) {
     const c = canvas();
@@ -1850,12 +1908,16 @@ export function createScada(host) {
     el2.setAttribute('data-hv-from', formatRef(node.id, portB.frac, portB.side));
     if (before['data-hv-to']) el2.setAttribute('data-hv-to', before['data-hv-to']); else el2.removeAttribute('data-hv-to');
     drawPipe(el2, reroute(p2, 'start', portB.doc, portB.dir));
+    // de gemte forbindelser (v6.11.3): første halvdel beholder startens, anden halvdel arver slutningens — ikke en kopi af begge
+    const linkCmds = [];
+    carryLinks([{ el, ends: { s: { id: el.id, key: 's' }, e: null } }, { el: el2, ends: { s: null, e: { id: el.id, key: 'e' } } }],
+      linkCmds, new Set([el, el2]));
     el.after(el2);
     const old = {};
     for (const k of new Set([...Object.keys(before), ...[...el.attributes].map((x) => x.name)])) {
       if (before[k] !== el.getAttribute(k)) old[k] = before[k] ?? null;
     }
-    const cmds = [new c.history.ChangeElementCommand(el, old), new c.history.InsertElementCommand(el2), new c.history.InsertElementCommand(node)];
+    const cmds = [new c.history.ChangeElementCommand(el, old), new c.history.InsertElementCommand(el2), new c.history.InsertElementCommand(node), ...linkCmds];
     return { cmds, port: portC, node };
   }
 
@@ -1949,7 +2011,10 @@ export function createScada(host) {
         drawPipe(keep, route);
         if (refStart) keep.setAttribute('data-hv-from', refStart); else keep.removeAttribute('data-hv-from');
         if (toRef) keep.setAttribute('data-hv-to', toRef); else keep.removeAttribute('data-hv-to');
-        cmds.push(changeCmd(keep, before));
+        // (v6.11.3) starten er rørets anden ende; den forlængede ende er ny
+        const linkCmds = [];
+        carryLinks([{ el: keep, ends: { s: { id: keep.id, key: farKey(fromEnd.which) }, e: null } }], linkCmds, new Set([keep]));
+        cmds.push(changeCmd(keep, before), ...linkCmds);
       }
       if (toEnd && toEnd.el !== keep) {
         if (keep) {
@@ -1963,7 +2028,10 @@ export function createScada(host) {
           drawPipe(keep, route);
           if (fromRef) keep.setAttribute('data-hv-from', fromRef); else keep.removeAttribute('data-hv-from');
           if (refEnd) keep.setAttribute('data-hv-to', refEnd); else keep.removeAttribute('data-hv-to');
-          cmds.push(changeCmd(keep, before));
+          // (v6.11.3) slutningen er rørets anden ende; den forlængede ende er ny
+          const linkCmds = [];
+          carryLinks([{ el: keep, ends: { s: null, e: { id: keep.id, key: farKey(toEnd.which) } } }], linkCmds, new Set([keep]));
+          cmds.push(changeCmd(keep, before), ...linkCmds);
         }
       }
       if (keep) {

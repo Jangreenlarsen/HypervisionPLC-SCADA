@@ -121,6 +121,7 @@ def parse_topology(svg: str, pieces: frozenset[str] | None = None) -> Topology:
     root = fromstring(svg, forbid_dtd=True)
     elements: dict[str, Element] = {}
     raw: list[tuple[str, str, str, str]] = []
+    ends: dict[tuple[str, str], str] = {}      # (rør, "s"/"e") → elementet, enden sidder fast i (data-hv-from/-to)
     for el in root.iter():
         if not isinstance(el.tag, str):
             continue
@@ -136,15 +137,34 @@ def parse_topology(svg: str, pieces: frozenset[str] | None = None) -> Topology:
         e = Element(eid, kind, typ, el.get("data-hv-name") or "")
         if pipe:
             e.keys.update(("s", "e"))
+            for key, attr in (("s", "data-hv-from"), ("e", "data-hv-to")):
+                ref = (el.get(attr) or "").split("@", 1)[0]
+                if ref:
+                    ends[(eid, key)] = ref
         elements[eid] = e
         for item in (links or "").split(";"):
             gt, colon = item.find(">"), item.rfind(":")
             if gt > 0 and colon > gt + 1 and colon < len(item) - 1:
                 raw.append((eid, item[:gt], item[gt + 1:colon], item[colon + 1:]))
+    def end_ref(x: str, key: str) -> str | None:
+        ref = ends.get((x, key))
+        return ref if ref and ref in elements else None
+
+    def contradicted(a: str, ka: str, b: str, kb: str) -> bool:
+        """v6.11.3: en rørende sidder fast i et andet (eksisterende) element end det, forbindelsen peger på — forbindelsen er
+        forældet (fx kopieret med, da røret blev delt af et T-stykke) og er ikke en del af nettet. To rørender i samme element
+        (fx samme T-stykke-punkt) er samme sted. Samme regel som Tegn (graph.ts › linkContradicted)."""
+        ra, rb = end_ref(a, ka), end_ref(b, kb)
+        if ra and ra == rb:
+            return False
+        return bool(ra and ra != b) or bool(rb and rb != a)
+
     out: list[tuple[tuple[str, str], tuple[str, str]]] = []
     seen: set[tuple[tuple[str, str], tuple[str, str]]] = set()
     for a, ka, b, kb in raw:
         if a not in elements or b not in elements or a == b:
+            continue
+        if contradicted(a, ka, b, kb):
             continue
         pair = tuple(sorted(((a, ka), (b, kb))))
         if pair in seen:

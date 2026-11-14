@@ -2,6 +2,10 @@
 
 ---
 
+## v6.11.3 — 2026-11-14
+
+- Rettet: *Tjek forbindelser* meldte T-stykker som åbne, selv om rørene sad på dem. Det skete, når et rør var blevet delt af et T-stykke. Tryk **Bind forbindelser** én gang på tegninger, hvor tjekket nu siger "ikke bundet".
+
 ## v6.11.2 — 2026-11-14
 
 - Simulatorens knapper hedder nu **Frys på live-værdier** og **Nulstil alle ændringer**. Frys overskriver ikke længere det, du selv har sat.

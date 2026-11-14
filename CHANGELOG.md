@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.11.3 build 0419] — 2026-11-14 — fix: T-stykker åbne i Tjek forbindelser (forbindelser kopieret med ved deling af rør)
+
+Jan: "selv om der er forbindelse så mener system ikke der er". Se BUGS.md v6.11.3.
+
+- `frontend/svgedit-host/scada-core.js`: `carryLinks` flytter gemte forbindelser med, når et rør deles af et T-stykke, forlænges eller lægges sammen.
+- `frontend/src/lib/signalpath/graph.ts`: `linkContradicted`. En forbindelse, som rørets ende modsiger, tæller ikke i `contacts`, `connectionCheck`, `pairsToBind` og `planFixes`.
+- `backend/app/services/flow_calc.py`: `parse_topology` springer modsagte forbindelser over.
+- `deploy/audit_drawings.py`: melder modsagte forbindelser.
+- Tests: `frontend/src/lib/connectionCheck.test.ts`, `backend/tests/test_flow_calc.py`.
+
 ## [6.11.2 build 0418] — 2026-11-14 — Simulatoren: knapperne hedder det, de gør
 
 Jan: "de siger ikke noget om hvad de endelig gør".

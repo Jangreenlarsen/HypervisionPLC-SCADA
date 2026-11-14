@@ -115,6 +115,22 @@ def test_a_three_way_valve_opens_the_way_of_its_position():
     assert run(s, cfg, positions={"v": None})[0].get("r1", 0) == 0             # ukendt position: lukket
 
 
+def test_a_link_the_pipe_end_contradicts_is_not_part_of_the_net():
+    # v6.11.3: røret blev delt af et T-stykke og beholdt den gamle forbindelse til tanken — enden sidder i T-stykket (data-hv-to)
+    s = svg('<path id="r1" data-hv-pipe="1" d="M0 0 H10" data-hv-from="v@1,0.5,r" data-hv-to="t@0,1,l" '
+            'data-hv-links="s&gt;v:1,0.5;e&gt;k:0,0.5"/>',
+            sym("v", "kugleventil", "1,0.5>r1:s"), sym("t", "t_stykke", ""), sym("k", "tank", "0,0.5>r1:e"))
+    links = {tuple(sorted(x)) for x in parse_topology(s).links}
+    assert links == {(("r1", "s"), ("v", "1,0.5"))}
+    # en ende uden data-hv-to (fri eller rør mod rør) følger stadig den gemte forbindelse
+    s2 = svg('<path id="r1" data-hv-pipe="1" d="M0 0 H10" data-hv-links="e&gt;k:0,0.5"/>', sym("k", "tank", "0,0.5>r1:e"))
+    assert len(parse_topology(s2).links) == 1
+    # to rørender i samme T-stykke-punkt, bundet til hinanden (varme på demoen): samme sted — beholdes
+    s3 = svg('<path id="r1" data-hv-pipe="1" d="M0 0 H10" data-hv-to="t@0.5,0,t" data-hv-links="e&gt;r2:s"/>',
+             '<path id="r2" data-hv-pipe="1" d="M10 0 H20" data-hv-from="t@0.5,0,t" data-hv-links="s&gt;r1:e"/>', sym("t", "t_stykke", ""))
+    assert len(parse_topology(s3).links) == 1
+
+
 def test_without_bound_connections_there_is_no_flow():
     s = svg(sym("p", "pumpe", ""), '<path id="r1" data-hv-pipe="1" d="M0 0 H10"/>')
     assert parse_topology(s).links == []
