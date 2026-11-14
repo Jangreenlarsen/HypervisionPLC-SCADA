@@ -2,6 +2,10 @@
 
 ---
 
+## v6.11.2 — 2026-11-14
+
+- Simulatorens knapper hedder nu **Frys på live-værdier** og **Nulstil alle ændringer**. Frys overskriver ikke længere det, du selv har sat.
+
 ## v6.11.1 — 2026-11-13
 
 - Rettet: at flytte eller dreje et symbol i Tegn blev afbrudt, når *Tjek forbindelser* eller Flow-vinduet var slået til, og valget forsvandt.

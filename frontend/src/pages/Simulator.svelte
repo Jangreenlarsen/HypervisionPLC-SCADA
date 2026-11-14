@@ -11,7 +11,7 @@
   import { clearOverlays, drawOverlay, markPassive } from '../lib/symbolOverlay';
   import { showsBadge, type SymbolState } from '../lib/symbolUi';
   import {
-    emptyState, fromLive, isSimulated, liveText, matches, startValue, stepFor, toLive, usedText,
+    emptyState, freezable, fromLive, isSimulated, liveCount, liveText, matches, startValue, stepFor, toLive, usedText,
     type SimResult, type SimScenario, type SimState, type SimTag, type SimVariables,
   } from '../lib/simulator';
 
@@ -145,8 +145,10 @@
     else sim.positions[el] = Number(v);
     changed();
   }
-  function allLive(): void { sim = emptyState(); scenarioId = ''; changed(); }
-  function startFromLive(): void { if (vars) { sim = fromLive(vars); changed(); info = 'Alle variabler med en live værdi er nu simulerede med den værdi.'; } }
+  // v6.11.2 (Jan: "de siger ikke noget om, hvad de gør"): navnene siger det nu, og Frys overskriver ikke længere dine ændringer.
+  // Svaret ses i statuslinjen ("n ændret") og på rækkerne — ingen besked, der skubber tegningen ned.
+  function resetAll(): void { sim = emptyState(); scenarioId = ''; changed(); }
+  function freezeLive(): void { if (vars) { sim = fromLive(vars, $state.snapshot(sim) as SimState); changed(); } }
 
   // ---- markér, hvor en variabel bruges
   function highlight(ids: string[]): void {
@@ -205,6 +207,7 @@
     }
   }
 
+  const nFreeze = $derived(vars ? freezable(vars, sim) : 0);
   const nSim = $derived(Object.keys(sim.values).length + Object.keys(sim.positions).length);
   const shownTags = $derived((vars?.tags ?? []).filter((t) => matches(t, search, isSimulated(sim, t.name), onlySim)));
   const shownAlarms = $derived((vars?.alarms ?? []).filter((t) => matches({ ...t, description: t.tag }, search, isSimulated(sim, t.name), onlySim)));
@@ -218,8 +221,10 @@
   <select value={drawingId} onchange={(e) => open(e.currentTarget.value)} aria-label="Tegning">
     {#each drawings as d (d.id)}<option value={d.id}>{d.name}</option>{/each}
   </select>
-  <button onclick={startFromLive} disabled={!vars} title="Kopiér PLC'ens værdier ind som simulerede værdier">Start fra live</button>
-  <button onclick={allLive} disabled={!nSim} title="Alle variabler følger PLC'en igen">Alt til live</button>
+  <button onclick={freezeLive} disabled={!vars || !nFreeze}
+          title={!vars ? 'Henter variablerne …' : !liveCount(vars) ? `Ingen variabler har en live værdi lige nu (PLC'en svarer ikke) — der er intet at fryse` : !nFreeze ? 'Alle variabler med en live værdi er allerede simulerede' : `Kopiér PLC'ens værdier lige nu ind som simulerede værdier for de ${nFreeze} variabler, der følger PLC'en, så de står fast, mens du ændrer én ting ad gangen. Det, du selv har ændret, bevares.`}>Frys på live-værdier</button>
+  <button onclick={resetAll} disabled={!nSim}
+          title={nSim ? `Fjern alle ${nSim} simulerede værdier og positioner, så alt følger PLC'en (live) igen. Gemte scenarier ændres ikke.` : `Intet er ændret — alt følger allerede PLC'en`}>Nulstil alle ændringer</button>
   <span class="sep"></span>
   <label class="opt">Scenarie
     <select value={scenarioId} onchange={(e) => load(e.currentTarget.value === '' ? '' : Number(e.currentTarget.value))} aria-label="Scenarie">
@@ -245,7 +250,8 @@
   <aside class="panel-sim" aria-label="Tegningens variabler">
     <!-- v6.8.1 (Jan: "hvad er op og ned … hvad dækker kun simulerede over"): forklaring øverst, filteret hedder det, det gør -->
     <p class="small muted intro">Alt følger PLC'en (<strong>live</strong>), indtil du ændrer det. Det, du har ændret, står med
-      <span class="chip">lilla</span> baggrund. <strong>Find</strong> markerer, hvor det bruges på tegningen.</p>
+      <span class="chip">lilla</span> baggrund. <strong>Find</strong> markerer, hvor det bruges på tegningen. <strong>Frys</strong> lader
+      PLC'ens værdier stå fast; <strong>Nulstil</strong> fjerner alle ændringer.</p>
     <input type="search" placeholder="Søg variabel eller symbol" bind:value={search} aria-label="Søg" />
     <div class="seg" role="radiogroup" aria-label="Vis">
       <button class:cur={!onlySim} role="radio" aria-checked={!onlySim} onclick={() => (onlySim = false)}>Alle</button>

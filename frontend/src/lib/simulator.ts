@@ -28,13 +28,30 @@ export function startValue(t: Pick<SimTag, 'kind' | 'min' | 'live'>): unknown {
   return typeof v === 'number' ? v : t.min ?? 0;
 }
 
-/** "Start fra live": alle tags og alarmer med en god live værdi bliver simulerede med den værdi. */
-export function fromLive(vars: SimVariables): SimState {
+const hasLive = (t: { live?: { quality?: string; value?: unknown } | null }): boolean =>
+  t.live?.quality === 'good' && t.live.value !== null && t.live.value !== undefined;
+
+/**
+ * "Frys på live-værdier" (før "Start fra live", v6.11.2): alle tags og alarmer med en god live værdi bliver simulerede med den
+ * værdi lige nu. Det, brugeren allerede har sat (`keep`), bevares — før blev det overskrevet uden et ord.
+ */
+export function fromLive(vars: SimVariables, keep: SimState = emptyState()): SimState {
   const values: Record<string, unknown> = {};
-  for (const t of [...vars.tags, ...vars.alarms]) if (t.live?.quality === 'good' && t.live.value !== null && t.live.value !== undefined) values[t.name] = t.live.value;
+  for (const t of [...vars.tags, ...vars.alarms]) if (hasLive(t)) values[t.name] = t.live!.value;
   const positions: Record<string, number> = {};
   for (const p of vars.positions) if (p.live !== null) positions[p.element] = p.live;
-  return { values, positions };
+  return { values: { ...values, ...keep.values }, positions: { ...positions, ...keep.positions } };
+}
+
+/** Hvor mange variabler har en god live værdi lige nu (0 = PLC'en svarer ikke, så der er intet at fryse). */
+export function liveCount(vars: SimVariables): number {
+  return [...vars.tags, ...vars.alarms].filter(hasLive).length + vars.positions.filter((p) => p.live !== null).length;
+}
+
+/** Hvor mange variabler "Frys" ville tilføje (de, der endnu ikke er simulerede og har en god live værdi). */
+export function freezable(vars: SimVariables, sim: SimState): number {
+  return [...vars.tags, ...vars.alarms].filter((t) => hasLive(t) && !isSimulated(sim, t.name)).length
+    + vars.positions.filter((p) => p.live !== null && !(p.element in sim.positions)).length;
 }
 
 /** Svaret som Overview-motorens værditabel. */

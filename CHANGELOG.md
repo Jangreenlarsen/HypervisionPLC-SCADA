@@ -4,6 +4,18 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.11.2 build 0418] — 2026-11-14 — Simulatoren: knapperne hedder det, de gør
+
+Jan: "de siger ikke noget om hvad de endelig gør".
+
+- `frontend/src/pages/Simulator.svelte`:
+  - *Start fra live* hedder nu **Frys på live-værdier**, og *Alt til live* hedder **Nulstil alle ændringer**.
+  - Tooltippene beskriver handlingen med tal ("… for de 12 variabler, der følger PLC'en"), og hvorfor knappen er slået fra.
+  - Panelets forklaring nævner dem. Den grønne besked er fjernet, fordi den skubbede tegningen ned.
+- `frontend/src/lib/simulator.ts`: `fromLive(vars, keep)` bevarer det, brugeren har sat (før blev det overskrevet). Nye `freezable` og `liveCount`.
+- Tests: `simulator.test.ts`. Set i browseren (live-værdier lagt ind, da den lokale server ingen PLC har): Frys bevarer Tryk = 77 og tilføjer pumpen, Nulstil tømmer, og knapperne er slået fra, når de ikke kan bruges. Værktøjslinjen og rækkehøjderne er uændrede ved klik.
+- Manual kap. 07, billedet `simulator.png` og LLM-tillæg.
+
 ## [6.11.1 build 0417] — 2026-11-13 — Rettelse: flytning og drejning i Tegn blev afbrudt af den løbende flowberegning
 
 - `frontend/svgedit-host/scada-core.js previewSvg()`: tegningen til løbende beregninger som en kopi. Den rører hverken valget, et igangværende træk eller DOM'en, modsat `getSvg()`, som fravælger alt og rydder op (til Gem).

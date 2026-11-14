@@ -1,6 +1,6 @@
 // Simulatoren (v6.5.0): panelets hjælpere — start fra live, filtrering, skydertrin, værditabellen.
 import { describe, expect, it } from 'vitest';
-import { emptyState, fromLive, isSimulated, liveText, matches, startValue, stepFor, toLive, type SimVariables } from './simulator';
+import { emptyState, freezable, fromLive, liveCount, isSimulated, liveText, matches, startValue, stepFor, toLive, type SimVariables } from './simulator';
 
 const vars: SimVariables = {
   tags: [
@@ -14,6 +14,15 @@ const vars: SimVariables = {
 describe('simulatoren', () => {
   it('start fra live tager kun gode værdier med', () => {
     expect(fromLive(vars)).toEqual({ values: { Pumpe: true, 'alarm:Tryk:active': false }, positions: { v1: 1 } });
+  });
+  it('frys bevarer det, brugeren allerede har sat, og tæller kun de ikke-simulerede (v6.11.2)', () => {
+    const mine = { values: { Pumpe: false }, positions: { v1: 0 } };
+    expect(fromLive(vars, mine)).toEqual({ values: { Pumpe: false, 'alarm:Tryk:active': false }, positions: { v1: 0 } });
+    expect(freezable(vars, emptyState())).toBe(3);                 // Pumpe, alarmen og ventilens position (Tryk har komm.fejl)
+    expect(freezable(vars, mine)).toBe(1);                         // kun alarmen mangler
+    expect(freezable(vars, fromLive(vars))).toBe(0);
+    expect(liveCount(vars)).toBe(3);
+    expect(liveCount({ ...vars, tags: [], alarms: [], positions: [] })).toBe(0);           // PLC'en svarer ikke
   });
   it('en simuleret komm.fejl er null og stadig simuleret', () => {
     const s = { ...emptyState(), values: { Tryk: null } };
