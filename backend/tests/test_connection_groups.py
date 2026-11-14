@@ -101,6 +101,19 @@ def test_an_animation_can_follow_the_flow_in_another_element(api):
     assert api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": other}).status_code == 400
 
 
+def test_text_per_value_at_most_five():
+    # v6.12.7: tekst pr. værdi i en tekst-animation (højst 5)
+    import pytest
+    from pydantic import ValidationError
+    from app.services.bindings import TextParams
+    texts = [{"value": i, "text": f"T{i}"} for i in range(5)]
+    assert TextParams.model_validate({"texts": texts}).model_dump()["texts"][2] == {"value": 2.0, "text": "T2"}
+    with pytest.raises(ValidationError):
+        TextParams.model_validate({"texts": texts + [{"value": 9, "text": "for mange"}]})
+    with pytest.raises(ValidationError):
+        TextParams.model_validate({"texts": [{"value": 1, "text": "x" * 41}]})
+
+
 def test_group_rules(api):
     _drawing(api)
     assert api.post(url(api), json={"name": "X", "members": ["rad"]}).status_code == 400              # et symbol, ikke en forbindelse

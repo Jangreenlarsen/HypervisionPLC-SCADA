@@ -2,6 +2,10 @@
 
 ---
 
+## v6.13.0 — 2026-11-14 — Tekst pr. værdi
+
+- En tekst-animation kan vise en tekst i stedet for tallet: **Tekst pr. værdi** med op til 5, fx 0 = Stop, 1 = Kører og 2 = Fejl.
+
 ## v6.12.6 — 2026-11-14
 
 - En animation kan nu styres af **flow i et andet element**, fx et statusfelt, der viser tankens flow. "Symbolets flow" er symbolets eget, og det er 0 for et statusfelt.

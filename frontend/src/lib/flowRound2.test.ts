@@ -1,7 +1,7 @@
 // Flow-model runde 2 (v6.3.0): retning pr. delstreg på rørstykker, flow-profilen pr. symboltype, guidens standarder og
 // preview-kaldets krop.
 import { describe, expect, it } from 'vitest';
-import { bindingActive, colorFor, flowGroup, parsePortFlows, portDirection, portFlow, speedFor } from './animate';
+import { bindingActive, colorFor, flowGroup, parsePortFlows, portDirection, portFlow, speedFor, textFor, valueText } from './animate';
 import { bindingTags } from './canvas';
 import { overlayData, previewBody, type Preview } from './flowLive';
 import { defaultFlow } from './symbolConfig';
@@ -173,5 +173,17 @@ describe('typePortMap (v6.8.5)', () => {
     expect(m.pumpe).toEqual([[0, 0.5], [1, 0.5]]);
     expect(m.kontraventil).toEqual([[0, 0.67], [1, 0.67]]);
     expect(typePortMap({ x: { ports: [] } } as never)).toEqual({});
+  });
+});
+
+describe('tekst pr. værdi (v6.12.7)', () => {
+  const p = { texts: [{ value: 0, text: 'Stop' }, { value: 1, text: 'Kører' }, { value: 2, text: 'Fejl' }], prefix: 'Pumpe: ', suffix: '' };
+  it('viser teksten for præcis den værdi, ellers tallet', () => {
+    expect(textFor(1, undefined, p)).toBe('Pumpe: Kører');
+    expect(textFor('2', undefined, p)).toBe('Pumpe: Fejl');
+    expect(textFor(3, undefined, p)).toBe('Pumpe: 3');
+    expect(valueText(1.5, p)).toBeNull();
+    expect(valueText(true, p)).toBeNull();                     // til/fra har sine egne Til/Fra-tekster
+    expect(textFor(1, undefined, {})).toBe('1');                // uden tekster: som før
   });
 });

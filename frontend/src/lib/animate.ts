@@ -44,7 +44,20 @@ export function formatValue(value: unknown, meta: TagMeta | undefined, params: R
 
 /** Tekst-binding: fast tekst før/efter værdien ("Tank : " … " liter"); også rundt om "—" når værdien mangler. */
 export function textFor(value: unknown, meta: TagMeta | undefined, params: Record<string, any> = {}): string {
-  return `${params.prefix ?? ''}${formatValue(value, meta, params)}${params.suffix ?? ''}`;
+  return `${params.prefix ?? ''}${valueText(value, params) ?? formatValue(value, meta, params)}${params.suffix ?? ''}`;
+}
+
+/**
+ * Tekst pr. værdi (v6.12.7, Jan: højst 5): `params.texts` = [{ value, text }] — er tagets værdi (rå, før en beregning) præcis en
+ * af værdierne, vises dens tekst i stedet for tallet. null = ingen tekst for værdien (så vises tallet som før).
+ */
+export function valueText(value: unknown, params: Record<string, any> = {}): string | null {
+  const list: { value: number; text: string }[] = Array.isArray(params.texts) ? params.texts : [];
+  if (!list.length || typeof value === 'boolean') return null;
+  const n = typeof value === 'string' ? (value.trim() !== '' && Number.isFinite(Number(value)) ? Number(value) : null) : toNumber(value);
+  if (n === null) return null;
+  const hit = list.find((t) => Number.isFinite(Number(t?.value)) && Math.abs(Number(t.value) - n) < 1e-9);
+  return hit ? String(hit.text ?? '') : null;
 }
 
 /** Tallet, en animation regner med: `abs` (v6.1.0, flowberegningen) = uden fortegn, så retningen ikke tæller. */

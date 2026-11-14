@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.13.0 build 0428] — 2026-11-14 — Tekst-animation: tekst pr. værdi (højst 5)
+
+Jan: "i en tekst-animation kan jeg ikke sætte en streng, kun værdi" → "c med op til 5 optioner". Se FEATURES.md v6.13.0.
+
+- `backend/app/services/bindings.py`: `ValueText` og `TextParams.texts` (højst 5, tekst højst 40 tegn).
+- `frontend/src/lib/animate.ts`: `valueText`, som `textFor` bruger.
+- `frontend/src/lib/AnimParams.svelte`: "Tekst pr. værdi" med "+ Tekst" og "−".
+- Manual: `10-symboler-og-guiden.md`.
+- Tests: `frontend/src/lib/flowRound2.test.ts`, `backend/tests/test_connection_groups.py`.
+
 ## [6.12.6 build 0427] — 2026-11-14 — fix: animation efter flowet i et andet element (statusfelt med tankens flow)
 
 Jan: "den her animation fungerer ikke, ingen flow-data kommer på". Se BUGS.md v6.12.6.

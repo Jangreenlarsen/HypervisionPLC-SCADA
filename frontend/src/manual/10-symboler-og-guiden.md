@@ -379,6 +379,7 @@ Animationen **Værdi** skriver taggets værdi i en tekst-del. For et tal-tag har
 
 - **Decimaler**: antal decimaler (tallet rundes af). Tom = tagets egen indstilling; 0 = hele tal.
 - **Før** og **Efter**: fast tekst foran og efter tallet, fx *Tryk: * og * liter* (skriv selv mellemrummene).
+- **Tekst pr. værdi** (højst 5): tryk **+ Tekst** og skriv en værdi og dens tekst, fx *0 = Stop*, *1 = Kører*, *2 = Fejl*. Er tagets værdi præcis en af dem, vises teksten i stedet for tallet. *Før* og *Efter* bruges stadig. Andre værdier vises som tal. Der sammenlignes med tagets egen værdi, før en eventuel *Beregning*. Et til/fra-tag har i stedet felterne *Til* og *Fra*.
 - **Beregning**: simpel matematik på værdien, før den vises — fx *x / 10*, så registerværdien 128 vises som 12,8. Samme regler som på siden *Bindinger* (se *Bindinger og animationer › Tekst: decimaler og beregning*). En ugyldig beregning vises med det samme med rødt.
 - **Vis enhed**: tagets enhed (fra *Tags*) efter tallet — før *Efter*-teksten.
 
