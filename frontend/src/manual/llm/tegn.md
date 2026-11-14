@@ -86,8 +86,12 @@ Serveren beregner selv flowet gennem de forbundne symboler. Bind forbindelserne 
 <!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:8acd21f9 -->
 Åbn menuen **Forbindelser** i Tegn, og tryk **Til/Fra for hele tegningen …**. Tryk **Redigér** ved *Hele tegningen*. **Til** (der er flow) kan være løbelys, en farve eller som tegnet. **Fra** (intet flow) kan være som tegnet eller en farve. Blink kan slås til i begge. Skal nogle rør vise noget andet, så vælg dem på tegningen, giv dem et navn under **Ny undtagelse**, og tryk **Opret af valgte** og derefter **Redigér**. **Avanceret …** giver flere farvegrænser i l/min, blink ved et bestemt flow og fast farve.
 
+## Hvordan viser jeg flowet i en tank eller et rør i et statusfelt (statusfeltet viser 0)?
+<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:4d11a724 -->
+Et statusfelt ligger ikke i rørnettet, så **symbolets flow** er altid 0 for det. Åbn statusfeltets guide, gå til trin 4, og vælg under *styres af* **flow i et andet element** og derefter tanken, røret eller pumpen. Før/efter-teksten og decimalerne beholdes, når du skifter kilde.
+
 ## Hvordan bestemmer en 3-vejsventil, hvilken vej flowet går (AB → A, AB → B, register 10/20)?
-<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:44788242 -->
+<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:4d11a724 -->
 Giv ventilen positioner (fx *AB → A* og *AB → B*), og lad tagget bestemme positionen i trin 3 (fx register 10 = AB → A, 20 = AB → B, eller to til/fra-signaler). I trin 4 under **Flow** sætter du hak ved den åbne vej i hver position. Flowberegningen sender så flowet den vej, og animationerne pr. position (fx portene AB og A grønne, B sort) sættes som altid i trin 4.
 
 ## Hvorfor er der intet flow i rørene (pumpe kører ikke, ingen vej, ikke bundet)?
@@ -103,15 +107,15 @@ Topmenuen i Tegn har tre dele. Til venstre åbner **tegningens navn** en menu me
 Tryk **Flow** i værktøjslinjen i Tegn og sæt hak i **Vis flowet på tegningen**. Flowet tegnes som blå løbelys med tal i l/min oven på tegningen, beregnet ud fra tegningen, som den ser ud lige nu (også ugemt). **Live** bruger PLC'ens værdier; **Simulering** lader dig starte/stoppe pumper, sætte rate og restriktion (0,00–1,00) og vælge ventilernes position — der skrives aldrig til PLC'en.
 
 ## Hvordan styres en 3-vejsventil, og hvordan farves dens porte efter flowet (AB og A grønne, B sort)?
-<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:44788242 -->
+<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:4d11a724 -->
 Positionen styres af et tag i trin 2–3 (fx register 10 = AB → A, 20 = AB → B). I trin 4 under **Flow** sætter du hak ved den åbne vej i hver position, og **Farv portene efter de åbne veje** farver portene automatisk: porte på en åben vej får farven *åben* (grøn), de andre *lukket* (sort). Det kræver, at symboltypens punkter har en *Del* (port_a, port_b, port_ab) under Opsætning › Symboler › Ind/ud og veje. Selve flowet beregnes af serveren ud fra positionen.
 
 ## Hvordan sætter jeg restriktionen til et tal mellem 0 og 1 (ikke til/fra)?
-<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:44788242 -->
+<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:4d11a724 -->
 I trin 4 under **Flow** › **Restriktion**: vælg *en fast værdi* (skyder og tal med to decimaler, 0,00 = blokeret … 1,00 = ingen) eller *et tag* med en tal-værdi, fx ventilens åbning i %, og skriv 100 i *1,00 ved*. Et til/fra-signal giver kun 0,00 eller 1,00 — guiden advarer.
 
 ## Hvordan bruger jeg en flowsensor (målt flow) i flowberegningen?
-<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:44788242 -->
+<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:4d11a724 -->
 Åbn guiden for symbolet, hvor sensoren sidder, trin 4 › **Flow** › **Målt flow**, og vælg sensorens tag (l/min). Pumperne, der giver flow gennem symbolet, skaleres, så beregningen passer med målingen.
 
 ## Hvordan gør jeg et symbol til en pumpe, kilde, forbruger eller ledning for alle tegninger (flow-rolle, el-komponenter)?
@@ -123,11 +127,11 @@ Under Opsætning › Symboler › **Ind/ud og veje** vælger du symboltypens **F
 I guidens trin 4 ved animationen *Farve* (eller *Streg*) med et tal-tag: skriv grænsen i **Aktiv når ≥** (fx 50). Fra 50 og op vises aktiv-farven, under 50 fra-farven. Tomt felt = aktiv, når værdien ikke er 0 (0 = fra-farven, over 0 = aktiv-farven). **+ Grænse** lægger flere farver ovenpå; aktiv-farven gælder op til den første grænse. Farverne står som en tabel med én række pr. værdiområde.
 
 ## Hvordan definerer jeg lavt og højt flow for en flowsensor og viser flowet med løbelysets fart, blink eller farve (baseline, flow-niveau)?
-<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:44788242 -->
+<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:4d11a724 -->
 I guidens trin 4 › **Flow** › **Målt flow**: vælg sensorens tag og skriv **lavt flow** og **højt flow** (fx 15,1 og 16,5 l/min). Det målte flow bliver symbolets **flow-niveau** 0,00–1,00 (15,85 → 0,54). Vælg **symbolets flow-niveau** som kilde i en animation: løbelysets fart følger niveauet, blink fx ved *højst 0,1*, farve fx *Aktiv når ≥ 0,8*.
 
 ## Er flow-rate og restriktion faste værdier eller tags?
-<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:44788242 -->
+<!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:4d11a724 -->
 De er faste værdier for symbolet (dets fysik): skriv tallet 0,00–1,00 i trin 4 › Flow, eller træk i skyderen. Sæt hak i **styret af et tag**, hvis PLC'en skal styre værdien, og angiv hvad der er 1,00 (fx 100 for en ventils åbning i %).
 
 ## Hvordan tester jeg en tegnings tilstande uden PLC (simulator, indskyd værdier, scenarier)?

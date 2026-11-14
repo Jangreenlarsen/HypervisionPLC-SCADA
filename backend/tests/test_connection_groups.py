@@ -84,6 +84,23 @@ def test_on_and_off_colors_reach_the_bindings(api):
     assert r1["params"]["chain"] == "conn"                     # v6.12.4: ét sammenhængende forløb på tværs af forbindelserne
 
 
+def test_an_animation_can_follow_the_flow_in_another_element(api):
+    # v6.12.6: et statusfelt (uden for rørnettet) viser radiatorens flow — "@flow:<element>" → flow:<tegning>:<element>
+    d = _drawing(api)
+    api.put(f"/api/drawings/{d}/symbols/p/config", json={"config": PUMP})
+    other = {"op": "view", "anims": [{"part": "all", "type": "blink", "src": "@flow:rad", "params": {"at_least": 1}}]}
+    r = api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": other})
+    assert r.status_code == 200, r.text
+    b = next(b for b in api.get(f"/api/drawings/{d}/view").json()["bindings"] if b["source"] == "symbol" and b["element"] == "rad")
+    assert b["tag"] == f"flow:{d}:rad" and b["params"]["abs"] is True
+    other["anims"][0]["src"] = "@flow:p"
+    api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": other})
+    b = next(b for b in api.get(f"/api/drawings/{d}/view").json()["bindings"] if b["source"] == "symbol" and b["element"] == "rad")
+    assert b["tag"] == f"flow:{d}:p"                          # ikke læst som en logikblok i symbolet "flow"
+    other["anims"][0]["src"] = "@flow:"
+    assert api.put(f"/api/drawings/{d}/symbols/rad/config", json={"config": other}).status_code == 400
+
+
 def test_group_rules(api):
     _drawing(api)
     assert api.post(url(api), json={"name": "X", "members": ["rad"]}).status_code == 400              # et symbol, ikke en forbindelse

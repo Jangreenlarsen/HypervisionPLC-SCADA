@@ -40,6 +40,17 @@ RATE_POS = "@pos"   # v6.9.4: pumpens flow-rate følger dens position (Fra = sto
 VAL = "@val:"   # kilden "fast værdi" (v1.4.0): `@val:75` — et tal i stedet for et tag; kun for tal-animationer
 VAL_TYPES = {"level", "opacity", "scale", "rotate", "move"}   # tal-animationer der kan styres af en fast værdi
 FLOW = "@flow"   # kilden "symbolets flow" (v6.1.0): den beregnede mængde gennem symbolet, l/min (flow_calc.py)
+# v6.12.6 (Jan: et statusfelt med "symbolets flow" viste altid 0 — det ligger ikke i rørnettet): flowet i ET ANDET element på
+# tegningen (en tank, et rør, en pumpe): "@flow:<element>" → flow:<tegning>:<element>
+FLOW_OF = "@flow:"
+_FLOW_OF_ID = re.compile(r"^[A-Za-z_][\w.\-]{0,119}$")
+
+
+def parse_flow_of(src: Any) -> str | None:
+    """`@flow:tank_3` → "tank_3" (eller None)."""
+    if isinstance(src, str) and src.startswith(FLOW_OF) and _FLOW_OF_ID.match(src[len(FLOW_OF):]):
+        return src[len(FLOW_OF):]
+    return None
 # kilden "symbolets flow-niveau" (v6.4.0): det målte flow placeret mellem lav (0,00) og høj (1,00) — til løbelysets fart, blink, farve
 LEVEL = "@flowlevel"
 _WAY = re.compile(r"^[A-Za-z0-9_+-]{1,12}>[A-Za-z0-9_+-]{1,12}\Z")
@@ -439,7 +450,7 @@ def too_many_anims(config: Any, element: str = "") -> bool:
 
 def is_logic_ref(src: Any) -> bool:
     """`@L1` — kilden er en logikblok (`@pos` er positionen, `@on` er "Altid til")."""
-    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON, FLOW, LEVEL) and not src.startswith((ALARM_REF, VAL))
+    return isinstance(src, str) and src.startswith("@") and src not in (POS, ON, FLOW, LEVEL) and not src.startswith((ALARM_REF, VAL, FLOW_OF))
 
 
 def split_logic_ref(src: str, own: str = "") -> tuple[str, str]:
@@ -643,8 +654,8 @@ def config_bindings(drawing_id: str, element: str, cfg: dict[str, Any], parts: s
             if a["type"] == "flow":
                 params["mode"] = "onoff"
                 params["flow_max"] = 1                   # løbelysets fart efter niveauet
-        elif a["src"] == FLOW:
-            tag = f"flow:{drawing_id}:{element}"
+        elif a["src"] == FLOW or parse_flow_of(a["src"]):
+            tag = f"flow:{drawing_id}:{parse_flow_of(a['src']) or element}"
             params.setdefault("abs", True)       # mængden (uden fortegn) til farve/blink
             if a["type"] == "flow":
                 params["mode"] = "onoff"         # et symbols flow er en mængde uden retning: løbelyset kører, når der er flow
@@ -1218,7 +1229,10 @@ def validate_config(raw: Any, element: dict[str, Any], tags: dict[str, dict[str,
                 continue
             if row.get("alarm_on") is None and all(row.get(f"alarm_{k}") is None for k in ("hh", "h", "l", "ll")):
                 res.warnings.append(f"Trin 4: {nm}: tagget '{ref[1]}' har ingen alarm endnu — opsæt den i trin 6.")
-        flow_src = a.src == FLOW
+        flow_src = a.src == FLOW or a.src.startswith(FLOW_OF)
+        if a.src.startswith(FLOW_OF) and parse_flow_of(a.src) is None:
+            res.err("4", f"{nm}: vælg det element, hvis flow animationen skal følge.")
+            continue
         level_src = a.src == LEVEL
         if level_src and (cfg.flow is None or not cfg.flow.measured.src):
             res.err("4", f"{nm}: \"symbolets flow-niveau\" kræver et målt flow med lavt og højt flow (Flow › Målt flow nedenfor).")

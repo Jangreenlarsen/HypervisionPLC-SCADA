@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.12.6 build 0427] — 2026-11-14 — fix: animation efter flowet i et andet element (statusfelt med tankens flow)
+
+Jan: "den her animation fungerer ikke, ingen flow-data kommer på". Se BUGS.md v6.12.6.
+
+- `backend/app/services/symbols.py`: `FLOW_OF` og `parse_flow_of`. Bindingen følger `flow:<tegning>:<element>`, valideres og læses ikke som en logikblok.
+- `frontend/src/lib/symbolConfig.ts`: `FLOW_OF`, `flowOfRef` og `parseFlowOf`; `isLogicRef` undtager den.
+- `frontend/src/lib/SymbolGuide.svelte`: kilden "flow i et andet element" med et valg af element. Indstillingerne bevares ved skift mellem kilder af samme slags.
+- Manual: `10-symboler-og-guiden.md` og `llm/tegn.md` (nyt svar, synkroniseret).
+- Tests: `backend/tests/test_connection_groups.py`, `frontend/src/lib/connGroups.test.ts`.
+
 ## [6.12.5 build 0426] — 2026-11-14 — fix: løbelys og blink på samme rør
 
 Jan: "se på hvorfor en kombination af løbelys og animation for hele forbindelsen laver underlige ting". Se BUGS.md v6.12.5.

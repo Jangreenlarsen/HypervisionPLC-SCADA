@@ -68,6 +68,12 @@ export function flowLevel(value: number, low: number, high: number): number | nu
 }
 /** Kilden "symbolets flow" (v6.1.0): den beregnede mængde gennem symbolet, l/min. */
 export const FLOW = '@flow';
+/** v6.12.6 (Jan: et statusfelt med "symbolets flow" viste altid 0 — det ligger ikke i rørnettet): flowet i et ANDET element på
+ *  tegningen (en tank, et rør, en pumpe) — "@flow:<element>". Backend: symbols.FLOW_OF. */
+export const FLOW_OF = '@flow:';
+export const flowOfRef = (element: string): string => `${FLOW_OF}${element}`;
+export const parseFlowOf = (src: string): string | null =>
+  (typeof src === 'string' && src.startsWith(FLOW_OF) ? src.slice(FLOW_OF.length) : null);
 /** v6.9.4: '@pos' = pumpens flow-rate følger dens position (Fra = stop, Til = kører) — kun for pumper med positioner. */
 export const RATE_POS = '@pos';
 export const flowSourceMode = (s: FlowSource): 'none' | 'tag' | 'val' | 'pos' =>
@@ -385,7 +391,7 @@ export function newSignal(cfg: SymbolConfig, tag = '', fb = ''): Signal {
 export const CMP_TXT: Record<string, string> = { ge: '≥', le: '≤', eq: '=' };
 
 /** `@L1` — animationens kilde er en logikblok (`@pos` er positionen). */
-export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS && src !== ON && src !== FLOW && src !== LEVEL && !src.startsWith(ALARM_REF) && !src.startsWith(VAL_REF);
+export const isLogicRef = (src: string): boolean => src.startsWith('@') && src !== POS && src !== ON && src !== FLOW && src !== LEVEL && !src.startsWith(ALARM_REF) && !src.startsWith(VAL_REF) && !src.startsWith(FLOW_OF);
 
 export function newBlock(cfg: SymbolConfig): LogicBlock {
   let i = 1;

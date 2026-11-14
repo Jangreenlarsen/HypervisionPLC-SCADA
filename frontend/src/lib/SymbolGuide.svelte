@@ -27,7 +27,7 @@ import { AVERAGE_CHOICES } from './trendData';
   import { DIR_TXT, applyLever, leverDirs, leverInSync, type LeverDir } from './toggleSwitch';
   import type { TagAlarm as TagAlarmRow } from './tagAlarm';
   import {
-    ALARM_TXT, ANIM_TXT, FLOW, LEVEL, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
+    ALARM_TXT, ANIM_TXT, FLOW, LEVEL, flowOfRef, parseFlowOf, ON, VAL_TYPES, WHEN_TYPES, parseValRef, valRef, alarmRef, parseAlarmRef, BLINK_TXT, CMP_TXT, MAX_ANIMS, MAX_LOGIC, MAX_LOGIC_INPUTS, MAX_PLANES, MAX_POSITIONS, OP_TXT, POS, STEPS,
     activeAt, hasFeedback, keepsOnly, animDefaults, keepSuggestion, GLIDE_SPEEDS, glideSeconds, cycleCell, describeBlock, emptyConfig, evalLogic, feedbackMismatch, foundPosition, isLogicRef, newBlock, newSignal, partLabel,
     ALL_OPS, BY_VALUE_TYPES, allowedOps, opChoices, flickerPalette, offersSelectorExample, isValveType, libraryDefault, preset, removeBlock, resize, setOp, setPassive, tagKind, template, typesFor, valveFromTag,
     type Anim, type AnimType, type LogicBlock, type Op, type PoolBlock, type Signal, type SrcKind, type SymbolConfig, type SymbolInfo,
@@ -113,7 +113,20 @@ import { AVERAGE_CHOICES } from './trendData';
   let groupOwners = $state<OwnerBlock[]>([]);
   // Hurtigvalg af brugte farver ved farvefelterne: animationernes egne, så symbolets tegnede, så tegningens øvrige
   let drawnOwn = $state<string[]>([]), drawnAll = $state<string[]>([]);
-  let drawingSvg = $state('');   // tegningens SVG — preview'et ved animationerne tegner symbolet ud fra den (v2.10.0)
+  let drawingSvg = $state('');
+  /** v6.12.6: elementer på tegningen, der kan have et flow (symboler og rør) — til kilden "flow i et andet element" */
+  const flowElements = $derived.by(() => {
+    if (!drawingSvg) return [] as { id: string; label: string }[];
+    try {
+      const doc = new DOMParser().parseFromString(drawingSvg, 'image/svg+xml');
+      return [...doc.querySelectorAll('[data-hv-pipe][id], g[data-hv-type][id]')]
+        .filter((e) => e.id !== element)
+        .map((e) => ({ id: e.id, label: `${e.getAttribute('data-hv-name') || e.id}${e.hasAttribute('data-hv-pipe') ? ' (rør)' : ''}` }))
+        .sort((x, y) => x.label.localeCompare(y.label, 'da'));
+    } catch {
+      return [];
+    }
+  });   // tegningens SVG — preview'et ved animationerne tegner symbolet ud fra den (v2.10.0)
   const palette = $derived(mergePalette([paramColors(cfg.anims), drawnOwn, drawnAll]));
   let memberOf = $state<SymbolGroup[] | null>(null);   // grupperne symbolet er medlem af (null = ikke hentet endnu)
   onMount(() => {
@@ -439,10 +452,11 @@ import { AVERAGE_CHOICES } from './trendData';
   const poolLabel = (p: PoolBlock) => `${p.symbol} · ${p.id}${p.name ? ` – ${p.name}` : ''}`;
   const poolRef = (p: PoolBlock) => `@${p.element}:${p.id}`;
   const firstBlockRef = (local: LogicBlock[]) => (local[0] ? `@${local[0].id}` : pool[0] ? poolRef(pool[0]) : '');
-  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : a.src === FLOW ? FLOW : a.src === LEVEL ? LEVEL : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : 'tag');
+  const srcMode = (a: Anim): string => (a.src === POS ? POS : a.src === ON ? ON : a.src === FLOW ? FLOW : a.src === LEVEL ? LEVEL : parseFlowOf(a.src) !== null ? 'flowof' : parseValRef(a.src) !== null ? 'val' : parseAlarmRef(a.src) ? 'alarm' : isLogicRef(a.src) ? 'logic' : 'tag');
   function setSrcMode(a: Anim, mode: string): void {
-    a.src = mode === POS ? POS : mode === ON ? ON : mode === FLOW ? FLOW : mode === LEVEL ? LEVEL : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : '';
-    resetParams(a);
+    const was = a.src;
+    a.src = mode === POS ? POS : mode === ON ? ON : mode === FLOW ? FLOW : mode === LEVEL ? LEVEL : mode === 'val' ? valRef(50) : mode === 'alarm' ? alarmRef('active', '') : mode === 'logic' ? firstBlockRef(cfg.logic) : mode === 'flowof' ? flowOfRef(flowElements[0]?.id ?? '') : '';
+    resetParams(a, was);
   }
   // ---- 3-vejs ventil styret af ét til/fra-tag
   // Vippekontakten (v0.98.0): grebets stilling pr. position — Op / Midt (kun knoppen) / Ned
@@ -530,7 +544,12 @@ import { AVERAGE_CHOICES } from './trendData';
     const before = wasSrc === undefined ? undefined : animDefaults(a.type, srcKind({ ...a, src: wasSrc }), n);
     // Drej pr. position på en omskifter: start med tegningens vinkler i stedet for et gæt
     if (a.type === 'rotate' && srcKind(a) === 'pos' && selectorAnglesNow) fresh.angles = [...selectorAnglesNow];
-    if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
+    // v6.12.6 (Jan: "Efter" forsvandt ved skift til en anden flow-kilde): samme slags kilde (tal → tal) og samme animation →
+    // behold det, man har skrevet (før/efter, decimaler, beregning, grænser)
+    const sameKind = wasSrc !== undefined && wasSrc !== '' && srcKind({ ...a, src: wasSrc }) === srcKind(a);
+    if (sameKind) {
+      a.params = { ...fresh, ...(a.params ?? {}) };      // egne værdier vinder; standarden udfylder kun det, der mangler
+    } else if (!keepSuggestion(wasSrc, a.params, fresh, before)) a.params = fresh;
     // "Gælder i" læser symbolets egen position — den giver ingen mening, når kilden SELV er positionen (eller "pr. værdi"): ryd den (v2.11.1)
     if (!keepsOnly(a.src, byValue(a), isPos)) a.only = null;
   }
@@ -1056,8 +1075,15 @@ import { AVERAGE_CHOICES } from './trendData';
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
                   {#if !['level', 'opacity', 'scale', 'text', 'segments'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
                   {#if a.type !== 'segments'}<option value={FLOW} title="Den beregnede mængde gennem symbolet (l/min), se Flow nedenfor">symbolets flow</option>{/if}
+                  {#if a.type !== 'segments' && flowElements.length}<option value="flowof" title="Den beregnede mængde gennem et andet element på tegningen (l/min) — fx en tank eller et rør, vist i et statusfelt">flow i et andet element</option>{/if}
                   {#if a.type !== 'segments' && (cfg.flow?.measured?.src || a.src === LEVEL)}<option value={LEVEL} title="Det målte flow mellem lavt (0,00) og højt (1,00) flow — se Flow › Målt flow nedenfor">symbolets flow-niveau (0,00–1,00)</option>{/if}
                 </select>
+                {#if srcMode(a) === 'flowof'}
+                  <select value={parseFlowOf(a.src) ?? ''} onchange={(e) => { const was = a.src; a.src = flowOfRef(e.currentTarget.value); resetParams(a, was); }} aria-label="Element">
+                    {#if !flowElements.some((x) => x.id === parseFlowOf(a.src))}<option value={parseFlowOf(a.src) ?? ''}>{parseFlowOf(a.src) || 'Vælg element …'}</option>{/if}
+                    {#each flowElements as x (x.id)}<option value={x.id}>{x.label}</option>{/each}
+                  </select>
+                {/if}
                 {#if srcMode(a) === 'tag'}<TagSelect value={a.src} {tags} onchange={(v) => { const was = a.src; a.src = v; resetParams(a, was); }} />{/if}
                 {#if srcMode(a) === 'tag' && isPos && BY_VALUE_TYPES.includes(a.type)}
                   <label class="opt small" title={`Tagets værdi er positionens nummer: ${cfg.positions.map((p, j) => `${j} = ${p.label}`).join(', ')}`}>
