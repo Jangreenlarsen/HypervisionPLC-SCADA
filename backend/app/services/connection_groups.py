@@ -145,6 +145,9 @@ def group_bindings(drawing_id: str, conns: dict[str, tuple[str, bool]], rows: li
                                         "dash": a["dash"], "flow_max": a["full"] or full_default}
                 if a["stopped"]:
                     params["stopped"] = a["stopped"]
+                # v6.13.0 (Jan: synkroniseringsfejl i overgangen mellem rør, T-stykker og bøjninger): alle forbindelsers løbelys er
+                # ét sammenhængende forløb på tværs af elementerne (hver har sit eget flow-tag); retningen kommer fra flowet
+                params["chain"] = "conn"
                 if not is_pipe:
                     params["port_tag"] = ports_tag(drawing_id, el)
             elif a["type"] == "color":

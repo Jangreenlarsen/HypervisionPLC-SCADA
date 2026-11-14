@@ -81,6 +81,7 @@ def test_on_and_off_colors_reach_the_bindings(api):
     api.put(url(api, "/default"), json={"anims": [{"type": "flow"}]})
     r1 = next(b for b in api.get(f"/api/drawings/{d}/view").json()["bindings"] if b["source"] == "conn-group" and b["element"] == "r1")
     assert "stopped" not in r1["params"]                                               # som tegnet: ingen parameter
+    assert r1["params"]["chain"] == "conn"                     # v6.12.4: ét sammenhængende forløb på tværs af forbindelserne
 
 
 def test_group_rules(api):

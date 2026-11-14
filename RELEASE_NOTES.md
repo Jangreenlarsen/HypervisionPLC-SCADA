@@ -2,6 +2,10 @@
 
 ---
 
+## v6.12.4 — 2026-11-14
+
+- Rettet: løbelyset hoppede i overgangen mellem rør, T-stykker og bøjninger. Nu fortsætter lys og mørke glat hen over samlingerne.
+
 ## v6.12.3 — 2026-11-14
 
 - Rettet: når et symbol blev drejet, sad tilslutningspunkterne forkert bagefter. Det gjaldt især et symbol, der var drejet før. Ældre tegninger rettes, når de åbnes i Tegn, og gemmes rettet ved næste Gem.

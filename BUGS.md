@@ -5,6 +5,11 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v6.12.4 — **Løbelyset hoppede i overgangen mellem rør, T-stykker og bøjninger** (Jan 2026-11-14: "synkroniseringsfejl i overgang"). **Årsag:** sammenhængende løbelys (v0.64.0, `flowChain.ts`) kæder kun dele med samme tag. Forbindelsernes løbelys har ét flow-tag pr. element (`flow:<tegning>:<element>`), så rør og rørstykker blev aldrig kædet sammen, og hver del startede sit mønster forfra. Kæden krævede desuden, at delene var tegnet i samme retning. For flowet er det flowet selv, der bestemmer retningen. **Rettelse:**
+  - Forbindelsernes løbelys har en fælles kæde (`params.chain = "conn"`), som `flowGroup` bruger i stedet for tagget.
+  - Delene kobles uden hensyn til tegneretningen (`dir` 0).
+
+  Målt i browseren på Jans tegning i simulatoren. Alle animationer blev stoppet på samme tid, og lys/mørke blev prøvet på begge sider af hver samling. Afvigelsen fra ét fælles mønster var før 20–31 % ved fire af fem overgange og er nu 0 % ved alle fem, efter 0,4, 1,2, 5,0 og 9,9 s. Tests: `flowRound2.test.ts`, `test_connection_groups.py`.
 - [fixed] v6.12.3 — **Når et symbol blev drejet 90°, sad tilslutningspunkterne forkert bagefter** (Jan 2026-11-14, ventilen "3-vejs motorventil 5" på test-ny-editor). Ventilen så rigtig ud, men punktet M lå dér, hvor A er tegnet, og røret i A var sat på M. **Årsag (genskabt i browseren):**
   - Drejede symboler var gemt som `matrix(0,1,-1,0,…)`. SVG-Edit kender kun `rotate(…)` som en drejning, så ∠ viste 0.
   - Ved en drejning med håndtaget skubbede SVG-Edit den gamle matrix, med drejningen, ned i alle symbolets dele og lagde `rotate(-90)` på gruppen.

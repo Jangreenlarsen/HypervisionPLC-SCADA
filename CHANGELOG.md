@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.12.4 build 0425] — 2026-11-14 — fix: løbelyset glat over overgangene mellem rør og rørstykker
+
+Jan: "så løbelys kører glat imellem og ikke som nu, der er en synkroniseringsfejl i overgang". Se BUGS.md v6.12.4.
+
+- `backend/app/services/connection_groups.py`: forbindelsernes løbelys får `chain: "conn"`.
+- `frontend/src/lib/animate.ts`: `flowGroup` bruger kæden. Kædede dele kobles uden hensyn til tegneretningen.
+- Tests: `frontend/src/lib/flowRound2.test.ts`, `backend/tests/test_connection_groups.py`.
+
 ## [6.12.3 build 0424] — 2026-11-14 — fix: tilslutningspunkter på et drejet symbol
 
 Jan: "hvis jeg roterer et symbol 90 grader, så sidder tilslutningspunkterne ikke korrekt efterfølgende". Se BUGS.md v6.12.3.

@@ -615,6 +615,8 @@ function rootOf(el: Element): Element | null {
  * fart er IKKE med — forløbet bruger den, flest dele har (ellers kan mønstret ikke fortsætte over samlingerne).
  */
 export function flowGroup(tag: string, p: Record<string, any>): string {
+  // v6.13.0: forbindelsernes løbelys (flowberegningen) er ét forløb på tværs af elementerne, selv om hvert har sit eget tag
+  if (typeof p.chain === 'string' && p.chain) return `chain|${p.chain}`;
   return [tag, p.dir_tag ?? '', p.mode ?? 'onoff', p.invert ? 1 : 0, p.pos ? 'pos' : ''].join('|');
 }
 
@@ -691,7 +693,9 @@ function computePhases(root: Element): Map<string, Phase> {
         };
         const scale = flowScale(d);
         // retningen som indstillet: et T-stykkes ben efter "ud fra/ind mod midten", ellers "Vend retning"
-        const dir = arm ? (dashes[i].out ? 1 : -1) : p.reverse ? -1 : 1;
+        // v6.13.0: forbindelsernes løbelys (chain) — retningen kommer fra flowet, som altid løber igennem en samling: kobles uden
+        // hensyn til tegneretningen (0)
+        const dir = p.chain ? 0 : arm ? (dashes[i].out ? 1 : -1) : p.reverse ? -1 : 1;
         pieces.push({ key: flowKey(el, i), a: at(0), b: at(L), len: L * scale, group, dir,
           dash: Number(p.dash ?? 12), speed: Number(p.speed ?? 40) });
         widths.push((parseFloat(d.getAttribute('stroke-width') ?? '1') || 1) * scale);
