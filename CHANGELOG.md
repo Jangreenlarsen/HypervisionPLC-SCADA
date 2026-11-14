@@ -4,6 +4,12 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.11.4 build 0420] — 2026-11-14 — fix: T-stykke uden løbelys i ben uden flow
+
+Jan: "så gå flow ud af de to side rør … der ikke er noget flow til venstre". Se BUGS.md v6.11.4.
+
+- `frontend/src/lib/animate.ts`: på et rørstykke med flow pr. punkt får ben uden et punkt med flow intet lys, og delstregen vises som tegnet. `buildDashes` husker hver lys-stregs delstreg (`src`).
+
 ## [6.11.3 build 0419] — 2026-11-14 — fix: T-stykker åbne i Tjek forbindelser (forbindelser kopieret med ved deling af rør)
 
 Jan: "selv om der er forbindelse så mener system ikke der er". Se BUGS.md v6.11.3.

@@ -564,14 +564,14 @@ function junctionDashes(el: Element, shapes: Element[], p: Record<string, any>, 
 }
 
 /** Lys-stregerne til et element (uden at sætte dem ind). `warning`: hvorfor et kryds faldt tilbage til tegneretningen. */
-function buildDashes(el: Element, shapes: Element[], p: Record<string, any>, state: -1 | 1): { dashes: { d: SVGElement; out: boolean; arm: boolean }[]; warning: string } {
+function buildDashes(el: Element, shapes: Element[], p: Record<string, any>, state: -1 | 1): { dashes: { d: SVGElement; out: boolean; arm: boolean; src?: Element }[]; warning: string } {
   let warning = '';
   if (p.arm) {
     const j = junctionDashes(el, shapes, p, state);
     if (typeof j === 'string') warning = j; // falder tilbage til tegneretningen
     else return { dashes: j.map((x) => ({ ...x, arm: true })), warning };
   }
-  const dashes: { d: SVGElement; out: boolean; arm: boolean }[] = [];
+  const dashes: { d: SVGElement; out: boolean; arm: boolean; src?: Element }[] = [];
   for (const s of shapes) {
     const d = flowDash(s);
     if (!d) continue;
@@ -583,9 +583,9 @@ function buildDashes(el: Element, shapes: Element[], p: Record<string, any>, sta
       for (const part of parts) {
         const c = d.cloneNode(false) as SVGElement;
         c.setAttribute('d', part);
-        dashes.push({ d: c, out: state > 0, arm: false });
+        dashes.push({ d: c, out: state > 0, arm: false, src: s });
       }
-    } else dashes.push({ d, out: state > 0, arm: false });
+    } else dashes.push({ d, out: state > 0, arm: false, src: s });
   }
   return { dashes, warning };
 }
@@ -838,7 +838,25 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   if (el.tagName === 'g') el.appendChild(layer);
   else el.parentNode?.insertBefore(layer, el.nextSibling);
   flowLayers.set(el, layer);
+  // v6.11.4 (Jan: T-stykket viste flow ud i et ben, hvor der intet flow er): et ben på et rørstykke med flow pr. punkt, der ikke
+  // rører et punkt med flow, har intet flow — det får intet lys og vises som tegnet (som røret ved siden af)
+  const idle = new Set<number>();
+  if (pf && box) {
+    dashes.forEach(({ d }, i) => {
+      const ends = dashEnds(d, el, box!);
+      if (ends && portDirection(ends[0], ends[1], pf) === null) idle.add(i);
+    });
+    const srcs = new Map<Element, boolean>();          // delstreg → har mindst ét ben med flow
+    dashes.forEach(({ src }, i) => { if (src) srcs.set(src, (srcs.get(src) ?? false) || !idle.has(i)); });
+    for (const [s, live] of srcs) {
+      if (live) continue;
+      const st = (s as SVGElement).style;
+      if (s.tagName === 'rect') st.fill = ''; else st.stroke = '';
+    }
+    dashes.forEach(({ d }, i) => { if (idle.has(i)) d.remove(); });
+  }
   dashes.forEach(({ d, out }, i) => {
+    if (idle.has(i)) return;
     // Sammenhængende forløb: stiplingen fortsætter fra nabodelen (kun hvor retningerne passer), og hele forløbet har samme
     // lyslængde og fart (flertallets)
     const ph = phaseFor(el, i);
