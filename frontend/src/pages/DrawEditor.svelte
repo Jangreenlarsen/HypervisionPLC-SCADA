@@ -23,7 +23,7 @@
   // @ts-expect-error — ren JS uden typer
   import { symbolType } from '../../svgedit-host/symbolPorts.js';
   import SymbolGuide from '../lib/SymbolGuide.svelte';
-  import { connectionCheck, pairsToBind, planFixes, unboundPairs, type FixMove, type Graph } from '../lib/signalPath';
+  import { connectionCheck, pairsToBind, planFixes, stackedPairs, unboundPairs, type FixMove, type Graph } from '../lib/signalPath';
   import SymbolGroups from '../lib/SymbolGroups.svelte';
   import SymbolTree from '../lib/SymbolTree.svelte';
   import FloatWin from '../lib/FloatWin.svelte';
@@ -72,7 +72,7 @@
     nameUnnamedSymbols(labels: Record<string, string>): number;
     bindLinks(pairs: { id: string; key: string; to: string; toKey: string }[]): { links: number; elements: number };
     unlink(id: string, key: string): number;
-    markConnections(items: { id: string; exempt: boolean; status: string; drift: [number, number][]; driftKeys: string[]; open: [number, number][]; openKeys: string[]; ignored: [number, number][]; ignoredKeys: string[] }[]): void;
+    markConnections(items: { id: string; exempt?: boolean; status: string; drift?: [number, number][]; driftKeys?: string[]; open: [number, number][]; openKeys?: string[]; ignored?: [number, number][]; ignoredKeys?: string[]; stacked?: string; stackedOnly?: boolean }[]): void;
     toggleUnused(id: string, key: string): boolean;
     setNameLabels(opts: { symbols: boolean; pipes: boolean; tags?: Record<string, string[]> | null }): void;
     setFlowOverlay(data: Record<string, unknown> | null): void;
@@ -202,7 +202,7 @@
   });
   // Tjek forbindelser (v4.18.0): markér, hvad der hænger fast i resten af tegningen (grønt) og hvad der har åbne ender (rødt). Kun visning.
   let checkConn = $state(false);
-  let connSummary = $state<{ open: number; isolated: number; drift: number; unbound: number; bound: boolean; names: string[] } | null>(null);
+  let connSummary = $state<{ open: number; isolated: number; drift: number; unbound: number; bound: boolean; names: string[]; stacked: string[] } | null>(null);
   let connMoves = $state<FixMove[]>([]);
   let connExempt = $state<Set<string>>(new Set());       // symboler, der er udeladt fra tjekket (data-hv-unused="*")
   const selIds = $derived(selection.map((x) => x.id).filter(Boolean));
@@ -258,22 +258,42 @@
     clearTimeout(connTimer);
     if (!ready || !ed) return;
     if (!on) {
-      ed.markConnections([]);
       connSummary = null;
+      // v6.12.2 (Jan): symboler oven på hinanden vises også uden tjekket — det er netop dér, man ikke opdager det
+      connTimer = setTimeout(() => {
+        const g = ed?.connectionGraph();
+        if (!g || checkConn) return;
+        const pairs = stackedPairs(g);
+        const label = (id: string) => `"${g.nodes.find((x) => x.id === id)?.name || id}"`;
+        ed?.markConnections(pairs.flatMap(([a, b]) => {
+          const msg = `${label(a)} og ${label(b)} ligger præcis oven på hinanden. Slet det ene (Alt+klik vælger det, der ligger bagved).`;
+          return [a, b].map((id) => ({ id, status: 'ok', open: [], stacked: msg, stackedOnly: true }));
+        }));
+      }, 300);
       return;
     }
     connTimer = setTimeout(() => {
       const g = ed?.connectionGraph();
       if (!g || !checkConn) return;
       const items = connectionCheck(g);
+      // v6.12.2: symboler oven på hinanden markeres i tegningen (lilla dobbeltramme og "2×") med en forklaring
+      const label = (id: string) => `"${g.nodes.find((x) => x.id === id)?.name || id}"`;
+      const stackedMsg = new Map<string, string>();
+      for (const [a, b] of stackedPairs(g)) {
+        const msg = `${label(a)} og ${label(b)} ligger præcis oven på hinanden, og rørene er delt mellem dem. Slet det ene (Alt+klik vælger det, der ligger bagved).`;
+        stackedMsg.set(a, msg);
+        stackedMsg.set(b, msg);
+      }
       ed?.markConnections(items.map((i) => ({ id: i.id, exempt: i.exempt, status: i.status, open: i.open, openKeys: i.openKeys, ignored: i.ignored,
-        ignoredKeys: i.ignoredKeys, drift: i.drift, driftKeys: i.driftKeys })));
+        ignoredKeys: i.ignoredKeys, drift: i.drift, driftKeys: i.driftKeys, stacked: stackedMsg.get(i.id) ?? '' })));
       connMoves = planFixes(g, items, FIX_GAP);
       connExempt = new Set(items.filter((i) => i.exempt).map((i) => i.id));
       const bad = items.filter((i) => i.status !== 'ok');
       connSummary = { open: bad.filter((i) => i.status === 'open').length, isolated: bad.filter((i) => i.status === 'isolated').length,
         drift: items.filter((i) => i.drift.length).length, unbound: unboundPairs(g).length,
-        bound: g.nodes.some((n) => (n.links ?? []).length > 0), names: bad.slice(0, 30).map((i) => i.name || i.id) };
+        bound: g.nodes.some((n) => (n.links ?? []).length > 0), names: bad.slice(0, 30).map((i) => i.name || i.id),
+        // v6.12.1: to ens symboler præcis oven på hinanden — forklaringen på "åbne" ender, man ellers ikke kan se
+        stacked: stackedPairs(g).map(([a, b]) => [a, b].map((id) => { const n = g.nodes.find((x) => x.id === id); return `"${n?.name || id}"`; }).join(' og ')) };
     }, 300);
   });
   onDestroy(() => clearTimeout(connTimer));
@@ -302,7 +322,8 @@
     }, 1500);
   });
   onDestroy(() => clearTimeout(flowTimer));
-  let flowOpen = $state(false);                                    // Flow-vinduet over tegningen (v6.1.0): forbindelsesgrupper
+  let flowOpen = $state(false);                                    // Flow-vinduet over tegningen (v6.1.0): flowet vist i Tegn
+  let animOpen = $state(false);                                    // forbindelsernes animationer, Til/Fra (v6.12.0, før i Flow-vinduet)
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let treeRev = $state(0);                                         // symbol-oversigten henter forfra (v5.5.0)
   let unnamed = $state(0);                                          // symboler uden navn i tegningen (v5.9.0)
@@ -1152,7 +1173,7 @@
   let msgOpen = $state(false);
   // Topmenuen (v6.2.0): menuerne Tegning, version, Forbindelser og kommentaren under Gem og udgiv ▾
   let drawMenu = $state(false), verMenu = $state(false), connMenu = $state(false), saveMenu = $state(false);
-  const connErrors = $derived(checkConn && connSummary ? connSummary.open + connSummary.isolated + connSummary.drift + flowNotes.length : 0);
+  const connErrors = $derived(checkConn && connSummary ? connSummary.open + connSummary.isolated + connSummary.drift + connSummary.stacked.length + flowNotes.length : 0);
   const connBadge = $derived(!checkConn || !connSummary ? '' : connErrors ? connErrors : '✓');
   const menuDo = (f: () => unknown) => () => { drawMenu = verMenu = connMenu = false; f(); };
   let msgSeq = 0;
@@ -1385,6 +1406,8 @@
       <span class="small muted">{connSummary.bound ? (connSummary.unbound ? `${connSummary.unbound} ikke bundet` : 'alle bundet') : 'ikke bundet endnu'}</span>
     </div>
     {#if connSummary.names.length}<div class="small muted mnames">{connSummary.names.join(', ')}</div>{/if}
+    {#each connSummary.stacked as s (s)}<div class="small mnames" style="color:var(--warn)">{s} ligger præcis oven på hinanden, og rørene er delt
+      mellem dem. Slet det ene (Alt+klik vælger det, der ligger bagved).</div>{/each}
     {#each flowNotes as n (n)}<div class="small" style="color:var(--warn)">Flow: {n}</div>{/each}
     <div class="mrow">
       {#if connMoves.length}
@@ -1396,6 +1419,12 @@
       <button class="small" onclick={exemptSelected} disabled={!selIds.length} title="Udelad de valgte symboler fra tjekket, så de ikke giver fejl (fx et symbol, der bevidst ikke er tilsluttet). Gemmes med tegningen. Peg på en rød prik: klik = kun det punkt, Skift+klik = hele symbolet">{selAllExempt ? 'Tag valgte med i tjekket' : 'Udelad valgte fra tjekket'}</button>
     </div>
   {/if}
+  <!-- v6.12.0 (Jan): forbindelsernes animationer for hele tegningen — Til (der er flow) og Fra (intet flow) -->
+  <span class="mhead">Animationer</span>
+  <div class="mrow">
+    <button class="small" class:on={animOpen} onclick={menuDo(() => (animOpen = !animOpen))} disabled={!current}
+      title="Hvordan rør og rørstykker viser flowet på Overview: Til (der er flow) og Fra (intet flow) for hele tegningen, og undtagelser">Til/Fra for hele tegningen …</button>
+  </div>
 {/snippet}
 
 {#snippet messagesMenu()}
@@ -1674,8 +1703,14 @@
 {#if flowOpen && current}
   <FloatWin key="draw.flowwin" title="Flow" onclose={() => (flowOpen = false)}>
     <FlowLive drawingId={current.id} {ready} getSvg={() => (ed ? ed.previewSvg() : null)} setOverlay={(d) => ed?.setFlowOverlay(d)} />
+    <p class="small muted">Hvordan forbindelserne viser flowet på Overview (Til og Fra): menuen <strong>Forbindelser</strong> ›
+      <button class="linkbtn" onclick={() => (animOpen = true)}>Til/Fra for hele tegningen …</button></p>
+  </FloatWin>
+{/if}
+{#if animOpen && current}
+  <FloatWin key="draw.connanim" title="Forbindelsernes animationer" width={600} height={640} onclose={() => (animOpen = false)}>
     <ConnGroups drawingId={current.id} {ready} selected={selection.map((x) => x.id)} select={(ids) => ed?.selectByIds(ids)}
-      ensureSaved={() => ensurePublished('forbindelsesgrupperne gælder den udgivne tegning')} />
+      ensureSaved={() => ensurePublished('animationerne gælder den udgivne tegning')} />
   </FloatWin>
 {/if}
 {#if treeGroup && current}
@@ -1696,6 +1731,7 @@
 {/if}
 
 <style>
+  button.linkbtn { background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer; color: var(--accent, #1565c0); font: inherit; }
   /* Topmenuen (v6.2.0): én linje i tre zoner, der ikke ombrydes; værktøjszonen fylder midten */
   .toolbar { margin-bottom: .35rem; display: flex; align-items: center; gap: .35rem .75rem; flex-wrap: wrap; min-width: 0; }   /* én linje ned til ~1000 px; derunder hele zoner på næste linje */
   .zone { display: flex; align-items: center; gap: .35rem; flex-wrap: nowrap; flex: none; }

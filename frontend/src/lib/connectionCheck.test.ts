@@ -1,6 +1,6 @@
 // Tjek af forbindelser i tegningen (signalpath/graph.ts › connectionCheck).
 import { describe, expect, it } from 'vitest';
-import { connectionCheck, contacts, pairsToBind, planFixes, type GNode, type Graph, type Pt } from './signalPath';
+import { connectionCheck, contacts, linkContradicted, pairsToBind, planFixes, stackedPairs, type GNode, type Graph, type Pt } from './signalPath';
 
 const pipe = (id: string, a: Pt, b: Pt): GNode => ({ id, name: '', type: '', pipe: true, terminals: [a, b], lines: [{ part: 'all', a, b }], refs: [null, null] });
 const sym = (id: string, type: string, terminals: Pt[]): GNode => ({ id, name: id, type, pipe: false, terminals, lines: [], refs: [] });
@@ -153,6 +153,60 @@ describe('gemte forbindelser (data-hv-links, v5.3.0)', () => {
     const a = connectionCheck(bound).find((i) => i.id === 'a')!;
     expect(a.unbound).toBe(0);
     expect(a.status).toBe('open');                                                    // (ventilens anden side og rørets start er frie)
+  });
+});
+
+describe('forbindelser, som rørets ende modsiger (v6.11.3)', () => {
+  // test-ny-editor på demoen: røret valve→tank blev delt af et T-stykke; begge halvdele beholdt den gamle forbindelses data-hv-links
+  const nodes = (): GNode[] => [
+    { id: 'v', name: 'V', type: 'kugleventil', pipe: false, terminals: [[0, 0]], lines: [], refs: [], keys: ['1,0.5'],
+      links: [{ i: 0, to: 'a', toKey: 's' }, { i: 0, to: 'b', toKey: 's' }] },
+    { id: 'a', name: '', type: '', pipe: true, terminals: [[0, 0], [100, 0]], lines: [{ part: 'all', a: [0, 0], b: [100, 0] }],
+      refs: ['v', 't'], keys: ['s', 'e'], links: [{ i: 0, to: 'v', toKey: '1,0.5' }, { i: 1, to: 'k', toKey: '0,0.5' }] },
+    { id: 't', name: 'T', type: 't_stykke', pipe: false, terminals: [[100, 0], [200, 0], [150, 50]], lines: [], refs: [],
+      keys: ['0,1', '1,1', '0.5,0'], links: [] },
+    { id: 'b', name: '', type: '', pipe: true, terminals: [[150, 50], [150, 150]], lines: [{ part: 'all', a: [150, 50], b: [150, 150] }],
+      refs: ['t', 'k'], keys: ['s', 'e'], links: [{ i: 0, to: 'v', toKey: '1,0.5' }, { i: 1, to: 'k', toKey: '0,0.5' }] },
+    { id: 'k', name: 'Tank', type: 'tank', pipe: false, terminals: [[150, 150]], lines: [], refs: [], keys: ['0,0.5'],
+      links: [{ i: 0, to: 'a', toKey: 'e' }, { i: 0, to: 'b', toKey: 'e' }] },
+  ];
+
+  it('the tee is not open and the pipes are not drifted — the contradicted links do not count', () => {
+    const r = Object.fromEntries(connectionCheck({ nodes: nodes() }).map((i) => [i.id, i]));
+    expect(r.t.open).toEqual([[200, 0]]);                         // kun gennemløbets frie ende er åben — ikke dem, rørene sidder på
+    expect(r.a.drift).toEqual([]);
+    expect(r.b.drift).toEqual([]);
+    expect(r.a.unbound + r.b.unbound).toBeGreaterThan(0);          // → *Bind forbindelser* vises
+  });
+
+  it('Bind forbindelser drops them and binds the tee instead', () => {
+    const pairs = pairsToBind({ nodes: nodes() }).map((p) => [`${p.id}:${p.key}`, `${p.to}:${p.toKey}`].sort().join('>'));
+    expect(pairs).toContain('a:e>t:0,1');
+    expect(pairs).toContain('b:s>t:0.5,0');
+    expect(pairs).toContain('b:e>k:0,0.5');
+    expect(pairs).toContain('a:s>v:1,0.5');                         // den gyldige gemte forbindelse beholdes
+    expect(pairs.some((p) => p.includes('a:e') && p.includes('k:'))).toBe(false);
+    expect(pairs.some((p) => p.includes('b:s') && p.includes('v:'))).toBe(false);
+  });
+
+  it('two pipe ends in the same tee point, bound to each other, are not contradicted', () => {
+    const t: GNode = { id: 't', name: 'T', type: 't_stykke', pipe: false, terminals: [[100, 0]], lines: [], refs: [], keys: ['0.5,0'] };
+    const a: GNode = { ...pipe('a', [0, 0], [100, 0]), refs: [null, 't'], keys: ['s', 'e'], links: [{ i: 1, to: 'b', toKey: 's' }] };
+    const b: GNode = { ...pipe('b', [100, 0], [200, 0]), refs: ['t', null], keys: ['s', 'e'], links: [{ i: 0, to: 'a', toKey: 'e' }] };
+    const byId = new Map([t, a, b].map((n) => [n.id, n]));
+    expect(linkContradicted(a, a.links![0], byId)).toBe(false);
+    expect(linkContradicted(b, b.links![0], byId)).toBe(false);
+  });
+});
+
+describe('symboler oven på hinanden (v6.12.1)', () => {
+  const valve = (id: string, dx = 0): GNode => ({ id, name: id, type: 'trevejs_motorventil_ab', pipe: false,
+    terminals: [[dx + 0, 20], [dx + 80, 20], [dx + 40, 60]], lines: [], refs: [], keys: ['0.07,0.5', '0.85,0.5', '0.46,0.86'] });
+  it('finds two equal symbols exactly on top of each other', () => {
+    expect(stackedPairs({ nodes: [valve('a'), valve('b'), valve('c', 200)] })).toEqual([['a', 'b']]);
+  });
+  it('ignores pipes, other types and symbols only touching', () => {
+    expect(stackedPairs({ nodes: [valve('a'), valve('b', 80), { ...valve('k'), type: 'kugleventil' }, pipe('r', [0, 20], [80, 20])] })).toEqual([]);
   });
 });
 

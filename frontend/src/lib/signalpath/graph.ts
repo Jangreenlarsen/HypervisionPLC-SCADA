@@ -142,7 +142,8 @@ export function geoContacts(g: Graph, tol = TOL): Map<string, Contact[]> {
 export function contacts(g: Graph, tol = TOL): Map<string, Contact[]> {
   const out = geoContacts(g, tol);
   const byId = new Map(g.nodes.map((n) => [n.id, n]));
-  const linked = g.nodes.flatMap((n) => (n.links ?? []).filter((l) => l.i >= 0 && l.i < n.terminals.length && byId.has(l.to)).map((l) => ({ n, l })));
+  const linked = g.nodes.flatMap((n) => (n.links ?? []).filter((l) => l.i >= 0 && l.i < n.terminals.length && byId.has(l.to)
+    && !linkContradicted(n, l, byId)).map((l) => ({ n, l })));
   if (!linked.length) return out;
   // geometriske kontakter ved et punkt med en gemt forbindelse gælder ikke (begge veje)
   for (const { n, l } of linked) {
@@ -160,6 +161,26 @@ export function contacts(g: Graph, tol = TOL): Map<string, Contact[]> {
     add(l.to, n.id, t);
   }
   return out;
+}
+
+/** Det element, et rørs ende (`s`/`e`) sidder fast i efter `data-hv-from`/`-to` — kun hvis det findes i tegningen. */
+function endRef(n: GNode, key: string | undefined, byId: Map<string, GNode>): string | null {
+  if (!n.pipe || (key !== 's' && key !== 'e')) return null;
+  const r = n.refs[key === 's' ? 0 : 1];
+  return r && byId.has(r) ? r : null;
+}
+/**
+ * v6.11.3 (Jan: T-stykkerne var "åbne", selv om rørene sad på dem): en gemt forbindelse, der modsiges af rørets ende — enden sidder
+ * fast i et andet element end det, forbindelsen peger på — er forældet (fx kopieret med, da røret blev delt af et T-stykke). Den
+ * tæller ikke; geometrien gælder, og *Bind forbindelser* gemmer den rigtige. Tjekkes fra begge sider.
+ */
+export function linkContradicted(n: GNode, l: GLink, byId: Map<string, GNode>): boolean {
+  const o = byId.get(l.to);
+  if (!o) return true;
+  const a = endRef(n, n.keys?.[l.i], byId);
+  const b = endRef(o, l.toKey, byId);
+  if (a && a === b) return false;          // to rørender, der sidder i samme element (fx samme T-stykke-punkt): samme sted
+  return (!!a && a !== o.id) || (!!b && b !== n.id);
 }
 
 /** Punktet med nøglen `key` på et element (eller null, fx '~' = midt på stregen, eller en nøgle, der ikke findes længere). */
@@ -200,7 +221,7 @@ export function pairsToBind(g: Graph, tol = TOL): LinkPair[] {
     for (const l of n.links ?? []) {
       // (v6.9.3) en forældet forbindelse — til et punkt, den anden ikke længere har — gemmes ikke igen; geometrien binder på ny
       const o = byId.get(l.to);
-      if (l.i >= 0 && o && n.keys?.[l.i] && (l.toKey === '~' || pointOfKey(o, l.toKey))) push({ id: n.id, key: n.keys[l.i], to: l.to, toKey: l.toKey });
+      if (l.i >= 0 && o && n.keys?.[l.i] && (l.toKey === '~' || pointOfKey(o, l.toKey)) && !linkContradicted(n, l, byId)) push({ id: n.id, key: n.keys[l.i], to: l.to, toKey: l.toKey });
     }
   }
   // Nye forbindelser fra geometrien: kun elementernes egentlige ender (ikke bøjningers kurvepunkter), punkt mod punkt inden for
@@ -211,7 +232,7 @@ export function pairsToBind(g: Graph, tol = TOL): LinkPair[] {
   const endIdx = (x: GNode) => realEnds(x, tol).map((t) => x.terminals.findIndex((q) => dist(q, t) <= 0.01)).filter((i) => i >= 0);
   for (const n of g.nodes) {
     if (!passable(n) || !n.keys) continue;
-    const linkedAt = new Set((n.links ?? []).map((l) => l.i));
+    const linkedAt = new Set((n.links ?? []).filter((l) => !linkContradicted(n, l, byId)).map((l) => l.i));
     for (const i of endIdx(n)) {
       const t = n.terminals[i];
       if (linkedAt.has(i) || (n.unused ?? []).includes(i)) continue;
@@ -226,7 +247,8 @@ export function pairsToBind(g: Graph, tol = TOL): LinkPair[] {
         }
         if (best) {
           // den anden ende er allerede bundet til noget andet (en forældet forbindelse tæller ikke, v6.9.3)
-          if ((o.links ?? []).some((l) => l.i === best!.j && (l.toKey === '~' || (byId.has(l.to) && !!pointOfKey(byId.get(l.to)!, l.toKey))))) continue;
+          if ((o.links ?? []).some((l) => l.i === best!.j && !linkContradicted(o, l, byId)
+            && (l.toKey === '~' || (byId.has(l.to) && !!pointOfKey(byId.get(l.to)!, l.toKey))))) continue;
           cands.push({ n, i, o, toKey: o.keys[best.j], d: best.d });
         } else {
           const d = o.lines.length ? Math.min(...o.lines.map((ln) => onLine(t, ln).d)) : Infinity;
@@ -316,7 +338,7 @@ export function connectionCheck(g: Graph, tol = TOL): ConnItem[] {
     // tæt-på-punkter i en bøjning er én ende: den er forbundet, hvis et af dem er det. Punkter markeret som ikke i brug tæller ikke.
     const open = ends.filter((t) => !isSkipped(t) && !mine.some((c) => dist(c.p, t) <= tol * 2));
     const ignored = skipIdx.map((i) => n.terminals[i]);
-    const links = (n.links ?? []).filter((l) => l.i >= 0 && l.i < n.terminals.length && byIdAll.has(l.to));
+    const links = (n.links ?? []).filter((l) => l.i >= 0 && l.i < n.terminals.length && byIdAll.has(l.to) && !linkContradicted(n, l, byIdAll));
     const drift = links.filter((l) => linkGap(g, n, l) > tol).map((l) => n.terminals[l.i]);   // længere fra hinanden end en almindelig forbindelse
     const linkedAt = new Set(links.map((l) => l.i));
     const unbound = ends.filter((t) => !isSkipped(t) && !open.some((o) => dist(o, t) <= 0.01)
@@ -324,6 +346,24 @@ export function connectionCheck(g: Graph, tol = TOL): ConnItem[] {
     out.push({ id: n.id, name: n.name, type: n.type, pipe: n.pipe || roleOf(n) === 'pipe', exempt: false, open, openKeys: open.map(keyOf),
       ignored, ignoredKeys: ignored.map(keyOf), drift, driftKeys: drift.map(keyOf), unbound,
       status: open.length ? (mine.length ? 'open' : 'isolated') : drift.length ? 'drift' : 'ok' });
+  }
+  return out;
+}
+
+/**
+ * v6.12.1 (Jan: "vi har problemer med tjek forbindelser stadigvæk"): to ens symboler, der ligger præcis oven på hinanden (fx en
+ * kopi lagt på originalens plads). Rørene deles mellem dem, så begge ser ud til at have åbne ender — og man kan ikke se hvorfor.
+ * → [[id, id], …] for symboler (ikke rør) af samme type, hvis tilslutningspunkter alle falder sammen.
+ */
+export function stackedPairs(g: Graph, tol = 1): [string, string][] {
+  const syms = g.nodes.filter((n) => !n.pipe && n.type && n.terminals.length >= 2 && roleOf(n) !== 'pipe' && passable(n));
+  const out: [string, string][] = [];
+  for (let i = 0; i < syms.length; i++) {
+    for (let j = i + 1; j < syms.length; j++) {
+      const a = syms[i], b = syms[j];
+      if (a.type !== b.type || a.terminals.length !== b.terminals.length) continue;
+      if (a.terminals.every((p) => b.terminals.some((q) => dist(p, q) <= tol))) out.push([a.id, b.id]);
+    }
   }
   return out;
 }
@@ -346,6 +386,7 @@ export function planFixes(g: Graph, items: ConnItem[], maxGap = 25, tol = TOL): 
     if (me && it.drift?.length && (me.pipe || STRAIGHT_PIPES.has(me.type))) {
       // en gemt forbindelse, der er gledet: enden flyttes tilbage til den gemte modpart
       for (const l of me.links ?? []) {
+        if (linkContradicted(me, l, byId)) continue;
         const t = me.terminals[l.i];
         if (!t || !it.drift.some((d) => dist(d, t) <= 0.01)) continue;
         const o = byId.get(l.to);

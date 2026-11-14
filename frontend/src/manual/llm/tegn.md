@@ -39,23 +39,23 @@ Opsætning › Symboler › fanen **Ind/ud og veje**: vælg symbolet, giv punkte
 Panelet **Symbol-oversigt** i Tegn viser alle symboler som et træ: grundsymboler og grupper på niveau 1; en gruppes medlemmer på niveau 2. Klik på navnet vælger det på tegningen; **Opsæt** åbner symbol-guiden (6 trin), **Animationer** gruppens animationer. ✓ = har en opsætning; søg eller vis kun dem, der ikke er opsat.
 
 ## Hvad er "Bind forbindelser", og hvorfor er en forbindelse orange?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:e6214945 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:a277895d -->
 **Bind forbindelser** (i menuen **Forbindelser**, med Tjek forbindelser slået til) gemmer, hvad der hænger sammen, i tegningen — så gælder de gemte forbindelser for tjekket i stedet for afstanden. **Orange** betyder, at en gemt forbindelse er gledet fra hinanden: **Ret** flytter rør-enden tilbage, og et klik på den orange prik fjerner forbindelsen. Husk at gemme tegningen.
 
 ## Hvordan undgår jeg fejl for tilslutningspunkter eller symboler, der ikke er i brug, i Tjek forbindelser?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:e6214945 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:a277895d -->
 Med **Tjek forbindelser** slået til: klik på den røde prik for at markere punktet som **ikke i brug** (grå stiplet ring), eller Skift+klik / **Udelad valgte fra tjekket** for at udelade et helt symbol (grå ramme med ⊘). Markeringerne gemmes med tegningen ved Gem kladde / Gem og udgiv og kan fortrydes.
 
 ## Hvordan retter jeg brudte forbindelser automatisk (rør, der ligger tæt på hinanden)?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:e6214945 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:a277895d -->
 Slå **Tjek forbindelser** til og tryk **Ret N forbindelser**. Rør-ender, der ligger klods op ad en anden ende eller et tilslutningspunkt (højst 25 enheder), flyttes, så de sidder sammen. Symboler flyttes aldrig, og det kan fortrydes med Ctrl+Z.
 
 ## Hvordan tjekker jeg, om alle symboler og rør hænger sammen i tegningen?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:e6214945 -->
-Slå **Tjek forbindelser** til i menuen **Forbindelser** øverst i Tegn. Symboler og rør, hvis tilslutningspunkter alle sidder fast, bliver grønne; dem med åbne ender bliver røde med røde prikker ved enderne (stiplet kant = intet er forbundet). Det er kun en visning.
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:a277895d -->
+Slå **Tjek forbindelser** til i menuen **Forbindelser** øverst i Tegn. Symboler og rør, hvis tilslutningspunkter alle sidder fast, bliver grønne; dem med åbne ender bliver røde med røde prikker ved enderne (stiplet kant = intet er forbundet). Det er kun en visning. Ligger to ens symboler præcis oven på hinanden, får de en lilla dobbeltramme med **2×** (også uden tjekket): rørene er delt mellem dem, så slet det ene (Alt+klik vælger det bagved).
 
 ## Hvordan kan jeg se, hvad symboler og forbindelser hedder i tegningen?
-<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:e6214945 -->
+<!-- kilde: 07-tegn#m-tegnehjaelp-gitter-fang-og-drejning sha:a277895d -->
 Åbn menuen **Vis** øverst i Tegn og sæt hak under **Navne i tegningen** (symboler og/eller forbindelser). Navnene står som mærkater oven på tegningen (kun i Tegn, de gemmes ikke). Hak ved **tags** viser de PLC-tags, hvert symbol bruger (fra guiden og bindingerne), i lilla under symbolet.
 
 ## Hvordan laver jeg en betingelse med flere tags (pumpe kører OG ventil åben, AND, OR)?
@@ -82,9 +82,9 @@ Vælg elementerne (Shift+klik eller træk en ramme) og tryk **Ctrl+G** eller **G
 <!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:8acd21f9 -->
 Serveren beregner selv flowet gennem de forbundne symboler. Bind forbindelserne (menuen **Forbindelser** › Tjek forbindelser › **Bind forbindelser**, og gem), sæt pumpen op i symbol-guidens trin 4 under **Flow** (Pumpe, kapacitet i l/min, flow-rate fra et tag), og alle rør i løkken får løbelys på Overview med retning og fart efter flowet (standardgruppen *Alle forbindelser*).
 
-## Hvordan får nogle rør en anden farve eller blink efter flowet (forbindelsesgruppe)?
+## Hvordan bestemmer jeg, hvad rørene viser med og uden flow (Til/Fra, farve, blink, undtagelse)?
 <!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:8acd21f9 -->
-Tryk **Flow** i værktøjslinjen i Tegn. Vælg rørene på tegningen, giv gruppen et navn og tryk **Opret af valgte**. Under **Animationer** vælger du løbelys, farve efter flow (grænser i l/min), blink ved et flow (mindst/højst) eller en fast farve. En forbindelse hører til én gruppe ad gangen.
+Åbn menuen **Forbindelser** i Tegn, og tryk **Til/Fra for hele tegningen …**. Tryk **Redigér** ved *Hele tegningen*. **Til** (der er flow) kan være løbelys, en farve eller som tegnet. **Fra** (intet flow) kan være som tegnet eller en farve. Blink kan slås til i begge. Skal nogle rør vise noget andet, så vælg dem på tegningen, giv dem et navn under **Ny undtagelse**, og tryk **Opret af valgte** og derefter **Redigér**. **Avanceret …** giver flere farvegrænser i l/min, blink ved et bestemt flow og fast farve.
 
 ## Hvordan bestemmer en 3-vejsventil, hvilken vej flowet går (AB → A, AB → B, register 10/20)?
 <!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:44788242 -->
@@ -131,8 +131,8 @@ I guidens trin 4 › **Flow** › **Målt flow**: vælg sensorens tag og skriv *
 De er faste værdier for symbolet (dets fysik): skriv tallet 0,00–1,00 i trin 4 › Flow, eller træk i skyderen. Sæt hak i **styret af et tag**, hvis PLC'en skal styre værdien, og angiv hvad der er 1,00 (fx 100 for en ventils åbning i %).
 
 ## Hvordan tester jeg en tegnings tilstande uden PLC (simulator, indskyd værdier, scenarier)?
-<!-- kilde: 07-tegn#m-simulator-proev-tegningens-tilstande sha:c147ad77 -->
-Åbn **Opsætning › Simulator** (eller **Simulér** på Overview). Panelet viser alle variabler, tegningen bruger (tags, positioner, alarmer). Sæt hak ud for en variabel og vælg en værdi; tegningen viser resultatet med det samme — logik, symbolernes tilstand og flowet beregnes som i drift. **komm.fejl** viser en kommunikationsfejl, **Start fra live** kopierer PLC'ens værdier ind, og **Gem som …** gemmer et scenarie. Intet skrives til PLC'en.
+<!-- kilde: 07-tegn#m-simulator-proev-tegningens-tilstande sha:f7affc09 -->
+Åbn **Opsætning › Simulator** (eller **Simulér** på Overview). Panelet viser alle variabler, tegningen bruger (tags, positioner, alarmer). Sæt hak ud for en variabel og vælg en værdi; tegningen viser resultatet med det samme — logik, symbolernes tilstand og flowet beregnes som i drift. **komm.fejl** viser en kommunikationsfejl, **Frys på live-værdier** kopierer PLC'ens værdier lige nu ind som simulerede (det, du selv har ændret, bevares), **Nulstil alle ændringer** lader alt følge PLC'en igen, og **Gem som …** gemmer et scenarie. Intet skrives til PLC'en.
 
 ## Hvordan definerer jeg en ventils tilstande (A igennem AB og B blokeret, 4-vejsventil A → B / C → D)?
 <!-- kilde: 08-forbindelser#m3-ind-ud-og-veje sha:bac11867 -->

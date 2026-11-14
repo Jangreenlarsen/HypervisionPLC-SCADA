@@ -616,3 +616,22 @@ export function straightEnd(points, which, p, dir, eps = 0.01) {
   const out = simplify([p, ...pts.slice(hit.k)]);
   return which === 'start' ? out : out.reverse();
 }
+
+/**
+ * Flyt rørets ende lidt (få enheder) uden at lave et hak: det sidste lige stykke forskydes på tværs, så det går lige ind i `p`,
+ * og stykket før (vinkelret) strækkes. Kun når røret har et knæk før det sidste stykke. → de nye punkter, eller null.
+ */
+export function shiftEnd(points, which, p) {
+  const pts = which === 'start' ? [...points].reverse() : [...points];
+  if (pts.length < 3) return null;
+  const n = pts.length - 1;
+  const [a, b, z] = [pts[n - 2], pts[n - 1], pts[n]];
+  const horiz = Math.abs(b[1] - z[1]) < 0.01, vert = Math.abs(b[0] - z[0]) < 0.01;
+  const prevVert = Math.abs(a[0] - b[0]) < 0.01, prevHoriz = Math.abs(a[1] - b[1]) < 0.01;
+  let out = null;
+  if (horiz && prevVert) out = [...pts.slice(0, n - 1), [b[0], p[1]], [p[0], p[1]]];
+  else if (vert && prevHoriz) out = [...pts.slice(0, n - 1), [p[0], b[1]], [p[0], p[1]]];
+  if (!out) return null;
+  return which === 'start' ? out.reverse() : out;
+}
+

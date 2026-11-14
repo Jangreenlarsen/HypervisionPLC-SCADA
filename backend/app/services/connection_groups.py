@@ -39,9 +39,9 @@ class _M(BaseModel):
 
 class Limit(_M):
     value: float = Field(ge=0, le=1_000_000)
-    color: str
+    color: str          # "" = som tegnet (v6.12.0: Til "som tegnet" med en Fra-farve)
 
-    _c = field_validator("color")(lambda cls, v: _color(v))
+    _c = field_validator("color")(lambda cls, v: v if v == "" else _color(v))
 
 
 class ConnAnim(_M):
@@ -53,7 +53,9 @@ class ConnAnim(_M):
     speed: float = Field(default=60, ge=5, le=500)
     dash: float = Field(default=12, ge=2, le=200)
     full: float = Field(default=0, ge=0, le=65535)
-    # farve efter flow: under den første grænse `off`; ellers grænsens farve (stigende)
+    # (v6.12.0) løbelys: forbindelsens farve, når der intet flow er ("" = som tegnet)
+    stopped: str = ""
+    # farve efter flow: under den første grænse `off` ("" = som tegnet, v6.12.0); ellers grænsens farve (stigende)
     off: str = "#9e9e9e"
     limits: list[Limit] = Field(default_factory=list, max_length=8)
     # blink: når flowet er mindst `at_least` — eller højst `at_most` (fx 0 = intet flow)
@@ -63,7 +65,8 @@ class ConnAnim(_M):
     # fast farve
     color: str = "#1e88e5"
 
-    _c = field_validator("light", "base", "off", "color")(lambda cls, v: _color(v))
+    _c = field_validator("light", "base", "color")(lambda cls, v: _color(v))
+    _c_opt = field_validator("off", "stopped")(lambda cls, v: v if v == "" else _color(v))
 
     @field_validator("limits")
     @classmethod
@@ -140,6 +143,8 @@ def group_bindings(drawing_id: str, conns: dict[str, tuple[str, bool]], rows: li
                 # et rør har flowet med fortegn (retning); et rørstykke mængden + retningen pr. punkt (port_tag, v6.3.0)
                 anim, params = "flow", {"mode": "signed" if is_pipe else "onoff", "base": a["base"], "light": a["light"], "speed": a["speed"],
                                         "dash": a["dash"], "flow_max": a["full"] or full_default}
+                if a["stopped"]:
+                    params["stopped"] = a["stopped"]
                 if not is_pipe:
                     params["port_tag"] = ports_tag(drawing_id, el)
             elif a["type"] == "color":

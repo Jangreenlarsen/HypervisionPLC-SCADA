@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { activeFor, colorFor, speedFor } from './animate';
-import { connAnimError, describeConnAnims, newConnAnim, pickConnections } from './connGroups';
+import { ON_MIN, connAnimError, defaultOnOff, describeConnAnims, describeOnOff, fromOnOff, newConnAnim, pickConnections, toOnOff } from './connGroups';
 import { FLOW, defaultFlow, flowSourceMode, isLogicRef } from './symbolConfig';
 
 describe('forbindelsesgrupper', () => {
@@ -53,5 +53,54 @@ describe('flow i symbolets opsætning', () => {
     expect(defaultFlow('pumpe', ['Fra', 'Til'], []).rate.src).toBe('@pos');                     // pumpe med positioner: start/stop
     expect(defaultFlow('pumpe', [], []).rate.src).toBe('@val:1');                                // uden positioner: fast værdi
     expect(isLogicRef(FLOW)).toBe(false);
+  });
+});
+
+describe('Til og Fra (v6.12.0)', () => {
+  it('the default group (running light) reads as Til: løbelys, Fra: som tegnet', () => {
+    const m = toOnOff([{ type: 'flow' }])!;
+    expect(m.on.show).toBe('flow');
+    expect(m.off.color).toBe('');
+    expect(describeOnOff([{ type: 'flow' }])).toBe('Til: løbelys · Fra: som tegnet');
+  });
+
+  it('round-trips every combination', () => {
+    for (const show of ['flow', 'color', 'none'] as const) {
+      for (const offColor of ['', '#9e9e9e']) {
+        for (const [onB, offB] of [[false, false], [true, false], [false, true], [true, true]]) {
+          const m = defaultOnOff();
+          Object.assign(m.on, { show, color: '#00ff00', blink: onB, rate: 'fast' });
+          Object.assign(m.off, { color: offColor, blink: offB, rate: offB && !onB ? 'slow' : 'fast' });
+          const anims = fromOnOff(m);
+          expect(anims.every((a) => !connAnimError(a)), JSON.stringify(anims)).toBe(true);
+          const back = toOnOff(anims)!;
+          expect(fromOnOff(back), `${show} ${offColor} ${onB} ${offB}`).toEqual(anims);     // det gemte er stabilt
+          expect([back.on.show, back.off.color, back.on.blink, back.off.blink]).toEqual([show, offColor, onB, offB]);
+        }
+      }
+    }
+  });
+
+  it('Til and Fra become the right colors and blink in the engine', () => {
+    const m = defaultOnOff();
+    Object.assign(m.on, { show: 'color', color: '#00ff00' });
+    Object.assign(m.off, { color: '#ff0000', blink: true });
+    const [color, blink] = fromOnOff(m);
+    const p = { abs: true, off: color.off, on: color.off, thresholds: color.limits };
+    expect(colorFor(0, p)).toBe('#ff0000');
+    expect(colorFor(ON_MIN, p)).toBe('#00ff00');
+    expect(activeFor(0, { abs: true, at_most: blink.at_most })).toBe(true);
+    expect(activeFor(5, { abs: true, at_most: blink.at_most })).toBe(false);
+    // Til som tegnet med en Fra-farve: tom farve = som tegnet
+    Object.assign(m.on, { show: 'none' });
+    expect(colorFor(5, { off: '#ff0000', thresholds: fromOnOff(m)[0].limits })).toBe('');
+  });
+
+  it('lists that are not on/off stay advanced', () => {
+    expect(toOnOff([{ type: 'fixed', color: '#123456' }])).toBeNull();
+    expect(toOnOff([{ type: 'color', off: '#000000', limits: [{ value: 5, color: '#111111' }, { value: 10, color: '#222222' }] }])).toBeNull();
+    expect(toOnOff([{ type: 'blink', at_least: 20, at_most: null }])).toBeNull();
+    expect(describeOnOff([{ type: 'fixed', color: '#123456' }])).toBe('avanceret: fast farve');
+    expect(toOnOff([])).toEqual({ ...defaultOnOff(), on: { ...defaultOnOff().on, show: 'none' } });
   });
 });

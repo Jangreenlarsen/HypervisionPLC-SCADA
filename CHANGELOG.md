@@ -4,6 +4,77 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.12.3 build 0424] — 2026-11-14 — fix: tilslutningspunkter på et drejet symbol
+
+Jan: "hvis jeg roterer et symbol 90 grader, så sidder tilslutningspunkterne ikke korrekt efterfølgende". Se BUGS.md v6.12.3.
+
+- `frontend/svgedit-host/scada-core.js`: `canonicalizeSymbol`, `remapPortNames` og `normalizeSymbols`. De kaldes efter museslip, ved ∠ (`setAngle`) og ved indlæsning (`load`).
+- `frontend/svgedit-host/pipes.js`: `shiftEnd`.
+- Test: `frontend/src/lib/pipes.test.ts`.
+
+## [6.12.2 build 0423] — 2026-11-14 — Tegn: symboler oven på hinanden markeres i tegningen
+
+Jan: "kunne være godt med en tydelig indikation på tegn når det er tilfældet".
+
+- `frontend/svgedit-host/scada-core.js` (`drawConn`, `markConnections`): lilla dobbeltramme og **2×**-mærke med forklaring (`stacked`, `stackedOnly`).
+- `frontend/src/pages/DrawEditor.svelte`: markeringen vises også, når *Tjek forbindelser* er slået fra.
+- `frontend/src/lib/animate.test.ts`: typefejl rettet (`LiveValue.error`).
+- Manual: `07-tegn.md` og `llm/tegn.md` (synkroniseret).
+- v6.12.1 fik ingen OTA-pakke, fordi LLM-tillæggene ikke var synkroniseret. Denne version indeholder den.
+
+## [6.12.1 build 0422] — 2026-11-14 — fix: symboler oven på hinanden i Tjek forbindelser; id'er genbruges ikke
+
+Jan: "vi har problemer med tjek forbindelser stadigvæk". Se BUGS.md v6.12.1.
+
+- `frontend/src/lib/signalpath/graph.ts`: `stackedPairs`.
+- `frontend/src/pages/DrawEditor.svelte`: tjekket melder symboler oven på hinanden.
+- `frontend/svgedit-host/scada-core.js`: `getNextId` genbruger ikke numre fra slettede elementer.
+- `deploy/audit_drawings.py`: melder symboler oven på hinanden.
+- Manual: `07-tegn.md`. Test: `connectionCheck.test.ts`.
+
+## [6.12.0 build 0421] — 2026-11-14 — Forbindelsernes animationer: Til og Fra for hele tegningen
+
+Jan: "jeg ser ikke en general config af de animationer for on/off som forbindelser skal bruge". Se FEATURES.md v6.12.0 og BUGS.md v6.12.0.
+
+- `frontend/src/lib/ConnGroups.svelte`: ny editor med to faste afsnit, **Til** (løbelys/farve/som tegnet + blink) og **Fra** (som tegnet/farve + blink). Felterne har faste pladser. Egne grupper hedder **Undtagelser**. Den gamle liste findes under *Avanceret …*.
+- `frontend/src/lib/connGroups.ts`: `toOnOff`, `fromOnOff`, `describeOnOff` og `ON_MIN` (0,1 l/min). Gemmes som de samme animationer, så der er ingen migration.
+- `frontend/src/pages/DrawEditor.svelte`: menuen **Forbindelser** › *Animationer* › **Til/Fra for hele tegningen …** åbner vinduet *Forbindelsernes animationer*. Flow-vinduet viser kun flowet og har et link dertil.
+- `frontend/src/lib/animate.ts`:
+  - løbelysets Fra-farve (`stopped`), som tegnet ved ukendt værdi;
+  - hvert ben på et rørstykke har sin egen fart (`portFlow`, `legSpeed`);
+  - ben uden flow vises i Fra-farven.
+- `backend/app/services/connection_groups.py`: `stopped` på løbelys. Fra-farven og grænsefarven må være "" (som tegnet).
+- Manual: `08-forbindelser.md`, `llm/tegn.md` og billederne `forbindelser-tilfra.png` og `forbindelser-menu-animationer.png`. `flow-vindue.png` er fjernet.
+- Tests: `connGroups.test.ts`, `animate.test.ts`, `flowRound2.test.ts`, `test_connection_groups.py`.
+
+## [6.11.4 build 0420] — 2026-11-14 — fix: T-stykke uden løbelys i ben uden flow
+
+Jan: "så gå flow ud af de to side rør … der ikke er noget flow til venstre". Se BUGS.md v6.11.4.
+
+- `frontend/src/lib/animate.ts`: på et rørstykke med flow pr. punkt får ben uden et punkt med flow intet lys, og delstregen vises som tegnet. `buildDashes` husker hver lys-stregs delstreg (`src`).
+
+## [6.11.3 build 0419] — 2026-11-14 — fix: T-stykker åbne i Tjek forbindelser (forbindelser kopieret med ved deling af rør)
+
+Jan: "selv om der er forbindelse så mener system ikke der er". Se BUGS.md v6.11.3.
+
+- `frontend/svgedit-host/scada-core.js`: `carryLinks` flytter gemte forbindelser med, når et rør deles af et T-stykke, forlænges eller lægges sammen.
+- `frontend/src/lib/signalpath/graph.ts`: `linkContradicted`. En forbindelse, som rørets ende modsiger, tæller ikke i `contacts`, `connectionCheck`, `pairsToBind` og `planFixes`.
+- `backend/app/services/flow_calc.py`: `parse_topology` springer modsagte forbindelser over.
+- `deploy/audit_drawings.py`: melder modsagte forbindelser.
+- Tests: `frontend/src/lib/connectionCheck.test.ts`, `backend/tests/test_flow_calc.py`.
+
+## [6.11.2 build 0418] — 2026-11-14 — Simulatoren: knapperne hedder det, de gør
+
+Jan: "de siger ikke noget om hvad de endelig gør".
+
+- `frontend/src/pages/Simulator.svelte`:
+  - *Start fra live* hedder nu **Frys på live-værdier**, og *Alt til live* hedder **Nulstil alle ændringer**.
+  - Tooltippene beskriver handlingen med tal ("… for de 12 variabler, der følger PLC'en"), og hvorfor knappen er slået fra.
+  - Panelets forklaring nævner dem. Den grønne besked er fjernet, fordi den skubbede tegningen ned.
+- `frontend/src/lib/simulator.ts`: `fromLive(vars, keep)` bevarer det, brugeren har sat (før blev det overskrevet). Nye `freezable` og `liveCount`.
+- Tests: `simulator.test.ts`. Set i browseren (live-værdier lagt ind, da den lokale server ingen PLC har): Frys bevarer Tryk = 77 og tilføjer pumpen, Nulstil tømmer, og knapperne er slået fra, når de ikke kan bruges. Værktøjslinjen og rækkehøjderne er uændrede ved klik.
+- Manual kap. 07, billedet `simulator.png` og LLM-tillæg.
+
 ## [6.11.1 build 0417] — 2026-11-13 — Rettelse: flytning og drejning i Tegn blev afbrudt af den løbende flowberegning
 
 - `frontend/svgedit-host/scada-core.js previewSvg()`: tegningen til løbende beregninger som en kopi. Den rører hverken valget, et igangværende træk eller DOM'en, modsat `getSvg()`, som fravælger alt og rydder op (til Gem).

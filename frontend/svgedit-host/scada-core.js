@@ -11,7 +11,7 @@ import { alignToGuide, formatGuides, guideLines, parseGuides, snapBoxToGuides, s
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
 import { XLINK, angleTo, arcPath, cleanupDefs, dashArray, dashKind, ensureArrow, ensureGradient, ensureShadow, fitImage, gradientOf, parsePoints, pointsAttr,
   regenerate, regularPoints, shadowOf, shapeParams, starPoints } from './shapes.js';
-import { PIPE_STYLE, alignDelta, ensureOrthogonal, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, straightEnd, straightTarget, turnDir } from './pipes.js';
+import { PIPE_STYLE, alignDelta, ensureOrthogonal, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, shiftEnd, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, straightEnd, straightTarget, turnDir } from './pipes.js';
 
 /**
  * @param {{ canvas(): any, loadFromString(svg: string): unknown, updateCanvas(): void, gridHost(): HTMLElement | null,
@@ -217,6 +217,7 @@ export function createScada(host) {
         normalizeRotatedGroups(sel);
         normalizeFields(sel);
       }
+      normalizeSymbols(sel);        // v6.12.3: efter en drejning med håndtaget (gør intet, når symbolet allerede har fast form)
       rememberBoxes();
     }
   }
@@ -276,6 +277,145 @@ export function createScada(host) {
       c.undoMgr.addCommandToHistory(batch);
       if (changeListener) changeListener();
     }
+  }
+
+  /**
+   * v6.12.3 (Jan: "hvis jeg roterer et symbol 90 grader, så sidder tilslutningspunkterne ikke korrekt efterfølgende"). Et drejet
+   * symbol var gemt som `matrix(0,1,-1,0,…)`, som SVG-Edit ikke kender som en drejning (∠ viste 0). Drejede man det så med
+   * håndtaget, skubbede SVG-Edit den gamle matrix — med drejningen — ned i alle symbolets dele og lagde `rotate(…)` på gruppen.
+   * Det så rigtigt ud, men tilslutningspunkterne regnes i gruppens ramme (brøkdele af dens boks) og sad nu drejet forkert.
+   *
+   * Fast form for et symbol: gruppen har kun `rotate(θ cx cy)` (om symbolets midte), og delene har kun flytning/skalering — ingen
+   * drejning. Kun når alle delene har samme transform (ellers er en del drejet med vilje, fx en rotor) og der ingen skævhed er.
+   * → fortryd-kommandoerne, eller [] hvis symbolet allerede har formen.
+   */
+  function canonicalizeSymbol(g) {
+    const c = canvas();
+    const svg = c.getSvgRoot();
+    if (g?.tagName !== 'g' || !g.getAttribute('data-hv-type') || !g.transform) return [];
+    const kids = [...g.children].filter((k) => !RESERVED.has(k.tagName.toLowerCase()) && !k.classList?.contains('hv-flow') && k.transform);
+    if (!kids.length) return [];
+    const matOf = (el) => {             // uden consolidate(): den skriver transform om, også når vi lader elementet være
+      const tl = el.transform.baseVal;
+      let m = svg.createSVGMatrix();
+      for (let i = 0; i < tl.numberOfItems; i++) m = m.multiply(tl.getItem(i).matrix);
+      return m;
+    };
+    const eq = (a, b) => ['a', 'b', 'c', 'd', 'e', 'f'].every((k) => Math.abs(a[k] - b[k]) < 1e-4);
+    const K = matOf(kids[0]);
+    if (!kids.every((k) => eq(matOf(k), K))) return [];
+    const tl = g.transform.baseVal;
+    const G = matOf(g);
+    const turned = (m) => Math.abs(m.b) > 1e-6 || Math.abs(m.c) > 1e-6;
+    const onlyRotate = tl.numberOfItems === 1 && tl.getItem(0).type === SVGTransform.SVG_TRANSFORM_ROTATE;
+    if (!turned(K) && (!turned(G) || onlyRotate)) return [];
+    const F = G.multiply(K);
+    if (Math.abs(F.a * F.c + F.b * F.d) > 1e-4 * Math.max(1, Math.hypot(F.a, F.b) * Math.hypot(F.c, F.d))) return [];   // skæv
+    let theta = Math.atan2(F.b, F.a) * 180 / Math.PI;
+    if (Math.abs(theta) < 1e-3) theta = 0;
+    // symbolets midte i dets egne koordinater (delenes bokse uden deres transform) → i tegningen
+    const boxes = kids.map((k) => { try { return k.getBBox(); } catch { return null; } }).filter((b) => b && (b.width > 0 || b.height > 0));
+    if (!boxes.length) return [];
+    const u = unionBox(boxes.map((b) => ({ x: b.x, y: b.y, w: b.width, h: b.height })));
+    const p0 = svg.createSVGPoint();
+    p0.x = u.x + u.w / 2; p0.y = u.y + u.h / 2;
+    const ctr = p0.matrixTransform(F);
+    const R = theta ? svg.createSVGMatrix().translate(ctr.x, ctr.y).rotate(theta).translate(-ctr.x, -ctr.y) : svg.createSVGMatrix();
+    const Kn = R.inverse().multiply(F);
+    const r4 = (v) => +v.toFixed(4);
+    const fmt = (m) => `matrix(${[m.a, m.b, m.c, m.d, m.e, m.f].map((v) => +v.toFixed(6)).join(' ')})`;
+    // punkternes placering før (i gruppens forælder): til oversættelsen af punkternes navne nedenfor
+    const box0 = boxOfRoot(g);
+    const cmds = [new c.history.ChangeElementCommand(g, { transform: g.getAttribute('transform') })];
+    for (const k of kids) cmds.push(new c.history.ChangeElementCommand(k, { transform: k.getAttribute('transform') }));
+    if (theta) g.setAttribute('transform', `rotate(${r4(theta)} ${r4(ctr.x)} ${r4(ctr.y)})`);
+    else g.removeAttribute('transform');
+    for (const k of kids) {
+      if (eq(Kn, svg.createSVGMatrix())) k.removeAttribute('transform');
+      else k.setAttribute('transform', fmt(Kn));
+    }
+    cmds.push(...remapPortNames(g, box0, G, matOf(g)));
+    return cmds;
+  }
+
+  /**
+   * Efter canonicalizeSymbol: punkternes navne (brøkdele af boksen) har skiftet plads, fordi boksens ramme er en anden. Det, der
+   * sad på et sted i tegningen — rørenes ender (`data-hv-from/-to`), de gemte forbindelser og "ikke i brug" — skal pege på det
+   * punkt, der NU ligger dér. → fortryd-kommandoerne.
+   */
+  function remapPortNames(g, box0, G0, G1) {
+    const c = canvas();
+    const box1 = boxOfRoot(g);
+    if (!box0 || !box1) return [];
+    // regnet i gruppens forælder ud fra transformerne (ikke skærmen — ved indlæsning er den ikke klar)
+    const fixed = parsePorts(g.getAttribute('data-hv-ports')) ?? typePorts.get(g.getAttribute('data-hv-type') || '') ?? null;
+    const list = fixed ? fixed.map((f) => ({ frac: [f[0], f[1]], side: f[2] ?? fracSide(f) })) : autoPortsWithSide(g);
+    const ports = list.map((q) => ({ ...q, at: toPoint(G1, fromFrac(q.frac, box1)), dir: turnDir(sideDir(q.side), G1) }));
+    const tol = Math.max(8, 0.25 * Math.max(box1.w, box1.h));
+    const nearest = (pt) => ports.map((q) => ({ q, d: Math.hypot(q.at[0] - pt[0], q.at[1] - pt[1]) })).sort((x, y) => x.d - y.d)[0];
+    /** gammel brøkdel → det punkt, der nu ligger nærmest dér, hvor den gamle lå (eller null) */
+    const map = (f) => {
+      const n = nearest(toPoint(G0, [box0.x + f[0] * box0.w, box0.y + f[1] * box0.h]));
+      return n && n.d <= tol ? n.q : null;
+    };
+    const keyFrac = (k) => { const m = /^(-?[\d.]+),(-?[\d.]+)$/.exec(k); return m ? [Number(m[1]), Number(m[2])] : null; };
+    const mapKey = (k) => { const f = keyFrac(k); const q = f && map(f); return q ? `${r2(q.frac[0])},${r2(q.frac[1])}` : k; };
+    const cmds = [];
+    const change = (el, attr, value) => {
+      const was = el.getAttribute(attr);
+      if ((was ?? '') === (value ?? '')) return;
+      if (value) el.setAttribute(attr, value); else el.removeAttribute(attr);
+      cmds.push(new c.history.ChangeElementCommand(el, { [attr]: was }));
+    };
+    const content = c.getSvgContent();
+    for (const p of content.querySelectorAll('[data-hv-pipe]')) {
+      for (const attr of ['data-hv-from', 'data-hv-to']) {
+        const ref = parseRef(p.getAttribute(attr));
+        if (ref?.id !== g.id) continue;
+        // rørets ende: det punkt, der ligger nærmest enden (enden selv, når røret ligger i samme lag), ellers det gamle punkts sted
+        const pts = pipePoints(p);
+        const end = attr === 'data-hv-from' ? pts[0] : pts[pts.length - 1];
+        const same = p.parentNode === g.parentNode && !p.getAttribute('transform') && end;
+        const n = same ? nearest(end) : null;
+        const q = n && n.d <= tol ? n.q : map(ref.local);
+        if (!q) continue;
+        change(p, attr, formatRef(g.id, q.frac, q.side));
+        if (same && Math.hypot(q.at[0] - end[0], q.at[1] - end[1]) > 0.05) {
+          const oldD = p.getAttribute('d');
+          const which = attr === 'data-hv-from' ? 'start' : 'end';
+          drawPipe(p, shiftEnd(pts, which, q.at) ?? reroute(pts, which, q.at, q.dir));
+          if (p.getAttribute('d') !== oldD) cmds.push(new c.history.ChangeElementCommand(p, { d: oldD }));
+        }
+      }
+    }
+    if (g.hasAttribute('data-hv-links')) change(g, 'data-hv-links', linkText(parseLinks(g).map((l) => ({ ...l, key: mapKey(l.key) }))));
+    for (const el of content.querySelectorAll('[data-hv-links]')) {
+      if (el === g) continue;
+      const list = parseLinks(el);
+      if (list.some((l) => l.to === g.id)) change(el, 'data-hv-links', linkText(list.map((l) => (l.to === g.id ? { ...l, toKey: mapKey(l.toKey) } : l))));
+    }
+    const unused = g.getAttribute('data-hv-unused');
+    if (unused) change(g, 'data-hv-unused', unused.split(';').filter(Boolean).map((k) => (k === '*' ? k : mapKey(k))).join(';'));
+    return cmds;
+  }
+  /** Symbolerne blandt `els` (og deres symbol-grupper) på fast form — ét fortryd-trin, hvis noget ændres (`undo` = false: ved indlæsning). */
+  function normalizeSymbols(els, undo = true) {
+    const c = canvas();
+    const syms = new Set();
+    for (const el of els) {
+      if (!el) continue;
+      if (el.getAttribute?.('data-hv-type') && el.tagName === 'g') syms.add(el);
+      for (const s of el.querySelectorAll?.('g[data-hv-type]') ?? []) syms.add(s);
+    }
+    const cmds = [];
+    for (const g of syms) cmds.push(...canonicalizeSymbol(g));
+    if (!cmds.length) return 0;
+    if (undo) {
+      commitCmds('Drejet symbol: punkterne følger med', cmds);
+      for (const g of syms) c.selectorManager.requestSelector(g)?.resize?.();
+    }
+    if (changeListener) changeListener();
+    return cmds.length;
   }
 
   function normalizeRotatedGroups(sel) {
@@ -353,9 +493,24 @@ export function createScada(host) {
     const proto = Object.getPrototypeOf(c.getCurrentDrawing());
     if (proto && !proto.__hvReserved) {
       const nextId = proto.getNextId;
+      // v6.12.1 (Jan: en kopi af ventilen fik id'et svg_5 fra et rør, der lige var slettet): SVG-Edit giver det laveste ledige
+      // nummer, så et slettet elements id kan gå videre til et nyt — og gamle henvisninger (rør-ender, forbindelser, opsætning)
+      // peger så på det nye. Nye id'er tælles derfor altid videre fra det højeste, tegningen har haft i denne redigering.
+      const numOf = (d, id) => {
+        const m = typeof id === 'string' && !d.nonce_ && id.startsWith(d.idPrefix) ? /^\d+$/.exec(id.slice(d.idPrefix.length)) : null;
+        return m ? Number(m[0]) : -1;
+      };
       proto.getNextId = function getNextIdSkippingReserved() {
+        if (this.__hvHigh === undefined) {
+          let high = 0;
+          for (const el of this.svgElem_?.querySelectorAll?.('[id]') ?? []) high = Math.max(high, numOf(this, el.id));
+          this.__hvHigh = high;
+        }
+        if (Array.isArray(this.releasedNums)) this.releasedNums.length = 0;
+        if (typeof this.obj_num === 'number' && this.obj_num < this.__hvHigh) this.obj_num = this.__hvHigh;
         let id = nextId.call(this);
         for (let n = 0; reservedIds.has(id) && n < 100000; n++) id = nextId.call(this);
+        this.__hvHigh = Math.max(this.__hvHigh, numOf(this, id));
         return id;
       };
       proto.__hvReserved = true;
@@ -1154,6 +1309,8 @@ export function createScada(host) {
   }
   /** Rørets anden endes reference: den ende der IKKE er `which`. */
   const otherRef = (el, which) => el.getAttribute(which === 'start' ? 'data-hv-to' : 'data-hv-from');
+  /** Nøglen ('s'/'e') på rørets anden ende end `which` ('start'/'end'). */
+  const farKey = (which) => (which === 'start' ? 'e' : 's');
   const named = (el) => !!el.getAttribute('data-hv-name');
 
   /**
@@ -1171,7 +1328,11 @@ export function createScada(host) {
     drawPipe(keep, route);
     if (refStart) keep.setAttribute('data-hv-from', refStart); else keep.removeAttribute('data-hv-from');
     if (refEnd) keep.setAttribute('data-hv-to', refEnd); else keep.removeAttribute('data-hv-to');
-    return { keep, cmds: [changeCmd(keep, before), removeCmd(drop)] };
+    // de gemte forbindelser (v6.11.3): starten er A's anden ende, slutningen B's anden ende — samlingen er nu midt på røret
+    const linkCmds = [];
+    carryLinks([{ el: keep, ends: { s: { id: A.id, key: farKey(aWhich) }, e: { id: B.id, key: farKey(bWhich) } } }],
+      linkCmds, new Set([keep]), [`${drop.id}|s`, `${drop.id}|e`]);
+    return { keep, cmds: [changeCmd(keep, before), ...linkCmds, removeCmd(drop)] };
   }
   function commitCmds(label, cmds) {
     const c = canvas();
@@ -1391,6 +1552,58 @@ export function createScada(host) {
   }
   const linkText = (list) => list.map((l) => `${l.key}>${l.to}:${l.toKey}`).join(';');
   const okKey = (k) => typeof k === 'string' && /^([0-9.,#se-]{1,16}|~)$/.test(k);
+  /**
+   * v6.11.3 (Jan: T-stykkerne var "åbne", selv om rørene sad på dem): når rør deles af et T-stykke, forlænges eller lægges sammen,
+   * flytter rørenes ender — og de gemte forbindelser skal med. `updates` = [{ el, ends: { s, e } }], hvor `ends.s`/`ends.e` er den
+   * ende ({ id, key }) før ændringen, som rørets nye start/slut arver sin forbindelse fra, eller null (enden er ny, eller ligger nu
+   * midt på røret). Forbindelser ved ender, der ikke arves, fjernes — også modpartens. Fortryd: rørene i `noCmd` (dem, kalderen
+   * selv laver en fortryd-kommando for, og nye rør) får ingen; de øvrige ændrede elementer lægges i `cmds`. `gone`: ender
+   * ("id|nøgle") på et rør, der forsvinder (lagt sammen med et andet) — forbindelser dertil fjernes, medmindre en ende arver dem.
+   */
+  function carryLinks(updates, cmds, noCmd = new Set(), gone = []) {
+    const content = canvas().getSvgContent();
+    const snap = new Map();
+    for (const el of content.querySelectorAll('[data-hv-links]')) snap.set(el.id, parseLinks(el));
+    const map = new Map();          // "id|nøgle" før → { id, key } nu
+    const touched = new Set(gone);
+    for (const u of updates) {
+      for (const k of ['s', 'e']) {
+        touched.add(`${u.el.id}|${k}`);
+        const src = u.ends[k];
+        if (src) { touched.add(`${src.id}|${src.key}`); map.set(`${src.id}|${src.key}`, { id: u.el.id, key: k }); }
+      }
+    }
+    const remap = (l) => {
+      const at = `${l.to}|${l.toKey}`;
+      if (!touched.has(at)) return l;
+      const m = map.get(at);
+      return m ? { ...l, to: m.id, toKey: m.key } : null;
+    };
+    const next = new Map();
+    const own = new Set(updates.map((u) => u.el));
+    for (const u of updates) {
+      const keep = (snap.get(u.el.id) ?? []).filter((l) => l.key !== 's' && l.key !== 'e');     // '~' o.l. bliver
+      const inherited = ['s', 'e'].flatMap((k) => {
+        const src = u.ends[k];
+        return src ? (snap.get(src.id) ?? []).filter((l) => l.key === src.key).map((l) => ({ ...l, key: k })) : [];
+      });
+      next.set(u.el, [...keep, ...inherited].map(remap).filter((l) => l && l.to !== u.el.id));
+    }
+    for (const el of content.querySelectorAll('[data-hv-links]')) {
+      if (own.has(el)) continue;
+      const list = parseLinks(el);
+      const mapped = list.map(remap).filter(Boolean);
+      if (linkText(mapped) !== linkText(list)) next.set(el, mapped);
+    }
+    const c = canvas();
+    for (const [el, list] of next) {
+      const was = el.getAttribute('data-hv-links');
+      const text = linkText(list);
+      if ((was || '') === text) continue;
+      if (text) el.setAttribute('data-hv-links', text); else el.removeAttribute('data-hv-links');
+      if (!noCmd.has(el)) cmds.push(new c.history.ChangeElementCommand(el, { 'data-hv-links': was }));
+    }
+  }
   /** Skriv forbindelserne for nogle elementer som ét fortryd-trin. `next`: Map(element → liste). */
   function commitLinks(next, label) {
     const c = canvas();
@@ -1525,8 +1738,9 @@ export function createScada(host) {
         continue;
       }
       const bad = it.status !== 'ok';
+      const plain = !it.stackedOnly;      // stackedOnly: tjekket er slået fra — kun markeringen af symboler oven på hinanden
       const color = !bad ? '#2e7d32' : it.status === 'drift' ? '#ef6c00' : it.status === 'isolated' ? '#b71c1c' : '#e53935';
-      if (isPipe(el)) {
+      if (!plain) { /* kun markeringen nedenfor */ } else if (isPipe(el)) {
         const m = toDocMatrix(el);
         const pts = pipePoints(el).map((p) => (m ? toPoint(m, p) : p));
         out += `<polyline points="${pts.map((p) => `${r1(p[0])},${r1(p[1])}`).join(' ')}" fill="none" stroke="${color}" stroke-opacity="${bad ? 0.55 : 0.3}" ` +
@@ -1536,6 +1750,22 @@ export function createScada(host) {
         if (bb) out += `<rect x="${r1(bb.x - 3)}" y="${r1(bb.y - 3)}" width="${r1(bb.w + 6)}" height="${r1(bb.h + 6)}" rx="5" fill="${color}" ` +
           `fill-opacity="${bad ? 0.18 : 0.1}" stroke="${color}" stroke-opacity="0.8" stroke-width="${r1(bad ? Math.max(3, 3 / z) : Math.max(1.5, 1.5 / z))}"` +
           `${it.status === 'isolated' ? ` stroke-dasharray="${r1(8 / z)} ${r1(4 / z)}"` : ''}/>`;
+      }
+      if (it.stacked && !isPipe(el)) {
+        // v6.12.2 (Jan: "en tydelig indikation på tegn"): to ens symboler præcis oven på hinanden — lilla dobbeltramme (som to
+        // kort lagt oven på hinanden) og et "2×"-mærke med forklaringen
+        const bb = boxOf(el);
+        if (bb) {
+          const o = Math.max(5, 6 / z), sw2 = r1(Math.max(2, 2.5 / z));
+          for (const k of [1, 0]) {
+            out += `<rect x="${r1(bb.x - 5 + k * o)}" y="${r1(bb.y - 5 - k * o)}" width="${r1(bb.w + 10)}" height="${r1(bb.h + 10)}" rx="6" ` +
+              `fill="${k ? 'none' : '#8e24aa'}" fill-opacity="0.08" stroke="#8e24aa" stroke-width="${sw2}" stroke-dasharray="${k ? `${r1(6 / z)} ${r1(3 / z)}` : 'none'}"/>`;
+          }
+          const br = Math.max(11, 13 / z), bx = bb.x + bb.w + 5 + o, by = bb.y - 5 - o;
+          dots += `<g style="pointer-events:all"><circle cx="${r1(bx)}" cy="${r1(by)}" r="${r1(br)}" fill="#8e24aa" stroke="#fff" stroke-width="${sw2}"/>` +
+            `<text x="${r1(bx)}" y="${r1(by + br * 0.36)}" font-size="${r1(br * 1.05)}" font-weight="700" text-anchor="middle" fill="#fff" font-family="sans-serif">2×</text>` +
+            `<title>${escXml(it.stacked)}</title></g>`;
+        }
       }
       const rr = r1(Math.max(5, 6 / z)), sw = r1(Math.max(1.5, 1.5 / z));
       const attrs = (k) => `data-id="${escXml(it.id)}" data-key="${escXml(k)}" style="pointer-events:all; cursor:pointer"`;
@@ -1850,12 +2080,16 @@ export function createScada(host) {
     el2.setAttribute('data-hv-from', formatRef(node.id, portB.frac, portB.side));
     if (before['data-hv-to']) el2.setAttribute('data-hv-to', before['data-hv-to']); else el2.removeAttribute('data-hv-to');
     drawPipe(el2, reroute(p2, 'start', portB.doc, portB.dir));
+    // de gemte forbindelser (v6.11.3): første halvdel beholder startens, anden halvdel arver slutningens — ikke en kopi af begge
+    const linkCmds = [];
+    carryLinks([{ el, ends: { s: { id: el.id, key: 's' }, e: null } }, { el: el2, ends: { s: null, e: { id: el.id, key: 'e' } } }],
+      linkCmds, new Set([el, el2]));
     el.after(el2);
     const old = {};
     for (const k of new Set([...Object.keys(before), ...[...el.attributes].map((x) => x.name)])) {
       if (before[k] !== el.getAttribute(k)) old[k] = before[k] ?? null;
     }
-    const cmds = [new c.history.ChangeElementCommand(el, old), new c.history.InsertElementCommand(el2), new c.history.InsertElementCommand(node)];
+    const cmds = [new c.history.ChangeElementCommand(el, old), new c.history.InsertElementCommand(el2), new c.history.InsertElementCommand(node), ...linkCmds];
     return { cmds, port: portC, node };
   }
 
@@ -1949,7 +2183,10 @@ export function createScada(host) {
         drawPipe(keep, route);
         if (refStart) keep.setAttribute('data-hv-from', refStart); else keep.removeAttribute('data-hv-from');
         if (toRef) keep.setAttribute('data-hv-to', toRef); else keep.removeAttribute('data-hv-to');
-        cmds.push(changeCmd(keep, before));
+        // (v6.11.3) starten er rørets anden ende; den forlængede ende er ny
+        const linkCmds = [];
+        carryLinks([{ el: keep, ends: { s: { id: keep.id, key: farKey(fromEnd.which) }, e: null } }], linkCmds, new Set([keep]));
+        cmds.push(changeCmd(keep, before), ...linkCmds);
       }
       if (toEnd && toEnd.el !== keep) {
         if (keep) {
@@ -1963,7 +2200,10 @@ export function createScada(host) {
           drawPipe(keep, route);
           if (fromRef) keep.setAttribute('data-hv-from', fromRef); else keep.removeAttribute('data-hv-from');
           if (refEnd) keep.setAttribute('data-hv-to', refEnd); else keep.removeAttribute('data-hv-to');
-          cmds.push(changeCmd(keep, before));
+          // (v6.11.3) slutningen er rørets anden ende; den forlængede ende er ny
+          const linkCmds = [];
+          carryLinks([{ el: keep, ends: { s: null, e: { id: keep.id, key: farKey(toEnd.which) } } }], linkCmds, new Set([keep]));
+          cmds.push(changeCmd(keep, before), ...linkCmds);
         }
       }
       if (keep) {
@@ -2443,7 +2683,10 @@ export function createScada(host) {
     setAngle(deg) {
       const v = Number(deg);
       if (!Number.isFinite(v) || selectedEls().length !== 1) return { error: 'Vælg ét element' };
+      const sel = selectedEls();
+      normalizeSymbols(sel);        // v6.12.3: et ældre symbol gemt som matrix(…) får først fast form, så ∠ drejer det rigtigt
       canvas().setRotationAngle(((v % 360) + 540) % 360 - 180);
+      normalizeSymbols(sel);
       afterEdit();
       return { ok: true };
     },
@@ -2743,6 +2986,9 @@ export function createScada(host) {
 
     load(svg) {
       const ok = host.loadFromString(svg, { noAlert: true });
+      // v6.12.3: drejede symboler på fast form (gruppen rotate(…), delene uden drejning), så punkterne og ∠ passer — også i ældre
+      // tegninger. Gemmes med næste Gem; ingen fortryd-trin (det er tegningen, som den åbnes)
+      try { normalizeSymbols([canvas().getSvgContent()], false); } catch (e) { console.warn('normalizeSymbols', e); }
       canvas().undoMgr.resetUndoStack();
       drawGrid();
       return ok;
@@ -2904,6 +3150,7 @@ export function createScada(host) {
           const open = pts(i.open), ignored = pts(i.ignored);
           const drift = pts(i.drift);
           return { id: i.id, exempt: !!i.exempt, status: ['open', 'isolated', 'drift'].includes(i.status) ? i.status : 'ok',
+            stacked: typeof i.stacked === 'string' ? i.stacked.slice(0, 300) : '', stackedOnly: !!i.stackedOnly,
             drift: drift.map(([p]) => p), driftKeys: drift.map(([, k]) => String(i.driftKeys?.[k] ?? '')),
             open: open.map(([p]) => p), openKeys: open.map(([, k]) => String(i.openKeys?.[k] ?? '')),
             ignored: ignored.map(([p]) => p), ignoredKeys: ignored.map(([, k]) => String(i.ignoredKeys?.[k] ?? '')) };

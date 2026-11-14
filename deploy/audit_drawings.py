@@ -69,6 +69,16 @@ def main() -> int:
                 return False            # "s", "e", "~", "#n": rørender og andet — ikke et brøkpunkt
             return el in pts_of and min(abs(kx - x) + abs(ky - y) for x, y in pts_of[el]) > 0.08
 
+        # (v6.11.3) rørenes ender: data-hv-from/-to — en gemt forbindelse til et andet element end det, enden sidder i, er forældet
+        ends: dict[tuple[str, str], str] = {}
+        for m in re.finditer(r"<[^>]*\bdata-hv-pipe=[^>]*>", v["svg"]):
+            tag = m.group(0)
+            el_id = re.search(r'\bid="([^"]+)"', tag)
+            for key, attr in (("s", "data-hv-from"), ("e", "data-hv-to")):
+                ref = re.search(rf'\b{attr}="([^"@]+)', tag)
+                if el_id and ref and ref.group(1) in ids:
+                    ends[(el_id.group(1), key)] = ref.group(1)
+
         for m in re.finditer(r'<[^>]*\bid="([^"]+)"[^>]*\bdata-hv-links="([^"]*)"|<[^>]*\bdata-hv-links="([^"]*)"[^>]*\bid="([^"]+)"', v["svg"]):
             own, text = (m.group(1), m.group(2)) if m.group(1) else (m.group(4), m.group(3))
             for part in html.unescape(text).split(";"):
@@ -80,7 +90,19 @@ def main() -> int:
                     stale.append(f"{own}:{key}")
                 if off(to, to_key):
                     stale.append(f"{own}→{to}:{to_key}")
+                ra, rb = ends.get((own, key)), ends.get((to, to_key))
+                if not (ra and ra == rb) and ((ra and ra != to) or (rb and rb != own)):
+                    stale.append(f"{own}:{key}→{to} (røret sidder i noget andet)")
+        # (v6.12.1) to ens symboler præcis oven på hinanden (samme type og placering) — rørene deles mellem dem
+        placed: dict[tuple[str, str], list[str]] = collections.defaultdict(list)
+        for m in re.finditer(r"<g\b[^>]*\bdata-hv-type=\"([^\"]+)\"[^>]*>", v["svg"]):
+            el_id, tf = re.search(r'\bid="([^"]+)"', m.group(0)), re.search(r'\btransform="([^"]+)"', m.group(0))
+            if el_id and tf:
+                placed[(m.group(1), tf.group(1))].append(el_id.group(1))
+        stacked = [" og ".join(ids) for ids in placed.values() if len(ids) > 1]
         flags = []
+        if stacked:
+            flags.append(f"symboler oven på hinanden: {', '.join(stacked[:5])}")
         if orph:
             flags.append(f"{len(orph)} gamle opsætninger")
         if group and not linked:

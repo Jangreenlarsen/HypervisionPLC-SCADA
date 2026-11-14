@@ -5,6 +5,40 @@ Status: `open` | `investigating` | `fixed`
 
 ---
 
+- [fixed] v6.12.3 — **Når et symbol blev drejet 90°, sad tilslutningspunkterne forkert bagefter** (Jan 2026-11-14, ventilen "3-vejs motorventil 5" på test-ny-editor). Ventilen så rigtig ud, men punktet M lå dér, hvor A er tegnet, og røret i A var sat på M. **Årsag (genskabt i browseren):**
+  - Drejede symboler var gemt som `matrix(0,1,-1,0,…)`. SVG-Edit kender kun `rotate(…)` som en drejning, så ∠ viste 0.
+  - Ved en drejning med håndtaget skubbede SVG-Edit den gamle matrix, med drejningen, ned i alle symbolets dele og lagde `rotate(-90)` på gruppen.
+  - Netto så symbolet rigtigt ud, men tilslutningspunkterne regnes som brøkdele af gruppens boks i gruppens ramme, og den var nu drejet 90° i forhold til tegningen.
+
+  **Rettelse:** symboler holdes på én fast form: gruppen har kun `rotate(θ cx cy)`, og delene har ingen drejning (`canonicalizeSymbol`).
+  - Det sker efter et museslip (drejehåndtaget), ved ∠ og ved åbning af tegningen, så ældre tegninger også bliver rettet.
+  - Punkternes navne oversættes efter placering (`remapPortNames`): rørenes ender (`data-hv-from/-to`), de gemte forbindelser og "ikke i brug" peger derefter på det punkt, der nu ligger dér.
+  - Rørets ende lægges præcist på punktet uden hak (`pipes.shiftEnd`).
+  - Symboler, hvor delene har forskellige transforms (en bevidst drejet del), røres ikke.
+
+  Set i browseren:
+  - Jans ventil: rørene sidder på A, B og AB, og tjekket siger "✓ alt hænger sammen · alle bundet".
+  - En drejet ventil viser ∠ 90. Efter en drejning med håndtaget (−90) og med ∠ (90) følger punkterne og rørene med.
+  - Fortryd gendanner.
+
+  Test: `pipes.test.ts`.
+- [fixed] v6.12.1 — **Tjek forbindelser meldte to 3-vejsventiler åbne, selv om rørene sad på dem** (Jan 2026-11-14, test-ny-editor v63). **Årsag:** der lå to ens ventiler præcis oven på hinanden. Den ene var en kopi lagt på originalens plads. Rørene var delt mellem dem: A sad i den nederste, B og AB i den øverste. Hver ventil havde derfor åbne ender, og intet i Tegn viste hvorfor. Kopien fik desuden id'et `svg_5` fra et rør, der lige var slettet: SVG-Edit giver det laveste ledige nummer (`Drawing.getNextId`), så gamle henvisninger til det slettede element kan pege på det nye. **Rettelse:**
+  - Tjekket finder ens symboler oven på hinanden (`graph.stackedPairs`) og siger det med navnene. De tæller med i mærket.
+  - Nye id'er tælles videre fra det højeste, tegningen har haft i redigeringen, så et slettet elements id genbruges ikke (`scada-core.js`, indpakningen af `getNextId`).
+  - `deploy/audit_drawings.py` finder dem.
+
+  Set i browseren med Jans tegning. Et nyt rør efter sletning af `svg_8` fik `svg_64`. Test: `connectionCheck.test.ts`.
+
+  **v6.12.2 (Jan: "en tydelig indikation på tegn"):** symbolerne får en lilla dobbeltramme med et **2×**-mærke direkte i tegningen, også når *Tjek forbindelser* er slået fra. Mærkets tooltip forklarer hvad og hvordan. Set i browseren: markeringen vises med og uden tjek og forsvinder, når kopien slettes. Efter **Bind forbindelser** står der "✓ alt hænger sammen".
+- [fixed] v6.12.0 — **T-stykkets ben løb lige så hurtigt som pumpe-loopet, selv om der var mindre flow i dem** (Jan 2026-11-14, benet mod kontraventilen). **Årsag:** et rørstykkes løbelys fik én fart ud fra hele elementets flow (`speedFor(flow:<element>)`). Flowet pr. punkt (`flowp:`) blev kun brugt til retningen. **Rettelse:** hvert ben får sin egen fart efter flowet ved sit punkt (`animate.ts › portFlow`, `legSpeed`), så benet har samme fart som røret ved siden af. Set i browseren: nederste T-stykke 600, 4800 og 600 ms pr. periode, og rørene mod kontraventilen 4800 ms. Test: `flowRound2.test.ts`.
+- [fixed] v6.11.4 — **T-stykket viste løbelys i et ben, hvor der intet flow er** (Jan 2026-11-14, test-ny-editor i simulatoren: flowet kommer op gennem afgreningen og går til højre, men venstre ben kørte også). **Årsag:** for et rørstykke med flow pr. punkt (`flowp:`) brugte løbelyset kun punkternes flow til at vælge retningen (`portDirection`). Backenden udelader punkter uden flow, så et ben uden flow fik `null` og kørte i den indstillede retning. **Rettelse:** et ben, der ikke rører et punkt med flow, får intet lys, og delstregen vises som tegnet (`animate.ts › flow`). Set i browseren med simulatoren på demoens tegning, før og efter.
+- [fixed] v6.11.3 — **Tjek forbindelser meldte T-stykkerne åbne, selv om rørene sad på dem** (Jan 2026-11-14, test-ny-editor på scada.laces.dk). **Årsag:** når et rør blev delt af et T-stykke (rør-værktøjet, `makeTee`), blev røret klonet med sine gemte forbindelser (`data-hv-links`). Begge halvdele pegede derfor stadig på den gamle forbindelses ender (ventil ↔ tank), og T-stykket fik ingen. Den gemte forbindelse vinder over geometrien, så T-stykkets ender talte som åbne, og rørenderne talte som gledet. Fordi alle ender havde en forbindelse, stod der "alle bundet", og *Bind forbindelser* kunne ikke rette det. Flowberegningen brugte de samme forkerte forbindelser. Når et rør blev forlænget eller lagt sammen med et andet, havnede forbindelserne også på den forkerte ende. **Rettelse (hele klassen):**
+  - Deling, forlængelse og sammenlægning flytter de gemte forbindelser med til de rigtige ender (`carryLinks` i scada-core). Modpartens forbindelse rettes også, og det fortrydes samlet.
+  - En gemt forbindelse, som rørets ende modsiger (`data-hv-from`/`-to` sidder i et andet element), tæller ikke. Det gælder både Tegn (`graph.linkContradicted`) og flowberegningen (`parse_topology`). Geometrien gælder i stedet, og *Bind forbindelser* vises og gemmer de rigtige. To rørender i samme element regnes for samme sted.
+  - `deploy/audit_drawings.py` finder dem.
+
+  Tests: `connectionCheck.test.ts`, `test_flow_calc.py`. Desuden afprøvet i browseren: deling af et bundet rør med T-stykke og fortryd; Jans tegning før/efter Bind.
+- [fixed] v6.11.2 — **Simulatorens to knapper sagde ikke, hvad de gør, og "Start fra live" overskrev dine egne ændringer** (Jan 2026-11-14). *Start fra live* erstattede hele simuleringen med PLC'ens værdier. Hvad du allerede havde sat, forsvandt uden et ord. **Rettelse:** knapperne hedder **Frys på live-værdier** og **Nulstil alle ændringer**. Frys bevarer det, du har sat, og tilføjer kun de variabler, der følger PLC'en (`simulator.fromLive(vars, keep)`). Tooltippen siger, hvor mange der fryses, og hvorfor knappen er slået fra (alt er simuleret, eller PLC'en svarer ikke). Den grønne besked er væk, fordi den skubbede tegningen ned. Svaret ses i statuslinjen og på rækkerne. Tests: `simulator.test.ts`.
 - [fixed] v6.11.1 — **Flytning og drejning af et symbol i Tegn stoppede hele tiden** (Jan 2026-11-13). Genskabt i browseren: med *Tjek forbindelser* slået til stoppede et langsomt træk efter ca. 42 af 120 px, og valget forsvandt. **Årsag:** den løbende flowberegning (Tjek forbindelser, v6.9.2, og Flow-vinduets "Vis flowet", v6.3.0) hentede tegningen med `getSvg()`. Den funktion er lavet til Gem: den fravælger alt (`clearSelection`) og rydder op i tegningen, og midt i et træk afbrød det svg-edits flytning og drejning. Med `getSvg()` slået fra virkede trækket; med forbindelsestjekket slået fra stoppede det stadig. **Rettelse:** `previewSvg()` laver en kopi af tegningen, der ikke rører valget, et igangværende træk eller DOM'en; den bruges af alle løbende beregninger, mens `getSvg()` kun bruges ved Gem. Desuden startede Flow-vinduet forfra ved hver ændring (`FlowLive` effekt uden `untrack`). Målt efter rettelsen:
   - Trækket går hele vejen (120/60 px).
   - Valget bevares.

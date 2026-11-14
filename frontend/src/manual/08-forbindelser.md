@@ -103,26 +103,26 @@ Tryk **Flow** i værktøjslinjen og sæt hak i **Vis flowet på tegningen**. Flo
 - **Simulering** lader dig prøve anlægget af uden PLC: sæt hak ved de pumper, der skal køre, og træk i deres **rate** (0,00–1,00), vælg **ventilernes position**, og sæt **restriktionen pr. symbol** (0,00–1,00). En pumpe-type uden egen opsætning kører med typens standard-kapacitet. Der skrives **aldrig** noget til PLC'en. **Nulstil simuleringen** starter forfra.
 - Beskeder fra beregningen (fx en pumpe uden vej rundt, eller en flowmåler, der ikke er forbundet) står øverst.
 
-### Forbindelsesgrupper: hvordan flowet ses
+### Forbindelsernes animationer: Til og Fra
 
-Tryk **Flow** i værktøjslinjen i Tegn. Vinduet ligger **over tegningen**: træk i overskriften for at flytte det og i hjørnet for at gøre det større, og luk det med ✕ eller Esc.
+Hvordan rør og rørstykker viser flowet på Overview og i simulatoren, sættes op ét sted for hele tegningen. Åbn menuen **Forbindelser** i Tegn, og tryk **Til/Fra for hele tegningen …** under *Animationer*. Vinduet ligger **over tegningen**: træk i overskriften for at flytte det og i hjørnet for at gøre det større, og luk det med ✕ eller Esc.
 
-![Flow-vinduet over tegningen: standardgruppen Alle forbindelser med løbelys og en egen gruppe Retur med farve efter flow](../../public/manual/flow-vindue.png)
+![Menuen Forbindelser med knappen Til/Fra for hele tegningen under Animationer](../../public/manual/forbindelser-menu-animationer.png)
 
-- **Alle forbindelser** er standardgruppen. Alle rør og rørstykker hører til den fra start, og den viser **løbelys** efter flowet: retningen fra fortegnet og farten efter mængden. Den bruges kun på tegninger med mindst én pumpe og med **bundne forbindelser**, og aldrig oven på en animation af samme slags, som en forbindelse allerede har.
-- **Ny gruppe:** vælg rør og rørstykker på tegningen (Skift+klik eller træk en ramme), giv gruppen et navn, og tryk **Opret af valgte**. En forbindelse hører til **én gruppe ad gangen**: lægges den i en ny gruppe, forlader den den gamle. **+ Valgte** og **− Valgte** ændrer en gruppe; **Vis** markerer dens forbindelser på tegningen.
-- **Animationer** (højst 4 pr. gruppe, alle styret af flowet):
-  - **Løbelys:** fart ved fuldt flow, og hvad der er fuldt flow (0 = tegningens største pumpe);
-  - **Farve efter flow:** en farve under den første grænse og en farve fra hver grænse i l/min;
-  - **Blink**, når flowet er mindst eller højst en grænse (fx *højst 0* = intet flow);
-  - **Fast farve**;
-  - ingen animation, hvis du fjerner dem alle.
+![Vinduet Forbindelsernes animationer: Hele tegningen med Til (løbelys) og Fra (farve), og Undtagelser](../../public/manual/forbindelser-tilfra.png)
 
-  Tryk **Gem**; det ses på Overview med det samme.
+- **Hele tegningen**: tryk **Redigér**. Opsætningen har to faste afsnit:
+  - **Til**, når der er flow (mindst 0,1 l/min): **Løbelys** (lysets og rørets farve, farten ved fuldt flow, og hvad der er fuldt flow; 0 = tegningens største pumpe), **Farve** eller **Som tegnet**. Mindre flow løber langsommere.
+  - **Fra**, når der intet flow er: **Som tegnet** eller en **Farve**.
+  - **Blink** kan slås til i hvert afsnit. Blink i både Til og Fra betyder, at forbindelsen altid blinker.
+
+  Tryk **Gem**; det ses på Overview og i simulatoren med det samme. Opsætningen bruges kun på tegninger med mindst én pumpe og med **bundne forbindelser**, og aldrig oven på en animation af samme slags, som en forbindelse allerede har. Ved kommunikationsfejl vises forbindelsen som tegnet.
+- **Undtagelser**: forbindelser, der skal vise noget andet end resten af tegningen. Vælg rør og rørstykker på tegningen (Skift+klik eller træk en ramme), giv undtagelsen et navn, og tryk **Opret af valgte**. Tryk derefter **Redigér** for at give den sin egen Til og Fra. En forbindelse hører til **én undtagelse ad gangen**. **+ Valgte** og **− Valgte** ændrer den; **Vis** markerer dens forbindelser på tegningen.
+- **Avanceret …** viser animationerne som en liste (højst 4): løbelys, farve efter flow med flere grænser i l/min, blink ved et bestemt flow og fast farve. **Til/Fra** går tilbage, når listen kan vises som Til og Fra.
 
 Beskeder fra beregningen (fx *Pumpen 'P1' har ingen åben vej rundt fra UD til IND*) står øverst i vinduet. Kortet **Flowberegning** på siden Status viser antal beregninger, den seneste beregningstid og eventuelle fejl.
 
-Rørstykker (bøjninger, T-stykker, kryds) viser løbelyset med retning i hvert ben: lyset løber væk fra det punkt, hvor flowet kommer ind.
+Rørstykker (bøjninger, T-stykker, kryds) viser løbelyset i hvert ben for sig: lyset løber væk fra det punkt, hvor flowet kommer ind, med benets egen fart. Et ben uden flow vises som Fra.
 
 **Påmindelse:** gemmer du en tegning med en pumpe eller med bundne forbindelser, og er der forbindelser, der ikke er bundet, kommer en advarsel i **Meddelelser** med knappen **Bind nu**. Symbol-guiden siger det også under *Flow*, når symbolet ikke er bundet.
 

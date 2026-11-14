@@ -2,6 +2,41 @@
 
 ---
 
+## v6.12.3 — 2026-11-14
+
+- Rettet: når et symbol blev drejet, sad tilslutningspunkterne forkert bagefter. Det gjaldt især et symbol, der var drejet før. Ældre tegninger rettes, når de åbnes i Tegn, og gemmes rettet ved næste Gem.
+- ∠ i Egenskaber viser nu også drejningen på symboler, der var drejet før.
+
+## v6.12.2 — 2026-11-14
+
+- Tegn: to ens symboler, der ligger præcis oven på hinanden, får en lilla dobbeltramme med **2×**, også når *Tjek forbindelser* er slået fra.
+
+## v6.12.1 — 2026-11-14
+
+- *Tjek forbindelser* siger nu, når to ens symboler ligger præcis oven på hinanden. Det får rørene til at se åbne ud.
+- Et nyt element får ikke længere id'et fra et element, der lige er slettet.
+
+## v6.12.0 — 2026-11-14 — Til og Fra for forbindelserne
+
+- Nyt sted for forbindelsernes animationer: menuen **Forbindelser** › **Til/Fra for hele tegningen …**.
+  - **Til**, når der er flow: løbelys, en farve eller som tegnet.
+  - **Fra**, når der intet flow er: som tegnet eller en farve.
+  - Blink kan slås til i begge.
+- Rør, der skal vise noget andet, lægges i en **undtagelse** med deres egen Til og Fra.
+- Rettet: et T-stykkes ben løb lige så hurtigt som pumpe-loopet, også når der var mindre flow i benet.
+
+## v6.11.4 — 2026-11-14
+
+- Rettet: løbelyset på et T-stykke kørte også i det ben, hvor der ikke var flow.
+
+## v6.11.3 — 2026-11-14
+
+- Rettet: *Tjek forbindelser* meldte T-stykker som åbne, selv om rørene sad på dem. Det skete, når et rør var blevet delt af et T-stykke. Tryk **Bind forbindelser** én gang på tegninger, hvor tjekket nu siger "ikke bundet".
+
+## v6.11.2 — 2026-11-14
+
+- Simulatorens knapper hedder nu **Frys på live-værdier** og **Nulstil alle ændringer**. Frys overskriver ikke længere det, du selv har sat.
+
 ## v6.11.1 — 2026-11-13
 
 - Rettet: at flytte eller dreje et symbol i Tegn blev afbrudt, når *Tjek forbindelser* eller Flow-vinduet var slået til, og valget forsvandt.

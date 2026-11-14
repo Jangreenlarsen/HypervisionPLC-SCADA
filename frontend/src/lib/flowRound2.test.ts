@@ -1,7 +1,7 @@
 // Flow-model runde 2 (v6.3.0): retning pr. delstreg på rørstykker, flow-profilen pr. symboltype, guidens standarder og
 // preview-kaldets krop.
 import { describe, expect, it } from 'vitest';
-import { bindingActive, colorFor, parsePortFlows, portDirection } from './animate';
+import { bindingActive, colorFor, parsePortFlows, portDirection, portFlow, speedFor } from './animate';
 import { bindingTags } from './canvas';
 import { overlayData, previewBody, type Preview } from './flowLive';
 import { defaultFlow } from './symbolConfig';
@@ -22,6 +22,15 @@ describe('retning pr. delstreg på et rørstykke', () => {
     const pf = { '0,0.5': 100, '1,0.5': -50, '0.5,1': -50 };
     expect(portDirection([0.5, 1], [0.5, 0.55], pf)).toBe(false);   // afgreningen tegnet fra punktet: flowet går ud dér
     expect(portDirection([0.5, 0.55], [0.5, 1], pf)).toBe(true);
+  });
+  it('hvert ben har sit eget flow — til sin egen fart (v6.12.0)', () => {
+    // flowet kommer ind ad to ben (pumpe-loopet 15, kontraventilen 5) og ud ad det tredje (20)
+    const pf = { '0,1': 15, '1,1': 5, '0.5,0': -20 };
+    expect(portFlow([1, 1], [0.5, 1], pf)).toEqual({ forward: true, q: 5 });
+    expect(portFlow([0, 1], [0.5, 1], pf)).toEqual({ forward: true, q: 15 });
+    expect(portFlow([0.5, 0.9], [0.5, 0], pf)).toEqual({ forward: true, q: 20 });
+    const p = { flow_max: 20, speed: 40 };
+    expect([speedFor(5, p), speedFor(15, p), speedFor(20, p)]).toEqual([10, 30, 40]);   // benet mod kontraventilen løber langsommere
   });
   it('kan ikke afgøres langt fra punkterne', () => {
     expect(portDirection([0.5, 0.5], [0.5, 0.45], { '0,0': 1 })).toBeNull();
