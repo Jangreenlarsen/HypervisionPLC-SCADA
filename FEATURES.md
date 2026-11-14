@@ -5,6 +5,11 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v6.12.0 — **Forbindelsernes animationer: Til og Fra for hele tegningen** (Jan 2026-11-14: "jeg ser ikke en general config af de animationer for on/off som forbindelser skal bruge"). Opsætningen flyttes fra Flow-vinduet til menuen **Forbindelser** › *Animationer …*. Den har to faste afsnit:
+  - **Til** (der er flow): løbelys eller en farve, evt. blink.
+  - **Fra** (intet flow): som tegnet eller en farve, evt. blink.
+
+  Egne grupper er **undtagelser** med samme Til/Fra. Den gamle liste findes stadig under *Avanceret*. Løbelyset kan nu have en farve, når det står stille (`stopped`). Data og bindinger er de samme (ingen migration).
 - [x] done v5.0.0 — **Signalveje 4: signalvejen som selvstændigt runtime-objekt** (beslutning Jan 2026-11-10, PLAN.md). Vejen gemmes som ét objekt; serveren regner hver gren (OG) og fælles stykker (ELLER) hvert tick som pseudo-tags; Overview får vejens animationer som bindinger. Intet skrives i symbolernes opsætning (ingen logikblokke, ingen "Erstat", ingen grænse på 8 blokke); gamle veje slettes ved opgraderingen.
 - [x] done v4.22.0 — **Tjek forbindelser: punkter og symboler, der ikke er i brug** (ønske fra Jan 2026-11-10). Klik på en rød prik markerer punktet som *ikke i brug* (grå stiplet ring, giver ikke fejl); Skift+klik eller knappen *Udelad valgte fra tjekket* udelader hele symbolet (grå ramme med ⊘, der kan klikkes for at tage det med igen). Markeringerne gemmes i tegningen (`data-hv-unused`) med Gem kladde / Gem og udgiv og kan fortrydes.
 - [x] done v4.21.0 — **Tegn: meddelelser i en boks** (ønske fra Jan 2026-11-10). Systemets gule beskeder over tegningen (gemt, rettet, renset ved gem, advarsler) er flyttet ud i en boks, der åbner ved tryk på *Meddelelser* i den øverste linje — som alarmklokken i topmenuen. Nye beskeder giver et orange tal; advarsler åbner boksen.

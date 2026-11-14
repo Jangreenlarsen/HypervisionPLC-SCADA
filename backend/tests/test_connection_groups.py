@@ -67,6 +67,22 @@ def test_a_new_group_takes_its_members_out_of_the_others(api):
     assert api.get(url(api)).json()["default"]["members"] == ["r1"]
 
 
+def test_on_and_off_colors_reach_the_bindings(api):
+    # v6.12.0 (Til/Fra): løbelyset har en farve uden flow; farve efter flow kan være "som tegnet" under grænsen
+    d = _drawing(api)
+    api.put(f"/api/drawings/{d}/symbols/p/config", json={"config": PUMP})
+    assert api.put(url(api, "/default"), json={"anims": [{"type": "flow", "stopped": "#9e9e9e"}]}).status_code == 200
+    api.post(url(api), json={"name": "Retur", "members": ["r2"], "anims": [
+        {"type": "color", "off": "", "limits": [{"value": 0.1, "color": "#1e88e5"}]}]})
+    cg = {b["element"]: b for b in api.get(f"/api/drawings/{d}/view").json()["bindings"] if b["source"] == "conn-group"}
+    assert cg["r1"]["anim"] == "flow" and cg["r1"]["params"]["stopped"] == "#9e9e9e"
+    assert cg["r2"]["anim"] == "stroke" and cg["r2"]["params"]["off"] == ""
+    assert api.put(url(api, "/default"), json={"anims": [{"type": "flow", "stopped": "rød"}]}).status_code == 400
+    api.put(url(api, "/default"), json={"anims": [{"type": "flow"}]})
+    r1 = next(b for b in api.get(f"/api/drawings/{d}/view").json()["bindings"] if b["source"] == "conn-group" and b["element"] == "r1")
+    assert "stopped" not in r1["params"]                                               # som tegnet: ingen parameter
+
+
 def test_group_rules(api):
     _drawing(api)
     assert api.post(url(api), json={"name": "X", "members": ["rad"]}).status_code == 400              # et symbol, ikke en forbindelse

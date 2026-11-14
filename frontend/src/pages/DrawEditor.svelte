@@ -302,7 +302,8 @@
     }, 1500);
   });
   onDestroy(() => clearTimeout(flowTimer));
-  let flowOpen = $state(false);                                    // Flow-vinduet over tegningen (v6.1.0): forbindelsesgrupper
+  let flowOpen = $state(false);                                    // Flow-vinduet over tegningen (v6.1.0): flowet vist i Tegn
+  let animOpen = $state(false);                                    // forbindelsernes animationer, Til/Fra (v6.12.0, før i Flow-vinduet)
   let guideFor = $state<{ id: string; name: string } | null>(null); // symbol-guiden (6 trin) er åben
   let treeRev = $state(0);                                         // symbol-oversigten henter forfra (v5.5.0)
   let unnamed = $state(0);                                          // symboler uden navn i tegningen (v5.9.0)
@@ -1396,6 +1397,12 @@
       <button class="small" onclick={exemptSelected} disabled={!selIds.length} title="Udelad de valgte symboler fra tjekket, så de ikke giver fejl (fx et symbol, der bevidst ikke er tilsluttet). Gemmes med tegningen. Peg på en rød prik: klik = kun det punkt, Skift+klik = hele symbolet">{selAllExempt ? 'Tag valgte med i tjekket' : 'Udelad valgte fra tjekket'}</button>
     </div>
   {/if}
+  <!-- v6.12.0 (Jan): forbindelsernes animationer for hele tegningen — Til (der er flow) og Fra (intet flow) -->
+  <span class="mhead">Animationer</span>
+  <div class="mrow">
+    <button class="small" class:on={animOpen} onclick={menuDo(() => (animOpen = !animOpen))} disabled={!current}
+      title="Hvordan rør og rørstykker viser flowet på Overview: Til (der er flow) og Fra (intet flow) for hele tegningen, og undtagelser">Til/Fra for hele tegningen …</button>
+  </div>
 {/snippet}
 
 {#snippet messagesMenu()}
@@ -1674,8 +1681,14 @@
 {#if flowOpen && current}
   <FloatWin key="draw.flowwin" title="Flow" onclose={() => (flowOpen = false)}>
     <FlowLive drawingId={current.id} {ready} getSvg={() => (ed ? ed.previewSvg() : null)} setOverlay={(d) => ed?.setFlowOverlay(d)} />
+    <p class="small muted">Hvordan forbindelserne viser flowet på Overview (Til og Fra): menuen <strong>Forbindelser</strong> ›
+      <button class="linkbtn" onclick={() => (animOpen = true)}>Til/Fra for hele tegningen …</button></p>
+  </FloatWin>
+{/if}
+{#if animOpen && current}
+  <FloatWin key="draw.connanim" title="Forbindelsernes animationer" width={600} height={640} onclose={() => (animOpen = false)}>
     <ConnGroups drawingId={current.id} {ready} selected={selection.map((x) => x.id)} select={(ids) => ed?.selectByIds(ids)}
-      ensureSaved={() => ensurePublished('forbindelsesgrupperne gælder den udgivne tegning')} />
+      ensureSaved={() => ensurePublished('animationerne gælder den udgivne tegning')} />
   </FloatWin>
 {/if}
 {#if treeGroup && current}
@@ -1696,6 +1709,7 @@
 {/if}
 
 <style>
+  button.linkbtn { background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer; color: var(--accent, #1565c0); font: inherit; }
   /* Topmenuen (v6.2.0): én linje i tre zoner, der ikke ombrydes; værktøjszonen fylder midten */
   .toolbar { margin-bottom: .35rem; display: flex; align-items: center; gap: .35rem .75rem; flex-wrap: wrap; min-width: 0; }   /* én linje ned til ~1000 px; derunder hele zoner på næste linje */
   .zone { display: flex; align-items: center; gap: .35rem; flex-wrap: nowrap; flex: none; }

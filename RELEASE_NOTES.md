@@ -2,6 +2,15 @@
 
 ---
 
+## v6.12.0 — 2026-11-14 — Til og Fra for forbindelserne
+
+- Nyt sted for forbindelsernes animationer: menuen **Forbindelser** › **Til/Fra for hele tegningen …**.
+  - **Til**, når der er flow: løbelys, en farve eller som tegnet.
+  - **Fra**, når der intet flow er: som tegnet eller en farve.
+  - Blink kan slås til i begge.
+- Rør, der skal vise noget andet, lægges i en **undtagelse** med deres egen Til og Fra.
+- Rettet: et T-stykkes ben løb lige så hurtigt som pumpe-loopet, også når der var mindre flow i benet.
+
 ## v6.11.4 — 2026-11-14
 
 - Rettet: løbelyset på et T-stykke kørte også i det ben, hvor der ikke var flow.

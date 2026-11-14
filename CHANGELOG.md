@@ -4,6 +4,21 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.12.0 build 0421] — 2026-11-14 — Forbindelsernes animationer: Til og Fra for hele tegningen
+
+Jan: "jeg ser ikke en general config af de animationer for on/off som forbindelser skal bruge". Se FEATURES.md v6.12.0 og BUGS.md v6.12.0.
+
+- `frontend/src/lib/ConnGroups.svelte`: ny editor med to faste afsnit, **Til** (løbelys/farve/som tegnet + blink) og **Fra** (som tegnet/farve + blink). Felterne har faste pladser. Egne grupper hedder **Undtagelser**. Den gamle liste findes under *Avanceret …*.
+- `frontend/src/lib/connGroups.ts`: `toOnOff`, `fromOnOff`, `describeOnOff` og `ON_MIN` (0,1 l/min). Gemmes som de samme animationer, så der er ingen migration.
+- `frontend/src/pages/DrawEditor.svelte`: menuen **Forbindelser** › *Animationer* › **Til/Fra for hele tegningen …** åbner vinduet *Forbindelsernes animationer*. Flow-vinduet viser kun flowet og har et link dertil.
+- `frontend/src/lib/animate.ts`:
+  - løbelysets Fra-farve (`stopped`), som tegnet ved ukendt værdi;
+  - hvert ben på et rørstykke har sin egen fart (`portFlow`, `legSpeed`);
+  - ben uden flow vises i Fra-farven.
+- `backend/app/services/connection_groups.py`: `stopped` på løbelys. Fra-farven og grænsefarven må være "" (som tegnet).
+- Manual: `08-forbindelser.md`, `llm/tegn.md` og billederne `forbindelser-tilfra.png` og `forbindelser-menu-animationer.png`. `flow-vindue.png` er fjernet.
+- Tests: `connGroups.test.ts`, `animate.test.ts`, `flowRound2.test.ts`, `test_connection_groups.py`.
+
 ## [6.11.4 build 0420] — 2026-11-14 — fix: T-stykke uden løbelys i ben uden flow
 
 Jan: "så gå flow ud af de to side rør … der ikke er noget flow til venstre". Se BUGS.md v6.11.4.

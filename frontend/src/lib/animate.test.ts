@@ -238,6 +238,18 @@ describe('løbelys (flow)', () => {
     expect(g.querySelector('.hv-flow')).toBeNull();
     expect((path as SVGElement).style.stroke).toBe('');
   });
+  it('Fra-farven (v6.12.0): uden flow får røret farven "stopped"; ukendt værdi viser det som tegnet', () => {
+    const g = el('g');
+    const path = el('path', { d: 'M0 0 H90', fill: 'none', stroke: '#555', 'stroke-width': '10' });
+    g.appendChild(path);
+    svgWith(g);
+    applyBinding(g, flowB({ stopped: '#9e9e9e' }), good(0));
+    expect((path as SVGElement).style.stroke).toBe('rgb(158, 158, 158)');
+    applyBinding(g, flowB({ stopped: '#9e9e9e', base: '#000000' }), good(1));
+    expect((path as SVGElement).style.stroke).toBe('rgb(0, 0, 0)');
+    applyBinding(g, flowB({ stopped: '#9e9e9e' }), { value: null, quality: 'bad', ts: 0 });
+    expect((path as SVGElement).style.stroke).toBe('');
+  });
   it('samme tilstand igen genskaber ikke lyset (animationen hopper ikke ved hver opdatering)', () => {
     const rect = el('rect', { width: '90', height: '10' });
     const svg = svgWith(rect);

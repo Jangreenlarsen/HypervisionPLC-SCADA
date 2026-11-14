@@ -752,6 +752,11 @@ function keyFrac(key: string): [number, number] | null {
  * den indstillede retning). `tol`: hvor langt en ende højst må ligge fra punktet.
  */
 export function portDirection(a: [number, number], b: [number, number], ports: Record<string, number>, tol = 0.3): boolean | null {
+  return portFlow(a, b, ports, tol)?.forward ?? null;
+}
+
+/** Som `portDirection`, men også flowet (l/min) ved punktet — til delstregens egen fart (v6.12.0). null = intet punkt med flow. */
+export function portFlow(a: [number, number], b: [number, number], ports: Record<string, number>, tol = 0.3): { forward: boolean; q: number } | null {
   let best: { d: number; atStart: boolean; q: number } | null = null;
   for (const [k, q] of Object.entries(ports)) {
     const f = keyFrac(k);
@@ -762,7 +767,7 @@ export function portDirection(a: [number, number], b: [number, number], ports: R
     }
   }
   if (!best) return null;
-  return best.atStart ? best.q > 0 : best.q < 0;
+  return { forward: best.atStart ? best.q > 0 : best.q < 0, q: Math.abs(best.q) };
 }
 
 /** Delstregens ender som brøkdele af elementets boks (målt før lyset lægges ind). */
@@ -791,8 +796,12 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   const base = p.base ?? '#555555', light = p.light ?? '#8fc8ea';
   const dash = Number(p.dash ?? 12), speed = Number(p.speed ?? 40);
   const pf: Record<string, number> | null = p.port_flows ?? null;
-  const pfKey = pf ? Object.entries(pf).map(([k, v]) => `${k}${v > 0 ? '+' : '-'}`).sort().join(',') : '';
-  const key = `${state}|${base}|${light}|${dash}|${speed}|${p.arm ?? ''}|${p.arm_flow ?? ''}|${pfKey}`;
+  // et bens fart efter flowet ved dets punkt (grundfarten før kalderens samlede fart, v6.12.0); trinvis (5 enheder), så lyset ikke
+  // genskabes ved hver lille ændring
+  const legSpeed = (q: number): number => speedFor(q, { flow_max: p.flow_max, speed: p.base_speed ?? p.speed });
+  const pfKey = pf ? Object.entries(pf).map(([k, v]) => `${k}${v > 0 ? '+' : '-'}${p.flow_max ? legSpeed(v) : ''}`).sort().join(',') : '';
+  const stopped: string = p.stopped ?? '';     // (v6.12.0) farven uden flow — '' = som tegnet
+  const key = `${state}|${base}|${light}|${dash}|${speed}|${p.arm ?? ''}|${p.arm_flow ?? ''}|${pfKey}|${stopped}`;
   const old = flowLayers.get(el);
   if (old?.getAttribute('data-hv-flow') === key) return; // uændret: lad animationen køre videre uden hop
   old?.remove();
@@ -802,9 +811,9 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
   for (const s of shapes) {
     const st = (s as SVGElement).style;
     const filled = s.tagName === 'rect';
-    // Stop: røret får sin egen farve igen. Kører: farve 1 under lyset.
-    if (filled) st.fill = state ? base : '';
-    else st.stroke = state ? base : '';
+    // Stop: røret får sin egen farve igen (eller Fra-farven, v6.12.0). Kører: farve 1 under lyset.
+    if (filled) st.fill = state ? base : stopped;
+    else st.stroke = state ? base : stopped;
   }
   if (!state) return;
   // rørstykke med flow pr. punkt (v6.3.0): boksen måles, før lyset lægges ind
@@ -851,7 +860,7 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
     for (const [s, live] of srcs) {
       if (live) continue;
       const st = (s as SVGElement).style;
-      if (s.tagName === 'rect') st.fill = ''; else st.stroke = '';
+      if (s.tagName === 'rect') st.fill = stopped; else st.stroke = stopped;
     }
     dashes.forEach(({ d }, i) => { if (idle.has(i)) d.remove(); });
   }
@@ -868,14 +877,17 @@ function flow(el: Element, state: -1 | 0 | 1, p: Record<string, any>): void {
     const off = ph ? dashOffset(ph, len) / scale : 0;
     // den indstillede retning har forrang (v0.67.0) — men på et rørstykke med flow pr. punkt følger lyset flowet (v6.3.0)
     const ends = pf && box ? dashEnds(d, el, box) : null;
-    const byPorts = ends && pf ? portDirection(ends[0], ends[1], pf) : null;
+    const leg = ends && pf ? portFlow(ends[0], ends[1], pf) : null;
+    const byPorts = leg ? leg.forward : null;
     const dir = byPorts ?? out;
+    // v6.12.0 (Jan: benet mod kontraventilen løb lige så hurtigt som pumpe-loopet): hvert ben sin egen fart efter sit eget flow
+    const legPace = leg && p.flow_max ? legSpeed(leg.q) : pace;
     if (byPorts !== null) d.setAttribute('data-hv-dir', byPorts ? 'out' : 'in');
     d.setAttribute('stroke-dashoffset', String(off));
     if (typeof (d as any).animate === 'function') {
       // Lyset flytter én periode (lys + mørk) pr. omgang; startTime 0 holder alle løbelys i takt
       const a = d.animate([{ strokeDashoffset: off }, { strokeDashoffset: off - 2 * unit }],
-        { duration: (2 * len / pace) * 1000, iterations: Infinity, direction: dir ? 'normal' : 'reverse' });
+        { duration: (2 * len / legPace) * 1000, iterations: Infinity, direction: dir ? 'normal' : 'reverse' });
       a.startTime = 0;
     }
   });
@@ -974,7 +986,7 @@ export function resetAnim(el: Element, anim: string, p: Record<string, any>): vo
       }
       break;
     case 'flow':
-      flow(el, 0, p);
+      flow(el, 0, { ...p, stopped: '' });      // ukendt værdi: som tegnet — ikke Fra-farven, som ville påstå "intet flow"
       break;
   }
 }
@@ -1010,7 +1022,8 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
     if (b.anim === 'text') setText(el, textFor(null, meta, p));
     if (b.anim === 'segments') renderSegmentText(el, SEG_UNKNOWN, p);   // ukendt værdi: en bindestreg
     // Ukendt værdi (fx kommunikationsfejl): løbelyset står stille, så det aldrig viser flow der ikke er der
-    if (b.anim === 'flow') flow(el, 0, p);
+    // — og som tegnet, ikke i Fra-farven, som ville påstå "intet flow" (v6.12.0)
+    if (b.anim === 'flow') flow(el, 0, { ...p, stopped: '' });
     return;
   }
   const v = live.value;
@@ -1081,7 +1094,7 @@ export function applyBinding(el: Element, b: Binding, live: LiveValue | undefine
     case 'flow': {
       let state: -1 | 0 | 1 = p.pos ? (Number(at(p.dirs) ?? 0) as -1 | 0 | 1) : flowState(v, p);
       if (p.pos && p.reverse && state) state = -state as -1 | 1;
-      flow(el, withDirection(state, p, dirLive), p.flow_max ? { ...p, speed: speedFor(v, p), own_speed: true } : p);
+      flow(el, withDirection(state, p, dirLive), p.flow_max ? { ...p, speed: speedFor(v, p), own_speed: true, base_speed: p.speed } : p);
       break;
     }
   }

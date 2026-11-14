@@ -82,9 +82,9 @@ Vælg elementerne (Shift+klik eller træk en ramme) og tryk **Ctrl+G** eller **G
 <!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:8acd21f9 -->
 Serveren beregner selv flowet gennem de forbundne symboler. Bind forbindelserne (menuen **Forbindelser** › Tjek forbindelser › **Bind forbindelser**, og gem), sæt pumpen op i symbol-guidens trin 4 under **Flow** (Pumpe, kapacitet i l/min, flow-rate fra et tag), og alle rør i løkken får løbelys på Overview med retning og fart efter flowet (standardgruppen *Alle forbindelser*).
 
-## Hvordan får nogle rør en anden farve eller blink efter flowet (forbindelsesgruppe)?
+## Hvordan bestemmer jeg, hvad rørene viser med og uden flow (Til/Fra, farve, blink, undtagelse)?
 <!-- kilde: 08-forbindelser#m-flow-i-anlaegget-systemet-beregner-det-selv sha:8acd21f9 -->
-Tryk **Flow** i værktøjslinjen i Tegn. Vælg rørene på tegningen, giv gruppen et navn og tryk **Opret af valgte**. Under **Animationer** vælger du løbelys, farve efter flow (grænser i l/min), blink ved et flow (mindst/højst) eller en fast farve. En forbindelse hører til én gruppe ad gangen.
+Åbn menuen **Forbindelser** i Tegn, og tryk **Til/Fra for hele tegningen …**. Tryk **Redigér** ved *Hele tegningen*. **Til** (der er flow) kan være løbelys, en farve eller som tegnet. **Fra** (intet flow) kan være som tegnet eller en farve. Blink kan slås til i begge. Skal nogle rør vise noget andet, så vælg dem på tegningen, giv dem et navn under **Ny undtagelse**, og tryk **Opret af valgte** og derefter **Redigér**. **Avanceret …** giver flere farvegrænser i l/min, blink ved et bestemt flow og fast farve.
 
 ## Hvordan bestemmer en 3-vejsventil, hvilken vej flowet går (AB → A, AB → B, register 10/20)?
 <!-- kilde: 10-symboler-og-guiden#m3-flow-symbolets-rolle-i-flowberegningen sha:44788242 -->
