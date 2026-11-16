@@ -33,6 +33,19 @@ Motorventilen sidder på tankens udløb i tegningen, så der kun er flow gennem 
 
 Flowet regner SCADA selv ud fra pumpens kapacitet, ventilernes tilstande og de bundne forbindelser.
 
+## Betjening på tegningen
+
+På demoen (version 101 af `test_ny_editor`) kan kredsløbet styres fra Overview. Betjeningen kræver en bruger, der må betjene (operatør eller højere).
+
+| Hvad | Sådan |
+|---|---|
+| **Auto / manuel** | Kontakten *Auto (Til) / manuel (Fra)* øverst til venstre i panelet (`TNE_AUTO`). Tryk i højre side for Til, i venstre side for Fra. I manuel holder programmet trinene og rører ikke kommandoerne |
+| **Pumpe, ventiler, motorventil, lampe** | Tryk på symbolet og vælg position i dialogen. Kommandoen går til `TNE_CMD_*`, og symbolet viser tilbagemeldingen (`TNE_FB_*`). Ingen bekræftelse. Virker kun i **manuel**, for i auto skriver programmet kommandoerne igen hvert scan |
+| **Pumpefejl** | Kontakten *Pumpefejl (Til = udebliver)* (`TNE_FEJL`): pumpen melder ikke tilbage, og efter ca. 4 s kommer alarmen og status *Fejl* |
+| **Kvittér** | Knappen *Kvittér alarm* sender en kort puls til `TNE_KVIT`. Ret fejlen først og vent til pumpen kører igen, ellers sættes alarmen igen |
+
+Panelets tre symboler er et bibliotekets *Vippekontakt* (to stk.) og *Trykknap (puls)* med navnene *Auto / manuel*, *Pumpefejl (ingen tilbagemelding)* og *Kvittér alarm*.
+
 ## Tags (kilde `logic:<N>:<navn>`)
 
 Skrivbare i SCADA: `TNE_AUTO`, `TNE_CMD_*`, `TNE_FEJL`, `TNE_KVIT`, `TNE_RATE`. Resten er kun til læsning.
@@ -61,7 +74,7 @@ I guiden for hvert symbol (skift tagget i trin 2, og vælg kilden i trin 4):
 
 | Symbol | Tags |
 |---|---|
-| Pumpe (`pumpe_2`) | tag `TNE_CMD_PUMPE`, tilbagemelding `TNE_FB_PUMPE`. Flow-rate følger positionen, eller vælg `TNE_RATE` |
+| Pumpe (`pumpe_2`) | tag `TNE_CMD_PUMPE`, tilbagemelding `TNE_FB_PUMPE`. Flow-rate følger positionen, eller vælg `TNE_RATE`. Symbolerne er gjort betjenelige (se ovenfor) |
 | 3-vejs motorventil 5 (`svg_10`) | `TNE_CMD_V1` / `TNE_FB_V1` |
 | 3-vejs motorventil 4 (`svg_32`) | `TNE_CMD_V2` / `TNE_FB_V2`. Kontaktplanen er i dag omvendt (1 = A): sæt den til 0 = A, 1 = B |
 | 3-vejs motorventil 3 (`trevejs_motorventil_ab`) | `TNE_CMD_V3` / `TNE_FB_V3` |
