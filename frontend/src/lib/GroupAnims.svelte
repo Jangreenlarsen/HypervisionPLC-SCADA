@@ -216,17 +216,24 @@
         {#each mine as a, i}
           {@const kind = kindOf(a)}
           <div class="anim">
-            <div class="row wrap">
-              {#if element !== ALL}
+            <div class="animbar"><strong class="small">{element === ALL ? "Hele symbolet" : partLabel(a.part, symbol)} · {ANIM_TXT[a.type]}</strong><span class="spacer"></span>
+              <button class="small" onclick={() => moveAnim(i, -1)} disabled={i === 0} aria-label="Op">▲</button>
+              <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === mine.length - 1} aria-label="Ned">▼</button>
+              <button class="small" onclick={() => mine.splice(i, 1)} aria-label="Fjern animation">✕</button>
+            </div>
+            <div class="frows">
+              <span class="fl">Del</span>
+              <span class="fc">{#if element !== ALL}
                 <select bind:value={a.part} onchange={() => resetParams(a)} aria-label="Del">
                   {#each partIds as p}<option value={p}>{partLabel(p, symbol)}</option>{/each}
                 </select>
-              {:else}<span class="small muted">Hele symbolet</span>{/if}
-              <select bind:value={a.type} onchange={() => resetParams(a)} aria-label="Animation">
+              {:else}<span class="small muted">Hele symbolet</span>{/if}</span>
+              <span class="fl">Animation</span>
+              <span class="fc"><select bind:value={a.type} onchange={() => resetParams(a)} aria-label="Animation">
                 {#each typesList(a) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
-              </select>
-              <span class="small muted">styres af</span>
-              <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
+              </select></span>
+              <span class="fl">Styres af</span>
+              <span class="fc"><select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
                 <option value="tag">et tag</option>
                 {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                 {#if !['level', 'opacity', 'scale', 'text'].includes(a.type)}<option value="alarm">en alarm</option><option value={ON}>altid til</option>{/if}
@@ -244,19 +251,17 @@
                 <span class="small muted">på</span>
                 <TagSelect value={al.tag} {tags} onchange={(v) => { a.src = alarmRef(al.kind, v); resetParams(a); }} />
               {/if}
-              <span class="spacer"></span>
-              <button class="small" onclick={() => moveAnim(i, -1)} disabled={i === 0} aria-label="Op">▲</button>
-              <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === mine.length - 1} aria-label="Ned">▼</button>
-              <button class="small" onclick={() => mine.splice(i, 1)} aria-label="Fjern animation">✕</button>
+              </span>
             </div>
             <AnimParams {a} {kind} {tags} {palette} valueOf={() => undefined} metaOf={(t) => { const r = tagByName.get(t); return r ? ({ unit: r.unit } as never) : undefined; }} />
             {#if WHEN_TYPES.includes(a.type)}
-              <label class="opt small">Når den ikke er aktiv:
-                <select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">
+              <div class="frows extra">
+                <span class="fl">Ellers</span>
+                <span class="fc"><select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">
                   <option value="toggle">vis fra-tilstand</option>
                   <option value="when">gør ingenting (passiv)</option>
-                </select>
-              </label>
+                </select></span>
+              </div>
             {/if}
           </div>
         {:else}
@@ -316,4 +321,7 @@
   .notice { background: #fff8e1; border: 1px solid #ffe082; padding: .4rem .6rem; border-radius: var(--radius); margin: .4rem 0; }
   .notice ul { margin: .2rem 0 0 1rem; padding: 0; }
   .anim :global(select) { width: auto; max-width: 24em; }
+  .animbar { display: flex; align-items: center; gap: .3rem; margin-bottom: .35rem; }
+  .anim > :global(.frows) + :global(.frows) { margin-top: .4rem; }
+  .anim .extra { margin-top: .4rem; }
 </style>

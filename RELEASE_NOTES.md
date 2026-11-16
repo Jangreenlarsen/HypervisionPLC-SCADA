@@ -2,6 +2,10 @@
 
 ---
 
+## v6.13.4 — 2026-11-16
+
+- Animationer i symbol-guiden er ryddet op: hver animation har et navn (fx "Løbehjul · Roterer"), og felterne står under hinanden med etiket i en smal kolonne.
+
 ## v6.13.3 — 2026-11-16
 
 - Trykknappen (puls) lyser grønt i 1 sekund, når du trykker på den, så du kan se på tegningen, at den blev aktiveret.

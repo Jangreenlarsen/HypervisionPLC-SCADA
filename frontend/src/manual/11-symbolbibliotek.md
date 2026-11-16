@@ -9,7 +9,7 @@ Biblioteket har **97 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 
 | Symbol | Kan sættes op som | Bemærkning |
 | --- | --- | --- |
-| **Trykknap (puls)** | Interaktiv betjening, Trykknap (puls) | Sender en kort puls (500 ms) — fx start, stop, kvittér. Knappen lyser grønt i 1 s, når den er trykket. Vælg et skrivbart tag |
+| **Trykknap (puls)** | Interaktiv betjening, Trykknap (puls) | Sender en kort puls (500 ms) — fx start, stop, kvittér. Vælg et skrivbart tag |
 | **Start/stop (til/fra)** | Interaktiv betjening, Trykknap (puls) | Skifter tagget til/fra med bekræftelse; lampen og teksten viser tilstanden |
 | **Vippekontakt** | Interaktiv betjening, Trykknap (puls) | Til/fra uden bekræftelse — vippen flytter sig og skifter farve |
 | **Omskifter Hånd/0/Auto** | Interaktiv betjening | Vælg position i en dialog (værdi 0/1/2). Andre positioner: brug "Omskifter med egne positioner" nedenfor |

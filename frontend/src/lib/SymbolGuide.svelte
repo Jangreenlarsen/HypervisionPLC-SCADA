@@ -1071,15 +1071,22 @@ import { AVERAGE_CHOICES } from './trendData';
           {#each cfg.anims as a, i}
             {@const kind = srcKind(a)}
             <div class="anim">
-              <div class="row wrap">
-                <select bind:value={a.part} onchange={() => resetParams(a)} aria-label="Del">
+              <div class="animbar"><strong class="small">{partLabel(a.part, symbol)} · {ANIM_TXT[a.type]}</strong><span class="spacer"></span>
+                <button class="small" onclick={() => moveAnim(i, -1)} disabled={i === 0} aria-label="Op">▲</button>
+                <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
+                <button class="small" onclick={() => cfg.anims.splice(i, 1)} aria-label="Fjern animation">✕</button>
+              </div>
+              <div class="frows">
+                <span class="fl">Del</span>
+                <span class="fc"><select bind:value={a.part} onchange={() => resetParams(a)} aria-label="Del">
                   {#each partIds as p}<option value={p}>{partLabel(p, symbol)}</option>{/each}
-                </select>
-                <select bind:value={a.type} onchange={() => resetParams(a)} aria-label="Animation">
+                </select></span>
+                <span class="fl">Animation</span>
+                <span class="fc"><select bind:value={a.type} onchange={() => resetParams(a)} aria-label="Animation">
                   {#each typesFor(partInfo(a.part)) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
-                </select>
-                <span class="small muted">styres af</span>
-                <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
+                </select></span>
+                <span class="fl">Styres af</span>
+                <span class="fc"><select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
                   {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
                   {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
@@ -1118,18 +1125,17 @@ import { AVERAGE_CHOICES } from './trendData';
                     {#if pool.length}<optgroup label="Andre symboler">{#each pool as p}<option value={poolRef(p)}>{poolLabel(p)}</option>{/each}</optgroup>{/if}
                   </select>
                 {/if}
-                <span class="spacer"></span>
-                <button class="small" onclick={() => moveAnim(i, -1)} disabled={i === 0} aria-label="Op">▲</button>
-                <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
-                <button class="small" onclick={() => cfg.anims.splice(i, 1)} aria-label="Fjern animation">✕</button>
+                </span>
               </div>
               {#if byValue(a)}
-                <div class="row wrap small posvals">
-                  <span class="muted" title="Positionen er den sidste, hvis fra-værdi tagget har nået. Under den første fra-værdi: ingen position (delen vises som tegnet). Knappen står derfor aldrig midt imellem to positioner.">Tagets værdi → position:</span>
+                <div class="frows posvals small">
+                  <span class="fl" title="Positionen er den sidste, hvis fra-værdi tagget har nået. Under den første fra-værdi: ingen position (delen vises som tegnet). Knappen står derfor aldrig midt imellem to positioner.">Værdi → position</span>
+                  <span class="fc">
                   {#each cfg.positions as pos, j}
                     <label class="opt">{pos.label} ≥ <input class="n" value={a.pos_values?.[j] ?? j}
                       onchange={(e) => { const pv = cfg.positions.map((_, i) => a.pos_values?.[i] ?? i); pv[j] = num(e.currentTarget.value, pv[j]); a.pos_values = pv; }} /></label>
                   {/each}
+                  </span>
                 </div>
               {/if}
               <AnimParams {a} {kind} positions={cfg.positions} logic={cfg.logic} {pool} {tags} {valueOf} {metaOf} {palette} />
@@ -1146,17 +1152,19 @@ import { AVERAGE_CHOICES } from './trendData';
                   {/if}
                 </div>
               {/if}
-              {#if WHEN_TYPES.includes(a.type)}
-                <label class="opt small">Når den ikke er aktiv:
-                  <select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">
-                    <option value="toggle">vis fra-tilstand</option>
-                    <option value="when">gør ingenting (passiv)</option>
-                  </select>
-                </label>
-              {/if}
-              {#if isPos && a.src !== POS && !byValue(a)}   <!-- "Gælder i" læser symbolets EGEN position — giver ikke mening ved "pr. værdi" (v1.13.1) -->
-                <div class="row wrap small"><span class="muted">Gælder i:</span>
-                  {#each cfg.positions as p, j}<label class="opt"><input type="checkbox" checked={a.only?.[j] ?? true} onchange={() => toggleOnly(a, j)} /> {p.label}</label>{/each}
+              {#if WHEN_TYPES.includes(a.type) || (isPos && a.src !== POS && !byValue(a))}
+                <div class="frows extra">
+                  {#if WHEN_TYPES.includes(a.type)}
+                    <span class="fl">Ellers</span>
+                    <span class="fc"><select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">
+                      <option value="toggle">vis fra-tilstand</option>
+                      <option value="when">gør ingenting (passiv)</option>
+                    </select></span>
+                  {/if}
+                  {#if isPos && a.src !== POS && !byValue(a)}   <!-- "Gælder i" læser symbolets EGEN position — giver ikke mening ved "pr. værdi" (v1.13.1) -->
+                    <span class="fl">Gælder i</span>
+                    <span class="fc">{#each cfg.positions as p, j}<label class="opt small"><input type="checkbox" checked={a.only?.[j] ?? true} onchange={() => toggleOnly(a, j)} /> {p.label}</label>{/each}</span>
+                  {/if}
                 </div>
               {/if}
             </div>
@@ -1405,7 +1413,10 @@ import { AVERAGE_CHOICES } from './trendData';
   .name { min-width: 14em; }
   .logic .input { margin: .15rem 0 .15rem 1rem; }
   .selector-angles { gap: .3rem .8rem; margin: .2rem 0 .1rem; }
-  .anim { border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem; margin: .35rem 0; background: var(--panel-2); }
+  .anim { border: 1px solid var(--line); border-radius: var(--radius); padding: .45rem .55rem; margin: .35rem 0; background: var(--panel-2); }
+  .animbar { display: flex; align-items: center; gap: .3rem; margin-bottom: .35rem; }
+  .anim > .frows + .frows, .anim > :global(.frows) + :global(.frows) { margin-top: .4rem; }
+  .anim .posvals, .anim .extra { margin-top: .4rem; }
   .errors { color: var(--alarm); margin: .5rem 0; }
   .warnings { color: var(--warn); }
   .notice { background: #fff8e1; border: 1px solid #ffe082; padding: .4rem .6rem; border-radius: var(--radius); }

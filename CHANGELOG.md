@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.13.4 build 0432] — 2026-11-16 — Animationer i guiden: ryddeligt layout med navngivne afsnit
+
+Jan: "gøre animations del i symboler mere pæn … organiseret under hinanden som i 'felt'", "kolonne med tekst er spild af plads", "hver sektion skal have et navn".
+
+- `frontend/src/app.css`: ny global `.frows` (etiket | felt i to kolonner, etiketkolonne 7,5 rem).
+- `frontend/src/lib/AnimParams.svelte`: alle animationstyper er omlagt til rækker med etiket til venstre og felter til højre; lange etiketter forkortet.
+- `frontend/src/lib/SymbolGuide.svelte`, `GroupAnims.svelte`: hver animation har overskriften "Del · Animation" (fx "Løbehjul · Roterer") i stedet for "Animation N"; Del/Animation/Styres af/Ellers/Gælder i som rækker.
+
+---
+
 ## [6.13.3 build 0431] — 2026-11-16 — Trykknap: lyser i 1 sekund efter et tryk
 
 Jan: "man ser ikke den skifter tilstand i tegning" → knappen står aktiv i 1 s, så farveskiftet kan ses.
