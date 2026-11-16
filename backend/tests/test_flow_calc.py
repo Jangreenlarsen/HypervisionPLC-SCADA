@@ -213,6 +213,27 @@ def test_a_pump_type_without_flow_setup_runs_by_its_position():
     assert pump_running({"op": "view"}, 1) is False
 
 
+def test_a_valve_changing_position_alone_recalculates_the_flow():
+    """v6.13.2 (Jan, demoen): en ventil uden eget flow-felt får sine åbne veje fra tilstanden. Meldte ventilen tilbage EFTER pumpen,
+    blev flowet stående forkert, fordi kun pumpens position var med i, hvornår der regnes forfra."""
+    from types import SimpleNamespace
+    s = svg(sym("p", "pumpe", f"{OUT}>r1:s;{IN}>r2:e"), pipe("r1", f"s>p:{OUT};e>v:0.46,0.86"),
+            sym("v", "trevejs_motorventil_ab", "0.46,0.86>r1:e;0.07,0.5>r2:s"), pipe("r2", f"s>v:0.07,0.5;e>p:{IN}"))
+    fra_til = {"op": "positions", "positions": [{"label": "Fra"}, {"label": "Til"}]}
+    valve = {"op": "positions", "positions": [{"label": "A", "state": "A → AB"}, {"label": "B", "state": "B → AB"}]}
+    cache = LiveCache()
+    eng = FlowEngine(cache)
+    eng.reload({"d": s}, None)
+    cfgs = {("d", "p"): fra_til, ("d", "v"): valve}
+    eng.evaluate(cfgs, {("d", "p"): SimpleNamespace(pos=1), ("d", "v"): SimpleNamespace(pos=1)}, 1.0)    # pumpen kører, ventilen i B: lukket
+    assert cache.get("flow:d:r1").value in (None, 0)
+    eng.evaluate(cfgs, {("d", "p"): SimpleNamespace(pos=1), ("d", "v"): SimpleNamespace(pos=0)}, 2.0)    # ventilen kommer frem i A
+    assert cache.get("flow:d:r1").value > 0                                                              # kun ventilen ændrede sig
+    runs = eng.status()["runs"]
+    eng.evaluate(cfgs, {("d", "p"): SimpleNamespace(pos=1), ("d", "v"): SimpleNamespace(pos=0)}, 3.0)
+    assert eng.status()["runs"] == runs                                                                  # uændret: ingen ny beregning
+
+
 def test_a_pump_wired_at_top_and_bottom_gets_a_precise_note():
     """v6.8.5 (Jan, demoen): rørene sad øverst og nederst på pumpen, IND/UD er venstre og højre — beskeden siger hvor."""
     s = svg(sym("p", "pumpe", "0.5,0>r1:s;0.5,1>r2:e"), pipe("r1", "s>p:0.5,0;e>rad:0,0.5"),

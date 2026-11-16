@@ -2,6 +2,10 @@
 
 ---
 
+## v6.13.2 — 2026-11-16
+
+- Rettet: flowet (løbelys og tal) på Overview kunne blive stående på 0, hvis en ventil meldte tilbage, efter at pumpen var startet.
+
 ## v6.13.1 — 2026-11-16
 
 - Guidens trin 3: har symboltypen tilstande, skal hver position vælge en af dem. Valget "egen position" er fjernet.

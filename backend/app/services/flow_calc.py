@@ -695,8 +695,11 @@ class FlowEngine:
                 (e, positions.get(e), tuple(_fraction((c.get("flow") or {}).get(k), read) for k in ("rate", "restrict")),
                  _measured({e: c}, read).get(e))
                 for e, c in configs.items() if c.get("flow")))
+            # (v6.13.2) ALLE symboler med positioner: en ventil uden eget flow-felt får sine åbne veje fra tilstanden, så dens
+            # position skal også udløse en ny beregning — ellers blev flowet stående, hvis ventilen meldte tilbage efter pumpen
             sig = (fl_inputs, tuple(sorted((e, repr(c.get("flow"))) for e, c in configs.items() if c.get("flow"))),
-                   tuple(sorted((e, positions.get(e), repr(configs.get(e, {}).get("positions"))) for e in by_type)))
+                   tuple(sorted((e, positions.get(e), repr(configs.get(e, {}).get("positions"))) for e in by_type)),
+                   tuple(sorted((e, positions.get(e)) for e, c in configs.items() if c.get("op") == "positions")))
             if self._last_inputs.get(did) == sig:
                 continue
             self._last_inputs[did] = sig

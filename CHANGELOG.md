@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.13.2 build 0430] — 2026-11-16 — fix: flowet genberegnes, når en ventil skifter position
+
+Se BUGS.md v6.13.2. `backend/app/services/flow_calc.py` (`jobs`: signaturen) og `backend/tests/test_flow_calc.py`.
+
 ## [6.13.1 build 0429] — 2026-11-16 — Guiden trin 3: ingen "egen position" for typer med tilstande
 
 Jan: har symboltypen tilstande, skal man altid bruge en af dem; vi bygger ikke bagudkompatibilitet (SCADA'en er under udvikling).
