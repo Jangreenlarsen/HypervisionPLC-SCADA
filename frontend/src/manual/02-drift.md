@@ -46,7 +46,7 @@ Elementer, der kan betjenes, reagerer på klik/tryk. Hvad der sker, afhænger af
 | --- | --- |
 | **Til/fra-knap** (start/stop, vippekontakt) | Klik. Tagget skifter, og du ser resultatet, når PLC'en har bekræftet |
 | **Position** (omskifter Hånd/0/Auto, ventil Åben/Lukket) | Klik symbolet, vælg den ønskede **position** i dialogen |
-| **Trykknap** | Tryk. Tagget sættes Til en kort, fast tid og nulstilles igen af serveren — også hvis din browser lukker undervejs |
+| **Trykknap** | Tryk. Tagget sættes Til en kort, fast tid og nulstilles igen af serveren — også hvis din browser lukker undervejs. Bibliotekets trykknap **lyser grønt i 1 sekund**, så du kan se, at den blev aktiveret. Det er kun en visning hos dig. Pulsen til PLC'en er stadig kort |
 | **Setpunkt** | Klik feltet, skriv den nye værdi, bekræft. Serveren afviser værdier uden for tagets min/max og viser præcis hvorfor |
 | **Gå til tegning** | Klik og du hopper til en anden tegning |
 

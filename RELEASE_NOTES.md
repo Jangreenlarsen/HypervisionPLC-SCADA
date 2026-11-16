@@ -2,6 +2,22 @@
 
 ---
 
+## v6.13.4 — 2026-11-16
+
+- Animationer i symbol-guiden er ryddet op: hver animation har et navn (fx "Løbehjul · Roterer"), og felterne står under hinanden med etiket i en smal kolonne.
+
+## v6.13.3 — 2026-11-16
+
+- Trykknappen (puls) lyser grønt i 1 sekund, når du trykker på den, så du kan se på tegningen, at den blev aktiveret.
+
+## v6.13.2 — 2026-11-16
+
+- Rettet: flowet (løbelys og tal) på Overview kunne blive stående på 0, hvis en ventil meldte tilbage, efter at pumpen var startet.
+
+## v6.13.1 — 2026-11-16
+
+- Guidens trin 3: har symboltypen tilstande, skal hver position vælge en af dem. Valget "egen position" er fjernet.
+
 ## v6.13.0 — 2026-11-14 — Tekst pr. værdi
 
 - En tekst-animation kan vise en tekst i stedet for tallet: **Tekst pr. værdi** med op til 5, fx 0 = Stop, 1 = Kører og 2 = Fejl.

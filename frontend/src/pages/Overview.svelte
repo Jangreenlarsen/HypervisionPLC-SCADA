@@ -1,5 +1,6 @@
 <script lang="ts">
   import { lastDrawing, rememberDrawing } from '../lib/nav';
+  import { flashPressed } from '../lib/pulseFlash';
   import { onDestroy, onMount, tick } from 'svelte';
   import { alarmMarks } from '../lib/alarmMark';
   import { mountCharts } from '../lib/chartRender';
@@ -511,6 +512,7 @@
   async function doPulse(element: string): Promise<boolean> {
     try {
       await post(symUrl(element, 'pulse'), {});
+      flashPressed(container, element);        // v6.13.3: knappen lyser 1 s, så man ser, at den blev aktiveret
       showToast('ok', `Puls sendt: ${symName(element)}`);
       return true;
     } catch (e) {

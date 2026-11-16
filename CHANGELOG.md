@@ -4,6 +4,35 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.13.4 build 0432] — 2026-11-16 — Animationer i guiden: ryddeligt layout med navngivne afsnit
+
+Jan: "gøre animations del i symboler mere pæn … organiseret under hinanden som i 'felt'", "kolonne med tekst er spild af plads", "hver sektion skal have et navn".
+
+- `frontend/src/app.css`: ny global `.frows` (etiket | felt i to kolonner, etiketkolonne 7,5 rem).
+- `frontend/src/lib/AnimParams.svelte`: alle animationstyper er omlagt til rækker med etiket til venstre og felter til højre; lange etiketter forkortet.
+- `frontend/src/lib/SymbolGuide.svelte`, `GroupAnims.svelte`: hver animation har overskriften "Del · Animation" (fx "Løbehjul · Roterer") i stedet for "Animation N"; Del/Animation/Styres af/Ellers/Gælder i som rækker.
+
+---
+
+## [6.13.3 build 0431] — 2026-11-16 — Trykknap: lyser i 1 sekund efter et tryk
+
+Jan: "man ser ikke den skifter tilstand i tegning" → knappen står aktiv i 1 s, så farveskiftet kan ses.
+
+- `frontend/src/lib/pulseFlash.ts` (ny): `flashPressed` lyser symbolets del `flade` grøn (#7cc47f) i 1000 ms og gendanner den oprindelige farve. Et nyt tryk undervejs forlænger lyset. Ren visning i den browser, hvor der trykkes. PLC-pulsen (500 ms) og serveren er uændrede.
+- `frontend/src/pages/Overview.svelte`: `doPulse` kalder den, når pulsen er sendt.
+- Manual: `02-drift.md`, `11-symbolbibliotek.md`. Test: `frontend/src/lib/pulseFlash.test.ts`.
+
+## [6.13.2 build 0430] — 2026-11-16 — fix: flowet genberegnes, når en ventil skifter position
+
+Se BUGS.md v6.13.2. `backend/app/services/flow_calc.py` (`jobs`: signaturen) og `backend/tests/test_flow_calc.py`.
+
+## [6.13.1 build 0429] — 2026-11-16 — Guiden trin 3: ingen "egen position" for typer med tilstande
+
+Jan: har symboltypen tilstande, skal man altid bruge en af dem; vi bygger ikke bagudkompatibilitet (SCADA'en er under udvikling).
+
+- `frontend/src/lib/SymbolGuide.svelte`: valget "— egen position —" er fjernet. En position uden tilstand viser "— vælg tilstand —", trin 3 melder en fejl, og Gem er låst, til alle har en. **+ Position** giver den første ubrugte tilstand.
+- `frontend/src/lib/symbolConfig.ts`: kommentar. Manual: `10-symboler-og-guiden.md`, `llm/tegn.md` (synkroniseret).
+
 ## [6.13.0 build 0428] — 2026-11-14 — Tekst-animation: tekst pr. værdi (højst 5)
 
 Jan: "i en tekst-animation kan jeg ikke sætte en streng, kun værdi" → "c med op til 5 optioner". Se FEATURES.md v6.13.0.

@@ -173,3 +173,8 @@ text.hv-nav-badge-active, text.hv-nav-badge-unack { fill: #fff; }
 .hv-chart-sym { cursor: zoom-in; }   /* trendgraf: tryk = stor udgave (v1.15.0) */   /* venstre/højre-betjening (v1.11.0) */
 .hv-clickable:hover { filter: brightness(1.12) drop-shadow(0 0 3px rgba(31, 95, 153, .7)); }
 @keyframes hv-blink { to { visibility: hidden; } }
+
+/* Formularrækker (v6.13.4): etiket til venstre, felt til højre — animationernes indstillinger i guiden og i grupperne */
+.frows { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: .4rem .75rem; align-items: start; }
+.frows > .fl { font-size: .85rem; color: var(--muted); padding-top: .4rem; }
+.frows > .fc { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; min-width: 0; }

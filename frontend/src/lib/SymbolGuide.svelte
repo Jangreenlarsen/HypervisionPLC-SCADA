@@ -105,8 +105,6 @@ import { AVERAGE_CHOICES } from './trendData';
   const pinOk = $derived(pin === '' || /^\d{4}$/.test(pin));
   const needPin = $derived(locks && !hasPin && !pin);
   const pinMissing = $derived(exists ? 'Symbolet har ingen kode (fx efter gendannelse af en backup) — sæt en ny kode.' : 'Låste positioner kræver en kode.');
-  const stepErrors = (k: number): string[] => [...(preview?.steps[String(k + 1)] ?? []), ...(k === 4 && needPin ? [pinMissing] : [])];
-  const canSave = $derived(!!preview && !checking && preview.errors === 0 && !needPin && pinOk && !saving && !previewError);
 
   // ---------------------------------------------------------------- indlæsning
   // Animationer som grupper har lagt på symbolet (v0.131.0): vises skrivebeskyttet under symbolets egne
@@ -357,6 +355,13 @@ import { AVERAGE_CHOICES } from './trendData';
   });
   const typeDef = $derived(typeDefs[symbol?.type ?? cfg.type]);
   const typeStates = $derived(typeDef?.states ?? []);
+  // v6.13.1 (Jan): har symboltypen tilstande, skal hver position være en af dem — "egen position" er væk
+  const stateMissing = $derived(isPos && typeStates.length ? cfg.positions.flatMap((p, j) => (p.state ? [] : [j + 1])) : []);
+  const stateMissingMsg = $derived(stateMissing.length
+    ? `Vælg en tilstand for position ${stateMissing.join(', ')} — eller tryk "Brug typens tilstande".` : '');
+  const stepErrors = (k: number): string[] => [...(preview?.steps[String(k + 1)] ?? []), ...(k === 4 && needPin ? [pinMissing] : []),
+    ...(k === 2 && stateMissingMsg ? [stateMissingMsg] : [])];
+  const canSave = $derived(!!preview && !checking && preview.errors === 0 && !needPin && pinOk && !saving && !previewError && !stateMissing.length);
   const stateMeaning = (name: string | null | undefined): string => {
     const st = typeStates.find((s) => s.name === name);
     if (!st) return '';
@@ -402,6 +407,11 @@ import { AVERAGE_CHOICES } from './trendData';
     if (n >= MAX_POSITIONS) return;
     cfg.positions.push({ label: String(n + 1) });
     resize(cfg, sigKind);
+    // typen har tilstande: den nye position får den første tilstand, der ikke bruges endnu (ellers den første)
+    if (typeStates.length) {
+      const used = new Set(cfg.positions.map((q) => q.state));
+      setPosState(cfg.positions.length - 1, (typeStates.find((t) => !used.has(t.name)) ?? typeStates[0]).name);
+    }
   }
   function removePosition(j: number): void {
     if (n <= 2) return;
@@ -824,7 +834,7 @@ import { AVERAGE_CHOICES } from './trendData';
                   {#each cfg.positions as p, j}
                     <tr><td>{j + 1}</td>
                       <td><select value={p.state ?? ''} onchange={(e) => setPosState(j, e.currentTarget.value)} aria-label="Position {j + 1}: tilstand">
-                        <option value="">— egen position —</option>
+                        {#if !p.state}<option value="" disabled>— vælg tilstand —</option>{/if}
                         {#if unknownState(p.state)}<option value={p.state}>ukendt: {p.state}</option>{/if}
                         {#each typeStates as st (st.name)}<option value={st.name}>{st.name}</option>{/each}
                       </select></td>
@@ -1061,15 +1071,22 @@ import { AVERAGE_CHOICES } from './trendData';
           {#each cfg.anims as a, i}
             {@const kind = srcKind(a)}
             <div class="anim">
-              <div class="row wrap">
-                <select bind:value={a.part} onchange={() => resetParams(a)} aria-label="Del">
+              <div class="animbar"><strong class="small">{partLabel(a.part, symbol)} · {ANIM_TXT[a.type]}</strong><span class="spacer"></span>
+                <button class="small" onclick={() => moveAnim(i, -1)} disabled={i === 0} aria-label="Op">▲</button>
+                <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
+                <button class="small" onclick={() => cfg.anims.splice(i, 1)} aria-label="Fjern animation">✕</button>
+              </div>
+              <div class="frows">
+                <span class="fl">Del</span>
+                <span class="fc"><select bind:value={a.part} onchange={() => resetParams(a)} aria-label="Del">
                   {#each partIds as p}<option value={p}>{partLabel(p, symbol)}</option>{/each}
-                </select>
-                <select bind:value={a.type} onchange={() => resetParams(a)} aria-label="Animation">
+                </select></span>
+                <span class="fl">Animation</span>
+                <span class="fc"><select bind:value={a.type} onchange={() => resetParams(a)} aria-label="Animation">
                   {#each typesFor(partInfo(a.part)) as t}<option value={t}>{ANIM_TXT[t]}</option>{/each}
-                </select>
-                <span class="small muted">styres af</span>
-                <select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
+                </select></span>
+                <span class="fl">Styres af</span>
+                <span class="fc"><select value={srcMode(a)} onchange={(e) => setSrcMode(a, e.currentTarget.value)} aria-label="Kilde">
                   {#if isPos}<option value={POS}>symbolets position</option>{/if}<option value="tag">et tag</option>
                   {#if VAL_TYPES.includes(a.type)}<option value="val">en fast værdi</option>{/if}
                   {#if cfg.logic.length || pool.length}<option value="logic">en logikblok</option>{/if}
@@ -1108,18 +1125,17 @@ import { AVERAGE_CHOICES } from './trendData';
                     {#if pool.length}<optgroup label="Andre symboler">{#each pool as p}<option value={poolRef(p)}>{poolLabel(p)}</option>{/each}</optgroup>{/if}
                   </select>
                 {/if}
-                <span class="spacer"></span>
-                <button class="small" onclick={() => moveAnim(i, -1)} disabled={i === 0} aria-label="Op">▲</button>
-                <button class="small" onclick={() => moveAnim(i, 1)} disabled={i === cfg.anims.length - 1} aria-label="Ned">▼</button>
-                <button class="small" onclick={() => cfg.anims.splice(i, 1)} aria-label="Fjern animation">✕</button>
+                </span>
               </div>
               {#if byValue(a)}
-                <div class="row wrap small posvals">
-                  <span class="muted" title="Positionen er den sidste, hvis fra-værdi tagget har nået. Under den første fra-værdi: ingen position (delen vises som tegnet). Knappen står derfor aldrig midt imellem to positioner.">Tagets værdi → position:</span>
+                <div class="frows posvals small">
+                  <span class="fl" title="Positionen er den sidste, hvis fra-værdi tagget har nået. Under den første fra-værdi: ingen position (delen vises som tegnet). Knappen står derfor aldrig midt imellem to positioner.">Værdi → position</span>
+                  <span class="fc">
                   {#each cfg.positions as pos, j}
                     <label class="opt">{pos.label} ≥ <input class="n" value={a.pos_values?.[j] ?? j}
                       onchange={(e) => { const pv = cfg.positions.map((_, i) => a.pos_values?.[i] ?? i); pv[j] = num(e.currentTarget.value, pv[j]); a.pos_values = pv; }} /></label>
                   {/each}
+                  </span>
                 </div>
               {/if}
               <AnimParams {a} {kind} positions={cfg.positions} logic={cfg.logic} {pool} {tags} {valueOf} {metaOf} {palette} />
@@ -1136,17 +1152,19 @@ import { AVERAGE_CHOICES } from './trendData';
                   {/if}
                 </div>
               {/if}
-              {#if WHEN_TYPES.includes(a.type)}
-                <label class="opt small">Når den ikke er aktiv:
-                  <select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">
-                    <option value="toggle">vis fra-tilstand</option>
-                    <option value="when">gør ingenting (passiv)</option>
-                  </select>
-                </label>
-              {/if}
-              {#if isPos && a.src !== POS && !byValue(a)}   <!-- "Gælder i" læser symbolets EGEN position — giver ikke mening ved "pr. værdi" (v1.13.1) -->
-                <div class="row wrap small"><span class="muted">Gælder i:</span>
-                  {#each cfg.positions as p, j}<label class="opt"><input type="checkbox" checked={a.only?.[j] ?? true} onchange={() => toggleOnly(a, j)} /> {p.label}</label>{/each}
+              {#if WHEN_TYPES.includes(a.type) || (isPos && a.src !== POS && !byValue(a))}
+                <div class="frows extra">
+                  {#if WHEN_TYPES.includes(a.type)}
+                    <span class="fl">Ellers</span>
+                    <span class="fc"><select value={a.when ? 'when' : 'toggle'} onchange={(e) => (a.when = e.currentTarget.value === 'when')} aria-label="Når den ikke er aktiv">
+                      <option value="toggle">vis fra-tilstand</option>
+                      <option value="when">gør ingenting (passiv)</option>
+                    </select></span>
+                  {/if}
+                  {#if isPos && a.src !== POS && !byValue(a)}   <!-- "Gælder i" læser symbolets EGEN position — giver ikke mening ved "pr. værdi" (v1.13.1) -->
+                    <span class="fl">Gælder i</span>
+                    <span class="fc">{#each cfg.positions as p, j}<label class="opt small"><input type="checkbox" checked={a.only?.[j] ?? true} onchange={() => toggleOnly(a, j)} /> {p.label}</label>{/each}</span>
+                  {/if}
                 </div>
               {/if}
             </div>
@@ -1395,7 +1413,10 @@ import { AVERAGE_CHOICES } from './trendData';
   .name { min-width: 14em; }
   .logic .input { margin: .15rem 0 .15rem 1rem; }
   .selector-angles { gap: .3rem .8rem; margin: .2rem 0 .1rem; }
-  .anim { border: 1px solid var(--line); border-radius: var(--radius); padding: .4rem; margin: .35rem 0; background: var(--panel-2); }
+  .anim { border: 1px solid var(--line); border-radius: var(--radius); padding: .45rem .55rem; margin: .35rem 0; background: var(--panel-2); }
+  .animbar { display: flex; align-items: center; gap: .3rem; margin-bottom: .35rem; }
+  .anim > .frows + .frows, .anim > :global(.frows) + :global(.frows) { margin-top: .4rem; }
+  .anim .posvals, .anim .extra { margin-top: .4rem; }
   .errors { color: var(--alarm); margin: .5rem 0; }
   .warnings { color: var(--warn); }
   .notice { background: #fff8e1; border: 1px solid #ffe082; padding: .4rem .6rem; border-radius: var(--radius); }

@@ -140,11 +140,12 @@ Har symboltypen **tilstande** (fx 3-vejsventilerne, 4-vejsventilen, omskifter *H
 
 | Kolonne | Hvad du vælger |
 |---|---|
-| **Tilstand** | Typens tilstand, fx *A → AB*. *— egen position —* virker som før, uden typens udseende. |
+| **Tilstand** | Typens tilstand, fx *A → AB*. Hver position skal have en tilstand; guiden melder en fejl i trin 3, indtil alle har en. |
 | **Navn på tegningen** | Det navn, operatøren ser, fx *Varme*. Det følger tilstanden, indtil du retter det. |
 | **Betyder** | Hvad tilstanden gør, fx "A igennem AB · B blokeret", eller grebets vinkel. |
 
 - **Brug typens tilstande** laver én position pr. tilstand i typens rækkefølge.
+- **+ Position** tilføjer en position med den første tilstand, der ikke er brugt endnu.
 - PLC-værdierne skrives i kontaktplanerne under tabellen, som før (fx register = 10 for *Varme*, 20 for *Køl*).
 - **Udseendet** kommer fra typen: portenes farve, grebets vinkel, en del synlig eller blinkende. Flowet følger tilstandens åbne veje.
 
@@ -216,7 +217,7 @@ Hver animation vælger en **del** af symbolet (*Port A*, *Løbehjul*, *Hele symb
 
 **Drej** har en **Hastighed**: *Med det samme*, *Hurtig (0,2 s)*, *Normal (0,4 s)*, *Langsom (1 s)*, *Meget langsom (2 s)* eller *Ekstra langsom (5 s)* — hvor hurtigt delen drejer til den nye vinkel (fx en kontaktkniv eller en vippekontakt). Uden valg drejer den glidende, når den følger positionen, og med det samme, når den følger et tag. Glidende kræver, at delen ikke selv er drejet eller flyttet i tegningen — ellers drejer den med det samme.
 
-**Størrelse** (tal-tag) gør delen større eller mindre om sin egen midte efter værdien: ved **Min** har den *Størrelse ved min* (fx 50 %), ved **Max** *ved max* (fx 150 %), og imellem glidende. Fx pumpens **Pil**, så den vokser med flowet. Uden gyldig værdi vises delen i sin tegnede størrelse.
+**Størrelse** (tal-tag) gør delen større eller mindre om sin egen midte efter værdien: ved **Min** har den *Størrelse min* (fx 50 %), ved **Max** *Størrelse max* (fx 150 %), og imellem glidende. Fx pumpens **Pil**, så den vokser med flowet. Uden gyldig værdi vises delen i sin tegnede størrelse.
 
 **Trendgraf** (symbolet *Trendgraf* under *Proces og visning*): viser historikken for **1–4 tags** inde i symbolets ramme på Overview. I trin 4, sektionen **Graf**, vælger du tagsene, **perioden** (15 min, 1 time, 8 timer, 24 timer eller 7 dage), **Kurve** eller **Søjler** (og antal søjler — hver søjle er gennemsnittet i sit tidsrum), og evt. en fast **Y-akse** (tomt = automatisk) og en **titel**. Hvert tag står i sin farve med den seneste værdi — under **Tekst med tagene** vælger du **Placering** (over grafen, under grafen eller skjult), **Størrelse** (lille–meget stor), **Fed** og **Vis seneste værdi**. Et tag fjernes fra grafen med **✕** ud for det (eller ved at vælge *— ingen —*). Grafen opdateres løbende. Tagsene skal **gemme historik** — slå det til i trin 6 (afsnittet *Historik*); ellers står der *Ingen historik i perioden*. Gør symbolet større i Tegn for en større graf: grafen tegnes i den størrelse, symbolet har i tegningen — en større graf får **finere kurver**, **flere diagramlinjer** (vandrette ved runde værdier, lodrette ved runde tider) og mere plads, mens teksten kun vokser lidt. Er teksten med tagene for lang til én linje, deles den på **to linjer** (og gøres mindre, hvis det ikke er nok), så den altid holder sig inden for rammen.
 
@@ -387,7 +388,7 @@ Ved siden af står **Lige nu**: taggets aktuelle værdi og hvordan den vil blive
 
 ### Flere animationer på samme del: aktiv/passiv og standard
 
-Hver animation af typen *Farve, Stregfarve, Blink, Synlig, Roterer, Blafrer* eller *Løbelys* har valget **Når den ikke er aktiv**:
+Hver animation af typen *Farve, Stregfarve, Blink, Synlig, Roterer, Blafrer* eller *Løbelys* har valget **Ellers** (hvad delen gør, når animationen ikke er aktiv):
 
 - **vis fra-tilstand** (aktiv/ikke aktiv — som før): når betingelsen ikke er opfyldt, viser animationen sin fra-tilstand (fx rørfarven eller farven for *Fra*).
 - **gør ingenting (passiv)** (aktiv/passiv): når betingelsen ikke er opfyldt, rører animationen ikke delen — så kan en anden animation bestemme.

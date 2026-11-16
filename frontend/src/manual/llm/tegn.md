@@ -27,7 +27,7 @@ I Tegn: vælg værktøjet **Forbindelse** (tast **O**). Klik på det første sym
 Slå **Fang rør lige** til (standard). Træk symbolet: når tilslutningspunktet næsten flugter med røret, vises en blå stiplet linje; slip, så fanges symbolet, og røret står snorlige. Rørene vises i deres nye forløb, mens du trækker.
 
 ## Hvorfor kan jeg ikke lave en simpel binding på et symbol? Hvor er "Konvertér alle" og "Foreslå ud fra symbolet"?
-<!-- kilde: 10-symboler-og-guiden#m3-flere-animationer-paa-samme-del-aktiv-passiv-og-standard sha:854bbabd -->
+<!-- kilde: 10-symboler-og-guiden#m3-flere-animationer-paa-samme-del-aktiv-passiv-og-standard sha:6c672001 -->
 Siden v5.1.0 er der kun én måde at sætte et symbol op på: guiden (Bindinger › Opsæt symbol). Simple bindinger på et symbol og dets dele kan ikke laves — kun *Gå til tegning* på selve symbolet. Den gamle model (og dermed "Konvertér alle" og "Foreslå ud fra symbolet") er fjernet; ved opgraderingen blev symbolerne konverteret, og dem, der ikke kunne konverteres, står i Tegn › Meddelelser.
 
 ## Hvordan definerer jeg ind, ud, fælles port og veje på et symbol (3-vejs, 4-vejs ventil)?
@@ -123,7 +123,7 @@ I trin 4 under **Flow** › **Restriktion**: vælg *en fast værdi* (skyder og t
 Under Opsætning › Symboler › **Ind/ud og veje** vælger du symboltypens **Flow-rolle**: forbruger, pumpe/kilde (fx en strømforsyning) eller rørstykke/ledning, og et **medie** (vand l/min, luft m³/h, el A). Standard-kapacitet og standard-restriktion (0,00–1,00) gælder, når et symbol ikke har sin egen flow-opsætning i guiden.
 
 ## Hvordan får en farve-animation på et tal-tag en grænse (aktiv ved ≥ 50, ikke aktiv under)?
-<!-- kilde: 10-symboler-og-guiden#m-animationer-i-guiden-trin-4 sha:f6ef6ac8 -->
+<!-- kilde: 10-symboler-og-guiden#m-animationer-i-guiden-trin-4 sha:032eea35 -->
 I guidens trin 4 ved animationen *Farve* (eller *Streg*) med et tal-tag: skriv grænsen i **Aktiv når ≥** (fx 50). Fra 50 og op vises aktiv-farven, under 50 fra-farven. Tomt felt = aktiv, når værdien ikke er 0 (0 = fra-farven, over 0 = aktiv-farven). **+ Grænse** lægger flere farver ovenpå; aktiv-farven gælder op til den første grænse. Farverne står som en tabel med én række pr. værdiområde.
 
 ## Hvordan definerer jeg lavt og højt flow for en flowsensor og viser flowet med løbelysets fart, blink eller farve (baseline, flow-niveau)?
@@ -143,5 +143,5 @@ De er faste værdier for symbolet (dets fysik): skriv tallet 0,00–1,00 i trin 
 Under Opsætning › Symboler › **Ind/ud og veje** › **Tilstande**: giv hver tilstand et navn og sæt hak ved de veje, der er åbne — kolonnen *Betyder* skriver det i ord, også de blokerede porte (fx "A igennem AB · B blokeret"). Standarder: 3-vejsventilerne *A → AB* og *B → AB*, 4-vejsventilen (porte A, B, C, D) *A → B* og *C → D*. Du kan tilføje alle de tilstande, symbolet har brug for (+ Tilstand). I guidens trin 4 › Flow vælger du så tilstanden for hver position.
 
 ## Hvordan kobler jeg en omskifters eller ventils positioner til symboltypens tilstande, og hvordan retter jeg udseendet for ét symbol?
-<!-- kilde: 10-symboler-og-guiden#m3-tilstande-positioner-fra-symboltypen sha:79388783 -->
+<!-- kilde: 10-symboler-og-guiden#m3-tilstande-positioner-fra-symboltypen sha:04bbf1d5 -->
 Har symboltypen tilstande, hedder guidens trin 3 **Tilstande**: vælg for hver position typens **Tilstand** (fx *A → AB* eller *Hånd*) og dens **Navn på tegningen** (fx *Varme*); **Brug typens tilstande** laver én position pr. tilstand. Udseendet (portfarver, grebets vinkel …) kommer fra typen. I trin 4 › **Tilstandenes udseende** kan du rette en værdi for kun dette symbol (markeres *afviger*); **Brug typens udseende** fjerner afvigelsen.
