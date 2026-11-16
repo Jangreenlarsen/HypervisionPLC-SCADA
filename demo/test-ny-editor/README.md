@@ -20,16 +20,18 @@ Et ST-program uden fysisk I/O, der får tegningen til at leve: pumpe, tre 3-vejs
 | Trin | Pumpe | V1 | V2 | V3 | Motorv. | Lampe | Hvad du ser |
 |---|---|---|---|---|---|---|---|
 | 0 | fra | A | A | A | lukket | fra | alt står |
-| 1 | til | A | B | A | | | flow gennem tanken, ca. 67 l/min |
-| 2 | til | A | A | B | | | ca. 47 l/min |
-| 3 | til | B | A | B | | | ca. 56 l/min |
-| 4 | til | B | B | A | | | ca. 67 l/min |
-| 5 | til | A | A | A | | | pumpen kører, intet flow gennem tanken |
-| 6 | til | A | B | A | åben | til | motorventil og lampe |
-| 7 | til, **uden tilbagemelding** | | | | | | pumpealarm, status *Fejl* |
+| 1 | til | A | B | A | åben | | flow gennem tanken |
+| 2 | til | A | A | B | åben | | andet flow gennem tanken |
+| 3 | til | B | A | B | åben | | |
+| 4 | til | B | B | A | åben | | |
+| 5 | til | A | A | A | lukket | | pumpen kører, ingen vej gennem tanken |
+| 6 | til | A | B | A | åben | til | som trin 1, og lampen er tændt |
+| 7 | til, **uden tilbagemelding** | | | | lukket | | pumpealarm, status *Fejl* |
 | 8 | fra | | | | | til | alarmen står, til trin 0 kvitterer |
 
-Flowtallene er dem, SCADA'ens egen flowberegning gav for tegningens rør og ventiler, da jeg målte dem (66,7, 46,8 og 55,7 l/min). De afhænger af pumpens kapacitet og ventilernes opsætning.
+Motorventilen sidder på tankens udløb i tegningen, så der kun er flow gennem tanken, når den er åben.
+
+Flowet regner SCADA selv ud fra pumpens kapacitet, ventilernes tilstande og de bundne forbindelser.
 
 ## Tags (kilde `logic:<N>:<navn>`)
 
