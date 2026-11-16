@@ -8,7 +8,7 @@ Et ST-program uden fysisk I/O, der får tegningen til at leve: pumpe, tre 3-vejs
 | `load.py` | Indlæser det i ét Logic-nummer: `PLC_USER=… PLC_PASS=… python demo/test-ny-editor/load.py http://<plc> --logic=N` |
 | `test/run.sh` | PC-test med PLC'ens egen ST-compiler og VM (`bash demo/test-ny-editor/test/run.sh`, kræver g++ og PLC-repoet) |
 
-**Plads:** varmedemoen bruger alle fire Logic-pladser på demo-PLC'en. Læg testprogrammet på en anden PLC, eller erstat et varmeprogram med `--force`. `--check` viser, hvad der ligger hvor.
+**Plads:** varmedemoen bruger alle fire Logic-pladser. Den 2026-11-16 er Logic1-4 på demo-PLC'en (10.1.1.34) slettet, og testprogrammet ligger i **Logic1**; tagsene hedder `logic:1:<navn>`. Varmedemoen indlæses igen med `demo/varme-plc/load.py` (kilden er uændret i repoet). `load.py` her kræver `--force`, hvis pladsen har et andet program. `--check` viser, hvad der ligger hvor.
 
 ## Sådan virker det
 

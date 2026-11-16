@@ -43,12 +43,13 @@ def main() -> None:
     programs = {p.get("id"): p for p in plc.get("/api/logic").get("programs", [])}
     for pid in (1, 2, 3, 4):
         p = programs.get(pid, {})
-        print(f"  Logic{pid}: {p.get('name') or '(tom)'} enabled={p.get('enabled')} compiled={p.get('compiled')}")
+        print(f"  Logic{pid}: {(p.get('name') if p.get('source_size') else None) or '(tom)'} enabled={p.get('enabled')} compiled={p.get('compiled')}")
     if check_only:
         return
-    used = programs.get(logic, {}).get("name") or ""
-    if used and used != NAME and not force:
-        raise SystemExit(f"Logic{logic} bruges af '{used}'. Vælg en anden plads, eller brug --force for at overskrive den.")
+    # en tom plads har ingen kilde; en plads med dette testprogram må gerne opdateres uden --force
+    existing = plc.get(f"/api/logic/{logic}/source").get("source", "") if programs.get(logic, {}).get("source_size") else ""
+    if existing and f"PROGRAM {NAME}" not in existing and not force:
+        raise SystemExit(f"Logic{logic} bruges af et andet program. Vælg en anden plads, eller brug --force for at overskrive det.")
     source = (HERE / "test_ny_editor.st").read_text(encoding="utf-8")
     plc.post(f"/api/logic/{logic}/disable")
     r = plc.post(f"/api/logic/{logic}/source", {"source": source})
