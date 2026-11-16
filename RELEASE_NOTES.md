@@ -2,6 +2,10 @@
 
 ---
 
+## v6.13.3 — 2026-11-16
+
+- Trykknappen (puls) lyser grønt i 1 sekund, når du trykker på den, så du kan se på tegningen, at den blev aktiveret.
+
 ## v6.13.2 — 2026-11-16
 
 - Rettet: flowet (løbelys og tal) på Overview kunne blive stående på 0, hvis en ventil meldte tilbage, efter at pumpen var startet.

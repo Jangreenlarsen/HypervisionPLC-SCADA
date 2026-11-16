@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.13.3 build 0431] — 2026-11-16 — Trykknap: lyser i 1 sekund efter et tryk
+
+Jan: "man ser ikke den skifter tilstand i tegning" → knappen står aktiv i 1 s, så farveskiftet kan ses.
+
+- `frontend/src/lib/pulseFlash.ts` (ny): `flashPressed` lyser symbolets del `flade` grøn (#7cc47f) i 1000 ms og gendanner den oprindelige farve. Et nyt tryk undervejs forlænger lyset. Ren visning i den browser, hvor der trykkes. PLC-pulsen (500 ms) og serveren er uændrede.
+- `frontend/src/pages/Overview.svelte`: `doPulse` kalder den, når pulsen er sendt.
+- Manual: `02-drift.md`, `11-symbolbibliotek.md`. Test: `frontend/src/lib/pulseFlash.test.ts`.
+
 ## [6.13.2 build 0430] — 2026-11-16 — fix: flowet genberegnes, når en ventil skifter position
 
 Se BUGS.md v6.13.2. `backend/app/services/flow_calc.py` (`jobs`: signaturen) og `backend/tests/test_flow_calc.py`.
