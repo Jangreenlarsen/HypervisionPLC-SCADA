@@ -105,8 +105,6 @@ import { AVERAGE_CHOICES } from './trendData';
   const pinOk = $derived(pin === '' || /^\d{4}$/.test(pin));
   const needPin = $derived(locks && !hasPin && !pin);
   const pinMissing = $derived(exists ? 'Symbolet har ingen kode (fx efter gendannelse af en backup) — sæt en ny kode.' : 'Låste positioner kræver en kode.');
-  const stepErrors = (k: number): string[] => [...(preview?.steps[String(k + 1)] ?? []), ...(k === 4 && needPin ? [pinMissing] : [])];
-  const canSave = $derived(!!preview && !checking && preview.errors === 0 && !needPin && pinOk && !saving && !previewError);
 
   // ---------------------------------------------------------------- indlæsning
   // Animationer som grupper har lagt på symbolet (v0.131.0): vises skrivebeskyttet under symbolets egne
@@ -357,6 +355,13 @@ import { AVERAGE_CHOICES } from './trendData';
   });
   const typeDef = $derived(typeDefs[symbol?.type ?? cfg.type]);
   const typeStates = $derived(typeDef?.states ?? []);
+  // v6.13.1 (Jan): har symboltypen tilstande, skal hver position være en af dem — "egen position" er væk
+  const stateMissing = $derived(isPos && typeStates.length ? cfg.positions.flatMap((p, j) => (p.state ? [] : [j + 1])) : []);
+  const stateMissingMsg = $derived(stateMissing.length
+    ? `Vælg en tilstand for position ${stateMissing.join(', ')} — eller tryk "Brug typens tilstande".` : '');
+  const stepErrors = (k: number): string[] => [...(preview?.steps[String(k + 1)] ?? []), ...(k === 4 && needPin ? [pinMissing] : []),
+    ...(k === 2 && stateMissingMsg ? [stateMissingMsg] : [])];
+  const canSave = $derived(!!preview && !checking && preview.errors === 0 && !needPin && pinOk && !saving && !previewError && !stateMissing.length);
   const stateMeaning = (name: string | null | undefined): string => {
     const st = typeStates.find((s) => s.name === name);
     if (!st) return '';
@@ -402,6 +407,11 @@ import { AVERAGE_CHOICES } from './trendData';
     if (n >= MAX_POSITIONS) return;
     cfg.positions.push({ label: String(n + 1) });
     resize(cfg, sigKind);
+    // typen har tilstande: den nye position får den første tilstand, der ikke bruges endnu (ellers den første)
+    if (typeStates.length) {
+      const used = new Set(cfg.positions.map((q) => q.state));
+      setPosState(cfg.positions.length - 1, (typeStates.find((t) => !used.has(t.name)) ?? typeStates[0]).name);
+    }
   }
   function removePosition(j: number): void {
     if (n <= 2) return;
@@ -824,7 +834,7 @@ import { AVERAGE_CHOICES } from './trendData';
                   {#each cfg.positions as p, j}
                     <tr><td>{j + 1}</td>
                       <td><select value={p.state ?? ''} onchange={(e) => setPosState(j, e.currentTarget.value)} aria-label="Position {j + 1}: tilstand">
-                        <option value="">— egen position —</option>
+                        {#if !p.state}<option value="" disabled>— vælg tilstand —</option>{/if}
                         {#if unknownState(p.state)}<option value={p.state}>ukendt: {p.state}</option>{/if}
                         {#each typeStates as st (st.name)}<option value={st.name}>{st.name}</option>{/each}
                       </select></td>

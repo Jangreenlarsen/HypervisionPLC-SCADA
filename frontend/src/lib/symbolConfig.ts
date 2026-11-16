@@ -33,7 +33,7 @@ export interface SymbolConfig {
   passive?: boolean;
   /** Tilstandsmærket (✓ … ! ?) på Overview (v2.12.0); false = vises ikke */
   badge?: boolean;
-  /** v6.7.0 (design B): `state` = typens tilstand, positionen er; `label` = navnet på tegningen. Uden state: en egen position. */
+  /** v6.7.0 (design B): `state` = typens tilstand, positionen er; `label` = navnet på tegningen. Har typen tilstande, skal hver position have en (v6.13.1); typer uden tilstande har kun et navn. */
   positions: { label: string; state?: string | null }[]; signals: Signal[]; planes: Plane[]; fault: string;
   display: 'remote' | 'local'; validate_s: number; alarm: '' | 'low' | 'medium' | 'high'; confirm: boolean; pulse_ms: number;
   /** Betjening på tegningen: dialog med valg af position (standard) eller tryk venstre/højre side for at skifte position (v1.11.0) */

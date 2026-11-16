@@ -2,6 +2,10 @@
 
 ---
 
+## v6.13.1 — 2026-11-16
+
+- Guidens trin 3: har symboltypen tilstande, skal hver position vælge en af dem. Valget "egen position" er fjernet.
+
 ## v6.13.0 — 2026-11-14 — Tekst pr. værdi
 
 - En tekst-animation kan vise en tekst i stedet for tallet: **Tekst pr. værdi** med op til 5, fx 0 = Stop, 1 = Kører og 2 = Fejl.

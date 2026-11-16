@@ -143,5 +143,5 @@ De er faste værdier for symbolet (dets fysik): skriv tallet 0,00–1,00 i trin 
 Under Opsætning › Symboler › **Ind/ud og veje** › **Tilstande**: giv hver tilstand et navn og sæt hak ved de veje, der er åbne — kolonnen *Betyder* skriver det i ord, også de blokerede porte (fx "A igennem AB · B blokeret"). Standarder: 3-vejsventilerne *A → AB* og *B → AB*, 4-vejsventilen (porte A, B, C, D) *A → B* og *C → D*. Du kan tilføje alle de tilstande, symbolet har brug for (+ Tilstand). I guidens trin 4 › Flow vælger du så tilstanden for hver position.
 
 ## Hvordan kobler jeg en omskifters eller ventils positioner til symboltypens tilstande, og hvordan retter jeg udseendet for ét symbol?
-<!-- kilde: 10-symboler-og-guiden#m3-tilstande-positioner-fra-symboltypen sha:79388783 -->
+<!-- kilde: 10-symboler-og-guiden#m3-tilstande-positioner-fra-symboltypen sha:04bbf1d5 -->
 Har symboltypen tilstande, hedder guidens trin 3 **Tilstande**: vælg for hver position typens **Tilstand** (fx *A → AB* eller *Hånd*) og dens **Navn på tegningen** (fx *Varme*); **Brug typens tilstande** laver én position pr. tilstand. Udseendet (portfarver, grebets vinkel …) kommer fra typen. I trin 4 › **Tilstandenes udseende** kan du rette en værdi for kun dette symbol (markeres *afviger*); **Brug typens udseende** fjerner afvigelsen.

@@ -140,11 +140,12 @@ Har symboltypen **tilstande** (fx 3-vejsventilerne, 4-vejsventilen, omskifter *H
 
 | Kolonne | Hvad du vælger |
 |---|---|
-| **Tilstand** | Typens tilstand, fx *A → AB*. *— egen position —* virker som før, uden typens udseende. |
+| **Tilstand** | Typens tilstand, fx *A → AB*. Hver position skal have en tilstand; guiden melder en fejl i trin 3, indtil alle har en. |
 | **Navn på tegningen** | Det navn, operatøren ser, fx *Varme*. Det følger tilstanden, indtil du retter det. |
 | **Betyder** | Hvad tilstanden gør, fx "A igennem AB · B blokeret", eller grebets vinkel. |
 
 - **Brug typens tilstande** laver én position pr. tilstand i typens rækkefølge.
+- **+ Position** tilføjer en position med den første tilstand, der ikke er brugt endnu.
 - PLC-værdierne skrives i kontaktplanerne under tabellen, som før (fx register = 10 for *Varme*, 20 for *Køl*).
 - **Udseendet** kommer fra typen: portenes farve, grebets vinkel, en del synlig eller blinkende. Flowet følger tilstandens åbne veje.
 

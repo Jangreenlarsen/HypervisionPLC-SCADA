@@ -4,6 +4,13 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.13.1 build 0429] — 2026-11-16 — Guiden trin 3: ingen "egen position" for typer med tilstande
+
+Jan: har symboltypen tilstande, skal man altid bruge en af dem; vi bygger ikke bagudkompatibilitet (SCADA'en er under udvikling).
+
+- `frontend/src/lib/SymbolGuide.svelte`: valget "— egen position —" er fjernet. En position uden tilstand viser "— vælg tilstand —", trin 3 melder en fejl, og Gem er låst, til alle har en. **+ Position** giver den første ubrugte tilstand.
+- `frontend/src/lib/symbolConfig.ts`: kommentar. Manual: `10-symboler-og-guiden.md`, `llm/tegn.md` (synkroniseret).
+
 ## [6.13.0 build 0428] — 2026-11-14 — Tekst-animation: tekst pr. værdi (højst 5)
 
 Jan: "i en tekst-animation kan jeg ikke sætte en streng, kun værdi" → "c med op til 5 optioner". Se FEATURES.md v6.13.0.
