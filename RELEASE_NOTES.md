@@ -2,6 +2,10 @@
 
 ---
 
+## v6.16.1 — 2026-11-17
+
+- Alarmer: listen har en kolonne **System**, og du kan vælge **Uden system** (alarmer, der ikke står på en tegning). Sæt en lampe bundet til alarm-tagget på tegningen, så alarmen hører til systemet. Vandværket og testen har fået alarmlamper.
+
 ## v6.16.0 — 2026-11-17 — Bobler med værdi
 
 - Instrumentboblerne (temperatur, tryk, flow, niveau, analysator) kan vise værdien i selve boblen. Vælg tagget i guiden, så vises værdien (enhed og decimaler fra tagget). Bobler, der allerede står i en tegning, skal erstattes med den nye fra biblioteket.

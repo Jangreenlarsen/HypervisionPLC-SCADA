@@ -4,7 +4,7 @@
   import { get, post, type Alarm, type AlarmSummary } from '../lib/api';
   import { LiveClient } from '../lib/live';
   import { askAssist, assist } from '../lib/assistStore.svelte';
-  import { inSystem, type AlarmSystem } from '../lib/alarmSystems';
+  import { inSystem, NO_SYSTEM, systemsOf, type AlarmSystem } from '../lib/alarmSystems';
 
   let { canAck = false }: { canAck?: boolean } = $props();
 
@@ -26,6 +26,8 @@
   let systems = $state<AlarmSystem[]>([]);
   let systemId = $state((() => { try { return localStorage.getItem('alarm-system') ?? ''; } catch { return ''; } })());
   const system = $derived(systems.find((s) => s.id === systemId) ?? null);
+  const filterName = $derived(systemId === NO_SYSTEM ? 'uden system' : system?.name ?? '');
+  const sysNames = (a: { key: string; kind?: string; tag?: string }) => systemsOf(systems, a).map((s) => s.name).join(', ') || '—';
   function pickSystem(id: string): void {
     systemId = id;
     try { localStorage.setItem('alarm-system', id); } catch { /* uden lager gælder valget kun denne gang */ }
@@ -57,8 +59,8 @@
   }
 
   const fmt = (ts: number | null) => (ts ? new Date(ts * 1000).toLocaleString('da-DK') : '');
-  const shown = $derived(active.filter((a) => inSystem(system, a)));
-  const shownHistory = $derived(history.filter((e) => inSystem(system, e)));
+  const shown = $derived(active.filter((a) => inSystem(systems, systemId, a)));
+  const shownHistory = $derived(history.filter((e) => inSystem(systems, systemId, e)));
   const unacked = $derived(shown.filter((a) => a.state !== 'active_ack'));
 
   onMount(async () => {
@@ -86,6 +88,7 @@
         <label class="small">System
           <select value={systemId} onchange={(e) => pickSystem(e.currentTarget.value)} aria-label="System">
             <option value="">Alle systemer</option>
+            <option value={NO_SYSTEM}>Uden system</option>
             {#each systems as s (s.id)}<option value={s.id}>{s.name}</option>{/each}
           </select>
         </label>
@@ -96,19 +99,20 @@
       {/if}
     </div>
     {#if tab === 'active' && canAck && unacked.length}
-      <button class="primary" onclick={() => ack(system ? unacked.map((a) => a.key) : null)}>Kvittér alle{system ? ` i ${system.name}` : ''} ({unacked.length})</button>
+      <button class="primary" onclick={() => ack(systemId ? unacked.map((a) => a.key) : null)}>Kvittér alle{systemId ? ` (${filterName})` : ''} ({unacked.length})</button>
     {/if}
   </div>
 
   {#if tab === 'active'}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Tid</th><th>Prioritet</th><th>Alarm</th><th>Tilstand</th><th></th></tr></thead>
+        <thead><tr><th>Tid</th><th>Prioritet</th><th>System</th><th>Alarm</th><th>Tilstand</th><th></th></tr></thead>
         <tbody>
           {#each shown as a (a.key)}
             <tr class:unacked={a.state !== 'active_ack'}>
               <td class="small nowrap">{fmt(a.raised_at)}</td>
               <td><span class="prio-{a.priority}">{levelText(a.level, a.priority)}</span></td>
+              <td class="small">{sysNames(a)}</td>
               <td>{a.message}<div class="muted small mono">{a.kind === 'symbol' ? `symbol ${a.key.split(':').slice(2).join(':')}` : a.kind === 'sys' ? 'SCADA-serveren' : a.tag || a.plc}</div></td>
               <td class="small">
                 {STATE_TEXT[a.state]}
@@ -123,7 +127,7 @@
               </td>
             </tr>
           {:else}
-            <tr><td colspan="5" class="muted">Ingen aktive alarmer{system ? ` i ${system.name}` : ''}.</td></tr>
+            <tr><td colspan="6" class="muted">Ingen aktive alarmer{systemId ? ` — ${filterName}` : ''}.</td></tr>
           {/each}
         </tbody>
       </table>
@@ -132,18 +136,19 @@
   {:else}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Tid</th><th>Hændelse</th><th>Niveau</th><th>Alarm</th><th>Bruger</th></tr></thead>
+        <thead><tr><th>Tid</th><th>Hændelse</th><th>Niveau</th><th>System</th><th>Alarm</th><th>Bruger</th></tr></thead>
         <tbody>
           {#each shownHistory as e (e.id)}
             <tr>
               <td class="small nowrap">{fmt(e.ts)}</td>
               <td>{EVENT_TEXT[e.event] ?? e.event}</td>
               <td><span class="prio-{e.priority}">{levelText(e.level, e.priority)}</span></td>
+              <td class="small">{sysNames(e)}</td>
               <td class="small">{e.message}</td>
               <td class="small">{e.username}</td>
             </tr>
           {:else}
-            <tr><td colspan="5" class="muted">Ingen hændelser.</td></tr>
+            <tr><td colspan="6" class="muted">Ingen hændelser.</td></tr>
           {/each}
         </tbody>
       </table>

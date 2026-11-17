@@ -301,3 +301,8 @@ for key, tag in [("ft", "VW_Q"), ("pt", "VW_TRYK"), ("at1", "VW_AT1"), ("at2", "
     typ = {"ft": "ft", "pt": "pt", "lt": "lt", "at": "at"}[key.rstrip("0123456789")]
     put(key, base(typ, anims=[A(f"{ID[key]}_vaerdi", "text", tag, {"decimals": None, "texts": [], "true_text": "Til", "false_text": "Fra", "show_unit": False,
                                                                   "prefix": "", "suffix": "", "expression": ""})]))
+
+# ---- alarmlamper: gør alarm-tagsene til en del af tegningen (så Alarmer kan filtrere pr. system)
+for i, tag in [["al_brond", "VW_AL_BROND"], ["al_brond_ll", "VW_AL_BROND_LL"], ["al_hypo", "VW_AL_HYPO"], ["al_hypo_tom", "VW_AL_HYPO_TOM"], ["al_klor_lav", "VW_AL_KLOR_LAV"], ["al_klor_hoej", "VW_AL_KLOR_HOEJ"], ["al_p1", "VW_AL_P1"], ["al_p2", "VW_AL_P2"], ["al_flow", "VW_AL_FLOW"], ["al_doegn", "VW_AL_DOEGN"], ["al_an", "VW_AL_AN"], ["al_beh_lav", "VW_AL_BEH_LAV"], ["al_beh_hoej", "VW_AL_BEH_HOEJ"], ["al_trip", "VW_AL_TRIP"]]:
+    ID[i] = i
+    put(i, base("lampe", anims=[A(f"{i}_glas", "fill", tag, {"on": "#e53935", "off": "#d6d6d6", "thresholds": [], "at_least": None})]))

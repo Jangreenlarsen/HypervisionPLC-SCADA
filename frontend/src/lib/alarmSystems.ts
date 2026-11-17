@@ -2,11 +2,23 @@
 export interface AlarmSystem { id: string; name: string; tags: string[] }
 export interface AlarmLike { key: string; kind?: string; tag?: string }
 
-/** Skal alarmen/hændelsen vises, når `system` er valgt (null = alle systemer)? Symbolalarmer hører til deres tegning, tag-alarmer til
- *  tegninger, der bruger tagget; SCADA- og PLC-forbindelsesalarmer og alt uden tag vises altid. */
-export function inSystem(system: AlarmSystem | null, a: AlarmLike): boolean {
-  if (!system) return true;
-  if (a.key.startsWith('sym:')) return a.key.split(':')[1] === system.id;
-  if (a.kind === 'sys' || a.kind === 'comm' || !a.tag) return true;
-  return system.tags.includes(a.tag);
+/** Værdien i valget for alarmer, der ikke står på nogen tegning. */
+export const NO_SYSTEM = '-';
+
+/** Systemerne (tegningerne), alarmen hører til: symbolalarmer til deres tegning, tag-alarmer til tegninger, der bruger tagget.
+ *  SCADA- og PLC-forbindelsesalarmer og alt uden tag hører ikke til et bestemt system (tom liste). */
+export function systemsOf(systems: AlarmSystem[], a: AlarmLike): AlarmSystem[] {
+  if (a.key.startsWith('sym:')) return systems.filter((s) => s.id === a.key.split(':')[1]);
+  if (a.kind === 'sys' || a.kind === 'comm' || !a.tag) return [];
+  return systems.filter((s) => s.tags.includes(a.tag as string));
+}
+
+/** Skal alarmen/hændelsen vises for det valgte system (null = alle, NO_SYSTEM = kun alarmer uden tegning)? SCADA- og PLC-forbindelsesalarmer
+ *  og hændelser uden tag vises altid. */
+export function inSystem(systems: AlarmSystem[], selected: string, a: AlarmLike): boolean {
+  if (!selected) return true;
+  const general = a.kind === 'sys' || a.kind === 'comm' || (!a.tag && !a.key.startsWith('sym:'));
+  if (general) return true;
+  const mine = systemsOf(systems, a);
+  return selected === NO_SYSTEM ? mine.length === 0 : mine.some((s) => s.id === selected);
 }

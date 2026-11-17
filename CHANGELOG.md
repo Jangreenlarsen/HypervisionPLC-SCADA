@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.16.1 build 0437] — 2026-11-17 — Alarmer: kolonnen System, "Uden system" og alarmlamper på tegningerne
+
+Jan: "alarmer er sammen blandet nu imellem system tegninger". Alarm-tagsene for vandværket og testen stod ikke på nogen tegning, så filteret (v6.15.0) kunne ikke placere dem.
+
+- `frontend/src/lib/alarmSystems.ts`: `systemsOf` og `inSystem` med valget *Uden system* (`NO_SYSTEM`); test udvidet.
+- `frontend/src/pages/Alarms.svelte`: kolonnen **System** (Aktive og Historik), valget *Uden system*, *Kvittér alle (<valg>)*.
+- `frontend/src/manual/03-alarmer.md`: afsnittet *Vælg system* (sæt en lampe på tegningen).
+- `demo/vandvaerk` (`vandvaerk.svg`, `scada_setup.py`): 14 alarmlamper; `demo/test-ny-editor/alarm_lamps.py`: 3 alarmlamper.
+
+---
+
 ## [6.16.0 build 0436] — 2026-11-17 — Instrumentbobler viser værdien
 
 Jan: "de manometer vi har i tegning kan vi ikke gøre dem animeret, enten med tekst værdi eller en viser". Manometerets viser kunne allerede animeres (Rotation); det var ISA-boblerne (FT, PT, LT, TT, AT), der kun stod med bogstaver.
