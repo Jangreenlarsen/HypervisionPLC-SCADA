@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.15.0 build 0435] — 2026-11-17 — Alarmer: filter pr. system
+
+Jan: "de alarmer man har i de forskellige systemtegninger kunne være rart man kun så dem i alarmer" (valgt: filter pr. system i Alarmer).
+
+- `backend/app/api/alarms.py`: `GET /api/alarms/systems` — tegningerne og de tags, de bruger (bindinger og symbolopsætning), begrænset til brugerens tegninger og tags.
+- `frontend/src/lib/alarmSystems.ts` (ny, med test): hvilke alarmer og hændelser hører til et system (symbolalarmer efter tegning, tag-alarmer efter tagget; SCADA/PLC og uden tag vises altid).
+- `frontend/src/pages/Alarms.svelte`: valg af *System* (kun ved flere systemer), filter på Aktive og Historik, *Kvittér alle i <system>* kvitterer kun de viste; valget huskes i browseren.
+- `frontend/src/manual/03-alarmer.md`: afsnittet *Vælg system*. Backend-test i `test_scope.py`.
+
+---
+
 ## [6.14.1 build 0434] — 2026-11-17 — Vandværkssymbolerne i flowberegningen: kontakttank gennemløb, brønd med IND og indbyggede tilslutningspunkter
 
 Fundet ved at bygge tegningen `vandvaerk` (brøndstation med klordosering): flowberegningen kræver en lukket kreds, og symbolerne fra v6.14.0 kunne ikke indgå.

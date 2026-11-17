@@ -2,6 +2,10 @@
 
 ---
 
+## v6.15.0 — 2026-11-17 — Alarmer pr. system
+
+- På siden Alarmer kan du vælge et **system** (tegning) og kun se dets alarmer, både aktive og i historikken. *Kvittér alle* gælder kun det valgte system. Klokken i topbjælken tæller stadig alle.
+
 ## v6.14.1 — 2026-11-17
 
 - Kontakttank og brønd med dykpumpe kan indgå i flowberegningen (løbelys gennem tanken og tilbage til brønden). Brøndens tilløbsstuds er tegnet, og dens tilslutningspunkter er indbygget.

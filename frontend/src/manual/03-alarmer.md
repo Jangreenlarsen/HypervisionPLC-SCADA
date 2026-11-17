@@ -17,6 +17,10 @@ Fanen **Aktive** viser de alarmer, der er i gang lige nu, og dem der er ophørt,
 
 En alarm, der ikke er kvitteret, har en **rød streg** i venstre side af rækken. Ude til højre står **Kvittér** og (når hjælperen er slået til) **Forklar**.
 
+## Vælg system
+
+Har anlægget flere tegninger (systemer), kan du ved siden af fanerne vælge **System** og kun se det systems alarmer, både under *Aktive* og *Historik*. Et systems alarmer er alarmerne på de tags, dets tegning bruger, og tegningens egne symbolalarmer. Alarmer om SCADA-serveren og PLC-forbindelsen vises altid. *Alle systemer* viser alt, og klokken i topbjælken tæller stadig alle alarmer. Valget huskes i browseren, og med et system valgt kvitterer **Kvittér alle** kun dette systems alarmer.
+
 ## Kvittér en alarm
 
 Tryk **Kvittér** på en alarm for at sige, at du har set den, eller **Kvittér alle (N)** øverst til højre for alle ukvitterede på én gang. Kvittering kræver rollen **operatør** (eller højere); en bruger med rollen *viewer* ser teksten *Kvittering kræver rollen operatør*.
