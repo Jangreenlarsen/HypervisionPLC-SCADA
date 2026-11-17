@@ -218,14 +218,17 @@ export const SYMBOLS: SymbolDef[] = [
       `<circle cx="17.9" cy="37" r="4" fill="${PANEL}" stroke="${DARK}" stroke-width="1.5"/></g></g>`,
   },
   {
-    // Brønd med dykpumpe (v6.14.0): snit af en brønd; vandet (Niveau på "fyld"), dykpumpen med rotor og stigrøret ud af brøndens side (UD)
+    // Brønd med dykpumpe (v6.14.0): snit af en brønd; vandet (Niveau på "fyld"), dykpumpen med rotor, stigrøret ud af brøndens side (UD) og en tilløbsstuds i venstre side (IND)
     id: 'broend', label: 'Brønd med dykpumpe', category: 'proces',
-    hint: 'Bind "Niveau" på vandet (fyld) og "Roterer" på dykpumpens rotor; flow-rolle pumpe/kilde med UD til højre for stigrøret',
-    svg: `<g><rect x="0" y="12" width="60" height="138" rx="4" fill="${PANEL}" stroke="${LINE}" stroke-width="3"/>` +
+    hint: 'Bind "Niveau" på vandet (fyld) og "Roterer" på dykpumpens rotor; flow-rolle pumpe: UD ved stigrøret (højre), IND ved studsen (venstre)',
+    svg: `<g data-hv-ports="1,0.21;0,0.64"><rect x="0" y="12" width="60" height="138" rx="4" fill="${PANEL}" stroke="${LINE}" stroke-width="3"/>` +
       `<rect id="fyld" x="3" y="15" width="54" height="132" rx="3" fill="${MEDIUM}"/>` +
       `<rect x="-6" y="4" width="72" height="8" rx="2" fill="${FILL}" stroke="${LINE}" stroke-width="2"/>` +
       `<path d="M30 100 V34 H80" fill="none" stroke="${LINE}" stroke-width="8" stroke-linejoin="round"/>` +
       `<path d="M30 100 V34 H80" fill="none" stroke="${FILL}" stroke-width="4" stroke-linejoin="round"/>` +
+      // tilløbsstuds i den venstre væg (IND — i flowberegningen er det returen)
+      `<path d="M-6 97.44 H4" fill="none" stroke="${LINE}" stroke-width="8"/>` +
+      `<path d="M-6 97.44 H4" fill="none" stroke="${FILL}" stroke-width="4"/>` +
       `<rect id="hus" x="17" y="98" width="26" height="44" rx="7" fill="${FILL}" stroke="${LINE}" stroke-width="2.5"/>` +
       `<g id="loebehjul"><circle cx="30" cy="120" r="9" fill="none" stroke="none"/>` +
       `<path d="M30 120 L30 112 M30 120 L36.9 124 M30 120 L23.1 124" fill="none" stroke="${PANEL}" stroke-width="3" stroke-linecap="round"/></g></g>`,

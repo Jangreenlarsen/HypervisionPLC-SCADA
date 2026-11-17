@@ -28,7 +28,7 @@ Biblioteket har **101 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** o
 | **Statusfelt** | Kun passiv visning | Knyt til et register: farven følger værdien (Fyldfarve) — ret teksten i Tegn |
 | **Pumpe** | Kun passiv visning, Interaktiv betjening, Trykknap (puls) | Løbehjulet drejer, når pumpen kører (Roterer); pilen viser pumperetningen — drej symbolet for at vende den |
 | **Doseringspumpe** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | Rotoren drejer, når pumpen kører (Roterer) — bind drifts-tagget; flow-rolle pumpe (IND til venstre, UD til højre) |
-| **Brønd med dykpumpe** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | Bind "Niveau" på vandet (fyld) og "Roterer" på dykpumpens rotor; flow-rolle pumpe/kilde med UD til højre for stigrøret |
+| **Brønd med dykpumpe** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | Bind "Niveau" på vandet (fyld) og "Roterer" på dykpumpens rotor; flow-rolle pumpe: UD ved stigrøret (højre), IND ved studsen (venstre) |
 | **Trendgraf** | Kun passiv visning | Kurve eller søjler med historikken for 1–4 tags — opsæt i guiden (sektionen Graf) |
 | **Motor** | Kun passiv visning, Interaktiv betjening, Trykknap (puls) | Bind "Fyldfarve" til drift-signalet |
 | **Tank** | Kun passiv visning | Bind "Niveau" på det indre rektangel |

@@ -66,8 +66,10 @@ const IN_OUT = (y: number): PortDef[] => [
 export const FLOW_DEFAULTS: FlowDefs = {
   pumpe: { ports: IN_OUT(0.5), kind: 'pump' },
   doseringspumpe: { ports: IN_OUT(0.5), kind: 'pump' },
-  // brønd med dykpumpe (v6.14.0): kilde med kun et UD-punkt (stigrøret, ca. 0,21 fra toppen)
-  broend: { ports: [{ x: 1, y: 0.21, name: 'UD', role: 'out' }], kind: 'pump' },
+  // kontakttank (v6.14.1): flowet løber igennem — ind til venstre, ud til højre (midt på siderne = tankens automatiske punkter)
+  kontakttank: { ports: IN_OUT(0.5) },
+  // brønd med dykpumpe (v6.14.0): UD er stigrøret (ca. 0,21 fra toppen), IND i brøndens venstre væg (returen i flowberegningen, der kræver en lukket kreds)
+  broend: { ports: [{ x: 1, y: 0.21, name: 'UD', role: 'out' }, { x: 0, y: 0.64, name: 'IND', role: 'in' }], kind: 'pump' },
   kontraventil: { ports: IN_OUT(0.67) },
   trevejs_motorventil: {
     ports: [{ x: 0.07, y: 0.46, name: 'A', role: 'both', part: 'port_a' }, { x: 0.46, y: 0.08, name: 'B', role: 'both', part: 'port_b' },

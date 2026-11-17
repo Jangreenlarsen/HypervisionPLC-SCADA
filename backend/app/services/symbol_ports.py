@@ -22,6 +22,11 @@ log = logging.getLogger("scada.symbol_ports")
 TYPE_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 MAX_PORTS = 32
 MAX_TYPES = 500   # loft over antal symboltyper med rettede punkter (biblioteket har langt færre)
+# Indbyggede rettede punkter (v6.14.1): symboler, hvis tilslutningspunkter ikke kan findes automatisk (en studs inde i symbolets boks).
+# En tekniker kan rette dem som alle andre; "nulstil" vender tilbage til disse.
+BUILTIN_PORTS: dict[str, list[list[float]]] = {
+    "broend": [[1.0, 0.21], [0.0, 0.64]],   # brønd med dykpumpe: UD ved stigrøret, IND ved tilløbsstudsen
+}
 
 
 def clean_type(sym_type: Any) -> str:
@@ -53,7 +58,7 @@ class SymbolPortService:
         self.db = db
 
     def list(self) -> dict[str, list[list[float]]]:
-        return self.db.list_symbol_ports()
+        return {**{k: [list(p) for p in v] for k, v in BUILTIN_PORTS.items()}, **self.db.list_symbol_ports()}
 
     def set(self, sym_type: str, ports: Any) -> list[list[float]]:
         t = clean_type(sym_type)

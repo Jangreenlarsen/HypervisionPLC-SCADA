@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.14.1 build 0434] — 2026-11-17 — Vandværkssymbolerne i flowberegningen: kontakttank gennemløb, brønd med IND og indbyggede tilslutningspunkter
+
+Fundet ved at bygge tegningen `vandvaerk` (brøndstation med klordosering): flowberegningen kræver en lukket kreds, og symbolerne fra v6.14.0 kunne ikke indgå.
+
+- `frontend/src/lib/symbolFlow.ts`, `backend/app/services/flow_defs.py`, `shared/flow_defaults.json`: **Kontakttank** er et gennemløb (IND til venstre, UD til højre, midt på siderne = tankens automatiske punkter); **Brønd med dykpumpe** har både UD (stigrøret) og IND (tilløbsstudsen i venstre væg).
+- `frontend/src/lib/symbols.ts`: brøndens tilløbsstuds tegnet.
+- `backend/app/services/symbol_ports.py`: **indbyggede tilslutningspunkter** for symboler, hvis punkter ikke kan findes automatisk (`broend`); en tekniker kan rette dem, og *nulstil* vender tilbage til dem.
+- Tests: `symbols.test.ts`, `test_symbol_ports.py`; manualkapitlet genereret igen.
+
+---
+
 ## [6.14.0 build 0433] — 2026-11-17 — Nye symboler: analysator, doseringspumpe, kontakttank og brønd med dykpumpe
 
 Til vandværks-demoen (`docs/ANALYSE_VANDVAERK.md`).

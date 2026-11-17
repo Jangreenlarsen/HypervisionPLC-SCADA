@@ -31,7 +31,8 @@ describe('symbolbibliotek', () => {
     const ids = new Set(SYMBOLS.map((s) => s.id));
     for (const id of ['at', 'doseringspumpe', 'kontakttank', 'broend']) expect(ids.has(id), id).toBe(true);
     for (const id of ['doseringspumpe', 'broend']) expect(FLOW_DEFAULTS[id]?.kind, id).toBe('pump');
-    expect(FLOW_DEFAULTS.broend.ports.map((p) => p.role)).toEqual(['out']);
+    expect(FLOW_DEFAULTS.broend.ports.map((p) => p.role).sort()).toEqual(['in', 'out']);
+    expect(FLOW_DEFAULTS.kontakttank.ports.length).toBe(2);
   });
   it('de ønskede fittings og el-symboler findes', () => {
     const ids = new Set(SYMBOLS.map((s) => s.id));
