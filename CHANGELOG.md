@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.16.3 build 0439] — 2026-11-17 — Alarmer åbner med den tegning, man kom fra
+
+Jan: "alarmer er et problem nu som du kan se" (skærmbillede: Alarmer åbnet fra vandvaerk viste også test_ny_editors alarmer).
+
+- `frontend/src/lib/alarmSystems.ts`: `defaultSystem` (den sidst viste tegning, hvis den er et system; ellers alle), med test.
+- `frontend/src/pages/Alarms.svelte`: siden åbner med den tegning, man kom fra; det gemte valg (localStorage) er fjernet.
+- `frontend/src/manual/03-alarmer.md`: afsnittet *Vælg system*.
+
+---
+
 ## [6.16.2 build 0438] — 2026-11-17 — Tilstandsmærket kan fravælges pr. symbol også på kun-visning-symboler
 
 Jan: "det lille icon for PLC status ved alle symboler som bruger PLC tilbagemelding vil jeg godt have at man kan vælge til eller fra på tegning individuelt".

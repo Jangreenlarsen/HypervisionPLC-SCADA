@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inSystem, NO_SYSTEM, systemsOf, type AlarmSystem } from './alarmSystems';
+import { defaultSystem, inSystem, NO_SYSTEM, systemsOf, type AlarmSystem } from './alarmSystems';
 
 const vand: AlarmSystem = { id: 'vandvaerk', name: 'Vandværk', tags: ['VW_AL_P1', 'VW_AL_TRIP'] };
 const test: AlarmSystem = { id: 'test', name: 'Test', tags: ['TNE_ALARM'] };
@@ -30,5 +30,14 @@ describe('alarmer pr. system', () => {
     expect(inSystem(all, 'vandvaerk', { key: 'plc:demo', kind: 'comm', tag: '' })).toBe(true);
     expect(inSystem(all, NO_SYSTEM, { key: 'plc:demo', tag: '' })).toBe(true);
     expect(systemsOf(all, { key: 'plc:demo', kind: 'comm', tag: '' })).toEqual([]);
+  });
+});
+
+describe('Alarmer åbner med den tegning, man kom fra', () => {
+  it('den sidst viste tegning vælges, hvis den er et system; ellers alle', () => {
+    expect(defaultSystem(all, 'vandvaerk')).toBe('vandvaerk');
+    expect(defaultSystem(all, 'ukendt')).toBe('');
+    expect(defaultSystem(all, null)).toBe('');
+    expect(defaultSystem([], 'vandvaerk')).toBe('');
   });
 });
