@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.16.2 build 0438] — 2026-11-17 — Tilstandsmærket kan fravælges pr. symbol også på kun-visning-symboler
+
+Jan: "det lille icon for PLC status ved alle symboler som bruger PLC tilbagemelding vil jeg godt have at man kan vælge til eller fra på tegning individuelt".
+
+- `frontend/src/lib/SymbolGuide.svelte`: *Vis tilstandsmærke* i trin 4 vises også for passive positionssymboler (før kun betjenelige). Delt snippet `badgeToggle`.
+- `frontend/src/manual/10-symboler-og-guiden.md`: afsnittet *Tilstandsmærket* præciseret.
+
+---
+
 ## [6.16.1 build 0437] — 2026-11-17 — Alarmer: kolonnen System, "Uden system" og alarmlamper på tegningerne
 
 Jan: "alarmer er sammen blandet nu imellem system tegninger". Alarm-tagsene for vandværket og testen stod ikke på nogen tegning, så filteret (v6.15.0) kunne ikke placere dem.

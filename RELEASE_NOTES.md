@@ -2,6 +2,10 @@
 
 ---
 
+## v6.16.2 — 2026-11-17
+
+- Tilstandsmærket (✓ … ! ?) kan nu slås til eller fra pr. symbol også på symboler, der kun viser PLC'ens position: guiden, trin 4, *Vis tilstandsmærke*.
+
 ## v6.16.1 — 2026-11-17
 
 - Alarmer: listen har en kolonne **System**, og du kan vælge **Uden system** (alarmer, der ikke står på en tegning). Sæt en lampe bundet til alarm-tagget på tegningen, så alarmen hører til systemet. Vandværket og testen har fået alarmlamper.

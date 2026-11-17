@@ -931,15 +931,19 @@ import { AVERAGE_CHOICES } from './trendData';
               {/each}
             </section>
           {/if}
+          {#snippet badgeToggle()}
+            <label class="opt" title="Mærket ✓ / … / ! / ? ved symbolet på Overview viser, om positionen er bekræftet, venter, afviger eller er ukendt. Valget gælder kun dette symbol">
+              <input type="checkbox" checked={cfg.badge !== false} onchange={(e) => (cfg.badge = e.currentTarget.checked)} /> Vis tilstandsmærke</label>
+          {/snippet}
           <div class="row wrap">
             {#if passive}
               <span class="small muted">Viser PLC'ens position ud fra tilbagemeldingerne — kun visning, symbolet kan ikke betjenes.</span>
+              {@render badgeToggle()}
             {:else if isPos}
               <label class="field-row">Vis
                 <select bind:value={cfg.display}><option value="remote" disabled={!hasFeedback(cfg) && cfg.display !== 'remote'}>PLC'ens position{hasFeedback(cfg) ? '' : ' (kræver tilbagemelding på alle signaler i trin 2)'}</option><option value="local">Valgt position</option></select>
               </label>
-              <label class="opt" title="Mærket ✓ / … / ! / ? ved symbolet på Overview viser, om positionen er bekræftet, venter, afviger eller er ukendt">
-                <input type="checkbox" checked={cfg.badge !== false} onchange={(e) => (cfg.badge = e.currentTarget.checked)} /> Vis tilstandsmærke</label>
+              {@render badgeToggle()}
               <label class="field-row">Tid til at bekræfte (s)
                 <input class="n" type="number" min="1" max="120" step="0.5" bind:value={cfg.validate_s} />
               </label>
