@@ -317,7 +317,7 @@ Bekræftelse og nøglelås gælder uændret: kræver positionen bekræftelse ell
 
 ## Tilstandsmærket
 
-Et symbol med positioner viser et lille **mærke** i øverste højre hjørne på Overview: ✓ bekræftet, … venter, ! afviger og ? ukendt. Vil du ikke have mærket (fx på en tæt tegning eller et symbol, hvor positionen er tydelig nok), så fjern hakket ved **Vis tilstandsmærke** i trin 4. Symbolet virker ellers som før: skyggen *PLC: …* ved en afvigelse og hængelåsen ved en låst position vises stadig, og en afvigelse giver stadig alarm.
+Et symbol med positioner viser et lille **mærke** i øverste højre hjørne på Overview: ✓ bekræftet, … venter, ! afviger og ? ukendt. Vil du ikke have mærket (fx på en tæt tegning eller et symbol, hvor positionen er tydelig nok), så fjern hakket ved **Vis tilstandsmærke** i trin 4. Hakket findes både på symboler, der kan betjenes, og på kun-visning-symboler, der viser PLC'ens position, og gælder kun det ene symbol — hvert symbol på tegningen vælges for sig. Symbolet virker ellers som før: skyggen *PLC: …* ved en afvigelse og hængelåsen ved en låst position vises stadig, og en afvigelse giver stadig alarm.
 
 ## Nøglelås
 

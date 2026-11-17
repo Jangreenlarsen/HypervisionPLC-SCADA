@@ -238,3 +238,17 @@ def test_live_ws_drops_tag_removed_from_drawing(setup):
         assert c.put(f"/api/drawings/{a}/bindings/Knap_A", json={"bindings": []}).status_code == 200
         snap = _ws_until(ws, lambda m: m["type"] == "snapshot")      # uden ny subscribe og uden ændret adgang
         assert set(snap["values"]) == {"Niveau_A"}
+
+
+def test_alarm_systems_lists_drawings_with_their_tags_and_respects_scope(setup):
+    c, a, b = setup
+    _as_admin(c)
+    r = c.get("/api/alarms/systems")
+    assert r.status_code == 200
+    by = {s["id"]: s for s in r.json()}
+    assert set(by) == {a, b} and by[a]["name"] == "Anlæg A"
+    assert "Motor_A" in by[a]["tags"] and "Motor_B" not in by[a]["tags"]
+    assert "Motor_B" in by[b]["tags"]
+    _as_op(c)    # en begrænset bruger ser kun sin egen tegning og sine tags
+    mine = c.get("/api/alarms/systems").json()
+    assert [s["id"] for s in mine] == [a] and "Motor_B" not in mine[0]["tags"]

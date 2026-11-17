@@ -4,6 +4,48 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.16.2 build 0438] — 2026-11-17 — Tilstandsmærket kan fravælges pr. symbol også på kun-visning-symboler
+
+Jan: "det lille icon for PLC status ved alle symboler som bruger PLC tilbagemelding vil jeg godt have at man kan vælge til eller fra på tegning individuelt".
+
+- `frontend/src/lib/SymbolGuide.svelte`: *Vis tilstandsmærke* i trin 4 vises også for passive positionssymboler (før kun betjenelige). Delt snippet `badgeToggle`.
+- `frontend/src/manual/10-symboler-og-guiden.md`: afsnittet *Tilstandsmærket* præciseret.
+
+---
+
+## [6.16.1 build 0437] — 2026-11-17 — Alarmer: kolonnen System, "Uden system" og alarmlamper på tegningerne
+
+Jan: "alarmer er sammen blandet nu imellem system tegninger". Alarm-tagsene for vandværket og testen stod ikke på nogen tegning, så filteret (v6.15.0) kunne ikke placere dem.
+
+- `frontend/src/lib/alarmSystems.ts`: `systemsOf` og `inSystem` med valget *Uden system* (`NO_SYSTEM`); test udvidet.
+- `frontend/src/pages/Alarms.svelte`: kolonnen **System** (Aktive og Historik), valget *Uden system*, *Kvittér alle (<valg>)*.
+- `frontend/src/manual/03-alarmer.md`: afsnittet *Vælg system* (sæt en lampe på tegningen).
+- `demo/vandvaerk` (`vandvaerk.svg`, `scada_setup.py`): 14 alarmlamper; `demo/test-ny-editor/alarm_lamps.py`: 3 alarmlamper.
+
+---
+
+## [6.16.0 build 0436] — 2026-11-17 — Instrumentbobler viser værdien
+
+Jan: "de manometer vi har i tegning kan vi ikke gøre dem animeret, enten med tekst værdi eller en viser". Manometerets viser kunne allerede animeres (Rotation); det var ISA-boblerne (FT, PT, LT, TT, AT), der kun stod med bogstaver.
+
+- `frontend/src/lib/symbols.ts`: boblerne har en `vaerdi`-tekst under bogstaverne (bogstaverne er flyttet lidt op og gjort mindre); hints rettet.
+- `frontend/src/lib/symbolConfig.ts`: guidens forslag til TT/PT/FT/LT/AT: en Tekst-animation på værdien. Test i `libraryDefaults.test.ts`.
+- Manualkapitlet *Symbolbiblioteket* genereret igen. Bobler, der allerede står i en tegning, mangler værdi-teksten: indsæt dem igen fra biblioteket (Erstat med symbol).
+- `demo/vandvaerk`: de 7 bobler i tegningen viser nu værdien (`vandvaerk.svg`, `scada_setup.py`).
+
+---
+
+## [6.15.0 build 0435] — 2026-11-17 — Alarmer: filter pr. system
+
+Jan: "de alarmer man har i de forskellige systemtegninger kunne være rart man kun så dem i alarmer" (valgt: filter pr. system i Alarmer).
+
+- `backend/app/api/alarms.py`: `GET /api/alarms/systems` — tegningerne og de tags, de bruger (bindinger og symbolopsætning), begrænset til brugerens tegninger og tags.
+- `frontend/src/lib/alarmSystems.ts` (ny, med test): hvilke alarmer og hændelser hører til et system (symbolalarmer efter tegning, tag-alarmer efter tagget; SCADA/PLC og uden tag vises altid).
+- `frontend/src/pages/Alarms.svelte`: valg af *System* (kun ved flere systemer), filter på Aktive og Historik, *Kvittér alle i <system>* kvitterer kun de viste; valget huskes i browseren.
+- `frontend/src/manual/03-alarmer.md`: afsnittet *Vælg system*. Backend-test i `test_scope.py`.
+
+---
+
 ## [6.14.1 build 0434] — 2026-11-17 — Vandværkssymbolerne i flowberegningen: kontakttank gennemløb, brønd med IND og indbyggede tilslutningspunkter
 
 Fundet ved at bygge tegningen `vandvaerk` (brøndstation med klordosering): flowberegningen kræver en lukket kreds, og symbolerne fra v6.14.0 kunne ikke indgå.

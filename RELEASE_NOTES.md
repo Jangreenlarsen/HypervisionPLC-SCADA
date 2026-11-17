@@ -2,6 +2,22 @@
 
 ---
 
+## v6.16.2 — 2026-11-17
+
+- Tilstandsmærket (✓ … ! ?) kan nu slås til eller fra pr. symbol også på symboler, der kun viser PLC'ens position: guiden, trin 4, *Vis tilstandsmærke*.
+
+## v6.16.1 — 2026-11-17
+
+- Alarmer: listen har en kolonne **System**, og du kan vælge **Uden system** (alarmer, der ikke står på en tegning). Sæt en lampe bundet til alarm-tagget på tegningen, så alarmen hører til systemet. Vandværket og testen har fået alarmlamper.
+
+## v6.16.0 — 2026-11-17 — Bobler med værdi
+
+- Instrumentboblerne (temperatur, tryk, flow, niveau, analysator) kan vise værdien i selve boblen. Vælg tagget i guiden, så vises værdien (enhed og decimaler fra tagget). Bobler, der allerede står i en tegning, skal erstattes med den nye fra biblioteket.
+
+## v6.15.0 — 2026-11-17 — Alarmer pr. system
+
+- På siden Alarmer kan du vælge et **system** (tegning) og kun se dets alarmer, både aktive og i historikken. *Kvittér alle* gælder kun det valgte system. Klokken i topbjælken tæller stadig alle.
+
 ## v6.14.1 — 2026-11-17
 
 - Kontakttank og brønd med dykpumpe kan indgå i flowberegningen (løbelys gennem tanken og tilbage til brønden). Brøndens tilløbsstuds er tegnet, og dens tilslutningspunkter er indbygget.

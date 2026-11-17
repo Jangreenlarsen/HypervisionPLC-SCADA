@@ -181,3 +181,16 @@ describe('kedel/fyr: blafrende flamme (v0.69.0)', () => {
     expect(libraryDefault(info('kedel', []))).toBeNull();
   });
 });
+
+describe('instrumentbobler med værdi (v6.16.0)', () => {
+  it('hver boble har bogstaverne og en værdi-tekst', () => {
+    for (const id of ['tt', 'pt', 'ft', 'lt', 'at']) expect(partIds(id), id).toEqual(['tekst', 'vaerdi']);
+  });
+  it('guiden foreslår en Tekst-animation på værdien, og en ældre boble uden værdi får intet forslag', () => {
+    const r = libraryDefault(info('pt', ['tekst', 'vaerdi']))!;
+    expect(r.config.anims).toHaveLength(1);
+    expect(r.config.anims[0].type).toBe('text');
+    expect(r.config.anims[0].part).toBe('V1_vaerdi_2');
+    expect(libraryDefault(info('pt', ['tekst']))).toBeNull();
+  });
+});

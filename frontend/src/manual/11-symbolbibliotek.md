@@ -73,11 +73,11 @@ Biblioteket har **101 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** o
 | **Ventilator/blæser** | Kun passiv visning, Interaktiv betjening, Trykknap (puls) | Bind "Fyldfarve" til drift, evt. "Rotation" på rotoren |
 | **Kedel/fyr** | Kun passiv visning | Sæt "Blafrer" (eller "Farve") på flammen til brænderdrift |
 | **Varmepumpe** | Kun passiv visning, Interaktiv betjening, Trykknap (puls) | Bind "Roterer" på rotoren og "Fyldfarve" på lampen til drift |
-| **Temperatur (TT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
-| **Tryk (PT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
-| **Flow (FT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
-| **Niveau (LT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
-| **Analysator (AT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble (fx klor, pH, turbiditet); værdien vises i et værdifelt |
+| **Temperatur (TT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; vælg tagget i guiden, så vises værdien i boblen (Tekst på værdien) |
+| **Tryk (PT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; vælg tagget i guiden, så vises værdien i boblen (Tekst på værdien) |
+| **Flow (FT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; vælg tagget i guiden, så vises værdien i boblen (Tekst på værdien) |
+| **Niveau (LT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; vælg tagget i guiden, så vises værdien i boblen (Tekst på værdien) |
+| **Analysator (AT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble (fx klor, pH, turbiditet); vælg tagget i guiden, så vises værdien i boblen (Tekst på værdien) |
 | **Manometer** | Kun passiv visning | Bind "Rotation" på viseren (fx min -120°, max 120°) |
 | **Termometer** | Kun passiv visning | Bind "Niveau" på søjlen (min/max = måleområdet) |
 
