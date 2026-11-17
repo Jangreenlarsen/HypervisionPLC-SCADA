@@ -2,6 +2,14 @@
 
 ---
 
+## v6.14.1 — 2026-11-17
+
+- Kontakttank og brønd med dykpumpe kan indgå i flowberegningen (løbelys gennem tanken og tilbage til brønden). Brøndens tilløbsstuds er tegnet, og dens tilslutningspunkter er indbygget.
+
+## v6.14.0 — 2026-11-17 — Nye symboler
+
+- Biblioteket har fået **Analysator (AT)**, **Doseringspumpe**, **Kontakttank** (med skillevægge) og **Brønd med dykpumpe**. Pumpen og brønden indgår i flowberegningen som kilder.
+
 ## v6.13.4 — 2026-11-16
 
 - Animationer i symbol-guiden er ryddet op: hver animation har et navn (fx "Løbehjul · Roterer"), og felterne står under hinanden med etiket i en smal kolonne.

@@ -20,11 +20,12 @@ def api(tmp_path):
 
 
 def test_set_list_overwrite_reset(api):
-    assert api.get("/api/symbol-ports").json() == {}
+    builtin = {"broend": [[1.0, 0.21], [0.0, 0.64]]}     # indbyggede punkter (v6.14.1)
+    assert api.get("/api/symbol-ports").json() == builtin
     r = api.put("/api/symbol-ports/ventil", json={"ports": [[0, 0.5], [1, 0.5], [1, 0.5]]})
     assert r.status_code == 200 and r.json()["ports"] == [[0, 0.5], [1, 0.5]]   # dublet fjernet
     api.put("/api/symbol-ports/pumpe", json={"ports": [[0.123456, 0]]})
-    assert api.get("/api/symbol-ports").json() == {"pumpe": [[0.1235, 0]], "ventil": [[0, 0.5], [1, 0.5]]}
+    assert api.get("/api/symbol-ports").json() == {**builtin, "pumpe": [[0.1235, 0]], "ventil": [[0, 0.5], [1, 0.5]]}
     api.put("/api/symbol-ports/ventil", json={"ports": [[0.5, 1]]})
     assert api.get("/api/symbol-ports").json()["ventil"] == [[0.5, 1]]
     assert api.delete("/api/symbol-ports/ventil").status_code == 204
@@ -32,6 +33,13 @@ def test_set_list_overwrite_reset(api):
     assert api.delete("/api/symbol-ports/ventil").status_code == 204   # nulstil igen: ingen fejl
     actions = [e["action"] for e in api.get("/api/audit").json() if e["action"].startswith("symbol_ports")]
     assert actions.count("symbol_ports.set") == 3 and actions.count("symbol_ports.reset") == 1
+
+
+def test_builtin_ports_can_be_overridden_and_reset(api):
+    api.put("/api/symbol-ports/broend", json={"ports": [[0.5, 0.5]]})
+    assert api.get("/api/symbol-ports").json()["broend"] == [[0.5, 0.5]]
+    assert api.delete("/api/symbol-ports/broend").status_code == 204
+    assert api.get("/api/symbol-ports").json()["broend"] == [[1.0, 0.21], [0.0, 0.64]]   # tilbage til de indbyggede
 
 
 def test_validation():
@@ -68,11 +76,12 @@ def test_ports_survive_backup_roundtrip(api):
     assert backup["symbol_ports"] == {"ventil": [[0, 0.5], [1, 0.5]]}
     api.delete("/api/symbol-ports/ventil")
     assert api.post("/api/backup/restore", json=backup).status_code == 200
-    assert api.get("/api/symbol-ports").json() == {"ventil": [[0, 0.5], [1, 0.5]]}
+    builtin = {"broend": [[1.0, 0.21], [0.0, 0.64]]}     # indbyggede punkter (v6.14.1) ligger ikke i backup'en
+    assert api.get("/api/symbol-ports").json() == {**builtin, "ventil": [[0, 0.5], [1, 0.5]]}
     # ældre backup uden punkter: gendannelsen rydder dem (projektet erstattes helt)
     old = {k: v for k, v in backup.items() if k != "symbol_ports"}
     assert api.post("/api/backup/restore", json=old).status_code == 200
-    assert api.get("/api/symbol-ports").json() == {}
+    assert api.get("/api/symbol-ports").json() == builtin
     backup["symbol_ports"] = {"ventil": [[3, 3]]}
     r = api.post("/api/backup/restore", json=backup)
     assert r.status_code == 400 and "Tilslutningspunkter" in r.json()["error"]

@@ -57,7 +57,7 @@ const PIPE_TYPES = new Set(['roer_l', 'roer_v', 'boejning45', 'boejning90', 't_s
   'ledning_l', 'ledning_v', 'forbindelse', 'klemme']);
 const VALVES = new Set(['kugleventil', 'magnetventil', 'motorventil', 'regventil', 'ventil']);
 const THREEWAY = new Set(['trevejs_motorventil', 'trevejsventil']);
-const PUMPS = new Set(['pumpe', 'motor', 'motor3', 'varmepumpe']);
+const PUMPS = new Set(['pumpe', 'doseringspumpe', 'broend', 'motor', 'motor3', 'varmepumpe']);
 const SWITCHES = new Set(['kontakt_no', 'kontakt_nc', 'kontaktor', 'kontakt2', 'kontakt3', 'ac_afbryder', 'dc_afbryder',
   'hovedafbryder', 'automatsikring', 'sikring', 'motorvaern', 'omskifter3']);
 

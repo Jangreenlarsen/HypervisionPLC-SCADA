@@ -37,6 +37,11 @@ _GREB = lambda deg: [{"part": "greb", "anim": "rotate", "value": deg}]  # noqa: 
 
 DEFAULTS: dict[str, dict[str, Any]] = {
     "pumpe": {"ports": _in_out(0.5), "kind": "pump"},
+    "doseringspumpe": {"ports": _in_out(0.5), "kind": "pump"},
+    # kontakttank (v6.14.1): flowet løber igennem — ind til venstre, ud til højre (midt på siderne = tankens automatiske punkter)
+    "kontakttank": {"ports": _in_out(0.5)},
+    # brønd med dykpumpe (v6.14.0): UD er stigrøret, IND i brøndens venstre væg (returen: flowberegningen kræver en lukket kreds)
+    "broend": {"ports": [{"x": 1, "y": 0.21, "name": "UD", "role": "out"}, {"x": 0, "y": 0.64, "name": "IND", "role": "in"}], "kind": "pump"},
     "kontraventil": {"ports": _in_out(0.67)},
     "trevejs_motorventil": {"ports": [
         {"x": 0.07, "y": 0.46, "name": "A", "role": "both", "part": "port_a"},
@@ -68,7 +73,7 @@ DEFAULTS: dict[str, dict[str, Any]] = {
 PIPE_SYMBOL_TYPES = frozenset({"roer_l", "roer_v", "boejning45", "boejning90", "t_stykke", "kryds", "reduktion", "flange",
                                "ledning_l", "ledning_v", "forbindelse", "klemme"})
 # Typer, der som standard er en pumpe (kan ændres pr. symbol i guiden)
-PUMP_TYPES = frozenset({"pumpe"})
+PUMP_TYPES = frozenset({"pumpe", "doseringspumpe", "broend"})
 
 
 def merged(custom: dict[str, dict[str, Any]] | None) -> dict[str, dict[str, Any]]:

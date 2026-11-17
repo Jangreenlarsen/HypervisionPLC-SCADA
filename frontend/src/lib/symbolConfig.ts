@@ -25,7 +25,7 @@ import { defaultChart, type ChartCfg } from './chartGraphic';
 import { KNIV_LUKKET } from './symbols';
 import { presetFor } from './library';
 import { defaultDirs, leverAnims } from './toggleSwitch';
-import { guessState, type FlowState } from './symbolFlow';
+import { guessState, PUMP_TYPES, type FlowState } from './symbolFlow';
 
 export interface SymbolConfig {
   type: string; op: Op;
@@ -97,10 +97,10 @@ export function defaultFlow(type: string, positions: string[], ways: string[],
   };
   const open = positions.length && ways.length ? positions.map(byState) : null;
   // typens flow-profil (v6.3.0): pumpe/kilde, standard-kapacitet og -restriktion; portfarver, når punkterne har dele
-  return { pump: profile?.kind ? profile.kind === 'pump' : type === 'pumpe', capacity: profile?.capacity ?? 100,
+  return { pump: profile?.kind ? profile.kind === 'pump' : PUMP_TYPES.has(type), capacity: profile?.capacity ?? 100,
     // rate og restriktion er faste værdier for symbolet (Jan: givet af dets fysik) — et tag er et tilvalg
     // v6.9.4 (Jan): en pumpe med positioner starter/stopper efter positionen; uden positioner en fast værdi som før
-    rate: { src: (profile?.kind ? profile.kind === 'pump' : type === 'pumpe') && positions.length ? RATE_POS : '@val:1', max: 1 }, restrict: { src: `@val:${profile?.restrict ?? 1}`, max: 1 },
+    rate: { src: (profile?.kind ? profile.kind === 'pump' : PUMP_TYPES.has(type)) && positions.length ? RATE_POS : '@val:1', max: 1 }, restrict: { src: `@val:${profile?.restrict ?? 1}`, max: 1 },
     open, measured: { src: '', max: 1, low: 0, high: 100 },
     // portfarverne (v6.3.0) kun, når typens tilstande ikke selv farver portene (v6.7.0)
     port_colors: open && (profile?.ports ?? []).some((p) => p.part) && !(profile?.states ?? []).some((s) => s.look?.length)
@@ -260,7 +260,7 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     cfg.chart = defaultChart();
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: en graf over den seneste time. Vælg 1–4 tags under trin 4 (Graf), og slå historik til for dem i trin 6.' };
   }
-  if (symbol.type === 'pumpe') {
+  if (symbol.type === 'pumpe' || symbol.type === 'doseringspumpe' || symbol.type === 'broend') {
     // Drift (v0.86.0): løbehjulet drejer — pilen står stille og viser retningen
     const hjul = partOf('loebehjul');
     if (!hjul) return null;   // en gammel pumpe uden løbehjul (opdatér med "Erstat med symbol")

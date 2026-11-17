@@ -1,7 +1,7 @@
 <!-- GENERERET af src/lib/manualGen.test.ts ud fra symbolbiblioteket — ret ikke i hånden; kør GEN_MANUAL=1 npx vitest run src/lib/manualGen.test.ts -->
 # Symbolbiblioteket
 
-Biblioteket har **97 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
+Biblioteket har **101 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og sætter dem op med **guiden i 6 trin** (se *Symboler og guiden*). Kolonnen **Kan sættes op som** viser de betjeningsformer, guiden som standard tilbyder for symbolet; **Vis alle betjeningsformer** i guidens trin 1 åbner for resten.
 
 ## Betjening (skriver til PLC)
 
@@ -27,9 +27,12 @@ Biblioteket har **97 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 | --- | --- | --- |
 | **Statusfelt** | Kun passiv visning | Knyt til et register: farven følger værdien (Fyldfarve) — ret teksten i Tegn |
 | **Pumpe** | Kun passiv visning, Interaktiv betjening, Trykknap (puls) | Løbehjulet drejer, når pumpen kører (Roterer); pilen viser pumperetningen — drej symbolet for at vende den |
+| **Doseringspumpe** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | Rotoren drejer, når pumpen kører (Roterer) — bind drifts-tagget; flow-rolle pumpe (IND til venstre, UD til højre) |
+| **Brønd med dykpumpe** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | Bind "Niveau" på vandet (fyld) og "Roterer" på dykpumpens rotor; flow-rolle pumpe: UD ved stigrøret (højre), IND ved studsen (venstre) |
 | **Trendgraf** | Kun passiv visning | Kurve eller søjler med historikken for 1–4 tags — opsæt i guiden (sektionen Graf) |
 | **Motor** | Kun passiv visning, Interaktiv betjening, Trykknap (puls) | Bind "Fyldfarve" til drift-signalet |
 | **Tank** | Kun passiv visning | Bind "Niveau" på det indre rektangel |
+| **Kontakttank (skillevægge)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | Bind "Niveau" på det indre rektangel (fyld); skillevæggene er kun tegning |
 | **Værdifelt** | Kun passiv visning | Bind "Tekst" på teksten |
 | **7-segment display** | Kun passiv visning | Viser et tal på 4 cifre — bind "Segmenter" til et tal-tag. Andre antal cifre (1–16): brug "Display med egne cifre" |
 | **11-segment display** | Kun passiv visning | Som 7-segment, men viser også de fleste store bogstaver (A, C, D, E, F, G, H, I, J, L, O, P, S, T, U, Y, Z) |
@@ -74,6 +77,7 @@ Biblioteket har **97 symboler** i 6 kategorier. Du sætter dem ind i **Tegn** og
 | **Tryk (PT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
 | **Flow (FT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
 | **Niveau (LT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble; værdien vises i et værdifelt |
+| **Analysator (AT)** | Kun passiv visning, Interaktiv betjening, Trykknap (puls), Setpunkt (indtastning) | ISA-boble (fx klor, pH, turbiditet); værdien vises i et værdifelt |
 | **Manometer** | Kun passiv visning | Bind "Rotation" på viseren (fx min -120°, max 120°) |
 | **Termometer** | Kun passiv visning | Bind "Niveau" på søjlen (min/max = måleområdet) |
 

@@ -199,6 +199,56 @@
     }
    ]
   },
+  "doseringspumpe": {
+   "kind": "pump",
+   "ports": [
+    {
+     "name": "IND",
+     "role": "in",
+     "x": 0,
+     "y": 0.5
+    },
+    {
+     "name": "UD",
+     "role": "out",
+     "x": 1,
+     "y": 0.5
+    }
+   ]
+  },
+  "kontakttank": {
+   "ports": [
+    {
+     "name": "IND",
+     "role": "in",
+     "x": 0,
+     "y": 0.5
+    },
+    {
+     "name": "UD",
+     "role": "out",
+     "x": 1,
+     "y": 0.5
+    }
+   ]
+  },
+  "broend": {
+   "ports": [
+    {
+     "name": "UD",
+     "role": "out",
+     "x": 1,
+     "y": 0.21
+    },
+    {
+     "name": "IND",
+     "role": "in",
+     "x": 0,
+     "y": 0.64
+    }
+   ],
+   "kind": "pump"
+  },
   "trevejs_motorventil": {
    "ports": [
     {

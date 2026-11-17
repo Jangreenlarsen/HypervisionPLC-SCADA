@@ -6,7 +6,7 @@
   import { del, put } from './api';
   import { ask } from './ask';
   import {
-    FLOW_DEFAULTS, KIND_LABEL, LOOK_TXT, MEDIUM_LABEL, PIECE_TYPES, ROLE_LABEL, UNITS, describeState, hasProfile, lookDefault, validateDef, waysOf, wayKey, wayLabel,
+    FLOW_DEFAULTS, KIND_LABEL, LOOK_TXT, MEDIUM_LABEL, PIECE_TYPES, PUMP_TYPES, ROLE_LABEL, UNITS, describeState, hasProfile, lookDefault, validateDef, waysOf, wayKey, wayLabel,
     type FlowDef, type FlowKind, type FlowMedium, type FlowState, type LookAnim, type LookItem, type PortDef, type PortRole,
   } from './symbolFlow';
   // @ts-expect-error — ren JS uden typer (deles med Tegn)
@@ -213,7 +213,7 @@
   const current = (): FlowDef => ({
     ports: ports.map((p) => ({ ...p })), ...(ownWays && ways.length ? { ways } : {}),
     // rollen gemmes, når den afviger fra symbolets indbyggede (så en indbygget pumpe/et rørstykke kan blive en forbruger)
-    ...(kind !== (PIECE_TYPES.has(type) ? 'piece' : type === 'pumpe' ? 'pump' : 'consumer') || kind !== 'consumer' ? { kind } : {}),
+    ...(kind !== (PIECE_TYPES.has(type) ? 'piece' : PUMP_TYPES.has(type) ? 'pump' : 'consumer') || kind !== 'consumer' ? { kind } : {}),
     ...(medium !== 'water' ? { medium } : {}),
     ...(capacity != null ? { capacity } : {}), ...(restrict != null ? { restrict } : {}),
     ...(states.length ? { states: states.map((s) => ({ name: s.name.trim(), open: [...s.open], ...(s.look?.length ? { look: s.look.map((l) => ({ ...l })) } : {}) })) } : {}),
