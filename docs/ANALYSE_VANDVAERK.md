@@ -1,6 +1,6 @@
 # Analyse: brøndstation med klordosering (option B) som SCADA-demo
 
-Status: analyse, ikke implementeret. Dato: 2026-11-17.
+Status: implementeret 2026-11-17 (v6.14.0-6.14.1): symboler, ST-programmer (Logic2-3), tags, tegning og betjening kører på demoen. Se [demo/vandvaerk/README.md](../demo/vandvaerk/README.md).
 
 ## 1. Hvad kilderne faktisk giver
 

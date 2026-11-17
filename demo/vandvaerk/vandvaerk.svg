@@ -1,0 +1,366 @@
+<svg width="1400" height="860" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg">
+ <g class="layer">
+  <title>Lag 1</title>
+  <g data-hv-links="0,0.64&gt;rør_retur:e;1,0.21&gt;rør_brønd_ventil:s" data-hv-name="Brønd med dykpumpe" data-hv-ports="1,0.21;0,0.64" data-hv-type="broend" id="broend" transform="translate(0 -94.66) translate(-604 0) matrix(1 0 0 1 660 390)">
+   <rect fill="#eeeeee" height="138" id="svg_1" rx="4" stroke="#555" stroke-width="3" width="60" x="0" y="12"/>
+   <rect data-hv-pid="fyld" fill="#7aa7c7" height="132" id="broend_fyld" rx="3" width="54" x="3" y="15"/>
+   <rect fill="#9e9e9e" height="8" id="svg_2" rx="2" stroke="#555" stroke-width="2" width="72" x="-6" y="4"/>
+   <path d="m30,100l0,-66l50,0" fill="none" id="svg_3" stroke="#555" stroke-linejoin="round" stroke-width="8"/>
+   <path d="m30,100l0,-66l50,0" fill="none" id="svg_4" stroke="#9e9e9e" stroke-linejoin="round" stroke-width="4"/>
+   <path d="m-6,97.44l10,0" fill="none" id="svg_5" stroke="#555" stroke-width="8"/>
+   <path d="m-6,97.44l10,0" fill="none" id="svg_6" stroke="#9e9e9e" stroke-width="4"/>
+   <rect data-hv-pid="hus" fill="#9e9e9e" height="44" id="broend_hus" rx="7" stroke="#555" stroke-width="2.5" width="26" x="17" y="98"/>
+   <g data-hv-pid="loebehjul" id="broend_loebehjul">
+    <circle cx="30" cy="120" fill="none" id="svg_7" r="9"/>
+    <path d="m30,120l0,-8m0,8l6.9,4m-6.9,-4l-6.9,4" fill="none" id="svg_8" stroke="#eeeeee" stroke-linecap="round" stroke-width="3"/>
+   </g>
+  </g>
+  <g data-hv-links="0,0.67&gt;rør_brønd_ventil:e;1,0.67&gt;rør_ventil_tee:s" data-hv-name="Modtryksventil" data-hv-type="kontraventil" id="kontraventil" transform="translate(0 -135.2) translate(-498 0) matrix(1 0 0 1 690 420)">
+   <path d="m8,27l32,18l-32,18l0,-36z" data-hv-pid="kegle" fill="#333" id="kontraventil_kegle" stroke="#555" stroke-linejoin="round" stroke-width="3"/>
+   <path d="m72,27l-32,18l32,18l0,-36z" data-hv-pid="hus" fill="#9e9e9e" id="kontraventil_hus" stroke="#555" stroke-linejoin="round" stroke-width="3"/>
+   <path d="m24,14l28,0m-6,-5l8,5l-8,5" data-hv-pid="pil" fill="none" id="kontraventil_pil" stroke="#555" stroke-width="2"/>
+  </g>
+  <g data-hv-links="0,1&gt;rør_tee_kontakt:s;1,1&gt;rør_ventil_tee:e;0.5,0&gt;rør_dosering:e" data-hv-name="Indsprøjtning" data-hv-type="t_stykke" id="t_stykke" transform="translate(0 -121) translate(-390 0) matrix(-1 -1.22465e-16 1.22465e-16 -1 810 496)">
+   <path d="m0,45l45,0" data-hv-pid="tilloeb1" fill="none" id="t_stykke_tilloeb1" stroke="#555" stroke-width="10"/>
+   <path d="m45,45l45,0" data-hv-pid="tilloeb2" fill="none" id="t_stykke_tilloeb2" stroke="#555" stroke-width="10"/>
+   <path d="m45,40l0,-40" data-hv-pid="midte" fill="none" id="t_stykke_midte" stroke="#555" stroke-width="10"/>
+  </g>
+  <g data-hv-links="0,0.5&gt;rør_tee_kontakt:e;1,0.5&gt;rør_kontakt_beh:s" data-hv-name="Kontakttank" data-hv-type="kontakttank" data-hv-unused="*" id="kontakttank" transform="translate(0 -200) translate(-230 0) matrix(1 0 0 1 750 480)">
+   <rect fill="#eeeeee" height="100" id="svg_9" rx="8" stroke="#555" stroke-width="3" width="160" x="0" y="0"/>
+   <rect data-hv-pid="fyld" fill="#7aa7c7" height="94" id="kontakttank_fyld" rx="5" width="154" x="3" y="3"/>
+   <path d="m40,3l0,69m40,-44l0,69m40,-94l0,69" fill="none" id="svg_10" stroke="#555" stroke-width="3"/>
+  </g>
+  <g data-hv-links="0,0.5&gt;rør_kontakt_beh:e;0.5,1&gt;rør_retur:s" data-hv-name="Højdebeholder" data-hv-type="tank" data-hv-unused="*" id="tank" transform="translate(0 -250) translate(20 0) matrix(1 0 0 1 780 510)">
+   <rect fill="#eeeeee" height="140" id="svg_11" rx="8" stroke="#555" stroke-width="3" width="90" x="0" y="0"/>
+   <rect data-hv-pid="fyld" fill="#7aa7c7" height="134" id="tank_fyld" rx="5" width="84" x="3" y="3"/>
+  </g>
+  <g data-hv-links="1,0.5&gt;rør_hypo_pumpe:s" data-hv-name="Hypotank" data-hv-type="tank" data-hv-unused="*" id="tank_2" transform="translate(0 -125) translate(-610 0) matrix(0.666667 0 0 0.642857 810 540)">
+   <rect fill="#eeeeee" height="140" id="svg_12" rx="8" stroke="#555" stroke-width="3" width="90" x="0" y="0"/>
+   <rect data-hv-pid="fyld" fill="#7aa7c7" height="134" id="tank_2_fyld" rx="5" width="84" x="3" y="3"/>
+  </g>
+  <g data-hv-links="0,0.5&gt;rør_hypo_pumpe:e;1,0.5&gt;rør_dosering:s" data-hv-name="Doseringspumpe" data-hv-type="doseringspumpe" id="doseringspumpe" transform="translate(0 40) translate(-376 0) matrix(1 0 0 1 660 390)">
+   <circle cx="30" cy="30" fill="#9e9e9e" id="svg_13" r="24" stroke="#555" stroke-width="3"/>
+   <g data-hv-pid="loebehjul" id="doseringspumpe_loebehjul">
+    <circle cx="30" cy="30" fill="none" id="svg_14" r="18"/>
+    <path d="m30,30l0,-14m0,14l12.1,7m-12.1,-7l-12.1,7" fill="none" id="svg_15" stroke="#eeeeee" stroke-linecap="round" stroke-width="3"/>
+    <circle cx="30" cy="16" fill="#eeeeee" id="svg_16" r="4" stroke="#333" stroke-width="1.5"/>
+    <circle cx="42.1" cy="37" fill="#eeeeee" id="svg_17" r="4" stroke="#333" stroke-width="1.5"/>
+    <circle cx="17.9" cy="37" fill="#eeeeee" id="svg_18" r="4" stroke="#333" stroke-width="1.5"/>
+   </g>
+  </g>
+  <g data-hv-name="Skylleventil XV1" data-hv-type="motorventil" data-hv-unused="*" id="motorventil" transform="translate(0 20) translate(-130 0) matrix(1 0 0 1 690 420)">
+   <path d="m8,27l32,18l-32,18l0,-36zm64,0l-32,18l32,18l0,-36z" data-hv-pid="hus" fill="#9e9e9e" id="motorventil_hus" stroke="#555" stroke-linejoin="round" stroke-width="3"/>
+   <line data-hv-pid="spindel" id="motorventil_spindel" stroke="#555" stroke-width="3" x1="40" x2="40" y1="45" y2="20"/>
+   <circle cx="40" cy="12" data-hv-pid="motor" fill="#eeeeee" id="motorventil_motor" r="12" stroke="#555" stroke-width="2.5"/>
+   <text fill="#333" font-family="Segoe UI, Arial" font-size="14" font-weight="600" id="svg_19" text-anchor="middle" x="40" y="17">M</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;rør_brønd_ventil:~" data-hv-name="Flowmåler FT1" data-hv-type="ft" data-hv-unused="*" id="ft" transform="translate(0 -200) translate(-582 0) matrix(1 0 0 1 720 450)">
+   <line id="svg_20" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
+   <circle cx="30" cy="30" fill="#eeeeee" id="svg_21" r="24" stroke="#555" stroke-width="2.5"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="ft_tekst" text-anchor="middle" x="30" y="36">FT</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;rør_ventil_tee:~" data-hv-name="Tryk PT1" data-hv-type="pt" data-hv-unused="*" id="pt" transform="translate(0 -230) translate(-480 0) matrix(1 0 0 1 750 480)">
+   <line id="svg_22" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
+   <circle cx="30" cy="30" fill="#eeeeee" id="svg_23" r="24" stroke="#555" stroke-width="2.5"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="pt_tekst" text-anchor="middle" x="30" y="36">PT</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;rør_tee_kontakt:~" data-hv-name="Klor AT1 (efter indsprøjtning)" data-hv-type="at" data-hv-unused="*" id="at" transform="translate(0 -260) translate(-340 0) matrix(1 0 0 1 780 510)">
+   <line id="svg_24" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
+   <circle cx="30" cy="30" fill="#eeeeee" id="svg_25" r="24" stroke="#555" stroke-width="2.5"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="at_tekst" text-anchor="middle" x="30" y="36">AT</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;rør_kontakt_beh:~" data-hv-name="Klor AT2 (efter kontakttank)" data-hv-type="at" data-hv-unused="*" id="at_2" transform="translate(0 -290) translate(-100 0) matrix(1 0 0 1 810 540)">
+   <line id="svg_26" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
+   <circle cx="30" cy="30" fill="#eeeeee" id="svg_27" r="24" stroke="#555" stroke-width="2.5"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="at_2_tekst" text-anchor="middle" x="30" y="36">AT</text>
+  </g>
+  <g data-hv-name="Niveau brønd LT1" data-hv-type="lt" data-hv-unused="*" id="lt" transform="translate(0 -175) translate(-597 0) matrix(1 0 0 1 660 390)">
+   <line id="svg_28" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
+   <circle cx="30" cy="30" fill="#eeeeee" id="svg_29" r="24" stroke="#555" stroke-width="2.5"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="lt_tekst" text-anchor="middle" x="30" y="36">LT</text>
+  </g>
+  <g data-hv-name="Niveau højdebeholder LT2" data-hv-type="lt" data-hv-unused="*" id="lt_2" transform="translate(0 -126) translate(224 0) matrix(1 0 0 1 690 420)">
+   <line id="svg_30" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
+   <circle cx="30" cy="30" fill="#eeeeee" id="svg_31" r="24" stroke="#555" stroke-width="2.5"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="lt_2_tekst" text-anchor="middle" x="30" y="36">LT</text>
+  </g>
+  <g data-hv-name="Niveau hypotank LT3" data-hv-type="lt" data-hv-unused="*" id="lt_3" transform="translate(0 -35) translate(-584 0) matrix(1 0 0 1 720 450)">
+   <line id="svg_32" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
+   <circle cx="30" cy="30" fill="#eeeeee" id="svg_33" r="24" stroke="#555" stroke-width="2.5"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="lt_3_tekst" text-anchor="middle" x="30" y="36">LT</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;vaerdi_9:0.5,0" data-hv-name="Flow l/s" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi" transform="translate(0 -430) translate(-710 0) matrix(1 0 0 1 750 480)">
+   <rect fill="#eeeeee" height="56" id="svg_34" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_titel" x="12" y="20">Flow l/s</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;vaerdi_10:0.5,0" data-hv-name="Tryk bar" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_2" transform="translate(0 -460) translate(-570 0) matrix(1 0 0 1 780 510)">
+   <rect fill="#eeeeee" height="56" id="svg_35" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_2_titel" x="12" y="20">Tryk bar</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_2_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;vaerdi_11:0.5,0" data-hv-name="Brønd m" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_3" transform="translate(0 -490) translate(-430 0) matrix(1 0 0 1 810 540)">
+   <rect fill="#eeeeee" height="56" id="svg_36" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_3_titel" x="12" y="20">Brønd m</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_3_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;vaerdi_12:0.5,0" data-hv-name="Hypotank %" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_4" transform="translate(0 -340) translate(-110 0) matrix(1 0 0 1 660 390)">
+   <rect fill="#eeeeee" height="56" id="svg_37" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_4_titel" x="12" y="20">Hypotank %</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_4_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;vaerdi_13:0.5,0" data-hv-name="AT1 klor mg/l" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_5" transform="translate(0 -370) translate(30 0) matrix(1 0 0 1 690 420)">
+   <rect fill="#eeeeee" height="56" id="svg_38" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_5_titel" x="12" y="20">AT1 klor mg/l</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_5_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;vaerdi_14:0.5,0" data-hv-name="AT2 klor mg/l" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_6" transform="translate(0 -400) translate(170 0) matrix(1 0 0 1 720 450)">
+   <rect fill="#eeeeee" height="56" id="svg_39" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_6_titel" x="12" y="20">AT2 klor mg/l</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_6_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;vaerdi_15:0.5,0" data-hv-name="CT mg·min/l" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_7" transform="translate(0 -430) translate(310 0) matrix(1 0 0 1 750 480)">
+   <rect fill="#eeeeee" height="56" id="svg_40" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_7_titel" x="12" y="20">CT mg·min/l</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_7_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,1&gt;vaerdi_16:0.5,0" data-hv-name="Kontakttid min" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_8" transform="translate(0 -460) translate(450 0) matrix(1 0 0 1 780 510)">
+   <rect fill="#eeeeee" height="56" id="svg_41" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_8_titel" x="12" y="20">Kontakttid min</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_8_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,0&gt;vaerdi:0.5,1" data-hv-name="Beholder %" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_9" transform="translate(0 -428) translate(-770 0) matrix(1 0 0 1 810 540)">
+   <rect fill="#eeeeee" height="56" id="svg_42" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_9_titel" x="12" y="20">Beholder %</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_9_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,0&gt;vaerdi_2:0.5,1" data-hv-name="Forbrug l/s" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_10" transform="translate(0 -278) translate(-450 0) matrix(1 0 0 1 660 390)">
+   <rect fill="#eeeeee" height="56" id="svg_43" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_10_titel" x="12" y="20">Forbrug l/s</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_10_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,0&gt;vaerdi_3:0.5,1" data-hv-name="Døgn m³" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_11" transform="translate(0 -308) translate(-310 0) matrix(1 0 0 1 690 420)">
+   <rect fill="#eeeeee" height="56" id="svg_44" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_11_titel" x="12" y="20">Døgn m³</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_11_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,0&gt;vaerdi_4:0.5,1" data-hv-name="Dosis mg/l" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_12" transform="translate(0 -338) translate(-170 0) matrix(1 0 0 1 720 450)">
+   <rect fill="#eeeeee" height="56" id="svg_45" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_12_titel" x="12" y="20">Dosis mg/l</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_12_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,0&gt;vaerdi_5:0.5,1" data-hv-name="Hypo l/t" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_13" transform="translate(0 -368) translate(-30 0) matrix(1 0 0 1 750 480)">
+   <rect fill="#eeeeee" height="56" id="svg_46" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_13_titel" x="12" y="20">Hypo l/t</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_13_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,0&gt;vaerdi_6:0.5,1" data-hv-name="Doseringspumpe %" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_14" transform="translate(0 -398) translate(110 0) matrix(1 0 0 1 780 510)">
+   <rect fill="#eeeeee" height="56" id="svg_47" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_14_titel" x="12" y="20">Doseringspumpe %</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_14_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,0&gt;vaerdi_7:0.5,1" data-hv-name="Klokken" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_15" transform="translate(0 -428) translate(250 0) matrix(1 0 0 1 810 540)">
+   <rect fill="#eeeeee" height="56" id="svg_48" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_15_titel" x="12" y="20">Klokken</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_15_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-links="0.5,0&gt;vaerdi_8:0.5,1" data-hv-name="Trin 0-5" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi_16" transform="translate(0 -278) translate(570 0) matrix(1 0 0 1 660 390)">
+   <rect fill="#eeeeee" height="56" id="svg_49" rx="4" stroke="#888888" width="160" x="0" y="0"/>
+   <text data-hv-pid="titel" fill="#5c5c5c" font-family="Segoe UI, Arial" font-size="12" id="vaerdi_16_titel" x="12" y="20">Trin 0-5</text>
+   <text data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="20" font-weight="600" id="vaerdi_16_vaerdi" x="12" y="45">--</text>
+  </g>
+  <g data-hv-name="Status" data-hv-type="statusfelt" data-hv-unused="*" id="statusfelt" transform="translate(0 -212) translate(438 0) matrix(1 0 0 1 690 420)">
+   <rect data-hv-pid="felt" fill="#eeeeee" height="26" id="statusfelt_felt" rx="13" stroke="#333" stroke-width="2.5" width="208" x="2" y="2"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="15" font-weight="700" id="statusfelt_tekst" text-anchor="middle" x="106" y="21">STF</text>
+  </g>
+  <g data-hv-name="Tripårsag" data-hv-type="statusfelt" data-hv-unused="*" id="statusfelt_2" transform="translate(0 -208) translate(408 0) matrix(1 0 0 1 720 450)">
+   <rect data-hv-pid="felt" fill="#eeeeee" height="26" id="statusfelt_2_felt" rx="13" stroke="#333" stroke-width="2.5" width="208" x="2" y="2"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="15" font-weight="700" id="statusfelt_2_tekst" text-anchor="middle" x="106" y="21">STF</text>
+  </g>
+  <g data-hv-name="Scenarie" data-hv-type="statusfelt" data-hv-unused="*" id="statusfelt_3" transform="translate(0 -204) translate(378 0) matrix(1 0 0 1 750 480)">
+   <rect data-hv-pid="felt" fill="#eeeeee" height="26" id="statusfelt_3_felt" rx="13" stroke="#333" stroke-width="2.5" width="208" x="2" y="2"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="15" font-weight="700" id="statusfelt_3_tekst" text-anchor="middle" x="106" y="21">STF</text>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:select&quot;,&quot;params&quot;:{&quot;positions&quot;:[{&quot;value&quot;:0,&quot;label&quot;:&quot;Hånd&quot;},{&quot;value&quot;:1,&quot;label&quot;:&quot;0&quot;},{&quot;value&quot;:2,&quot;label&quot;:&quot;Auto&quot;}],&quot;confirm&quot;:true}}]" data-hv-name="Driftsform" data-hv-type="omskifter3" data-hv-unused="*" id="omskifter3" transform="translate(0 -198.879) translate(212.876 0) matrix(1 0 0 1 780 510)">
+   <circle cx="70" cy="70" fill="#e3e3e3" id="svg_50" r="30" stroke="#555" stroke-width="2.5"/>
+   <line id="svg_51" stroke="#333" stroke-width="2" x1="47" x2="43" y1="47" y2="43"/>
+   <line id="svg_52" stroke="#333" stroke-width="2" x1="70" x2="70" y1="37" y2="32"/>
+   <line id="svg_53" stroke="#333" stroke-width="2" x1="93" x2="97" y1="47" y2="43"/>
+   <text fill="#333" font-family="Segoe UI, Arial" font-size="13" font-weight="600" id="svg_54" text-anchor="middle" x="33" y="38">Hånd</text>
+   <text fill="#333" font-family="Segoe UI, Arial" font-size="13" font-weight="600" id="svg_55" text-anchor="middle" x="70" y="23">0</text>
+   <text fill="#333" font-family="Segoe UI, Arial" font-size="13" font-weight="600" id="svg_56" text-anchor="middle" x="107" y="38">Auto</text>
+   <g data-hv-part="{&quot;anim&quot;:&quot;rotate&quot;,&quot;params&quot;:{&quot;min&quot;:0,&quot;max&quot;:2,&quot;angle_min&quot;:-45,&quot;angle_max&quot;:45}}" data-hv-pid="greb" id="omskifter3_greb">
+    <rect fill="#9e9e9e" height="52" id="svg_57" rx="4" stroke="#333" stroke-width="1.5" width="12" x="64" y="44"/>
+    <rect fill="#333" height="14" id="svg_58" rx="2" width="6" x="67" y="46"/>
+   </g>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:pulse&quot;,&quot;params&quot;:{&quot;ms&quot;:500,&quot;confirm&quot;:false}}]" data-hv-name="Kvittér" data-hv-type="trykknap_puls" data-hv-unused="*" id="trykknap_puls" transform="translate(0 -230) translate(330 0) matrix(1 0 0 1 810 540)">
+   <rect fill="#eeeeee" height="76" id="svg_59" rx="8" stroke="#555" stroke-width="2" width="76" x="0" y="0"/>
+   <circle cx="38" cy="38" fill="#c8c8c8" id="svg_60" r="30" stroke="#333" stroke-width="2"/>
+   <circle cx="38" cy="38" fill="none" id="svg_61" r="25" stroke="#f5f5f5" stroke-width="1.5"/>
+   <circle cx="38" cy="38" data-hv-part="{&quot;anim&quot;:&quot;fill&quot;,&quot;params&quot;:{&quot;on&quot;:&quot;#7cc47f&quot;,&quot;off&quot;:&quot;#d6d6d6&quot;}}" data-hv-pid="flade" fill="#d6d6d6" id="trykknap_puls_flade" r="21" stroke="#555" stroke-width="2"/>
+   <path d="m24,32a15,15 0 0 1 20,-10" fill="none" id="svg_62" opacity="0.8" stroke="#ffffff" stroke-linecap="round" stroke-width="3"/>
+   <rect fill="#ffffff" height="22" id="svg_63" rx="2" stroke="#555" stroke-width="1.5" width="64" x="6" y="84"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="14" font-weight="600" id="trykknap_puls_tekst" text-anchor="middle" x="38" y="100">Start</text>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:pulse&quot;,&quot;params&quot;:{&quot;ms&quot;:500,&quot;confirm&quot;:false}}]" data-hv-name="Fyld hypotank" data-hv-type="trykknap_puls" data-hv-unused="*" id="trykknap_puls_2" transform="translate(0 -80) translate(580 0) matrix(1 0 0 1 660 390)">
+   <rect fill="#eeeeee" height="76" id="svg_64" rx="8" stroke="#555" stroke-width="2" width="76" x="0" y="0"/>
+   <circle cx="38" cy="38" fill="#c8c8c8" id="svg_65" r="30" stroke="#333" stroke-width="2"/>
+   <circle cx="38" cy="38" fill="none" id="svg_66" r="25" stroke="#f5f5f5" stroke-width="1.5"/>
+   <circle cx="38" cy="38" data-hv-part="{&quot;anim&quot;:&quot;fill&quot;,&quot;params&quot;:{&quot;on&quot;:&quot;#7cc47f&quot;,&quot;off&quot;:&quot;#d6d6d6&quot;}}" data-hv-pid="flade" fill="#d6d6d6" id="trykknap_puls_2_flade" r="21" stroke="#555" stroke-width="2"/>
+   <path d="m24,32a15,15 0 0 1 20,-10" fill="none" id="svg_67" opacity="0.8" stroke="#ffffff" stroke-linecap="round" stroke-width="3"/>
+   <rect fill="#ffffff" height="22" id="svg_68" rx="2" stroke="#555" stroke-width="1.5" width="64" x="6" y="84"/>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="14" font-weight="600" id="trykknap_puls_2_tekst" text-anchor="middle" x="38" y="100">Start</text>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:toggle&quot;,&quot;params&quot;:{&quot;confirm&quot;:false}}]" data-hv-name="Manuel: brøndpumpe" data-hv-type="vippekontakt" data-hv-unused="*" id="vippekontakt" transform="translate(0 44) translate(320 0) matrix(1 0 0 1 690 420)">
+   <rect data-hv-part="{&quot;anim&quot;:&quot;fill&quot;,&quot;params&quot;:{&quot;on&quot;:&quot;#7cc47f&quot;,&quot;off&quot;:&quot;#d6d6d6&quot;}}" data-hv-pid="spor" fill="#d6d6d6" height="32" id="vippekontakt_spor" rx="16" stroke="#555" stroke-width="2" width="64" x="0" y="0"/>
+   <circle cx="16" cy="16" data-hv-part="{&quot;anim&quot;:&quot;move&quot;,&quot;params&quot;:{&quot;min&quot;:0,&quot;max&quot;:1,&quot;dx&quot;:32,&quot;dy&quot;:0}}" data-hv-pid="vippe" fill="#ffffff" id="vippekontakt_vippe" r="12" stroke="#555" stroke-width="2"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;,&quot;params&quot;:{&quot;true_text&quot;:&quot;TIL&quot;,&quot;false_text&quot;:&quot;FRA&quot;}}" data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="13" id="vippekontakt_tekst" text-anchor="middle" x="32" y="50">FRA</text>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:toggle&quot;,&quot;params&quot;:{&quot;confirm&quot;:false}}]" data-hv-name="Manuel: dosering" data-hv-type="vippekontakt" data-hv-unused="*" id="vippekontakt_2" transform="translate(0 14) translate(385 0) matrix(1 0 0 1 720 450)">
+   <rect data-hv-part="{&quot;anim&quot;:&quot;fill&quot;,&quot;params&quot;:{&quot;on&quot;:&quot;#7cc47f&quot;,&quot;off&quot;:&quot;#d6d6d6&quot;}}" data-hv-pid="spor" fill="#d6d6d6" height="32" id="vippekontakt_2_spor" rx="16" stroke="#555" stroke-width="2" width="64" x="0" y="0"/>
+   <circle cx="16" cy="16" data-hv-part="{&quot;anim&quot;:&quot;move&quot;,&quot;params&quot;:{&quot;min&quot;:0,&quot;max&quot;:1,&quot;dx&quot;:32,&quot;dy&quot;:0}}" data-hv-pid="vippe" fill="#ffffff" id="vippekontakt_2_vippe" r="12" stroke="#555" stroke-width="2"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;,&quot;params&quot;:{&quot;true_text&quot;:&quot;TIL&quot;,&quot;false_text&quot;:&quot;FRA&quot;}}" data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="13" id="vippekontakt_2_tekst" text-anchor="middle" x="32" y="50">FRA</text>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:toggle&quot;,&quot;params&quot;:{&quot;confirm&quot;:false}}]" data-hv-name="Manuel: skylleventil" data-hv-type="vippekontakt" data-hv-unused="*" id="vippekontakt_3" transform="translate(0 -16) translate(450 0) matrix(1 0 0 1 750 480)">
+   <rect data-hv-part="{&quot;anim&quot;:&quot;fill&quot;,&quot;params&quot;:{&quot;on&quot;:&quot;#7cc47f&quot;,&quot;off&quot;:&quot;#d6d6d6&quot;}}" data-hv-pid="spor" fill="#d6d6d6" height="32" id="vippekontakt_3_spor" rx="16" stroke="#555" stroke-width="2" width="64" x="0" y="0"/>
+   <circle cx="16" cy="16" data-hv-part="{&quot;anim&quot;:&quot;move&quot;,&quot;params&quot;:{&quot;min&quot;:0,&quot;max&quot;:1,&quot;dx&quot;:32,&quot;dy&quot;:0}}" data-hv-pid="vippe" fill="#ffffff" id="vippekontakt_3_vippe" r="12" stroke="#555" stroke-width="2"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;,&quot;params&quot;:{&quot;true_text&quot;:&quot;TIL&quot;,&quot;false_text&quot;:&quot;FRA&quot;}}" data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="13" id="vippekontakt_3_tekst" text-anchor="middle" x="32" y="50">FRA</text>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:toggle&quot;,&quot;params&quot;:{&quot;confirm&quot;:false}}]" data-hv-name="Trim fra AT2" data-hv-type="vippekontakt" data-hv-unused="*" id="vippekontakt_4" transform="translate(0 -46) translate(515 0) matrix(1 0 0 1 780 510)">
+   <rect data-hv-part="{&quot;anim&quot;:&quot;fill&quot;,&quot;params&quot;:{&quot;on&quot;:&quot;#7cc47f&quot;,&quot;off&quot;:&quot;#d6d6d6&quot;}}" data-hv-pid="spor" fill="#d6d6d6" height="32" id="vippekontakt_4_spor" rx="16" stroke="#555" stroke-width="2" width="64" x="0" y="0"/>
+   <circle cx="16" cy="16" data-hv-part="{&quot;anim&quot;:&quot;move&quot;,&quot;params&quot;:{&quot;min&quot;:0,&quot;max&quot;:1,&quot;dx&quot;:32,&quot;dy&quot;:0}}" data-hv-pid="vippe" fill="#ffffff" id="vippekontakt_4_vippe" r="12" stroke="#555" stroke-width="2"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;,&quot;params&quot;:{&quot;true_text&quot;:&quot;TIL&quot;,&quot;false_text&quot;:&quot;FRA&quot;}}" data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="13" id="vippekontakt_4_tekst" text-anchor="middle" x="32" y="50">FRA</text>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:toggle&quot;,&quot;params&quot;:{&quot;confirm&quot;:false}}]" data-hv-name="Fejl: analysator" data-hv-type="vippekontakt" data-hv-unused="*" id="vippekontakt_5" transform="translate(0 20) translate(200 0) matrix(1 0 0 1 810 540)">
+   <rect data-hv-part="{&quot;anim&quot;:&quot;fill&quot;,&quot;params&quot;:{&quot;on&quot;:&quot;#7cc47f&quot;,&quot;off&quot;:&quot;#d6d6d6&quot;}}" data-hv-pid="spor" fill="#d6d6d6" height="32" id="vippekontakt_5_spor" rx="16" stroke="#555" stroke-width="2" width="64" x="0" y="0"/>
+   <circle cx="16" cy="16" data-hv-part="{&quot;anim&quot;:&quot;move&quot;,&quot;params&quot;:{&quot;min&quot;:0,&quot;max&quot;:1,&quot;dx&quot;:32,&quot;dy&quot;:0}}" data-hv-pid="vippe" fill="#ffffff" id="vippekontakt_5_vippe" r="12" stroke="#555" stroke-width="2"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;,&quot;params&quot;:{&quot;true_text&quot;:&quot;TIL&quot;,&quot;false_text&quot;:&quot;FRA&quot;}}" data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="13" id="vippekontakt_5_tekst" text-anchor="middle" x="32" y="50">FRA</text>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:toggle&quot;,&quot;params&quot;:{&quot;confirm&quot;:false}}]" data-hv-name="Fejl: doseringspumpe" data-hv-type="vippekontakt" data-hv-unused="*" id="vippekontakt_6" transform="translate(0 170) translate(445 0) matrix(1 0 0 1 660 390)">
+   <rect data-hv-part="{&quot;anim&quot;:&quot;fill&quot;,&quot;params&quot;:{&quot;on&quot;:&quot;#7cc47f&quot;,&quot;off&quot;:&quot;#d6d6d6&quot;}}" data-hv-pid="spor" fill="#d6d6d6" height="32" id="vippekontakt_6_spor" rx="16" stroke="#555" stroke-width="2" width="64" x="0" y="0"/>
+   <circle cx="16" cy="16" data-hv-part="{&quot;anim&quot;:&quot;move&quot;,&quot;params&quot;:{&quot;min&quot;:0,&quot;max&quot;:1,&quot;dx&quot;:32,&quot;dy&quot;:0}}" data-hv-pid="vippe" fill="#ffffff" id="vippekontakt_6_vippe" r="12" stroke="#555" stroke-width="2"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;,&quot;params&quot;:{&quot;true_text&quot;:&quot;TIL&quot;,&quot;false_text&quot;:&quot;FRA&quot;}}" data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="13" id="vippekontakt_6_tekst" text-anchor="middle" x="32" y="50">FRA</text>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:toggle&quot;,&quot;params&quot;:{&quot;confirm&quot;:false}}]" data-hv-name="Fejl: lav grundvandsstand" data-hv-type="vippekontakt" data-hv-unused="*" id="vippekontakt_7" transform="translate(0 140) translate(510 0) matrix(1 0 0 1 690 420)">
+   <rect data-hv-part="{&quot;anim&quot;:&quot;fill&quot;,&quot;params&quot;:{&quot;on&quot;:&quot;#7cc47f&quot;,&quot;off&quot;:&quot;#d6d6d6&quot;}}" data-hv-pid="spor" fill="#d6d6d6" height="32" id="vippekontakt_7_spor" rx="16" stroke="#555" stroke-width="2" width="64" x="0" y="0"/>
+   <circle cx="16" cy="16" data-hv-part="{&quot;anim&quot;:&quot;move&quot;,&quot;params&quot;:{&quot;min&quot;:0,&quot;max&quot;:1,&quot;dx&quot;:32,&quot;dy&quot;:0}}" data-hv-pid="vippe" fill="#ffffff" id="vippekontakt_7_vippe" r="12" stroke="#555" stroke-width="2"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;,&quot;params&quot;:{&quot;true_text&quot;:&quot;TIL&quot;,&quot;false_text&quot;:&quot;FRA&quot;}}" data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="13" id="vippekontakt_7_tekst" text-anchor="middle" x="32" y="50">FRA</text>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:write&quot;}]" data-hv-name="Start niveau %" data-hv-type="setpunkt" data-hv-unused="*" id="setpunkt" transform="translate(0 140) translate(-680 0) matrix(1 0 0 1 720 450)">
+   <rect fill="#ffffff" height="40" id="svg_69" rx="4" stroke="#555" stroke-width="2" width="150" x="0" y="0"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;}" data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="17" font-weight="600" id="setpunkt_vaerdi" x="12" y="26">--</text>
+   <path d="m126,28l4,-12l10,-4l-4,10l-10,6zm0,0l6,-2" fill="#9e9e9e" id="svg_70" stroke="#333" stroke-linejoin="round" stroke-width="1.5"/>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:write&quot;}]" data-hv-name="Stop niveau %" data-hv-type="setpunkt" data-hv-unused="*" id="setpunkt_2" transform="translate(0 110) translate(-475 0) matrix(1 0 0 1 750 480)">
+   <rect fill="#ffffff" height="40" id="svg_71" rx="4" stroke="#555" stroke-width="2" width="150" x="0" y="0"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;}" data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="17" font-weight="600" id="setpunkt_2_vaerdi" x="12" y="26">--</text>
+   <path d="m126,28l4,-12l10,-4l-4,10l-10,6zm0,0l6,-2" fill="#9e9e9e" id="svg_72" stroke="#333" stroke-linejoin="round" stroke-width="1.5"/>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:write&quot;}]" data-hv-name="Dosis mg/l" data-hv-type="setpunkt" data-hv-unused="*" id="setpunkt_3" transform="translate(0 80) translate(-270 0) matrix(1 0 0 1 780 510)">
+   <rect fill="#ffffff" height="40" id="svg_73" rx="4" stroke="#555" stroke-width="2" width="150" x="0" y="0"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;}" data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="17" font-weight="600" id="setpunkt_3_vaerdi" x="12" y="26">--</text>
+   <path d="m126,28l4,-12l10,-4l-4,10l-10,6zm0,0l6,-2" fill="#9e9e9e" id="svg_74" stroke="#333" stroke-linejoin="round" stroke-width="1.5"/>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:write&quot;}]" data-hv-name="Mål-residual mg/l" data-hv-type="setpunkt" data-hv-unused="*" id="setpunkt_4" transform="translate(0 50) translate(-65 0) matrix(1 0 0 1 810 540)">
+   <rect fill="#ffffff" height="40" id="svg_75" rx="4" stroke="#555" stroke-width="2" width="150" x="0" y="0"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;}" data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="17" font-weight="600" id="setpunkt_4_vaerdi" x="12" y="26">--</text>
+   <path d="m126,28l4,-12l10,-4l-4,10l-10,6zm0,0l6,-2" fill="#9e9e9e" id="svg_76" stroke="#333" stroke-linejoin="round" stroke-width="1.5"/>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:write&quot;}]" data-hv-name="Klor lav mg/l" data-hv-type="setpunkt" data-hv-unused="*" id="setpunkt_5" transform="translate(0 270) translate(-620 0) matrix(1 0 0 1 660 390)">
+   <rect fill="#ffffff" height="40" id="svg_77" rx="4" stroke="#555" stroke-width="2" width="150" x="0" y="0"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;}" data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="17" font-weight="600" id="setpunkt_5_vaerdi" x="12" y="26">--</text>
+   <path d="m126,28l4,-12l10,-4l-4,10l-10,6zm0,0l6,-2" fill="#9e9e9e" id="svg_78" stroke="#333" stroke-linejoin="round" stroke-width="1.5"/>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:write&quot;}]" data-hv-name="Klor høj mg/l" data-hv-type="setpunkt" data-hv-unused="*" id="setpunkt_6" transform="translate(0 240) translate(-415 0) matrix(1 0 0 1 690 420)">
+   <rect fill="#ffffff" height="40" id="svg_79" rx="4" stroke="#555" stroke-width="2" width="150" x="0" y="0"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;}" data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="17" font-weight="600" id="setpunkt_6_vaerdi" x="12" y="26">--</text>
+   <path d="m126,28l4,-12l10,-4l-4,10l-10,6zm0,0l6,-2" fill="#9e9e9e" id="svg_80" stroke="#333" stroke-linejoin="round" stroke-width="1.5"/>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:write&quot;}]" data-hv-name="Tidsfaktor" data-hv-type="setpunkt" data-hv-unused="*" id="setpunkt_7" transform="translate(0 210) translate(-210 0) matrix(1 0 0 1 720 450)">
+   <rect fill="#ffffff" height="40" id="svg_81" rx="4" stroke="#555" stroke-width="2" width="150" x="0" y="0"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;}" data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="17" font-weight="600" id="setpunkt_7_vaerdi" x="12" y="26">--</text>
+   <path d="m126,28l4,-12l10,-4l-4,10l-10,6zm0,0l6,-2" fill="#9e9e9e" id="svg_82" stroke="#333" stroke-linejoin="round" stroke-width="1.5"/>
+  </g>
+  <g data-hv-auto="[{&quot;anim&quot;:&quot;click:write&quot;}]" data-hv-name="Scenarie 0-4" data-hv-type="setpunkt" data-hv-unused="*" id="setpunkt_8" transform="translate(0 180) translate(-5 0) matrix(1 0 0 1 750 480)">
+   <rect fill="#ffffff" height="40" id="svg_83" rx="4" stroke="#555" stroke-width="2" width="150" x="0" y="0"/>
+   <text data-hv-part="{&quot;anim&quot;:&quot;text&quot;}" data-hv-pid="vaerdi" fill="#1f1f1f" font-family="Segoe UI, Arial" font-size="17" font-weight="600" id="setpunkt_8_vaerdi" x="12" y="26">--</text>
+   <path d="m126,28l4,-12l10,-4l-4,10l-10,6zm0,0l6,-2" fill="#9e9e9e" id="svg_84" stroke="#333" stroke-linejoin="round" stroke-width="1.5"/>
+  </g>
+  <g data-hv-name="Alarmer" data-hv-nav="alarms" data-hv-type="genvej_alarmer" data-hv-unused="*" id="genvej_alarmer" transform="translate(0 -507) translate(450 0) matrix(1 0 0 1 780 510)">
+   <rect fill="#eeeeee" height="46" id="svg_85" rx="8" stroke="#555" stroke-width="2" width="150" x="0" y="0"/>
+   <path d="m26,9c-7,0 -11,5 -11,12l0,7l-4,5l30,0l-4,-5l0,-7c0,-7 -4,-12 -11,-12z" fill="#9e9e9e" id="svg_86" stroke="#333" stroke-linejoin="round" stroke-width="2"/>
+   <path d="m22,36a4,4 0 0 0 8,0" fill="none" id="svg_87" stroke="#333" stroke-width="2"/>
+   <text fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="svg_88" text-anchor="middle" x="94" y="29">Alarmer</text>
+   <circle cx="140" cy="8" data-hv-pid="maerke" fill="#d6d6d6" id="genvej_alarmer_maerke" r="11" stroke="#555" stroke-width="1.5"/>
+   <text data-hv-pid="antal" fill="#333" font-family="Segoe UI, Arial" font-size="12" font-weight="700" id="genvej_alarmer_antal" text-anchor="middle" x="140" y="12">0</text>
+  </g>
+  <g data-hv-name="Klor og dosering" data-hv-type="trendgraf" data-hv-unused="*" id="trendgraf" transform="translate(0 190) translate(-770 0) matrix(2 0 0 0.923077 810 540)">
+   <rect data-hv-pid="ramme" fill="#eeeeee" height="130" id="trendgraf_ramme" rx="6" stroke="#555" stroke-width="2" width="240" x="0" y="0"/>
+   <g data-hv-pid="eksempel" id="trendgraf_eksempel">
+    <path d="m32,22l0,88l200,0" fill="none" id="svg_89" stroke="#b0b0b0" stroke-width="1.5"/>
+    <path d="m34,96l36,-16l34,8l36,-30l36,8l36,-26l18,6" fill="none" id="svg_90" stroke="#2a78d6" stroke-linejoin="round" stroke-width="2.5"/>
+   </g>
+   <text data-hv-pid="titel" fill="#333" font-family="Segoe UI, Arial" font-size="11" font-weight="600" id="trendgraf_titel" text-anchor="middle" x="120" y="15">Trend</text>
+  </g>
+  <g data-hv-name="Niveauer og flow" data-hv-type="trendgraf" data-hv-unused="*" id="trendgraf_2" transform="translate(0 340) translate(-120 0) matrix(1.875 0 0 0.923077 660 390)">
+   <rect data-hv-pid="ramme" fill="#eeeeee" height="130" id="trendgraf_2_ramme" rx="6" stroke="#555" stroke-width="2" width="240" x="0" y="0"/>
+   <g data-hv-pid="eksempel" id="trendgraf_2_eksempel">
+    <path d="m32,22l0,88l200,0" fill="none" id="svg_91" stroke="#b0b0b0" stroke-width="1.5"/>
+    <path d="m34,96l36,-16l34,8l36,-30l36,8l36,-26l18,6" fill="none" id="svg_92" stroke="#2a78d6" stroke-linejoin="round" stroke-width="2.5"/>
+   </g>
+   <text data-hv-pid="titel" fill="#333" font-family="Segoe UI, Arial" font-size="11" font-weight="600" id="trendgraf_2_titel" text-anchor="middle" x="120" y="15">Trend</text>
+  </g>
+  <g data-hv-name="Flow og forbrug" data-hv-type="trendgraf" data-hv-unused="*" id="trendgraf_3" transform="translate(0 234) translate(320 0) matrix(1.54167 0 0 1.50769 690 420)">
+   <rect data-hv-pid="ramme" fill="#eeeeee" height="130" id="trendgraf_3_ramme" rx="6" stroke="#555" stroke-width="2" width="240" x="0" y="0"/>
+   <g data-hv-pid="eksempel" id="trendgraf_3_eksempel">
+    <path d="m32,22l0,88l200,0" fill="none" id="svg_93" stroke="#b0b0b0" stroke-width="1.5"/>
+    <path d="m34,96l36,-16l34,8l36,-30l36,8l36,-26l18,6" fill="none" id="svg_94" stroke="#2a78d6" stroke-linejoin="round" stroke-width="2.5"/>
+   </g>
+   <text data-hv-pid="titel" fill="#333" font-family="Segoe UI, Arial" font-size="11" font-weight="600" id="trendgraf_3_titel" text-anchor="middle" x="120" y="15">Trend</text>
+  </g>
+  <path d="m136,330l64,0" data-hv-links="~&gt;ft:0.5,1;s&gt;broend:1,0.21;e&gt;kontraventil:0,0.67" data-hv-name="Brønd til modtryksventil" data-hv-pipe="1" data-hv-radius="10" fill="none" id="rør_brønd_ventil" stroke="#555" stroke-width="10"/>
+  <path d="m264,330l66,0" data-hv-links="e&gt;t_stykke:1,1;~&gt;pt:0.5,1;s&gt;kontraventil:1,0.67" data-hv-name="Modtryksventil til indsprøjtning" data-hv-pipe="1" data-hv-radius="10" fill="none" id="rør_ventil_tee" stroke="#555" stroke-width="10"/>
+  <path d="m420,330l100,0" data-hv-links="s&gt;t_stykke:0,1;e&gt;kontakttank:0,0.5;~&gt;at:0.5,1" data-hv-name="Indsprøjtning til kontakttank" data-hv-pipe="1" data-hv-radius="10" fill="none" id="rør_tee_kontakt" stroke="#555" stroke-width="10"/>
+  <path d="m680,330l120,0" data-hv-links="s&gt;kontakttank:1,0.5;e&gt;tank:0,0.5;~&gt;at_2:0.5,1" data-hv-name="Kontakttank til højdebeholder" data-hv-pipe="1" data-hv-radius="10" fill="none" id="rør_kontakt_beh" stroke="#555" stroke-width="10"/>
+  <path d="m338,460l37,0l0,-85" data-hv-links="e&gt;t_stykke:0.5,0;s&gt;doseringspumpe:1,0.5" data-hv-name="Doseret hypo til indsprøjtning" data-hv-pipe="1" data-hv-radius="10" fill="none" id="rør_dosering" stroke="#555" stroke-width="6"/>
+  <path d="m845,400l0,158l-815,0l0,-165.22l20,0" data-hv-links="s&gt;tank:0.5,1;e&gt;broend:0,0.64" data-hv-name="Forbrug, retur til brønden (illustration)" data-hv-pipe="1" data-hv-radius="10" fill="none" id="rør_retur" stroke="#555" stroke-width="8"/>
+  <path d="m260,460l30,0" data-hv-links="e&gt;doseringspumpe:0,0.5;s&gt;tank_2:1,0.5" data-hv-name="Hypotank til doseringspumpe" data-hv-pipe="1" data-hv-radius="10" fill="none" id="rør_hypo_pumpe" stroke="#555" stroke-width="6"/>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="20" font-weight="700" id="titel" x="40" y="36">Brøndstation med klordosering</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_broend" x="50" y="462">Brønd + P1</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_kontra" x="196" y="380">Modtryksventil</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_tee" x="428" y="352">Indsprøjtning</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_kontakt" x="520" y="396">Kontakttank 40 m³</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_beh" x="858" y="420">Højdebeholder 300 m³</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_forbrug" x="858" y="570">Forbrug</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="11" id="t_retur" x="330" y="551">Forbrug og ledningsnet: retur til brønden (illustration af kredsløbet)</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_hypo" x="150" y="524">Hypotank 50 l (NaOCl 12 %)</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_dosp" x="282" y="506">Dosering P2</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_xv1" x="556" y="518">Skylleventil XV1</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" font-weight="700" id="t_betj" x="1010" y="196">Tilstand</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_l1" x="1010" y="227">Status</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_l2" x="1010" y="261">Tripårsag</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_l3" x="1010" y="295">Scenarie</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_mode" x="1010" y="314">Driftsform: Manuel / Fra / Auto</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_kvit" x="1150" y="432">Kvittér trip</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_fyld" x="1244" y="432">Fyld hypotank</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="11" id="t_man_p1" x="1010" y="534">Brøndpumpe</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="11" id="t_man_p2" x="1105" y="534">Dosering</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="11" id="t_man_xv1" x="1200" y="534">Skylleventil</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="11" id="t_trim" x="1295" y="534">Trim</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="11" id="t_f_an" x="1010" y="630">Analysatorfejl</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="11" id="t_f_p2" x="1105" y="630">Doseringsfejl</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="11" id="t_f_lav" x="1200" y="630">Lav grundvand</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" font-weight="700" id="t_man" x="1010" y="456">Manuel betjening (driftsform Manuel)</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" font-weight="700" id="t_fejl" x="1010" y="552">Fejlinjektion (demo)</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_sp_start" x="40" y="584">Start niveau %</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_sp_stop" x="275" y="584">Stop niveau %</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_sp_dose" x="510" y="584">Dosis mg/l</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_sp_res" x="745" y="584">Mål-residual mg/l</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_sp_lav" x="40" y="654">Klor lav mg/l</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_sp_hoej" x="275" y="654">Klor høj mg/l</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_sp_speed" x="510" y="654">Tidsfaktor</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" id="t_sp_scen" x="745" y="654">Scenarie 0-4</text>
+  <text fill="#333" font-family="Segoe UI, Arial" font-size="12" font-weight="700" id="t_graf" x="1010" y="648">Tidsforløb</text>
+ </g>
+</svg>

@@ -11,6 +11,8 @@ SCADA læser og skriver programvariablerne over PLC'ens REST API; tagsene oprett
 | `logic3_proces.st` | **Logic3, proces**: brønd, brøndpumpe, skylleventil, hypotank og doseringspumpe, højdebeholder, forbrug, klor (AT1/AT2, kontakttank, CT), klokke, tidsfaktor, scenarier |
 | `load.py` | Indlæser det hele på PLC'en. Rører kun Logic2-3 og GLOBAL_VAR; Logic1 og Logic4 står |
 | `test/run.sh` | PC-test med PLC'ens egen ST-compiler og VM (`test/vw_test.cpp`) |
+| `scada_setup.py` | Opretter tags, tegningen og symbolernes opsætning i SCADA (kan køres igen) |
+| `vandvaerk.svg` | Tegningen `vandvaerk` (genereret i Tegn, symbolerne fra biblioteket, rør og bundne forbindelser) |
 
 Kræver PLC-firmware 7.9.68.168 eller nyere (64 globale variable, 16 timere, 2048 AST-noder, DINT/REAL uden startværdi). Logic2: 574 noder, 53 variable. Logic3: 364 noder, 38 variable.
 
@@ -134,6 +136,20 @@ Skrivbare (S) og læsbare (L). Tagget oprettes som kilde `logic:2:<navn>` (styri
 | `VW_AL_TRIP` | trip låst | 1 |
 
 SCADA's tekst pr. værdi tillader højst 5 tekster, derfor har `VW_STATUS` 5 værdier og `VW_TRIP` er grupperet i 5 årsager (0-4).
+
+## Tegningen i SCADA
+
+`vandvaerk` viser hele anlægget på ét billede: to rækker med 16 måleværdier øverst, procesbilledet (brønd, modtryksventil, indsprøjtning, kontakttank, højdebeholder, hypotank og doseringspumpe, skylleventil) i midten, betjening til højre og setpunkter og tre trends nederst.
+
+- **Symboler fra biblioteket:** Brønd med dykpumpe, Doseringspumpe, Kontakttank (skillevægge) og Analysator (AT) er nye i v6.14.0; resten er pumpe-, tank-, ventil- og instrumentsymboler samt betjeningssymboler.
+- **Betjening:** driftsform (Manuel / Fra / Auto), kvittér trip, fyld hypotank, manuel betjening (brøndpumpe, dosering, skylleventil), trim til/fra, tre fejlinjektioner og otte setpunktsfelter (start-/stopniveau, dosis, mål-residual, klorgrænser, tidsfaktor, scenarie).
+- **Flow:** løbelyset følger den beregnede flow-fordeling. Flowberegningen kræver en lukket kreds, så forbruget tegnes som en **retur til brønden** (en illustration). Doseringsrøret har ingen animation (doseringspumpen indgår ikke i beregningen); dosering ses i doseringspumpens løbehjul, `Hypo l/t` og `Doseringspumpe %`.
+- **Statusfelterne** viser status, tripårsag og scenarie som tekst med farve. SCADA's tekst pr. værdi tillader højst 5 tekster.
+
+```bash
+# opsæt tags, tegning og symboler (efter load.py)
+SCADA_URL=https://scada.laces.dk SCADA_USER=... SCADA_PASS=... PLC_NAME=demo python demo/vandvaerk/scada_setup.py
+```
 
 ## Brug
 
