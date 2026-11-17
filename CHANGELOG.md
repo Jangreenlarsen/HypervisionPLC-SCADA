@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.16.0 build 0436] — 2026-11-17 — Instrumentbobler viser værdien
+
+Jan: "de manometer vi har i tegning kan vi ikke gøre dem animeret, enten med tekst værdi eller en viser". Manometerets viser kunne allerede animeres (Rotation); det var ISA-boblerne (FT, PT, LT, TT, AT), der kun stod med bogstaver.
+
+- `frontend/src/lib/symbols.ts`: boblerne har en `vaerdi`-tekst under bogstaverne (bogstaverne er flyttet lidt op og gjort mindre); hints rettet.
+- `frontend/src/lib/symbolConfig.ts`: guidens forslag til TT/PT/FT/LT/AT: en Tekst-animation på værdien. Test i `libraryDefaults.test.ts`.
+- Manualkapitlet *Symbolbiblioteket* genereret igen. Bobler, der allerede står i en tegning, mangler værdi-teksten: indsæt dem igen fra biblioteket (Erstat med symbol).
+- `demo/vandvaerk`: de 7 bobler i tegningen viser nu værdien (`vandvaerk.svg`, `scada_setup.py`).
+
+---
+
 ## [6.15.0 build 0435] — 2026-11-17 — Alarmer: filter pr. system
 
 Jan: "de alarmer man har i de forskellige systemtegninger kunne være rart man kun så dem i alarmer" (valgt: filter pr. system i Alarmer).

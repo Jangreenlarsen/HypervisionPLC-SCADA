@@ -279,6 +279,13 @@ export function libraryDefault(symbol: SymbolInfo | null): { config: SymbolConfi
     cfg.anims.push({ part: 'all', type: 'segments', src: '', params: animDefaults('segments', 'num', 0), only: null });
     return { config: cfg, note: 'Forslag fra symbolbiblioteket: displayet viser et tal-tag. Vælg tagget under trin 4 (og evt. decimaler eller en beregning).' };
   }
+  if (['tt', 'pt', 'ft', 'lt', 'at'].includes(symbol.type)) {
+    // Instrumentboble (v6.16.0): værdien vises i boblen
+    const part = partOf('vaerdi');
+    if (!part) return null;   // en ældre boble uden værdi-tekst (indsæt den igen fra biblioteket)
+    cfg.anims.push({ part, type: 'text', src: '', params: animDefaults('text', 'num', 0), only: null });
+    return { config: cfg, note: 'Forslag fra symbolbiblioteket: værdien vises i boblen. Vælg tagget under trin 4 (enhed og decimaler følger tagget).' };
+  }
   if (symbol.type === 'statusfelt') {
     const part = partOf('felt');
     if (!part) return null;

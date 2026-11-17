@@ -57,7 +57,9 @@ const text = (x: number, y: number, s: string, size = 14, attrs = '', anchor = '
 const bubble = (letters: string) =>
   `<g><line x1="30" y1="54" x2="30" y2="80" stroke="${LINE}" stroke-width="2" stroke-dasharray="4 3"/>` +
   `<circle cx="30" cy="30" r="24" fill="${PANEL}" stroke="${LINE}" stroke-width="2.5"/>` +
-  text(30, 36, letters, 16, 'font-weight="600" id="tekst"') + '</g>';
+  text(30, 28, letters, 14, 'font-weight="600" id="tekst"') +
+  // værdien (v6.16.0): bindes til tagget med en Tekst-animation
+  text(30, 44, '--', 12, 'id="vaerdi"') + '</g>';
 
 /**
  * Betjeningssymboler beskriver selv deres bindinger: `data-hv-auto` på roden (klik-handlingen) og
@@ -461,11 +463,11 @@ export const SYMBOLS: SymbolDef[] = [
   },
 
   // ---------------------------------------------------------------- Måleinstrumenter
-  { id: 'tt', label: 'Temperatur (TT)', category: 'vvs', hint: 'ISA-boble; værdien vises i et værdifelt', svg: bubble('TT') },
-  { id: 'pt', label: 'Tryk (PT)', category: 'vvs', hint: 'ISA-boble; værdien vises i et værdifelt', svg: bubble('PT') },
-  { id: 'ft', label: 'Flow (FT)', category: 'vvs', hint: 'ISA-boble; værdien vises i et værdifelt', svg: bubble('FT') },
-  { id: 'lt', label: 'Niveau (LT)', category: 'vvs', hint: 'ISA-boble; værdien vises i et værdifelt', svg: bubble('LT') },
-  { id: 'at', label: 'Analysator (AT)', category: 'vvs', hint: 'ISA-boble (fx klor, pH, turbiditet); værdien vises i et værdifelt', svg: bubble('AT') },
+  { id: 'tt', label: 'Temperatur (TT)', category: 'vvs', hint: 'ISA-boble; vælg tagget i guiden, så vises værdien i boblen (Tekst på værdien)', svg: bubble('TT') },
+  { id: 'pt', label: 'Tryk (PT)', category: 'vvs', hint: 'ISA-boble; vælg tagget i guiden, så vises værdien i boblen (Tekst på værdien)', svg: bubble('PT') },
+  { id: 'ft', label: 'Flow (FT)', category: 'vvs', hint: 'ISA-boble; vælg tagget i guiden, så vises værdien i boblen (Tekst på værdien)', svg: bubble('FT') },
+  { id: 'lt', label: 'Niveau (LT)', category: 'vvs', hint: 'ISA-boble; vælg tagget i guiden, så vises værdien i boblen (Tekst på værdien)', svg: bubble('LT') },
+  { id: 'at', label: 'Analysator (AT)', category: 'vvs', hint: 'ISA-boble (fx klor, pH, turbiditet); vælg tagget i guiden, så vises værdien i boblen (Tekst på værdien)', svg: bubble('AT') },
   {
     id: 'manometer', label: 'Manometer', category: 'vvs', hint: 'Bind "Rotation" på viseren (fx min -120°, max 120°)',
     svg: `<g><circle cx="40" cy="40" r="32" fill="${PANEL}" stroke="${LINE}" stroke-width="3"/>` +

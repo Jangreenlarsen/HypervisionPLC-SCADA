@@ -57,37 +57,44 @@
   <g data-hv-links="0.5,1&gt;rør_brønd_ventil:~" data-hv-name="Flowmåler FT1" data-hv-type="ft" data-hv-unused="*" id="ft" transform="translate(0 -200) translate(-582 0) matrix(1 0 0 1 720 450)">
    <line id="svg_20" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
    <circle cx="30" cy="30" fill="#eeeeee" id="svg_21" r="24" stroke="#555" stroke-width="2.5"/>
-   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="ft_tekst" text-anchor="middle" x="30" y="36">FT</text>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="14" font-weight="600" id="ft_tekst" text-anchor="middle" x="30" y="28">FT</text>
+   <text data-hv-pid="vaerdi" fill="#333" font-family="Segoe UI, Arial" font-size="12" id="ft_vaerdi" text-anchor="middle" x="30" y="44">--</text>
   </g>
   <g data-hv-links="0.5,1&gt;rør_ventil_tee:~" data-hv-name="Tryk PT1" data-hv-type="pt" data-hv-unused="*" id="pt" transform="translate(0 -230) translate(-480 0) matrix(1 0 0 1 750 480)">
    <line id="svg_22" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
    <circle cx="30" cy="30" fill="#eeeeee" id="svg_23" r="24" stroke="#555" stroke-width="2.5"/>
-   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="pt_tekst" text-anchor="middle" x="30" y="36">PT</text>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="14" font-weight="600" id="pt_tekst" text-anchor="middle" x="30" y="28">PT</text>
+   <text data-hv-pid="vaerdi" fill="#333" font-family="Segoe UI, Arial" font-size="12" id="pt_vaerdi" text-anchor="middle" x="30" y="44">--</text>
   </g>
   <g data-hv-links="0.5,1&gt;rør_tee_kontakt:~" data-hv-name="Klor AT1 (efter indsprøjtning)" data-hv-type="at" data-hv-unused="*" id="at" transform="translate(0 -260) translate(-340 0) matrix(1 0 0 1 780 510)">
    <line id="svg_24" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
    <circle cx="30" cy="30" fill="#eeeeee" id="svg_25" r="24" stroke="#555" stroke-width="2.5"/>
-   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="at_tekst" text-anchor="middle" x="30" y="36">AT</text>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="14" font-weight="600" id="at_tekst" text-anchor="middle" x="30" y="28">AT</text>
+   <text data-hv-pid="vaerdi" fill="#333" font-family="Segoe UI, Arial" font-size="12" id="at_vaerdi" text-anchor="middle" x="30" y="44">--</text>
   </g>
   <g data-hv-links="0.5,1&gt;rør_kontakt_beh:~" data-hv-name="Klor AT2 (efter kontakttank)" data-hv-type="at" data-hv-unused="*" id="at_2" transform="translate(0 -290) translate(-100 0) matrix(1 0 0 1 810 540)">
    <line id="svg_26" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
    <circle cx="30" cy="30" fill="#eeeeee" id="svg_27" r="24" stroke="#555" stroke-width="2.5"/>
-   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="at_2_tekst" text-anchor="middle" x="30" y="36">AT</text>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="14" font-weight="600" id="at_2_tekst" text-anchor="middle" x="30" y="28">AT</text>
+   <text data-hv-pid="vaerdi" fill="#333" font-family="Segoe UI, Arial" font-size="12" id="at_2_vaerdi" text-anchor="middle" x="30" y="44">--</text>
   </g>
   <g data-hv-name="Niveau brønd LT1" data-hv-type="lt" data-hv-unused="*" id="lt" transform="translate(0 -175) translate(-597 0) matrix(1 0 0 1 660 390)">
    <line id="svg_28" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
    <circle cx="30" cy="30" fill="#eeeeee" id="svg_29" r="24" stroke="#555" stroke-width="2.5"/>
-   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="lt_tekst" text-anchor="middle" x="30" y="36">LT</text>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="14" font-weight="600" id="lt_tekst" text-anchor="middle" x="30" y="28">LT</text>
+   <text data-hv-pid="vaerdi" fill="#333" font-family="Segoe UI, Arial" font-size="12" id="lt_vaerdi" text-anchor="middle" x="30" y="44">--</text>
   </g>
   <g data-hv-name="Niveau højdebeholder LT2" data-hv-type="lt" data-hv-unused="*" id="lt_2" transform="translate(0 -126) translate(224 0) matrix(1 0 0 1 690 420)">
    <line id="svg_30" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
    <circle cx="30" cy="30" fill="#eeeeee" id="svg_31" r="24" stroke="#555" stroke-width="2.5"/>
-   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="lt_2_tekst" text-anchor="middle" x="30" y="36">LT</text>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="14" font-weight="600" id="lt_2_tekst" text-anchor="middle" x="30" y="28">LT</text>
+   <text data-hv-pid="vaerdi" fill="#333" font-family="Segoe UI, Arial" font-size="12" id="lt_2_vaerdi" text-anchor="middle" x="30" y="44">--</text>
   </g>
   <g data-hv-name="Niveau hypotank LT3" data-hv-type="lt" data-hv-unused="*" id="lt_3" transform="translate(0 -35) translate(-584 0) matrix(1 0 0 1 720 450)">
    <line id="svg_32" stroke="#555" stroke-dasharray="4 3" stroke-width="2" x1="30" x2="30" y1="54" y2="80"/>
    <circle cx="30" cy="30" fill="#eeeeee" id="svg_33" r="24" stroke="#555" stroke-width="2.5"/>
-   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="16" font-weight="600" id="lt_3_tekst" text-anchor="middle" x="30" y="36">LT</text>
+   <text data-hv-pid="tekst" fill="#333" font-family="Segoe UI, Arial" font-size="14" font-weight="600" id="lt_3_tekst" text-anchor="middle" x="30" y="28">LT</text>
+   <text data-hv-pid="vaerdi" fill="#333" font-family="Segoe UI, Arial" font-size="12" id="lt_3_vaerdi" text-anchor="middle" x="30" y="44">--</text>
   </g>
   <g data-hv-links="0.5,1&gt;vaerdi_9:0.5,0" data-hv-name="Flow l/s" data-hv-type="vaerdi" data-hv-unused="*" id="vaerdi" transform="translate(0 -430) translate(-710 0) matrix(1 0 0 1 750 480)">
    <rect fill="#eeeeee" height="56" id="svg_34" rx="4" stroke="#888888" width="160" x="0" y="0"/>

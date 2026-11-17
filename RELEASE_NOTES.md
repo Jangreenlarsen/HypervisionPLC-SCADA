@@ -2,6 +2,10 @@
 
 ---
 
+## v6.16.0 — 2026-11-17 — Bobler med værdi
+
+- Instrumentboblerne (temperatur, tryk, flow, niveau, analysator) kan vise værdien i selve boblen. Vælg tagget i guiden, så vises værdien (enhed og decimaler fra tagget). Bobler, der allerede står i en tegning, skal erstattes med den nye fra biblioteket.
+
 ## v6.15.0 — 2026-11-17 — Alarmer pr. system
 
 - På siden Alarmer kan du vælge et **system** (tegning) og kun se dets alarmer, både aktive og i historikken. *Kvittér alle* gælder kun det valgte system. Klokken i topbjælken tæller stadig alle.

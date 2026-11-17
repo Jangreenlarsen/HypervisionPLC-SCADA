@@ -295,3 +295,9 @@ def chart(key, tags, title, ymin=None, ymax=None):
 chart("trend1", ["VW_AT1", "VW_AT2"], "Klor (mg/l)")
 chart("trend2", ["VW_BEH", "VW_HYPO"], "Beholder og hypotank (%)", 0, 100)
 chart("trend3", ["VW_Q", "VW_BEHOV"], "Flow og forbrug (l/s)", 0, None)
+
+# ---- instrumentbobler: værdien i boblen
+for key, tag in [("ft", "VW_Q"), ("pt", "VW_TRYK"), ("at1", "VW_AT1"), ("at2", "VW_AT2"), ("lt1", "VW_BROND"), ("lt2", "VW_BEH"), ("lt3", "VW_HYPO")]:
+    typ = {"ft": "ft", "pt": "pt", "lt": "lt", "at": "at"}[key.rstrip("0123456789")]
+    put(key, base(typ, anims=[A(f"{ID[key]}_vaerdi", "text", tag, {"decimals": None, "texts": [], "true_text": "Til", "false_text": "Fra", "show_unit": False,
+                                                                  "prefix": "", "suffix": "", "expression": ""})]))
