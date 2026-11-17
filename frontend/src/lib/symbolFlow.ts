@@ -35,11 +35,13 @@ export const UNITS: Record<FlowMedium, string> = { water: 'l/min', air: 'm³/h',
 /** Indbyggede rørstykker — samme liste som backend flow_defs.PIPE_SYMBOL_TYPES. */
 export const PIECE_TYPES = new Set(['roer_l', 'roer_v', 'boejning45', 'boejning90', 't_stykke', 'kryds', 'reduktion', 'flange',
   'ledning_l', 'ledning_v', 'forbindelse', 'klemme']);
+/** Typer, der som standard er en pumpe/kilde — samme liste som backend flow_defs.PUMP_TYPES. */
+export const PUMP_TYPES = new Set(['pumpe', 'doseringspumpe', 'broend']);
 /** Typens rolle: profilen, ellers de indbyggede rørstykker/pumper, ellers forbruger. */
 export function kindOf(defs: FlowDefs, type: string): FlowKind {
   const k = defs[type]?.kind;
   if (k) return k;
-  return PIECE_TYPES.has(type) ? 'piece' : type === 'pumpe' ? 'pump' : 'consumer';
+  return PIECE_TYPES.has(type) ? 'piece' : PUMP_TYPES.has(type) ? 'pump' : 'consumer';
 }
 export const unitOf = (defs: FlowDefs, type: string): string => UNITS[defs[type]?.medium ?? 'water'];
 /** Har definitionen en profil ud over standarden (så den kan gemmes uden punkter)? */
@@ -63,6 +65,9 @@ const IN_OUT = (y: number): PortDef[] => [
 /** Standarder for de indbyggede symboler (målt på symbolerne i Tegn; pil/trekant peger mod højre ved 0°). */
 export const FLOW_DEFAULTS: FlowDefs = {
   pumpe: { ports: IN_OUT(0.5), kind: 'pump' },
+  doseringspumpe: { ports: IN_OUT(0.5), kind: 'pump' },
+  // brønd med dykpumpe (v6.14.0): kilde med kun et UD-punkt (stigrøret, ca. 0,21 fra toppen)
+  broend: { ports: [{ x: 1, y: 0.21, name: 'UD', role: 'out' }], kind: 'pump' },
   kontraventil: { ports: IN_OUT(0.67) },
   trevejs_motorventil: {
     ports: [{ x: 0.07, y: 0.46, name: 'A', role: 'both', part: 'port_a' }, { x: 0.46, y: 0.08, name: 'B', role: 'both', part: 'port_b' },

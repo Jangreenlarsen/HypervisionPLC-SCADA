@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PART_LABEL } from './symbolConfig';
+import { FLOW_DEFAULTS } from './symbolFlow';
 import { CATEGORIES, FITTING_LEGS, PIPE_IDS, PIPE_PREVIEW, previewViewBox, selectorAngles, selectorSymbol, SYMBOL_COLORS, SYMBOLS, withName } from './symbols';
 
 const parse = (fragment: string) =>
@@ -25,6 +26,12 @@ describe('symbolbibliotek', () => {
       const ids = [...parse(s.svg).querySelectorAll('[id]')].map((e) => e.id);
       expect(new Set(ids).size, s.id).toBe(ids.length);
     }
+  });
+  it('vandværkssymbolerne findes og pumpe/brønd er kilder i flowberegningen (v6.14.0)', () => {
+    const ids = new Set(SYMBOLS.map((s) => s.id));
+    for (const id of ['at', 'doseringspumpe', 'kontakttank', 'broend']) expect(ids.has(id), id).toBe(true);
+    for (const id of ['doseringspumpe', 'broend']) expect(FLOW_DEFAULTS[id]?.kind, id).toBe('pump');
+    expect(FLOW_DEFAULTS.broend.ports.map((p) => p.role)).toEqual(['out']);
   });
   it('de ønskede fittings og el-symboler findes', () => {
     const ids = new Set(SYMBOLS.map((s) => s.id));

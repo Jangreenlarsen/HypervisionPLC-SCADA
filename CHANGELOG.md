@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.14.0 build 0433] — 2026-11-17 — Nye symboler: analysator, doseringspumpe, kontakttank og brønd med dykpumpe
+
+Til vandværks-demoen (`docs/ANALYSE_VANDVAERK.md`).
+
+- `frontend/src/lib/symbols.ts`: **Analysator (AT)** (ISA-boble), **Doseringspumpe** (rotor med tre ruller, del `loebehjul`), **Kontakttank (skillevægge)** (Niveau på `fyld`) og **Brønd med dykpumpe** (Niveau på `fyld`, rotor `loebehjul`, stigrør med UD-punkt).
+- Flow-rolle: doseringspumpe (IND/UD) og brønd (kun UD) er pumpe/kilde som standard — `symbolFlow.ts` (`FLOW_DEFAULTS`, ny `PUMP_TYPES`), `SymbolFlowEditor.svelte`, `signalpath/graph.ts`, `symbolConfig.ts` (forslag: løbehjulet drejer ved drift), backend `flow_defs.py` og `shared/flow_defaults.json`.
+- Manualen: kapitlet *Symbolbiblioteket* genereret igen.
+
+---
+
 ## [6.13.4 build 0432] — 2026-11-16 — Animationer i guiden: ryddeligt layout med navngivne afsnit
 
 Jan: "gøre animations del i symboler mere pæn … organiseret under hinanden som i 'felt'", "kolonne med tekst er spild af plads", "hver sektion skal have et navn".

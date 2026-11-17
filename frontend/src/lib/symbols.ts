@@ -208,6 +208,29 @@ export const SYMBOLS: SymbolDef[] = [
       `<path d="M45 32.5 L59 40 L45 47.5 Z" fill="${DARK}" stroke="${DARK}" stroke-width="1" stroke-linejoin="round"/></g></g>`,
   },
   {
+    // Doseringspumpe (v6.14.0): lille pumpe til kemikalier — rotor med tre ruller (drejer om midten), flow-rolle pumpe (IND venstre, UD højre)
+    id: 'doseringspumpe', label: 'Doseringspumpe', category: 'proces',
+    hint: 'Rotoren drejer, når pumpen kører (Roterer) — bind drifts-tagget; flow-rolle pumpe (IND til venstre, UD til højre)',
+    svg: `<g><circle cx="30" cy="30" r="24" fill="${FILL}" stroke="${LINE}" stroke-width="3"/>` +
+      `<g id="loebehjul"><circle cx="30" cy="30" r="18" fill="none" stroke="none"/>` +
+      `<path d="M30 30 L30 16 M30 30 L42.1 37 M30 30 L17.9 37" fill="none" stroke="${PANEL}" stroke-width="3" stroke-linecap="round"/>` +
+      `<circle cx="30" cy="16" r="4" fill="${PANEL}" stroke="${DARK}" stroke-width="1.5"/><circle cx="42.1" cy="37" r="4" fill="${PANEL}" stroke="${DARK}" stroke-width="1.5"/>` +
+      `<circle cx="17.9" cy="37" r="4" fill="${PANEL}" stroke="${DARK}" stroke-width="1.5"/></g></g>`,
+  },
+  {
+    // Brønd med dykpumpe (v6.14.0): snit af en brønd; vandet (Niveau på "fyld"), dykpumpen med rotor og stigrøret ud af brøndens side (UD)
+    id: 'broend', label: 'Brønd med dykpumpe', category: 'proces',
+    hint: 'Bind "Niveau" på vandet (fyld) og "Roterer" på dykpumpens rotor; flow-rolle pumpe/kilde med UD til højre for stigrøret',
+    svg: `<g><rect x="0" y="12" width="60" height="138" rx="4" fill="${PANEL}" stroke="${LINE}" stroke-width="3"/>` +
+      `<rect id="fyld" x="3" y="15" width="54" height="132" rx="3" fill="${MEDIUM}"/>` +
+      `<rect x="-6" y="4" width="72" height="8" rx="2" fill="${FILL}" stroke="${LINE}" stroke-width="2"/>` +
+      `<path d="M30 100 V34 H80" fill="none" stroke="${LINE}" stroke-width="8" stroke-linejoin="round"/>` +
+      `<path d="M30 100 V34 H80" fill="none" stroke="${FILL}" stroke-width="4" stroke-linejoin="round"/>` +
+      `<rect id="hus" x="17" y="98" width="26" height="44" rx="7" fill="${FILL}" stroke="${LINE}" stroke-width="2.5"/>` +
+      `<g id="loebehjul"><circle cx="30" cy="120" r="9" fill="none" stroke="none"/>` +
+      `<path d="M30 120 L30 112 M30 120 L36.9 124 M30 120 L23.1 124" fill="none" stroke="${PANEL}" stroke-width="3" stroke-linecap="round"/></g></g>`,
+  },
+  {
     // Trendgraf (v0.91.0): Overview tegner historikken i rammen; "eksempel" og "titel" er kun til Tegn og skjules
     id: 'trendgraf', label: 'Trendgraf', category: 'proces', hint: 'Kurve eller søjler med historikken for 1–4 tags — opsæt i guiden (sektionen Graf)',
     svg: `<g><rect id="ramme" x="0" y="0" width="240" height="130" rx="6" fill="${PANEL}" stroke="${LINE}" stroke-width="2"/>` +
@@ -224,6 +247,13 @@ export const SYMBOLS: SymbolDef[] = [
     id: 'tank', label: 'Tank', category: 'proces', hint: 'Bind "Niveau" på det indre rektangel',
     svg: `<g><rect x="0" y="0" width="90" height="140" rx="8" fill="${PANEL}" stroke="${LINE}" stroke-width="3"/>` +
       `<rect id="fyld" x="3" y="3" width="84" height="134" rx="5" fill="${MEDIUM}"/></g>`,
+  },
+  {
+    // Kontakttank (v6.14.0): tank med skillevægge, så vandet snor sig igennem (kontakttid for klor); Niveau på "fyld"
+    id: 'kontakttank', label: 'Kontakttank (skillevægge)', category: 'proces', hint: 'Bind "Niveau" på det indre rektangel (fyld); skillevæggene er kun tegning',
+    svg: `<g><rect x="0" y="0" width="160" height="100" rx="8" fill="${PANEL}" stroke="${LINE}" stroke-width="3"/>` +
+      `<rect id="fyld" x="3" y="3" width="154" height="94" rx="5" fill="${MEDIUM}"/>` +
+      `<path d="M40 3 V72 M80 28 V97 M120 3 V72" fill="none" stroke="${LINE}" stroke-width="3"/></g>`,
   },
   {
     id: 'vaerdi', label: 'Værdifelt', category: 'proces', hint: 'Bind "Tekst" på teksten',
@@ -432,6 +462,7 @@ export const SYMBOLS: SymbolDef[] = [
   { id: 'pt', label: 'Tryk (PT)', category: 'vvs', hint: 'ISA-boble; værdien vises i et værdifelt', svg: bubble('PT') },
   { id: 'ft', label: 'Flow (FT)', category: 'vvs', hint: 'ISA-boble; værdien vises i et værdifelt', svg: bubble('FT') },
   { id: 'lt', label: 'Niveau (LT)', category: 'vvs', hint: 'ISA-boble; værdien vises i et værdifelt', svg: bubble('LT') },
+  { id: 'at', label: 'Analysator (AT)', category: 'vvs', hint: 'ISA-boble (fx klor, pH, turbiditet); værdien vises i et værdifelt', svg: bubble('AT') },
   {
     id: 'manometer', label: 'Manometer', category: 'vvs', hint: 'Bind "Rotation" på viseren (fx min -120°, max 120°)',
     svg: `<g><circle cx="40" cy="40" r="32" fill="${PANEL}" stroke="${LINE}" stroke-width="3"/>` +
