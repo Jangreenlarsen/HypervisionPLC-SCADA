@@ -25,6 +25,29 @@ Standardmodel er `opusplan` (i `.claude/settings.local.json`): Opus i plan mode,
 - **Review (Opus)**: Agenten `reviewer` kontrollerer kritiske ændringer (auth, permissions, PLC-skrivninger, API'er, data-integritet, sikkerhed) før commit. Ikke til trivielle ændringer.
 - Agenter starter uden samtalekontekst og koster tokens. Giv dem en præcis opgave og bed om kort svar. Én session pr. opgave; `/clear` mellem uafhængige opgaver.
 
+### Orkestrering: agenter, research, model og effort (udvidelse)
+
+Hovedsessionen er **planlægger/orkestrator**. Ved hver opgave, der ikke er et opslag eller en rettelse i 1-2 filer, gør den dette, før arbejdet starter:
+
+1. **Del opgaven op** i delopgaver og afgør hvilke der er uafhængige. Uafhængige delopgaver delegeres til agenter og startes **parallelt i samme kald**. Afhængige delopgaver køres i rækkefølge. Orkestratoren beholder selv integration, beslutninger og det endelige svar; agenter leverer delresultater.
+2. **Brug research-agenter før design og implementering**, når viden mangler: `Explore` til kodebasen (hvor bor det, hvem kalder det, eksisterende mønstre), `general-purpose` med WebSearch/WebFetch til eksterne kilder (PLC-API'ets adfærd, biblioteks-API'er, licenser, SVG-Edit-interne). Giv hver research-agent ét præcist spørgsmål og bed om et kort svar med fil:linje eller kilde. Research må ikke ændre filer.
+3. **Vurdér model og effort pr. agent** ud fra opgavens sværhedsgrad og konsekvens, og angiv dem eksplicit i agentkaldet (`model`, `effort`). Brug ikke bare standard:
+
+   | Opgavetype | Model | Effort |
+   |---|---|---|
+   | Opslag, filsøgning, simple fakta | haiku / `Explore` | medium |
+   | Afgrænset implementering efter plan, tests, doku, mekaniske ændringer | sonnet / `implementer` | medium |
+   | Fejlsøgning med uklar årsag, tværgående ændringer, eksterne API'er | sonnet eller opus | high |
+   | Arkitektur, planlægning, afvejning af alternativer | opus | high |
+   | Kritisk review (auth, permissions, PLC-skrivninger, data-integritet, sikkerhed) | opus / `reviewer` | high; xhigh kun ved særlig høj risiko |
+
+   - **Effort er aldrig low** (se ovenfor). `max` bruges kun hvis Jan beder om det.
+   - Skru op når konsekvensen af en fejl er stor, løsningen er uklar, eller en tidligere agent har givet et utilstrækkeligt svar. Skru ikke op for tungt arbejde, der blot er mekanisk.
+   - Vælg den billigste kombination, der stadig giver et pålideligt resultat. Er du i tvivl mellem to niveauer, tag det højeste for sikkerheds- og PLC-skrive-relaterede opgaver og det laveste ellers.
+4. **Kort begrundelse**: Skriv i én linje hvilke agenter der startes og hvorfor model/effort er valgt (fx "Explore/haiku/medium: find kaldere; reviewer/opus/high: PLC-skrivning"). Ingen lang redegørelse.
+5. **Verificér agenternes svar** mod koden før de bruges; agenter kan tage fejl. Et agent-svar er et udkast, ikke en kendsgerning.
+6. **Undgå overdelegering**: Spawn ikke agenter til trivielle opgaver, eller hvor overhead overstiger gevinsten. Samme research må ikke udføres både af agent og af orkestratoren.
+
 ---
 
 ## Arbejdsstil (token-økonomi)

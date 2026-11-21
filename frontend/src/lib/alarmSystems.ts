@@ -22,3 +22,8 @@ export function inSystem(systems: AlarmSystem[], selected: string, a: AlarmLike)
   const mine = systemsOf(systems, a);
   return selected === NO_SYSTEM ? mine.length === 0 : mine.some((s) => s.id === selected);
 }
+
+/** Det system, Alarmer åbner med: den tegning, man kom fra (hvis den findes), ellers alle. Står man på en tegning, ser man dens alarmer. */
+export function defaultSystem(systems: AlarmSystem[], lastDrawingId: string | null): string {
+  return lastDrawingId && systems.some((s) => s.id === lastDrawingId) ? lastDrawingId : '';
+}

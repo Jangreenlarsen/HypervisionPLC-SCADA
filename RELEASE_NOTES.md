@@ -2,6 +2,10 @@
 
 ---
 
+## v6.16.3 — 2026-11-17
+
+- Alarmer åbner nu med **den tegnings** alarmer, man kom fra (klokken eller *Gå til Alarmer*). Vælg *Alle systemer* for at se alle.
+
 ## v6.16.2 — 2026-11-17
 
 - Tilstandsmærket (✓ … ! ?) kan nu slås til eller fra pr. symbol også på symboler, der kun viser PLC'ens position: guiden, trin 4, *Vis tilstandsmærke*.

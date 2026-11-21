@@ -19,7 +19,7 @@ En alarm, der ikke er kvitteret, har en **rød streg** i venstre side af rækken
 
 ## Vælg system
 
-Har anlægget flere tegninger (systemer), viser listen en kolonne **System**, og ved siden af fanerne kan du vælge et **System** og kun se dets alarmer, både under *Aktive* og *Historik*. En alarm hører til de tegninger, der bruger dens tag, og til tegningens egne symbolalarmer. Sæt derfor en **lampe** (eller et andet symbol) bundet til alarm-tagget på tegningen, så alarmen hører til systemet. Alarmer, der ikke står på nogen tegning, ses under **Uden system**. Alarmer om SCADA-serveren og PLC-forbindelsen vises altid. *Alle systemer* viser alt, og klokken i topbjælken tæller stadig alle alarmer. Valget huskes i browseren, og med et system valgt kvitterer **Kvittér alle** kun de viste alarmer.
+Har anlægget flere tegninger (systemer), viser listen en kolonne **System**, og ved siden af fanerne kan du vælge et **System** og kun se dets alarmer, både under *Aktive* og *Historik*. En alarm hører til de tegninger, der bruger dens tag, og til tegningens egne symbolalarmer. Sæt derfor en **lampe** (eller et andet symbol) bundet til alarm-tagget på tegningen, så alarmen hører til systemet. Alarmer, der ikke står på nogen tegning, ses under **Uden system**. Alarmer om SCADA-serveren og PLC-forbindelsen vises altid. Kommer du til Alarmer fra en tegning (klokken eller *Gå til Alarmer*), åbner siden med **den tegnings** alarmer; vælg *Alle systemer* for at se alt. Klokken i topbjælken tæller stadig alle alarmer, og med et system valgt kvitterer **Kvittér alle** kun de viste alarmer.
 
 ## Kvittér en alarm
 

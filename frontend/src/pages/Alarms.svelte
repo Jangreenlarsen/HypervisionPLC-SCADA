@@ -4,7 +4,8 @@
   import { get, post, type Alarm, type AlarmSummary } from '../lib/api';
   import { LiveClient } from '../lib/live';
   import { askAssist, assist } from '../lib/assistStore.svelte';
-  import { inSystem, NO_SYSTEM, systemsOf, type AlarmSystem } from '../lib/alarmSystems';
+  import { defaultSystem, inSystem, NO_SYSTEM, systemsOf, type AlarmSystem } from '../lib/alarmSystems';
+  import { lastDrawing } from '../lib/backToDrawing';
 
   let { canAck = false }: { canAck?: boolean } = $props();
 
@@ -22,16 +23,15 @@
   let history = $state<Event[]>([]);
   let tab = $state<'active' | 'history'>('active');
   let error = $state('');
-  // filter pr. system (tegning): husket pr. browser
+  // filter pr. system (tegning): åbner med den tegning, man kom fra (v6.16.3); "Alle systemer" er ét valg væk
   let systems = $state<AlarmSystem[]>([]);
-  let systemId = $state((() => { try { return localStorage.getItem('alarm-system') ?? ''; } catch { return ''; } })());
+  let systemId = $state('');
+  function pickSystem(id: string): void {
+    systemId = id;
+  }
   const system = $derived(systems.find((s) => s.id === systemId) ?? null);
   const filterName = $derived(systemId === NO_SYSTEM ? 'uden system' : system?.name ?? '');
   const sysNames = (a: { key: string; kind?: string; tag?: string }) => systemsOf(systems, a).map((s) => s.name).join(', ') || '—';
-  function pickSystem(id: string): void {
-    systemId = id;
-    try { localStorage.setItem('alarm-system', id); } catch { /* uden lager gælder valget kun denne gang */ }
-  }
 
   const live = new LiveClient(() => {});
   live.onAlarms = (s, a) => {
@@ -71,7 +71,10 @@
     } catch (e) {
       error = (e as Error).message;
     }
-    try { systems = await get<AlarmSystem[]>('/api/alarms/systems'); } catch { /* uden filter ses alle alarmer */ }
+    try {
+      systems = await get<AlarmSystem[]>('/api/alarms/systems');
+      systemId = defaultSystem(systems, lastDrawing());
+    } catch { /* uden filter ses alle alarmer */ }
   });
   onDestroy(() => live.close());
 </script>
