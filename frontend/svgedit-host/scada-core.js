@@ -11,7 +11,7 @@ import { alignToGuide, formatGuides, guideLines, parseGuides, snapBoxToGuides, s
 import { autoPortsWithSide, boxOfRoot, formatPorts, parsePorts } from './symbolPorts.js';
 import { XLINK, angleTo, arcPath, cleanupDefs, dashArray, dashKind, ensureArrow, ensureGradient, ensureShadow, fitImage, gradientOf, parsePoints, pointsAttr,
   regenerate, regularPoints, shadowOf, shapeParams, starPoints } from './shapes.js';
-import { PIPE_STYLE, alignDelta, ensureOrthogonal, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, shiftEnd, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, straightEnd, straightTarget, turnDir } from './pipes.js';
+import { PIPE_STYLE, fixStaleLinks, alignDelta, ensureOrthogonal, axisOf, axisOfDir, branchSide, endDir, mergeRoutes, moveSegment, segmentHandles, straighten, extendRoute, formatRef, fracSide, shiftEnd, fromFrac, nearest, nearestOnRoute, parseRef, pathD, pipeCorners, pipePath, reroute, sideDir, simplify, splitRoute, straightEnd, straightTarget, turnDir } from './pipes.js';
 
 /**
  * @param {{ canvas(): any, loadFromString(svg: string): unknown, updateCanvas(): void, gridHost(): HTMLElement | null,
@@ -1604,6 +1604,25 @@ export function createScada(host) {
       if (!noCmd.has(el)) cmds.push(new c.history.ChangeElementCommand(el, { 'data-hv-links': was }));
     }
   }
+  /**
+   * v6.16.4: ved Gem følger de gemte forbindelser rørenes ender (se pipes.js › fixStaleLinks) — et symbol, der er drejet/spejlet, og
+   * hvis rør er sat på igen, ellers får forbindelser, der peger på det forkerte punkt (flowet løber så forkert vej). Rører kun
+   * `data-hv-links` på de elementer, der er forældede; ingen fortryd-trin (det er en oprydning ved gem). → antal rettede elementer
+   */
+  function syncLinksToPipeEnds() {
+    const content = canvas()?.getSvgContent?.();
+    if (!content) return 0;
+    const items = [...content.querySelectorAll('[data-hv-links]')].filter((el) => el.id).map((el) => {
+      const pipe = el.hasAttribute('data-hv-pipe');
+      return { id: el.id, pipe, links: parseLinks(el), refs: pipe ? [parseRef(el.getAttribute('data-hv-from')), parseRef(el.getAttribute('data-hv-to'))] : [] };
+    });
+    const fixed = fixStaleLinks(items);
+    for (const [id, list] of fixed) {
+      const el = content.querySelector(`[id="${CSS.escape(String(id))}"]`);
+      if (el) el.setAttribute('data-hv-links', linkText(list));
+    }
+    return fixed.size;
+  }
   /** Skriv forbindelserne for nogle elementer som ét fortryd-trin. `next`: Map(element → liste). */
   function commitLinks(next, label) {
     const c = canvas();
@@ -3006,6 +3025,7 @@ export function createScada(host) {
 
     getSvg() {
       canvas().clearSelection();
+      syncLinksToPipeEnds();                   // v6.16.4: forbindelserne følger rørenes ender
       cleanupDefs(canvas().getSvgContent());   // pile/gradienter/skygger, intet længere bruger (v3.33.0)
       // Tomme navne/forklaringer (felterne tømt i Tegn) gemmes ikke
       canvas().getSvgContent().querySelectorAll('[data-hv-name=""],[data-hv-desc=""]').forEach((el) => {

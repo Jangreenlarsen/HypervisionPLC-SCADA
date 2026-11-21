@@ -193,6 +193,45 @@ def test_two_pumps_against_each_other_cancel_out():
     assert abs(flows.get("rad", 0)) < 1 and abs(flows.get("r1", 0)) < 1
 
 
+def _parallel_pumps(stale: bool) -> str:
+    """To pumper mellem samlebjælkerne X og Y, modsat vendt, og en forbruger imellem (Jan 2026-11-21, test_ny_editor). Pumpe B er
+    spejlet: rørenes ender (data-hv-from/-to) sidder på de rigtige punkter; med `stale` står de gemte forbindelser (data-hv-links)
+    stadig, som de var før vendingen."""
+    def pp(i: str, links: str, frm: str, to: str) -> str:
+        return (f'<path id="{i}" data-hv-pipe="1" d="M0 0 H10" data-hv-links="{links}" data-hv-from="{frm}" data-hv-to="{to}"/>')
+    b_in, b_out = ("1,0.5", "0,0.5") if stale else ("0,0.5", "1,0.5")        # de gemte (forældede) punkter ved B's rør
+    return svg(
+        sym("tx", "t_stykke", "0,0>pa1:s;1,0>pb2:e;2,0>rx:s"), sym("ty", "t_stykke", "0,0>pa2:e;1,0>pb1:s;2,0>ry:e"),
+        sym("a", "pumpe", f"{IN}>pa1:e;{OUT}>pa2:s"),
+        pp("pa1", f"s>tx:0,0;e>a:{IN}", "tx@0,0", f"a@{IN}"), pp("pa2", f"s>a:{OUT};e>ty:0,0", f"a@{OUT}", "ty@0,0"),
+        sym("b", "pumpe", f"{b_in}>pb1:e;{b_out}>pb2:s"),
+        pp("pb1", f"s>ty:1,0;e>b:{b_in}", "ty@1,0", "b@0,0.5"),         # røret sidder fysisk ved IND (0,0.5)
+        pp("pb2", f"s>b:{b_out};e>tx:1,0", "b@1,0.5", "tx@1,0"),        # … og her ved UD (1,0.5)
+        sym("rad", "radiator", "0,0.5>rx:e;1,0.5>ry:s"),
+        pp("rx", "s>tx:2,0;e>rad:0,0.5", "tx@2,0", "rad@0,0.5"), pp("ry", "s>rad:1,0.5;e>ty:2,0", "rad@1,0.5", "ty@2,0"))
+
+
+def _run_parallel(s: str, a_on: bool):
+    on = lambda v: {"op": "view", "flow": {"pump": True, "capacity": 100, "rate": {"src": f"@val:{v}", "max": 1}}}   # noqa: E731
+    return run(s, {"a": on(1 if a_on else 0), "b": on(0 if a_on else 1)})
+
+
+@pytest.mark.parametrize("stale", [False, True])
+def test_the_flow_reverses_through_the_consumer_when_the_opposite_pump_runs(stale):
+    """v6.16.4: pumpe B (modsat A) skal vende flowet gennem forbrugeren — også når B's gemte forbindelser er forældede."""
+    flows_a, _, _ = _run_parallel(_parallel_pumps(stale), True)
+    flows_b, notes_b, _ = _run_parallel(_parallel_pumps(stale), False)
+    assert flows_a["rx"] * flows_b["rx"] < 0 and flows_a["ry"] * flows_b["ry"] < 0
+    assert flows_b["rx"] == pytest.approx(-flows_a["rx"])
+    assert bool(notes_b) == stale                      # forældede forbindelser nævnes; rene gør ikke
+
+
+def test_a_stale_link_is_reported_once_per_symbol_and_the_end_of_the_pipe_wins():
+    topo = parse_topology(_parallel_pumps(True))
+    assert {s for s, _k, _p in topo.stale} == {"b"}
+    assert (("pb1", "e"), ("b", "0,0.5")) in topo.links or (("b", "0,0.5"), ("pb1", "e")) in topo.links
+
+
 def test_a_pump_type_without_flow_setup_runs_by_its_position():
     """v6.8.4 (Jan: ingen løbelys i simulatoren): en pumpe-type uden egen flow-opsætning er en pumpe med typens kapacitet;
     farten følger positionen (Fra = stop, Til = kører). Uden positioner står den stille; en egen flow-opsætning vinder."""

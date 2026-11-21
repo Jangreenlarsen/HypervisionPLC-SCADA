@@ -1,6 +1,6 @@
 // Rør-værktøjets beregninger (svgedit-host/pipes.js).
 // @ts-expect-error — ren JS uden typer
-import { axisOf, connect, shiftEnd, straightEnd, straightTarget, formatRef, fromFrac, moveEnd, nearest, orthoLeg, parseRef, pathD, portsFrom, simplify, toFrac } from '../../svgedit-host/pipes.js';
+import { axisOf, connect, fixStaleLinks, shiftEnd, straightEnd, straightTarget, formatRef, fromFrac, moveEnd, nearest, orthoLeg, parseRef, pathD, portsFrom, simplify, toFrac } from '../../svgedit-host/pipes.js';
 import { describe, expect, it } from 'vitest';
 
 type P = [number, number];
@@ -404,5 +404,26 @@ describe('shiftEnd (v6.12.3): enden flyttes lidt uden hak', () => {
   });
   it('et lige rør uden knæk: null (så lægges enden om som før)', () => {
     expect(shiftEnd([[0, 0], [100, 0]], 'end', [104, 3])).toBeNull();
+  });
+});
+
+describe('fixStaleLinks (v6.16.4)', () => {
+  // Pumpe b er spejlet: røret pb1 sidder ved IND (0,0.5), men de gemte forbindelser siger stadig UD (1,0.5)
+  const mk = (stale: boolean) => [
+    { id: 'b', pipe: false, refs: [], links: [{ key: stale ? '1,0.5' : '0,0.5', to: 'pb1', toKey: 'e' }, { key: stale ? '0,0.5' : '1,0.5', to: 'pb2', toKey: 's' }] },
+    { id: 'pb1', pipe: true, refs: [null, parseRef('b@0,0.5,l')], links: [{ key: 'e', to: 'b', toKey: stale ? '1,0.5' : '0,0.5' }] },
+    { id: 'pb2', pipe: true, refs: [parseRef('b@1,0.5,r'), null], links: [{ key: 's', to: 'b', toKey: stale ? '0,0.5' : '1,0.5' }] },
+  ];
+  it('retter en forbindelse, der peger på et andet punkt end rørets ende — på begge sider', () => {
+    const fix = fixStaleLinks(mk(true));
+    expect(fix.get('pb1')).toEqual([{ key: 'e', to: 'b', toKey: '0,0.5' }]);
+    expect(fix.get('pb2')).toEqual([{ key: 's', to: 'b', toKey: '1,0.5' }]);
+    expect(fix.get('b')).toEqual([{ key: '0,0.5', to: 'pb1', toKey: 'e' }, { key: '1,0.5', to: 'pb2', toKey: 's' }]);
+  });
+  it('rører ikke forbindelser, der passer (også med målt, afrundet ende)', () => {
+    expect(fixStaleLinks(mk(false)).size).toBe(0);
+    const items = mk(false);
+    items[1].refs = [null, parseRef('b@0.0523,0.5045,l')];
+    expect(fixStaleLinks(items).size).toBe(0);
   });
 });
