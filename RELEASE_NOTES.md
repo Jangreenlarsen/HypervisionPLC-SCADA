@@ -2,6 +2,10 @@
 
 ---
 
+## v6.16.4 — 2026-11-21
+
+- Rettet: to pumper i modsat retning — flowet i tegningen vender nu, når den anden pumpe løber. Fejlen opstod, når en pumpe var drejet eller spejlet, og røret sat på igen: de gemte forbindelser pegede så på det forkerte punkt. Simulatoren bruger nu rørenes ender, og Tegn retter forbindelserne ved Gem. Står der en note om forældede forbindelser, så tryk *Forbindelser › Bind forbindelser* og gem tegningen.
+
 ## v6.16.3 — 2026-11-17
 
 - Alarmer åbner nu med **den tegnings** alarmer, man kom fra (klokken eller *Gå til Alarmer*). Vælg *Alle systemer* for at se alle.

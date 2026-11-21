@@ -36,6 +36,7 @@ det, så beregningen passer med målingen.
 from __future__ import annotations
 
 import logging
+import math
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -108,6 +109,25 @@ class Element:
 class Topology:
     elements: dict[str, Element]
     links: list[tuple[tuple[str, str], tuple[str, str]]]
+    # v6.16.4: forældede gemte forbindelser, der blev rettet efter rørets ende (data-hv-from/-to): (symbol, punkt, rør)
+    stale: list[tuple[str, str, str]] = field(default_factory=list)
+
+
+# hvor langt en brøkdel i rørets ende (data-hv-from/-to, rundet af tegneværktøjet) må ligge fra punktets nøgle, før de to regnes
+# for forskellige punkter (nøglerne er typens egne, fx 0,0.5; enden er målt, fx 0.0523,0.5045)
+KEY_TOL = 0.15
+
+
+def _frac(key: str) -> tuple[float, float] | None:
+    """'0.5,0' eller '0.4506,0.8625,b' → (x, y); ellers None (fx 's', 'e', '~')."""
+    parts = key.split(",")
+    if len(parts) < 2:
+        return None
+    try:
+        x, y = float(parts[0]), float(parts[1])
+    except ValueError:
+        return None
+    return (x, y) if math.isfinite(x) and math.isfinite(y) else None
 
 
 def _local(tag: Any) -> str:
@@ -122,6 +142,7 @@ def parse_topology(svg: str, pieces: frozenset[str] | None = None) -> Topology:
     elements: dict[str, Element] = {}
     raw: list[tuple[str, str, str, str]] = []
     ends: dict[tuple[str, str], str] = {}      # (rør, "s"/"e") → elementet, enden sidder fast i (data-hv-from/-to)
+    end_keys: dict[tuple[str, str], str] = {}  # (rør, "s"/"e") → punktets nøgle i elementet ("x,y"), som enden er målt
     for el in root.iter():
         if not isinstance(el.tag, str):
             continue
@@ -138,9 +159,12 @@ def parse_topology(svg: str, pieces: frozenset[str] | None = None) -> Topology:
         if pipe:
             e.keys.update(("s", "e"))
             for key, attr in (("s", "data-hv-from"), ("e", "data-hv-to")):
-                ref = (el.get(attr) or "").split("@", 1)[0]
+                ref, _, rkey = (el.get(attr) or "").partition("@")
                 if ref:
                     ends[(eid, key)] = ref
+                    fr = _frac(rkey)
+                    if fr is not None:
+                        end_keys[(eid, key)] = ",".join(rkey.split(",")[:2])   # uden sidebogstavet (…,l)
         elements[eid] = e
         for item in (links or "").split(";"):
             gt, colon = item.find(">"), item.rfind(":")
@@ -159,21 +183,59 @@ def parse_topology(svg: str, pieces: frozenset[str] | None = None) -> Topology:
             return False
         return bool(ra and ra != b) or bool(rb and rb != a)
 
+    def wrong_key(a: str, ka: str, b: str, kb: str) -> tuple[str, str, str] | None:
+        """v6.16.4 (Jan: to pumper modsat, men flowet vendte ikke): en gemt forbindelse peger på et ANDET punkt end det, rørets ende
+        sidder på (data-hv-from/-to) — fx efter at pumpen er drejet eller spejlet og røret sat på igen, uden at de gemte forbindelser
+        fulgte med. Enden følger geometrien og gælder. → (symbol, rigtigt punkt, rør-ende), ellers None."""
+        for pipe_id, pipe_end, other, other_key in ((a, ka, b, kb), (b, kb, a, ka)):
+            if pipe_end not in ("s", "e") or elements[pipe_id].kind != "pipe":
+                continue
+            ref, rkey = ends.get((pipe_id, pipe_end)), end_keys.get((pipe_id, pipe_end))
+            fr, fk = _frac(rkey or ""), _frac(other_key)
+            if ref != other or fr is None or fk is None or other_key == "~":
+                continue
+            if math.hypot(fr[0] - fk[0], fr[1] - fk[1]) > KEY_TOL:
+                return (other, rkey, pipe_id + ":" + pipe_end)   # type: ignore[return-value]
+        return None
+
     out: list[tuple[tuple[str, str], tuple[str, str]]] = []
     seen: set[tuple[tuple[str, str], tuple[str, str]]] = set()
+    stale: list[tuple[str, str, str]] = []
+    repairs: list[tuple[str, str, str, str]] = []
+
+    def add(a: str, ka: str, b: str, kb: str) -> None:
+        pair = tuple(sorted(((a, ka), (b, kb))))
+        if pair in seen:
+            return
+        seen.add(pair)   # type: ignore[arg-type]
+        elements[a].keys.add(ka)
+        elements[b].keys.add(kb)
+        out.append(((a, ka), (b, kb)))
+
     for a, ka, b, kb in raw:
         if a not in elements or b not in elements or a == b:
             continue
         if contradicted(a, ka, b, kb):
             continue
-        pair = tuple(sorted(((a, ka), (b, kb))))
-        if pair in seen:
+        bad = wrong_key(a, ka, b, kb)
+        if bad:
+            other, rkey, where = bad
+            pipe_id, pipe_end = where.split(":")
+            stale.append((other, rkey, pipe_id))
+            repairs.append((pipe_id, pipe_end, other, rkey))
             continue
-        seen.add(pair)   # type: ignore[arg-type]
-        elements[a].keys.add(ka)
-        elements[b].keys.add(kb)
-        out.append(((a, ka), (b, kb)))
-    return Topology(elements, out)
+        add(a, ka, b, kb)
+    # den forældede forbindelse erstattes af rørets egen ende: punktet = elementets nøgle nærmest enden (ellers enden som den er)
+    for pipe_id, pipe_end, other, rkey in repairs:
+        fr = _frac(rkey)
+        if fr is None:
+            continue
+        # symbolets egne nøgler (typens punkter, fx 0,0.5) fra dets gemte forbindelser, nærmeste til enden — ellers enden som målt
+        mine = {k for a, ka, b, kb in raw for e, k in ((a, ka), (b, kb)) if e == other and _frac(k) is not None}
+        near = min(mine, key=lambda k: math.hypot(_frac(k)[0] - fr[0], _frac(k)[1] - fr[1]), default=None)  # type: ignore[index]
+        ok = near is not None and math.hypot(_frac(near)[0] - fr[0], _frac(near)[1] - fr[1]) <= KEY_TOL  # type: ignore[index]
+        add(pipe_id, pipe_end, other, near if ok else rkey)   # type: ignore[arg-type]
+    return Topology(elements, out, list(dict.fromkeys(stale)))
 
 
 # ------------------------------------------------------------------ lineær løsning
@@ -486,6 +548,10 @@ def compute(topo: Topology, defs: dict[str, dict[str, Any]], configs: dict[str, 
     """→ ({element: flow l/min}, beskeder, statistik). `ports_out` fyldes med rørstykkernes flow pr. punkt (ind +, ud −)."""
     configs = type_pumps(topo, defs, configs, positions)
     n, edges, pumps, notes = build(topo, defs, configs, positions, read)
+    for sym_id in list(dict.fromkeys(s for s, _k, _p in topo.stale))[:3]:
+        nm = topo.elements[sym_id].name or sym_id
+        notes.append(f"Forbindelserne ved '{nm}' var forældede (symbolet er drejet/spejlet, og røret sat på igen) — flowet regnes efter "
+                     "rørenes ender. Tryk Forbindelser › Bind forbindelser i Tegn og gem, så de gemte forbindelser passer")
     flows: dict[str, float] = {}
     total = [0.0] * len(edges)        # strøm med fortegn pr. kant, summeret over pumperne (modsatrettede går ud mod hinanden)
     pumped = 0

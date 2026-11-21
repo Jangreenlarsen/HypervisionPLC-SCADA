@@ -635,3 +635,43 @@ export function shiftEnd(points, which, p) {
   return which === 'start' ? out.reverse() : out;
 }
 
+
+/**
+ * v6.16.4 (Jan: to pumper modsat, men flowet vendte ikke): et rørs ende (`data-hv-from/-to`) følger geometrien, men de gemte
+ * forbindelser (`data-hv-links`) blev stående, da symbolet blev drejet/spejlet og røret sat på igen. Så pegede forbindelsen på et
+ * andet punkt (fx pumpens UD) end det, røret rent faktisk sidder på (IND), og flowberegningen løb forkert vej.
+ *
+ * `items`: [{ id, pipe, links: [{ key, to, toKey }], refs: [fra, til] }] (refs = parseRef af data-hv-from/-to eller null).
+ * → Map(id → ny liste af forbindelser) for kun de elementer, der ændres. En forbindelse ved en rørende rettes, når punktet, den
+ * peger på, ligger mere end `tol` fra rørets ende: det nye punkt er symbolets nærmeste eget punkt (fra dets gemte forbindelser),
+ * ellers enden som målt. Begge sider (røret og symbolet) rettes. Forbindelser, røret ikke har (uden link), oprettes ikke her.
+ */
+export function fixStaleLinks(items, tol = 0.15) {
+  const byId = new Map(items.map((n) => [n.id, n]));
+  const frac = (k) => {
+    const p = String(k).split(',');
+    if (p.length < 2) return null;
+    const x = Number(p[0]), y = Number(p[1]);
+    return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+  };
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const next = new Map();
+  const cur = (n) => next.get(n.id) ?? n.links;
+  for (const p of items) {
+    if (!p.pipe) continue;
+    ['s', 'e'].forEach((end, i) => {
+      const ref = p.refs?.[i];
+      const target = ref && byId.get(ref.id);
+      if (!target) return;
+      const mine = cur(p).find((l) => l.key === end && l.to === target.id);
+      const was = mine && frac(mine.toKey);
+      if (!mine || !was || mine.toKey === '~' || dist(was, ref.local) <= tol) return;
+      const keys = [...new Set(cur(target).flatMap((l) => [l.key]).filter((k) => frac(k)))];
+      const best = keys.map((k) => ({ k, d: dist(frac(k), ref.local) })).sort((a, b) => a.d - b.d)[0];
+      const key = best && best.d <= tol ? best.k : `${r4(ref.local[0])},${r4(ref.local[1])}`;
+      next.set(p.id, cur(p).map((l) => (l === mine ? { ...l, toKey: key } : l)));
+      next.set(target.id, cur(target).map((l) => (l.to === p.id && l.toKey === end ? { ...l, key } : l)));
+    });
+  }
+  return next;
+}

@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.16.4 build 0440] — 2026-11-21 — Flowet vender, når pumpe 2 løber modsat (forældede forbindelser efter vending)
+
+Jan: to pumper parallelt i hver sin retning — flowet i tegningen vendte ikke, når pumpe 2 startede (test_ny_editor på scada.laces.dk).
+
+- `backend/app/services/flow_calc.py`: `parse_topology` lader rørets ende (`data-hv-from/-to`) gælde over en gemt forbindelse, der peger på et andet punkt (`wrong_key`, `KEY_TOL`); `Topology.stale`; note i simulatoren.
+- `frontend/svgedit-host/pipes.js`: `fixStaleLinks` (ren funktion). `scada-core.js`: `syncLinksToPipeEnds` kaldes i `getSvg()` (ved Gem).
+- Tests: `backend/tests/test_flow_calc.py`, `frontend/src/lib/pipes.test.ts`.
+
 ## [6.16.3 build 0439] — 2026-11-17 — Alarmer åbner med den tegning, man kom fra
 
 Jan: "alarmer er et problem nu som du kan se" (skærmbillede: Alarmer åbnet fra vandvaerk viste også test_ny_editors alarmer).
