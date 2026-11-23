@@ -68,7 +68,7 @@ Brug historikken til at se, hvor ofte en alarm kommer, og hvor lang tid der går
 
 ## Prioritet og alarmklokken
 
-Alarmer har en **prioritet**: *lav*, *medium* eller *høj*. For et tag følger den som standard niveauet: **HH** og **LL** er *høj*, **H** og **L** er *medium*, og en til/fra-alarm er *høj*. Vil du noget andet, så vælg **Prioritet** på tagget (*Tags → Redigér → Alarmer*, eller *Ret alarm* i symbolguidens trin 6): *Høj*, *Medium* eller *Lav* gælder så alle tagets niveauer. Ændrer du prioriteten, mens alarmen er aktiv, bevares kvitteringen. Kommunikations- og systemalarmer er altid *høj*. For et symbols afvigelsesalarm vælges den i guidens trin 4 (*Alarm ved afvigelse/fejl*).
+Alarmer har en **prioritet**: *lav*, *medium* eller *høj*. For et tag følger den som standard niveauet: **HH** og **LL** er *høj*, **H** og **L** er *medium*, og en til/fra-alarm er *høj*. Vil du noget andet, så vælg **Prioritet** på tagget (*Tags → Redigér → Alarmer*, eller *Ret alarm* i symbolguidens trin 6): *Høj*, *Medium* eller *Lav* gælder så alle tagets niveauer. Ændrer du prioriteten, mens alarmen er aktiv, bevares kvitteringen. Kommunikationsalarmer er altid *høj*; serverens egne systemalarmer har hver deres prioritet (se *System › Status*). For et symbols afvigelsesalarm vælges den i guidens trin 4 (*Alarm ved afvigelse/fejl*).
 
 **Alarmklokken** i topbjælken viser antallet af aktive alarmer og hvor mange der er nye (ukvitterede), fx *3 · 3 ny*:
 

@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.18.0 build 0446] — 2026-11-23 — Alarmer: smal skærm ombrydes igen; manualtekst om systemalarmer
+
+Fundet ved den visuelle kontrol af b0445 på demoen: ved 500 px skubbede kolonnernes faste bredder alarmteksten ud til siden. Under 800 px bruger tabellen igen automatisk layout (`frontend/src/pages/Alarms.svelte`). `frontend/src/manual/03-alarmer.md`: systemalarmer har egen prioritet (var skrevet som altid høj).
+
 ## [6.18.0 build 0445] — 2026-11-23 — Alarmprioritet: Høj/Medium/Lav og kolonnen Type (benchmark B1)
 
 Plan: PLAN.md › Benchmark-huller, trin 2. Skema 19 (additiv kolonne).

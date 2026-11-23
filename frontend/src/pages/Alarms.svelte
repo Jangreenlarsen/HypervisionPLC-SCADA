@@ -230,6 +230,11 @@
   table.fixed td { overflow-wrap: anywhere; }
   .c-tid { width: 10.5rem; } .c-prio { width: 5.5rem; } .c-type { width: 8rem; } .c-sys { width: 9rem; }
   .c-state { width: 11rem; } .c-act { width: 9.5rem; } .c-event { width: 7rem; } .c-user { width: 7rem; }
+  /* Smal skærm: alarmteksten er vigtigst og må ikke skubbes ud til siden — tabellen ombrydes i stedet for faste bredder */
+  @media (max-width: 800px) {
+    table.fixed { table-layout: auto; min-width: 0; }
+    .c-tid, .c-prio, .c-type, .c-sys, .c-state, .c-act, .c-event, .c-user { width: auto; }
+  }
   .hfilter { flex-wrap: wrap; margin: 0.6rem 0 0.2rem; }
   .hq { width: 18rem; max-width: 100%; }
   .hcount { min-height: 1.4em; margin: 0 0 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
