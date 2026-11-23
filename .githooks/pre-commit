@@ -1,0 +1,39 @@
+#!/bin/sh
+# pre-commit — håndhæver CLAUDE.md-reglerne maskinelt (aktiveres med: git config core.hooksPath .githooks)
+#   1. aldrig commit direkte på main (merge dev → main er tilladt)
+#   2. ingen hemmelighedsfiler eller tydelige nøgler i indekset (regel 3)
+#   3. kodeændring kræver bumpet build i version.json og en linje i CHANGELOG.md (regel 1 og 2)
+# Nødudvej (kun efter aftale med Jan): SKIP_GUARD=1 git commit …
+[ "${SKIP_GUARD:-}" = "1" ] && exit 0
+# Sammenfletning (inkl. konfliktløsning) styres af merge-reglerne, ikke af denne kontrol
+git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1 && exit 0
+
+fail=0
+err() { echo "pre-commit: $*" >&2; fail=1; }
+
+branch=$(git symbolic-ref --short -q HEAD || true)
+[ "$branch" = "main" ] && err "commit direkte på main er ikke tilladt — arbejd på dev og merge (--no-ff)."
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit "$fail"
+
+# 2. hemmeligheder
+files=$(echo "$staged" | grep -E '(^|/)(secrets\.json|\.env|[^/]*\.env)$' || true)
+[ -n "$files" ] && err "hemmelighedsfil i indekset: $files"
+keys=$(git diff --cached -U0 -- . ':!.githooks' | grep -E '^\+' | grep -E -- '-----BEGIN [A-Z ]*PRIVATE KEY-----|ghp_[A-Za-z0-9]{30,}|sk-ant-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}' || true)
+[ -n "$keys" ] && err "ligner en nøgle/token i de tilføjede linjer (fjern den, eller brug en miljøvariabel)."
+
+# 3. version og changelog ved kodeændring (dokumentation, .claude og hooks tæller ikke som kode)
+code=$(echo "$staged" | grep -Ev '\.md$|^docs/|^\.claude/|^\.githooks/|^\.gitignore$|^\.gitattributes$' || true)
+if [ -n "$code" ]; then
+    if ! echo "$staged" | grep -qx 'version.json'; then
+        err "kodeændring uden bumpet version.json — kør: python deploy/bump_version.py build|patch|minor|major"
+    else
+        num() { sed -n 's/.*"build": *"\([0-9]*\)".*/\1/p' | sed 's/^0*//'; }
+        new=$(git show :version.json | num); new=${new:-0}
+        old=$(git show HEAD:version.json 2>/dev/null | num); old=${old:-0}
+        [ "$new" -le "$old" ] && err "build i version.json ($new) er ikke højere end i HEAD ($old)."
+    fi
+    echo "$staged" | grep -qx 'CHANGELOG.md' || err "kodeændring uden entry i CHANGELOG.md."
+fi
+exit "$fail"

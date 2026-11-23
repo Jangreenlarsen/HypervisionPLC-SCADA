@@ -6,3 +6,6 @@
 *.path     text eol=lf
 *.path    text eol=lf
 *.timer   text eol=lf
+
+# Git-hooks og shell-scripts uden endelse skal have LF (Git for Windows kører dem med sh)
+.githooks/* text eol=lf

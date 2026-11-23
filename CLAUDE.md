@@ -17,79 +17,65 @@ Struktur og lag: se `ARCHITECTURE.md` (læs kun når opgaven rører arkitektur).
 
 ## Modeller og agenter
 
-Standardmodel er `opusplan` (i `.claude/settings.local.json`): Opus i plan mode, Sonnet ved implementering. Tænkeniveau (effort) er **medium** (`effortLevel` i settings; agenten `implementer` har `effort: medium`) — aldrig low.
+Standardmodel er `opusplan` (`.claude/settings.local.json`): Opus i plan mode, Sonnet ved implementering. Effort er **medium** som standard — aldrig low; `max` kun hvis Jan beder om det.
 
-- **Plan/design/analyse (Opus)**: Større opgaver planlægges først i plan mode. Gem planen i `PLAN.md` (mål, trin, berørte filer, risici), så en ny session kan fortsætte uden at gentage kontekst. Ved arkitekturvalg: 2-3 alternativer med kompromiser, vælg ét og noter beslutningen kort.
-- **Implementering (Sonnet)**: Små og mellemstore opgaver løses direkte. Afgrænsede opgaver ud fra en godkendt plan kan delegeres til agenten `implementer`.
-- **Søgning (Haiku)**: Agenten `Explore` søger i kodebasen og svarer kort. Brug den ved bred søgning, ikke ved opslag i 1-2 filer.
-- **Review (Opus)**: Agenten `reviewer` kontrollerer kritiske ændringer (auth, permissions, PLC-skrivninger, API'er, data-integritet, sikkerhed) før commit. Ikke til trivielle ændringer.
-- Agenter starter uden samtalekontekst og koster tokens. Giv dem en præcis opgave og bed om kort svar. Én session pr. opgave; `/clear` mellem uafhængige opgaver.
+Hovedsessionen er **orkestrator** og beholder selv integration, beslutninger og det endelige svar. Agenter starter uden samtalekontekst og koster tokens, så de bruges kun når det betaler sig:
 
-### Orkestrering: agenter, research, model og effort (udvidelse)
+- **Direkte, uden agent**: opslag og rettelser i 1-2 filer, og søgning hvor man allerede ved hvor.
+- **Agent** når opgaven rører **mere end 3 filer**, når koden er ukendt (hvor bor det, hvem kalder det), eller når der skal bruges ekstern viden. Uafhængige delopgaver startes **parallelt i samme kald**. Samme research må ikke udføres både af agent og af orkestratoren.
+- **`reviewer` er obligatorisk** ved ændringer i auth, permissions, PLC-skrivninger, eksterne API'er, data-integritet og sikkerhed — før commit. Ikke ved trivielle ændringer.
 
-Hovedsessionen er **planlægger/orkestrator**. Ved hver opgave, der ikke er et opslag eller en rettelse i 1-2 filer, gør den dette, før arbejdet starter:
+| Opgavetype | Agent / model | Effort |
+|---|---|---|
+| Opslag, filsøgning, simple fakta | `Explore` / haiku | medium |
+| Ekstern research (PLC-API, biblioteker, licenser, SVG-Edit) | `general-purpose` / sonnet | medium; high ved uklar kilde |
+| Afgrænset implementering efter godkendt plan, tests, doku | `implementer` / sonnet | medium |
+| Fejlsøgning med uklar årsag, tværgående ændringer | sonnet eller opus | high |
+| Arkitektur, planlægning, afvejning af alternativer | opus (plan mode eller `Plan`) | high |
+| Kritisk review (se ovenfor) | `reviewer` / opus | high; xhigh kun ved særlig høj risiko |
 
-1. **Del opgaven op** i delopgaver og afgør hvilke der er uafhængige. Uafhængige delopgaver delegeres til agenter og startes **parallelt i samme kald**. Afhængige delopgaver køres i rækkefølge. Orkestratoren beholder selv integration, beslutninger og det endelige svar; agenter leverer delresultater.
-2. **Brug research-agenter før design og implementering**, når viden mangler: `Explore` til kodebasen (hvor bor det, hvem kalder det, eksisterende mønstre), `general-purpose` med WebSearch/WebFetch til eksterne kilder (PLC-API'ets adfærd, biblioteks-API'er, licenser, SVG-Edit-interne). Giv hver research-agent ét præcist spørgsmål og bed om et kort svar med fil:linje eller kilde. Research må ikke ændre filer.
-3. **Vurdér model og effort pr. agent** ud fra opgavens sværhedsgrad og konsekvens, og angiv dem eksplicit i agentkaldet (`model`, `effort`). Brug ikke bare standard:
-
-   | Opgavetype | Model | Effort |
-   |---|---|---|
-   | Opslag, filsøgning, simple fakta | haiku / `Explore` | medium |
-   | Afgrænset implementering efter plan, tests, doku, mekaniske ændringer | sonnet / `implementer` | medium |
-   | Fejlsøgning med uklar årsag, tværgående ændringer, eksterne API'er | sonnet eller opus | high |
-   | Arkitektur, planlægning, afvejning af alternativer | opus | high |
-   | Kritisk review (auth, permissions, PLC-skrivninger, data-integritet, sikkerhed) | opus / `reviewer` | high; xhigh kun ved særlig høj risiko |
-
-   - **Effort er aldrig low** (se ovenfor). `max` bruges kun hvis Jan beder om det.
-   - Skru op når konsekvensen af en fejl er stor, løsningen er uklar, eller en tidligere agent har givet et utilstrækkeligt svar. Skru ikke op for tungt arbejde, der blot er mekanisk.
-   - Vælg den billigste kombination, der stadig giver et pålideligt resultat. Er du i tvivl mellem to niveauer, tag det højeste for sikkerheds- og PLC-skrive-relaterede opgaver og det laveste ellers.
-4. **Kort begrundelse**: Skriv i én linje hvilke agenter der startes og hvorfor model/effort er valgt (fx "Explore/haiku/medium: find kaldere; reviewer/opus/high: PLC-skrivning"). Ingen lang redegørelse.
-5. **Verificér agenternes svar** mod koden før de bruges; agenter kan tage fejl. Et agent-svar er et udkast, ikke en kendsgerning.
-6. **Undgå overdelegering**: Spawn ikke agenter til trivielle opgaver, eller hvor overhead overstiger gevinsten. Samme research må ikke udføres både af agent og af orkestratoren.
+Angiv `model` og `effort` eksplicit i agentkaldet, vælg den billigste kombination der er pålidelig, og tag den højeste ved PLC-skrivninger og sikkerhed. Skriv én linje om hvilke agenter der startes og hvorfor. Giv hver agent ét præcist spørgsmål, bed om kort svar med fil:linje, og **verificér svaret mod koden** — et agent-svar er et udkast. Research-agenter ændrer ingen filer.
 
 ---
 
 ## Arbejdsstil (token-økonomi)
 
-- Svar kort. Ingen indledning, ingen opsummering af hvad du lige gjorde. Slut med 1-2 sætninger: resultat + evt. næste skridt.
-- Vis kun ændrede dele (diff/relevante linjer), aldrig hele filer i svaret.
-- Grep/Glob først, læs derefter kun de nødvendige linjeintervaller. Læs ikke en fil igen, du allerede har i kontekst.
-- Kør uafhængige værktøjskald parallelt.
-- Uklart krav eller flere rimelige tolkninger: stil ét kort spørgsmål før du bygger. Gæt aldrig på noget dyrt at rette.
-- Større eller tværgående opgaver (nyt lag, migration, >3 filer): lav først en kort plan (plan mode) og vent på OK. Små rettelser: gå direkte til implementering.
-- Fejlsøgning: find rodårsag med bevis (log/kode) før du retter. Ret hele fejlklassen, ikke kun den rapporterede instans.
-- Ingen nye afhængigheder uden at spørge.
+- Svar kort på dansk. Ingen indledning eller opsummering; slut med 1-2 sætninger: resultat + evt. næste skridt. Vis kun ændrede dele, aldrig hele filer.
+- Grep/Glob først, læs kun nødvendige linjeintervaller, læs ikke en fil igen. Kør uafhængige værktøjskald parallelt.
+- Uklart krav eller flere rimelige tolkninger: ét kort spørgsmål før du bygger. Gæt aldrig på noget dyrt at rette.
+- Større eller tværgående opgaver (nyt lag, migration, >3 filer): kort plan i plan mode, gem i `PLAN.md` (mål, trin, filer, risici) og vent på OK. Ved arkitekturvalg: 2-3 alternativer, vælg ét, noter beslutningen kort. Små rettelser: direkte.
+- Fejlsøgning: find rodårsag med bevis (log/kode) før du retter. Ret hele fejlklassen, ikke kun instansen.
+- Ingen nye afhængigheder uden at spørge. Midlertidige scripts lægges i scratchpad, aldrig i projektet (`frontend/tools/_tmp_*` er git-ignoreret).
 
 ---
 
 ## Faste regler
 
-1. **Versionering (UFRAVIGELIG)**: `version.json` er eneste versionskilde (backend, frontend, changelog læser herfra). Format `{ "version": "MAJOR.MINOR.PATCH", "build": "NNNN" }`.
-   - build +1 ved hvert commit med kodeændring. PATCH ved bugfix (build nulstilles ikke). MINOR ved feature (PATCH=0). MAJOR ved breaking change, fx skema-migration (MINOR og PATCH=0).
-   - Debug-serie: `MAJOR.MINOR.PATCH.D` (D starter på 1, +1 pr. debug-commit). Commit: `vX.X.X.D-bNNNN: debug: beskrivelse`.
-   - Når Jan bekræfter *"nu virker det som det skal"*: PATCH+1, D nulstilles, commit som `fix:`.
-   - Kun-dokumentations-commits: ingen versionsbump.
-   - Vis ny version i commit-beskeden.
-2. **Dokumentation (saml i ét trin pr. ændring)**:
-   - Feature: registrér i `FEATURES.md` FØR implementering, opdatér status bagefter.
-   - Bug: registrér i `BUGS.md` straks, opdatér med løsning.
-   - Kodeændring: entry i `CHANGELOG.md` (`## [version build NNNN] — YYYY-MM-DD — beskrivelse`, nyeste øverst, berørte filer) og opdatering af `RELEASE_NOTES.md`. Doku-only commits er undtaget fra RELEASE_NOTES.
-3. **Hemmeligheder (UFRAVIGELIG)**: Nøgler/adgangskoder aldrig i git, logs eller svar til klient. PLC-adgangskoder/tokens og session-nøglen ligger i git-ignoreret `data/secrets.json` / `.env` på Pi'en. Endpoints returnerer kun *om* en nøgle er sat (og hvorfra), aldrig værdien; sætning er skriv-kun. PLC-API'er returnerer kun `has_password`. PLC-tokens og -adgangskoder må aldrig nå browseren.
-4. **Rettigheder**: Forhåndsgodkendt via `.claude/settings.local.json`: læs/skriv/rediger, kør tests, lint, build og lokale dev-servere uden at spørge. Destruktive handlinger (force-push, `reset --hard`, sletning af andet end egne testdata) kræver eksplicit accept.
-5. **Git (UFRAVIGELIG)**: Arbejd altid på `dev`. Commit efter hver logisk afsluttet ændring (aldrig bulk af urelaterede ting). Efter commit: push `origin dev` uden at spørge, og spørg derefter: *"Vil du også merge til `main`?"*. Ja (eller blot *"main"*) = merge `dev` → `main` med `--no-ff` og push `origin main`. Nej = bliv på `dev` og sig at `main` ikke er opdateret. Aldrig direkte commit/push til `main`.
-6. **Lag-arkitektur**: Respektér `ARCHITECTURE.md`. Intet lag springes over eller kaldes baglæns. Specielt: **kun PLC-klient-laget (`backend/app/plc/`) må lave HTTP-kald til en PLC.**
-7. **Logging**: Kritiske handlinger og fejl logges struktureret via Pythons `logging` med kontekst (plc, tag, bruger), niveau via `LOG_LEVEL`. Alle skrivninger til PLC logges desuden i audit-loggen.
-8. **Kodekvalitet (UFRAVIGELIG)**: Før en feature/fix meldes færdig, kør tjeklisten i `docs/QUALITY_CHECKLIST.md`. For auth, permissions, PLC-skrivninger, data-integritet, eksterne API'er og bulk-operationer læses den FØR implementering. Kernen: tjek null/fejl før brug, vis specifik backend-fejl til brugeren, undgå lockout i adgangskontrol (håndhæv i backend), brug `is not None` for tal der kan være 0, ingen read-modify-write ved samtidige opdateringer, test i den faktiske runtime-kontekst (systemd-service på Pi'en), og gennemgå alle grene når en regel indføres.
-9. **Visuel verifikation (UFRAVIGELIG)**: Layout-ændringer (positionering, flex/grid, hjørne-grupper, z-index, ombrydning) skal ses i browseren før de meldes færdige. Skriv eksplicit om ændringen er *set* eller kun *bygget*.
-10. **Tests**: Ny logik der kan fejle uset (fejloversættelse, formatering, fallback, tilstandsskift) skal have en test. Rene visuelle ændringer skal ikke. Kør alle relevante suiter før noget meldes færdigt: backend `cd backend && .venv/Scripts/python.exe -m pytest` · frontend `cd frontend && npm test` og `npm run build`.
+1. **Versionering (UFRAVIGELIG)**: `version.json` er eneste versionskilde. Format `{ "version": "MAJOR.MINOR.PATCH", "build": "NNNN" }`. Bump med `python deploy/bump_version.py build|patch|minor|major`.
+   - build +1 ved hvert commit med kodeændring (nulstilles aldrig). PATCH ved bugfix. MINOR ved feature (PATCH=0). MAJOR ved breaking change, fx skema-migration (MINOR og PATCH=0).
+   - Debug-serie: `MAJOR.MINOR.PATCH.D` (D starter på 1, +1 pr. debug-commit). Commit: `vX.X.X.D-bNNNN: debug: beskrivelse`. Når Jan bekræfter *"nu virker det som det skal"*: PATCH+1, D nulstilles, commit som `fix:`.
+   - Kun-dokumentations-commits: ingen versionsbump. Vis ny version i commit-beskeden.
+2. **Dokumentation efter ændringens størrelse**:
+   - **Feature**: registrér i `FEATURES.md` FØR implementering, opdatér status bagefter; CHANGELOG, RELEASE_NOTES og manual med berørte skærmbilleder i samme commit.
+   - **Bug**: registrér i `BUGS.md` straks, opdatér med løsning; CHANGELOG, og RELEASE_NOTES hvis fejlen kunne ses af brugeren.
+   - **Lille eller intern rettelse**: kun CHANGELOG-linje (`## [version build NNNN] — YYYY-MM-DD — beskrivelse`, nyeste øverst, berørte filer).
+   - Ændres UI, opdateres manualtekst og berørte billeder i samme commit.
+3. **Hemmeligheder (UFRAVIGELIG)**: Nøgler/adgangskoder aldrig i git, logs eller svar til klient. PLC-adgangskoder/tokens og session-nøglen ligger i git-ignoreret `data/secrets.json` / `.env` på Pi'en. Endpoints returnerer kun *om* en nøgle er sat (og hvorfra), aldrig værdien; sætning er skriv-kun. PLC-API'er returnerer kun `has_password`. Tokens og adgangskoder må aldrig nå browseren. Login til servere gives til scripts kun som miljøvariabel.
+4. **Rettigheder**: Forhåndsgodkendt via `.claude/settings.local.json`: læs/skriv/rediger, tests, lint, build og lokale dev-servere. Destruktive handlinger (force-push, `reset --hard`, sletning af andet end egne testdata) kræver eksplicit accept.
+5. **Git (UFRAVIGELIG)**: Arbejd altid på `dev`. Commit efter hver logisk afsluttet ændring (aldrig bulk af urelaterede ting; `git add` med filnavne). Efter commit: push `origin dev` uden at spørge, og spørg derefter *"Vil du også merge til `main`?"*. Ja (eller blot *"main"*) = merge `dev` → `main` med `--no-ff` og push `origin main`. Nej = bliv på `dev` og sig at `main` ikke er opdateret. Siger Jan *"merge automatisk i denne session"*, så spørg ikke igen i den session, men meld at det er sket. Aldrig direkte commit/push til `main`.
+   `.githooks/pre-commit` (aktiveret med `git config core.hooksPath .githooks` — gør det i nye kloner) håndhæver: ingen commit på `main`, ingen nøgler i indekset, kodeændring kræver bumpet build og CHANGELOG-entry. Ret årsagen; `SKIP_GUARD=1` kun efter aftale med Jan.
+6. **Lag-arkitektur**: Respektér `ARCHITECTURE.md`. Intet lag springes over eller kaldes baglæns. **Kun PLC-klient-laget (`backend/app/plc/`) må lave HTTP-kald til en PLC.**
+7. **Logging og observability**: Kritiske handlinger og fejl logges struktureret via `logging` med kontekst (plc, tag, bruger), niveau via `LOG_LEVEL`. Alle PLC-skrivninger logges også i audit-loggen. Tænk log/tæller/Status/metrics ind i hver ny ændring.
+8. **Kodekvalitet (UFRAVIGELIG)**: Før en feature/fix meldes færdig, kør `docs/QUALITY_CHECKLIST.md`. For auth, permissions, PLC-skrivninger, data-integritet, eksterne API'er og bulk-operationer læses den FØR implementering. Kernen: tjek null/fejl før brug, vis specifik backend-fejl til brugeren, undgå lockout (håndhæv i backend), `is not None` for tal der kan være 0, ingen read-modify-write ved samtidige opdateringer, test i den faktiske runtime-kontekst (systemd på Pi'en), gennemgå alle grene når en regel indføres.
+9. **Visuel verifikation (UFRAVIGELIG)**: Layout-ændringer (positionering, flex/grid, hjørne-grupper, z-index, ombrydning) skal ses i browseren før de meldes færdige — brug `/screenshot` (`frontend/tools/shot.mjs`). Skriv eksplicit om ændringen er *set* eller kun *bygget*. Intet må flytte sig ved klik: faste kolonner/pladser og fast bredde på skiftende tekster.
+10. **Tests**: Ny logik der kan fejle uset (fejloversættelse, formatering, fallback, tilstandsskift) skal have en test; rene visuelle ændringer ikke. Kør alle relevante suiter før noget meldes færdigt: backend `cd backend && .venv/Scripts/python.exe -m pytest` · frontend `cd frontend && npm test` og `npm run build`.
 
 ---
 
 ## Workflow
 
-1. Registrér i FEATURES.md/BUGS.md → 2. implementér i korrekt lag → 3. kør tests/verifikation → 4. opdatér version.json, CHANGELOG.md, RELEASE_NOTES.md → 5. commit `vX.X.X-bNNNN: beskrivelse` → 6. push `origin dev` → 7. spørg om merge til `main`.
+1. Registrér i FEATURES.md/BUGS.md → 2. implementér i korrekt lag → 3. tests, build og (ved layout) `/screenshot` → 4. `reviewer` ved kritiske ændringer → 5. **`/release`**, som tager resten: version bump, CHANGELOG/RELEASE_NOTES, commit `vX.X.X-bNNNN: beskrivelse`, push `origin dev`, OTA-pakke, deploy til scada.laces.dk og tegningskontrol, og spørgsmålet om merge til `main`.
 
-**OTA-pakke (hver gang, UFRAVIGELIG)**: Efter hver commit med kodeændring bygges en ny OTA-pakke med `sh deploy/make-package.sh`. Filen, der uploades, skal have et sigende navn med version og build — `scada-<version>-b<build>.tar` (fx `scada-2.1.2-b0255.tar`, værdier fra `version.json`) — og ligge i **projektets rod**, klar til upload. Kontrollér at navnet matcher `version.json` efter bumpet. Meld filnavn, størrelse og SHA256 til Jan sammen med resultatet. Doku-only commits er undtaget.
+**OTA-pakke og demo-deploy (hver gang efter kodeændring, UFRAVIGELIG)**: `sh deploy/make-package.sh` giver `scada-<version>-b<build>.tar` i projektets rod. Hver ny version deployes altid til scada.laces.dk (`deploy/ota_deploy.py`) uden at spørge; scriptet kører `deploy/audit_drawings.py` bagefter (kun læsning). Meld filnavn, størrelse, SHA256, deploy-resultat og audit-resultat sammenlignet med forrige kørsel — nye flow-beskeder, bindinger uden element eller manglende tags er tegn på regression. Doku-only commits er undtaget.
 
 **Version i UI**: Den installerede version (`v<version> · b<build>`, fra `/api/health`) står altid yderst til højre i topmenuen (`App.svelte`, snippet `version`) — også på login-siden. Bevar den ved ændringer i topmenuen.
