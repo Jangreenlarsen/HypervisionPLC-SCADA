@@ -52,12 +52,16 @@ Tallene beregnes af SCADA'en selv ud fra alarmhistorikken — hvor mange gange h
 
 ![Alarmer — fanen Historik: hvornår hver alarm opstod, ophørte og blev kvitteret](../../public/manual/alarmer-historik.png)
 
-Fanen **Historik** viser de seneste 500 hændelser, nyeste øverst. Hver række er én hændelse:
+Fanen **Historik** viser de seneste hændelser (op til 500), nyeste øverst. Hver række er én hændelse:
 
 - **Opstået** — alarmen kom.
 - **Kvitteret** — med navnet på brugeren i kolonnen *Bruger*.
 - **Ophørt** — årsagen forsvandt.
 - **Ændret niveau** — en grænsealarm gik fx fra *H* til *HH*.
+
+**Søg og filtrér.** Over tabellen kan du søge i tag, PLC og besked (store og små bogstaver er ens), vælge en periode (*Fra* og *Til*, begge dage er med), en hændelse og en prioritet. Filtrene virker sammen med det valgte **System**, og **Nulstil** fjerner dem igen. Tælleren viser, hvor mange hændelser der passer, og siger det, hvis listen er afkortet til de nyeste 500.
+
+**CSV.** Knappen **CSV** henter alle hændelser, der passer til de samme filtre (også dem ud over de 500, op til de 50.000 der gemmes), som en fil til Excel: semikolon mellem felterne, tidspunkt i dansk tid med tidszone, og komma som decimaltegn. Tekst, der ligner en formel, får et `'` foran, så Excel ikke udfører den. Du ser kun hændelser fra de tegninger, du har adgang til, og hver eksport står i loggen (*System › Log*). Er et filter ugyldigt, står fejlen i tælleren, og CSV-knappen er slukket.
 
 Brug historikken til at se, hvor ofte en alarm kommer, og hvor lang tid der går, før den bliver kvitteret. Vil du se værdien omkring tidspunktet, så åbn tagget i **Trends** (kræver at tagget gemmer historik).
 

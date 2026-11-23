@@ -2,6 +2,12 @@
 
 ---
 
+## v6.17.0 — 2026-11-23 — Alarmhistorik: søgning, filtre og CSV
+
+- **Historik** under Alarmer kan nu søges og filtreres: fritekst i tag, PLC og besked, periode (*Fra* og *Til*), hændelse og prioritet, sammen med det valgte system. **Nulstil** fjerner filtrene.
+- Knappen **CSV** henter alle hændelser, der passer til filtrene, til Excel (op til de 50.000 der gemmes). Du ser kun hændelser fra dine egne tegninger, og eksporten står i loggen.
+- Et ugyldigt filter (fx *Fra* efter *Til*) vises som en besked, og CSV-knappen slukkes.
+
 ## v6.16.4 — 2026-11-21
 
 - Rettet: to pumper i modsat retning — flowet i tegningen vender nu, når den anden pumpe løber. Fejlen opstod, når en pumpe var drejet eller spejlet, og røret sat på igen: de gemte forbindelser pegede så på det forkerte punkt. Simulatoren bruger nu rørenes ender, og Tegn retter forbindelserne ved Gem. Står der en note om forældede forbindelser, så tryk *Forbindelser › Bind forbindelser* og gem tegningen.

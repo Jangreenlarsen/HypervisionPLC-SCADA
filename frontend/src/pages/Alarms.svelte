@@ -6,6 +6,7 @@
   import { askAssist, assist } from '../lib/assistStore.svelte';
   import { defaultSystem, inSystem, NO_SYSTEM, systemsOf, type AlarmSystem } from '../lib/alarmSystems';
   import { lastDrawing } from '../lib/backToDrawing';
+  import { exportUrl, historyUrl, isFiltered, type HistoryFilter } from '../lib/alarmHistory';
 
   let { canAck = false }: { canAck?: boolean } = $props();
 
@@ -49,18 +50,55 @@
     }
   }
 
+  // Historik: søgning/filtre afgøres på serveren, så listen og CSV-eksporten viser det samme
+  const HISTORY_LIMIT = 500;
+  let hq = $state('');
+  let hFrom = $state('');
+  let hTo = $state('');
+  let hEvent = $state('');
+  let hPriority = $state('');
+  let histError = $state('');
+  let histLoaded = $state(false);
+  const hFilter = $derived<HistoryFilter>({ q: hq, from: hFrom, to: hTo, event: hEvent, priority: hPriority, system: systemId });
+  const filtered = $derived(isFiltered(hFilter));
+  const csvHref = $derived(exportUrl(hFilter));
+  let loadSeq = 0;
+  let lastQ = '';
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
   async function loadHistory(): Promise<void> {
-    tab = 'history';
+    const seq = ++loadSeq;
     try {
-      history = await get<Event[]>('/api/alarms/history?limit=500');
+      const rows = await get<Event[]>(historyUrl(hFilter, HISTORY_LIMIT));
+      if (seq !== loadSeq) return;   // et nyere svar er på vej
+      history = rows;
+      histError = '';
+      histLoaded = true;
     } catch (e) {
-      error = (e as Error).message;
+      if (seq !== loadSeq) return;
+      histError = (e as Error).message;
+      history = [];   // ingen gamle rækker under en fejlbesked
     }
   }
 
+  function resetFilter(): void {
+    hq = ''; hFrom = ''; hTo = ''; hEvent = ''; hPriority = '';
+  }
+
+  // Hent igen ved ændring af filtre (søgefeltet med 300 ms debounce) eller når fanen åbnes
+  $effect(() => {
+    const f = hFilter;
+    if (tab !== 'history') return;
+    clearTimeout(timer);
+    const delay = f.q !== lastQ ? 300 : 0;
+    lastQ = f.q;
+    timer = setTimeout(loadHistory, delay);
+    return () => clearTimeout(timer);
+  });
+
   const fmt = (ts: number | null) => (ts ? new Date(ts * 1000).toLocaleString('da-DK') : '');
   const shown = $derived(active.filter((a) => inSystem(systems, systemId, a)));
-  const shownHistory = $derived(history.filter((e) => inSystem(systems, systemId, e)));
+  const shownHistory = $derived(history);
   const unacked = $derived(shown.filter((a) => a.state !== 'active_ack'));
 
   onMount(async () => {
@@ -86,7 +124,7 @@
     <div class="row">
       <BackToDrawing />
       <button class:primary={tab === 'active'} onclick={() => (tab = 'active')}>Aktive ({system ? shown.length : summary.active})</button>
-      <button class:primary={tab === 'history'} onclick={loadHistory}>Historik</button>
+      <button class:primary={tab === 'history'} onclick={() => (tab = 'history')}>Historik</button>
       {#if systems.length > 1}
         <label class="small">System
           <select value={systemId} onchange={(e) => pickSystem(e.currentTarget.value)} aria-label="System">
@@ -137,6 +175,28 @@
     </div>
     {#if !canAck && unacked.length}<p class="small muted">Kvittering kræver rollen operatør.</p>{/if}
   {:else}
+    <div class="row hfilter">
+      <input type="search" class="hq" placeholder="Søg i tag, PLC og besked" aria-label="Søg i historikken" bind:value={hq} />
+      <label class="small">Fra <input type="date" max={hTo || undefined} bind:value={hFrom} aria-label="Fra dato" /></label>
+      <label class="small">Til <input type="date" min={hFrom || undefined} bind:value={hTo} aria-label="Til dato" /></label>
+      <select bind:value={hEvent} aria-label="Hændelse">
+        <option value="">Alle hændelser</option>
+        {#each Object.entries(EVENT_TEXT) as [k, t] (k)}<option value={k}>{t}</option>{/each}
+      </select>
+      <select bind:value={hPriority} aria-label="Prioritet">
+        <option value="">Alle prioriteter</option>
+        {#each Object.entries(PRIO_TEXT) as [k, t] (k)}<option value={k}>{t}</option>{/each}
+      </select>
+      <button onclick={resetFilter} disabled={!filtered}>Nulstil</button>
+      <!-- Ved en filterfejl ville download gemme backendens JSON-fejl som en fil; fejlen står i tælleren -->
+      <a class="btn" class:disabled={!!histError} aria-disabled={histError ? 'true' : undefined} href={csvHref} download
+         onclick={(e) => { if (histError) e.preventDefault(); }}>CSV</a>
+    </div>
+    <div class="hcount small" class:error={!!histError} aria-live="polite">
+      {#if histError}{histError}
+      {:else if !histLoaded}Henter …
+      {:else}{history.length} hændelser{history.length >= HISTORY_LIMIT ? ` — afkortet til de nyeste ${HISTORY_LIMIT}; CSV indeholder alle` : ''}{/if}
+    </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Tid</th><th>Hændelse</th><th>Niveau</th><th>System</th><th>Alarm</th><th>Bruger</th></tr></thead>
@@ -161,5 +221,10 @@
 
 <style>
   .nowrap { white-space: nowrap; }
+  .hfilter { flex-wrap: wrap; margin: 0.6rem 0 0.2rem; }
+  .hq { width: 18rem; max-width: 100%; }
+  .hcount { min-height: 1.4em; margin: 0 0 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn.disabled { opacity: 0.5; pointer-events: none; }
+  .hcount.error { background: none; border: 0; padding: 0; color: var(--alarm); }
   tr.unacked td:first-child { border-left: 4px solid var(--alarm); }
 </style>

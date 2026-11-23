@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.17.0 build 0444] — 2026-11-23 — Alarmhistorik: søgning, filtre og CSV (benchmark B4)
+
+Plan: PLAN.md › Benchmark-huller, trin 1. Reviewer (opus) gennemgik scope og rettigheder.
+
+- `backend/app/api/alarms.py`: `GET /api/alarms/history` tager `q`, `from`, `to`, `event`, `priority`, `system` (400 med dansk besked ved ugyldigt, ukendt eller `from` efter `to`; en ren `to`-dato dækker hele dagen også på sommertidsdage); ny `GET /api/alarms/history/export` (CSV, semikolon, BOM, tidspunkt med offset, formel-neutralisering, audit `alarm.export`). Historik kører i en tråd.
+- `backend/app/services/alarms.py`, `backend/app/storage/db.py`: filtrering i parametriseret SQL (scope altid ovenpå; før blev scoped brugere afkortet til 2000 rækker før filtreringen); SQLite-funktion `pylower` til søgning med æøå.
+- `frontend/src/pages/Alarms.svelte`, `frontend/src/lib/alarmHistory.ts`: filterlinje, tæller og CSV-knap med fast plads; knappen slukkes ved filterfejl.
+- Tests: `backend/tests/test_alarm_history.py` (20), `frontend/src/lib/alarmHistory.test.ts`.
+- Manual: `frontend/src/manual/03-alarmer.md`.
+
 ## [6.16.4 build 0443] — 2026-11-23 — ota_deploy.py: audit prøver igen ved login-fejl lige efter genstart
 
 Ingen ændring i produktet. Første audit efter deploy fik 502 fra proxyen, fordi serveren lige var genstartet; `deploy/ota_deploy.py` venter nu 5 s og prøver op til 4 gange, når login fejler.

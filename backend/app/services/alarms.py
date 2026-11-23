@@ -33,6 +33,9 @@ PRIORITY = {"HH": "high", "LL": "high", "ON": "high", "COMM": "high", "H": "medi
 PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 SEVERITY = {"H": 1, "HH": 2, "L": 1, "LL": 2}
 KEEP_EVENTS = 50_000
+HISTORY_MAX = 2000                                    # grænsen for historikvisningen; CSV-eksporten må op til KEEP_EVENTS
+EVENT_TYPES = ("raise", "clear", "ack", "change")     # hændelsestyperne i alarm_events (se _event)
+PRIORITIES = ("high", "medium", "low")
 
 
 @dataclass
@@ -367,9 +370,11 @@ class AlarmService:
                 "unacked": sum(a["state"] in ("active_unack", "rtn_unack") for a in rows),
                 "high": sum(a["priority"] == "high" and a["state"] != "rtn_unack" for a in rows)}
 
-    def history(self, limit: int, visible_tags: set[str] | None) -> list[dict[str, Any]]:
-        rows = self.db.list_alarm_events(max(1, min(limit, 2000)) if visible_tags is None else 2000)
+    def history(self, limit: int, visible_tags: set[str] | None, flt: dict[str, Any] | None = None,
+                cap: int = HISTORY_MAX) -> list[dict[str, Any]]:
+        """Hændelser, nyeste først. `flt`: q, ts_from, ts_to, event, priority, system (se Database.list_alarm_events).
+        Adgangen pr. tegning gælder ovenpå filtrene og afgøres i SQL, så grænsen tæller kun synlige hændelser."""
+        scope = None
         if visible_tags is not None:
-            plcs = {t["plc"] for t in self.db.list_tags() if t["name"] in visible_tags}
-            rows = [r for r in rows if (r["tag"] and r["tag"] in visible_tags) or (not r["tag"] and r["plc"] in plcs)]
-        return rows[:limit]
+            scope = (set(visible_tags), {t["plc"] for t in self.db.list_tags() if t["name"] in visible_tags})
+        return self.db.list_alarm_events(max(1, min(limit, cap)), scope=scope, **(flt or {}))

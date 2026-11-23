@@ -310,6 +310,8 @@ class Database:
         path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(path), check_same_thread=False, isolation_level=None)
         self._conn.row_factory = sqlite3.Row
+        # SQLites lower() kender kun ASCII — søgning i alarmhistorikken skal også ramme æøå
+        self._conn.create_function("pylower", 1, lambda s: s.lower() if isinstance(s, str) else s, deterministic=True)
         self._lock = threading.Lock()
         # Tæller skrivninger til konfigurationen. Hver SQL-sætning ses (også dem i egne transaktioner og kaskader), så
         # en ny skrivevej aldrig kan glemme at ugyldiggøre en gemt beregning. Sessioner, audit og alarmer tæller ikke med.
@@ -1354,8 +1356,51 @@ class Database:
             if cur.lastrowid and cur.lastrowid % 500 == 0:
                 self._conn.execute("DELETE FROM alarm_events WHERE id <= ?", (cur.lastrowid - keep,))
 
-    def list_alarm_events(self, limit: int) -> list[dict[str, Any]]:
-        rows = self._query("SELECT * FROM alarm_events ORDER BY id DESC LIMIT ?", (limit,))
+    def list_alarm_events(self, limit: int, *, q: str = "", ts_from: float | None = None, ts_to: float | None = None,
+                          event: str = "", priority: str = "",
+                          scope: tuple[set[str], set[str]] | None = None,
+                          system: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        """Nyeste først. Alle filtre er parametriserede og afgøres i SQL.
+        `scope` = (synlige tags, PLC'er for synlige tags); `system` = {"id", "tags", "ids", "all_tags"} (id "" = alle, "-" = uden system)."""
+        where: list[str] = []
+        args: list[Any] = []
+        needle = q.strip().lower()
+        if needle:
+            where.append("(instr(pylower(tag), ?) > 0 OR instr(pylower(plc), ?) > 0 OR instr(pylower(message), ?) > 0)")
+            args += [needle, needle, needle]
+        if ts_from is not None:
+            where.append("ts >= ?")
+            args.append(ts_from)
+        if ts_to is not None:
+            where.append("ts <= ?")
+            args.append(ts_to)
+        if event:
+            where.append("event = ?")
+            args.append(event)
+        if priority:
+            where.append("priority = ?")
+            args.append(priority)
+        if scope is not None:
+            tags, plcs = sorted(scope[0]), sorted(scope[1])
+            where.append(f"(tag IN ({','.join('?' * len(tags))}) OR (tag = '' AND plc IN ({','.join('?' * len(plcs))})))")
+            args += tags + plcs
+        if system is not None and system.get("id"):
+            # Samme regler som frontendens inSystem: hændelser uden tag (SCADA, PLC-forbindelse) hører til alle systemer;
+            # symbolalarmer (nøgle sym:<tegning>:…) til deres tegning; tag-alarmer til tegninger, der bruger tagget.
+            general = "(tag = '' AND key NOT LIKE 'sym:%')"
+            drawing = "substr(key, 5, instr(substr(key, 5), ':') - 1)"
+            if system["id"] == "-":
+                ids, all_tags = sorted(system["ids"]), sorted(system["all_tags"])
+                where.append(f"({general} OR (key LIKE 'sym:%' AND {drawing} NOT IN ({','.join('?' * len(ids))}))"
+                             f" OR (key NOT LIKE 'sym:%' AND tag != '' AND tag NOT IN ({','.join('?' * len(all_tags))})))")
+                args += ids + all_tags
+            else:
+                tags = sorted(system["tags"])
+                where.append(f"({general} OR (key LIKE 'sym:%' AND {drawing} = ?)"
+                             f" OR (key NOT LIKE 'sym:%' AND tag IN ({','.join('?' * len(tags))})))")
+                args += [system["id"]] + tags
+        sql = "SELECT * FROM alarm_events" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY id DESC LIMIT ?"
+        rows = self._query(sql, tuple(args) + (limit,))
         for r in rows:
             r["value"] = json.loads(r["value"])
         return rows
