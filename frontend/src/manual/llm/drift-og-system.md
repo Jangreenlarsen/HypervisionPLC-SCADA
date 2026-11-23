@@ -36,7 +36,7 @@ Klik **Bruger** i topmenuen og vælg **Skift adgangskode**. Skriv den nuværende
 Som admin: **System › Backup**. **Hent backup** gemmer opsætningen som en fil; **Gendan backup** indlæser en fil (den nuværende tilstand gemmes først). Automatisk backup og eksterne destinationer (SFTP, SMB, NFS …) sættes op samme sted; **Kør backup nu** starter en med det samme.
 
 ## Hvordan opdaterer jeg SCADA'en til en ny version?
-<!-- kilde: 13-system#m-opdatering sha:68f556d8 -->
+<!-- kilde: 13-system#m-opdatering sha:caad173c -->
 Som admin: **System › Opdatering**. **Upload** opdateringspakken (`scada-<version>-b<build>.tar`), tjek version og kontrolsum, og tryk **Installér og genstart**. Serveren tager backup først, genstarter og ruller selv tilbage, hvis den nye version ikke svarer.
 
 ## Hvordan genstarter jeg serveren eller tjenesten?
@@ -48,8 +48,8 @@ Som admin: nederst på **System › Konfiguration**, sektionen **Genstart**: **G
 Se **System › Status** (ledig disk). Ryd op på maskinen som root med `scada-maint`: `scada-maint status` viser hvad der fylder, `scada-maint emergency` rydder trin for trin, til der er plads nok (logfiler, gamle backups, gammel trend-historik). Trend-databasen kan også flyttes til en anden disk (*System › Konfiguration*).
 
 ## Hvordan vælger og installerer jeg en model til hjælperen (LLM)?
-<!-- kilde: 13-system#m-hjaelper-llm sha:193192b2 -->
-Som admin: **System › Hjælper (LLM)**. Vælg hardwareprofil, og tryk **Hent og installér** ved en variant: *Hurtig*, *Standard* (anbefalet) eller *Stor* (kræver 16 GB RAM). Uden internet installeres en samlet LLM-pakke med **Vælg LLM-pakke …**. På Raspberry Pi 5 findes Hurtig og Standard; de kræver Raspberry Pi OS 13 "Trixie".
+<!-- kilde: 13-system#m-hjaelper-llm sha:36cc90f2 -->
+Som admin: **System › Hjælper (LLM)**. Vælg hardwareprofil, og tryk **Hent og installér** ved en variant: *Hurtig*, *Standard* (anbefalet) eller *Stor* (kræver 16 GB RAM). Uden internet installeres en samlet LLM-pakke med **Vælg LLM-pakke …**. På en VM med 16 GB RAM (profilen vm-16, anbefalet 30 GB disk) kan alle tre bruges; hold mindst 3 GB disk ledig. På Raspberry Pi 5 findes Hurtig og Standard; de kræver Raspberry Pi OS 13 "Trixie". Pi 5 er ikke et krav.
 
 ## Hvordan ser jeg, hvem der har ændret noget eller skrevet til PLC'en (revisionsspor, audit, hvem gjorde hvad)?
 <!-- kilde: 13-system#m-log sha:cdf6c0de -->

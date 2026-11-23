@@ -157,9 +157,9 @@ Siden bruger Home Assistant REST-sensorer; en automatisk opdagelse (MQTT) kommer
 
 **Fra GitHub**: tryk **Søg efter opdatering på GitHub**. Er der en nyere version, viser siden den med udgivelsesnoter; **Hent og klargør** henter pakken, kontrollerer kontrolsummen og klargør den, præcis som hvis du havde uploadet den. Serveren skal have adgang til internettet. Funktionen kan slås fra med `SCADA_UPDATE_REPO=` i `/etc/hypervisionplc-scada.env`.
 
-> Første gang installeres serveren på en ny Raspberry Pi (Raspberry Pi OS Lite) med én kommando, der henter den nyeste udgivelse fra GitHub:
+> Første gang installeres serveren på en ny Raspberry Pi (Raspberry Pi OS Lite) eller i en Linux-VM (Debian, anbefalet 4 vCPU, 16 GB RAM og 30 GB disk) med én kommando, der henter den nyeste udgivelse fra GitHub:
 > `curl -fsSL https://raw.githubusercontent.com/Jangreenlarsen/HypervisionPLC-SCADA/main/deploy/bootstrap.sh | sudo sh`
-> Siden åbnes derefter på `https://<pi-ens-ip>` (godkend advarslen om det selvsignerede certifikat). Til sidst vises adressen og engangsadgangskoden til `admin`. Derefter kan alle nye versioner komme via siden — pakkerne (`scada-*.tar`) ligger under *Releases* på GitHub.
+> Siden åbnes derefter på `https://<serverens-ip>` (godkend advarslen om det selvsignerede certifikat). Til sidst vises adressen og engangsadgangskoden til `admin`. Derefter kan alle nye versioner komme via siden — pakkerne (`scada-*.tar`) ligger under *Releases* på GitHub.
 
 ## Certifikater
 
@@ -292,7 +292,7 @@ Til vedligeholdelse **på selve serveren** (SSH) findes kommandoen **`scada-tool
 
 **Hjælper (LLM)** (kun admin) er en lokal sprogmodel, der kører på selve SCADA-serveren, kun på CPU og uden internet. Den skal hjælpe med at forklare og opsætte anlægget. Siden her styrer hardware, installation, til/fra og afprøvning. Selve hjælperen bruges fra knappen **Hjælper** i topbjælken (se *Drift › Hjælperen*). Hjælperen skriver aldrig til en PLC.
 
-- **Hardware:** siden viser maskinen (kerner, RAM, AVX2) og foreslår en **hardwareprofil**. Profilen afgør, om hjælperen må slås til, hvor mange tråde den får (kerner minus én), og loftet for dens hukommelse. *Raspberry Pi 4* og *Lille VM/PC* (under 8 GB RAM) har ingen hjælper. Vælg profil og tryk **Gem profil**. Profilen kan også sættes ved installationen med `install.sh --hw vm-16`.
+- **Hardware:** siden viser maskinen (kerner, RAM, AVX2) og foreslår en **hardwareprofil**. Profilen afgør, om hjælperen må slås til, hvor mange tråde den får (kerner minus én), og loftet for dens hukommelse. *Raspberry Pi 4* og *Lille VM/PC* (under 8 GB RAM) har ingen hjælper. En **VM med 16 GB RAM** får profilen *vm-16* og kan bruge alle modeller; en Raspberry Pi 5 er ikke et krav. Hold mindst 3 GB disk ledig (under 10 % ledig giver en advarsel på *Status*); en 30 GB-disk har plads til at skifte model, men ikke til at have alle modeller liggende. Vælg profil og tryk **Gem profil**. Profilen kan også sættes ved installationen med `install.sh --hw vm-16`.
 - **Vælg model:** vælg en variant, og tryk **Hent og installér**. Varianterne er:
   - *Hurtig* (Qwen3.5-2B, 1,3 GB): ca. dobbelt så hurtig, lidt svagere på dansk;
   - *Standard* (Qwen3.5-4B, 2,7 GB): anbefalet;
