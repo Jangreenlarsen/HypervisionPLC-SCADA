@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.19.0 build 0451] — 2026-11-23 — LLM-tillæg synkroniseret efter manualbillederne
+
+Billederne i `03-alarmer.md` (b0450) ændrede kildeafsnittets kontrolsum, så pakkescriptet afviste; `frontend/src/manual/llm/drift-og-system.md` er synkroniseret (`manual_compiler --sync`). Ingen ændring i indholdet.
+
 ## [6.19.0 build 0450] — 2026-11-23 — Manualbilleder: Udsæt alarm
 
 `frontend/public/manual/alarmer.png` (nu med Udsæt-knappen), nye `alarmer-udsaet.png` (dialogen) og `alarmer-udsatte.png` (fanen Udsatte) er taget på demoen (v6.19.0 b0449, med en testalarm udsat og genindsat); `frontend/tools/manual-screenshots.mjs` har fået de to nye poster (venter på en aktiv alarm, åbner dialogen uden at sende); billederne står i `frontend/src/manual/03-alarmer.md`. Funktionstest af udsæt/genindsæt på demoen: alle valideringer, 409, alarmen forblev skjult, historik og oprydning ok.
