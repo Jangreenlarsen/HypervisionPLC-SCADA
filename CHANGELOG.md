@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.18.0 build 0448] — 2026-11-23 — Manualbilleder: Alarmer (Aktive og Historik)
+
+`frontend/public/manual/alarmer.png` og `alarmer-historik.png` er taget igen (demoen, v6.18.0 b0447) og viser kolonnerne *Prioritet* og *Type* samt historikkens filterlinje og CSV-knap (v6.17.0 og v6.18.0).
+
 ## [6.18.0 build 0447] — 2026-11-23 — Alarmer: kortvisning på smal skærm
 
 Under 800 px bliver hver række i Aktive og Historik et kort (tid, prioritet og type øverst, alarmteksten i fuld bredde, derunder system/tilstand og knapperne), så alarmteksten kan læses og *Kvittér* ikke skæres af. Skrivebordsvisningen er uændret. `frontend/src/pages/Alarms.svelte`. Set i forhåndsvisning af den lokale build mod demoens data ved 500 og 1600 px.
