@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.16.4 build 0441] — 2026-11-23 — Udviklingsflow: /release, pre-commit-hook, shot.mjs og slankere CLAUDE.md
+
+Ingen ændring i produktet; værktøjer og arbejdsgang.
+
+- `deploy/ota_deploy.py` (login, upload, apply, vent på ny version, kør `audit_drawings.py`), `deploy/bump_version.py`.
+- `.githooks/pre-commit` (ingen commit på main, ingen nøgler i indekset, kodeændring kræver bumpet build og CHANGELOG); `.gitattributes`: LF for hooks.
+- `frontend/tools/shot.mjs` (generelt skærmbillede, kun læsning); `.gitignore`: `frontend/tools/_tmp_*`.
+- `.claude/skills/release` og `.claude/skills/screenshot`.
+- `CLAUDE.md`: agent-tærskel, dokumentation efter ændringens størrelse, auto-merge pr. session, demo-deploy og audit som fast trin.
+
 ## [6.16.4 build 0440] — 2026-11-21 — Flowet vender, når pumpe 2 løber modsat (forældede forbindelser efter vending)
 
 Jan: to pumper parallelt i hver sin retning — flowet i tegningen vendte ikke, når pumpe 2 startede (test_ny_editor på scada.laces.dk).

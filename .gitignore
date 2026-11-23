@@ -30,3 +30,6 @@ demo/varme-plc/tools/build/
 
 # LLM-pakker: hentede filer (deploy/make-llm-package.sh)
 .llm-cache/
+
+# Midlertidige verifikationsscripts (Playwright-forsøg og lignende)
+frontend/tools/_tmp_*
