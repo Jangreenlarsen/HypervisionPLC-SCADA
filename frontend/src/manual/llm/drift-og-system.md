@@ -24,8 +24,8 @@ Værdien er ikke frisk: der er kommunikationsfejl til PLC'en, tagget kan ikke l�
 Under **Tags**: afkryds tagsene (Shift-klik vælger et interval, **Vælg alle** vælger alle viste) og tryk **Slet valgte (N)**. Du ser, hvor tagsene bruges, og bekræfter; der tages backup først. Et enkelt tag slettes med **Slet** i rækken.
 
 ## Hvordan sætter jeg en alarmgrænse på et tag (høj temperatur, H, HH, L, LL, hysterese, dødbånd)?
-<!-- kilde: 05-plcer-og-tags#m3-alarmer-paa-et-tag sha:03a53db9 -->
-Under **Tags**: tryk **Redigér** ved tagget og udfyld **H**/**HH** (høj) eller **L**/**LL** (lav). **Dødbånd** er alarmens hysterese: hvor langt værdien skal tilbage, før alarmen ophører. **Forsinkelse** er hvor længe grænsen skal være overskredet. Prioriteten følger som standard niveauet (HH/LL høj, H/L medium), men **Prioritet** på tagget kan sættes til Høj, Medium eller Lav.
+<!-- kilde: 05-plcer-og-tags#m3-alarmer-paa-et-tag sha:16596e71 -->
+Under **Tags**: tryk **Redigér** ved tagget og udfyld **H**/**HH** (høj) eller **L**/**LL** (lav). **Dødbånd** er alarmens hysterese: hvor langt værdien skal tilbage, før alarmen ophører. **Forsinkelse** er hvor længe grænsen skal være overskredet. Prioriteten følger som standard niveauet (HH/LL høj, H/L medium), men **Prioritet** på tagget kan sættes til Høj, Medium eller Lav. Under **Konsekvens**, **Handling** og **Svartid** kan du beskrive, hvad alarmen betyder og hvad operatøren skal gøre; teksten vises under alarmen.
 
 ## Hvordan opretter jeg en ny bruger (ny konto, login til en kollega)?
 <!-- kilde: 13-system#m-brugere sha:b7af828c -->

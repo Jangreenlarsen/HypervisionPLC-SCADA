@@ -7,6 +7,7 @@
   import { usageText, type TagUsage } from '../lib/tagUsage';
   import { pickInList } from '../lib/multiPick';
   import { LiveClient } from '../lib/live';
+  import { charCount, rationale, RATIONALE_MAX } from '../lib/tagAlarm';
   import { postStream } from '../lib/assist';
   import { assist } from '../lib/assistStore.svelte';
 
@@ -19,6 +20,7 @@
     alarm_hh: number | null; alarm_h: number | null; alarm_l: number | null; alarm_ll: number | null;
     alarm_deadband: number; alarm_delay_s: number; alarm_on: 'true' | 'false' | null;
     alarm_priority?: 'high' | 'medium' | 'low' | null;
+    alarm_consequence?: string | null; alarm_action?: string | null; alarm_response_min?: number | null;
     trend: boolean; trend_interval_s: number; energy: 'counter' | 'power' | null; energy_factor: number;
     priority?: 'normal' | 'high';
   }
@@ -26,7 +28,7 @@
     name: string; source: string; description: string; unit: string; scale: string; offset: string;
     decimals: string; writable: boolean; min: string; max: string; confirm_write: boolean;
     alarm_hh: string; alarm_h: string; alarm_l: string; alarm_ll: string; alarm_deadband: string;
-    alarm_delay_s: string; alarm_on: '' | 'true' | 'false'; alarm_priority: '' | 'high' | 'medium' | 'low'; trend: boolean; trend_interval_s: string;
+    alarm_delay_s: string; alarm_on: '' | 'true' | 'false'; alarm_priority: '' | 'high' | 'medium' | 'low'; consequence: string; action: string; responseMin: string; trend: boolean; trend_interval_s: string;
     energy: '' | 'counter' | 'power'; energy_factor: string; priority: 'normal' | 'high';
   }
   interface Suggestion { name: string; source: string; datatype: string; description: string; exists: boolean; pick?: boolean;
@@ -53,6 +55,7 @@
       confirm_write: t.confirm_write,
       alarm_hh: s(t.alarm_hh), alarm_h: s(t.alarm_h), alarm_l: s(t.alarm_l), alarm_ll: s(t.alarm_ll),
       alarm_deadband: String(t.alarm_deadband ?? 0), alarm_delay_s: String(t.alarm_delay_s ?? 0), alarm_on: t.alarm_on ?? '', alarm_priority: t.alarm_priority ?? '',
+      consequence: t.alarm_consequence ?? '', action: t.alarm_action ?? '', responseMin: s(t.alarm_response_min),
       trend: t.trend, trend_interval_s: String(t.trend_interval_s ?? 10),
       energy: t.energy ?? '', energy_factor: String(t.energy_factor ?? 1), priority: t.priority ?? 'normal',
     };
@@ -73,6 +76,7 @@
         alarm_ll: opt(edit.alarm_ll, 'LL'), alarm_deadband: num(edit.alarm_deadband || '0', 'Dødbånd'),
         alarm_delay_s: num(edit.alarm_delay_s || '0', 'Forsinkelse'), alarm_on: edit.alarm_on || null,
         alarm_priority: edit.alarm_priority || null,
+        ...rationale(edit),   // konsekvens/handling/svartid: tomt = null, fejl med feltets navn
         trend: edit.trend, trend_interval_s: num(edit.trend_interval_s || '10', 'Interval'),
         energy: edit.energy || null, energy_factor: num(edit.energy_factor || '1', 'Omregning til kWh'),
         // Prioritet gælder kun eksterne Modbus-tags; for interne sendes altid normal (serveren afviser høj)
@@ -409,6 +413,13 @@
           <option value="">Som niveau (standard)</option><option value="high">Høj</option><option value="medium">Medium</option><option value="low">Lav</option>
         </select>
       </label>
+      <label class="wide">Konsekvens <span class="muted">({charCount(edit.consequence)}/{RATIONALE_MAX})</span>
+        <input bind:value={edit.consequence} placeholder="Hvad sker der, hvis alarmen ignoreres" />
+      </label>
+      <label class="wide">Handling <span class="muted">({charCount(edit.action)}/{RATIONALE_MAX})</span>
+        <input bind:value={edit.action} placeholder="Hvad skal operatøren gøre" />
+      </label>
+      <label>Svartid (min)<input bind:value={edit.responseMin} inputmode="numeric" placeholder="ingen" /></label>
     </div>
     <p class="muted small"><b>Prioritet</b>: som standard er HH/LL/til-fra høj og H/L medium. Vælg en fast prioritet for tagets alarmer (fx Lav for ren information).</p>
     <div class="row edit-actions">
@@ -480,6 +491,7 @@
     padding-bottom: 0;
   }
   /* Gem/Annullér altid synlige i bunden af panelet, også når formularen scrolles */
+  .grid-form label.wide { grid-column: 1 / -1; }
   .edit-actions {
     position: sticky;
     bottom: 0;

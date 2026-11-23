@@ -7,7 +7,7 @@ Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-
 
 - [ ] planned v6.22.0 — **Tegningshierarki** (benchmark A1, PLAN.md › Benchmark-huller, Jan 2026-11-23): valgfri *overordnet tegning* (højst 4 niveauer, ingen cirkler, kontrolleres i backend), brødkrumme og knapper til undertegninger på Overview, og `click:goto` opdaterer adressen. Sletning gør undertegninger til øverste niveau.
 - [ ] planned v6.21.0 — **Fast ramme i topbaren** (benchmark A6): brugernavn, ur og PLC-status (fra live-strømmen) altid synlige på alle sider, med fast bredde.
-- [ ] planned v6.20.0 — **Alarm-rationalisering** (benchmark B6): valgfri konsekvens, handling og svartid pr. tag-alarm, vist under alarmteksten.
+- [x] done v6.20.0 — **Alarm-rationalisering** (benchmark B6): valgfri konsekvens, handling og svartid pr. tag-alarm, vist under alarmteksten.
 - [x] done v6.19.0 — **Udsæt alarm (shelving)** (benchmark B5): operatør kan udsætte en alarm 5 min til 24 timer med begrundelse; audit, egen fane med resttid, antal i opsummering og metrics; ikke for kommunikations- og systemalarmer.
 - [x] done v6.18.0 — **Alarmprioritet** (benchmark B1): kolonnen *Prioritet* viser Høj/Medium/Lav, ny kolonne *Type* viser HH/H/L/LL/Til/Kommunikation/System/Afvigelse, og valgfrit tag-felt *Prioritet* gør lav mulig.
 - [x] done v6.17.0 — **Alarmhistorik: søgning, filtre og CSV** (benchmark B4): fritekst, periode, hændelse og prioritet, og CSV-eksport med de samme filtre; scope og systemfilter håndhæves i backend.

@@ -220,7 +220,20 @@ class AssistTools:
             lines.append(f"Værdi da den opstod: {clean(a['value'], 40)}")
         if a.get("acked_by"):
             lines.append(f"Kvitteret af {clean(a['acked_by'], 40)} {ago(a.get('acked_at'), now)}")
+        if a.get("kind") in ("state", "high", "low") and a.get("tag"):
+            t = self.db_get_tag(a["tag"])
+            for label, field in (("Konsekvens", "alarm_consequence"), ("Foreskrevet handling", "alarm_action")):
+                if t and t.get(field):
+                    lines.append(f"{label}: {clean(t[field], 200)}")
+            if t and t.get("alarm_response_min") is not None:
+                lines.append(f"Svartid: {t['alarm_response_min']} min")
         return "\n".join(lines), a.get("tag") or None, f"{ALARM_HINTS.get(a.get('kind', ''), '')} {clean(a['message'], 120)}"
+
+    def db_get_tag(self, name: str) -> dict[str, Any] | None:
+        try:
+            return self.alarms.db.get_tag(name)
+        except Exception:   # noqa: BLE001 — manglende tag er ikke en fejl her
+            return None
 
     def tag_values(self, names: list[str], now: float) -> str:
         lines = []

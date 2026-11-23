@@ -43,7 +43,7 @@ from .errors import ServiceError
 from .manager import PlcManager
 from .plcs import normalize_base_url
 from .svg_sanitize import SvgError, sanitize_svg
-from .tags import TAG_NAME_RE, WRITABLE_KINDS
+from .tags import TAG_NAME_RE, WRITABLE_KINDS, rationale_minutes, rationale_text
 from .tagsource import PLC_KEY_RE, TagSourceError, parse_source
 
 log = logging.getLogger(__name__)
@@ -87,6 +87,12 @@ def _alarm_fields(t: dict[str, Any], datatype: str) -> tuple[dict[str, Any], str
     if ap not in (None, "high", "medium", "low"):
         return {}, "alarm_priority skal være null, 'high', 'medium' eller 'low'"
     out["alarm_priority"] = ap
+    try:
+        for k in ("alarm_consequence", "alarm_action"):
+            out[k] = rationale_text(t.get(k), k)
+        out["alarm_response_min"] = rationale_minutes(t.get("alarm_response_min"))
+    except ValueError as exc:
+        return {}, f"alarm: {exc}"
     out["trend"] = bool(t.get("trend", False))
     try:
         iv = num("trend_interval_s", 10.0)

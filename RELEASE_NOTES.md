@@ -2,6 +2,12 @@
 
 ---
 
+## v6.20.0 — 2026-11-23 — Konsekvens, handling og svartid på alarmer
+
+- Et tag kan nu få en kort beskrivelse af sin alarm: **Konsekvens** (hvad der sker, hvis alarmen ignoreres), **Handling** (hvad operatøren skal gøre) og **Svartid** (minutter). Det opsættes under *Tags → Redigér → Alarmer* og i symbolguidens *Ret alarm*.
+- På **Alarmer** står teksten under alarmen (*Handling*, *Konsekvens*, *Svar inden N min*), også på smalle skærme. **Forklar**-hjælperen bruger den i sit svar.
+- Felterne er valgfrie, og en rettelse af andre alarmfelter nulstiller dem ikke.
+
 ## v6.19.0 — 2026-11-23 — Udsæt alarm
 
 - En operatør kan **udsætte** en aktiv tag- eller symbolalarm i 15 minutter til 24 timer: tryk **Udsæt**, skriv en begrundelse og vælg varighed. Alarmen forsvinder fra *Aktive*, og klokken tæller den ikke med. Kommunikations- og systemalarmer kan ikke udsættes.

@@ -55,6 +55,9 @@ class TagCreate(_Model):
     alarm_delay_s: float | None = None
     alarm_on: str | None = None
     alarm_priority: str | None = None
+    alarm_consequence: str | None = None
+    alarm_action: str | None = None
+    alarm_response_min: Any = None   # valideres i TagService (heltal 0..1440)
     name: str
     source: str
     description: str | None = None
@@ -82,6 +85,9 @@ class TagUpdate(_Model):
     alarm_delay_s: float | None = None
     alarm_on: str | None = None
     alarm_priority: str | None = None
+    alarm_consequence: str | None = None
+    alarm_action: str | None = None
+    alarm_response_min: Any = None   # valideres i TagService (heltal 0..1440)
     source: str | None = None
     description: str | None = None
     unit: str | None = None

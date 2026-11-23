@@ -8,6 +8,7 @@
   import { askAssist, assist } from '../lib/assistStore.svelte';
   import { defaultSystem, inSystem, NO_SYSTEM, systemsOf, type AlarmSystem } from '../lib/alarmSystems';
   import { lastDrawing } from '../lib/backToDrawing';
+  import { rationaleLines } from '../lib/tagAlarm';
   import { alarmPriorityText, alarmTypeText } from '../lib/alarmType';
   import { exportUrl, historyUrl, isFiltered, type HistoryFilter } from '../lib/alarmHistory';
 
@@ -212,7 +213,7 @@
               <td class="g-prio"><span class="prio-{a.priority}">{alarmPriorityText(a.priority)}</span></td>
               <td class="small g-type">{alarmTypeText(a.level)}</td>
               <td class="small g-sys">{sysNames(a)}</td>
-              <td class="g-alarm">{a.message}<div class="muted small mono">{a.kind === 'symbol' ? `symbol ${a.key.split(':').slice(2).join(':')}` : a.kind === 'sys' ? 'SCADA-serveren' : a.tag || a.plc}</div></td>
+              <td class="g-alarm">{a.message}<div class="muted small mono">{a.kind === 'symbol' ? `symbol ${a.key.split(':').slice(2).join(':')}` : a.kind === 'sys' ? 'SCADA-serveren' : a.tag || a.plc}</div>{#each rationaleLines(a) as line}<div class="muted small rat">{line}</div>{/each}</td>
               <td class="small g-state">
                 {STATE_TEXT[a.state]}
                 {#if a.acked_by}<div class="muted">af {a.acked_by} {fmt(a.acked_at)}</div>{/if}
@@ -334,6 +335,7 @@
     tr.unacked { border-left: 4px solid var(--alarm); }
     tr.unacked td:first-child { border-left: 0; }
   }
+  .rat { overflow-wrap: anywhere; }
   .hfilter { flex-wrap: wrap; margin: 0.6rem 0 0.2rem; }
   .hq { width: 18rem; max-width: 100%; }
   .hcount { min-height: 1.4em; margin: 0 0 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

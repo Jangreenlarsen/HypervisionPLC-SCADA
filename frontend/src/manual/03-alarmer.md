@@ -13,7 +13,7 @@ Fanen **Aktive** viser de alarmer, der er i gang lige nu, og dem der er ophørt,
 | **Tid** | Hvornår alarmen opstod |
 | **Prioritet** | *Høj*, *Medium* eller *Lav* — altid en af de tre (se *Prioritet og alarmklokken*) |
 | **Type** | Hvad alarmen er: grænsen (*LL*, *L*, *H*, *HH*), *Til* (til/fra-alarm), *Kommunikation* (PLC'en svarer ikke), *System* (serveren selv) eller *Afvigelse* (et symbols afvigelsesalarm) |
-| **Alarm** | Alarmteksten og under den tagget, PLC'en, symbolet eller *SCADA-serveren* |
+| **Alarm** | Alarmteksten og under den tagget, PLC'en, symbolet eller *SCADA-serveren*. Er de opsat på tagget, står der også **Handling** (hvad du skal gøre), **Konsekvens** (hvad der sker, hvis alarmen ignoreres) og **Svar inden N min** |
 | **Tilstand** | *Aktiv — ikke kvitteret*, *Aktiv — kvitteret* (med hvem og hvornår) eller *Ophørt — ikke kvitteret* |
 
 En alarm, der ikke er kvitteret, har en **rød streg** i venstre side af rækken. Ude til højre står **Kvittér**, **Udsæt** (for operatører, se *Udsæt en alarm*) og (når hjælperen er slået til) **Forklar**.
@@ -112,7 +112,7 @@ Ud over tag-alarmer og kommunikationsalarmer laver SCADA en alarm, når noget er
 
 ## Opsæt alarmer
 
-Alarmgrænser opsættes pr. tag under **Tags → Redigér → Alarmer** (se *PLC'er og tags › Alarmer på et tag*) — eller i symbolguidens **trin 6** (*Ret alarm* ud for tagget) for symbolets tags. Her sættes også **dødbånd** og **forsinkelse**; prioriteten følger niveauet.
+Alarmgrænser opsættes pr. tag under **Tags → Redigér → Alarmer** (se *PLC'er og tags › Alarmer på et tag*) — eller i symbolguidens **trin 6** (*Ret alarm* ud for tagget) for symbolets tags. Her sættes også **dødbånd** og **forsinkelse**; prioriteten følger niveauet. Under **Konsekvens**, **Handling** og **Svartid** kan du skrive, hvad alarmen betyder, hvad operatøren skal gøre, og hvor hurtigt den skal besvares; teksten vises under alarmen på *Alarmer*, og **Forklar** bruger den.
 
 Sådan sætter du en alarm for høj temperatur:
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+import unicodedata
 from typing import Any
 
 from .errors import ServiceError
@@ -15,9 +16,37 @@ _TEXT_FIELDS = {"description": 200, "unit": 16}
 LIMIT_FIELDS = ("alarm_ll", "alarm_l", "alarm_h", "alarm_hh")  # stigende rækkefølge
 ALARM_DEFAULTS = {"alarm_hh": None, "alarm_h": None, "alarm_l": None, "alarm_ll": None,
                   "alarm_deadband": 0.0, "alarm_delay_s": 0.0, "alarm_on": None,
-                  "alarm_priority": None,
+                  "alarm_priority": None, "alarm_consequence": None, "alarm_action": None, "alarm_response_min": None,
                   "trend": False, "trend_interval_s": 10.0, "energy": None, "energy_factor": 1.0, "priority": "normal"}
 WRITABLE_KINDS = ("hr", "coil", "logic", "global")   # logic/global: ST-variabler via PLC-firmware v7.9.68.141+
+
+
+RATIONALE_TEXT_MAX = 200
+RATIONALE_LABELS = {"alarm_consequence": "Konsekvens", "alarm_action": "Handling", "alarm_response_min": "Svartid"}
+
+
+def rationale_text(value: Any, field: str) -> str | None:
+    """Konsekvens/handling: trimmet, mellemrum kollapset; tom/None -> None. Kontrol-/formattegn afvises (ValueError)."""
+    label = RATIONALE_LABELS[field]
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{label} skal være tekst")
+    if any(ch != " " and unicodedata.category(ch) in ("Cc", "Cf") for ch in value):
+        raise ValueError(f"{label} må ikke indeholde kontroltegn eller linjeskift")
+    text = re.sub(r" {2,}", " ", value.strip())
+    if len(text) > RATIONALE_TEXT_MAX:
+        raise ValueError(f"{label} må højst være {RATIONALE_TEXT_MAX} tegn")
+    return text or None
+
+
+def rationale_minutes(value: Any) -> int | None:
+    """Svartid i hele minutter 0..1440; None = ikke angivet (0 er gyldigt)."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 1440:
+        raise ValueError("Svartid skal være et helt antal minutter fra 0 til 1440")
+    return value
 
 
 def _number(value: Any, field: str) -> float:
@@ -162,6 +191,14 @@ class TagService:
             if on not in (None, "true", "false"):
                 raise ServiceError(400, "alarm_on skal være null, 'true' eller 'false'")
             out["alarm_on"] = on
+        try:
+            for field in ("alarm_consequence", "alarm_action"):
+                if field in data:
+                    out[field] = rationale_text(data[field], field)
+            if "alarm_response_min" in data:
+                out["alarm_response_min"] = rationale_minutes(data["alarm_response_min"])
+        except ValueError as exc:
+            raise ServiceError(400, str(exc)) from None
         if "alarm_priority" in data:
             ap = data["alarm_priority"]
             if isinstance(ap, str):

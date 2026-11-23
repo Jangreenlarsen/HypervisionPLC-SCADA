@@ -536,7 +536,18 @@ class AlarmService:
         keys = self.visible_keys(visible_tags)
         rows = [a for k, a in self.state.items() if keys is None or k in keys]
         order = {"active_unack": 0, "rtn_unack": 1, "active_ack": 2}
-        return sorted(rows, key=lambda a: (order[a["state"]], PRIORITY_ORDER.get(a["priority"], 9), -a["raised_at"]))
+        rows = sorted(rows, key=lambda a: (order[a["state"]], PRIORITY_ORDER.get(a["priority"], 9), -a["raised_at"]))
+        return [self._with_rationale(a) for a in rows]
+
+    def _with_rationale(self, a: dict[str, Any]) -> dict[str, Any]:
+        """Konsekvens/handling/svartid slås op live fra tagget (ikke gemt i alarm_state), så en rettelse slår igennem straks.
+        Kun tag-alarmer; kommunikations-/system-/symbolalarmer får None."""
+        out = dict(a)
+        tag = self.db.get_tag(a["tag"]) if a.get("kind") in ("state", "high", "low") and a.get("tag") else None
+        out["consequence"] = (tag or {}).get("alarm_consequence")
+        out["action"] = (tag or {}).get("alarm_action")
+        out["response_min"] = (tag or {}).get("alarm_response_min")
+        return out
 
     def summary(self, visible_tags: set[str] | None) -> dict[str, int]:
         rows = self.active(visible_tags)

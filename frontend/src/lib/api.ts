@@ -143,6 +143,10 @@ export interface Alarm {
   message: string;
   acked_by: string | null;
   acked_at: number | null;
+  /** Rationalisering fra tagget (v6.20.0, slået op live); null for andet end tag-alarmer */
+  consequence?: string | null;
+  action?: string | null;
+  response_min?: number | null;
 }
 
 export interface AlarmSummary {

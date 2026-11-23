@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.20.0 build 0452] — 2026-11-23 — Alarm-rationalisering: konsekvens, handling, svartid (benchmark B6)
+
+Plan: PLAN.md › Benchmark-huller, trin 4. Skema 21 (tre additive kolonner).
+
+- `backend/app/storage/db.py` (`SCHEMA_VERSION = 21`; `tags.alarm_consequence`, `alarm_action`, `alarm_response_min`), `backend/app/services/tags.py` (validering: tekst trimmet og uden kontrol-/usynlige tegn, højst 200 kodepunkter; svartid helt tal 0-1440, `is not None`), `backend/app/api/routes.py` (TagUpdate), `backend/app/services/backup.py` (eksport/gendannelse), `backend/app/services/alarms.py` (`active()` slår feltene op live), `backend/app/services/assist_tools.py` (Forklar får konsekvens, handling og svartid).
+- `frontend/src/lib/tagAlarm.ts`, `TagAlarm.svelte`, `frontend/src/pages/Tags.svelte` (felter; en rettelse sender de eksisterende værdier tilbage), `frontend/src/pages/Alarms.svelte` (dæmpede linjer i alarmcellen, også i kortvisningen), `api.ts`.
+- Tests: `backend/tests/test_alarm_rationale.py` (36), `frontend/src/lib/tagAlarm.test.ts`. Backend 1451 bestået, frontend 1085.
+- Manual: `03-alarmer.md`, `05-plcer-og-tags.md`, `llm/drift-og-system.md`. Set i forhåndsvisning (500, 1200 og 1600 px).
+
 ## [6.19.0 build 0451] — 2026-11-23 — LLM-tillæg synkroniseret efter manualbillederne
 
 Billederne i `03-alarmer.md` (b0450) ændrede kildeafsnittets kontrolsum, så pakkescriptet afviste; `frontend/src/manual/llm/drift-og-system.md` er synkroniseret (`manual_compiler --sync`). Ingen ændring i indholdet.

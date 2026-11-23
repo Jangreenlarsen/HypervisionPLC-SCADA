@@ -17,7 +17,7 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 20   # 20: alarm_shelf — udsatte alarme (v6.19.0, additiv); 19: tags.alarm_priority (v6.18.0, additiv); 18: sim_scenarios (v6.5.0, additiv); 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
+SCHEMA_VERSION = 21   # 21: tags.alarm_consequence/alarm_action/alarm_response_min (v6.20.0, additiv); 20: alarm_shelf — udsatte alarme (v6.19.0, additiv); 19: tags.alarm_priority (v6.18.0, additiv); 18: sim_scenarios (v6.5.0, additiv); 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -291,6 +291,7 @@ PLC_FIELDS = ("name", "base_url", "username", "enabled", "sse_enabled", "verify_
 ALARM_COLUMNS = {
     "alarm_hh": "REAL", "alarm_h": "REAL", "alarm_l": "REAL", "alarm_ll": "REAL",
     "alarm_deadband": "REAL NOT NULL DEFAULT 0", "alarm_delay_s": "REAL NOT NULL DEFAULT 0", "alarm_on": "TEXT",
+    "alarm_consequence": "TEXT", "alarm_action": "TEXT", "alarm_response_min": "INTEGER",  # rationalisering (v6.20.0), alle valgfri
     "alarm_priority": "TEXT",  # NULL | 'high' | 'medium' | 'low' (v6.18.0): fast prioritet i stedet for niveauets
 }
 ALARM_FIELDS = tuple(ALARM_COLUMNS)
