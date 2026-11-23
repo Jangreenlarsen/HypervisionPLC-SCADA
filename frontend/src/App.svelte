@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { BUNDLE, isStale } from './lib/staleCheck';
-  import { ApiError, get, onUnauthorized, post, roleAtLeast, type AlarmSummary, type Me } from './lib/api';
+  import { ApiError, get, onUnauthorized, post, roleAtLeast, type AlarmSummary, type Me, type PlcSummary } from './lib/api';
+  import { clockTitle, formatClock, plcChip, shortName } from './lib/topbar';
   import { NAV_ICON, groupOf, navFor, navHref, pageFor } from './lib/nav';
   import { mayLeave } from './lib/leaveGuard';
   import Overview from './pages/Overview.svelte';
@@ -48,14 +49,27 @@
   // Én let WebSocket til alarmklokken i toppen (abonnerer ikke på tags).
   $effect(() => {
     if (me && !me.must_change_password && !alarmLive) {
-      alarmLive = new LiveClient(() => {});
+      alarmLive = new LiveClient(() => {}, (p, c) => { livePlcs = p; liveUp = c; });
       alarmLive.onAlarms = (s) => (alarmSummary = s);
       alarmLive.subscribe([]);
     } else if (!me && alarmLive) {
       alarmLive.close();
       alarmLive = null;
       alarmSummary = { active: 0, unacked: 0, high: 0 };
+      livePlcs = {};
+      liveUp = true;
     }
+  });
+  // PLC-/forbindelsesstatus til topbaren (samme strøm som alarmklokken; 'liveUp' er sand indtil første forbindelsesforsøg er slået fejl)
+  let livePlcs = $state<Record<string, PlcSummary>>({});
+  let liveUp = $state(true);
+  const chip = $derived(plcChip(livePlcs, liveUp));
+  let now = $state(new Date());
+  $effect(() => {
+    if (!me || me.must_change_password) return;
+    now = new Date();
+    const t = setInterval(() => (now = new Date()), 1000);
+    return () => clearInterval(t);
   });
   let error = $state('');
 
@@ -193,6 +207,10 @@
       <button class="helper" class:on={assist.open} onclick={() => (assist.open = !assist.open)} aria-pressed={assist.open}
               title="Hjælper: spørg om anlægget eller SCADA'en (lokal LLM)">{@render icon('assist')}<span class="hname">Hjælper</span></button>
     {/if}
+    <span class="plcchip {chip.level}" role="status" aria-label="PLC-status: {chip.label}" title={chip.title}>
+      <span class="dot" aria-hidden="true"></span><span class="ctext">{chip.label}</span>
+    </span>
+    <span class="clock" role="timer" title={clockTitle(now)}>{formatClock(now)}</span>
     <a href="#alarms" class="bell {alarmSummary.unacked ? 'unacked' : ''} {alarmSummary.high ? 'high' : alarmSummary.active ? 'medium' : ''}"
        title="{alarmSummary.active} aktive alarmer, {alarmSummary.unacked} ukvitterede">
       {@render icon('alarms')}<span class="count">{alarmSummary.active}</span>{#if alarmSummary.unacked}<span class="unack">· {alarmSummary.unacked} ny</span>{/if}
@@ -202,9 +220,9 @@
        title="Fri software under AGPL-3.0{info ? ` · v${info.version} build ${info.build}` : ''}">AGPL<span class="srcfull"> · kildekode</span></a>
     <nav class="menubar" aria-label="Brugermenu">
       <div class="menu user" class:open={openMenu === 'user'} role="presentation">
-        <button class="top" aria-haspopup="true" aria-expanded={openMenu === 'user'} title="Rolle: {ROLE_TXT[me.role] ?? me.role}"
+        <button class="top" aria-haspopup="true" aria-expanded={openMenu === 'user'} title="{me.username} · rolle: {ROLE_TXT[me.role] ?? me.role}"
                 onclick={() => (openMenu === 'user' ? (openMenu = null) : showMenu('user'))}>
-          {@render icon('user')}<span class="name">Bruger</span><span class="caret" aria-hidden="true"></span>
+          {@render icon('user')}<span class="name">{shortName(me.username) || 'Bruger'}</span><span class="caret" aria-hidden="true"></span>
         </button>
         {#if openMenu === 'user'}
           <div class="drop right" role="menu">
@@ -361,7 +379,36 @@
   .bell.high { background: #c62828; color: #fff; border-color: #c62828; }
   .bell.unacked { animation: bell 1s steps(2, start) infinite; }
   @keyframes bell { to { opacity: .55; } }
+  .plcchip {
+    display: inline-flex; align-items: center; gap: .35rem; box-sizing: border-box; flex: none; width: 10rem; white-space: nowrap; overflow: hidden;
+    padding: .15rem .5rem; border-radius: 4px; border: 1px solid #666; color: #ddd; font-size: .85rem;
+  }
+  .plcchip .dot { width: .6rem; height: .6rem; border-radius: 50%; flex: none; background: #9a9a9a; }
+  .plcchip .ctext { overflow: hidden; text-overflow: ellipsis; }
+  .plcchip.ok .dot { background: #4caf50; }
+  .plcchip.warn { background: #b26a00; border-color: #b26a00; color: #fff; }
+  .plcchip.warn .dot { background: #fff; }
+  .plcchip.error { background: #c62828; border-color: #c62828; color: #fff; font-weight: 600; }
+  .plcchip.error .dot { background: #fff; }
+  .clock { flex: none; width: 4.4rem; text-align: center; white-space: nowrap; color: #ddd; font-size: .9rem; font-variant-numeric: tabular-nums; }
+  /* Topbaren skal være på én linje med versionen yderst til højre, og brødkrummen (op til 'Opsætning › Ugeprogrammer', ca. 195 px)
+     må ikke afkortes (målt 981-1600 px): jo smallere skærm, jo mere krymper — PLC-chippen bliver en prik (titlen og aria-label bærer
+     teksten) og ' · kildekode' skjules under 1240 px; uret under 1060 px; brødkrummen under 980 px; brugernavnet under 800 px;
+     Hjælper-teksten under 700 px */
+  @media (max-width: 1240px) {
+    .plcchip { width: auto; padding: .3rem; border-color: transparent; }
+    .plcchip .ctext { display: none; }
+    .plcchip.warn, .plcchip.error { border-color: transparent; background: transparent; }
+    .plcchip.warn .dot { background: #f5a623; }
+    .plcchip.error .dot { background: #ff4d4d; }
+    .srcfull { display: none; }
+  }
+  @media (max-width: 1060px) { .clock { display: none; } }
+  @media (max-width: 980px) { .crumb { display: none; } }
+  @media (max-width: 800px) { .menu.user .name { display: none; } }
+  @media (max-width: 700px) { .hname { display: none; } }
   .src { color: #bbb; font-size: .75rem; white-space: nowrap; }
+  .menu.user .name { white-space: nowrap; }
   .ver { color: #bbb; font-size: .75rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
   /* Ingen breddegrænse: SCADA bruges også på store kontrolrumsskærme */
@@ -376,6 +423,11 @@
     .helper, .bell { padding: .15rem .35rem; }   /* plads til Hjælper-knappen: versionen skal stadig stå yderst til højre */
     .menubar { gap: 0; }
     .menu.user { margin-left: 0; padding-left: .25rem; }
+    .plcchip { width: auto; padding: .3rem; border-color: transparent; }
+    .plcchip .ctext { display: none; }
+    .plcchip.warn, .plcchip.error { border-color: transparent; background: transparent; }
+    .plcchip.warn .dot { background: #f5a623; }
+    .plcchip.error .dot { background: #ff4d4d; }
     .src, .ver { font-size: .7rem; }
     .verbuild { display: none; }
   }

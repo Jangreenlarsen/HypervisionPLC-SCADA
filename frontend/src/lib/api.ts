@@ -143,12 +143,32 @@ export interface Alarm {
   message: string;
   acked_by: string | null;
   acked_at: number | null;
+  /** Rationalisering fra tagget (v6.20.0, slået op live); null for andet end tag-alarmer */
+  consequence?: string | null;
+  action?: string | null;
+  response_min?: number | null;
 }
 
 export interface AlarmSummary {
   active: number;
   unacked: number;
   high: number;
+  shelved?: number; // udsatte alarme (v6.19.0)
+}
+
+/** En udsat alarm (GET /api/alarms/shelved). `remaining_s` er resttiden på serverens ur ved svaret. */
+export interface ShelvedAlarm {
+  key: string;
+  tag: string;
+  plc: string;
+  level: string;
+  priority: 'high' | 'medium' | 'low';
+  message: string;
+  shelved_by: string;
+  shelved_at: number;
+  until_ts: number;
+  reason: string;
+  remaining_s: number;
 }
 
 export interface PlcSummary {

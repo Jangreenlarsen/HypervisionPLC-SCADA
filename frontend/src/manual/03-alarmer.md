@@ -1,6 +1,6 @@
 # Alarmer
 
-![Alarmer — fanen Aktive med prioritet, tilstand (aktiv/ophørt, kvitteret af hvem) og knapperne Kvittér og Kvittér alle](../../public/manual/alarmer.png)
+![Alarmer — fanen Aktive med prioritet, tilstand (aktiv/ophørt, kvitteret af hvem) og knapperne Kvittér, Udsæt, Forklar og Kvittér alle](../../public/manual/alarmer.png)
 
 Alarmklokken i topbjælken åbner siden **Alarmer**. Et **driftpanel** (uden topbjælke) åbner den med knappen *Gå til Alarmer* i tegningen og kan kvittere derfra.
 
@@ -11,11 +11,12 @@ Fanen **Aktive** viser de alarmer, der er i gang lige nu, og dem der er ophørt,
 | Kolonne | Hvad den viser |
 | --- | --- |
 | **Tid** | Hvornår alarmen opstod |
-| **Prioritet** | Grænsen (*LL*, *L*, *H*, *HH*), *SYS* for serveren selv, eller prioriteten (*Høj*, *Medium*, *Lav*) for et symbols afvigelse |
-| **Alarm** | Alarmteksten og under den tagget, PLC'en, symbolet eller *SCADA-serveren* |
+| **Prioritet** | *Høj*, *Medium* eller *Lav* — altid en af de tre (se *Prioritet og alarmklokken*) |
+| **Type** | Hvad alarmen er: grænsen (*LL*, *L*, *H*, *HH*), *Til* (til/fra-alarm), *Kommunikation* (PLC'en svarer ikke), *System* (serveren selv) eller *Afvigelse* (et symbols afvigelsesalarm) |
+| **Alarm** | Alarmteksten og under den tagget, PLC'en, symbolet eller *SCADA-serveren*. Er de opsat på tagget, står der også **Handling** (hvad du skal gøre), **Konsekvens** (hvad der sker, hvis alarmen ignoreres) og **Svar inden N min** |
 | **Tilstand** | *Aktiv — ikke kvitteret*, *Aktiv — kvitteret* (med hvem og hvornår) eller *Ophørt — ikke kvitteret* |
 
-En alarm, der ikke er kvitteret, har en **rød streg** i venstre side af rækken. Ude til højre står **Kvittér** og (når hjælperen er slået til) **Forklar**.
+En alarm, der ikke er kvitteret, har en **rød streg** i venstre side af rækken. Ude til højre står **Kvittér**, **Udsæt** (for operatører, se *Udsæt en alarm*) og (når hjælperen er slået til) **Forklar**.
 
 ## Vælg system
 
@@ -32,6 +33,27 @@ Hvad sker der bagefter?
 3. Ophører en alarm, **før** den er kvitteret, bliver den stående som *Ophørt — ikke kvitteret*, til nogen kvitterer — så ingen alarm går ubemærket hen.
 
 Alarmklokken holder op med at blinke, når alle alarmer er kvitteret. Alle kvitteringer gemmes med bruger og tidspunkt (se *Historik* og *System › Log*).
+
+## Udsæt en alarm
+
+En operatør kan **udsætte** en aktiv alarm i en begrænset tid, fx når en føler er under udskiftning, eller en kendt fejl venter på en reservedel. En udsat alarm forsvinder fra *Aktive*, klokken tæller den ikke med, og lampen på tegningen står som normal, mens udsættelsen gælder. Brug det kun, når alarmen er vurderet.
+
+![Alarmer — dialogen Udsæt alarm med begrundelse og varighed](../../public/manual/alarmer-udsaet.png)
+
+1. Tryk **Udsæt** ud for alarmen. Knappen findes for **tag-alarmer og symbolalarmer**, der er aktive. Kommunikationsalarmer og systemalarmer (*SYS*) kan ikke udsættes, og en ophørt alarm kvitteres i stedet.
+2. Skriv en **begrundelse** (3-200 tegn, uden linjeskift) og vælg **varighed**: 15 minutter, 1 time, 4 timer, 8 timer eller 24 timer.
+3. Tryk **Udsæt**.
+
+![Alarmer — fanen Udsatte med tidspunkt, hvem, begrundelse og resttid](../../public/manual/alarmer-udsatte.png)
+
+Fanen **Udsatte** viser hver udsat alarm med tidspunkt, hvem der udsatte den, begrundelsen og **resttiden**. **Genindsæt** (operatør) lægger alarmen tilbage med det samme.
+
+- Udløber tiden, vurderes alarmen igen: er tilstanden der stadig, **rejses alarmen som en ny, ukvitteret alarm**.
+- Stiger alarmen til et **højere niveau** (fx *H* til *HH*) eller får **højere prioritet**, ophæves udsættelsen af sig selv, og alarmen rejses.
+- Slettes tagget eller PLC'en, fjernes udsættelsen.
+- Udsættelser overlever en genstart af serveren.
+- *Historik* viser hændelserne **Udsat** og **Genindsat**, og hver udsættelse står i loggen (*System › Log*) med begrundelsen. Integrations-API'et melder en udsat alarm som ophørt og en genindsat som ny.
+- Du ser kun udsættelser på de tegninger, du har adgang til.
 
 ## Forklar en alarm
 
@@ -52,18 +74,22 @@ Tallene beregnes af SCADA'en selv ud fra alarmhistorikken — hvor mange gange h
 
 ![Alarmer — fanen Historik: hvornår hver alarm opstod, ophørte og blev kvitteret](../../public/manual/alarmer-historik.png)
 
-Fanen **Historik** viser de seneste 500 hændelser, nyeste øverst. Hver række er én hændelse:
+Fanen **Historik** viser de seneste hændelser (op til 500), nyeste øverst. Hver række er én hændelse:
 
 - **Opstået** — alarmen kom.
 - **Kvitteret** — med navnet på brugeren i kolonnen *Bruger*.
 - **Ophørt** — årsagen forsvandt.
 - **Ændret niveau** — en grænsealarm gik fx fra *H* til *HH*.
 
+**Søg og filtrér.** Over tabellen kan du søge i tag, PLC og besked (store og små bogstaver er ens), vælge en periode (*Fra* og *Til*, begge dage er med), en hændelse og en prioritet. Filtrene virker sammen med det valgte **System**, og **Nulstil** fjerner dem igen. Tælleren viser, hvor mange hændelser der passer, og siger det, hvis listen er afkortet til de nyeste 500.
+
+**CSV.** Knappen **CSV** henter alle hændelser, der passer til de samme filtre (også dem ud over de 500, op til de 50.000 der gemmes), som en fil til Excel: semikolon mellem felterne, tidspunkt i dansk tid med tidszone, og komma som decimaltegn. Tekst, der ligner en formel, får et `'` foran, så Excel ikke udfører den. Du ser kun hændelser fra de tegninger, du har adgang til, og hver eksport står i loggen (*System › Log*). Er et filter ugyldigt, står fejlen i tælleren, og CSV-knappen er slukket.
+
 Brug historikken til at se, hvor ofte en alarm kommer, og hvor lang tid der går, før den bliver kvitteret. Vil du se værdien omkring tidspunktet, så åbn tagget i **Trends** (kræver at tagget gemmer historik).
 
 ## Prioritet og alarmklokken
 
-Alarmer har en **prioritet**: *lav*, *medium* eller *høj*. For et tag følger den niveauet: **HH** og **LL** er *høj*, **H** og **L** er *medium*, og en til/fra-alarm er *høj*. For et symbols afvigelsesalarm vælges den i guidens trin 4 (*Alarm ved afvigelse/fejl*).
+Alarmer har en **prioritet**: *lav*, *medium* eller *høj*. For et tag følger den som standard niveauet: **HH** og **LL** er *høj*, **H** og **L** er *medium*, og en til/fra-alarm er *høj*. Vil du noget andet, så vælg **Prioritet** på tagget (*Tags → Redigér → Alarmer*, eller *Ret alarm* i symbolguidens trin 6): *Høj*, *Medium* eller *Lav* gælder så alle tagets niveauer. Ændrer du prioriteten, mens alarmen er aktiv, bevares kvitteringen. Kommunikationsalarmer er altid *høj*; serverens egne systemalarmer har hver deres prioritet (se *System › Status*). For et symbols afvigelsesalarm vælges den i guidens trin 4 (*Alarm ved afvigelse/fejl*).
 
 **Alarmklokken** i topbjælken viser antallet af aktive alarmer og hvor mange der er nye (ukvitterede), fx *3 · 3 ny*:
 
@@ -86,7 +112,7 @@ Ud over tag-alarmer og kommunikationsalarmer laver SCADA en alarm, når noget er
 
 ## Opsæt alarmer
 
-Alarmgrænser opsættes pr. tag under **Tags → Redigér → Alarmer** (se *PLC'er og tags › Alarmer på et tag*) — eller i symbolguidens **trin 6** (*Ret alarm* ud for tagget) for symbolets tags. Her sættes også **dødbånd** og **forsinkelse**; prioriteten følger niveauet.
+Alarmgrænser opsættes pr. tag under **Tags → Redigér → Alarmer** (se *PLC'er og tags › Alarmer på et tag*) — eller i symbolguidens **trin 6** (*Ret alarm* ud for tagget) for symbolets tags. Her sættes også **dødbånd** og **forsinkelse**; prioriteten følger niveauet. Under **Konsekvens**, **Handling** og **Svartid** kan du skrive, hvad alarmen betyder, hvad operatøren skal gøre, og hvor hurtigt den skal besvares; teksten vises under alarmen på *Alarmer*, og **Forklar** bruger den.
 
 Sådan sætter du en alarm for høj temperatur:
 

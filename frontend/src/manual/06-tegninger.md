@@ -20,6 +20,16 @@ Hver gang du uploader eller gemmer, opstår en ny **version**. **Versioner** vis
 
 > Bindinger følger tegningens **element-id'er**. Ændrer en ny version et elements id, mister det sin binding; **Bindinger** viser *Forsvundne elementer*, som du kan rydde op i.
 
+## Overordnet tegning (hierarki)
+
+Store anlæg kan deles op i niveauer: et **overblik**, **områder** og **detaljer**. Kolonnen **Overordnet tegning** har en vælger for hver tegning: vælg den tegning, den hører under, eller *(ingen — øverste niveau)*. Listen vises indrykket efter hierarkiet.
+
+- Der kan være **højst 4 niveauer** (øverste niveau er niveau 1), også for de tegninger, der hænger under den, du flytter.
+- En tegning kan ikke høre under sig selv eller under en af sine egne undertegninger. Vælgeren viser kun de tilladte valg, og serveren afviser alt andet med en forklaring.
+- **Slettes** en tegning, bliver dens undertegninger øverste niveau (de slettes ikke). Bekræftelsen nævner, hvor mange undertegninger det rammer.
+- Ændringen står i loggen (*System › Log*) med gammel og ny overordnet tegning, og den følger med i backup.
+- En bruger, der kun må se nogle tegninger, ser kun disse i hierarkiet.
+
 ## Start-tegning
 
 **Gør start-tegning**: Overview åbner med denne tegning. **Fjern** start-tegningen, og Overview åbner med den første i listen.

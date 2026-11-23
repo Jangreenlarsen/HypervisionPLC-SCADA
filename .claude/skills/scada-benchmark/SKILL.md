@@ -7,8 +7,8 @@ Resultatet skal være ens i form fra gang til gang. Derfor: kriterierne står i 
 
 Metoden er en selvvurdering. Skriv aldrig at løsningen er "certificeret", "SIL-egnet" eller "overholder" en standard; skriv hvad den opfylder af *principperne*.
 
-1. **Forberedelse** (selv, uden agent): læs `kriterier.md` og `rapportskabelon.md`. Notér version og build fra `version.json` og commit-hash (`git rev-parse --short HEAD`). Find den nyeste `docs/BENCHMARK_*.md`; findes den, er den sammenligningsgrundlag. Hold projektets faste ramme (CLAUDE.md) for øje: Raspberry Pi, al PLC-kommunikation via REST, én server. Kriterier der strider mod rammen kan markeres – med begrundelse.
-2. **Se UI'et** (gælder gruppe A): brug `/screenshot` mod demoen på mindst Overview (fx `#/overview/varme`), Alarmer og en trend (find rutenavnene i `frontend/src`), og se billederne med Read. Meld i rapporten hvilke ruter og bredder der er *set*. Kan UI'et ikke nås, markeres A-kriterier uden kodebevis som U.
+1. **Forberedelse** (selv, uden agent): læs `kriterier.md` og `rapportskabelon.md`. Notér version og build fra `version.json` og commit-hash (`git rev-parse --short HEAD`). Find den nyeste `docs/BENCHMARK_*.md`; findes den, er den sammenligningsgrundlag. Hold projektets faste ramme (CLAUDE.md) for øje: Raspberry Pi eller Linux-VM (16 GB RAM, 30 GB disk; docs/PLATFORM_OG_KRAV.md), al PLC-kommunikation via REST, én server. Kriterier der strider mod rammen kan markeres – med begrundelse.
+2. **Se UI'et** (gælder gruppe A): brug `/screenshot` mod demoen på mindst Overview (`#overview/varme` og `#overview/vandvaerk`), Alarmer (`#alarms`) og Trends (`#trends`), og se billederne med Read. Tag også Overview ved `--width=500`. Kontrollér at hvert billede viser den side, der blev bedt om (ruter uden skråstreg efter `#`; en ukendt rute viser bare standardsiden). Meld i rapporten hvilke ruter og bredder der er *set*. Kan UI'et ikke nås, markeres A-kriterier uden kodebevis som U.
 3. **Tre research-agenter parallelt** (`general-purpose`, skrivebeskyttede, i samme kald; skriv en linje om model/effort og hvorfor):
 
    | Agent | Grupper | Model / effort | Hvorfor |

@@ -46,6 +46,13 @@ SIGNAL_SYSTEM = (
 )
 
 
+def tag_token_budget(count: int) -> int:
+    """Tokenloft til beskrivelser af `count` variabler. Modellerne printer JSON med indrykning (målt 2026-11-23 med Qwen3.5:
+    ca. 36 tokens pr. variabel plus ca. 40), og et afkortet svar er ugyldigt JSON ('LLM-svaret var ikke gyldig JSON'); derfor
+    god luft: 60 + 56 pr. variabel, højst 2400. Loftet koster intet, hvis svaret er kortere."""
+    return min(2400, 60 + 56 * max(1, count))
+
+
 def tag_schema(names: list[str]) -> dict[str, Any]:
     return {"type": "object", "additionalProperties": False, "required": ["svar"],
             "properties": {"svar": {"type": "array", "maxItems": len(names), "items": {
@@ -137,7 +144,7 @@ class TagDescriber(_Runner):
         data = "PLC-variabler:\n" + "\n".join(rows)
         return {"messages": [{"role": "system", "content": TAG_SYSTEM},
                              {"role": "user", "content": f"<data>\n{data}\n</data>\n\nSkriv beskrivelse og enhed for hver variabel."}],
-                "schema": tag_schema(names), "max_tokens": min(1200, 40 + 32 * len(names)), "asked": len(names),
+                "schema": tag_schema(names), "max_tokens": tag_token_budget(len(names)), "asked": len(names),
                 "validate": lambda raw: validate_tags(raw, names), "what": "Tag-beskrivelser"}
 
 

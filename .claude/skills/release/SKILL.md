@@ -10,6 +10,8 @@ Kør trinnene i rækkefølge og stop ved første fejl. Forudsætning: arbejdet e
    - Altid: entry øverst i `CHANGELOG.md` (`## [version build NNNN] — YYYY-MM-DD — beskrivelse`, berørte filer).
    - `RELEASE_NOTES.md` når brugeren kan mærke ændringen (feature, synlig fejlrettelse). Rent interne ændringer kan springe den over.
    - Feature: sæt status i `FEATURES.md`. Bug: løsning i `BUGS.md`. Ændret UI: manualtekst og berørte skærmbilleder i samme commit.
+   - Er `frontend/src/manual/*.md` rørt (også kun med et billede): kør `cd backend && .venv/Scripts/python.exe -m app.services.manual_compiler --check`, og `--sync` hvis den klager (hjælperens tillæg i `manual/llm/`); `make-package.sh` afviser ellers, og så skal der en ekstra build til.
+   - Layout: forhåndsvis den lokale build mod demoens data FØR deploy (se skillen `/screenshot`), så fejl findes uden en ekstra release.
 3. **Commit** kun de berørte filer (aldrig `git add -A`): `vX.Y.Z-bNNNN: beskrivelse`. `.githooks/pre-commit` afviser commit på `main`, nøgler i indekset, manglende versionsbump og manglende CHANGELOG-entry; ret årsagen i stedet for at omgå den.
 4. **Push** `origin dev` uden at spørge.
 5. **OTA-pakke**: `sh deploy/make-package.sh` → `scada-<version>-b<build>.tar` i projektets rod. Kontrollér at navnet matcher `version.json`.

@@ -32,11 +32,19 @@ Skriv brugernavn og adgangskode. Er det første gang, eller har en administrator
 | **Drift** | Overview, Alarmer, Trends, Energi | alle |
 | **Opsætning** | Tegninger, Tegn, Bindinger, Tags, Ugeprogrammer, PLC'er, Symboler, Symboltest | se *Roller* |
 | **System** | Status, Log, Brugere, Backup, Opdatering, Notifikationer, Integrationer, Certifikater, Konfiguration, Hjælper (LLM) | tekniker (Status, Log) og admin |
-| **Bruger** | Dit navn og din rolle, Skift adgangskode, Log ud, Manual, version | alle |
+| **Bruger** (knappen viser dit brugernavn) | Dit navn og din rolle, Skift adgangskode, Log ud, Manual, version | alle |
 
 **Samme tegning på tværs af siderne:** Overview, Tegn, Bindinger og Simulator åbner den tegning, du står på. Kommer du fra en anden side (fx Tags), åbner de den tegning, du sidst havde åben i browserfanen.
 
-Ud for menuerne står hvor du er (**Drift › Overview**). Til højre står knappen **Hjælper** (når hjælperen er slået til), en **alarmklokke** med antal aktive alarmer og linket **AGPL · kildekode**. Klokken blinker, når der er alarmer, du endnu ikke har kvitteret. Linket peger på programmets kildekode (programmet er fri software under AGPL-3.0). Yderst til højre står den installerede **version**, fx *v4.9.0 · b0359* — oplys den, hvis du melder en fejl.
+Ud for menuerne står hvor du er (**Drift › Overview**). Til højre står knappen **Hjælper** (når hjælperen er slået til), **PLC-status**, **uret**, en **alarmklokke** med antal aktive alarmer og linket **AGPL · kildekode**. Klokken blinker, når der er alarmer, du endnu ikke har kvitteret. Linket peger på programmets kildekode (programmet er fri software under AGPL-3.0). Yderst til højre står den installerede **version**, fx *v4.9.0 · b0359* — oplys den, hvis du melder en fejl.
+
+**Den faste ramme.** Topbaren står på alle sider og viser altid tre ting ud over alarmklokken:
+
+- **PLC-status** — en lille mærkat: *PLC 1/1* (grøn prik), når alle PLC'er svarer; *PLC 0/1* (gul eller rød), når en PLC ikke gør; og *Ingen forbindelse* (rød), når siden har mistet forbindelsen til SCADA-serveren. Hold musen over for at se hver PLC og dens tilstand. På smalle skærme er mærkaten kun en prik.
+- **Uret** (tt:mm:ss) — browserens tid. Det skjules på skærme smallere end ca. 1060 px. Serverens ur kontrolleres under *System › Status*.
+- **Dit brugernavn** på Bruger-knappen (skjules på smalle skærme; navn og rolle står stadig i menuen).
+
+**Versionen** står altid yderst til højre.
 
 ## Roller
 

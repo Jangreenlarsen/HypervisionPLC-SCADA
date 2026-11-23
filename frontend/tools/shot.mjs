@@ -2,7 +2,7 @@
 //
 //   node tools/shot.mjs <rute> <ud.png> [--base=URL] [--width=1600] [--height=1000] [--wait=3000] [--selector=CSS] [--text]
 //
-//   <rute>   hash-rute, fx "#/overview/varme", eller en fuld URL
+//   <rute>   hash-rute, fx "#overview/varme", "#alarms", "#trends", eller en fuld URL
 //   --base   standard http://127.0.0.1:8000 (SCADA_BASE)
 //   --selector  vent på og fotografér kun dette element
 //   --text   skriv også sidens tekst (første 1500 tegn) til <ud>.txt
@@ -20,7 +20,8 @@ const [route, out] = pos;
 if (!route || !out) { console.error('Brug: node tools/shot.mjs <rute> <ud.png> [--base= --width= --height= --wait= --selector= --text]'); process.exit(1); }
 
 const base = String(opt.base || process.env.SCADA_BASE || 'http://127.0.0.1:8000').replace(/\/$/, '');
-const url = /^https?:\/\//.test(route) ? route : `${base}/${route.startsWith('#') ? route : '#' + route}`;
+// Appens ruter er '#overview/varme', '#alarms', '#trends' (uden skråstreg efter #); '#/x' og 'x' normaliseres hertil
+const url = /^https?:\/\//.test(route) ? route : `${base}/${route.replace(/^#?\/?/, '#')}`;
 const browser = await chromium.launch();
 try {
   const ctx = await browser.newContext({

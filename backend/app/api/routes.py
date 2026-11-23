@@ -54,6 +54,10 @@ class TagCreate(_Model):
     alarm_deadband: float | None = None
     alarm_delay_s: float | None = None
     alarm_on: str | None = None
+    alarm_priority: str | None = None
+    alarm_consequence: str | None = None
+    alarm_action: str | None = None
+    alarm_response_min: Any = None   # valideres i TagService (heltal 0..1440)
     name: str
     source: str
     description: str | None = None
@@ -80,6 +84,10 @@ class TagUpdate(_Model):
     alarm_deadband: float | None = None
     alarm_delay_s: float | None = None
     alarm_on: str | None = None
+    alarm_priority: str | None = None
+    alarm_consequence: str | None = None
+    alarm_action: str | None = None
+    alarm_response_min: Any = None   # valideres i TagService (heltal 0..1440)
     source: str | None = None
     description: str | None = None
     unit: str | None = None
@@ -243,6 +251,7 @@ async def remove_tags(body: TagNamesBody, request: Request) -> dict[str, Any]:
 @router.delete("/tags/{name}", status_code=204, dependencies=[ENGINEER])
 async def delete_tag(name: str, request: Request, force: bool = False) -> None:
     _tags(request).delete(name, force=force)
+    request.app.state.alarm_service.forget({name})   # tagets alarmtilstand og udsættelse (som ved plc_removal); gamle hændelser bevares
     audit(request, "tag.delete", name, {"force": True} if force else None)
 
 

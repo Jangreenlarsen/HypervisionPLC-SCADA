@@ -3,7 +3,7 @@
 # HypervisionPLC SCADA
 
 **Web-baseret SCADA/HMI til PLC'er — tegn anlægget, se det live, betjen det fra browseren.**
-*Open-source web SCADA / HMI for PLCs on a Raspberry Pi.*
+*Open-source web SCADA / HMI for PLCs — on a Raspberry Pi or in a Linux VM.*
 
 [![Licens: AGPL v3](https://img.shields.io/badge/licens-AGPL--3.0-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-3.13-success.svg)](CHANGELOG.md)
@@ -11,7 +11,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![Svelte](https://img.shields.io/badge/Svelte_5-FF3E00?logo=svelte&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![Raspberry Pi](https://img.shields.io/badge/Raspberry_Pi_4-A22846?logo=raspberrypi&logoColor=white)
+![Raspberry Pi](https://img.shields.io/badge/Raspberry_Pi_%7C_Linux_VM-A22846?logo=raspberrypi&logoColor=white)
 
 ![Overview: anlægget live med værdier og animationer](frontend/public/manual/overview.png)
 
@@ -25,11 +25,11 @@
 - 🔔 **Alarmer** med prioritet, kvittering og historik · 📈 **Trends** med gemte visninger, middelkurver og dataanalyse · ⚡ **Energi** pr. dag/uge/måned · 🗓️ **Ugeprogrammer**.
 - 🔌 **PLC'er og Modbus** — al kommunikation via PLC'ens REST API (+ SSE), også eksternt RS485-udstyr; kun SCADA-serveren taler med PLC'erne.
 - 🔐 **Brugere og roller** (viewer, operatør, driftpanel, tekniker, admin) med adgang pr. tegning, audit-log, HTTPS, backup/restore og **OTA-opdatering** fra web-siden.
-- 🍓 Kører på en **Raspberry Pi 4** som én systemd-service; frontend serveres statisk af FastAPI.
+- 🍓 Kører som én systemd-service på en **Raspberry Pi** (4 eller 5) eller i en **Linux-VM** (anbefalet 16 GB RAM og 30 GB disk); frontend serveres statisk af FastAPI. Krav og profiler: [docs/PLATFORM_OG_KRAV.md](docs/PLATFORM_OG_KRAV.md).
 
 ## In English
 
-HypervisionPLC SCADA is an open-source, self-hosted **web SCADA / HMI** for PLCs, built for the **Raspberry Pi 4**. Upload or draw an **SVG process diagram**, bind its elements to PLC tags and watch the plant **live** in the browser — with operator controls, **alarm management**, **trends** (historian), energy reports, weekly schedules and **Modbus** (incl. RS485 devices) via the PLC's REST API. It includes a built-in **SVG drawing editor** with a symbol library, pipes/wires that follow the symbols, T-pieces and guide lines, and a no-code symbol wizard for animations and interlocks. Stack: Python 3.11, FastAPI, SQLite, Svelte 5, TypeScript. Licensed under **AGPL-3.0**. The UI and manual are in Danish.
+HypervisionPLC SCADA is an open-source, self-hosted **web SCADA / HMI** for PLCs, built to run on a **Raspberry Pi** (4 or 5) or in a **Linux VM** (recommended: 16 GB RAM, 30 GB disk). Upload or draw an **SVG process diagram**, bind its elements to PLC tags and watch the plant **live** in the browser — with operator controls, **alarm management**, **trends** (historian), energy reports, weekly schedules and **Modbus** (incl. RS485 devices) via the PLC's REST API. It includes a built-in **SVG drawing editor** with a symbol library, pipes/wires that follow the symbols, T-pieces and guide lines, and a no-code symbol wizard for animations and interlocks. Stack: Python 3.11, FastAPI, SQLite, Svelte 5, TypeScript. Licensed under **AGPL-3.0**. The UI and manual are in Danish.
 
 ## Dokumentation
 
@@ -95,7 +95,7 @@ npm run build       # → frontend/dist, som SCADA-serveren serverer (kopierer o
 
 Eksempeltegninger: [docs/examples/](docs/examples/).
 
-## Installation (Debian / Raspberry Pi OS)
+## Installation (Debian / Raspberry Pi OS / Linux-VM)
 
 ### Ny Raspberry Pi direkte fra GitHub
 
@@ -108,6 +108,10 @@ curl -fsSL https://raw.githubusercontent.com/Jangreenlarsen/HypervisionPLC-SCADA
 Scriptet henter den nyeste [Release](https://github.com/Jangreenlarsen/HypervisionPLC-SCADA/releases) (færdigbygget pakke — intet Node.js på Pi'en), kontrollerer kontrolsummen og kører `deploy/install.sh`. Som standard sættes nginx med TLS (selvsigneret certifikat) op foran SCADA med Pi'ens hostnavn og IP — siden åbnes på `https://<pi-ens-ip>`. Til sidst vises adressen og engangsadgangskoden til `admin`. Valg sendes videre: `… | sudo sh -s -- --with-nginx scada.local 192.168.1.50` (andet navn/IP i certifikatet), `--with-mock-plc`, eller `--local-only` (ingen nginx; kun adgang fra Pi'en selv). En bestemt version: `… | sudo SCADA_VERSION=v3.13.0 sh`.
 
 Releases bygges automatisk af GitHub Actions ([.github/workflows/release.yml](.github/workflows/release.yml)), når et tag `vX.Y.Z` pushes.
+
+### Linux-VM (Debian 12/13)
+
+Samme pakke og samme scripts som på en Pi: installér Debian (server, 64-bit), og kør `bootstrap.sh`-kommandoen ovenfor eller `deploy/install.sh`. Anbefalet VM: 4 vCPU, 16 GB RAM og 30 GB disk; hardwareprofilen *vm-16* foreslås automatisk og gør hjælperen (lokal LLM) tilgængelig. Diskbudget, hukommelse og tjekliste: [docs/PLATFORM_OG_KRAV.md](docs/PLATFORM_OG_KRAV.md).
 
 ### Fra en udpakket kopi af repoet
 

@@ -96,6 +96,12 @@ Under **Alarmer** bestemmer du, hvornår tagget giver en alarm. Et tag har **ent
 | **Dødbånd** | Hvor langt værdien skal tilbage, før en grænsealarm **ophører** — så alarmen ikke svinger til og fra, når værdien ligger og vipper ved grænsen |
 | **Forsinkelse (s)** | Hvor længe betingelsen skal holde, før alarmen **udløses** (0 = med det samme). Korte udsving giver så ingen alarm |
 | **Til/fra-alarm** | Kun for til/fra-tags: alarm **når sand** (Til) eller **når falsk** (Fra). Prioritet **høj** |
+| **Prioritet** | *Som niveau* (standard), *Høj*, *Medium* eller *Lav*; gælder alle tagets niveauer |
+| **Konsekvens** | Hvad der sker, hvis alarmen ignoreres (højst 200 tegn). Valgfri; vises under alarmteksten på *Alarmer* |
+| **Handling** | Hvad operatøren skal gøre (højst 200 tegn). Valgfri; vises under alarmteksten |
+| **Svartid (min)** | Hvor hurtigt alarmen skal besvares, 0-1440 minutter. Valgfri; vises som *Svar inden N min* |
+
+**Konsekvens**, **Handling** og **Svartid** er en kort beskrivelse af alarmen (en *rationalisering*): hvorfor den findes, hvad den betyder, og hvad der skal gøres. De er valgfrie, men anbefales til alle alarmer, der kræver en handling; operatøren ser dem under alarmen, og **Forklar**-hjælperen bruger dem i sit svar.
 
 Grænserne er i tagets **tekniske enhed** (efter skalering), og tomt felt betyder "ingen grænse". De skal stige: LL ≤ L ≤ H ≤ HH. Du behøver ikke udfylde alle — fx kun **H** og **HH**.
 
@@ -107,7 +113,7 @@ Grænserne er i tagets **tekniske enhed** (efter skalering), og tomt felt betyde
 - Den falder til 89 → stadig **H**; først under **88** ophører alarmen.
 - Én alarm pr. retning: høj (H/HH) og lav (L/LL) er hver sin alarm.
 
-Prioriteten følger niveauet og kan ikke vælges. Mister PLC'en forbindelsen, bevares tagets alarmer som de er (en kommunikationsfejl rydder ikke en alarm — den giver sin egen kommunikationsalarm). Alarmer vises og kvitteres under *Drift › Alarmer*; i symbolguiden kan alarmen også sættes op (trin 6) og styre en animation (fx blinke ved en ukvitteret alarm), se *Symboler og guiden › Alarmer i guiden*.
+Prioriteten følger som standard niveauet (HH/LL høj, H/L medium, til/fra høj), men du kan vælge **Prioritet** på tagget (*Høj*, *Medium*, *Lav*); valget gælder alle tagets niveauer. Mister PLC'en forbindelsen, bevares tagets alarmer som de er (en kommunikationsfejl rydder ikke en alarm — den giver sin egen kommunikationsalarm). Alarmer vises og kvitteres under *Drift › Alarmer*; i symbolguiden kan alarmen også sættes op (trin 6) og styre en animation (fx blinke ved en ukvitteret alarm), se *Symboler og guiden › Alarmer i guiden*.
 
 ### Prioritet (eksterne Modbus-tags)
 

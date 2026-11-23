@@ -1,7 +1,7 @@
 <script lang="ts">
   // Én tags alarm i symbolguiden (trin 6, v0.74.0): opsætning som kort tekst, status lige nu, og "Ret alarm" (PATCH /api/tags).
   import { api } from './api';
-  import { alarmPayload, alarmStatus, alarmSummary, formFrom, type AlarmForm, type TagAlarm } from './tagAlarm';
+  import { alarmPayload, alarmStatus, alarmSummary, formFrom, charCount, RATIONALE_MAX, type AlarmForm, type TagAlarm } from './tagAlarm';
 
   let { name, row, kind, active, unack, onsaved }: {
     name: string; row: TagAlarm & { unit?: string }; kind: 'bool' | 'num';
@@ -56,6 +56,22 @@
           <label class="opt small">Dødbånd<input class="n" bind:value={form.deadband} inputmode="decimal" placeholder="0" /></label>
         {/if}
         <label class="opt small">Forsinkelse (s)<input class="n" bind:value={form.delay} inputmode="decimal" placeholder="0" /></label>
+        <label class="opt small">Prioritet
+          <select bind:value={form.priority}>
+            <option value="">Som niveau (standard)</option><option value="high">Høj</option><option value="medium">Medium</option><option value="low">Lav</option>
+          </select>
+        </label>
+      </div>
+      <div class="row wrap">
+        <label class="opt small">Konsekvens
+          <input class="t" bind:value={form.consequence} placeholder="Hvad sker der, hvis alarmen ignoreres" />
+          <span class="muted cnt">{charCount(form.consequence)}/{RATIONALE_MAX}</span>
+        </label>
+        <label class="opt small">Handling
+          <input class="t" bind:value={form.action} placeholder="Hvad skal operatøren gøre" />
+          <span class="muted cnt">{charCount(form.action)}/{RATIONALE_MAX}</span>
+        </label>
+        <label class="opt small">Svartid (min)<input class="n" bind:value={form.responseMin} inputmode="numeric" placeholder="ingen" /></label>
         <button class="small primary" onclick={save} disabled={saving}>{saving ? 'Gemmer…' : 'Gem alarm'}</button>
       </div>
       <p class="small muted">Gælder tagget overalt (samme som under <strong>Tags</strong>). {kind === 'bool' ? 'Til/fra-tag: alarm når værdien er Til eller Fra.' : 'Grænser i teknisk enhed; tomt = ingen grænse.'}</p>
@@ -70,5 +86,7 @@
   .st.none { color: #2e7d32; }
   .edit td { background: var(--panel-2); }
   .n { width: 5.5rem; }
+  .t { width: 16rem; }
+  .cnt { min-width: 3.6rem; font-variant-numeric: tabular-nums; }
   .opt { display: inline-flex; gap: .3rem; align-items: center; }
 </style>

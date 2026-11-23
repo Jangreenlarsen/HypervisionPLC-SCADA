@@ -2,6 +2,53 @@
 
 ---
 
+## v6.22.1 — 2026-11-23
+
+- Rettet: **brødkrummen** i topbaren (fx *Opsætning › Tegninger*) blev afkortet på skærme mellem ca. 1000 og 1240 px bredde. PLC-status er nu en lille prik under 1240 px, og ' · kildekode' skjules, så der er plads.
+
+## v6.22.0 — 2026-11-23 — Tegningshierarki: overblik, område, detalje
+
+- Tegninger kan nu placeres i et **hierarki**: under **Tegninger** vælger du en **Overordnet tegning** for hver tegning (højst 4 niveauer, ingen cirkler). Listen vises indrykket.
+- På **Overview** står tegningerne indrykket i vælgeren, og under den står en **brødkrumme** (*Anlæg › Område › Detalje*) og knapper til **Undertegninger**. **Gå til tegning** på en tegning skifter nu også adressen, så browserens tilbage-knap virker. Rækkerne har fast højde, så intet flytter sig.
+- Slettes en tegning, bliver dens undertegninger øverste niveau. Hierarkiet følger med i backup, og en bruger, der kun må se nogle tegninger, ser kun dem.
+- Med følger rettelsen fra 6.21.2: tag-guiden fik for få tokens og kunne fejle med fire eller flere variabler.
+
+## v6.21.2 — 2026-11-23
+
+- Rettet: **Tag-guiden** (hjælperens forslag til beskrivelse og enhed) kunne fejle med *LLM-svaret var ikke gyldig JSON*, når der blev valgt fire eller flere variabler. Svaret blev afkortet, fordi modellen fik for få tokens; den får nu god plads.
+
+## v6.21.1 — 2026-11-23
+
+- Rettet: alarmklokken i topbaren så ud som et almindeligt link, når der var ukvitterede alarmer (fejl i 6.21.0). Den har igen sin ramme og farve.
+
+## v6.21.0 — 2026-11-23 — Fast ramme: PLC-status, ur og brugernavn i topbaren
+
+- Topbaren viser nu altid **PLC-status** (*PLC 1/1*, *PLC 0/1* eller *Ingen forbindelse*, med hver PLC i hjælpeteksten), **uret** og dit **brugernavn** — på alle sider. Versionen står stadig yderst til højre.
+- Topbaren står på én linje ved alle skærmbredder: på smalle skærme bliver PLC-status til en prik, og uret, brødkrummen og brugernavnet skjules. Intet flytter sig, når uret tikker eller status skifter.
+
+## v6.20.0 — 2026-11-23 — Konsekvens, handling og svartid på alarmer
+
+- Et tag kan nu få en kort beskrivelse af sin alarm: **Konsekvens** (hvad der sker, hvis alarmen ignoreres), **Handling** (hvad operatøren skal gøre) og **Svartid** (minutter). Det opsættes under *Tags → Redigér → Alarmer* og i symbolguidens *Ret alarm*.
+- På **Alarmer** står teksten under alarmen (*Handling*, *Konsekvens*, *Svar inden N min*), også på smalle skærme. **Forklar**-hjælperen bruger den i sit svar.
+- Felterne er valgfrie, og en rettelse af andre alarmfelter nulstiller dem ikke.
+
+## v6.19.0 — 2026-11-23 — Udsæt alarm
+
+- En operatør kan **udsætte** en aktiv tag- eller symbolalarm i 15 minutter til 24 timer: tryk **Udsæt**, skriv en begrundelse og vælg varighed. Alarmen forsvinder fra *Aktive*, og klokken tæller den ikke med. Kommunikations- og systemalarmer kan ikke udsættes.
+- Fanen **Udsatte** viser, hvem der udsatte hvad, hvorfor og hvor længe endnu; **Genindsæt** lægger alarmen tilbage med det samme. Når tiden udløber, rejses alarmen igen, hvis den stadig er i alarm. Stiger den til et højere niveau eller en højere prioritet, ophæves udsættelsen af sig selv.
+- Historik og log viser *Udsat* og *Genindsat* med begrundelse. På smalle skærme vises alarmerne som kort, så **Kvittér** og **Udsæt** altid er synlige.
+
+## v6.18.0 — 2026-11-23 — Alarmprioritet: Høj, Medium og Lav
+
+- Kolonnen **Prioritet** på Alarmer viser nu altid *Høj*, *Medium* eller *Lav*. Hvad alarmen er (HH, H, L, LL, Til, Kommunikation, System, Afvigelse), står i den nye kolonne **Type**. Det gælder både *Aktive* og *Historik*.
+- Et tag kan få sin egen **Prioritet** (*Tags → Redigér → Alarmer* og *Ret alarm* i symbolguiden): vælg *Høj*, *Medium* eller *Lav*, så gælder den alle tagets niveauer. Uden valg er det som før (HH/LL høj, H/L medium, til/fra høj). Ændrer du prioriteten, mens alarmen er aktiv, bevares kvitteringen.
+
+## v6.17.0 — 2026-11-23 — Alarmhistorik: søgning, filtre og CSV
+
+- **Historik** under Alarmer kan nu søges og filtreres: fritekst i tag, PLC og besked, periode (*Fra* og *Til*), hændelse og prioritet, sammen med det valgte system. **Nulstil** fjerner filtrene.
+- Knappen **CSV** henter alle hændelser, der passer til filtrene, til Excel (op til de 50.000 der gemmes). Du ser kun hændelser fra dine egne tegninger, og eksporten står i loggen.
+- Et ugyldigt filter (fx *Fra* efter *Til*) vises som en besked, og CSV-knappen slukkes.
+
 ## v6.16.4 — 2026-11-21
 
 - Rettet: to pumper i modsat retning — flowet i tegningen vender nu, når den anden pumpe løber. Fejlen opstod, når en pumpe var drejet eller spejlet, og røret sat på igen: de gemte forbindelser pegede så på det forkerte punkt. Simulatoren bruger nu rørenes ender, og Tegn retter forbindelserne ved Gem. Står der en note om forældede forbindelser, så tryk *Forbindelser › Bind forbindelser* og gem tegningen.

@@ -4,6 +4,115 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.22.1 build 0460] — 2026-11-23 — Manualbillede: siden Tegninger med kolonnen Overordnet tegning
+
+`frontend/public/manual/tegninger.png` er taget igen på demoen (v6.22.1 b0459): kolonnen *Overordnet tegning*, PLC-status som prik, ur og brugernavn i topbaren, og brødkrummen er hel. Funktionstest af hierarkiet på demoen med midlertidige tegninger (sæt/ryd forælder, niveau 5, cirkel, selv, ukendt, uændret, sletning nulstiller børn, audit): alt som forventet, og testtegningerne er slettet igen.
+
+## [6.22.1 build 0459] — 2026-11-23 — Topbar: brødkrummen blev afkortet ved 1000-1240 px (fejl i 6.21.0)
+
+`frontend/src/App.svelte`: PLC-chippen bliver en prik og ' · kildekode' skjules under 1240 px (før 980 og 800 px). Målt mod den lokale build: ingen afkortning af brødkrummen på nogen af de 20 sider ved ti bredder (981-1920 px) og ingen overløb ved elleve bredder (501-1280 px). Registreret i `BUGS.md`.
+
+## [6.22.0 build 0458] — 2026-11-23 — Tegningshierarki (benchmark A1)
+
+Plan: PLAN.md › Benchmark-huller, trin 6. Skema 22 (additiv kolonne). Reviewer (opus) gennemgik; én kritisk fejl og flere advarsler er rettet. Pakken indeholder også rettelsen fra 6.21.2 (tag-guidens tokenloft).
+
+- `backend/app/storage/db.py` (`SCHEMA_VERSION = 22`, `drawings.parent_id`, `set_drawing_parent` i én `BEGIN IMMEDIATE`-transaktion med rollback i alle fejlgrene; sletning nulstiller børn i samme transaktion), `backend/app/services/drawing_tree.py` (regler: ikke sig selv, ingen cirkler, højst 4 niveauer også for undertræet; `sanitize_parents` til gendannelse), `backend/app/services/drawings.py`, `backend/app/services/backup.py` (eksport og gendannelse; ugyldige forældre ryddes med log), `backend/app/api/drawings.py` (`PUT /api/drawings/{id}/parent`, tekniker; audit `drawing.parent`; skjult forælder giver `parent_id = null` i ALLE svar; `_check` på PATCH, DELETE, usage, versions, symbols og bindings; `usage` filtreres for begrænsede brugere).
+- `frontend/src/lib/drawingTree.ts` (`buildTree`, `breadcrumb`, `childrenOf`, `canSetParent`, `allowedParentsMap`, …), `loadGuard.ts` (kapløb ved hurtige skift), `drawingDelete.ts`; `frontend/src/pages/Drawings.svelte` (Overordnet tegning, indrykket liste), `frontend/src/pages/Overview.svelte` (brødkrumme, Undertegninger, indrykket vælger, `click:goto` skifter adressen, fast rækkehøjde).
+- Tests: `backend/tests/test_drawing_hierarchy.py`, `frontend/src/lib/drawingTree.test.ts`, `loadGuard.test.ts`. Backend 1482 bestået, frontend 1121. Set i forhåndsvisning (500, 1000 og 1600 px): rækkehøjderne er ens for alle tegninger.
+- Manual: `02-drift.md`, `06-tegninger.md`.
+
+## [6.21.2 build 0457] — 2026-11-23 — Tag-guiden: tokenloftet afkortede JSON (fundet ved LLM-målingen)
+
+`backend/app/services/assist_setup.py`: nyt `tag_token_budget` (60 + 56 pr. variabel, højst 2400) i stedet for `40 + 32 × antal`; `backend/tests/test_assist_setup.py`: test mod de målte værdier (4 variabler = 181 tokens, 5 = 219). Registreret i `BUGS.md`. Pakken til denne build er ikke bygget separat (A1 var under udvikling i samme arbejdskopi); rettelsen følger med pakken til 6.22.0.
+
+## [6.21.1 build 0456] — 2026-11-23 — Alarmklokken mistede sin stil ved ukvitterede alarmer (fejl i 6.21.0)
+
+`frontend/src/App.svelte`: `class="bell{…}"` var blevet til uden mellemrum og gav klassen `bellunacked`; mellemrummet er genindsat. Fundet ved den visuelle kontrol på demoen efter udgivelsen af b0455. Registreret i `BUGS.md`.
+
+## [6.21.0 build 0455] — 2026-11-23 — Fast ramme i topbaren (benchmark A6)
+
+Plan: PLAN.md › Benchmark-huller, trin 5. Kun frontend; ingen nye endpoints (PLC-status kommer fra den eksisterende live-strøm).
+
+- `frontend/src/App.svelte`: PLC-chip (fast bredde 10 rem, prik på smalle skærme), ur (`HH:MM:SS`, fast bredde), brugernavn på Bruger-knappen; brudpunkter målt ved elleve bredder (501-1920 px): uret skjules under 1060 px, brødkrumme og chip-tekst under 980 px, brugernavn og ' · kildekode' under 800 px, Hjælper-tekst under 700 px; ingen vandret overløb og ingen flytning ved tik. `LiveClient` får en statuscallback.
+- `frontend/src/lib/topbar.ts` (`formatClock`, `clockTitle`, `shortName`, `plcChip`) med `topbar.test.ts`.
+- Manual: `01-kom-i-gang.md` (*Den faste ramme*). Frontend 1098 tests.
+
+## [6.20.0 build 0454] — 2026-11-23 — Manualbillede: Redigér tag med de nye alarmfelter; screenshot-scriptets sticky-regler rettet
+
+`frontend/public/manual/tag-redigeer.png` er taget igen (demoen, v6.20.0 b0453) og viser Prioritet, Konsekvens, Handling og Svartid. `frontend/tools/manual-screenshots.mjs`: panelets klæbende bund- og toplinje blev ikke fjernet (klasserne er `.edit-panel` og `.edit-actions`), så knaplinjen dækkede felterne på billedet; begge poster (tag-redigeer og tag-ekstern) er rettet.
+
+## [6.20.0 build 0453] — 2026-11-23 — LLM-tillæg synkroniseret efter en tastefejl i manualen
+
+En rettelse i `05-plcer-og-tags.md` (alarme → alarmer) ændrede kontrolsummen, så pakkescriptet afviste b0452; `frontend/src/manual/llm/drift-og-system.md` er synkroniseret. Ingen ændring i indholdet.
+
+## [6.20.0 build 0452] — 2026-11-23 — Alarm-rationalisering: konsekvens, handling, svartid (benchmark B6)
+
+Plan: PLAN.md › Benchmark-huller, trin 4. Skema 21 (tre additive kolonner).
+
+- `backend/app/storage/db.py` (`SCHEMA_VERSION = 21`; `tags.alarm_consequence`, `alarm_action`, `alarm_response_min`), `backend/app/services/tags.py` (validering: tekst trimmet og uden kontrol-/usynlige tegn, højst 200 kodepunkter; svartid helt tal 0-1440, `is not None`), `backend/app/api/routes.py` (TagUpdate), `backend/app/services/backup.py` (eksport/gendannelse), `backend/app/services/alarms.py` (`active()` slår feltene op live), `backend/app/services/assist_tools.py` (Forklar får konsekvens, handling og svartid).
+- `frontend/src/lib/tagAlarm.ts`, `TagAlarm.svelte`, `frontend/src/pages/Tags.svelte` (felter; en rettelse sender de eksisterende værdier tilbage), `frontend/src/pages/Alarms.svelte` (dæmpede linjer i alarmcellen, også i kortvisningen), `api.ts`.
+- Tests: `backend/tests/test_alarm_rationale.py` (36), `frontend/src/lib/tagAlarm.test.ts`. Backend 1451 bestået, frontend 1085.
+- Manual: `03-alarmer.md`, `05-plcer-og-tags.md`, `llm/drift-og-system.md`. Set i forhåndsvisning (500, 1200 og 1600 px).
+
+## [6.19.0 build 0451] — 2026-11-23 — LLM-tillæg synkroniseret efter manualbillederne
+
+Billederne i `03-alarmer.md` (b0450) ændrede kildeafsnittets kontrolsum, så pakkescriptet afviste; `frontend/src/manual/llm/drift-og-system.md` er synkroniseret (`manual_compiler --sync`). Ingen ændring i indholdet.
+
+## [6.19.0 build 0450] — 2026-11-23 — Manualbilleder: Udsæt alarm
+
+`frontend/public/manual/alarmer.png` (nu med Udsæt-knappen), nye `alarmer-udsaet.png` (dialogen) og `alarmer-udsatte.png` (fanen Udsatte) er taget på demoen (v6.19.0 b0449, med en testalarm udsat og genindsat); `frontend/tools/manual-screenshots.mjs` har fået de to nye poster (venter på en aktiv alarm, åbner dialogen uden at sende); billederne står i `frontend/src/manual/03-alarmer.md`. Funktionstest af udsæt/genindsæt på demoen: alle valideringer, 409, alarmen forblev skjult, historik og oprydning ok.
+
+## [6.19.0 build 0449] — 2026-11-23 — Udsæt alarm / shelving (benchmark B5)
+
+Plan: PLAN.md › Benchmark-huller, trin 3. Skema 20 (ny tabel `alarm_shelf`). Reviewer (opus) gennemgik; fundene er rettet.
+
+- `backend/app/storage/db.py` (`alarm_shelf`, `SCHEMA_VERSION = 20`), `backend/app/services/alarms.py` (`shelve`, `unshelve`, `shelved`, udløb og eskalering ved niveau eller prioritet bryder igennem, `forget` med hændelse, kodepunkt-/kontroltegn-kontrol af begrundelsen), `backend/app/api/alarms.py` (`POST /shelve`, `POST /unshelve`, `GET /shelved`, audit `alarm.shelve`/`alarm.unshelve`), `backend/app/api/routes.py` (`delete_tag` rydder), `backend/app/services/integration.py` (udsat = `clear` til integrations-SSE), `backend/app/services/metrics.py` (gauge `scada_alarms_shelved`).
+- `frontend/src/pages/Alarms.svelte` (knappen Udsæt, fanen Udsatte, kortvisning under 1120 px), `frontend/src/lib/ShelveDialog.svelte`, `shelf.ts`, `api.ts`.
+- Tests: `backend/tests/test_alarm_shelf.py` (65), rettede `test_alarms.py` og `test_health.py`; `frontend/src/lib/shelf.test.ts`.
+- Manual: `03-alarmer.md` (*Udsæt en alarm*), `llm/drift-og-system.md`.
+- Test: backend 1415 bestået, 1 sprunget over; frontend 1080; set i forhåndsvisning ved 500, 1000, 1200 og 1600 px.
+
+## [6.18.0 build 0448] — 2026-11-23 — Manualbilleder: Alarmer (Aktive og Historik)
+
+`frontend/public/manual/alarmer.png` og `alarmer-historik.png` er taget igen (demoen, v6.18.0 b0447) og viser kolonnerne *Prioritet* og *Type* samt historikkens filterlinje og CSV-knap (v6.17.0 og v6.18.0).
+
+## [6.18.0 build 0447] — 2026-11-23 — Alarmer: kortvisning på smal skærm
+
+Under 800 px bliver hver række i Aktive og Historik et kort (tid, prioritet og type øverst, alarmteksten i fuld bredde, derunder system/tilstand og knapperne), så alarmteksten kan læses og *Kvittér* ikke skæres af. Skrivebordsvisningen er uændret. `frontend/src/pages/Alarms.svelte`. Set i forhåndsvisning af den lokale build mod demoens data ved 500 og 1600 px.
+
+## [6.18.0 build 0446] — 2026-11-23 — Alarmer: smal skærm ombrydes igen; manualtekst om systemalarmer
+
+Fundet ved den visuelle kontrol af b0445 på demoen: ved 500 px skubbede kolonnernes faste bredder alarmteksten ud til siden. Under 800 px bruger tabellen igen automatisk layout (`frontend/src/pages/Alarms.svelte`). `frontend/src/manual/03-alarmer.md`: systemalarmer har egen prioritet (var skrevet som altid høj).
+
+## [6.18.0 build 0445] — 2026-11-23 — Alarmprioritet: Høj/Medium/Lav og kolonnen Type (benchmark B1)
+
+Plan: PLAN.md › Benchmark-huller, trin 2. Skema 19 (additiv kolonne).
+
+- `backend/app/storage/db.py` (`SCHEMA_VERSION = 19`, kolonnen `tags.alarm_priority`), `backend/app/services/tags.py` (validering: tom/whitespace → ingen, ellers high|medium|low), `backend/app/api/routes.py` (TagUpdate), `backend/app/services/backup.py` (eksport/gendannelse).
+- `backend/app/services/alarms.py`: tag-alarmer bruger tagets `alarm_priority`; ændres den på en aktiv alarm, opdateres kun prioriteten (kvittering og historik uændret).
+- `frontend/src/pages/Alarms.svelte`, `frontend/src/lib/alarmType.ts`, `frontend/src/app.css`: kolonnerne *Prioritet* (altid Høj/Medium/Lav) og *Type* med faste bredder; `.prio-low` dæmpet.
+- `frontend/src/pages/Tags.svelte`, `frontend/src/lib/TagAlarm.svelte`, `frontend/src/lib/tagAlarm.ts`: valget *Prioritet*.
+- Tests: 6 nye i `backend/tests/test_alarms.py`, `frontend/src/lib/alarmType.test.ts`, `tagAlarm.test.ts`.
+- Manual: `03-alarmer.md`, `05-plcer-og-tags.md`, `llm/drift-og-system.md`.
+
+## [6.17.0 build 0444] — 2026-11-23 — Alarmhistorik: søgning, filtre og CSV (benchmark B4)
+
+Plan: PLAN.md › Benchmark-huller, trin 1. Reviewer (opus) gennemgik scope og rettigheder.
+
+- `backend/app/api/alarms.py`: `GET /api/alarms/history` tager `q`, `from`, `to`, `event`, `priority`, `system` (400 med dansk besked ved ugyldigt, ukendt eller `from` efter `to`; en ren `to`-dato dækker hele dagen også på sommertidsdage); ny `GET /api/alarms/history/export` (CSV, semikolon, BOM, tidspunkt med offset, formel-neutralisering, audit `alarm.export`). Historik kører i en tråd.
+- `backend/app/services/alarms.py`, `backend/app/storage/db.py`: filtrering i parametriseret SQL (scope altid ovenpå; før blev scoped brugere afkortet til 2000 rækker før filtreringen); SQLite-funktion `pylower` til søgning med æøå.
+- `frontend/src/pages/Alarms.svelte`, `frontend/src/lib/alarmHistory.ts`: filterlinje, tæller og CSV-knap med fast plads; knappen slukkes ved filterfejl.
+- Tests: `backend/tests/test_alarm_history.py` (20), `frontend/src/lib/alarmHistory.test.ts`.
+- Manual: `frontend/src/manual/03-alarmer.md`.
+
+## [6.16.4 build 0443] — 2026-11-23 — ota_deploy.py: audit prøver igen ved login-fejl lige efter genstart
+
+Ingen ændring i produktet. Første audit efter deploy fik 502 fra proxyen, fordi serveren lige var genstartet; `deploy/ota_deploy.py` venter nu 5 s og prøver op til 4 gange, når login fejler.
+
+## [6.16.4 build 0442] — 2026-11-23 — shot.mjs: ruter normaliseres (#overview/x, ikke #/overview/x)
+
+Ingen ændring i produktet. `frontend/tools/shot.mjs` brugte `#/rute`, men appens ruter er `#rute`; en ukendt rute viste bare standardsiden. Ruten normaliseres nu, og eksemplerne er rettet.
+
 ## [6.16.4 build 0441] — 2026-11-23 — Udviklingsflow: /release, pre-commit-hook, shot.mjs og slankere CLAUDE.md
 
 Ingen ændring i produktet; værktøjer og arbejdsgang.

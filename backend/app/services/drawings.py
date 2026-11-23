@@ -14,6 +14,7 @@ from .errors import ServiceError
 from .live_cache import LiveCache
 from .svg_sanitize import SvgError, index_svg, named_symbols, sanitize_svg, subtree_ids, subtree_map, symbol_roots
 from .connection_groups import connection_kinds, group_bindings
+from .drawing_tree import check_parent, clean_parent
 from .flow_defs import kind_of, merged as merged_flow_defs, piece_types
 from .symbols import config_bindings, port_color_bindings, state_look_bindings, symbol_view
 from .tagsource import TagSourceError, parse_source
@@ -52,8 +53,26 @@ class DrawingService:
     def list(self) -> list[dict[str, Any]]:
         start = self.start_drawing()
         return [{**{k: d[k] for k in ("id", "name", "active_version", "version_count", "updated_at")}, "start": d["id"] == start,
-                 "disabled": bool(d["disabled"])}
+                 "disabled": bool(d["disabled"]), "parent_id": d["parent_id"]}
                 for d in self.db.list_drawings()]
+
+    def set_parent(self, drawing_id: str, parent_id: Any, reveal_depth: bool = True) -> tuple[str | None, str | None]:
+        """Sæt/ryd den overordnede tegning (tom/whitespace/None = ingen). Reglerne (findes, ikke sig selv, ingen cirkel, højst
+        4 niveauer også for undertræet) afgøres i samme transaktion som skrivningen. → (gammel forælder, ny forælder);
+        er de ens, skrives intet (hverken updated_at eller audit hos kalderen)."""
+        self._require(drawing_id)
+        new = clean_parent(parent_id)
+        try:
+            old, error = self.db.set_drawing_parent(
+                drawing_id, new, lambda parents, names: check_parent(parents, names, drawing_id, new, reveal_depth))
+        except KeyError:
+            raise ServiceError(404, f"Tegningen '{drawing_id}' findes ikke") from None
+        if error is not None:
+            log.info("Overordnet tegning afvist for %s -> %r: %s", drawing_id, new, error)
+            raise ServiceError(400, error)
+        if old != new:
+            log.info("Overordnet tegning for %s: %s -> %s", drawing_id, old, new)
+        return old, new
 
     def disabled_ids(self) -> set[str]:
         """Deaktiverede tegninger (v1.6.0): offline — ingen live-data, ingen betjening, ingen symbol-runtime."""
@@ -90,7 +109,7 @@ class DrawingService:
         versions = [{k: v[k] for k in ("version", "comment", "size", "width", "height", "created_at")}
                     for v in self.db.list_versions(drawing_id)]
         return {"id": drawing["id"], "name": drawing["name"], "active_version": drawing["active_version"],
-                "disabled": bool(drawing["disabled"]), "versions": versions}
+                "disabled": bool(drawing["disabled"]), "parent_id": drawing["parent_id"], "versions": versions}
 
     def create(self, name: str, svg: str, comment: str = "") -> dict[str, Any]:
         name = (name or "").strip()
@@ -145,25 +164,36 @@ class DrawingService:
         self.db.set_active_version(drawing_id, version)
         return self.get(drawing_id)
 
-    def usage(self, drawing_id: str) -> dict[str, Any]:
-        """Hvad en sletning rammer — til bekræftelsen i brugerfladen."""
+    def usage(self, drawing_id: str, allowed: set[str] | None = None) -> dict[str, Any]:
+        """Hvad en sletning rammer — til bekræftelsen i brugerfladen. `allowed`: en begrænset brugers tegninger (None = alle);
+        andre tegninger og brugere nævnes ikke (de skal ikke kunne afsløres her)."""
         drawing = self._require(drawing_id)
-        names = {d["id"]: d["name"] for d in self.db.list_drawings()}
+        all_drawings = self.db.list_drawings()
+        names = {d["id"]: d["name"] for d in all_drawings}
         all_bindings = self.db.list_all_bindings()
+
+        def seen(did: str) -> bool:
+            return allowed is None or did in allowed
+
         gotos = sorted({names.get(b["drawing_id"], b["drawing_id"]) for b in all_bindings
-                        if b["anim"] == "click:goto" and b["params"].get("drawing") == drawing_id and b["drawing_id"] != drawing_id})
+                        if b["anim"] == "click:goto" and b["params"].get("drawing") == drawing_id
+                        and b["drawing_id"] != drawing_id and seen(b["drawing_id"])})
         return {
             "id": drawing["id"], "name": drawing["name"],
             "versions": len(self.db.list_versions(drawing_id)),
             "bindings": sum(1 for b in all_bindings if b["drawing_id"] == drawing_id),
             "goto_from": gotos,                       # andre tegninger med en "gå til"-knap hertil
+            "children": sorted(d["name"] for d in all_drawings if d["parent_id"] == drawing_id and seen(d["id"])),  # mister forælderen
             "start": self.db.get_setting("start_drawing") == drawing_id,
-            "users": self.db.users_with_drawing(drawing_id),  # brugere med adgang (begrænset til udvalgte tegninger)
+            "users": self.db.users_with_drawing(drawing_id) if allowed is None else [],  # brugere med adgang (begrænset til udvalgte tegninger)
         }
 
     def delete(self, drawing_id: str) -> None:
         self._require(drawing_id)
-        self.db.delete_drawing(drawing_id)
+        orphans = [d["id"] for d in self.db.list_drawings() if d["parent_id"] == drawing_id]
+        self.db.delete_drawing(drawing_id)      # undertegningerne mister forælderen i samme transaktion
+        if orphans:
+            log.info("Tegning %s slettet — undertegninger uden forælder: %s", drawing_id, ", ".join(orphans))
         self.db.delete_drawing_scope(drawing_id)
         if self.db.get_setting("start_drawing") == drawing_id:
             self.db.set_setting("start_drawing", None)

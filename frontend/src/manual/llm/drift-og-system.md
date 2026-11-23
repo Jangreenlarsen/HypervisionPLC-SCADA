@@ -11,6 +11,10 @@ På serveren (SSH, root) findes **`scada-tool`**: `status` (overblik), `check` (
 <!-- kilde: 03-alarmer#m-kvitt-r-en-alarm sha:dd8861a0 -->
 Åbn **Alarmer** (klik på alarmklokken) og tryk **Kvittér** ud for alarmen eller **Kvittér alle**. Det kræver rollen operatør. En kvitteret alarm står stadig som aktiv, til årsagen er væk.
 
+## Hvordan udsætter jeg en alarm (skjuler midlertidigt, shelve, undertrykker alarm)?
+<!-- kilde: 03-alarmer#m-udsaet-en-alarm sha:66b2773f -->
+Åbn **Alarmer**, tryk **Udsæt** ud for en aktiv tag- eller symbolalarm, skriv en begrundelse (mindst 3 tegn) og vælg varighed (15 minutter til 24 timer). Det kræver rollen operatør. Alarmen står under fanen **Udsatte**, hvor **Genindsæt** lægger den tilbage. Når tiden er gået, rejses alarmen igen, hvis den stadig er i alarm; stiger den til et højere niveau, ophæves udsættelsen af sig selv. Kommunikations- og systemalarmer kan ikke udsættes.
+
 ## Værdien er grå, svag eller tonet ned — hvorfor (dårlig kvalitet, kommunikationsfejl, gammel værdi)?
 <!-- kilde: 02-drift#m3-naar-vaerdien-ikke-er-frisk-datakvalitet sha:f28f806f -->
 Værdien er ikke frisk: der er kommunikationsfejl til PLC'en, tagget kan ikke læses (dårlig), eller der er endnu ingen værdi (ukendt). Symbolet tones ned, og betjening afvises, til værdien er god igen. Tjek PLC'en under **System › Status**.
@@ -20,8 +24,8 @@ Værdien er ikke frisk: der er kommunikationsfejl til PLC'en, tagget kan ikke l�
 Under **Tags**: afkryds tagsene (Shift-klik vælger et interval, **Vælg alle** vælger alle viste) og tryk **Slet valgte (N)**. Du ser, hvor tagsene bruges, og bekræfter; der tages backup først. Et enkelt tag slettes med **Slet** i rækken.
 
 ## Hvordan sætter jeg en alarmgrænse på et tag (høj temperatur, H, HH, L, LL, hysterese, dødbånd)?
-<!-- kilde: 05-plcer-og-tags#m3-alarmer-paa-et-tag sha:3da5e9b1 -->
-Under **Tags**: tryk **Redigér** ved tagget og udfyld **H**/**HH** (høj) eller **L**/**LL** (lav). **Dødbånd** er alarmens hysterese: hvor langt værdien skal tilbage, før alarmen ophører. **Forsinkelse** er hvor længe grænsen skal være overskredet. Prioriteten følger niveauet (HH/LL høj, H/L medium).
+<!-- kilde: 05-plcer-og-tags#m3-alarmer-paa-et-tag sha:12f4bf69 -->
+Under **Tags**: tryk **Redigér** ved tagget og udfyld **H**/**HH** (høj) eller **L**/**LL** (lav). **Dødbånd** er alarmens hysterese: hvor langt værdien skal tilbage, før alarmen ophører. **Forsinkelse** er hvor længe grænsen skal være overskredet. Prioriteten følger som standard niveauet (HH/LL høj, H/L medium), men **Prioritet** på tagget kan sættes til Høj, Medium eller Lav. Under **Konsekvens**, **Handling** og **Svartid** kan du beskrive, hvad alarmen betyder og hvad operatøren skal gøre; teksten vises under alarmen.
 
 ## Hvordan opretter jeg en ny bruger (ny konto, login til en kollega)?
 <!-- kilde: 13-system#m-brugere sha:b7af828c -->
@@ -36,7 +40,7 @@ Klik **Bruger** i topmenuen og vælg **Skift adgangskode**. Skriv den nuværende
 Som admin: **System › Backup**. **Hent backup** gemmer opsætningen som en fil; **Gendan backup** indlæser en fil (den nuværende tilstand gemmes først). Automatisk backup og eksterne destinationer (SFTP, SMB, NFS …) sættes op samme sted; **Kør backup nu** starter en med det samme.
 
 ## Hvordan opdaterer jeg SCADA'en til en ny version?
-<!-- kilde: 13-system#m-opdatering sha:68f556d8 -->
+<!-- kilde: 13-system#m-opdatering sha:caad173c -->
 Som admin: **System › Opdatering**. **Upload** opdateringspakken (`scada-<version>-b<build>.tar`), tjek version og kontrolsum, og tryk **Installér og genstart**. Serveren tager backup først, genstarter og ruller selv tilbage, hvis den nye version ikke svarer.
 
 ## Hvordan genstarter jeg serveren eller tjenesten?
@@ -48,8 +52,8 @@ Som admin: nederst på **System › Konfiguration**, sektionen **Genstart**: **G
 Se **System › Status** (ledig disk). Ryd op på maskinen som root med `scada-maint`: `scada-maint status` viser hvad der fylder, `scada-maint emergency` rydder trin for trin, til der er plads nok (logfiler, gamle backups, gammel trend-historik). Trend-databasen kan også flyttes til en anden disk (*System › Konfiguration*).
 
 ## Hvordan vælger og installerer jeg en model til hjælperen (LLM)?
-<!-- kilde: 13-system#m-hjaelper-llm sha:193192b2 -->
-Som admin: **System › Hjælper (LLM)**. Vælg hardwareprofil, og tryk **Hent og installér** ved en variant: *Hurtig*, *Standard* (anbefalet) eller *Stor* (kræver 16 GB RAM). Uden internet installeres en samlet LLM-pakke med **Vælg LLM-pakke …**. På Raspberry Pi 5 findes Hurtig og Standard; de kræver Raspberry Pi OS 13 "Trixie".
+<!-- kilde: 13-system#m-hjaelper-llm sha:36cc90f2 -->
+Som admin: **System › Hjælper (LLM)**. Vælg hardwareprofil, og tryk **Hent og installér** ved en variant: *Hurtig*, *Standard* (anbefalet) eller *Stor* (kræver 16 GB RAM). Uden internet installeres en samlet LLM-pakke med **Vælg LLM-pakke …**. På en VM med 16 GB RAM (profilen vm-16, anbefalet 30 GB disk) kan alle tre bruges; hold mindst 3 GB disk ledig. På Raspberry Pi 5 findes Hurtig og Standard; de kræver Raspberry Pi OS 13 "Trixie". Pi 5 er ikke et krav.
 
 ## Hvordan ser jeg, hvem der har ændret noget eller skrevet til PLC'en (revisionsspor, audit, hvem gjorde hvad)?
 <!-- kilde: 13-system#m-log sha:cdf6c0de -->

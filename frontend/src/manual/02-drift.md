@@ -8,6 +8,8 @@ Under **Drift** ser og betjener du anlægget. Siderne er **Overview**, **Alarmer
 
 Overview viser en tegning af anlægget med live-værdier. Øverst vælger du **tegning**; en tegning kan være sat som **start-tegning** (se *Tegninger og Tegn*), og den åbner Overview først.
 
+Er tegningerne sat i et **hierarki** (kapitlet *Tegninger › Overordnet tegning*), står vælgerens tegninger indrykket, og under den står en **brødkrumme** (*Anlæg › Område › Detalje*, hvert led er et link) og knapperne **Undertegninger**, der åbner tegningerne under den du står på. Knappen **Gå til tegning** på tegningen skifter også adressen, så browserens **tilbage-knap** fører dig til den forrige tegning. Rækkerne har fast plads, så tegningen ikke flytter sig, når du skifter.
+
 ### Hvad du ser
 
 - **Farver og former** ændrer sig efter værdierne: en pumpe er grøn, når den kører; en tank fyldes; en lampe blinker ved alarm; røret kan vise strømningsretning med løbelys.

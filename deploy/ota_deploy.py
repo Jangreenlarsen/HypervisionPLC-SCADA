@@ -85,8 +85,13 @@ def main() -> int:
     if "--no-audit" in flags:
         return 0
     py = ROOT / "backend" / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-    audit = subprocess.run([str(py if py.exists() else sys.executable), str(ROOT / "deploy" / "audit_drawings.py"), base],
-                           env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    cmd = [str(py if py.exists() else sys.executable), str(ROOT / "deploy" / "audit_drawings.py"), base]
+    for attempt in range(4):  # proxyen kan svare 502 et øjeblik efter genstarten, selv om /api/health allerede er ok
+        time.sleep(5)
+        audit = subprocess.run(cmd, env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        if audit.returncode != 2:  # 2 = login fejlede; alt andet er et rigtigt resultat
+            break
+        print(f"Audit: login fejlede, prøver igen ({attempt + 1}/4)")
     return 0 if audit.returncode == 0 else 3
 
 

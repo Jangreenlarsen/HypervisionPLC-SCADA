@@ -1,3 +1,59 @@
+# Plan: Benchmark-huller — alarmstyring, navigation og fast ramme — 2026-11-23 — udført i v6.17.0 til v6.22.1 (alle seks trin live på scada.laces.dk)
+
+Kilde: `docs/BENCHMARK_2026-11-23.md` (A1, A6, B1, B4, B5, B6). Jan: "lave en plan for de 5 punkter på listen og exe så på det". Seks releases, hver med eget commit, egen version og eget demo-deploy via `/release`.
+
+**Resultat 2026-11-23:** B4 (6.17.0), B1 (6.18.0), B5 (6.19.0), B6 (6.20.0), A6 (6.21.0 + 6.21.1 + 6.22.1) og A1 (6.22.0) er udgivet; reviewer gennemgik B4, B5 og A1 og alle fund er rettet. Under udførelsen fandt den visuelle kontrol tre fejl i egne ændringer (klokkens class i A6, topbarens brudpunkter, brødkrummen), og LLM-målingen fandt tag-guidens tokenloft (6.21.2) — alle registreret i `BUGS.md`. Næste skridt: kør `/scada-benchmark` igen og sammenlign med nulpunktet.
+
+**Mål:** løfte alarmstyring (55 %) og de kritiske HMI-krav A1/A6 uden at ændre noget i den eksisterende betjening, der virker.
+
+## Rækkefølge og versioner
+
+| Trin | ID | Hvad | Version | Skema | Review (`reviewer`, opus/high) |
+|---|---|---|---|---|---|
+| 1 | B4 | Alarmhistorik: søgning, filtre og CSV | 6.17.0 | – | ja (scope/rettigheder) |
+| 2 | B1 | Prioritet Høj/Medium/Lav + egen kolonne for alarmtype | 6.18.0 | 19 | nej |
+| 3 | B5 | Udsæt alarm (shelving) med begrundelse, tid og audit | 6.19.0 | 20 | ja (alarmer skjules) |
+| 4 | B6 | Rationalisering: konsekvens, handling, svartid pr. alarm | 6.20.0 | 21 | nej |
+| 5 | A6 | Fast ramme: bruger, ur og PLC-status i topbaren | 6.21.0 | – | nej |
+| 6 | A1 | Tegningshierarki: overordnet tegning, brødkrumme, undertegninger | 6.22.0 | 22 | ja (scope/sletning) |
+
+Alarmtrinene (1-4) berører de samme filer og køres efter hinanden. A6 og A1 er uafhængige af alarmerne og køres bagefter. Alle skemaændringer er additive (`ALTER TABLE ADD COLUMN` i `_migrate()` eller `CREATE TABLE IF NOT EXISTS`), og gamle opsætninger virker uændret, så de tæller som MINOR og ikke MAJOR.
+
+## Beslutninger (kan ændres, sig til)
+
+- **B4:** filtre er serverside (`q`, `from`, `to`, `event`, `priority`, `system`) og gælder både listen og CSV-eksporten, så de viser det samme. CSV følger Trends: semikolon, BOM, `Content-Disposition`, bygges i tråd.
+- **B1:** niveaukoden (HH/H/L/LL/Til/Kommunikation/System/Afvigelse) flyttes til en kolonne *Type*; *Prioritet* viser altid Høj/Medium/Lav. Nyt valgfrit tag-felt `alarm_priority` (tom = som i dag: HH/LL høj, H/L medium), så lav bliver mulig for tag-alarmer.
+- **B5:** udsættelse gælder én alarm (nøgle) i 5 min til 24 timer, kræver begrundelse (3-200 tegn) og rollen operatør, og må ikke bruges på kommunikations- og systemalarmer. Udsatte alarmer vises i en egen fane med resttid og *Genindsæt*, tælles i opsummeringen og i metrics og overlever genstart. Udløber tiden, vurderes alarmen igen og rejses, hvis tilstanden stadig er der.
+- **B6:** tre valgfrie tag-felter: konsekvens (højst 200 tegn), handling (højst 200 tegn) og svartid i minutter (0-1440). Tom streng og kun mellemrum gemmes som tom. Vises under alarmteksten.
+- **A6:** brugernavn i stedet for ordet "Bruger" i menuen (afkortes), ur (browserens tid, `HH:MM:SS`, fast bredde) og en PLC-chip fra den eksisterende WebSocket-strøm (`plcs`-beskeden), ikke fra `/api/plcs`, der kræver tekniker. Ingen nye åbne endpoints.
+- **A1:** nyt valgfrit felt `drawings.parent_id` (højst 4 niveauer, ingen cirkler, kontrolleres i backend). Sættes i Tegninger. Overview får brødkrumme og knapper til undertegninger, og `click:goto` opdaterer adressen, så tilbage-knappen virker. Slettes en tegning, mister dens undertegninger forælderen (de slettes ikke).
+
+## Fælles for hvert trin
+
+1. `FEATURES.md` er registreret (planned) før koden; status sættes til done bagefter.
+2. Backend-tests og frontend-tests for ny logik (fejloversættelse, filtre, grænser, tilstandsskift); `pytest`, `npm test` og `npm run build` grønne.
+3. Layout ses i browseren med `/screenshot` (demoen eller lokal server) og meldes som *set*.
+4. Manualtekst og berørte skærmbilleder opdateres i samme commit (`frontend/src/manual/`, `frontend/tools/manual-screenshots.mjs`).
+5. Kvalitetstjeklisten: tjek `None`/fejl, specifik fejltekst i UI, `is not None` for 0, ingen read-modify-write, alle grene når en regel indføres (opdatering, backup/gendannelse, scoped brugere).
+6. Observability: ny tæller/metrics og audit, hvor det giver mening.
+7. `/release`: bump, CHANGELOG, RELEASE_NOTES, commit, push, OTA-pakke, demo-deploy og audit.
+
+## Berørte filer (hovedtræk)
+
+- **Alarmer:** `backend/app/services/alarms.py`, `api/alarms.py`, `storage/db.py`, `services/tags.py`, `api/routes.py`, `services/backup.py`, `services/metrics.py`; `frontend/src/pages/Alarms.svelte`, `pages/Tags.svelte`, `lib/tagAlarm.ts`; tests `test_alarms.py` (+ nye), `tagAlarm.test.ts`.
+- **Fast ramme:** `frontend/src/App.svelte`, evt. `lib/live.ts`.
+- **Hierarki:** `backend/app/storage/db.py`, `api/drawings.py`, `services/drawings.py`; `frontend/src/pages/Overview.svelte`, `pages/Drawings.svelte`, `lib/nav.ts`.
+
+## Risici
+
+- **Skjulte alarme (B5):** udsættelse er tidsbegrænset, kræver begrundelse, auditeres og vises som antal i opsummeringen. Kommunikations- og systemalarmer kan ikke udsættes. Reviewer gennemgår.
+- **Scoped brugere:** historik, eksport, udsættelse og hierarki må kun omfatte egne tegninger, og det håndhæves i backend.
+- **Layout-skift:** nye elementer i topbaren og i alarmtabellen skal have fast bredde, så intet flytter sig ved klik eller opdatering.
+- **Backup/gendannelse:** nye tag- og tegningsfelter skal med i backup og gendannelse (`test_alarm_limits_in_backup` som mønster).
+- **Omfang:** seks releases og seks demo-deploys; hvert trin kan stoppes uden at de andre påvirkes.
+
+---
+
 # Plan: Symboler — symbolet i centrum (design A) — 2026-11-13 — udført i v6.11.0
 
 Jan: "vælg et symbol i biblioteket og lav derfra alle operationer — tilslutningspunkter, ind/ud og veje, redigér — i stedet for tre forskellige menuer", og "knapperne står helt yderst i view-boksen".

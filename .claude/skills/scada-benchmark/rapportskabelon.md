@@ -29,7 +29,7 @@ Højst 5 punkter: kriterie-ID, hvad der er opnået, evidens (fil:linje).
 
 ## 4. Huller, rangeret
 
-Sorteret K før V før N, derefter laveste vurdering først. Højst 15 rækker.
+Sorteret K før V før N, derefter laveste vurdering først, og ved lighed efter ID (A1, A6, B1 …). Højst 15 rækker; øvrige huller står kun i afsnit 6.
 
 | ID | Pri | Hul | Evidens | Forslag | Indsats (S/M/L) |
 |---|---|---|---|---|---|

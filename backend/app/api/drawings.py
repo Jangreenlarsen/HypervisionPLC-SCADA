@@ -38,6 +38,10 @@ class DrawingUpdate(_Model):
     disabled: bool | None = None   # True = offline (ingen live-data/betjening/polling), False = aktiv igen
 
 
+class ParentUpdate(_Model):
+    parent_id: str | None = Field(default=None, max_length=64)   # None/""/whitespace = ingen overordnet tegning
+
+
 class StartDrawing(_Model):
     drawing: str | None = Field(default=None, max_length=64)  # None/"" = ingen (den første vises)
 
@@ -65,10 +69,22 @@ def _check(request: Request, drawing_id: str) -> None:
         raise ServiceError(404, f"Tegningen '{drawing_id}' findes ikke")
 
 
+def _hide_parent(d: dict[str, Any], allowed: set[str] | None) -> dict[str, Any]:
+    """En forælder brugeren ikke har adgang til afsløres ikke (hverken id eller navn): parent_id = null."""
+    if allowed is not None and d.get("parent_id") not in allowed:
+        return {**d, "parent_id": None}
+    return d
+
+
+def _out(request: Request, d: dict[str, Any]) -> dict[str, Any]:
+    """ALLE svar med en tegning går gennem her, så en skjult forælders id aldrig forlader serveren."""
+    return _hide_parent(d, _scope(request).drawing_ids(request.state.user))
+
+
 @router.get("", dependencies=[VIEWER])
 async def list_drawings(request: Request) -> list[dict[str, Any]]:
     allowed = _scope(request).drawing_ids(request.state.user)
-    return [d for d in _svc(request).list() if allowed is None or d["id"] in allowed]
+    return [_hide_parent(d, allowed) for d in _svc(request).list() if allowed is None or d["id"] in allowed]
 
 
 @router.put("/start", dependencies=[ENGINEER])
@@ -83,17 +99,18 @@ async def set_start_drawing(body: StartDrawing, request: Request) -> dict[str, A
 async def create_drawing(body: DrawingCreate, request: Request) -> dict[str, Any]:
     result = _svc(request).create(body.name, body.svg, body.comment)
     audit(request, "drawing.create", result["drawing"]["id"], {"name": body.name, "report": result["report"]})
-    return result
+    return {**result, "drawing": _out(request, result["drawing"])}
 
 
 @router.get("/{drawing_id}", dependencies=[VIEWER])
 async def get_drawing(drawing_id: str, request: Request) -> dict[str, Any]:
     _check(request, drawing_id)
-    return _svc(request).get(drawing_id)
+    return _out(request, _svc(request).get(drawing_id))
 
 
 @router.patch("/{drawing_id}", dependencies=[ENGINEER])
 async def update_drawing(drawing_id: str, body: DrawingUpdate, request: Request) -> dict[str, Any]:
+    _check(request, drawing_id)
     svc = _svc(request)
     if body.name is not None:
         svc.rename(drawing_id, body.name)
@@ -105,26 +122,42 @@ async def update_drawing(drawing_id: str, body: DrawingUpdate, request: Request)
         request.app.state.manager.reload_tags()
         request.app.state.symbol_runtime.reload()
     audit(request, "drawing.update", drawing_id, body.model_dump(exclude_unset=True))
-    return svc.get(drawing_id)
+    return _out(request, svc.get(drawing_id))
+
+
+@router.put("/{drawing_id}/parent", dependencies=[ENGINEER])
+async def set_parent(drawing_id: str, body: ParentUpdate, request: Request) -> dict[str, Any]:
+    """Sæt (parent_id) eller ryd (null/tom) den overordnede tegning. Reglerne kontrolleres i backend."""
+    _check(request, drawing_id)
+    if body.parent_id and body.parent_id.strip():
+        _check(request, body.parent_id.strip())     # en begrænset bruger kan ikke pege på en tegning, hun ikke ser
+    restricted = _scope(request).drawing_ids(request.state.user) is not None
+    old, new = _svc(request).set_parent(drawing_id, body.parent_id, reveal_depth=not restricted)
+    if old != new:                                  # uændret forælder: intet skrevet, intet at revidere
+        audit(request, "drawing.parent", drawing_id, {"old": old, "new": new})
+    return _out(request, _svc(request).get(drawing_id))
 
 
 @router.get("/{drawing_id}/usage", dependencies=[ENGINEER])
 async def drawing_usage(drawing_id: str, request: Request) -> dict[str, Any]:
-    """Hvad en sletning af tegningen rammer (til bekræftelsen)."""
-    return _svc(request).usage(drawing_id)
+    """Hvad en sletning af tegningen rammer (til bekræftelsen). Skjulte tegninger/brugere nævnes ikke for en begrænset bruger."""
+    _check(request, drawing_id)
+    return _svc(request).usage(drawing_id, _scope(request).drawing_ids(request.state.user))
 
 
 @router.delete("/{drawing_id}", status_code=204, dependencies=[ENGINEER])
 async def delete_drawing(drawing_id: str, request: Request) -> None:
+    _check(request, drawing_id)
     _svc(request).delete(drawing_id)
     audit(request, "drawing.delete", drawing_id)
 
 
 @router.post("/{drawing_id}/versions", status_code=201, dependencies=[ENGINEER])
 async def add_version(drawing_id: str, body: VersionCreate, request: Request) -> dict[str, Any]:
+    _check(request, drawing_id)
     result = _svc(request).add_version(drawing_id, body.svg, body.comment, body.activate)
     audit(request, "drawing.version", drawing_id, {"version": result["version"], "report": result["report"]})
-    return result
+    return {**result, "drawing": _out(request, result["drawing"])}
 
 
 @router.get("/{drawing_id}/svg", dependencies=[VIEWER])
@@ -146,6 +179,7 @@ async def view(drawing_id: str, request: Request) -> dict[str, Any]:
 @router.put("/{drawing_id}/symbols/{element}", dependencies=[ENGINEER])
 async def update_symbol(drawing_id: str, element: str, body: SymbolUpdate, request: Request) -> dict[str, Any]:
     """Symbolets forklaring (under Bindinger)."""
+    _check(request, drawing_id)
     data = body.model_dump(exclude_unset=True)
     if not data:
         raise ServiceError(400, "Angiv description")
@@ -162,6 +196,7 @@ async def list_bindings(drawing_id: str, request: Request) -> list[dict[str, Any
 
 @router.put("/{drawing_id}/bindings/{element}", dependencies=[ENGINEER])
 async def set_bindings(drawing_id: str, element: str, body: ElementBindings, request: Request) -> list[dict[str, Any]]:
+    _check(request, drawing_id)
     result = _svc(request).set_element_bindings(drawing_id, element, body.bindings)
     audit(request, "binding.set", f"{drawing_id}#{element}", {"bindings": result})
     return result

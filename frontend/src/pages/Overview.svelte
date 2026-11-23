@@ -17,6 +17,8 @@
   import { clearOverlays, drawOverlay, markPassive } from '../lib/symbolOverlay';
   import { clickAction, clickSide, isOperable, showsBadge, lockedPosition, needsPin, operateLabel, pickAction, STATE_TXT, stepTarget, type SymbolState, type SymbolView } from '../lib/symbolUi';
   import { panBy, pickDrawing, zoomAt, zoomLevel, type View } from '../lib/viewport';
+  import { breadcrumb, childrenOf, flatOrder, indentedName } from '../lib/drawingTree';
+  import { createLoadGuard, shouldLoadFromHash } from '../lib/loadGuard';
 
   let { route = 'overview', canEdit = false, canOperate = false, panel = false, sourceUrl = '', onlogout }: {
     route?: string; canEdit?: boolean; canOperate?: boolean;
@@ -32,8 +34,16 @@
     writes: { tag: string; value: number; pulse: boolean }[] | null; error: string; busy: boolean;
   }
 
-  let drawings = $state<{ id: string; name: string; start?: boolean; disabled?: boolean }[]>([]);
+  let drawings = $state<{ id: string; name: string; start?: boolean; disabled?: boolean; parent_id?: string | null }[]>([]);
   let selected = $state('');
+  // Tegningshierarki (v6.22.0, ISA-101): vælgeren indrykket, brødkrumme og undertegninger. Listen er allerede filtreret efter
+  // brugerens adgang (en skjult forælder kommer som parent_id = null), så en begrænset bruger kun ser sine egne led.
+  const ordered = $derived(flatOrder(drawings));
+  const crumbs = $derived(breadcrumb(drawings, selected));
+  const kids = $derived(childrenOf(drawings, selected));
+  // Rækkerne vises kun hvis NOGEN tegning er med i et hierarki — og så for ALLE tegninger med fast højde, så intet flytter sig,
+  // når man skifter mellem en tegning med og en uden forælder/børn. Uden hierarki bruger siden ingen ekstra plads.
+  const hasHierarchy = $derived(drawings.some((d) => d.parent_id));
   let view = $state<DrawingView | null>(null);
   let error = $state('');
   let plcs = $state<Record<string, PlcSummary>>({});
@@ -213,14 +223,42 @@
     if (container && view) renderBinding(container, b, values, view.tags);
   }
 
+  /** "Gå til tegning" (v6.22.0): adressen opdateres (ny historikpost), så tilbage-knappen og brødkrummen virker. Selve indlæsningen
+   *  sker i onHash; er adressen allerede den rigtige (ingen hashchange), indlæses tegningen direkte. */
+  async function gotoDrawing(id: string): Promise<void> {
+    const target = `#overview/${id}`;
+    if (location.hash === target) {
+      if (shouldLoadFromHash(id, selected, loads.inFlight)) await load(id);
+      return;
+    }
+    location.hash = target;
+  }
+
+  /** Adressen skifter tegning (brødkrumme, undertegning, tilbage-knap, "gå til"): indlæs den, hvis den ikke allerede vises. */
+  function onHash(): void {
+    const m = /^#overview\/(.+)$/.exec(location.hash);
+    if (!m) return;
+    let id = m[1];
+    try { id = decodeURIComponent(id); } catch { /* ugyldig kodning: brug teksten som den er */ }
+    if (!shouldLoadFromHash(id, selected, loads.inFlight)) return;      // vises allerede / hentes allerede
+    if (drawings.some((d) => d.id === id)) void load(id);
+    else showToast('error', `Tegningen "${id}" findes ikke (eller du har ikke adgang til den)`);
+  }
+
+  /** Indlæs en tegning. Hurtige skift: kun den NYESTE indlæsning må sætte visning, valg og adresse (efter hver await tjekkes det). */
+  const loads = createLoadGuard();
   async function load(id: string): Promise<void> {
     error = '';
     if (!id) return;
+    const token = loads.begin(id);
     try {
-      view = await get<DrawingView>(`/api/drawings/${encodeURIComponent(id)}/view`);
+      const fetched = await get<DrawingView>(`/api/drawings/${encodeURIComponent(id)}/view`);
+      if (!loads.isLatest(token)) return;
+      view = fetched;
       selected = id;
       if (location.hash !== `#overview/${id}`) history.replaceState(null, '', `#overview/${id}`);
       await tick();
+      if (!loads.isLatest(token)) return;
       svgRoot = mountSvg(container, view.svg, view.symbols);
       const vb = svgRoot?.viewBox.baseVal;
       full = vb && vb.width > 0 && vb.height > 0 ? { x: vb.x, y: vb.y, w: vb.width, h: vb.height } : null;
@@ -261,8 +299,11 @@
       stopCharts();
       stopCharts = mountCharts(svgRoot, symbolsOf(), view.tags);   // trendgrafer (v0.91.0)
     } catch (e) {
+      if (!loads.isLatest(token)) return;       // en forældet indlæsning må hverken tømme visningen eller vise sin fejl
       view = null;
       error = `Kunne ikke vise tegningen: ${(e as Error).message}`;
+    } finally {
+      loads.finish(token);
     }
   }
 
@@ -337,7 +378,7 @@
     const b = clickTarget(e.target as Element);
     if (!b || !view) return;
     if (b.anim === 'click:goto') {
-      if (drawings.some((d) => d.id === b.params.drawing)) await load(b.params.drawing);
+      if (drawings.some((d) => d.id === b.params.drawing)) await gotoDrawing(b.params.drawing);
       else showToast('error', `Tegningen "${b.params.drawing}" findes ikke længere`);
       return;
     }
@@ -568,15 +609,19 @@
     else if (e.key === 'Enter') submitDialog();
   }
 
+  let destroyed = false;
   onMount(async () => {
     stopLayout = onLayoutChange(fit, container);
     container.addEventListener('wheel', onWheel, { passive: false }); // passive:false — ellers kan siden ikke forhindres i at scrolle
     try {
-      drawings = await get<{ id: string; name: string; disabled?: boolean }[]>('/api/drawings');
+      drawings = await get<{ id: string; name: string; disabled?: boolean; parent_id?: string | null }[]>('/api/drawings');
     } catch (e) {
       error = (e as Error).message;
       return;
     }
+    if (destroyed) return;
+    // Først nu (listen er hentet): ellers ville et hashchange under opstarten give en falsk "findes ikke"-besked
+    window.addEventListener('hashchange', onHash);
     let last: string | null = null;
     try {
       last = lastDrawing() ?? sessionStorage.getItem('overview.last');   // v6.8.7: den sidst åbnede tegning på tværs af siderne
@@ -588,9 +633,11 @@
   });
 
   onDestroy(() => {
+    destroyed = true;
     stopCharts();
     stopLayout?.();
     container?.removeEventListener('wheel', onWheel);
+    window.removeEventListener('hashchange', onHash);
     live.close();
     clearTimeout(toastTimer);
   });
@@ -650,7 +697,7 @@
 {#if !panel}
 <div class="toolbar row">
   <select bind:value={selected} onchange={() => load(selected)} aria-label="Vælg tegning">
-    {#each drawings as d}<option value={d.id}>{d.name}{d.disabled ? ' (deaktiveret)' : ''}</option>{/each}
+    {#each ordered as { item: d, indent } (d.id)}<option value={d.id}>{indentedName(d.name, indent)}{d.disabled ? ' (deaktiveret)' : ''}</option>{/each}
   </select>
   {#if canEdit && selected}<a href={'#editor/' + selected}>Redigér bindinger</a>{/if}
   {#if canEdit && selected}<a href={'#simulator/' + selected} title="Prøv tegningens tilstande med indskudte værdier — intet skrives til PLC'en">Simulér</a>{/if}
@@ -668,6 +715,29 @@
   {/each}
   <MessageSlot {messages} />
 </div>
+{#if hasHierarchy}
+  <!-- Hierarki (ISA-101): to rækker med fast min-height — vises for ALLE tegninger så snart et hierarki findes, så intet flytter sig ved navigation -->
+  <div class="hier">
+    <nav class="crumbs" aria-label="Brødkrumme">
+      {#each crumbs as c, i (c.id)}
+        {#if i > 0}<span class="sep" aria-hidden="true">›</span>{/if}
+        {#if i === crumbs.length - 1}
+          <span class="here" aria-current="page" title={c.name}>{c.name}</span>
+        {:else}
+          <a class="up" href={'#overview/' + c.id} title={c.name}>{c.name}</a>
+        {/if}
+      {/each}
+    </nav>
+    <div class="kids" role="group" aria-label="Undertegninger">
+      {#if kids.length}
+        <span class="small muted">Undertegninger:</span>
+        {#each kids as k (k.id)}
+          <a class="btn" class:off={k.disabled} href={'#overview/' + k.id} title={k.disabled ? 'Deaktiveret (offline)' : k.name}>{k.name}</a>
+        {/each}
+      {/if}
+    </div>
+  </div>
+{/if}
 {:else}
   <div class="panel-msg"><MessageSlot {messages} /></div>
 {/if}
@@ -805,6 +875,17 @@
 
 <style>
   .toolbar { margin-bottom: .75rem; }
+  /* Hierarki-rækkerne har FAST højde (også på smal skærm), så intet flytter sig ved navigation: brødkrummen er én linje
+     (ellipsis), undertegningerne ligger på én linje og kan rulles sidelæns */
+  .hier { display: flex; flex-direction: column; gap: .25rem; margin: -.25rem 0 .6rem; }
+  .crumbs { display: flex; flex-wrap: nowrap; align-items: center; gap: .35rem; height: 1.9rem; overflow: hidden; font-size: .95rem; }
+  .crumbs .sep { flex: none; color: var(--muted); }
+  .crumbs .up, .crumbs .here { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .crumbs .up { flex: 0 4 auto; }
+  .crumbs .here { flex: 0 1 auto; font-weight: 600; }
+  .kids { display: flex; flex-wrap: nowrap; align-items: center; gap: .4rem; height: 2.2rem; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+  .kids > * { flex: none; white-space: nowrap; }
+  .kids .btn.off { opacity: .6; }
   /* Driftpanel (ingen værktøjslinje): beskeder øverst til højre OVER tegningen, så den ikke flytter sig */
   .panel-msg { position: absolute; top: .75rem; right: .75rem; z-index: 6; max-width: 60%; }
   .link-btn { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }

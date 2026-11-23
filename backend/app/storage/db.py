@@ -13,11 +13,11 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 18   # 18: sim_scenarios (v6.5.0, additiv); 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
+SCHEMA_VERSION = 22   # 22: drawings.parent_id — tegningshierarki, ISA-101 (v6.22.0, additiv); 21: tags.alarm_consequence/alarm_action/alarm_response_min (v6.20.0, additiv); 20: alarm_shelf — udsatte alarme (v6.19.0, additiv); 19: tags.alarm_priority (v6.18.0, additiv); 18: sim_scenarios (v6.5.0, additiv); 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -55,7 +55,8 @@ CREATE TABLE IF NOT EXISTS drawings (
     active_version INTEGER NOT NULL,
     created_at     REAL NOT NULL,
     updated_at     REAL NOT NULL,
-    disabled       INTEGER NOT NULL DEFAULT 0
+    disabled       INTEGER NOT NULL DEFAULT 0,
+    parent_id      TEXT
 );
 CREATE TABLE IF NOT EXISTS drawing_versions (
     drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
@@ -118,6 +119,18 @@ CREATE TABLE IF NOT EXISTS alarm_state (
     message     TEXT NOT NULL DEFAULT '',
     acked_by    TEXT,
     acked_at    REAL
+);
+CREATE TABLE IF NOT EXISTS alarm_shelf (
+    key         TEXT PRIMARY KEY,
+    tag         TEXT NOT NULL,
+    plc         TEXT NOT NULL,
+    level       TEXT NOT NULL,
+    priority    TEXT NOT NULL,
+    message     TEXT NOT NULL,
+    shelved_by  TEXT NOT NULL,
+    shelved_at  REAL NOT NULL,
+    until_ts    REAL NOT NULL,
+    reason      TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS alarm_events (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -279,6 +292,8 @@ PLC_FIELDS = ("name", "base_url", "username", "enabled", "sse_enabled", "verify_
 ALARM_COLUMNS = {
     "alarm_hh": "REAL", "alarm_h": "REAL", "alarm_l": "REAL", "alarm_ll": "REAL",
     "alarm_deadband": "REAL NOT NULL DEFAULT 0", "alarm_delay_s": "REAL NOT NULL DEFAULT 0", "alarm_on": "TEXT",
+    "alarm_consequence": "TEXT", "alarm_action": "TEXT", "alarm_response_min": "INTEGER",  # rationalisering (v6.20.0), alle valgfri
+    "alarm_priority": "TEXT",  # NULL | 'high' | 'medium' | 'low' (v6.18.0): fast prioritet i stedet for niveauets
 }
 ALARM_FIELDS = tuple(ALARM_COLUMNS)
 # Trend-historik pr. tag: slået fra som standard; minimumsinterval mellem gemte værdier.
@@ -310,6 +325,8 @@ class Database:
         path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(path), check_same_thread=False, isolation_level=None)
         self._conn.row_factory = sqlite3.Row
+        # SQLites lower() kender kun ASCII — søgning i alarmhistorikken skal også ramme æøå
+        self._conn.create_function("pylower", 1, lambda s: s.lower() if isinstance(s, str) else s, deterministic=True)
         self._lock = threading.Lock()
         # Tæller skrivninger til konfigurationen. Hver SQL-sætning ses (også dem i egne transaktioner og kaskader), så
         # en ny skrivevej aldrig kan glemme at ugyldiggøre en gemt beregning. Sessioner, audit og alarmer tæller ikke med.
@@ -339,6 +356,9 @@ class Database:
         if "disabled" not in drawing_cols:
             # v1.6.0: en deaktiveret tegning er offline (ingen live-data, ingen betjening). 0 = aktiv som før.
             self._conn.execute("ALTER TABLE drawings ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0")
+        if "parent_id" not in drawing_cols:
+            # v6.22.0: valgfri overordnet tegning (ISA-101: overblik → område → detalje). NULL = øverste niveau som før.
+            self._conn.execute("ALTER TABLE drawings ADD COLUMN parent_id TEXT")
         tag_cols = {r[1] for r in self._conn.execute("PRAGMA table_info(tags)").fetchall()}
         for col, ddl in {**ALARM_COLUMNS, **TREND_COLUMNS, **ENERGY_COLUMNS, **PRIORITY_COLUMNS}.items():
             if col not in tag_cols:
@@ -788,8 +808,50 @@ class Database:
         return self._execute("UPDATE drawings SET name = ?, updated_at = ? WHERE id = ?",
                              (name, time.time(), drawing_id)) > 0
 
+    def set_drawing_parent(self, drawing_id: str, parent_id: str | None,
+                           check: Callable[[dict[str, str | None], dict[str, str]], str | None]) -> tuple[str | None, str | None]:
+        """Sæt/ryd tegningens overordnede tegning (v6.22.0). Hierarkiet læses og skrives i ÉN transaktion (BEGIN IMMEDIATE),
+        så to samtidige ændringer ikke kan skabe en cirkel eller for stor dybde; `check(parents, names)` giver en fejltekst
+        eller None. → (gammel forælder, fejltekst). Fejltekst sat = intet ændret. KeyError hvis tegningen ikke findes."""
+        missing, old, error = False, None, None
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                rows = cur.execute("SELECT id, name, parent_id FROM drawings").fetchall()
+                parents = {r["id"]: r["parent_id"] for r in rows}
+                if drawing_id not in parents:
+                    missing = True
+                else:
+                    old = parents[drawing_id]
+                    if old != parent_id:       # uændret forælder: ingen skrivning (heller ingen updated_at)
+                        error = check(parents, {r["id"]: r["name"] for r in rows})
+                        if error is None:
+                            cur.execute("UPDATE drawings SET parent_id = ?, updated_at = ? WHERE id = ?",
+                                        (parent_id, time.time(), drawing_id))
+                cur.execute("COMMIT")
+            except BaseException:
+                # Enhver fejl (også fra check) ruller tilbage — ellers står forbindelsen i en åben transaktion
+                if self._conn.in_transaction:
+                    cur.execute("ROLLBACK")
+                raise
+        if missing:
+            raise KeyError(drawing_id)
+        return old, error
+
     def delete_drawing(self, drawing_id: str) -> bool:
-        return self._execute("DELETE FROM drawings WHERE id = ?", (drawing_id,)) > 0
+        """Slet tegningen; dens undertegninger mister forælderen i SAMME transaktion (ingen forældreløse peger)."""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                cur.execute("UPDATE drawings SET parent_id = NULL WHERE parent_id = ?", (drawing_id,))
+                deleted = cur.execute("DELETE FROM drawings WHERE id = ?", (drawing_id,)).rowcount > 0
+                cur.execute("COMMIT")
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+        return deleted
 
     # -------------------------------------------------------------- bindinger
 
@@ -1343,6 +1405,21 @@ class Database:
     def delete_alarm_state(self, key: str) -> None:
         self._execute("DELETE FROM alarm_state WHERE key = ?", (key,))
 
+    def list_alarm_shelf(self) -> list[dict[str, Any]]:
+        return self._query("SELECT * FROM alarm_shelf ORDER BY until_ts")
+
+    def upsert_alarm_shelf(self, row: dict[str, Any]) -> None:
+        self._execute(
+            "INSERT INTO alarm_shelf(key, tag, plc, level, priority, message, shelved_by, shelved_at, until_ts, reason) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(key) DO UPDATE SET tag=excluded.tag, plc=excluded.plc, "
+            "level=excluded.level, priority=excluded.priority, message=excluded.message, shelved_by=excluded.shelved_by, "
+            "shelved_at=excluded.shelved_at, until_ts=excluded.until_ts, reason=excluded.reason",
+            (row["key"], row["tag"], row["plc"], row["level"], row["priority"], row["message"], row["shelved_by"],
+             row["shelved_at"], row["until_ts"], row["reason"]))
+
+    def delete_alarm_shelf(self, key: str) -> None:
+        self._execute("DELETE FROM alarm_shelf WHERE key = ?", (key,))
+
     def insert_alarm_event(self, entry: dict[str, Any], keep: int) -> None:
         with self._lock:
             cur = self._conn.execute(
@@ -1354,8 +1431,51 @@ class Database:
             if cur.lastrowid and cur.lastrowid % 500 == 0:
                 self._conn.execute("DELETE FROM alarm_events WHERE id <= ?", (cur.lastrowid - keep,))
 
-    def list_alarm_events(self, limit: int) -> list[dict[str, Any]]:
-        rows = self._query("SELECT * FROM alarm_events ORDER BY id DESC LIMIT ?", (limit,))
+    def list_alarm_events(self, limit: int, *, q: str = "", ts_from: float | None = None, ts_to: float | None = None,
+                          event: str = "", priority: str = "",
+                          scope: tuple[set[str], set[str]] | None = None,
+                          system: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        """Nyeste først. Alle filtre er parametriserede og afgøres i SQL.
+        `scope` = (synlige tags, PLC'er for synlige tags); `system` = {"id", "tags", "ids", "all_tags"} (id "" = alle, "-" = uden system)."""
+        where: list[str] = []
+        args: list[Any] = []
+        needle = q.strip().lower()
+        if needle:
+            where.append("(instr(pylower(tag), ?) > 0 OR instr(pylower(plc), ?) > 0 OR instr(pylower(message), ?) > 0)")
+            args += [needle, needle, needle]
+        if ts_from is not None:
+            where.append("ts >= ?")
+            args.append(ts_from)
+        if ts_to is not None:
+            where.append("ts <= ?")
+            args.append(ts_to)
+        if event:
+            where.append("event = ?")
+            args.append(event)
+        if priority:
+            where.append("priority = ?")
+            args.append(priority)
+        if scope is not None:
+            tags, plcs = sorted(scope[0]), sorted(scope[1])
+            where.append(f"(tag IN ({','.join('?' * len(tags))}) OR (tag = '' AND plc IN ({','.join('?' * len(plcs))})))")
+            args += tags + plcs
+        if system is not None and system.get("id"):
+            # Samme regler som frontendens inSystem: hændelser uden tag (SCADA, PLC-forbindelse) hører til alle systemer;
+            # symbolalarmer (nøgle sym:<tegning>:…) til deres tegning; tag-alarmer til tegninger, der bruger tagget.
+            general = "(tag = '' AND key NOT LIKE 'sym:%')"
+            drawing = "substr(key, 5, instr(substr(key, 5), ':') - 1)"
+            if system["id"] == "-":
+                ids, all_tags = sorted(system["ids"]), sorted(system["all_tags"])
+                where.append(f"({general} OR (key LIKE 'sym:%' AND {drawing} NOT IN ({','.join('?' * len(ids))}))"
+                             f" OR (key NOT LIKE 'sym:%' AND tag != '' AND tag NOT IN ({','.join('?' * len(all_tags))})))")
+                args += ids + all_tags
+            else:
+                tags = sorted(system["tags"])
+                where.append(f"({general} OR (key LIKE 'sym:%' AND {drawing} = ?)"
+                             f" OR (key NOT LIKE 'sym:%' AND tag IN ({','.join('?' * len(tags))})))")
+                args += [system["id"]] + tags
+        sql = "SELECT * FROM alarm_events" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY id DESC LIMIT ?"
+        rows = self._query(sql, tuple(args) + (limit,))
         for r in rows:
             r["value"] = json.loads(r["value"])
         return rows
@@ -1443,7 +1563,7 @@ class Database:
             "plcs": self._query("SELECT key, name, base_url, username, enabled, sse_enabled, verify_tls FROM plcs ORDER BY key"),
             "tags": self._query('SELECT name, source, description, unit, scale, "offset", decimals, writable, min, max, '
                                 "confirm_write, " + ", ".join(ALARM_FIELDS + TREND_FIELDS + ENERGY_FIELDS + PRIORITY_FIELDS) + " FROM tags ORDER BY name"),
-            "drawings": self._query("SELECT id, name, active_version, disabled FROM drawings ORDER BY id"),
+            "drawings": self._query("SELECT id, name, active_version, disabled, parent_id FROM drawings ORDER BY id"),
             "versions": self._query("SELECT drawing_id, version, comment, size, width, height, created_at "
                                     "FROM drawing_versions ORDER BY drawing_id, version"),
             "bindings": self.list_all_bindings(),
@@ -1548,8 +1668,9 @@ class Database:
                          t.get("energy"), t.get("energy_factor", 1.0), t.get("priority") or "normal",
                          now, now))
                 for d in data["drawings"]:
-                    cur.execute("INSERT INTO drawings(id, name, active_version, created_at, updated_at, disabled) VALUES (?,?,?,?,?,?)",
-                                (d["id"], d["name"], d["active_version"], now, now, 1 if d.get("disabled") else 0))
+                    cur.execute("INSERT INTO drawings(id, name, active_version, created_at, updated_at, disabled, parent_id) VALUES (?,?,?,?,?,?,?)",
+                                (d["id"], d["name"], d["active_version"], now, now, 1 if d.get("disabled") else 0,
+                                 d.get("parent_id")))   # valideret i BackupService.validate (ældre backups: ingen forælder)
                 for s in data.get("schedules", []):
                     cur.execute(
                         "INSERT INTO schedules(name, tag, enabled, default_value, entries, exceptions, created_at, updated_at) "
