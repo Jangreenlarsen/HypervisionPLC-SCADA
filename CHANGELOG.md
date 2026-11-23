@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.18.0 build 0447] — 2026-11-23 — Alarmer: kortvisning på smal skærm
+
+Under 800 px bliver hver række i Aktive og Historik et kort (tid, prioritet og type øverst, alarmteksten i fuld bredde, derunder system/tilstand og knapperne), så alarmteksten kan læses og *Kvittér* ikke skæres af. Skrivebordsvisningen er uændret. `frontend/src/pages/Alarms.svelte`. Set i forhåndsvisning af den lokale build mod demoens data ved 500 og 1600 px.
+
 ## [6.18.0 build 0446] — 2026-11-23 — Alarmer: smal skærm ombrydes igen; manualtekst om systemalarmer
 
 Fundet ved den visuelle kontrol af b0445 på demoen: ved 500 px skubbede kolonnernes faste bredder alarmteksten ud til siden. Under 800 px bruger tabellen igen automatisk layout (`frontend/src/pages/Alarms.svelte`). `frontend/src/manual/03-alarmer.md`: systemalarmer har egen prioritet (var skrevet som altid høj).

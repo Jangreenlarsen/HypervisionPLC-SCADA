@@ -146,22 +146,22 @@
 
   {#if tab === 'active'}
     <div class="table-wrap">
-      <table class="fixed">
+      <table class="fixed t-active">
         <colgroup><col class="c-tid" /><col class="c-prio" /><col class="c-type" /><col class="c-sys" /><col /><col class="c-state" /><col class="c-act" /></colgroup>
         <thead><tr><th>Tid</th><th>Prioritet</th><th>Type</th><th>System</th><th>Alarm</th><th>Tilstand</th><th></th></tr></thead>
         <tbody>
           {#each shown as a (a.key)}
             <tr class:unacked={a.state !== 'active_ack'}>
-              <td class="small nowrap">{fmt(a.raised_at)}</td>
-              <td><span class="prio-{a.priority}">{alarmPriorityText(a.priority)}</span></td>
-              <td class="small">{alarmTypeText(a.level)}</td>
-              <td class="small">{sysNames(a)}</td>
-              <td>{a.message}<div class="muted small mono">{a.kind === 'symbol' ? `symbol ${a.key.split(':').slice(2).join(':')}` : a.kind === 'sys' ? 'SCADA-serveren' : a.tag || a.plc}</div></td>
-              <td class="small">
+              <td class="small nowrap g-tid">{fmt(a.raised_at)}</td>
+              <td class="g-prio"><span class="prio-{a.priority}">{alarmPriorityText(a.priority)}</span></td>
+              <td class="small g-type">{alarmTypeText(a.level)}</td>
+              <td class="small g-sys">{sysNames(a)}</td>
+              <td class="g-alarm">{a.message}<div class="muted small mono">{a.kind === 'symbol' ? `symbol ${a.key.split(':').slice(2).join(':')}` : a.kind === 'sys' ? 'SCADA-serveren' : a.tag || a.plc}</div></td>
+              <td class="small g-state">
                 {STATE_TEXT[a.state]}
                 {#if a.acked_by}<div class="muted">af {a.acked_by} {fmt(a.acked_at)}</div>{/if}
               </td>
-              <td class="nowrap">
+              <td class="nowrap g-act">
                 {#if canAck && a.state !== 'active_ack'}<button onclick={() => ack([a.key])}>Kvittér</button>{/if}
                 {#if assist.available && assist.canAsk}
                   <button title="Spørg hjælperen: hvad betyder alarmen, og hvad kan man gøre?"
@@ -170,7 +170,7 @@
               </td>
             </tr>
           {:else}
-            <tr><td colspan="7" class="muted">Ingen aktive alarmer{systemId ? ` — ${filterName}` : ''}.</td></tr>
+            <tr><td colspan="7" class="muted g-empty">Ingen aktive alarmer{systemId ? ` — ${filterName}` : ''}.</td></tr>
           {/each}
         </tbody>
       </table>
@@ -200,22 +200,22 @@
       {:else}{history.length} hændelser{history.length >= HISTORY_LIMIT ? ` — afkortet til de nyeste ${HISTORY_LIMIT}; CSV indeholder alle` : ''}{/if}
     </div>
     <div class="table-wrap">
-      <table class="fixed">
+      <table class="fixed t-hist">
         <colgroup><col class="c-tid" /><col class="c-event" /><col class="c-prio" /><col class="c-type" /><col class="c-sys" /><col /><col class="c-user" /></colgroup>
         <thead><tr><th>Tid</th><th>Hændelse</th><th>Prioritet</th><th>Type</th><th>System</th><th>Alarm</th><th>Bruger</th></tr></thead>
         <tbody>
           {#each shownHistory as e (e.id)}
             <tr>
-              <td class="small nowrap">{fmt(e.ts)}</td>
-              <td>{EVENT_TEXT[e.event] ?? e.event}</td>
-              <td><span class="prio-{e.priority}">{alarmPriorityText(e.priority)}</span></td>
-              <td class="small">{alarmTypeText(e.level)}</td>
-              <td class="small">{sysNames(e)}</td>
-              <td class="small">{e.message}</td>
-              <td class="small">{e.username}</td>
+              <td class="small nowrap g-tid">{fmt(e.ts)}</td>
+              <td class="g-event">{EVENT_TEXT[e.event] ?? e.event}</td>
+              <td class="g-prio"><span class="prio-{e.priority}">{alarmPriorityText(e.priority)}</span></td>
+              <td class="small g-type">{alarmTypeText(e.level)}</td>
+              <td class="small g-sys">{sysNames(e)}</td>
+              <td class="small g-alarm">{e.message}</td>
+              <td class="small g-user">{e.username}</td>
             </tr>
           {:else}
-            <tr><td colspan="7" class="muted">Ingen hændelser.</td></tr>
+            <tr><td colspan="7" class="muted g-empty">Ingen hændelser.</td></tr>
           {/each}
         </tbody>
       </table>
@@ -230,10 +230,20 @@
   table.fixed td { overflow-wrap: anywhere; }
   .c-tid { width: 10.5rem; } .c-prio { width: 5.5rem; } .c-type { width: 8rem; } .c-sys { width: 9rem; }
   .c-state { width: 11rem; } .c-act { width: 9.5rem; } .c-event { width: 7rem; } .c-user { width: 7rem; }
-  /* Smal skærm: alarmteksten er vigtigst og må ikke skubbes ud til siden — tabellen ombrydes i stedet for faste bredder */
+  /* Smal skærm: hver række bliver et kort — alarmteksten får hele bredden, og Kvittér er altid synlig */
   @media (max-width: 800px) {
-    table.fixed { table-layout: auto; min-width: 0; }
-    .c-tid, .c-prio, .c-type, .c-sys, .c-state, .c-act, .c-event, .c-user { width: auto; }
+    table.fixed, table.fixed tbody { display: block; width: 100%; min-width: 0; }
+    table.fixed thead, table.fixed colgroup { display: none; }
+    table.fixed tr { display: grid; grid-template-columns: auto auto 1fr; gap: 0.15rem 0.8rem; align-items: baseline; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--line); }
+    table.fixed td { display: block; padding: 0; border: 0; min-width: 0; }
+    table.t-active tr { grid-template-areas: "tid prio type" "alarm alarm alarm" "sys state state" "act act act"; }
+    table.t-hist tr { grid-template-areas: "tid prio type" "alarm alarm alarm" "event sys user"; }
+    .g-tid { grid-area: tid; } .g-prio { grid-area: prio; } .g-type { grid-area: type; } .g-sys { grid-area: sys; }
+    .g-alarm { grid-area: alarm; } .g-state { grid-area: state; } .g-act { grid-area: act; padding-top: 0.2rem !important; }
+    .g-event { grid-area: event; } .g-user { grid-area: user; }
+    table.fixed td.g-empty { grid-area: auto; grid-column: 1 / -1; }
+    tr.unacked { border-left: 4px solid var(--alarm); }
+    tr.unacked td:first-child { border-left: 0; }
   }
   .hfilter { flex-wrap: wrap; margin: 0.6rem 0 0.2rem; }
   .hq { width: 18rem; max-width: 100%; }
