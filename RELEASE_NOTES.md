@@ -2,6 +2,11 @@
 
 ---
 
+## v6.23.0 — 2026-11-23 — Fjerde hjælper-variant: Qwen3.5-9B til afprøvning
+
+- Under **System › Hjælper (LLM)** er der nu en fjerde variant, **Test (9B)** (Qwen3.5-9B, 5,7 GB, Apache-2.0), til x86_64-maskiner med profilen *vm-16* eller *vm-32*. Tryk *Hent og installér* for at prøve den; serveren henter den fra projektets GitHub-udgivelse og kontrollerer den (SHA256).
+- I vores danske målesæt scorede den 0,90 mod 0,85 for *Stor* (Ministral) og 0,83 for *Standard* (Qwen3.5-4B), men en 9B-model er langsom på 4 vCPU (ca. 5 minutter pr. svar) og ligger lidt over hukommelsesloftet på 9000 MB på *vm-16*. Skift tilbage til *Standard*, hvis svarene bliver for langsomme.
+
 ## v6.22.1 — 2026-11-23
 
 - Rettet: **brødkrummen** i topbaren (fx *Opsætning › Tegninger*) blev afkortet på skærme mellem ca. 1000 og 1240 px bredde. PLC-status er nu en lille prik under 1240 px, og ' · kildekode' skjules, så der er plads.

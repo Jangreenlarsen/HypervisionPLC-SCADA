@@ -5,6 +5,7 @@ Status: `planned` | `in-progress` | `done`
 
 Faseplan og detaljer: [docs/RESEARCH_OG_DESIGN.md](docs/RESEARCH_OG_DESIGN.md#4-faseplan).
 
+- [x] done v6.23.0 — **Fjerde LLM-variant: Qwen3.5-9B (*Test (9B)*)** (Jan 2026-11-23: "lav den som et 4. valg i System, så jeg lige kan teste den for en tid"). Ny post i `deploy/llm-models.json` (Apache-2.0, x86_64, `vm-16` og `vm-32`) og LLM-pakken udgivet som prerelease `llm-qwen3.5-9b-q4_k_m-b12179` (3 dele + SHA256, pakke-SHA256 `b53a9a4f…ace6`); vises sidst under System › Hjælper. Baggrund: femte LLM-måling (`docs/LLM_ANALYSE.md`).
 - [x] done v6.22.0 — **Tegningshierarki** (benchmark A1, PLAN.md › Benchmark-huller, Jan 2026-11-23): valgfri *overordnet tegning* (højst 4 niveauer, ingen cirkler, kontrolleres i backend), brødkrumme og knapper til undertegninger på Overview, og `click:goto` opdaterer adressen. Sletning gør undertegninger til øverste niveau.
 - [x] done v6.21.0 — **Fast ramme i topbaren** (benchmark A6): brugernavn, ur og PLC-status (fra live-strømmen) altid synlige på alle sider, med fast bredde.
 - [x] done v6.20.0 — **Alarm-rationalisering** (benchmark B6): valgfri konsekvens, handling og svartid pr. tag-alarm, vist under alarmteksten.

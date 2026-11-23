@@ -296,7 +296,8 @@ Til vedligeholdelse **på selve serveren** (SSH) findes kommandoen **`scada-tool
 - **Vælg model:** vælg en variant, og tryk **Hent og installér**. Varianterne er:
   - *Hurtig* (Qwen3.5-2B, 1,3 GB): ca. dobbelt så hurtig, lidt svagere på dansk;
   - *Standard* (Qwen3.5-4B, 2,7 GB): anbefalet;
-  - *Stor* (Ministral-3-8B, 5,2 GB): bedst på dansk, men ca. halvt så hurtig, og kræver mindst 16 GB RAM.
+  - *Stor* (Ministral-3-8B, 5,2 GB): bedst på dansk, men ca. halvt så hurtig, og kræver mindst 16 GB RAM;
+  - *Test (9B)* (Qwen3.5-9B, 5,7 GB, kun x86_64 og *vm-16* eller *vm-32*): til afprøvning. I projektets danske målesæt scorede den 0,90 mod 0,85 for *Stor* og 0,83 for *Standard*, men en 9B-model tager ca. 5 minutter pr. svar på en VM med 4 vCPU og ligger lidt over hukommelsesloftet på 9000 MB på *vm-16*. Skift tilbage til *Standard*, hvis svarene bliver for langsomme.
 
   Serveren henter pakken fra projektets udgivelser på GitHub og kontrollerer den (SHA256) her og igen før installationen. Fremdriften vises, og **Afbryd** stopper hentningen. Varianter, der ikke passer til hardwareprofilen, kan ikke vælges. En ny variant erstatter den installerede. Serveren skal kunne nå github.com. Kontrolsummen beskytter mod fejl under hentningen, men ikke mod en kompromitteret GitHub-konto (samme niveau som opdatering fra GitHub).
 - **LLM-pakke (lukket net):** uden internet installeres hjælperen fra **én samlet fil**, `scada-llm-<arkitektur>-<model>-<build>.tar` (ca. 3–6 GB), med llama.cpp og modellen. Tryk **Vælg LLM-pakke …**. Filen kontrolleres (indhold, arkitektur, licenser) og vises som *Klar til installation*. **Installér og slå til** installerer den. Kontrollen af SHA256 og udpakningen tager nogle minutter.
