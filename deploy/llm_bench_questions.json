@@ -1,0 +1,721 @@
+{
+ "_note": "Målesæt til deploy/llm_bench.py (docs/LLM_ANALYSE.md §7). SÆTTET ER FASTLÅST (denne fil er sættet; llm/*.md ændrer sig, og et nyt tillæg flytter ellers lige/ulige). REGEL (anvendt på de 50 overskrifter i commit afdb81d, 2026-11-23) FOR 'manual'-spørgsmålene: tag overskrifterne '## ...?' i frontend/src/manual/llm/*.md i alfabetisk filrækkefølge (drift-og-system.md, tegn.md), nummerér dem fra 0 (50 stk.) og tag hver ANDEN (indeks 0, 2, 4 … 48 = 25 spørgsmål); spørgsmålet er overskriften med den afsluttende nøgleords-parentes '(…)' fjernet (så søgningen ikke får nøgleordene forærende). Facit = svarteksten under overskriften. must_have = udvalgte **fede** termer fra facit ('a|b' = alternative skrivemåder; matchet skelner ikke mellem store/små bogstaver, og é=e; korte ord matches som hele ord). forbidden = forkerte påstande. 'alarm_tag' (h1-h6) er skrevet til 03-alarmer.md og 05-plcer-og-tags.md; 'sprog' (s1-s4) kaldes uden manualuddrag; 'json' (j1-j3) kalder som tag-guiden og signal-guiden (assist_setup.py) med json_schema. 'source' = fil#indeks i de 50 overskrifter dengang. Rettelse efter første kørsel: s4 fik flere synonymer (tidsudløb, genforsøg) uden at ændre det øvrige.",
+ "version": 1,
+ "questions": [
+  {
+   "id": "m01",
+   "category": "manual",
+   "source": "llm/drift-og-system.md#0",
+   "question": "Hvordan vedligeholder jeg serveren fra kommandolinjen?",
+   "must_have": [
+    "scada-tool",
+    "check",
+    "logs",
+    "user reset"
+   ],
+   "forbidden": [],
+   "facit": "På serveren (SSH, root) findes **`scada-tool`**: `status` (overblik), `check` (diagnose: hvorfor starter serveren ikke), `logs [--fejl] [-f]`, `start|stop|restart`, `update status|reset|apply FIL.tar|rollback` (`reset` rydder en opdatering, der står fast som \"i gang\"), `backup list|create|restore FIL.db`, `user reset NAVN` (nulstil en adgangskode) og `config`. Ændringer spørger først og logges."
+  },
+  {
+   "id": "m02",
+   "category": "manual",
+   "source": "llm/drift-og-system.md#2",
+   "question": "Værdien er grå, svag eller tonet ned — hvorfor?",
+   "must_have": [
+    "kommunikationsfejl",
+    "dårlig",
+    "ukendt",
+    "status"
+   ],
+   "forbidden": [
+    "slet tagget"
+   ],
+   "facit": "Værdien er ikke frisk: der er kommunikationsfejl til PLC'en, tagget kan ikke læses (dårlig), eller der er endnu ingen værdi (ukendt). Symbolet tones ned, og betjening afvises, til værdien er god igen. Tjek PLC'en under **System › Status**."
+  },
+  {
+   "id": "m03",
+   "category": "manual",
+   "source": "llm/drift-og-system.md#4",
+   "question": "Hvordan sætter jeg en alarmgrænse på et tag?",
+   "must_have": [
+    "tags",
+    "redigér|rediger",
+    "dødbånd|hysterese",
+    "forsinkelse",
+    "HH|LL"
+   ],
+   "forbidden": [],
+   "facit": "Under **Tags**: tryk **Redigér** ved tagget og udfyld **H**/**HH** (høj) eller **L**/**LL** (lav). **Dødbånd** er alarmens hysterese: hvor langt værdien skal tilbage, før alarmen ophører. **Forsinkelse** er hvor længe grænsen skal være overskredet. Prioriteten følger som standard niveauet (HH/LL høj, H/L medium), men **Prioritet** på tagget kan sættes til Høj, Medium eller Lav."
+  },
+  {
+   "id": "m04",
+   "category": "manual",
+   "source": "llm/drift-og-system.md#6",
+   "question": "Hvordan skifter jeg min egen adgangskode?",
+   "must_have": [
+    "bruger",
+    "skift adgangskode",
+    "nuværende",
+    "10 tegn"
+   ],
+   "forbidden": [],
+   "facit": "Klik **Bruger** i topmenuen og vælg **Skift adgangskode**. Skriv den nuværende og den nye to gange (mindst 10 tegn) og tryk **Gem**."
+  },
+  {
+   "id": "m05",
+   "category": "manual",
+   "source": "llm/drift-og-system.md#8",
+   "question": "Hvordan opdaterer jeg SCADA'en til en ny version?",
+   "must_have": [
+    "opdatering",
+    "upload",
+    "installér og genstart|installer og genstart",
+    "kontrolsum"
+   ],
+   "forbidden": [
+    "apt-get",
+    "apt upgrade",
+    "git pull"
+   ],
+   "facit": "Som admin: **System › Opdatering**. **Upload** opdateringspakken (`scada-<version>-b<build>.tar`), tjek version og kontrolsum, og tryk **Installér og genstart**. Serveren tager backup først, genstarter og ruller selv tilbage, hvis den nye version ikke svarer."
+  },
+  {
+   "id": "m06",
+   "category": "manual",
+   "source": "llm/drift-og-system.md#10",
+   "question": "Disken er fuld — hvad gør jeg?",
+   "must_have": [
+    "status",
+    "scada-maint",
+    "emergency",
+    "logfiler|backups|trend"
+   ],
+   "forbidden": [
+    "rm -rf",
+    "formatér"
+   ],
+   "facit": "Se **System › Status** (ledig disk). Ryd op på maskinen som root med `scada-maint`: `scada-maint status` viser hvad der fylder, `scada-maint emergency` rydder trin for trin, til der er plads nok (logfiler, gamle backups, gammel trend-historik). Trend-databasen kan også flyttes til en anden disk (*System › Konfiguration*)."
+  },
+  {
+   "id": "m07",
+   "category": "manual",
+   "source": "llm/drift-og-system.md#12",
+   "question": "Hvordan ser jeg, hvem der har ændret noget eller skrevet til PLC'en?",
+   "must_have": [
+    "log",
+    "skrivninger",
+    "tekniker|admin",
+    "historik"
+   ],
+   "forbidden": [],
+   "facit": "Åbn **System › Log** (tekniker og admin). Loggen viser alle skrivninger til PLC'erne og alle ændringer af opsætningen — også afviste forsøg — med tidspunkt, bruger, handling og resultat. Filtrér med *Skrivninger*, *Til/fra*, *Pulser* m.fl. Alarmkvitteringer står under **Alarmer › Historik**."
+  },
+  {
+   "id": "m08",
+   "category": "manual",
+   "source": "llm/drift-og-system.md#14",
+   "question": "Hvordan begrænser jeg en operatør til én eller få tegninger?",
+   "must_have": [
+    "brugere",
+    "tegningsadgang",
+    "tegninger",
+    "tekniker|admin"
+   ],
+   "forbidden": [
+    "slet brugeren"
+   ],
+   "facit": "Som admin: **System › Brugere**, vælg **Tegningsadgang** for brugeren (viewer, operatør eller driftpanel) og sæt hak ved de tegninger, brugeren må se. Brugeren ser så kun de tegninger og deres tags og kan kun betjene dér. Tekniker og admin ser altid alle tegninger."
+  },
+  {
+   "id": "m09",
+   "category": "manual",
+   "source": "llm/tegn.md#16",
+   "question": "Hvordan flytter jeg et symbol forrest eller bagerst?",
+   "must_have": [
+    "objekter",
+    "ctrl+]|ctrl+[",
+    "rækkefølge|knaplinje",
+    "øverst|nederst|frem|tilbage"
+   ],
+   "forbidden": [],
+   "facit": "Vælg symbolet og brug knaplinjen over det markerede (*ét trin frem/tilbage*, *læg øverst/nederst*), tasterne **Ctrl+]** og **Ctrl+[**, eller **▲▼** i panelet **Objekter**. Højreklik har også *rækkefølge*."
+  },
+  {
+   "id": "m10",
+   "category": "manual",
+   "source": "llm/tegn.md#18",
+   "question": "Hvordan tegner jeg et rør eller en ledning mellem to symboler?",
+   "must_have": [
+    "forbindelse",
+    "grønne prik|grøn prik|grønne",
+    "klik",
+    "vandret|lodret"
+   ],
+   "forbidden": [],
+   "facit": "I Tegn: vælg værktøjet **Forbindelse** (tast **O**). Klik på det første symbols grønne prik, klik for hvert knæk, og slut på det andet symbols grønne prik. Røret går vandret og lodret og sidder fast i begge symboler."
+  },
+  {
+   "id": "m11",
+   "category": "manual",
+   "source": "llm/tegn.md#20",
+   "question": "Hvorfor kan jeg ikke lave en simpel binding på et symbol? Hvor er \"Konvertér alle\" og \"Foreslå ud fra symbolet\"?",
+   "must_have": [
+    "guiden",
+    "opsæt symbol",
+    "5.1",
+    "meddelelser|fjernet"
+   ],
+   "forbidden": [],
+   "facit": "Siden v5.1.0 er der kun én måde at sætte et symbol op på: guiden (Bindinger › Opsæt symbol). Simple bindinger på et symbol og dets dele kan ikke laves — kun *Gå til tegning* på selve symbolet. Den gamle model (og dermed \"Konvertér alle\" og \"Foreslå ud fra symbolet\") er fjernet; ved opgraderingen blev symbolerne konverteret, og dem, der ikke kunne konverteres, står i Tegn › Meddelelser."
+  },
+  {
+   "id": "m12",
+   "category": "manual",
+   "source": "llm/tegn.md#22",
+   "question": "Hvor finder jeg alle symboler på tegningen samlet?",
+   "must_have": [
+    "symbol-oversigt|symboloversigt",
+    "træ",
+    "tegn",
+    "opsæt"
+   ],
+   "forbidden": [],
+   "facit": "Panelet **Symbol-oversigt** i Tegn viser alle symboler som et træ: grundsymboler og grupper på niveau 1; en gruppes medlemmer på niveau 2. Klik på navnet vælger det på tegningen; **Opsæt** åbner symbol-guiden (6 trin), **Animationer** gruppens animationer. ✓ = har en opsætning; søg eller vis kun dem, der ikke er opsat."
+  },
+  {
+   "id": "m13",
+   "category": "manual",
+   "source": "llm/tegn.md#24",
+   "question": "Hvordan undgår jeg fejl for tilslutningspunkter eller symboler, der ikke er i brug, i Tjek forbindelser?",
+   "must_have": [
+    "tjek forbindelser",
+    "ikke i brug",
+    "røde prik|rød prik",
+    "skift+klik|udelad valgte"
+   ],
+   "forbidden": [],
+   "facit": "Med **Tjek forbindelser** slået til: klik på den røde prik for at markere punktet som **ikke i brug** (grå stiplet ring), eller Skift+klik / **Udelad valgte fra tjekket** for at udelade et helt symbol (grå ramme med ⊘). Markeringerne gemmes med tegningen ved Gem kladde / Gem og udgiv og kan fortrydes."
+  },
+  {
+   "id": "m14",
+   "category": "manual",
+   "source": "llm/tegn.md#26",
+   "question": "Hvordan tjekker jeg, om alle symboler og rør hænger sammen i tegningen?",
+   "must_have": [
+    "tjek forbindelser",
+    "forbindelser",
+    "grønne",
+    "røde"
+   ],
+   "forbidden": [],
+   "facit": "Slå **Tjek forbindelser** til i menuen **Forbindelser** øverst i Tegn. Symboler og rør, hvis tilslutningspunkter alle sidder fast, bliver grønne; dem med åbne ender bliver røde med røde prikker ved enderne (stiplet kant = intet er forbundet). Det er kun en visning. Ligger to ens symboler præcis oven på hinanden, får de en lilla dobbeltramme med **2×** (også uden tjekket): rørene er delt mellem dem, så slet det ene (Alt+klik vælger det bagved)."
+  },
+  {
+   "id": "m15",
+   "category": "manual",
+   "source": "llm/tegn.md#28",
+   "question": "Hvordan laver jeg en betingelse med flere tags?",
+   "must_have": [
+    "logikblok",
+    "trin 4|visning",
+    "and",
+    "or|eller",
+    "animation"
+   ],
+   "forbidden": [],
+   "facit": "Lav en **logikblok** i symbolguidens trin **4. Visning**, sektionen **Logik**: tryk **+ Logikblok**, vælg AND eller OR, vælg tags i indgangene (evt. NOT eller en sammenligning som ≥ 60), og vælg blokken som kilde i en animation (*styres af: en logikblok*). Trin 6 viser blokkens værdi live."
+  },
+  {
+   "id": "m16",
+   "category": "manual",
+   "source": "llm/tegn.md#30",
+   "question": "Hvordan retter jeg grafikken på et symbol i biblioteket?",
+   "must_have": [
+    "opsætning",
+    "symboler",
+    "redigér grafik|rediger grafik",
+    "gem i biblioteket"
+   ],
+   "forbidden": [],
+   "facit": "Gå til **Opsætning › Symboler**, vælg symbolet i listen, og tryk **Redigér grafik** i symbolets panel (siden samler tilslutningspunkter, ind/ud og veje og redigering for det valgte symbol; *Organisér bibliotek …* har sektioner, import og eksport). Symbolet åbnes i Tegn i en arbejdstegning; ret det og tryk **Gem i biblioteket**. Et eget symbol får en ny version; et indbygget gemmes som en kopi \"… (egen)\"."
+  },
+  {
+   "id": "m17",
+   "category": "manual",
+   "source": "llm/tegn.md#32",
+   "question": "Hvordan grupperer jeg flere elementer, eller opløser en gruppe?",
+   "must_have": [
+    "ctrl+g",
+    "gruppér|gruppe",
+    "ctrl+shift+g",
+    "opløs"
+   ],
+   "forbidden": [],
+   "facit": "Vælg elementerne (Shift+klik eller træk en ramme) og tryk **Ctrl+G** eller **Gruppér** i knaplinjen over det markerede. **Ctrl+Shift+G** eller **Opløs** deler gruppen igen. Grupper af symboler, der bruges igen og igen, gemmes under *Grupper af symboler*."
+  },
+  {
+   "id": "m18",
+   "category": "manual",
+   "source": "llm/tegn.md#34",
+   "question": "Hvordan bestemmer jeg, hvad rørene viser med og uden flow?",
+   "must_have": [
+    "forbindelser",
+    "til/fra for hele tegningen",
+    "redigér|rediger",
+    "løbelys",
+    "undtagelse"
+   ],
+   "forbidden": [],
+   "facit": "Åbn menuen **Forbindelser** i Tegn, og tryk **Til/Fra for hele tegningen …**. Tryk **Redigér** ved *Hele tegningen*. **Til** (der er flow) kan være løbelys, en farve eller som tegnet. **Fra** (intet flow) kan være som tegnet eller en farve. Blink kan slås til i begge. Skal nogle rør vise noget andet, så vælg dem på tegningen, giv dem et navn under **Ny undtagelse**, og tryk **Opret af valgte** og derefter **Redigér**. **Avanceret …** giver flere farvegrænser i l/min, blink ved et bestemt flow og fast farve."
+  },
+  {
+   "id": "m19",
+   "category": "manual",
+   "source": "llm/tegn.md#36",
+   "question": "Hvordan bestemmer en 3-vejsventil, hvilken vej flowet går?",
+   "must_have": [
+    "position",
+    "trin 4",
+    "flow",
+    "åben|åbne",
+    "tag"
+   ],
+   "forbidden": [],
+   "facit": "Giv ventilen positioner (fx *AB → A* og *AB → B*), og lad tagget bestemme positionen i trin 3 (fx register 10 = AB → A, 20 = AB → B, eller to til/fra-signaler). I trin 4 under **Flow** sætter du hak ved den åbne vej i hver position. Flowberegningen sender så flowet den vej, og animationerne pr. position (fx portene AB og A grønne, B sort) sættes som altid i trin 4."
+  },
+  {
+   "id": "m20",
+   "category": "manual",
+   "source": "llm/tegn.md#38",
+   "question": "Hvor er Slet tegning, størrelsen, versionerne og kommentarfeltet i Tegn?",
+   "must_have": [
+    "tegningens navn",
+    "slet tegning",
+    "gem og udgiv",
+    "version"
+   ],
+   "forbidden": [],
+   "facit": "Topmenuen i Tegn har tre dele. Til venstre åbner **tegningens navn** en menu med skift af tegning, **+ Ny tegning …**, **⤢ Størrelse …**, **Bindinger →** og **Slet tegning …**; ved siden af står **versionen** (fx *v4 kladde*), hvor du åbner en anden version eller udgiver den åbne. I midten står **Vis**, **Fang**, **Forbindelser** og **Flow**. Til højre zoom, **Meddelelser**, **Gem kladde** og **Gem og udgiv** — pilen **▾** på *Gem og udgiv* åbner kommentaren til versionen."
+  },
+  {
+   "id": "m21",
+   "category": "manual",
+   "source": "llm/tegn.md#40",
+   "question": "Hvordan styres en 3-vejsventil, og hvordan farves dens porte efter flowet?",
+   "must_have": [
+    "farv portene",
+    "åben",
+    "lukket|sort",
+    "trin 4",
+    "grøn"
+   ],
+   "forbidden": [],
+   "facit": "Positionen styres af et tag i trin 2–3 (fx register 10 = AB → A, 20 = AB → B). I trin 4 under **Flow** sætter du hak ved den åbne vej i hver position, og **Farv portene efter de åbne veje** farver portene automatisk: porte på en åben vej får farven *åben* (grøn), de andre *lukket* (sort). Det kræver, at symboltypens punkter har en *Del* (port_a, port_b, port_ab) under Opsætning › Symboler › Ind/ud og veje. Selve flowet beregnes af serveren ud fra positionen."
+  },
+  {
+   "id": "m22",
+   "category": "manual",
+   "source": "llm/tegn.md#42",
+   "question": "Hvordan bruger jeg en flowsensor (målt flow) i flowberegningen?",
+   "must_have": [
+    "målt flow",
+    "trin 4",
+    "sensor",
+    "l/min|skaler"
+   ],
+   "forbidden": [],
+   "facit": "Åbn guiden for symbolet, hvor sensoren sidder, trin 4 › **Flow** › **Målt flow**, og vælg sensorens tag (l/min). Pumperne, der giver flow gennem symbolet, skaleres, så beregningen passer med målingen."
+  },
+  {
+   "id": "m23",
+   "category": "manual",
+   "source": "llm/tegn.md#44",
+   "question": "Hvordan får en farve-animation på et tal-tag en grænse?",
+   "must_have": [
+    "aktiv når",
+    "trin 4",
+    "50",
+    "grænse"
+   ],
+   "forbidden": [],
+   "facit": "I guidens trin 4 ved animationen *Farve* (eller *Streg*) med et tal-tag: skriv grænsen i **Aktiv når ≥** (fx 50). Fra 50 og op vises aktiv-farven, under 50 fra-farven. Tomt felt = aktiv, når værdien ikke er 0 (0 = fra-farven, over 0 = aktiv-farven). **+ Grænse** lægger flere farver ovenpå; aktiv-farven gælder op til den første grænse. Farverne står som en tabel med én række pr. værdiområde."
+  },
+  {
+   "id": "m24",
+   "category": "manual",
+   "source": "llm/tegn.md#46",
+   "question": "Er flow-rate og restriktion faste værdier eller tags?",
+   "must_have": [
+    "fast",
+    "styret af et tag|styret",
+    "tag",
+    "trin 4|flow"
+   ],
+   "forbidden": [],
+   "facit": "De er faste værdier for symbolet (dets fysik): skriv tallet 0,00–1,00 i trin 4 › Flow, eller træk i skyderen. Sæt hak i **styret af et tag**, hvis PLC'en skal styre værdien, og angiv hvad der er 1,00 (fx 100 for en ventils åbning i %)."
+  },
+  {
+   "id": "m25",
+   "category": "manual",
+   "source": "llm/tegn.md#48",
+   "question": "Hvordan definerer jeg en ventils tilstande?",
+   "must_have": [
+    "ind/ud og veje",
+    "tilstand",
+    "hak",
+    "+ tilstand|åbne"
+   ],
+   "forbidden": [],
+   "facit": "Under Opsætning › Symboler › **Ind/ud og veje** › **Tilstande**: giv hver tilstand et navn og sæt hak ved de veje, der er åbne — kolonnen *Betyder* skriver det i ord, også de blokerede porte (fx \"A igennem AB · B blokeret\"). Standarder: 3-vejsventilerne *A → AB* og *B → AB*, 4-vejsventilen (porte A, B, C, D) *A → B* og *C → D*. Du kan tilføje alle de tilstande, symbolet har brug for (+ Tilstand). I guidens trin 4 › Flow vælger du så tilstanden for hver position."
+  },
+  {
+   "id": "h1",
+   "category": "alarm_tag",
+   "page": "alarms",
+   "source": "03-alarmer.md / 05-plcer-og-tags.md",
+   "question": "Hvilken prioritet har en H-alarm og en HH-alarm på et tag, og kan jeg ændre den?",
+   "must_have": [
+    "prioritet",
+    "medium",
+    "høj",
+    "tagget|tag"
+   ],
+   "forbidden": [],
+   "facit": "03-alarmer.md › Prioritet og alarmklokken: HH/LL høj, H/L medium, til/fra høj; Prioritet på tagget (Høj, Medium, Lav) gælder alle niveauer."
+  },
+  {
+   "id": "h2",
+   "category": "alarm_tag",
+   "page": "alarms",
+   "source": "03-alarmer.md / 05-plcer-og-tags.md",
+   "question": "Hvad betyder dødbånd og forsinkelse på en alarmgrænse?",
+   "must_have": [
+    "dødbånd",
+    "ophører|ophør",
+    "forsinkelse",
+    "udløses|udløs|kommer"
+   ],
+   "forbidden": [],
+   "facit": "05-plcer-og-tags.md › Alarmer på et tag: Dødbånd = hvor langt værdien skal tilbage, før alarmen ophører; Forsinkelse = hvor længe betingelsen skal holde, før alarmen udløses."
+  },
+  {
+   "id": "h3",
+   "category": "alarm_tag",
+   "page": "alarms",
+   "source": "03-alarmer.md / 05-plcer-og-tags.md",
+   "question": "En alarm står som Ophørt — ikke kvitteret. Hvad skal jeg gøre?",
+   "must_have": [
+    "kvittér|kvitter",
+    "alarmer",
+    "operatør",
+    "historik"
+   ],
+   "forbidden": [
+    "slet alarmen",
+    "slet alarm"
+   ],
+   "facit": "03-alarmer.md › Kvittér en alarm: tryk Kvittér; kræver rollen operatør; ophører en alarm før kvittering bliver den stående som Ophørt — ikke kvitteret, til nogen kvitterer."
+  },
+  {
+   "id": "h4",
+   "category": "alarm_tag",
+   "page": "alarms",
+   "source": "03-alarmer.md / 05-plcer-og-tags.md",
+   "question": "Hvorfor blinker alarmklokken, og hvad betyder rød og orange?",
+   "must_have": [
+    "blinker",
+    "rød",
+    "orange",
+    "kvitter"
+   ],
+   "forbidden": [],
+   "facit": "03-alarmer.md › Prioritet og alarmklokken: rød = mindst én aktiv alarm med høj prioritet; orange = højeste er medium; blinker = mindst én alarm ikke kvitteret."
+  },
+  {
+   "id": "h5",
+   "category": "alarm_tag",
+   "page": "tags",
+   "source": "03-alarmer.md / 05-plcer-og-tags.md",
+   "question": "Hvad er forskellen på kilderne coil, di, hr og ir i et tag?",
+   "must_have": [
+    "udgang",
+    "indgang",
+    "holdingregister",
+    "inputregister",
+    "læsning|skrives|skrive"
+   ],
+   "forbidden": [],
+   "facit": "05-plcer-og-tags.md › Kilde: coil = udgang (til/fra, kan skrives); di = indgang (kun læsning); hr = holdingregister (tal, kan skrives); ir = inputregister (kun læsning)."
+  },
+  {
+   "id": "h6",
+   "category": "alarm_tag",
+   "page": "tags",
+   "source": "03-alarmer.md / 05-plcer-og-tags.md",
+   "question": "Hvordan gør jeg et tag skrivbart fra Overview, og kan jeg begrænse hvad der må skrives?",
+   "must_have": [
+    "skrivbar",
+    "betjening",
+    "min",
+    "max|maks",
+    "bekræftelse|bekræft"
+   ],
+   "forbidden": [],
+   "facit": "05-plcer-og-tags.md › Felter: Skrivbar fra Overview (under Betjening); Min og Max (setpunkter uden for området afvises); Kræv bekræftelse ved skrivning."
+  },
+  {
+   "id": "s1",
+   "category": "sprog",
+   "manual": false,
+   "question": "Omskriv sætningen til høflig dansk, og skriv kun den omskrevne sætning: \"Giv mig lige den alarmliste, hurtigt.\"",
+   "must_have": [
+    "alarmliste",
+    "venlig|gerne|tak|kunne|ville|må jeg"
+   ],
+   "forbidden": [
+    "giv mig lige"
+   ],
+   "facit": "Høflig omskrivning, fx: Kunne jeg få alarmlisten, tak?"
+  },
+  {
+   "id": "s2",
+   "category": "sprog",
+   "manual": false,
+   "question": "Ret stavefejlene i denne sætning og skriv kun den rettede sætning: \"Pumpen er gået i stå og alarmmen er ikke blevet kvitteeret, så vi mååtte genstarte serveren.\"",
+   "must_have": [
+    "alarmen",
+    "kvitteret",
+    "måtte",
+    "genstarte"
+   ],
+   "forbidden": [
+    "alarmmen",
+    "kvitteeret",
+    "mååtte"
+   ],
+   "facit": "Pumpen er gået i stå, og alarmen er ikke blevet kvitteret, så vi måtte genstarte serveren."
+  },
+  {
+   "id": "s3",
+   "category": "sprog",
+   "manual": false,
+   "question": "Forklar alarmteksten \"System: Disk næsten fuld (92 %)\" i én sætning til en operatør uden IT-viden.",
+   "must_have": [
+    "disk",
+    "fuld|plads",
+    "92"
+   ],
+   "forbidden": [],
+   "facit": "Serverens disk er næsten fuld (92 % brugt); der bør ryddes op, før den løber tør for plads."
+  },
+  {
+   "id": "s4",
+   "category": "sprog",
+   "manual": false,
+   "question": "Oversæt denne engelske fejltekst til dansk, og skriv kun oversættelsen: \"Connection to PLC lost: timeout after 5 seconds. Retrying.\"",
+   "must_have": [
+    "forbindelse",
+    "plc",
+    "timeout|tidsgrænse|tidsafbrydelse|tidsudløb|svarede ikke",
+    "5 sekunder|5 s",
+    "prøver igen|forsøger igen|forsøger|genforsøg|gentager"
+   ],
+   "forbidden": [],
+   "facit": "Forbindelsen til PLC'en er tabt: timeout efter 5 sekunder. Prøver igen."
+  },
+  {
+   "id": "j1",
+   "category": "json",
+   "json_kind": "tags",
+   "question": "Beskriv og vælg enhed for 4 PLC-variabler (tag-guiden).",
+   "rows": [
+    "- T_FREMLOEB (float)",
+    "- T_RETUR (float)",
+    "- P1_KOERER (bool)",
+    "- TRYK_KEDEL (float)"
+   ],
+   "names": [
+    "T_FREMLOEB",
+    "T_RETUR",
+    "P1_KOERER",
+    "TRYK_KEDEL"
+   ],
+   "expect": {
+    "T_FREMLOEB": {
+     "enhed": [
+      "°C"
+     ],
+     "beskrivelse": [
+      "fremløb"
+     ]
+    },
+    "T_RETUR": {
+     "enhed": [
+      "°C"
+     ],
+     "beskrivelse": [
+      "retur"
+     ]
+    },
+    "P1_KOERER": {
+     "enhed": [
+      ""
+     ],
+     "beskrivelse": [
+      "pumpe|p1"
+     ]
+    },
+    "TRYK_KEDEL": {
+     "enhed": [
+      "bar",
+      "mbar",
+      "Pa"
+     ],
+     "beskrivelse": [
+      "tryk"
+     ]
+    }
+   },
+   "must_have": [],
+   "forbidden": [],
+   "facit": "Fremløbstemperatur °C, returtemperatur °C, pumpe P1 kører (ingen enhed), kedeltryk bar."
+  },
+  {
+   "id": "j2",
+   "category": "json",
+   "json_kind": "tags",
+   "question": "Beskriv og vælg enhed for 5 PLC-variabler, hvor enheden er uklar for nogle (tag-guiden).",
+   "rows": [
+    "- FLOW_PRIMAER (float)",
+    "- NIVEAU_TANK (float)",
+    "- EFFEKT_PUMPE2 (float)",
+    "- ALARM_NULSTIL (float)",
+    "- T_UDE (float)"
+   ],
+   "names": [
+    "FLOW_PRIMAER",
+    "NIVEAU_TANK",
+    "EFFEKT_PUMPE2",
+    "ALARM_NULSTIL",
+    "T_UDE"
+   ],
+   "expect": {
+    "FLOW_PRIMAER": {
+     "enhed": [
+      "l/min",
+      "l/h",
+      "m³/h"
+     ],
+     "beskrivelse": [
+      "flow|gennemstrømning"
+     ]
+    },
+    "NIVEAU_TANK": {
+     "enhed": [
+      "%",
+      "m",
+      "mm",
+      "l",
+      ""
+     ],
+     "beskrivelse": [
+      "niveau"
+     ]
+    },
+    "EFFEKT_PUMPE2": {
+     "enhed": [
+      "kW",
+      "W"
+     ],
+     "beskrivelse": [
+      "effekt|pumpe"
+     ]
+    },
+    "ALARM_NULSTIL": {
+     "enhed": [
+      ""
+     ],
+     "beskrivelse": [
+      "alarm|nulstil"
+     ]
+    },
+    "T_UDE": {
+     "enhed": [
+      "°C"
+     ],
+     "beskrivelse": [
+      "ude"
+     ]
+    }
+   },
+   "must_have": [],
+   "forbidden": [],
+   "facit": "Flow l/min, tankniveau (%), pumpeeffekt kW, alarm-nulstil uden enhed, udetemperatur °C."
+  },
+  {
+   "id": "j3",
+   "category": "json",
+   "json_kind": "signal",
+   "question": "Vælg kommando- og tilbagemeldings-tag til to signaler på symbolet Pumpe P1 (signal-guiden).",
+   "symbol": "Pumpe P1",
+   "op": "pulse",
+   "mode": "trykknap",
+   "signals": [
+    "S1",
+    "S2"
+   ],
+   "tags": [
+    {
+     "name": "P1_START",
+     "kind": "til/fra",
+     "writable": true,
+     "description": "Pumpe P1 start"
+    },
+    {
+     "name": "P2_START",
+     "kind": "til/fra",
+     "writable": true,
+     "description": "Pumpe P2 start"
+    },
+    {
+     "name": "P1_KVIT",
+     "kind": "til/fra",
+     "writable": true,
+     "description": "Pumpe P1 kvittér fejl"
+    },
+    {
+     "name": "P1_KOERER",
+     "kind": "til/fra",
+     "writable": false,
+     "description": "Pumpe P1 kører"
+    },
+    {
+     "name": "P1_FEJL",
+     "kind": "til/fra",
+     "writable": false,
+     "description": "Pumpe P1 fejl"
+    },
+    {
+     "name": "T_FREMLOEB",
+     "kind": "tal, °C",
+     "writable": false,
+     "description": "Fremløbstemperatur"
+    }
+   ],
+   "text": "S1 starter pumpen og får tilbagemelding, når den kører. S2 kvitterer en fejl og får tilbagemelding fra fejlsignalet.",
+   "expect": {
+    "S1": {
+     "kommando": "P1_START",
+     "tilbagemelding": "P1_KOERER"
+    },
+    "S2": {
+     "kommando": "P1_KVIT",
+     "tilbagemelding": "P1_FEJL"
+    }
+   },
+   "must_have": [],
+   "forbidden": [],
+   "facit": "S1: P1_START / P1_KOERER; S2: P1_KVIT / P1_FEJL."
+  }
+ ]
+}

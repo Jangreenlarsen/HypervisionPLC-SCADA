@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.23.0 build 0462] — 2026-11-23 — Fjerde LLM-variant: Qwen3.5-9B (Test (9B))
+
+`deploy/llm-models.json`: ny post `qwen3.5-9b-q4_k_m` (Qwen3.5-9B Q4_K_M, Apache-2.0, 5.680.522.464 bytes, SHA256 `03b74727…b7e8`, kontekst 8192, profilerne `vm-16` og `vm-32`, variant *Test (9B)*, `published`: x86_64 fastlåst til pakkens SHA256 `b53a9a4f…ace6`). LLM-pakken `scada-llm-x86_64-qwen3.5-9b-q4_k_m-b12179.tar` (5.757.450.240 bytes) er udgivet som GitHub-prerelease `llm-qwen3.5-9b-q4_k_m-b12179` (tre dele på højst 1900 MiB og `.sha256`) med `deploy/publish-llm-release.sh`. Manual: `13-system.md` og hjælperens tillæg. FEATURES.md.
+
+## [6.22.1 build 0461] — 2026-11-23 — LLM-målesæt og målinger (femte måling); 16 GB-VM og modellerne rettet i dok og manual
+
+Ingen ændring i produktet. `deploy/llm_bench.py` og `deploy/llm_bench_questions.json` (38 faste danske opgaver, nøgleords-scoring, Linux-tid og -hukommelse; gentageligt mod en kørende llama-server). `docs/LLM_ANALYSE.md`: femte måling med fem modeller, hukommelse mod loftet og observation fra demo-VM'en (Ministral: 341 s pr. svar på 4 vCPU). `docs/PLATFORM_OG_KRAV.md` og manualen (`13-system.md`, hjælperens tillæg): en 16 GB-VM anbefaler *Hurtig* og *Standard*; *Stor* overstiger loftet på 9000 MB; diskkravet ved modelinstallation rettet (ca. 11,5 GB fri efter upload for *Stor*).
+
 ## [6.22.1 build 0460] — 2026-11-23 — Manualbillede: siden Tegninger med kolonnen Overordnet tegning
 
 `frontend/public/manual/tegninger.png` er taget igen på demoen (v6.22.1 b0459): kolonnen *Overordnet tegning*, PLC-status som prik, ur og brugernavn i topbaren, og brødkrummen er hel. Funktionstest af hierarkiet på demoen med midlertidige tegninger (sæt/ryd forælder, niveau 5, cirkel, selv, ukendt, uændret, sletning nulstiller børn, audit): alt som forventet, og testtegningerne er slettet igen.

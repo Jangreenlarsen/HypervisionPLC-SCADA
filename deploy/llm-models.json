@@ -99,6 +99,26 @@
         "vm-32"
       ],
       "published": []
+    },
+    "qwen3.5-9b-q4_k_m": {
+      "name": "Qwen3.5-9B",
+      "quant": "Q4_K_M",
+      "license": "Apache-2.0",
+      "license_url": "https://huggingface.co/Qwen/Qwen3.5-9B/resolve/main/LICENSE",
+      "file": "Qwen3.5-9B-Q4_K_M.gguf",
+      "url": "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf",
+      "sha256": "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8",
+      "size": 5680522464,
+      "ctx": 8192,
+      "profiles": [
+        "vm-16",
+        "vm-32"
+      ],
+      "variant": "Test (9B)",
+      "about": "Til afprøvning: bedre end Stor i vores danske målesæt (0,90 mod 0,85), men ca. 5 minutter pr. svar på 4 vCPU og lidt over hukommelsesloftet på vm-16 (spids 9,4 GB mod 9000 MB). Kræver mindst 16 GB RAM og ca. 12 GB fri disk under installationen.",
+      "published": {
+        "x86_64": "b53a9a4f1277015901239141f8b2d2b5687a1893780afa9bf7f67c86d6a8ace6"
+      }
     }
   }
 }

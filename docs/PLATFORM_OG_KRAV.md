@@ -6,7 +6,7 @@ Opdateret 2026-11-23. SCADA-serveren er én systemd-service (Python/FastAPI) på
 
 | Platform | Arkitektur | Hjælper (LLM) | Bemærkning |
 |---|---|---|---|
-| **Linux-VM, 16 GB RAM, 30 GB disk** (anbefalet) | x86_64 eller arm64 | ja, alle modeller | Demoen (scada.laces.dk) er en VM med 15,7 GB RAM; målt 2026-11-23. Profilen *vm-16* |
+| **Linux-VM, 16 GB RAM, 30 GB disk** (anbefalet) | x86_64 eller arm64 | ja: *Hurtig* og *Standard* anbefales (*Stor* er langsom på 4 vCPU og over hukommelsesloftet, se nedenfor) | Demoen (scada.laces.dk) er en VM med 15,7 GB RAM; målt 2026-11-23. Profilen *vm-16* |
 | VM/PC med 8 GB RAM | x86_64 / arm64 | ja, *Hurtig* og *Standard* | Profilen *vm-8* |
 | VM/PC med 32 GB RAM eller mere | x86_64 / arm64 | ja, alle modeller | Profilen *vm-32* |
 | Raspberry Pi 5 (8-16 GB) | arm64 | ja, *Hurtig* og *Standard* | Kræver Raspberry Pi OS 13 "Trixie" eller nyere til hjælperen. Profilen *pi5* |
@@ -28,6 +28,8 @@ Pi 5 er altså **ikke et krav**. Profilen foreslås automatisk ud fra maskinen (
 
 Målt på demo-VM'en: 15,7 GB samlet og 10,3 GB tilgængelig under drift (2026-11-23).
 
+**Modellerne mod loftet på 9000 MB** (Linux, kontekst 8192, målt 2026-11-23, se `docs/LLM_ANALYSE.md`, femte måling): *Hurtig* 2,7 GB og *Standard* 5,4 GB i spids holder sig under loftet; *Stor* (Ministral-3-8B) når 10,2 GB og Qwen3.5-9B 9,4 GB og overstiger det, og Gemma 4 12B når 12,6 GB. Loftet er et hårdt `MemoryMax` på tjenesten uden swap, så *Stor* hører hjemme på *vm-32* eller kræver et højere loft på *vm-16*. På demo-VM'en (4 vCPU) tog et svar fra Ministral 341 s.
+
 ### Disk (30 GB)
 
 Målt på demoen: 20,2 GB disk, 7,8 GB brugt (styresystem, SCADA, data og installeret hjælper). Pakkerne er målt på de færdige filer.
@@ -42,7 +44,7 @@ Målt på demoen: 20,2 GB disk, 7,8 GB brugt (styresystem, SCADA, data og instal
 | Sikkerhedskopier | 7 automatiske + 2 trend-kopier, ældre slettes | `backend/app/services/backup.py` |
 | Trends | 30 dages opbevaring (demo: 34 MB) | `backend/app/services/trends.py` |
 
-**Installation af en model:** `deploy/apply-llm.sh` kræver plads til pakken, en kopi under udpakning, den gamle model, der først fjernes til sidst, og 1 GB luft. For *Stor* er det op til ca. 17 GB ledigt, mens installationen kører (5,3 + 5,3 + 5,2 + 1), og for *Standard* ca. 9 GB (2,8 + 2,8 + 2,7 + 1). Med 30 GB disk og ca. 5-8 GB i brug er der plads til at skifte model, men ikke til at have *alle* modeller liggende ved siden af hinanden, hvis den ledige plads skal holde sig over advarselsgrænsen.
+**Installation af en model:** `deploy/apply-llm.sh` kræver, ud over den uploadede pakke, plads til en kopi under udpakning, den gamle model, der først fjernes til sidst, og 1 GB luft. Efter uploadet skal der altså være ca. 11,5 GB fri for *Stor* (5,3 + 5,2 + 1) og ca. 6,5 GB for *Standard* (2,8 + 2,7 + 1); med selve pakken på disken er det samlet op til ca. 17 GB for *Stor* og ca. 9 GB for *Standard*. Med 30 GB disk og ca. 5-8 GB i brug er der plads til at skifte model, men ikke til at have *alle* modeller liggende ved siden af hinanden, hvis den ledige plads skal holde sig over advarselsgrænsen.
 
 **Advarsler:** *Status* melder lav plads ved under 10 % eller 1 GB ledigt og fejl ved under 5 % eller 200 MB. På 30 GB betyder det, at der bør være **mindst 3 GB ledigt** i drift.
 
