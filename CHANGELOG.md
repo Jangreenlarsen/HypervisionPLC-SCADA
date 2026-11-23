@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.20.0 build 0453] — 2026-11-23 — LLM-tillæg synkroniseret efter en tastefejl i manualen
+
+En rettelse i `05-plcer-og-tags.md` (alarme → alarmer) ændrede kontrolsummen, så pakkescriptet afviste b0452; `frontend/src/manual/llm/drift-og-system.md` er synkroniseret. Ingen ændring i indholdet.
+
 ## [6.20.0 build 0452] — 2026-11-23 — Alarm-rationalisering: konsekvens, handling, svartid (benchmark B6)
 
 Plan: PLAN.md › Benchmark-huller, trin 4. Skema 21 (tre additive kolonner).
