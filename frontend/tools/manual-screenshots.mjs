@@ -124,7 +124,7 @@ await shot('tag-redigeer', async () => {
   await page.locator('tbody tr', { hasText: tags.find((t) => t.writable)?.name ?? '' }).first().getByRole('button', { name: 'Redigér' }).click();
   await page.waitForSelector('.edit-panel');
   // panelet ruller normalt internt med fast knaplinje — fold det helt ud, så alle felter (alarmer, energi) kan ses
-  await page.addStyleTag({ content: '.edit-panel { max-height: none !important; overflow: visible !important; } .edit-panel .actions, .edit-panel [class*="sticky"] { position: static !important; }' });
+  await page.addStyleTag({ content: '.edit-panel { position: static !important; max-height: none !important; overflow: visible !important; } .edit-panel .edit-actions { position: static !important; }' });
   await settle(500);
 }, { locator: '.edit-panel' });
 // ------------------------------------------------------------------ tegninger og Tegn
@@ -212,7 +212,7 @@ const editTag = async (name) => {
   await go('tags', 'text=Nyt tag');
   await page.locator('tbody tr', { hasText: name }).first().getByRole('button', { name: 'Redigér' }).click();
   await page.waitForSelector('.edit-panel');
-  await page.addStyleTag({ content: '.edit-panel { max-height: none !important; overflow: visible !important; } .edit-panel .actions, .edit-panel [class*="sticky"] { position: static !important; }' });
+  await page.addStyleTag({ content: '.edit-panel { position: static !important; max-height: none !important; overflow: visible !important; } .edit-panel .edit-actions { position: static !important; }' });
   await settle(500);
 };
 // 01 — login (egen kontekst uden cookie)
