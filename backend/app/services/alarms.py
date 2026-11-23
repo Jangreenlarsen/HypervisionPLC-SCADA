@@ -13,19 +13,30 @@ Eskalering (H → HH) gør alarmen ukvitteret igen. Tags uden gyldig værdi (PLC
 deres tilstand — en kommunikationsfejl må ikke "rydde" en alarm.
 
 Aktive alarmer gemmes i databasen (overlever genstart); alle hændelser i historikken.
+
+Udsættelse (shelving, ISA-18.2): en operatør kan udsætte en aktiv alarm i 5 min – 24 timer med begrundelse. Alarmen
+fjernes fra de aktive, og betingelsen springes over, til tiden er gået eller den genindsættes (tabellen alarm_shelf, så
+udsættelsen overlever genstart). Alt skrives i alarmhistorikken og auditeres. Kommunikations- og systemalarmer kan ikke
+udsættes. Stiger alvoren på en udsat alarm (H → HH, L → LL), ophæves udsættelsen automatisk og alarmen rejses som ny og
+ukvitteret; uændret eller lavere alvor forbliver udsat. evaluate/ack/shelve/unshelve kører under samme lås, så en udsættelse aldrig overlapper et tick.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 import time
+import unicodedata
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from ..storage.db import Database
+from .errors import ServiceError
 from .live_cache import LiveValue
 from .manager import PlcManager
+from .schedule_engine import TZ
 
 log = logging.getLogger(__name__)
 
@@ -34,8 +45,12 @@ PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 SEVERITY = {"H": 1, "HH": 2, "L": 1, "LL": 2}
 KEEP_EVENTS = 50_000
 HISTORY_MAX = 2000                                    # grænsen for historikvisningen; CSV-eksporten må op til KEEP_EVENTS
-EVENT_TYPES = ("raise", "clear", "ack", "change")     # hændelsestyperne i alarm_events (se _event)
+EVENT_TYPES = ("raise", "clear", "ack", "change", "shelve", "unshelve")   # hændelsestyperne i alarm_events (se _event)
 PRIORITIES = ("high", "medium", "low")
+PRIORITY_TEXT = {"high": "Høj", "medium": "Medium", "low": "Lav"}
+SHELVE_MIN, SHELVE_MAX = 5, 1440                      # udsættelsens varighed i minutter (5 min – 24 timer)
+REASON_MIN, REASON_MAX = 3, 200                       # begrundelsens længde i tegn
+UNSHELVABLE_KINDS = ("comm", "sys")                   # kommunikations- og systemalarmer kan aldrig udsættes (Condition.kind)
 
 
 @dataclass
@@ -126,6 +141,8 @@ class AlarmService:
         # Lyttere på alarmhændelser (row, hændelse, tid) — fx notifikation. En fejl i en lytter må aldrig vælte alarmmotoren.
         self.listeners: list[Any] = []
         self._published: set[str] = set()   # alarm:<tag>:active|unack i live-cachen (v0.74.0)
+        # Serialiserer tilstandsskift. Alt kører i dag på event-loopet, men låsen gør rækkefølgen uafhængig af det.
+        self._lock = threading.RLock()
 
     # ------------------------------------------------------------ abonnenter
 
@@ -182,7 +199,12 @@ class AlarmService:
                  f"PLC {name}: {first['what']} svarer ikke ({first['tags']} tag) — {first['message']}{more}")]
 
     def evaluate(self, now: float | None = None) -> None:
-        now = time.time() if now is None else now
+        with self._lock:
+            self._evaluate(time.time() if now is None else now)
+
+    def _evaluate(self, now: float) -> None:
+        changed = self._expire_shelf(now)
+        shelf = {r["key"]: r for r in self.db.list_alarm_shelf()}   # læses fra databasen: en rettelse dér gælder straks
         desired: dict[str, Condition] = {}
         frozen: set[str] = set()  # tags uden gyldig værdi — rør ikke deres alarmer
 
@@ -220,7 +242,23 @@ class AlarmService:
                 desired[c.key] = c
             frozen |= frozen_extra
 
-        changed = False
+        for key, s in shelf.items():
+            cond = desired.get(key)
+            why = self._shelf_breakthrough(s, cond) if cond is not None else None
+            if cond is not None and why is not None:
+                # Eskalering (niveau H → HH, L → LL, eller en højere prioritet på tagget) bryder igennem: udsættelsen
+                # ophæves, og betingelsen rejses som en ny, ukvitteret alarm (med den almindelige forsinkelse).
+                # Uændret eller lavere alvor/prioritet forbliver udsat.
+                self.db.delete_alarm_shelf(key)
+                self._event({**s, "level": cond.level, "priority": cond.prio, "value": cond.value,
+                             "message": f"Udsættelsen ophævet: {why}"}, "unshelve", now)
+                log.warning("ALARM udsættelse ophævet ved eskalering plc=%s tag=%s key=%s %s/%s -> %s/%s",
+                            s["plc"], s["tag"], key, s["level"], s["priority"], cond.level, cond.prio)
+                changed = True
+                continue
+            # udsatte alarme rejses ikke og begynder ikke at tælle forsinkelse
+            desired.pop(key, None)
+            self._pending.pop(key, None)
         keys = set(self.state) | set(desired) | set(self._pending)
         for key in keys:
             existing = self.state.get(key)
@@ -251,6 +289,15 @@ class AlarmService:
             self._changed()
         self.publish(now)
 
+    @staticmethod
+    def _shelf_breakthrough(s: dict[str, Any], cond: Condition) -> str | None:
+        """Årsagen (tekst til historikken) hvis betingelsen er værre end da alarmen blev udsat, ellers None."""
+        if SEVERITY.get(cond.level, 0) > SEVERITY.get(s["level"], 0):
+            return f"alarmen er steget til {cond.level}"
+        if PRIORITY_ORDER.get(cond.prio, 9) < PRIORITY_ORDER.get(s["priority"], 9):
+            return f"prioriteten er steget til {PRIORITY_TEXT.get(cond.prio, cond.prio)}"
+        return None
+
     def publish(self, now: float | None = None) -> None:
         """Alarmtilstanden pr. tag som live-værdier, så animationer kan styres af den (symbolguidens kilde "alarm på et
         tag", v0.74.0): `alarm:<tag>:active` (en alarm er aktiv) og `alarm:<tag>:unack` (en alarm er ukvitteret — også
@@ -273,14 +320,17 @@ class AlarmService:
 
     # ------------------------------------------------------ tilstandsskift
 
-    def _event(self, row: dict[str, Any], event: str, now: float, username: str = "") -> None:
+    def _event(self, row: dict[str, Any], event: str, now: float, username: str = "",
+               listener_row: dict[str, Any] | None = None) -> None:
+        """Skriv hændelsen i historikken og giv den til lytterne. `listener_row`: rækken lytterne får, hvis den skal være
+        en anden end historikkens (en udsættelse: lytterne må ikke se operatørens begrundelse)."""
         self.db.insert_alarm_event({"ts": now, "key": row["key"], "tag": row["tag"], "plc": row["plc"],
                                     "level": row["level"], "priority": row["priority"], "event": event,
                                     "value": row.get("value"), "username": username, "message": row["message"]},
                                    KEEP_EVENTS)
         for listener in self.listeners:
             try:
-                listener(row, event, now)
+                listener(listener_row or row, event, now)
             except Exception:
                 log.exception("Fejl i alarm-lytter")
 
@@ -307,8 +357,23 @@ class AlarmService:
     def forget(self, tags: set[str], plc: str | None = None, moved_to: str | None = None) -> int:
         """En PLC er fjernet (v3.34.0): tagsenes alarmer — og PLC'ens egne kommunikationsalarmer — fjernes fra tilstanden
         i hukommelsen og databasen (ellers skrev næste evaluate dem tilbage som "rtn_unack"). `moved_to`: tagsene er
-        flyttet til en anden PLC — deres alarmer bevares og peger på den nye PLC. Hændelseshistorikken røres ikke.
-        → antal fjernede."""
+        flyttet til en anden PLC — deres alarmer bevares og peger på den nye PLC. Hændelseshistorikken røres ikke, bortset fra at en fjernet udsættelse får en `unshelve`-hændelse
+        (en flyttet udsættelse følger tagget uden hændelse). → antal fjernede alarmer."""
+        with self._lock:
+            return self._forget(tags, plc, moved_to)
+
+    def _forget(self, tags: set[str], plc: str | None, moved_to: str | None) -> int:
+        removed_shelf = False
+        now = time.time()
+        for s in self.db.list_alarm_shelf():   # udsættelser følger tagget (flyttet, uden hændelse) eller fjernes med det (med hændelse)
+            if s["tag"] in tags and moved_to:
+                self.db.upsert_alarm_shelf({**s, "plc": moved_to})
+            elif s["tag"] in tags or (plc and not s["tag"] and s["plc"] == plc):
+                self.db.delete_alarm_shelf(s["key"])
+                what = "PLC slettet" if plc else "tag slettet"
+                self._event({**s, "value": None, "message": f"Udsættelsen fjernet: {what}"}, "unshelve", now)
+                log.warning("ALARM udsættelse fjernet (%s) plc=%s tag=%s key=%s", what, s["plc"], s["tag"], s["key"])
+                removed_shelf = True
         gone = 0
         for key, row in list(self.state.items()):
             tag = row.get("tag") or ""
@@ -320,6 +385,8 @@ class AlarmService:
                 self._pending.pop(key, None)
                 self.db.delete_alarm_state(key)
                 gone += 1
+        if removed_shelf:
+            self._changed()
         self.publish()
         return gone
 
@@ -334,6 +401,10 @@ class AlarmService:
         return True
 
     def ack(self, keys: list[str], username: str, visible: set[str] | None) -> int:
+        with self._lock:
+            return self._ack(keys, username, visible)
+
+    def _ack(self, keys: list[str], username: str, visible: set[str] | None) -> int:
         now = time.time()
         count = 0
         for key in keys:
@@ -355,6 +426,103 @@ class AlarmService:
             self.publish(now)
         return count
 
+    # --------------------------------------------------------- udsættelse
+
+    @staticmethod
+    def _local(ts: float) -> str:
+        return datetime.fromtimestamp(ts, TZ).strftime("%d.%m.%Y %H:%M")
+
+    def _expire_shelf(self, now: float) -> bool:
+        """Udløbne udsættelser slettes (hændelsen `unshelve`); alarmen vurderes derefter som en ny betingelse."""
+        gone = False
+        for s in self.db.list_alarm_shelf():
+            if s["until_ts"] > now:
+                continue
+            self.db.delete_alarm_shelf(s["key"])
+            self._event({**s, "value": None, "message": "Udsættelsen udløb"}, "unshelve", now)
+            log.warning("ALARM udsættelse udløbet plc=%s tag=%s key=%s", s["plc"], s["tag"], s["key"])
+            gone = True
+        return gone
+
+    def _shelf_visible(self, rows: list[dict[str, Any]], visible_tags: set[str] | None) -> list[dict[str, Any]]:
+        if visible_tags is None:
+            return rows
+        plcs = {t["plc"] for t in self.db.list_tags() if t["name"] in visible_tags}
+        return [r for r in rows if (r["tag"] and r["tag"] in visible_tags) or (not r["tag"] and r["plc"] in plcs)]
+
+    def visible_shelf_keys(self, visible_tags: set[str] | None) -> set[str] | None:
+        """Nøglerne på de udsatte alarme brugeren må se (None = alle) — afgrænsningen for `unshelve`."""
+        if visible_tags is None:
+            return None
+        return {r["key"] for r in self._shelf_visible(self.db.list_alarm_shelf(), visible_tags)}
+
+    @staticmethod
+    def _clean_reason(reason: Any) -> str:
+        """Begrundelsen normaliseret: kontroltegn (Unicode Cc: linjeskift, tabulator …) og formattegn (Cf: usynlige, retningsstyrende)
+        afvises, øvrigt whitespace (også nbsp) bliver ét mellemrum, og kanterne trimmes. Længden tælles i kodepunkter."""
+        if not isinstance(reason, str):
+            raise ServiceError(400, f"Begrundelsen skal være en tekst på {REASON_MIN}-{REASON_MAX} tegn.")
+        if any(unicodedata.category(ch) in ("Cc", "Cf") for ch in reason):
+            raise ServiceError(400, "Begrundelsen må ikke indeholde kontroltegn, linjeskift eller usynlige tegn.")
+        text = " ".join(reason.split())
+        if not REASON_MIN <= len(text) <= REASON_MAX:
+            raise ServiceError(400, f"Begrundelsen skal være på {REASON_MIN}-{REASON_MAX} tegn.")
+        return text
+
+    def shelve(self, key: str, minutes: Any, reason: Any, username: str, allowed_keys: set[str] | None) -> dict[str, Any]:
+        """Udsæt en aktiv alarm. → udsættelsesrækken. Fejl: 400 (ugyldig varighed/begrundelse, kommunikations-/systemalarm,
+        ophørt alarm), 404 (ukendt eller fremmed alarm), 409 (allerede udsat). `allowed_keys` skal indeholde både brugerens
+        synlige aktive alarmer og synlige udsatte (så en dobbeltudsættelse giver 409 og ikke 404)."""
+        if isinstance(minutes, bool) or not isinstance(minutes, int) or not SHELVE_MIN <= minutes <= SHELVE_MAX:
+            raise ServiceError(400, f"Varigheden skal være et helt antal minutter mellem {SHELVE_MIN} og {SHELVE_MAX}.")
+        text = self._clean_reason(reason)
+        with self._lock:
+            if allowed_keys is not None and key not in allowed_keys:
+                raise ServiceError(404, "Alarmen findes ikke")   # samme svar for ukendt og fremmed: intet lækker
+            existing = next((s for s in self.db.list_alarm_shelf() if s["key"] == key), None)
+            if existing is not None:   # (en udsat alarm er ikke længere i alarm_state, så det tjekkes først)
+                raise ServiceError(409, f"Alarmen er allerede udsat til {self._local(existing['until_ts'])}")
+            row = self.state.get(key)
+            if row is None:
+                raise ServiceError(404, "Alarmen findes ikke")
+            if row["kind"] in UNSHELVABLE_KINDS:
+                raise ServiceError(400, "Kommunikations- og systemalarmer kan ikke udsættes")
+            if row["state"] not in ("active_unack", "active_ack"):
+                raise ServiceError(400, "Alarmen er ophørt — kvittér den i stedet for at udsætte den")
+            now = time.time()
+            until = now + minutes * 60
+            shelf = {"key": key, "tag": row["tag"], "plc": row["plc"], "level": row["level"], "priority": row["priority"],
+                     "message": row["message"], "shelved_by": username, "shelved_at": now, "until_ts": until, "reason": text}
+            self.db.upsert_alarm_shelf(shelf)
+            self.state.pop(key, None)
+            self._pending.pop(key, None)
+            self.db.delete_alarm_state(key)
+            self._event({**row, "message": f"Udsat til {self._local(until)} af {username}: {text} ({row['message']})"},
+                        "shelve", now, username, listener_row=row)
+            log.warning("ALARM udsat bruger=%s plc=%s tag=%s key=%s varighed=%d min", username, row["plc"], row["tag"], key, minutes)
+            self._changed()
+            self.publish(now)
+            return shelf
+
+    def unshelve(self, key: str, username: str, allowed_keys: set[str] | None) -> dict[str, Any]:
+        """Genindsæt en udsat alarm. → den slettede række. 404 hvis den ikke er udsat eller brugeren ikke må se den."""
+        with self._lock:
+            shelf = next((s for s in self.db.list_alarm_shelf() if s["key"] == key), None)
+            if shelf is None or (allowed_keys is not None and key not in allowed_keys):
+                raise ServiceError(404, "Alarmen findes ikke")
+            now = time.time()
+            self.db.delete_alarm_shelf(key)
+            self._event({**shelf, "value": None, "message": f"Genindsat af {username}"}, "unshelve", now, username)
+            log.warning("ALARM genindsat bruger=%s plc=%s tag=%s key=%s", username, shelf["plc"], shelf["tag"], key)
+            self._changed()
+            return shelf
+
+    def shelved(self, visible_tags: set[str] | None) -> list[dict[str, Any]]:
+        """Udsatte alarmer (de brugeren må se), sorteret efter udløb. `remaining_s`: resttid på serverens ur."""
+        now = time.time()
+        rows = self._shelf_visible(self.db.list_alarm_shelf(), visible_tags)
+        return [{**r, "remaining_s": max(0.0, r["until_ts"] - now)} for r in sorted(rows, key=lambda r: r["until_ts"])]
+
     # ------------------------------------------------------------- visning
 
     def visible_keys(self, visible_tags: set[str] | None) -> set[str] | None:
@@ -374,7 +542,8 @@ class AlarmService:
         rows = self.active(visible_tags)
         return {"active": sum(a["state"] != "rtn_unack" for a in rows),
                 "unacked": sum(a["state"] in ("active_unack", "rtn_unack") for a in rows),
-                "high": sum(a["priority"] == "high" and a["state"] != "rtn_unack" for a in rows)}
+                "high": sum(a["priority"] == "high" and a["state"] != "rtn_unack" for a in rows),
+                "shelved": len(self._shelf_visible(self.db.list_alarm_shelf(), visible_tags))}
 
     def history(self, limit: int, visible_tags: set[str] | None, flt: dict[str, Any] | None = None,
                 cap: int = HISTORY_MAX) -> list[dict[str, Any]]:

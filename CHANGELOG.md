@@ -4,6 +4,16 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.19.0 build 0449] — 2026-11-23 — Udsæt alarm / shelving (benchmark B5)
+
+Plan: PLAN.md › Benchmark-huller, trin 3. Skema 20 (ny tabel `alarm_shelf`). Reviewer (opus) gennemgik; fundene er rettet.
+
+- `backend/app/storage/db.py` (`alarm_shelf`, `SCHEMA_VERSION = 20`), `backend/app/services/alarms.py` (`shelve`, `unshelve`, `shelved`, udløb og eskalering ved niveau eller prioritet bryder igennem, `forget` med hændelse, kodepunkt-/kontroltegn-kontrol af begrundelsen), `backend/app/api/alarms.py` (`POST /shelve`, `POST /unshelve`, `GET /shelved`, audit `alarm.shelve`/`alarm.unshelve`), `backend/app/api/routes.py` (`delete_tag` rydder), `backend/app/services/integration.py` (udsat = `clear` til integrations-SSE), `backend/app/services/metrics.py` (gauge `scada_alarms_shelved`).
+- `frontend/src/pages/Alarms.svelte` (knappen Udsæt, fanen Udsatte, kortvisning under 1120 px), `frontend/src/lib/ShelveDialog.svelte`, `shelf.ts`, `api.ts`.
+- Tests: `backend/tests/test_alarm_shelf.py` (65), rettede `test_alarms.py` og `test_health.py`; `frontend/src/lib/shelf.test.ts`.
+- Manual: `03-alarmer.md` (*Udsæt en alarm*), `llm/drift-og-system.md`.
+- Test: backend 1415 bestået, 1 sprunget over; frontend 1080; set i forhåndsvisning ved 500, 1000, 1200 og 1600 px.
+
 ## [6.18.0 build 0448] — 2026-11-23 — Manualbilleder: Alarmer (Aktive og Historik)
 
 `frontend/public/manual/alarmer.png` og `alarmer-historik.png` er taget igen (demoen, v6.18.0 b0447) og viser kolonnerne *Prioritet* og *Type* samt historikkens filterlinje og CSV-knap (v6.17.0 og v6.18.0).

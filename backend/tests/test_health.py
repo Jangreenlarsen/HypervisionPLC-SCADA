@@ -120,7 +120,7 @@ def test_details_shape_and_access(api, tmp_path):
     assert d["db"]["ok"] is True and d["disk"]["total"] > 0 and d["loop"]["lag_max_s"] is not None
     (plc,) = d["plcs"]
     assert plc["key"] == "plc1" and plc["state"] in ("ok", "connecting") and "partial" in plc
-    assert set(d["alarms"]) == {"active", "unacked", "high"}
+    assert set(d["alarms"]) == {"active", "unacked", "high", "shelved"}
     assert "password" not in str(d).lower()           # ingen hemmeligheder i svaret
     # kun tekniker og over: en viewer afvises, og uden login 401
     admin_viewer = api.post("/api/users", json={"username": "visning", "role": "viewer", "password": "Hemmelig-kode-12345"})

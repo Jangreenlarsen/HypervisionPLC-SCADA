@@ -149,6 +149,22 @@ export interface AlarmSummary {
   active: number;
   unacked: number;
   high: number;
+  shelved?: number; // udsatte alarme (v6.19.0)
+}
+
+/** En udsat alarm (GET /api/alarms/shelved). `remaining_s` er resttiden på serverens ur ved svaret. */
+export interface ShelvedAlarm {
+  key: string;
+  tag: string;
+  plc: string;
+  level: string;
+  priority: 'high' | 'medium' | 'low';
+  message: string;
+  shelved_by: string;
+  shelved_at: number;
+  until_ts: number;
+  reason: string;
+  remaining_s: number;
 }
 
 export interface PlcSummary {

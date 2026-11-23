@@ -476,6 +476,10 @@ class IntegrationService:
 
     def on_alarm_event(self, row: dict[str, Any], event: str, now: float) -> None:
         """Lytter på alarmmotoren (kaldes på event-loopet): hændelsen lægges i køen hos de strømme, der må se den."""
+        if event == "shelve":
+            # En udsat alarm er væk fra de aktive (og fra øjebliksbilledet): eksterne klienter får `clear`, ellers ser de den som aktiv
+            # for evigt. Genindsættelse og udløb giver en ny `raise` på normal vis, når betingelsen stadig holder.
+            event = "clear"
         if not self._streams or event not in ("raise", "clear", "change"):
             return
         plc, message = self._alarm_texts(row)

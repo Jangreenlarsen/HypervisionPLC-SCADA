@@ -11,6 +11,10 @@ På serveren (SSH, root) findes **`scada-tool`**: `status` (overblik), `check` (
 <!-- kilde: 03-alarmer#m-kvitt-r-en-alarm sha:dd8861a0 -->
 Åbn **Alarmer** (klik på alarmklokken) og tryk **Kvittér** ud for alarmen eller **Kvittér alle**. Det kræver rollen operatør. En kvitteret alarm står stadig som aktiv, til årsagen er væk.
 
+## Hvordan udsætter jeg en alarm (skjuler midlertidigt, shelve, undertrykker alarm)?
+<!-- kilde: 03-alarmer#m-udsaet-en-alarm sha:ecfc2361 -->
+Åbn **Alarmer**, tryk **Udsæt** ud for en aktiv tag- eller symbolalarm, skriv en begrundelse (mindst 3 tegn) og vælg varighed (15 minutter til 24 timer). Det kræver rollen operatør. Alarmen står under fanen **Udsatte**, hvor **Genindsæt** lægger den tilbage. Når tiden er gået, rejses alarmen igen, hvis den stadig er i alarm; stiger den til et højere niveau, ophæves udsættelsen af sig selv. Kommunikations- og systemalarmer kan ikke udsættes.
+
 ## Værdien er grå, svag eller tonet ned — hvorfor (dårlig kvalitet, kommunikationsfejl, gammel værdi)?
 <!-- kilde: 02-drift#m3-naar-vaerdien-ikke-er-frisk-datakvalitet sha:f28f806f -->
 Værdien er ikke frisk: der er kommunikationsfejl til PLC'en, tagget kan ikke læses (dårlig), eller der er endnu ingen værdi (ukendt). Symbolet tones ned, og betjening afvises, til værdien er god igen. Tjek PLC'en under **System › Status**.

@@ -2,6 +2,12 @@
 
 ---
 
+## v6.19.0 — 2026-11-23 — Udsæt alarm
+
+- En operatør kan **udsætte** en aktiv tag- eller symbolalarm i 15 minutter til 24 timer: tryk **Udsæt**, skriv en begrundelse og vælg varighed. Alarmen forsvinder fra *Aktive*, og klokken tæller den ikke med. Kommunikations- og systemalarmer kan ikke udsættes.
+- Fanen **Udsatte** viser, hvem der udsatte hvad, hvorfor og hvor længe endnu; **Genindsæt** lægger alarmen tilbage med det samme. Når tiden udløber, rejses alarmen igen, hvis den stadig er i alarm. Stiger den til et højere niveau eller en højere prioritet, ophæves udsættelsen af sig selv.
+- Historik og log viser *Udsat* og *Genindsat* med begrundelse. På smalle skærme vises alarmerne som kort, så **Kvittér** og **Udsæt** altid er synlige.
+
 ## v6.18.0 — 2026-11-23 — Alarmprioritet: Høj, Medium og Lav
 
 - Kolonnen **Prioritet** på Alarmer viser nu altid *Høj*, *Medium* eller *Lav*. Hvad alarmen er (HH, H, L, LL, Til, Kommunikation, System, Afvigelse), står i den nye kolonne **Type**. Det gælder både *Aktive* og *Historik*.

@@ -16,7 +16,7 @@ Fanen **Aktive** viser de alarmer, der er i gang lige nu, og dem der er ophørt,
 | **Alarm** | Alarmteksten og under den tagget, PLC'en, symbolet eller *SCADA-serveren* |
 | **Tilstand** | *Aktiv — ikke kvitteret*, *Aktiv — kvitteret* (med hvem og hvornår) eller *Ophørt — ikke kvitteret* |
 
-En alarm, der ikke er kvitteret, har en **rød streg** i venstre side af rækken. Ude til højre står **Kvittér** og (når hjælperen er slået til) **Forklar**.
+En alarm, der ikke er kvitteret, har en **rød streg** i venstre side af rækken. Ude til højre står **Kvittér**, **Udsæt** (for operatører, se *Udsæt en alarm*) og (når hjælperen er slået til) **Forklar**.
 
 ## Vælg system
 
@@ -33,6 +33,23 @@ Hvad sker der bagefter?
 3. Ophører en alarm, **før** den er kvitteret, bliver den stående som *Ophørt — ikke kvitteret*, til nogen kvitterer — så ingen alarm går ubemærket hen.
 
 Alarmklokken holder op med at blinke, når alle alarmer er kvitteret. Alle kvitteringer gemmes med bruger og tidspunkt (se *Historik* og *System › Log*).
+
+## Udsæt en alarm
+
+En operatør kan **udsætte** en aktiv alarm i en begrænset tid, fx når en føler er under udskiftning, eller en kendt fejl venter på en reservedel. En udsat alarm forsvinder fra *Aktive*, klokken tæller den ikke med, og lampen på tegningen står som normal, mens udsættelsen gælder. Brug det kun, når alarmen er vurderet.
+
+1. Tryk **Udsæt** ud for alarmen. Knappen findes for **tag-alarmer og symbolalarmer**, der er aktive. Kommunikationsalarmer og systemalarmer (*SYS*) kan ikke udsættes, og en ophørt alarm kvitteres i stedet.
+2. Skriv en **begrundelse** (3-200 tegn, uden linjeskift) og vælg **varighed**: 15 minutter, 1 time, 4 timer, 8 timer eller 24 timer.
+3. Tryk **Udsæt**.
+
+Fanen **Udsatte** viser hver udsat alarm med tidspunkt, hvem der udsatte den, begrundelsen og **resttiden**. **Genindsæt** (operatør) lægger alarmen tilbage med det samme.
+
+- Udløber tiden, vurderes alarmen igen: er tilstanden der stadig, **rejses alarmen som en ny, ukvitteret alarm**.
+- Stiger alarmen til et **højere niveau** (fx *H* til *HH*) eller får **højere prioritet**, ophæves udsættelsen af sig selv, og alarmen rejses.
+- Slettes tagget eller PLC'en, fjernes udsættelsen.
+- Udsættelser overlever en genstart af serveren.
+- *Historik* viser hændelserne **Udsat** og **Genindsat**, og hver udsættelse står i loggen (*System › Log*) med begrundelsen. Integrations-API'et melder en udsat alarm som ophørt og en genindsat som ny.
+- Du ser kun udsættelser på de tegninger, du har adgang til.
 
 ## Forklar en alarm
 

@@ -24,12 +24,25 @@ router = APIRouter(prefix="/api/alarms")
 
 _DATE_ONLY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 PRIO_TEXT = {"high": "Høj", "medium": "Medium", "low": "Lav"}
-EVENT_TEXT = {"raise": "Opstået", "clear": "Ophørt", "ack": "Kvitteret", "change": "Ændret niveau"}
+EVENT_TEXT = {"raise": "Opstået", "clear": "Ophørt", "ack": "Kvitteret", "change": "Ændret niveau",
+              "shelve": "Udsat", "unshelve": "Genindsat"}
 
 
 class AckBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     keys: list[str] | None = Field(default=None, description="null = alle synlige")
+
+
+class ShelveBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    key: str
+    minutes: Any = Field(description="helt antal minutter, 5-1440 (valideres i servicen, så fejlen er en 400 på dansk)")
+    reason: Any = Field(description="begrundelse, 3-200 tegn")
+
+
+class UnshelveBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    key: str
 
 
 def _svc(request: Request) -> AlarmService:
@@ -55,6 +68,30 @@ async def ack(body: AckBody, request: Request, user: CurrentUser = Depends(requi
     if count:
         audit(request, "alarm.ack", "", {"count": count, "keys": keys[:50]})
     return {"acked": count}
+
+
+@router.post("/shelve")
+async def shelve(body: ShelveBody, request: Request, user: CurrentUser = Depends(require("operator"))) -> dict[str, Any]:
+    svc = _svc(request)
+    vis = _visible(request, user)
+    allowed = None if vis is None else (svc.visible_keys(vis) or set()) | (svc.visible_shelf_keys(vis) or set())
+    row = svc.shelve(body.key, body.minutes, body.reason, user.username, allowed)
+    audit(request, "alarm.shelve", body.key,
+          {"key": body.key, "minutes": body.minutes, "reason": row["reason"], "until": row["until_ts"]})
+    return row
+
+
+@router.post("/unshelve")
+async def unshelve(body: UnshelveBody, request: Request, user: CurrentUser = Depends(require("operator"))) -> dict[str, Any]:
+    svc = _svc(request)
+    svc.unshelve(body.key, user.username, svc.visible_shelf_keys(_visible(request, user)))
+    audit(request, "alarm.unshelve", body.key, {"key": body.key})
+    return {"unshelved": body.key}
+
+
+@router.get("/shelved")
+async def shelved(request: Request, user: CurrentUser = Depends(require("viewer"))) -> list[dict[str, Any]]:
+    return _svc(request).shelved(_visible(request, user))
 
 
 def _parse_time(value: str, name: str, end: bool) -> float:

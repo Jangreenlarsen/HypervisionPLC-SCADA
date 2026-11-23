@@ -17,7 +17,7 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 19   # 19: tags.alarm_priority (v6.18.0, additiv); 18: sim_scenarios (v6.5.0, additiv); 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
+SCHEMA_VERSION = 20   # 20: alarm_shelf — udsatte alarme (v6.19.0, additiv); 19: tags.alarm_priority (v6.18.0, additiv); 18: sim_scenarios (v6.5.0, additiv); 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -118,6 +118,18 @@ CREATE TABLE IF NOT EXISTS alarm_state (
     message     TEXT NOT NULL DEFAULT '',
     acked_by    TEXT,
     acked_at    REAL
+);
+CREATE TABLE IF NOT EXISTS alarm_shelf (
+    key         TEXT PRIMARY KEY,
+    tag         TEXT NOT NULL,
+    plc         TEXT NOT NULL,
+    level       TEXT NOT NULL,
+    priority    TEXT NOT NULL,
+    message     TEXT NOT NULL,
+    shelved_by  TEXT NOT NULL,
+    shelved_at  REAL NOT NULL,
+    until_ts    REAL NOT NULL,
+    reason      TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS alarm_events (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1345,6 +1357,21 @@ class Database:
 
     def delete_alarm_state(self, key: str) -> None:
         self._execute("DELETE FROM alarm_state WHERE key = ?", (key,))
+
+    def list_alarm_shelf(self) -> list[dict[str, Any]]:
+        return self._query("SELECT * FROM alarm_shelf ORDER BY until_ts")
+
+    def upsert_alarm_shelf(self, row: dict[str, Any]) -> None:
+        self._execute(
+            "INSERT INTO alarm_shelf(key, tag, plc, level, priority, message, shelved_by, shelved_at, until_ts, reason) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(key) DO UPDATE SET tag=excluded.tag, plc=excluded.plc, "
+            "level=excluded.level, priority=excluded.priority, message=excluded.message, shelved_by=excluded.shelved_by, "
+            "shelved_at=excluded.shelved_at, until_ts=excluded.until_ts, reason=excluded.reason",
+            (row["key"], row["tag"], row["plc"], row["level"], row["priority"], row["message"], row["shelved_by"],
+             row["shelved_at"], row["until_ts"], row["reason"]))
+
+    def delete_alarm_shelf(self, key: str) -> None:
+        self._execute("DELETE FROM alarm_shelf WHERE key = ?", (key,))
 
     def insert_alarm_event(self, entry: dict[str, Any], keep: int) -> None:
         with self._lock:

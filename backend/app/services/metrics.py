@@ -78,6 +78,7 @@ def render(d: dict[str, Any], auth_failures: int = 0) -> str:
     x.gauge("scada_alarms_active", "Aktive alarmer", alarms.get("active"))
     x.gauge("scada_alarms_unacked", "Ukvitterede alarmer", alarms.get("unacked"))
     x.gauge("scada_alarms_high", "Aktive alarmer med høj prioritet", alarms.get("high"))
+    x.gauge("scada_alarms_shelved", "Udsatte alarme (skjult for operatørerne indtil udsættelsen udløber)", alarms.get("shelved"))
 
     plcs = [p for p in d.get("plcs", []) if p.get("enabled")]
     per = lambda field: [({"plc": p["key"]}, p.get(field)) for p in plcs]  # noqa: E731

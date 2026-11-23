@@ -245,6 +245,7 @@ async def remove_tags(body: TagNamesBody, request: Request) -> dict[str, Any]:
 @router.delete("/tags/{name}", status_code=204, dependencies=[ENGINEER])
 async def delete_tag(name: str, request: Request, force: bool = False) -> None:
     _tags(request).delete(name, force=force)
+    request.app.state.alarm_service.forget({name})   # tagets alarmtilstand og udsættelse (som ved plc_removal); gamle hændelser bevares
     audit(request, "tag.delete", name, {"force": True} if force else None)
 
 

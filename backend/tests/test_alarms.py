@@ -96,7 +96,7 @@ def test_raise_ack_clear_cycle(api, mock_plc):
     a = _wait(lambda: _active(api).get("tag:Temp:high"))
     assert a["level"] == "H" and a["state"] == "active_unack" and a["priority"] == "medium"
     assert "Kedeltemperatur for høj (H): 85.0 °C" in a["message"]
-    assert api.get("/api/alarms").json()["summary"] == {"active": 1, "unacked": 1, "high": 0}
+    assert api.get("/api/alarms").json()["summary"] == {"active": 1, "unacked": 1, "high": 0, "shelved": 0}
 
     assert api.post("/api/alarms/ack", json={"keys": ["tag:Temp:high"]}).json() == {"acked": 1}
     a = _active(api)["tag:Temp:high"]
