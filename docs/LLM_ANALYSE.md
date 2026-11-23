@@ -192,6 +192,49 @@ Hentet af demo-VM'en fra GitHub-udgivelsen (1,36 GB på 30 s) og installeret fra
 
 **Konklusion:** *Hurtig* er 2–3 gange hurtigere og egner sig til korte svar og forslag, hvor brugeren alligevel kontrollerer resultatet (signalvejens forslag valideres). Til forklaringer i hjælper-panelet er *Standard* tydeligt bedst. Det vises i varianternes beskrivelse.
 
+### Femte måling — dansk målesæt, fem modeller, Linux-tid og -hukommelse (2026-11-23, v6.22.1)
+
+**Metode.** `deploy/llm_bench.py` kører 38 faste danske opgaver mod en kørende llama-server (llama.cpp b12179, 4 tråde, kontekst 8192, produktionens flag og prompt): 25 spørgsmål udledt af hjælperens manualtillæg (`deploy/llm_bench_questions.json`, reglen står i filens `_note`), 6 alarm/tag-spørgsmål, 4 sprogopgaver og 3 JSON-opgaver med `json_schema` (genkørt med tredobbelt tokenloft). Scoren er andelen af forventede nøgleord (`must_have`) i svaret, så den måler indhold, ikke sproglig pænhed. GGUF-filerne er kontrolleret med SHA256 (Qwen og Ministral mod `deploy/llm-models.json`, Qwen3.5-9B og Gemma mod Hugging Face).
+
+| Model | Manual | Alarm/tag | Sprog | JSON | **Samlet** | Forkerte påstande |
+|---|---|---|---|---|---|---|
+| Qwen3.5-2B (*Hurtig*) | 0,73 | 0,73 | 0,48 | 0,76 | 0,71 | 3 |
+| Qwen3.5-4B (*Standard*) | 0,86 | 0,78 | 0,65 | 0,93 | 0,83 | 0 |
+| Ministral-3-8B (*Stor* i dag) | 0,86 | 0,73 | 0,89 | 0,93 | 0,85 | 1 |
+| **Qwen3.5-9B** | 0,91 | 0,82 | 0,94 | 0,93 | **0,90** | 0 |
+| Gemma 4 12B-it | 0,93 | 0,78 | 0,83 | 0,91 | **0,90** | 0 |
+| DFM Mimir 1,8B Q8 (afprøvet først) | 0,55 | 0,45 | 0,58 | 0,00 | 0,50 | 2 |
+
+Retrieval (manualopslaget) er 0,95 for alle. Ingen model giver tomme svar, tænkeindhold eller engelsk, undtagen Mimir (kopierer prompten, og JSON-skema virker ikke).
+
+**Tid og hukommelse på Linux** (WSL2 Ubuntu 24.04, `taskset -c 0-3`, rolig maskine, 10 faste opgaver; medianer; RSS/HWM tæller de mmap'ede modelsider med):
+
+| Model | Fil | Første token | Tokens/s | Samlet svar | JSON | Spids (VmHWM) | Stabilt RSS | Under 9000 MB? |
+|---|---|---|---|---|---|---|---|---|
+| Qwen3.5-2B | 1,2 GB | 4,0 s | 14,3 | 17 s | 30 s | 2,7 GB | 2,2 GB | ja |
+| Qwen3.5-4B | 2,6 GB | 9,7 s | 6,7 | 30 s | 62 s | 5,4 GB | 3,9 GB | ja (margin 3,6 GB) |
+| Ministral-3-8B | 5,0 GB | 17,2 s | 4,5 | 62 s | 80 s | **10,2 GB** | 9,3 GB | **nej (1,2 GB over)** |
+| Qwen3.5-9B | 5,4 GB | 13,9 s | 4,7 | 52 s | 88 s | **9,4 GB** | 8,1 GB | **nej (0,4 GB over)** |
+| Gemma 4 12B-it | 6,8 GB | 23,3 s | 3,3 | 71 s | 128 s | **12,6 GB** | 12,4 GB | **nej (3,6 GB over)** |
+
+**Observation fra produktionen** (ikke en kontrolleret måling): demo-VM'en (scada.laces.dk, profilen *vm-16*, 4 vCPU, 15 GB RAM) kører Ministral-3-8B med 3 tråde og `MemoryMax=9000M` (`MemorySwapMax=0`). Dens seneste svar tog **341 s ved 2,2 tokens/s** (opvarmning 48 s) — omkring fem gange længere end den rolige Linux-måling af samme model (62 s). 3 tråde i stedet for 4 og en langsommere vCPU forklarer det meste; at spidsen (10,2 GB) ligger over cgroup-loftet kan give sidefejl på modelfilen, men det er ikke påvist.
+
+**Fund undervejs.**
+- JSON-opgaverne `j1` og `j2` (beskrivelse af 4 og 5 variabler) blev afkortet af produktionens tokenloft for ALLE modeller; svarene bruger ca. 36 tokens pr. variabel med indrykket JSON. Rettet i v6.21.2 (`tag_token_budget`).
+- Gemma 4: `json_schema` virker med `enable_thinking=false` (som klienten altid sender); kun uden den fås tomt indhold og engelsk tænketekst (llama.cpp issue #30256). Svarene indeholder LaTeX (`$ightarrow$`), som UI'et ville vise rå.
+- Qwen3.5-9B tilføjer ofte irrelevante "du kan ikke ændre opsætningen"-sætninger og har enkelte stavefejl; Ministral skriver mest naturligt dansk, men rammer tokenloftet (220) oftere.
+- EuroEval (uafhængig, opdateret 2026-11-22; parset af research-agent, ikke selv verificeret): dansk generativ rang Gemma 4 12B 11, Qwen3.5-9B (tænkning fra) 15, Ministral-3-8B 20, Qwen3.5-4B 21; Danish IFEval 85 (Gemma 12B), 81 (Qwen3.5-9B), 67 (Ministral). Retningen passer med vores egen måling.
+- Licenser (Hugging Face API 2026-11-23): Gemma 4 12B-it, Qwen3.5-9B og Ministral-3-8B er Apache-2.0.
+
+**Vurdering (til beslutning).**
+1. *Standard* (Qwen3.5-4B) er stadig det rigtige valg til 4 vCPU / 16 GB: 0,83 i kvalitet, 30 s på rolig maskine og ca. 4 GB.
+2. Ministral-3-8B er ikke længere det bedste valg til *Stor*: Qwen3.5-9B er bedre (0,90 mod 0,85), har samme hastighed og samme skabelon som de øvrige Qwen-varianter, og citerer kilder i næsten alle svar. Begge overstiger dog *vm-16*-loftet på 9000 MB.
+3. Gemma 4 12B er for stor (12,6 GB) og langsom (128 s på JSON) til *vm-16*; kun relevant på *vm-32*.
+4. Hastigheden på 4 vCPU (op til 5-6 minutter pr. svar for en 8-9B-model, målt på demoen) gør *Stor* uegnet som interaktiv hjælper; den bør kun tilbydes fra 8 vCPU og *vm-32*, eller loftet for *vm-16* hæves til ca. 10.500 MB, hvis den skal blive.
+5. DFM Mimir er ikke egnet (0,50; JSON virker ikke). Embla 1 findes ikke som GGUF.
+
+Gentag målingen med `deploy/llm_bench.py --help`; tallene i tabellerne er de første med målesættet og kan bruges som nulpunkt.
+
 ## 8. Anbefaling og rækkefølge
 
 1. **Trin 1, uden AI (alle profiler):** signalvej-guide.

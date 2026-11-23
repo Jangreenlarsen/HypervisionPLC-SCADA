@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.22.1 build 0461] — 2026-11-23 — LLM-målesæt og målinger (femte måling); 16 GB-VM og modellerne rettet i dok og manual
+
+Ingen ændring i produktet. `deploy/llm_bench.py` og `deploy/llm_bench_questions.json` (38 faste danske opgaver, nøgleords-scoring, Linux-tid og -hukommelse; gentageligt mod en kørende llama-server). `docs/LLM_ANALYSE.md`: femte måling med fem modeller, hukommelse mod loftet og observation fra demo-VM'en (Ministral: 341 s pr. svar på 4 vCPU). `docs/PLATFORM_OG_KRAV.md` og manualen (`13-system.md`, hjælperens tillæg): en 16 GB-VM anbefaler *Hurtig* og *Standard*; *Stor* overstiger loftet på 9000 MB; diskkravet ved modelinstallation rettet (ca. 11,5 GB fri efter upload for *Stor*).
+
 ## [6.22.1 build 0460] — 2026-11-23 — Manualbillede: siden Tegninger med kolonnen Overordnet tegning
 
 `frontend/public/manual/tegninger.png` er taget igen på demoen (v6.22.1 b0459): kolonnen *Overordnet tegning*, PLC-status som prik, ur og brugernavn i topbaren, og brødkrummen er hel. Funktionstest af hierarkiet på demoen med midlertidige tegninger (sæt/ryd forælder, niveau 5, cirkel, selv, ukendt, uændret, sletning nulstiller børn, audit): alt som forventet, og testtegningerne er slettet igen.

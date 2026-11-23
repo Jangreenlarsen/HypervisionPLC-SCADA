@@ -52,8 +52,8 @@ Som admin: nederst på **System › Konfiguration**, sektionen **Genstart**: **G
 Se **System › Status** (ledig disk). Ryd op på maskinen som root med `scada-maint`: `scada-maint status` viser hvad der fylder, `scada-maint emergency` rydder trin for trin, til der er plads nok (logfiler, gamle backups, gammel trend-historik). Trend-databasen kan også flyttes til en anden disk (*System › Konfiguration*).
 
 ## Hvordan vælger og installerer jeg en model til hjælperen (LLM)?
-<!-- kilde: 13-system#m-hjaelper-llm sha:36cc90f2 -->
-Som admin: **System › Hjælper (LLM)**. Vælg hardwareprofil, og tryk **Hent og installér** ved en variant: *Hurtig*, *Standard* (anbefalet) eller *Stor* (kræver 16 GB RAM). Uden internet installeres en samlet LLM-pakke med **Vælg LLM-pakke …**. På en VM med 16 GB RAM (profilen vm-16, anbefalet 30 GB disk) kan alle tre bruges; hold mindst 3 GB disk ledig. På Raspberry Pi 5 findes Hurtig og Standard; de kræver Raspberry Pi OS 13 "Trixie". Pi 5 er ikke et krav.
+<!-- kilde: 13-system#m-hjaelper-llm sha:3b63864a -->
+Som admin: **System › Hjælper (LLM)**. Vælg hardwareprofil, og tryk **Hent og installér** ved en variant: *Hurtig*, *Standard* (anbefalet) eller *Stor* (kræver 16 GB RAM). Uden internet installeres en samlet LLM-pakke med **Vælg LLM-pakke …**. På en VM med 16 GB RAM (profilen vm-16, anbefalet 30 GB disk) anbefales Hurtig og Standard; Stor er langsom på 4 vCPU og overstiger hukommelsesloftet på 9000 MB; hold mindst 3 GB disk ledig. På Raspberry Pi 5 findes Hurtig og Standard; de kræver Raspberry Pi OS 13 "Trixie". Pi 5 er ikke et krav.
 
 ## Hvordan ser jeg, hvem der har ændret noget eller skrevet til PLC'en (revisionsspor, audit, hvem gjorde hvad)?
 <!-- kilde: 13-system#m-log sha:cdf6c0de -->
