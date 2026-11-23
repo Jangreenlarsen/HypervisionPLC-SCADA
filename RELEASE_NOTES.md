@@ -2,6 +2,11 @@
 
 ---
 
+## v6.21.0 — 2026-11-23 — Fast ramme: PLC-status, ur og brugernavn i topbaren
+
+- Topbaren viser nu altid **PLC-status** (*PLC 1/1*, *PLC 0/1* eller *Ingen forbindelse*, med hver PLC i hjælpeteksten), **uret** og dit **brugernavn** — på alle sider. Versionen står stadig yderst til højre.
+- Topbaren står på én linje ved alle skærmbredder: på smalle skærme bliver PLC-status til en prik, og uret, brødkrummen og brugernavnet skjules. Intet flytter sig, når uret tikker eller status skifter.
+
 ## v6.20.0 — 2026-11-23 — Konsekvens, handling og svartid på alarmer
 
 - Et tag kan nu få en kort beskrivelse af sin alarm: **Konsekvens** (hvad der sker, hvis alarmen ignoreres), **Handling** (hvad operatøren skal gøre) og **Svartid** (minutter). Det opsættes under *Tags → Redigér → Alarmer* og i symbolguidens *Ret alarm*.

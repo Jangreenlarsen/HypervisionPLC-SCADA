@@ -4,6 +4,14 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.21.0 build 0455] — 2026-11-23 — Fast ramme i topbaren (benchmark A6)
+
+Plan: PLAN.md › Benchmark-huller, trin 5. Kun frontend; ingen nye endpoints (PLC-status kommer fra den eksisterende live-strøm).
+
+- `frontend/src/App.svelte`: PLC-chip (fast bredde 10 rem, prik på smalle skærme), ur (`HH:MM:SS`, fast bredde), brugernavn på Bruger-knappen; brudpunkter målt ved elleve bredder (501-1920 px): uret skjules under 1060 px, brødkrumme og chip-tekst under 980 px, brugernavn og ' · kildekode' under 800 px, Hjælper-tekst under 700 px; ingen vandret overløb og ingen flytning ved tik. `LiveClient` får en statuscallback.
+- `frontend/src/lib/topbar.ts` (`formatClock`, `clockTitle`, `shortName`, `plcChip`) med `topbar.test.ts`.
+- Manual: `01-kom-i-gang.md` (*Den faste ramme*). Frontend 1098 tests.
+
 ## [6.20.0 build 0454] — 2026-11-23 — Manualbillede: Redigér tag med de nye alarmfelter; screenshot-scriptets sticky-regler rettet
 
 `frontend/public/manual/tag-redigeer.png` er taget igen (demoen, v6.20.0 b0453) og viser Prioritet, Konsekvens, Handling og Svartid. `frontend/tools/manual-screenshots.mjs`: panelets klæbende bund- og toplinje blev ikke fjernet (klasserne er `.edit-panel` og `.edit-actions`), så knaplinjen dækkede felterne på billedet; begge poster (tag-redigeer og tag-ekstern) er rettet.
