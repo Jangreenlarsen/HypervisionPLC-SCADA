@@ -211,7 +211,7 @@
       <span class="dot" aria-hidden="true"></span><span class="ctext">{chip.label}</span>
     </span>
     <span class="clock" role="timer" title={clockTitle(now)}>{formatClock(now)}</span>
-    <a href="#alarms" class="bell{alarmSummary.unacked ? 'unacked' : ''} {alarmSummary.high ? 'high' : alarmSummary.active ? 'medium' : ''}"
+    <a href="#alarms" class="bell {alarmSummary.unacked ? 'unacked' : ''} {alarmSummary.high ? 'high' : alarmSummary.active ? 'medium' : ''}"
        title="{alarmSummary.active} aktive alarmer, {alarmSummary.unacked} ukvitterede">
       {@render icon('alarms')}<span class="count">{alarmSummary.active}</span>{#if alarmSummary.unacked}<span class="unack">· {alarmSummary.unacked} ny</span>{/if}
     </a>

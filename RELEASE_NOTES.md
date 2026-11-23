@@ -2,6 +2,10 @@
 
 ---
 
+## v6.21.1 — 2026-11-23
+
+- Rettet: alarmklokken i topbaren så ud som et almindeligt link, når der var ukvitterede alarmer (fejl i 6.21.0). Den har igen sin ramme og farve.
+
 ## v6.21.0 — 2026-11-23 — Fast ramme: PLC-status, ur og brugernavn i topbaren
 
 - Topbaren viser nu altid **PLC-status** (*PLC 1/1*, *PLC 0/1* eller *Ingen forbindelse*, med hver PLC i hjælpeteksten), **uret** og dit **brugernavn** — på alle sider. Versionen står stadig yderst til højre.

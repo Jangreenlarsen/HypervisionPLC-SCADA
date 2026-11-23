@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.21.1 build 0456] — 2026-11-23 — Alarmklokken mistede sin stil ved ukvitterede alarmer (fejl i 6.21.0)
+
+`frontend/src/App.svelte`: `class="bell{…}"` var blevet til uden mellemrum og gav klassen `bellunacked`; mellemrummet er genindsat. Fundet ved den visuelle kontrol på demoen efter udgivelsen af b0455. Registreret i `BUGS.md`.
+
 ## [6.21.0 build 0455] — 2026-11-23 — Fast ramme i topbaren (benchmark A6)
 
 Plan: PLAN.md › Benchmark-huller, trin 5. Kun frontend; ingen nye endpoints (PLC-status kommer fra den eksisterende live-strøm).
