@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { alarmPayload, alarmStatus, alarmSummary, formFrom, hasAlarm } from './tagAlarm';
 
-const none = { alarm_hh: null, alarm_h: null, alarm_l: null, alarm_ll: null, alarm_deadband: 0, alarm_delay_s: 0, alarm_on: null } as const;
+const none = { alarm_hh: null, alarm_h: null, alarm_l: null, alarm_ll: null, alarm_deadband: 0, alarm_delay_s: 0, alarm_on: null, alarm_priority: null } as const;
 
 describe('tag-alarm i guiden (v0.74.0)', () => {
   it('kort tekst', () => {
@@ -14,12 +14,23 @@ describe('tag-alarm i guiden (v0.74.0)', () => {
 
   it('formular → data: tal-tag og til/fra-tag; tomt og mellemrum = ingen; komma; fejl med feltnavn', () => {
     const f = { ...formFrom(none), h: '80,5', hh: ' 90 ', l: '  ', deadband: '2' };
-    expect(alarmPayload(f, 'num')).toEqual({ data: { alarm_hh: 90, alarm_h: 80.5, alarm_l: null, alarm_ll: null, alarm_deadband: 2, alarm_delay_s: 0, alarm_on: null } });
-    expect(alarmPayload({ ...f, on: 'true', delay: '3' }, 'bool')).toEqual({ data: { alarm_on: 'true', alarm_hh: null, alarm_h: null, alarm_l: null, alarm_ll: null, alarm_delay_s: 3 } });
+    expect(alarmPayload(f, 'num')).toEqual({ data: { alarm_hh: 90, alarm_h: 80.5, alarm_l: null, alarm_ll: null, alarm_deadband: 2, alarm_delay_s: 0, alarm_on: null, alarm_priority: null } });
+    expect(alarmPayload({ ...f, on: 'true', delay: '3' }, 'bool')).toEqual({ data: { alarm_on: 'true', alarm_hh: null, alarm_h: null, alarm_l: null, alarm_ll: null, alarm_delay_s: 3, alarm_priority: null } });
     expect(alarmPayload({ ...f, on: '' }, 'bool')).toMatchObject({ data: { alarm_on: null } });
     expect(alarmPayload({ ...f, h: 'høj' }, 'num')).toEqual({ error: 'H skal være et tal' });
     expect(alarmPayload({ ...f, delay: '-1' }, 'num')).toEqual({ error: 'Forsinkelse kan ikke være negativ' });
     expect(formFrom({ ...none, alarm_l: 0, alarm_on: null })).toMatchObject({ l: '0', deadband: '', delay: '' });
+  });
+
+  it('prioritet: tom = som niveau (null); high/medium/low sendes; formularen læser den fra tagget', () => {
+    const f = { ...formFrom(none), h: '80' };
+    expect(f.priority).toBe('');
+    expect(alarmPayload(f, 'num')).toMatchObject({ data: { alarm_priority: null } });
+    expect(alarmPayload({ ...f, priority: 'low' }, 'num')).toMatchObject({ data: { alarm_priority: 'low' } });
+    expect(alarmPayload({ ...f, on: 'true', priority: 'high' }, 'bool')).toMatchObject({ data: { alarm_priority: 'high' } });
+    expect(alarmPayload({ ...f, priority: 'medium' }, 'num')).toMatchObject({ data: { alarm_priority: 'medium' } });
+    expect(formFrom({ ...none, alarm_priority: 'low' }).priority).toBe('low');
+    expect(formFrom({}).priority).toBe('');
   });
 
   it('status ud fra de to live-værdier', () => {

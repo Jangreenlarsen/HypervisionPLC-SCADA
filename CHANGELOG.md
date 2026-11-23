@@ -4,6 +4,17 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.18.0 build 0445] — 2026-11-23 — Alarmprioritet: Høj/Medium/Lav og kolonnen Type (benchmark B1)
+
+Plan: PLAN.md › Benchmark-huller, trin 2. Skema 19 (additiv kolonne).
+
+- `backend/app/storage/db.py` (`SCHEMA_VERSION = 19`, kolonnen `tags.alarm_priority`), `backend/app/services/tags.py` (validering: tom/whitespace → ingen, ellers high|medium|low), `backend/app/api/routes.py` (TagUpdate), `backend/app/services/backup.py` (eksport/gendannelse).
+- `backend/app/services/alarms.py`: tag-alarmer bruger tagets `alarm_priority`; ændres den på en aktiv alarm, opdateres kun prioriteten (kvittering og historik uændret).
+- `frontend/src/pages/Alarms.svelte`, `frontend/src/lib/alarmType.ts`, `frontend/src/app.css`: kolonnerne *Prioritet* (altid Høj/Medium/Lav) og *Type* med faste bredder; `.prio-low` dæmpet.
+- `frontend/src/pages/Tags.svelte`, `frontend/src/lib/TagAlarm.svelte`, `frontend/src/lib/tagAlarm.ts`: valget *Prioritet*.
+- Tests: 6 nye i `backend/tests/test_alarms.py`, `frontend/src/lib/alarmType.test.ts`, `tagAlarm.test.ts`.
+- Manual: `03-alarmer.md`, `05-plcer-og-tags.md`, `llm/drift-og-system.md`.
+
 ## [6.17.0 build 0444] — 2026-11-23 — Alarmhistorik: søgning, filtre og CSV (benchmark B4)
 
 Plan: PLAN.md › Benchmark-huller, trin 1. Reviewer (opus) gennemgik scope og rettigheder.

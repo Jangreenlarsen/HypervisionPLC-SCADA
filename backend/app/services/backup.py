@@ -81,6 +81,12 @@ def _alarm_fields(t: dict[str, Any], datatype: str) -> tuple[dict[str, Any], str
     if on not in (None, "true", "false"):
         return {}, "alarm_on skal være null, 'true' eller 'false'"
     out["alarm_on"] = on
+    ap = t.get("alarm_priority")
+    if isinstance(ap, str):
+        ap = ap.strip() or None
+    if ap not in (None, "high", "medium", "low"):
+        return {}, "alarm_priority skal være null, 'high', 'medium' eller 'low'"
+    out["alarm_priority"] = ap
     out["trend"] = bool(t.get("trend", False))
     try:
         iv = num("trend_interval_s", 10.0)

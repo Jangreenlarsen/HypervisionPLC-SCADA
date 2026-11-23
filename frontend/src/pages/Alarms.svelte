@@ -6,6 +6,7 @@
   import { askAssist, assist } from '../lib/assistStore.svelte';
   import { defaultSystem, inSystem, NO_SYSTEM, systemsOf, type AlarmSystem } from '../lib/alarmSystems';
   import { lastDrawing } from '../lib/backToDrawing';
+  import { alarmPriorityText, alarmTypeText } from '../lib/alarmType';
   import { exportUrl, historyUrl, isFiltered, type HistoryFilter } from '../lib/alarmHistory';
 
   let { canAck = false }: { canAck?: boolean } = $props();
@@ -13,9 +14,8 @@
   interface Event { id: number; ts: number; key: string; tag: string; plc: string; level: string; priority: string;
     event: 'raise' | 'clear' | 'ack' | 'change'; value: unknown; username: string; message: string }
 
-  // Symbolernes afvigelsesalarm har intet grænseniveau (H/HH …) — der vises det valgte alarmniveau
+  // Prioriteten (Høj/Medium/Lav) og typen (HH/H/L/LL/Til/Kommunikation/System/Afvigelse) står hver i sin kolonne (v6.18.0)
   const PRIO_TEXT: Record<string, string> = { high: 'Høj', medium: 'Medium', low: 'Lav' };
-  const levelText = (level: string, priority: string) => (level === 'AFV' ? PRIO_TEXT[priority] ?? priority : level);   // SYS vises som "SYS"
   const STATE_TEXT = { active_unack: 'Aktiv — ikke kvitteret', active_ack: 'Aktiv — kvitteret', rtn_unack: 'Ophørt — ikke kvitteret' };
   const EVENT_TEXT = { raise: 'Opstået', clear: 'Ophørt', ack: 'Kvitteret', change: 'Ændret niveau' };
 
@@ -146,13 +146,15 @@
 
   {#if tab === 'active'}
     <div class="table-wrap">
-      <table>
-        <thead><tr><th>Tid</th><th>Prioritet</th><th>System</th><th>Alarm</th><th>Tilstand</th><th></th></tr></thead>
+      <table class="fixed">
+        <colgroup><col class="c-tid" /><col class="c-prio" /><col class="c-type" /><col class="c-sys" /><col /><col class="c-state" /><col class="c-act" /></colgroup>
+        <thead><tr><th>Tid</th><th>Prioritet</th><th>Type</th><th>System</th><th>Alarm</th><th>Tilstand</th><th></th></tr></thead>
         <tbody>
           {#each shown as a (a.key)}
             <tr class:unacked={a.state !== 'active_ack'}>
               <td class="small nowrap">{fmt(a.raised_at)}</td>
-              <td><span class="prio-{a.priority}">{levelText(a.level, a.priority)}</span></td>
+              <td><span class="prio-{a.priority}">{alarmPriorityText(a.priority)}</span></td>
+              <td class="small">{alarmTypeText(a.level)}</td>
               <td class="small">{sysNames(a)}</td>
               <td>{a.message}<div class="muted small mono">{a.kind === 'symbol' ? `symbol ${a.key.split(':').slice(2).join(':')}` : a.kind === 'sys' ? 'SCADA-serveren' : a.tag || a.plc}</div></td>
               <td class="small">
@@ -168,7 +170,7 @@
               </td>
             </tr>
           {:else}
-            <tr><td colspan="6" class="muted">Ingen aktive alarmer{systemId ? ` — ${filterName}` : ''}.</td></tr>
+            <tr><td colspan="7" class="muted">Ingen aktive alarmer{systemId ? ` — ${filterName}` : ''}.</td></tr>
           {/each}
         </tbody>
       </table>
@@ -198,20 +200,22 @@
       {:else}{history.length} hændelser{history.length >= HISTORY_LIMIT ? ` — afkortet til de nyeste ${HISTORY_LIMIT}; CSV indeholder alle` : ''}{/if}
     </div>
     <div class="table-wrap">
-      <table>
-        <thead><tr><th>Tid</th><th>Hændelse</th><th>Niveau</th><th>System</th><th>Alarm</th><th>Bruger</th></tr></thead>
+      <table class="fixed">
+        <colgroup><col class="c-tid" /><col class="c-event" /><col class="c-prio" /><col class="c-type" /><col class="c-sys" /><col /><col class="c-user" /></colgroup>
+        <thead><tr><th>Tid</th><th>Hændelse</th><th>Prioritet</th><th>Type</th><th>System</th><th>Alarm</th><th>Bruger</th></tr></thead>
         <tbody>
           {#each shownHistory as e (e.id)}
             <tr>
               <td class="small nowrap">{fmt(e.ts)}</td>
               <td>{EVENT_TEXT[e.event] ?? e.event}</td>
-              <td><span class="prio-{e.priority}">{levelText(e.level, e.priority)}</span></td>
+              <td><span class="prio-{e.priority}">{alarmPriorityText(e.priority)}</span></td>
+              <td class="small">{alarmTypeText(e.level)}</td>
               <td class="small">{sysNames(e)}</td>
               <td class="small">{e.message}</td>
               <td class="small">{e.username}</td>
             </tr>
           {:else}
-            <tr><td colspan="6" class="muted">Ingen hændelser.</td></tr>
+            <tr><td colspan="7" class="muted">Ingen hændelser.</td></tr>
           {/each}
         </tbody>
       </table>
@@ -221,6 +225,11 @@
 
 <style>
   .nowrap { white-space: nowrap; }
+  /* Faste kolonnebredder: skiftende tekster (prioritet, type, tilstand) må ikke flytte kolonnerne */
+  table.fixed { table-layout: fixed; width: 100%; min-width: 62rem; }
+  table.fixed td { overflow-wrap: anywhere; }
+  .c-tid { width: 10.5rem; } .c-prio { width: 5.5rem; } .c-type { width: 8rem; } .c-sys { width: 9rem; }
+  .c-state { width: 11rem; } .c-act { width: 9.5rem; } .c-event { width: 7rem; } .c-user { width: 7rem; }
   .hfilter { flex-wrap: wrap; margin: 0.6rem 0 0.2rem; }
   .hq { width: 18rem; max-width: 100%; }
   .hcount { min-height: 1.4em; margin: 0 0 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

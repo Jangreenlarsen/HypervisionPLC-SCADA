@@ -241,6 +241,66 @@ def test_switching_between_limits_and_on_off_alarm(api):
     r = api.patch("/api/tags/Auto", json={"alarm_on": "true", "alarm_h": None})
     assert r.status_code == 200, r.text
 
+# ------------------------------------------------- alarmprioritet pr. tag (v6.18.0, B1)
+
+def test_alarm_priority_overrides_level_in_logic():
+    t = _tag(alarm_hh=90, alarm_h=80, alarm_priority="low")
+    assert [c.prio for c in tag_conditions(t, 85, {})] == ["low"]
+    assert [c.prio for c in tag_conditions(_tag(alarm_hh=90, alarm_h=80), 85, {})] == ["medium"]
+    assert [c.prio for c in tag_conditions(_tag(alarm_hh=90, alarm_h=80), 95, {})] == ["high"]
+    assert [c.prio for c in tag_conditions(_tag(alarm_on="true", alarm_priority="medium"), True, {})] == ["medium"]
+    assert [c.prio for c in tag_conditions(_tag(alarm_on="true"), True, {})] == ["high"]
+
+
+@pytest.mark.parametrize("value", ["urgent", "HIGH", 3, True])
+def test_alarm_priority_invalid_is_400(api, value):
+    r = api.post("/api/tags", json={"name": "X", "source": "plc1:hr:1", "alarm_h": 10, "alarm_priority": value})
+    assert r.status_code in (400, 422), r.text
+    r = api.patch("/api/tags/Temp", json={"alarm_priority": "urgent"})
+    assert r.status_code == 400 and "prioritet" in r.json()["error"].lower()
+
+
+@pytest.mark.parametrize("value", ["", "   ", None])
+def test_alarm_priority_empty_is_none(api, value):
+    assert api.patch("/api/tags/Temp", json={"alarm_priority": "low"}).json()["alarm_priority"] == "low"
+    r = api.patch("/api/tags/Temp", json={"alarm_priority": value})
+    assert r.status_code == 200, r.text
+    assert api.get("/api/tags/Temp").json()["alarm_priority"] is None
+
+
+def test_low_priority_alarm_raised_and_sorted_last(api, mock_plc):
+    assert api.get("/api/tags/Temp").json()["alarm_priority"] is None
+    assert api.patch("/api/tags/Fejl", json={"alarm_priority": "low"}).status_code == 200
+    mock_plc.state.hr[5] = 850
+    mock_plc.state.coils[4] = True
+    _wait(lambda: len(_active(api)) == 2)
+    assert _active(api)["tag:Fejl:state"]["priority"] == "low"
+    assert _active(api)["tag:Temp:high"]["priority"] == "medium"   # tag uden felt er uændret
+    assert [a["key"] for a in api.get("/api/alarms").json()["active"]] == ["tag:Temp:high", "tag:Fejl:state"]
+
+
+def test_priority_change_on_active_alarm_keeps_ack(api, mock_plc):
+    mock_plc.state.hr[5] = 850
+    _wait(lambda: _active(api).get("tag:Temp:high"))
+    api.post("/api/alarms/ack", json={"keys": ["tag:Temp:high"]})
+    before = len(api.get("/api/alarms/history").json())
+    for prio in ("low", "high"):   # både nedgradering og opgradering
+        assert api.patch("/api/tags/Temp", json={"alarm_priority": prio}).status_code == 200
+        a = _wait(lambda: (x := _active(api).get("tag:Temp:high")) and x["priority"] == prio and x)
+        assert a["state"] == "active_ack" and a["acked_by"] == "admin"
+    assert len(api.get("/api/alarms/history").json()) == before
+
+
+def test_alarm_priority_in_backup(api):
+    assert api.patch("/api/tags/Temp", json={"alarm_priority": "low"}).status_code == 200
+    backup = api.get("/api/backup").json()
+    assert next(t for t in backup["tags"] if t["name"] == "Temp")["alarm_priority"] == "low"
+    assert api.patch("/api/tags/Temp", json={"alarm_priority": "high"}).status_code == 200
+    assert api.post("/api/backup/restore", json=backup).status_code == 200
+    assert api.get("/api/tags/Temp").json()["alarm_priority"] == "low"
+    next(t for t in backup["tags"] if t["name"] == "Temp")["alarm_priority"] = "x"
+    r = api.post("/api/backup/restore", json=backup)
+    assert r.status_code == 400 and "alarm_priority" in r.json()["error"]
 
 
 # ------------------------------------------------- kommunikationsalarmer (delvis fejl, ikke startet)

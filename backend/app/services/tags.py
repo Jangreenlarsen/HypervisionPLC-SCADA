@@ -15,6 +15,7 @@ _TEXT_FIELDS = {"description": 200, "unit": 16}
 LIMIT_FIELDS = ("alarm_ll", "alarm_l", "alarm_h", "alarm_hh")  # stigende rækkefølge
 ALARM_DEFAULTS = {"alarm_hh": None, "alarm_h": None, "alarm_l": None, "alarm_ll": None,
                   "alarm_deadband": 0.0, "alarm_delay_s": 0.0, "alarm_on": None,
+                  "alarm_priority": None,
                   "trend": False, "trend_interval_s": 10.0, "energy": None, "energy_factor": 1.0, "priority": "normal"}
 WRITABLE_KINDS = ("hr", "coil", "logic", "global")   # logic/global: ST-variabler via PLC-firmware v7.9.68.141+
 
@@ -161,6 +162,13 @@ class TagService:
             if on not in (None, "true", "false"):
                 raise ServiceError(400, "alarm_on skal være null, 'true' eller 'false'")
             out["alarm_on"] = on
+        if "alarm_priority" in data:
+            ap = data["alarm_priority"]
+            if isinstance(ap, str):
+                ap = ap.strip() or None
+            if ap not in (None, "high", "medium", "low"):
+                raise ServiceError(400, "Alarmprioritet skal være tom (som niveau), 'high' (høj), 'medium' eller 'low' (lav)")
+            out["alarm_priority"] = ap
 
         def final(field: str) -> Any:
             return out[field] if field in out else (current or {}).get(field)

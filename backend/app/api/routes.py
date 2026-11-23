@@ -54,6 +54,7 @@ class TagCreate(_Model):
     alarm_deadband: float | None = None
     alarm_delay_s: float | None = None
     alarm_on: str | None = None
+    alarm_priority: str | None = None
     name: str
     source: str
     description: str | None = None
@@ -80,6 +81,7 @@ class TagUpdate(_Model):
     alarm_deadband: float | None = None
     alarm_delay_s: float | None = None
     alarm_on: str | None = None
+    alarm_priority: str | None = None
     source: str | None = None
     description: str | None = None
     unit: str | None = None

@@ -3,7 +3,11 @@
 export interface TagAlarm {
   alarm_hh: number | null; alarm_h: number | null; alarm_l: number | null; alarm_ll: number | null;
   alarm_deadband: number | null; alarm_delay_s: number | null; alarm_on: 'true' | 'false' | null;
+  alarm_priority: AlarmPriority | null;
 }
+
+/** Fast prioritet pr. tag (v6.18.0); null = efter niveauet (HH/LL/Til høj, H/L medium). */
+export type AlarmPriority = 'high' | 'medium' | 'low';
 
 const LIMITS = [['alarm_hh', 'HH'], ['alarm_h', 'H'], ['alarm_l', 'L'], ['alarm_ll', 'LL']] as const;
 const num = (v: number) => String(Math.round(v * 1000) / 1000);
@@ -23,11 +27,11 @@ export function alarmSummary(t: Partial<TagAlarm>, unit = ''): string {
   return parts.join(' · ');
 }
 
-export interface AlarmForm { hh: string; h: string; l: string; ll: string; deadband: string; delay: string; on: '' | 'true' | 'false' }
+export interface AlarmForm { hh: string; h: string; l: string; ll: string; deadband: string; delay: string; on: '' | 'true' | 'false'; priority: '' | AlarmPriority }
 
 export function formFrom(t: Partial<TagAlarm>): AlarmForm {
   const s = (v: number | null | undefined) => (v == null ? '' : String(v));
-  return { hh: s(t.alarm_hh), h: s(t.alarm_h), l: s(t.alarm_l), ll: s(t.alarm_ll), deadband: s(t.alarm_deadband || null), delay: s(t.alarm_delay_s || null), on: t.alarm_on ?? '' };
+  return { hh: s(t.alarm_hh), h: s(t.alarm_h), l: s(t.alarm_l), ll: s(t.alarm_ll), deadband: s(t.alarm_deadband || null), delay: s(t.alarm_delay_s || null), on: t.alarm_on ?? '', priority: t.alarm_priority ?? '' };
 }
 
 /** Tal fra et felt: tomt (også kun mellemrum) = null; komma eller punktum; ellers en fejl med feltets navn. */
@@ -48,12 +52,12 @@ export function alarmPayload(f: AlarmForm, kind: 'bool' | 'num'): { data: Partia
     const delay = parse(f.delay, 'Forsinkelse') ?? 0;
     if (delay < 0) throw new Error('Forsinkelse kan ikke være negativ');
     if (kind === 'bool') {
-      return { data: { alarm_on: f.on || null, alarm_hh: null, alarm_h: null, alarm_l: null, alarm_ll: null, alarm_delay_s: delay } };
+      return { data: { alarm_on: f.on || null, alarm_hh: null, alarm_h: null, alarm_l: null, alarm_ll: null, alarm_delay_s: delay, alarm_priority: f.priority || null } };
     }
     const deadband = parse(f.deadband, 'Dødbånd') ?? 0;
     if (deadband < 0) throw new Error('Dødbånd kan ikke være negativt');
     return { data: { alarm_hh: parse(f.hh, 'HH'), alarm_h: parse(f.h, 'H'), alarm_l: parse(f.l, 'L'), alarm_ll: parse(f.ll, 'LL'),
-      alarm_deadband: deadband, alarm_delay_s: delay, alarm_on: null } };
+      alarm_deadband: deadband, alarm_delay_s: delay, alarm_on: null, alarm_priority: f.priority || null } };
   } catch (e) {
     return { error: (e as Error).message };
   }

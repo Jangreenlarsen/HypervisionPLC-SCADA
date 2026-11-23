@@ -72,12 +72,13 @@ def tag_conditions(tag: dict[str, Any], value: Any, current: dict[str, str]) -> 
         return None
     delay = float(tag["alarm_delay_s"] or 0)
     db = float(tag["alarm_deadband"] or 0)
+    prio = tag.get("alarm_priority") or None  # valgfri fast prioritet (v6.18.0); ellers efter niveauet
     out: list[Condition] = []
 
     if on is not None:
         if isinstance(value, (bool, int, float)) and bool(value) == (on == "true"):
             out.append(Condition(f"tag:{name}:state", name, plc, "state", "ON", value,
-                                 f"{label}: {'aktiv' if on == 'true' else 'ikke aktiv'}", delay))
+                                 f"{label}: {'aktiv' if on == 'true' else 'ikke aktiv'}", delay, prio))
         return out
 
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -104,7 +105,7 @@ def tag_conditions(tag: dict[str, Any], value: Any, current: dict[str, str]) -> 
         if lvl is not None:
             word = "for høj" if direction == "high" else "for lav"
             out.append(Condition(f"tag:{name}:{direction}", name, plc, direction, lvl, value,
-                                 f"{label} {word} ({lvl}): {_fmt(value, unit)} — grænse {_fmt(limits[lvl], unit)}", delay))
+                                 f"{label} {word} ({lvl}): {_fmt(value, unit)} — grænse {_fmt(limits[lvl], unit)}", delay, prio))
     return out
 
 
@@ -234,7 +235,12 @@ class AlarmService:
                 continue
             if active:
                 self._pending.pop(key, None)
-                if existing["level"] != cond.level or existing["priority"] != cond.prio:
+                if existing["level"] == cond.level and existing["priority"] != cond.prio and cond.kind in ("high", "low", "state"):
+                    # tagets prioritet er ændret mens alarmen er aktiv: opdatér kun prioriteten (ingen ny kvittering/hændelse)
+                    existing["priority"] = cond.prio
+                    self.db.upsert_alarm_state(existing)
+                    changed = True
+                elif existing["level"] != cond.level or existing["priority"] != cond.prio:
                     changed |= self._relevel(existing, cond, now)
                 continue
             since = self._pending.setdefault(key, now)

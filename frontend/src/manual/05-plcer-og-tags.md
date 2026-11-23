@@ -107,7 +107,7 @@ Grænserne er i tagets **tekniske enhed** (efter skalering), og tomt felt betyde
 - Den falder til 89 → stadig **H**; først under **88** ophører alarmen.
 - Én alarm pr. retning: høj (H/HH) og lav (L/LL) er hver sin alarm.
 
-Prioriteten følger niveauet og kan ikke vælges. Mister PLC'en forbindelsen, bevares tagets alarmer som de er (en kommunikationsfejl rydder ikke en alarm — den giver sin egen kommunikationsalarm). Alarmer vises og kvitteres under *Drift › Alarmer*; i symbolguiden kan alarmen også sættes op (trin 6) og styre en animation (fx blinke ved en ukvitteret alarm), se *Symboler og guiden › Alarmer i guiden*.
+Prioriteten følger som standard niveauet (HH/LL høj, H/L medium, til/fra høj), men du kan vælge **Prioritet** på tagget (*Høj*, *Medium*, *Lav*); valget gælder alle tagets niveauer. Mister PLC'en forbindelsen, bevares tagets alarmer som de er (en kommunikationsfejl rydder ikke en alarm — den giver sin egen kommunikationsalarm). Alarmer vises og kvitteres under *Drift › Alarmer*; i symbolguiden kan alarmen også sættes op (trin 6) og styre en animation (fx blinke ved en ukvitteret alarm), se *Symboler og guiden › Alarmer i guiden*.
 
 ### Prioritet (eksterne Modbus-tags)
 

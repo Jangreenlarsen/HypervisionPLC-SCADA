@@ -18,6 +18,7 @@
     min: number | null; max: number | null; confirm_write: boolean;
     alarm_hh: number | null; alarm_h: number | null; alarm_l: number | null; alarm_ll: number | null;
     alarm_deadband: number; alarm_delay_s: number; alarm_on: 'true' | 'false' | null;
+    alarm_priority?: 'high' | 'medium' | 'low' | null;
     trend: boolean; trend_interval_s: number; energy: 'counter' | 'power' | null; energy_factor: number;
     priority?: 'normal' | 'high';
   }
@@ -25,7 +26,7 @@
     name: string; source: string; description: string; unit: string; scale: string; offset: string;
     decimals: string; writable: boolean; min: string; max: string; confirm_write: boolean;
     alarm_hh: string; alarm_h: string; alarm_l: string; alarm_ll: string; alarm_deadband: string;
-    alarm_delay_s: string; alarm_on: '' | 'true' | 'false'; trend: boolean; trend_interval_s: string;
+    alarm_delay_s: string; alarm_on: '' | 'true' | 'false'; alarm_priority: '' | 'high' | 'medium' | 'low'; trend: boolean; trend_interval_s: string;
     energy: '' | 'counter' | 'power'; energy_factor: string; priority: 'normal' | 'high';
   }
   interface Suggestion { name: string; source: string; datatype: string; description: string; exists: boolean; pick?: boolean;
@@ -51,7 +52,7 @@
       offset: String(t.offset), decimals: s(t.decimals), writable: t.writable, min: s(t.min), max: s(t.max),
       confirm_write: t.confirm_write,
       alarm_hh: s(t.alarm_hh), alarm_h: s(t.alarm_h), alarm_l: s(t.alarm_l), alarm_ll: s(t.alarm_ll),
-      alarm_deadband: String(t.alarm_deadband ?? 0), alarm_delay_s: String(t.alarm_delay_s ?? 0), alarm_on: t.alarm_on ?? '',
+      alarm_deadband: String(t.alarm_deadband ?? 0), alarm_delay_s: String(t.alarm_delay_s ?? 0), alarm_on: t.alarm_on ?? '', alarm_priority: t.alarm_priority ?? '',
       trend: t.trend, trend_interval_s: String(t.trend_interval_s ?? 10),
       energy: t.energy ?? '', energy_factor: String(t.energy_factor ?? 1), priority: t.priority ?? 'normal',
     };
@@ -71,6 +72,7 @@
         alarm_hh: opt(edit.alarm_hh, 'HH'), alarm_h: opt(edit.alarm_h, 'H'), alarm_l: opt(edit.alarm_l, 'L'),
         alarm_ll: opt(edit.alarm_ll, 'LL'), alarm_deadband: num(edit.alarm_deadband || '0', 'Dødbånd'),
         alarm_delay_s: num(edit.alarm_delay_s || '0', 'Forsinkelse'), alarm_on: edit.alarm_on || null,
+        alarm_priority: edit.alarm_priority || null,
         trend: edit.trend, trend_interval_s: num(edit.trend_interval_s || '10', 'Interval'),
         energy: edit.energy || null, energy_factor: num(edit.energy_factor || '1', 'Omregning til kWh'),
         // Prioritet gælder kun eksterne Modbus-tags; for interne sendes altid normal (serveren afviser høj)
@@ -402,7 +404,13 @@
           <option value="">Ingen</option><option value="true">Når sand</option><option value="false">Når falsk</option>
         </select>
       </label>
+      <label>Prioritet
+        <select bind:value={edit.alarm_priority}>
+          <option value="">Som niveau (standard)</option><option value="high">Høj</option><option value="medium">Medium</option><option value="low">Lav</option>
+        </select>
+      </label>
     </div>
+    <p class="muted small"><b>Prioritet</b>: som standard er HH/LL/til-fra høj og H/L medium. Vælg en fast prioritet for tagets alarmer (fx Lav for ren information).</p>
     <div class="row edit-actions">
       <button class="primary" onclick={saveEdit}>Gem</button>
       <button onclick={() => (edit = null)}>Annullér</button>

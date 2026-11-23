@@ -2,6 +2,11 @@
 
 ---
 
+## v6.18.0 — 2026-11-23 — Alarmprioritet: Høj, Medium og Lav
+
+- Kolonnen **Prioritet** på Alarmer viser nu altid *Høj*, *Medium* eller *Lav*. Hvad alarmen er (HH, H, L, LL, Til, Kommunikation, System, Afvigelse), står i den nye kolonne **Type**. Det gælder både *Aktive* og *Historik*.
+- Et tag kan få sin egen **Prioritet** (*Tags → Redigér → Alarmer* og *Ret alarm* i symbolguiden): vælg *Høj*, *Medium* eller *Lav*, så gælder den alle tagets niveauer. Uden valg er det som før (HH/LL høj, H/L medium, til/fra høj). Ændrer du prioriteten, mens alarmen er aktiv, bevares kvitteringen.
+
 ## v6.17.0 — 2026-11-23 — Alarmhistorik: søgning, filtre og CSV
 
 - **Historik** under Alarmer kan nu søges og filtreres: fritekst i tag, PLC og besked, periode (*Fra* og *Til*), hændelse og prioritet, sammen med det valgte system. **Nulstil** fjerner filtrene.

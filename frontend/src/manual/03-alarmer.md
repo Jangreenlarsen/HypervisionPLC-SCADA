@@ -11,7 +11,8 @@ Fanen **Aktive** viser de alarmer, der er i gang lige nu, og dem der er ophørt,
 | Kolonne | Hvad den viser |
 | --- | --- |
 | **Tid** | Hvornår alarmen opstod |
-| **Prioritet** | Grænsen (*LL*, *L*, *H*, *HH*), *SYS* for serveren selv, eller prioriteten (*Høj*, *Medium*, *Lav*) for et symbols afvigelse |
+| **Prioritet** | *Høj*, *Medium* eller *Lav* — altid en af de tre (se *Prioritet og alarmklokken*) |
+| **Type** | Hvad alarmen er: grænsen (*LL*, *L*, *H*, *HH*), *Til* (til/fra-alarm), *Kommunikation* (PLC'en svarer ikke), *System* (serveren selv) eller *Afvigelse* (et symbols afvigelsesalarm) |
 | **Alarm** | Alarmteksten og under den tagget, PLC'en, symbolet eller *SCADA-serveren* |
 | **Tilstand** | *Aktiv — ikke kvitteret*, *Aktiv — kvitteret* (med hvem og hvornår) eller *Ophørt — ikke kvitteret* |
 
@@ -67,7 +68,7 @@ Brug historikken til at se, hvor ofte en alarm kommer, og hvor lang tid der går
 
 ## Prioritet og alarmklokken
 
-Alarmer har en **prioritet**: *lav*, *medium* eller *høj*. For et tag følger den niveauet: **HH** og **LL** er *høj*, **H** og **L** er *medium*, og en til/fra-alarm er *høj*. For et symbols afvigelsesalarm vælges den i guidens trin 4 (*Alarm ved afvigelse/fejl*).
+Alarmer har en **prioritet**: *lav*, *medium* eller *høj*. For et tag følger den som standard niveauet: **HH** og **LL** er *høj*, **H** og **L** er *medium*, og en til/fra-alarm er *høj*. Vil du noget andet, så vælg **Prioritet** på tagget (*Tags → Redigér → Alarmer*, eller *Ret alarm* i symbolguidens trin 6): *Høj*, *Medium* eller *Lav* gælder så alle tagets niveauer. Ændrer du prioriteten, mens alarmen er aktiv, bevares kvitteringen. Kommunikations- og systemalarmer er altid *høj*. For et symbols afvigelsesalarm vælges den i guidens trin 4 (*Alarm ved afvigelse/fejl*).
 
 **Alarmklokken** i topbjælken viser antallet af aktive alarmer og hvor mange der er nye (ukvitterede), fx *3 · 3 ny*:
 

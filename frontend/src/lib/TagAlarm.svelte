@@ -56,6 +56,11 @@
           <label class="opt small">Dødbånd<input class="n" bind:value={form.deadband} inputmode="decimal" placeholder="0" /></label>
         {/if}
         <label class="opt small">Forsinkelse (s)<input class="n" bind:value={form.delay} inputmode="decimal" placeholder="0" /></label>
+        <label class="opt small">Prioritet
+          <select bind:value={form.priority}>
+            <option value="">Som niveau (standard)</option><option value="high">Høj</option><option value="medium">Medium</option><option value="low">Lav</option>
+          </select>
+        </label>
         <button class="small primary" onclick={save} disabled={saving}>{saving ? 'Gemmer…' : 'Gem alarm'}</button>
       </div>
       <p class="small muted">Gælder tagget overalt (samme som under <strong>Tags</strong>). {kind === 'bool' ? 'Til/fra-tag: alarm når værdien er Til eller Fra.' : 'Grænser i teknisk enhed; tomt = ingen grænse.'}</p>
