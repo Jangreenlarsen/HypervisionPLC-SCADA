@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.22.1 build 0459] — 2026-11-23 — Topbar: brødkrummen blev afkortet ved 1000-1240 px (fejl i 6.21.0)
+
+`frontend/src/App.svelte`: PLC-chippen bliver en prik og ' · kildekode' skjules under 1240 px (før 980 og 800 px). Målt mod den lokale build: ingen afkortning af brødkrummen på nogen af de 20 sider ved ti bredder (981-1920 px) og ingen overløb ved elleve bredder (501-1280 px). Registreret i `BUGS.md`.
+
 ## [6.22.0 build 0458] — 2026-11-23 — Tegningshierarki (benchmark A1)
 
 Plan: PLAN.md › Benchmark-huller, trin 6. Skema 22 (additiv kolonne). Reviewer (opus) gennemgik; én kritisk fejl og flere advarsler er rettet. Pakken indeholder også rettelsen fra 6.21.2 (tag-guidens tokenloft).

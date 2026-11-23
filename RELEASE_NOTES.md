@@ -2,6 +2,10 @@
 
 ---
 
+## v6.22.1 — 2026-11-23
+
+- Rettet: **brødkrummen** i topbaren (fx *Opsætning › Tegninger*) blev afkortet på skærme mellem ca. 1000 og 1240 px bredde. PLC-status er nu en lille prik under 1240 px, og ' · kildekode' skjules, så der er plads.
+
 ## v6.22.0 — 2026-11-23 — Tegningshierarki: overblik, område, detalje
 
 - Tegninger kan nu placeres i et **hierarki**: under **Tegninger** vælger du en **Overordnet tegning** for hver tegning (højst 4 niveauer, ingen cirkler). Listen vises indrykket.

@@ -391,19 +391,21 @@
   .plcchip.error { background: #c62828; border-color: #c62828; color: #fff; font-weight: 600; }
   .plcchip.error .dot { background: #fff; }
   .clock { flex: none; width: 4.4rem; text-align: center; white-space: nowrap; color: #ddd; font-size: .9rem; font-variant-numeric: tabular-nums; }
-  /* Topbaren skal være på én linje med versionen yderst til højre ved alle bredder (målt 641-1600 px): jo smallere skærm,
-     jo mere krymper — uret under 1060 px; brødkrumme og PLC-chip (bliver en prik; titlen og aria-label bærer teksten)
-     under 980 px; brugernavn og ' · kildekode' under 800 px; Hjælper-teksten under 700 px */
-  @media (max-width: 1060px) { .clock { display: none; } }
-  @media (max-width: 980px) {
-    .crumb { display: none; }
+  /* Topbaren skal være på én linje med versionen yderst til højre, og brødkrummen (op til 'Opsætning › Ugeprogrammer', ca. 195 px)
+     må ikke afkortes (målt 981-1600 px): jo smallere skærm, jo mere krymper — PLC-chippen bliver en prik (titlen og aria-label bærer
+     teksten) og ' · kildekode' skjules under 1240 px; uret under 1060 px; brødkrummen under 980 px; brugernavnet under 800 px;
+     Hjælper-teksten under 700 px */
+  @media (max-width: 1240px) {
     .plcchip { width: auto; padding: .3rem; border-color: transparent; }
     .plcchip .ctext { display: none; }
     .plcchip.warn, .plcchip.error { border-color: transparent; background: transparent; }
     .plcchip.warn .dot { background: #f5a623; }
     .plcchip.error .dot { background: #ff4d4d; }
+    .srcfull { display: none; }
   }
-  @media (max-width: 800px) { .menu.user .name, .srcfull { display: none; } }
+  @media (max-width: 1060px) { .clock { display: none; } }
+  @media (max-width: 980px) { .crumb { display: none; } }
+  @media (max-width: 800px) { .menu.user .name { display: none; } }
   @media (max-width: 700px) { .hname { display: none; } }
   .src { color: #bbb; font-size: .75rem; white-space: nowrap; }
   .menu.user .name { white-space: nowrap; }
