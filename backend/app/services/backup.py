@@ -36,6 +36,7 @@ from .symbol_ports import MAX_TYPES, clean_ports, clean_type
 from . import library as lib
 from .trend_views import clean_view
 from .simulator import MAX_SCENARIOS, clean_scenario
+from .drawing_tree import sanitize_parents
 from .connection_groups import MAX_MEMBERS as MAX_CG_MEMBERS, clean_anims as clean_conn_anims, clean_name as clean_conn_name
 from .symbol_groups import GROUP_KINDS, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, MAX_GROUPS
 from .symbols import SymbolConfig, config_tags, too_many_anims
@@ -393,6 +394,19 @@ class BackupService:
                 drawing_ids.add(did)
                 drawings.append({"id": did, "name": str(d.get("name") or did)[:80], "active_version": active,
                                  "disabled": d.get("disabled") is True})   # ældre backups har ingen deaktivering
+
+        # Tegningshierarkiet (v6.22.0): ugyldige forældre (ukendt/sig selv/cirkel/for dyb) ryddes — aldrig en fejl.
+        # Ældre backups har ingen parent_id (alle på øverste niveau).
+        raw_parents: dict[str, Any] = {}
+        for rd in backup["drawings"]:
+            if isinstance(rd, dict) and isinstance(rd.get("id"), str):
+                raw_parents.setdefault(rd["id"], rd.get("parent_id"))     # første forekomst gælder (som ved selve tegningen)
+        parent_map, dropped = sanitize_parents({d["id"]: raw_parents.get(d["id"]) for d in drawings},
+                                               {d["id"]: d["name"] for d in drawings})
+        for line in dropped:
+            log.warning("Backup: forælder ryddes ved gendannelse — %s", line)
+        for d in drawings:
+            d["parent_id"] = parent_map.get(d["id"])
 
         bindings, seen = [], set()
         for i, b in enumerate(backup["bindings"]):

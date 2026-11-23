@@ -2,6 +2,13 @@
 
 ---
 
+## v6.22.0 — 2026-11-23 — Tegningshierarki: overblik, område, detalje
+
+- Tegninger kan nu placeres i et **hierarki**: under **Tegninger** vælger du en **Overordnet tegning** for hver tegning (højst 4 niveauer, ingen cirkler). Listen vises indrykket.
+- På **Overview** står tegningerne indrykket i vælgeren, og under den står en **brødkrumme** (*Anlæg › Område › Detalje*) og knapper til **Undertegninger**. **Gå til tegning** på en tegning skifter nu også adressen, så browserens tilbage-knap virker. Rækkerne har fast højde, så intet flytter sig.
+- Slettes en tegning, bliver dens undertegninger øverste niveau. Hierarkiet følger med i backup, og en bruger, der kun må se nogle tegninger, ser kun dem.
+- Med følger rettelsen fra 6.21.2: tag-guiden fik for få tokens og kunne fejle med fire eller flere variabler.
+
 ## v6.21.2 — 2026-11-23
 
 - Rettet: **Tag-guiden** (hjælperens forslag til beskrivelse og enhed) kunne fejle med *LLM-svaret var ikke gyldig JSON*, når der blev valgt fire eller flere variabler. Svaret blev afkortet, fordi modellen fik for få tokens; den får nu god plads.

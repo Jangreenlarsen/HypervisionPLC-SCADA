@@ -5,6 +5,7 @@ import { api, get } from './api';
 export interface DrawingUsage {
   id: string; name: string; versions: number; bindings: number;
   goto_from: string[]; start: boolean; users: string[];
+  children?: string[];   // undertegninger (v6.22.0): de slettes ikke, men mister den overordnede tegning
 }
 
 /** Bekræftelsesteksten — nævner kun det der faktisk rammes, så vigtige advarsler ikke drukner. */
@@ -12,6 +13,7 @@ export function deleteWarning(u: DrawingUsage): string {
   const lines = [`Slet tegningen "${u.name}"?`, '',
     `Det fjerner alle ${u.versions} version${u.versions === 1 ? '' : 'er'} og ${u.bindings} binding${u.bindings === 1 ? '' : 'er'} og kan ikke fortrydes.`];
   if (u.goto_from.length) lines.push('', `⚠ Disse tegninger har en "gå til"-knap hertil, som holder op med at virke: ${u.goto_from.join(', ')}.`);
+  if (u.children?.length) lines.push('', `Undertegningerne ${u.children.join(', ')} slettes ikke, men får ingen overordnet tegning (øverste niveau).`);
   if (u.start) lines.push('', 'Tegningen er start-tegning — Overview åbner derefter med den første tegning i stedet.');
   if (u.users.length) lines.push('', `Brugere med adgang til tegningen: ${u.users.join(', ')} (de mister adgangen til den).`);
   return lines.join('\n');

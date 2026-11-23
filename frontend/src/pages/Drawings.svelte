@@ -3,10 +3,11 @@
   import { del, get, patch, post, put } from '../lib/api';
   import { ask } from '../lib/ask';
   import { deleteDrawingFlow } from '../lib/drawingDelete';
+  import { allowedParentsMap, flatOrder, indentedName } from '../lib/drawingTree';
 
   let { canEdit = false }: { canEdit?: boolean } = $props();
 
-  interface DrawingRow { id: string; name: string; active_version: number; version_count: number; updated_at: number; start?: boolean; disabled?: boolean }
+  interface DrawingRow { id: string; name: string; active_version: number; version_count: number; updated_at: number; start?: boolean; disabled?: boolean; parent_id?: string | null }
   interface Version { version: number; comment: string; size: number; width: number | null; height: number | null; created_at: number }
   interface Detail { id: string; name: string; active_version: number; versions: Version[] }
   interface Report { removed_elements: Record<string, number>; removed_attributes: Record<string, number>; element_count: number; orphaned_bindings?: string[]; orphaned_symbols?: string[] }
@@ -106,6 +107,26 @@
     }
   }
 
+  /** Listen i hierarki-rækkefølge (forælder før børn) med indrykning (v6.22.0, ISA-101: overblik → område → detalje). */
+  const ordered = $derived(flatOrder(rows));
+  const names = $derived(new Map(rows.map((r) => [r.id, r.name] as const)));
+  const nameOf = (id: string | null | undefined) => (id ? names.get(id) ?? '' : '');
+
+  /** Valgene for "Overordnet tegning": ikke sig selv, ikke efterkommere, ikke valg der giver for stor dybde. Reglerne
+   *  håndhæves igen i backend (fejlteksten vises, og valget sættes tilbage). */
+  const parentChoices = $derived(allowedParentsMap(rows));          // én beregning pr. ændring af listen, ikke pr. række
+
+  async function setParent(row: DrawingRow, el: HTMLSelectElement): Promise<void> {
+    error = '';
+    try {
+      await put(`/api/drawings/${encodeURIComponent(row.id)}/parent`, { parent_id: el.value || null });
+    } catch (e) {
+      error = (e as Error).message;
+      el.value = row.parent_id ?? '';
+    }
+    await refresh();
+  }
+
   /** Tegningen Overview åbner med (for alle brugere der har adgang til den). */
   async function setStart(row: DrawingRow | null): Promise<void> {
     error = '';
@@ -168,14 +189,32 @@
   {#if rows.length}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Navn</th><th>Aktiv version</th><th>Versioner</th><th>Opdateret</th><th></th></tr></thead>
+        <thead><tr><th>Navn</th><th title="Hierarki: overblik → område → detalje (højst 4 niveauer)">Overordnet tegning</th><th>Aktiv version</th><th>Versioner</th><th>Opdateret</th><th></th></tr></thead>
         <tbody>
-          {#each rows as r}
+          {#each ordered as { item: r, indent } (r.id)}
+            {@const choices = parentChoices.get(r.id) ?? []}
             <tr>
               <td>
-                <a href={'#overview/' + r.id}>{r.name}</a>
+                <span style:padding-left={`${indent * 1.25}rem`}>
+                  {#if indent > 0}<span class="muted" aria-hidden="true">└ </span>{/if}<a href={'#overview/' + r.id}>{r.name}</a>
+                </span>
                 {#if r.start}<span class="badge connected" title="Overview åbner med denne tegning">Start</span>{/if}
                 {#if r.disabled}<span class="badge off" title="Offline: ingen live-data eller betjening">Deaktiveret</span>{/if}
+              </td>
+              <td>
+                {#if canEdit}
+                  <select aria-label={`Overordnet tegning for ${r.name}`} value={r.parent_id ?? ''} onchange={(e) => setParent(r, e.currentTarget)}>
+                    <option value="">(ingen — øverste niveau)</option>
+                    {#each choices as c (c.item.id)}
+                      <option value={c.item.id}>{indentedName(c.item.name, c.indent)}</option>
+                    {/each}
+                    {#if r.parent_id && !choices.some((c) => c.item.id === r.parent_id)}
+                      <option value={r.parent_id}>{nameOf(r.parent_id) || r.parent_id}</option>
+                    {/if}
+                  </select>
+                {:else}
+                  <span class="small">{r.parent_id ? nameOf(r.parent_id) : '—'}</span>
+                {/if}
               </td>
               <td>v{r.active_version}</td>
               <td>{r.version_count}</td>

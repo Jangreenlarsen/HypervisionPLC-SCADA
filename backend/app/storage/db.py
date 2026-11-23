@@ -13,11 +13,11 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 21   # 21: tags.alarm_consequence/alarm_action/alarm_response_min (v6.20.0, additiv); 20: alarm_shelf — udsatte alarme (v6.19.0, additiv); 19: tags.alarm_priority (v6.18.0, additiv); 18: sim_scenarios (v6.5.0, additiv); 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
+SCHEMA_VERSION = 22   # 22: drawings.parent_id — tegningshierarki, ISA-101 (v6.22.0, additiv); 21: tags.alarm_consequence/alarm_action/alarm_response_min (v6.20.0, additiv); 20: alarm_shelf — udsatte alarme (v6.19.0, additiv); 19: tags.alarm_priority (v6.18.0, additiv); 18: sim_scenarios (v6.5.0, additiv); 17: connection_groups (v6.1.0, additiv); 14: tags.priority (FEATURE_TAG_PRIORITET); 15: signal_paths (v4.2.0, additiv); 16: signalvej som objekt (v5.0.0)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -55,7 +55,8 @@ CREATE TABLE IF NOT EXISTS drawings (
     active_version INTEGER NOT NULL,
     created_at     REAL NOT NULL,
     updated_at     REAL NOT NULL,
-    disabled       INTEGER NOT NULL DEFAULT 0
+    disabled       INTEGER NOT NULL DEFAULT 0,
+    parent_id      TEXT
 );
 CREATE TABLE IF NOT EXISTS drawing_versions (
     drawing_id  TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
@@ -355,6 +356,9 @@ class Database:
         if "disabled" not in drawing_cols:
             # v1.6.0: en deaktiveret tegning er offline (ingen live-data, ingen betjening). 0 = aktiv som før.
             self._conn.execute("ALTER TABLE drawings ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0")
+        if "parent_id" not in drawing_cols:
+            # v6.22.0: valgfri overordnet tegning (ISA-101: overblik → område → detalje). NULL = øverste niveau som før.
+            self._conn.execute("ALTER TABLE drawings ADD COLUMN parent_id TEXT")
         tag_cols = {r[1] for r in self._conn.execute("PRAGMA table_info(tags)").fetchall()}
         for col, ddl in {**ALARM_COLUMNS, **TREND_COLUMNS, **ENERGY_COLUMNS, **PRIORITY_COLUMNS}.items():
             if col not in tag_cols:
@@ -804,8 +808,50 @@ class Database:
         return self._execute("UPDATE drawings SET name = ?, updated_at = ? WHERE id = ?",
                              (name, time.time(), drawing_id)) > 0
 
+    def set_drawing_parent(self, drawing_id: str, parent_id: str | None,
+                           check: Callable[[dict[str, str | None], dict[str, str]], str | None]) -> tuple[str | None, str | None]:
+        """Sæt/ryd tegningens overordnede tegning (v6.22.0). Hierarkiet læses og skrives i ÉN transaktion (BEGIN IMMEDIATE),
+        så to samtidige ændringer ikke kan skabe en cirkel eller for stor dybde; `check(parents, names)` giver en fejltekst
+        eller None. → (gammel forælder, fejltekst). Fejltekst sat = intet ændret. KeyError hvis tegningen ikke findes."""
+        missing, old, error = False, None, None
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                rows = cur.execute("SELECT id, name, parent_id FROM drawings").fetchall()
+                parents = {r["id"]: r["parent_id"] for r in rows}
+                if drawing_id not in parents:
+                    missing = True
+                else:
+                    old = parents[drawing_id]
+                    if old != parent_id:       # uændret forælder: ingen skrivning (heller ingen updated_at)
+                        error = check(parents, {r["id"]: r["name"] for r in rows})
+                        if error is None:
+                            cur.execute("UPDATE drawings SET parent_id = ?, updated_at = ? WHERE id = ?",
+                                        (parent_id, time.time(), drawing_id))
+                cur.execute("COMMIT")
+            except BaseException:
+                # Enhver fejl (også fra check) ruller tilbage — ellers står forbindelsen i en åben transaktion
+                if self._conn.in_transaction:
+                    cur.execute("ROLLBACK")
+                raise
+        if missing:
+            raise KeyError(drawing_id)
+        return old, error
+
     def delete_drawing(self, drawing_id: str) -> bool:
-        return self._execute("DELETE FROM drawings WHERE id = ?", (drawing_id,)) > 0
+        """Slet tegningen; dens undertegninger mister forælderen i SAMME transaktion (ingen forældreløse peger)."""
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            try:
+                cur.execute("UPDATE drawings SET parent_id = NULL WHERE parent_id = ?", (drawing_id,))
+                deleted = cur.execute("DELETE FROM drawings WHERE id = ?", (drawing_id,)).rowcount > 0
+                cur.execute("COMMIT")
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+        return deleted
 
     # -------------------------------------------------------------- bindinger
 
@@ -1517,7 +1563,7 @@ class Database:
             "plcs": self._query("SELECT key, name, base_url, username, enabled, sse_enabled, verify_tls FROM plcs ORDER BY key"),
             "tags": self._query('SELECT name, source, description, unit, scale, "offset", decimals, writable, min, max, '
                                 "confirm_write, " + ", ".join(ALARM_FIELDS + TREND_FIELDS + ENERGY_FIELDS + PRIORITY_FIELDS) + " FROM tags ORDER BY name"),
-            "drawings": self._query("SELECT id, name, active_version, disabled FROM drawings ORDER BY id"),
+            "drawings": self._query("SELECT id, name, active_version, disabled, parent_id FROM drawings ORDER BY id"),
             "versions": self._query("SELECT drawing_id, version, comment, size, width, height, created_at "
                                     "FROM drawing_versions ORDER BY drawing_id, version"),
             "bindings": self.list_all_bindings(),
@@ -1622,8 +1668,9 @@ class Database:
                          t.get("energy"), t.get("energy_factor", 1.0), t.get("priority") or "normal",
                          now, now))
                 for d in data["drawings"]:
-                    cur.execute("INSERT INTO drawings(id, name, active_version, created_at, updated_at, disabled) VALUES (?,?,?,?,?,?)",
-                                (d["id"], d["name"], d["active_version"], now, now, 1 if d.get("disabled") else 0))
+                    cur.execute("INSERT INTO drawings(id, name, active_version, created_at, updated_at, disabled, parent_id) VALUES (?,?,?,?,?,?,?)",
+                                (d["id"], d["name"], d["active_version"], now, now, 1 if d.get("disabled") else 0,
+                                 d.get("parent_id")))   # valideret i BackupService.validate (ældre backups: ingen forælder)
                 for s in data.get("schedules", []):
                     cur.execute(
                         "INSERT INTO schedules(name, tag, enabled, default_value, entries, exceptions, created_at, updated_at) "

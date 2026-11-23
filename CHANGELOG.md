@@ -4,6 +4,15 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.22.0 build 0458] — 2026-11-23 — Tegningshierarki (benchmark A1)
+
+Plan: PLAN.md › Benchmark-huller, trin 6. Skema 22 (additiv kolonne). Reviewer (opus) gennemgik; én kritisk fejl og flere advarsler er rettet. Pakken indeholder også rettelsen fra 6.21.2 (tag-guidens tokenloft).
+
+- `backend/app/storage/db.py` (`SCHEMA_VERSION = 22`, `drawings.parent_id`, `set_drawing_parent` i én `BEGIN IMMEDIATE`-transaktion med rollback i alle fejlgrene; sletning nulstiller børn i samme transaktion), `backend/app/services/drawing_tree.py` (regler: ikke sig selv, ingen cirkler, højst 4 niveauer også for undertræet; `sanitize_parents` til gendannelse), `backend/app/services/drawings.py`, `backend/app/services/backup.py` (eksport og gendannelse; ugyldige forældre ryddes med log), `backend/app/api/drawings.py` (`PUT /api/drawings/{id}/parent`, tekniker; audit `drawing.parent`; skjult forælder giver `parent_id = null` i ALLE svar; `_check` på PATCH, DELETE, usage, versions, symbols og bindings; `usage` filtreres for begrænsede brugere).
+- `frontend/src/lib/drawingTree.ts` (`buildTree`, `breadcrumb`, `childrenOf`, `canSetParent`, `allowedParentsMap`, …), `loadGuard.ts` (kapløb ved hurtige skift), `drawingDelete.ts`; `frontend/src/pages/Drawings.svelte` (Overordnet tegning, indrykket liste), `frontend/src/pages/Overview.svelte` (brødkrumme, Undertegninger, indrykket vælger, `click:goto` skifter adressen, fast rækkehøjde).
+- Tests: `backend/tests/test_drawing_hierarchy.py`, `frontend/src/lib/drawingTree.test.ts`, `loadGuard.test.ts`. Backend 1482 bestået, frontend 1121. Set i forhåndsvisning (500, 1000 og 1600 px): rækkehøjderne er ens for alle tegninger.
+- Manual: `02-drift.md`, `06-tegninger.md`.
+
 ## [6.21.2 build 0457] — 2026-11-23 — Tag-guiden: tokenloftet afkortede JSON (fundet ved LLM-målingen)
 
 `backend/app/services/assist_setup.py`: nyt `tag_token_budget` (60 + 56 pr. variabel, højst 2400) i stedet for `40 + 32 × antal`; `backend/tests/test_assist_setup.py`: test mod de målte værdier (4 variabler = 181 tokens, 5 = 219). Registreret i `BUGS.md`. Pakken til denne build er ikke bygget separat (A1 var under udvikling i samme arbejdskopi); rettelsen følger med pakken til 6.22.0.
