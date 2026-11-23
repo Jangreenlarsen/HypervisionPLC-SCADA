@@ -90,7 +90,18 @@ await shot('menu-opsaetning', async () => { await go('overview', '.menubar'); aw
 await shot('menu-bruger', async () => { await go('overview', '.menubar'); await hover('Bruger'); }, { clip: { x: 640, y: 0, width: 540, height: 280 } });
 // ------------------------------------------------------------------ drift
 await shot('overview', async () => { await go(`overview/${startDrawing}`, 'svg'); await page.mouse.move(600, 740); await settle(2500); });
-await shot('alarmer', async () => { await go('alarms', 'text=Aktive'); });
+// Udsæt-knappen findes kun på en aktiv tag-/symbolalarm; testalarmerne skifter, så vent (højst 90 s) på en
+const udsaetBtn = () => page.getByRole('button', { name: 'Udsæt', exact: true }).first();
+await shot('alarmer', async () => { await go('alarms', 'text=Aktive'); await udsaetBtn().waitFor({ timeout: 90000 }).catch(() => {}); await settle(); });
+await shot('alarmer-udsaet', async () => {   // dialogen åbnes, men sendes aldrig (scriptet skriver intet)
+  await go('alarms', 'text=Aktive');
+  await udsaetBtn().waitFor({ timeout: 90000 });
+  await udsaetBtn().click();
+  await page.getByRole('dialog').waitFor({ timeout: 5000 });
+  await page.getByRole('dialog').getByRole('textbox').fill('Føler under udskiftning, tjekkes af vagten');
+  await settle(600);
+});
+await shot('alarmer-udsatte', async () => { await go('alarms', 'text=Aktive'); await page.getByRole('button', { name: /Udsatte/ }).click(); await settle(); });
 await shot('alarmer-historik', async () => { await go('alarms', 'text=Aktive'); await page.getByRole('button', { name: 'Historik' }).click(); await settle(); });
 await shot('trends', async () => {
   // den gemte visning med tankens 8 temperaturfølere over 7 dage (falder tilbage til 1 time uden visningen)

@@ -1,6 +1,6 @@
 # Alarmer
 
-![Alarmer — fanen Aktive med prioritet, tilstand (aktiv/ophørt, kvitteret af hvem) og knapperne Kvittér og Kvittér alle](../../public/manual/alarmer.png)
+![Alarmer — fanen Aktive med prioritet, tilstand (aktiv/ophørt, kvitteret af hvem) og knapperne Kvittér, Udsæt, Forklar og Kvittér alle](../../public/manual/alarmer.png)
 
 Alarmklokken i topbjælken åbner siden **Alarmer**. Et **driftpanel** (uden topbjælke) åbner den med knappen *Gå til Alarmer* i tegningen og kan kvittere derfra.
 
@@ -38,9 +38,13 @@ Alarmklokken holder op med at blinke, når alle alarmer er kvitteret. Alle kvitt
 
 En operatør kan **udsætte** en aktiv alarm i en begrænset tid, fx når en føler er under udskiftning, eller en kendt fejl venter på en reservedel. En udsat alarm forsvinder fra *Aktive*, klokken tæller den ikke med, og lampen på tegningen står som normal, mens udsættelsen gælder. Brug det kun, når alarmen er vurderet.
 
+![Alarmer — dialogen Udsæt alarm med begrundelse og varighed](../../public/manual/alarmer-udsaet.png)
+
 1. Tryk **Udsæt** ud for alarmen. Knappen findes for **tag-alarmer og symbolalarmer**, der er aktive. Kommunikationsalarmer og systemalarmer (*SYS*) kan ikke udsættes, og en ophørt alarm kvitteres i stedet.
 2. Skriv en **begrundelse** (3-200 tegn, uden linjeskift) og vælg **varighed**: 15 minutter, 1 time, 4 timer, 8 timer eller 24 timer.
 3. Tryk **Udsæt**.
+
+![Alarmer — fanen Udsatte med tidspunkt, hvem, begrundelse og resttid](../../public/manual/alarmer-udsatte.png)
 
 Fanen **Udsatte** viser hver udsat alarm med tidspunkt, hvem der udsatte den, begrundelsen og **resttiden**. **Genindsæt** (operatør) lægger alarmen tilbage med det samme.
 
