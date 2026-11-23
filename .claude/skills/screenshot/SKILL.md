@@ -15,3 +15,5 @@ cd frontend && node tools/shot.mjs "<rute>" "<scratchpad>/navn.png" [--base=URL]
 - Læg billedet i scratchpad-mappen, og åbn det med Read for at se det. Scriptet rapporterer også sidefejl fra browseren.
 - Meld i afrapporteringen eksplicit, om ændringen er **set** (med rute og bredde) eller kun **bygget**.
 - Manualens skærmbilleder tages stadig med `frontend/tools/manual-screenshots.mjs`.
+
+**Forhåndsvis den lokale build mod demoens data** (før deploy): byg frontend (`npm run build`) og lad en Playwright-side servere filerne fra `frontend/dist` for demoens oprindelse, mens `/api/…`-kald går til demoen (kun GET og login; alt andet afvises). Så ses nye layouts på rigtige data ved flere bredder (500, 1000, 1200, 1600 px) uden at lave en release. Nye endpoints, demoen endnu ikke har, mockes med `route.fulfill`. Læg scriptet i scratchpad, ikke i projektet.
