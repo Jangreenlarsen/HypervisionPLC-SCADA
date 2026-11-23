@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.16.4 build 0443] — 2026-11-23 — ota_deploy.py: audit prøver igen ved login-fejl lige efter genstart
+
+Ingen ændring i produktet. Første audit efter deploy fik 502 fra proxyen, fordi serveren lige var genstartet; `deploy/ota_deploy.py` venter nu 5 s og prøver op til 4 gange, når login fejler.
+
 ## [6.16.4 build 0442] — 2026-11-23 — shot.mjs: ruter normaliseres (#overview/x, ikke #/overview/x)
 
 Ingen ændring i produktet. `frontend/tools/shot.mjs` brugte `#/rute`, men appens ruter er `#rute`; en ukendt rute viste bare standardsiden. Ruten normaliseres nu, og eksemplerne er rettet.
