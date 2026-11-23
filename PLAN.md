@@ -1,6 +1,8 @@
-# Plan: Benchmark-huller — alarmstyring, navigation og fast ramme — 2026-11-23 — i gang
+# Plan: Benchmark-huller — alarmstyring, navigation og fast ramme — 2026-11-23 — udført i v6.17.0 til v6.22.1 (alle seks trin live på scada.laces.dk)
 
 Kilde: `docs/BENCHMARK_2026-11-23.md` (A1, A6, B1, B4, B5, B6). Jan: "lave en plan for de 5 punkter på listen og exe så på det". Seks releases, hver med eget commit, egen version og eget demo-deploy via `/release`.
+
+**Resultat 2026-11-23:** B4 (6.17.0), B1 (6.18.0), B5 (6.19.0), B6 (6.20.0), A6 (6.21.0 + 6.21.1 + 6.22.1) og A1 (6.22.0) er udgivet; reviewer gennemgik B4, B5 og A1 og alle fund er rettet. Under udførelsen fandt den visuelle kontrol tre fejl i egne ændringer (klokkens class i A6, topbarens brudpunkter, brødkrummen), og LLM-målingen fandt tag-guidens tokenloft (6.21.2) — alle registreret i `BUGS.md`. Næste skridt: kør `/scada-benchmark` igen og sammenlign med nulpunktet.
 
 **Mål:** løfte alarmstyring (55 %) og de kritiske HMI-krav A1/A6 uden at ændre noget i den eksisterende betjening, der virker.
 
