@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.22.1 build 0460] — 2026-11-23 — Manualbillede: siden Tegninger med kolonnen Overordnet tegning
+
+`frontend/public/manual/tegninger.png` er taget igen på demoen (v6.22.1 b0459): kolonnen *Overordnet tegning*, PLC-status som prik, ur og brugernavn i topbaren, og brødkrummen er hel. Funktionstest af hierarkiet på demoen med midlertidige tegninger (sæt/ryd forælder, niveau 5, cirkel, selv, ukendt, uændret, sletning nulstiller børn, audit): alt som forventet, og testtegningerne er slettet igen.
+
 ## [6.22.1 build 0459] — 2026-11-23 — Topbar: brødkrummen blev afkortet ved 1000-1240 px (fejl i 6.21.0)
 
 `frontend/src/App.svelte`: PLC-chippen bliver en prik og ' · kildekode' skjules under 1240 px (før 980 og 800 px). Målt mod den lokale build: ingen afkortning af brødkrummen på nogen af de 20 sider ved ti bredder (981-1920 px) og ingen overløb ved elleve bredder (501-1280 px). Registreret i `BUGS.md`.
