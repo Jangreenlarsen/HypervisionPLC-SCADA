@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.16.4 build 0442] — 2026-11-23 — shot.mjs: ruter normaliseres (#overview/x, ikke #/overview/x)
+
+Ingen ændring i produktet. `frontend/tools/shot.mjs` brugte `#/rute`, men appens ruter er `#rute`; en ukendt rute viste bare standardsiden. Ruten normaliseres nu, og eksemplerne er rettet.
+
 ## [6.16.4 build 0441] — 2026-11-23 — Udviklingsflow: /release, pre-commit-hook, shot.mjs og slankere CLAUDE.md
 
 Ingen ændring i produktet; værktøjer og arbejdsgang.
