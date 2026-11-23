@@ -2,6 +2,10 @@
 
 ---
 
+## v6.21.2 — 2026-11-23
+
+- Rettet: **Tag-guiden** (hjælperens forslag til beskrivelse og enhed) kunne fejle med *LLM-svaret var ikke gyldig JSON*, når der blev valgt fire eller flere variabler. Svaret blev afkortet, fordi modellen fik for få tokens; den får nu god plads.
+
 ## v6.21.1 — 2026-11-23
 
 - Rettet: alarmklokken i topbaren så ud som et almindeligt link, når der var ukvitterede alarmer (fejl i 6.21.0). Den har igen sin ramme og farve.

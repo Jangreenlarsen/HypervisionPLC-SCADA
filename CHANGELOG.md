@@ -4,6 +4,10 @@ Nyeste øverst. Format: `## [version build NNNN] — YYYY-MM-DD — beskrivelse`
 
 ---
 
+## [6.21.2 build 0457] — 2026-11-23 — Tag-guiden: tokenloftet afkortede JSON (fundet ved LLM-målingen)
+
+`backend/app/services/assist_setup.py`: nyt `tag_token_budget` (60 + 56 pr. variabel, højst 2400) i stedet for `40 + 32 × antal`; `backend/tests/test_assist_setup.py`: test mod de målte værdier (4 variabler = 181 tokens, 5 = 219). Registreret i `BUGS.md`. Pakken til denne build er ikke bygget separat (A1 var under udvikling i samme arbejdskopi); rettelsen følger med pakken til 6.22.0.
+
 ## [6.21.1 build 0456] — 2026-11-23 — Alarmklokken mistede sin stil ved ukvitterede alarmer (fejl i 6.21.0)
 
 `frontend/src/App.svelte`: `class="bell{…}"` var blevet til uden mellemrum og gav klassen `bellunacked`; mellemrummet er genindsat. Fundet ved den visuelle kontrol på demoen efter udgivelsen af b0455. Registreret i `BUGS.md`.

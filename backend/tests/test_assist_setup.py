@@ -145,3 +145,12 @@ def test_summary_context_adds_the_day_to_the_data():
 
 class _User:
     username, role = "admin", "admin"
+
+
+def test_tag_token_budget_has_room_for_indented_json():
+    from app.services.assist_setup import tag_token_budget
+    # målt 2026-11-23 (llama.cpp b12179, Qwen3.5-4B, JSON med indrykning): 4 variabler = 181 tokens, 5 = 219; loftet var 168 og 200
+    for count, needed in ((4, 181), (5, 219)):
+        assert tag_token_budget(count) >= needed * 1.2
+    assert tag_token_budget(0) >= 100 and tag_token_budget(1) >= 100   # aldrig under en enkelt variabel
+    assert tag_token_budget(10_000) == 2400                            # men med et loft
